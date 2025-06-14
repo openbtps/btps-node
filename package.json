@@ -1,0 +1,46 @@
+{
+  "name": "btps-sdk",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "webpack --config webpack.config.js && tsc --emitDeclarationOnly && tsc-alias",
+    "dev": "nodemon --config nodemon.json",
+    "serverA": "ts-node src/server/test/a/server-a.ts",
+    "serverB": "ts-node src/server/test/b/server-b.ts",
+    "start": "node ./dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "devDependencies": {
+    "@jest/globals": "30.0.0-beta.3",
+    "@types/jest": "^29.5.14",
+    "@types/lodash": "^4",
+    "@types/proper-lockfile": "^4",
+    "@types/split2": "^4",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-import-resolver-typescript": "^4.4.3",
+    "eslint-plugin-import": "^2.29.0",
+    "jest": "^29.7.0",
+    "jest-environment-node": "30.0.0-beta.3",
+    "nodemon": "^3.0.0",
+    "prettier": "^3.0.0",
+    "ts-jest": "^29.3.4",
+    "ts-loader": "^9.0.0",
+    "ts-node": "^10.0.0",
+    "tsc-alias": "^1.8.16",
+    "tsconfig-paths-webpack-plugin": "^4.2.0",
+    "typescript": "^5.0.0",
+    "webpack": "^5.0.0",
+    "webpack-cli": "^5.0.0"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "proper-lockfile": "^4.1.2",
+    "split2": "^4.2.0"
+  }
+}
