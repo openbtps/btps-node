@@ -331,7 +331,6 @@ export class BtpsServer {
     this.rateLimiter?.cleanup();
     this.server.listen(this.port, () => {
       console.log(`[BTP Server] Listening on port ${this.port}`);
-      this.metrics?.onMessageReceived('system'); // optional boot metric
     });
   }
 
