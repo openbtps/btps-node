@@ -1,7 +1,10 @@
 services:
   btp-server:
-    build: .
+    container_name: btp-server-prod
+    build:
+      context: .
+      dockerfile: Dockerfile # Your current multi-stage file
     ports:
-      - '3000:3443'
+      - '3000:3443' # External 3000 maps to internal 3443
     env_file:
       - .env

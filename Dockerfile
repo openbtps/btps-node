@@ -1,21 +1,36 @@
-# Use official Node base image
-FROM node:20.11.1-alpine
+# ---------- Stage 1: Builder ----------
+FROM node:20.11.1-alpine AS builder
 
-# Create app directory
 WORKDIR /var/www
 
-# Copy app files
-COPY package*.json ./
-COPY yarn.lock ./
-COPY .yarnrc.yml ./
+# Copy Yarn v4 binary + config
+COPY .yarn/releases ./.yarn/releases
+COPY .yarnrc.yml package.json yarn.lock ./
+COPY build ./build/
+RUN yarn install
+
+# Build the app
 COPY tsconfig.json ./
-COPY .well-known/ ./.well-known/
-COPY build/ ./build/
 COPY src/ ./src/
-RUN yarn install && yarn build
+COPY .well-known/ ./.well-known/
+RUN yarn build
 
-# Expose the app port
+# ---------- Stage 2: Production ----------
+FROM node:20.11.1-alpine AS production
+
+WORKDIR /var/www
+
+# Copy Yarn binary + config
+COPY .yarn/releases ./.yarn/releases
+COPY .yarnrc.yml package.json yarn.lock ./
+
+# Install only production deps
+RUN yarn workspaces focus --production
+
+# Copy built app and static files
+COPY --from=builder /var/www/dist ./dist
+COPY --from=builder /var/www/.well-known ./.well-known
+
 EXPOSE 3443
-
-# Start the app
 CMD ["node", "./dist/server/index.js"]
+  

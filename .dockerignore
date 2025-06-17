@@ -1,1 +1,9 @@
 client
+node_modules
+.git
+.vscode
+*.log
+.env
+test
+coverage
+dist
