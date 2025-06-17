@@ -1,6 +1,6 @@
 {
   "watch": ["src"],
   "ext": "ts",
-  "exec": "ts-node -r tsconfig-paths/register src/server/index.ts",
+  "exec": "env $(cat .env | xargs) ts-node -r tsconfig-paths/register src/server/index.ts",
   "ignore": ["dist"]
 }

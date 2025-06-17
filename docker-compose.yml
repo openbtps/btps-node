@@ -1,0 +1,7 @@
+services:
+  btp-server:
+    build: .
+    ports:
+      - '3000:3443'
+    env_file:
+      - .env

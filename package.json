@@ -36,6 +36,7 @@
     "build": "yarn clean && yarn build:mjs && yarn build:types",
     "dev": "nodemon --config nodemon.json",
     "start": "node ./dist/server/index.js",
+    "base64": "bash -c 'base64 -i \"$1\" | tr -d \"\\n\"' --",
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch"

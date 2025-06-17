@@ -1,10 +1,8 @@
 import { isTrustActive } from '@core/trust';
 import tls, { TlsOptions, TLSSocket } from 'tls';
-import { readFileSync } from 'fs';
 import { EventEmitter } from 'events';
 import split2 from 'split2';
-import { BTPMessageQueue } from './queue/BTPMessageQueue';
-import { InMemoryQueue } from './queue/InMemoryQueue';
+import { BTPMessageQueue } from '../core/server/queue/BTPMessageQueue';
 import { AbstractTrustStore } from '@core/trust/storage/Class/Abstract/AbstractTrustStore';
 import { BTPTrustRecord } from '@core/trust/types';
 import { randomUUID } from 'crypto';
@@ -46,25 +44,21 @@ export interface IMetricsTracker {
   onError(error: Error): void;
 }
 
-export type BtpTlsOptions = Omit<TlsOptions, 'cert' | 'key'>;
-
 export interface BtpsServerOptions {
-  certPath: string;
-  keyPath: string;
   queue: BTPMessageQueue;
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   port?: number;
   onError?: (err: Error) => void;
   rateLimiter?: RateLimiter;
   metrics?: IMetricsTracker;
-  options?: BtpTlsOptions;
+  options?: TlsOptions;
 }
 /**
  * BTP Secure Server over TLS (btps://)
  * Handles encrypted JSON message delivery between trusted parties.
  */
 export class BtpsServer {
-  private readonly tlsOptions?: BtpTlsOptions;
+  private readonly tlsOptions?: TlsOptions;
   private readonly queue: BTPMessageQueue;
   private readonly onError?: (err: Error) => void;
   private readonly rateLimiter?: RateLimiter;
@@ -89,8 +83,6 @@ export class BtpsServer {
     // TLS server creation with certs
     this.server = tls.createServer(
       {
-        key: readFileSync(options.keyPath, 'utf-8'),
-        cert: readFileSync(options.certPath, 'utf-8'),
         ...(this?.tlsOptions ?? {}),
       },
       this.handleConnection.bind(this),
@@ -368,15 +360,6 @@ export class BtpsServer {
  * BtpsServerFactory creates new BtpsServer instances from configuration.
  */
 export class BtpsServerFactory {
-  static createFromEnv(trustStore: AbstractTrustStore<BTPTrustRecord>): BtpsServer {
-    const port = parseInt(process.env.BTPS_PORT || '3443', 10);
-    const certPath = process.env.BTPS_CERT_PATH || './certs/cert.pem';
-    const keyPath = process.env.BTPS_KEY_PATH || './certs/key.pem';
-    const queue: BTPMessageQueue = new InMemoryQueue(); // replace if needed
-
-    return new BtpsServer({ certPath, keyPath, queue, port, trustStore });
-  }
-
   static create(config: BtpsServerOptions): BtpsServer {
     return new BtpsServer(config);
   }
@@ -412,18 +395,6 @@ export class BtpsServerRegistry {
  */
 export class BtpsServerSingletonFactory {
   private static instance: BtpsServer | null = null;
-
-  static createFromEnv(trustStore: AbstractTrustStore<BTPTrustRecord>): BtpsServer {
-    if (!this.instance) {
-      const port = parseInt(process.env.BTPS_PORT || '3443', 10);
-      const certPath = process.env.BTPS_CERT_PATH || './certs/cert.pem';
-      const keyPath = process.env.BTPS_KEY_PATH || './certs/key.pem';
-      const queue: BTPMessageQueue = new InMemoryQueue(); // replace if needed
-
-      this.instance = new BtpsServer({ port, certPath, keyPath, queue, trustStore });
-    }
-    return this.instance;
-  }
 
   static create(config: BtpsServerOptions): BtpsServer {
     if (!this.instance) {

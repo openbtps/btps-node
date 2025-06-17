@@ -12,10 +12,11 @@
 #!.yarn/cache
 .pnp.*
 dist
-sample-app
 node_modules
 keys
 certs
 .well-known
 btp*.json
 .DS_Store
+client
+.env

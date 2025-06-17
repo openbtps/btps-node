@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 (async () => {
   // 📦 Entry point resolution
   const entryPoints = await fg(['src/**/*.ts'], {
-    ignore: ['**/*.test.ts', '**/*.spec.ts'],
+    ignore: ['**/*.test.ts', '**/*.spec.ts', '**/test/**'],
   });
 
   const spinner = ora(`📦 Building ${entryPoints.length} files with esbuild...`).start();
