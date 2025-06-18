@@ -28,7 +28,7 @@ const BTPsServer = BtpsServerSingletonFactory.create({
   metrics: new SimpleMetricsTracker(),
   options: {
     ...certBundle,
-    rejectUnauthorized: true,
+    requestCert: false,
   },
 });
 
