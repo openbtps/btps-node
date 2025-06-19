@@ -10,9 +10,9 @@ export abstract class AbstractTrustStore<T extends BTPTrustRecord> {
     this.entityName = entityName;
   }
 
-  abstract getBySender(to: string, from: string): Promise<T | undefined>;
-  abstract create(to: string, from: string, record: T): Promise<T>;
-  abstract update(to: string, from: string, patch: Partial<T>): Promise<T>;
-  abstract delete(to: string, from: string): Promise<void>;
-  abstract getAll(to?: string): Promise<T[]>;
+  abstract getBySender(receiverId: string, senderId: string): Promise<T | undefined>;
+  abstract create(receiverId: string, senderId: string, record: T): Promise<T>;
+  abstract update(receiverId: string, senderId: string, patch: Partial<T>): Promise<T>;
+  abstract delete(receiverId: string, senderId: string): Promise<void>;
+  abstract getAll(receiverId?: string): Promise<T[]>;
 }

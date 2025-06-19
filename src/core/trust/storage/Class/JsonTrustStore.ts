@@ -47,8 +47,8 @@ class JsonTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   /**
    * Constructs a unique composite key for the trust relationship.
    */
-  private makeKey(to: string, from: string): string {
-    return `${to}|${from}`;
+  private makeKey(receiverId: string, senderId: string): string {
+    return `${receiverId}|${senderId}`;
   }
 
   /**
@@ -78,7 +78,7 @@ class JsonTrustStore extends AbstractTrustStore<BTPTrustRecord> {
 
     this.recordMap.clear();
     for (const r of records) {
-      const key = this.makeKey(r.to, r.from);
+      const key = this.makeKey(r.receiverId, r.senderId);
       this.recordMap.set(key, r);
     }
   }
@@ -114,22 +114,26 @@ class JsonTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   /**
    * Retrieves a trust record for a specific to/from pair.
    */
-  async getBySender(to: string, from: string): Promise<BTPTrustRecord | undefined> {
+  async getBySender(receiverId: string, senderId: string): Promise<BTPTrustRecord | undefined> {
     if (this.recordMap.size === 0) await this.init();
     await this.reloadIfChanged();
-    return this.recordMap.get(this.makeKey(to, from));
+    return this.recordMap.get(this.makeKey(receiverId, senderId));
   }
 
   /**
    * Creates a new trust record. Fails if one already exists for to/from.
    */
-  async create(to: string, from: string, record: BTPTrustRecord): Promise<BTPTrustRecord> {
-    if (await this.getBySender(to, from)) {
-      throw new Error(`Trust record already exists for ${to} → ${from}`);
+  async create(
+    receiverId: string,
+    senderId: string,
+    record: BTPTrustRecord,
+  ): Promise<BTPTrustRecord> {
+    if (await this.getBySender(receiverId, senderId)) {
+      throw new Error(`Trust record already exists for ${receiverId} → ${senderId}`);
     }
 
-    const key = this.makeKey(to, from);
-    const newRecord = { ...record, toIdentity: to, fromIdentity: from };
+    const key = this.makeKey(receiverId, senderId);
+    const newRecord = { ...record, toIdentity: receiverId, fromIdentity: senderId };
 
     this.recordMap.set(key, newRecord);
     this.dirty = true;
@@ -140,10 +144,14 @@ class JsonTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   /**
    * Updates an existing trust record by merging with the patch.
    */
-  async update(to: string, from: string, patch: Partial<BTPTrustRecord>): Promise<BTPTrustRecord> {
-    const key = this.makeKey(to, from);
-    const record = await this.getBySender(to, from);
-    if (!record) throw new Error(`No trust record found for ${to} → ${from}`);
+  async update(
+    receiverId: string,
+    senderId: string,
+    patch: Partial<BTPTrustRecord>,
+  ): Promise<BTPTrustRecord> {
+    const key = this.makeKey(receiverId, senderId);
+    const record = await this.getBySender(receiverId, senderId);
+    if (!record) throw new Error(`No trust record found for ${receiverId} → ${senderId}`);
 
     const updated = { ...record, ...patch };
     this.recordMap.set(key, updated);
@@ -155,9 +163,9 @@ class JsonTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   /**
    * Deletes a trust record for a given to/from pair.
    */
-  async delete(to: string, from: string): Promise<void> {
+  async delete(receiverId: string, senderId: string): Promise<void> {
     if (this.recordMap.size === 0) await this.init();
-    const key = this.makeKey(to, from);
+    const key = this.makeKey(receiverId, senderId);
     if (this.recordMap.delete(key)) {
       this.dirty = true;
       this.writeDebounced();
@@ -167,11 +175,11 @@ class JsonTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   /**
    * Returns all trust records, optionally filtered by to.
    */
-  async getAll(to?: string): Promise<BTPTrustRecord[]> {
+  async getAll(receiverId?: string): Promise<BTPTrustRecord[]> {
     if (this.recordMap.size === 0) await this.init();
     await this.reloadIfChanged();
     const all = [...this.recordMap.values()];
-    return to ? all.filter((r) => r.to === to) : all;
+    return receiverId ? all.filter((r) => r.receiverId === receiverId) : all;
   }
 
   /**

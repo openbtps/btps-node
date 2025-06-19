@@ -1,5 +1,5 @@
 export type BTPError = {
-  code: string | number;
+  code?: string | number;
   message: string;
 };
 

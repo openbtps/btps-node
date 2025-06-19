@@ -7,24 +7,28 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "require": "./dist/index.js",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
     },
     "./server": {
-      "require": "./dist/server/index.js",
-      "import": "./dist/server/index.js"
+      "import": "./dist/server/btpsServer.js",
+      "require": "./dist/server/btpsServer.js"
     },
-    "./server/constants": {
-      "require": "./dist/server/constants/index.js",
-      "import": "./dist/server/constants/index.js"
+    "./crypto": {
+      "import": "./dist/core/crypto/index.js",
+      "require": "./dist/core/crypto/index.js"
     },
-    "./core/*": {
-      "require": "./dist/core/*.js",
-      "import": "./dist/core/*.js"
+    "./trust": {
+      "import": "./dist/core/trust/index.js",
+      "require": "./dist/core/trust/index.js"
+    },
+    "./error": {
+      "import": "./dist/core/error/index.js",
+      "require": "./dist/core/error/index.js"
     },
     "./types": {
-      "require": "./dist/types/index.js",
-      "import": "./dist/types/index.js"
+      "import": "./dist/types/index.js",
+      "require": "./dist/types/index.js"
     }
   },
   "files": [

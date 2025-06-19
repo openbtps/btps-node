@@ -1,18 +1,15 @@
 import { CurrencyCode } from './currency';
-
-export type BTPDocType = 'BILL' | 'RECEIPT';
-
+export * from './currency';
 export interface BTPAttachment {
   content: string; // base64
   type: 'application/pdf' | 'image/jpeg' | 'image/png';
   filename?: string;
 }
 
-export interface BTPDoc {
+export interface BTPInvoiceDoc {
   title: string;
   id: string; // unique per sender
   issuedAt: string; // ISO format
-  type: BTPDocType;
   status: 'paid' | 'unpaid' | 'partial' | 'refunded' | 'disputed';
   dueAt?: string; // ISO format
   paidAt?: string; // ISO format

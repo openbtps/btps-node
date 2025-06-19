@@ -1,14 +1,9 @@
-import { BTPError, BTPErrorResponse } from './types';
-
-export const buildErrorResponse = (errMessages: BTPError[]): BTPErrorResponse => {
-  return {
-    data: undefined,
-    errors: errMessages,
-  };
-};
+import { BTPError } from './types';
+export * from './constant';
+export * from './types';
 
 export class BTPErrorException extends Error {
-  public readonly code: string | number;
+  public readonly code?: string | number;
   public readonly cause?: unknown;
   public readonly meta?: Record<string, unknown>;
 

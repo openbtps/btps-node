@@ -20,3 +20,4 @@ btp*.json
 .DS_Store
 client
 .env
+*.tgz

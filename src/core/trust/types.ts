@@ -1,3 +1,5 @@
+export * from './storage/types';
+
 export type BTPTrustStatus = 'accepted' | 'rejected' | 'revoked' | 'pending';
 export type BTPTrustDecisionType = Exclude<BTPTrustStatus, 'pending'>;
 export type BTPEncryptionType = 'unencrypted' | 'encrypted' | 'mixed';
@@ -10,8 +12,8 @@ export type KeyHistory = {
 };
 
 export type BTPTrustRecord = {
-  from: string; // unique btp from identity in format 'user$domain.com
-  to: string; // unique btp to identity in format 'user$domain.com
+  senderId: string; // unique btp from identity in format 'user$domain.com
+  receiverId: string; // unique btp to identity in format 'user$domain.com
   status: BTPTrustStatus; // current trust status
   createdAt: string; // trust record creation date and time in ISO Format
   decidedBy: string; // Name | Initial | email of the deciding authoritarian person
@@ -45,4 +47,5 @@ export interface BTPTrustResDoc {
   expiresAt?: string;
   retryAfterDate?: string;
   message?: string;
+  privacyType?: BTPEncryptionType;
 }

@@ -26,7 +26,10 @@ import {
   BTPStatus,
 } from '@core/server/types';
 import { BTPErrorException } from '@core/error';
-import { BTP_PROTOCOL_VERSION } from './constants';
+import { BTP_PROTOCOL_VERSION } from '../core/server/constants';
+
+export * from '@core/server/types';
+export * from './types';
 
 export interface IRateLimiter {
   isAllowed(sender: string, type?: 'ipAddress' | 'fromIdentity'): Promise<boolean>;

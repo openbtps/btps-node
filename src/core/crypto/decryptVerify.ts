@@ -2,7 +2,6 @@ import { BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '@core/error/consta
 import { decryptBtpPayload, verifySignature } from '.';
 import { BTPCryptoArtifact, BTPCryptoResponse, PemKeys } from './types';
 import { parseIdentity, resolvePublicKey } from '@core/utils';
-import { ParsedIdentity } from '@core/utils/types';
 import { BTPErrorException } from '@core/error';
 import { BTPDocType } from '@core/server/types';
 
@@ -12,10 +11,10 @@ const genDecryptError = (error: BTPErrorException) => ({
 });
 
 export const decryptVerify = async <T extends BTPDocType>(
-  from: string,
-  receiver: ParsedIdentity & { pemFiles: PemKeys },
+  pemFiles: PemKeys,
   encryptedPayload: BTPCryptoArtifact<T>,
 ): Promise<BTPCryptoResponse> => {
+  const { from, to } = encryptedPayload;
   const parsedSender = parseIdentity(from);
   if (!parsedSender) return genDecryptError(new BTPErrorException(BTP_ERROR_IDENTITY));
 
@@ -26,7 +25,7 @@ export const decryptVerify = async <T extends BTPDocType>(
   const docToVerify = {
     ...signedArtifact,
     from,
-    to: `${receiver.accountName}$${receiver.domainName}`,
+    to,
   };
 
   const { isValid, error: sigError } = verifySignature(docToVerify, signature, senderPubPem);
@@ -38,7 +37,7 @@ export const decryptVerify = async <T extends BTPDocType>(
   const { encryption, document } = signedArtifact;
   const needsDecryption = !!encryption;
 
-  const { privateKey } = receiver.pemFiles;
+  const { privateKey } = pemFiles;
   const { data: decryptedPayload, error: decryptionErrors } = needsDecryption
     ? decryptBtpPayload(document, encryption, privateKey)
     : { data: document, error: undefined };

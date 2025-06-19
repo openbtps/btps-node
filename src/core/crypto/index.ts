@@ -19,6 +19,11 @@ import {
 
 import { BTPErrorException } from '@core/error';
 
+export * from './decryptVerify';
+export * from './signEncrypt';
+export * from './keygen';
+export * from './types';
+
 export const encryptBtpPayload = (
   payload: unknown = '',
   receiverPubPem: string,

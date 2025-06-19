@@ -6,12 +6,12 @@ import JsonTrustStore from './JsonTrustStore';
 
 const TEST_FILE = path.join(__dirname, 'test-trust-store.json');
 
-const from = 'from$vendor.com';
-const to = 'to$host.com';
+const receiverId = 'from$vendor.com';
+const senderId = 'to$host.com';
 
 const sampleRecord: BTPTrustRecord = {
-  from,
-  to,
+  receiverId,
+  senderId,
   status: 'accepted',
   createdAt: new Date().toISOString(),
   expiresAt: undefined,
@@ -40,58 +40,58 @@ describe('JsonTrustStore (composite key)', () => {
   });
 
   it('should create a new trust record', async () => {
-    await store.create(to, from, sampleRecord);
-    const record = await store.getBySender(to, from);
-    expect(record?.from).toBe(from);
-    expect(record?.to).toBe(to);
+    await store.create(receiverId, senderId, sampleRecord);
+    const record = await store.getBySender(receiverId, senderId);
+    expect(record?.senderId).toBe(senderId);
+    expect(record?.receiverId).toBe(receiverId);
   });
 
   it('should retrieve all records', async () => {
-    await store.create(to, from, sampleRecord);
+    await store.create(receiverId, senderId, sampleRecord);
     const records = await store.getAll();
     expect(records.length).toBe(1);
   });
 
   it('should filter records by to', async () => {
-    await store.create(to, from, sampleRecord);
+    await store.create(receiverId, senderId, sampleRecord);
     await store.create('to2$host.com', 'another$from.com', {
       ...sampleRecord,
-      from: 'another$from.com',
-      to: 'to2$host.com',
+      senderId: 'another$from.com',
+      receiverId: 'to2$host.com',
     });
 
-    const filtered = await store.getAll(to);
+    const filtered = await store.getAll(receiverId);
     expect(filtered.length).toBe(1);
-    expect(filtered[0].to).toBe(to);
+    expect(filtered[0].receiverId).toBe(receiverId);
   });
 
   it('should update an existing record', async () => {
-    await store.create(to, from, sampleRecord);
-    await store.update(to, from, { status: 'revoked' });
-    const updated = await store.getBySender(to, from);
+    await store.create(receiverId, senderId, sampleRecord);
+    await store.update(receiverId, senderId, { status: 'revoked' });
+    const updated = await store.getBySender(receiverId, senderId);
     expect(updated?.status).toBe('revoked');
   });
 
   it('should delete a trust record', async () => {
-    await store.create(to, from, sampleRecord);
-    await store.delete(to, from);
-    const deleted = await store.getBySender(to, from);
+    await store.create(receiverId, senderId, sampleRecord);
+    await store.delete(receiverId, senderId);
+    const deleted = await store.getBySender(receiverId, senderId);
     expect(deleted).toBeUndefined();
   });
 
   it('should flush and reload the trust store', async () => {
-    await store.create(to, from, sampleRecord);
+    await store.create(receiverId, senderId, sampleRecord);
     await store.flushAndReload();
-    const reloaded = await store.getBySender(to, from);
-    expect(reloaded?.from).toBe(from);
+    const reloaded = await store.getBySender(receiverId, senderId);
+    expect(reloaded?.senderId).toBe(senderId);
   });
 
   it('should handle locking and release file with flushed contents', async () => {
-    await store.create(to, from, sampleRecord);
+    await store.create(receiverId, senderId, sampleRecord);
     await store.flushNow();
     const content = await fs.readFile(TEST_FILE, 'utf8');
-    expect(content).toContain(from);
-    expect(content).toContain(to);
+    expect(content).toContain(senderId);
+    expect(content).toContain(receiverId);
     expect(content).toContain('test-key');
   });
 });

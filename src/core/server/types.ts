@@ -1,16 +1,12 @@
 import { BTPSignature, BTPEncryption } from '@core/crypto/types';
 import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types';
-import { BTPDoc } from '../../server/types';
+import { BTPInvoiceDoc } from '../../server/types';
 import { TLSSocket } from 'tls';
+import { BTP_ARTIFACT_TYPES } from './constants';
 
-export type BTPArtifactType =
-  | 'btp_trust_response'
-  | 'btp_doc'
-  | 'btp_trust_request'
-  | 'btp_trust_update'
-  | 'btp_trust_delete';
+export type BTPArtifactType = (typeof BTP_ARTIFACT_TYPES)[number];
 
-export type BTPDocType = BTPDoc | BTPTrustReqDoc | BTPTrustResDoc;
+export type BTPDocType = BTPInvoiceDoc | BTPTrustReqDoc | BTPTrustResDoc;
 
 export interface BTPArtifact {
   version: string;
