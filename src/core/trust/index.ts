@@ -1,8 +1,7 @@
-import { BTPTrustRecord } from './types';
-import JsonTrustStore from './storage/Class/JsonTrustStore';
-export default JsonTrustStore;
-export { AbstractTrustStore } from './storage/Class/Abstract/AbstractTrustStore';
-export * from './types';
+import { BTPTrustRecord } from './types.js';
+export { default as JsonTrustStore } from './storage/JsonTrustStore.js';
+export { AbstractTrustStore } from './storage/AbstractTrustStore.js';
+export * from './types.js';
 
 export const isTrustActive = (trust?: BTPTrustRecord): boolean => {
   if (!trust || trust.status !== 'accepted') return false;

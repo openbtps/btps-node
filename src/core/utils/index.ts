@@ -1,5 +1,7 @@
 import dns from 'dns/promises';
-import { ParsedIdentity } from './types';
+import { ParsedIdentity } from './types.js';
+
+export * from './types.js';
 
 export const parseIdentity = (identity: string): ParsedIdentity | null => {
   const [accountName, domainName] = identity.split('$');

@@ -1,11 +1,17 @@
 import { randomUUID } from 'crypto';
-import { BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '@core/error/constant';
-import { signBtpPayload, encryptBtpPayload } from '.';
-import { BTPCryptoResponse, PemKeys, BTPCryptoOptions, BTPSignature, BTPEncryption } from './types';
-import { parseIdentity, resolvePublicKey } from '@core/utils';
-import { ParsedIdentity } from '@core/utils/types';
-import { BTPErrorException } from '@core/error';
-import { BTPArtifactType, BTPDocType } from '@core/server/types';
+import { BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '@core/error/constant.js';
+import { signBtpPayload, encryptBtpPayload } from './index.js';
+import {
+  BTPCryptoResponse,
+  PemKeys,
+  BTPCryptoOptions,
+  BTPSignature,
+  BTPEncryption,
+} from './types.js';
+import { parseIdentity, resolvePublicKey } from '@core/utils/index.js';
+import { ParsedIdentity } from '@core/utils/types.js';
+import { BTPErrorException } from '@core/error/index.js';
+import { BTPArtifactType, BTPDocType } from '@core/server/types.js';
 
 const genEncryptError = (error: BTPErrorException) => ({
   payload: undefined,

@@ -1,6 +1,6 @@
-import { BTPErrorException } from '@core/error';
-import { BTPArtifact, BTPDocType } from '@core/server/types';
-import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types';
+import { BTPErrorException } from '@core/error/index.js';
+import { BTPArtifact, BTPDocType } from '@core/server/types.js';
+import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
 
 export type EncryptionMode = 'none' | 'standardEncrypt' | '2faEncrypt';
 

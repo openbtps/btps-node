@@ -1,12 +1,11 @@
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
 import { lock } from 'proper-lockfile';
-import debounce from 'lodash/debounce';
-import isEmpty from 'lodash/isEmpty';
+import debounce from 'lodash/debounce.js';
+import isEmpty from 'lodash/isEmpty.js';
 
-import { TrustStoreOptions } from '../types';
-import { AbstractTrustStore } from './Abstract/AbstractTrustStore';
-import { BTPTrustRecord } from '../../types';
+import { AbstractTrustStore } from './AbstractTrustStore.js';
+import { BTPTrustRecord, TrustStoreOptions } from '../types.js';
 
 /**
  * JSON-based TrustStore for self-hosted environments.

@@ -1,5 +1,5 @@
-import { BTPArtifact } from '@core/server/types';
-import { BTPMessageQueue } from './BTPMessageQueue';
+import { BTPArtifact } from '@core/server/types.js';
+import { BTPMessageQueue } from './BTPMessageQueue.js';
 import { EventEmitter } from 'events';
 
 type UserScopedQueue = {

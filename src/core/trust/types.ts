@@ -1,4 +1,7 @@
-export * from './storage/types';
+export interface TrustStoreOptions {
+  connection: unknown; // could be file path, MongoClient, Sequelize, etc.
+  entityName?: string; // e.g. 'trustedSenders', 'trust_rejections'
+}
 
 export type BTPTrustStatus = 'accepted' | 'rejected' | 'revoked' | 'pending';
 export type BTPTrustDecisionType = Exclude<BTPTrustStatus, 'pending'>;

@@ -2,33 +2,24 @@
   "name": "@btps/sdk",
   "version": "1.0.0",
   "packageManager": "yarn@4.9.2",
-  "type": "commonjs",
+  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.js"
+      "import": "./dist/index.js"
     },
     "./server": {
-      "import": "./dist/server/btpsServer.js",
-      "require": "./dist/server/btpsServer.js"
+      "import": "./dist/server/index.js"
     },
     "./crypto": {
-      "import": "./dist/core/crypto/index.js",
-      "require": "./dist/core/crypto/index.js"
+      "import": "./dist/core/crypto/index.js"
     },
     "./trust": {
-      "import": "./dist/core/trust/index.js",
-      "require": "./dist/core/trust/index.js"
+      "import": "./dist/core/trust/index.js"
     },
     "./error": {
-      "import": "./dist/core/error/index.js",
-      "require": "./dist/core/error/index.js"
-    },
-    "./types": {
-      "import": "./dist/types/index.js",
-      "require": "./dist/types/index.js"
+      "import": "./dist/core/error/index.js"
     }
   },
   "files": [
@@ -43,12 +34,10 @@
     "start": "node ./dist/server/index.js",
     "base64": "bash -c 'base64 -i \"$1\" | tr -d \"\\n\"' --",
     "typecheck": "tsc --noEmit",
-    "test": "jest",
+    "test": "jest ",
     "test:watch": "jest --watch"
   },
   "devDependencies": {
-    "@jest/globals": "30.0.0-beta.3",
-    "@types/jest": "^29.5.14",
     "@types/lodash": "^4",
     "@types/proper-lockfile": "^4",
     "@types/split2": "^4",
@@ -63,15 +52,12 @@
     "eslint-import-resolver-typescript": "^4.4.3",
     "eslint-plugin-import": "^2.29.0",
     "fast-glob": "^3.3.3",
-    "jest": "^29.7.0",
-    "jest-environment-node": "30.0.0-beta.3",
     "nodemon": "^3.0.0",
     "ora": "^8.2.0",
     "prettier": "^3.0.0",
     "rimraf": "^6.0.1",
     "ts-jest": "^29.3.4",
     "ts-loader": "^9.0.0",
-    "ts-node": "^10.0.0",
     "tsc-alias": "^1.8.16",
     "typescript": "^5.8.3"
   },

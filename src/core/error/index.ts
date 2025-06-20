@@ -1,6 +1,6 @@
-import { BTPError } from './types';
-export * from './constant';
-export * from './types';
+import { BTPError } from './types.js';
+export * from './constant.js';
+export * from './types.js';
 
 export class BTPErrorException extends Error {
   public readonly code?: string | number;

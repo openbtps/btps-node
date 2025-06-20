@@ -1,5 +1,4 @@
-import { BTPTrustRecord } from '../../../types';
-import { TrustStoreOptions } from '../../types';
+import { TrustStoreOptions, BTPTrustRecord } from '../types.js';
 
 export abstract class AbstractTrustStore<T extends BTPTrustRecord> {
   protected connection: unknown;

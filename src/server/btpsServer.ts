@@ -1,10 +1,9 @@
-import { isTrustActive } from '@core/trust';
+import { isTrustActive } from '@core/trust/index.js';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
 import split2 from 'split2';
-import { BTPMessageQueue } from '../core/server/queue/BTPMessageQueue';
-import { AbstractTrustStore } from '@core/trust/storage/Class/Abstract/AbstractTrustStore';
-import { BTPTrustRecord } from '@core/trust/types';
+
+import { BTPTrustRecord } from '@core/trust/types.js';
 import { randomUUID } from 'crypto';
 import {
   BTP_ERROR_TRUST_NON_EXISTENT,
@@ -14,48 +13,25 @@ import {
   BTP_ERROR_UNKNOWN,
   BTP_ERROR_INVALID_JSON,
   BTP_ERROR_TRUST_ALREADY_ACTIVE,
-} from '@core/error/constant';
-import { verifySignature } from '@core/crypto';
-import { resolvePublicKey } from '@core/utils';
-import { BTPError } from '@core/error/types';
+  BTP_ERROR_TRUST_NOT_ALLOWED,
+} from '@core/error/constant.js';
+import { verifySignature } from '@core/crypto/index.js';
+import { resolvePublicKey } from '@core/utils/index.js';
+import { BTPError } from '@core/error/types.js';
 import {
   BTPArtifact,
   BTPRequestCtx,
   BTPResponseCtx,
   BTPServerResponse,
   BTPStatus,
-} from '@core/server/types';
-import { BTPErrorException } from '@core/error';
-import { BTP_PROTOCOL_VERSION } from '../core/server/constants';
-
-export * from '@core/server/types';
-export * from './types';
-
-export interface IRateLimiter {
-  isAllowed(sender: string, type?: 'ipAddress' | 'fromIdentity'): Promise<boolean>;
-}
-
-export interface IRateLimitOptions {
-  ipAddress?: number;
-  fromIdentity?: number;
-  cleanupIntervalSec?: number;
-}
-
-export interface IMetricsTracker {
-  onMessageReceived(sender: string, recipient?: string): void;
-  onMessageRejected(sender: string, recipient: string, reason: string): void;
-  onError(error: Error): void;
-}
-
-export interface BtpsServerOptions {
-  queue: BTPMessageQueue;
-  trustStore: AbstractTrustStore<BTPTrustRecord>;
-  port?: number;
-  onError?: (err: Error) => void;
-  rateLimiter?: RateLimiter;
-  metrics?: IMetricsTracker;
-  options?: TlsOptions;
-}
+} from '@core/server/types.js';
+import { BTPErrorException } from '@core/error/index.js';
+import { BTP_PROTOCOL_VERSION } from '../core/server/constants/index.js';
+import { RateLimiter } from './libs/abstractRateLimiter.js';
+import { IMetricsTracker } from './libs/type.js';
+import { BtpsServerOptions } from './types/index.js';
+import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
+import { BTPMessageQueue } from '@core/server/helpers/index.js';
 /**
  * BTP Secure Server over TLS (btps://)
  * Handles encrypted JSON message delivery between trusted parties.
@@ -263,6 +239,17 @@ export class BtpsServer {
       return false;
     }
 
+    if (!isTrusted && artifact.type === 'btp_trust_request') {
+      // check if there is any retryDate Set and account for the restriction
+      const retryDate = trustRecord?.retryAfterDate;
+      if (retryDate && new Date(retryDate).getTime() > Date.now()) {
+        const resCtx: BTPResponseCtx = { socket, startTime, reqId: artifact.id };
+        this.metrics?.onMessageRejected(artifact.from, artifact.to, 'Sender not allowed');
+        await this.sendBtpsError(resCtx, BTP_ERROR_TRUST_NOT_ALLOWED);
+        return false;
+      }
+    }
+
     if (!isTrusted && artifact.type !== 'btp_trust_request') {
       const resCtx: BTPResponseCtx = { socket, startTime, reqId: artifact.id };
       this.metrics?.onMessageRejected(artifact.from, artifact.to, 'Sender not trusted');
@@ -356,144 +343,5 @@ export class BtpsServer {
    */
   public onMessage(handler: (msg: BTPArtifact) => void) {
     this.emitter.on('message', handler);
-  }
-}
-
-/**
- * BtpsServerFactory creates new BtpsServer instances from configuration.
- */
-export class BtpsServerFactory {
-  static create(config: BtpsServerOptions): BtpsServer {
-    return new BtpsServer(config);
-  }
-}
-
-/**
- * BtpsServerRegistry keeps track of multiple named BtpsServer instances.
- */
-export class BtpsServerRegistry {
-  private static servers = new Map<string, BtpsServer>();
-
-  static register(id: string, server: BtpsServer) {
-    this.servers.set(id, server);
-  }
-
-  static get(id: string): BtpsServer | undefined {
-    return this.servers.get(id);
-  }
-
-  static stopAll() {
-    for (const server of this.servers.values()) {
-      server.stop();
-    }
-  }
-
-  static clear() {
-    this.servers.clear();
-  }
-}
-
-/**
- * BtpsServerFactory creates singleton BtpsServer instances from configuration.
- */
-export class BtpsServerSingletonFactory {
-  private static instance: BtpsServer | null = null;
-
-  static create(config: BtpsServerOptions): BtpsServer {
-    if (!this.instance) {
-      this.instance = new BtpsServer(config);
-    }
-    return this.instance;
-  }
-
-  static reset() {
-    this.instance = null;
-  }
-}
-
-interface CounterRecord {
-  count: number;
-  windowStart: number;
-}
-
-export abstract class RateLimiter {
-  abstract isAllowed(identity: string, type?: 'ipAddress' | 'fromIdentity'): Promise<boolean>;
-
-  // No-op default. Safe for Redis, essential for in-memory.
-  cleanup(): void {
-    // nothing
-  }
-}
-
-export class SimpleRateLimiter implements RateLimiter {
-  private readonly identityLimitPerSec: number;
-  private readonly ipLimitPerSec: number;
-  private readonly cleanupIntervalMs: number;
-  private readonly ipCounters = new Map<string, CounterRecord>();
-  private readonly identityCounters = new Map<string, CounterRecord>();
-  private cleanupTimer?: NodeJS.Timeout;
-
-  constructor(options: IRateLimitOptions = {}) {
-    this.identityLimitPerSec = options.fromIdentity ?? 10;
-    this.ipLimitPerSec = options.ipAddress ?? 50;
-    this.cleanupIntervalMs = options?.cleanupIntervalSec ?? 60 * 1000;
-
-    this.startCleanupTimer();
-  }
-
-  private startCleanupTimer() {
-    this.cleanupTimer = setInterval(() => this.cleanup(), this.cleanupIntervalMs);
-    this.cleanupTimer.unref(); // Prevents timer from blocking Node exit
-  }
-
-  public stopCleanupTimer() {
-    if (this.cleanupTimer) clearInterval(this.cleanupTimer);
-  }
-
-  public cleanup() {
-    const now = Date.now();
-    const windowStart = now - 1000;
-
-    const filterOld = (map: Map<string, CounterRecord>) => {
-      for (const [key, { windowStart: ts }] of map.entries()) {
-        if (ts < windowStart) map.delete(key);
-      }
-    };
-
-    filterOld(this.ipCounters);
-    filterOld(this.identityCounters);
-  }
-
-  async isAllowed(identity: string, type: 'ipAddress' | 'fromIdentity'): Promise<boolean> {
-    const now = Date.now();
-    const windowStart = now - 1000;
-    const counters = type === 'ipAddress' ? this.ipCounters : this.identityCounters;
-    const limit = type === 'ipAddress' ? this.ipLimitPerSec : this.identityLimitPerSec;
-
-    const current = counters.get(identity);
-
-    if (!current || current.windowStart < windowStart) {
-      counters.set(identity, { count: 1, windowStart: now });
-      return true;
-    }
-
-    if (current.count >= limit) return false;
-
-    current.count++;
-    return true;
-  }
-}
-
-export class SimpleMetricsTracker implements IMetricsTracker {
-  onMessageReceived(sender: string, recipient?: string) {
-    console.log(`[Metrics] Received message from ${sender}${recipient ? ` to ${recipient}` : ''}`);
-  }
-
-  onMessageRejected(sender: string, recipient: string, reason: string) {
-    console.warn(`[Metrics] Rejected message from ${sender} to ${recipient}: ${reason}`);
-  }
-
-  onError(error: Error) {
-    console.error(`[Metrics] Error:`, error);
   }
 }

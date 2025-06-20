@@ -18,14 +18,13 @@ const __dirname = path.dirname(__filename);
   });
 
   const spinner = ora(`📦 Building ${entryPoints.length} files with esbuild...`).start();
-  await new Promise((resolve) => setTimeout(resolve, 100)); // Let spinner show
+  await new Promise((resolve) => setTimeout(resolve, 2000)); // Let spinner show
   console.time('🕒 esbuild completed in');
 
   try {
     await esbuild.build({
       entryPoints,
       outdir: 'dist',
-      format: 'cjs',
       bundle: false,
       platform: 'node',
       sourcemap: false,
@@ -36,6 +35,9 @@ const __dirname = path.dirname(__filename);
           '@core': path.resolve(__dirname, 'src/core'),
         }),
       ],
+      format: 'esm',
+      outExtension: { '.js': '.js' },
+      target: ['node20'], // You can adjust
     });
 
     spinner.succeed('✅ esbuild finished successfully');

@@ -1,8 +1,8 @@
-import { BTPSignature, BTPEncryption } from '@core/crypto/types';
-import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types';
-import { BTPInvoiceDoc } from '../../server/types';
+import { BTPSignature, BTPEncryption } from '@core/crypto/types.js';
+import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
+import { BTPInvoiceDoc } from '../../server/types/index.js';
 import { TLSSocket } from 'tls';
-import { BTP_ARTIFACT_TYPES } from './constants';
+import { BTP_ARTIFACT_TYPES } from './constants/index.js';
 
 export type BTPArtifactType = (typeof BTP_ARTIFACT_TYPES)[number];
 

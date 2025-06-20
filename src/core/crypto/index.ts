@@ -7,7 +7,7 @@ import {
   EncryptionAlgorithmType,
   PemKeys,
   SignatureAlgorithmType,
-} from './types';
+} from './types.js';
 
 import {
   BTP_ERROR_UNSUPPORTED_ENCRYPT,
@@ -15,14 +15,14 @@ import {
   BTP_ERROR_SIG_MISMATCH,
   BTP_ERROR_SIG_VERIFICATION,
   BTP_ERROR_UNKNOWN,
-} from '@core/error/constant';
+} from '@core/error/constant.js';
 
-import { BTPErrorException } from '@core/error';
+import { BTPErrorException } from '@core/error/index.js';
 
-export * from './decryptVerify';
-export * from './signEncrypt';
-export * from './keygen';
-export * from './types';
+export * from './decryptVerify.js';
+export * from './signEncrypt.js';
+export * from './keygen.js';
+export * from './types.js';
 
 export const encryptBtpPayload = (
   payload: unknown = '',

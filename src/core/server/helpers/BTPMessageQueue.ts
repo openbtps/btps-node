@@ -1,4 +1,4 @@
-import { BTPArtifact } from '@core/server/types';
+import { BTPArtifact } from '@core/server/types.js';
 
 export abstract class BTPMessageQueue {
   abstract add(message: BTPArtifact): Promise<void>;

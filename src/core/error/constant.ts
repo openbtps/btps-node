@@ -1,4 +1,4 @@
-import { BTPError } from './types';
+import { BTPError } from './types.js';
 
 export const BTP_ERROR_IDENTITY: BTPError = {
   code: 'BTP_ERROR_IDENTITY',
@@ -8,6 +8,11 @@ export const BTP_ERROR_IDENTITY: BTPError = {
 export const BTP_ERROR_TRUST_NON_EXISTENT: BTPError = {
   code: 'BTP_ERROR_TRUST_NON_EXISTENT',
   message: 'BTP trust record does not exist or has been expired',
+};
+
+export const BTP_ERROR_TRUST_NOT_ALLOWED: BTPError = {
+  code: 'BTP_ERROR_TRUST_NOT_ALLOWED',
+  message: 'BTP trust request is not allowed at this time. Contact receiver',
 };
 
 export const BTP_ERROR_TRUST_ALREADY_ACTIVE: BTPError = {

@@ -1,9 +1,9 @@
-import { BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '@core/error/constant';
-import { decryptBtpPayload, verifySignature } from '.';
-import { BTPCryptoArtifact, BTPCryptoResponse, PemKeys } from './types';
-import { parseIdentity, resolvePublicKey } from '@core/utils';
-import { BTPErrorException } from '@core/error';
-import { BTPDocType } from '@core/server/types';
+import { BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '@core/error/constant.js';
+import { decryptBtpPayload, verifySignature } from './index.js';
+import { BTPCryptoArtifact, BTPCryptoResponse, PemKeys } from './types.js';
+import { parseIdentity, resolvePublicKey } from '@core/utils/index.js';
+import { BTPErrorException } from '@core/error/index.js';
+import { BTPDocType } from '@core/server/types.js';
 
 const genDecryptError = (error: BTPErrorException) => ({
   payload: undefined,

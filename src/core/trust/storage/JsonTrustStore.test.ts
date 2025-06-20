@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
-import { BTPTrustRecord } from '../../types';
+import { BTPTrustRecord } from '../types';
 import JsonTrustStore from './JsonTrustStore';
 
 const TEST_FILE = path.join(__dirname, 'test-trust-store.json');
