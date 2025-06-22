@@ -12,6 +12,7 @@ import { parseIdentity, resolvePublicKey } from '@core/utils/index.js';
 import { ParsedIdentity } from '@core/utils/types.js';
 import { BTPErrorException } from '@core/error/index.js';
 import { BTPArtifactType, BTPDocType } from '@core/server/types.js';
+import isEmpty from 'lodash/isEmpty.js';
 
 const genEncryptError = (error: BTPErrorException) => ({
   payload: undefined,
@@ -42,7 +43,7 @@ export const signEncrypt = async <T extends BTPDocType>(
   const { document, id, issuedAt, type } = payload;
 
   try {
-    const encryptedData = options?.signOnly
+    const encryptedData = isEmpty(options?.encryption)
       ? { encryption: null, data: document }
       : encryptBtpPayload(document, receiverPubPem, options?.encryption);
     encryption = encryptedData.encryption;

@@ -33,7 +33,16 @@ export function base64ToPem(base64: string): string {
   return ['-----BEGIN PUBLIC KEY-----', ...lines, '-----END PUBLIC KEY-----'].join('\n');
 }
 
-export const resolvePublicKey = async (identity: string): Promise<string | undefined> => {
+export const getDnsParts = async (
+  identity: string,
+  type?: 'key' | 'pem' | 'version' | 'btpAddress',
+) => {
+  const typeMap = {
+    key: 'k',
+    version: 'v',
+    pem: 'p',
+    btpAddress: 'u',
+  };
   const selector = 'btp1';
   const nameSpace = '_btp';
   const parsedIdentity = parseIdentity(identity);
@@ -65,8 +74,31 @@ export const resolvePublicKey = async (identity: string): Promise<string | undef
         .filter((pair) => pair.length === 2),
     );
 
-    return base64ToPem(parts['p']);
+    if (!type) {
+      return {
+        key: parts['k'],
+        version: parts['v'],
+        pem: base64ToPem(parts['p']),
+        btpAddress: parts['u'],
+      };
+    }
+
+    return parts[typeMap[type]];
   } catch (error: unknown) {
     throw new Error(`DNS resolution failed for ${domainName}: ${JSON.stringify(error)}`);
   }
+};
+
+export const getBtpAddressParts = (input: string): URL | null => {
+  try {
+    const normalized = input.startsWith('btps://') ? input : `btps://${input}`;
+    const parsed = new URL(normalized);
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+export const resolvePublicKey = async (identity: string): Promise<string | undefined> => {
+  return await getDnsParts(identity, 'pem');
 };

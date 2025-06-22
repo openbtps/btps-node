@@ -1,3 +1,4 @@
+import { BTP_ERROR_UNKNOWN } from './constant.js';
 import { BTPError } from './types.js';
 export * from './constant.js';
 export * from './types.js';
@@ -44,3 +45,18 @@ export class BTPErrorException extends Error {
     };
   }
 }
+
+export const transformToBTPErrorException = (err: unknown): BTPErrorException => {
+  const isErrorInstance = err instanceof Error;
+  const error = isErrorInstance
+    ? new BTPErrorException(
+        { message: err.message },
+        {
+          ...err,
+        },
+      )
+    : err instanceof BTPErrorException
+      ? err
+      : new BTPErrorException(BTP_ERROR_UNKNOWN, { cause: JSON.stringify(err) });
+  return error;
+};

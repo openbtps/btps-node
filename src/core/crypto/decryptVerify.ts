@@ -4,6 +4,7 @@ import { BTPCryptoArtifact, BTPCryptoResponse, PemKeys } from './types.js';
 import { parseIdentity, resolvePublicKey } from '@core/utils/index.js';
 import { BTPErrorException } from '@core/error/index.js';
 import { BTPDocType } from '@core/server/types.js';
+import isEmpty from 'lodash/isEmpty.js';
 
 const genDecryptError = (error: BTPErrorException) => ({
   payload: undefined,
@@ -35,7 +36,7 @@ export const decryptVerify = async <T extends BTPDocType>(
   }
 
   const { encryption, document } = signedArtifact;
-  const needsDecryption = !!encryption;
+  const needsDecryption = !isEmpty(encryption);
 
   const { privateKey } = pemFiles;
   const { data: decryptedPayload, error: decryptionErrors } = needsDecryption

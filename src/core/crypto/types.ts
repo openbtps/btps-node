@@ -27,7 +27,6 @@ export type PemKeys = {
 };
 
 export type BTPCryptoOptions = {
-  signOnly?: boolean;
   signature?: {
     algorithm: SignatureAlgorithmType;
   };

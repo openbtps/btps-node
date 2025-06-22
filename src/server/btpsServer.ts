@@ -194,6 +194,7 @@ export class BtpsServer {
     this.metrics?.onError(error);
     if (!socket.destroyed) {
       socket.destroy(); // Immediate teardown to prevent further resource usage
+      this.emitter.removeAllListeners();
     }
   }
 
@@ -322,6 +323,7 @@ export class BtpsServer {
   public stop() {
     this.rateLimiter?.cleanup();
     this.server.close();
+    this.emitter.removeAllListeners();
   }
 
   /**
