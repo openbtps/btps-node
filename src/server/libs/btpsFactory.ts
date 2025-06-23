@@ -15,6 +15,29 @@ export class BtpsServerRegistry {
     return this.servers.get(id);
   }
 
+  static async start(id: string): Promise<void> {
+    const server = this.servers.get(id);
+    if (server) {
+      await server.start();
+    } else {
+      console.warn(`[BtpsServerRegistry] Server with id '${id}' not found.`);
+    }
+  }
+
+  static stop(id: string): void {
+    const server = this.servers.get(id);
+    if (server) {
+      server.stop();
+    } else {
+      console.warn(`[BtpsServerRegistry] Server with id '${id}' not found.`);
+    }
+  }
+
+  static async startAll() {
+    const startPromises = Array.from(this.servers.values()).map((server) => server.start());
+    await Promise.all(startPromises);
+  }
+
   static stopAll() {
     for (const server of this.servers.values()) {
       server.stop();
