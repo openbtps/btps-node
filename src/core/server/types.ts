@@ -3,8 +3,10 @@ import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
 import { BTPInvoiceDoc } from '../../server/types/index.js';
 import { TLSSocket } from 'tls';
 import { BTP_ARTIFACT_TYPES } from './constants/index.js';
+import { CURRENCY_CODES } from './constants/currency.js';
 
 export type BTPArtifactType = (typeof BTP_ARTIFACT_TYPES)[number];
+export type CurrencyCode = (typeof CURRENCY_CODES)[number];
 
 export type BTPDocType = BTPInvoiceDoc | BTPTrustReqDoc | BTPTrustResDoc;
 

@@ -1,6 +1,7 @@
 import { BTPErrorException } from '@core/error/index.js';
 import { BTPArtifact, BTPDocType } from '@core/server/types.js';
 import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
+import { BTPInvoiceDoc } from 'server/index.js';
 
 export type EncryptionMode = 'none' | 'standardEncrypt' | '2faEncrypt';
 
@@ -43,13 +44,7 @@ export interface BTPCryptoArtifact<T = BTPDocType>
 
 export interface BTPCryptoResponse<T = BTPDocType> {
   payload?: BTPCryptoArtifact<T>;
-  error: BTPErrorException | undefined;
+  error?: BTPErrorException;
 }
 
-export type AllowedEncryptPayloads = BTPTrustReqDoc | BTPTrustResDoc;
-
-export type AllowedDecryptPayloads<T = AllowedEncryptPayloads> = {
-  document: T;
-  encryption: BTPEncryption | null;
-  signature: BTPSignature;
-};
+export type AllowedEncryptPayloads = BTPTrustReqDoc | BTPTrustResDoc | BTPInvoiceDoc;

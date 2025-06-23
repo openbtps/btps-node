@@ -32,7 +32,12 @@ export const BTP_ERROR_RATE_LIMITER: BTPError = {
 
 export const BTP_ERROR_INVALID_JSON = {
   code: 'BTP_ERROR_INVALID_JSON',
-  message: 'Invalid JSON payload',
+  message: 'Invalid JSON format',
+};
+
+export const BTP_ERROR_VALIDATION = {
+  code: 'BTP_ERROR_VALIDATION',
+  message: 'BTP artifact validation failed',
 };
 
 export const BTP_ERROR_SIG_MISMATCH: BTPError = {

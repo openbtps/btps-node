@@ -69,6 +69,7 @@
   "dependencies": {
     "lodash": "^4.17.21",
     "proper-lockfile": "^4.1.2",
-    "split2": "^4.2.0"
+    "split2": "^4.2.0",
+    "zod": "^3.25.67"
   }
 }

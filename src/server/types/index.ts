@@ -1,11 +1,11 @@
 import { RateLimiter } from 'server/libs/abstractRateLimiter.js';
 import { IMetricsTracker } from 'server/libs/type.js';
 import { TlsOptions } from 'tls';
-import { CurrencyCode } from './currency.js';
+
 import { BTPTrustRecord } from '@core/trust/index.js';
 import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { BTPMessageQueue } from '@core/server/helpers/index.js';
-export * from './currency.js';
+import { CurrencyCode } from '@core/server/types.js';
 
 export interface BtpsServerOptions {
   queue: BTPMessageQueue;

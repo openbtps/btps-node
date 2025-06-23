@@ -47,16 +47,13 @@ export class BTPErrorException extends Error {
 }
 
 export const transformToBTPErrorException = (err: unknown): BTPErrorException => {
-  const isErrorInstance = err instanceof Error;
-  const error = isErrorInstance
-    ? new BTPErrorException(
-        { message: err.message },
-        {
-          ...err,
-        },
-      )
-    : err instanceof BTPErrorException
-      ? err
-      : new BTPErrorException(BTP_ERROR_UNKNOWN, { cause: JSON.stringify(err) });
-  return error;
+  if (err instanceof BTPErrorException) {
+    return err;
+  }
+
+  if (err instanceof Error) {
+    return new BTPErrorException({ message: err.message }, { ...err });
+  }
+
+  return new BTPErrorException(BTP_ERROR_UNKNOWN, { cause: JSON.stringify(err) });
 };

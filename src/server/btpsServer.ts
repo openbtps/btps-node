@@ -14,6 +14,7 @@ import {
   BTP_ERROR_INVALID_JSON,
   BTP_ERROR_TRUST_ALREADY_ACTIVE,
   BTP_ERROR_TRUST_NOT_ALLOWED,
+  BTP_ERROR_VALIDATION,
 } from '@core/error/constant.js';
 import { verifySignature } from '@core/crypto/index.js';
 import { resolvePublicKey } from '@core/utils/index.js';
@@ -32,6 +33,8 @@ import { IMetricsTracker } from './libs/type.js';
 import { BtpsServerOptions } from './types/index.js';
 import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { BTPMessageQueue } from '@core/server/helpers/index.js';
+import { validate } from '@core/utils/validation.js';
+import { BtpArtifactSchema } from '@core/server/schema.js';
 /**
  * BTP Secure Server over TLS (btps://)
  * Handles encrypted JSON message delivery between trusted parties.
@@ -97,11 +100,12 @@ export class BtpsServer {
           return this.sendBtpsError({ socket, startTime }, BTP_ERROR_RATE_LIMITER);
         }
 
-        // Parse BTP request
-        const artifact = this._parseArtifact(line);
+        // Parse and validate BTP request
+        const { artifact, error } = this._parseAndValidateArtifact(line);
 
-        if (!artifact) {
-          return this.sendBtpsError({ socket, startTime }, BTP_ERROR_INVALID_JSON);
+        if (error || !artifact) {
+          const btpError = error === 'VALIDATION' ? BTP_ERROR_VALIDATION : BTP_ERROR_INVALID_JSON;
+          return this.sendBtpsError({ socket, startTime }, btpError);
         }
 
         const reqCtx: BTPRequestCtx = { socket, startTime, artifact };
@@ -128,11 +132,22 @@ export class BtpsServer {
     });
   }
 
-  private _parseArtifact(line: string): BTPArtifact | undefined {
+  private _parseAndValidateArtifact(line: string): {
+    artifact?: BTPArtifact;
+    error?: 'JSON' | 'VALIDATION';
+  } {
     try {
-      return JSON.parse(line);
+      const data = JSON.parse(line);
+      const validationResult = validate(BtpArtifactSchema, data);
+
+      if (!validationResult.success) {
+        // Log validationResult.error for debugging if needed
+        return { error: 'VALIDATION' };
+      }
+
+      return { artifact: validationResult.data as BTPArtifact };
     } catch {
-      return undefined;
+      return { error: 'JSON' };
     }
   }
 
