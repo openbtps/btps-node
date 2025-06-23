@@ -163,11 +163,11 @@ export class BtpsServer {
       return this.sendBtpsError(resCtx, BTP_ERROR_RATE_LIMITER);
     }
 
+    // Signature verification (moved before trust verification)
+    if (!(await this.verifySignatureOrReject(reqCtx))) return;
+
     // Trust verification
     if (!(await this.verifyTrustOrReject(reqCtx))) return;
-
-    // Signature verification
-    if (!(await this.verifySignatureOrReject(reqCtx))) return;
 
     await this.queue.add(artifact);
     this.emitter.emit('message', artifact);
@@ -209,7 +209,6 @@ export class BtpsServer {
     this.metrics?.onError(error);
     if (!socket.destroyed) {
       socket.destroy(); // Immediate teardown to prevent further resource usage
-      this.emitter.removeAllListeners();
     }
   }
 
