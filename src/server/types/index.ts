@@ -55,3 +55,7 @@ export interface BTPInvoiceDoc {
     data: Record<string, unknown>;
   };
 }
+
+export type Next = () => Promise<void> | void;
+
+export type Middleware<T, U> = (req: T, res: U, next: Next) => Promise<void>;

@@ -30,7 +30,7 @@ import { BTPErrorException } from '@core/error/index.js';
 import { BTP_PROTOCOL_VERSION } from '../core/server/constants/index.js';
 import { RateLimiter } from './libs/abstractRateLimiter.js';
 import { IMetricsTracker } from './libs/type.js';
-import { BtpsServerOptions } from './types/index.js';
+import { BtpsServerOptions, Middleware, Next } from './types/index.js';
 import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { BTPMessageQueue } from '@core/server/helpers/index.js';
 import { validate } from '@core/utils/validation.js';
@@ -100,7 +100,6 @@ export class BtpsServer {
           return this.sendBtpsError({ socket, startTime }, BTP_ERROR_RATE_LIMITER);
         }
 
-        // Parse and validate BTP request
         const { artifact, error } = this._parseAndValidateArtifact(line);
 
         if (error || !artifact) {
@@ -111,7 +110,14 @@ export class BtpsServer {
         const reqCtx: BTPRequestCtx = { socket, startTime, artifact };
         const resCtx: BTPResponseCtx = { socket, startTime, reqId: artifact.id };
 
-        await this._verifyAndHandle(reqCtx, resCtx);
+        const middleware: Middleware<BTPRequestCtx, BTPResponseCtx>[] = [
+          this._rateLimitHandler.bind(this),
+          this._signatureHandler.bind(this),
+          this._trustHandler.bind(this),
+          this._processHandler.bind(this),
+        ];
+
+        await this._executeMiddleware(reqCtx, resCtx, middleware);
       } catch (err) {
         const error =
           err instanceof BTPErrorException ? err : new BTPErrorException(BTP_ERROR_UNKNOWN);
@@ -151,23 +157,88 @@ export class BtpsServer {
     }
   }
 
-  /**
-   * Verifies trust, signature, and enqueues or forwards the message.
-   */
-  private async _verifyAndHandle(reqCtx: BTPRequestCtx, resCtx: BTPResponseCtx): Promise<void> {
-    const { socket, artifact } = reqCtx;
+  private async _executeMiddleware(
+    req: BTPRequestCtx,
+    res: BTPResponseCtx,
+    middleware: Middleware<BTPRequestCtx, BTPResponseCtx>[],
+    index = 0,
+  ) {
+    if (index >= middleware.length) {
+      return;
+    }
+    const next: Next = () => this._executeMiddleware(req, res, middleware, index + 1);
+    await middleware[index](req, res, next);
+  }
 
-    // Rate limit by sender identity
+  private async _rateLimitHandler(
+    req: BTPRequestCtx,
+    res: BTPResponseCtx,
+    next: Next,
+  ): Promise<void> {
+    const { artifact } = req;
     if (this.rateLimiter && !(await this.rateLimiter.isAllowed(artifact.from, 'fromIdentity'))) {
       this.metrics?.onMessageRejected(artifact.from, artifact.to, 'Rate limit exceeded');
-      return this.sendBtpsError(resCtx, BTP_ERROR_RATE_LIMITER);
+      return this.sendBtpsError(res, BTP_ERROR_RATE_LIMITER);
+    }
+    await next();
+  }
+
+  private async _signatureHandler(
+    req: BTPRequestCtx,
+    res: BTPResponseCtx,
+    next: Next,
+  ): Promise<void> {
+    const { artifact } = req;
+    const { version: _version, signature, ...signedMsg } = artifact;
+    const publicKey = await resolvePublicKey(artifact.from);
+
+    if (!publicKey) {
+      this.metrics?.onMessageRejected(artifact.from, artifact.to, 'Public key not resolved');
+      return this.sendBtpsError(res, BTP_ERROR_RESOLVE_PUBKEY);
     }
 
-    // Signature verification (moved before trust verification)
-    if (!(await this.verifySignatureOrReject(reqCtx))) return;
+    const { isValid, error } = verifySignature(signedMsg, signature, publicKey);
+    if (!isValid) {
+      this.metrics?.onMessageRejected(artifact.from, artifact.to, 'Signature verification failed');
+      if (error) this.metrics?.onError(error);
+      return this.sendBtpsError(res, BTP_ERROR_SIG_VERIFICATION);
+    }
 
-    // Trust verification
-    if (!(await this.verifyTrustOrReject(reqCtx))) return;
+    await next();
+  }
+
+  private async _trustHandler(req: BTPRequestCtx, res: BTPResponseCtx, next: Next): Promise<void> {
+    const { artifact } = req;
+    const trustRecord = await this.trustStore.getBySender(artifact.to, artifact.from);
+    const isTrusted = isTrustActive(trustRecord);
+
+    if (isTrusted && artifact.type === 'btp_trust_request') {
+      this.metrics?.onMessageRejected(artifact.from, artifact.to, 'Sender already trusted');
+      return this.sendBtpsError(res, BTP_ERROR_TRUST_ALREADY_ACTIVE);
+    }
+
+    if (!isTrusted && artifact.type === 'btp_trust_request') {
+      const retryDate = trustRecord?.retryAfterDate;
+      if (retryDate && new Date(retryDate).getTime() > Date.now()) {
+        this.metrics?.onMessageRejected(artifact.from, artifact.to, 'Sender not allowed');
+        return this.sendBtpsError(res, BTP_ERROR_TRUST_NOT_ALLOWED);
+      }
+    }
+
+    if (!isTrusted && artifact.type !== 'btp_trust_request') {
+      this.metrics?.onMessageRejected(
+        artifact.from,
+        artifact.to,
+        'Trust not active or non-existent',
+      );
+      return this.sendBtpsError(res, BTP_ERROR_TRUST_NON_EXISTENT);
+    }
+
+    await next();
+  }
+
+  private async _processHandler(req: BTPRequestCtx, res: BTPResponseCtx): Promise<void> {
+    const { socket, artifact } = req;
 
     await this.queue.add(artifact);
     this.emitter.emit('message', artifact);
@@ -179,23 +250,6 @@ export class BtpsServer {
       ...this.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }),
       type: 'btp_response',
     });
-  }
-
-  /**
-   * Optionally forwards message to a handler function or HTTP webhook.
-   */
-  private async _forwardArtifact(artifact: BTPArtifact): Promise<void> {
-    if (this.handlerFn) {
-      await this.handlerFn(artifact);
-    }
-
-    if (this.webhookUrl) {
-      fetch(this.webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(artifact),
-      }).catch(console.error);
-    }
   }
 
   /**
@@ -213,65 +267,20 @@ export class BtpsServer {
   }
 
   /**
-   * Verifies the message signature and rejects if invalid
+   * Optionally forwards message to a handler function or HTTP webhook.
    */
-  private async verifySignatureOrReject(ctx: BTPRequestCtx): Promise<boolean> {
-    const { artifact, socket, startTime } = ctx;
-    const { version: _version, signature, ...signedMsg } = artifact;
-
-    const publicKey = await resolvePublicKey(artifact.from);
-    const resCtx: BTPResponseCtx = { socket, startTime, reqId: artifact.id };
-    if (!publicKey) {
-      this.metrics?.onMessageRejected(artifact.from, artifact.to, 'Public key not resolved');
-      await this.sendBtpsError(resCtx, BTP_ERROR_RESOLVE_PUBKEY);
-      return false;
+  private async _forwardArtifact(artifact: BTPArtifact): Promise<void> {
+    if (this.handlerFn) {
+      await this.handlerFn(artifact);
     }
 
-    const { isValid, error } = verifySignature(signedMsg, signature, publicKey);
-    if (!isValid) {
-      this.metrics?.onMessageRejected(artifact.from, artifact.to, 'Signature verification failed');
-      if (error) this.metrics?.onError(error);
-      await this.sendBtpsError(resCtx, BTP_ERROR_SIG_VERIFICATION);
-      return false;
+    if (this.webhookUrl) {
+      fetch(this.webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(artifact),
+      }).catch(console.error);
     }
-    return true;
-  }
-
-  /**
-   * Verifies sender trust record, and rejects if not trusted
-   */
-  private async verifyTrustOrReject(ctx: BTPRequestCtx): Promise<boolean> {
-    const { artifact, socket, startTime } = ctx;
-
-    const trustRecord = await this.trustStore.getBySender(artifact.to, artifact.from);
-
-    const isTrusted = isTrustActive(trustRecord);
-
-    if (isTrusted && artifact.type === 'btp_trust_request') {
-      const resCtx: BTPResponseCtx = { socket, startTime, reqId: artifact.id };
-      this.metrics?.onMessageRejected(artifact.from, artifact.to, 'Sender already trusted');
-      await this.sendBtpsError(resCtx, BTP_ERROR_TRUST_ALREADY_ACTIVE);
-      return false;
-    }
-
-    if (!isTrusted && artifact.type === 'btp_trust_request') {
-      // check if there is any retryDate Set and account for the restriction
-      const retryDate = trustRecord?.retryAfterDate;
-      if (retryDate && new Date(retryDate).getTime() > Date.now()) {
-        const resCtx: BTPResponseCtx = { socket, startTime, reqId: artifact.id };
-        this.metrics?.onMessageRejected(artifact.from, artifact.to, 'Sender not allowed');
-        await this.sendBtpsError(resCtx, BTP_ERROR_TRUST_NOT_ALLOWED);
-        return false;
-      }
-    }
-
-    if (!isTrusted && artifact.type !== 'btp_trust_request') {
-      const resCtx: BTPResponseCtx = { socket, startTime, reqId: artifact.id };
-      this.metrics?.onMessageRejected(artifact.from, artifact.to, 'Sender not trusted');
-      await this.sendBtpsError(resCtx, BTP_ERROR_TRUST_NON_EXISTENT);
-      return false;
-    }
-    return true;
   }
 
   /**
