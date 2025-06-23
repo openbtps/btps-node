@@ -7,7 +7,8 @@ import {
   Phase,
   Step,
 } from '../types/index.js';
-import { createDefaultMiddleware } from './defaultMiddleware.js';
+import isEmpty from 'lodash/isEmpty.js';
+import { BTPErrorException } from '@core/error/index.js';
 
 export class MiddlewareManager {
   private middleware: MiddlewareDefinition[] = [];
@@ -16,24 +17,21 @@ export class MiddlewareManager {
     onServerStop?: () => Promise<void> | void;
   } = {};
 
-  constructor(private middlewarePath?: string) {}
+  constructor(private middlewarePath?: string) {
+    if (isEmpty(middlewarePath)) {
+      this.middlewarePath = `${process.cwd()}/btps.middleware.mjs`;
+    }
+  }
 
   /**
    * Loads and validates middleware from the specified path
    */
   async loadMiddleware(dependencies: MiddlewareContext['dependencies']): Promise<void> {
-    if (!this.middlewarePath) {
-      console.log('[MiddlewareManager] No middleware path specified, using default middleware');
-      this.middleware = this.validateAndSortMiddleware(createDefaultMiddleware());
-      return;
-    }
+    if (!this.middlewarePath) return;
 
     const resolvedPath = resolve(this.middlewarePath);
 
-    if (!existsSync(resolvedPath)) {
-      console.warn(`[MiddlewareManager] Middleware file not found: ${resolvedPath}`);
-      return;
-    }
+    if (!existsSync(resolvedPath)) return;
 
     try {
       // Dynamic import of the middleware file
@@ -41,7 +39,7 @@ export class MiddlewareManager {
       const createMiddleware = middlewareModule.default;
 
       if (typeof createMiddleware !== 'function') {
-        throw new Error('Middleware file must export a default function');
+        throw new BTPErrorException({ message: 'Middleware file must export a default function' });
       }
 
       const result = createMiddleware(dependencies);
@@ -57,13 +55,17 @@ export class MiddlewareManager {
         // Legacy format - just array of middleware
         this.middleware = this.validateAndSortMiddleware(result);
       } else {
-        throw new Error('Middleware function must return an array or MiddlewareModule');
+        throw new BTPErrorException({
+          message: 'Middleware function must return an array or MiddlewareModule',
+        });
       }
 
       console.log(`[MiddlewareManager] Loaded ${this.middleware.length} middleware`);
     } catch (error) {
       console.error('[MiddlewareManager] Failed to load middleware:', error);
-      throw new Error(`Failed to load middleware from ${resolvedPath}: ${error}`);
+      throw new BTPErrorException({
+        message: `Failed to load middleware from ${resolvedPath}: ${error}`,
+      });
     }
   }
 
@@ -72,7 +74,7 @@ export class MiddlewareManager {
    */
   private validateAndSortMiddleware(middleware: MiddlewareDefinition[]): MiddlewareDefinition[] {
     if (!Array.isArray(middleware)) {
-      throw new Error('Middleware must be an array');
+      throw new BTPErrorException({ message: 'Middleware must be an array' });
     }
 
     const validMiddleware: MiddlewareDefinition[] = [];
@@ -106,13 +108,15 @@ export class MiddlewareManager {
     index: number,
   ): asserts mw is MiddlewareDefinition {
     if (!mw || typeof mw !== 'object') {
-      throw new Error('Middleware must be an object');
+      throw new BTPErrorException({ message: 'Middleware must be an object' });
     }
 
     const middleware = mw as MiddlewareDefinition;
 
     if (!middleware.phase || !['before', 'after'].includes(middleware.phase)) {
-      throw new Error('Middleware must have a valid phase (before or after)');
+      throw new BTPErrorException({
+        message: 'Middleware must have a valid phase (before or after)',
+      });
     }
 
     if (
@@ -121,11 +125,11 @@ export class MiddlewareManager {
         middleware.step,
       )
     ) {
-      throw new Error('Middleware must have a valid step');
+      throw new BTPErrorException({ message: 'Middleware must have a valid step' });
     }
 
     if (typeof middleware.handler !== 'function') {
-      throw new Error('Middleware must have a handler function');
+      throw new BTPErrorException({ message: 'Middleware must have a handler function' });
     }
 
     if (
@@ -134,7 +138,9 @@ export class MiddlewareManager {
         !Number.isInteger(middleware.priority) ||
         middleware.priority < 0)
     ) {
-      throw new Error('Middleware priority must be a non-negative integer');
+      throw new BTPErrorException({
+        message: 'Middleware priority must be a non-negative integer',
+      });
     }
   }
 

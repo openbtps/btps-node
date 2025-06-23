@@ -4,91 +4,31 @@
  * This file demonstrates how to configure custom middleware for the BtpsServer.
  * The middleware can be used for rate limiting, metrics, logging, custom validation, etc.
  */
-
-// Simple in-memory rate limiter for demonstration
-const rateLimitStore = new Map();
-
-function isRateLimited(identifier, maxRequests = 100, windowMs = 60000) {
-  const now = Date.now();
-  const key = `${identifier}:${Math.floor(now / windowMs)}`;
-
-  const current = rateLimitStore.get(key) || 0;
-  if (current >= maxRequests) {
-    return true;
-  }
-
-  rateLimitStore.set(key, current + 1);
-  return false;
-}
-
-// Clean up old entries periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [key] of rateLimitStore) {
-    const timestamp = parseInt(key.split(':')[1]) * 60000;
-    if (now - timestamp > 60000) {
-      rateLimitStore.delete(key);
-    }
-  }
-}, 30000);
+import { createDefaultMiddleware } from './src/server/libs/defaultMiddleware.js';
 
 export default function createMiddleware(dependencies) {
   const { trustStore: _trustStore } = dependencies;
-
+  console.log('sample middleware: ', createDefaultMiddleware()); // inspect default middleware
   return [
-    // IP-based rate limiting (before parsing)
-    {
-      phase: 'before',
-      step: 'parsing',
-      priority: 1,
-      config: {
-        name: 'ip-rate-limiter',
-        enabled: process.env.NODE_ENV !== 'test',
-        options: {
-          maxRequests: 100,
-          windowMs: 60000,
-        },
-      },
-      handler: async (req, res, next, context) => {
-        const { maxRequests, windowMs } = context.config;
-
-        if (isRateLimited(req.remoteAddress, maxRequests, windowMs)) {
-          console.log(`[RATE-LIMIT] IP ${req.remoteAddress} exceeded limit`);
-          return res.sendError({
-            code: 429,
-            message: 'Too many requests',
-          });
-        }
-
-        await next();
-      },
-    },
-
-    // Request logging (before signature verification)
-    {
-      phase: 'before',
-      step: 'signatureVerification',
-      priority: 1,
-      config: {
-        name: 'request-logger',
-        enabled: true,
-        options: {
-          logLevel: 'info',
-        },
-      },
-      handler: async (req, res, next, context) => {
-        console.log(
-          `[${context.currentTime}] [REQUEST] ${req.artifact?.type} from ${req.from} to ${req.artifact?.to}`,
-        );
-        await next();
-      },
-    },
+    /* Sample default middleware used as a starting point for your own middleware.
+     * Default middleware can able to handle for small to medium size BTP server.
+     * For large scale BTP server or Sass enterprises, you should implement your own middleware which does not store any state in memory but use external services like Redis, etc.
+     *
+     * Default middleware:
+     * 1. IP-based rate limiting (before parsing)
+     * 2. Request logging (before signature verification)
+     * 3. Trust verification logging (after trust verification)
+     * 4. Custom invoice validation (before message processing)
+     * 5. Message processing metrics (before message processing)
+     * 6. Error handling middleware
+     */
+    ...createDefaultMiddleware(),
 
     // Signature failure tracking (after signature verification)
     {
       phase: 'after',
       step: 'signatureVerification',
-      priority: 1,
+      priority: 2,
       config: {
         name: 'signature-tracker',
         enabled: true,

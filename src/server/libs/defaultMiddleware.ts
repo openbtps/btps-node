@@ -9,7 +9,11 @@ import { MiddlewareDefinition } from '../types/index.js';
 import { BtpsSimpleRateLimiter } from './btpsSimpleRateLimiter.js';
 import { BtpsSimpleMetricsTracker } from './btpsSimpleMetricsTracker.js';
 
-const rateLimiter = new BtpsSimpleRateLimiter();
+const rateLimiter = new BtpsSimpleRateLimiter({
+  cleanupIntervalSec: 30,
+  fromIdentity: 30,
+  ipAddress: 50,
+});
 const metrics = new BtpsSimpleMetricsTracker();
 
 export function createDefaultMiddleware(): MiddlewareDefinition[] {

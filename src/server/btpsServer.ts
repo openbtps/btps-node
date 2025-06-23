@@ -71,7 +71,7 @@ export class BtpsServer {
   /**
    * Initializes the server and loads middleware
    */
-  async initialize(): Promise<void> {
+  private async initialize(): Promise<void> {
     const dependencies = {
       trustStore: this.trustStore,
     };
