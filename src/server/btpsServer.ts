@@ -1,33 +1,33 @@
-import { isTrustActive } from '@core/trust/index.js';
+import {
+  isTrustActive,
+  validateTrustRequest,
+  BTPTrustRecord,
+  computeTrustId,
+  validateTrustResponse,
+} from '@core/trust/index.js';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
 import split2 from 'split2';
 
-import { BTPTrustRecord } from '@core/trust/types.js';
 import { randomUUID } from 'crypto';
 import {
   BTP_ERROR_SIG_VERIFICATION,
-  BTP_ERROR_UNKNOWN,
   BTP_ERROR_INVALID_JSON,
-  BTP_ERROR_TRUST_NON_EXISTENT,
   BTP_ERROR_VALIDATION,
+  BTP_ERROR_RESOLVE_PUBKEY,
+  BTP_ERROR_TRUST_ALREADY_ACTIVE,
+  BTP_ERROR_TRUST_NOT_ALLOWED,
 } from '@core/error/constant.js';
 import { verifySignature } from '@core/crypto/index.js';
 import { resolvePublicKey } from '@core/utils/index.js';
 import { BTPError } from '@core/error/types.js';
-import {
-  BTPArtifact,
-  BTPRequestCtx,
-  BTPResponseCtx,
-  BTPServerResponse,
-  BTPStatus,
-} from '@core/server/types.js';
-import { BTPErrorException } from '@core/error/index.js';
+import { BTPArtifact, BTPServerResponse, BTPStatus } from '@core/server/types.js';
+import { BTPErrorException, transformToBTPErrorException } from '@core/error/index.js';
 import { BTP_PROTOCOL_VERSION } from '../core/server/constants/index.js';
 import {
   BtpsServerOptions,
-  MiddlewareRequest,
-  MiddlewareResponse,
+  BTPRequestCtx,
+  BTPResponseCtx,
   MiddlewareContext,
   MiddlewareDefinition,
 } from './types/index.js';
@@ -42,7 +42,7 @@ import { MiddlewareManager } from './libs/middlewareManager.js';
  */
 export class BtpsServer {
   private readonly tlsOptions?: TlsOptions;
-  private readonly onError?: (err: Error) => void;
+  private readonly onError?: (err: BTPErrorException) => void;
   private readonly trustStore: AbstractTrustStore<BTPTrustRecord>;
   private readonly middlewareManager: MiddlewareManager;
 
@@ -100,47 +100,77 @@ export class BtpsServer {
     stream.on('data', async (line: string) => {
       if (!line.trim()) return;
       const ipAddress = socket.remoteAddress ?? 'unknown';
-      try {
-        const now = Date.now();
-        const startTime = new Date(now).toISOString();
+      const now = Date.now();
+      const startTime = new Date(now).toISOString();
+      const parseReq: BTPRequestCtx = {
+        socket,
+        remoteAddress: ipAddress,
+        startTime,
+        rawPacket: line,
+      };
+      const parseRes: BTPResponseCtx = {
+        socket,
+        startTime,
+        remoteAddress: ipAddress,
+        sendError: (error) => this.sendBtpsError(socket, error),
+        sendResponse: (response) => this.sendBtpsResponse(socket, response),
+      };
 
+      try {
         // Execute before parsing middleware
         const beforeParseMiddleware = this.middlewareManager.getMiddleware('before', 'parsing');
-        const parseReq: MiddlewareRequest = {
-          socket,
-          remoteAddress: ipAddress,
-          startTime,
-        };
-        const parseRes: MiddlewareResponse = {
-          socket,
-          startTime,
-          sendError: (error) => this.sendBtpsError({ socket, startTime }, error),
-          sendResponse: (response) => this.sendBtpsResponse(socket, response),
-        };
-
         await this.executeMiddleware(beforeParseMiddleware, parseReq, parseRes);
 
         const { artifact, error } = this._parseAndValidateArtifact(line);
+        const parseError = error
+          ? error === 'VALIDATION'
+            ? BTP_ERROR_VALIDATION
+            : BTP_ERROR_INVALID_JSON
+          : undefined;
+        const parseErrException: BTPErrorException | undefined = parseError
+          ? new BTPErrorException(parseError)
+          : undefined;
 
-        if (error || !artifact) {
-          const btpError = error === 'VALIDATION' ? BTP_ERROR_VALIDATION : BTP_ERROR_INVALID_JSON;
-          return this.sendBtpsError({ socket, startTime }, btpError);
+        await this.executeMiddleware(
+          this.middlewareManager.getMiddleware('after', 'parsing'),
+          { ...parseReq, artifact, error: parseErrException },
+          { ...parseRes, artifact, error: parseErrException },
+        );
+
+        if (parseError || !artifact) {
+          const errorToSend = parseError ?? BTP_ERROR_INVALID_JSON;
+          return this.sendBtpsError(socket, errorToSend);
         }
 
-        const reqCtx: BTPRequestCtx = { socket, startTime, artifact };
-        const resCtx: BTPResponseCtx = { socket, startTime, reqId: artifact.id };
+        const processedArtifact = { artifact, from: artifact.from };
+        const reqCtx: BTPRequestCtx = { ...parseReq, ...processedArtifact };
+        const resCtx: BTPResponseCtx = { ...parseRes, ...processedArtifact, reqId: artifact.id };
 
         await this.executeRequestPipeline(reqCtx, resCtx);
       } catch (err) {
-        const error =
-          err instanceof BTPErrorException ? err : new BTPErrorException(BTP_ERROR_UNKNOWN);
+        const error = transformToBTPErrorException(err);
+        // Execute onError middleware
+        const errorReq: BTPRequestCtx = { ...parseReq, error };
+        await this.executeMiddleware(
+          this.middlewareManager.getMiddleware('before', 'onError'),
+          errorReq,
+          parseRes,
+        );
+
         console.error('[BtpsServer] Error', error.toJSON());
         this.handleOnSocketError(error, socket);
+
+        await this.executeMiddleware(
+          this.middlewareManager.getMiddleware('after', 'onError'),
+          errorReq,
+          parseRes,
+        );
       }
     });
 
     // Shared error handler for both socket and stream
-    const handleError = (err: Error) => this.handleOnSocketError(err, socket);
+    const handleError = (err: unknown) =>
+      this.handleOnSocketError(transformToBTPErrorException(err), socket);
     socket.on('error', handleError);
     stream.on('error', handleError);
 
@@ -153,109 +183,83 @@ export class BtpsServer {
 
   /**
    * Executes the complete request pipeline with middleware support
+   * use this method inside try catch block to handle errors
+   * use this method inside handleConnection method
    */
   private async executeRequestPipeline(
     reqCtx: BTPRequestCtx,
     resCtx: BTPResponseCtx,
   ): Promise<void> {
-    const { socket, artifact, startTime } = reqCtx;
+    const { artifact } = reqCtx;
+    // Execute before signature verification middleware
+    await this.executeMiddleware(
+      this.middlewareManager.getMiddleware('before', 'signatureVerification'),
+      reqCtx,
+      resCtx,
+    );
 
-    // Create enhanced request/response objects for middleware
-    const req: MiddlewareRequest = {
-      socket,
-      remoteAddress: socket.remoteAddress ?? 'unknown',
-      from: artifact.from,
-      artifact,
-      startTime,
-    };
+    // Core signature verification (non-negotiable)
+    // artifact is not undefined as it is checked in the parent handleConnection method
+    const { isValid, error: verificationError } = await this.verifySignature(artifact!);
+    reqCtx.isValid = isValid;
+    if (verificationError) reqCtx.error = verificationError;
 
-    const res: MiddlewareResponse = {
-      socket,
-      startTime,
-      reqId: artifact.id,
-      artifact,
-      sendError: (error) => this.sendBtpsError(resCtx, error),
-      sendResponse: (response) => this.sendBtpsResponse(socket, response),
-    };
+    // Execute after signature verification middleware
+    await this.executeMiddleware(
+      this.middlewareManager.getMiddleware('after', 'signatureVerification'),
+      reqCtx,
+      resCtx,
+    );
 
-    try {
-      // Execute before signature verification middleware
-      await this.executeMiddleware(
-        this.middlewareManager.getMiddleware('before', 'signatureVerification'),
-        req,
-        res,
-      );
-
-      // Core signature verification (non-negotiable)
-      const signatureResult = await this.verifySignature(artifact);
-      req.isValid = signatureResult.isValid;
-
-      // Execute after signature verification middleware
-      await this.executeMiddleware(
-        this.middlewareManager.getMiddleware('after', 'signatureVerification'),
-        req,
-        res,
-      );
-
-      if (!signatureResult.isValid) {
-        return this.sendBtpsError(resCtx, BTP_ERROR_SIG_VERIFICATION);
-      }
-
-      // Execute before trust verification middleware
-      await this.executeMiddleware(
-        this.middlewareManager.getMiddleware('before', 'trustVerification'),
-        req,
-        res,
-      );
-
-      // Core trust verification (non-negotiable)
-      const trustResult = await this.verifyTrust(artifact);
-      req.isTrusted = trustResult.isTrusted;
-
-      // Execute after trust verification middleware
-      await this.executeMiddleware(
-        this.middlewareManager.getMiddleware('after', 'trustVerification'),
-        req,
-        res,
-      );
-
-      if (!trustResult.isTrusted) {
-        return this.sendBtpsError(resCtx, BTP_ERROR_TRUST_NON_EXISTENT);
-      }
-
-      // Execute before onMessage middleware
-      await this.executeMiddleware(
-        this.middlewareManager.getMiddleware('before', 'onMessage'),
-        req,
-        res,
-      );
-
-      // Core message processing (non-negotiable)
-      await this.processMessage(artifact);
-
-      // Execute after onMessage middleware (if any)
-      await this.executeMiddleware(
-        this.middlewareManager.getMiddleware('after', 'onMessage'),
-        req,
-        res,
-      );
-
-      // Send success response
-      this.sendBtpsResponse(socket, {
-        ...this.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }),
-        type: 'btp_response',
-      });
-    } catch (error) {
-      // Execute onError middleware
-      const errorReq: MiddlewareRequest = { ...req, error: error as Error };
-      await this.executeMiddleware(
-        this.middlewareManager.getMiddleware('before', 'onError'),
-        errorReq,
-        res,
-      );
-
-      throw error;
+    if (!isValid) {
+      return this.sendBtpsError(resCtx.socket, BTP_ERROR_SIG_VERIFICATION);
     }
+
+    // Execute before trust verification middleware
+    await this.executeMiddleware(
+      this.middlewareManager.getMiddleware('before', 'trustVerification'),
+      reqCtx,
+      resCtx,
+    );
+
+    // Core trust verification (non-negotiable)
+    const { isTrusted, error: trustError } = await this.verifyTrust(artifact!);
+    reqCtx.isTrusted = isTrusted;
+    if (trustError) reqCtx.error = trustError;
+
+    // Execute after trust verification middleware
+    await this.executeMiddleware(
+      this.middlewareManager.getMiddleware('after', 'trustVerification'),
+      reqCtx,
+      resCtx,
+    );
+
+    if (!isTrusted) {
+      return this.sendBtpsError(resCtx.socket, BTP_ERROR_TRUST_NOT_ALLOWED);
+    }
+
+    // Execute before onMessage middleware
+    await this.executeMiddleware(
+      this.middlewareManager.getMiddleware('before', 'onMessage'),
+      reqCtx,
+      resCtx,
+    );
+
+    // Core message processing (non-negotiable)
+    await this.processMessage(artifact!);
+
+    // Execute after onMessage middleware (if any)
+    await this.executeMiddleware(
+      this.middlewareManager.getMiddleware('after', 'onMessage'),
+      reqCtx,
+      resCtx,
+    );
+
+    // Send success response
+    this.sendBtpsResponse(resCtx.socket, {
+      ...this.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }),
+      type: 'btp_response',
+    });
   }
 
   /**
@@ -263,8 +267,8 @@ export class BtpsServer {
    */
   private async executeMiddleware(
     middleware: MiddlewareDefinition[],
-    req: MiddlewareRequest,
-    res: MiddlewareResponse,
+    req: BTPRequestCtx,
+    res: BTPResponseCtx,
   ): Promise<void> {
     for (const mw of middleware) {
       const context: MiddlewareContext = {
@@ -276,48 +280,65 @@ export class BtpsServer {
         currentTime: new Date().toISOString(),
       };
 
-      await mw.handler(req, res, () => Promise.resolve(), context);
+      // Type assertion to ensure the handler matches the expected phase and step
+      const typedHandler = mw.handler as (
+        req: BTPRequestCtx,
+        res: BTPResponseCtx,
+        next: () => Promise<void>,
+        context?: MiddlewareContext,
+      ) => Promise<void> | void;
+
+      await typedHandler(req, res, () => Promise.resolve(), context);
     }
   }
 
   /**
    * Core signature verification (non-negotiable)
    */
-  private async verifySignature(artifact: BTPArtifact): Promise<{ isValid: boolean }> {
+  private async verifySignature(
+    artifact: BTPArtifact,
+  ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
     const { version: _version, signature, ...signedMsg } = artifact;
     const publicKey = await resolvePublicKey(artifact.from);
 
     if (!publicKey) {
-      return { isValid: false };
+      return { isValid: false, error: new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY) };
     }
 
-    const { isValid } = verifySignature(signedMsg, signature, publicKey);
-    return { isValid };
+    const { isValid, error } = verifySignature(signedMsg, signature, publicKey);
+    return { isValid, error };
   }
 
   /**
    * Core trust verification (non-negotiable)
    */
-  private async verifyTrust(artifact: BTPArtifact): Promise<{ isTrusted: boolean }> {
-    const trustRecord = await this.trustStore.getBySender(artifact.to, artifact.from);
-    const isTrusted = isTrustActive(trustRecord);
-
-    if (isTrusted && artifact.type === 'btp_trust_request') {
-      return { isTrusted: false }; // Already trusted, reject trust request
+  private async verifyTrust(
+    artifact: BTPArtifact,
+  ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
+    if (artifact.type === 'btp_trust_response') {
+      const { isValid, error } = await validateTrustResponse(
+        artifact.from,
+        artifact.to,
+        this.trustStore,
+      );
+      return { isTrusted: isValid, error };
     }
 
-    if (!isTrusted && artifact.type === 'btp_trust_request') {
-      const retryDate = trustRecord?.retryAfterDate;
-      if (retryDate && new Date(retryDate).getTime() > Date.now()) {
-        return { isTrusted: false }; // Not allowed yet
-      }
-    }
+    const computedTrustId = computeTrustId(artifact.from, artifact.to);
+    const trustRecord = await this.trustStore.getById(computedTrustId);
 
-    if (!isTrusted && artifact.type !== 'btp_trust_request') {
-      return { isTrusted: false }; // Not trusted for non-trust requests
+    if (artifact.type === 'btp_trust_request') {
+      const { isValid, error } = validateTrustRequest(trustRecord);
+      return { isTrusted: isValid, error };
+    } else {
+      const isTrusted = isTrustActive(trustRecord);
+      return {
+        isTrusted,
+        error: isTrusted
+          ? undefined
+          : new BTPErrorException(new BTPErrorException(BTP_ERROR_TRUST_ALREADY_ACTIVE)),
+      };
     }
-
-    return { isTrusted: true };
   }
 
   /**
@@ -337,10 +358,13 @@ export class BtpsServer {
       const validationResult = validate(BtpArtifactSchema, data);
 
       if (!validationResult.success) {
-        return { error: 'VALIDATION' };
+        return { error: 'VALIDATION', artifact: data as BTPArtifact };
       }
 
-      return { artifact: validationResult.data as BTPArtifact };
+      // IMPORTANT: For signature verification, always use the original data.
+      // Zod may coerce, strip, or reorder fields, which will break signature verification.
+      // Use validationResult.data only for type-safe business logic, not for cryptographic checks.
+      return { artifact: data as BTPArtifact };
     } catch {
       return { error: 'JSON' };
     }
@@ -369,8 +393,9 @@ export class BtpsServer {
    * @param error The encountered error
    * @param socket The TLS socket associated with the connection
    */
-  private handleOnSocketError(error: Error, socket: TLSSocket) {
+  private handleOnSocketError(error: BTPErrorException, socket: TLSSocket) {
     this.onError?.(error);
+
     if (!socket.destroyed) {
       socket.destroy(); // Immediate teardown to prevent further resource usage
     }
@@ -379,8 +404,7 @@ export class BtpsServer {
   /**
    * Sends a BTP error response to the client
    */
-  private async sendBtpsError(ctx: BTPResponseCtx, error: BTPError) {
-    const { socket } = ctx;
+  private async sendBtpsError(socket: TLSSocket, error: BTPError) {
     const response = this.prepareBtpsResponse({
       ok: false,
       code: typeof error.code === 'number' ? error.code : 500,

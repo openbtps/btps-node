@@ -2,6 +2,7 @@ import { existsSync } from 'fs';
 import { resolve } from 'path';
 import {
   MiddlewareDefinition,
+  MiddlewareDefinitionArray,
   MiddlewareModule,
   MiddlewareContext,
   Phase,
@@ -72,7 +73,7 @@ export class MiddlewareManager {
   /**
    * Validates middleware definitions and sorts them by priority
    */
-  private validateAndSortMiddleware(middleware: MiddlewareDefinition[]): MiddlewareDefinition[] {
+  private validateAndSortMiddleware(middleware: MiddlewareDefinitionArray): MiddlewareDefinition[] {
     if (!Array.isArray(middleware)) {
       throw new BTPErrorException({ message: 'Middleware must be an array' });
     }
@@ -130,6 +131,21 @@ export class MiddlewareManager {
 
     if (typeof middleware.handler !== 'function') {
       throw new BTPErrorException({ message: 'Middleware must have a handler function' });
+    }
+
+    // Validate that the handler signature matches the expected types for the phase and step
+    try {
+      // This is a runtime check to ensure the handler can be called with the expected parameters
+      // The actual type checking happens at compile time with the generic types
+      if (middleware.handler.length < 3) {
+        throw new BTPErrorException({
+          message: 'Middleware handler must accept at least 3 parameters (req, res, next)',
+        });
+      }
+    } catch (error) {
+      throw new BTPErrorException({
+        message: `Invalid middleware handler signature: ${error}`,
+      });
     }
 
     if (

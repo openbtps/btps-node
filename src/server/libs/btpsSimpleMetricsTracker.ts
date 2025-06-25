@@ -1,3 +1,4 @@
+import { BTPErrorException } from '@core/error/index.js';
 import { IMetricsTracker } from './type.js';
 
 export class BtpsSimpleMetricsTracker implements IMetricsTracker {
@@ -9,7 +10,7 @@ export class BtpsSimpleMetricsTracker implements IMetricsTracker {
     console.warn(`[Metrics] Rejected message from ${sender} to ${recipient}: ${reason}`);
   }
 
-  onError(error: Error) {
-    console.error(`[Metrics] Error:`, error);
+  onError(error: BTPErrorException) {
+    console.error(`[Metrics] Error:`, error.toJSON());
   }
 }

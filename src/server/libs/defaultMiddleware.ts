@@ -5,7 +5,7 @@
  * These are used when no external middleware file is specified.
  */
 import { BTPError } from '@core/error/types.js';
-import { MiddlewareDefinition } from '../types/index.js';
+import { MiddlewareDefinitionArray } from '../types/index.js';
 import { BtpsSimpleRateLimiter } from './btpsSimpleRateLimiter.js';
 import { BtpsSimpleMetricsTracker } from './btpsSimpleMetricsTracker.js';
 
@@ -16,7 +16,7 @@ const rateLimiter = new BtpsSimpleRateLimiter({
 });
 const metrics = new BtpsSimpleMetricsTracker();
 
-export function createDefaultMiddleware(): MiddlewareDefinition[] {
+export function createDefaultMiddleware(): MiddlewareDefinitionArray {
   return [
     // IP-based rate limiting (before parsing)
     {
@@ -37,22 +37,77 @@ export function createDefaultMiddleware(): MiddlewareDefinition[] {
       },
     },
 
+    // Identity-based rate limiting (after parsing)
+    {
+      phase: 'after',
+      step: 'parsing',
+      priority: 1,
+      config: {
+        name: 'default-identity-rate-limiter',
+        enabled: true,
+      },
+      handler: async (req, res, next) => {
+        const { artifact, error, remoteAddress } = req;
+        // Check for parsing errors first
+        if (error) {
+          const message =
+            error.code === 'BTP_ERROR_VALIDATION' ? 'Validation error' : 'Parsing error';
+          // Returning here only skips further middleware; the main server will handle the error response.
+          metrics.onMessageRejected(artifact?.from ?? remoteAddress, artifact?.to ?? '', message);
+          return;
+        }
+        // Check for missing artifact (parsing could have failed)
+        if (!artifact) {
+          // Returning here only skips further middleware; the main server will handle the error response.
+          return;
+        }
+        // artifact is guaranteed to be present after this point
+        if (!(await rateLimiter.isAllowed(artifact.from, 'fromIdentity'))) {
+          const error: BTPError = { code: 429, message: 'Too many requests' };
+          metrics.onMessageRejected(remoteAddress, artifact.to, 'Rate limit exceeded');
+          return res.sendError(error);
+        }
+        await next();
+      },
+    },
+
     // Identity-based rate limiting (after signature verification)
     {
       phase: 'after',
       step: 'signatureVerification',
       priority: 1,
       config: {
-        name: 'default-identity-rate-limiter',
+        name: 'default-signature-metrics-tracker',
         enabled: true,
       },
-      handler: async (req, res, next, context) => {
-        if (req.isValid && req.from) {
-          if (!(await rateLimiter.isAllowed(req.from, 'fromIdentity'))) {
-            const error: BTPError = { code: 429, message: 'Too many requests' };
-            metrics.onMessageRejected(req.from, req.artifact?.to || '', 'Rate limit exceeded');
-            return res.sendError(error);
-          }
+      handler: async (req, res, next) => {
+        const { artifact, error } = req;
+        // Check for signature verification errors first
+        if (error) {
+          metrics.onMessageRejected(artifact.from, artifact.to, error.message);
+          // Returning here only skips further middleware; the main server will handle the error response.
+          return;
+        }
+        await next();
+      },
+    },
+
+    // Trust check metrics logger (after trust verification)
+    {
+      phase: 'after',
+      step: 'trustVerification',
+      priority: 1,
+      config: {
+        name: 'default-trust-metrics-tracker',
+        enabled: true,
+      },
+      handler: async (req, res, next) => {
+        const { artifact, error } = req;
+        // Check for signature verification errors first
+        if (error) {
+          metrics.onMessageRejected(artifact.from, artifact.to, error.message);
+          // Returning here only skips further middleware; the main server will handle the error response.
+          return;
         }
         await next();
       },
@@ -60,15 +115,16 @@ export function createDefaultMiddleware(): MiddlewareDefinition[] {
 
     // Metrics tracking for received messages
     {
-      phase: 'before',
+      phase: 'after',
       step: 'onMessage',
       priority: 1,
       config: {
-        name: 'default-metrics-tracker',
+        name: 'default-onMessage-metrics-tracker',
         enabled: true,
       },
-      handler: async (req, res, next) => {
-        if (req.from && req.artifact?.to) {
+      handler: async (req, _res, next) => {
+        // artifact, isValid, and isTrusted are guaranteed to be present before onMessage
+        if (req.from && req.artifact.to) {
           metrics.onMessageReceived(req.from, req.artifact.to);
         }
         await next();
@@ -84,7 +140,8 @@ export function createDefaultMiddleware(): MiddlewareDefinition[] {
         name: 'default-error-logger',
         enabled: true,
       },
-      handler: async (req, res, next) => {
+      handler: async (req, _res, next) => {
+        // error is optional but should be checked
         if (req.error) {
           metrics.onError(req.error);
         }

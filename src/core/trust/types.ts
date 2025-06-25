@@ -3,7 +3,7 @@ export interface TrustStoreOptions {
   entityName?: string; // e.g. 'trustedSenders', 'trust_rejections'
 }
 
-export type BTPTrustStatus = 'accepted' | 'rejected' | 'revoked' | 'pending';
+export type BTPTrustStatus = 'accepted' | 'rejected' | 'revoked' | 'pending' | 'blocked';
 export type BTPTrustDecisionType = Exclude<BTPTrustStatus, 'pending'>;
 export type BTPEncryptionType = 'unencrypted' | 'encrypted' | 'mixed';
 
@@ -15,6 +15,7 @@ export type KeyHistory = {
 };
 
 export type BTPTrustRecord = {
+  id: string; // unique trust id in format 'from:to'using computeTrustId
   senderId: string; // unique btp from identity in format 'user$domain.com
   receiverId: string; // unique btp to identity in format 'user$domain.com
   status: BTPTrustStatus; // current trust status

@@ -10,6 +10,11 @@ export const BTP_ERROR_TRUST_NON_EXISTENT: BTPError = {
   message: 'BTP trust record does not exist or has been expired',
 };
 
+export const BTP_ERROR_TRUST_BLOCKED: BTPError = {
+  code: 'BTP_ERROR_TRUST_BLOCKED',
+  message: 'BTP trust request is not allowed. Contact receiver',
+};
+
 export const BTP_ERROR_TRUST_NOT_ALLOWED: BTPError = {
   code: 'BTP_ERROR_TRUST_NOT_ALLOWED',
   message: 'BTP trust request is not allowed at this time. Contact receiver',

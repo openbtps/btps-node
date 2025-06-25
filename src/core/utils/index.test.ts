@@ -115,7 +115,7 @@ describe('utils/index', () => {
       const txtRecord = `p=cGVt`;
       mockDns.resolveTxt.mockResolvedValue([[txtRecord]]);
       const pem = await resolvePublicKey('test$example.com');
-      expect(pem).toBe('cGVt'); // getDnsParts returns the raw value here
+      expect(pem).toBe('-----BEGIN PUBLIC KEY-----\ncGVt\n-----END PUBLIC KEY-----'); // getDnsParts returns the raw value here
     });
   });
 });

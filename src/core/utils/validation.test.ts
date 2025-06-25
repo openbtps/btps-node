@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import { validate } from './validation';
+import { BtpArtifactSchema } from '../server/schema';
 
 describe('validate', () => {
   const testSchema = z.object({
@@ -36,6 +37,104 @@ describe('validate', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toBeDefined();
+    }
+  });
+});
+
+describe('BtpArtifactSchema superRefine', () => {
+  const base = {
+    version: '1.0.0',
+    issuedAt: new Date().toISOString(),
+    id: 'abc123',
+    from: 'user$domain.com',
+    to: 'user$domain.com',
+    signature: {
+      algorithm: 'sha256',
+      value: 'sig',
+      fingerprint: 'fp',
+    },
+  };
+
+  it('should succeed when encryption is present and document is a string', () => {
+    const data = {
+      ...base,
+      type: 'btp_trust_request',
+      document: 'encryptedstring',
+      encryption: {
+        algorithm: 'aes-256-cbc',
+        encryptedKey: 'key',
+        iv: 'iv',
+        type: 'standardEncrypt',
+      },
+    };
+    const result = BtpArtifactSchema.safeParse(data);
+    expect(result.success).toBe(true);
+  });
+
+  it('should fail when encryption is present and document is not a string', () => {
+    const data = {
+      ...base,
+      type: 'btp_trust_request',
+      document: { foo: 'bar' },
+      encryption: {
+        algorithm: 'aes-256-cbc',
+        encryptedKey: 'key',
+        iv: 'iv',
+        type: 'standardEncrypt',
+      },
+    };
+    const result = BtpArtifactSchema.safeParse(data);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toMatch(/must be a string/);
+      expect(result.error.issues[0].path).toEqual(['document']);
+    }
+  });
+
+  it('should succeed when encryption is null and document matches schema', () => {
+    const data = {
+      ...base,
+      type: 'btp_trust_request',
+      document: {
+        name: 'Alice',
+        email: 'alice@example.com',
+        reason: 'test',
+        phone: '123',
+      },
+      encryption: null,
+    };
+    const result = BtpArtifactSchema.safeParse(data);
+    expect(result.success).toBe(true);
+  });
+
+  it('should fail when encryption is null and document does not match schema', () => {
+    const data = {
+      ...base,
+      type: 'btp_trust_request',
+      document: { foo: 'bar' },
+      encryption: null,
+    };
+    const result = BtpArtifactSchema.safeParse(data);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toMatch(/does not match the artifact type/);
+      expect(result.error.issues[0].path).toEqual(['document']);
+    }
+  });
+
+  it('should fail when type is unknown', () => {
+    const data = {
+      ...base,
+      type: 'unknown_type',
+      document: {},
+      encryption: null,
+    };
+    // Intentionally passing an invalid type to check runtime validation
+    const result = BtpArtifactSchema.safeParse(data);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toEqual(['type']);
+      expect(result.error.issues[0].message).toMatch(/Invalid enum value/);
     }
   });
 });

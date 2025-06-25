@@ -1,0 +1,6 @@
+{
+  "watch": ["src"],
+  "ext": "ts",
+  "exec": "env $(cat .env | xargs) tsx src/index.ts",
+  "ignore": ["dist"]
+}

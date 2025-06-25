@@ -4,13 +4,16 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { BTPTrustRecord } from '../types';
 import JsonTrustStore from './JsonTrustStore';
+import { computeTrustId } from '../index.js';
 
 const TEST_FILE = path.join(__dirname, 'test-trust-store.json');
 
 const receiverId = 'from$vendor.com';
 const senderId = 'to$host.com';
+const computedId = computeTrustId(senderId, receiverId);
 
 const sampleRecord: BTPTrustRecord = {
+  id: computedId,
   receiverId,
   senderId,
   status: 'accepted',
@@ -41,22 +44,25 @@ describe('JsonTrustStore (composite key)', () => {
   });
 
   it('should create a new trust record', async () => {
-    await store.create(receiverId, senderId, sampleRecord);
-    const record = await store.getBySender(receiverId, senderId);
+    const { id, ...recordWithoutId } = sampleRecord;
+    await store.create(recordWithoutId);
+    const record = await store.getById(computedId);
     expect(record?.senderId).toBe(senderId);
     expect(record?.receiverId).toBe(receiverId);
   });
 
   it('should retrieve all records', async () => {
-    await store.create(receiverId, senderId, sampleRecord);
+    const { id, ...recordWithoutId } = sampleRecord;
+    await store.create(recordWithoutId);
     const records = await store.getAll();
     expect(records.length).toBe(1);
   });
 
-  it('should filter records by to', async () => {
-    await store.create(receiverId, senderId, sampleRecord);
-    await store.create('to2$host.com', 'another$from.com', {
-      ...sampleRecord,
+  it('should filter records by receiverId', async () => {
+    const { id, ...recordWithoutId } = sampleRecord;
+    await store.create(recordWithoutId);
+    await store.create({
+      ...recordWithoutId,
       senderId: 'another$from.com',
       receiverId: 'to2$host.com',
     });
@@ -67,28 +73,32 @@ describe('JsonTrustStore (composite key)', () => {
   });
 
   it('should update an existing record', async () => {
-    await store.create(receiverId, senderId, sampleRecord);
-    await store.update(receiverId, senderId, { status: 'revoked' });
-    const updated = await store.getBySender(receiverId, senderId);
+    const { id, ...recordWithoutId } = sampleRecord;
+    await store.create(recordWithoutId);
+    await store.update(computedId, { status: 'revoked' });
+    const updated = await store.getById(computedId);
     expect(updated?.status).toBe('revoked');
   });
 
   it('should delete a trust record', async () => {
-    await store.create(receiverId, senderId, sampleRecord);
-    await store.delete(receiverId, senderId);
-    const deleted = await store.getBySender(receiverId, senderId);
+    const { id, ...recordWithoutId } = sampleRecord;
+    await store.create(recordWithoutId);
+    await store.delete(computedId);
+    const deleted = await store.getById(computedId);
     expect(deleted).toBeUndefined();
   });
 
   it('should flush and reload the trust store', async () => {
-    await store.create(receiverId, senderId, sampleRecord);
+    const { id, ...recordWithoutId } = sampleRecord;
+    await store.create(recordWithoutId);
     await store.flushAndReload();
-    const reloaded = await store.getBySender(receiverId, senderId);
+    const reloaded = await store.getById(computedId);
     expect(reloaded?.senderId).toBe(senderId);
   });
 
   it('should handle locking and release file with flushed contents', async () => {
-    await store.create(receiverId, senderId, sampleRecord);
+    const { id, ...recordWithoutId } = sampleRecord;
+    await store.create(recordWithoutId);
     await store.flushNow();
     const content = await fs.readFile(TEST_FILE, 'utf8');
     expect(content).toContain(senderId);

@@ -32,5 +32,5 @@ COPY --from=builder /var/www/dist ./dist
 COPY --from=builder /var/www/.well-known ./.well-known
 
 EXPOSE 3443
-CMD ["node", "./dist/server/index.js"]
+CMD ["node", "./dist/index.js"]
   

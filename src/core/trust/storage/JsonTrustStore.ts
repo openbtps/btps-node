@@ -6,6 +6,7 @@ import isEmpty from 'lodash/isEmpty.js';
 
 import { AbstractTrustStore } from './AbstractTrustStore.js';
 import { BTPTrustRecord, TrustStoreOptions } from '../types.js';
+import { computeTrustId } from '../index.js';
 
 /**
  * JSON-based TrustStore for self-hosted environments.
@@ -44,13 +45,6 @@ class JsonTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   }
 
   /**
-   * Constructs a unique composite key for the trust relationship.
-   */
-  private makeKey(receiverId: string, senderId: string): string {
-    return `${receiverId}|${senderId}`;
-  }
-
-  /**
    * checks and reloads if the file has changed externally or manually
    */
   private async reloadIfChanged(): Promise<void> {
@@ -77,7 +71,7 @@ class JsonTrustStore extends AbstractTrustStore<BTPTrustRecord> {
 
     this.recordMap.clear();
     for (const r of records) {
-      const key = this.makeKey(r.receiverId, r.senderId);
+      const key = r.id;
       this.recordMap.set(key, r);
     }
   }
@@ -113,28 +107,28 @@ class JsonTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   /**
    * Retrieves a trust record for a specific to/from pair.
    */
-  async getBySender(receiverId: string, senderId: string): Promise<BTPTrustRecord | undefined> {
+  async getById(computedId: string): Promise<BTPTrustRecord | undefined> {
     if (this.recordMap.size === 0) await this.init();
     await this.reloadIfChanged();
-    return this.recordMap.get(this.makeKey(receiverId, senderId));
+    return this.recordMap.get(computedId);
   }
 
   /**
    * Creates a new trust record. Fails if one already exists for to/from.
    */
-  async create(
-    receiverId: string,
-    senderId: string,
-    record: BTPTrustRecord,
-  ): Promise<BTPTrustRecord> {
-    if (await this.getBySender(receiverId, senderId)) {
-      throw new Error(`Trust record already exists for ${receiverId} → ${senderId}`);
+  async create(record: Omit<BTPTrustRecord, 'id'>, computedId?: string): Promise<BTPTrustRecord> {
+    if ('id' in record) {
+      throw new Error('Record passed to create() must not include an id');
     }
 
-    const key = this.makeKey(receiverId, senderId);
-    const newRecord = { ...record, toIdentity: receiverId, fromIdentity: senderId };
+    const id = computedId ?? computeTrustId(record.senderId, record.receiverId);
+    if (await this.getById(id)) {
+      throw new Error(`Trust record already exists for ${record.senderId} → ${record.receiverId}`);
+    }
 
-    this.recordMap.set(key, newRecord);
+    const newRecord = { ...record, id };
+
+    this.recordMap.set(id, newRecord);
     this.dirty = true;
     this.writeDebounced();
     return newRecord;
@@ -143,17 +137,13 @@ class JsonTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   /**
    * Updates an existing trust record by merging with the patch.
    */
-  async update(
-    receiverId: string,
-    senderId: string,
-    patch: Partial<BTPTrustRecord>,
-  ): Promise<BTPTrustRecord> {
-    const key = this.makeKey(receiverId, senderId);
-    const record = await this.getBySender(receiverId, senderId);
-    if (!record) throw new Error(`No trust record found for ${receiverId} → ${senderId}`);
+  async update(computedId: string, patch: Partial<BTPTrustRecord>): Promise<BTPTrustRecord> {
+    const record = await this.getById(computedId);
+    if (!record)
+      throw new Error(`No trust record found for ${patch.senderId} → ${patch.receiverId}`);
 
     const updated = { ...record, ...patch };
-    this.recordMap.set(key, updated);
+    this.recordMap.set(computedId, updated);
     this.dirty = true;
     this.writeDebounced();
     return updated;
@@ -162,10 +152,9 @@ class JsonTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   /**
    * Deletes a trust record for a given to/from pair.
    */
-  async delete(receiverId: string, senderId: string): Promise<void> {
+  async delete(computedId: string): Promise<void> {
     if (this.recordMap.size === 0) await this.init();
-    const key = this.makeKey(receiverId, senderId);
-    if (this.recordMap.delete(key)) {
+    if (this.recordMap.delete(computedId)) {
       this.dirty = true;
       this.writeDebounced();
     }

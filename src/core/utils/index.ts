@@ -83,6 +83,10 @@ export const getDnsParts = async (
       };
     }
 
+    if (type === 'pem') {
+      return base64ToPem(parts['p']);
+    }
+
     return parts[typeMap[type]];
   } catch (error: unknown) {
     throw new Error(`DNS resolution failed for ${domainName}: ${JSON.stringify(error)}`);

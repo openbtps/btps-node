@@ -1,7 +1,6 @@
 import { BTPSignature, BTPEncryption } from '@core/crypto/types.js';
 import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
 import { BTPInvoiceDoc } from '../../server/types/index.js';
-import { TLSSocket } from 'tls';
 import { BTP_ARTIFACT_TYPES } from './constants/index.js';
 import { CURRENCY_CODES } from './constants/currency.js';
 
@@ -34,18 +33,5 @@ export type BTPServerResponse = {
   id: string;
   issuedAt: string;
   type: 'btp_error' | 'btp_response';
-  reqId?: string;
-};
-
-export interface BTPContext {
-  socket: TLSSocket;
-  startTime: string;
-}
-
-export type BTPRequestCtx = BTPContext & {
-  artifact: BTPArtifact;
-};
-
-export type BTPResponseCtx = BTPContext & {
   reqId?: string;
 };

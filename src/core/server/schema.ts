@@ -97,21 +97,38 @@ export const BtpArtifactSchema = z
     signature: BtpSignatureSchema,
     encryption: BtpEncryptionSchema.nullable(),
   })
-  .refine(
-    (data) => {
+  .superRefine((data, ctx) => {
+    if (data.encryption) {
+      // If encrypted, document must be a string
+      if (typeof data.document !== 'string') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'When encrypted, document must be a string',
+          path: ['document'],
+        });
+      }
+    } else {
+      // If not encrypted, document must match the schema for the type
+      let schema;
       switch (data.type) {
         case 'btp_trust_response':
-          return BtpTrustResDocSchema.safeParse(data.document).success;
+          schema = BtpTrustResDocSchema;
+          break;
         case 'btp_trust_request':
-          return BtpTrustReqDocSchema.safeParse(data.document).success;
+          schema = BtpTrustReqDocSchema;
+          break;
         case 'btp_doc':
-          return BtpInvoiceDocSchema.safeParse(data.document).success;
+          schema = BtpInvoiceDocSchema;
+          break;
         default:
-          return false;
+          schema = null;
       }
-    },
-    {
-      message: 'Document type does not match the artifact type',
-      path: ['document'],
-    },
-  );
+      if (!schema || !schema.safeParse(data.document).success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Document type does not match the artifact type',
+          path: ['document'],
+        });
+      }
+    }
+  });

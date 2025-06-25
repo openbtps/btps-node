@@ -12,6 +12,9 @@
     "./server": {
       "import": "./dist/server/index.js"
     },
+    "./server/core": {
+      "import": "./dist/server/libs/index.js"
+    },
     "./client": {
       "import": "./dist/client/index.js"
     },
