@@ -1,125 +1,90 @@
-# @btps/sdk
+# BTPS: Billing Trust Protocol Secure
 
-> A modern SDK for building trust-based document transport systems (BTP protocol).  
-> Designed for Node.js 16+ with native ESM-only support.
+**BTPS** is an open, trust-based protocol for secure, cryptographically verifiable billing and invoice communication. Inspired by DKIM and modern email protocols, BTPS is designed for SaaS, fintech, and enterprise platforms that require robust, consent-based, and auditable billing workflows.
 
 ---
 
-## 🚀 Installation
+## 🚀 Vision
 
-```bash
-npm install @btps/sdk
-# or
-yarn add @btps/sdk
+Enable a global, interoperable, and secure network for billing and invoice exchange—where only trusted parties can send and receive sensitive financial documents, and every message is cryptographically verifiable.
+
+---
+
+## What is BTPS?
+
+- **A protocol** for secure, trust-based billing/invoice communication (like email, but for billing).
+- **A trust model**: Only trusted senders can deliver bills/invoices to your platform.
+- **Cryptographic security**: All messages are signed, encrypted, and verifiable.
+- **Key rotation and onboarding**: Built-in support for safe key rotation and trust management.
+- **Open source SDKs**: Easily build BTPS servers, clients, and integrations.
+
+---
+
+## Why BTPS?
+
+- **Stop invoice fraud**: Only trusted, cryptographically verified senders can deliver bills.
+- **Automate onboarding**: DNS-based trust and key management, with proof-based rotation.
+- **Interoperable**: Works across SaaS, banks, fintech, and enterprise platforms.
+- **Auditable**: Every message and trust change is verifiable and logged.
+- **Open**: Free to use, extend, and integrate.
+
+---
+
+## Quickstart
+
+```sh
+npm install btps-sdk
 ```
-
----
-
-## ⚠️ Node.js Compatibility
-
-This package is **ESM-only** and requires **Node.js ≥ 16**.
-
-- ✅ Works with `import` in ESM projects (`"type": "module"` or `.mjs`)
-- ❌ Does **not** support `require()` in CommonJS projects
-
-If you're using CommonJS and still want to consume this SDK, use dynamic `import()`:
 
 ```js
-// CommonJS workaround (Node 16+)
-(async () => {
-  const { default: JsonTrustStore } = await import('@btps/sdk/trust');
-  const store = new JsonTrustStore({ ... });
-})();
-```
+import { BtpsServer, BtpsClient } from 'btps-sdk';
 
----
-
-## 📦 Module Entry Points
-
-This SDK is modular and provides multiple top-level subpath exports:
-
-| Entry Point             | Description                               |
-| ----------------------- | ----------------------------------------- |
-| `@btps/sdk`             | Root module (utility functions, types)    |
-| `@btps/sdk/trust`       | JSON-based TrustStore (BTP trust manager) |
-| `@btps/sdk/crypto`      | Cryptographic helpers for BTP documents   |
-| `@btps/sdk/error`       | Error utilities and types                 |
-| `@btps/sdk/server`      | BTP server entry (TLS-based handler)      |
-| `@btps/sdk/server/core` | Core internal server logic                |
-
----
-
-## ✨ Example Usage
-
-```ts
-// ESM consumer
-import JsonTrustStore from '@btps/sdk/trust';
-
-const store = new JsonTrustStore({
-  connection: './.well-known/btp-trust.json',
-  entityName: 'trusted_senders',
+// Start a BTPS server
+const server = new BtpsServer({
+  /* ...options... */
 });
+server.start();
 
-const allTrusts = await store.getAll();
-console.log(allTrusts);
+// Send a BTPS message
+const client = new BtpsClient({
+  /* ...options... */
+});
+await client.sendInvoice({
+  /* ...invoice data... */
+});
 ```
+
+See [docs/SERVER.md](docs/SERVER.md) and [docs/CLIENT.md](docs/CLIENT.md) for full usage.
 
 ---
 
-## 📁 File Structure Overview
+## 📚 Documentation
 
-Your installed `node_modules/@btps/sdk` will contain:
-
-```
-dist/
-├── index.js                 ← Main entry
-├── index.d.ts                ← Type declarations
-├── core/
-│   ├── trust/
-│   │   └── index.js         ← @btps/sdk/trust
-│   ├── crypto/
-│   │   └── index.js         ← @btps/sdk/crypto
-│   └── error/
-│       └── index.js         ← @btps/sdk/error
-└── server/
-    ├── index.js             ← @btps/sdk/server
-    └── libs/
-        └── index.js         ← @btps/sdk/server/core
-```
+- [BTPS Protocol Spec](docs/BTPS_PROTOCOL.md)
+- [BTPS Identity & Trust Spec](docs/BTPS_IDENTITY.md)
+- [Server SDK Usage](docs/SERVER.md)
+- [Client SDK Usage](docs/CLIENT.md)
+- [Trust Model & Onboarding](docs/TRUST.md)
+- [SDK Utilities](docs/SDK.md)
+- [Examples](docs/EXAMPLES.md)
+- [Architecture & Diagrams](docs/ARCHITECTURE.md)
 
 ---
 
-## 🧪 TypeScript Support
+## 🤝 Contributing
 
-Full TypeScript declarations are included. No additional steps required.
-
-```ts
-import type { BTPTrustRecord } from '@btps/sdk';
-
-function isValid(trust: BTPTrustRecord): boolean {
-  return trust.status === 'accepted';
-}
-```
+- Open source, MIT licensed
+- See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
+- Join the discussion: [GitHub Issues](https://github.com/your-org/btps-sdk/issues)
 
 ---
 
-## 🛠 Build & Contribution
+## 🏗️ High-Level Architecture
 
-This project is built with:
-
-- TypeScript
-- esbuild (ESM output only)
-- `tsc` for type declarations
-- No `require()` or CommonJS support
-
-To build locally:
-
-```bash
-yarn build
-```
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a protocol overview and diagrams.
 
 ---
 
-## 📄 License
+## About
 
-MIT © Your Name or Organization
+BTPS is maintained by [Your Organization], with inspiration from DKIM, modern email, and open standards. Contributions and feedback are welcome!
