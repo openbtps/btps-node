@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/node": "^24.0.4",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.0.0",
@@ -28,6 +29,6 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "@btps/sdk": "/Volumes/App/btps-sdk/package.tgz"
+    "@btps/sdk": "./package.tgz"
   }
 }

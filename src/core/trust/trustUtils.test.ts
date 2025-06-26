@@ -9,9 +9,9 @@ import {
 } from './index.js';
 import { BTPTrustRecord } from './types';
 
-const now = new Date('2025-06-25T03:20:18.290Z');
+const now = new Date();
 const past = new Date('2025-06-24T03:20:18.290Z');
-const future = new Date('2025-06-26T03:20:18.290Z');
+const future = new Date('2050-06-26T03:20:18.290Z');
 
 // Fake trust record factory
 const makeTrust = (overrides: Partial<BTPTrustRecord>): BTPTrustRecord => ({

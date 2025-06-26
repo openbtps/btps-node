@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { BTP_ARTIFACT_TYPES } from './constants/index.js';
 import { CURRENCY_CODES } from './constants/currency.js';
+import { BTPArtifactType } from './types.js';
 
 const BtpEncryptionSchema = z.object({
   algorithm: z.literal('aes-256-cbc'),
@@ -85,50 +86,78 @@ const BtpInvoiceDocSchema = z.object({
     .optional(),
 });
 
-export const BtpArtifactSchema = z
-  .object({
-    version: z.string(),
-    issuedAt: z.string().datetime(),
-    document: z.unknown(), // We'll validate this conditionally
-    id: z.string(),
-    type: z.enum(BTP_ARTIFACT_TYPES),
-    from: z.string().regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
-    to: z.string().regex(/^\S+\$\S+\.\S+$/, 'To field must match pattern: {username}${domain}'),
-    signature: BtpSignatureSchema,
-    encryption: BtpEncryptionSchema.nullable(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.encryption) {
-      // If encrypted, document must be a string
-      if (typeof data.document !== 'string') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'When encrypted, document must be a string',
-          path: ['document'],
-        });
-      }
-    } else {
-      // If not encrypted, document must match the schema for the type
-      let schema;
-      switch (data.type) {
-        case 'btp_trust_response':
-          schema = BtpTrustResDocSchema;
-          break;
-        case 'btp_trust_request':
-          schema = BtpTrustReqDocSchema;
-          break;
-        case 'btp_doc':
-          schema = BtpInvoiceDocSchema;
-          break;
-        default:
-          schema = null;
-      }
-      if (!schema || !schema.safeParse(data.document).success) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Document type does not match the artifact type',
-          path: ['document'],
-        });
-      }
+const BtpArtifactSchema = z.object({
+  to: z.string().regex(/^\S+\$\S+\.\S+$/, 'To field must match pattern: {username}${domain}'),
+  type: z.enum(BTP_ARTIFACT_TYPES),
+  id: z.string().nullable(),
+  issuedAt: z.string().datetime().nullable(),
+  document: z.unknown(),
+});
+
+export const BtpArtifactServerSchema = BtpArtifactSchema.extend({
+  version: z.string(),
+  issuedAt: z.string().datetime(),
+  from: z.string().regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
+  id: z.string(),
+  signature: BtpSignatureSchema,
+  encryption: BtpEncryptionSchema.nullable(),
+}).superRefine((data, ctx) => {
+  if (data.encryption) {
+    // If encrypted, document must be a string
+    if (typeof data.document !== 'string') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'When encrypted, document must be a string',
+        path: ['document'],
+      });
     }
-  });
+  } else {
+    // If not encrypted, document must match the schema for the type
+    const schema = processBtpDocSchema(data.type);
+    if (!schema || !schema.safeParse(data.document).success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Document type does not match the artifact type',
+        path: ['document'],
+      });
+    }
+  }
+});
+
+export const BtpArtifactClientSchema = BtpArtifactSchema.extend({
+  signature: z
+    .object({
+      algorithm: z.literal('sha256'),
+    })
+    .optional(),
+  encryption: z
+    .object({
+      algorithm: z.literal('aes-256-cbc'),
+      mode: z.enum(['none', 'standardEncrypt', '2faEncrypt']),
+    })
+    .optional(),
+  id: z.string().optional().nullable(),
+  issuedAt: z.string().datetime().optional().nullable(),
+}).refine(
+  (data) => {
+    const schema = processBtpDocSchema(data.type);
+    if (!schema) return false;
+    return schema.safeParse(data.document).success;
+  },
+  {
+    message: 'Document type does not match the artifact type',
+  },
+);
+
+export const processBtpDocSchema = (bptArtifactType: BTPArtifactType) => {
+  switch (bptArtifactType) {
+    case 'btp_trust_response':
+      return BtpTrustResDocSchema;
+    case 'btp_trust_request':
+      return BtpTrustReqDocSchema;
+    case 'btp_doc':
+      return BtpInvoiceDocSchema;
+    default:
+      return null;
+  }
+};

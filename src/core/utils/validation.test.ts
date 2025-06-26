@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import { validate } from './validation';
-import { BtpArtifactSchema } from '../server/schema';
+import { BtpArtifactServerSchema } from '../server/schema';
 
 describe('validate', () => {
   const testSchema = z.object({
@@ -41,7 +41,7 @@ describe('validate', () => {
   });
 });
 
-describe('BtpArtifactSchema superRefine', () => {
+describe('BtpArtifactServerSchema superRefine', () => {
   const base = {
     version: '1.0.0',
     issuedAt: new Date().toISOString(),
@@ -67,7 +67,7 @@ describe('BtpArtifactSchema superRefine', () => {
         type: 'standardEncrypt',
       },
     };
-    const result = BtpArtifactSchema.safeParse(data);
+    const result = BtpArtifactServerSchema.safeParse(data);
     expect(result.success).toBe(true);
   });
 
@@ -83,7 +83,7 @@ describe('BtpArtifactSchema superRefine', () => {
         type: 'standardEncrypt',
       },
     };
-    const result = BtpArtifactSchema.safeParse(data);
+    const result = BtpArtifactServerSchema.safeParse(data);
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues[0].message).toMatch(/must be a string/);
@@ -103,7 +103,7 @@ describe('BtpArtifactSchema superRefine', () => {
       },
       encryption: null,
     };
-    const result = BtpArtifactSchema.safeParse(data);
+    const result = BtpArtifactServerSchema.safeParse(data);
     expect(result.success).toBe(true);
   });
 
@@ -114,7 +114,7 @@ describe('BtpArtifactSchema superRefine', () => {
       document: { foo: 'bar' },
       encryption: null,
     };
-    const result = BtpArtifactSchema.safeParse(data);
+    const result = BtpArtifactServerSchema.safeParse(data);
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues[0].message).toMatch(/does not match the artifact type/);
@@ -130,7 +130,7 @@ describe('BtpArtifactSchema superRefine', () => {
       encryption: null,
     };
     // Intentionally passing an invalid type to check runtime validation
-    const result = BtpArtifactSchema.safeParse(data);
+    const result = BtpArtifactServerSchema.safeParse(data);
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues[0].path).toEqual(['type']);

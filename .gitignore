@@ -19,6 +19,7 @@ certs
 btp*.json
 .DS_Store
 client
+!src/client
 .env
 *.tgz
 test

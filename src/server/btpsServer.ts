@@ -33,7 +33,7 @@ import {
 } from './types/index.js';
 import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { validate } from '@core/utils/validation.js';
-import { BtpArtifactSchema } from '@core/server/schema.js';
+import { BtpArtifactServerSchema } from '@core/server/schema.js';
 import { MiddlewareManager } from './libs/middlewareManager.js';
 
 /**
@@ -355,7 +355,7 @@ export class BtpsServer {
   } {
     try {
       const data = JSON.parse(line);
-      const validationResult = validate(BtpArtifactSchema, data);
+      const validationResult = validate(BtpArtifactServerSchema, data);
 
       if (!validationResult.success) {
         return { error: 'VALIDATION', artifact: data as BTPArtifact };
