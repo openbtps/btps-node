@@ -27,13 +27,11 @@ const server = new BtpsServer({
 
 #### Options
 
-| Option           | Type             | Description                        |
-| ---------------- | ---------------- | ---------------------------------- |
-| `port`           | `number`         | Port to listen on                  |
-| `trustStore`     | `TrustStore`     | Trust store instance               |
-| `middlewarePath` | `string`         | Path to middleware file (optional) |
-| `logger`         | `Logger`         | Custom logger (optional)           |
-| `metrics`        | `MetricsTracker` | Custom metrics tracker (optional)  |
+| Option           | Type         | Description                                                     |
+| ---------------- | ------------ | --------------------------------------------------------------- |
+| `port`           | `number`     | Port to listen on                                               |
+| `trustStore`     | `TrustStore` | Trust store instance                                            |
+| `middlewarePath` | `string`     | Path to middleware file (optional). Default btps.middleware.mjs |
 
 ---
 

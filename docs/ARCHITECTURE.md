@@ -1,4 +1,16 @@
-# BTPS Architecture
+# Overview
+
+The Billing Transport Protocol (BTP) is an open protocol for securely delivering billing payloads (invoices, statements, financial documents) across domains using DNS + TLS + cryptographic signing. It can forward to HTTPS inbox endpoint and enables senders to address recipients using a familiar format like:
+
+```
+john$company.com
+```
+
+and securely deliver structured billing messages **only after explicit consent** from the recipient.
+
+---
+
+## BTPS Architecture
 
 **Status:** Alpha | **License:** MIT | **Type:** Federated Open Protocol
 
@@ -27,18 +39,6 @@ Or, as ASCII:
        │                   ▼
        └──────▶  POST to Receiver Inbox
 ```
-
----
-
-## Overview
-
-The Billing Transport Protocol (BTP) is an open protocol for securely delivering billing payloads (invoices, statements, financial documents) across domains using DNS + HTTPS + cryptographic signing. It enables senders to address recipients using a familiar format like:
-
-```
-john$company.com
-```
-
-and securely deliver structured billing messages **only after explicit consent** from the recipient.
 
 ---
 

@@ -51,7 +51,7 @@ See [BTPS Identity Spec](./BTPS_IDENTITY.md#trust-record-format-trustjson) for f
 
 ---
 
-## 5. Key Rotation via `.well-known`
+## 5. Trust via `.well-known` for light weight and self hosting
 
 See [BTPS Identity Spec](./BTPS_IDENTITY.md#key-rotation-via-well-known) for full details.
 
@@ -59,23 +59,9 @@ See [BTPS Identity Spec](./BTPS_IDENTITY.md#key-rotation-via-well-known) for ful
 
 ## 6. Trust Verification Flow
 
-1. Load trust record by sender domain.
-2. If `lockedTrust: true`, compare `publicKeyFingerprint` to the message.
-3. If mismatch and `allowKeyRotation: true`:
-   - Fetch `.well-known/btp-key-rotation.json`
-   - Validate `signature.value` using old key
-   - If valid, update trust and accept new key
-4. If `lockedTrust: false`, resolve key dynamically via DNS.
-
 ---
 
 ## 7. Security Best Practices
-
-- Use RSA-2048+ or Ed25519 keys
-- Use `lockedTrust: true` for immutable key trust
-- Use `allowKeyRotation: true` only with proof-based rotation
-- Enable DNSSEC to protect identity records
-- Serve inbox endpoints over HTTPS
 
 ---
 
