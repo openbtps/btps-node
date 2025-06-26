@@ -32,7 +32,7 @@ export type TypedEventEmitter<T = BtpsClientEvents> = {
   on<K extends keyof T>(event: K, listener: T[K]): void;
 };
 
-export interface SendBTPAtifact extends BTPCryptoOptions {
+export interface SendBTPArtifact extends BTPCryptoOptions {
   to: string;
   type: BTPArtifactType;
   document: BTPDocType;

@@ -9,7 +9,7 @@ const btpsClient = new BtpsClient({
   btpIdentityKey: readFileSync('./keys/finance/finance-private.pem'),
   connectionTimeoutMs: 1000,
   maxRetries: 5,
-  retryDelayMs: 100,
+  retryDelayMs: 500,
   btpMtsOptions: {
     rejectUnauthorized: false
   },

@@ -7,7 +7,7 @@ import { BTPErrorException } from '../core/error/index';
 import * as utils from '../core/utils/index';
 import * as crypto from '../core/crypto/index';
 import { BTPDocType, BTPServerResponse } from '../core/server/types';
-import { BtpsClientOptions, SendBTPAtifact, BTPSRetryInfo } from './types/index';
+import { BtpsClientOptions, SendBTPArtifact, BTPSRetryInfo } from './types/index';
 
 // --- Mocks ---
 vi.mock('tls');
@@ -212,12 +212,17 @@ describe('BtpsClient', () => {
   });
 
   describe('send', () => {
-    let artifact: SendBTPAtifact;
+    let artifact: SendBTPArtifact;
     beforeEach(() => {
       artifact = {
         to: 'recipient$example.com',
         type: 'btp_trust_request',
-        document: {} as BTPDocType,
+        document: {
+          name: 'Test User',
+          email: 'test@example.com',
+          reason: 'Testing',
+          phone: '+1234567890',
+        },
       };
     });
 

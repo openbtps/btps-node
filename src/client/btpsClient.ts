@@ -6,7 +6,7 @@ import {
   BTPClientResponse,
   BtpsClientOptions,
   BTPSRetryInfo,
-  SendBTPAtifact,
+  SendBTPArtifact,
   TypedEventEmitter,
 } from './types/index.js';
 import {
@@ -29,6 +29,7 @@ export class BtpsClient {
   private isDraining = false;
   private destroyed = false;
   private shouldRetry = true;
+  private isConnecting = false;
 
   constructor(private options: BtpsClientOptions) {}
 
@@ -62,6 +63,7 @@ export class BtpsClient {
     this.socket.on('end', () => {
       const info = this.getRetryInfo();
       this.emitter.emit('end', info);
+      this.isConnecting = false;
       if (info.willRetry) this.retryConnect(receiverId);
     });
 
@@ -71,9 +73,11 @@ export class BtpsClient {
         this.shouldRetry = false;
         this.emitter.emit('message', msg);
         this.socket?.end();
+        this.isConnecting = false;
       } catch (e) {
         const err = new SyntaxError(`Invalid JSON: ${e}`);
         this.shouldRetry = false;
+        this.isConnecting = false;
         this.emitter.emit('error', { error: err, ...this.getRetryInfo(err) });
       }
     });
@@ -120,6 +124,10 @@ export class BtpsClient {
 
   private resolveError(error: BTPErrorException) {
     const errorInfo = this.getRetryInfo({ message: error.message });
+    if (errorInfo.willRetry) {
+      this.isConnecting = false;
+    }
+
     if (this.emitter.listenerCount('error') === 0) {
       // No error handler registered: log instead of emitting
       console.error('[BtpsClient]::Unhandled error:', error);
@@ -134,7 +142,7 @@ export class BtpsClient {
   }
 
   private async signEncryptArtifact(
-    artifact: SendBTPAtifact,
+    artifact: SendBTPArtifact,
   ): Promise<BTPCryptoResponse<BTPDocType>> {
     const { to, signature, encryption, ...restArtifact } = artifact;
     const { identity, bptIdentityCert: publicKey, btpIdentityKey: privateKey } = this.options;
@@ -209,8 +217,12 @@ export class BtpsClient {
   }
 
   connect(receiverId: string, callbacks?: (events: TypedEventEmitter) => void) {
-    // Remove all previous listeners to avoid leaks and duplicate handlers
-    this.emitter.removeAllListeners();
+    if (this.isConnecting) {
+      this.resolveError(new BTPErrorException({ message: 'Already connecting' }));
+      return;
+    }
+
+    this.isConnecting = true;
     callbacks?.({
       on: (event, listener) => this.emitter.on(event, listener),
     });
@@ -256,7 +268,7 @@ export class BtpsClient {
       });
   }
 
-  async send(artifact: SendBTPAtifact): Promise<BTPClientResponse> {
+  async send(artifact: SendBTPArtifact): Promise<BTPClientResponse> {
     // Check if client is destroyed
     if (this.destroyed) {
       return this.buildClientErrorResponse(
@@ -299,7 +311,10 @@ export class BtpsClient {
             const { error, ...restErrors } = errors;
             // Only resolve if no message received and no more retries
             if (restErrors.willRetry) {
-              console.log('[BtpsClient]:: Retrying...', errors);
+              console.log(
+                `[BtpsClient]:: Retrying...for...${artifact.to}`,
+                JSON.stringify(errors, null, 2),
+              );
             }
             if (!messageReceived && !restErrors.willRetry) {
               const btpError = new BTPErrorException(error, { cause: restErrors });
@@ -328,10 +343,12 @@ export class BtpsClient {
   }
 
   end(): void {
+    this.isConnecting = false;
     this.socket?.end();
   }
 
   destroy(): void {
+    this.isConnecting = false;
     this.destroyed = true;
     this.backpressureQueue = [];
     this.socket?.destroy();
