@@ -24,3 +24,4 @@ client
 *.tgz
 test
 !src/server/test
+coverage
