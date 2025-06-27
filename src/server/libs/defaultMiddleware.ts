@@ -1,4 +1,11 @@
 /**
+ * @license
+ * Copyright (c) 2025 Bhupendra Tamang
+ * Licensed under the Apache License, Version 2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
+ */
+
+/**
  * Default BTP Server Middleware Configuration
  *
  * This file provides a default set of middleware for the BtpsServer.

@@ -1,3 +1,10 @@
+/**
+ * @license
+ * Copyright (c) 2025 Bhupendra Tamang
+ * Licensed under the Apache License, Version 2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
+ */
+
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EventEmitter } from 'events';
 import tls from 'tls';

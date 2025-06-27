@@ -1,3 +1,10 @@
+/**
+ * @license
+ * Copyright (c) 2025 Bhupendra Tamang
+ * Licensed under the Apache License, Version 2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
+ */
+
 import { BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '@core/error/constant.js';
 import { decryptBtpPayload, verifySignature } from './index.js';
 import { BTPCryptoArtifact, BTPCryptoResponse, PemKeys } from './types.js';

@@ -1,3 +1,10 @@
+/**
+ * @license
+ * Copyright (c) 2025 Bhupendra Tamang
+ * Licensed under the Apache License, Version 2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
+ */
+
 import { BTPSignature, BTPEncryption } from '@core/crypto/types.js';
 import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
 import { BTPInvoiceDoc } from '../../server/types/index.js';

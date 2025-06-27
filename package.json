@@ -5,6 +5,11 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Bhupendra Tamang",
+    "email": "personal_here@hotmail.com"
+  },
   "exports": {
     ".": {
       "import": "./dist/index.js"
@@ -61,7 +66,6 @@
     "eslint-import-resolver-typescript": "^4.4.3",
     "eslint-plugin-import": "^2.29.0",
     "fast-glob": "^3.3.3",
-    "license-check-and-add": "^4.0.5",
     "nodemon": "^3.0.0",
     "ora": "^8.2.0",
     "prettier": "^3.0.0",

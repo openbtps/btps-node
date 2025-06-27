@@ -1,3 +1,10 @@
+/**
+ * @license
+ * Copyright (c) 2025 Bhupendra Tamang
+ * Licensed under the Apache License, Version 2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
+ */
+
 import { BTPCryptoOptions } from '@core/crypto/types.js';
 import { BTPErrorException } from '@core/error/index.js';
 import { BTPArtifactType, BTPDocType, BTPServerResponse } from 'server/index.js';
