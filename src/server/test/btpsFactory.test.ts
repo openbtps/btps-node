@@ -10,30 +10,27 @@ import { BtpsServerRegistry, BtpsServerSingletonFactory } from '../libs/btpsFact
 import { BtpsServer } from '../btpsServer.js';
 import { AbstractTrustStore } from '../../core/trust/storage/AbstractTrustStore.js';
 import { BTPTrustRecord } from '../../core/trust/types.js';
+import { EventEmitter } from 'events';
+import tls, { TlsOptions, TLSSocket } from 'tls';
 
 // Dummy TrustStore for server construction
 class DummyTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   constructor() {
     super({ connection: null, entityName: 'dummy' });
   }
+  async getById(computedId: string): Promise<BTPTrustRecord | undefined> {
+    return undefined;
+  }
   async getBySender() {
     return undefined;
   }
-  async create(
-    receiverId: string,
-    senderId: string,
-    record: BTPTrustRecord,
-  ): Promise<BTPTrustRecord> {
+  async create(record: Omit<BTPTrustRecord, 'id'>, computedId?: string): Promise<BTPTrustRecord> {
     throw new Error('not implemented');
   }
-  async update(
-    receiverId: string,
-    senderId: string,
-    patch: Partial<BTPTrustRecord>,
-  ): Promise<BTPTrustRecord> {
+  async update(computedId: string, patch: Partial<BTPTrustRecord>): Promise<BTPTrustRecord> {
     throw new Error('not implemented');
   }
-  async delete(receiverId: string, senderId: string): Promise<void> {
+  async delete(computedId: string): Promise<void> {
     throw new Error('not implemented');
   }
   async getAll(): Promise<BTPTrustRecord[]> {
@@ -52,12 +49,19 @@ describe('BtpsServerRegistry', () => {
     trustStore = new DummyTrustStore();
     listenSpy = vi.fn((port, cb) => cb && cb());
     closeSpy = vi.fn();
-    vi.spyOn(BtpsServer.prototype, 'start').mockImplementation(async function () {
-      listenSpy();
-    });
-    vi.spyOn(BtpsServer.prototype, 'stop').mockImplementation(function () {
-      closeSpy();
-    });
+
+    // Mock the TLS server creation
+    vi.spyOn(tls, 'createServer').mockImplementation(
+      (opts: TlsOptions, handler?: (socket: TLSSocket) => void) => {
+        // Minimal mock of a TLS server
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed for test mock
+        const fakeServer: any = new EventEmitter();
+        fakeServer.listen = listenSpy;
+        fakeServer.close = closeSpy;
+        return fakeServer;
+      },
+    );
+
     serverA = new BtpsServer({ trustStore });
     serverB = new BtpsServer({ trustStore });
     BtpsServerRegistry.clear();
