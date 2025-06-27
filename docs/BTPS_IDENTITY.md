@@ -79,7 +79,126 @@ v=BTP1; k=<key_type>; p=<base64_public_key>; u=<btps_host:port>
 
 ## 6. Trust Verification Flow
 
-### TO DO WRITE
+### 6.1 Trust Establishment Process
+
+The BTPS trust verification flow follows a request-response pattern where a sender must establish trust with a receiver before sending business documents.
+
+#### 6.1.1 Trust Request (`btp_trust_request`)
+
+A sender initiates trust by sending a `btp_trust_request` artifact containing:
+
+```json
+{
+  "name": "Finance E-Billing Services",
+  "email": "finance@ebilladdress.com",
+  "reason": "To send your monthly subscription invoices.",
+  "phone": "0433599000",
+  "logoUrl": "https://ebilladdress.com/logo.png",
+  "displayName": "EbillAddress Billing Department",
+  "websiteUrl": "https://ebilladdress.com",
+  "message": "Would love to able to send the document via the Btp protocol",
+  "privacyType": "encrypted"
+}
+```
+
+#### 6.1.2 Trust Response (`btp_trust_response`)
+
+The receiver responds with a `btp_trust_response` artifact:
+
+```json
+{
+  "decision": "accepted",
+  "decidedAt": "2025-06-20T03:44:43.483Z",
+  "decidedBy": "finance@ebilladdress.com",
+  "expiresAt": "2027-06-19T00:00:00.000Z",
+  "message": "Trust request approved",
+  "privacyType": "encrypted"
+}
+```
+
+### 6.2 Trust Verification Steps
+
+When a BTPS server receives an artifact, it performs the following verification steps:
+
+#### 6.2.1 Identity Verification
+
+1. **Parse sender identity**: Extract `username$domain` from the `from` field
+2. **DNS lookup**: Query `<selector>._btp.<domain>` for the sender's public key
+3. **Key validation**: Verify the public key format and algorithm
+4. **Signature verification**: Validate the artifact signature using the sender's public key
+
+#### 6.2.2 Trust Verification
+
+1. **Trust lookup**: Check if the sender exists in the receiver's trust store
+2. **Status validation**: Verify the trust status is `accepted` and not expired
+3. **Privacy compliance**: Ensure the artifact meets the agreed privacy requirements
+4. **Key fingerprint matching**: Confirm the sender's current key matches the trusted fingerprint
+
+### 6.3 Trust Lifecycle
+
+#### 6.3.1 Trust States
+
+- **`pending`**: Trust request sent, awaiting response
+- **`accepted`**: Trust established, communication allowed
+- **`rejected`**: Trust request denied
+- **`revoked`**: Previously accepted trust has been revoked
+- **`expired`**: Trust has passed its expiration date
+
+#### 6.3.2 Trust Expiration
+
+- Trust records have an `expiresAt` timestamp
+- Expired trust requires renewal via a new trust request
+- Servers should reject artifacts from expired trust relationships
+
+#### 6.3.3 Trust Revocation
+
+- Receivers can revoke trust at any time
+- Revoked trust prevents future communication
+- Revocation is immediate and does not require sender acknowledgment
+- However sender should be notified when trust record gets updated
+
+### 6.4 Trust Store Management
+
+#### 6.4.1 Trust Record Storage
+
+- **Basic Implementation**: Trust records are stored in a `trust.json` file for simple self-hosted setups
+- **Enterprise Support**: Large companies can integrate with any database system by extending the `AbstractTrustStore` class
+- **Database Integration**: Supports PostgreSQL, MySQL, MongoDB, Redis, and other databases through custom implementations
+- **Scalability**: Database-backed trust stores enable high-performance lookups and distributed deployments
+
+#### 6.4.2 Trust Record Identification
+
+- **Computed Key**: Each trust record is identified by a computed key based on sender and receiver identity
+- **Key Generation**: The computed key is generated using a deterministic algorithm that combines both identities
+- **Uniqueness**: This ensures each sender-receiver pair has a unique trust relationship
+- **Lookup Efficiency**: The computed key enables fast O(1) lookups in both file-based and database-backed stores
+
+#### 6.4.3 Key Rotation Handling
+
+- Trust records track key history via `keyHistory` array
+- New keys are automatically trusted if they belong to an accepted sender
+- Old keys are retained for artifact verification during transition periods
+
+### 6.5 Security Considerations
+
+#### 6.5.1 Trust Verification
+
+- All artifacts must pass both identity and trust verification
+- Trust verification is mandatory for all business document types
+- Failed verification results in immediate rejection
+
+#### 6.5.2 Privacy Enforcement
+
+- Trust records specify `privacyType` requirements (`unencrypted`, `encrypted`, `mixed`)
+- Servers must enforce privacy requirements for all communications
+- Violations of privacy agreements result in trust revocation
+
+#### 6.5.3 Rate Limiting
+
+- Trust requests are subject to rate limiting to prevent abuse
+- Excessive trust requests from the same sender may result in temporary blocking via `retryAfterDate`
+- **Blocked senders**: Receive `BTP_ERROR_TRUST_BLOCKED` and are permanently blocked until manually unblocked
+- **Rejected/Revoked senders**: May receive a `retryAfterDate` in rejection responses for temporary blocking
 
 ---
 

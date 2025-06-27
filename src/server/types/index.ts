@@ -1,5 +1,3 @@
-import { RateLimiter } from 'server/libs/abstractRateLimiter.js';
-import { IMetricsTracker } from 'server/libs/type.js';
 import { TlsOptions, TLSSocket } from 'tls';
 
 import { BTPTrustRecord } from '@core/trust/index.js';
@@ -14,8 +12,6 @@ export interface BtpsServerOptions {
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   port?: number;
   onError?: (err: BTPErrorException) => void;
-  rateLimiter?: RateLimiter;
-  metrics?: IMetricsTracker;
   options?: TlsOptions;
   middlewarePath?: string; // Path to btps.middleware.mjs file
 }
