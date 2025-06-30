@@ -9,13 +9,11 @@ import { TlsOptions, TLSSocket } from 'tls';
 
 import { BTPTrustRecord } from '@core/trust/index.js';
 import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
-import { BTPMessageQueue } from '@core/server/helpers/index.js';
 import { BTPArtifact, BTPServerResponse, CurrencyCode } from '@core/server/types.js';
 import { BTPError } from '@core/error/types.js';
 import { BTPErrorException } from '@core/error/index.js';
 
 export interface BtpsServerOptions {
-  queue?: BTPMessageQueue;
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   port?: number;
   onError?: (err: BTPErrorException) => void;
