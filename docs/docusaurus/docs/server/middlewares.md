@@ -18,7 +18,7 @@ For rapid prototyping or small/medium deployments, the SDK provides a **default 
 - **Message processing metrics**
 - **Error logging**
 
-This default middleware is defined in [`defaultMiddleware.ts`](../../src/server/libs/defaultMiddleware.ts) and can be used as-is or as a starting point for your own configuration.
+This default middleware is defined in [`defaultMiddleware.ts`](../../../../src/server/libs/defaultMiddleware.ts) and can be used as-is or as a starting point for your own configuration.
 
 **How to use:**
 - If you do not specify a custom middleware file, the server will not use this default middleware as its purely for inspection and implementation guide. However one can include this default middleware into the btps.middleware.mjs of the running server root folder

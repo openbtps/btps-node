@@ -52,16 +52,16 @@ const config: Config = {
           // Versioning configuration
           // includeCurrentVersion: false,
         },
-        blog: {
-          showReadingTime: true,
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/btps/btps-docs/tree/main/',
-        },
+        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
+        sitemap: {
+          changefreq: 'weekly',
+          priority: 0.5,
+          ignorePatterns: ['/tags/**'],
+          filename: 'sitemap.xml',
+        }
       }) satisfies Preset.Options,
       
     ],
@@ -90,7 +90,6 @@ const config: Config = {
             position: 'left',
             label: 'Documentation',
           },
-          {to: '/blog', label: 'Blog', position: 'left'},
           {
             href: 'https://github.com/btps/btps-sdk',
             label: 'GitHub',
@@ -106,48 +105,48 @@ const config: Config = {
             items: [
               {
                 label: 'Introduction',
-                to: '/docs/v1/introduction',
+                to: '/docs/',
               },
               {
                 label: 'Protocol Overview',
-                to: '/docs/v1/protocol/overview',
+                to: '/docs/protocol/overview',
               },
               {
-                label: 'SDK Usage',
-                to: '/docs/v1/sdk/usage',
+                label: 'SDK Overview',
+                to: '/docs/sdk/overview',
               },
             ],
           },
-          {
-            title: 'Community',
-            items: [
-              {
-                label: 'GitHub',
-                href: 'https://github.com/btps/btps-sdk',
-              },
-              {
-                label: 'Discussions',
-                href: 'https://github.com/btps/btps-sdk/discussions',
-              },
-              {
-                label: 'Issues',
-                href: 'https://github.com/btps/btps-sdk/issues',
-              },
-            ],
-          },
-          {
-            title: 'More',
-            items: [
-              {
-                label: 'Blog',
-                to: '/blog',
-              },
-              {
-                label: 'Apache 2.0 License',
-                href: 'https://github.com/btps/btps-sdk/blob/main/LICENSE',
-              },
-            ],
-          },
+          // {
+          //   title: 'Community',
+          //   items: [
+          //     {
+          //       label: 'GitHub',
+          //       href: 'https://github.com/btps/btps-sdk',
+          //     },
+          //     {
+          //       label: 'Discussions',
+          //       href: 'https://github.com/btps/btps-sdk/discussions',
+          //     },
+          //     {
+          //       label: 'Issues',
+          //       href: 'https://github.com/btps/btps-sdk/issues',
+          //     },
+          //   ],
+          // },
+          // {
+          //   title: 'More',
+          //   items: [
+          //     {
+          //       label: 'Blog',
+          //       to: '/blog',
+          //     },
+          //     {
+          //       label: 'Apache 2.0 License',
+          //       href: 'https://github.com/btps/btps-sdk/blob/main/LICENSE',
+          //     },
+          //   ],
+          // },
         ],
         copyright: `Copyright © ${new Date().getFullYear()} Bhupendra Tamang. Built with Docusaurus.`,
       },
@@ -162,6 +161,10 @@ const config: Config = {
   markdown: {
     mermaid: true,
   },
+
+  plugins: [
+    // Remove docusaurus-search-local plugin
+  ],
 } satisfies Config;
 
 export default config;

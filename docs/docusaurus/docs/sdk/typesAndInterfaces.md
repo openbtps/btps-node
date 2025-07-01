@@ -781,4 +781,64 @@ type ParsedIdentity = {
 **Description:**
 Parsed BTPS identity (account and domain parts).
 
+---
+
+## Rate Limiting & Metrics Types
+
+### IRateLimitOptions
+
+```ts
+interface IRateLimitOptions {
+  ipAddress?: number;
+  fromIdentity?: number;
+  cleanupIntervalSec?: number;
+}
+```
+
+**Description:**
+Options for configuring rate limiting on the server.
+
+**Properties:**
+- `ipAddress` (`number`, optional): Maximum requests allowed per IP address.
+- `fromIdentity` (`number`, optional): Maximum requests allowed per sender identity.
+- `cleanupIntervalSec` (`number`, optional): Interval (in seconds) for cleaning up old rate limit records.
+
+---
+
+### IMetricsTracker
+
+```ts
+interface IMetricsTracker {
+  onMessageReceived(sender: string, recipient?: string): void;
+  onMessageRejected(sender: string, recipient: string, reason: string): void;
+  onError(error: Error): void;
+}
+```
+
+**Description:**
+Interface for tracking server metrics and events.
+
+**Methods:**
+- `onMessageReceived(sender, recipient?)`: Called when a message is received.
+- `onMessageRejected(sender, recipient, reason)`: Called when a message is rejected.
+- `onError(error)`: Called when an error occurs.
+
+---
+
+### CounterRecord
+
+```ts
+interface CounterRecord {
+  count: number;
+  windowStart: number;
+}
+```
+
+**Description:**
+A record for tracking the count and window start time for rate limiting.
+
+**Properties:**
+- `count` (`number`): Number of requests in the current window.
+- `windowStart` (`number`): Timestamp (ms) when the window started.
+
 --- 

@@ -37,6 +37,17 @@ const sidebars: SidebarsConfig = {
         'protocol/messageFlow',
         {
           type: 'category',
+          label: 'Delegation',
+          items: [
+            'protocol/delegation/overview',
+            'protocol/delegation/authentication',
+            'protocol/delegation/messageFlow',
+            'protocol/delegation/revocation',
+            'protocol/delegation/bestPractices',
+          ],
+        },
+        {
+          type: 'category',
           label: 'Security',
           items: [
             'protocol/security/overview',
@@ -48,6 +59,7 @@ const sidebars: SidebarsConfig = {
             'protocol/security/bestPractices',
           ],
         },
+        
         // Add more protocol docs here
       ],
     },

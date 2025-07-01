@@ -13,18 +13,23 @@ BTPS (Billing Trust Protocol Secure) uses modern cryptographic techniques to ens
 sequenceDiagram
     participant Sender
     participant DNS
+    participant Receiving BTPS Server
     participant Receiver
     Sender->>DNS: Query TXT record for receiver
     DNS-->>Sender: Return public key & endpoint
     Sender->>Sender: Validate & store public key
-    Sender->>Receiver: Send BTP Artifact (signed & encrypted or plain)
-    Receiver->>Receiver: Verify signature
+    Sender->>Receiving BTPS Server: Send BTPS Artifact (signed & encrypted or plain)
+    Receiving BTPS Server->>Receiving BTPS Server: Parse and validates BTPS Artifact
+    Receiving BTPS Server->>DNS: Query TXT record of sender
+    DNS-->>Receiving BTPS Server: Return public key
+    Receiving BTPS Server->>Receiving BTPS Server: Verifies the sender signature, trust status and identity
+    Receiving BTPS Server->>Receiver: Forwards to receiver's inbox
     alt Encrypted
         Receiver->>Receiver: Decrypt AES key & payload
     else Unencrypted
         Receiver->>Receiver: Use plain payload
     end
-    Receiver->>Receiver: Parse and process document
+    Receiver->>Receiver: Parse, process and action the document
 ```
 
 ## Key Features

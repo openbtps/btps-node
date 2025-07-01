@@ -207,4 +207,4 @@ BTPS is licensed under Apache 2.0 © Bhupendra Tamang
 
 ---
 
-**Ready to dive deeper?** Check out the [protocol overview](protocol/overview) or jump straight to [SDK usage](sdk/usage).
+**Ready to dive deeper?** Check out the [protocol overview](protocol/overview) or jump straight to [SDK overview](sdk/overview).

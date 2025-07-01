@@ -1,7 +1,6 @@
 import React, {type ReactNode} from 'react';
 import clsx from 'clsx';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const Heading = require('@theme/Heading').default;
+import Heading from '@theme/Heading';
 import styles from './styles.module.css';
 
 // Import SVG components
@@ -62,7 +61,7 @@ function Feature({title, Svg, description}: FeatureItem) {
   );
 }
 
-export default function HomepageFeatures(): ReactNode {
+export default function HomepageFeatures() {
   return (
     <section className={styles.features}>
       <div className="container">

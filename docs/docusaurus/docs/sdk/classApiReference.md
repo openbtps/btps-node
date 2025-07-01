@@ -631,8 +631,8 @@ await manager.loadMiddleware({ trustStore });
 const middleware = manager.getMiddleware(phase, step)
 ```
 Get middleware for a specific phase and step.
-- **phase**: [Phase](./typesAndInterfaces.md#phase)
-- **step**: [Step](./typesAndInterfaces.md#step)
+- **phase**: [Phase](./typesAndInterfaces#phase-step)
+- **step**: [Step](./typesAndInterfaces#phase-step)
 - **Returns**: `MiddlewareDefinition[]`
 
 **Example:**

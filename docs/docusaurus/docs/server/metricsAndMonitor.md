@@ -30,7 +30,7 @@ metrics.onError(new Error('Something went wrong'));
 - Logs received messages, rejections, and errors to the console.
 - Useful for local development, testing, and small-scale deployments.
 
-**Source:** See [`btpsSimpleMetricsTracker.ts`](../../src/server/libs/btpsSimpleMetricsTracker.ts)
+**Source:** See [`btpsSimpleMetricsTracker.ts`](../../../../src/server/libs/btpsSimpleMetricsTracker.ts)
 
 ## Advanced Metrics: Custom IMetricsTracker
 
