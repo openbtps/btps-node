@@ -5,9 +5,9 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import crypto, { constants } from 'crypto';
+import crypto, { constants, createHash, randomBytes } from 'crypto';
+import { performance } from 'perf_hooks';
 import {
-  AllowedEncryptPayloads,
   BTPCryptoOptions,
   BTPEncryption,
   BTPSignature,
@@ -61,11 +61,11 @@ export const encryptBtpPayload = (
   };
 };
 
-export const decryptBtpPayload = (
+export const decryptBtpPayload = <T = unknown>(
   payload: unknown = '',
   encryption: BTPEncryption,
   receiverPrivPem: string,
-): { data?: AllowedEncryptPayloads; error?: BTPErrorException } => {
+): { data?: T; error?: BTPErrorException } => {
   if (encryption.algorithm !== 'aes-256-cbc') {
     return {
       data: undefined,
@@ -216,3 +216,46 @@ export const verifySignature = (
         }),
   };
 };
+
+const DEFAULT_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // CrockFord Base32, human-friendly
+
+/**
+ * Generate a short, high-entropy, user-specific onboarding token.
+ * do not use this for long lived token as there are still chances of collision if compares with trillions of global record
+ * This token is suitable for copy-paste flows where the SaaS platform
+ * validates the token against a short-lived, user-scoped record (e.g. in Redis).
+ *
+ * @param userIdentity - Unique user identity string (e.g., "alice$btp.com")
+ * @param length - Number of characters in the token (8–24, default 12)
+ * @param charactersFrom - Optional character set to generate the token from (default: CrockFord Base32)
+ * @returns A short, human-friendly, high-entropy token string
+ *
+ * @throws Error if length is out of bounds
+ */
+export function generateUserToken(
+  userIdentity: string,
+  length: number = 12,
+  charactersFrom: string = DEFAULT_ALPHABET,
+): string {
+  if (length < 8 || length > 24) {
+    throw new BTPErrorException({ message: 'Token length must be between 8 and 24 characters.' });
+  }
+
+  // Combine identity + high-resolution timestamp + entropy
+  const entropyInput = userIdentity + performance.now().toString() + randomBytes(4).toString('hex');
+
+  const hash = createHash('sha256');
+  hash.update(entropyInput);
+  const digest = hash.digest();
+
+  // Use a safe slice of the digest
+  const sliced = new Uint8Array(digest).slice(0, length);
+
+  // Map bytes to characters from the alphabet
+  const token = Array.from(sliced)
+    .map((byte) => charactersFrom[byte % charactersFrom.length])
+    .join('')
+    .toUpperCase(); // normalize casing
+
+  return token;
+}

@@ -13,7 +13,6 @@ import {
   BTPClientResponse,
   BtpsClientOptions,
   BTPSRetryInfo,
-  SendBTPArtifact,
   TypedEventEmitter,
 } from './types/index.js';
 import {
@@ -22,23 +21,21 @@ import {
   transformToBTPErrorException,
 } from '@core/error/index.js';
 import isEmpty from 'lodash/isEmpty.js';
-import { signEncrypt, BTPCryptoResponse } from '@core/crypto/index.js';
-import { BTPDocType, BTPServerResponse } from '@core/server/types.js';
-import { BTP_PROTOCOL_VERSION } from 'server/index.js';
-import { validate } from '@core/utils/validation.js';
-import { BtpArtifactClientSchema } from '@core/server/schema.js';
+import { signEncrypt, BTPCryptoResponse, BTPCryptoOptions } from '@core/crypto/index.js';
+import { BTPServerResponse } from '@core/server/types.js';
+import { BTP_PROTOCOL_VERSION } from '@core/server/constants/index.js';
 
 export class BtpsClient {
-  private socket?: TLSSocket;
+  protected socket?: TLSSocket;
   private emitter = new EventEmitter();
   private retries = 0;
-  private backpressureQueue: string[] = [];
-  private isDraining = false;
+  protected backpressureQueue: string[] = [];
+  protected isDraining = false;
   private destroyed = false;
   private shouldRetry = true;
   private isConnecting = false;
 
-  constructor(private options: BtpsClientOptions) {}
+  constructor(protected options: BtpsClientOptions) {}
 
   private initializeConnection(receiverId: string, tlsOptions: ConnectionOptions): void {
     if (this.destroyed) {
@@ -47,7 +44,6 @@ export class BtpsClient {
     }
 
     this.socket = tls.connect(tlsOptions, () => {
-      this.retries = 0;
       this.emitter.emit('connected');
     });
 
@@ -129,7 +125,7 @@ export class BtpsClient {
     }, delay);
   }
 
-  private resolveError(error: BTPErrorException) {
+  protected resolveError(error: BTPErrorException) {
     const errorInfo = this.getRetryInfo({ message: error.message });
     if (errorInfo.willRetry) {
       this.isConnecting = false;
@@ -144,14 +140,18 @@ export class BtpsClient {
     return errorInfo;
   }
 
-  private buildClientErrorResponse(error: BTPErrorException): BTPClientResponse {
-    return { response: undefined, error };
+  protected buildClientErrorResponse(error: BTPErrorException): Promise<BTPClientResponse> {
+    return Promise.resolve({ response: undefined, error });
   }
 
-  private async signEncryptArtifact(
-    artifact: SendBTPArtifact,
-  ): Promise<BTPCryptoResponse<BTPDocType>> {
-    const { to, signature, encryption, ...restArtifact } = artifact;
+  protected signEncryptArtifact = async <T = Record<string, unknown>>(
+    artifact: {
+      document?: T;
+      [key: string]: unknown;
+    },
+    options?: BTPCryptoOptions,
+  ): Promise<BTPCryptoResponse<T>> => {
+    const { document, ...restArtifact } = artifact;
     const { identity, bptIdentityCert: publicKey, btpIdentityKey: privateKey } = this.options;
     const parsedSender = parseIdentity(identity);
     if (!parsedSender) {
@@ -164,12 +164,15 @@ export class BtpsClient {
     }
 
     return await signEncrypt(
-      to,
+      artifact.to as string,
       { ...parsedSender, pemFiles: { publicKey, privateKey } },
-      restArtifact,
-      { signature, encryption },
+      {
+        document: document as T,
+        ...restArtifact,
+      },
+      options,
     );
-  }
+  };
 
   private async flushBackpressure(): Promise<void> {
     if (this.isDraining) return;
@@ -275,78 +278,8 @@ export class BtpsClient {
       });
   }
 
-  async send(artifact: SendBTPArtifact): Promise<BTPClientResponse> {
-    // Check if client is destroyed
-    if (this.destroyed) {
-      return this.buildClientErrorResponse(
-        new BTPErrorException({ message: 'BtpsClient instance is destroyed' }),
-      );
-    }
-
-    const validationResult = validate(BtpArtifactClientSchema, artifact);
-    if (!validationResult.success) {
-      return this.buildClientErrorResponse(
-        new BTPErrorException(
-          { message: 'Invalid artifact' },
-          { cause: { validationZodError: validationResult.error } },
-        ),
-      );
-    }
-
-    try {
-      return await new Promise<BTPClientResponse>((resolve) => {
-        let messageReceived = false;
-        this.connect(artifact.to, (events) => {
-          events.on('connected', async () => {
-            const { payload, error } = await this.signEncryptArtifact(artifact);
-            if (error) return resolve(this.buildClientErrorResponse(error));
-            // add version to the payload
-            const payloadWithVersion = { ...payload, version: BTP_PROTOCOL_VERSION };
-            const serialized = JSON.stringify(payloadWithVersion) + '\n';
-            if (!this.socket?.write(serialized)) {
-              this.backpressureQueue.push(serialized);
-              this.isDraining = true;
-            }
-          });
-
-          events.on('message', (msg) => {
-            messageReceived = true;
-            resolve({ response: msg, error: undefined });
-          });
-
-          events.on('error', (errors) => {
-            const { error, ...restErrors } = errors;
-            // Only resolve if no message received and no more retries
-            if (restErrors.willRetry) {
-              console.log(
-                `[BtpsClient]:: Retrying...for...${artifact.to}`,
-                JSON.stringify(errors, null, 2),
-              );
-            }
-            if (!messageReceived && !restErrors.willRetry) {
-              const btpError = new BTPErrorException(error, { cause: restErrors });
-              resolve(this.buildClientErrorResponse(btpError));
-            }
-            // If willRetry is true, don't resolve - let retry logic handle it
-          });
-
-          events.on('end', ({ willRetry }) => {
-            if (!messageReceived && !willRetry) {
-              resolve(
-                this.buildClientErrorResponse(
-                  new BTPErrorException({
-                    message: 'Connection ended before message was received',
-                  }),
-                ),
-              );
-            }
-            // If willRetry is true, don't resolve - let retry logic handle it
-          });
-        });
-      });
-    } catch (err: unknown) {
-      return { response: undefined, error: transformToBTPErrorException(err) };
-    }
+  public getProtocolVersion(): string {
+    return BTP_PROTOCOL_VERSION;
   }
 
   end(): void {

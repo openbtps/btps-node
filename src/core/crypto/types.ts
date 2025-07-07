@@ -6,9 +6,13 @@
  */
 
 import { BTPErrorException } from '@core/error/index.js';
-import { BTPArtifact, BTPDocType } from '@core/server/types.js';
-import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
-import { BTPInvoiceDoc } from 'server/index.js';
+import {
+  BTPAgentArtifact,
+  BTPArtifact,
+  BTPDelegation,
+  BTPDocType,
+  BTPTransporterArtifact,
+} from '@core/server/types.js';
 
 export type EncryptionMode = 'none' | 'standardEncrypt' | '2faEncrypt';
 
@@ -44,14 +48,23 @@ export type BTPCryptoOptions = {
   };
 };
 
-export interface BTPCryptoArtifact<T = BTPDocType>
-  extends Omit<BTPArtifact, 'version' | 'document'> {
-  document: T | string;
-}
+type WithGenericDocument<TArtifact extends BTPArtifact, T> = Omit<TArtifact, 'document'> & {
+  document: T;
+};
+
+export type BTPCryptoArtifact<T = BTPDocType> =
+  | WithGenericDocument<BTPAgentArtifact, T>
+  | WithGenericDocument<BTPTransporterArtifact, T>;
 
 export interface BTPCryptoResponse<T = BTPDocType> {
   payload?: BTPCryptoArtifact<T>;
   error?: BTPErrorException;
 }
 
-export type AllowedEncryptPayloads = BTPTrustReqDoc | BTPTrustResDoc | BTPInvoiceDoc;
+export interface VerifyEncryptedPayload<T = unknown | string> {
+  document?: T;
+  signature: BTPSignature;
+  encryption: BTPEncryption | null;
+  delegation?: BTPDelegation;
+  [key: string]: unknown;
+}

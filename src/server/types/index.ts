@@ -9,7 +9,12 @@ import { TlsOptions, TLSSocket } from 'tls';
 
 import { BTPTrustRecord } from '@core/trust/index.js';
 import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
-import { BTPArtifact, BTPServerResponse, CurrencyCode } from '@core/server/types.js';
+import {
+  BTPAgentArtifact,
+  BTPServerResponse,
+  BTPTransporterArtifact,
+  CurrencyCode,
+} from '@core/server/types.js';
 import { BTPError } from '@core/error/types.js';
 import { BTPErrorException } from '@core/error/index.js';
 
@@ -18,6 +23,7 @@ export interface BtpsServerOptions {
   port?: number;
   onError?: (err: BTPErrorException) => void;
   options?: TlsOptions;
+  connectionTimeoutMs?: number;
   middlewarePath?: string; // Path to btps.middleware.mjs file
 }
 
@@ -27,7 +33,7 @@ export type Step =
   | 'parsing'
   | 'signatureVerification'
   | 'trustVerification'
-  | 'onMessage'
+  | 'onArtifact'
   | 'onError';
 
 export interface MiddlewareConfig {
@@ -50,29 +56,40 @@ export interface BTPContext {
   socket: TLSSocket;
   startTime: string;
   remoteAddress: string;
+  rawPacket?: string;
+  sendRes?: (res: BTPServerResponse) => void;
+  sendError?: (err: BTPError) => void;
 }
+
+type SetRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
+
+export type ArtifactResCtx = {
+  sendRes: BTPContext['sendRes'];
+  sendError: BTPContext['sendError'];
+};
 
 // Type helper to determine if artifact should be present
 // Only in parsing phase (before/after) is artifact optional
 // In all other phases/steps, artifact is required
 //
 type HasArtifact<_P extends Phase, S extends Step> = S extends 'parsing' ? false : true;
+type HasReqId<_P extends Phase, S extends Step> = S extends 'parsing' ? false : true;
 
 // Type helper to determine if isValid should be present
 type HasIsValid<P extends Phase, S extends Step> = P extends 'after'
-  ? S extends 'signatureVerification' | 'trustVerification' | 'onMessage'
+  ? S extends 'signatureVerification' | 'trustVerification' | 'onArtifact'
     ? true
     : false
-  : S extends 'trustVerification' | 'onMessage'
+  : S extends 'trustVerification' | 'onArtifact'
     ? true
     : false;
 
 // Type helper to determine if isTrusted should be present
 type HasIsTrusted<P extends Phase, S extends Step> = P extends 'after'
-  ? S extends 'trustVerification' | 'onMessage'
+  ? S extends 'trustVerification' | 'onArtifact'
     ? true
     : false
-  : S extends 'onMessage'
+  : S extends 'onArtifact'
     ? true
     : false;
 
@@ -82,15 +99,22 @@ type HasError<_P extends Phase, _S extends Step> = false; // Error is always opt
 // Type helper to determine if rawPacket should be present
 type HasRawPacket<P extends Phase, S extends Step> = S extends 'parsing'
   ? P extends 'before'
-    ? true
-    : false
+    ? false
+    : true
   : false;
 
+export type ProcessedArtifact =
+  | { artifact: BTPTransporterArtifact; isAgentArtifact: false }
+  | { artifact: BTPAgentArtifact; isAgentArtifact: true; respondNow: boolean };
+
 // Conditional request context based on phase and step
-export type BTPRequestCtx<P extends Phase = Phase, S extends Step = Step> = BTPContext & {
+export type BTPRequestCtx<P extends Phase = Phase, S extends Step = Step> = Omit<
+  BTPContext,
+  'sendRes' | 'sendError'
+> & {
   from?: string;
 } & (HasRawPacket<P, S> extends true ? { rawPacket: string } : { rawPacket?: string }) &
-  (HasArtifact<P, S> extends true ? { artifact: BTPArtifact } : { artifact?: BTPArtifact }) &
+  (HasArtifact<P, S> extends true ? { data: ProcessedArtifact } : { data?: ProcessedArtifact }) &
   (HasIsValid<P, S> extends true ? { isValid: boolean } : { isValid?: boolean }) &
   (HasIsTrusted<P, S> extends true ? { isTrusted: boolean } : { isTrusted?: boolean }) &
   (HasError<P, S> extends true ? { error: BTPErrorException } : { error?: BTPErrorException }) & {
@@ -99,11 +123,13 @@ export type BTPRequestCtx<P extends Phase = Phase, S extends Step = Step> = BTPC
   };
 
 // Conditional response context based on phase and step
-export type BTPResponseCtx<P extends Phase = Phase, S extends Step = Step> = BTPContext & {
-  reqId?: string;
-  sendError: (error: BTPError) => void;
-  sendResponse: (response: BTPServerResponse) => void;
-} & (HasArtifact<P, S> extends true ? { artifact: BTPArtifact } : { artifact?: BTPArtifact }) & {
+export type BTPResponseCtx<P extends Phase = Phase, S extends Step = Step> = SetRequired<
+  BTPContext,
+  'sendRes' | 'sendError'
+> &
+  ArtifactResCtx &
+  (HasReqId<P, S> extends true ? { reqId: string } : { reqId?: string }) &
+  (HasArtifact<P, S> extends true ? { data: ProcessedArtifact } : { data?: ProcessedArtifact }) & {
     // Allow middleware to add custom properties
     [key: string]: unknown;
   };
@@ -143,8 +169,8 @@ export type MiddlewareDefinitionArray = Array<
   | CreateMiddlewareDefinition<'after', 'signatureVerification'>
   | CreateMiddlewareDefinition<'before', 'trustVerification'>
   | CreateMiddlewareDefinition<'after', 'trustVerification'>
-  | CreateMiddlewareDefinition<'before', 'onMessage'>
-  | CreateMiddlewareDefinition<'after', 'onMessage'>
+  | CreateMiddlewareDefinition<'before', 'onArtifact'>
+  | CreateMiddlewareDefinition<'after', 'onArtifact'>
   | CreateMiddlewareDefinition<'before', 'onError'>
   | CreateMiddlewareDefinition<'after', 'onError'>
 >;

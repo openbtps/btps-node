@@ -129,7 +129,7 @@ export class MiddlewareManager {
 
     if (
       !middleware.step ||
-      !['parsing', 'signatureVerification', 'trustVerification', 'onMessage', 'onError'].includes(
+      !['parsing', 'signatureVerification', 'trustVerification', 'onArtifact', 'onError'].includes(
         middleware.step,
       )
     ) {

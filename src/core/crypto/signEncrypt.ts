@@ -14,11 +14,11 @@ import {
   BTPCryptoOptions,
   BTPSignature,
   BTPEncryption,
+  BTPCryptoArtifact,
 } from './types.js';
 import { parseIdentity, resolvePublicKey } from '@core/utils/index.js';
 import { ParsedIdentity } from '@core/utils/types.js';
 import { BTPErrorException } from '@core/error/index.js';
-import { BTPArtifactType, BTPDocType } from '@core/server/types.js';
 import isEmpty from 'lodash/isEmpty.js';
 
 const genEncryptError = (error: BTPErrorException) => ({
@@ -26,52 +26,49 @@ const genEncryptError = (error: BTPErrorException) => ({
   error,
 });
 
-export const signEncrypt = async <T extends BTPDocType>(
-  to: string,
+export const signEncrypt = async <T = unknown>(
+  to: string | undefined,
   sender: ParsedIdentity & { pemFiles: PemKeys },
   payload: {
     document: T;
-    id?: string;
-    issuedAt?: string;
-    type: BTPArtifactType;
+    [key: string]: unknown;
   },
   options?: BTPCryptoOptions,
 ): Promise<BTPCryptoResponse<T>> => {
-  const parsedReceiver = parseIdentity(to);
-  if (!parsedReceiver) return genEncryptError(new BTPErrorException(BTP_ERROR_IDENTITY));
+  const { document, ...restPayload } = payload;
+  let encryption: BTPEncryption | null = null;
+  let encryptedDoc: string | T = document;
 
-  const receiverPubPem = await resolvePublicKey(to);
-  if (!receiverPubPem) return genEncryptError(new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY));
+  if (to) {
+    const parsedReceiver = parseIdentity(to);
+    if (!parsedReceiver) return genEncryptError(new BTPErrorException(BTP_ERROR_IDENTITY));
+    const receiverPubPem = await resolvePublicKey(to);
+    if (!receiverPubPem) return genEncryptError(new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY));
 
-  let encryption: BTPEncryption | null;
-  let encryptedDoc: string | T;
-  let signature: BTPSignature;
+    try {
+      const encryptedData = isEmpty(options?.encryption)
+        ? { encryption: null, data: encryptedDoc }
+        : encryptBtpPayload(encryptedDoc, receiverPubPem, options?.encryption);
 
-  const { document, id, issuedAt, type } = payload;
-
-  try {
-    const encryptedData = isEmpty(options?.encryption)
-      ? { encryption: null, data: document }
-      : encryptBtpPayload(document, receiverPubPem, options?.encryption);
-    encryption = encryptedData.encryption;
-    encryptedDoc = encryptedData.data;
-  } catch (error) {
-    return genEncryptError(error as BTPErrorException);
+      encryption = encryptedData.encryption;
+      encryptedDoc = encryptedData.data;
+    } catch (error) {
+      return genEncryptError(error as BTPErrorException);
+    }
   }
 
-  const uuid = id ?? randomUUID();
-  const timestamp = issuedAt ? new Date(issuedAt).toISOString() : new Date().toISOString();
+  const uuid = randomUUID();
+  const timestamp = new Date().toISOString();
 
-  const docToSign = {
+  const docToSign: Record<string, unknown> = {
     id: uuid,
-    to,
-    from: `${sender.accountName}$${sender.domainName}`,
-    type,
     issuedAt: timestamp,
-    document: encryptedDoc,
-    encryption,
+    document: encryption ? (encryptedDoc as string) : (document as T),
+    encryption: encryption,
+    ...restPayload,
   };
 
+  let signature: BTPSignature;
   try {
     signature = signBtpPayload(docToSign, sender.pemFiles);
   } catch (error) {
@@ -82,7 +79,7 @@ export const signEncrypt = async <T extends BTPDocType>(
     payload: {
       ...docToSign,
       signature,
-    },
+    } as BTPCryptoArtifact<T>,
     error: undefined,
   };
 };

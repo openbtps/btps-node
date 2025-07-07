@@ -30,6 +30,7 @@ const __dirname = path.dirname(__filename);
       sourcemap: false,
       tsconfig: './tsconfig.json',
       logLevel: 'silent',
+      minifySyntax: true,
       plugins: [
         aliasPlugin({
           '@core': path.resolve(__dirname, 'src/core'),

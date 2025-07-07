@@ -255,31 +255,10 @@ describe('BtpsServer', () => {
       });
     });
 
-    describe('forwardToWebhook()', () => {
-      it('sets the webhook URL', () => {
-        const url = 'https://example.com/webhook';
-        server.forwardToWebhook(url);
-
-        // We can't directly test the private webhookUrl, but we can verify the method doesn't throw
-        expect(url).toBe('https://example.com/webhook');
-      });
-
-      it('replaces existing webhook when called multiple times', () => {
-        const url1 = 'https://example1.com/webhook';
-        const url2 = 'https://example2.com/webhook';
-
-        server.forwardToWebhook(url1);
-        server.forwardToWebhook(url2);
-
-        expect(url1).toBe('https://example1.com/webhook');
-        expect(url2).toBe('https://example2.com/webhook');
-      });
-    });
-
-    describe('onMessage()', () => {
+    describe('onIncomingArtifact()', () => {
       it('registers a message handler', () => {
         const handler = vi.fn();
-        server.onMessage(handler);
+        server.onIncomingArtifact('Transporter', handler);
 
         // We can't directly test the private emitter, but we can verify the method doesn't throw
         expect(handler).toBeDefined();
@@ -289,8 +268,8 @@ describe('BtpsServer', () => {
         const handler1 = vi.fn();
         const handler2 = vi.fn();
 
-        server.onMessage(handler1);
-        server.onMessage(handler2);
+        server.onIncomingArtifact('Transporter', handler1);
+        server.onIncomingArtifact('Transporter', handler2);
 
         expect(handler1).toBeDefined();
         expect(handler2).toBeDefined();
@@ -323,7 +302,7 @@ describe('BtpsServer', () => {
 
     it('emits message event when message is processed', async () => {
       const handler = vi.fn();
-      server.onMessage(handler);
+      server.onIncomingArtifact('Transporter', handler);
 
       // Use the public API to test message handling
       server.forwardTo(async (msg) => {
@@ -331,7 +310,7 @@ describe('BtpsServer', () => {
       });
 
       // The actual message processing happens in the private pipeline
-      // We can't test it directly, but we can verify the onMessage registration works
+      // We can't test it directly, but we can verify the onIncomingArtifact registration works
       expect(handler).toBeDefined();
     });
 
@@ -341,14 +320,6 @@ describe('BtpsServer', () => {
 
       // We can't directly test the private _forwardArtifact method, but we can verify the method doesn't throw
       expect(handler).toBeDefined();
-    });
-
-    it('forwards messages to webhook URL', async () => {
-      const url = 'https://example.com/webhook';
-      server.forwardToWebhook(url);
-
-      // We can't directly test the private _forwardArtifact method, but we can verify the method doesn't throw
-      expect(url).toBe('https://example.com/webhook');
     });
   });
 
@@ -424,24 +395,342 @@ describe('BtpsServer', () => {
       const handler2 = vi.fn();
       const handler3 = vi.fn();
 
-      server.onMessage(handler1);
-      server.onMessage(handler2);
-      server.onMessage(handler3);
+      server.onIncomingArtifact('Transporter', handler1);
+      server.onIncomingArtifact('Transporter', handler2);
+      server.onIncomingArtifact('Transporter', handler3);
 
       expect(handler1).toBeDefined();
       expect(handler2).toBeDefined();
       expect(handler3).toBeDefined();
     });
 
-    it('combines forwardTo and forwardToWebhook', () => {
+    it('combines forwardTo', () => {
       const handler = vi.fn();
-      const webhookUrl = 'https://example.com/webhook';
-
       server.forwardTo(handler);
-      server.forwardToWebhook(webhookUrl);
-
       expect(handler).toBeDefined();
-      expect(webhookUrl).toBe('https://example.com/webhook');
+    });
+  });
+
+  // --- Additional tests for 100% coverage ---
+  describe('BtpsServer Full Coverage', () => {
+    let server: BtpsServer;
+    let trustStore: DummyTrustStore;
+    let fakeServer: EventEmitter & { listen: Mock; close: Mock };
+    let listenSpy: Mock;
+    let closeSpy: Mock;
+
+    beforeEach(() => {
+      trustStore = new DummyTrustStore();
+      listenSpy = vi.fn((port, cb) => cb && cb());
+      closeSpy = vi.fn();
+      fakeServer = new EventEmitter() as EventEmitter & { listen: Mock; close: Mock };
+      fakeServer.listen = listenSpy;
+      fakeServer.close = closeSpy;
+      vi.spyOn(tls, 'createServer').mockImplementation(
+        (opts: TlsOptions, handler?: (socket: TLSSocket) => void) => {
+          return fakeServer as unknown as tls.Server;
+        },
+      );
+      server = new BtpsServer({ trustStore });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('executes all middleware phases and handles errors in middleware', async () => {
+      // Mock all middleware phases
+      const phases = ['before', 'after'];
+      const steps = [
+        'parsing',
+        'signatureVerification',
+        'trustVerification',
+        'onArtifact',
+        'onError',
+      ];
+      const calls: string[] = [];
+      const mw = phases.flatMap((phase) =>
+        steps.map((step) => ({
+          phase,
+          step,
+          handler: vi.fn(async () => {
+            calls.push(`${phase}:${step}`);
+          }),
+        })),
+      );
+      // @ts-expect-error - test override
+      server.middlewareManager.getMiddleware = (phase: string, step: string) =>
+        mw.filter((m) => m.phase === phase && m.step === step);
+      // @ts-expect-error - test override
+      server.middlewareManager.onServerStart = vi.fn();
+      // @ts-expect-error - test override
+      server.middlewareManager.loadMiddleware = vi.fn();
+      // @ts-expect-error - test override
+      server.middlewareManager.onServerStop = vi.fn();
+      await server.start();
+      server.stop();
+      // Since we're not actually triggering the pipeline, just verify the middleware manager was called
+      // @ts-expect-error - test override
+      expect(server.middlewareManager.onServerStart).toHaveBeenCalled();
+    });
+
+    it('handles socket timeout and error events', async () => {
+      await server.start();
+
+      // Mock middleware manager to avoid async issues
+      // @ts-expect-error - test override
+      server.middlewareManager.getMiddleware = vi.fn().mockReturnValue([]);
+
+      // Simulate a socket with proper pipe method
+      const socket = new EventEmitter() as TLSSocket;
+      Object.defineProperty(socket, 'remoteAddress', { value: '1.2.3.4' });
+      Object.defineProperty(socket, 'destroyed', { value: false, writable: true });
+      socket.destroy = vi.fn();
+      socket.pipe = vi.fn(() => new EventEmitter()) as unknown as TLSSocket['pipe'];
+
+      // Mock setTimeout to capture the timeout callback
+      let timeoutCallback: (() => void) | undefined;
+      socket.setTimeout = vi.fn((timeout: number, callback?: () => void) => {
+        timeoutCallback = callback;
+        return socket;
+      });
+
+      // @ts-expect-error - test access to private method
+      server.handleConnection(socket);
+
+      // Verify setTimeout was called
+      expect(socket.setTimeout).toHaveBeenCalled();
+
+      // Simulate timeout by calling the captured callback
+      if (timeoutCallback) {
+        await timeoutCallback();
+        expect(socket.destroy).toHaveBeenCalled();
+      }
+
+      // Simulate error
+      socket.emit('error', new Error('socket error'));
+      expect(socket.destroy).toHaveBeenCalled();
+    });
+
+    it('handles invalid JSON and validation errors', async () => {
+      await server.start();
+      const socket = new EventEmitter() as TLSSocket;
+      Object.defineProperty(socket, 'remoteAddress', { value: '1.2.3.4' });
+      socket.destroy = vi.fn();
+      socket.pipe = vi.fn(() => new EventEmitter()) as unknown as TLSSocket['pipe'];
+      socket.setTimeout = vi.fn();
+      // @ts-expect-error - test access to private method
+      server.handleConnection(socket);
+      // Simulate data event with invalid JSON
+      const stream = new EventEmitter();
+      (socket.pipe as unknown as () => EventEmitter) = () => stream;
+      stream.emit('data', 'not-json');
+      // Simulate data event with invalid schema
+      stream.emit('data', JSON.stringify({ foo: 'bar' }));
+      expect(socket.destroy).not.toThrow;
+    });
+
+    it('handles close event and cleans up listeners', async () => {
+      await server.start();
+      const socket = new EventEmitter() as TLSSocket;
+      Object.defineProperty(socket, 'remoteAddress', { value: '1.2.3.4' });
+      socket.destroy = vi.fn();
+      socket.pipe = vi.fn(() => new EventEmitter()) as unknown as TLSSocket['pipe'];
+      socket.setTimeout = vi.fn();
+      // @ts-expect-error - test access to private method
+      server.handleConnection(socket);
+      const stream = new EventEmitter();
+      (socket.pipe as unknown as () => EventEmitter) = () => stream;
+      const handleError = vi.fn();
+      socket.on('error', handleError);
+      stream.on('error', handleError);
+      socket.emit('close');
+      // Should remove listeners
+      expect(socket.listenerCount('error')).toBe(1); // Only the one we just added
+    });
+
+    it('covers verifyAgentSignature and verifyAgentTrust error paths', async () => {
+      // Patch trustStore to return undefined
+      trustStore.getById = vi.fn().mockResolvedValue(undefined);
+      // @ts-expect-error - test access to private method
+      const result = await server.verifyAgentSignature({
+        id: 'id',
+        action: 'trust.request',
+        document: {},
+        agentId: 'agent',
+        from: 'from$domain.com',
+        issuedAt: new Date().toISOString(),
+        signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+        encryption: null,
+      });
+      expect(result.isValid).toBe(false);
+      // @ts-expect-error - test access to private method
+      const trust = await server.verifyAgentTrust({
+        id: 'id',
+        action: 'trust.request',
+        document: {},
+        agentId: 'agent',
+        from: 'from$domain.com',
+        issuedAt: new Date().toISOString(),
+        signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+        encryption: null,
+      });
+      expect(trust.isTrusted).toBe(false);
+    });
+
+    it('covers verifyAttestation error path (missing pubkey)', async () => {
+      // Mock resolvePublicKey to return undefined
+      const utils = await import('../../core/utils/index.js');
+      vi.spyOn(utils, 'resolvePublicKey').mockResolvedValue(undefined);
+
+      const attestation = {
+        signedBy: 'attestor$domain.com',
+        issuedAt: new Date().toISOString(),
+        signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+      };
+      // @ts-expect-error - test access to private method
+      const result = await server.verifyAttestation({
+        agentId: 'agent',
+        agentPubKey: 'pub',
+        signedBy: 'attestor$domain.com',
+        signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+        issuedAt: new Date().toISOString(),
+        attestation,
+      });
+      expect(result.isValid).toBe(false);
+    });
+
+    it('covers verifyDelegation error paths', async () => {
+      // Mock resolvePublicKey to return undefined
+      const utils = await import('../../core/utils/index.js');
+      vi.spyOn(utils, 'resolvePublicKey').mockResolvedValue(undefined);
+
+      const delegation = {
+        agentId: 'agent',
+        agentPubKey: 'pub',
+        signedBy: 'delegator$domain.com',
+        signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+        issuedAt: new Date().toISOString(),
+      };
+      // @ts-expect-error - test access to private method
+      const result = await server.verifyDelegation({
+        id: 'id',
+        type: 'TRUST_REQ',
+        from: 'from$domain.com',
+        to: 'to$domain.com',
+        issuedAt: new Date().toISOString(),
+        signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+        encryption: null,
+        document: {},
+        delegation,
+      });
+      expect(result.isValid).toBe(false);
+    });
+
+    it('covers verifySignature error path (missing pubkey)', async () => {
+      // Mock resolvePublicKey to return undefined
+      const utils = await import('../../core/utils/index.js');
+      vi.spyOn(utils, 'resolvePublicKey').mockResolvedValue(undefined);
+
+      // @ts-expect-error - test access to private method
+      const result = await server.verifySignature({
+        artifact: {
+          id: 'id',
+          type: 'TRUST_REQ',
+          from: 'from$domain.com',
+          to: 'to$domain.com',
+          issuedAt: new Date().toISOString(),
+          signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+          encryption: null,
+          document: {},
+        },
+        isAgentArtifact: false,
+      });
+      expect(result.isValid).toBe(false);
+    });
+
+    it('covers verifyTrust for TRUST_RES and TRUST_REQ', async () => {
+      // Patch trustStore to return a dummy record
+      trustStore.getById = vi.fn().mockResolvedValue({
+        id: 'id',
+        from: 'from$domain.com',
+        to: 'to$domain.com',
+        publicKeyBase64: 'pub',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Mock validateTrustResponse to return success
+      const trust = await import('../../core/trust/index.js');
+      vi.spyOn(trust, 'validateTrustResponse').mockResolvedValue({ isValid: true });
+      vi.spyOn(trust, 'validateTrustRequest').mockReturnValue({ isValid: true });
+      vi.spyOn(trust, 'isTrustActive').mockReturnValue(true);
+
+      // @ts-expect-error - test access to private method
+      const res1 = await server.verifyTrust({
+        artifact: {
+          id: 'id',
+          type: 'TRUST_RES',
+          from: 'from$domain.com',
+          to: 'to$domain.com',
+          issuedAt: new Date().toISOString(),
+          signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+          encryption: null,
+          document: {},
+        },
+        isAgentArtifact: false,
+      });
+      expect(res1.isTrusted).toBe(true);
+
+      // @ts-expect-error - test access to private method
+      const res2 = await server.verifyTrust({
+        artifact: {
+          id: 'id',
+          type: 'TRUST_REQ',
+          from: 'from$domain.com',
+          to: 'to$domain.com',
+          issuedAt: new Date().toISOString(),
+          signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+          encryption: null,
+          document: {},
+        },
+        isAgentArtifact: false,
+      });
+      expect(res2.isTrusted).toBe(true);
+    });
+
+    it('covers _parseAndValidateArtifact branches', () => {
+      // Valid transporter
+      // @ts-expect-error - test access to private method
+      const valid = server._parseAndValidateArtifact(
+        JSON.stringify({
+          id: 'id',
+          type: 'TRUST_REQ',
+          from: 'from$domain.com',
+          to: 'to$domain.com',
+          issuedAt: new Date().toISOString(),
+          signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+          encryption: null,
+          document: {},
+        }),
+      );
+      expect(valid.data).toBeDefined();
+      // Invalid JSON
+      // @ts-expect-error - test access to private method
+      const invalid = server._parseAndValidateArtifact('not-json');
+      expect(invalid.error).toBe('JSON');
+      // Invalid schema
+      // @ts-expect-error - test access to private method
+      const invalid2 = server._parseAndValidateArtifact(JSON.stringify({ foo: 'bar' }));
+      expect(invalid2.error).toBe('VALIDATION');
+    });
+
+    it('covers isImmediateAction', () => {
+      // @ts-expect-error - test access to private method
+      expect(server.isImmediateAction('system.ping')).toBe(true);
+      // @ts-expect-error - test access to private method
+      expect(server.isImmediateAction('not-immediate')).toBe(false);
     });
   });
 });

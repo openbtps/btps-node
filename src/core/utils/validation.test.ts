@@ -65,7 +65,7 @@ describe('BtpArtifactServerSchema superRefine', () => {
   it('should succeed when encryption is present and document is a string', () => {
     const data = {
       ...base,
-      type: 'btp_trust_request',
+      type: 'TRUST_REQ',
       document: 'encryptedstring',
       encryption: {
         algorithm: 'aes-256-cbc',
@@ -81,7 +81,7 @@ describe('BtpArtifactServerSchema superRefine', () => {
   it('should fail when encryption is present and document is not a string', () => {
     const data = {
       ...base,
-      type: 'btp_trust_request',
+      type: 'TRUST_REQ',
       document: { foo: 'bar' },
       encryption: {
         algorithm: 'aes-256-cbc',
@@ -101,7 +101,7 @@ describe('BtpArtifactServerSchema superRefine', () => {
   it('should succeed when encryption is null and document matches schema', () => {
     const data = {
       ...base,
-      type: 'btp_trust_request',
+      type: 'TRUST_REQ',
       document: {
         name: 'Alice',
         email: 'alice@example.com',
@@ -117,7 +117,7 @@ describe('BtpArtifactServerSchema superRefine', () => {
   it('should fail when encryption is null and document does not match schema', () => {
     const data = {
       ...base,
-      type: 'btp_trust_request',
+      type: 'TRUST_REQ',
       document: { foo: 'bar' },
       encryption: null,
     };
@@ -140,8 +140,15 @@ describe('BtpArtifactServerSchema superRefine', () => {
     const result = BtpArtifactServerSchema.safeParse(data);
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0].path).toEqual(['type']);
-      expect(result.error.issues[0].message).toMatch(/Invalid enum value/);
+      const unionError = result.error.issues.find((issue) => issue.code === 'invalid_union');
+      const typeError = unionError?.unionErrors
+        ?.flatMap((err) => err.issues)
+        ?.find((issue) => issue.path[0] === 'type' && issue.code === 'invalid_enum_value');
+      expect(typeError).toBeDefined();
+      if (typeError) {
+        expect(typeError.path).toEqual(['type']);
+        expect(typeError.message).toMatch(/Invalid enum value/);
+      }
     }
   });
 });

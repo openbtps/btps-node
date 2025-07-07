@@ -7,6 +7,7 @@
 
 import dns from 'dns/promises';
 import { ParsedIdentity } from './types.js';
+import { BTPTransporterArtifact } from 'server/index.js';
 
 export * from './types.js';
 
@@ -112,4 +113,13 @@ export const getBtpAddressParts = (input: string): URL | null => {
 
 export const resolvePublicKey = async (identity: string): Promise<string | undefined> => {
   return await getDnsParts(identity, 'pem');
+};
+
+export const isBtpsTransportArtifact = (artifact: unknown): artifact is BTPTransporterArtifact => {
+  if (typeof artifact !== 'object' || artifact === null) {
+    return false;
+  }
+
+  const maybe = artifact as Partial<BTPTransporterArtifact>;
+  return typeof maybe.to === 'string' && typeof maybe.type === 'string' && !('agentId' in maybe);
 };

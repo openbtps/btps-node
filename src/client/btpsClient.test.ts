@@ -13,8 +13,7 @@ import { BtpsClient } from './btpsClient';
 import { BTPErrorException } from '../core/error/index';
 import * as utils from '../core/utils/index';
 import * as crypto from '../core/crypto/index';
-import { BTPDocType, BTPServerResponse } from '../core/server/types';
-import { BtpsClientOptions, SendBTPArtifact, BTPSRetryInfo } from './types/index';
+import { BtpsClientOptions, BTPSRetryInfo } from './types/index';
 
 // --- Mocks ---
 vi.mock('tls');
@@ -110,7 +109,7 @@ describe('BtpsClient', () => {
         to: 'recipient$example.com',
         type: 'btp_trust_request',
         issuedAt: '2023-01-01T00:00:00.000Z',
-        document: {} as BTPDocType,
+        document: {} as Record<string, unknown>,
         signature: { algorithm: 'sha256', value: 'sig', fingerprint: 'fp' },
         encryption: null,
       },
@@ -218,105 +217,10 @@ describe('BtpsClient', () => {
     });
   });
 
-  describe('send', () => {
-    let artifact: SendBTPArtifact;
-    beforeEach(() => {
-      artifact = {
-        to: 'recipient$example.com',
-        type: 'btp_trust_request',
-        document: {
-          name: 'Test User',
-          email: 'test@example.com',
-          reason: 'Testing',
-          phone: '+1234567890',
-        },
-      };
-    });
-
-    it('should send and receive a response', async () => {
-      const response: BTPServerResponse = {
-        version: '1.0',
-        status: { ok: true, code: 200 },
-        id: 'id',
-        issuedAt: '2023-01-01T00:00:00.000Z',
-        type: 'btp_response',
-      };
-      const promise = client.send(artifact);
-      // Simulate connected and message events on internal emitter
-      (client as unknown as { emitter: EventEmitter }).emitter.emit('connected');
-      (client as unknown as { emitter: EventEmitter }).emitter.emit('message', response);
-      await vi.runAllTimersAsync();
-      const result = await promise;
-      expect(result.response).toEqual(response);
-      expect(result.error).toBeUndefined();
-    });
-
-    it('should handle DNS failure', async () => {
-      mockUtils.getDnsParts.mockResolvedValue(undefined);
-      const promise = client.send(artifact);
-      // Simulate error event on internal emitter
-      (client as unknown as { emitter: EventEmitter }).emitter.emit('error', {
-        error: new BTPErrorException({ message: 'invalid btpAddress: undefined' }),
-      });
-      await vi.runAllTimersAsync();
-      const result = await promise;
-      expect(result.error).toBeInstanceOf(BTPErrorException);
-      expect(result.response).toBeUndefined();
-    });
-
-    it('should handle invalid identity', async () => {
-      mockUtils.parseIdentity.mockReturnValue(null);
-      const promise = client.send(artifact);
-      // Simulate error event on internal emitter
-      (client as unknown as { emitter: EventEmitter }).emitter.emit('error', {
-        error: new BTPErrorException({ message: 'invalid identity: recipient$example.com' }),
-      });
-      await vi.runAllTimersAsync();
-      const result = await promise;
-      expect(result.error).toBeInstanceOf(BTPErrorException);
-      expect(result.response).toBeUndefined();
-    });
-
-    it('should handle signEncrypt failure', async () => {
-      mockCrypto.signEncrypt.mockResolvedValue({
-        payload: undefined,
-        error: new BTPErrorException({ message: 'fail' }),
-      });
-      const result = await client.send(artifact);
-      expect(result.error).toBeInstanceOf(BTPErrorException);
-      expect(result.response).toBeUndefined();
-    });
-
-    it('should handle destroyed client', async () => {
-      client.destroy();
-      const result = await client.send(artifact);
-      expect(result.error).toBeInstanceOf(BTPErrorException);
-      expect(result.error?.message).toContain('destroyed');
-    });
-
-    it('should handle unknown errors gracefully', async () => {
-      mockUtils.getDnsParts.mockRejectedValue(new Error('Unknown DNS error'));
-      // Use a client with maxRetries: 0 so it does not retry
-      const noRetryClient = new BtpsClient({ ...mockOptions, maxRetries: 0 });
-      const result = await noRetryClient.send({
-        to: 'recipient$example.com',
-        type: 'btp_trust_request',
-        document: {
-          name: 'Test User',
-          email: 'test@example.com',
-          reason: 'Testing',
-          phone: '+1234567890',
-        },
-      });
-      expect(result.error).toBeInstanceOf(BTPErrorException);
-      expect(result.response).toBeUndefined();
-    });
-  });
-
   describe('destruction', () => {
     it('should clean up and prevent further use', () => {
       client.destroy();
-      expect(() => client.send({ to: 'a', type: 'b', document: {} as BTPDocType })).not.toThrow();
+      expect(() => client.connect('test$example.com')).not.toThrow();
     });
   });
 });
@@ -561,24 +465,72 @@ describe('retry and error edge cases', () => {
       expect.any(Function),
     );
   });
+});
 
-  describe('error handling edge cases', () => {
-    it('should handle unknown errors gracefully', async () => {
-      mockUtils.getDnsParts.mockRejectedValue(new Error('Unknown DNS error'));
-      // Use a client with maxRetries: 0 so it does not retry
-      const noRetryClient = new BtpsClient({ ...mockOptions, maxRetries: 0 });
-      const result = await noRetryClient.send({
-        to: 'recipient$example.com',
-        type: 'btp_trust_request',
-        document: {
-          name: 'Test User',
-          email: 'test@example.com',
-          reason: 'Testing',
-          phone: '+1234567890',
-        },
-      });
-      expect(result.error).toBeInstanceOf(BTPErrorException);
-      expect(result.response).toBeUndefined();
+describe('BtpsClient additional edge cases', () => {
+  let client: BtpsClient;
+  let mockSocket: ReturnType<typeof Object.assign>;
+  let mockOptions: BtpsClientOptions;
+
+  beforeEach(() => {
+    mockSocket = Object.assign(new EventEmitter(), {
+      writable: true,
+      write: vi.fn().mockReturnValue(true),
+      end: vi.fn(),
+      destroy: vi.fn(),
+      setTimeout: vi.fn(),
+      once: vi.fn(),
+      pipe: vi.fn(),
     });
+    mockOptions = {
+      identity: 'test$example.com',
+      btpIdentityKey: 'PRIVATE_KEY',
+      bptIdentityCert: 'PUBLIC_KEY',
+      maxRetries: 2,
+      retryDelayMs: 10,
+      connectionTimeoutMs: 100,
+    };
+    client = new BtpsClient(mockOptions);
+    (client as unknown as { socket: typeof mockSocket }).socket = mockSocket;
+    // Attach a no-op error listener to prevent unhandled error warnings
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((client as any)?.emitter?.on) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (client as any).emitter.on('error', () => {});
+    }
+  });
+
+  it('should allow double destruction safely', () => {
+    expect(() => {
+      client.destroy();
+      client.destroy();
+    }).not.toThrow();
+    expect((client as unknown as { destroyed: boolean }).destroyed).toBe(true);
+  });
+
+  it('should return the correct protocol version', () => {
+    expect(client.getProtocolVersion()).toBe('1.0.0');
+  });
+
+  it('should remove all event listeners after destroy', () => {
+    const emitter = (client as unknown as { emitter: EventEmitter }).emitter;
+    emitter.on('foo', () => {});
+    emitter.on('bar', () => {});
+    client.destroy();
+    expect(emitter.eventNames().length).toBe(0);
+  });
+
+  it('signEncryptArtifact returns error if identity is invalid', async () => {
+    const spy = vi.spyOn(utils, 'parseIdentity').mockReturnValue(null);
+    const result = await (
+      client as unknown as {
+        signEncryptArtifact: (
+          artifact: unknown,
+        ) => Promise<{ error?: BTPErrorException; payload?: unknown }>;
+      }
+    ).signEncryptArtifact({ to: 'a' });
+    expect(result.error).toBeInstanceOf(BTPErrorException);
+    expect(result.payload).toBeUndefined();
+    spy.mockRestore();
   });
 });

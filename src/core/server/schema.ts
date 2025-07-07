@@ -6,24 +6,24 @@
  */
 
 import { z } from 'zod';
-import { BTP_ARTIFACT_TYPES } from './constants/index.js';
+import { TRANSPORTER_ACTIONS, AGENT_ACTIONS } from './constants/index.js';
 import { CURRENCY_CODES } from './constants/currency.js';
 import { BTPArtifactType } from './types.js';
 
-const BtpEncryptionSchema = z.object({
+export const BtpEncryptionSchema = z.object({
   algorithm: z.literal('aes-256-cbc'),
   encryptedKey: z.string(),
   iv: z.string(),
   type: z.enum(['none', 'standardEncrypt', '2faEncrypt']),
 });
 
-const BtpSignatureSchema = z.object({
+export const BtpSignatureSchema = z.object({
   algorithm: z.literal('sha256'),
   value: z.string(),
   fingerprint: z.string(),
 });
 
-const BtpTrustReqDocSchema = z.object({
+export const BtpTrustReqDocSchema = z.object({
   name: z.string(),
   email: z.string().email(),
   reason: z.string(),
@@ -37,7 +37,7 @@ const BtpTrustReqDocSchema = z.object({
   privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']).optional(),
 });
 
-const BtpTrustResDocSchema = z.object({
+export const BtpTrustResDocSchema = z.object({
   decision: z.enum(['accepted', 'rejected', 'revoked']),
   decidedAt: z.string().datetime(),
   decidedBy: z.string(),
@@ -47,13 +47,13 @@ const BtpTrustResDocSchema = z.object({
   privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']).optional(),
 });
 
-const BtpAttachmentSchema = z.object({
+export const BtpAttachmentSchema = z.object({
   content: z.string(), // base64
   type: z.enum(['application/pdf', 'image/jpeg', 'image/png']),
   filename: z.string().optional(),
 });
 
-const BtpInvoiceDocSchema = z.object({
+export const BtpInvoiceDocSchema = z.object({
   title: z.string(),
   id: z.string(),
   issuedAt: z.string().datetime(),
@@ -93,76 +93,102 @@ const BtpInvoiceDocSchema = z.object({
     .optional(),
 });
 
-const BtpArtifactSchema = z.object({
-  to: z.string().regex(/^\S+\$\S+\.\S+$/, 'To field must match pattern: {username}${domain}'),
-  type: z.enum(BTP_ARTIFACT_TYPES),
-  id: z.string().nullable(),
-  issuedAt: z.string().datetime().nullable(),
-  document: z.unknown(),
+// Schema for BTPAuthReqDoc (used in agent artifacts)
+export const BtpAuthReqDocSchema = z.object({
+  identity: z
+    .string()
+    .regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
+  authToken: z.string(),
+  publicKey: z.string(),
+  deviceInfo: z.record(z.union([z.string(), z.array(z.string())])).optional(),
 });
 
-export const BtpArtifactServerSchema = BtpArtifactSchema.extend({
+// Schema for BTPDelegation
+export const BtpDelegationSchema = z.object({
+  agentId: z.string(),
+  agentPubKey: z.string(),
+  signedBy: z
+    .string()
+    .regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
+  signature: BtpSignatureSchema,
+  issuedAt: z.string().datetime(),
+  attestation: z
+    .object({
+      signedBy: z
+        .string()
+        .regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
+      issuedAt: z.string().datetime(),
+      signature: BtpSignatureSchema,
+    })
+    .optional(),
+});
+
+// Base schema for transporter artifacts
+export const BtpTransporterArtifactBaseSchema = z.object({
   version: z.string(),
   issuedAt: z.string().datetime(),
-  from: z.string().regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
   id: z.string(),
+  type: z.enum(TRANSPORTER_ACTIONS),
+  from: z.string().regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
+  to: z.string().regex(/^\S+\$\S+\.\S+$/, 'To field must match pattern: {username}${domain}'),
   signature: BtpSignatureSchema,
   encryption: BtpEncryptionSchema.nullable(),
-}).superRefine((data, ctx) => {
-  if (data.encryption) {
-    // If encrypted, document must be a string
-    if (typeof data.document !== 'string') {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'When encrypted, document must be a string',
-        path: ['document'],
-      });
-    }
-  } else {
-    // If not encrypted, document must match the schema for the type
-    const schema = processBtpDocSchema(data.type);
-    if (!schema || !schema.safeParse(data.document).success) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Document type does not match the artifact type',
-        path: ['document'],
-      });
-    }
-  }
+  document: z.unknown(),
+  delegation: BtpDelegationSchema.optional(),
 });
 
-export const BtpArtifactClientSchema = BtpArtifactSchema.extend({
-  signature: z
-    .object({
-      algorithm: z.literal('sha256'),
-    })
-    .optional(),
-  encryption: z
-    .object({
-      algorithm: z.literal('aes-256-cbc'),
-      mode: z.enum(['none', 'standardEncrypt', '2faEncrypt']),
-    })
-    .optional(),
-  id: z.string().optional().nullable(),
-  issuedAt: z.string().datetime().optional().nullable(),
-}).refine(
-  (data) => {
-    const schema = processBtpDocSchema(data.type);
-    if (!schema) return false;
-    return schema.safeParse(data.document).success;
-  },
-  {
-    message: 'Document type does not match the artifact type',
+// Schema for agent artifacts
+export const BtpAgentArtifactSchema = z.object({
+  id: z.string(),
+  action: z.enum(AGENT_ACTIONS),
+  document: z.union([BtpTransporterArtifactBaseSchema, BtpAuthReqDocSchema]).optional(),
+  agentId: z.string(),
+  from: z.string().regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
+  issuedAt: z.string().datetime(),
+  signature: BtpSignatureSchema,
+  encryption: BtpEncryptionSchema.nullable(),
+});
+
+// Schema for transporter artifacts with document validation
+export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.superRefine(
+  (data, ctx) => {
+    if (data.encryption) {
+      // If encrypted, document must be a string
+      if (typeof data.document !== 'string') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'When encrypted, document must be a string',
+          path: ['document'],
+        });
+      }
+    } else {
+      // If not encrypted, document must match the schema for the type
+      const schema = processBtpDocSchema(data.type);
+      if (!schema) return false;
+      if (!schema.safeParse(data.document).success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Document type does not match the artifact type',
+          path: ['document'],
+        });
+      }
+    }
   },
 );
 
+// Union schema that can validate either agent or transporter artifacts
+export const BtpArtifactServerSchema = z.union([
+  BtpAgentArtifactSchema,
+  BtpTransporterArtifactSchema,
+]);
+
 export const processBtpDocSchema = (bptArtifactType: BTPArtifactType) => {
   switch (bptArtifactType) {
-    case 'btp_trust_response':
+    case 'TRUST_RES':
       return BtpTrustResDocSchema;
-    case 'btp_trust_request':
+    case 'TRUST_REQ':
       return BtpTrustReqDocSchema;
-    case 'btp_doc':
+    case 'BTPS_DOC':
       return BtpInvoiceDocSchema;
     default:
       return null;

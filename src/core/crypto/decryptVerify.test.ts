@@ -8,10 +8,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { decryptVerify } from './decryptVerify';
 import * as cryptoIndex from './index';
-import * as utils from '../utils/index.js';
 import { BTPErrorException } from '../error/index.js';
-import { BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '../error/constant.js';
-import { BTPCryptoArtifact, PemKeys } from './types';
+import { VerifyEncryptedPayload } from './types';
 import { BTPTrustReqDoc } from '../trust/types.js';
 
 vi.mock('./index', () => ({
@@ -19,30 +17,22 @@ vi.mock('./index', () => ({
   verifySignature: vi.fn(),
 }));
 
-vi.mock('../utils/index.js', () => ({
-  parseIdentity: vi.fn(),
-  resolvePublicKey: vi.fn(),
-}));
-
 const mockCrypto = vi.mocked(cryptoIndex);
-const mockUtils = vi.mocked(utils);
 
 describe('decryptVerify', () => {
-  let pemFiles: PemKeys;
-  let encryptedPayload: BTPCryptoArtifact<BTPTrustReqDoc>;
+  let privateKey: string;
+  let senderPubPem: string;
+  let encryptedPayload: VerifyEncryptedPayload<BTPTrustReqDoc>;
 
   beforeEach(() => {
     vi.resetAllMocks();
-
-    pemFiles = {
-      privateKey: 'private-key',
-      publicKey: 'public-key',
-    };
+    senderPubPem = 'sender-public-key';
+    privateKey = 'private-key';
 
     encryptedPayload = {
       from: 'sender$example.com',
       to: 'receiver$example.com',
-      type: 'btp_trust_request',
+      type: 'TRUST_REQ',
       issuedAt: '2023-01-01T00:00:00Z',
       document: {
         name: 'test',
@@ -65,81 +55,173 @@ describe('decryptVerify', () => {
   });
 
   it('should successfully decrypt and verify the payload', async () => {
-    mockUtils.parseIdentity.mockReturnValue({ accountName: 'sender', domainName: 'example.com' });
-    mockUtils.resolvePublicKey.mockResolvedValue('sender-public-key');
-    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
-    mockCrypto.decryptBtpPayload.mockReturnValue({ data: encryptedPayload.document });
+    // For decryption to work, document must be a string
+    const encryptedStringPayload: VerifyEncryptedPayload<string> = {
+      ...encryptedPayload,
+      document: 'encrypted-string-data',
+    };
 
-    const result = await decryptVerify(pemFiles, encryptedPayload);
+    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+    mockCrypto.decryptBtpPayload.mockReturnValue({
+      data: { name: 'test', email: 'test@test.com', phone: '1234567890', reason: 'test' },
+    });
+
+    const result = await decryptVerify(senderPubPem, encryptedStringPayload, privateKey);
 
     expect(result.error).toBeUndefined();
-    expect(result.payload).toEqual(encryptedPayload);
-    expect(mockUtils.parseIdentity).toHaveBeenCalledWith('sender$example.com');
-    expect(mockUtils.resolvePublicKey).toHaveBeenCalledWith('sender$example.com');
-    expect(mockCrypto.verifySignature).toHaveBeenCalled();
-    expect(mockCrypto.decryptBtpPayload).toHaveBeenCalled();
-  });
-
-  it('should return an error if sender identity is invalid', async () => {
-    mockUtils.parseIdentity.mockReturnValue(null);
-
-    const result = await decryptVerify(pemFiles, encryptedPayload);
-
-    expect(result.payload).toBeUndefined();
-    expect(result.error).toBeInstanceOf(BTPErrorException);
-    expect(result.error?.message).toBe(BTP_ERROR_IDENTITY.message);
-  });
-
-  it('should return an error if sender public key cannot be resolved', async () => {
-    mockUtils.parseIdentity.mockReturnValue({ accountName: 'sender', domainName: 'example.com' });
-    mockUtils.resolvePublicKey.mockResolvedValue(undefined);
-
-    const result = await decryptVerify(pemFiles, encryptedPayload);
-
-    expect(result.payload).toBeUndefined();
-    expect(result.error).toBeInstanceOf(BTPErrorException);
-    expect(result.error?.message).toBe(BTP_ERROR_RESOLVE_PUBKEY.message);
+    expect(result.payload).toEqual({
+      ...encryptedStringPayload,
+      document: { name: 'test', email: 'test@test.com', phone: '1234567890', reason: 'test' },
+    });
+    expect(mockCrypto.verifySignature).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: 'sender$example.com',
+        to: 'receiver$example.com',
+        type: 'TRUST_REQ',
+        issuedAt: '2023-01-01T00:00:00Z',
+        document: 'encrypted-string-data',
+        encryption: {
+          algorithm: 'aes-256-cbc',
+          encryptedKey: 'encrypted-key',
+          iv: 'iv-value',
+          type: 'standardEncrypt',
+        },
+      }),
+      encryptedStringPayload.signature,
+      senderPubPem,
+    );
+    expect(mockCrypto.decryptBtpPayload).toHaveBeenCalledWith(
+      'encrypted-string-data',
+      encryptedStringPayload.encryption,
+      privateKey,
+    );
   });
 
   it('should return an error if signature verification fails', async () => {
-    mockUtils.parseIdentity.mockReturnValue({ accountName: 'sender', domainName: 'example.com' });
-    mockUtils.resolvePublicKey.mockResolvedValue('sender-public-key');
     const sigError = new BTPErrorException({ message: 'Invalid signature' });
     mockCrypto.verifySignature.mockReturnValue({ isValid: false, error: sigError });
 
-    const result = await decryptVerify(pemFiles, encryptedPayload);
+    const result = await decryptVerify(senderPubPem, encryptedPayload, privateKey);
 
     expect(result.payload).toBeUndefined();
     expect(result.error).toBe(sigError);
+    expect(mockCrypto.decryptBtpPayload).not.toHaveBeenCalled();
   });
 
   it('should handle payloads that do not require decryption', async () => {
-    const unencryptedPayload: BTPCryptoArtifact<BTPTrustReqDoc> = {
+    const unencryptedPayload: VerifyEncryptedPayload<BTPTrustReqDoc> = {
       ...encryptedPayload,
       encryption: null,
     };
 
-    mockUtils.parseIdentity.mockReturnValue({ accountName: 'sender', domainName: 'example.com' });
-    mockUtils.resolvePublicKey.mockResolvedValue('sender-public-key');
     mockCrypto.verifySignature.mockReturnValue({ isValid: true });
 
-    const result = await decryptVerify(pemFiles, unencryptedPayload);
+    const result = await decryptVerify(senderPubPem, unencryptedPayload, privateKey);
 
     expect(result.error).toBeUndefined();
-    expect(result.payload).toEqual(unencryptedPayload);
+    expect(result.payload).toEqual({
+      ...unencryptedPayload,
+      document: unencryptedPayload.document,
+    });
     expect(mockCrypto.decryptBtpPayload).not.toHaveBeenCalled();
   });
 
   it('should return an error if decryption fails', async () => {
-    mockUtils.parseIdentity.mockReturnValue({ accountName: 'sender', domainName: 'example.com' });
-    mockUtils.resolvePublicKey.mockResolvedValue('sender-public-key');
+    // For decryption to work, document must be a string
+    const encryptedStringPayload: VerifyEncryptedPayload<string> = {
+      ...encryptedPayload,
+      document: 'encrypted-string-data',
+    };
+
     mockCrypto.verifySignature.mockReturnValue({ isValid: true });
     const decryptionError = new BTPErrorException({ message: 'Decryption failed' });
     mockCrypto.decryptBtpPayload.mockReturnValue({ data: undefined, error: decryptionError });
 
-    const result = await decryptVerify(pemFiles, encryptedPayload);
+    const result = await decryptVerify(senderPubPem, encryptedStringPayload, privateKey);
 
     expect(result.payload).toBeUndefined();
     expect(result.error).toBe(decryptionError);
+  });
+
+  it('should handle encrypted string documents', async () => {
+    const encryptedStringPayload: VerifyEncryptedPayload<string> = {
+      ...encryptedPayload,
+      document: 'encrypted-string-data',
+    };
+
+    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+    mockCrypto.decryptBtpPayload.mockReturnValue({ data: { decrypted: 'data' } });
+
+    const result = await decryptVerify(senderPubPem, encryptedStringPayload, privateKey);
+
+    expect(result.error).toBeUndefined();
+    expect(result.payload).toEqual({
+      ...encryptedStringPayload,
+      document: { decrypted: 'data' },
+    });
+    expect(mockCrypto.decryptBtpPayload).toHaveBeenCalledWith(
+      'encrypted-string-data',
+      encryptedStringPayload.encryption,
+      privateKey,
+    );
+  });
+
+  it('should handle payloads with delegation', async () => {
+    const payloadWithDelegation: VerifyEncryptedPayload<BTPTrustReqDoc> = {
+      ...encryptedPayload,
+      delegation: {
+        agentId: 'agent123',
+        agentPubKey: 'agent-public-key',
+        signedBy: 'delegator$example.com',
+        signature: {
+          algorithm: 'sha256',
+          value: 'delegation-sig',
+          fingerprint: 'delegation-fp',
+        },
+        issuedAt: '2023-01-01T00:00:00Z',
+      },
+    };
+
+    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+    mockCrypto.decryptBtpPayload.mockReturnValue({ data: encryptedPayload.document });
+
+    const result = await decryptVerify(senderPubPem, payloadWithDelegation, privateKey);
+
+    expect(result.error).toBeUndefined();
+    expect(result.payload).toEqual({
+      ...payloadWithDelegation,
+      document: encryptedPayload.document,
+    });
+  });
+
+  it('should not decrypt when private key is not provided', async () => {
+    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+
+    const result = await decryptVerify(senderPubPem, encryptedPayload);
+
+    expect(result.error).toBeUndefined();
+    expect(result.payload).toEqual({
+      ...encryptedPayload,
+      document: encryptedPayload.document,
+    });
+    expect(mockCrypto.decryptBtpPayload).not.toHaveBeenCalled();
+  });
+
+  it('should not decrypt when encryption is empty', async () => {
+    const emptyEncryptionPayload: VerifyEncryptedPayload<BTPTrustReqDoc> = {
+      ...encryptedPayload,
+      encryption: null, // No encryption
+    };
+
+    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+
+    const result = await decryptVerify(senderPubPem, emptyEncryptionPayload, privateKey);
+
+    expect(result.error).toBeUndefined();
+    expect(result.payload).toEqual({
+      ...emptyEncryptionPayload,
+      document: emptyEncryptionPayload.document,
+    });
+    expect(mockCrypto.decryptBtpPayload).not.toHaveBeenCalled();
   });
 });

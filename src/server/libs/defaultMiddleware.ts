@@ -54,24 +54,30 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
         enabled: true,
       },
       handler: async (req, res, next) => {
-        const { artifact, error, remoteAddress } = req;
-        // Check for parsing errors first
+        const { data, error, remoteAddress } = req;
+        if (!data) return; // Returning here only skips further middleware; the main server will handle the error response.
+        const { artifact, isAgentArtifact } = data;
         if (error) {
-          const message =
-            error.code === 'BTP_ERROR_VALIDATION' ? 'Validation error' : 'Parsing error';
           // Returning here only skips further middleware; the main server will handle the error response.
-          metrics.onMessageRejected(artifact?.from ?? remoteAddress, artifact?.to ?? '', message);
+          error.code === 'BTP_ERROR_VALIDATION'
+            ? metrics.onMessageRejected(
+                artifact.from,
+                isAgentArtifact ? artifact.agentId : (artifact.to ?? 'unknown'),
+                JSON.stringify({ message: error.message, data }, null, 2),
+              )
+            : metrics.onError(error);
+
           return;
         }
-        // Check for missing artifact (parsing could have failed)
-        if (!artifact) {
-          // Returning here only skips further middleware; the main server will handle the error response.
-          return;
-        }
+
+        // Check for parsing errors first
+        const from = artifact.from;
+        const to = !isAgentArtifact ? artifact.to : artifact.agentId;
+
         // artifact is guaranteed to be present after this point
-        if (!(await rateLimiter.isAllowed(artifact.from, 'fromIdentity'))) {
+        if (!(await rateLimiter.isAllowed(from, 'fromIdentity'))) {
           const error: BTPError = { code: 429, message: 'Too many requests' };
-          metrics.onMessageRejected(remoteAddress, artifact.to, 'Rate limit exceeded');
+          metrics.onMessageRejected(remoteAddress, to, 'Rate limit exceeded');
           return res.sendError(error);
         }
         await next();
@@ -88,10 +94,13 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
         enabled: true,
       },
       handler: async (req, res, next) => {
-        const { artifact, error } = req;
+        const { data, error } = req;
+        const { artifact, isAgentArtifact } = data;
         // Check for signature verification errors first
+        const from = artifact.from;
+        const to = !isAgentArtifact ? artifact.to : artifact.agentId;
         if (error) {
-          metrics.onMessageRejected(artifact.from, artifact.to, error.message);
+          metrics.onMessageRejected(from, to, error.message);
           // Returning here only skips further middleware; the main server will handle the error response.
           return;
         }
@@ -109,10 +118,13 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
         enabled: true,
       },
       handler: async (req, res, next) => {
-        const { artifact, error } = req;
+        const { data, error } = req;
+        const { artifact, isAgentArtifact } = data;
         // Check for signature verification errors first
+        const from = artifact.from;
+        const to = !isAgentArtifact ? artifact.to : artifact.agentId;
         if (error) {
-          metrics.onMessageRejected(artifact.from, artifact.to, error.message);
+          metrics.onMessageRejected(from, to, error.message);
           // Returning here only skips further middleware; the main server will handle the error response.
           return;
         }
@@ -123,16 +135,21 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
     // Metrics tracking for received messages
     {
       phase: 'after',
-      step: 'onMessage',
+      step: 'onArtifact',
       priority: 1,
       config: {
         name: 'default-onMessage-metrics-tracker',
         enabled: true,
       },
       handler: async (req, _res, next) => {
+        const { data } = req;
+        const { artifact, isAgentArtifact } = data;
+        const from = artifact.from;
+        const to = !isAgentArtifact ? artifact.to : artifact.agentId;
+
         // artifact, isValid, and isTrusted are guaranteed to be present before onMessage
-        if (req.from && req.artifact.to) {
-          metrics.onMessageReceived(req.from, req.artifact.to);
+        if (from && to) {
+          metrics.onMessageReceived(from, to);
         }
         await next();
       },

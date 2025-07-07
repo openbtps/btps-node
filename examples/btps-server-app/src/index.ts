@@ -1,10 +1,5 @@
-import { InMemoryQueue } from '@btps/sdk/server';
 import { computeTrustId, JsonTrustStore } from '@btps/sdk/trust';
-import {
-  BtpsServerSingletonFactory,
-  BtpsSimpleMetricsTracker,
-  BtpsSimpleRateLimiter,
-} from '@btps/sdk/server/core';
+import { BtpsServerSingletonFactory } from '@btps/sdk/server/core';
 
 const TrustStore = new JsonTrustStore({
   connection: `${process.cwd()}/.well-known/btp-trust.json`,
@@ -33,18 +28,12 @@ const certBundle =
       };
 
 const BTPsServer = BtpsServerSingletonFactory.create({
-  queue: new InMemoryQueue(),
-  rateLimiter: new BtpsSimpleRateLimiter({
-    ipAddress: 50,
-    fromIdentity: 10,
-    cleanupIntervalSec: 30,
-  }),
   trustStore: TrustStore,
-  metrics: new BtpsSimpleMetricsTracker(),
   options: {
     ...certBundle,
     requestCert: false,
   },
+  connectionTimeoutMs: 5000,
 });
 
 BTPsServer.start();

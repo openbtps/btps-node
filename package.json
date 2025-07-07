@@ -39,15 +39,17 @@
   "scripts": {
     "clean": "rimraf dist",
     "build:mjs": "node build/index.mjs",
+    "build:add-license": "sh scripts/add-license-header.sh",
     "build:types": "tsc && tsc-alias",
-    "build": "yarn clean && yarn build:mjs && yarn build:types",
+    "build": "yarn build:add-license && yarn clean && yarn build:mjs && yarn build:types",
     "dev": "nodemon --config nodemon.json",
     "start": "node ./dist/server/index.js",
     "base64": "bash -c 'base64 -i \"$1\" | tr -d \"\\n\"' --",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest --watch",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "build:strip-comments": "node build/stripComments.mjs"
   },
   "devDependencies": {
     "@types/lodash": "^4",

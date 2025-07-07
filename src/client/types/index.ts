@@ -5,9 +5,8 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import { BTPCryptoOptions } from '@core/crypto/types.js';
 import { BTPErrorException } from '@core/error/index.js';
-import { BTPArtifactType, BTPDocType, BTPServerResponse } from 'server/index.js';
+import { BTPServerResponse } from 'server/index.js';
 import { ConnectionOptions } from 'tls';
 
 export interface BtpsClientOptions {
@@ -38,14 +37,6 @@ export type BtpsClientEvents = {
 export type TypedEventEmitter<T = BtpsClientEvents> = {
   on<K extends keyof T>(event: K, listener: T[K]): void;
 };
-
-export interface SendBTPArtifact extends BTPCryptoOptions {
-  to: string;
-  type: BTPArtifactType;
-  document: BTPDocType;
-  id?: string;
-  issuedAt?: string;
-}
 
 export interface BTPClientResponse {
   response?: BTPServerResponse;

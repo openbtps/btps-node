@@ -18,7 +18,8 @@ export class InMemoryQueue extends BTPMessageQueue {
   private emitter = new EventEmitter();
 
   async add(message: BTPArtifact): Promise<void> {
-    const key = message.to;
+    const isTransporter = 'to' in message && 'from' in message;
+    const key = isTransporter ? message.to : message.agentId;
     if (!this.queues[key]) this.queues[key] = [];
     this.queues[key].push(message);
     this.emitter.emit('message', message);

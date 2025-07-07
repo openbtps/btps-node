@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Path to license header file
-HEADER_FILE="license-header.txt"
+HEADER_FILE="scripts/license-header.txt"
 
 # Directory to apply headers to
 TARGET_DIR="src"
