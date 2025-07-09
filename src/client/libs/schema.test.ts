@@ -191,7 +191,9 @@ describe('BtpsAgent Schema Validation', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0].path).toEqual(['document']);
-        expect(result.error.issues[0].message).toBe('Document is required for this action type');
+        expect(result.error.issues[0].message).toBe(
+          'Document is required for this action type or document format is invalid',
+        );
       }
     });
 
@@ -207,7 +209,9 @@ describe('BtpsAgent Schema Validation', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0].path).toEqual(['document']);
-        expect(result.error.issues[0].message).toBe('Document is required for this action type');
+        expect(result.error.issues[0].message).toBe(
+          'Document is required for this action type or document format is invalid',
+        );
       }
     });
 
@@ -223,7 +227,9 @@ describe('BtpsAgent Schema Validation', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0].path).toEqual(['document']);
-        expect(result.error.issues[0].message).toBe('Document is required for this action type');
+        expect(result.error.issues[0].message).toBe(
+          'Document is required for this action type or document format is invalid',
+        );
       }
     });
   });

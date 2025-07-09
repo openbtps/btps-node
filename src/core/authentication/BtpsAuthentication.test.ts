@@ -158,27 +158,24 @@ describe('BtpsAuthentication', () => {
       it('should store auth token successfully', async () => {
         const token = 'AUTH_TOKEN_123';
         const userIdentity = 'alice$saas.com';
-        const agentId = 'btp_ag_test_123';
         const metadata = { requestedBy: 'admin' };
 
-        await auth.storeAuthToken(token, userIdentity, agentId, metadata);
+        await auth.storeAuthToken(token, userIdentity, metadata);
 
-        const storedToken = await tokenStore.get(agentId, token);
+        const storedToken = await tokenStore.get(userIdentity, token);
         expect(storedToken).toBeDefined();
         expect(storedToken?.token).toBe(token);
         expect(storedToken?.userIdentity).toBe(userIdentity);
-        expect(storedToken?.agentId).toBe(agentId);
         expect(storedToken?.metadata).toEqual(metadata);
       });
 
       it('should store auth token without metadata', async () => {
         const token = 'AUTH_TOKEN_123';
         const userIdentity = 'alice$saas.com';
-        const agentId = 'btp_ag_test_123';
 
-        await auth.storeAuthToken(token, userIdentity, agentId);
+        await auth.storeAuthToken(token, userIdentity);
 
-        const storedToken = await tokenStore.get(agentId, token);
+        const storedToken = await tokenStore.get(userIdentity, token);
         expect(storedToken).toBeDefined();
         expect(storedToken?.metadata).toBeUndefined();
       });
@@ -188,11 +185,10 @@ describe('BtpsAuthentication', () => {
       it('should validate existing auth token', async () => {
         const token = 'AUTH_TOKEN_123';
         const userIdentity = 'alice$saas.com';
-        const agentId = 'btp_ag_test_123';
 
-        await auth.storeAuthToken(token, userIdentity, agentId);
+        await auth.storeAuthToken(token, userIdentity);
 
-        const result = await auth.validateAuthToken(agentId, token);
+        const result = await auth.validateAuthToken(userIdentity, token);
 
         expect(result.isValid).toBe(true);
         expect(result.userIdentity).toBe(userIdentity);
@@ -227,7 +223,7 @@ describe('BtpsAuthentication', () => {
         const userIdentity = 'alice$saas.com';
         const agentId = 'btp_ag_test_123';
 
-        await auth.storeAuthToken(token, userIdentity, agentId);
+        await auth.storeAuthToken(token, userIdentity);
         await auth.validateAuthToken(agentId, token);
 
         // Token should be removed after validation
@@ -454,9 +450,7 @@ describe('BtpsAuthentication', () => {
         refreshTokenStore: mockTokenStore,
       });
 
-      await expect(auth.storeAuthToken('token', 'user', 'agent')).rejects.toThrow(
-        'Token store error',
-      );
+      await expect(auth.storeAuthToken('token', 'user')).rejects.toThrow('Token store error');
     });
   });
 
@@ -465,13 +459,12 @@ describe('BtpsAuthentication', () => {
       // 1. Generate auth token
       const userIdentity = 'alice$saas.com';
       const authToken = BtpsAuthentication.generateAuthToken(userIdentity);
-      const agentId = BtpsAuthentication.generateAgentId();
 
       // 2. Store auth token
-      await auth.storeAuthToken(authToken, userIdentity, agentId);
+      await auth.storeAuthToken(authToken, userIdentity);
 
       // 3. Validate auth token
-      const validation = await auth.validateAuthToken(agentId, authToken);
+      const validation = await auth.validateAuthToken(userIdentity, authToken);
       expect(validation.isValid).toBe(true);
       expect(validation.userIdentity).toBe(userIdentity);
 
