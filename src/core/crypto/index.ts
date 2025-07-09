@@ -217,7 +217,7 @@ export const verifySignature = (
   };
 };
 
-const DEFAULT_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // CrockFord Base32, human-friendly
+export const DEFAULT_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // CrockFord Base32, human-friendly
 
 /**
  * Generate a short, high-entropy, user-specific onboarding token.

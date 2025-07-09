@@ -100,7 +100,7 @@ export const BtpAuthReqDocSchema = z.object({
     .regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
   authToken: z.string(),
   publicKey: z.string(),
-  deviceInfo: z.record(z.union([z.string(), z.array(z.string())])).optional(),
+  agentInfo: z.record(z.union([z.string(), z.array(z.string())])).optional(),
 });
 
 // Schema for BTPDelegation
@@ -143,7 +143,7 @@ export const BtpAgentArtifactSchema = z.object({
   action: z.enum(AGENT_ACTIONS),
   document: z.union([BtpTransporterArtifactBaseSchema, BtpAuthReqDocSchema]).optional(),
   agentId: z.string(),
-  from: z.string().regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
+  to: z.string().regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
   issuedAt: z.string().datetime(),
   signature: BtpSignatureSchema,
   encryption: BtpEncryptionSchema.nullable(),

@@ -11,6 +11,7 @@ import {
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
   BtpInvoiceDocSchema,
+  BtpAuthReqDocSchema,
 } from '@core/server/schema.js';
 
 // Schema for BTPCryptoOptions
@@ -29,7 +30,7 @@ export const BtpCryptoOptionsSchema = z.object({
 });
 
 export const BtpsAgentDocumentSchema = z
-  .union([BtpTrustReqDocSchema, BtpTrustResDocSchema, BtpInvoiceDocSchema])
+  .union([BtpTrustReqDocSchema, BtpTrustResDocSchema, BtpInvoiceDocSchema, BtpAuthReqDocSchema])
   .optional();
 
 // Schema for BtpsAgent command method parameters
@@ -50,16 +51,29 @@ export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
       'trust.update',
       'trust.delete',
       'artifact.send',
+      'auth.request',
+      'auth.refresh',
     ];
 
     if (actionsRequiringDocument.includes(data.actionType) && !data.document) {
       return false;
     }
 
+    // If document is provided, validate it against the appropriate schema for the action type
+    if (data.document) {
+      const expectedSchema = processBtpDocSchemaForAgent(data.actionType);
+      if (expectedSchema) {
+        const documentValidation = expectedSchema.safeParse(data.document);
+        if (!documentValidation.success) {
+          return false;
+        }
+      }
+    }
+
     return true;
   },
   {
-    message: 'Document is required for this action type',
+    message: 'Document is required for this action type or document format is invalid',
     path: ['document'],
   },
 );
@@ -80,6 +94,8 @@ export const processBtpDocSchemaForAgent = (actionType: string) => {
     'trust.update': BtpTrustResDocSchema,
     'trust.delete': BtpTrustResDocSchema,
     'artifact.send': BtpInvoiceDocSchema,
+    'auth.request': BtpAuthReqDocSchema,
+    'auth.refresh': BtpAuthReqDocSchema,
   };
 
   return actionToDocTypeMap[actionType] || null;

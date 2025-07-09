@@ -29,6 +29,9 @@
     "./trust": {
       "import": "./dist/core/trust/index.js"
     },
+    "./authentication": {
+      "import": "./dist/core/authentication/index.js"
+    },
     "./error": {
       "import": "./dist/core/error/index.js"
     }

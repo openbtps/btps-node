@@ -35,6 +35,7 @@ export type BTPTrustRecord = {
   keyHistory: KeyHistory[]; // History record of the pub and fingerprint
   privacyType: BTPEncryptionType; // Privacy type to be sent based on this agreed trust
   retryAfterDate?: string; // @optional Retry date of the future in ISO Format. Useful to block revoked and rejected trust sending new trust request
+  metadata?: Record<string, unknown>; // @optional Metadata of the trust record
 };
 
 export interface BTPTrustReqDoc {

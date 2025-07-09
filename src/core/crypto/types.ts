@@ -39,7 +39,7 @@ export type PemKeys = {
 };
 
 export type BTPCryptoOptions = {
-  signature?: {
+  signature: {
     algorithm: SignatureAlgorithmType;
   };
   encryption?: {
@@ -67,4 +67,27 @@ export interface VerifyEncryptedPayload<T = unknown | string> {
   encryption: BTPEncryption | null;
   delegation?: BTPDelegation;
   [key: string]: unknown;
+}
+
+/**
+ * Configuration for key generation
+ */
+export interface BTPKeyConfig {
+  /** RSA key size in bits */
+  keySize?: number;
+  /** Key format (default: 'pem') */
+  format?: 'pem';
+  /** Public key encoding type */
+  publicKeyEncoding?: 'spki';
+  /** Private key encoding type */
+  privateKeyEncoding?: 'pkcs8';
+}
+
+export interface BTPKeyPair {
+  /** Public key in PEM format */
+  publicKey: string;
+  /** Private key in PEM format */
+  privateKey: string;
+  /** Public key fingerprint */
+  fingerprint: string;
 }

@@ -101,3 +101,8 @@ export const BTP_ERROR_SOCKET_TIMEOUT: BTPError = {
   code: 'BTP_ERROR_SOCKET_TIMEOUT',
   message: 'Socket timeout. Connection closed',
 };
+
+export const BTP_ERROR_AUTHENTICATION_INVALID: BTPError = {
+  code: 'BTP_ERROR_AUTHENTICATION_INVALID',
+  message: 'Authentication failed',
+};

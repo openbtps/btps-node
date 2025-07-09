@@ -121,5 +121,5 @@ export const isBtpsTransportArtifact = (artifact: unknown): artifact is BTPTrans
   }
 
   const maybe = artifact as Partial<BTPTransporterArtifact>;
-  return typeof maybe.to === 'string' && typeof maybe.type === 'string' && !('agentId' in maybe);
+  return typeof maybe.from === 'string' && typeof maybe.type === 'string' && !('agentId' in maybe);
 };

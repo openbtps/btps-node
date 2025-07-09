@@ -61,8 +61,8 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
           // Returning here only skips further middleware; the main server will handle the error response.
           error.code === 'BTP_ERROR_VALIDATION'
             ? metrics.onMessageRejected(
-                artifact.from,
-                isAgentArtifact ? artifact.agentId : (artifact.to ?? 'unknown'),
+                isAgentArtifact ? (artifact.agentId ?? 'anonymous agent') : artifact.from,
+                artifact.to,
                 JSON.stringify({ message: error.message, data }, null, 2),
               )
             : metrics.onError(error);
@@ -71,8 +71,8 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
         }
 
         // Check for parsing errors first
-        const from = artifact.from;
-        const to = !isAgentArtifact ? artifact.to : artifact.agentId;
+        const from = isAgentArtifact ? artifact.agentId : artifact.from;
+        const to = artifact.to;
 
         // artifact is guaranteed to be present after this point
         if (!(await rateLimiter.isAllowed(from, 'fromIdentity'))) {
@@ -97,10 +97,11 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
         const { data, error } = req;
         const { artifact, isAgentArtifact } = data;
         // Check for signature verification errors first
-        const from = artifact.from;
-        const to = !isAgentArtifact ? artifact.to : artifact.agentId;
+        const from = isAgentArtifact ? artifact.agentId : artifact.from;
+        const to = artifact.to;
         if (error) {
           metrics.onMessageRejected(from, to, error.message);
+          metrics.onError(error);
           // Returning here only skips further middleware; the main server will handle the error response.
           return;
         }
@@ -121,8 +122,8 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
         const { data, error } = req;
         const { artifact, isAgentArtifact } = data;
         // Check for signature verification errors first
-        const from = artifact.from;
-        const to = !isAgentArtifact ? artifact.to : artifact.agentId;
+        const from = isAgentArtifact ? artifact.agentId : artifact.from;
+        const to = artifact.to;
         if (error) {
           metrics.onMessageRejected(from, to, error.message);
           // Returning here only skips further middleware; the main server will handle the error response.
@@ -144,8 +145,8 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
       handler: async (req, _res, next) => {
         const { data } = req;
         const { artifact, isAgentArtifact } = data;
-        const from = artifact.from;
-        const to = !isAgentArtifact ? artifact.to : artifact.agentId;
+        const from = isAgentArtifact ? artifact.agentId : artifact.from;
+        const to = artifact.to;
 
         // artifact, isValid, and isTrusted are guaranteed to be present before onMessage
         if (from && to) {

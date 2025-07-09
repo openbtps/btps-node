@@ -12,11 +12,17 @@ import {
 } from '@core/error/index.js';
 import { BtpsClient } from './btpsClient.js';
 import { BTPClientResponse, BtpsClientOptions } from './types/index.js';
-import { AgentAction, BTPArtifactType, BTPDocType, BTPTransporterArtifact } from 'server/index.js';
+import {
+  AgentAction,
+  BTPArtifactType,
+  BTPAuthReqDoc,
+  BTPDocType,
+  BTPTransporterArtifact,
+} from 'server/index.js';
 import { BTPCryptoArtifact, BTPCryptoOptions, BTPCryptoResponse } from '@core/crypto/types.js';
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
 import { validate } from '@core/utils/validation.js';
-
+import { AUTH_ACTIONS } from '@core/server/constants/index.js';
 const mappedTransporterAction = {
   'trust.request': 'TRUST_REQ',
   'trust.respond': 'TRUST_RES',
@@ -40,12 +46,12 @@ export class BtpsAgent extends BtpsClient {
   private async signEncryptTransportArtifact(
     payload: {
       to: string;
-      document: BTPDocType;
+      document: BTPDocType | BTPAuthReqDoc;
       actionType: AgentAction;
       from: string;
     },
     options?: BTPCryptoOptions,
-  ): Promise<BTPCryptoResponse<BTPDocType>> {
+  ): Promise<BTPCryptoResponse<BTPDocType | BTPAuthReqDoc>> {
     const artifactType = mappedTransporterAction[
       payload.actionType as keyof typeof mappedTransporterAction
     ] as BTPArtifactType;
@@ -56,7 +62,7 @@ export class BtpsAgent extends BtpsClient {
     > = {
       version: this.getProtocolVersion(),
       type: artifactType,
-      document: payload.document,
+      document: payload.document as BTPDocType,
       from: payload.from as string,
       to: payload.to,
     };
@@ -79,7 +85,7 @@ export class BtpsAgent extends BtpsClient {
   public async command(
     actionType: AgentAction,
     to: string,
-    document?: BTPDocType,
+    document?: BTPDocType | BTPAuthReqDoc,
     options?: BTPCryptoOptions,
   ): Promise<BTPClientResponse> {
     // Validate command parameters using schema
@@ -112,7 +118,7 @@ export class BtpsAgent extends BtpsClient {
             const agentArtifact: Record<string, unknown> = {
               action: actionType,
               agentId: this.agentId,
-              from: this.options.identity,
+              to,
             };
 
             const needForTransport = Object.keys(mappedTransporterAction).includes(actionType);
@@ -133,7 +139,7 @@ export class BtpsAgent extends BtpsClient {
 
               const { payload: transporterPayload, error: transporterError } =
                 await this.signEncryptTransportArtifact(
-                  { to, document, actionType, from: agentArtifact.from as string },
+                  { to, document, actionType, from: this.options.identity as string },
                   options,
                 );
 
@@ -145,8 +151,30 @@ export class BtpsAgent extends BtpsClient {
               agentArtifact.document = transporterPayload;
             }
 
-            const { payload: agentPayload, error: agentError } =
-              await this.signEncryptArtifact(agentArtifact);
+            const documentRequired = [...AUTH_ACTIONS, 'draft.update'].includes(actionType);
+            if (documentRequired) {
+              if (!document) {
+                resolve(
+                  await this.buildClientErrorResponse(
+                    new BTPErrorException(BTP_ERROR_VALIDATION, {
+                      cause: `Document is required for ${actionType}`,
+                    }),
+                  ),
+                );
+                return;
+              }
+              agentArtifact.document = document;
+            }
+
+            const cryptoOptions = options ? { ...options } : undefined;
+            if (cryptoOptions && actionType === 'auth.request') {
+              delete cryptoOptions.encryption;
+            }
+
+            const { payload: agentPayload, error: agentError } = await this.signEncryptArtifact(
+              agentArtifact,
+              cryptoOptions,
+            );
 
             if (agentError) {
               resolve(await this.buildClientErrorResponse(agentError));

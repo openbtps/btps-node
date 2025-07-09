@@ -1,10 +1,12 @@
 import { computeTrustId, JsonTrustStore } from '@btps/sdk/trust';
 import { BtpsServerSingletonFactory } from '@btps/sdk/server/core';
+import { BtpsAuthentication, InMemoryTokenStore } from '@btps/sdk/authentication';
 
 const TrustStore = new JsonTrustStore({
   connection: `${process.cwd()}/.well-known/btp-trust.json`,
   entityName: 'trusted_senders',
 });
+const memoryTokenStore = new InMemoryTokenStore();
 
 const useTlsCerts = process.env.USE_TLS ?? 'false';
 
@@ -17,7 +19,22 @@ const mockedUser = {
   receiverId: 'finance$ebilladdress.com',
 };
 
-console.log(computeTrustId(mockedUser.senderId, mockedUser.receiverId));
+console.log('computedId:', computeTrustId(mockedUser.senderId, mockedUser.receiverId));
+
+const Auth = new BtpsAuthentication({
+  trustStore: TrustStore,
+  tokenStore: memoryTokenStore,
+  refreshTokenStore: memoryTokenStore,
+});
+
+const authToken = BtpsAuthentication.generateAuthToken('finance$ebilladdress.com');
+console.log('authToken: ', authToken);
+Auth.storeAuthToken(authToken, 'finance$ebilladdress.com', {
+  requestedBy: 'admin',
+  purpose: 'device_registration',
+});
+
+console.log('memoryTokenStore.size: ', memoryTokenStore.size);
 
 const certBundle =
   useTlsCerts === 'false'
@@ -37,3 +54,7 @@ const BTPsServer = BtpsServerSingletonFactory.create({
 });
 
 BTPsServer.start();
+
+BTPsServer.onIncomingArtifact('Agent', (artifact) => {
+  console.log('INCOMING AGENT ARTIFACT', JSON.stringify(artifact, null, 2));
+});

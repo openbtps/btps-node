@@ -36,7 +36,7 @@ export interface BTPAuthReqDoc {
   identity: string;
   authToken: string; // generated via generateUserToken
   publicKey: string; // device publicKey
-  deviceInfo?: Record<string, string | string[]>;
+  agentInfo?: Record<string, string | string[]>;
 }
 
 export interface BTPAuthResDoc {
@@ -95,7 +95,7 @@ export interface BTPAgentArtifact {
   action: AgentAction;
   document?: BTPTransporterArtifact | BTPAuthReqDoc;
   agentId: string;
-  from: string;
+  to: string;
   issuedAt: string;
   signature: BTPSignature;
   encryption: BTPEncryption | null;

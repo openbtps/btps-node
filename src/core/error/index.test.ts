@@ -27,7 +27,7 @@ describe('BTPErrorException', () => {
 
   it('should produce the correct JSON output', () => {
     const btpError = { message: 'Test error', code: 500 };
-    const cause = new Error('root cause');
+    const cause = 'root cause';
     const meta = { details: 'some details' };
     const error = new BTPErrorException(btpError, { cause, meta });
 

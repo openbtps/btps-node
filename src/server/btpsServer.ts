@@ -350,14 +350,14 @@ export class BtpsServer {
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
     // const { artifact, isAgentArtifact } = data;
     const { signature, ...signedMsg } = artifact;
-    const computedTrustId = computeTrustId(signedMsg.agentId, signedMsg.from);
+    const computedTrustId = computeTrustId(signedMsg.agentId, signedMsg.to);
     const trustRecord = await this.trustStore.getById(computedTrustId);
     if (!trustRecord) {
       return {
         isValid: false,
         error: new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
           cause: `Agent ${signedMsg.agentId} not trusted`,
-          meta: { agentId: signedMsg.agentId, from: signedMsg.from, computedTrustId },
+          meta: { agentId: signedMsg.agentId, to: signedMsg.to, computedTrustId },
         }),
       };
     }
@@ -372,15 +372,15 @@ export class BtpsServer {
   private async verifyAgentTrust(
     artifact: BTPAgentArtifact,
   ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
-    const { agentId, from } = artifact;
-    const computedTrustId = computeTrustId(agentId, from);
+    const { agentId, to } = artifact;
+    const computedTrustId = computeTrustId(agentId, to);
     const trustRecord = await this.trustStore.getById(computedTrustId);
     if (!trustRecord) {
       return {
         isTrusted: false,
         error: new BTPErrorException(BTP_ERROR_TRUST_NOT_ALLOWED, {
           cause: `Agent ${agentId} not trusted`,
-          meta: { agentId, from, computedTrustId },
+          meta: { agentId, to, computedTrustId },
         }),
       };
     }
@@ -622,7 +622,17 @@ export class BtpsServer {
   private async processMessage(data: ProcessedArtifact, resCtx: ArtifactResCtx): Promise<void> {
     const { artifact, isAgentArtifact } = data;
     if (isAgentArtifact) {
-      this.emitter.emit('agentArtifact', artifact, resCtx);
+      const respondNow = data.respondNow;
+      this.emitter.emit(
+        'agentArtifact',
+        {
+          ...artifact,
+          info: {
+            respondNow,
+          },
+        },
+        resCtx,
+      );
     } else {
       this.emitter.emit('transporterArtifact', artifact);
     }

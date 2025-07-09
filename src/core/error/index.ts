@@ -48,7 +48,7 @@ export class BTPErrorException extends Error {
       message: this.message,
       stack: this.stack,
       ...(this.meta ? { meta: this.meta } : {}),
-      ...(this.cause instanceof Error ? { cause: this.cause.message } : {}),
+      ...(this.cause ? { cause: this.cause } : {}),
     };
   }
 }

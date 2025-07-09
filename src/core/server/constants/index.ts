@@ -13,9 +13,10 @@ const TRUST_IMMEDIATE_ACTIONS = ['trust.update', 'trust.delete', 'trust.fetch'] 
 
 const INBOX_ACTIONS = ['inbox.fetch', 'inbox.delete'] as const;
 const OUTBOX_ACTIONS = ['outbox.fetch', 'outbox.cancel'] as const;
+const SENTBOX_ACTIONS = ['sentbox.fetch', 'sentbox.delete'] as const;
 const DRAFT_ACTIONS = ['draft.fetch', 'draft.update', 'draft.delete'] as const;
 const SYSTEM_ACTIONS = ['system.ping'] as const;
-const AUTH_ACTIONS = ['auth.request'] as const;
+export const AUTH_ACTIONS = ['auth.request', 'auth.refresh'] as const;
 const ARTIFACT_ACTIONS = ['artifact.send'] as const;
 
 export const AGENT_ACTIONS = [
@@ -38,4 +39,5 @@ export const IMMEDIATE_ACTIONS = [
   ...OUTBOX_ACTIONS,
   ...DRAFT_ACTIONS,
   ...TRUST_IMMEDIATE_ACTIONS,
+  ...SENTBOX_ACTIONS,
 ] as const;

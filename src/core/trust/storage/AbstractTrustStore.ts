@@ -17,8 +17,8 @@ export abstract class AbstractTrustStore<T extends BTPTrustRecord> {
   }
 
   abstract getById(computedId: string): Promise<T | undefined>;
-  abstract create?(record: Omit<T, 'id'>, computedId?: string): Promise<T>;
-  abstract update?(computedId: string, patch: Partial<T>): Promise<T>;
-  abstract delete?(computedId: string): Promise<void>;
-  abstract getAll?(receiverId?: string): Promise<T[]>;
+  abstract create(record: Omit<T, 'id'>, computedId?: string): Promise<T>;
+  abstract update(computedId: string, patch: Partial<T>): Promise<T>;
+  abstract delete(computedId: string): Promise<void>;
+  abstract getAll(receiverId?: string): Promise<T[]>;
 }
