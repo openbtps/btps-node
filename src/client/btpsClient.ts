@@ -21,7 +21,13 @@ import {
   transformToBTPErrorException,
 } from '@core/error/index.js';
 import isEmpty from 'lodash/isEmpty.js';
-import { signEncrypt, BTPCryptoResponse, BTPCryptoOptions } from '@core/crypto/index.js';
+import {
+  signEncrypt,
+  BTPCryptoResponse,
+  BTPCryptoOptions,
+  decryptVerify,
+  VerifyEncryptedPayload,
+} from '@core/crypto/index.js';
 import { BTPServerResponse } from '@core/server/types.js';
 import { BTP_PROTOCOL_VERSION } from '@core/server/constants/index.js';
 
@@ -172,6 +178,14 @@ export class BtpsClient {
       },
       options,
     );
+  };
+
+  protected decryptVerifyArtifact = async <T = Record<string, unknown>>(
+    artifact: VerifyEncryptedPayload<T>,
+    senderPubPem: string,
+  ): Promise<BTPCryptoResponse<T>> => {
+    const { btpIdentityKey } = this.options;
+    return await decryptVerify(senderPubPem, artifact, btpIdentityKey);
   };
 
   private async flushBackpressure(): Promise<void> {

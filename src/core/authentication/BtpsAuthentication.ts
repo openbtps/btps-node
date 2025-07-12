@@ -17,12 +17,10 @@ import {
   getFingerprintFromPem,
   DEFAULT_ALPHABET,
   PemKeys,
-  decryptVerify,
-  VerifyEncryptedPayload,
 } from '@core/crypto/index.js';
 import {
   ServerAuthConfig,
-  AuthRequestResult,
+  AuthRequestResponse,
   AuthValidationResult,
   TokenStore,
   CreateAgentOptions,
@@ -33,6 +31,7 @@ import {
 import { isValidIdentity, pemToBase64 } from '@core/utils/index.js';
 import { BTP_ERROR_AUTHENTICATION_INVALID, BTP_ERROR_IDENTITY } from '@core/error/constant.js';
 import { BTPErrorException, transformToBTPErrorException } from '@core/error/index.js';
+import { SetRequired } from 'server/index.js';
 
 const DEFAULT_TOKEN_CONFIG: TokenConfig = {
   authTokenLength: 12,
@@ -64,7 +63,9 @@ export class BtpsAuthentication {
    * @param options - Agent creation options
    * @returns Created trust record
    */
-  private async createAgentTrustRecord(options: CreateAgentOptions): Promise<BTPTrustRecord> {
+  private async createAgentTrustRecord(
+    options: CreateAgentOptions,
+  ): Promise<SetRequired<BTPTrustRecord, 'expiresAt'>> {
     const { userIdentity, publicKey, agentInfo, decidedBy, privacyType, trustExpiryMs } = options;
     const now = new Date();
     const agentId = BtpsAuthentication.generateAgentId();
@@ -76,7 +77,9 @@ export class BtpsAuthentication {
       createdAt: now.toISOString(),
       decidedBy,
       decidedAt: now.toISOString(),
-      expiresAt: trustExpiryMs ? new Date(now.getTime() + trustExpiryMs).toISOString() : undefined,
+      expiresAt: trustExpiryMs
+        ? new Date(now.getTime() + trustExpiryMs).toISOString()
+        : new Date(now.getTime() + this.tokenConfig.refreshTokenExpiryMs).toISOString(),
       publicKeyBase64: pemToBase64(publicKey),
       publicKeyFingerprint: getFingerprintFromPem(publicKey, 'sha256'),
       keyHistory: [],
@@ -86,7 +89,10 @@ export class BtpsAuthentication {
       },
     };
 
-    return this.trustStore.create(trustRecord, computeTrustId(agentId, userIdentity));
+    return {
+      ...(await this.trustStore.create(trustRecord, computeTrustId(agentId, userIdentity))),
+      expiresAt: trustRecord.expiresAt!,
+    };
   }
 
   /**
@@ -102,7 +108,7 @@ export class BtpsAuthentication {
     payload: Omit<BTPAuthReqDoc, 'publicKey'> & { keyPair: PemKeys },
     type: 'refresh' | 'auth' = 'auth',
     agentOptions?: AuthAgentOptions,
-  ): Promise<AuthRequestResult> {
+  ): Promise<AuthRequestResponse> {
     const { keyPair, identity, authToken, agentInfo } = payload;
     const commandAction = type === 'refresh' ? 'auth.refresh' : 'auth.request';
 
@@ -132,44 +138,26 @@ export class BtpsAuthentication {
       if (error) return { success: false, error };
       // Parse server response - the response contains the auth data in the document field
 
-      if (!response || !response.status.ok || !response.document) {
+      if (!response || !response.status.ok || !response.document || response.type === 'btp_error') {
         return {
           success: false,
-          error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID),
+          error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
+            cause: 'Invalid authentication response',
+            meta: { agentId, identity, authToken, agentInfo, response },
+          }),
         };
       }
 
       // Extract auth response from document field
-      let authResponse: BTPAuthResDoc;
-      if (response.encryption && typeof response.document === 'string') {
-        if (!response.signedBy || !response.signature)
-          return {
-            success: false,
-            error: new BTPErrorException({ message: 'Authentication response is not signed' }),
-          };
-        const { signedBy, signature, encryption, document, ...restResponse } = response;
-        const encryptedPayload: VerifyEncryptedPayload<string> = {
-          ...restResponse,
-          document: response.document,
-          signature: response.signature,
-          encryption: response.encryption,
-          signedBy: response.signedBy,
-        };
-        const { payload: decryptedPayload, error: decryptError } = await decryptVerify(
-          signedBy,
-          encryptedPayload,
-          keyPair.privateKey,
-        );
-        if (decryptError) return { success: false, error: decryptError };
-        authResponse = decryptedPayload?.document as unknown as BTPAuthResDoc;
-      } else {
-        authResponse = response.document as unknown as BTPAuthResDoc;
-      }
+      const authResponse: BTPAuthResDoc = response.document as BTPAuthResDoc;
 
       if (!authResponse.agentId || !authResponse.refreshToken) {
         return {
           success: false,
-          error: new BTPErrorException({ message: 'Invalid authentication response format' }),
+          error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
+            cause: 'Invalid authentication response format',
+            meta: { agentId, identity, authToken, agentInfo, response },
+          }),
         };
       }
 
@@ -270,13 +258,117 @@ export class BtpsAuthentication {
   }
 
   /**
+   * Validate a refresh token and reissue a new refresh token
+   * @param agentId - The agent ID
+   * @param refreshToken - The refresh token to validate
+   * @param options - Optional agent options
+   * @returns New authentication response with agent ID and refresh token
+   */
+  async validateAndReissueRefreshToken(
+    agentId: string,
+    refreshToken: string,
+    options: Omit<CreateAgentOptions, 'userIdentity' | 'publicKey'> & { publicKey?: string },
+  ): Promise<{
+    data?: BTPAuthResDoc;
+    error?: BTPErrorException;
+  }> {
+    const validationResult = await this.validateRefreshToken(agentId, refreshToken);
+
+    if (!validationResult.isValid) {
+      return {
+        data: undefined,
+        error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
+          cause: 'Invalid or expired refresh token',
+          meta: { agentId, refreshToken },
+        }),
+      };
+    }
+    const { userIdentity } = validationResult;
+    const computedId = computeTrustId(agentId, userIdentity);
+    const trustRecord = await this.trustStore.getById(computedId);
+
+    if (!trustRecord) {
+      return {
+        data: undefined,
+        error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
+          cause: `Trust record not found for ${agentId} → ${userIdentity}`,
+          meta: { agentId, userIdentity, refreshToken },
+        }),
+      };
+    }
+
+    const patch: SetRequired<Partial<BTPTrustRecord>, 'expiresAt'> = {
+      ...trustRecord,
+      expiresAt: new Date(
+        Date.now() + (options.trustExpiryMs ?? this.tokenConfig.refreshTokenExpiryMs),
+      ).toISOString(),
+    };
+
+    const { agentInfo, decidedBy, privacyType, publicKey } = options;
+    patch.metadata = {
+      agentInfo: agentInfo ?? trustRecord.metadata?.agentInfo ?? {},
+    };
+
+    if (publicKey) {
+      const previousFingerprint = trustRecord.publicKeyFingerprint;
+      const currentFingerprint = getFingerprintFromPem(publicKey, 'sha256');
+      if (previousFingerprint !== currentFingerprint) {
+        // rotate the keys but keep the history to trace
+        patch.keyHistory = trustRecord.keyHistory || [];
+        patch.keyHistory.push({
+          fingerprint: previousFingerprint,
+          firstSeen: trustRecord.decidedAt,
+          lastSeen: new Date().toISOString(),
+        });
+        patch.publicKeyBase64 = pemToBase64(publicKey);
+        patch.publicKeyFingerprint = currentFingerprint;
+      }
+    }
+
+    patch.decidedBy = decidedBy;
+    patch.privacyType = privacyType ?? patch.privacyType;
+    patch.status = 'accepted';
+    patch.decidedAt = new Date().toISOString();
+
+    try {
+      await this.trustStore.update(computedId, patch);
+    } catch (error) {
+      return {
+        data: undefined,
+        error: transformToBTPErrorException(error),
+      };
+    }
+
+    // delete the old refresh token
+    await this.tokenStore.remove(agentId, refreshToken);
+    // generate a new refresh token
+    const newRefreshToken = BtpsAuthentication.generateRefreshToken();
+    await this.tokenStore.store(
+      newRefreshToken,
+      agentId,
+      userIdentity,
+      this.tokenConfig.refreshTokenExpiryMs,
+      { agentInfo },
+    );
+
+    return {
+      data: {
+        agentId,
+        refreshToken: newRefreshToken,
+        expiresAt: patch.expiresAt,
+      },
+    };
+  }
+
+  /**
    * Create an agent and trust record (server-side)
    * @param options - Agent creation options
    * @returns Generated authentication response with agent ID and refresh token
    */
   async createAgent(options: CreateAgentOptions): Promise<BTPAuthResDoc> {
-    const trustRecord = await this.createAgentTrustRecord(options);
-    const { senderId: agentId, receiverId: userIdentity, metadata } = trustRecord;
+    const expiry = options.trustExpiryMs ?? this.tokenConfig.refreshTokenExpiryMs;
+    const trustRecord = await this.createAgentTrustRecord({ ...options, trustExpiryMs: expiry });
+    const { senderId: agentId, receiverId: userIdentity, metadata, expiresAt } = trustRecord;
     const agentInfo = metadata?.agentInfo;
     // Generate refresh token
     const refreshToken = BtpsAuthentication.generateRefreshToken();
@@ -289,12 +381,11 @@ export class BtpsAuthentication {
       this.tokenConfig.refreshTokenExpiryMs,
       { agentInfo },
     );
-    const now = new Date();
 
     return {
       agentId,
       refreshToken,
-      expiresAt: new Date(now.getTime() + this.tokenConfig.refreshTokenExpiryMs).toISOString(),
+      expiresAt,
     };
   }
 
@@ -311,7 +402,7 @@ export class BtpsAuthentication {
     keyPair: PemKeys,
     agentInfo?: Record<string, string | string[]>,
     agentOptions?: AuthAgentOptions,
-  ): Promise<AuthRequestResult> {
+  ): Promise<AuthRequestResponse> {
     const isValid = isValidIdentity(identity);
     if (!isValid) {
       return {
@@ -342,7 +433,7 @@ export class BtpsAuthentication {
     keyPair: PemKeys,
     agentInfo?: Record<string, string | string[]>,
     agentOptions?: AuthAgentOptions,
-  ): Promise<AuthRequestResult> {
+  ): Promise<AuthRequestResponse> {
     const isValid = isValidIdentity(identity);
     if (!isValid) {
       return {
@@ -368,12 +459,17 @@ export class BtpsAuthentication {
   async validateRefreshToken(
     agentId: string,
     refreshToken: string,
-  ): Promise<{
-    isValid: boolean;
-    agentId?: string;
-    userIdentity?: string;
-    error?: Error;
-  }> {
+  ): Promise<
+    | {
+        isValid: false;
+        error?: Error;
+      }
+    | {
+        isValid: true;
+        agentId: string;
+        userIdentity: string;
+      }
+  > {
     try {
       const storedToken = await this.tokenStore.get(agentId, refreshToken);
       if (!storedToken) {

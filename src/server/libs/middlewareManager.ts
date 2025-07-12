@@ -14,15 +14,17 @@ import {
   MiddlewareContext,
   Phase,
   Step,
-} from '../types/index.js';
+} from '../types.js';
 import isEmpty from 'lodash/isEmpty.js';
 import { BTPErrorException } from '@core/error/index.js';
+import { BTPServerResponse } from '@core/server/types.js';
 
 export class MiddlewareManager {
   private middleware: MiddlewareDefinition[] = [];
   private lifecycleHooks: {
     onServerStart?: () => Promise<void> | void;
     onServerStop?: () => Promise<void> | void;
+    onResponseSent?: (response: BTPServerResponse) => Promise<void> | void;
   } = {};
 
   constructor(private middlewarePath?: string) {
@@ -58,6 +60,7 @@ export class MiddlewareManager {
         this.lifecycleHooks = {
           onServerStart: result.onServerStart,
           onServerStop: result.onServerStop,
+          onResponseSent: result.onResponseSent,
         };
       } else if (Array.isArray(result)) {
         // Legacy format - just array of middleware
@@ -222,6 +225,19 @@ export class MiddlewareManager {
         await this.lifecycleHooks.onServerStop();
       } catch (error) {
         console.error('[MiddlewareManager] Error in onServerStop hook:', error);
+      }
+    }
+  }
+
+  /**
+   * Executes onResponseSent lifecycle hooks
+   */
+  async onResponseSent(response: BTPServerResponse): Promise<void> {
+    if (this.lifecycleHooks.onResponseSent) {
+      try {
+        await this.lifecycleHooks.onResponseSent(response);
+      } catch (error) {
+        console.error('[MiddlewareManager] Error in onResponseSent hook:', error);
       }
     }
   }

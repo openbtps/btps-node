@@ -29,12 +29,13 @@ import {
   BTP_ERROR_ATTESTATION_VERIFICATION,
   BTP_ERROR_SOCKET_TIMEOUT,
 } from '@core/error/constant.js';
-import { verifySignature } from '@core/crypto/index.js';
+import { getFingerprintFromPem, verifySignature } from '@core/crypto/index.js';
 import { base64ToPem, isBtpsTransportArtifact, resolvePublicKey } from '@core/utils/index.js';
 import { BTPError } from '@core/error/types.js';
 import {
   BTPAgentArtifact,
   BTPAttestation,
+  BTPAuthReqDoc,
   BTPDelegation,
   BTPServerResponse,
   BTPStatus,
@@ -51,7 +52,7 @@ import {
   ProcessedArtifact,
   ArtifactResCtx,
   BTPContext,
-} from './types/index.js';
+} from './types.js';
 import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { validate } from '@core/utils/validation.js';
 import { BtpArtifactServerSchema } from '@core/server/schema.js';
@@ -146,7 +147,14 @@ export class BtpsServer {
       try {
         // Execute before parsing middleware
         const beforeParseMiddleware = this.middlewareManager.getMiddleware('before', 'parsing');
-        await this.executeMiddleware(beforeParseMiddleware, parseReq, parseRes);
+        const beforeParseResponseSent = await this.executeMiddleware(
+          beforeParseMiddleware,
+          parseReq,
+          parseRes,
+        );
+        if (beforeParseResponseSent) {
+          return; // Response already sent, stop processing
+        }
 
         const { data, error } = this._parseAndValidateArtifact(line);
 
@@ -170,11 +178,14 @@ export class BtpsServer {
           this.sendBtpsResponse(socket, { ...response, reqId: data?.artifact?.id });
         parseRes.sendError = (error) => this.sendBtpsError(socket, error, data?.artifact?.id);
 
-        await this.executeMiddleware(
+        const afterParseResponseSent = await this.executeMiddleware(
           this.middlewareManager.getMiddleware('after', 'parsing'),
           { ...parseReq, data, error: parseErrException },
           { ...parseRes, data, error: parseErrException },
         );
+        if (afterParseResponseSent) {
+          return; // Response already sent, stop processing
+        }
 
         if (parseError || !data) {
           const errorToSend = parseError ?? BTP_ERROR_INVALID_JSON;
@@ -241,11 +252,12 @@ export class BtpsServer {
     resCtx: BTPResponseCtx<'before', 'signatureVerification'>,
   ): Promise<void> {
     // Execute before signature verification middleware
-    await this.executeMiddleware(
+    const beforeSigVerResponseSent = await this.executeMiddleware(
       this.middlewareManager.getMiddleware('before', 'signatureVerification'),
       reqCtx,
       resCtx,
     );
+    if (beforeSigVerResponseSent) return; // Response already sent, stop processing
 
     // Core signature verification (non-negotiable)
     // artifact is not undefined as it is checked in the parent handleConnection method
@@ -255,22 +267,24 @@ export class BtpsServer {
     if (verificationError) reqCtx.error = verificationError;
 
     // Execute after signature verification middleware
-    await this.executeMiddleware(
+    const afterSigVerResponseSent = await this.executeMiddleware(
       this.middlewareManager.getMiddleware('after', 'signatureVerification'),
       reqCtx,
       resCtx,
     );
+    if (afterSigVerResponseSent) return; // Response already sent, stop processing
 
     if (!isValid) {
       return this.sendBtpsError(resCtx.socket, BTP_ERROR_SIG_VERIFICATION);
     }
 
     // Execute before trust verification middleware
-    await this.executeMiddleware(
+    const beforeTrustVerResponseSent = await this.executeMiddleware(
       this.middlewareManager.getMiddleware('before', 'trustVerification'),
       reqCtx,
       resCtx,
     );
+    if (beforeTrustVerResponseSent) return; // Response already sent, stop processing
 
     // Core trust verification (non-negotiable)
     const { isTrusted, error: trustError } = await this.verifyTrust(data!);
@@ -278,32 +292,36 @@ export class BtpsServer {
     if (trustError) reqCtx.error = trustError;
 
     // Execute after trust verification middleware
-    await this.executeMiddleware(
+    const afterTrustVerResponseSent = await this.executeMiddleware(
       this.middlewareManager.getMiddleware('after', 'trustVerification'),
       reqCtx,
       resCtx,
     );
+    if (afterTrustVerResponseSent) return; // Response already sent, stop processing
 
     if (!isTrusted) {
       return this.sendBtpsError(resCtx.socket, BTP_ERROR_TRUST_NOT_ALLOWED);
     }
 
     // Execute before onArtifact middleware
-    await this.executeMiddleware(
+    const beforeOnArtifactResponseSent = await this.executeMiddleware(
       this.middlewareManager.getMiddleware('before', 'onArtifact'),
       reqCtx,
       resCtx,
     );
+    if (beforeOnArtifactResponseSent) return; // Response already sent, stop processing
 
     // Core message processing (non-negotiable)
-    await this.processMessage(data!, resCtx);
+    const isResponseSent = await this.processMessage(data!, resCtx, reqCtx);
+    if (isResponseSent) return; // Response already sent, stop processing
 
     // Execute after onArtifact middleware (if any)
-    await this.executeMiddleware(
+    const afterOnArtifactResponseSent = await this.executeMiddleware(
       this.middlewareManager.getMiddleware('after', 'onArtifact'),
       reqCtx,
       resCtx,
     );
+    if (afterOnArtifactResponseSent) return; // Response already sent, stop processing
 
     // Send success response
     this.sendBtpsResponse(resCtx.socket, {
@@ -314,13 +332,19 @@ export class BtpsServer {
 
   /**
    * Executes a list of middleware functions
+   * @returns true if a response was sent (flow should stop), false otherwise
    */
   private async executeMiddleware(
     middleware: MiddlewareDefinition[],
     req: BTPRequestCtx,
     res: BTPResponseCtx,
-  ): Promise<void> {
+  ): Promise<boolean> {
     for (const mw of middleware) {
+      // Check if socket is already destroyed before executing middleware
+      if (req.socket.destroyed || req.socket.writableEnded) {
+        return true; // Socket destroyed, response already sent
+      }
+
       const context: MiddlewareContext = {
         dependencies: {
           trustStore: this.trustStore,
@@ -339,7 +363,15 @@ export class BtpsServer {
       ) => Promise<void> | void;
 
       await typedHandler(req, res, () => Promise.resolve(), context);
+
+      // Check if socket was destroyed after middleware execution
+      // This indicates sendError or sendRes was called
+      if (req.socket.destroyed || req.socket.writableEnded) {
+        return true; // Response was sent, stop all further processing
+      }
     }
+
+    return false; // No response was sent, continue with normal flow
   }
 
   /**
@@ -348,22 +380,67 @@ export class BtpsServer {
   private async verifyAgentSignature(
     artifact: BTPAgentArtifact,
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
-    // const { artifact, isAgentArtifact } = data;
     const { signature, ...signedMsg } = artifact;
-    const computedTrustId = computeTrustId(signedMsg.agentId, signedMsg.to);
-    const trustRecord = await this.trustStore.getById(computedTrustId);
-    if (!trustRecord) {
+
+    // Get public key based on agent type
+    const agentPublicPem = await this.getAgentPublicKey(artifact);
+
+    if (!agentPublicPem) {
+      const isOnboardingAgent = artifact.action === 'auth.request';
+      const errorMessage = isOnboardingAgent
+        ? `Agent ${signedMsg.agentId} public key not found in auth request document`
+        : `Agent ${signedMsg.agentId} not trusted or not found in trust store`;
+
       return {
         isValid: false,
         error: new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
-          cause: `Agent ${signedMsg.agentId} not trusted`,
-          meta: { agentId: signedMsg.agentId, to: signedMsg.to, computedTrustId },
+          cause: errorMessage,
+          meta: {
+            agentId: signedMsg.agentId,
+            action: artifact.action,
+            isOnboardingAgent,
+          },
         }),
       };
     }
-    const agentPublicKey = base64ToPem(trustRecord.publicKeyBase64);
-    const { isValid, error } = verifySignature(signedMsg, signature, agentPublicKey);
+
+    const { isValid, error } = verifySignature(signedMsg, signature, agentPublicPem);
     return { isValid, error };
+  }
+
+  /**
+   * Gets the public key for an agent based on whether it's onboarding or existing
+   */
+  private async getAgentPublicKey(artifact: BTPAgentArtifact): Promise<string | null> {
+    const isOnboardingAgent = artifact.action === 'auth.request';
+
+    if (isOnboardingAgent) {
+      // For onboarding agents, get public key from the auth request document
+      const authDoc = artifact.document as BTPAuthReqDoc;
+      return authDoc?.publicKey || null;
+    }
+
+    // For existing agents, get public key from trust store
+    const computedTrustId = computeTrustId(artifact.agentId, artifact.to);
+    const trustRecord = await this.trustStore.getById(computedTrustId);
+
+    if (!trustRecord) {
+      return null; // Trust record not found
+    }
+    const currentKeyFingerprint = trustRecord.publicKeyFingerprint;
+
+    const { document } = artifact;
+    if (document) {
+      const { publicKey } = document as BTPAuthReqDoc;
+      if (currentKeyFingerprint !== getFingerprintFromPem(publicKey)) {
+        /* Must be rotated */
+        return publicKey;
+      }
+    } else {
+      return null;
+    }
+
+    return base64ToPem(trustRecord.publicKeyBase64);
   }
 
   /**
@@ -372,6 +449,12 @@ export class BtpsServer {
   private async verifyAgentTrust(
     artifact: BTPAgentArtifact,
   ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
+    /* For onboarding agents, we don't need to verify trust */
+    const isOnboardingAgent = artifact.action === 'auth.request';
+    if (isOnboardingAgent) {
+      return { isTrusted: true, error: undefined };
+    }
+
     const { agentId, to } = artifact;
     const computedTrustId = computeTrustId(agentId, to);
     const trustRecord = await this.trustStore.getById(computedTrustId);
@@ -617,27 +700,68 @@ export class BtpsServer {
   }
 
   /**
+   * Emits an event and optionally awaits all listeners if `shouldAwait` is true.
+   */
+  private async awaitableEmitIfNeeded(
+    event: string | symbol,
+    shouldAwait: boolean,
+    reqCtx: BTPRequestCtx,
+    resCtx: BTPResponseCtx,
+    artifact: BTPAgentArtifact & { respondNow: boolean },
+  ): Promise<void> {
+    if (!shouldAwait) {
+      this.emitter.emit(event, artifact, resCtx);
+      return;
+    }
+
+    const listeners = this.emitter.listeners(event);
+
+    await Promise.all(
+      listeners.map(async (listener) => {
+        try {
+          const result = (
+            listener as (
+              a: BTPAgentArtifact & { respondNow: boolean },
+              r: BTPResponseCtx,
+            ) => unknown
+          )(artifact, resCtx);
+          await Promise.resolve(result);
+        } catch (err) {
+          const error = transformToBTPErrorException(err);
+          this.handleOnSocketError(error, {
+            req: { ...reqCtx, error },
+            res: resCtx,
+          });
+        }
+      }),
+    );
+  }
+
+  /**
    * Core message processing (non-negotiable)
    */
-  private async processMessage(data: ProcessedArtifact, resCtx: ArtifactResCtx): Promise<void> {
+  private async processMessage(
+    data: ProcessedArtifact,
+    resCtx: BTPResponseCtx,
+    reqCtx: BTPRequestCtx,
+  ): Promise<boolean> {
     const { artifact, isAgentArtifact } = data;
+
     if (isAgentArtifact) {
-      const respondNow = data.respondNow;
-      this.emitter.emit(
-        'agentArtifact',
-        {
-          ...artifact,
-          info: {
-            respondNow,
-          },
-        },
-        resCtx,
-      );
+      const { respondNow } = data;
+      await this.awaitableEmitIfNeeded('agentArtifact', respondNow === true, reqCtx, resCtx, {
+        ...artifact,
+        respondNow,
+      });
+
+      if (reqCtx.socket.destroyed || reqCtx.socket.writableEnded) {
+        return true;
+      }
     } else {
       this.emitter.emit('transporterArtifact', artifact);
     }
-
     await this._forwardArtifact(data);
+    return false;
   }
 
   private _parseAndValidateArtifact(line: string): {
@@ -748,10 +872,19 @@ export class BtpsServer {
 
   /**
    * Sends a BTP response to the client
+   * @param socket - The socket to send the response to
+   * @param artifact - The artifact to send
    */
   private sendBtpsResponse(socket: TLSSocket, artifact: BTPServerResponse) {
-    if (!socket.destroyed) {
+    if (socket.destroyed || socket.writableEnded) return;
+
+    try {
       socket.write(JSON.stringify(artifact) + '\n');
+      this.middlewareManager.onResponseSent(artifact);
+      socket.end(); // Graceful close
+    } catch (err) {
+      this.onError?.(transformToBTPErrorException(err));
+      if (!socket.destroyed) socket.destroy();
     }
   }
 
@@ -805,7 +938,7 @@ export class BtpsServer {
 
   public onIncomingArtifact(
     type: 'Agent',
-    handler: (artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) => void,
+    handler: (artifact: BTPAgentArtifact & { respondNow: boolean }, resCtx: ArtifactResCtx) => void,
   ): void;
 
   // Function overload for 'Transporter'
@@ -820,13 +953,16 @@ export class BtpsServer {
   public onIncomingArtifact(
     type: 'Agent' | 'Transporter',
     handler:
-      | ((artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) => void)
+      | ((artifact: BTPAgentArtifact & { respondNow: boolean }, resCtx: ArtifactResCtx) => void)
       | ((artifact: BTPTransporterArtifact) => void),
   ) {
     if (type === 'Agent') {
       this.emitter.on(
         'agentArtifact',
-        handler as (artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) => void,
+        handler as (
+          artifact: BTPAgentArtifact & { respondNow: boolean },
+          resCtx: ArtifactResCtx,
+        ) => void,
       );
     } else {
       this.emitter.on('transporterArtifact', handler as (artifact: BTPTransporterArtifact) => void);

@@ -7,6 +7,11 @@
 
 import { BTPError } from './types.js';
 
+export const BTP_ERROR_SOCKET_CLOSED: BTPError = {
+  code: 'BTP_ERROR_SOCKET_CLOSED',
+  message: 'Socket already closed',
+};
+
 export const BTP_ERROR_IDENTITY: BTPError = {
   code: 'BTP_ERROR_IDENTITY',
   message: 'BTP identity is expected in the format username$domain.',

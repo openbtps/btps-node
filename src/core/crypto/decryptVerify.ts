@@ -5,9 +5,8 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 import { decryptBtpPayload, verifySignature } from './index.js';
-import { BTPCryptoArtifact, BTPCryptoResponse, VerifyEncryptedPayload } from './types.js';
+import { BTPCryptoResponse, VerifyEncryptedPayload } from './types.js';
 import { BTPErrorException } from '@core/error/index.js';
-import { BTPDocType } from '@core/server/types.js';
 import isEmpty from 'lodash/isEmpty.js';
 
 const genDecryptError = (error: BTPErrorException) => ({
@@ -15,11 +14,11 @@ const genDecryptError = (error: BTPErrorException) => ({
   error,
 });
 
-export const decryptVerify = async <T = BTPDocType>(
+export const decryptVerify = async <T = unknown>(
   senderPubPem: string,
   encryptedPayload: VerifyEncryptedPayload<T>,
   receiverPrivatePem?: string,
-): Promise<BTPCryptoResponse> => {
+): Promise<BTPCryptoResponse<T>> => {
   const { signature, delegation, ...restEncryptedPayload } = encryptedPayload;
 
   const { isValid, error: sigError } = verifySignature(
@@ -45,7 +44,7 @@ export const decryptVerify = async <T = BTPDocType>(
 
   if (decryptionErrors) return genDecryptError(decryptionErrors);
 
-  const decryptedPayload: Record<string, unknown> = {
+  const decryptedPayload: VerifyEncryptedPayload<T> = {
     ...restEncryptedPayload,
     signature,
   };
@@ -59,7 +58,7 @@ export const decryptVerify = async <T = BTPDocType>(
   }
 
   return {
-    payload: decryptedPayload as BTPCryptoArtifact<BTPDocType>,
+    payload: decryptedPayload as BTPCryptoResponse<T>['payload'],
     error: undefined,
   };
 };

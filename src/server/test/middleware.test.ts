@@ -198,4 +198,76 @@ describe('MiddlewareManager', () => {
       expect(true).toBe(true); // Should not throw
     });
   });
+
+  describe('middleware flow control', () => {
+    it('should properly handle middleware that sends response and stops flow', async () => {
+      const flowControlMiddleware = `
+export default function () {
+  return [{
+    phase: 'before',
+    step: 'parsing',
+    priority: 1,
+    config: { name: 'flow-control-test', enabled: true },
+    handler: async (req, res, next) => {
+      // This middleware sends a response and returns without calling next()
+      // This should stop the flow
+      res.sendError({ code: 403, message: 'Access denied' });
+      // Note: no await next() call here - this should stop the flow
+    }
+  }];
+}
+`;
+      await fs.writeFile(middlewareFile, flowControlMiddleware, 'utf8');
+      const trustStore = new JsonTrustStore({
+        connection: TEST_FILE,
+        entityName: 'trusted_sender',
+      });
+      await middlewareManager.loadMiddleware({ trustStore });
+      const middleware = middlewareManager.getAllMiddleware();
+      expect(middleware.length).toBe(1);
+      expect(middleware[0].config?.name).toBe('flow-control-test');
+    });
+
+    it('should load middleware that stops flow', async () => {
+      const stopFlowMiddleware = `
+export default function () {
+  return [
+    {
+      phase: 'before',
+      step: 'parsing',
+      priority: 1,
+      config: { name: 'stop-flow-test', enabled: true },
+      handler: async (req, res, next) => {
+        console.log('🛑 Middleware sending error response');
+        res.sendError({ code: 429, message: 'Rate limited' });
+        // No next() call - flow should stop here
+      }
+    },
+    {
+      phase: 'after',
+      step: 'parsing',
+      priority: 1,
+      config: { name: 'should-not-run', enabled: true },
+      handler: async (req, res, next) => {
+        console.log('❌ This middleware should NOT run');
+        await next();
+      }
+    }
+  ];
+}
+`;
+      await fs.writeFile(middlewareFile, stopFlowMiddleware, 'utf8');
+
+      const trustStore = new JsonTrustStore({
+        connection: TEST_FILE,
+        entityName: 'trusted_sender',
+      });
+
+      await middlewareManager.loadMiddleware({ trustStore });
+      const middleware = middlewareManager.getAllMiddleware();
+      expect(middleware.length).toBe(2);
+      expect(middleware[0].config?.name).toBe('stop-flow-test');
+      expect(middleware[1].config?.name).toBe('should-not-run');
+    });
+  });
 });

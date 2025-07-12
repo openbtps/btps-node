@@ -69,7 +69,7 @@ export type AuthAgentOptions = Omit<
 /**
  * Authentication request result
  */
-export interface AuthRequestResult {
+export interface AuthRequestResponse {
   /** Whether the request was successful */
   success: boolean;
   /** Authentication response from server */

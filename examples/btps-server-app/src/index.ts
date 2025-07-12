@@ -1,6 +1,8 @@
 import { computeTrustId, JsonTrustStore } from '@btps/sdk/trust';
 import { BtpsServerSingletonFactory } from '@btps/sdk/server/core';
 import { BtpsAuthentication, InMemoryTokenStore } from '@btps/sdk/authentication';
+import { BTP_ERROR_AUTHENTICATION_INVALID } from '@btps/sdk/error';
+import { BTPAuthReqDoc } from '@btps/sdk/server';
 
 const TrustStore = new JsonTrustStore({
   connection: `${process.cwd()}/.well-known/btp-trust.json`,
@@ -55,6 +57,79 @@ const BTPsServer = BtpsServerSingletonFactory.create({
 
 BTPsServer.start();
 
-BTPsServer.onIncomingArtifact('Agent', (artifact) => {
-  console.log('INCOMING AGENT ARTIFACT', JSON.stringify(artifact, null, 2));
+BTPsServer.onIncomingArtifact('Agent', async (artifact, resCtx) => {
+  if (artifact.respondNow) {
+    const { action } = artifact;
+
+    switch (action) {
+      case 'auth.request':
+        const { document, to, id: reqId } = artifact;
+        if (!document) {
+          return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
+        }
+        const { authToken, publicKey, identity, agentInfo } = document as BTPAuthReqDoc;
+        const { isValid } = await Auth.validateAuthToken(to, authToken);
+        if (!isValid) {
+          return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
+        }
+
+        const authResponseDoc = await Auth.createAgent({
+          decidedBy: 'finance$ebilladdress.com',
+          publicKey,
+          userIdentity: identity,
+          agentInfo,
+        });
+
+        return resCtx.sendRes({
+          ...BTPsServer.prepareBtpsResponse(
+            {
+              ok: true,
+              message: 'Authentication successful',
+              code: 200,
+            },
+            reqId,
+          ),
+          type: 'btp_response',
+          document: authResponseDoc,
+        });
+      case 'auth.refresh':
+        const { document: refreshAuthDoc, agentId, id: refreshReqId } = artifact;
+        if (!refreshAuthDoc) {
+          return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
+        }
+
+        const authDoc = refreshAuthDoc as BTPAuthReqDoc;
+        const { data, error } = await Auth.validateAndReissueRefreshToken(
+          agentId,
+          authDoc.authToken,
+          {
+            decidedBy: 'admin$ebilladdress.com',
+            publicKey: authDoc.publicKey,
+            agentInfo: authDoc?.agentInfo ?? {},
+          },
+        );
+
+        if (error) {
+          return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
+        }
+
+        return resCtx.sendRes({
+          ...BTPsServer.prepareBtpsResponse(
+            {
+              ok: true,
+              message: 'Refresh Auth Session Successful',
+              code: 200,
+            },
+            refreshReqId,
+          ),
+          type: 'btp_response',
+          document: data,
+        });
+
+      default:
+        break;
+    }
+  }
+
+  // console.log('INCOMING AGENT ARTIFACT', JSON.stringify(artifact, null, 2));
 });

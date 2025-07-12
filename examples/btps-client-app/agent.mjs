@@ -25,7 +25,7 @@ const btpsAgent = new BtpsAgent({
     'finance$ebilladdress.com',
     {
       identity: 'finance$ebilladdress.com',
-      authToken: 'VL57Z72RRJ39',
+      authToken: '7Q7BYJPB9ECL',
       publicKey: publicKey.toString('utf8'),
       agentInfo: {
         deviceName: 'iPhone 15',

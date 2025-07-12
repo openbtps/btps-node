@@ -6,7 +6,7 @@
  */
 
 import { BtpsServer } from 'server/btpsServer.js';
-import { BtpsServerOptions } from 'server/types/index.js';
+import { BtpsServerOptions } from 'server/types.js';
 
 /**
  * BtpsServerFactory creates new BtpsServer instances from configuration.

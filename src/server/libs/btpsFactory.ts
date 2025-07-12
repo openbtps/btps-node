@@ -6,7 +6,7 @@
  */
 
 import { BtpsServer } from 'server/btpsServer.js';
-import { BtpsServerOptions } from 'server/types/index.js';
+import { BtpsServerOptions } from 'server/types.js';
 
 /**
  * BtpsServerRegistry keeps track of multiple named BtpsServer instances.

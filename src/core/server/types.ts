@@ -7,7 +7,7 @@
 
 import { BTPSignature, BTPEncryption } from '@core/crypto/types.js';
 import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
-import { BTPInvoiceDoc } from '../../server/types/index.js';
+import { BTPInvoiceDoc } from '../../server/types.js';
 import { AGENT_ACTIONS, TRANSPORTER_ACTIONS } from './constants/index.js';
 import { CURRENCY_CODES } from './constants/currency.js';
 
@@ -122,14 +122,16 @@ export type BTPStatus = {
   message?: string;
 };
 
-export type BTPServerResponse = {
+export type BTPServerResDocs = BTPAuthResDoc | BTPDocType | BTPDocType[];
+
+export type BTPServerResponse<T = BTPServerResDocs> = {
   version: string;
   status: BTPStatus;
   id: string;
   issuedAt: string;
   type: 'btp_error' | 'btp_response';
   reqId?: string;
-  document?: string | Record<string, unknown>;
+  document?: T;
   signature?: BTPSignature;
   encryption?: BTPEncryption;
   signedBy?: string;

@@ -61,11 +61,11 @@ export interface BTPContext {
   sendError?: (err: BTPError) => void;
 }
 
-type SetRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
+export type SetRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 
 export type ArtifactResCtx = {
-  sendRes: BTPContext['sendRes'];
-  sendError: BTPContext['sendError'];
+  sendRes: Required<BTPContext>['sendRes'];
+  sendError: Required<BTPContext>['sendError'];
 };
 
 // Type helper to determine if artifact should be present
@@ -179,6 +179,7 @@ export interface MiddlewareModule {
   middleware: MiddlewareDefinitionArray;
   onServerStart?: () => Promise<void> | void;
   onServerStop?: () => Promise<void> | void;
+  onResponseSent?: (response: BTPServerResponse) => Promise<void> | void;
 }
 
 // Legacy types for backward compatibility

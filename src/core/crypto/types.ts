@@ -11,6 +11,7 @@ import {
   BTPArtifact,
   BTPDelegation,
   BTPDocType,
+  BTPServerResponse,
   BTPTransporterArtifact,
 } from '@core/server/types.js';
 
@@ -57,7 +58,7 @@ export type BTPCryptoArtifact<T = BTPDocType> =
   | WithGenericDocument<BTPTransporterArtifact, T>;
 
 export interface BTPCryptoResponse<T = BTPDocType> {
-  payload?: BTPCryptoArtifact<T>;
+  payload?: BTPCryptoArtifact<T> | BTPServerResponse<T>;
   error?: BTPErrorException;
 }
 

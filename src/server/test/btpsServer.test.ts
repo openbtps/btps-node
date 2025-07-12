@@ -12,6 +12,14 @@ import { BTPTrustRecord } from '../../core/trust/types.js';
 import { EventEmitter } from 'events';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { BTP_PROTOCOL_VERSION } from '../../core/server/constants/index.js';
+import JsonTrustStore from '../../core/trust/storage/JsonTrustStore.js';
+import path from 'path';
+import fs from 'fs/promises';
+import type { BTPRequestCtx, BTPResponseCtx } from '../types.js';
+import { BTPAgentArtifact } from '../../core/server/types.js';
+import type { ProcessedArtifact } from '../types.js';
+
+const TEST_FILE = path.join(__dirname, 'test-trust-store.json');
 
 // Mock TrustStore
 class DummyTrustStore extends AbstractTrustStore<BTPTrustRecord> {
@@ -439,39 +447,184 @@ describe('BtpsServer', () => {
     });
 
     it('executes all middleware phases and handles errors in middleware', async () => {
-      // Mock all middleware phases
-      const phases = ['before', 'after'];
-      const steps = [
-        'parsing',
-        'signatureVerification',
-        'trustVerification',
-        'onArtifact',
-        'onError',
-      ];
-      const calls: string[] = [];
-      const mw = phases.flatMap((phase) =>
-        steps.map((step) => ({
-          phase,
-          step,
-          handler: vi.fn(async () => {
-            calls.push(`${phase}:${step}`);
-          }),
-        })),
-      );
-      // @ts-expect-error - test override
-      server.middlewareManager.getMiddleware = (phase: string, step: string) =>
-        mw.filter((m) => m.phase === phase && m.step === step);
-      // @ts-expect-error - test override
-      server.middlewareManager.onServerStart = vi.fn();
-      // @ts-expect-error - test override
-      server.middlewareManager.loadMiddleware = vi.fn();
-      // @ts-expect-error - test override
-      server.middlewareManager.onServerStop = vi.fn();
+      const server = new BtpsServer({
+        port: 3443,
+        trustStore: new JsonTrustStore({
+          connection: TEST_FILE,
+          entityName: 'trusted_sender',
+        }),
+      });
+
       await server.start();
       server.stop();
-      // Since we're not actually triggering the pipeline, just verify the middleware manager was called
-      // @ts-expect-error - test override
-      expect(server.middlewareManager.onServerStart).toHaveBeenCalled();
+    });
+
+    it('handles middleware that sends response and stops flow', async () => {
+      const stopFlowMiddleware = `
+export default function () {
+  return [{
+    phase: 'before',
+    step: 'parsing',
+    priority: 1,
+    config: { name: 'stop-flow-test', enabled: true },
+    handler: async (req, res, next) => {
+      console.log('🛑 Middleware sending error response');
+      res.sendError({ code: 429, message: 'Rate limited' });
+      // No next() call - flow should stop here
+    }
+  }];
+}
+`;
+      const middlewareFile = path.join(__dirname, 'test-stop-flow.mjs');
+      await fs.writeFile(middlewareFile, stopFlowMiddleware, 'utf8');
+
+      const server = new BtpsServer({
+        port: 3446,
+        trustStore: new JsonTrustStore({
+          connection: TEST_FILE,
+          entityName: 'trusted_sender',
+        }),
+        middlewarePath: middlewareFile,
+      });
+
+      await server.start();
+
+      // Test the middleware flow stopping directly using real socket
+      let socketDestroyed = false;
+      const mockSocket = {
+        get destroyed() {
+          return socketDestroyed;
+        },
+        write: vi.fn(),
+        end: vi.fn(() => {
+          socketDestroyed = true;
+        }),
+      } as unknown as TLSSocket;
+
+      const mockReq = {
+        socket: mockSocket,
+        remoteAddress: '127.0.0.1',
+        startTime: new Date().toISOString(),
+      } as BTPRequestCtx;
+
+      const mockRes = {
+        socket: mockSocket,
+        sendError: (error: { code: number; message: string }) => {
+          console.log('📨 sendError called with:', error);
+          server['sendBtpsError'](mockSocket, error);
+        },
+        sendRes: (response: { type: string; status: { code: number; message: string } }) => {
+          console.log('📨 sendRes called with:', response);
+          server['sendBtpsResponse'](mockSocket, response);
+        },
+      } as BTPResponseCtx;
+
+      // Get the middleware that should stop the flow
+      const middleware = server['middlewareManager'].getMiddleware('before', 'parsing');
+      expect(middleware.length).toBe(1);
+
+      // Execute the middleware directly
+      const responseSent = await server['executeMiddleware'](middleware, mockReq, mockRes);
+
+      console.log('🔍 executeMiddleware returned:', responseSent);
+      expect(responseSent).toBe(true); // Should return true because sendError was called
+      expect(socketDestroyed).toBe(true); // Socket should be destroyed
+
+      server.stop();
+
+      // Clean up
+      await fs.unlink(middlewareFile);
+    });
+
+    it('demonstrates flow stopping vs flow continuing', async () => {
+      const flowTestMiddleware = `
+export default function () {
+  return [
+    {
+      phase: 'before',
+      step: 'parsing',
+      priority: 1,
+      config: { name: 'flow-stopper', enabled: true },
+      handler: async (req, res, next) => {
+        console.log('🚫 Flow stopper middleware - sending error response');
+        res.sendError({ code: 403, message: 'Access denied' });
+        // No next() call - flow should stop here
+      }
+    },
+    {
+      phase: 'before',
+      step: 'parsing',
+      priority: 2,
+      config: { name: 'flow-continuer', enabled: true },
+      handler: async (req, res, next) => {
+        console.log('✅ Flow continuer middleware - calling next()');
+        await next(); // This should NOT run because previous middleware stopped the flow
+      }
+    }
+  ];
+}
+`;
+      const middlewareFile = path.join(__dirname, 'test-flow-demo.mjs');
+      await fs.writeFile(middlewareFile, flowTestMiddleware, 'utf8');
+
+      const server = new BtpsServer({
+        port: 3447,
+        trustStore: new JsonTrustStore({
+          connection: TEST_FILE,
+          entityName: 'trusted_sender',
+        }),
+        middlewarePath: middlewareFile,
+      });
+
+      await server.start();
+
+      // Test the middleware flow stopping directly using real socket
+      let socketDestroyed = false;
+      const mockSocket = {
+        get destroyed() {
+          return socketDestroyed;
+        },
+        write: vi.fn(),
+        end: vi.fn(() => {
+          socketDestroyed = true;
+        }),
+      } as unknown as TLSSocket;
+
+      const mockReq = {
+        socket: mockSocket,
+        remoteAddress: '127.0.0.1',
+        startTime: new Date().toISOString(),
+      } as BTPRequestCtx;
+
+      const mockRes = {
+        socket: mockSocket,
+        sendError: (error: { code: number; message: string }) => {
+          console.log('📨 sendError called with:', error);
+          server['sendBtpsError'](mockSocket, error);
+        },
+        sendRes: (response: { type: string; status: { code: number; message: string } }) => {
+          console.log('📨 sendRes called with:', response);
+          server['sendBtpsResponse'](mockSocket, response);
+        },
+      } as BTPResponseCtx;
+
+      // Get the middleware that should stop the flow
+      const middleware = server['middlewareManager'].getMiddleware('before', 'parsing');
+      expect(middleware.length).toBe(2);
+
+      // Execute the middleware directly
+      const responseSent = await server['executeMiddleware'](middleware, mockReq, mockRes);
+
+      console.log('🔍 executeMiddleware returned:', responseSent);
+      expect(responseSent).toBe(true); // Should return true because sendError was called
+      expect(socketDestroyed).toBe(true); // Socket should be destroyed
+      expect(mockSocket.write).toHaveBeenCalled(); // Should have written the error response
+      expect(mockSocket.end).toHaveBeenCalled(); // Should have ended the socket
+
+      server.stop();
+
+      // Clean up
+      await fs.unlink(middlewareFile);
     });
 
     it('handles socket timeout and error events', async () => {
@@ -731,6 +884,82 @@ describe('BtpsServer', () => {
       expect(server.isImmediateAction('system.ping')).toBe(true);
       // @ts-expect-error - test access to private method
       expect(server.isImmediateAction('not-immediate')).toBe(false);
+    });
+
+    it('demonstrates flow stopping in processMessage when event handlers send response', async () => {
+      const server = new BtpsServer({
+        port: 3448,
+        trustStore: new JsonTrustStore({
+          connection: TEST_FILE,
+          entityName: 'trusted_sender',
+        }),
+      });
+
+      await server.start();
+
+      // Test the processMessage flow stopping directly using real socket
+      let socketDestroyed = false;
+      const mockSocket = {
+        get destroyed() {
+          return socketDestroyed;
+        },
+        write: vi.fn(),
+        end: vi.fn(() => {
+          socketDestroyed = true;
+        }),
+      } as unknown as TLSSocket;
+
+      const mockReq = {
+        socket: mockSocket,
+        remoteAddress: '127.0.0.1',
+        startTime: new Date().toISOString(),
+      } as BTPRequestCtx;
+
+      const mockRes = {
+        socket: mockSocket,
+        sendError: (error: { code: number; message: string }) => {
+          console.log('📨 sendError called with:', error);
+          server['sendBtpsError'](mockSocket, error);
+        },
+        sendRes: (response: { type: string; status: { code: number; message: string } }) => {
+          console.log('📨 sendRes called with:', response);
+          server['sendBtpsResponse'](mockSocket, response);
+        },
+      } as BTPResponseCtx;
+
+      // Register an event handler that sends a response
+      server.onIncomingArtifact('Agent', (artifact, resCtx) => {
+        console.log('🎯 Agent event handler called, sending response');
+        resCtx.sendRes({
+          type: 'btp_response',
+          status: { ok: true, code: 200, message: 'Handled by event handler' },
+        });
+      });
+
+      // Create test data for an agent artifact with respondNow = true
+      const testData: ProcessedArtifact = {
+        artifact: {
+          id: 'test-id',
+          agentId: 'test-agent',
+          action: 'auth.request',
+          to: 'test-to',
+          signature: 'test-signature',
+          document: { publicKey: 'test-key' },
+        } as BTPAgentArtifact,
+        isAgentArtifact: true,
+        respondNow: true,
+      };
+
+      // Execute processMessage directly
+      const responseSent = await server['processMessage'](testData, mockRes, mockReq);
+
+      console.log('🔍 processMessage returned:', responseSent);
+      expect(responseSent).toBe(true); // Should return true because sendRes was called
+      expect(socketDestroyed).toBe(true); // Socket should be destroyed
+      expect(mockSocket.write).toHaveBeenCalled(); // Should have written the response
+      expect(mockSocket.end).toHaveBeenCalled(); // Should have ended the socket
+
+      server.stop();
     });
   });
 });

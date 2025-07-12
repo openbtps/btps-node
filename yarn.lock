@@ -64,6 +64,7 @@ __metadata:
     "@types/lodash": "npm:^4"
     "@types/proper-lockfile": "npm:^4"
     "@types/split2": "npm:^4"
+    "@types/strip-comments": "npm:^2"
     "@typescript-eslint/eslint-plugin": "npm:^6.0.0"
     "@typescript-eslint/parser": "npm:^6.0.0"
     "@vitest/coverage-v8": "npm:3.2.4"
@@ -84,6 +85,7 @@ __metadata:
     proper-lockfile: "npm:^4.1.2"
     rimraf: "npm:^6.0.1"
     split2: "npm:^4.2.0"
+    strip-comments: "npm:^2.0.1"
     ts-loader: "npm:^9.0.0"
     tsc-alias: "npm:^1.8.16"
     typescript: "npm:^5.8.3"
@@ -770,6 +772,13 @@ __metadata:
   dependencies:
     "@types/node": "npm:*"
   checksum: 10c0/92326872b1f6f2e5a0808682a3f0630efb98bed51b1e40e2133e740f664bbde7a21af54e2a1f1a1f6eac218a70d7a9bae22d3e6d614950c06ddab391b7a1dfca
+  languageName: node
+  linkType: hard
+
+"@types/strip-comments@npm:^2":
+  version: 2.0.4
+  resolution: "@types/strip-comments@npm:2.0.4"
+  checksum: 10c0/be70400dfdc95a530bb7318ed50488a4fc4305e2c7e7eb8f6b8e8b065025afa58e611727bbb27a5eb5fd1f6b14dec8e15a80901c9ee536ba2e4eaa0d7945508a
   languageName: node
   linkType: hard
 
@@ -4592,6 +4601,13 @@ __metadata:
   version: 3.0.0
   resolution: "strip-bom@npm:3.0.0"
   checksum: 10c0/51201f50e021ef16672593d7434ca239441b7b760e905d9f33df6e4f3954ff54ec0e0a06f100d028af0982d6f25c35cd5cda2ce34eaebccd0250b8befb90d8f1
+  languageName: node
+  linkType: hard
+
+"strip-comments@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "strip-comments@npm:2.0.1"
+  checksum: 10c0/984321b1ec47a531bdcfddd87f217590934e2d2f142198a080ec88588280239a5b58a81ca780730679b6195e52afef83673c6d6466c07c2277f71f44d7d9553d
   languageName: node
   linkType: hard
 

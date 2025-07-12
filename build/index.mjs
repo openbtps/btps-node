@@ -6,6 +6,7 @@ import fg from 'fast-glob';
 import { fileURLToPath } from 'url';
 import { getFolderSizes, getFolderSizeTable } from './helpers.mjs';
 import path from 'path';
+import { stripCommentsFromDist } from './stripComments.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,6 +46,7 @@ const __dirname = path.dirname(__filename);
     console.timeEnd('🕒 esbuild completed in');
 
     console.log('\n📊 Output Folder Sizes:\n');
+    await stripCommentsFromDist('dist');
     const { sorted, totalKB } = getFolderSizes('dist');
     const table = getFolderSizeTable(sorted, totalKB);
     console.log(table.toString());

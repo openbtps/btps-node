@@ -17,12 +17,19 @@ import {
   BTPArtifactType,
   BTPAuthReqDoc,
   BTPDocType,
+  BTPServerResponse,
   BTPTransporterArtifact,
 } from 'server/index.js';
-import { BTPCryptoArtifact, BTPCryptoOptions, BTPCryptoResponse } from '@core/crypto/types.js';
+import {
+  BTPCryptoArtifact,
+  BTPCryptoOptions,
+  BTPCryptoResponse,
+  VerifyEncryptedPayload,
+} from '@core/crypto/types.js';
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
 import { validate } from '@core/utils/validation.js';
 import { AUTH_ACTIONS } from '@core/server/constants/index.js';
+import { resolvePublicKey } from '@core/utils/index.js';
 const mappedTransporterAction = {
   'trust.request': 'TRUST_REQ',
   'trust.respond': 'TRUST_RES',
@@ -188,9 +195,52 @@ export class BtpsAgent extends BtpsClient {
             }
           });
 
-          events.on('message', (msg) => {
+          events.on('message', async (msg) => {
             messageReceived = true;
-            resolve({ response: msg, error: undefined });
+            const { signature, signedBy } = msg;
+            /* If the message is not signed and also not encrypted, no need to decrypt and verify as it is system message */
+            if (!msg.signature && !msg.encryption) {
+              resolve({ response: msg, error: undefined });
+              return;
+            }
+
+            if (signature && signedBy) {
+              const senderPubPem = await resolvePublicKey(signedBy);
+              if (!senderPubPem) {
+                resolve(
+                  this.buildClientErrorResponse(
+                    new BTPErrorException(BTP_ERROR_VALIDATION, {
+                      cause: 'SignedBy is present but public key is not found',
+                      meta: msg,
+                    }),
+                  ),
+                );
+                return;
+              }
+
+              const encryptedPayload = {
+                ...msg,
+                encryption: msg?.encryption ?? null,
+              } as VerifyEncryptedPayload<BTPServerResponse>;
+              const { payload: decryptedPayload, error: decryptError } =
+                await this.decryptVerifyArtifact(encryptedPayload, senderPubPem);
+
+              if (decryptError) {
+                resolve(this.buildClientErrorResponse(decryptError));
+                return;
+              }
+
+              resolve({ response: decryptedPayload as BTPServerResponse, error: undefined });
+              return;
+            }
+
+            resolve({
+              response: undefined,
+              error: new BTPErrorException(BTP_ERROR_VALIDATION, {
+                cause: 'Message is not signed',
+                meta: msg,
+              }),
+            });
           });
 
           events.on('error', (errors) => {

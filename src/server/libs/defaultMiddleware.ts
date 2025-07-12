@@ -12,7 +12,7 @@
  * These are used when no external middleware file is specified.
  */
 import { BTPError } from '@core/error/types.js';
-import { MiddlewareDefinitionArray } from '../types/index.js';
+import { MiddlewareDefinitionArray } from '../types.js';
 import { BtpsSimpleRateLimiter } from './btpsSimpleRateLimiter.js';
 import { BtpsSimpleMetricsTracker } from './btpsSimpleMetricsTracker.js';
 
@@ -78,7 +78,7 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
         if (!(await rateLimiter.isAllowed(from, 'fromIdentity'))) {
           const error: BTPError = { code: 429, message: 'Too many requests' };
           metrics.onMessageRejected(remoteAddress, to, 'Rate limit exceeded');
-          return res.sendError(error);
+          return res.sendError(error); // Stop flow, response sent
         }
         await next();
       },

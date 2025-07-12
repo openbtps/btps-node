@@ -5,7 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import type { BtpsServerOptions, ProcessedArtifact, ArtifactResCtx } from '../types/index.js';
+import type { BtpsServerOptions, ProcessedArtifact, ArtifactResCtx } from '../types.js';
 import type {
   BTPStatus,
   BTPServerResponse,

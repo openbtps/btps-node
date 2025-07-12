@@ -133,7 +133,7 @@ class JsonTrustStore extends AbstractTrustStore<BTPTrustRecord> {
       throw new Error(`Trust record already exists for ${record.senderId} → ${record.receiverId}`);
     }
 
-    const newRecord = { ...record, id };
+    const newRecord = { id, ...record };
 
     this.recordMap.set(id, newRecord);
     this.dirty = true;
