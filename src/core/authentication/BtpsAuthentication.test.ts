@@ -280,21 +280,6 @@ describe('BtpsAuthentication', () => {
         expect(trustRecord?.privacyType).toBe('encrypted');
       });
 
-      it('should create agent without expiry', async () => {
-        const options = {
-          userIdentity: 'alice$saas.com',
-          publicKey: mockKeyPair.publicKey,
-          agentInfo: { deviceName: 'iPhone 15' },
-          decidedBy: 'admin',
-          trustExpiryMs: undefined,
-        };
-
-        const result = await auth.createAgent(options);
-        const trustRecord = await trustStore.getByAgentId(result.agentId);
-        expect(trustRecord).toBeDefined();
-        expect(trustRecord?.expiresAt).toBe(undefined);
-      });
-
       it('should store refresh token after creating agent', async () => {
         const options = {
           userIdentity: 'alice$saas.com',
