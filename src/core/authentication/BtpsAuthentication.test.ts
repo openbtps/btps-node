@@ -305,17 +305,20 @@ describe('BtpsAuthentication', () => {
         await tokenStore.store(refreshToken, agentId, userIdentity, 3600000); // 1 hour
 
         const result = await auth.validateRefreshToken(agentId, refreshToken);
-
         expect(result.isValid).toBe(true);
-        expect(result.agentId).toBe(agentId);
-        expect(result.userIdentity).toBe(userIdentity);
+        if (result.isValid) {
+          expect(result.agentId).toBe(agentId);
+          expect(result.userIdentity).toBe(userIdentity);
+        }
       });
 
       it('should return invalid for non-existent refresh token', async () => {
         const result = await auth.validateRefreshToken('btp_ag_test_123', 'NON_EXISTENT_TOKEN');
 
         expect(result.isValid).toBe(false);
-        expect(result.error).toBeInstanceOf(BTPErrorException);
+        if (!result.isValid) {
+          expect(result.error).toBeInstanceOf(BTPErrorException);
+        }
       });
 
       it('should return invalid for expired refresh token', async () => {
@@ -332,7 +335,7 @@ describe('BtpsAuthentication', () => {
         const result = await auth.validateRefreshToken(agentId, refreshToken);
 
         expect(result.isValid).toBe(false);
-        expect(result.error).toBeInstanceOf(BTPErrorException);
+        if (!result.isValid) expect(result.error).toBeInstanceOf(BTPErrorException);
       });
     });
 
@@ -471,8 +474,10 @@ describe('BtpsAuthentication', () => {
       );
 
       expect(refreshValidation.isValid).toBe(true);
-      expect(refreshValidation.agentId).toBe(agentResult.agentId);
-      expect(refreshValidation.userIdentity).toBe(userIdentity);
+      if (refreshValidation.isValid) {
+        expect(refreshValidation.agentId).toBe(agentResult.agentId);
+        expect(refreshValidation.userIdentity).toBe(userIdentity);
+      }
     });
   });
 });
