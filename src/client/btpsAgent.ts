@@ -14,6 +14,11 @@ import { BtpsClient } from './btpsClient.js';
 import { BTPClientResponse, BtpsClientOptions } from './types/index.js';
 import {
   AgentAction,
+  AgentActionRequiringDocument,
+  BTPAgentArtifact,
+  BTPIdsPayload,
+  BTPAgentMutation,
+  BTPAgentQuery,
   BTPArtifactType,
   BTPAuthReqDoc,
   BTPDocType,
@@ -28,7 +33,7 @@ import {
 } from '@core/crypto/types.js';
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
 import { validate } from '@core/utils/validation.js';
-import { AUTH_ACTIONS } from '@core/server/constants/index.js';
+import { AGENT_ACTIONS_REQUIRING_DOCUMENT } from '@core/server/constants/index.js';
 import { resolvePublicKey } from '@core/utils/index.js';
 const mappedTransporterAction = {
   'trust.request': 'TRUST_REQ',
@@ -53,7 +58,7 @@ export class BtpsAgent extends BtpsClient {
   private async signEncryptTransportArtifact(
     payload: {
       to: string;
-      document: BTPDocType | BTPAuthReqDoc;
+      document: BTPDocType | BTPAuthReqDoc | BTPAgentMutation | BTPIdsPayload | BTPAgentQuery;
       actionType: AgentAction;
       from: string;
     },
@@ -92,7 +97,7 @@ export class BtpsAgent extends BtpsClient {
   public async command(
     actionType: AgentAction,
     to: string,
-    document?: BTPDocType | BTPAuthReqDoc,
+    document?: BTPDocType | BTPAuthReqDoc | BTPAgentMutation | BTPIdsPayload | BTPAgentQuery,
     options?: BTPCryptoOptions,
   ): Promise<BTPClientResponse> {
     // Validate command parameters using schema
@@ -158,7 +163,9 @@ export class BtpsAgent extends BtpsClient {
               agentArtifact.document = transporterPayload;
             }
 
-            const documentRequired = [...AUTH_ACTIONS, 'draft.update'].includes(actionType);
+            const documentRequired = AGENT_ACTIONS_REQUIRING_DOCUMENT.includes(
+              actionType as AgentActionRequiringDocument,
+            );
             if (documentRequired) {
               if (!document) {
                 resolve(
@@ -170,6 +177,9 @@ export class BtpsAgent extends BtpsClient {
                 );
                 return;
               }
+            }
+            // If document is provided, add it to the agent artifact
+            if (document) {
               agentArtifact.document = document;
             }
 
@@ -188,11 +198,7 @@ export class BtpsAgent extends BtpsClient {
               return;
             }
 
-            const serialized = JSON.stringify(agentPayload) + '\n';
-            if (!this.socket?.write(serialized)) {
-              this.backpressureQueue.push(serialized);
-              this.isDraining = true;
-            }
+            this.sendArtifact(agentPayload as unknown as BTPAgentArtifact);
           });
 
           events.on('message', async (msg) => {

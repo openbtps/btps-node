@@ -1,9 +1,9 @@
-import { computeTrustId, JsonTrustStore } from '@btps/sdk/trust';
-import { BtpsServerSingletonFactory } from '@btps/sdk/server/core';
-import { BtpsAuthentication, InMemoryTokenStore } from '@btps/sdk/authentication';
+import { InMemoryTokenStore } from '@btps/sdk/authentication';
 import { BTP_ERROR_AUTHENTICATION_INVALID } from '@btps/sdk/error';
-import { BTPAuthReqDoc } from '@btps/sdk/server';
-
+import { BtpsAuthentication } from '@btps/sdk/authentication';
+import { BtpsServerSingletonFactory } from '@btps/sdk/server/core';
+import { computeTrustId, JsonTrustStore } from '@btps/sdk/trust';
+import type { BTPAuthReqDoc } from '@btps/sdk/server';
 const TrustStore = new JsonTrustStore({
   connection: `${process.cwd()}/.well-known/btp-trust.json`,
   entityName: 'trusted_senders',

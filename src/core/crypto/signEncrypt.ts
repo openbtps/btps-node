@@ -57,15 +57,12 @@ export const signEncrypt = async <T = unknown>(
     }
   }
 
-  const uuid = randomUUID();
-  const timestamp = new Date().toISOString();
-
   const docToSign: Record<string, unknown> = {
-    id: uuid,
-    issuedAt: timestamp,
+    ...restPayload,
+    id: restPayload?.id ?? randomUUID(),
+    issuedAt: restPayload?.issuedAt ?? new Date().toISOString(),
     document: encryption ? (encryptedDoc as string) : (document as T),
     encryption: encryption,
-    ...restPayload,
   };
 
   let signature: BTPSignature;

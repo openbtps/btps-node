@@ -39,6 +39,7 @@ export type BTPTrustRecord = {
 };
 
 export interface BTPTrustReqDoc {
+  id: string; // Random unique Id
   name: string; // Name of the requesting party requesting for the trust
   email: string; // Email address of the requesting party requesting for the trust
   reason: string; // Reason for requesting for trust
@@ -53,6 +54,7 @@ export interface BTPTrustReqDoc {
 }
 
 export interface BTPTrustResDoc {
+  id: string; // Random unique Id
   decision: BTPTrustDecisionType;
   decidedAt: string;
   decidedBy: string;

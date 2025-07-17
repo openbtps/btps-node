@@ -28,15 +28,15 @@ import {
   decryptVerify,
   VerifyEncryptedPayload,
 } from '@core/crypto/index.js';
-import { BTPServerResponse } from '@core/server/types.js';
+import type { BTPArtifact, BTPServerResponse } from '@core/server/types.js';
 import { BTP_PROTOCOL_VERSION } from '@core/server/constants/index.js';
 
 export class BtpsClient {
-  protected socket?: TLSSocket;
+  private socket?: TLSSocket;
   private emitter = new EventEmitter();
   private retries = 0;
-  protected backpressureQueue: string[] = [];
-  protected isDraining = false;
+  private backpressureQueue: string[] = [];
+  private isDraining = false;
   private destroyed = false;
   private shouldRetry = true;
   private isConnecting = false;
@@ -187,6 +187,14 @@ export class BtpsClient {
     const { btpIdentityKey } = this.options;
     return await decryptVerify(senderPubPem, artifact, btpIdentityKey);
   };
+
+  protected sendArtifact(artifact: BTPArtifact) {
+    const serialized = JSON.stringify(artifact) + '\n';
+    if (!this.socket?.write(serialized)) {
+      this.backpressureQueue.push(serialized);
+      this.isDraining = true;
+    }
+  }
 
   private async flushBackpressure(): Promise<void> {
     if (this.isDraining) return;

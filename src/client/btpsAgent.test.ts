@@ -137,6 +137,7 @@ describe('BtpsAgent', () => {
 
     it('should validate valid trust.request with document', async () => {
       const document: BTPDocType = {
+        id: 'randomId',
         name: 'Test Company',
         email: 'test@company.com',
         reason: 'Business partnership',
@@ -235,6 +236,7 @@ describe('BtpsAgent', () => {
 
     it('should handle trust.request command with transport', async () => {
       const document: BTPDocType = {
+        id: 'randomId',
         name: 'Test Company',
         email: 'test@company.com',
         reason: 'Business partnership',
@@ -265,6 +267,7 @@ describe('BtpsAgent', () => {
       });
 
       const document: BTPDocType = {
+        id: 'randomId',
         name: 'Test Company',
         email: 'test@company.com',
         reason: 'Business partnership',
@@ -336,6 +339,7 @@ describe('BtpsAgent', () => {
   describe('signEncryptTransportArtifact', () => {
     it('should create transporter artifact for trust.request', async () => {
       const document: BTPDocType = {
+        id: 'randomId',
         name: 'Test Company',
         email: 'test@company.com',
         reason: 'Business partnership',
@@ -377,6 +381,7 @@ describe('BtpsAgent', () => {
       });
 
       const document: BTPDocType = {
+        id: 'randomId',
         name: 'Test Company',
         email: 'test@company.com',
         reason: 'Business partnership',
@@ -412,6 +417,7 @@ describe('BtpsAgent', () => {
   describe('action type mapping', () => {
     it('should correctly map trust.request to TRUST_REQ', async () => {
       const document: BTPDocType = {
+        id: 'randomId',
         name: 'Test Company',
         email: 'test@company.com',
         reason: 'Business partnership',

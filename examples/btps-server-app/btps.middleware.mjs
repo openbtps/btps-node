@@ -9,11 +9,11 @@ import { createDefaultMiddleware } from '@btps/sdk/server/core';
 export default function createMiddleware(dependencies) {
   return {
     middleware: createDefaultMiddleware(),
-    onServerStart: async () => {
-      console.log('🔄 Initializing default middleware...');
-      console.log('dependencies', dependencies);
-      console.log('✅ Default middleware initialized');
-    },
+    // onServerStart: async () => {
+    //   console.log('🔄 Initializing default middleware...');
+    //   console.log('dependencies', dependencies);
+    //   console.log('✅ Default middleware initialized');
+    // },
     onServerStop: async () => {
       console.log('🔄 Cleaning up default middleware...');
       console.log('dependencies', dependencies);

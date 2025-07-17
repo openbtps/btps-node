@@ -12,6 +12,11 @@ import {
   BtpTrustResDocSchema,
   BtpInvoiceDocSchema,
   BtpAuthReqDocSchema,
+  BtpAgentQuerySchema,
+  BtpAgentMutationSchema,
+  BtpIdsPayloadSchema,
+  BtpAgentCreateSchema,
+  validateAgentDocument,
 } from '@core/server/schema.js';
 
 // Schema for BTPCryptoOptions
@@ -29,8 +34,18 @@ export const BtpCryptoOptionsSchema = z.object({
     .optional(),
 });
 
+// Use the server's document schema directly
 export const BtpsAgentDocumentSchema = z
-  .union([BtpTrustReqDocSchema, BtpTrustResDocSchema, BtpInvoiceDocSchema, BtpAuthReqDocSchema])
+  .union([
+    BtpTrustReqDocSchema,
+    BtpTrustResDocSchema,
+    BtpInvoiceDocSchema,
+    BtpAuthReqDocSchema,
+    BtpAgentQuerySchema,
+    BtpAgentMutationSchema,
+    BtpIdsPayloadSchema,
+    BtpAgentCreateSchema,
+  ])
   .optional();
 
 // Schema for BtpsAgent command method parameters
@@ -41,37 +56,9 @@ export const BtpsAgentCommandSchema = z.object({
   options: BtpCryptoOptionsSchema.optional(),
 });
 
-// Schema for validating the complete command call
+// Schema for validating the complete command call - use server's validation logic
 export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
-  (data) => {
-    // Check if document is required for certain action types
-    const actionsRequiringDocument = [
-      'trust.request',
-      'trust.respond',
-      'trust.update',
-      'trust.delete',
-      'artifact.send',
-      'auth.request',
-      'auth.refresh',
-    ];
-
-    if (actionsRequiringDocument.includes(data.actionType) && !data.document) {
-      return false;
-    }
-
-    // If document is provided, validate it against the appropriate schema for the action type
-    if (data.document) {
-      const expectedSchema = processBtpDocSchemaForAgent(data.actionType);
-      if (expectedSchema) {
-        const documentValidation = expectedSchema.safeParse(data.document);
-        if (!documentValidation.success) {
-          return false;
-        }
-      }
-    }
-
-    return true;
-  },
+  (data) => validateAgentDocument(data.actionType, data.document),
   {
     message: 'Document is required for this action type or document format is invalid',
     path: ['document'],
@@ -85,18 +72,3 @@ export const BtpsAgentToSchema = z
   .regex(/^\S+\$\S+\.\S+$/, 'To must match pattern: {username}${domain}');
 
 export const BtpsAgentOptionsSchema = BtpCryptoOptionsSchema.optional();
-
-// Helper function to process document schema based on action type
-export const processBtpDocSchemaForAgent = (actionType: string) => {
-  const actionToDocTypeMap: Record<string, z.ZodSchema> = {
-    'trust.request': BtpTrustReqDocSchema,
-    'trust.respond': BtpTrustResDocSchema,
-    'trust.update': BtpTrustResDocSchema,
-    'trust.delete': BtpTrustResDocSchema,
-    'artifact.send': BtpInvoiceDocSchema,
-    'auth.request': BtpAuthReqDocSchema,
-    'auth.refresh': BtpAuthReqDocSchema,
-  };
-
-  return actionToDocTypeMap[actionType] || null;
-};

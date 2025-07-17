@@ -20,25 +20,29 @@ const btpsAgent = new BtpsAgent({
 });
 
 (async () => {
-  const data = await btpsAgent.command(
-    'auth.request',
-    'finance$ebilladdress.com',
-    {
-      identity: 'finance$ebilladdress.com',
-      authToken: '7Q7BYJPB9ECL',
-      publicKey: publicKey.toString('utf8'),
-      agentInfo: {
-        deviceName: 'iPhone 15',
-        appVersion: '1.0.0',
-      },
-    },
-    {
-      encryption: {
-        algorithm: 'aes-256-cbc',
-        mode: 'standardEncrypt',
-      },
-    },
-  );
+  // const data = await btpsAgent.command(
+  //   'auth.request',
+  //   'finance$ebilladdress.com',
+  //   {
+  //     identity: 'finance$ebilladdress.com',
+  //     authToken: '7Q7BYJPB9ECL',
+  //     publicKey: publicKey.toString('utf8'),
+  //     agentInfo: {
+  //       deviceName: 'iPhone 15',
+  //       appVersion: '1.0.0',
+  //     },
+  //   },
+  //   {
+  //     encryption: {
+  //       algorithm: 'aes-256-cbc',
+  //       mode: 'standardEncrypt',
+  //     },
+  //   },
+  // );
+  const data = await btpsAgent.command('inbox.fetch', 'finance$ebilladdress.com', {
+    limit: 10,
+    sort: 'asc',
+  });
   // const data = await btpsClient.send({
   //   to: 'billing$ebilladdress.com',
   //   type: 'btp_trust_request',
