@@ -12,7 +12,8 @@ import {
   BtpSignatureSchema,
   BtpEncryptionSchema,
 } from '../schema.js';
-import { AGENT_ACTIONS } from 'server/index.js';
+import { identitySchema } from '../shared.js';
+import { AGENT_ACTIONS } from '../../constants/index.js';
 import { z } from 'zod';
 import { BtpAuthReqDocSchema } from '../btpsDocsSchema.js';
 import { validateAgentDocument } from '../helpers.js';
@@ -33,7 +34,7 @@ export const BtpAgentArtifactSchema = z
       ])
       .optional(),
     agentId: z.string(),
-    to: z.string().regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
+    to: identitySchema,
     issuedAt: z.string().datetime(),
     signature: BtpSignatureSchema,
     encryption: BtpEncryptionSchema.nullable(),

@@ -6,7 +6,8 @@
  */
 
 import { BtpSignatureSchema, BtpEncryptionSchema, BtpDelegationSchema } from '../schema.js';
-import { TRANSPORTER_ACTIONS } from 'server/index.js';
+import { identitySchema } from '../shared.js';
+import { TRANSPORTER_ACTIONS } from '../../constants/index.js';
 import { z } from 'zod';
 import { processBtpDocSchema } from '../helpers.js';
 
@@ -16,8 +17,8 @@ export const BtpTransporterArtifactBaseSchema = z.object({
   issuedAt: z.string().datetime(),
   id: z.string(),
   type: z.enum(TRANSPORTER_ACTIONS),
-  from: z.string().regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
-  to: z.string().regex(/^\S+\$\S+\.\S+$/, 'To field must match pattern: {username}${domain}'),
+  from: identitySchema,
+  to: identitySchema,
   signature: BtpSignatureSchema,
   encryption: BtpEncryptionSchema.nullable(),
   document: z.unknown(),

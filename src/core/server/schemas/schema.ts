@@ -6,8 +6,9 @@
  */
 
 import { z } from 'zod';
-import { TRANSPORTER_ACTIONS } from '../constants/index.js';
+import { AGENT_ACTIONS, TRANSPORTER_ACTIONS } from '../constants/index.js';
 import { BtpAgentQueryDocSchema, BtpDocSchema } from './btpsDocsSchema.js';
+import { identitySchema } from './shared.js';
 
 // Schema for BTPCryptoOptions
 export const BtpCryptoOptionsSchema = z.object({
@@ -23,6 +24,9 @@ export const BtpCryptoOptionsSchema = z.object({
     })
     .optional(),
 });
+
+// Schema for validating individual parameters
+export const BtpsAgentActionTypeSchema = z.enum(AGENT_ACTIONS);
 
 export const BtpEncryptionSchema = z.object({
   algorithm: z.literal('aes-256-cbc'),
@@ -41,16 +45,12 @@ export const BtpSignatureSchema = z.object({
 export const BtpDelegationSchema = z.object({
   agentId: z.string(),
   agentPubKey: z.string(),
-  signedBy: z
-    .string()
-    .regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
+  signedBy: identitySchema,
   signature: BtpSignatureSchema,
   issuedAt: z.string().datetime(),
   attestation: z
     .object({
-      signedBy: z
-        .string()
-        .regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
+      signedBy: identitySchema,
       issuedAt: z.string().datetime(),
       signature: BtpSignatureSchema,
     })

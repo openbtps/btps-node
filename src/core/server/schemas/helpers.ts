@@ -5,7 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import { AGENT_ACTIONS_REQUIRING_DOCUMENT } from 'server/index.js';
+import { AGENT_ACTIONS_REQUIRING_DOCUMENT } from '../constants/index.js';
 import { z } from 'zod';
 import {
   BtpAgentMutationSchema,

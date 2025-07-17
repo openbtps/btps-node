@@ -9,13 +9,15 @@ import { describe, it, expect } from 'vitest';
 import {
   BtpsAgentCommandSchema,
   BtpsAgentCommandCallSchema,
-  BtpsAgentActionTypeSchema,
-  BtpsAgentToSchema,
   BtpsAgentCommandDocumentSchema,
   BtpsAgentOptionsSchema,
 } from './schema.js';
 import { processBtpDocSchemaForAgent } from '../../core/server/schemas/helpers.js';
-import { BtpCryptoOptionsSchema } from '../../core/server/schemas/schema.js';
+import {
+  BtpCryptoOptionsSchema,
+  BtpsAgentActionTypeSchema,
+} from '../../core/server/schemas/schema.js';
+import { identitySchema } from '../../core/server/schemas/shared.js';
 
 describe('BtpsAgent Schema Validation', () => {
   describe('BtpsAgentCommandSchema', () => {
@@ -370,7 +372,7 @@ describe('BtpsAgent Schema Validation', () => {
       ];
 
       validIdentities.forEach((identity) => {
-        const result = BtpsAgentToSchema.safeParse(identity);
+        const result = identitySchema.safeParse(identity);
         expect(result.success).toBe(true);
       });
     });
@@ -388,7 +390,7 @@ describe('BtpsAgent Schema Validation', () => {
       ];
 
       invalidIdentities.forEach((identity) => {
-        const result = BtpsAgentToSchema.safeParse(identity);
+        const result = identitySchema.optional().safeParse(identity);
         expect(result.success).toBe(false);
         if (!result.success) {
           expect(result.error.issues[0].message).toMatch(/must match pattern/);
@@ -723,7 +725,7 @@ describe('BtpsAgent Schema Validation', () => {
 
   describe('Edge Cases and Error Handling', () => {
     it('should handle empty string for identity', () => {
-      const result = BtpsAgentToSchema.safeParse('');
+      const result = identitySchema.optional().safeParse('');
       expect(result.success).toBe(false);
     });
 

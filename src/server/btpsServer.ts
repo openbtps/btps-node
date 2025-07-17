@@ -57,6 +57,7 @@ import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { validate } from '@core/utils/validation.js';
 import { MiddlewareManager } from './libs/middlewareManager.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
+import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
 
 /**
  * BTP Secure Server over TLS (btps://)
@@ -877,6 +878,18 @@ export class BtpsServer {
    */
   private sendBtpsResponse(socket: TLSSocket, artifact: BTPServerResponse) {
     if (socket.destroyed || socket.writableEnded) return;
+
+    // Validate the response artifact using Zod schema
+    const validationResult = validate(BtpServerResponseSchema, artifact);
+    if (!validationResult.success) {
+      const error = new BTPErrorException(BTP_ERROR_VALIDATION, {
+        cause: 'Invalid server response format',
+        meta: { validationErrors: validationResult.error.errors, response: artifact },
+      });
+      this.onError?.(error);
+      if (!socket.destroyed) socket.destroy();
+      return;
+    }
 
     try {
       socket.write(JSON.stringify(artifact) + '\n');

@@ -15,9 +15,8 @@ import { BTP_PROTOCOL_VERSION } from '../../core/server/constants/index.js';
 import JsonTrustStore from '../../core/trust/storage/JsonTrustStore.js';
 import path from 'path';
 import fs from 'fs/promises';
-import type { BTPRequestCtx, BTPResponseCtx } from '../types.js';
+import type { BTPRequestCtx, BTPResponseCtx, ProcessedArtifact } from '../types.js';
 import { BTPAgentArtifact } from '../../core/server/types.js';
-import type { ProcessedArtifact } from '../types.js';
 
 const TEST_FILE = path.join(__dirname, 'test-trust-store.json');
 
@@ -515,7 +514,14 @@ export default function () {
         },
         sendRes: (response: { type: string; status: { code: number; message: string } }) => {
           console.log('📨 sendRes called with:', response);
-          server['sendBtpsResponse'](mockSocket, response);
+          // Always add required fields for BtpServerResponseSchema
+          const completeResponse = {
+            version: '1.0.0',
+            id: 'test-response-id',
+            issuedAt: new Date().toISOString(),
+            ...response,
+          };
+          server['sendBtpsResponse'](mockSocket, completeResponse);
         },
       } as BTPResponseCtx;
 
@@ -899,13 +905,22 @@ export default function () {
 
       // Test the processMessage flow stopping directly using real socket
       let socketDestroyed = false;
+      let socketWritableEnded = false;
       const mockSocket = {
         get destroyed() {
           return socketDestroyed;
         },
+        get writableEnded() {
+          return socketWritableEnded;
+        },
         write: vi.fn(),
         end: vi.fn(() => {
           socketDestroyed = true;
+          socketWritableEnded = true;
+        }),
+        destroy: vi.fn(() => {
+          socketDestroyed = true;
+          socketWritableEnded = true;
         }),
       } as unknown as TLSSocket;
 
@@ -931,6 +946,9 @@ export default function () {
       server.onIncomingArtifact('Agent', (artifact, resCtx) => {
         console.log('🎯 Agent event handler called, sending response');
         resCtx.sendRes({
+          version: '1.0.0',
+          id: 'test-response-id',
+          issuedAt: new Date().toISOString(),
           type: 'btp_response',
           status: { ok: true, code: 200, message: 'Handled by event handler' },
         });

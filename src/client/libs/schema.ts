@@ -6,14 +6,15 @@
  */
 
 import { z } from 'zod';
-import { AGENT_ACTIONS } from '@core/server/constants/index.js';
 import {
   BtpAgentQuerySchema,
   BtpAgentMutationSchema,
   BtpIdsPayloadSchema,
   BtpAgentCreateSchema,
   BtpCryptoOptionsSchema,
+  BtpsAgentActionTypeSchema,
 } from '@core/server/schemas/schema.js';
+import { identitySchema } from '@core/server/schemas/shared.js';
 import { validateAgentDocument } from '@core/server/schemas/helpers.js';
 import {
   BtpAuthReqDocSchema,
@@ -23,6 +24,8 @@ import {
 } from '@core/server/schemas/btpsDocsSchema.js';
 
 // Use the server's document schema directly
+export const BtpsAgentOptionsSchema = BtpCryptoOptionsSchema.optional();
+
 export const BtpsAgentCommandDocumentSchema = z
   .union([
     BtpTrustReqDocSchema,
@@ -38,8 +41,8 @@ export const BtpsAgentCommandDocumentSchema = z
 
 // Schema for BtpsAgent command method parameters
 export const BtpsAgentCommandSchema = z.object({
-  actionType: z.enum(AGENT_ACTIONS),
-  to: z.string().regex(/^\S+\$\S+\.\S+$/, 'To must match pattern: {username}${domain}'),
+  actionType: BtpsAgentActionTypeSchema,
+  to: identitySchema,
   document: BtpsAgentCommandDocumentSchema.optional(),
   options: BtpCryptoOptionsSchema.optional(),
 });
@@ -52,11 +55,3 @@ export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
     path: ['document'],
   },
 );
-
-// Schema for validating individual parameters
-export const BtpsAgentActionTypeSchema = z.enum(AGENT_ACTIONS);
-export const BtpsAgentToSchema = z
-  .string()
-  .regex(/^\S+\$\S+\.\S+$/, 'To must match pattern: {username}${domain}');
-
-export const BtpsAgentOptionsSchema = BtpCryptoOptionsSchema.optional();

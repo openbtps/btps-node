@@ -7,6 +7,7 @@
 
 import { z } from 'zod';
 import { CURRENCY_CODES } from '../constants/currency.js';
+import { identitySchema } from './shared.js';
 
 export const BtpAttachmentSchema = z.object({
   content: z.string(), // base64
@@ -92,12 +93,17 @@ export const BtpInvoiceDocSchema = z.object({
 
 // Schema for BTPAuthReqDoc (used in agent artifacts)
 export const BtpAuthReqDocSchema = z.object({
-  identity: z
-    .string()
-    .regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}'),
+  identity: identitySchema,
   authToken: z.string(),
   publicKey: z.string(),
   agentInfo: z.record(z.union([z.string(), z.array(z.string())])).optional(),
+});
+
+// Schema for BTPAuthResDoc (used in server responses)
+export const BtpAuthResDocSchema = z.object({
+  agentId: z.string(),
+  refreshToken: z.string(),
+  expiresAt: z.string().datetime(),
 });
 
 // Schema for BTPAgentQueryDoc

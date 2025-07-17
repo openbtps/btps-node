@@ -127,7 +127,6 @@ export type BTPResponseCtx<P extends Phase = Phase, S extends Step = Step> = Set
   BTPContext,
   'sendRes' | 'sendError'
 > &
-  ArtifactResCtx &
   (HasReqId<P, S> extends true ? { reqId: string } : { reqId?: string }) &
   (HasArtifact<P, S> extends true ? { data: ProcessedArtifact } : { data?: ProcessedArtifact }) & {
     // Allow middleware to add custom properties
@@ -152,27 +151,18 @@ export interface MiddlewareDefinition<P extends Phase = Phase, S extends Step = 
   handler: MiddlewareHandler<P, S>;
 }
 
-// Helper type to create a properly typed middleware definition
-export type CreateMiddlewareDefinition<P extends Phase, S extends Step> = {
-  phase: P;
-  step: S;
-  priority?: number;
-  config?: MiddlewareConfig;
-  handler: MiddlewareHandler<P, S>;
-};
-
 // Type for arrays of middleware definitions with proper typing
 export type MiddlewareDefinitionArray = Array<
-  | CreateMiddlewareDefinition<'before', 'parsing'>
-  | CreateMiddlewareDefinition<'after', 'parsing'>
-  | CreateMiddlewareDefinition<'before', 'signatureVerification'>
-  | CreateMiddlewareDefinition<'after', 'signatureVerification'>
-  | CreateMiddlewareDefinition<'before', 'trustVerification'>
-  | CreateMiddlewareDefinition<'after', 'trustVerification'>
-  | CreateMiddlewareDefinition<'before', 'onArtifact'>
-  | CreateMiddlewareDefinition<'after', 'onArtifact'>
-  | CreateMiddlewareDefinition<'before', 'onError'>
-  | CreateMiddlewareDefinition<'after', 'onError'>
+  | MiddlewareDefinition<'before', 'parsing'>
+  | MiddlewareDefinition<'after', 'parsing'>
+  | MiddlewareDefinition<'before', 'signatureVerification'>
+  | MiddlewareDefinition<'after', 'signatureVerification'>
+  | MiddlewareDefinition<'before', 'trustVerification'>
+  | MiddlewareDefinition<'after', 'trustVerification'>
+  | MiddlewareDefinition<'before', 'onArtifact'>
+  | MiddlewareDefinition<'after', 'onArtifact'>
+  | MiddlewareDefinition<'before', 'onError'>
+  | MiddlewareDefinition<'after', 'onError'>
 >;
 
 export interface MiddlewareModule {
