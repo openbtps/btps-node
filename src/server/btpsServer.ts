@@ -55,8 +55,8 @@ import {
 } from './types.js';
 import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { validate } from '@core/utils/validation.js';
-import { BtpArtifactServerSchema } from '@core/server/schema.js';
 import { MiddlewareManager } from './libs/middlewareManager.js';
+import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 
 /**
  * BTP Secure Server over TLS (btps://)

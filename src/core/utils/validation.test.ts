@@ -7,8 +7,9 @@
 
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { validate } from './validation';
-import { BtpArtifactServerSchema, validateAgentDocument } from '../server/schema';
+import { validate } from './validation.js';
+import { validateAgentDocument } from '../server/schemas/helpers.js';
+import { BtpArtifactServerSchema } from '../server/schemas/artifacts/artifacts.js';
 
 describe('validate', () => {
   const testSchema = z.object({

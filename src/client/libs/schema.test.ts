@@ -11,11 +11,11 @@ import {
   BtpsAgentCommandCallSchema,
   BtpsAgentActionTypeSchema,
   BtpsAgentToSchema,
-  BtpsAgentDocumentSchema,
+  BtpsAgentCommandDocumentSchema,
   BtpsAgentOptionsSchema,
-  BtpCryptoOptionsSchema,
 } from './schema.js';
-import { processBtpDocSchemaForAgent } from '../../core/server/schema.js';
+import { processBtpDocSchemaForAgent } from '../../core/server/schemas/helpers.js';
+import { BtpCryptoOptionsSchema } from '../../core/server/schemas/schema.js';
 
 describe('BtpsAgent Schema Validation', () => {
   describe('BtpsAgentCommandSchema', () => {
@@ -397,7 +397,7 @@ describe('BtpsAgent Schema Validation', () => {
     });
   });
 
-  describe('BtpsAgentDocumentSchema', () => {
+  describe('BtpsAgentCommandDocumentSchema', () => {
     it('should validate trust request document', () => {
       const doc = {
         id: 'randomId',
@@ -407,7 +407,7 @@ describe('BtpsAgent Schema Validation', () => {
         phone: '+1234567890',
       };
 
-      const result = BtpsAgentDocumentSchema.safeParse(doc);
+      const result = BtpsAgentCommandDocumentSchema.safeParse(doc);
       expect(result.success).toBe(true);
     });
 
@@ -419,7 +419,7 @@ describe('BtpsAgent Schema Validation', () => {
         decidedBy: 'bob$company.com',
       };
 
-      const result = BtpsAgentDocumentSchema.safeParse(doc);
+      const result = BtpsAgentCommandDocumentSchema.safeParse(doc);
       expect(result.success).toBe(true);
     });
 
@@ -439,7 +439,7 @@ describe('BtpsAgent Schema Validation', () => {
         },
       };
 
-      const result = BtpsAgentDocumentSchema.safeParse(doc);
+      const result = BtpsAgentCommandDocumentSchema.safeParse(doc);
       expect(result.success).toBe(true);
     });
 
@@ -455,7 +455,7 @@ describe('BtpsAgent Schema Validation', () => {
         },
       };
 
-      const result = BtpsAgentDocumentSchema.safeParse(doc);
+      const result = BtpsAgentCommandDocumentSchema.safeParse(doc);
       expect(result.success).toBe(true);
     });
 
@@ -478,7 +478,7 @@ describe('BtpsAgent Schema Validation', () => {
         },
       };
 
-      const result = BtpsAgentDocumentSchema.safeParse(doc);
+      const result = BtpsAgentCommandDocumentSchema.safeParse(doc);
       expect(result.success).toBe(true);
     });
 
@@ -494,7 +494,7 @@ describe('BtpsAgent Schema Validation', () => {
         },
       };
 
-      const result = BtpsAgentDocumentSchema.safeParse(doc);
+      const result = BtpsAgentCommandDocumentSchema.safeParse(doc);
       expect(result.success).toBe(false);
     });
 
@@ -506,12 +506,12 @@ describe('BtpsAgent Schema Validation', () => {
         },
       };
 
-      const result = BtpsAgentDocumentSchema.safeParse(doc);
+      const result = BtpsAgentCommandDocumentSchema.safeParse(doc);
       expect(result.success).toBe(false);
     });
 
     it('should accept undefined document', () => {
-      const result = BtpsAgentDocumentSchema.safeParse(undefined);
+      const result = BtpsAgentCommandDocumentSchema.safeParse(undefined);
       expect(result.success).toBe(true);
     });
 
@@ -522,7 +522,7 @@ describe('BtpsAgent Schema Validation', () => {
         sort: 'desc',
       };
 
-      const result = BtpsAgentDocumentSchema.safeParse(doc);
+      const result = BtpsAgentCommandDocumentSchema.safeParse(doc);
       expect(result.success).toBe(true);
     });
 
@@ -537,7 +537,7 @@ describe('BtpsAgent Schema Validation', () => {
         sort: 'asc',
       };
 
-      const result = BtpsAgentDocumentSchema.safeParse(doc);
+      const result = BtpsAgentCommandDocumentSchema.safeParse(doc);
       expect(result.success).toBe(true);
     });
 
@@ -549,7 +549,7 @@ describe('BtpsAgent Schema Validation', () => {
         limit: 50,
       };
 
-      const result = BtpsAgentDocumentSchema.safeParse(doc);
+      const result = BtpsAgentCommandDocumentSchema.safeParse(doc);
       expect(result.success).toBe(true);
     });
 
@@ -558,7 +558,7 @@ describe('BtpsAgent Schema Validation', () => {
         cursor: 'eyJpZCI6IjEyMyIsImlzc3VlZEF0IjoiMjAyNC0wMS0wMVQwMDowMDowMC4wMDBaIn0=',
       };
 
-      const result = BtpsAgentDocumentSchema.safeParse(doc);
+      const result = BtpsAgentCommandDocumentSchema.safeParse(doc);
       expect(result.success).toBe(true);
     });
 
@@ -583,7 +583,7 @@ describe('BtpsAgent Schema Validation', () => {
         sort: 'desc',
       };
 
-      const result = BtpsAgentDocumentSchema.safeParse(doc);
+      const result = BtpsAgentCommandDocumentSchema.safeParse(doc);
       expect(result.success).toBe(true);
     });
   });

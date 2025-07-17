@@ -8,34 +8,22 @@
 import { z } from 'zod';
 import { AGENT_ACTIONS } from '@core/server/constants/index.js';
 import {
-  BtpTrustReqDocSchema,
-  BtpTrustResDocSchema,
-  BtpInvoiceDocSchema,
-  BtpAuthReqDocSchema,
   BtpAgentQuerySchema,
   BtpAgentMutationSchema,
   BtpIdsPayloadSchema,
   BtpAgentCreateSchema,
-  validateAgentDocument,
-} from '@core/server/schema.js';
-
-// Schema for BTPCryptoOptions
-export const BtpCryptoOptionsSchema = z.object({
-  signature: z
-    .object({
-      algorithm: z.literal('sha256'),
-    })
-    .optional(),
-  encryption: z
-    .object({
-      algorithm: z.literal('aes-256-cbc'),
-      mode: z.enum(['none', 'standardEncrypt', '2faEncrypt']),
-    })
-    .optional(),
-});
+  BtpCryptoOptionsSchema,
+} from '@core/server/schemas/schema.js';
+import { validateAgentDocument } from '@core/server/schemas/helpers.js';
+import {
+  BtpAuthReqDocSchema,
+  BtpInvoiceDocSchema,
+  BtpTrustReqDocSchema,
+  BtpTrustResDocSchema,
+} from '@core/server/schemas/btpsDocsSchema.js';
 
 // Use the server's document schema directly
-export const BtpsAgentDocumentSchema = z
+export const BtpsAgentCommandDocumentSchema = z
   .union([
     BtpTrustReqDocSchema,
     BtpTrustResDocSchema,
@@ -52,7 +40,7 @@ export const BtpsAgentDocumentSchema = z
 export const BtpsAgentCommandSchema = z.object({
   actionType: z.enum(AGENT_ACTIONS),
   to: z.string().regex(/^\S+\$\S+\.\S+$/, 'To must match pattern: {username}${domain}'),
-  document: BtpsAgentDocumentSchema.optional(),
+  document: BtpsAgentCommandDocumentSchema.optional(),
   options: BtpCryptoOptionsSchema.optional(),
 });
 

@@ -10,8 +10,9 @@ import { validate } from '@core/utils/validation.js';
 import type { BTPArtifactType, BTPDocType, BTPTransporterArtifact } from '@core/server/types.js';
 import { BtpsClient } from './btpsClient.js';
 import type { BTPClientResponse, BtpsClientOptions } from './types/index.js';
-import { BtpDocSchema, BtpTransporterArtifactSchema } from '@core/server/schema.js';
 import { BTPCryptoResponse } from '@core/crypto/types.js';
+import { BtpDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
+import { BtpTransporterArtifactSchema } from '@core/server/schemas/artifacts/transporterSchema.js';
 
 export class BtpsTransporter extends BtpsClient {
   constructor(options: BtpsClientOptions) {
