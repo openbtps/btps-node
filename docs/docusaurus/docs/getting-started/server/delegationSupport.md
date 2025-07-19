@@ -18,7 +18,7 @@ BTPS delegation provides:
 - **Custom Domain Users**: Delegation with attestation for users with custom domains
 - **Automatic Verification**: Built-in delegation verification for incoming artifacts
 
-For detailed delegation concepts, see [Delegation Overview](/protocol/delegation/overview).
+For detailed delegation concepts, see [Delegation Overview](/docs/protocol/delegation/overview).
 
 ## Setting Up Delegation in Your Server
 
@@ -336,13 +336,13 @@ With delegation support configured, you can now:
 
 ## See Also
 
-- [Delegation Overview](/protocol/delegation/overview)
-- [BTPS Delegator](/protocol/delegation/btpsDelegator)
-- [Delegation Specification](/protocol/delegation/specification)
-- [Delegation Flow](/protocol/delegation/delegationFlow)
-- [Delegation Verification](/protocol/delegation/verificationProcess)
-- [Delegation Best Practices](/protocol/delegation/bestPractices)
-- [Delegation Revocation](/protocol/delegation/revocation)
+- [Delegation Overview](/docs/protocol/delegation/overview)
+- [BTPS Delegator](/docs/protocol/delegation/btps-delegator)
+- [Delegation Specification](/docs/protocol/delegation/specification)
+- [Delegation Flow](/docs/protocol/delegation/delegation-flow)
+- [Delegation Verification](/docs/protocol/delegation/verification-process)
+- [Delegation Best Practices](/docs/protocol/delegation/best-practices)
+- [Delegation Revocation](/docs/protocol/delegation/revocation)
 - [Event Handlers](./eventHandlers.md)
 - [Middleware Integration](./middlewares.md)
 - [Server Setup](./setup.md)

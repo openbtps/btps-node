@@ -807,7 +807,7 @@ With query support implemented, you can now:
 
 ## See Also
 
-- [Agent Commands Reference](/client/btpsAgent/commands)
+- [Agent Commands Reference](/docs/client/btpsAgent/commands)
 - [Data Storage Support](./dataStorageSupport.md)
 - [Event Handlers](./eventHandlers.md)
 - [Server Setup](./setup.md)

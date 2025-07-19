@@ -67,7 +67,7 @@ sequenceDiagram
 
 ## Signing Process
 
-See [Signature](signature.md) for full details.
+See [Signature](/docs/protocol/security/signature-verification) for full details.
 
 ## Notes
 - The encrypted AES key and IV allow only the intended receiver to decrypt the payload.

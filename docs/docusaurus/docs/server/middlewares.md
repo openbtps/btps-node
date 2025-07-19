@@ -209,4 +209,4 @@ export async function onServerStop() {
 
 ---
 
-Next: [Advanced Usage](./advancedUsages.md) | [Debugging](./debugging.md)
+Next: [Advanced Usage](/docs/server/advanced-usages) | [Debugging](/docs/server/debugging)

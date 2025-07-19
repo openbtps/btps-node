@@ -180,7 +180,7 @@ static authenticate(
 **Parameters:**
 - `identity`: `string` - User identity
 - `authToken`: `string` - Temporary authentication token
-- `keyPair`: [PemKeys](../../sdk/typesAndInterfaces#pemkeys) - Device keypair
+- `keyPair`: [PemKeys](/docs/sdk/types-and-interfaces#pemkeys) - Device keypair
 - `agentInfo` (optional): `Record<string, string | string[]>` - Device information
 - `agentOptions` (optional): [AuthAgentOptions](#authagentoptions) - Authentication options
 
@@ -237,7 +237,7 @@ static refreshSession(
 - `agentId`: `string` - Agent identifier
 - `identity`: `string` - User identity
 - `refreshToken`: `string` - Current refresh token
-- `keyPair`: [PemKeys](../../sdk/typesAndInterfaces#pemkeys) - Device keypair
+- `keyPair`: [PemKeys](/docs/sdk/types-and-interfaces#pemkeys) - Device keypair
 - `agentInfo` (optional): `Record<string, string | string[]>` - Updated device information
 - `agentOptions` (optional): [AuthAgentOptions](#authagentoptions) - Authentication options
 

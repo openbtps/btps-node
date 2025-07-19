@@ -48,7 +48,7 @@ import { BtpsServer } from 'btps-sdk';
 
 const server = new BtpsServer({
   port: 3443,
-  trustStore, // Instance of a TrustStore (see advancedUsages.md)
+  trustStore, // Instance of a TrustStore (see advancedUsages)
   middlewarePath: './btps.middleware.mjs',
   onError: (err) => { /* handle errors */ },
   options: { /* TLS options */ },
@@ -81,7 +81,7 @@ graph TD
 ## Extensibility
 
 - **Middleware:** Add custom validation, logging, rate limiting, and business logic
-- **Custom Trust Stores:** Integrate with any backend (see advancedUsages.md)
+- **Custom Trust Stores:** Integrate with any backend (see advancedUsages)
 - **Webhooks:** Forward verified artifacts to SaaS apps or custom endpoints
 - **Event Hooks:** Monitor, audit, and orchestrate server events
 
@@ -94,4 +94,4 @@ graph TD
 
 ---
 
-Continue to [Setup](./setup.md) to get started, or see [Advanced Usage](./advancedUsages.md) for custom integrations.
+Continue to [Setup](/docs/server/setup) to get started, or see [Advanced Usage](/docs/server/advanced-usages) for custom integrations.
