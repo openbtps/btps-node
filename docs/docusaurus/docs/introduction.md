@@ -16,24 +16,27 @@ BTPS is designed as a federated, open protocol. Here's a visual overview:
 
 ```mermaid
 graph TD
-  S["Sender"] -- "DNS TXT + .well-known" --> R["Receiver"]
-  R -- "Verify + Trust Request" --> S
-  S -- "Sign + Encrypt" --> P["POST to Receiver Inbox"]
-  R -- "Trust Accept" --> P
+  S["Sender"] -- "1\. Resolve DNS TXT + .well-known" --> R["Receiver"]
+  S -- "2\. Sign + Trust Request" --> R
+  R -- "3\. Resolve DNS TXT + Verify + Trust Accept" --> S
+  S -- "4\. Sign + Encrypt" --> R
+  R -- "5\. Inbox delivery" --> P["POST to Receiver Inbox"]
 ```
 
 Or, as ASCII:
 
 ```
 ┌────────────┐      DNS TXT + .well-known       ┌─────────────┐
-│  Sender    │  ─────────────────────────────▶  │  Receiver   │
-│            │     (Verify + Trust Request)     │             │
+│            │  ─────────────────────────────▶  │             │
+│            │     (Sign + Trust Request)       │             │
+│  Sender    │  ─────────────────────────────▶  │  Receiver   │ ────▶ Inbox
+│            │     (Verify + Trust Accept)      │             │
 └────────────┘ ◀─────────────────────────────── └─────────────┘
-       │                   ▲
-       ▼                   │
-    [Sign + Encrypt]   [Trust Accept]
-       │                   ▼
-       └──────▶  POST to Receiver Inbox
+       │                                               ▲
+       ▼                                               │
+    [Sign + Encrypt]                                   │
+       │                                               │
+       └───────────────────────────────────────────────┘ 
 ```
 
 ## What is BTPS?
@@ -125,7 +128,7 @@ graph TD
 
 > Defines the rules, message formats, and cryptographic operations that ensure all BTPS communications are secure, verifiable, and interoperable.
 
-- **Message formats and envelope structure:** Defines the standard structure for all BTPS artifacts, including headers, payload, encryption, and signature fields. Ensures interoperability and consistent validation across all implementations.
+- **Message formats and artifacts structure:** Defines the standard structure for all BTPS artifacts, including documents, encryption, and signature fields. Ensures interoperability and consistent validation across all implementations.
 - **Trust establishment and verification flows:** Outlines the handshake and approval process for establishing trust between parties, including request, verification, approval/rejection, and storage of trust records. Guarantees that only approved senders can deliver documents.
 - **Cryptographic operations (signing, encryption, verification):** Utilizes strong cryptographic algorithms (e.g., AES-256-CBC, RSA, SHA-256) for signing, encrypting, and verifying messages. Ensures confidentiality, integrity, and authenticity of all communications.
 - **Error handling and response codes:** Standardizes error responses and codes for all protocol operations, making it easier to debug, monitor, and automate error recovery.
@@ -144,7 +147,7 @@ graph TD
 > Manages the lifecycle of trust relationships, from onboarding to revocation, and enforces trust-based access control for all document exchanges.
 
 - **Trust stores (file-based, database, cloud):** Supports multiple storage backends for trust records, from simple JSON files for small deployments to scalable databases or cloud storage for enterprises.
-- **Trust lifecycle (request, accept, reject, revoke, expire):** Manages the full lifecycle of trust relationships, including onboarding, active use, revocation, and expiration. Ensures that trust is always explicit and up-to-date.
+- **Trust lifecycle (request, accept, reject, revoke, block, expire):** Manages the full lifecycle of trust relationships, including onboarding, active use, revocation, and expiration. Ensures that trust is always explicit and up-to-date.
 - **Trust verification for message processing:** Every incoming message is checked against the trust store to ensure it comes from an approved sender. Untrusted or expired relationships are automatically rejected.
 - **Trust audit and compliance:** All trust changes (creation, update, revocation) are logged for auditability and regulatory compliance. Supports reporting and monitoring for security teams.
 

@@ -15,31 +15,34 @@ BTPS (Billing Trust Protocol Secure) is a trust-based, cryptographically verifia
 
 ```mermaid
 graph TD
-  S["Sender"] -- "DNS TXT + .well-known" --> R["Receiver"]
-  R -- "Verify + Trust Request" --> S
-  S -- "Sign + Encrypt" --> P["POST to Receiver Inbox"]
-  R -- "Trust Accept" --> P
+  S["Sender"] -- "1\. Resolve DNS TXT + .well-known" --> R["Receiver"]
+  S -- "2\. Sign + Trust Request" --> R
+  R -- "3\. Resolve DNS TXT + Verify + Trust Accept" --> S
+  S -- "4\. Sign + Encrypt" --> R
+  R -- "5\. Inbox delivery" --> P["POST to Receiver Inbox"]
 ```
 
 Or, as ASCII:
 
 ```
 ┌────────────┐      DNS TXT + .well-known       ┌─────────────┐
-│  Sender    │  ─────────────────────────────▶  │  Receiver   │
-│            │     (Verify + Trust Request)     │             │
+│            │  ─────────────────────────────▶  │             │
+│            │     (Sign + Trust Request)       │             │
+│  Sender    │  ─────────────────────────────▶  │  Receiver   │ ────▶ Inbox
+│            │     (Verify + Trust Accept)      │             │
 └────────────┘ ◀─────────────────────────────── └─────────────┘
-       │                   ▲
-       ▼                   │
-    [Sign + Encrypt]   [Trust Accept]
-       │                   ▼
-       └──────▶  POST to Receiver Inbox
+       │                                               ▲
+       ▼                                               │
+    [Sign + Encrypt]                                   │
+       │                                               │
+       └───────────────────────────────────────────────┘ 
 ```
 
 ## Key Concepts
 
 | Concept             | Description                                                       |
 | ------------------- | ----------------------------------------------------------------- |
-| `btp-address`       | Like email, but uses `$`: e.g. `finance$company.com`              |
+| `btps-address`       | Like email, but uses `$`: e.g. `finance$company.com`              |
 | DNS Discovery       | TXT records used to verify public keys and protocol support       |
 | `.well-known` Trust | Trust records published at `/.well-known/btp-trust.json`          |
 | Consent Handshake   | Sender must initiate a trust request, and be approved             |

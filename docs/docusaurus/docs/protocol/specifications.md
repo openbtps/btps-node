@@ -105,11 +105,31 @@ All BTPS messages follow a standardized envelope structure:
     "encryptedPayload": "base64-encoded-encrypted-document",
     "encryptedKey": "base64-encoded-encrypted-key",
     "iv": "base64-encoded-initialization-vector"
+  },
+  "delegation": { // only used for delegated artifacts
+    "agentId": "agentId",
+    "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
+    "signedBy": "alice$saas.com",
+    "issuedAt": "2025-01-15T10:30:00Z",
+    "signature": {
+      "algorithm": "sha256",
+      "value": "base64-encoded-signature",
+      "fingerprint": "sha256-base64-fingerprint"
+    },
+    "attestation": { // only used for delegated artifacts which as delegated on behalf of original identity
+      "issuedAt": "2025-01-15T10:30:00Z",
+      "signedBy": "admin$saas.com",
+      "signature": {
+        "algorithm": "sha256",
+        "value": "base64-encoded-signature",
+        "fingerprint": "sha256-base64-fingerprint"
+      },
+    }
   }
 }
 ```
 
-**Envelope Fields:**
+**Artifacts Fields:**
 
 - `version`: Protocol version (currently "1.0")
 - `issuedAt`: ISO 8601 timestamp of message creation
@@ -120,6 +140,7 @@ All BTPS messages follow a standardized envelope structure:
 - `document`: The actual document content
 - `signature`: Cryptographic signature for authenticity
 - `encryption`: Encryption details (null for unencrypted messages)
+- `delegation`: Artifacts that was delegated for agents
 
 ---
 
@@ -147,6 +168,7 @@ Secure billing document with line items and payment details.
 
 ```json
 {
+  "id": "uniqueUuid",
   "name": "Acme Corporation",
   "email": "billing@acme.com",
   "reason": "To send monthly service invoices",
@@ -163,6 +185,7 @@ Secure billing document with line items and payment details.
 
 **Required Fields:**
 
+- `id`: Unique uuid for future reference and data management
 - `name`: Legal business name
 - `email`: Contact email address
 - `reason`: Purpose of trust request

@@ -14,6 +14,8 @@ BTPS (Billing Trust Protocol Secure) is a federated system that enables secure, 
 ```
 ┌─────────────┐    Document Messages   ┌─────────────┐    Forward to    ┌─────────────┐
 │   Client    │ ──► (over TLS) ─────►  │   Server    │ ──► Inbox ─────► │   Inbox     │
+│   Agent     │                        │             │                  │             │
+│ Transporter │                        │             │                  │             │
 │             │                        │             │                  │             │
 │ • Sends     │                        │ • Receives  │                  │ • SaaS or   │
 │ • Signs     │                        │ • Verifies  │                  │   Self-     │
@@ -30,7 +32,7 @@ npm install @btps/sdk
 ```
 
 ```js
-import { BtpsServer, BtpsClient } from '@btps/sdk';
+import { BtpsServer, BtpsTransporter } from '@btps/sdk';
 
 // Start a BTPS server
 const server = new BtpsServer({
@@ -40,16 +42,18 @@ const server = new BtpsServer({
 await server.start();
 
 // Send a trust request
-const client = new BtpsClient({
+const client = new BtpsTransporter({
   identity: 'billing$yourdomain.com',
   btpIdentityKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',
   bptIdentityCert: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----'
 });
 
 const trustRequest = {
+  ...otherFields,
   to: 'pay$client.com',
   type: 'btp_trust_request',
   document: {
+    id: "uniqueUuid"
     name: 'Your Company Name',
     email: 'billing@yourdomain.com',
     reason: 'To send monthly invoices',
@@ -57,7 +61,7 @@ const trustRequest = {
   }
 };
 
-const { response, error } = await client.send(trustRequest);
+const { response, error } = await client.transport(trustRequest);
 ```
 
 ### 🔧 Core Components

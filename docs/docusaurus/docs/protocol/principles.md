@@ -20,7 +20,7 @@ BTPS is a federated, secure message transport protocol designed for verifiable d
 | 🏗 **Minimal protocol, maximum extensibility** | BTPS enforces only identity, integrity, and delivery. All business logic (e.g. quotas, features, limits) lives outside the core protocol. |
 | 🌐 **Federated by design** | Any server can host identities. No single platform or vendor is privileged. |
 | 💸 **SaaS monetization supported, not required** | SaaS providers can add delegation tools, dashboards, storage, and value-added services to monetize — but are never required for delivery. |
-| ⚙️ **Offline and resilient** | Messages are verifiable and deliverable even if SaaS platforms are temporarily unavailable. |
+| ⚙️ **Offline and resilient** | Messages are verifiable and deliverable for end to end encryption users even if SaaS platforms are temporarily unavailable. |
 | 🧾 **Verifiable, not enforceable** | Delegation artifacts encode signed claims, but do not require runtime validation by any third party. |
 
 ---

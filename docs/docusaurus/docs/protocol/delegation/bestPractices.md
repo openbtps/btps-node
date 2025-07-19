@@ -9,91 +9,127 @@ This document provides comprehensive guidelines for implementing and operating B
 
 ## 🛡️ Security Best Practices
 
-### **1. Key Management**
+### **1. Delegation Structure**
 
-#### **Device Key Generation**
-```javascript
-// ✅ GOOD: Generate keys locally on device
-const deviceKeypair = await generateKeypair({
-  algorithm: 'ed25519',  // Use modern algorithms
-  secureRandom: true     // Use cryptographically secure random
-});
-
-// ❌ BAD: Never generate keys on server
-const serverGeneratedKeys = await server.generateKeys(); // Avoid this
-```
-
-#### **Key Storage**
-```javascript
-// ✅ GOOD: Secure key storage
-class SecureKeyStorage {
-  async storePrivateKey(key, deviceId) {
-    // Use platform-specific secure storage
-    if (platform === 'ios') {
-      await Keychain.setItem(`btps_${deviceId}`, key, {
-        accessControl: 'biometric',
-        accessible: 'whenUnlocked'
-      });
-    } else if (platform === 'android') {
-      await Keystore.store(`btps_${deviceId}`, key, {
-        userAuthenticationRequired: true
-      });
-    }
-  }
-}
-
-// ❌ BAD: Plain text storage
-localStorage.setItem('private_key', privateKey); // Never do this
-```
-
-### **2. Token Security**
-
-#### **Token Lifecycle Management**
-```javascript
-// ✅ GOOD: Implement token refresh with exponential backoff
-class TokenManager {
-  async refreshToken() {
-    try {
-      const response = await this.refreshAccessToken();
-      await this.updateStoredTokens(response);
-      this.resetBackoff();
-    } catch (error) {
-      this.increaseBackoff();
-      if (this.shouldReauthenticate()) {
-        await this.initiateReAuthentication();
+#### **Proper Delegation Format**
+```json
+// ✅ GOOD: Complete delegation structure
+{
+  "delegation": {
+    "agentId": "device_agent_123",
+    "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
+    "signedBy": "alice$saas.com",
+    "issuedAt": "2025-01-15T10:30:00Z",
+    "signature": {
+      "algorithm": "sha256",
+      "value": "base64_encoded_signature",
+      "fingerprint": "sha256_fingerprint"
+    },
+    "attestation": {
+      "issuedAt": "2025-01-15T10:30:00Z",
+      "signedBy": "admin$saas.com",
+      "signature": {
+        "algorithm": "sha256",
+        "value": "base64_encoded_signature",
+        "fingerprint": "sha256_fingerprint"
       }
     }
   }
-  
-  increaseBackoff() {
-    this.backoffDelay = Math.min(this.backoffDelay * 2, 300000); // Max 5 minutes
+}
+
+// ❌ BAD: Missing required fields
+{
+  "delegation": {
+    "agentId": "device_agent_123",
+    "signedBy": "alice$saas.com"
+    // Missing agentPubKey, signature, issuedAt
+  }
+}
+```
+
+#### **Agent ID Management**
+```typescript
+// ✅ GOOD: Unique, descriptive agent IDs
+const agentId = `device_${deviceType}_${deviceId}_${timestamp}`;
+// Example: "device_mobile_iphone15_20250115_103000"
+
+// ❌ BAD: Generic or non-unique IDs
+const agentId = "device"; // Too generic
+const agentId = "123"; // Not descriptive
+```
+
+### **2. Signature Verification**
+
+#### **Comprehensive Verification**
+```typescript
+// ✅ GOOD: Complete verification pipeline
+class DelegationVerifier {
+  async verifyDelegation(artifact) {
+    const { delegation } = artifact;
+    
+    // Step 1: Check attestation requirement
+    const isAttestationRequired = delegation.signedBy === artifact.from;
+    if (isAttestationRequired && !delegation.attestation) {
+      throw new Error('DELEGATION_INVALID: Attestation required');
+    }
+    
+    // Step 2: Verify attestation (if present)
+    if (delegation.attestation) {
+      await this.verifyAttestation(delegation);
+    }
+    
+    // Step 3: Verify delegation signature
+    await this.verifyDelegationSignature(artifact, delegation);
+    
+    // Step 4: Verify agent signature
+    await this.verifyAgentSignature(artifact, delegation.agentPubKey);
+    
+    return { isValid: true };
   }
 }
 
-// ❌ BAD: No token refresh handling
-// Tokens expire and app stops working
+// ❌ BAD: Incomplete verification
+async verifyDelegation(artifact) {
+  // Only verifies delegation signature, missing other steps
+  return this.verifySignature(artifact.delegation);
+}
 ```
 
-#### **Token Validation**
-```javascript
-// ✅ GOOD: Validate tokens before use
-class TokenValidator {
-  async validateToken(token) {
-    // Check expiration
-    if (this.isExpired(token)) {
-      throw new Error('TOKEN_EXPIRED');
-    }
+#### **Error Handling**
+```typescript
+// ✅ GOOD: Comprehensive error handling
+class DelegationErrorHandler {
+  async handleDelegationError(error, context) {
+    const errorInfo = {
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      context,
+      stack: error.stack
+    };
     
-    // Validate signature
-    if (!this.verifyTokenSignature(token)) {
-      throw new Error('INVALID_TOKEN_SIGNATURE');
-    }
+    // Log error for monitoring
+    this.logger.log('delegation_error', errorInfo);
     
-    // Check scope
-    if (!this.hasRequiredScope(token, 'send')) {
-      throw new Error('INSUFFICIENT_SCOPE');
+    // Handle specific error types
+    switch (error.message) {
+      case 'DELEGATION_INVALID':
+        return this.handleInvalidDelegation(context);
+      case 'DELEGATION_SIG_VERIFICATION_FAILED':
+        return this.handleSignatureError(context);
+      case 'ATTESTATION_VERIFICATION_FAILED':
+        return this.handleAttestationError(context);
+      default:
+        return this.handleGenericError(error, context);
     }
   }
+}
+
+// ❌ BAD: Generic error handling
+try {
+  await verifyDelegation(artifact);
+} catch (error) {
+  console.error('Delegation failed:', error);
+  // No specific handling or logging
 }
 ```
 
@@ -102,148 +138,14 @@ class TokenValidator {
 #### **TTL Configuration**
 ```bash
 # ✅ GOOD: Short TTL for delegation records
-dev1234.alice.btps.saas.com IN TXT "key=..." 300  # 5 minutes
-alice.btps.saas.com IN TXT "key=...&d=..." 300    # 5 minutes
+alice.btps.saas.com IN TXT "p=..." 300  # 5 minutes
 
 # ❌ BAD: Long TTL delays revocation
-dev1234.alice.btps.saas.com IN TXT "key=..." 86400  # 24 hours - too long
+alice.btps.saas.com IN TXT "p=..." 86400  # 24 hours - too long
 ```
-
-#### **DNSSEC Implementation**
-```bash
-# ✅ GOOD: Enable DNSSEC for delegation records
-$ dig +dnssec TXT dev1234.alice.btps.saas.com
-
-# Expected response includes RRSIG records
-dev1234.alice.btps.saas.com. 300 IN TXT "key=..."
-dev1234.alice.btps.saas.com. 300 IN RRSIG TXT 8 3 300 ...
-```
-
-### **4. Delegation Verification**
-
-#### **Comprehensive Verification**
-```javascript
-// ✅ GOOD: Multi-step delegation verification
-class DelegationVerifier {
-  async verifyDelegation(delegatedIdentity) {
-    const [delegatedId, originalIdentity] = delegatedIdentity.split('$');
-    
-    // Step 1: Verify original identity exists
-    const parentRecord = await this.resolveDNS(originalIdentity);
-    if (!parentRecord) {
-      throw new Error('ORIGINAL_IDENTITY_NOT_FOUND');
-    }
-    
-    // Step 2: Check delegation list
-    const delegations = this.extractDelegations(parentRecord);
-    if (!delegations.includes(delegatedId)) {
-      throw new Error('DELEGATION_NOT_FOUND');
-    }
-    
-    // Step 3: Verify device record
-    const deviceRecord = await this.resolveDNS(`${delegatedId}.${originalIdentity}`);
-    if (!deviceRecord) {
-      throw new Error('DEVICE_RECORD_NOT_FOUND');
-    }
-    
-    // Step 4: Extract and validate public key
-    const publicKey = this.extractPublicKey(deviceRecord);
-    if (!this.isValidPublicKey(publicKey)) {
-      throw new Error('INVALID_PUBLIC_KEY');
-    }
-    
-    return publicKey;
-  }
-}
-```
-
-## 🏗️ Implementation Best Practices
-
-### **1. Client-Side Implementation**
-
-#### **Error Handling**
-```javascript
-// ✅ GOOD: Comprehensive error handling
-class DelegatedBTPSClient {
-  async sendMessage(to, document, type = 'btp_invoice') {
-    try {
-      // Validate input
-      this.validateMessageInput(to, document, type);
-      
-      // Check delegation status
-      await this.ensureValidDelegation();
-      
-      // Send message
-      const response = await this.sendToBTPS(message);
-      return response;
-      
-    } catch (error) {
-      switch (error.code) {
-        case 'DELEGATION_REVOKED':
-          await this.handleRevocation();
-          break;
-        case 'TOKEN_EXPIRED':
-          await this.refreshToken();
-          return this.sendMessage(to, document, type); // Retry
-        case 'NETWORK_ERROR':
-          await this.handleNetworkError(error);
-          break;
-        default:
-          await this.handleUnexpectedError(error);
-      }
-      throw error;
-    }
-  }
-  
-  async handleRevocation() {
-    await this.clearCredentials();
-    this.notifyUser('Device access revoked. Please re-authenticate.');
-    await this.initiateReAuthentication();
-  }
-}
-```
-
-#### **Credential Management**
-```javascript
-// ✅ GOOD: Secure credential management
-class CredentialManager {
-  constructor() {
-    this.secureStore = new SecureKeyStorage();
-  }
-  
-  async storeCredentials(credentials) {
-    // Encrypt sensitive data
-    const encryptedCredentials = await this.encryptCredentials(credentials);
-    
-    // Store securely
-    await this.secureStore.setItem('btps_credentials', encryptedCredentials);
-    
-    // Store non-sensitive data in memory for quick access
-    this.delegatedIdentity = credentials.delegated_identity;
-    this.scopes = credentials.scopes;
-  }
-  
-  async loadCredentials() {
-    const encryptedCredentials = await this.secureStore.getItem('btps_credentials');
-    if (!encryptedCredentials) {
-      return null;
-    }
-    
-    return await this.decryptCredentials(encryptedCredentials);
-  }
-  
-  async clearCredentials() {
-    await this.secureStore.removeItem('btps_credentials');
-    this.delegatedIdentity = null;
-    this.scopes = null;
-  }
-}
-```
-
-### **2. Server-Side Implementation**
 
 #### **DNS Resolution**
-```javascript
+```typescript
 // ✅ GOOD: Robust DNS resolution with caching
 class DNSResolver {
   constructor() {
@@ -267,7 +169,6 @@ class DNSResolver {
       });
       return records;
     } catch (error) {
-      // Log DNS resolution failure
       this.logDNSError(domain, error);
       throw error;
     }
@@ -288,351 +189,399 @@ class DNSResolver {
     throw new Error('All DNS servers failed');
   }
 }
+
+// ❌ BAD: Single DNS server, no caching
+async resolveDNS(domain) {
+  return await dns.lookup(domain);
+}
 ```
 
-#### **Delegation Verification**
-```javascript
-// ✅ GOOD: Efficient delegation verification
-class DelegationVerifier {
+## 🏗️ Implementation Best Practices
+
+### **1. Server-Side Implementation**
+
+#### **Delegation Verification Pipeline**
+```typescript
+// ✅ GOOD: Complete verification pipeline
+class DelegationVerificationPipeline {
   constructor() {
     this.dnsResolver = new DNSResolver();
-    this.verificationCache = new Map();
+    this.cryptoVerifier = new CryptoVerifier();
   }
   
-  async verifyDelegatedMessage(message) {
-    const delegatedIdentity = message.from;
-    const cacheKey = `verification_${delegatedIdentity}`;
-    
-    // Check cache first
-    const cached = this.verificationCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < 60000) { // 1 minute cache
-      return cached.result;
-    }
+  async verifyDelegation(artifact) {
+    const startTime = Date.now();
     
     try {
-      const devicePublicKey = await this.verifyDelegation(delegatedIdentity);
-      const isValid = await this.verifySignature(message, devicePublicKey);
+      // Step 1: Validate delegation structure
+      this.validateDelegationStructure(artifact.delegation);
       
-      const result = { isValid, devicePublicKey };
+      // Step 2: Check attestation requirement
+      const isAttestationRequired = this.isAttestationRequired(artifact);
+      if (isAttestationRequired && !artifact.delegation.attestation) {
+        throw new Error('DELEGATION_INVALID: Attestation required');
+      }
       
-      // Cache successful verification
-      this.verificationCache.set(cacheKey, {
-        result,
-        timestamp: Date.now()
-      });
+      // Step 3: Verify attestation (if present)
+      if (artifact.delegation.attestation) {
+        await this.verifyAttestation(artifact.delegation);
+      }
       
-      return result;
+      // Step 4: Verify delegation signature
+      await this.verifyDelegationSignature(artifact);
+      
+      // Step 5: Verify agent signature
+      await this.verifyAgentSignature(artifact);
+      
+      const verificationTime = Date.now() - startTime;
+      
+      return {
+        isValid: true,
+        verificationTime,
+        agentId: artifact.delegation.agentId,
+        delegator: artifact.delegation.signedBy,
+        attestor: artifact.delegation.attestation?.signedBy
+      };
+      
     } catch (error) {
-      // Don't cache failures
-      throw error;
+      return {
+        isValid: false,
+        error: error.message,
+        verificationTime: Date.now() - startTime
+      };
     }
   }
+  
+  private validateDelegationStructure(delegation) {
+    const requiredFields = ['agentId', 'agentPubKey', 'signedBy', 'issuedAt', 'signature'];
+    for (const field of requiredFields) {
+      if (!delegation[field]) {
+        throw new Error(`DELEGATION_INVALID: Missing required field ${field}`);
+      }
+    }
+  }
+  
+  private isAttestationRequired(artifact) {
+    return artifact.delegation.signedBy === artifact.from;
+  }
+}
+
+// ❌ BAD: Incomplete verification
+async verifyDelegation(artifact) {
+  // Only verifies delegation signature
+  return this.verifySignature(artifact.delegation);
 }
 ```
 
-## 🔧 Operational Best Practices
+#### **Attestation Verification**
+```typescript
+// ✅ GOOD: Complete attestation verification
+class AttestationVerifier {
+  async verifyAttestation(delegation) {
+    const { attestation } = delegation;
+    
+    // Validate attestation structure
+    this.validateAttestationStructure(attestation);
+    
+    // Resolve attestor public key
+    const attestorPubKey = await this.dnsResolver.resolvePublicKey(attestation.signedBy);
+    if (!attestorPubKey) {
+      throw new Error('ATTESTATION_VERIFICATION_FAILED: Attestor public key not found');
+    }
+    
+    // Verify attestation signature
+    const signedMsg = { ...delegation, attestation: { ...attestation, signature: undefined } };
+    const isValid = await this.cryptoVerifier.verifySignature(
+      signedMsg,
+      attestation.signature,
+      attestorPubKey
+    );
+    
+    if (!isValid) {
+      throw new Error('ATTESTATION_VERIFICATION_FAILED: Invalid signature');
+    }
+    
+    return { isValid: true, attestor: attestation.signedBy };
+  }
+  
+  private validateAttestationStructure(attestation) {
+    const requiredFields = ['issuedAt', 'signedBy', 'signature'];
+    for (const field of requiredFields) {
+      if (!attestation[field]) {
+        throw new Error(`ATTESTATION_INVALID: Missing required field ${field}`);
+      }
+    }
+  }
+}
 
-### **1. Monitoring & Alerting**
+// ❌ BAD: Missing validation
+async verifyAttestation(delegation) {
+  const { attestation } = delegation;
+  return this.verifySignature(attestation);
+}
+```
 
-#### **Key Metrics**
-```javascript
-// ✅ GOOD: Comprehensive monitoring
-class DelegationMonitor {
-  constructor() {
-    this.metrics = {
-      delegationRequests: 0,
-      delegationFailures: 0,
-      revocationEvents: 0,
-      dnsResolutionTime: [],
-      verificationTime: []
+### **2. Client-Side Implementation**
+
+#### **Delegation Creation**
+```typescript
+// ✅ GOOD: Proper delegation creation
+class DelegationCreator {
+  constructor(privateKey, identity) {
+    this.privateKey = privateKey;
+    this.identity = identity;
+  }
+  
+  async createDelegation(agentId, agentPubKey, artifact, attestorPrivateKey = null) {
+    const delegation = {
+      agentId,
+      agentPubKey,
+      signedBy: this.identity,
+      issuedAt: new Date().toISOString(),
     };
-  }
-  
-  recordDelegationRequest() {
-    this.metrics.delegationRequests++;
-  }
-  
-  recordDelegationFailure(error) {
-    this.metrics.delegationFailures++;
-    this.alertIfThresholdExceeded();
-  }
-  
-  recordDNSResolutionTime(duration) {
-    this.metrics.dnsResolutionTime.push(duration);
-    if (duration > 5000) { // 5 seconds
-      this.alertSlowDNSResolution();
-    }
-  }
-  
-  alertIfThresholdExceeded() {
-    const failureRate = this.metrics.delegationFailures / this.metrics.delegationRequests;
-    if (failureRate > 0.05) { // 5% failure rate
-      this.sendAlert('High delegation failure rate detected');
-    }
-  }
-}
-```
-
-#### **Health Checks**
-```javascript
-// ✅ GOOD: Regular health checks
-class DelegationHealthChecker {
-  async performHealthCheck() {
-    const checks = [
-      this.checkDNSResolution(),
-      this.checkDelegationVerification(),
-      this.checkTokenValidation(),
-      this.checkRevocationStatus()
-    ];
     
-    const results = await Promise.allSettled(checks);
-    const failures = results.filter(r => r.status === 'rejected');
-    
-    if (failures.length > 0) {
-      await this.alertHealthCheckFailures(failures);
+    // Add attestation if required
+    if (this.isAttestationRequired(artifact)) {
+      if (!attestorPrivateKey) {
+        throw new Error('ATTESTATION_REQUIRED: Attestor private key needed');
+      }
+      
+      delegation.attestation = await this.createAttestation(delegation, attestorPrivateKey);
     }
     
-    return {
-      status: failures.length === 0 ? 'healthy' : 'degraded',
-      failures: failures.length
+    // Sign delegation
+    const signedMsg = { ...artifact, delegation: { ...delegation, signature: undefined } };
+    delegation.signature = await this.signMessage(signedMsg, this.privateKey);
+    
+    return delegation;
+  }
+  
+  private isAttestationRequired(artifact) {
+    return artifact.from === this.identity;
+  }
+  
+  private async createAttestation(delegation, attestorPrivateKey) {
+    const attestation = {
+      issuedAt: new Date().toISOString(),
+      signedBy: 'admin$saas.com', // Attestor identity
     };
-  }
-  
-  async checkDNSResolution() {
-    const startTime = Date.now();
-    await this.dnsResolver.resolveDNS('test.btps.example.com');
-    const duration = Date.now() - startTime;
     
-    if (duration > 3000) {
-      throw new Error(`DNS resolution too slow: ${duration}ms`);
-    }
+    const signedMsg = { ...delegation, attestation: { ...attestation, signature: undefined } };
+    attestation.signature = await this.signMessage(signedMsg, attestorPrivateKey);
+    
+    return attestation;
   }
 }
-```
 
-### **2. Logging & Auditing**
-
-#### **Comprehensive Logging**
-```javascript
-// ✅ GOOD: Structured logging
-class DelegationLogger {
-  logDelegationRequest(request) {
-    this.log('delegation_request', {
-      identity: request.identity,
-      deviceId: request.deviceId,
-      timestamp: new Date().toISOString(),
-      clientIp: request.clientIp,
-      userAgent: request.userAgent
-    });
-  }
+// ❌ BAD: Missing attestation handling
+async createDelegation(agentId, agentPubKey, artifact) {
+  const delegation = {
+    agentId,
+    agentPubKey,
+    signedBy: this.identity,
+    issuedAt: new Date().toISOString(),
+  };
   
-  logDelegationVerification(identity, result) {
-    this.log('delegation_verification', {
-      identity,
-      success: result.isValid,
-      verificationTime: result.duration,
-      timestamp: new Date().toISOString()
-    });
-  }
-  
-  logRevocation(revocation) {
-    this.log('delegation_revocation', {
-      userIdentity: revocation.userIdentity,
-      deviceId: revocation.deviceId,
-      reason: revocation.reason,
-      revokedBy: revocation.revokedBy,
-      timestamp: new Date().toISOString()
-    });
-  }
-  
-  log(level, data) {
-    console.log(JSON.stringify({
-      level,
-      timestamp: new Date().toISOString(),
-      service: 'btps_delegation',
-      ...data
-    }));
-  }
+  // No attestation handling
+  delegation.signature = await this.signMessage(delegation, this.privateKey);
+  return delegation;
 }
 ```
 
 ### **3. Performance Optimization**
 
-#### **Caching Strategies**
-```javascript
-// ✅ GOOD: Multi-level caching
+#### **Caching Strategy**
+```typescript
+// ✅ GOOD: Intelligent caching
 class DelegationCache {
   constructor() {
-    this.memoryCache = new Map();
-    this.redisCache = new RedisClient();
-    this.memoryTTL = 60000; // 1 minute
-    this.redisTTL = 300000; // 5 minutes
+    this.publicKeyCache = new Map();
+    this.delegationCache = new Map();
+    this.cacheTTL = 300000; // 5 minutes
   }
   
-  async get(key) {
-    // Check memory cache first
-    const memoryResult = this.memoryCache.get(key);
-    if (memoryResult && Date.now() - memoryResult.timestamp < this.memoryTTL) {
-      return memoryResult.data;
+  async getPublicKey(identity) {
+    const cacheKey = `pubkey_${identity}`;
+    const cached = this.publicKeyCache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
+      return cached.data;
     }
     
-    // Check Redis cache
-    const redisResult = await this.redisCache.get(key);
-    if (redisResult) {
-      // Update memory cache
-      this.memoryCache.set(key, {
-        data: redisResult,
-        timestamp: Date.now()
-      });
-      return redisResult;
-    }
-    
-    return null;
-  }
-  
-  async set(key, value) {
-    // Set in both caches
-    this.memoryCache.set(key, {
-      data: value,
+    const publicKey = await this.dnsResolver.resolvePublicKey(identity);
+    this.publicKeyCache.set(cacheKey, {
+      data: publicKey,
       timestamp: Date.now()
     });
     
-    await this.redisCache.set(key, value, this.redisTTL);
-  }
-}
-```
-
-## 🚨 Security Considerations
-
-### **1. Threat Mitigation**
-
-#### **Replay Attacks**
-```javascript
-// ✅ GOOD: Prevent replay attacks
-class ReplayProtection {
-  constructor() {
-    this.usedNonces = new Set();
-    this.nonceTTL = 300000; // 5 minutes
+    return publicKey;
   }
   
-  validateNonce(nonce, timestamp) {
-    const nonceKey = `${nonce}_${timestamp}`;
+  async getDelegation(agentId, delegator) {
+    const cacheKey = `delegation_${agentId}_${delegator}`;
+    const cached = this.delegationCache.get(cacheKey);
     
-    // Check if nonce was already used
-    if (this.usedNonces.has(nonceKey)) {
-      throw new Error('NONCE_ALREADY_USED');
+    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
+      return cached.data;
     }
     
-    // Check timestamp freshness
-    const messageTime = new Date(timestamp).getTime();
-    const currentTime = Date.now();
+    // Fetch delegation from storage
+    const delegation = await this.storage.getDelegation(agentId, delegator);
+    this.delegationCache.set(cacheKey, {
+      data: delegation,
+      timestamp: Date.now()
+    });
     
-    if (currentTime - messageTime > this.nonceTTL) {
-      throw new Error('MESSAGE_TOO_OLD');
-    }
-    
-    // Mark nonce as used
-    this.usedNonces.add(nonceKey);
-    
-    // Clean up old nonces
-    setTimeout(() => {
-      this.usedNonces.delete(nonceKey);
-    }, this.nonceTTL);
+    return delegation;
   }
-}
-```
-
-#### **DNS Spoofing Protection**
-```javascript
-// ✅ GOOD: DNSSEC validation
-class DNSSECValidator {
-  async validateDNSSEC(domain, records) {
-    // Verify RRSIG records
-    const rrsigRecords = records.filter(r => r.type === 'RRSIG');
-    
-    for (const rrsig of rrsigRecords) {
-      const isValid = await this.verifyRRSIG(rrsig, records);
-      if (!isValid) {
-        throw new Error('DNSSEC_VALIDATION_FAILED');
+  
+  invalidateCache(pattern) {
+    // Invalidate cache entries matching pattern
+    for (const [key] of this.publicKeyCache) {
+      if (key.includes(pattern)) {
+        this.publicKeyCache.delete(key);
       }
     }
     
-    return true;
+    for (const [key] of this.delegationCache) {
+      if (key.includes(pattern)) {
+        this.delegationCache.delete(key);
+      }
+    }
   }
-  
-  async verifyRRSIG(rrsig, records) {
-    // Implement RRSIG verification logic
-    // This is a simplified example
-    const publicKey = await this.getDNSKey(rrsig.keyTag);
-    return this.verifySignature(rrsig, records, publicKey);
+}
+
+// ❌ BAD: No caching
+async getPublicKey(identity) {
+  return await this.dnsResolver.resolvePublicKey(identity);
+}
+```
+
+## 🚨 Error Handling & Monitoring
+
+### **1. Error Classification**
+
+```typescript
+// ✅ GOOD: Comprehensive error classification
+enum DelegationErrorType {
+  DELEGATION_INVALID = 'DELEGATION_INVALID',
+  DELEGATION_SIG_VERIFICATION_FAILED = 'DELEGATION_SIG_VERIFICATION_FAILED',
+  ATTESTATION_VERIFICATION_FAILED = 'ATTESTATION_VERIFICATION_FAILED',
+  AGENT_SIG_VERIFICATION_FAILED = 'AGENT_SIG_VERIFICATION_FAILED',
+  DNS_RESOLUTION_FAILED = 'DNS_RESOLUTION_FAILED',
+  PUBLIC_KEY_NOT_FOUND = 'PUBLIC_KEY_NOT_FOUND',
+  ATTESTATION_REQUIRED = 'ATTESTATION_REQUIRED'
+}
+
+class DelegationError extends Error {
+  constructor(type: DelegationErrorType, message: string, context?: any) {
+    super(message);
+    this.type = type;
+    this.context = context;
+    this.timestamp = new Date().toISOString();
   }
 }
 ```
 
-### **2. Rate Limiting**
+### **2. Monitoring & Metrics**
 
-```javascript
-// ✅ GOOD: Implement rate limiting
-class DelegationRateLimiter {
+```typescript
+// ✅ GOOD: Comprehensive monitoring
+class DelegationMonitor {
   constructor() {
-    this.rateLimits = {
-      delegationRequests: { max: 10, window: 60000 }, // 10 per minute
-      messageSending: { max: 100, window: 60000 },    // 100 per minute
-      dnsQueries: { max: 1000, window: 60000 }        // 1000 per minute
+    this.metrics = {
+      verificationAttempts: 0,
+      verificationSuccess: 0,
+      verificationFailures: 0,
+      averageVerificationTime: 0,
+      dnsLookups: 0,
+      dnsFailures: 0
     };
-    this.counters = new Map();
   }
   
-  async checkRateLimit(identity, action) {
-    const key = `${identity}_${action}`;
-    const limit = this.rateLimits[action];
-    
-    if (!limit) {
-      return true; // No limit configured
-    }
-    
-    const now = Date.now();
-    const windowStart = now - limit.window;
-    
-    // Get current count
-    const counter = this.counters.get(key) || [];
-    const recentCount = counter.filter(timestamp => timestamp > windowStart).length;
-    
-    if (recentCount >= limit.max) {
-      throw new Error('RATE_LIMIT_EXCEEDED');
-    }
-    
-    // Add current request
-    counter.push(now);
-    this.counters.set(key, counter);
-    
-    return true;
+  recordVerificationAttempt() {
+    this.metrics.verificationAttempts++;
+  }
+  
+  recordVerificationSuccess(verificationTime: number) {
+    this.metrics.verificationSuccess++;
+    this.updateAverageVerificationTime(verificationTime);
+  }
+  
+  recordVerificationFailure(error: DelegationError) {
+    this.metrics.verificationFailures++;
+    this.logError(error);
+  }
+  
+  recordDNSLookup() {
+    this.metrics.dnsLookups++;
+  }
+  
+  recordDNSFailure() {
+    this.metrics.dnsFailures++;
+  }
+  
+  getMetrics() {
+    return {
+      ...this.metrics,
+      successRate: this.metrics.verificationSuccess / this.metrics.verificationAttempts,
+      dnsFailureRate: this.metrics.dnsFailures / this.metrics.dnsLookups
+    };
   }
 }
 ```
 
-## 📋 Deployment Checklist
+## 🔄 Deployment Considerations
 
-### **Pre-Deployment**
-- [ ] Enable DNSSEC for delegation domains
-- [ ] Configure appropriate TTL values (60-300 seconds)
-- [ ] Set up monitoring and alerting
-- [ ] Implement comprehensive logging
-- [ ] Test revocation procedures
-- [ ] Validate DNS propagation times
+### **1. DNS Configuration**
 
-### **Post-Deployment**
-- [ ] Monitor delegation success rates
-- [ ] Track DNS resolution performance
-- [ ] Monitor revocation propagation
-- [ ] Review security logs regularly
-- [ ] Update TTL values based on usage patterns
-- [ ] Conduct periodic security audits
+```bash
+# ✅ GOOD: Proper DNS configuration
+# Delegation record
+alice.btps.saas.com IN TXT "p=...delegator_public_key..." 300
 
-### **Ongoing Maintenance**
-- [ ] Regular DNS record cleanup
-- [ ] Monitor for suspicious delegation patterns
-- [ ] Update cryptographic libraries
-- [ ] Review and update rate limits
-- [ ] Backup delegation records
-- [ ] Test disaster recovery procedures
+# Attestor record (if needed)
+admin.btps.saas.com IN TXT "p=...attestor_public_key..." 300
+
+# ❌ BAD: Long TTL, no attestor record
+alice.btps.saas.com IN TXT "p=...delegator_public_key..." 86400
+```
+
+### **2. Security Configuration**
+
+```typescript
+// ✅ GOOD: Secure configuration
+const delegationConfig = {
+  // DNS settings
+  dnsServers: ['8.8.8.8', '1.1.1.1', '208.67.222.222'],
+  dnsTimeout: 5000,
+  dnsRetries: 3,
+  
+  // Caching settings
+  cacheTTL: 300000, // 5 minutes
+  maxCacheSize: 1000,
+  
+  // Verification settings
+  maxVerificationTime: 10000, // 10 seconds
+  requireAttestation: true, // For custom domains
+  
+  // Security settings
+  allowedSignatureAlgorithms: ['sha256'],
+  minKeySize: 2048,
+  
+  // Monitoring settings
+  enableMetrics: true,
+  logLevel: 'info'
+};
+```
+
+### **3. Production Checklist**
+
+- [ ] **DNS Configuration**: Proper TTL settings and attestor records
+- [ ] **Error Handling**: Comprehensive error handling and logging
+- [ ] **Monitoring**: Metrics collection and alerting
+- [ ] **Caching**: DNS and public key caching implementation
+- [ ] **Security**: Proper signature verification and attestation
+- [ ] **Performance**: Timeout handling and fallback mechanisms
+- [ ] **Documentation**: Clear documentation and runbooks
+- [ ] **Testing**: Comprehensive test coverage for all scenarios 

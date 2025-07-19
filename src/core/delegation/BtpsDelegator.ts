@@ -69,7 +69,7 @@ export class BtpsDelegator {
    * Verify the delegator identity
    * @returns {isValid: boolean, publicKey?: string} - The result of the verification
    */
-  private async verifyDelegatorIdentity(): Promise<{ isValid: boolean; publicKey?: string }> {
+  protected async verifyDelegatorIdentity(): Promise<{ isValid: boolean; publicKey?: string }> {
     const publicKey = await resolvePublicKey(this.identity);
     if (!publicKey) return { isValid: false, publicKey: undefined };
     return { isValid: this.isKeyPairMatching(this.privateKey, publicKey), publicKey };
@@ -81,7 +81,7 @@ export class BtpsDelegator {
    * @param publicKeyPem - The public key in PEM format
    * @returns {boolean} - True if the keys match, false otherwise
    */
-  private isKeyPairMatching(privateKeyPem: string, publicKeyPem: string): boolean {
+  protected isKeyPairMatching(privateKeyPem: string, publicKeyPem: string): boolean {
     const message = 'btps-key-validation';
     const sign = createSign('sha256').update(message).end().sign(privateKeyPem);
     return createVerify('sha256').update(message).end().verify(publicKeyPem, sign);
@@ -134,7 +134,7 @@ export class BtpsDelegator {
   /**
    * Create and sign a delegation
    */
-  private async createDelegation(params: {
+  protected async createDelegation(params: {
     artifact: BTPTransporterArtifact;
     delegatorIdentity: string;
     delegatorKey: PemKeys;
@@ -161,7 +161,7 @@ export class BtpsDelegator {
   /**
    * Create and sign an attestation
    */
-  private async createAttestation(params: {
+  protected async createAttestation(params: {
     delegation: Omit<BTPDelegation, 'attestation'>;
     attestorIdentity: string;
     attestorKey: PemKeys;

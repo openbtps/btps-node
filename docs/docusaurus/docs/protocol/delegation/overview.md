@@ -3,129 +3,151 @@ title: Delegation Overview
 sidebar_label: Overview
 ---
 
-# BTPS Delegation & Authentication Overview
+# BTPS Delegation Overview
 
-BTPS delegation enables users to send, view, and manage BTPS documents from multiple devices without sharing their primary private key. This architecture makes the BTPS protocol device and platform agnostic while maintaining security and standardization.
+BTPS delegation enables secure message sending on behalf of another identity through cryptographic authorization which enables users to send, view, and manage BTPS documents from multiple devices without sharing their primary private key. This system allows agents (devices/applications) to send messages while maintaining the security and authenticity of the original identity. This architecture makes the BTPS protocol device and platform agnostic while maintaining security and standardization.
 
 ## 🎯 Purpose
-
 The delegation system addresses a critical need: **users want to access BTPS functionality from any device** (phones, tablets, laptops) without compromising security by copying private keys across multiple devices. Additionally, it ensures that BTPS client applications follow standardized protocols regardless of the SaaS platform implementation.
+It addresses the need for **secure multi-device access** without compromising the primary identity's private key. It enables:
 
-## 🧩 Key Goals
-
-- **Device Independence**: Enable BTPS functionality on any device without private key sharing
+- **Device Independence**: Send messages from any authorized device
 - **Platform Agnostic**: Standardize client apps so they work with any BTPS implementation
-- **Security**: Maintain cryptographic security while enabling delegation
-- **Revocation**: Provide real-time device revocation capabilities
 - **Federation**: Keep BTPS servers simple and universal while delegating auth logic to SaaS platforms
+- **Cryptographic Security**: Maintain end-to-end security through delegation signatures
+- **Real-time Verification**: DNS-based delegation verification without server dependency
+- **Immediate Revocation**: Fast delegation removal through DNS updates providing real-time device revocation capabilities
 
-## 🏗️ Architecture Principles
-
-### 1. **DNS-Based Delegation**
-- All delegation records are stored in DNS TXT records
-- Enables real-time verification without SaaS server dependency
-- Supports immediate revocation through DNS updates
-
-### 2. **Cryptographic Separation**
-- Each device generates its own public/private keypair
-- Primary identity key never leaves the original device/SaaS
-- Device keys are cryptographically bound to delegation records
-
-### 3. **Standardized Protocol**
-- All BTPS clients follow the same delegation flow
-- No custom authentication per SaaS platform
-- Universal BTPS server behavior
-
-## 🔄 High-Level Flow
+## 🔄 Delegation Flow Overview
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant SaaS Portal
-    participant BTPS App
-    participant BTPS Server
-    participant SaaS Auth
+    participant Agent
+    participant Sender BTPS
     participant DNS
-    participant Receiver
+    participant Receiver BTPS
+    participant Recipient
 
-    User->>SaaS Portal: Login & Add Device
-    SaaS Portal->>User: Generate Temp Token
-    User->>BTPS App: Enter Token/Scan QR
-    BTPS App->>BTPS App: Generate Keypair
-    BTPS App->>BTPS Server: btps_auth_request
-    BTPS Server->>SaaS Auth: Forward Request
-    SaaS Auth->>DNS: Create Delegation Records
-    SaaS Auth->>BTPS Server: Return Tokens
-    BTPS Server->>BTPS App: Authentication Success
-    
-    Note over BTPS App,Receiver: Message Sending Flow
-    BTPS App->>Receiver: Send BTPS Message
-    Receiver->>DNS: Verify Delegation
-    Receiver->>Receiver: Validate & Deliver
+    Agent->>Sender BTPS: Send delegated message
+    Sender BTPS->>Sender BTPS: Verify agent signature
+    Sender BTPS->>Sender BTPS: Add delegation signature
+    Sender BTPS->>Receiver BTPS: Deliver with delegation
+    Receiver BTPS->>DNS: Query delegation records
+    DNS->>Receiver BTPS: Return delegator public key
+    Receiver BTPS->>Receiver BTPS: Verify delegation signature
+    Receiver BTPS->>Receiver BTPS: Verify agent signature
+    Receiver BTPS->>Recipient: Deliver message
 ```
+
+## 🏗️ Architecture Principles
+
+### 1. **Cryptographic Delegation**
+- Delegator signs delegation records with their private key
+- Agent signs original messages with their own private key
+- Receivers verify both signatures for complete authorization chain
+
+### 2. **DNS-Based Verification**
+- Delegation records published in DNS TXT records
+- Real-time verification without SaaS server dependency
+- Immediate revocation through DNS record removal
+
+### 3. **Attestation Support**
+- Optional third-party attestation for custom domain delegations
+- Enhanced security for sensitive operations
+- Audit trail for delegation approvals
+
 
 ## 📦 Core Components
 
-### 1. **Delegation Records**
-- **Parent Record**: `user.btps.domain.com TXT "d=dev123,dev456"`
-- **Device Record**: `dev123.user.btps.domain.com TXT "key=<device_pubkey>"`
+### 1. **Delegation Structure**
+```json
+{
+  "delegation": {
+    "agentId": "device_agent_123",
+    "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
+    "signedBy": "alice$saas.com",
+    "issuedAt": "2025-01-15T10:30:00Z",
+    "signature": {
+      "algorithm": "sha256",
+      "value": "base64_encoded_signature",
+      "fingerprint": "sha256_fingerprint"
+    },
+    "attestation": {
+      "issuedAt": "2025-01-15T10:30:00Z",
+      "signedBy": "admin$saas.com",
+      "signature": {
+        "algorithm": "sha256",
+        "value": "base64_encoded_signature",
+        "fingerprint": "sha256_fingerprint"
+      }
+    }
+  }
+}
+```
 
-### 2. **Authentication Artifacts**
-- `btps_auth_request`: Initial device authentication
-- `btps_refresh_request`: Token renewal
-- `btps_delegation`: Delegation confirmation
+### 2. **Delegation Types**
 
-### 3. **Token Types**
-| Token Type | Purpose | Issuer | Expiry |
-|------------|---------|--------|--------|
-| Temporary Token | Bootstrap auth request | SaaS Portal | 5-10 minutes |
-| Access Token | Authorize polling | BTPS Server | 15 minutes |
-| Refresh Token | Rotate access token | BTPS Server | 30-90 days |
+#### **Standard Delegation (SaaS Managed)**
+- Delegator and agent under same SaaS domain
+- No attestation required
+- Direct delegation signature verification
+
+#### **Custom Domain Delegation**
+- Delegator owns custom domain
+- Attestation required from trusted authority
+- Enhanced security through third-party validation
+
+### 3. **Verification Process**
+
+The BTPS server implements a comprehensive verification pipeline:
+
+1. **Attestation Check**: Determine if attestation is required
+2. **Attestation Verification**: Verify third-party signature (if present)
+3. **Delegation Verification**: Verify delegator's signature
+4. **Agent Verification**: Verify agent's signature on original message
 
 ## 🔒 Security Model
 
-### **Delegation Verification**
-1. **DNS Resolution**: Verify delegated identity exists
-2. **Key Validation**: Confirm device public key matches DNS record
-3. **Signature Verification**: Validate message signature with device key
-4. **Scope Checking**: Ensure device has required permissions
+### **Multi-Layer Verification**
+1. **DNS Resolution**: Verify delegator identity exists
+2. **Key Validation**: Confirm delegator public key matches DNS record
+3. **Signature Verification**: Validate delegation and agent signatures
+4. **Attestation Validation**: Verify third-party approval (when required)
 
 ### **Revocation Mechanism**
 - **Immediate**: Remove DNS TXT records
-- **Propagation**: Controlled by DNS TTL (typically 60 seconds)
-- **Verification**: All BTPS servers automatically reject revoked devices
+- **Propagation**: Controlled by DNS TTL (typically 60-300 seconds)
+- **Verification**: All BTPS servers automatically reject revoked delegations
 
 ## ✅ Benefits
 
-- **No SaaS Dependency**: Messages sent directly without SaaS server uptime
+- **No SaaS Dependency**: Messages verifiable without SaaS server uptime
 - **Real-time Revocation**: DNS-based revocation with fast propagation
-- **Standardized Clients**: Universal BTPS app behavior across platforms
-- **Device Privacy**: Each device maintains its own private key
-- **Scalable**: DNS-based delegation scales with identity sharding
-- **Secure**: Cryptographic separation prevents key compromise
+- **Cryptographic Security**: End-to-end signature verification
+- **Attestation Support**: Third-party validation for enhanced security
+- **Scalable**: DNS-based delegation scales with identity management
 
 ## 🎯 Use Cases
 
-### **Mobile Applications**
-- Send invoices from phone without copying private keys
-- Access inbox and trust requests on mobile
-- Real-time notifications and polling
-
 ### **Multi-Device Access**
-- Desktop, tablet, and phone access to same BTPS identity
-- Granular permission control per device
+- Send messages from mobile, desktop, or tablet
+- Maintain security without key sharing
 - Independent device revocation
 
 ### **Third-Party Integrations**
-- Standardized BTPS client libraries
-- Platform-agnostic authentication flows
-- Consistent protocol behavior across implementations
+- Standardized delegation protocols
+- Platform-agnostic verification
+- Consistent security model
+
+### **Enterprise Security**
+- Granular delegation control
+- Audit trail for all delegations
+- Compliance with security policies
 
 ## 🔮 Future Extensions
 
-- **Multi-device revocation lists**
-- **Push-based SaaS delegation**
-- **Hardware-bound device keys**
-- **WebAuthn/Passkey integration**
-- **Advanced permission scopes**
-- **Delegation analytics and monitoring**
+- **Multi-level delegation chains**
+- **Time-limited delegations**
+- **Scope-based permissions**
+- **Hardware-bound delegation keys**
+- **Delegation analytics and monitoring** 

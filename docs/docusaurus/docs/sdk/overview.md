@@ -55,14 +55,16 @@ import type { BTPArtifact, BTPInvoiceDoc } from '@btps/sdk';
 
 ## 📦 Entry Points & Subpath Exports
 
-| Import Path        | Description                      |
-| ------------------ | -------------------------------- |
-| `@btps/sdk`        | Main SDK (server, client, utils) |
-| `@btps/sdk/server` | Server-side exports              |
-| `@btps/sdk/client` | Client-side exports              |
-| `@btps/sdk/crypto` | Cryptographic utilities          |
-| `@btps/sdk/trust`  | Trust store and trust types      |
-| `@btps/sdk/error`  | Error types and helpers          |
+| Import Path                 | Description                      |
+| --------------------------- | -------------------------------- |
+| `@btps/sdk`                 | Main SDK (server, client, utils) |
+| `@btps/sdk/server`          | Server-side exports              |
+| `@btps/sdk/client`          | Client-side exports              |
+| `@btps/sdk/crypto`          | Cryptographic utilities          |
+| `@btps/sdk/trust`           | Trust store and trust types      |
+| `@btps/sdk/error`           | Error types and helpers          |
+| `@btps/sdk/authentication`  | Error types and helpers          |
+| `@btps/sdk/delegation`      | Error types and helpers          |
 
 ---
 
@@ -72,15 +74,19 @@ Your installed `node_modules/@btps/sdk` will contain:
 
 ```
 dist/
-├── index.js                 ← Main entry
+├── index.js                  ← Main entry
 ├── index.d.ts                ← Type declarations
 ├── core/
 │   ├── trust/
 │   │   └── index.js         ← @btps/sdk/trust
 │   ├── crypto/
 │   │   └── index.js         ← @btps/sdk/crypto
-│   └── error/
-│       └── index.js         ← @btps/sdk/error
+│   ├── error/
+│   │   └── index.js         ← @btps/sdk/error
+│   ├── authentication       
+│   │   └── index.js         ← @btps/sdk/authentication
+│   ├── delegation       
+│   │   └── index.js         ← @btps/sdk/delegation
 └── client/
 │   ├── index.js             ← @btps/sdk/client
 │

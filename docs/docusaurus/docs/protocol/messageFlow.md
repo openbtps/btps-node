@@ -80,6 +80,7 @@ The `document` field contains the actual business content:
 **Trust Request Document:**
 ```json
 {
+  "id": "uniqueUuid",
   "name": "Acme Corporation",
   "email": "billing@acme.com",
   "reason": "To send monthly service invoices",
@@ -114,6 +115,8 @@ sequenceDiagram
     participant DNS as DNS Server
     participant R as Receiver
     
+    S->>DNS: Publishes TXT record & endpoint for sender
+    R->>DNS: Publishes TXT record & endpoint for sender
     S->>DNS: Query TXT record for receiver
     DNS->>S: Return public key & endpoint
     S->>S: Validate DNS response
@@ -145,7 +148,7 @@ sequenceDiagram
     S->>S: Create trust request document
     S->>S: Create BTP artifact with document
     S->>S: Sign artifact with private key
-    S->>S: Encrypt artifact with receiver's public key
+    S->>S: Optionally encrypt artifact with receiver's public key
     S->>R: Send BTP artifact
     
     R->>R: Verify sender signature
@@ -202,7 +205,7 @@ sequenceDiagram
     S->>S: Create business document (invoice, etc.)
     S->>S: Create BTP artifact with document
     S->>S: Sign BTP artifact with private key
-    S->>S: Encrypt BTP artifact based on privacy type
+    S->>S: Optionally encrypt BTP artifact based on privacy type
     S->>R: Send encrypted BTP artifact
     
     R->>R: Verify sender signature
@@ -211,7 +214,7 @@ sequenceDiagram
     R->>R: Validate document format
     R->>R: Process document
     R->>R: Store in inbox
-    R->>R: Decrypt BTP artifact
+    R->>R: Decrypt encrypted BTP artifact
     R->>R: Reads and actions BTP artifact
 ```
 
@@ -239,13 +242,14 @@ sequenceDiagram
 ### Identity Verification
 ```mermaid
 graph TD
-    A[Receive BTP Artifact] --> B[Extract Sender Identity]
-    B --> C[Query DNS TXT Record]
-    C --> D[Get Public Key]
-    D --> E[Verify Artifact Signature]
-    E --> F{Signature Valid?}
-    F -->|Yes| G[Identity Verified]
-    F -->|No| H[Reject Artifact]
+    A[Receive BTP Artifact] --> B[Validate Artifact Format]
+    B --> C[Extract Sender Identity]
+    C --> D[Query DNS TXT Record]
+    D --> E[Get Public Key]
+    E --> F[Verify Artifact Signature]
+    F --> G{Signature Valid?}
+    G -->|Yes| H[Identity Verified]
+    G -->|No| I[Reject Artifact]
 ```
 
 ### Trust Verification
@@ -294,6 +298,7 @@ Receiver → Sender: Trust Response BTP Artifact
   "from": "billing$vendor.com",
   "to": "pay$client.com",
   "document": {
+    "id": "uniqueUuid",
     "name": "Vendor Corp",
     "email": "billing@vendor.com",
     "reason": "To send monthly invoices",
@@ -321,6 +326,7 @@ Receiver → Sender: Trust Response BTP Artifact
   "from": "pay$client.com",
   "to": "billing$vendor.com",
   "document": {
+    "id": "uniqueUuid",
     "decision": "accepted",
     "decidedAt": "2025-01-15T11:00:00Z",
     "decidedBy": "admin@client.com"

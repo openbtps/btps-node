@@ -1,389 +1,213 @@
 ---
-title: Types & Interfaces
+title: SDK Types & Interfaces
 sidebar_label: Types & Interfaces
 ---
 
 # BTPS SDK Types & Interfaces
 
-This page documents all public types and interfaces used throughout the BTPS SDK.
+This reference documents all types and interfaces used throughout the BTPS SDK. These are organized by category for easy navigation.
 
 ---
 
-## BTPCryptoOptions
+## Server Types
+
+### BtpsServerOptions
+Configuration options for the BTPS server.
 
 ```ts
-type BTPCryptoOptions = {
-  signature?: { algorithm: SignatureAlgorithmType };
-  encryption?: { algorithm: EncryptionAlgorithmType; mode: EncryptionMode };
+interface BtpsServerOptions {
+  trustStore: AbstractTrustStore<BTPTrustRecord>;
+  port?: number;
+  onError?: (err: BTPErrorException) => void;
+  options?: TlsOptions;
+  connectionTimeoutMs?: number;
+  middlewarePath?: string;
 }
 ```
 
-**Description:**
-Options for cryptographic operations (signature and encryption algorithms).
-
 **Properties:**
-- `signature` (optional): `{ algorithm: SignatureAlgorithmType }`
-- `encryption` (optional): `{ algorithm: EncryptionAlgorithmType; mode: EncryptionMode }`
+- `trustStore`: Required trust store instance for managing trust records
+- `port`: Optional port number (default: 3443)
+- `onError`: Optional error handler function
+- `options`: Optional TLS configuration options
+- `connectionTimeoutMs`: Optional connection timeout in milliseconds (default: 30000)
+- `middlewarePath`: Optional path to middleware file
 
----
-
-## PemKeys
+### ProcessedArtifact
+Represents a processed artifact that has been parsed and validated.
 
 ```ts
-type PemKeys = {
-  publicKey: string;
-  privateKey: string;
+type ProcessedArtifact =
+  | { artifact: BTPTransporterArtifact; isAgentArtifact: false }
+  | { artifact: BTPAgentArtifact; isAgentArtifact: true; respondNow: boolean };
+```
+
+**Variants:**
+- **Transporter Artifact**: Regular BTPS artifact with `isAgentArtifact: false`
+- **Agent Artifact**: Agent-specific artifact with `isAgentArtifact: true` and `respondNow` flag
+
+### BTPContext
+Base context for request/response handling.
+
+```ts
+interface BTPContext {
+  socket: TLSSocket;
+  startTime: string;
+  remoteAddress: string;
+  rawPacket?: string;
+  sendRes?: (res: BTPServerResponse) => void;
+  sendError?: (err: BTPError) => void;
 }
 ```
 
-**Description:**
-A pair of PEM-encoded public and private keys.
-
-**Properties:**
-- `publicKey` (`string`): PEM public key
-- `privateKey` (`string`): PEM private key
-
----
-
-## BTPSignature
+### BTPRequestCtx
+Request context with conditional properties based on processing phase.
 
 ```ts
-type BTPSignature = {
-  algorithm: SignatureAlgorithmType;
-  value: string;
-  fingerprint: string;
+type BTPRequestCtx<P extends Phase = Phase, S extends Step = Step> = Omit<
+  BTPContext,
+  'sendRes' | 'sendError'
+> & {
+  from?: string;
+} & (HasRawPacket<P, S> extends true ? { rawPacket: string } : { rawPacket?: string }) &
+  (HasArtifact<P, S> extends true ? { data: ProcessedArtifact } : { data?: ProcessedArtifact }) &
+  (HasIsValid<P, S> extends true ? { isValid: boolean } : { isValid?: boolean }) &
+  (HasIsTrusted<P, S> extends true ? { isTrusted: boolean } : { isTrusted?: boolean }) &
+  (HasError<P, S> extends true ? { error: BTPErrorException } : { error?: BTPErrorException }) & {
+    [key: string]: unknown;
+  };
+```
+
+### BTPResponseCtx
+Response context with conditional properties based on processing phase.
+
+```ts
+type BTPResponseCtx<P extends Phase = Phase, S extends Step = Step> = SetRequired<
+  BTPContext,
+  'sendRes' | 'sendError'
+> &
+  (HasReqId<P, S> extends true ? { reqId: string } : { reqId?: string }) &
+  (HasArtifact<P, S> extends true ? { data: ProcessedArtifact } : { data?: ProcessedArtifact }) & {
+    [key: string]: unknown;
+  };
+```
+
+### ArtifactResCtx
+Context for artifact response handling.
+
+```ts
+type ArtifactResCtx = {
+  sendRes: Required<BTPContext>['sendRes'];
+  sendError: Required<BTPContext>['sendError'];
+};
+```
+
+### MiddlewareContext
+Context passed to middleware handlers.
+
+```ts
+interface MiddlewareContext {
+  dependencies: {
+    trustStore: AbstractTrustStore<BTPTrustRecord>;
+  };
+  config: Record<string, unknown>;
+  serverInstance: unknown;
+  currentTime: string;
 }
 ```
 
-**Description:**
-A digital signature object for BTPS artifacts.
-
-**Properties:**
-- `algorithm` (`SignatureAlgorithmType`): Hash/signature algorithm
-- `value` (`string`): Base64-encoded signature
-- `fingerprint` (`string`): Public key fingerprint
-
----
-
-## BTPEncryption
+### MiddlewareDefinition
+Definition of a middleware handler.
 
 ```ts
-type BTPEncryption = {
-  algorithm: EncryptionAlgorithmType;
-  encryptedKey: string;
-  iv: string;
-  type: EncryptionMode;
+interface MiddlewareDefinition<P extends Phase = Phase, S extends Step = Step> {
+  phase: P;
+  step: S;
+  priority?: number;
+  config?: MiddlewareConfig;
+  handler: MiddlewareHandler<P, S>;
 }
 ```
 
-**Description:**
-Encryption metadata for an encrypted BTPS payload.
-
-**Properties:**
-- `algorithm` (`EncryptionAlgorithmType`): Encryption algorithm
-- `encryptedKey` (`string`): Base64-encoded encrypted AES key
-- `iv` (`string`): Base64-encoded initialization vector
-- `type` (`EncryptionMode`): Encryption mode
-
----
-
-## SignatureAlgorithmType
+### MiddlewareConfig
+Configuration for middleware.
 
 ```ts
-type SignatureAlgorithmType = 'sha256'
-```
-
-**Description:**
-Supported signature algorithm(s) for BTPS (currently only `'sha256'`).
-
----
-
-## EncryptionAlgorithmType
-
-```ts
-type EncryptionAlgorithmType = 'aes-256-cbc'
-```
-
-**Description:**
-Supported encryption algorithm(s) for BTPS (currently only `'aes-256-cbc'`).
-
----
-
-## EncryptionMode
-
-```ts
-type EncryptionMode = 'none' | 'standardEncrypt' | '2faEncrypt'
-```
-
-**Description:**
-Supported encryption modes for BTPS payloads.
-
----
-
-## BTPCryptoArtifact
-
-```ts
-interface BTPCryptoArtifact<T = BTPDocType> extends Omit<BTPArtifact, 'version' | 'document'> {
-  document: T | string;
+interface MiddlewareConfig {
+  name?: string;
+  enabled?: boolean;
+  options?: Record<string, unknown>;
 }
 ```
 
-**Description:**
-A cryptographically processed BTPS artifact (signed and/or encrypted).
-
-**Properties:**
-- All properties of `BTPArtifact` (except `version` and `document`)
-- `document` (`T | string`): The (possibly encrypted) document
-
----
-
-## BTPCryptoResponse
+### MiddlewareModule
+Complete middleware module with lifecycle hooks.
 
 ```ts
-interface BTPCryptoResponse<T = BTPDocType> {
-  payload?: BTPCryptoArtifact<T>;
-  error?: BTPErrorException;
+interface MiddlewareModule {
+  middleware: MiddlewareDefinitionArray;
+  onServerStart?: () => Promise<void> | void;
+  onServerStop?: () => Promise<void> | void;
+  onResponseSent?: (response: BTPServerResponse) => Promise<void> | void;
 }
 ```
 
-**Description:**
-Response object for cryptographic operations (sign/encrypt or decrypt/verify).
-
-**Properties:**
-- `payload` (optional): The processed artifact
-- `error` (optional): Error (if any)
-
----
-
-## AllowedEncryptPayloads
+### BTPAttachment
+File attachment for documents.
 
 ```ts
-type AllowedEncryptPayloads = BTPTrustReqDoc | BTPTrustResDoc | BTPInvoiceDoc
-```
-
-**Description:**
-Union type of all payloads allowed for encryption in BTPS.
-
----
-
-## Trust Store Types & Interfaces
-
-### TrustStoreOptions
-
-```ts
-type TrustStoreOptions = {
-  connection: unknown;
-  entityName?: string;
+interface BTPAttachment {
+  content: string; // base64
+  type: 'application/pdf' | 'image/jpeg' | 'image/png';
+  filename?: string;
 }
 ```
 
-**Description:**
-Options for configuring a trust store (file path, DB connection, etc.).
-
-**Properties:**
-- `connection` (`unknown`): File path, DB client, or other connection.
-- `entityName` (`string`, optional): Entity/table name for storage.
-
----
-
-### BTPTrustStatus
+### BTPInvoiceDoc
+Invoice document structure.
 
 ```ts
-type BTPTrustStatus = 'accepted' | 'rejected' | 'revoked' | 'pending' | 'blocked'
-```
-
-**Description:**
-Possible statuses for a trust record.
-
----
-
-### BTPTrustDecisionType
-
-```ts
-type BTPTrustDecisionType = 'accepted' | 'rejected' | 'revoked' | 'blocked'
-```
-
-**Description:**
-Possible decision types for a trust response (excludes 'pending').
-
----
-
-### BTPEncryptionType
-
-```ts
-type BTPEncryptionType = 'unencrypted' | 'encrypted' | 'mixed'
-```
-
-**Description:**
-Possible privacy/encryption types for a trust record.
-
----
-
-### KeyHistory
-
-```ts
-type KeyHistory = {
-  fingerprint: string;
-  firstSeen: string;
-  lastSeen: string;
-}
-```
-
-**Description:**
-History record for a public key's fingerprint and usage dates.
-
-**Properties:**
-- `fingerprint` (`string`): Previous public key fingerprint.
-- `firstSeen` (`string`): ISO date/time first used.
-- `lastSeen` (`string`): ISO date/time last used.
-
----
-
-### BTPTrustRecord
-
-```ts
-type BTPTrustRecord = {
+interface BTPInvoiceDoc {
+  title: string;
   id: string;
-  senderId: string;
-  receiverId: string;
-  status: BTPTrustStatus;
-  createdAt: string;
-  decidedBy: string;
-  decidedAt: string;
-  expiresAt?: string;
-  publicKeyBase64: string;
-  publicKeyFingerprint: string;
-  keyHistory: KeyHistory[];
-  privacyType: BTPEncryptionType;
-  retryAfterDate?: string;
+  issuedAt: string; // ISO format
+  status: 'paid' | 'unpaid' | 'partial' | 'refunded' | 'disputed';
+  dueAt?: string; // ISO format
+  paidAt?: string; // ISO format
+  refundedAt?: string; // ISO format
+  disputedAt?: string; // ISO format
+  totalAmount: {
+    value: number;
+    currency: CurrencyCode;
+  };
+  lineItems: {
+    columns: string[];
+    rows: Array<Record<string, string | number>>;
+  };
+  issuer?: {
+    name: string;
+    email?: string;
+    phone?: string;
+  };
+  paymentLink?: {
+    linkText: string;
+    url: string;
+  };
+  description?: string;
+  attachment?: BTPAttachment;
+  template?: {
+    name: string;
+    data: Record<string, unknown>;
+  };
 }
 ```
 
-**Description:**
-A trust record between two BTPS identities, including status, keys, and metadata.
-
-**Properties:**
-- `id` (`string`): Unique trust ID (from `computeTrustId`).
-- `senderId` (`string`): Sender identity.
-- `receiverId` (`string`): Receiver identity.
-- `status` (`BTPTrustStatus`): Current trust status.
-- `createdAt` (`string`): Creation date/time (ISO).
-- `decidedBy` (`string`): Deciding authority.
-- `decidedAt` (`string`): Decision date/time (ISO).
-- `expiresAt` (`string`, optional): Expiry date/time (ISO).
-- `publicKeyBase64` (`string`): Current public key (base64).
-- `publicKeyFingerprint` (`string`): Current public key fingerprint.
-- `keyHistory` (`KeyHistory[]`): History of public keys.
-- `privacyType` (`BTPEncryptionType`): Privacy type for this trust.
-- `retryAfterDate` (`string`, optional): When a new trust request can be retried.
-
 ---
 
-### BTPTrustReqDoc
-
-```ts
-type BTPTrustReqDoc = {
-  name: string;
-  email: string;
-  reason: string;
-  phone: string;
-  address?: string;
-  logoUrl?: string;
-  displayName?: string;
-  websiteUrl?: string;
-  message?: string;
-  expiresAt?: string;
-  privacyType?: BTPEncryptionType;
-}
-```
-
-**Description:**
-Document structure for a trust request artifact.
-
-**Properties:**
-- `name` (`string`): Requesting party's name.
-- `email` (`string`): Requesting party's email.
-- `reason` (`string`): Reason for trust request.
-- `phone` (`string`): Requesting party's phone.
-- `address` (`string`, optional): Address.
-- `logoUrl` (`string`, optional): Logo/image URL.
-- `displayName` (`string`, optional): Display name.
-- `websiteUrl` (`string`, optional): Website URL.
-- `message` (`string`, optional): Message.
-- `expiresAt` (`string`, optional): Expiry date/time (ISO).
-- `privacyType` (`BTPEncryptionType`, optional): Privacy type.
-
----
-
-### BTPTrustResDoc
-
-```ts
-type BTPTrustResDoc = {
-  decision: BTPTrustDecisionType;
-  decidedAt: string;
-  decidedBy: string;
-  expiresAt?: string;
-  retryAfterDate?: string;
-  message?: string;
-  privacyType?: BTPEncryptionType;
-}
-```
-
-**Description:**
-Document structure for a trust response artifact.
-
-**Properties:**
-- `decision` (`BTPTrustDecisionType`): Decision type.
-- `decidedAt` (`string`): Decision date/time (ISO).
-- `decidedBy` (`string`): Deciding authority.
-- `expiresAt` (`string`, optional): Expiry date/time (ISO).
-- `retryAfterDate` (`string`, optional): When a new trust request can be retried.
-- `message` (`string`, optional): Message.
-- `privacyType` (`BTPEncryptionType`, optional): Privacy type.
-
----
-
-## Error Types & Interfaces
-
-### BTPError
-
-```ts
-type BTPError = {
-  code?: string | number;
-  message: string;
-}
-```
-
-**Description:**
-A BTPS error object (code and message).
-
-**Properties:**
-- `code` (`string | number`, optional): Error code.
-- `message` (`string`): Error message.
-
----
-
-### BTPErrorResponse
-
-```ts
-type BTPErrorResponse<T = unknown> = {
-  data: T;
-  errors: BTPError[];
-}
-```
-
-**Description:**
-A standard error response object for BTPS operations.
-
-**Properties:**
-- `data` (`T`): The data (if any) returned.
-- `errors` (`BTPError[]`): List of errors.
-
----
-
-## Client Types & Interfaces
+## Client Types
 
 ### BtpsClientOptions
+Configuration options for BTPS clients.
 
 ```ts
 interface BtpsClientOptions {
@@ -399,12 +223,19 @@ interface BtpsClientOptions {
 }
 ```
 
-**Description:**
-Options for configuring a BTPS client instance.
-
----
+**Properties:**
+- `identity`: BTPS identity (e.g., `billing$yourdomain.com`)
+- `btpIdentityKey`: PEM-encoded private key
+- `bptIdentityCert`: PEM-encoded public key certificate
+- `maxRetries`: Maximum retry attempts (default: 5)
+- `retryDelayMs`: Delay between retries in milliseconds (default: 1000)
+- `connectionTimeoutMs`: Connection timeout in milliseconds
+- `btpMtsOptions`: Additional TLS connection options
+- `host`: Optional host override
+- `port`: Optional port override
 
 ### BTPSRetryInfo
+Information about retry attempts.
 
 ```ts
 interface BTPSRetryInfo {
@@ -414,12 +245,8 @@ interface BTPSRetryInfo {
 }
 ```
 
-**Description:**
-Information about a retry attempt for BTPS client operations.
-
----
-
 ### BtpsClientEvents
+Event types for client event emitters.
 
 ```ts
 type BtpsClientEvents = {
@@ -427,45 +254,20 @@ type BtpsClientEvents = {
   end: (endInfo: BTPSRetryInfo) => void;
   error: (errorInfo: BTPSRetryInfo & { error: BTPErrorException }) => void;
   message: (msg: BTPServerResponse) => void;
-}
+};
 ```
 
-**Description:**
-Event handlers for BTPS client events.
-
----
-
 ### TypedEventEmitter
+Typed event emitter for client events.
 
 ```ts
 type TypedEventEmitter<T = BtpsClientEvents> = {
   on<K extends keyof T>(event: K, listener: T[K]): void;
-}
+};
 ```
-
-**Description:**
-A typed event emitter for BTPS client events.
-
----
-
-### SendBTPArtifact
-
-```ts
-interface SendBTPArtifact extends BTPCryptoOptions {
-  to: string;
-  type: BTPArtifactType;
-  document: BTPDocType;
-  id?: string;
-  issuedAt?: string;
-}
-```
-
-**Description:**
-Options for sending a BTPS artifact from the client.
-
----
 
 ### BTPClientResponse
+Response from client operations.
 
 ```ts
 interface BTPClientResponse {
@@ -474,112 +276,758 @@ interface BTPClientResponse {
 }
 ```
 
-**Description:**
-Response object for BTPS client send operations.
-
----
-
-## Server Types & Interfaces
-
-### BtpsServerOptions
+### SendBTPArtifact
+Artifact to be sent by clients.
 
 ```ts
-interface BtpsServerOptions {
-  trustStore: AbstractTrustStore<BTPTrustRecord>;
-  port?: number;
-  onError?: (err: BTPErrorException) => void;
-  options?: TlsOptions;
-  middlewarePath?: string;
+interface SendBTPArtifact {
+  to: string;
+  type: string;
+  document: Record<string, unknown>;
+  [key: string]: unknown;
 }
 ```
 
-**Description:**
-Options for configuring a BTPS server instance.
+---
+
+## Authentication Types
+
+### ServerAuthConfig
+Configuration for server-side authentication.
+
+```ts
+interface ServerAuthConfig {
+  trustStore: AbstractTrustStore<BTPTrustRecord>;
+  tokenStore: TokenStore;
+  refreshTokenStore: TokenStore;
+  tokenConfig?: TokenConfig;
+}
+```
+
+### TokenConfig
+Configuration for token generation and validation.
+
+```ts
+interface TokenConfig {
+  authTokenLength?: number;
+  authTokenAlphabet?: string;
+  authTokenExpiryMs?: number;
+  refreshTokenExpiryMs?: number;
+}
+```
+
+### BTPsTokenDocument
+Stored refresh token information.
+
+```ts
+interface BTPsTokenDocument {
+  token: string;
+  agentId: string;
+  userIdentity: string;
+  createdAt: string;
+  expiresAt: string;
+  metadata?: Record<string, unknown>;
+}
+```
+
+### AuthSession
+Authentication session with key information.
+
+```ts
+type AuthSession = BTPsTokenDocument & {
+  publicKeyFingerprint: string;
+  refreshToken: string;
+};
+```
+
+### TokenStore
+Refresh token store interface.
+
+```ts
+interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
+  store(
+    token: string,
+    agentId: string | null,
+    userIdentity: string,
+    expiryMs: number,
+    metadata?: Record<string, unknown>,
+  ): Promise<void>;
+  get(agentId: string, token: string): Promise<T | undefined>;
+  remove(agentId: string, token: string): Promise<void>;
+  cleanup(): Promise<void>;
+}
+```
+
+### AuthSessionStore
+Authentication session store interface.
+
+```ts
+interface AuthSessionStore {
+  store(session: AuthSession): Promise<void>;
+  getByAgentId(agentId: string): Promise<AuthSession | undefined>;
+  getByIdentity(identity: string): Promise<AuthSession | undefined>;
+  remove(agentId: string): Promise<void>;
+  cleanup(): Promise<void>;
+  getAll(): Promise<AuthSession[]>;
+}
+```
+
+### CreateAgentOptions
+Options for creating a new agent.
+
+```ts
+interface CreateAgentOptions {
+  userIdentity: string;
+  publicKey: string;
+  agentInfo?: Record<string, string | string[]>;
+  decidedBy: string;
+  privacyType?: BTPTrustRecord['privacyType'];
+  trustExpiryMs?: number;
+}
+```
+
+### AuthValidationResult
+Result of authentication token validation.
+
+```ts
+interface AuthValidationResult {
+  isValid: boolean;
+  userIdentity?: string;
+  error?: Error;
+}
+```
+
+### RefreshTokenValidationResult
+Result of refresh token validation.
+
+```ts
+type RefreshTokenValidationResult =
+  | {
+      isValid: false;
+      error?: Error;
+    }
+  | {
+      isValid: true;
+      agentId: string;
+      userIdentity: string;
+    };
+```
+
+### ReissueRefreshTokenOptions
+Options for reissuing refresh tokens.
+
+```ts
+type ReissueRefreshTokenOptions = Omit<CreateAgentOptions, 'userIdentity' | 'publicKey'> & { 
+  publicKey?: string;
+};
+```
+
+### ReissueRefreshTokenResult
+Result of refresh token reissuance.
+
+```ts
+interface ReissueRefreshTokenResult {
+  data?: BTPAuthResDoc;
+  error?: BTPErrorException;
+}
+```
+
+### AuthRequestResponse
+Response from authentication requests.
+
+```ts
+interface AuthRequestResponse {
+  success: boolean;
+  response?: BTPAuthResDoc;
+  error?: BTPErrorException;
+}
+```
+
+### AuthAgentOptions
+Options for agent authentication.
+
+```ts
+interface AuthAgentOptions {
+  host?: string;
+  port?: number;
+  connectionTimeoutMs?: number;
+}
+```
+
+### PemKeys
+PEM-encoded key pair.
+
+```ts
+interface PemKeys {
+  publicKey: string;
+  privateKey: string;
+}
+```
+
+### ParsedIdentity
+Parsed BTPS identity components.
+
+```ts
+type ParsedIdentity = {
+  accountName: string;
+  domainName: string;
+};
+```
 
 ---
 
-### Phase, Step
+## Delegation Types
+
+### BtpsDelegatorOptions
+Configuration options for the delegator.
+
+```ts
+interface BtpsDelegatorOptions {
+  identity: string;
+  privateKey: PemKeys['privateKey'];
+  autoInit?: boolean;
+}
+```
+
+### OnBehalfOfOptions
+Options for custom domain delegations.
+
+```ts
+interface OnBehalfOfOptions {
+  identity: string;
+  keyPair: PemKeys;
+}
+```
+
+---
+
+## Trust Store Types
+
+### TrustStoreOptions
+Configuration options for trust stores.
+
+```ts
+interface TrustStoreOptions {
+  connection: unknown;
+  entityName?: string;
+}
+```
+
+### BTPTrustStatus
+Possible trust record statuses.
+
+```ts
+type BTPTrustStatus = 'accepted' | 'rejected' | 'revoked' | 'pending' | 'blocked';
+```
+
+### BTPTrustDecisionType
+Trust decision types (excludes 'pending').
+
+```ts
+type BTPTrustDecisionType = Exclude<BTPTrustStatus, 'pending'>;
+```
+
+### BTPEncryptionType
+Privacy/encryption types for trust records.
+
+```ts
+type BTPEncryptionType = 'unencrypted' | 'encrypted' | 'mixed';
+```
+
+### KeyHistory
+History record for public key usage.
+
+```ts
+interface KeyHistory {
+  fingerprint: string;
+  firstSeen: string;
+  lastSeen: string;
+}
+```
+
+### BTPTrustRecord
+Trust record structure.
+
+```ts
+interface BTPTrustRecord {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  status: BTPTrustStatus;
+  createdAt: string;
+  decidedBy: string;
+  decidedAt: string;
+  expiresAt?: string;
+  publicKeyBase64: string;
+  publicKeyFingerprint: string;
+  keyHistory: KeyHistory[];
+  privacyType: BTPEncryptionType;
+  retryAfterDate?: string;
+  metadata?: Record<string, unknown>;
+}
+```
+
+### BTPTrustReqDoc
+Trust request document structure.
+
+```ts
+interface BTPTrustReqDoc {
+  id: string;
+  name: string;
+  email: string;
+  reason: string;
+  phone: string;
+  address?: string;
+  logoUrl?: string;
+  displayName?: string;
+  websiteUrl?: string;
+  message?: string;
+  expiresAt?: string;
+  privacyType?: BTPEncryptionType;
+}
+```
+
+### BTPTrustResDoc
+Trust response document structure.
+
+```ts
+interface BTPTrustResDoc {
+  id: string;
+  decision: BTPTrustDecisionType;
+  decidedAt: string;
+  decidedBy: string;
+  expiresAt?: string;
+  retryAfterDate?: string;
+  message?: string;
+  privacyType?: BTPEncryptionType;
+}
+```
+
+---
+
+## Core Server Types
+
+### BTPAgentArtifact
+Agent-specific artifact structure.
+
+```ts
+interface BTPAgentArtifact {
+  id: string;
+  action: AgentAction;
+  document?: BTPTransporterArtifact | BTPAuthReqDoc | BTPAgentMutation | BTPAgentQuery | BTPIdsPayload;
+  agentId: string;
+  to: string;
+  issuedAt: string;
+  signature: BTPSignature;
+  encryption: BTPEncryption | null;
+}
+```
+
+### BTPTransporterArtifact
+Transporter artifact structure.
+
+```ts
+interface BTPTransporterArtifact {
+  version: string;
+  issuedAt: string;
+  document: BTPDocType | string;
+  id: string;
+  type: BTPArtifactType;
+  from: string;
+  to: string;
+  signature: BTPSignature;
+  encryption: BTPEncryption | null;
+  delegation?: BTPDelegation;
+}
+```
+
+### BTPServerResponse
+Server response structure.
+
+```ts
+interface BTPServerResponse<T = BTPServerResDocs> {
+  version: string;
+  status: BTPStatus;
+  id: string;
+  issuedAt: string;
+  type: 'btp_error' | 'btp_response';
+  reqId?: string;
+  document?: T;
+  signature?: BTPSignature;
+  encryption?: BTPEncryption;
+  signedBy?: string;
+}
+```
+
+### BTPStatus
+Status information for responses.
+
+```ts
+interface BTPStatus {
+  ok: boolean;
+  code: number;
+  message?: string;
+}
+```
+
+### BTPDelegation
+Delegation structure.
+
+```ts
+interface BTPDelegation {
+  agentId: string;
+  agentPubKey: string;
+  signedBy: string;
+  signature: BTPSignature;
+  issuedAt: string;
+  attestation?: BTPAttestation;
+}
+```
+
+### BTPAttestation
+Attestation structure for delegations.
+
+```ts
+interface BTPAttestation {
+  signedBy: string;
+  issuedAt: string;
+  signature: BTPSignature;
+}
+```
+
+### BTPAuthReqDoc
+Authentication request document.
+
+```ts
+interface BTPAuthReqDoc {
+  identity: string;
+  authToken: string;
+  publicKey: string;
+  agentInfo?: Record<string, string | string[]>;
+}
+```
+
+### BTPAuthResDoc
+Authentication response document.
+
+```ts
+interface BTPAuthResDoc {
+  agentId: string;
+  refreshToken: string;
+  expiresAt: string;
+}
+```
+
+### BTPAgentMutation
+Agent mutation document.
+
+```ts
+interface BTPAgentMutation {
+  type: 'create' | 'update' | 'delete';
+  agentId: string;
+  data?: Record<string, unknown>;
+}
+```
+
+### BTPIdsPayload
+IDs payload document.
+
+```ts
+interface BTPIdsPayload {
+  ids: string[];
+  [key: string]: unknown;
+}
+```
+
+### BTPAgentQuery
+Agent query document.
+
+```ts
+interface BTPAgentQuery {
+  query: string;
+  parameters?: Record<string, unknown>;
+}
+```
+
+### BTPDocType
+Generic document type.
+
+```ts
+type BTPDocType = BTPInvoiceDoc | BTPTrustReqDoc | BTPTrustResDoc;
+```
+
+### BTPStringQueryFilter
+String-based query filters.
+
+```ts
+interface BTPStringQueryFilter {
+  like?: string;
+  in?: string[];
+  eq?: string;
+  ne?: string;
+  notIn?: [string];
+  notLike?: string;
+}
+```
+
+### BTPAgentQueryDoc
+Agent query document structure.
+
+```ts
+interface BTPAgentQueryDoc {
+  title?: BTPStringQueryFilter;
+  from?: BTPStringQueryFilter;
+  to?: BTPStringQueryFilter;
+}
+```
+
+### BTPAgentQuery
+Agent query structure.
+
+```ts
+interface BTPAgentQuery {
+  since?: string;
+  until?: string;
+  limit?: number;
+  cursor?: string;
+  query?: BTPAgentQueryDoc;
+  sort?: 'asc' | 'desc';
+}
+```
+
+### BTPAgentMutation
+Agent mutation document.
+
+```ts
+interface BTPAgentMutation {
+  id: string;
+  document: BTPDocType;
+}
+```
+
+### BTPAgentCreate
+Agent creation document.
+
+```ts
+interface BTPAgentCreate {
+  type: BTPArtifactType;
+  document: BTPDocType;
+}
+```
+
+### BTPQueryResultEntry
+Query result entry with metadata.
+
+```ts
+interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFailureArtifact> {
+  artifact: T;
+  meta?: {
+    seen?: boolean;
+    seenAt?: string;
+    [key: string]: unknown;
+  };
+}
+```
+
+### BTPQueryResult
+Query result with pagination.
+
+```ts
+interface BTPQueryResult<T = BTPTransporterArtifact | BTPDeliveryFailureArtifact> {
+  results: BTPQueryResultEntry<T>[];
+  cursor?: string;
+  total?: number;
+  hasNext?: boolean;
+}
+```
+
+### BTPDeliveryFailureDoc
+Delivery failure document.
+
+```ts
+interface BTPDeliveryFailureDoc {
+  id: string;
+  reason: string;
+  failedAt: string;
+  retryCount?: number;
+  document?: BTPTransporterArtifact;
+  errorLog?: BTPErrorException;
+  recipient: string;
+  transportArtifactId: string;
+  agentArtifactId?: string;
+}
+```
+
+### BTPDeliveryFailureArtifact
+Delivery failure artifact.
+
+```ts
+interface BTPDeliveryFailureArtifact {
+  id: string;
+  issuedAt: string;
+  document: BTPDeliveryFailureDoc;
+  type: 'BTP_DELIVERY_FAILURE';
+  from: string;
+  to: string;
+}
+```
+
+### BTPServerResDocs
+Server response document types.
+
+```ts
+type BTPServerResDocs = BTPAuthResDoc | BTPQueryResult;
+```
+
+### AgentAction
+Available agent actions.
+
+```ts
+type AgentAction = 
+  | 'trust.request'
+  | 'trust.respond'
+  | 'trust.update'
+  | 'trust.delete'
+  | 'trust.fetch'
+  | 'inbox.fetch'
+  | 'inbox.delete'
+  | 'inbox.seen'
+  | 'outbox.fetch'
+  | 'outbox.cancel'
+  | 'sentbox.fetch'
+  | 'sentbox.delete'
+  | 'draft.fetch'
+  | 'draft.create'
+  | 'draft.update'
+  | 'draft.delete'
+  | 'trash.fetch'
+  | 'trash.delete'
+  | 'system.ping'
+  | 'auth.request'
+  | 'auth.refresh'
+  | 'artifact.send';
+```
+
+### AgentActionRequiringDocument
+Agent actions that require a document.
+
+```ts
+type AgentActionRequiringDocument = 
+  | 'trust.request'
+  | 'trust.respond'
+  | 'trust.update'
+  | 'trust.delete'
+  | 'artifact.send'
+  | 'auth.request'
+  | 'auth.refresh'
+  | 'inbox.seen'
+  | 'inbox.delete'
+  | 'sentbox.delete'
+  | 'outbox.cancel'
+  | 'draft.create'
+  | 'draft.update'
+  | 'draft.delete'
+  | 'trash.delete';
+```
+
+### BTPArtifactType
+Artifact type identifiers.
+
+```ts
+type BTPArtifactType = 
+  | 'TRUST_REQ'
+  | 'TRUST_RES'
+  | 'BTPS_DOC';
+```
+
+### CurrencyCode
+Supported currency codes.
+
+```ts
+type CurrencyCode = 'AED' | 'AFN' | 'ALL' | 'AMD' | 'ANG' | 'AOA' | 'ARS' | 'AUD' | 'AWG' | 'AZN' | 'BAM' | 'BBD' | 'BDT' | 'BGN' | 'BHD' | 'BIF' | 'BMD' | 'BND' | 'BOB' | 'BRL' | 'BSD' | 'BTN' | 'BWP' | 'BYN' | 'BZD' | 'CAD' | 'CDF' | 'CHF' | 'CLP' | 'CNY' | 'COP' | 'CRC' | 'CUP' | 'CVE' | 'CZK' | 'DJF' | 'DKK' | 'DOP' | 'DZD' | 'EGP' | 'ERN' | 'ETB' | 'EUR' | 'FJD' | 'FKP' | 'FOK' | 'GBP' | 'GEL' | 'GGP' | 'GHS' | 'GIP' | 'GMD' | 'GNF' | 'GTQ' | 'GYD' | 'HKD' | 'HNL' | 'HRK' | 'HTG' | 'HUF' | 'IDR' | 'ILS' | 'IMP' | 'INR' | 'IQD' | 'IRR' | 'ISK' | 'JEP' | 'JMD' | 'JOD' | 'JPY' | 'KES' | 'KGS' | 'KHR' | 'KID' | 'KMF' | 'KRW' | 'KWD' | 'KYD' | 'KZT' | 'LAK' | 'LBP' | 'LKR' | 'LRD' | 'LSL' | 'LYD' | 'MAD' | 'MDL' | 'MGA' | 'MKD' | 'MMK' | 'MNT' | 'MOP' | 'MRU' | 'MUR' | 'MVR' | 'MWK' | 'MXN' | 'MYR' | 'MZN' | 'NAD' | 'NGN' | 'NIO' | 'NOK' | 'NPR' | 'NZD' | 'OMR' | 'PAB' | 'PEN' | 'PGK' | 'PHP' | 'PKR' | 'PLN' | 'PYG' | 'QAR' | 'RON' | 'RSD' | 'RUB' | 'RWF' | 'SAR' | 'SBD' | 'SCR' | 'SDG' | 'SEK' | 'SGD' | 'SHP' | 'SLL' | 'SOS' | 'SRD' | 'SSP' | 'STN' | 'SYP' | 'SZL' | 'THB' | 'TJS' | 'TMT' | 'TND' | 'TOP' | 'TRY' | 'TTD' | 'TVD' | 'TWD' | 'TZS' | 'UAH' | 'UGX' | 'USD' | 'UYU' | 'UZS' | 'VES' | 'VND' | 'VUV' | 'WST' | 'XAF' | 'XCD' | 'XOF' | 'XPF' | 'YER' | 'ZAR' | 'ZMW' | 'ZWL';
+```
+
+---
+
+## Error Types
+
+### BTPError
+Base error structure.
+
+```ts
+interface BTPError {
+  code?: string | number;
+  message: string;
+}
+```
+
+### BTPErrorResponse
+Standard error response object.
+
+```ts
+interface BTPErrorResponse<T = unknown> {
+  data: T;
+  errors: BTPError[];
+}
+```
+
+### BTPErrorException
+Extended error class with additional context.
+
+```ts
+class BTPErrorException extends Error {
+  code?: string | number;
+  cause?: unknown;
+  meta?: Record<string, unknown>;
+  
+  constructor(btpError: BTPError, options?: {
+    cause?: unknown;
+    meta?: Record<string, unknown>;
+  });
+  
+  toJSON(): object;
+}
+```
+
+---
+
+## Utility Types
+
+### SetRequired
+Utility type to make specific properties required.
+
+```ts
+type SetRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
+```
+
+### Phase
+Middleware processing phases.
 
 ```ts
 type Phase = 'before' | 'after';
-type Step = 'parsing' | 'signatureVerification' | 'trustVerification' | 'onMessage' | 'onError';
 ```
 
-**Description:**
-Phases and steps for BTPS server middleware.
-
----
-
-### MiddlewareConfig
+### Step
+Middleware processing steps.
 
 ```ts
-interface MiddlewareConfig {
-  name?: string;
-  enabled?: boolean;
-  options?: Record<string, unknown>;
-}
+type Step = 
+  | 'parsing'
+  | 'signatureVerification'
+  | 'trustVerification'
+  | 'onArtifact'
+  | 'onError';
 ```
-
-**Description:**
-Configuration for a middleware module.
-
----
-
-### MiddlewareContext
-
-```ts
-interface MiddlewareContext {
-  dependencies: { trustStore: AbstractTrustStore<BTPTrustRecord>; };
-  config: Record<string, unknown>;
-  serverInstance: unknown;
-  currentTime: string;
-}
-```
-
-**Description:**
-Context object passed to middleware handlers.
-
----
-
-### BTPContext
-
-```ts
-interface BTPContext {
-  socket: TLSSocket;
-  startTime: string;
-  remoteAddress: string;
-}
-```
-
-**Description:**
-Context for a BTPS server request/response.
-
----
-
-### BTPRequestCtx, BTPResponseCtx
-
-```ts
-type BTPRequestCtx<P extends Phase = Phase, S extends Step = Step> = ...
-type BTPResponseCtx<P extends Phase = Phase, S extends Step = Step> = ...
-```
-
-**Description:**
-Conditional request/response context types for BTPS server middleware (see source for full details).
-
----
 
 ### Next
+Middleware next function type.
 
 ```ts
 type Next = () => Promise<void> | void;
 ```
 
-**Description:**
-Next function for middleware chaining.
-
----
-
 ### MiddlewareHandler
+Middleware handler function type.
 
 ```ts
 type MiddlewareHandler<P extends Phase = Phase, S extends Step = Step> = (
@@ -590,255 +1038,160 @@ type MiddlewareHandler<P extends Phase = Phase, S extends Step = Step> = (
 ) => Promise<void> | void;
 ```
 
-**Description:**
-Handler function for BTPS server middleware.
-
----
-
-### MiddlewareDefinition, CreateMiddlewareDefinition, MiddlewareDefinitionArray
+### MiddlewareDefinitionArray
+Array of middleware definitions.
 
 ```ts
-interface MiddlewareDefinition<P extends Phase = Phase, S extends Step = Step> { ... }
-type CreateMiddlewareDefinition<P extends Phase, S extends Step> = { ... }
-type MiddlewareDefinitionArray = Array<...>
+type MiddlewareDefinitionArray = Array<
+  | MiddlewareDefinition<'before', 'parsing'>
+  | MiddlewareDefinition<'after', 'parsing'>
+  | MiddlewareDefinition<'before', 'signatureVerification'>
+  | MiddlewareDefinition<'after', 'signatureVerification'>
+  | MiddlewareDefinition<'before', 'trustVerification'>
+  | MiddlewareDefinition<'after', 'trustVerification'>
+  | MiddlewareDefinition<'before', 'onArtifact'>
+  | MiddlewareDefinition<'after', 'onArtifact'>
+  | MiddlewareDefinition<'before', 'onError'>
+  | MiddlewareDefinition<'after', 'onError'>
+>;
 ```
 
-**Description:**
-Types for defining and grouping BTPS server middleware.
-
 ---
 
-### MiddlewareModule
+## Crypto Types
+
+### EncryptionMode
+Supported encryption modes.
 
 ```ts
-interface MiddlewareModule {
-  middleware: MiddlewareDefinitionArray;
-  onServerStart?: () => Promise<void> | void;
-  onServerStop?: () => Promise<void> | void;
+type EncryptionMode = 'none' | 'standardEncrypt' | '2faEncrypt';
+```
+
+### EncryptionAlgorithmType
+Supported encryption algorithms.
+
+```ts
+type EncryptionAlgorithmType = 'aes-256-cbc';
+```
+
+### BTPEncryption
+Encryption metadata structure.
+
+```ts
+interface BTPEncryption {
+  algorithm: EncryptionAlgorithmType;
+  encryptedKey: string;
+  iv: string;
+  type: EncryptionMode;
 }
 ```
 
-**Description:**
-A module exporting BTPS server middleware and lifecycle hooks.
+### SignatureAlgorithmType
+Supported signature algorithms.
+
+```ts
+type SignatureAlgorithmType = 'sha256';
+```
+
+### BTPSignature
+Digital signature structure.
+
+```ts
+interface BTPSignature {
+  algorithm: SignatureAlgorithmType;
+  value: string;
+  fingerprint: string;
+}
+```
+
+### BTPCryptoOptions
+Options for cryptographic operations.
+
+```ts
+interface BTPCryptoOptions {
+  signature: {
+    algorithm: SignatureAlgorithmType;
+  };
+  encryption?: {
+    algorithm: EncryptionAlgorithmType;
+    mode: EncryptionMode;
+  };
+}
+```
+
+### BTPCryptoResponse
+Response from cryptographic operations.
+
+```ts
+interface BTPCryptoResponse<T = Record<string, unknown>> {
+  payload?: BTPCryptoArtifact<T>;
+  error?: BTPErrorException;
+}
+```
+
+### BTPCryptoArtifact
+Artifact with cryptographic metadata.
+
+```ts
+interface BTPCryptoArtifact<T = Record<string, unknown>> {
+  version: string;
+  type: string;
+  id: string;
+  issuedAt: string;
+  from: string;
+  to: string;
+  document: T;
+  signature: string;
+  encryption?: string;
+  [key: string]: unknown;
+}
+```
+
+### BTPKeyConfig
+Configuration for key generation.
+
+```ts
+interface BTPKeyConfig {
+  keySize?: number;
+  format?: 'pem';
+  publicKeyEncoding?: 'spki';
+  privateKeyEncoding?: 'pkcs8';
+}
+```
+
+### BTPKeyPair
+Generated key pair with fingerprint.
+
+```ts
+interface BTPKeyPair {
+  publicKey: string;
+  privateKey: string;
+  fingerprint: string;
+}
+```
+
+### VerifyEncryptedPayload
+Payload for verification operations.
+
+```ts
+interface VerifyEncryptedPayload<T = unknown | string> {
+  document?: T;
+  signature: BTPSignature;
+  encryption: BTPEncryption | null;
+  delegation?: BTPDelegation;
+  [key: string]: unknown;
+}
+```
 
 ---
 
+## Legacy Types
+
 ### Middleware
+Legacy middleware type for backward compatibility.
 
 ```ts
 type Middleware<T, U> = (req: T, res: U, next: Next) => Promise<void>;
 ```
-
-**Description:**
-Legacy middleware handler type.
-
----
-
-### BTPAttachment
-
-```ts
-interface BTPAttachment {
-  content: string;
-  type: 'application/pdf' | 'image/jpeg' | 'image/png';
-  filename?: string;
-}
-```
-
-**Description:**
-Attachment for a BTPS invoice document.
-
----
-
-### BTPInvoiceDoc
-
-```ts
-interface BTPInvoiceDoc {
-  title: string;
-  id: string;
-  issuedAt: string;
-  status: 'paid' | 'unpaid' | 'partial' | 'refunded' | 'disputed';
-  dueAt?: string;
-  paidAt?: string;
-  refundedAt?: string;
-  disputedAt?: string;
-  totalAmount: { value: number; currency: CurrencyCode; };
-  lineItems: { columns: string[]; rows: Array<Record<string, string | number>>; };
-  issuer?: { name: string; email?: string; phone?: string; };
-  paymentLink?: { linkText: string; url: string; };
-  description?: string;
-  attachment?: BTPAttachment;
-  template?: { name: string; data: Record<string, unknown>; };
-}
-```
-
-**Description:**
-Invoice document structure for BTPS artifacts.
-
----
-
-## Artifact Types & Interfaces
-
-### BTPArtifactType, CurrencyCode, BTPDocType
-
-```ts
-type BTPArtifactType = ...;
-type CurrencyCode = ...;
-type BTPDocType = BTPInvoiceDoc | BTPTrustReqDoc | BTPTrustResDoc;
-```
-
-**Description:**
-Types for artifact type, currency code, and document union.
-
----
-
-### BTPArtifact
-
-```ts
-interface BTPArtifact {
-  version: string;
-  issuedAt: string;
-  document: BTPDocType;
-  id: string;
-  type: BTPArtifactType;
-  from: string;
-  to: string;
-  signature: BTPSignature;
-  encryption: BTPEncryption | null;
-}
-```
-
-**Description:**
-A BTPS artifact (invoice, trust request, or trust response).
-
----
-
-### BTPStatus
-
-```ts
-type BTPStatus = {
-  ok: boolean;
-  code: number;
-  message?: string;
-}
-```
-
-**Description:**
-Status object for BTPS server responses.
-
----
-
-### BTPServerResponse
-
-```ts
-interface BTPServerResponse {
-  version: string;
-  status: BTPStatus;
-  id: string;
-  issuedAt: string;
-  type: 'btp_error' | 'btp_response';
-  reqId?: string;
-}
-```
-
-**Description:**
-Response object for BTPS server operations.
-
----
-
-## Trust Store Abstract Class
-
-### AbstractTrustStore
-
-```ts
-abstract class AbstractTrustStore<T extends BTPTrustRecord> {
-  protected connection: unknown;
-  protected entityName?: string;
-  constructor({ connection, entityName }: TrustStoreOptions);
-  abstract getById(computedId: string): Promise<T | undefined>;
-  abstract create?(record: Omit<T, 'id'>, computedId?: string): Promise<T>;
-  abstract update?(computedId: string, patch: Partial<T>): Promise<T>;
-  abstract delete?(computedId: string): Promise<void>;
-  abstract getAll?(receiverId?: string): Promise<T[]>;
-}
-```
-
-**Description:**
-Abstract base class for implementing a trust store (file, DB, etc.).
-
----
-
-## Utility Types
-
-### ParsedIdentity
-
-```ts
-type ParsedIdentity = {
-  accountName: string;
-  domainName: string;
-}
-```
-
-**Description:**
-Parsed BTPS identity (account and domain parts).
-
----
-
-## Rate Limiting & Metrics Types
-
-### IRateLimitOptions
-
-```ts
-interface IRateLimitOptions {
-  ipAddress?: number;
-  fromIdentity?: number;
-  cleanupIntervalSec?: number;
-}
-```
-
-**Description:**
-Options for configuring rate limiting on the server.
-
-**Properties:**
-- `ipAddress` (`number`, optional): Maximum requests allowed per IP address.
-- `fromIdentity` (`number`, optional): Maximum requests allowed per sender identity.
-- `cleanupIntervalSec` (`number`, optional): Interval (in seconds) for cleaning up old rate limit records.
-
----
-
-### IMetricsTracker
-
-```ts
-interface IMetricsTracker {
-  onMessageReceived(sender: string, recipient?: string): void;
-  onMessageRejected(sender: string, recipient: string, reason: string): void;
-  onError(error: Error): void;
-}
-```
-
-**Description:**
-Interface for tracking server metrics and events.
-
-**Methods:**
-- `onMessageReceived(sender, recipient?)`: Called when a message is received.
-- `onMessageRejected(sender, recipient, reason)`: Called when a message is rejected.
-- `onError(error)`: Called when an error occurs.
-
----
-
-### CounterRecord
-
-```ts
-interface CounterRecord {
-  count: number;
-  windowStart: number;
-}
-```
-
-**Description:**
-A record for tracking the count and window start time for rate limiting.
-
-**Properties:**
-- `count` (`number`): Number of requests in the current window.
-- `windowStart` (`number`): Timestamp (ms) when the window started.
 
 --- 

@@ -40,10 +40,24 @@ const sidebars: SidebarsConfig = {
           label: 'Delegation',
           items: [
             'protocol/delegation/overview',
-            'protocol/delegation/authentication',
-            'protocol/delegation/messageFlow',
-            'protocol/delegation/revocation',
+            'protocol/delegation/specification',
+            'protocol/delegation/verificationProcess',
+            'protocol/delegation/delegationFlow',
+            'protocol/delegation/btpsDelegator',
             'protocol/delegation/bestPractices',
+            'protocol/delegation/revocation',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Authentication',
+          items: [
+            'protocol/authentication/overview',
+            'protocol/authentication/setup',
+            'protocol/authentication/authenticationFlow',
+            'protocol/authentication/btpsAuthentication',
+            'protocol/authentication/examples',
+            
           ],
         },
         {
@@ -69,6 +83,25 @@ const sidebars: SidebarsConfig = {
       items: [
         'client/overview',
         'client/setup',
+        {
+          type: 'category',
+          label: 'BTPS Agent',
+          items: [
+            'client/btpsAgent/overview',
+            'client/btpsAgent/setup',
+            'client/btpsAgent/commands',
+            'client/btpsAgent/examples',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'BTPS Transporter',
+          items: [
+            'client/btpsTransporter/overview',
+            'client/btpsTransporter/setup',
+            'client/btpsTransporter/examples',
+          ],
+        },
         'client/examples',
         'client/metricsAndMonitor',
         'client/debugging',

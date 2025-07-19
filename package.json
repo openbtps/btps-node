@@ -32,6 +32,9 @@
     "./authentication": {
       "import": "./dist/core/authentication/index.js"
     },
+    "./delegation": {
+      "import": "./dist/core/delegation/index.js"
+    },
     "./error": {
       "import": "./dist/core/error/index.js"
     }
