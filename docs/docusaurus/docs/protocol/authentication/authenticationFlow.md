@@ -1,6 +1,7 @@
 ---
 title: Authentication Flow
 sidebar_label: Authentication Flow
+slug: authentication-flow
 ---
 
 # BTPS Authentication Flow

@@ -1,26 +1,24 @@
 ---
-id: setup
-title: Getting Started
-sidebar_label: Getting Started
-slug: /getting-started
+title: Overview & Installation
+sidebar_label: Installation
 ---
 
-## Overview
+# Overview
 
 BTPS (Billing Trust Protocol Secure) is a federated system that enables secure, trust-based document exchange between organizations. The system consists of three core components that work together to ensure secure, verifiable communication:
 
 ### 🏗️ System Architecture
 
 ```
-┌─────────────┐    Document Messages   ┌─────────────┐    Forward to    ┌─────────────┐
-│   Client    │ ──► (over TLS) ─────►  │   Server    │ ──► Inbox ─────► │   Inbox     │
-│   Agent     │                        │             │                  │             │
-│ Transporter │                        │             │                  │             │
-│             │                        │             │                  │             │
-│ • Sends     │                        │ • Receives  │                  │ • SaaS or   │
-│ • Signs     │                        │ • Verifies  │                  │   Self-     │
-│ • Encrypts  │                        │ • Forwards  │                  │   Hosted    │
-└─────────────┘                        └─────────────┘                  └─────────────┘
+┌─────────────┐                        ┌─────────────┐                  ┌─────────────────┐
+│   Client    │                        │   Server    │                  │      Inbox      │
+│   Agent     │                        │             │                  │                 │
+│ Transporter │    Document Messages   │ • Receives  │    Forward to    │  • SaaS or      │
+│             │  ──► (over TLS) ─────► │ • Verifies  │ ──► Inbox ─────► │    Self-Hosted  │
+│ • Sends     │                        │ • Forwards  │                  │                 │
+│ • Signs     │                        │             │                  │                 │
+│ • Encrypts  │                        │             │                  │                 │
+└─────────────┘                        └─────────────┘                  └─────────────────┘
 ```
 
 ## Getting Started
@@ -37,7 +35,8 @@ import { BtpsServer, BtpsTransporter } from '@btps/sdk';
 // Start a BTPS server
 const server = new BtpsServer({
   port: 3443,
-  trustStore: new JsonTrustStore({ connection: './trust.json' })
+  /* use this for development purposes for production use database based Trust Store instead */
+  trustStore: new JsonTrustStore({ connection: './trust.json' }) 
 });
 await server.start();
 

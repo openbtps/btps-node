@@ -1,6 +1,7 @@
 ---
 title: Protocol Signature
 sidebar_label: Signature & Verification
+slug: signature-verification
 ---
 
 # Signature Signing & Verification in BTPS

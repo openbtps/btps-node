@@ -1,6 +1,7 @@
 ---
-title: SDK API Reference
-sidebar_label: API Reference
+title: SDK API References
+sidebar_label: API References
+slug: api-references
 ---
 
 # BTPS SDK API Reference

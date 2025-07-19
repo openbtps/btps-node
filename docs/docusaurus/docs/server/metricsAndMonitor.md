@@ -2,6 +2,7 @@
 title: Metrics & Monitoring
 description: Visibility, observability, and advanced logging for BTPS Server deployments.
 sidebar_label: Metrics & Monitoring
+slug: metrics-and-monitoring
 ---
 
 # Metrics & Monitoring in BTPS Server

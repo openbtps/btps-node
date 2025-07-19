@@ -1,6 +1,7 @@
 ---
 title: BTPS Protocol Best Practices
 sidebar_label: Best practices
+slug: best-practices
 ---
 
 # BTPS Best Practices

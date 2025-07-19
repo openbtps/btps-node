@@ -2,6 +2,7 @@
 title: Advanced Usage
 description: Advanced features, extensibility, and custom integrations for the BTPS Server SDK.
 sidebar_label: Advanced Usage
+slug: advanced-usages
 ---
 
 # Advanced Usage

@@ -1,6 +1,7 @@
 ---
 title: SDK Types & Interfaces
 sidebar_label: Types & Interfaces
+slug: types-and-interfaces
 ---
 
 # BTPS SDK Types & Interfaces

@@ -1,6 +1,7 @@
 ---
-title: SDK Class API Reference
-sidebar_label: Class API Reference
+title: SDK Class API References
+sidebar_label: Class API References
+slug: class-api-references
 ---
 
 # BTPS SDK Class API Reference

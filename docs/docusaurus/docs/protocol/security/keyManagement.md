@@ -1,6 +1,7 @@
 ---
 title: Protocol Key Management
 sidebar_label: Key Management
+slug: key-management
 ---
 
 # Key Management in BTPS

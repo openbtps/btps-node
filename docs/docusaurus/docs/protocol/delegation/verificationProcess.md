@@ -1,6 +1,7 @@
 ---
 title: Delegation Verification
 sidebar_label: Verification Process
+slug: verification-process
 ---
 
 # BTPS Delegation Verification

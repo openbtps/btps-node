@@ -1,6 +1,7 @@
 ---
 title: BtpsAuthentication Class
 sidebar_label: BTPS Authentication
+slug: btps-authentication
 ---
 
 # BtpsAuthentication Class

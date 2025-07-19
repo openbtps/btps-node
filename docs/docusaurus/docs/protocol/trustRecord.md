@@ -1,6 +1,7 @@
 ---
 title: Trust Record
 sidebar_label: Trust Record
+slug: trust-record
 ---
 
 # BTPS Trust Record

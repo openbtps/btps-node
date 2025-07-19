@@ -1,6 +1,7 @@
 ---
 title: Delegation Message Flow
 sidebar_label: Delegation Flow
+slug: delegation-flow
 ---
 
 # BTPS Delegation Message Flow

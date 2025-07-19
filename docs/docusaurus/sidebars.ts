@@ -21,9 +21,40 @@ const sidebars: SidebarsConfig = {
       label: 'BTPS Introduction',
     },
     {
-      type: 'doc',
-      id: 'gettingStarted/setup',
+      type: 'category',
       label: 'Getting Started',
+      collapsed: false,
+      items: [
+        'getting-started/installation',
+        {
+          type: 'category',
+          label: 'Server Setup',
+          items: [
+            'getting-started/server/prerequisites',
+            'getting-started/server/setup',
+            'getting-started/server/dataStorageSupport',
+            'getting-started/server/databaseIntegration',
+            'getting-started/server/middlewares',
+            'getting-started/server/eventHandlers',
+            'getting-started/server/transporterSupport',
+            'getting-started/server/authenticationSupport',
+            'getting-started/server/delegationSupport',
+            'getting-started/server/forwardingArtifact',
+            'getting-started/server/supportingQueries',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Client Setup',
+          items: [
+            'getting-started/client/prerequisites',
+            'getting-started/client/setup',
+            'getting-started/client/authentication',
+            'getting-started/client/btpsAgent',
+            'getting-started/client/btpsTransporter',
+          ],
+        }
+      ],
     },
     {
       type: 'category',

@@ -1,6 +1,7 @@
 ---
 title: Protocol Message Flow
 sidebar_label: Message Flow
+slug: message-flow
 ---
 
 # BTPS Message transmission Flow

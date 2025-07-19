@@ -1,6 +1,7 @@
 ---
 title: BtpsDelegator Class
 sidebar_label: BTPS Delegator
+slug: btps-delegator
 ---
 
 # BtpsDelegator Class

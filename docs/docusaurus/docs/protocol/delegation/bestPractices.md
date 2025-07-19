@@ -1,6 +1,7 @@
 ---
 title: Delegation Best Practices
 sidebar_label: Best Practices
+slug: best-practices
 ---
 
 # BTPS Delegation Best Practices

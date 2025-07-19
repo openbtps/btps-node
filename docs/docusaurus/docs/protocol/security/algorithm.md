@@ -1,6 +1,7 @@
 ---
 title: Protocol Algorithm
 sidebar_label: Algorithm & Types
+slug: algorithm-and-types
 ---
 
 # Algorithms & Types in BTPS (v1.0.0)
