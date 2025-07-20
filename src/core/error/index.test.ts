@@ -60,7 +60,7 @@ describe('transformToBTPErrorException', () => {
   });
 
   it('should return an existing BTPErrorException instance as is', () => {
-    const originalBtpError = new BTPErrorException({ message: 'Original BTP error' });
+    const originalBtpError = new BTPErrorException({ message: 'Original BTPS error' });
     const result = transformToBTPErrorException(originalBtpError);
 
     expect(result).toBe(originalBtpError);

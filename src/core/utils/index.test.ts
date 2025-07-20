@@ -101,18 +101,18 @@ describe('utils/index', () => {
   });
 
   describe('getBtpAddressParts', () => {
-    it('should parse a valid BTP address', () => {
+    it('should parse a valid BTPS address', () => {
       const url = getBtpAddressParts('btps://user:pass@host.com:8080/path?query=1');
       expect(url).toBeInstanceOf(URL);
       expect(url?.hostname).toBe('host.com');
     });
 
-    it('should normalize a BTP address without a scheme', () => {
+    it('should normalize a BTPS address without a scheme', () => {
       const url = getBtpAddressParts('host.com');
       expect(url?.protocol).toBe('btps:');
     });
 
-    it('should return null for an invalid BTP address', () => {
+    it('should return null for an invalid BTPS address', () => {
       expect(getBtpAddressParts('not a url')).toBeNull();
     });
   });

@@ -162,7 +162,7 @@ describe('BtpsAgent', () => {
 
       expect(result.error).toBeInstanceOf(BTPErrorException);
       expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
-      expect(result.error?.message).toContain('BTP artifact validation failed');
+      expect(result.error?.message).toContain('BTPS artifact validation failed');
     });
 
     it('should reject invalid identity format', async () => {
@@ -170,7 +170,7 @@ describe('BtpsAgent', () => {
 
       expect(result.error).toBeInstanceOf(BTPErrorException);
       expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
-      expect(result.error?.message).toContain('BTP artifact validation failed');
+      expect(result.error?.message).toContain('BTPS artifact validation failed');
     });
 
     it('should reject missing document for trust.request', async () => {
@@ -178,7 +178,7 @@ describe('BtpsAgent', () => {
 
       expect(result.error).toBeInstanceOf(BTPErrorException);
       expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
-      expect(result.error?.message).toContain('BTP artifact validation failed');
+      expect(result.error?.message).toContain('BTPS artifact validation failed');
     });
 
     it('should reject invalid crypto options', async () => {
@@ -190,7 +190,7 @@ describe('BtpsAgent', () => {
 
       expect(result.error).toBeInstanceOf(BTPErrorException);
       expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
-      expect(result.error?.message).toContain('BTP artifact validation failed');
+      expect(result.error?.message).toContain('BTPS artifact validation failed');
     });
 
     it('should accept valid crypto options', async () => {

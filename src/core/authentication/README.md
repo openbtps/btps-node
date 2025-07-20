@@ -1,10 +1,10 @@
 # BtpsAuthentication
 
-A robust TypeScript class that abstracts and simplifies the BTP Authentication flow for servers (SaaS platforms) with static methods for client operations.
+A robust TypeScript class that abstracts and simplifies the BTPS Authentication flow for servers (SaaS platforms) with static methods for client operations.
 
 ## Overview
 
-The `BtpsAuthentication` class provides a unified interface for handling BTP authentication flows, supporting server-side operations with static methods for client-side authentication and session refresh.
+The `BtpsAuthentication` class provides a unified interface for handling BTPS authentication flows, supporting server-side operations with static methods for client-side authentication and session refresh.
 
 ## Features
 
@@ -33,7 +33,7 @@ The `BtpsAuthentication` class provides a unified interface for handling BTP aut
 
 ## Installation
 
-The authentication module is part of the BTP SDK core package:
+The authentication module is part of the BTPS SDK core package:
 
 ```typescript
 import { BtpsAuthentication } from '@core/authentication/index.js';
@@ -261,13 +261,13 @@ try {
 1. **Token Storage**: Store auth tokens securely with appropriate expiry times
 2. **Key Management**: Protect private keys and use secure key generation
 3. **Session Management**: Implement proper session cleanup and validation
-4. **Network Security**: Use TLS for all BTP communications
+4. **Network Security**: Use TLS for all BTPS communications
 5. **Token Rotation**: Consider implementing refresh token rotation for enhanced security
 6. **Encryption**: All sensitive data is encrypted in transit and at rest
 
-## Integration with BTP Server
+## Integration with BTPS Server
 
-The authentication class integrates seamlessly with the existing BTP server infrastructure:
+The authentication class integrates seamlessly with the existing BTPS server infrastructure:
 
 ```typescript
 import { BtpsServer } from '@core/server/btpsServer.js';

@@ -16,7 +16,7 @@ import { BtpsAuthentication } from '@btps/sdk/authentication';
 
 ## 🏗️ Class Overview
 
-The `BtpsAuthentication` class abstracts and simplifies the BTP authentication flow for servers (SaaS platforms) with static methods for client operations. It provides:
+The `BtpsAuthentication` class abstracts and simplifies the BTPS authentication flow for servers (SaaS platforms) with static methods for client operations. It provides:
 
 - **Server-side**: Token generation, validation, agent creation, and session management
 - **Client-side**: Static authentication methods for device registration and session refresh
@@ -32,9 +32,11 @@ new BtpsAuthentication(config: ServerAuthConfig): BtpsAuthentication
 ```
 
 **Parameters:**
+
 - `config`: [ServerAuthConfig](#serverauthconfig) - Server configuration options
 
 **Example:**
+
 ```typescript
 import { BtpsAuthentication, InMemoryTokenStore } from '@btps/sdk/authentication';
 import { JsonTrustStore } from '@btps/sdk/trust';
@@ -58,13 +60,13 @@ const auth = new BtpsAuthentication({
 interface ServerAuthConfig {
   /** Trust store for managing agent records */
   trustStore: AbstractTrustStore<BTPTrustRecord>;
-  
+
   /** Token storage backend */
   tokenStore: TokenStore;
-  
+
   /** Refresh token storage backend (optional, defaults to tokenStore) */
   refreshTokenStore?: TokenStore;
-  
+
   /** Token generation and expiry configuration */
   tokenConfig?: TokenConfig;
 }
@@ -76,13 +78,13 @@ interface ServerAuthConfig {
 interface TokenConfig {
   /** Length of auth tokens (8-24 characters, default: 12) */
   authTokenLength?: number;
-  
+
   /** Character set for auth token generation (default: alphanumeric) */
   authTokenAlphabet?: string;
-  
+
   /** Expiry time for auth tokens in milliseconds (default: 15 minutes) */
   authTokenExpiryMs?: number;
-  
+
   /** Expiry time for refresh tokens in milliseconds (default: 7 days) */
   refreshTokenExpiryMs?: number;
 }
@@ -99,11 +101,13 @@ static generateAgentId(prefix?: string): string
 ```
 
 **Parameters:**
+
 - `prefix` (optional): `string` - Custom prefix for agent ID (default: `'btp_ag_'`)
 
 **Returns:** `string` - Unique agent identifier
 
 **Example:**
+
 ```typescript
 const agentId = BtpsAuthentication.generateAgentId();
 // Returns: "btp_ag_uuid-12345678-1234-1234-1234-123456789abc"
@@ -118,13 +122,14 @@ Generates a temporary authentication token for device registration.
 
 ```typescript
 static generateAuthToken(
-  userIdentity: string, 
-  length?: number, 
+  userIdentity: string,
+  length?: number,
   alphabet?: string
 ): string
 ```
 
 **Parameters:**
+
 - `userIdentity`: `string` - User identity (e.g., `'alice$saas.com'`)
 - `length` (optional): `number` - Token length (default: 12)
 - `alphabet` (optional): `string` - Character set (default: alphanumeric)
@@ -132,14 +137,15 @@ static generateAuthToken(
 **Returns:** `string` - Temporary authentication token
 
 **Example:**
+
 ```typescript
 const authToken = BtpsAuthentication.generateAuthToken('alice$saas.com');
 // Returns: "YDVKSEU4CEEW"
 
 const customToken = BtpsAuthentication.generateAuthToken(
-  'alice$saas.com', 
-  16, 
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  'alice$saas.com',
+  16,
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
 );
 // Returns: "A1B2C3D4E5F6G7H8"
 ```
@@ -153,11 +159,13 @@ static generateRefreshToken(size?: number): string
 ```
 
 **Parameters:**
+
 - `size` (optional): `number` - Token size in bytes (default: 32)
 
 **Returns:** `string` - Secure refresh token
 
 **Example:**
+
 ```typescript
 const refreshToken = BtpsAuthentication.generateRefreshToken();
 // Returns: "-PnjR_MKMiEpG94Tr1dS-hU4VHbnG3g9Z0pMLWUY1eE"
@@ -178,6 +186,7 @@ static authenticate(
 ```
 
 **Parameters:**
+
 - `identity`: `string` - User identity
 - `authToken`: `string` - Temporary authentication token
 - `keyPair`: [PemKeys](/docs/sdk/types-and-interfaces#pemkeys) - Device keypair
@@ -187,6 +196,7 @@ static authenticate(
 **Returns:** `Promise<AuthRequestResult>` - Authentication result
 
 **Example:**
+
 ```typescript
 import { generateKeyPair } from '@btps/sdk/crypto';
 
@@ -207,7 +217,7 @@ const result = await BtpsAuthentication.authenticate(
     btpMtsOptions: {
       rejectUnauthorized: false,
     },
-  }
+  },
 );
 
 if (result.success) {
@@ -234,6 +244,7 @@ static refreshSession(
 ```
 
 **Parameters:**
+
 - `agentId`: `string` - Agent identifier
 - `identity`: `string` - User identity
 - `refreshToken`: `string` - Current refresh token
@@ -244,6 +255,7 @@ static refreshSession(
 **Returns:** `Promise<AuthRequestResult>` - Refresh result
 
 **Example:**
+
 ```typescript
 const refreshResult = await BtpsAuthentication.refreshSession(
   'btp_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
@@ -258,7 +270,7 @@ const refreshResult = await BtpsAuthentication.refreshSession(
     host: 'localhost',
     port: 3443,
     maxRetries: 3,
-  }
+  },
 );
 
 if (refreshResult.success) {
@@ -283,12 +295,14 @@ async storeAuthToken(
 ```
 
 **Parameters:**
+
 - `token`: `string` - Authentication token to store
 - `userIdentity`: `string` - User identity
 - `agentId`: `string` - Agent identifier
 - `metadata` (optional): `Record<string, unknown>` - Additional metadata
 
 **Example:**
+
 ```typescript
 const authToken = BtpsAuthentication.generateAuthToken('alice$saas.com');
 const agentId = BtpsAuthentication.generateAgentId();
@@ -306,18 +320,20 @@ Validates a temporary authentication token.
 
 ```typescript
 async validateAuthToken(
-  agentId: string, 
+  agentId: string,
   token: string
 ): Promise<AuthValidationResult>
 ```
 
 **Parameters:**
+
 - `agentId`: `string` - Agent identifier
 - `token`: `string` - Authentication token to validate
 
 **Returns:** `Promise<AuthValidationResult>` - Validation result
 
 **Example:**
+
 ```typescript
 const validation = await auth.validateAuthToken(agentId, 'YDVKSEU4CEEW');
 
@@ -338,11 +354,13 @@ async createAgent(options: CreateAgentOptions): Promise<BTPAuthResDoc>
 ```
 
 **Parameters:**
+
 - `options`: [CreateAgentOptions](#createagentoptions) - Agent creation options
 
 **Returns:** `Promise<BTPAuthResDoc>` - Authentication response document
 
 **Example:**
+
 ```typescript
 const authResponse = await auth.createAgent({
   userIdentity: 'alice$saas.com',
@@ -368,22 +386,24 @@ Validates a refresh token and returns agent information.
 
 ```typescript
 async validateRefreshToken(
-  agentId: string, 
+  agentId: string,
   refreshToken: string
 ): Promise<RefreshValidationResult>
 ```
 
 **Parameters:**
+
 - `agentId`: `string` - Agent identifier
 - `refreshToken`: `string` - Refresh token to validate
 
 **Returns:** `Promise<RefreshValidationResult>` - Validation result
 
 **Example:**
+
 ```typescript
 const refreshValidation = await auth.validateRefreshToken(
-  agentId, 
-  '-PnjR_MKMiEpG94Tr1dS-hU4VHbnG3g9Z0pMLWUY1eE'
+  agentId,
+  '-PnjR_MKMiEpG94Tr1dS-hU4VHbnG3g9Z0pMLWUY1eE',
 );
 
 if (refreshValidation.isValid) {
@@ -407,6 +427,7 @@ async validateAndReissueRefreshToken(
 ```
 
 **Parameters:**
+
 - `agentId`: `string` - Agent identifier
 - `refreshToken`: `string` - Current refresh token
 - `options`: [CreateAgentOptions](#createagentoptions) - Options for new token
@@ -414,15 +435,12 @@ async validateAndReissueRefreshToken(
 **Returns:** `Promise<{ data?: BTPAuthResDoc; error?: Error }>` - Result with new token or error
 
 **Example:**
+
 ```typescript
-const result = await auth.validateAndReissueRefreshToken(
-  agentId,
-  refreshToken,
-  {
-    decidedBy: 'system',
-    privacyType: 'encrypted',
-  }
-);
+const result = await auth.validateAndReissueRefreshToken(agentId, refreshToken, {
+  decidedBy: 'system',
+  privacyType: 'encrypted',
+});
 
 if (result.data) {
   console.log('New refresh token:', result.data.refreshToken);
@@ -441,6 +459,7 @@ async cleanup(): Promise<void>
 ```
 
 **Example:**
+
 ```typescript
 // Clean up expired tokens (run periodically)
 await auth.cleanup();
@@ -454,13 +473,13 @@ await auth.cleanup();
 interface AuthAgentOptions {
   /** BTPS server host */
   host?: string;
-  
+
   /** BTPS server port */
   port?: number;
-  
+
   /** Maximum retry attempts */
   maxRetries?: number;
-  
+
   /** TLS options */
   btpMtsOptions?: {
     rejectUnauthorized?: boolean;
@@ -474,19 +493,19 @@ interface AuthAgentOptions {
 interface CreateAgentOptions {
   /** User identity */
   userIdentity: string;
-  
+
   /** Device public key */
   publicKey: string;
-  
+
   /** Device information */
   agentInfo?: Record<string, string | string[]>;
-  
+
   /** Who decided to create the agent */
   decidedBy: string;
-  
+
   /** Privacy type for trust record */
   privacyType?: 'encrypted' | 'public';
-  
+
   /** Trust record expiry in milliseconds */
   trustExpiryMs?: number;
 }
@@ -498,13 +517,13 @@ interface CreateAgentOptions {
 interface AuthValidationResult {
   /** Whether the token is valid */
   isValid: boolean;
-  
+
   /** User identity (if valid) */
   userIdentity?: string;
-  
+
   /** Token metadata (if valid) */
   metadata?: Record<string, unknown>;
-  
+
   /** Error message (if invalid) */
   error?: Error;
 }
@@ -516,13 +535,13 @@ interface AuthValidationResult {
 interface RefreshValidationResult {
   /** Whether the token is valid */
   isValid: boolean;
-  
+
   /** Agent identifier (if valid) */
   agentId?: string;
-  
+
   /** User identity (if valid) */
   userIdentity?: string;
-  
+
   /** Error message (if invalid) */
   error?: Error;
 }
@@ -534,12 +553,12 @@ interface RefreshValidationResult {
 interface AuthRequestResult {
   /** Whether the request was successful */
   success: boolean;
-  
+
   /** Response data (if successful) */
   response?: {
     document: BTPAuthResDoc;
   };
-  
+
   /** Error message (if failed) */
   error?: string;
 }
@@ -551,13 +570,13 @@ interface AuthRequestResult {
 interface BTPAuthResDoc {
   /** Agent identifier */
   agentId: string;
-  
+
   /** Refresh token */
   refreshToken: string;
-  
+
   /** Token expiry timestamp */
   expiresAt: string;
-  
+
   /** Trust record identifier */
   trustId: string;
 }
@@ -575,15 +594,15 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
     agentId: string,
     userIdentity: string,
     expiryMs: number,
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
   ): Promise<void>;
-  
+
   /** Retrieve a token */
   get(agentId: string, token: string): Promise<T | undefined>;
-  
+
   /** Remove a token */
   remove(agentId: string, token: string): Promise<void>;
-  
+
   /** Clean up expired tokens */
   cleanup(): Promise<void>;
 }
@@ -595,13 +614,13 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
 interface AuthSessionStore {
   /** Store session data */
   store(sessionId: string, data: unknown, expiryMs: number): Promise<void>;
-  
+
   /** Retrieve session data */
   get(sessionId: string): Promise<unknown | undefined>;
-  
+
   /** Remove session data */
   remove(sessionId: string): Promise<void>;
-  
+
   /** Clean up expired sessions */
   cleanup(): Promise<void>;
 }
@@ -625,6 +644,7 @@ try {
 ```
 
 **Common Error Scenarios:**
+
 - **Invalid Token**: Token expired or not found
 - **Network Errors**: Connection issues with BTPS server
 - **Validation Errors**: Invalid parameters or cryptographic failures

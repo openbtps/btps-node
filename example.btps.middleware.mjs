@@ -1,5 +1,5 @@
 /**
- * Example BTP Server Middleware Configuration
+ * Example BTPS Server Middleware Configuration
  *
  * This file demonstrates how to configure custom middleware for the BtpsServer.
  * The middleware can be used for rate limiting, metrics, logging, custom validation, etc.
@@ -11,8 +11,8 @@ export default function createMiddleware(dependencies) {
   console.log('sample middleware: ', createDefaultMiddleware()); // inspect default middleware
   return [
     /* Sample default middleware used as a starting point for your own middleware.
-     * Default middleware can able to handle for small to medium size BTP server.
-     * For large scale BTP server or Sass enterprises, you should implement your own middleware which does not store any state in memory but use external services like Redis, etc.
+     * Default middleware can able to handle for small to medium size BTPS server.
+     * For large scale BTPS server or Sass enterprises, you should implement your own middleware which does not store any state in memory but use external services like Redis, etc.
      *
      * Default middleware:
      * 1. IP-based rate limiting (before parsing)

@@ -14,12 +14,12 @@ export const BTP_ERROR_SOCKET_CLOSED: BTPError = {
 
 export const BTP_ERROR_IDENTITY: BTPError = {
   code: 'BTP_ERROR_IDENTITY',
-  message: 'BTP identity is expected in the format username$domain.',
+  message: 'BTPS identity is expected in the format username$domain.',
 };
 
 export const BTP_ERROR_TRUST_NON_EXISTENT: BTPError = {
   code: 'BTP_ERROR_TRUST_NON_EXISTENT',
-  message: 'BTP trust record does not exist or has been expired',
+  message: 'BTPS trust record does not exist or has been expired',
 };
 
 export const BTPS_ERROR_ACTION_TYPE: BTPError = {
@@ -29,17 +29,17 @@ export const BTPS_ERROR_ACTION_TYPE: BTPError = {
 
 export const BTP_ERROR_TRUST_BLOCKED: BTPError = {
   code: 'BTP_ERROR_TRUST_BLOCKED',
-  message: 'BTP trust request is not allowed. Contact receiver',
+  message: 'BTPS trust request is not allowed. Contact receiver',
 };
 
 export const BTP_ERROR_TRUST_NOT_ALLOWED: BTPError = {
   code: 'BTP_ERROR_TRUST_NOT_ALLOWED',
-  message: 'BTP trust request is not allowed at this time. Contact receiver',
+  message: 'BTPS trust request is not allowed at this time. Contact receiver',
 };
 
 export const BTP_ERROR_TRUST_ALREADY_ACTIVE: BTPError = {
   code: 'BTP_ERROR_TRUST_ALREADY_ACTIVE',
-  message: 'BTP trust record already exist. Request invalid',
+  message: 'BTPS trust record already exist. Request invalid',
 };
 
 export const BTP_ERROR_RESOLVE_PUBKEY: BTPError = {
@@ -59,7 +59,7 @@ export const BTP_ERROR_INVALID_JSON = {
 
 export const BTP_ERROR_VALIDATION = {
   code: 'BTP_ERROR_VALIDATION',
-  message: 'BTP artifact validation failed',
+  message: 'BTPS artifact validation failed',
 };
 
 export const BTP_ERROR_SIG_MISMATCH: BTPError = {

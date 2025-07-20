@@ -15,15 +15,17 @@ BTPS uses a hybrid encryption approach to ensure that messages are both confiden
 4. **Payload Encryption:** The message is encrypted using AES-256-CBC with the generated key and IV.
 5. **Key Encryption:** The AES key is encrypted using the receiver's public RSA key (RSA-OAEP).
 6. **Message Signing:** The sender signs the encrypted payload and metadata with their private key (SHA-256).
-7. **Artifact Assembly:** The encrypted payload, encrypted key, IV, and signature are assembled into a BTP Artifact.
+7. **Artifact Assembly:** The encrypted payload, encrypted key, IV, and signature are assembled into a BTPS Artifact.
 8. **Transmission:** The artifact is sent to the receiver's endpoint.
 
 ## Optional Encryption (Based on Trust Record)
+
 - The trust record between sender and receiver determines if encryption is required.
 - If encryption is not required, the payload is sent as plain text and the `encryption` field in the artifact is `null`.
 - If encryption is required, the full encryption workflow above is followed.
 
 ## How `signEncrypt` Works
+
 - The BTPS client uses the `signEncrypt` function to:
   1. Check the trust record and encryption options.
   2. Encrypt the payload if required, or leave it as plain text if not.
@@ -45,10 +47,10 @@ sequenceDiagram
         Sender->>Sender: Use plain payload
     end
     Sender->>Sender: Sign artifact (Sender's private key)
-    Sender->>Receiver: Send BTP Artifact
+    Sender->>Receiver: Send BTPS Artifact
 ```
 
-## Example BTP Artifact Structure
+## Example BTPS Artifact Structure
 
 ```json
 {
@@ -70,6 +72,7 @@ sequenceDiagram
 See [Signature](/docs/protocol/security/signature-verification) for full details.
 
 ## Notes
+
 - The encrypted AES key and IV allow only the intended receiver to decrypt the payload.
 - If the artifact is unencrypted, only the signature is used for verification.
-- The artifact structure is versioned and extensible for future algorithm support. 
+- The artifact structure is versioned and extensible for future algorithm support.

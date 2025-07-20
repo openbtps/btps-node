@@ -190,7 +190,7 @@ export const verifySignature = (
       error instanceof Error
         ? new BTPErrorException({ code: 500, message: error.message })
         : new BTPErrorException(BTP_ERROR_SIG_MISMATCH);
-    console.error('[BTP Error]::[Fingerprint] - getFingerprintFromPem', err.toJSON());
+    console.error('[BTPS Error]::[Fingerprint] - getFingerprintFromPem', err.toJSON());
   }
 
   if (senderFingerprint !== signature.fingerprint) {

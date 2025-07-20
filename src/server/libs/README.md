@@ -1,6 +1,6 @@
 # Improved Middleware Type System
 
-This document explains the enhanced TypeScript type system for BTP middleware that provides compile-time guarantees about artifact availability based on middleware phase and step.
+This document explains the enhanced TypeScript type system for BTPS middleware that provides compile-time guarantees about artifact availability based on middleware phase and step.
 
 ## Overview
 

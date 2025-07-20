@@ -60,7 +60,7 @@ import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifact
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
 
 /**
- * BTP Secure Server over TLS (btps://)
+ * BTPS Secure Server over TLS (btps://)
  * Handles encrypted JSON message delivery between trusted parties.
  */
 export class BtpsServer {
@@ -108,14 +108,14 @@ export class BtpsServer {
    * Handles an incoming TLS socket connection.
    *
    * This method sets up data and error event listeners for the socket and its associated
-   * data stream (split2). It handles parsing, validating, verifying, and processing BTP requests.
+   * data stream (split2). It handles parsing, validating, verifying, and processing BTPS requests.
    *
    * ⚠️ Important:
    * - Ensures per-connection event handlers are cleaned up via `off()` in the `close` handler.
    * - Prevents `MaxListenersExceededWarning` by avoiding accumulation of handlers
    *   across many short-lived connections (e.g. in a spam or high-traffic scenario).
    *
-   * @param socket The incoming TLS socket representing a BTP connection
+   * @param socket The incoming TLS socket representing a BTPS connection
    */
   private handleConnection(socket: TLSSocket) {
     const ipAddress = socket.remoteAddress ?? 'unknown';
@@ -853,7 +853,7 @@ export class BtpsServer {
   }
 
   /**
-   * Sends a BTP error response to the client
+   * Sends a BTPS error response to the client
    */
   private async sendBtpsError(socket: TLSSocket, error: BTPError, reqId?: string) {
     const response = this.prepareBtpsResponse(
@@ -872,7 +872,7 @@ export class BtpsServer {
   }
 
   /**
-   * Sends a BTP response to the client
+   * Sends a BTPS response to the client
    * @param socket - The socket to send the response to
    * @param artifact - The artifact to send
    */
@@ -902,14 +902,14 @@ export class BtpsServer {
   }
 
   /**
-   * Returns the BTP protocol version
+   * Returns the BTPS protocol version
    */
   public getProtocolVersion(): string {
     return BTP_PROTOCOL_VERSION;
   }
 
   /**
-   * Prepares a BTP server response with the given status
+   * Prepares a BTPS server response with the given status
    */
   public prepareBtpsResponse(status: BTPStatus, reqId?: string): Omit<BTPServerResponse, 'type'> {
     const response: Omit<BTPServerResponse, 'type'> = {
@@ -923,7 +923,7 @@ export class BtpsServer {
   }
 
   /**
-   * Starts the BTP server
+   * Starts the BTPS server
    */
   public async start() {
     await this.initialize();
@@ -933,7 +933,7 @@ export class BtpsServer {
   }
 
   /**
-   * Stops the BTP server
+   * Stops the BTPS server
    */
   public stop() {
     this.server.close();

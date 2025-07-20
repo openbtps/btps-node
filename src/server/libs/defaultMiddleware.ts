@@ -6,7 +6,7 @@
  */
 
 /**
- * Default BTP Server Middleware Configuration
+ * Default BTPS Server Middleware Configuration
  *
  * This file provides a default set of middleware for the BtpsServer.
  * These are used when no external middleware file is specified.

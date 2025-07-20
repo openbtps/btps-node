@@ -39,7 +39,7 @@ export const isTrustActive = (trust?: BTPTrustRecord): boolean => {
  * only allow message to be sent if trust record is not active
  * considers blocked and retryAfterDate as one can send new trust request after the retryAfterDate
  * @param trust - The trust record to check
- * @returns Object indicating validity and optional BTP error
+ * @returns Object indicating validity and optional BTPS error
  */
 export const validateTrustRequest = (
   trust?: BTPTrustRecord,
@@ -85,7 +85,7 @@ export function computeTrustId(senderId: string, receiverId: string): string {
  * @param senderId - The identity sending the trust response (e.g., userB$domain)
  * @param receiverId - The identity receiving the trust response (e.g., userA$domain)
  * @param trustStore - The TrustStore instance
- * @returns Object indicating validity and optional BTP error
+ * @returns Object indicating validity and optional BTPS error
  */
 export async function validateTrustResponse(
   senderId: string, // The responder

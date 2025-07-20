@@ -125,7 +125,7 @@ getDnsParts(identity: string, type?: 'key' | 'pem' | 'version' | 'btpAddress'): 
 ```
 
 **Description:**
-Resolves DNS TXT records for a BTPS identity and extracts key, version, PEM, or BTP address information.
+Resolves DNS TXT records for a BTPS identity and extracts key, version, PEM, or BTPS address information.
 
 **Arguments:**
 
@@ -789,8 +789,6 @@ try {
 }
 ```
 
-
-
 ## Error Constants (`@btps/sdk/error`)
 
 ### BTP_ERROR_IDENTITY
@@ -805,7 +803,7 @@ Error constant for invalid BTPS identity format (must be `username$domain`).
 **Properties:**
 
 - `code`: `'BTP_ERROR_IDENTITY'`
-- `message`: `'BTP identity is expected in the format username$domain.'`
+- `message`: `'BTPS identity is expected in the format username$domain.'`
 
 **Example:**
 
@@ -828,7 +826,7 @@ Error constant for non-existent or expired trust records.
 **Properties:**
 
 - `code`: `'BTP_ERROR_TRUST_NON_EXISTENT'`
-- `message`: `'BTP trust record does not exist or has been expired'`
+- `message`: `'BTPS trust record does not exist or has been expired'`
 
 ---
 
@@ -844,7 +842,7 @@ Error constant for blocked trust requests.
 **Properties:**
 
 - `code`: `'BTP_ERROR_TRUST_BLOCKED'`
-- `message`: `'BTP trust request is not allowed. Contact receiver'`
+- `message`: `'BTPS trust request is not allowed. Contact receiver'`
 
 ---
 
@@ -860,7 +858,7 @@ Error constant for trust requests not allowed at this time.
 **Properties:**
 
 - `code`: `'BTP_ERROR_TRUST_NOT_ALLOWED'`
-- `message`: `'BTP trust request is not allowed at this time. Contact receiver'`
+- `message`: `'BTPS trust request is not allowed at this time. Contact receiver'`
 
 ---
 
@@ -876,7 +874,7 @@ Error constant for already active trust records.
 **Properties:**
 
 - `code`: `'BTP_ERROR_TRUST_ALREADY_ACTIVE'`
-- `message`: `'BTP trust record already exist. Request invalid'`
+- `message`: `'BTPS trust record already exist. Request invalid'`
 
 ---
 
@@ -940,7 +938,7 @@ Error constant for BTPS artifact validation failures.
 **Properties:**
 
 - `code`: `'BTP_ERROR_VALIDATION'`
-- `message`: `'BTP artifact validation failed'`
+- `message`: `'BTPS artifact validation failed'`
 
 ---
 

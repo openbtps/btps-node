@@ -18,7 +18,7 @@ import { computeTrustId } from '../index.js';
 /**
  * JSON-based TrustStore for self-hosted environments.
  * Uses a Map internally for fast lookup and persists trust records to a single JSON file.
- * Supports multi-tenant BTP inboxes by indexing records by to Identity + from Identity.
+ * Supports multi-tenant BTPS inboxes by indexing records by to Identity + from Identity.
  */
 class JsonTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   private recordMap: Map<string, BTPTrustRecord> = new Map();

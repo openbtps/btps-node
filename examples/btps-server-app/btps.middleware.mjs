@@ -1,5 +1,5 @@
 /**
- * Example BTP Server Middleware Configuration
+ * Example BTPS Server Middleware Configuration
  *
  * This file demonstrates how to configure custom middleware for the BtpsServer.
  * The middleware can be used for rate limiting, metrics, logging, custom validation, etc.
