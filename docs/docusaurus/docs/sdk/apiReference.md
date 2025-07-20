@@ -598,7 +598,7 @@ Generate a short, high-entropy, user-specific onboarding token. Suitable for cop
 
 **Arguments:**
 
-- `userIdentity` (`string`, required): Unique user identity string (e.g., "alice$btp.com").
+- `userIdentity` (`string`, required): Unique user identity string (e.g., "alice$btps.com").
 - `length` (`number`, optional, default: `12`): Number of characters in the token (8–24).
 - `charactersFrom` (`string`, optional, default: CrockFord Base32): Character set to generate the token from.
 
@@ -614,7 +614,7 @@ Generate a short, high-entropy, user-specific onboarding token. Suitable for cop
 
 ```js
 import { generateUserToken } from '@btps/sdk/crypto';
-const token = generateUserToken('alice$btp.com', 12);
+const token = generateUserToken('alice$btps.com', 12);
 // Returns: "ABC123DEF456"
 ```
 

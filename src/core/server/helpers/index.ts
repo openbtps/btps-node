@@ -5,5 +5,5 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-export * from './BTPMessageQueue.js';
+export * from './BtpsMessageQueue.js';
 export * from './InMemoryQueue.js';

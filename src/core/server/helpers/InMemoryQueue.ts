@@ -6,14 +6,14 @@
  */
 
 import { BTPArtifact } from '@core/server/types.js';
-import { BTPMessageQueue } from './BTPMessageQueue.js';
+import { BTPSMessageQueue } from './BtpsMessageQueue.js';
 import { EventEmitter } from 'events';
 
 type UserScopedQueue = {
   [identity: string]: BTPArtifact[];
 };
 
-export class InMemoryQueue extends BTPMessageQueue {
+export class InMemoryQueue extends BTPSMessageQueue {
   private queues: UserScopedQueue = {};
   private emitter = new EventEmitter();
 

@@ -1,6 +1,6 @@
 services:
-  btp-server:
-    container_name: btp-server-prod
+  btps-server:
+    container_name: btps-server-prod
     build:
       context: .
       dockerfile: Dockerfile # Your current multi-stage file

@@ -225,7 +225,7 @@ export const DEFAULT_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // CrockFord
  * This token is suitable for copy-paste flows where the SaaS platform
  * validates the token against a short-lived, user-scoped record (e.g. in Redis).
  *
- * @param userIdentity - Unique user identity string (e.g., "alice$btp.com")
+ * @param userIdentity - Unique user identity string (e.g., "alice$btps.com")
  * @param length - Number of characters in the token (8–24, default 12)
  * @param charactersFrom - Optional character set to generate the token from (default: CrockFord Base32)
  * @returns A short, human-friendly, high-entropy token string

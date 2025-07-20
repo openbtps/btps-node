@@ -5,7 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-export * from './btp-protocol.js';
+export * from './btps-protocol.js';
 
 const TRUST_ACTIONS = ['trust.request', 'trust.respond'] as const;
 

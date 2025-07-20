@@ -23,8 +23,8 @@ export type KeyHistory = {
 
 export type BTPTrustRecord = {
   id: string; // unique trust id in format 'from:to'using computeTrustId
-  senderId: string; // unique btp from identity in format 'user$domain.com
-  receiverId: string; // unique btp to identity in format 'user$domain.com
+  senderId: string; // unique btps from identity in format 'user$domain.com
+  receiverId: string; // unique btps to identity in format 'user$domain.com
   status: BTPTrustStatus; // current trust status
   createdAt: string; // trust record creation date and time in ISO Format
   decidedBy: string; // Name | Initial | email of the deciding authoritarian person

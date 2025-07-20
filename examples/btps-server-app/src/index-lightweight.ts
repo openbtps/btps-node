@@ -3,7 +3,7 @@ import { BtpsServerLightweightFactory } from '@btps/sdk/server/core';
 import { BTPAgentArtifact } from '@btps/sdk/server';
 
 const TrustStore = new JsonTrustStore({
-  connection: `${process.cwd()}/.well-known/btp-trust.json`,
+  connection: `${process.cwd()}/.well-known/btps-trust.json`,
   entityName: 'trusted_senders',
 });
 

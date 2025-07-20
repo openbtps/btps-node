@@ -69,7 +69,7 @@ describe('utils/index', () => {
 
   describe('getDnsParts', () => {
     it('should resolve all DNS parts correctly', async () => {
-      const txtRecord = `k=key;v=1;p=cGVt;u=btps://btp.example.com`;
+      const txtRecord = `k=key;v=1;p=cGVt;u=btps://btps.example.com`;
       mockDns.resolveTxt.mockResolvedValue([[txtRecord]]);
 
       const parts = await getDnsParts('test$example.com');
@@ -77,16 +77,16 @@ describe('utils/index', () => {
         key: 'key',
         version: '1',
         pem: base64ToPem('cGVt'),
-        btpAddress: 'btps://btp.example.com',
+        btpAddress: 'btps://btps.example.com',
       });
     });
 
     it('should resolve a specific DNS part', async () => {
-      const txtRecord = `u=btps://btp.example.com`;
+      const txtRecord = `u=btps://btps.example.com`;
       mockDns.resolveTxt.mockResolvedValue([[txtRecord]]);
 
       const btpAddress = await getDnsParts('test$example.com', 'btpAddress');
-      expect(btpAddress).toBe('btps://btp.example.com');
+      expect(btpAddress).toBe('btps://btps.example.com');
     });
 
     it('should return undefined for an invalid identity', async () => {
