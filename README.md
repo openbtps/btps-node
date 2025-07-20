@@ -119,20 +119,19 @@ await client.sendInvoice({
 });
 ```
 
-See [docs/SERVER.md](docs/SERVER.md) and [docs/CLIENT.md](docs/CLIENT.md) for full usage.
+See [docs/SERVER](docs/docusaurus//docs/server/overview.md) and [docs/CLIENT](docs/docusaurus/docs/client/overview.md) for full usage.
 
 ---
 
 ## 📚 Documentation
 
-- [BTPS Protocol Spec](docs/BTPS_PROTOCOL.md)
-- [BTPS Identity & Trust Spec](docs/BTPS_IDENTITY.md)
-- [Server SDK Usage](docs/SERVER.md)
-- [Client SDK Usage](docs/CLIENT.md)
-- [Trust Model & Onboarding](docs/TRUST.md)
-- [SDK Usage & Reference](docs/SDK.md)
-- [Examples & Advanced Patterns](docs/EXAMPLES.md)
-- [Architecture & Diagrams](docs/ARCHITECTURE.md)
+- [BTPS Protocol Spec](docs/docusaurus/docs/protocol/specifications.md)
+- [Server SDK Usage](docs/docusaurus/docs/sdk/overview.md)
+- [Client SDK Usage](docs/docusaurus/docs/client/overview.md)
+- [Trust Model & Onboarding](docs/docusaurus/docs/protocol/trustRecord.md)
+- [SDK Usage & Reference](docs/docusaurus/docs/sdk/apiReference.md)
+- [Examples & Advanced Patterns](docs/docusaurus/docs/server/advancedUsages.md)
+- [Architecture & Diagrams](docs/docusaurus/docs/protocol/principles.md)
 
 ---
 
