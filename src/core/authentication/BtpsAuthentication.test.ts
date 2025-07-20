@@ -96,7 +96,7 @@ describe('BtpsAuthentication', () => {
     describe('generateAgentId', () => {
       it('should generate agent ID with default prefix', () => {
         const agentId = BtpsAuthentication.generateAgentId();
-        expect(agentId).toMatch(/^btp_ag_[a-f0-9-]+$/);
+        expect(agentId).toMatch(/^btps_ag_[a-f0-9-]+$/);
       });
 
       it('should generate agent ID with custom prefix', () => {
@@ -195,7 +195,7 @@ describe('BtpsAuthentication', () => {
       });
 
       it('should return invalid for non-existent token', async () => {
-        const result = await auth.validateAuthToken('btp_ag_test_123', 'NON_EXISTENT_TOKEN');
+        const result = await auth.validateAuthToken('btps_ag_test_123', 'NON_EXISTENT_TOKEN');
 
         expect(result.isValid).toBe(false);
         expect(result.error).toBeInstanceOf(BTPErrorException);
@@ -204,7 +204,7 @@ describe('BtpsAuthentication', () => {
       it('should return invalid for expired token', async () => {
         const token = 'AUTH_TOKEN_123';
         const userIdentity = 'alice$saas.com';
-        const agentId = 'btp_ag_test_123';
+        const agentId = 'btps_ag_test_123';
 
         // Store token with very short expiry
         await tokenStore.store(token, agentId, userIdentity, 1); // 1ms expiry
@@ -221,7 +221,7 @@ describe('BtpsAuthentication', () => {
       it('should remove token after successful validation', async () => {
         const token = 'AUTH_TOKEN_123';
         const userIdentity = 'alice$saas.com';
-        const agentId = 'btp_ag_test_123';
+        const agentId = 'btps_ag_test_123';
 
         await auth.storeAuthToken(token, userIdentity);
         await auth.validateAuthToken(agentId, token);
@@ -244,7 +244,7 @@ describe('BtpsAuthentication', () => {
         };
 
         const result = await auth.createAgent(options);
-        expect(result.agentId).toMatch(/^btp_ag_[a-f0-9-]+$/);
+        expect(result.agentId).toMatch(/^btps_ag_[a-f0-9-]+$/);
         expect(result.refreshToken).toHaveLength(43);
         expect(result.expiresAt).toBeDefined();
       });
@@ -300,7 +300,7 @@ describe('BtpsAuthentication', () => {
       it('should validate existing refresh token', async () => {
         const refreshToken = 'REFRESH_TOKEN_123';
         const userIdentity = 'alice$saas.com';
-        const agentId = 'btp_ag_test_123';
+        const agentId = 'btps_ag_test_123';
 
         await tokenStore.store(refreshToken, agentId, userIdentity, 3600000); // 1 hour
 
@@ -313,7 +313,7 @@ describe('BtpsAuthentication', () => {
       });
 
       it('should return invalid for non-existent refresh token', async () => {
-        const result = await auth.validateRefreshToken('btp_ag_test_123', 'NON_EXISTENT_TOKEN');
+        const result = await auth.validateRefreshToken('btps_ag_test_123', 'NON_EXISTENT_TOKEN');
 
         expect(result.isValid).toBe(false);
         if (!result.isValid) {
@@ -324,7 +324,7 @@ describe('BtpsAuthentication', () => {
       it('should return invalid for expired refresh token', async () => {
         const refreshToken = 'REFRESH_TOKEN_123';
         const userIdentity = 'alice$saas.com';
-        const agentId = 'btp_ag_test_123';
+        const agentId = 'btps_ag_test_123';
 
         // Store token with very short expiry
         await tokenStore.store(refreshToken, agentId, userIdentity, 1); // 1ms expiry
@@ -343,7 +343,7 @@ describe('BtpsAuthentication', () => {
       it('should clean up expired tokens', async () => {
         const token1 = 'TOKEN_1';
         const token2 = 'TOKEN_2';
-        const agentId = 'btp_ag_test_123';
+        const agentId = 'btps_ag_test_123';
         const userIdentity = 'alice$saas.com';
 
         // Store one token with short expiry

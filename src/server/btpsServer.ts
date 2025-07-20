@@ -327,7 +327,7 @@ export class BtpsServer {
     // Send success response
     this.sendBtpsResponse(resCtx.socket, {
       ...this.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }, resCtx.reqId),
-      type: 'btp_response',
+      type: 'btps_response',
     });
   }
 
@@ -867,7 +867,7 @@ export class BtpsServer {
 
     this.sendBtpsResponse(socket, {
       ...response,
-      type: 'btp_error',
+      type: 'btps_error',
     });
   }
 

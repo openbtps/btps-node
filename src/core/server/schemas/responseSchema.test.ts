@@ -10,7 +10,7 @@ import { validate } from '../../utils/validation.js';
 import { BtpServerResponseSchema } from './responseSchema.js';
 
 describe('BtpServerResponseSchema', () => {
-  it('should validate a valid btp_response', () => {
+  it('should validate a valid btps_response', () => {
     const validResponse = {
       version: '1.0.0',
       status: {
@@ -20,7 +20,7 @@ describe('BtpServerResponseSchema', () => {
       },
       id: '123e4567-e89b-12d3-a456-426614174000',
       issuedAt: '2025-01-01T00:00:00.000Z',
-      type: 'btp_response' as const,
+      type: 'btps_response' as const,
       reqId: 'req-123',
     };
 
@@ -28,7 +28,7 @@ describe('BtpServerResponseSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should validate a valid btp_error', () => {
+  it('should validate a valid btps_error', () => {
     const validError = {
       version: '1.0.0',
       status: {
@@ -38,7 +38,7 @@ describe('BtpServerResponseSchema', () => {
       },
       id: '123e4567-e89b-12d3-a456-426614174000',
       issuedAt: '2025-01-01T00:00:00.000Z',
-      type: 'btp_error' as const,
+      type: 'btps_error' as const,
       reqId: 'req-123',
     };
 
@@ -56,7 +56,7 @@ describe('BtpServerResponseSchema', () => {
       },
       id: '123e4567-e89b-12d3-a456-426614174000',
       issuedAt: '2025-01-01T00:00:00.000Z',
-      type: 'btp_response' as const,
+      type: 'btps_response' as const,
       reqId: 'req-123',
       document: {
         agentId: 'agent-123',
@@ -79,7 +79,7 @@ describe('BtpServerResponseSchema', () => {
       },
       id: '123e4567-e89b-12d3-a456-426614174000',
       issuedAt: '2025-01-01T00:00:00.000Z',
-      type: 'btp_response' as const,
+      type: 'btps_response' as const,
       reqId: 'req-123',
       document: {
         results: [],
@@ -103,7 +103,7 @@ describe('BtpServerResponseSchema', () => {
       },
       id: '123e4567-e89b-12d3-a456-426614174000',
       issuedAt: '2025-01-01T00:00:00.000Z',
-      type: 'btp_response' as const,
+      type: 'btps_response' as const,
       reqId: 'req-123',
       signature: {
         algorithm: 'sha256' as const,
@@ -133,7 +133,7 @@ describe('BtpServerResponseSchema', () => {
       },
       id: '123e4567-e89b-12d3-a456-426614174000',
       issuedAt: '2025-01-01T00:00:00.000Z',
-      type: 'btp_response' as const,
+      type: 'btps_response' as const,
     };
 
     const result = validate(BtpServerResponseSchema, invalidResponse);
@@ -150,7 +150,7 @@ describe('BtpServerResponseSchema', () => {
       },
       id: '123e4567-e89b-12d3-a456-426614174000',
       issuedAt: '2025-01-01T00:00:00.000Z',
-      type: 'btp_response' as const,
+      type: 'btps_response' as const,
     };
 
     const result = validate(BtpServerResponseSchema, invalidResponse);
@@ -184,7 +184,7 @@ describe('BtpServerResponseSchema', () => {
       },
       id: '123e4567-e89b-12d3-a456-426614174000',
       issuedAt: 'invalid-date',
-      type: 'btp_response' as const,
+      type: 'btps_response' as const,
     };
 
     const result = validate(BtpServerResponseSchema, invalidResponse);

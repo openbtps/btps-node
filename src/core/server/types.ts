@@ -169,7 +169,7 @@ export type BTPServerResponse<T = BTPServerResDocs> = {
   status: BTPStatus;
   id: string;
   issuedAt: string;
-  type: 'btp_error' | 'btp_response';
+  type: 'btps_error' | 'btps_response';
   reqId?: string;
   document?: T;
   signature?: BTPSignature;

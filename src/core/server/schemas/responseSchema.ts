@@ -72,7 +72,7 @@ export const BtpServerResponseSchema = z.object({
   status: BtpStatusSchema,
   id: z.string(),
   issuedAt: z.string().datetime(),
-  type: z.enum(['btp_error', 'btp_response']),
+  type: z.enum(['btps_error', 'btps_response']),
   reqId: z.string().optional(),
   document: BtpServerResDocsSchema.optional(),
   signature: BtpSignatureSchema.optional(),

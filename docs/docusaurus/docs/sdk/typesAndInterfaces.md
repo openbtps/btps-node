@@ -13,6 +13,7 @@ This reference documents all types and interfaces used throughout the BTPS SDK. 
 ## Server Types
 
 ### BtpsServerOptions
+
 Configuration options for the BTPS server.
 
 ```ts
@@ -27,6 +28,7 @@ interface BtpsServerOptions {
 ```
 
 **Properties:**
+
 - `trustStore`: Required trust store instance for managing trust records
 - `port`: Optional port number (default: 3443)
 - `onError`: Optional error handler function
@@ -35,6 +37,7 @@ interface BtpsServerOptions {
 - `middlewarePath`: Optional path to middleware file
 
 ### ProcessedArtifact
+
 Represents a processed artifact that has been parsed and validated.
 
 ```ts
@@ -44,10 +47,12 @@ type ProcessedArtifact =
 ```
 
 **Variants:**
+
 - **Transporter Artifact**: Regular BTPS artifact with `isAgentArtifact: false`
 - **Agent Artifact**: Agent-specific artifact with `isAgentArtifact: true` and `respondNow` flag
 
 ### BTPContext
+
 Base context for request/response handling.
 
 ```ts
@@ -62,6 +67,7 @@ interface BTPContext {
 ```
 
 ### BTPRequestCtx
+
 Request context with conditional properties based on processing phase.
 
 ```ts
@@ -80,6 +86,7 @@ type BTPRequestCtx<P extends Phase = Phase, S extends Step = Step> = Omit<
 ```
 
 ### BTPResponseCtx
+
 Response context with conditional properties based on processing phase.
 
 ```ts
@@ -94,6 +101,7 @@ type BTPResponseCtx<P extends Phase = Phase, S extends Step = Step> = SetRequire
 ```
 
 ### ArtifactResCtx
+
 Context for artifact response handling.
 
 ```ts
@@ -104,6 +112,7 @@ type ArtifactResCtx = {
 ```
 
 ### MiddlewareContext
+
 Context passed to middleware handlers.
 
 ```ts
@@ -118,6 +127,7 @@ interface MiddlewareContext {
 ```
 
 ### MiddlewareDefinition
+
 Definition of a middleware handler.
 
 ```ts
@@ -131,6 +141,7 @@ interface MiddlewareDefinition<P extends Phase = Phase, S extends Step = Step> {
 ```
 
 ### MiddlewareConfig
+
 Configuration for middleware.
 
 ```ts
@@ -142,6 +153,7 @@ interface MiddlewareConfig {
 ```
 
 ### MiddlewareModule
+
 Complete middleware module with lifecycle hooks.
 
 ```ts
@@ -154,6 +166,7 @@ interface MiddlewareModule {
 ```
 
 ### BTPAttachment
+
 File attachment for documents.
 
 ```ts
@@ -165,6 +178,7 @@ interface BTPAttachment {
 ```
 
 ### BTPInvoiceDoc
+
 Invoice document structure.
 
 ```ts
@@ -208,6 +222,7 @@ interface BTPInvoiceDoc {
 ## Client Types
 
 ### BtpsClientOptions
+
 Configuration options for BTPS clients.
 
 ```ts
@@ -225,6 +240,7 @@ interface BtpsClientOptions {
 ```
 
 **Properties:**
+
 - `identity`: BTPS identity (e.g., `billing$yourdomain.com`)
 - `btpIdentityKey`: PEM-encoded private key
 - `bptIdentityCert`: PEM-encoded public key certificate
@@ -236,6 +252,7 @@ interface BtpsClientOptions {
 - `port`: Optional port override
 
 ### BTPSRetryInfo
+
 Information about retry attempts.
 
 ```ts
@@ -247,6 +264,7 @@ interface BTPSRetryInfo {
 ```
 
 ### BtpsClientEvents
+
 Event types for client event emitters.
 
 ```ts
@@ -259,6 +277,7 @@ type BtpsClientEvents = {
 ```
 
 ### TypedEventEmitter
+
 Typed event emitter for client events.
 
 ```ts
@@ -268,6 +287,7 @@ type TypedEventEmitter<T = BtpsClientEvents> = {
 ```
 
 ### BTPClientResponse
+
 Response from client operations.
 
 ```ts
@@ -278,6 +298,7 @@ interface BTPClientResponse {
 ```
 
 ### SendBTPArtifact
+
 Artifact to be sent by clients.
 
 ```ts
@@ -294,6 +315,7 @@ interface SendBTPArtifact {
 ## Authentication Types
 
 ### ServerAuthConfig
+
 Configuration for server-side authentication.
 
 ```ts
@@ -306,6 +328,7 @@ interface ServerAuthConfig {
 ```
 
 ### TokenConfig
+
 Configuration for token generation and validation.
 
 ```ts
@@ -318,6 +341,7 @@ interface TokenConfig {
 ```
 
 ### BTPsTokenDocument
+
 Stored refresh token information.
 
 ```ts
@@ -332,6 +356,7 @@ interface BTPsTokenDocument {
 ```
 
 ### AuthSession
+
 Authentication session with key information.
 
 ```ts
@@ -342,6 +367,7 @@ type AuthSession = BTPsTokenDocument & {
 ```
 
 ### TokenStore
+
 Refresh token store interface.
 
 ```ts
@@ -360,6 +386,7 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
 ```
 
 ### AuthSessionStore
+
 Authentication session store interface.
 
 ```ts
@@ -374,6 +401,7 @@ interface AuthSessionStore {
 ```
 
 ### CreateAgentOptions
+
 Options for creating a new agent.
 
 ```ts
@@ -388,6 +416,7 @@ interface CreateAgentOptions {
 ```
 
 ### AuthValidationResult
+
 Result of authentication token validation.
 
 ```ts
@@ -399,6 +428,7 @@ interface AuthValidationResult {
 ```
 
 ### RefreshTokenValidationResult
+
 Result of refresh token validation.
 
 ```ts
@@ -415,15 +445,17 @@ type RefreshTokenValidationResult =
 ```
 
 ### ReissueRefreshTokenOptions
+
 Options for reissuing refresh tokens.
 
 ```ts
-type ReissueRefreshTokenOptions = Omit<CreateAgentOptions, 'userIdentity' | 'publicKey'> & { 
+type ReissueRefreshTokenOptions = Omit<CreateAgentOptions, 'userIdentity' | 'publicKey'> & {
   publicKey?: string;
 };
 ```
 
 ### ReissueRefreshTokenResult
+
 Result of refresh token reissuance.
 
 ```ts
@@ -434,6 +466,7 @@ interface ReissueRefreshTokenResult {
 ```
 
 ### AuthRequestResponse
+
 Response from authentication requests.
 
 ```ts
@@ -445,6 +478,7 @@ interface AuthRequestResponse {
 ```
 
 ### AuthAgentOptions
+
 Options for agent authentication.
 
 ```ts
@@ -456,6 +490,7 @@ interface AuthAgentOptions {
 ```
 
 ### PemKeys
+
 PEM-encoded key pair.
 
 ```ts
@@ -466,6 +501,7 @@ interface PemKeys {
 ```
 
 ### ParsedIdentity
+
 Parsed BTPS identity components.
 
 ```ts
@@ -480,6 +516,7 @@ type ParsedIdentity = {
 ## Delegation Types
 
 ### BtpsDelegatorOptions
+
 Configuration options for the delegator.
 
 ```ts
@@ -491,6 +528,7 @@ interface BtpsDelegatorOptions {
 ```
 
 ### OnBehalfOfOptions
+
 Options for custom domain delegations.
 
 ```ts
@@ -505,6 +543,7 @@ interface OnBehalfOfOptions {
 ## Trust Store Types
 
 ### TrustStoreOptions
+
 Configuration options for trust stores.
 
 ```ts
@@ -515,6 +554,7 @@ interface TrustStoreOptions {
 ```
 
 ### BTPTrustStatus
+
 Possible trust record statuses.
 
 ```ts
@@ -522,6 +562,7 @@ type BTPTrustStatus = 'accepted' | 'rejected' | 'revoked' | 'pending' | 'blocked
 ```
 
 ### BTPTrustDecisionType
+
 Trust decision types (excludes 'pending').
 
 ```ts
@@ -529,6 +570,7 @@ type BTPTrustDecisionType = Exclude<BTPTrustStatus, 'pending'>;
 ```
 
 ### BTPEncryptionType
+
 Privacy/encryption types for trust records.
 
 ```ts
@@ -536,6 +578,7 @@ type BTPEncryptionType = 'unencrypted' | 'encrypted' | 'mixed';
 ```
 
 ### KeyHistory
+
 History record for public key usage.
 
 ```ts
@@ -547,6 +590,7 @@ interface KeyHistory {
 ```
 
 ### BTPTrustRecord
+
 Trust record structure.
 
 ```ts
@@ -569,6 +613,7 @@ interface BTPTrustRecord {
 ```
 
 ### BTPTrustReqDoc
+
 Trust request document structure.
 
 ```ts
@@ -589,6 +634,7 @@ interface BTPTrustReqDoc {
 ```
 
 ### BTPTrustResDoc
+
 Trust response document structure.
 
 ```ts
@@ -609,13 +655,19 @@ interface BTPTrustResDoc {
 ## Core Server Types
 
 ### BTPAgentArtifact
+
 Agent-specific artifact structure.
 
 ```ts
 interface BTPAgentArtifact {
   id: string;
   action: AgentAction;
-  document?: BTPTransporterArtifact | BTPAuthReqDoc | BTPAgentMutation | BTPAgentQuery | BTPIdsPayload;
+  document?:
+    | BTPTransporterArtifact
+    | BTPAuthReqDoc
+    | BTPAgentMutation
+    | BTPAgentQuery
+    | BTPIdsPayload;
   agentId: string;
   to: string;
   issuedAt: string;
@@ -625,6 +677,7 @@ interface BTPAgentArtifact {
 ```
 
 ### BTPTransporterArtifact
+
 Transporter artifact structure.
 
 ```ts
@@ -643,6 +696,7 @@ interface BTPTransporterArtifact {
 ```
 
 ### BTPServerResponse
+
 Server response structure.
 
 ```ts
@@ -651,7 +705,7 @@ interface BTPServerResponse<T = BTPServerResDocs> {
   status: BTPStatus;
   id: string;
   issuedAt: string;
-  type: 'btp_error' | 'btp_response';
+  type: 'btps_error' | 'btps_response';
   reqId?: string;
   document?: T;
   signature?: BTPSignature;
@@ -661,6 +715,7 @@ interface BTPServerResponse<T = BTPServerResDocs> {
 ```
 
 ### BTPStatus
+
 Status information for responses.
 
 ```ts
@@ -672,6 +727,7 @@ interface BTPStatus {
 ```
 
 ### BTPDelegation
+
 Delegation structure.
 
 ```ts
@@ -686,6 +742,7 @@ interface BTPDelegation {
 ```
 
 ### BTPAttestation
+
 Attestation structure for delegations.
 
 ```ts
@@ -697,6 +754,7 @@ interface BTPAttestation {
 ```
 
 ### BTPAuthReqDoc
+
 Authentication request document.
 
 ```ts
@@ -709,6 +767,7 @@ interface BTPAuthReqDoc {
 ```
 
 ### BTPAuthResDoc
+
 Authentication response document.
 
 ```ts
@@ -720,6 +779,7 @@ interface BTPAuthResDoc {
 ```
 
 ### BTPAgentMutation
+
 Agent mutation document.
 
 ```ts
@@ -731,6 +791,7 @@ interface BTPAgentMutation {
 ```
 
 ### BTPIdsPayload
+
 IDs payload document.
 
 ```ts
@@ -741,6 +802,7 @@ interface BTPIdsPayload {
 ```
 
 ### BTPAgentQuery
+
 Agent query document.
 
 ```ts
@@ -751,6 +813,7 @@ interface BTPAgentQuery {
 ```
 
 ### BTPDocType
+
 Generic document type.
 
 ```ts
@@ -758,6 +821,7 @@ type BTPDocType = BTPInvoiceDoc | BTPTrustReqDoc | BTPTrustResDoc;
 ```
 
 ### BTPStringQueryFilter
+
 String-based query filters.
 
 ```ts
@@ -772,6 +836,7 @@ interface BTPStringQueryFilter {
 ```
 
 ### BTPAgentQueryDoc
+
 Agent query document structure.
 
 ```ts
@@ -783,6 +848,7 @@ interface BTPAgentQueryDoc {
 ```
 
 ### BTPAgentQuery
+
 Agent query structure.
 
 ```ts
@@ -797,6 +863,7 @@ interface BTPAgentQuery {
 ```
 
 ### BTPAgentMutation
+
 Agent mutation document.
 
 ```ts
@@ -807,6 +874,7 @@ interface BTPAgentMutation {
 ```
 
 ### BTPAgentCreate
+
 Agent creation document.
 
 ```ts
@@ -817,6 +885,7 @@ interface BTPAgentCreate {
 ```
 
 ### BTPQueryResultEntry
+
 Query result entry with metadata.
 
 ```ts
@@ -831,6 +900,7 @@ interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFailureArt
 ```
 
 ### BTPQueryResult
+
 Query result with pagination.
 
 ```ts
@@ -843,6 +913,7 @@ interface BTPQueryResult<T = BTPTransporterArtifact | BTPDeliveryFailureArtifact
 ```
 
 ### BTPDeliveryFailureDoc
+
 Delivery failure document.
 
 ```ts
@@ -860,6 +931,7 @@ interface BTPDeliveryFailureDoc {
 ```
 
 ### BTPDeliveryFailureArtifact
+
 Delivery failure artifact.
 
 ```ts
@@ -874,6 +946,7 @@ interface BTPDeliveryFailureArtifact {
 ```
 
 ### BTPServerResDocs
+
 Server response document types.
 
 ```ts
@@ -881,10 +954,11 @@ type BTPServerResDocs = BTPAuthResDoc | BTPQueryResult;
 ```
 
 ### AgentAction
+
 Available agent actions.
 
 ```ts
-type AgentAction = 
+type AgentAction =
   | 'trust.request'
   | 'trust.respond'
   | 'trust.update'
@@ -910,10 +984,11 @@ type AgentAction =
 ```
 
 ### AgentActionRequiringDocument
+
 Agent actions that require a document.
 
 ```ts
-type AgentActionRequiringDocument = 
+type AgentActionRequiringDocument =
   | 'trust.request'
   | 'trust.respond'
   | 'trust.update'
@@ -932,20 +1007,179 @@ type AgentActionRequiringDocument =
 ```
 
 ### BTPArtifactType
+
 Artifact type identifiers.
 
 ```ts
-type BTPArtifactType = 
-  | 'TRUST_REQ'
-  | 'TRUST_RES'
-  | 'BTPS_DOC';
+type BTPArtifactType = 'TRUST_REQ' | 'TRUST_RES' | 'BTPS_DOC';
 ```
 
 ### CurrencyCode
+
 Supported currency codes.
 
 ```ts
-type CurrencyCode = 'AED' | 'AFN' | 'ALL' | 'AMD' | 'ANG' | 'AOA' | 'ARS' | 'AUD' | 'AWG' | 'AZN' | 'BAM' | 'BBD' | 'BDT' | 'BGN' | 'BHD' | 'BIF' | 'BMD' | 'BND' | 'BOB' | 'BRL' | 'BSD' | 'BTN' | 'BWP' | 'BYN' | 'BZD' | 'CAD' | 'CDF' | 'CHF' | 'CLP' | 'CNY' | 'COP' | 'CRC' | 'CUP' | 'CVE' | 'CZK' | 'DJF' | 'DKK' | 'DOP' | 'DZD' | 'EGP' | 'ERN' | 'ETB' | 'EUR' | 'FJD' | 'FKP' | 'FOK' | 'GBP' | 'GEL' | 'GGP' | 'GHS' | 'GIP' | 'GMD' | 'GNF' | 'GTQ' | 'GYD' | 'HKD' | 'HNL' | 'HRK' | 'HTG' | 'HUF' | 'IDR' | 'ILS' | 'IMP' | 'INR' | 'IQD' | 'IRR' | 'ISK' | 'JEP' | 'JMD' | 'JOD' | 'JPY' | 'KES' | 'KGS' | 'KHR' | 'KID' | 'KMF' | 'KRW' | 'KWD' | 'KYD' | 'KZT' | 'LAK' | 'LBP' | 'LKR' | 'LRD' | 'LSL' | 'LYD' | 'MAD' | 'MDL' | 'MGA' | 'MKD' | 'MMK' | 'MNT' | 'MOP' | 'MRU' | 'MUR' | 'MVR' | 'MWK' | 'MXN' | 'MYR' | 'MZN' | 'NAD' | 'NGN' | 'NIO' | 'NOK' | 'NPR' | 'NZD' | 'OMR' | 'PAB' | 'PEN' | 'PGK' | 'PHP' | 'PKR' | 'PLN' | 'PYG' | 'QAR' | 'RON' | 'RSD' | 'RUB' | 'RWF' | 'SAR' | 'SBD' | 'SCR' | 'SDG' | 'SEK' | 'SGD' | 'SHP' | 'SLL' | 'SOS' | 'SRD' | 'SSP' | 'STN' | 'SYP' | 'SZL' | 'THB' | 'TJS' | 'TMT' | 'TND' | 'TOP' | 'TRY' | 'TTD' | 'TVD' | 'TWD' | 'TZS' | 'UAH' | 'UGX' | 'USD' | 'UYU' | 'UZS' | 'VES' | 'VND' | 'VUV' | 'WST' | 'XAF' | 'XCD' | 'XOF' | 'XPF' | 'YER' | 'ZAR' | 'ZMW' | 'ZWL';
+type CurrencyCode =
+  | 'AED'
+  | 'AFN'
+  | 'ALL'
+  | 'AMD'
+  | 'ANG'
+  | 'AOA'
+  | 'ARS'
+  | 'AUD'
+  | 'AWG'
+  | 'AZN'
+  | 'BAM'
+  | 'BBD'
+  | 'BDT'
+  | 'BGN'
+  | 'BHD'
+  | 'BIF'
+  | 'BMD'
+  | 'BND'
+  | 'BOB'
+  | 'BRL'
+  | 'BSD'
+  | 'BTN'
+  | 'BWP'
+  | 'BYN'
+  | 'BZD'
+  | 'CAD'
+  | 'CDF'
+  | 'CHF'
+  | 'CLP'
+  | 'CNY'
+  | 'COP'
+  | 'CRC'
+  | 'CUP'
+  | 'CVE'
+  | 'CZK'
+  | 'DJF'
+  | 'DKK'
+  | 'DOP'
+  | 'DZD'
+  | 'EGP'
+  | 'ERN'
+  | 'ETB'
+  | 'EUR'
+  | 'FJD'
+  | 'FKP'
+  | 'FOK'
+  | 'GBP'
+  | 'GEL'
+  | 'GGP'
+  | 'GHS'
+  | 'GIP'
+  | 'GMD'
+  | 'GNF'
+  | 'GTQ'
+  | 'GYD'
+  | 'HKD'
+  | 'HNL'
+  | 'HRK'
+  | 'HTG'
+  | 'HUF'
+  | 'IDR'
+  | 'ILS'
+  | 'IMP'
+  | 'INR'
+  | 'IQD'
+  | 'IRR'
+  | 'ISK'
+  | 'JEP'
+  | 'JMD'
+  | 'JOD'
+  | 'JPY'
+  | 'KES'
+  | 'KGS'
+  | 'KHR'
+  | 'KID'
+  | 'KMF'
+  | 'KRW'
+  | 'KWD'
+  | 'KYD'
+  | 'KZT'
+  | 'LAK'
+  | 'LBP'
+  | 'LKR'
+  | 'LRD'
+  | 'LSL'
+  | 'LYD'
+  | 'MAD'
+  | 'MDL'
+  | 'MGA'
+  | 'MKD'
+  | 'MMK'
+  | 'MNT'
+  | 'MOP'
+  | 'MRU'
+  | 'MUR'
+  | 'MVR'
+  | 'MWK'
+  | 'MXN'
+  | 'MYR'
+  | 'MZN'
+  | 'NAD'
+  | 'NGN'
+  | 'NIO'
+  | 'NOK'
+  | 'NPR'
+  | 'NZD'
+  | 'OMR'
+  | 'PAB'
+  | 'PEN'
+  | 'PGK'
+  | 'PHP'
+  | 'PKR'
+  | 'PLN'
+  | 'PYG'
+  | 'QAR'
+  | 'RON'
+  | 'RSD'
+  | 'RUB'
+  | 'RWF'
+  | 'SAR'
+  | 'SBD'
+  | 'SCR'
+  | 'SDG'
+  | 'SEK'
+  | 'SGD'
+  | 'SHP'
+  | 'SLL'
+  | 'SOS'
+  | 'SRD'
+  | 'SSP'
+  | 'STN'
+  | 'SYP'
+  | 'SZL'
+  | 'THB'
+  | 'TJS'
+  | 'TMT'
+  | 'TND'
+  | 'TOP'
+  | 'TRY'
+  | 'TTD'
+  | 'TVD'
+  | 'TWD'
+  | 'TZS'
+  | 'UAH'
+  | 'UGX'
+  | 'USD'
+  | 'UYU'
+  | 'UZS'
+  | 'VES'
+  | 'VND'
+  | 'VUV'
+  | 'WST'
+  | 'XAF'
+  | 'XCD'
+  | 'XOF'
+  | 'XPF'
+  | 'YER'
+  | 'ZAR'
+  | 'ZMW'
+  | 'ZWL';
 ```
 
 ---
@@ -953,6 +1187,7 @@ type CurrencyCode = 'AED' | 'AFN' | 'ALL' | 'AMD' | 'ANG' | 'AOA' | 'ARS' | 'AUD
 ## Error Types
 
 ### BTPError
+
 Base error structure.
 
 ```ts
@@ -963,6 +1198,7 @@ interface BTPError {
 ```
 
 ### BTPErrorResponse
+
 Standard error response object.
 
 ```ts
@@ -973,6 +1209,7 @@ interface BTPErrorResponse<T = unknown> {
 ```
 
 ### BTPErrorException
+
 Extended error class with additional context.
 
 ```ts
@@ -980,12 +1217,15 @@ class BTPErrorException extends Error {
   code?: string | number;
   cause?: unknown;
   meta?: Record<string, unknown>;
-  
-  constructor(btpError: BTPError, options?: {
-    cause?: unknown;
-    meta?: Record<string, unknown>;
-  });
-  
+
+  constructor(
+    btpError: BTPError,
+    options?: {
+      cause?: unknown;
+      meta?: Record<string, unknown>;
+    },
+  );
+
   toJSON(): object;
 }
 ```
@@ -995,6 +1235,7 @@ class BTPErrorException extends Error {
 ## Utility Types
 
 ### SetRequired
+
 Utility type to make specific properties required.
 
 ```ts
@@ -1002,6 +1243,7 @@ type SetRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 ```
 
 ### Phase
+
 Middleware processing phases.
 
 ```ts
@@ -1009,18 +1251,15 @@ type Phase = 'before' | 'after';
 ```
 
 ### Step
+
 Middleware processing steps.
 
 ```ts
-type Step = 
-  | 'parsing'
-  | 'signatureVerification'
-  | 'trustVerification'
-  | 'onArtifact'
-  | 'onError';
+type Step = 'parsing' | 'signatureVerification' | 'trustVerification' | 'onArtifact' | 'onError';
 ```
 
 ### Next
+
 Middleware next function type.
 
 ```ts
@@ -1028,6 +1267,7 @@ type Next = () => Promise<void> | void;
 ```
 
 ### MiddlewareHandler
+
 Middleware handler function type.
 
 ```ts
@@ -1040,6 +1280,7 @@ type MiddlewareHandler<P extends Phase = Phase, S extends Step = Step> = (
 ```
 
 ### MiddlewareDefinitionArray
+
 Array of middleware definitions.
 
 ```ts
@@ -1062,6 +1303,7 @@ type MiddlewareDefinitionArray = Array<
 ## Crypto Types
 
 ### EncryptionMode
+
 Supported encryption modes.
 
 ```ts
@@ -1069,6 +1311,7 @@ type EncryptionMode = 'none' | 'standardEncrypt' | '2faEncrypt';
 ```
 
 ### EncryptionAlgorithmType
+
 Supported encryption algorithms.
 
 ```ts
@@ -1076,6 +1319,7 @@ type EncryptionAlgorithmType = 'aes-256-cbc';
 ```
 
 ### BTPEncryption
+
 Encryption metadata structure.
 
 ```ts
@@ -1088,6 +1332,7 @@ interface BTPEncryption {
 ```
 
 ### SignatureAlgorithmType
+
 Supported signature algorithms.
 
 ```ts
@@ -1095,6 +1340,7 @@ type SignatureAlgorithmType = 'sha256';
 ```
 
 ### BTPSignature
+
 Digital signature structure.
 
 ```ts
@@ -1106,6 +1352,7 @@ interface BTPSignature {
 ```
 
 ### BTPCryptoOptions
+
 Options for cryptographic operations.
 
 ```ts
@@ -1121,6 +1368,7 @@ interface BTPCryptoOptions {
 ```
 
 ### BTPCryptoResponse
+
 Response from cryptographic operations.
 
 ```ts
@@ -1131,6 +1379,7 @@ interface BTPCryptoResponse<T = Record<string, unknown>> {
 ```
 
 ### BTPCryptoArtifact
+
 Artifact with cryptographic metadata.
 
 ```ts
@@ -1149,6 +1398,7 @@ interface BTPCryptoArtifact<T = Record<string, unknown>> {
 ```
 
 ### BTPKeyConfig
+
 Configuration for key generation.
 
 ```ts
@@ -1161,6 +1411,7 @@ interface BTPKeyConfig {
 ```
 
 ### BTPKeyPair
+
 Generated key pair with fingerprint.
 
 ```ts
@@ -1172,6 +1423,7 @@ interface BTPKeyPair {
 ```
 
 ### VerifyEncryptedPayload
+
 Payload for verification operations.
 
 ```ts
@@ -1189,10 +1441,11 @@ interface VerifyEncryptedPayload<T = unknown | string> {
 ## Legacy Types
 
 ### Middleware
+
 Legacy middleware type for backward compatibility.
 
 ```ts
 type Middleware<T, U> = (req: T, res: U, next: Next) => Promise<void>;
 ```
 
---- 
+---

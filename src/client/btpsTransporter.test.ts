@@ -131,7 +131,7 @@ describe('BtpsTransporter', () => {
         status: { ok: true, code: 200 },
         id: 'response-id',
         issuedAt: '2023-01-01T00:00:00.000Z',
-        type: 'btp_response',
+        type: 'btps_response',
         document: { success: true },
       };
 

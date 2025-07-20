@@ -25,8 +25,8 @@ import { JsonTrustStore } from '@btps/sdk/trust';
 
 // Create authentication instance
 const auth = new BtpsAuthentication({
-  trustStore: new JsonTrustStore({ 
-    connection: './trust-store.json' 
+  trustStore: new JsonTrustStore({
+    connection: './trust-store.json',
   }),
   tokenStore: new InMemoryTokenStore(),
   tokenConfig: {
@@ -92,7 +92,7 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
       case 'auth.request':
         await handleAuthRequest(artifact, resCtx, auth);
         break;
-        
+
       case 'auth.refresh':
         await handleAuthRefresh(artifact, resCtx, auth);
         break;
@@ -102,13 +102,13 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
 
 async function handleAuthRequest(artifact, resCtx, auth) {
   const { document, to, id: reqId } = artifact;
-  
+
   if (!document) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
   }
-  
+
   const { authToken, publicKey, identity, agentInfo } = document;
-  
+
   // Validate the auth token
   const { isValid } = await auth.validateAuthToken(to, authToken);
   if (!isValid) {
@@ -124,45 +124,47 @@ async function handleAuthRequest(artifact, resCtx, auth) {
   });
 
   return resCtx.sendRes({
-    ...server.prepareBtpsResponse({
-      ok: true,
-      message: 'Authentication successful',
-      code: 200,
-    }, reqId),
-    type: 'btp_response',
+    ...server.prepareBtpsResponse(
+      {
+        ok: true,
+        message: 'Authentication successful',
+        code: 200,
+      },
+      reqId,
+    ),
+    type: 'btps_response',
     document: authResponseDoc,
   });
 }
 
 async function handleAuthRefresh(artifact, resCtx, auth) {
   const { document: refreshAuthDoc, agentId, id: refreshReqId } = artifact;
-  
+
   if (!refreshAuthDoc) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
   }
 
   const authDoc = refreshAuthDoc;
-  const { data, error } = await auth.validateAndReissueRefreshToken(
-    agentId,
-    authDoc.authToken,
-    {
-      decidedBy: 'system',
-      publicKey: authDoc.publicKey,
-      agentInfo: authDoc?.agentInfo ?? {},
-    },
-  );
+  const { data, error } = await auth.validateAndReissueRefreshToken(agentId, authDoc.authToken, {
+    decidedBy: 'system',
+    publicKey: authDoc.publicKey,
+    agentInfo: authDoc?.agentInfo ?? {},
+  });
 
   if (error) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
   }
 
   return resCtx.sendRes({
-    ...server.prepareBtpsResponse({
-      ok: true,
-      message: 'Refresh Auth Session Successful',
-      code: 200,
-    }, refreshReqId),
-    type: 'btp_response',
+    ...server.prepareBtpsResponse(
+      {
+        ok: true,
+        message: 'Refresh Auth Session Successful',
+        code: 200,
+      },
+      refreshReqId,
+    ),
+    type: 'btps_response',
     document: data,
   });
 }
@@ -177,13 +179,13 @@ Generate authentication tokens for device registration:
 async function generateDeviceToken(userIdentity: string) {
   const authToken = BtpsAuthentication.generateAuthToken(userIdentity);
   const agentId = BtpsAuthentication.generateAgentId();
-  
+
   await auth.storeAuthToken(authToken, userIdentity, agentId, {
     requestedBy: 'user',
     purpose: 'device_registration',
     timestamp: new Date().toISOString(),
   });
-  
+
   return {
     authToken,
     agentId,
@@ -202,14 +204,17 @@ Set up periodic cleanup of expired tokens:
 
 ```typescript
 // Run cleanup every hour
-setInterval(async () => {
-  try {
-    await auth.cleanup();
-    console.log('Authentication cleanup completed');
-  } catch (error) {
-    console.error('Authentication cleanup failed:', error);
-  }
-}, 60 * 60 * 1000); // 1 hour
+setInterval(
+  async () => {
+    try {
+      await auth.cleanup();
+      console.log('Authentication cleanup completed');
+    } catch (error) {
+      console.error('Authentication cleanup failed:', error);
+    }
+  },
+  60 * 60 * 1000,
+); // 1 hour
 ```
 
 ## 📱 Client-Side Setup (Mobile App)
@@ -248,7 +253,7 @@ class BTPSAuthManager {
         },
         /* following options is only needed for users who uses SaaS domain
          * Users who owns custom domain and E2E users already have published dns TXT record and will be resolved just by providing the identity above
-        */
+         */
         {
           host: 'btps.saas.com',
           port: 3443,
@@ -256,12 +261,12 @@ class BTPSAuthManager {
           btpMtsOptions: {
             rejectUnauthorized: true,
           },
-        }
+        },
       );
 
       if (result.success) {
         const { agentId, refreshToken, expiresAt } = result.response?.document;
-        
+
         // Store credentials securely
         await this.storeCredentials({
           agentId,
@@ -334,34 +339,34 @@ class BTPSSessionManager {
         },
         /* following options is only needed for users who uses SaaS domain
          * Users who owns custom domain and E2E users already have published dns TXT record and will be resolved just by providing the identity above
-        */
+         */
         {
           host: 'btps.saas.com',
           port: 3443,
           maxRetries: 3,
-        }
+        },
       );
 
       if (result.success) {
         const { refreshToken: newToken, expiresAt } = result.response?.document;
-        
+
         // Update stored credentials
         this.refreshToken = newToken;
         await this.updateStoredCredentials(newToken, expiresAt);
-        
+
         // Schedule next refresh
         this.scheduleRefresh(expiresAt);
-        
+
         return { success: true };
       } else {
         throw new Error(result.error);
       }
     } catch (error) {
       console.error('Session refresh failed:', error);
-      
+
       // Clear invalid session
       await this.clearSession();
-      
+
       return {
         success: false,
         error: error.message,
@@ -398,7 +403,7 @@ class BTPSSessionManager {
     this.agentId = null;
     this.refreshToken = null;
     this.userIdentity = null;
-    
+
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
@@ -434,16 +439,16 @@ class BTPSAuthErrorHandler {
     switch (error.message) {
       case 'INVALID_AUTH_TOKEN':
         return this.handleInvalidToken();
-        
+
       case 'TOKEN_EXPIRED':
         return this.handleTokenExpiry();
-        
+
       case 'NETWORK_ERROR':
         return this.handleNetworkError();
-        
+
       case 'AGENT_REVOKED':
         return this.handleAgentRevocation();
-        
+
       default:
         return this.handleGenericError(error);
     }
@@ -496,13 +501,13 @@ class BTPSAuthErrorHandler {
 interface TokenConfig {
   /** Length of auth tokens (8-24 characters) */
   authTokenLength?: number;
-  
+
   /** Character set for auth token generation */
   authTokenAlphabet?: string;
-  
+
   /** Expiry time for auth tokens in milliseconds */
   authTokenExpiryMs?: number;
-  
+
   /** Expiry time for refresh tokens in milliseconds */
   refreshTokenExpiryMs?: number;
 }
@@ -511,14 +516,15 @@ interface TokenConfig {
 **Recommended Settings:**
 
 | Environment | Auth Token Length | Auth Token Expiry | Refresh Token Expiry |
-|-------------|------------------|-------------------|---------------------|
-| Development | 12 | 15 minutes | 7 days |
-| Staging | 16 | 10 minutes | 30 days |
-| Production | 16 | 10 minutes | 30 days |
+| ----------- | ----------------- | ----------------- | -------------------- |
+| Development | 12                | 15 minutes        | 7 days               |
+| Staging     | 16                | 10 minutes        | 30 days              |
+| Production  | 16                | 10 minutes        | 30 days              |
 
 ### **Storage Configuration**
 
 **Development (In-Memory):**
+
 ```typescript
 const auth = new BtpsAuthentication({
   trustStore: new JsonTrustStore({ connection: './trust.json' }),
@@ -527,6 +533,7 @@ const auth = new BtpsAuthentication({
 ```
 
 **Production (Redis):**
+
 ```typescript
 const auth = new BtpsAuthentication({
   trustStore: new DatabaseTrustStore({ connection: process.env.DATABASE_URL }),
@@ -653,7 +660,13 @@ class AuthMetrics {
 ```typescript
 class AuthAuditLogger {
   async logAuthEvent(event: {
-    type: 'auth_request' | 'auth_success' | 'auth_failure' | 'refresh_request' | 'refresh_success' | 'refresh_failure';
+    type:
+      | 'auth_request'
+      | 'auth_success'
+      | 'auth_failure'
+      | 'refresh_request'
+      | 'refresh_success'
+      | 'refresh_failure';
     userIdentity: string;
     agentId?: string;
     ipAddress?: string;
@@ -667,7 +680,7 @@ class AuthAuditLogger {
 
     // Log to your preferred logging system
     console.log('AUTH_AUDIT:', JSON.stringify(logEntry));
-    
+
     // Or send to external logging service
     await this.sendToLoggingService(logEntry);
   }

@@ -19,8 +19,8 @@ import { BTP_ERROR_AUTHENTICATION_INVALID } from '@btps/sdk/error';
 
 // Create authentication instance
 const auth = new BtpsAuthentication({
-  trustStore: new JsonTrustStore({ 
-    connection: './trust-store.json' 
+  trustStore: new JsonTrustStore({
+    connection: './trust-store.json',
   }),
   tokenStore: new InMemoryTokenStore(),
   tokenConfig: {
@@ -45,7 +45,7 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
       case 'auth.request':
         await handleAuthRequest(artifact, resCtx, auth, server);
         break;
-        
+
       case 'auth.refresh':
         await handleAuthRefresh(artifact, resCtx, auth, server);
         break;
@@ -55,13 +55,13 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
 
 async function handleAuthRequest(artifact, resCtx, auth, server) {
   const { document, to, id: reqId } = artifact;
-  
+
   if (!document) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
   }
-  
+
   const { authToken, publicKey, identity, agentInfo } = document;
-  
+
   // Validate the auth token
   const { isValid } = await auth.validateAuthToken(to, authToken);
   if (!isValid) {
@@ -77,45 +77,47 @@ async function handleAuthRequest(artifact, resCtx, auth, server) {
   });
 
   return resCtx.sendRes({
-    ...server.prepareBtpsResponse({
-      ok: true,
-      message: 'Authentication successful',
-      code: 200,
-    }, reqId),
-    type: 'btp_response',
+    ...server.prepareBtpsResponse(
+      {
+        ok: true,
+        message: 'Authentication successful',
+        code: 200,
+      },
+      reqId,
+    ),
+    type: 'btps_response',
     document: authResponseDoc,
   });
 }
 
 async function handleAuthRefresh(artifact, resCtx, auth, server) {
   const { document: refreshAuthDoc, agentId, id: refreshReqId } = artifact;
-  
+
   if (!refreshAuthDoc) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
   }
 
   const authDoc = refreshAuthDoc;
-  const { data, error } = await auth.validateAndReissueRefreshToken(
-    agentId,
-    authDoc.authToken,
-    {
-      decidedBy: 'system',
-      publicKey: authDoc.publicKey,
-      agentInfo: authDoc?.agentInfo ?? {},
-    },
-  );
+  const { data, error } = await auth.validateAndReissueRefreshToken(agentId, authDoc.authToken, {
+    decidedBy: 'system',
+    publicKey: authDoc.publicKey,
+    agentInfo: authDoc?.agentInfo ?? {},
+  });
 
   if (error) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
   }
 
   return resCtx.sendRes({
-    ...server.prepareBtpsResponse({
-      ok: true,
-      message: 'Refresh Auth Session Successful',
-      code: 200,
-    }, refreshReqId),
-    type: 'btp_response',
+    ...server.prepareBtpsResponse(
+      {
+        ok: true,
+        message: 'Refresh Auth Session Successful',
+        code: 200,
+      },
+      refreshReqId,
+    ),
+    type: 'btps_response',
     document: data,
   });
 }
@@ -190,7 +192,7 @@ class ProductionAuthService {
   async handleAuthRequest(artifact: any, resCtx: any) {
     const startTime = Date.now();
     const { document, to, id: reqId } = artifact;
-    
+
     try {
       if (!document) {
         return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
@@ -200,7 +202,7 @@ class ProductionAuthService {
 
       // Validate auth token
       const { isValid, userIdentity, metadata } = await this.auth.validateAuthToken(to, authToken);
-      
+
       if (!isValid) {
         this.metrics.recordAuthAttempt(false);
         this.logger.logAuthEvent({
@@ -236,13 +238,12 @@ class ProductionAuthService {
         message: 'Authentication successful',
         code: 200,
         id: reqId,
-        type: 'btp_response',
+        type: 'btps_response',
         document: authResponseDoc,
       });
-
     } catch (error) {
       this.metrics.recordAuthAttempt(false);
-      this.logger.logError('auth_request_failed', error, { 
+      this.logger.logError('auth_request_failed', error, {
         userIdentity: document?.identity,
         agentId: document?.agentId,
       });
@@ -252,7 +253,7 @@ class ProductionAuthService {
 
   async handleAuthRefresh(artifact: any, resCtx: any) {
     const { document: refreshAuthDoc, agentId, id: refreshReqId } = artifact;
-    
+
     try {
       if (!refreshAuthDoc) {
         return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
@@ -291,10 +292,9 @@ class ProductionAuthService {
         message: 'Refresh Auth Session Successful',
         code: 200,
         id: refreshReqId,
-        type: 'btp_response',
+        type: 'btps_response',
         document: data,
       });
-
     } catch (error) {
       this.metrics.recordRefreshAttempt(false);
       this.logger.logError('refresh_request_failed', error, { agentId });
@@ -316,9 +316,12 @@ class ProductionAuthService {
 const authService = new ProductionAuthService();
 
 // Set up periodic cleanup
-setInterval(() => {
-  authService.cleanup();
-}, 60 * 60 * 1000); // Every hour
+setInterval(
+  () => {
+    authService.cleanup();
+  },
+  60 * 60 * 1000,
+); // Every hour
 ```
 
 ### **3. Custom Storage Implementation**
@@ -371,7 +374,7 @@ class PostgreSQLTokenStore implements TokenStore {
     `;
 
     const result = await this.pool.query(query, [agentId, token]);
-    
+
     if (result.rows.length === 0) {
       return undefined;
     }
@@ -469,12 +472,12 @@ class BTPSAuthClient {
           btpMtsOptions: {
             rejectUnauthorized: true,
           },
-        }
+        },
       );
 
       if (result.success) {
         const { agentId, refreshToken, expiresAt } = result.response?.document;
-        
+
         // Store credentials securely
         await this.storeCredentials({
           agentId,
@@ -575,19 +578,19 @@ class BTPSSessionManager {
           host: 'btps.saas.com',
           port: 3443,
           maxRetries: 3,
-        }
+        },
       );
 
       if (result.success) {
         const { refreshToken: newToken, expiresAt } = result.response?.document;
-        
+
         // Update stored credentials
         this.refreshToken = newToken;
         await this.updateStoredCredentials(newToken, expiresAt);
-        
+
         // Schedule next refresh
         this.scheduleRefresh(expiresAt);
-        
+
         this.isRefreshing = false;
         return { success: true };
       } else {
@@ -595,10 +598,10 @@ class BTPSSessionManager {
       }
     } catch (error) {
       console.error('Session refresh failed:', error);
-      
+
       // Clear invalid session
       await this.clearSession();
-      
+
       this.isRefreshing = false;
       return {
         success: false,
@@ -646,13 +649,13 @@ class BTPSSessionManager {
         this.agentId = credentials.agentId;
         this.refreshToken = credentials.refreshToken;
         this.userIdentity = credentials.userIdentity;
-        
+
         // Schedule refresh if not expired
         const expiresAt = new Date(credentials.expiresAt);
         if (expiresAt > new Date()) {
           this.scheduleRefresh(credentials.expiresAt);
         }
-        
+
         return credentials;
       }
     } catch (error) {
@@ -682,7 +685,7 @@ class BTPSSessionManager {
     this.agentId = null;
     this.refreshToken = null;
     this.userIdentity = null;
-    
+
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
@@ -751,16 +754,16 @@ class BTPSAuthErrorHandler {
     switch (error.message) {
       case 'INVALID_AUTH_TOKEN':
         return this.handleInvalidToken();
-        
+
       case 'TOKEN_EXPIRED':
         return this.handleTokenExpiry();
-        
+
       case 'NETWORK_ERROR':
         return this.handleNetworkError();
-        
+
       case 'AGENT_REVOKED':
         return this.handleAgentRevocation();
-        
+
       default:
         return this.handleGenericError(error);
     }
@@ -790,10 +793,10 @@ class BTPSAuthErrorHandler {
     if (this.retryCount < this.maxRetries) {
       this.retryCount++;
       const delay = Math.pow(2, this.retryCount) * 1000; // Exponential backoff
-      
+
       return {
         action: 'RETRY',
-        message: `Network error. Retrying in ${delay/1000} seconds...`,
+        message: `Network error. Retrying in ${delay / 1000} seconds...`,
         retryAfter: delay,
       };
     } else {
@@ -835,10 +838,7 @@ const errorHandler = new BTPSAuthErrorHandler(sessionManager);
 try {
   const result = await sessionManager.refreshSession();
   if (!result.success) {
-    const action = await errorHandler.handleAuthError(
-      new Error(result.error), 
-      'session_refresh'
-    );
+    const action = await errorHandler.handleAuthError(new Error(result.error), 'session_refresh');
     console.log('Action required:', action);
   }
 } catch (error) {
@@ -861,7 +861,7 @@ class BTPSQRCodeHandler {
     };
 
     const qrString = JSON.stringify(qrData);
-    
+
     // Generate QR code using a library like qrcode
     const qrCode = await QRCode.toDataURL(qrString, {
       width: 300,
@@ -882,7 +882,7 @@ class BTPSQRCodeHandler {
   async scanQRCode(qrString: string) {
     try {
       const qrData = JSON.parse(qrString);
-      
+
       if (qrData.type !== 'btps_auth') {
         throw new Error('Invalid QR code type');
       }
@@ -891,7 +891,7 @@ class BTPSQRCodeHandler {
       const timestamp = new Date(qrData.timestamp);
       const now = new Date();
       const diffMinutes = (now.getTime() - timestamp.getTime()) / (1000 * 60);
-      
+
       if (diffMinutes > 15) {
         throw new Error('QR code has expired');
       }
@@ -939,7 +939,7 @@ const auth = new BtpsAuthentication({
 app.post('/api/auth/token', async (req, res) => {
   try {
     const { userIdentity } = req.body;
-    
+
     if (!userIdentity) {
       return res.status(400).json({ error: 'userIdentity is required' });
     }
@@ -968,12 +968,12 @@ app.post('/api/auth/token', async (req, res) => {
 app.get('/api/auth/devices/:userIdentity', async (req, res) => {
   try {
     const { userIdentity } = req.params;
-    
+
     // Get user's devices from trust store
     const devices = await auth.trustStore.getByReceiverId(userIdentity);
-    
+
     res.json({
-      devices: devices.map(device => ({
+      devices: devices.map((device) => ({
         agentId: device.senderId,
         deviceName: device.metadata?.agentInfo?.deviceName,
         platform: device.metadata?.agentInfo?.platform,
@@ -993,7 +993,7 @@ app.get('/api/auth/devices/:userIdentity', async (req, res) => {
 app.delete('/api/auth/devices/:agentId', async (req, res) => {
   try {
     const { agentId } = req.params;
-    
+
     // Update trust record status to revoked
     await auth.trustStore.update(agentId, {
       status: 'revoked',
@@ -1036,7 +1036,7 @@ const BTPSAuthScreen = () => {
       if (credentials) {
         const sessionData = JSON.parse(credentials.password);
         const expiresAt = new Date(sessionData.expiresAt);
-        
+
         if (expiresAt > new Date()) {
           setIsAuthenticated(true);
         } else {
@@ -1079,7 +1079,7 @@ const BTPSAuthScreen = () => {
 
       if (result.success) {
         const { agentId, refreshToken, expiresAt } = result.response?.document;
-        
+
         // Store credentials securely
         await Keychain.setInternetCredentials('btps_credentials', 'btps', JSON.stringify({
           agentId,
@@ -1133,7 +1133,7 @@ const BTPSAuthScreen = () => {
       <Text style={{ fontSize: 24, marginBottom: 30, textAlign: 'center' }}>
         BTPS Device Registration
       </Text>
-      
+
       <TextInput
         style={{
           borderWidth: 1,
@@ -1148,7 +1148,7 @@ const BTPSAuthScreen = () => {
         autoCapitalize="none"
         autoCorrect={false}
       />
-      
+
       <TouchableOpacity
         style={{
           backgroundColor: isLoading ? '#ccc' : '#007AFF',
@@ -1308,7 +1308,7 @@ describe('BTPS Authentication Integration', () => {
     // Generate auth token
     const authToken = BtpsAuthentication.generateAuthToken('test@example.com');
     const agentId = BtpsAuthentication.generateAgentId();
-    
+
     await auth.storeAuthToken(authToken, 'test@example.com', agentId);
 
     // Perform authentication
@@ -1328,7 +1328,7 @@ describe('BTPS Authentication Integration', () => {
         btpMtsOptions: {
           rejectUnauthorized: false,
         },
-      }
+      },
     );
 
     expect(result.success).toBe(true);

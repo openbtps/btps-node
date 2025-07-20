@@ -56,7 +56,7 @@ flowchart LR
 {
   "version": "1.0",
   "issuedAt": "2025-01-15T10:30:00Z",
-  "id": "btp_1234567890abcdef",
+  "id": "btps_1234567890abcdef",
   "type": "TRUST_REQ",
   "from": "billing$vendorcorp.com",
   "to": "pay$client.com",

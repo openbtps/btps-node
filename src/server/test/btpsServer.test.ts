@@ -949,7 +949,7 @@ export default function () {
           version: '1.0.0',
           id: 'test-response-id',
           issuedAt: new Date().toISOString(),
-          type: 'btp_response',
+          type: 'btps_response',
           status: { ok: true, code: 200, message: 'Handled by event handler' },
         });
       });

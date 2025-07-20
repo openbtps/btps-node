@@ -89,7 +89,7 @@ BTPsServer.onIncomingArtifact('Agent', async (artifact, resCtx) => {
             },
             reqId,
           ),
-          type: 'btp_response',
+          type: 'btps_response',
           document: authResponseDoc,
         });
       case 'auth.refresh':
@@ -122,7 +122,7 @@ BTPsServer.onIncomingArtifact('Agent', async (artifact, resCtx) => {
             },
             refreshReqId,
           ),
-          type: 'btp_response',
+          type: 'btps_response',
           document: data,
         });
 

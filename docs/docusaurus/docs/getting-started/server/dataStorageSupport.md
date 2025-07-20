@@ -28,7 +28,12 @@ abstract class AbstractTrustStore<T extends BTPTrustRecord> {
 
 ```typescript
 // src/storage/MongoTrustStore.ts
-import { AbstractTrustStore, BTPTrustRecord, TrustStoreOptions, computeTrustId } from '@btps/sdk/trust';
+import {
+  AbstractTrustStore,
+  BTPTrustRecord,
+  TrustStoreOptions,
+  computeTrustId,
+} from '@btps/sdk/trust';
 import { MongoClient } from 'mongodb';
 
 export class MongoTrustStore extends AbstractTrustStore<BTPTrustRecord> {
@@ -81,14 +86,14 @@ await mongoClient.connect();
 // Create trust store
 const trustStore = new MongoTrustStore({
   connection: mongoClient,
-  entityName: 'btp_trust'
+  entityName: 'btps_trust',
 });
 
 // Create server with MongoDB trust store
 const server = new BtpsServer({
   port: 3443,
   trustStore,
-  connectionTimeoutMs: 30000
+  connectionTimeoutMs: 30000,
 });
 
 await server.start();
@@ -121,12 +126,12 @@ export interface ArtifactStorage {
   addToInbox(artifact: Omit<BTPArtifact, 'id' | 'createdAt'>): Promise<BTPArtifact>;
   getInbox(receiverId: string, limit?: number): Promise<BTPArtifact[]>;
   markInboxProcessed(id: string): Promise<void>;
-  
+
   // Outbox operations
   addToOutbox(artifact: Omit<BTPArtifact, 'id' | 'createdAt'>): Promise<BTPArtifact>;
   getOutbox(senderId: string, limit?: number): Promise<BTPArtifact[]>;
   markOutboxSent(id: string): Promise<void>;
-  
+
   // Trash operations
   moveToTrash(id: string, reason: string): Promise<void>;
   getTrash(identity: string, limit?: number): Promise<BTPArtifact[]>;
@@ -225,7 +230,7 @@ await mongoClient.connect();
 // Create trust store
 const trustStore = new MongoTrustStore({
   connection: mongoClient,
-  entityName: 'btp_trust'
+  entityName: 'btps_trust',
 });
 
 // Create artifact storage
@@ -235,7 +240,7 @@ const artifactStorage = new MongoArtifactStorage(mongoClient, 'btps');
 const server = new BtpsServer({
   port: 3443,
   trustStore,
-  connectionTimeoutMs: 30000
+  connectionTimeoutMs: 30000,
 });
 
 // Handle incoming artifacts
@@ -251,10 +256,10 @@ server.onIncomingArtifact('Transporter', async (artifact) => {
       delegation: artifact.delegation,
       metadata: {
         receivedAt: new Date().toISOString(),
-        source: 'btps_server'
-      }
+        source: 'btps_server',
+      },
     });
-    
+
     console.log(`✅ Artifact stored in inbox: ${artifact.id}`);
   } catch (error) {
     console.error('❌ Failed to store artifact:', error);
@@ -273,7 +278,12 @@ For SQL databases, here are basic implementations:
 
 ```typescript
 // src/storage/PostgresTrustStore.ts
-import { AbstractTrustStore, BTPTrustRecord, TrustStoreOptions, computeTrustId } from '@btps/sdk/trust';
+import {
+  AbstractTrustStore,
+  BTPTrustRecord,
+  TrustStoreOptions,
+  computeTrustId,
+} from '@btps/sdk/trust';
 import { Pool } from 'pg';
 
 export class PostgresTrustStore extends AbstractTrustStore<BTPTrustRecord> {
@@ -324,12 +334,13 @@ POSTGRES_URI=postgresql://user:password@localhost:5432/btps
 
 # Trust store configuration
 TRUST_STORE_TYPE=mongodb
-TRUST_STORE_ENTITY=btp_trust
+TRUST_STORE_ENTITY=btps_trust
 ```
 
 ## Advanced Examples
 
 For more advanced implementations including:
+
 - DynamoDB trust stores
 - Redis caching
 - Multi-tenant setups
@@ -352,6 +363,7 @@ With database storage configured, you can now:
 ### Common MongoDB Issues
 
 **Connection Timeout**
+
 ```bash
 # Error: MongoNetworkError: connection timed out
 # Solution: Check MongoDB service and connection string
@@ -359,12 +371,14 @@ mongod --dbpath /data/db
 ```
 
 **Index Creation Fails**
+
 ```bash
 # Error: MongoError: Index with name already exists
 # Solution: Drop existing indexes or use createIndex with { background: true }
 ```
 
 **Memory Issues**
+
 ```bash
 # Error: MongoError: WiredTiger cache out of memory
 # Solution: Increase MongoDB memory limits or implement pagination
@@ -373,12 +387,14 @@ mongod --dbpath /data/db
 ### Common SQL Issues
 
 **Connection Pool Exhausted**
+
 ```bash
 # Error: Pool is full
 # Solution: Increase pool size or implement connection management
 ```
 
 **Table Already Exists**
+
 ```bash
 # Error: relation already exists
 # Solution: Use CREATE TABLE IF NOT EXISTS

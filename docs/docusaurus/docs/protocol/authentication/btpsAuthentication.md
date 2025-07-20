@@ -102,7 +102,7 @@ static generateAgentId(prefix?: string): string
 
 **Parameters:**
 
-- `prefix` (optional): `string` - Custom prefix for agent ID (default: `'btp_ag_'`)
+- `prefix` (optional): `string` - Custom prefix for agent ID (default: `'btps_ag_'`)
 
 **Returns:** `string` - Unique agent identifier
 
@@ -110,7 +110,7 @@ static generateAgentId(prefix?: string): string
 
 ```typescript
 const agentId = BtpsAuthentication.generateAgentId();
-// Returns: "btp_ag_uuid-12345678-1234-1234-1234-123456789abc"
+// Returns: "btps_ag_uuid-12345678-1234-1234-1234-123456789abc"
 
 const customAgentId = BtpsAuthentication.generateAgentId('mobile_');
 // Returns: "mobile_uuid-12345678-1234-1234-1234-123456789abc"
@@ -258,7 +258,7 @@ static refreshSession(
 
 ```typescript
 const refreshResult = await BtpsAuthentication.refreshSession(
-  'btp_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
+  'btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
   'alice$saas.com',
   '-PnjR_MKMiEpG94Tr1dS-hU4VHbnG3g9Z0pMLWUY1eE',
   keyPair,

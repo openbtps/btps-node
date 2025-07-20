@@ -138,7 +138,12 @@ export class BtpsAuthentication {
       if (error) return { success: false, error };
       // Parse server response - the response contains the auth data in the document field
 
-      if (!response || !response.status.ok || !response.document || response.type === 'btp_error') {
+      if (
+        !response ||
+        !response.status.ok ||
+        !response.document ||
+        response.type === 'btps_error'
+      ) {
         return {
           success: false,
           error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
@@ -182,7 +187,7 @@ export class BtpsAuthentication {
    * Generate a unique agent ID
    * @returns Generated agent ID
    */
-  static generateAgentId(prefix: string = 'btp_ag'): string {
+  static generateAgentId(prefix: string = 'btps_ag'): string {
     return `${prefix}_${randomUUID()}`;
   }
 

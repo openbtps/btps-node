@@ -145,7 +145,7 @@ async function handleDelegatedArtifact(artifact, resCtx, delegator, server) {
         },
         artifact.id,
       ),
-      type: 'btp_response',
+      type: 'btps_response',
     });
   } catch (error) {
     console.error('Delegation failed:', error);
@@ -298,7 +298,7 @@ const saasUserArtifact = {
   signature: {
     /* agent signature */
   },
-  agentId: 'btp_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
+  agentId: 'btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
   agentPubKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
 };
 
@@ -313,7 +313,7 @@ const customUserArtifact = {
   signature: {
     /* agent signature */
   },
-  agentId: 'btp_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b454',
+  agentId: 'btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b454',
   agentPubKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
 };
 ```

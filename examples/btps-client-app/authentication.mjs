@@ -34,7 +34,7 @@ const privateKey3 = readFileSync('./keys/hr/hr-private.pem');
   // const { agentId, refreshToken, expiresAt } = result.response.document;
   // console.log('expiresAt', expiresAt);
   const refreshResult = await BtpsAuthentication.refreshSession(
-    'btp_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
+    'btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
     identity,
     '-PnjR_MKMiEpG94Tr1dS-hU4VHbnG3g9Z0pMLWUY1eE',
     {

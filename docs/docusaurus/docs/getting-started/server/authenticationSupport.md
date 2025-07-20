@@ -33,13 +33,13 @@ import { JsonTrustStore } from '@btps/sdk/trust';
 // Configure trust store for authentication
 const trustStore = new JsonTrustStore({
   connection: './trust.json',
-  entityName: 'trusted_senders'
+  entityName: 'trusted_senders',
 });
 
 const server = new BtpsServer({
   port: 3443,
   trustStore,
-  middlewarePath: './btps.middleware.mjs'
+  middlewarePath: './btps.middleware.mjs',
 });
 
 // Create authentication instance
@@ -66,13 +66,13 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
       case 'auth.request':
         // Handle device registration requests
         return handleAuthRequest(artifact, resCtx, auth, server);
-        
+
       case 'auth.refresh':
         // Handle session refresh requests
         return handleAuthRefresh(artifact, resCtx, auth, server);
-        
+
       default:
-        // Handle other agent actions
+      // Handle other agent actions
     }
   }
 });
@@ -92,13 +92,13 @@ server.onIncomingArtifact('Transporter', async (artifact, resCtx) => {
 // Handle device registration requests
 async function handleAuthRequest(artifact, resCtx, auth, server) {
   const { document, to, id: reqId } = artifact;
-  
+
   if (!document) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
   }
-  
+
   const { authToken, publicKey, identity, agentInfo } = document;
-  
+
   // Validate the auth token
   const { isValid } = await auth.validateAuthToken(to, authToken);
   if (!isValid) {
@@ -114,12 +114,15 @@ async function handleAuthRequest(artifact, resCtx, auth, server) {
   });
 
   return resCtx.sendRes({
-    ...server.prepareBtpsResponse({
-      ok: true,
-      message: 'Authentication successful',
-      code: 200,
-    }, reqId),
-    type: 'btp_response',
+    ...server.prepareBtpsResponse(
+      {
+        ok: true,
+        message: 'Authentication successful',
+        code: 200,
+      },
+      reqId,
+    ),
+    type: 'btps_response',
     document: authResponseDoc,
   });
 }
@@ -127,33 +130,32 @@ async function handleAuthRequest(artifact, resCtx, auth, server) {
 // Handle session refresh requests
 async function handleAuthRefresh(artifact, resCtx, auth, server) {
   const { document: refreshAuthDoc, agentId, id: refreshReqId } = artifact;
-  
+
   if (!refreshAuthDoc) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
   }
 
   const authDoc = refreshAuthDoc;
-  const { data, error } = await auth.validateAndReissueRefreshToken(
-    agentId,
-    authDoc.authToken,
-    {
-      decidedBy: 'system',
-      publicKey: authDoc.publicKey,
-      agentInfo: authDoc?.agentInfo ?? {},
-    },
-  );
+  const { data, error } = await auth.validateAndReissueRefreshToken(agentId, authDoc.authToken, {
+    decidedBy: 'system',
+    publicKey: authDoc.publicKey,
+    agentInfo: authDoc?.agentInfo ?? {},
+  });
 
   if (error) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
   }
 
   return resCtx.sendRes({
-    ...server.prepareBtpsResponse({
-      ok: true,
-      message: 'Refresh Auth Session Successful',
-      code: 200,
-    }, refreshReqId),
-    type: 'btp_response',
+    ...server.prepareBtpsResponse(
+      {
+        ok: true,
+        message: 'Refresh Auth Session Successful',
+        code: 200,
+      },
+      refreshReqId,
+    ),
+    type: 'btps_response',
     document: data,
   });
 }
@@ -166,16 +168,16 @@ async function handleAuthRefresh(artifact, resCtx, auth, server) {
 async function generateDeviceToken(userIdentity: string) {
   const authToken = BtpsAuthentication.generateAuthToken(userIdentity);
   const agentId = BtpsAuthentication.generateAgentId();
-  
+
   await auth.storeAuthToken(authToken, userIdentity, agentId, {
     requestedBy: 'user',
     purpose: 'device_registration',
     timestamp: new Date().toISOString(),
   });
-  
+
   // Get the stored token to retrieve the actual expiry
   const storedToken = await auth.tokenStore.get(agentId, authToken);
-  
+
   return {
     authToken,
     agentId,
@@ -209,19 +211,19 @@ const authResult = await agent.command('auth.request', null, {
     identity: 'user$domain.com',
     agentInfo: {
       deviceName: 'Test Device',
-      platform: 'test'
-    }
+      platform: 'test',
+    },
   },
-  respondNow: true
+  respondNow: true,
 });
 
 const refreshResult = await agent.command('auth.refresh', null, {
   document: {
     authToken: 'refresh-token',
-    publicKey: 'device-public-key'
+    publicKey: 'device-public-key',
   },
   agentId: 'agent-id',
-  respondNow: true
+  respondNow: true,
 });
 ```
 

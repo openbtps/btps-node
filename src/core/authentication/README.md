@@ -130,7 +130,7 @@ if (result.success) {
 
 // Refresh session later
 const refreshResult = await BtpsAuthentication.refreshSession(
-  'btp_ag_uuid-123',
+  'btps_ag_uuid-123',
   'alice$saas.com',
   'REFRESH_TOKEN_123',
   keyPair,

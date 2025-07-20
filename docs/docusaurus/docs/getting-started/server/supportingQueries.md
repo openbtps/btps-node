@@ -25,38 +25,38 @@ BTPS agents can send commands with `respondNow: true` to get immediate responses
 
 ```typescript
 // Inbox operations
-'inbox.fetch'           // Fetch inbox messages with filtering
-'inbox.fetchById'       // Fetch specific messages by ID
-'inbox.delete'          // Delete messages from inbox
-'inbox.seen'            // Mark messages as read
-'inbox.update'          // Update message content
+'inbox.fetch'; // Fetch inbox messages with filtering
+'inbox.fetchById'; // Fetch specific messages by ID
+'inbox.delete'; // Delete messages from inbox
+'inbox.seen'; // Mark messages as read
+'inbox.update'; // Update message content
 
-// Outbox operations  
-'outbox.fetch'          // Fetch pending messages
-'outbox.fetchById'      // Fetch specific pending messages
-'outbox.cancel'         // Cancel pending messages
-'outbox.update'         // Update pending message content
+// Outbox operations
+'outbox.fetch'; // Fetch pending messages
+'outbox.fetchById'; // Fetch specific pending messages
+'outbox.cancel'; // Cancel pending messages
+'outbox.update'; // Update pending message content
 
 // Draft operations
-'draft.fetch'           // Fetch draft messages
-'draft.fetchById'       // Fetch specific drafts
-'draft.create'          // Create new draft
-'draft.update'          // Update existing draft
-'draft.delete'          // Delete drafts
+'draft.fetch'; // Fetch draft messages
+'draft.fetchById'; // Fetch specific drafts
+'draft.create'; // Create new draft
+'draft.update'; // Update existing draft
+'draft.delete'; // Delete drafts
 
 // Trash operations
-'trash.fetch'           // Fetch trashed messages
-'trash.fetchById'       // Fetch specific trashed messages
-'trash.delete'          // Permanently delete from trash
+'trash.fetch'; // Fetch trashed messages
+'trash.fetchById'; // Fetch specific trashed messages
+'trash.delete'; // Permanently delete from trash
 
 // Sentbox operations
-'sentbox.fetch'         // Fetch sent messages
-'sentbox.fetchById'     // Fetch specific sent messages
-'sentbox.delete'        // Delete sent messages
-'sentbox.update'        // Update sent message content
+'sentbox.fetch'; // Fetch sent messages
+'sentbox.fetchById'; // Fetch specific sent messages
+'sentbox.delete'; // Delete sent messages
+'sentbox.update'; // Update sent message content
 
 // Trust operations
-'trust.fetch'           // Fetch trust relationships
+'trust.fetch'; // Fetch trust relationships
 ```
 
 ## Implementing Query Handlers
@@ -72,8 +72,8 @@ const server = new BtpsServer({
   port: 3443,
   trustStore: new JsonTrustStore({
     connection: './trust.json',
-    entityName: 'trusted_senders'
-  })
+    entityName: 'trusted_senders',
+  }),
 });
 
 // Handle immediate response commands
@@ -82,29 +82,29 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
   if (!artifact.respondNow) {
     return; // Let other handlers process async requests
   }
-  
+
   console.log('📱 Immediate request:', artifact.action);
-  
+
   switch (artifact.action) {
     case 'inbox.fetch':
       return handleInboxFetch(artifact, resCtx);
-      
+
     case 'inbox.delete':
       return handleInboxDelete(artifact, resCtx);
-      
+
     case 'outbox.fetch':
       return handleOutboxFetch(artifact, resCtx);
-      
+
     case 'draft.create':
       return handleDraftCreate(artifact, resCtx);
-      
+
     case 'trash.fetch':
       return handleTrashFetch(artifact, resCtx);
-      
+
     default:
       return resCtx.sendError({
         code: 400,
-        message: `Unsupported immediate action: ${artifact.action}`
+        message: `Unsupported immediate action: ${artifact.action}`,
       });
   }
 });
@@ -118,18 +118,11 @@ await server.start();
 // Handle inbox.fetch command
 async function handleInboxFetch(artifact: any, resCtx: any) {
   const { agentId, document: query } = artifact;
-  
+
   try {
     // Extract query parameters
-    const {
-      since,
-      until,
-      limit = 50,
-      cursor,
-      query: filters,
-      sort = 'desc'
-    } = query || {};
-    
+    const { since, until, limit = 50, cursor, query: filters, sort = 'desc' } = query || {};
+
     // Fetch inbox items from your storage
     const inboxItems = await fetchInboxItems(agentId, {
       since,
@@ -137,30 +130,32 @@ async function handleInboxFetch(artifact: any, resCtx: any) {
       limit,
       cursor,
       filters,
-      sort
+      sort,
     });
-    
+
     // Return query result
     return resCtx.sendRes({
-      ...server.prepareBtpsResponse({
-        ok: true,
-        message: 'Inbox fetched successfully',
-        code: 200
-      }, artifact.id),
-      type: 'btp_response',
+      ...server.prepareBtpsResponse(
+        {
+          ok: true,
+          message: 'Inbox fetched successfully',
+          code: 200,
+        },
+        artifact.id,
+      ),
+      type: 'btps_response',
       document: {
         results: inboxItems.results,
         cursor: inboxItems.cursor,
         total: inboxItems.total,
-        hasNext: inboxItems.hasNext
-      }
+        hasNext: inboxItems.hasNext,
+      },
     });
-    
   } catch (error) {
     console.error('Inbox fetch error:', error);
     return resCtx.sendError({
       code: 500,
-      message: 'Failed to fetch inbox'
+      message: 'Failed to fetch inbox',
     });
   }
 }
@@ -168,30 +163,32 @@ async function handleInboxFetch(artifact: any, resCtx: any) {
 // Handle inbox.delete command
 async function handleInboxDelete(artifact: any, resCtx: any) {
   const { agentId, document } = artifact;
-  
+
   try {
     const { ids } = document;
-    
+
     // Delete messages from inbox
     await deleteInboxItems(agentId, ids);
-    
+
     return resCtx.sendRes({
-      ...server.prepareBtpsResponse({
-        ok: true,
-        message: 'Messages deleted successfully',
-        code: 200
-      }, artifact.id),
-      type: 'btp_response',
+      ...server.prepareBtpsResponse(
+        {
+          ok: true,
+          message: 'Messages deleted successfully',
+          code: 200,
+        },
+        artifact.id,
+      ),
+      type: 'btps_response',
       document: {
-        deletedCount: ids.length
-      }
+        deletedCount: ids.length,
+      },
     });
-    
   } catch (error) {
     console.error('Inbox delete error:', error);
     return resCtx.sendError({
       code: 500,
-      message: 'Failed to delete messages'
+      message: 'Failed to delete messages',
     });
   }
 }
@@ -199,30 +196,32 @@ async function handleInboxDelete(artifact: any, resCtx: any) {
 // Handle inbox.seen command
 async function handleInboxSeen(artifact: any, resCtx: any) {
   const { agentId, document } = artifact;
-  
+
   try {
     const { ids } = document;
-    
+
     // Mark messages as seen
     await markInboxItemsSeen(agentId, ids);
-    
+
     return resCtx.sendRes({
-      ...server.prepareBtpsResponse({
-        ok: true,
-        message: 'Messages marked as seen',
-        code: 200
-      }, artifact.id),
-      type: 'btp_response',
+      ...server.prepareBtpsResponse(
+        {
+          ok: true,
+          message: 'Messages marked as seen',
+          code: 200,
+        },
+        artifact.id,
+      ),
+      type: 'btps_response',
       document: {
-        markedCount: ids.length
-      }
+        markedCount: ids.length,
+      },
     });
-    
   } catch (error) {
     console.error('Inbox seen error:', error);
     return resCtx.sendError({
       code: 500,
-      message: 'Failed to mark messages as seen'
+      message: 'Failed to mark messages as seen',
     });
   }
 }
@@ -234,17 +233,10 @@ async function handleInboxSeen(artifact: any, resCtx: any) {
 // Handle outbox.fetch command
 async function handleOutboxFetch(artifact: any, resCtx: any) {
   const { agentId, document: query } = artifact;
-  
+
   try {
-    const {
-      since,
-      until,
-      limit = 50,
-      cursor,
-      query: filters,
-      sort = 'desc'
-    } = query || {};
-    
+    const { since, until, limit = 50, cursor, query: filters, sort = 'desc' } = query || {};
+
     // Fetch outbox items
     const outboxItems = await fetchOutboxItems(agentId, {
       since,
@@ -252,29 +244,31 @@ async function handleOutboxFetch(artifact: any, resCtx: any) {
       limit,
       cursor,
       filters,
-      sort
+      sort,
     });
-    
+
     return resCtx.sendRes({
-      ...server.prepareBtpsResponse({
-        ok: true,
-        message: 'Outbox fetched successfully',
-        code: 200
-      }, artifact.id),
-      type: 'btp_response',
+      ...server.prepareBtpsResponse(
+        {
+          ok: true,
+          message: 'Outbox fetched successfully',
+          code: 200,
+        },
+        artifact.id,
+      ),
+      type: 'btps_response',
       document: {
         results: outboxItems.results,
         cursor: outboxItems.cursor,
         total: outboxItems.total,
-        hasNext: outboxItems.hasNext
-      }
+        hasNext: outboxItems.hasNext,
+      },
     });
-    
   } catch (error) {
     console.error('Outbox fetch error:', error);
     return resCtx.sendError({
       code: 500,
-      message: 'Failed to fetch outbox'
+      message: 'Failed to fetch outbox',
     });
   }
 }
@@ -282,30 +276,32 @@ async function handleOutboxFetch(artifact: any, resCtx: any) {
 // Handle outbox.cancel command
 async function handleOutboxCancel(artifact: any, resCtx: any) {
   const { agentId, document } = artifact;
-  
+
   try {
     const { ids } = document;
-    
+
     // Cancel pending messages
     await cancelOutboxItems(agentId, ids);
-    
+
     return resCtx.sendRes({
-      ...server.prepareBtpsResponse({
-        ok: true,
-        message: 'Messages cancelled successfully',
-        code: 200
-      }, artifact.id),
-      type: 'btp_response',
+      ...server.prepareBtpsResponse(
+        {
+          ok: true,
+          message: 'Messages cancelled successfully',
+          code: 200,
+        },
+        artifact.id,
+      ),
+      type: 'btps_response',
       document: {
-        cancelledCount: ids.length
-      }
+        cancelledCount: ids.length,
+      },
     });
-    
   } catch (error) {
     console.error('Outbox cancel error:', error);
     return resCtx.sendError({
       code: 500,
-      message: 'Failed to cancel messages'
+      message: 'Failed to cancel messages',
     });
   }
 }
@@ -317,36 +313,38 @@ async function handleOutboxCancel(artifact: any, resCtx: any) {
 // Handle draft.create command
 async function handleDraftCreate(artifact: any, resCtx: any) {
   const { agentId, document } = artifact;
-  
+
   try {
     const { to, type, document: content, expiresAt } = document;
-    
+
     // Create new draft
     const draft = await createDraft(agentId, {
       to,
       type,
       document: content,
-      expiresAt
+      expiresAt,
     });
-    
+
     return resCtx.sendRes({
-      ...server.prepareBtpsResponse({
-        ok: true,
-        message: 'Draft created successfully',
-        code: 200
-      }, artifact.id),
-      type: 'btp_response',
+      ...server.prepareBtpsResponse(
+        {
+          ok: true,
+          message: 'Draft created successfully',
+          code: 200,
+        },
+        artifact.id,
+      ),
+      type: 'btps_response',
       document: {
         id: draft.id,
-        createdAt: draft.createdAt
-      }
+        createdAt: draft.createdAt,
+      },
     });
-    
   } catch (error) {
     console.error('Draft create error:', error);
     return resCtx.sendError({
       code: 500,
-      message: 'Failed to create draft'
+      message: 'Failed to create draft',
     });
   }
 }
@@ -354,17 +352,10 @@ async function handleDraftCreate(artifact: any, resCtx: any) {
 // Handle draft.fetch command
 async function handleDraftFetch(artifact: any, resCtx: any) {
   const { agentId, document: query } = artifact;
-  
+
   try {
-    const {
-      since,
-      until,
-      limit = 50,
-      cursor,
-      query: filters,
-      sort = 'desc'
-    } = query || {};
-    
+    const { since, until, limit = 50, cursor, query: filters, sort = 'desc' } = query || {};
+
     // Fetch draft items
     const draftItems = await fetchDraftItems(agentId, {
       since,
@@ -372,29 +363,31 @@ async function handleDraftFetch(artifact: any, resCtx: any) {
       limit,
       cursor,
       filters,
-      sort
+      sort,
     });
-    
+
     return resCtx.sendRes({
-      ...server.prepareBtpsResponse({
-        ok: true,
-        message: 'Drafts fetched successfully',
-        code: 200
-      }, artifact.id),
-      type: 'btp_response',
+      ...server.prepareBtpsResponse(
+        {
+          ok: true,
+          message: 'Drafts fetched successfully',
+          code: 200,
+        },
+        artifact.id,
+      ),
+      type: 'btps_response',
       document: {
         results: draftItems.results,
         cursor: draftItems.cursor,
         total: draftItems.total,
-        hasNext: draftItems.hasNext
-      }
+        hasNext: draftItems.hasNext,
+      },
     });
-    
   } catch (error) {
     console.error('Draft fetch error:', error);
     return resCtx.sendError({
       code: 500,
-      message: 'Failed to fetch drafts'
+      message: 'Failed to fetch drafts',
     });
   }
 }
@@ -406,17 +399,10 @@ async function handleDraftFetch(artifact: any, resCtx: any) {
 // Handle trash.fetch command
 async function handleTrashFetch(artifact: any, resCtx: any) {
   const { agentId, document: query } = artifact;
-  
+
   try {
-    const {
-      since,
-      until,
-      limit = 50,
-      cursor,
-      query: filters,
-      sort = 'desc'
-    } = query || {};
-    
+    const { since, until, limit = 50, cursor, query: filters, sort = 'desc' } = query || {};
+
     // Fetch trash items
     const trashItems = await fetchTrashItems(agentId, {
       since,
@@ -424,29 +410,31 @@ async function handleTrashFetch(artifact: any, resCtx: any) {
       limit,
       cursor,
       filters,
-      sort
+      sort,
     });
-    
+
     return resCtx.sendRes({
-      ...server.prepareBtpsResponse({
-        ok: true,
-        message: 'Trash fetched successfully',
-        code: 200
-      }, artifact.id),
-      type: 'btp_response',
+      ...server.prepareBtpsResponse(
+        {
+          ok: true,
+          message: 'Trash fetched successfully',
+          code: 200,
+        },
+        artifact.id,
+      ),
+      type: 'btps_response',
       document: {
         results: trashItems.results,
         cursor: trashItems.cursor,
         total: trashItems.total,
-        hasNext: trashItems.hasNext
-      }
+        hasNext: trashItems.hasNext,
+      },
     });
-    
   } catch (error) {
     console.error('Trash fetch error:', error);
     return resCtx.sendError({
       code: 500,
-      message: 'Failed to fetch trash'
+      message: 'Failed to fetch trash',
     });
   }
 }
@@ -454,30 +442,32 @@ async function handleTrashFetch(artifact: any, resCtx: any) {
 // Handle trash.delete command
 async function handleTrashDelete(artifact: any, resCtx: any) {
   const { agentId, document } = artifact;
-  
+
   try {
     const { ids } = document;
-    
+
     // Permanently delete from trash
     await permanentlyDeleteFromTrash(agentId, ids);
-    
+
     return resCtx.sendRes({
-      ...server.prepareBtpsResponse({
-        ok: true,
-        message: 'Messages permanently deleted',
-        code: 200
-      }, artifact.id),
-      type: 'btp_response',
+      ...server.prepareBtpsResponse(
+        {
+          ok: true,
+          message: 'Messages permanently deleted',
+          code: 200,
+        },
+        artifact.id,
+      ),
+      type: 'btps_response',
       document: {
-        deletedCount: ids.length
-      }
+        deletedCount: ids.length,
+      },
     });
-    
   } catch (error) {
     console.error('Trash delete error:', error);
     return resCtx.sendError({
       code: 500,
-      message: 'Failed to delete from trash'
+      message: 'Failed to delete from trash',
     });
   }
 }
@@ -489,25 +479,25 @@ async function handleTrashDelete(artifact: any, resCtx: any) {
 
 ```typescript
 interface BTPAgentQuery {
-  since?: string;              // ISO Format - fetch since this date
-  until?: string;              // ISO Format - fetch until this date
-  limit?: number;              // Maximum number of items to return
-  cursor?: string;             // Cursor for pagination
+  since?: string; // ISO Format - fetch since this date
+  until?: string; // ISO Format - fetch until this date
+  limit?: number; // Maximum number of items to return
+  cursor?: string; // Cursor for pagination
   query?: {
-    title?: BTPStringQueryFilter;  // Filter by title
-    from?: BTPStringQueryFilter;   // Filter by sender
-    to?: BTPStringQueryFilter;     // Filter by recipient
+    title?: BTPStringQueryFilter; // Filter by title
+    from?: BTPStringQueryFilter; // Filter by sender
+    to?: BTPStringQueryFilter; // Filter by recipient
   };
-  sort?: 'asc' | 'desc';       // Sort order
+  sort?: 'asc' | 'desc'; // Sort order
 }
 
 interface BTPStringQueryFilter {
-  like?: string;               // Partial match (case-insensitive)
-  in?: string[];               // Exact match from array
-  eq?: string;                 // Exact match
-  ne?: string;                 // Not equal
-  notIn?: string[];            // Not in array
-  notLike?: string;            // Not like pattern
+  like?: string; // Partial match (case-insensitive)
+  in?: string[]; // Exact match from array
+  eq?: string; // Exact match
+  ne?: string; // Not equal
+  notIn?: string[]; // Not in array
+  notLike?: string; // Not like pattern
 }
 ```
 
@@ -517,22 +507,22 @@ interface BTPStringQueryFilter {
 
 ```typescript
 interface BtpsServerResponse<T = BTPServerResDocs> {
-  version: string;                    // Required: Protocol version (e.g., "1.0")
-  status: BTPStatus;                  // Required: Response status
-  id: string;                         // Required: Unique response ID
-  issuedAt: string;                   // Required: ISO timestamp
-  type: 'btp_error' | 'btp_response'; // Required: Response type
-  reqId?: string;                     // Optional: Original request ID
-  document?: T;                       // Optional: Response document
-  signature?: BTPSignature;           // Optional: Digital signature
-  encryption?: BTPEncryption;         // Optional: Encryption details
-  signedBy?: string;                  // Optional: Signer identity
+  version: string; // Required: Protocol version (e.g., "1.0")
+  status: BTPStatus; // Required: Response status
+  id: string; // Required: Unique response ID
+  issuedAt: string; // Required: ISO timestamp
+  type: 'btps_error' | 'btps_response'; // Required: Response type
+  reqId?: string; // Optional: Original request ID
+  document?: T; // Optional: Response document
+  signature?: BTPSignature; // Optional: Digital signature
+  encryption?: BTPEncryption; // Optional: Encryption details
+  signedBy?: string; // Optional: Signer identity
 }
 
 interface BTPStatus {
-  ok: boolean;                        // Required: Success indicator
-  code: number;                       // Required: HTTP-style status code
-  message?: string;                   // Optional: Human-readable message
+  ok: boolean; // Required: Success indicator
+  code: number; // Required: HTTP-style status code
+  message?: string; // Optional: Human-readable message
 }
 
 // Status codes:
@@ -550,25 +540,26 @@ interface BTPStatus {
 ```typescript
 // Authentication response
 interface BTPAuthResDoc {
-  agentId: string;                    // Required: Generated agent identifier
-  refreshToken: string;               // Required: Refresh token for session
-  expiresAt: string;                  // Required: ISO timestamp when token expires
+  agentId: string; // Required: Generated agent identifier
+  refreshToken: string; // Required: Refresh token for session
+  expiresAt: string; // Required: ISO timestamp when token expires
 }
 
 // Query result response
 interface BTPQueryResult<T = BTPTransporterArtifact | BTPDeliveryFailureArtifact> {
-  results: BTPQueryResultEntry<T>[];  // Required: Array of results
-  cursor?: string;                    // Optional: Pagination cursor
-  total?: number;                     // Optional: Total count
-  hasNext?: boolean;                  // Optional: Has more results
+  results: BTPQueryResultEntry<T>[]; // Required: Array of results
+  cursor?: string; // Optional: Pagination cursor
+  total?: number; // Optional: Total count
+  hasNext?: boolean; // Optional: Has more results
 }
 
 interface BTPQueryResultEntry<T> {
-  artifact: T;                        // Required: The actual artifact
-  meta?: {                            // Optional: Metadata
-    seen?: boolean;                   // Whether item has been seen
-    seenAt?: string;                  // ISO timestamp when seen
-    [key: string]: unknown;           // Additional metadata
+  artifact: T; // Required: The actual artifact
+  meta?: {
+    // Optional: Metadata
+    seen?: boolean; // Whether item has been seen
+    seenAt?: string; // ISO timestamp when seen
+    [key: string]: unknown; // Additional metadata
   };
 }
 ```
@@ -581,24 +572,24 @@ When message delivery fails, your BTPS server should create a `BTPDeliveryFailur
 
 ```typescript
 interface BTPDeliveryFailureArtifact {
-  id: string;                         // Required: Unique failure ID
-  issuedAt: string;                   // Required: ISO timestamp
-  document: BTPDeliveryFailureDoc;    // Required: Failure details
-  type: 'BTP_DELIVERY_FAILURE';       // Required: Fixed type
-  from: string;                       // Required: Sender identity
-  to: string;                         // Required: Recipient identity
+  id: string; // Required: Unique failure ID
+  issuedAt: string; // Required: ISO timestamp
+  document: BTPDeliveryFailureDoc; // Required: Failure details
+  type: 'BTP_DELIVERY_FAILURE'; // Required: Fixed type
+  from: string; // Required: Sender identity
+  to: string; // Required: Recipient identity
 }
 
 interface BTPDeliveryFailureDoc {
-  id: string;                         // Required: Unique failure ID
-  reason: string;                     // Required: Human-readable failure reason
-  failedAt: string;                   // Required: ISO timestamp of failure
-  retryCount?: number;                // Optional: Number of retry attempts
-  document?: BTPTransporterArtifact;  // Optional: Original document that failed
-  errorLog?: BTPErrorException;       // Optional: Detailed error information
-  recipient: string;                  // Required: Failed recipient
-  transportArtifactId: string;        // Required: ID of transport artifact
-  agentArtifactId?: string;           // Optional: ID of agent artifact
+  id: string; // Required: Unique failure ID
+  reason: string; // Required: Human-readable failure reason
+  failedAt: string; // Required: ISO timestamp of failure
+  retryCount?: number; // Optional: Number of retry attempts
+  document?: BTPTransporterArtifact; // Optional: Original document that failed
+  errorLog?: BTPErrorException; // Optional: Detailed error information
+  recipient: string; // Required: Failed recipient
+  transportArtifactId: string; // Required: ID of transport artifact
+  agentArtifactId?: string; // Optional: ID of agent artifact
 }
 ```
 
@@ -610,7 +601,7 @@ async function createDeliveryFailureNotification(
   agentId: string,
   originalArtifact: BTPTransporterArtifact,
   error: BTPErrorException,
-  retryCount: number = 0
+  retryCount: number = 0,
 ) {
   const failureDoc: BTPDeliveryFailureDoc = {
     id: generateUniqueId(),
@@ -621,7 +612,7 @@ async function createDeliveryFailureNotification(
     errorLog: error,
     recipient: originalArtifact.to,
     transportArtifactId: originalArtifact.id,
-    agentArtifactId: agentId
+    agentArtifactId: agentId,
   };
 
   const failureArtifact: BTPDeliveryFailureArtifact = {
@@ -630,7 +621,7 @@ async function createDeliveryFailureNotification(
     document: failureDoc,
     type: 'BTP_DELIVERY_FAILURE',
     from: 'system$yourdomain.com', // Your server identity
-    to: originalArtifact.from
+    to: originalArtifact.from,
   };
 
   // Add to user's inbox with seen: false for notification
@@ -640,8 +631,8 @@ async function createDeliveryFailureNotification(
       seen: false, // Important: User will see this as unread
       seenAt: null,
       failureType: 'delivery_failure',
-      originalMessageId: originalArtifact.id
-    }
+      originalMessageId: originalArtifact.id,
+    },
   });
 
   console.log(`📧 Delivery failure notification created for ${originalArtifact.from}`);
@@ -651,18 +642,17 @@ async function createDeliveryFailureNotification(
 async function handleDeliveryFailure(
   agentId: string,
   originalArtifact: BTPTransporterArtifact,
-  error: BTPErrorException
+  error: BTPErrorException,
 ) {
   try {
     // Create failure notification
     await createDeliveryFailureNotification(agentId, originalArtifact, error);
-    
+
     // Update outbox status
     await updateOutboxStatus(originalArtifact.id, 'failed', {
       error: error.message,
-      failedAt: new Date().toISOString()
+      failedAt: new Date().toISOString(),
     });
-    
   } catch (notificationError) {
     console.error('Failed to create delivery failure notification:', notificationError);
   }
@@ -683,7 +673,7 @@ const FAILURE_REASONS = {
   SERVER_ERROR: 'Recipient server returned internal error',
   INVALID_RECIPIENT: 'Recipient identity is invalid or not found',
   MESSAGE_TOO_LARGE: 'Message size exceeds recipient limits',
-  UNSUPPORTED_PROTOCOL: 'Recipient does not support required protocol version'
+  UNSUPPORTED_PROTOCOL: 'Recipient does not support required protocol version',
 };
 ```
 
@@ -694,14 +684,14 @@ const FAILURE_REASONS = {
 async function fetchInboxItems(agentId: string, query: BTPAgentQuery) {
   // Build database query based on parameters
   const dbQuery: any = { agentId };
-  
+
   // Date range filtering
   if (query.since || query.until) {
     dbQuery.createdAt = {};
     if (query.since) dbQuery.createdAt.$gte = new Date(query.since);
     if (query.until) dbQuery.createdAt.$lte = new Date(query.until);
   }
-  
+
   // Text filtering
   if (query.query) {
     if (query.query.title?.like) {
@@ -711,26 +701,27 @@ async function fetchInboxItems(agentId: string, query: BTPAgentQuery) {
       dbQuery.from = query.query.from.eq;
     }
   }
-  
+
   // Execute query with pagination
-  const results = await db.collection('inbox')
+  const results = await db
+    .collection('inbox')
     .find(dbQuery)
     .sort({ createdAt: query.sort === 'asc' ? 1 : -1 })
     .limit(query.limit || 50)
     .skip(query.cursor ? parseInt(query.cursor) : 0)
     .toArray();
-    
+
   return {
-    results: results.map(item => ({
+    results: results.map((item) => ({
       artifact: item,
       meta: {
         seen: item.seen || false,
-        seenAt: item.seenAt
-      }
+        seenAt: item.seenAt,
+      },
     })),
     cursor: results.length === query.limit ? (query.cursor || 0) + results.length : undefined,
     total: await db.collection('inbox').countDocuments(dbQuery),
-    hasNext: results.length === query.limit
+    hasNext: results.length === query.limit,
   };
 }
 ```
@@ -745,7 +736,7 @@ async function fetchInboxItems(agentId: string, query: BTPAgentQuery) {
   status: { ok: true, code: 200 },
   id: "response-12345678",
   issuedAt: "2025-01-15T10:30:00Z",
-  type: "btp_response",
+  type: "btps_response",
   document: {
     results: [
       {

@@ -581,7 +581,7 @@ BtpsAuthentication.generateAgentId(prefix?)
 
 Generates a unique agent ID.
 
-- **prefix**: `string` (optional, default: `'btp_ag'`) – Prefix for the agent ID
+- **prefix**: `string` (optional, default: `'btps_ag'`) – Prefix for the agent ID
 - **Returns**: `string` – Generated agent ID
 
 **Example:**
