@@ -48,6 +48,7 @@ BTPS uses email-like addressing for organizational identities:
 ### DNS TXT Identity Record
 
 #### Naming Convention
+
 ```
 <selector>._btp.<identity_domain>
 ```
@@ -55,6 +56,7 @@ BTPS uses email-like addressing for organizational identities:
 **Example:** `btp1._btp.billing.vendorcorp.com`
 
 #### TXT Record Format
+
 ```
 v=BTP1; k=<key_type>; p=<base64_public_key>; u=<btps_host:port>
 ```
@@ -67,6 +69,7 @@ v=BTP1; k=<key_type>; p=<base64_public_key>; u=<btps_host:port>
 - `u`: BTPS server host and port (default: 3443)
 
 **Example TXT Record:**
+
 ```
 v=BTP1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...; u=btps.vendorcorp.com:3443
 ```
@@ -89,7 +92,7 @@ All BTPS messages follow a standardized envelope structure:
   "version": "1.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "btp_1234567890abcdef",
-  "type": "btp_trust_request",
+  "type": "TRUST_REQ",
   "from": "billing$vendorcorp.com",
   "to": "pay$client.com",
   "document": {
@@ -106,7 +109,8 @@ All BTPS messages follow a standardized envelope structure:
     "encryptedKey": "base64-encoded-encrypted-key",
     "iv": "base64-encoded-initialization-vector"
   },
-  "delegation": { // only used for delegated artifacts
+  "delegation": {
+    // only used for delegated artifacts
     "agentId": "agentId",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
     "signedBy": "alice$saas.com",
@@ -116,14 +120,15 @@ All BTPS messages follow a standardized envelope structure:
       "value": "base64-encoded-signature",
       "fingerprint": "sha256-base64-fingerprint"
     },
-    "attestation": { // only used for delegated artifacts which as delegated on behalf of original identity
+    "attestation": {
+      // only used for delegated artifacts which as delegated on behalf of original identity
       "issuedAt": "2025-01-15T10:30:00Z",
       "signedBy": "admin$saas.com",
       "signature": {
         "algorithm": "sha256",
         "value": "base64-encoded-signature",
         "fingerprint": "sha256-base64-fingerprint"
-      },
+      }
     }
   }
 }
@@ -148,15 +153,15 @@ All BTPS messages follow a standardized envelope structure:
 
 BTPS supports three primary artifact types:
 
-### 1. Trust Request (`btp_trust_request`)
+### 1. Trust Request (`TRUST_REQ`)
 
 Establishes a trust relationship between organizations.
 
-### 2. Trust Response (`btp_trust_response`)
+### 2. Trust Response (`TRUST_RES`)
 
 Responds to trust requests with accept, reject, or block decisions.
 
-### 3. Invoice (`btp_invoice`)
+### 3. Invoice (`BTPS_DOC`)
 
 Secure billing document with line items and payment details.
 
@@ -211,7 +216,7 @@ Secure billing document with line items and payment details.
   "status": "unpaid",
   "dueAt": "2025-02-15T23:59:59Z",
   "totalAmount": {
-    "value": 1500.00,
+    "value": 1500.0,
     "currency": "USD"
   },
   "lineItems": {

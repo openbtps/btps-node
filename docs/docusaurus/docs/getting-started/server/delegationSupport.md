@@ -5,7 +5,7 @@ sidebar_label: Delegation Support
 slug: supporting-delegation
 ---
 
-# Supporting Delegation 
+# Supporting Delegation
 
 BTPS delegation enables your server to create verifiable artifacts for agents (devices/applications) that don't have public keys published to DNS. When agents send artifacts, your SaaS platform needs to create delegations so receiving servers can verify the artifacts.
 
@@ -35,15 +35,15 @@ const server = new BtpsServer({
   port: 3443,
   trustStore: new JsonTrustStore({
     connection: './trust.json',
-    entityName: 'trusted_senders'
+    entityName: 'trusted_senders',
   }),
-  middlewarePath: './btps.middleware.mjs'
+  middlewarePath: './btps.middleware.mjs',
 });
 
 // Create delegator for your SaaS platform
 const delegator = new BtpsDelegator({
   identity: 'your-saas$yourdomain.com', // Your SaaS platform identity
-  privateKey: process.env.SAAS_PRIVATE_KEY // Your SaaS private key
+  privateKey: process.env.SAAS_PRIVATE_KEY, // Your SaaS private key
 });
 
 // The delegator auto-initializes by default
@@ -65,7 +65,7 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
     // Handle immediate responses
     return handleImmediateResponse(artifact, resCtx, server);
   }
-  
+
   // For non-immediate artifacts, create delegation and send
   return handleDelegatedArtifact(artifact, resCtx, delegator, server);
 });
@@ -74,7 +74,7 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
 server.onIncomingArtifact('Transporter', async (artifact) => {
   // Delegation verification is automatically handled by the server
   console.log('Processing delegated artifact:', artifact.id);
-  
+
   if (artifact.delegation) {
     console.log('Delegated by:', artifact.delegation.signedBy);
     console.log('Agent ID:', artifact.delegation.agentId);
@@ -90,21 +90,21 @@ server.onIncomingArtifact('Transporter', async (artifact) => {
 // Handle artifacts that need delegation
 async function handleDelegatedArtifact(artifact, resCtx, delegator, server) {
   const { to, document, agentId, agentPubKey } = artifact;
-  
+
   try {
     // Create transporter artifact from agent artifact
     const transporterArtifact = {
-      ...artifact.document // this already contains signed transport type artifact from the agent
+      ...artifact.document, // this already contains signed transport type artifact from the agent
     };
-    
+
     // Determine if user is SaaS domain or custom domain based on the "to" field
-    const isCustomDomain = getUserSettings(artifact.to) // when user setup the customdomain SaaS as you must save the details if the account type is custom or free user
+    const isCustomDomain = getUserSettings(artifact.to); // when user setup the customdomain SaaS as you must save the details if the account type is custom or free user
 
     /* You can also use the following if your system din't capture if the user hasCustom domain or not */
     // const isCustomDomainFallBack = parseIdentity(artifact.to)?.domainName !=== 'yourDomain.com'
-    
+
     let delegatedArtifact;
-    
+
     if (isCustomDomain) {
       // Custom domain user - requires attestation
       // The user should already have a record since they signed up with custom domain
@@ -112,39 +112,41 @@ async function handleDelegatedArtifact(artifact, resCtx, delegator, server) {
       if (!userKeyPair) {
         throw new Error(`User key pair not found for ${to}`);
       }
-      
+
       delegatedArtifact = await delegator.delegateArtifact(
         agentId,
         agentPubKey,
         transporterArtifact,
         {
           identity: to,
-          keyPair: userKeyPair
-        }
+          keyPair: userKeyPair,
+        },
       );
     } else {
       // SaaS domain user - direct delegation
       delegatedArtifact = await delegator.delegateArtifact(
         agentId,
         agentPubKey,
-        transporterArtifact
+        transporterArtifact,
       );
     }
-    
+
     // Send the delegated artifact to the recipient
     await sendDelegatedArtifact(delegatedArtifact); // either directly send which uses the Btps transporter
     await queueToOutbox(delegatedArtifact); // either based to outbox queue so later Btps transporter picks up when its ready.
-    
+
     // Send success response to agent
     return resCtx.sendRes({
-      ...server.prepareBtpsResponse({
-        ok: true,
-        message: 'Artifact delegated and sent successfully', // 'Artifact added to the outbox queue'
-        code: 200,
-      }, artifact.id),
+      ...server.prepareBtpsResponse(
+        {
+          ok: true,
+          message: 'Artifact delegated and sent successfully', // 'Artifact added to the outbox queue'
+          code: 200,
+        },
+        artifact.id,
+      ),
       type: 'btp_response',
     });
-    
   } catch (error) {
     console.error('Delegation failed:', error);
     return resCtx.sendError(BTP_ERROR_DELEGATION_INVALID);
@@ -157,7 +159,7 @@ async function getUserKeyPair(userIdentity) {
   // This should be stored securely during user authentication
   return {
     privateKey: 'user-private-key-pem',
-    publicKey: 'user-public-key-pem'
+    publicKey: 'user-public-key-pem',
   };
 }
 
@@ -167,7 +169,7 @@ async function sendDelegatedArtifact(delegatedArtifact) {
   const transporter = new BtpsTransporter({
     // Transporter configuration
   });
-  
+
   await transporter.send(delegatedArtifact);
 }
 ```
@@ -182,7 +184,7 @@ async function sendDelegatedArtifact(delegatedArtifact) {
   "version": "1.0.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "msg_123",
-  "type": "btp_invoice",
+  "type": "BTPS_DOC",
   "from": "alice$yourdomain.com",
   "to": "bob$client.com",
   "document": { /* original document */ },
@@ -211,7 +213,7 @@ async function sendDelegatedArtifact(delegatedArtifact) {
   "version": "1.0.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "msg_123",
-  "type": "btp_invoice",
+  "type": "BTPS_DOC",
   "from": "alice$enterprise.com",
   "to": "bob$client.com",
   "document": { /* original document */ },
@@ -249,19 +251,18 @@ async function sendDelegatedArtifact(delegatedArtifact) {
 async function handleDelegatedArtifact(artifact, resCtx, delegator, server) {
   try {
     // ... delegation creation code ...
-    
   } catch (error) {
     console.error('Delegation failed:', error);
-    
+
     // Handle specific error types
     if (error.message.includes('User key pair not found')) {
       return resCtx.sendError(BTP_ERROR_DELEGATION_INVALID);
     }
-    
+
     if (error instanceof BTPErrorException) {
       return resCtx.sendError(error);
     }
-    
+
     return resCtx.sendError(BTP_ERROR_DELEGATION_INVALID);
   }
 }
@@ -288,24 +289,32 @@ USER_KEY_ENCRYPTION_KEY="encryption-key-for-user-keys"
 ```typescript
 // Test SaaS domain user delegation
 const saasUserArtifact = {
-  id: "msg_123",
-  type: "btp_invoice",
-  to: "alice$saas.com",
-  document: { /* invoice data */ },
-  signature: { /* agent signature */ },
-  agentId: "btp_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28",
-  agentPubKey: "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
+  id: 'msg_123',
+  type: 'BTPS_DOC',
+  to: 'alice$saas.com',
+  document: {
+    /* invoice data */
+  },
+  signature: {
+    /* agent signature */
+  },
+  agentId: 'btp_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
+  agentPubKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
 };
 
 // Test custom domain user delegation
 const customUserArtifact = {
-  id: "msg_124",
-  type: "btp_invoice", 
-  to: "alice$enterprise.com",
-  document: { /* invoice data */ },
-  signature: { /* agent signature */ },
-  agentId: "btp_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b454",
-  agentPubKey: "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
+  id: 'msg_124',
+  type: 'BTPS_DOC',
+  to: 'alice$enterprise.com',
+  document: {
+    /* invoice data */
+  },
+  signature: {
+    /* agent signature */
+  },
+  agentId: 'btp_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b454',
+  agentPubKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
 };
 ```
 

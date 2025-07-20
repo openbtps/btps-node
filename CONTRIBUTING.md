@@ -139,7 +139,7 @@ yarn test:integration
 describe('signEncrypt', () => {
   it('should sign and encrypt document with valid parameters', async () => {
     // Arrange
-    const document = { type: 'btp_invoice', document: { amount: 100 } };
+    const document = { type: 'BTPS_DOC', document: { amount: 100 } };
     const recipient = 'pay$client.com';
     const keys = await keygen('ed25519');
 
@@ -155,7 +155,7 @@ describe('signEncrypt', () => {
 
   it('should return error for invalid recipient format', async () => {
     // Arrange
-    const document = { type: 'btp_invoice', document: { amount: 100 } };
+    const document = { type: 'BTPS_DOC', document: { amount: 100 } };
     const invalidRecipient = 'invalid-format';
     const keys = await keygen('ed25519');
 

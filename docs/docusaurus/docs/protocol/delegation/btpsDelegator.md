@@ -31,16 +31,18 @@ new BtpsDelegator(options: BtpsDelegatorOptions): BtpsDelegator
 ```
 
 **Parameters:**
+
 - `options`: [BtpsDelegatorOptions](#btpsdelegatoroptions) - Configuration options
 
 **Example:**
+
 ```typescript
 import { BtpsDelegator } from '@btps/sdk/core/delegation';
 
 const delegator = new BtpsDelegator({
   identity: 'alice$saas.com',
   privateKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',
-  autoInit: true // Optional: disable auto-initialization for testing
+  autoInit: true, // Optional: disable auto-initialization for testing
 });
 ```
 
@@ -50,9 +52,9 @@ const delegator = new BtpsDelegator({
 
 ```typescript
 interface BtpsDelegatorOptions {
-  identity: string;                      // BTPS identity (e.g., 'alice$saas.com')
-  privateKey: PemKeys['privateKey'];     // PEM-encoded private key
-  autoInit?: boolean;                    // Optional: disable auto-initialization for testing
+  identity: string; // BTPS identity (e.g., 'alice$saas.com')
+  privateKey: PemKeys['privateKey']; // PEM-encoded private key
+  autoInit?: boolean; // Optional: disable auto-initialization for testing
 }
 ```
 
@@ -69,11 +71,12 @@ async init(): Promise<void>
 **Throws:** `BTPErrorException` if delegator identity verification fails
 
 **Example:**
+
 ```typescript
 const delegator = new BtpsDelegator({
   identity: 'alice$saas.com',
   privateKey: privateKeyPem,
-  autoInit: false // Disable auto-initialization
+  autoInit: false, // Disable auto-initialization
 });
 
 // Manual initialization
@@ -97,6 +100,7 @@ async delegateArtifact(
 ```
 
 **Parameters:**
+
 - `agentId`: `string` - Unique identifier for the delegated agent
 - `agentPubKey`: `string` - PEM-encoded public key of the agent
 - `artifact`: `BTPTransporterArtifact` - The artifact to delegate
@@ -107,12 +111,13 @@ async delegateArtifact(
 **Returns:** `Promise<BTPTransporterArtifact & { delegation: BTPDelegation }>` - The artifact with delegation
 
 **Example:**
+
 ```typescript
 // SaaS managed user delegation (no attestation needed)
 const delegatedArtifact = await delegator.delegateArtifact(
   'device_mobile_iphone15_20250115_103000',
   agentPublicKey,
-  artifact
+  artifact,
 );
 
 // Custom domain user delegation (attestation required)
@@ -124,9 +129,9 @@ const delegatedArtifact = await delegator.delegateArtifact(
     identity: 'alice$enterprise.com',
     keyPair: {
       privateKey: userPrivateKey,
-      publicKey: userPublicKey
-    }
-  }
+      publicKey: userPublicKey,
+    },
+  },
 );
 ```
 
@@ -147,6 +152,7 @@ protected async createDelegation(params: {
 ```
 
 **Parameters:**
+
 - `params.artifact`: `BTPTransporterArtifact` - The artifact being delegated
 - `params.delegatorIdentity`: `string` - Identity of the delegator
 - `params.delegatorKey`: `PemKeys` - Key pair of the delegator
@@ -168,6 +174,7 @@ protected async createAttestation(params: {
 ```
 
 **Parameters:**
+
 - `params.delegation`: `Omit<BTPDelegation, 'attestation'>` - The delegation to attest
 - `params.attestorIdentity`: `string` - Identity of the attestor
 - `params.attestorKey`: `PemKeys` - Key pair of the attestor
@@ -182,25 +189,28 @@ For users under SaaS domain (e.g., `alice$saas.com`), the delegator creates a si
 
 ```typescript
 // SaaS manages the delegation
-const delegatedArtifact = await delegator.delegateArtifact(
-  agentId,
-  agentPubKey,
-  artifact
-);
+const delegatedArtifact = await delegator.delegateArtifact(agentId, agentPubKey, artifact);
 ```
 
 **Result:**
+
 ```json
 {
   "version": "1.0.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "msg_123",
-  "type": "btp_invoice",
+  "type": "BTPS_DOC",
   "from": "alice$saas.com",
   "to": "bob$client.com",
-  "document": { /* original document */ },
-  "signature": { /* agent signature */ },
-  "encryption": { /* original encryption */ },
+  "document": {
+    /* original document */
+  },
+  "signature": {
+    /* agent signature */
+  },
+  "encryption": {
+    /* original encryption */
+  },
   "delegation": {
     "agentId": "device_mobile_iphone15_20250115_103000",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
@@ -221,32 +231,34 @@ For users with custom domains (e.g., `alice$enterprise.com`), the delegator crea
 
 ```typescript
 // User key signs delegation, SaaS attests
-const delegatedArtifact = await delegator.delegateArtifact(
-  agentId,
-  agentPubKey,
-  artifact,
-  {
-    identity: 'alice$enterprise.com',
-    keyPair: {
-      privateKey: userPrivateKey,
-      publicKey: userPublicKey
-    }
-  }
-);
+const delegatedArtifact = await delegator.delegateArtifact(agentId, agentPubKey, artifact, {
+  identity: 'alice$enterprise.com',
+  keyPair: {
+    privateKey: userPrivateKey,
+    publicKey: userPublicKey,
+  },
+});
 ```
 
 **Result:**
+
 ```json
 {
   "version": "1.0.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "msg_123",
-  "type": "btp_invoice",
+  "type": "BTPS_DOC",
   "from": "alice$enterprise.com",
   "to": "bob$client.com",
-  "document": { /* original document */ },
-  "signature": { /* agent signature */ },
-  "encryption": { /* original encryption */ },
+  "document": {
+    /* original document */
+  },
+  "signature": {
+    /* agent signature */
+  },
+  "encryption": {
+    /* original encryption */
+  },
   "delegation": {
     "agentId": "device_enterprise_laptop_20250115_103000",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
@@ -329,14 +341,14 @@ import { BtpsDelegator } from '@btps/sdk/core/delegation';
 // Initialize delegator for SaaS platform
 const delegator = new BtpsDelegator({
   identity: 'alice$saas.com',
-  privateKey: process.env.SAAS_PRIVATE_KEY
+  privateKey: process.env.SAAS_PRIVATE_KEY,
 });
 
 // Create delegation for mobile device
 const delegatedArtifact = await delegator.delegateArtifact(
   'device_mobile_iphone15_20250115_103000',
   agentPublicKey,
-  artifact
+  artifact,
 );
 
 console.log('Delegation created:', delegatedArtifact.delegation.agentId);
@@ -348,7 +360,7 @@ console.log('Delegation created:', delegatedArtifact.delegation.agentId);
 // Initialize delegator for SaaS platform with custom domain support
 const delegator = new BtpsDelegator({
   identity: 'alice$saas.com',
-  privateKey: process.env.SAAS_PRIVATE_KEY
+  privateKey: process.env.SAAS_PRIVATE_KEY,
 });
 
 // Create delegation for custom domain user
@@ -360,9 +372,9 @@ const delegatedArtifact = await delegator.delegateArtifact(
     identity: 'alice$enterprise.com',
     keyPair: {
       privateKey: userPrivateKey,
-      publicKey: userPublicKey
-    }
-  }
+      publicKey: userPublicKey,
+    },
+  },
 );
 
 console.log('Delegation with attestation created:', delegatedArtifact.delegation.agentId);
@@ -375,7 +387,7 @@ console.log('Delegation with attestation created:', delegatedArtifact.delegation
 const delegator = new BtpsDelegator({
   identity: 'alice$saas.com',
   privateKey: testPrivateKey,
-  autoInit: false
+  autoInit: false,
 });
 
 // Manual initialization
@@ -398,13 +410,13 @@ import { BtpsDelegator } from '@btps/sdk/core/delegation';
 // Initialize server
 const server = new BtpsServer({
   port: 3443,
-  trustStore: new JsonTrustStore({ connection: './trust.json' })
+  trustStore: new JsonTrustStore({ connection: './trust.json' }),
 });
 
 // Initialize delegator
 const delegator = new BtpsDelegator({
   identity: 'alice$saas.com',
-  privateKey: process.env.SAAS_PRIVATE_KEY
+  privateKey: process.env.SAAS_PRIVATE_KEY,
 });
 
 // Process incoming artifacts
@@ -424,14 +436,14 @@ server.onMessage(async (artifact) => {
 // ✅ GOOD: Let delegator auto-initialize
 const delegator = new BtpsDelegator({
   identity: 'alice$saas.com',
-  privateKey: process.env.PRIVATE_KEY
+  privateKey: process.env.PRIVATE_KEY,
 });
 
 // ✅ GOOD: Manual initialization for testing
 const delegator = new BtpsDelegator({
   identity: 'alice$saas.com',
   privateKey: testPrivateKey,
-  autoInit: false
+  autoInit: false,
 });
 await delegator.init();
 ```
@@ -443,7 +455,7 @@ await delegator.init();
 try {
   const delegator = new BtpsDelegator({
     identity: 'alice$saas.com',
-    privateKey: process.env.PRIVATE_KEY
+    privateKey: process.env.PRIVATE_KEY,
   });
 } catch (error) {
   if (error instanceof BTPErrorException) {
@@ -453,11 +465,7 @@ try {
 
 // ✅ GOOD: Handle delegation errors
 try {
-  const delegatedArtifact = await delegator.delegateArtifact(
-    agentId,
-    agentPubKey,
-    artifact
-  );
+  const delegatedArtifact = await delegator.delegateArtifact(agentId, agentPubKey, artifact);
 } catch (error) {
   console.error('Delegation failed:', error.message);
 }
@@ -480,13 +488,13 @@ const agentId = 'device'; // Too generic
 // ✅ GOOD: Secure key management
 const delegator = new BtpsDelegator({
   identity: 'alice$saas.com',
-  privateKey: process.env.SAAS_PRIVATE_KEY // Use environment variables
+  privateKey: process.env.SAAS_PRIVATE_KEY, // Use environment variables
 });
 
 // ❌ BAD: Hardcoded keys
 const delegator = new BtpsDelegator({
   identity: 'alice$saas.com',
-  privateKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----' // Hardcoded
+  privateKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----', // Hardcoded
 });
 ```
 
@@ -515,11 +523,13 @@ const delegator = new BtpsDelegator({
 ### **Common Issues**
 
 1. **Initialization Failures**
+
    - Verify the private key matches the public key in DNS
    - Check DNS resolution for the delegator identity
    - Ensure proper key format (PEM encoding)
 
 2. **Delegation Creation Failures**
+
    - Ensure the delegator is properly initialized
    - Verify all required parameters are provided
    - Check agent ID format and uniqueness
@@ -535,7 +545,7 @@ const delegator = new BtpsDelegator({
 // Enable debug logging for troubleshooting
 const delegator = new BtpsDelegator({
   identity: 'alice$saas.com',
-  privateKey: process.env.PRIVATE_KEY
+  privateKey: process.env.PRIVATE_KEY,
 });
 
 // Check initialization status

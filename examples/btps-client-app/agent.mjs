@@ -45,7 +45,7 @@ const btpsAgent = new BtpsAgent({
   });
   // const data = await btpsClient.send({
   //   to: 'billing$ebilladdress.com',
-  //   type: 'btp_trust_request',
+  //   type: 'TRUST_REQ',
   //   document: {
   //     name: 'Finance E-Billing Services',
   //     email: 'finance@ebilladdress.com',

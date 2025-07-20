@@ -21,7 +21,7 @@ export * from './types.js';
 
 /**
  * Checks if a trust record is active.
- * Used in for artifact type other than btp_trust_response and btp_trust_request
+ * Used in for artifact type other than TRUST_RES and TRUST_REQ
  * only allow message to be sent if trust record is active
  * @param trust - The trust record to check
  * @returns True if the trust record is active, false otherwise
@@ -35,7 +35,7 @@ export const isTrustActive = (trust?: BTPTrustRecord): boolean => {
 
 /**
  * Validates a trust request.
- * Used in for artifact type btp_trust_request
+ * Used in for artifact type TRUST_REQ
  * only allow message to be sent if trust record is not active
  * considers blocked and retryAfterDate as one can send new trust request after the retryAfterDate
  * @param trust - The trust record to check
@@ -79,7 +79,7 @@ export function computeTrustId(senderId: string, receiverId: string): string {
 }
 
 /**
- * Validates a btp_trust_response by checking if the response is authorized.
+ * Validates a TRUST_RES by checking if the response is authorized.
  * Ensures that only the original receiver of a trust request is allowed to respond.
  *
  * @param senderId - The identity sending the trust response (e.g., userB$domain)

@@ -267,7 +267,7 @@ const { payload, error } = await signEncrypt(
   'pay$client.com',
   { accountName: 'billing', domainName: 'vendorcorp.com', pemFiles: { publicKey, privateKey } },
   {
-    type: 'btp_invoice',
+    type: 'BTPS_DOC',
     document: {
       /* ... */
     },
@@ -712,7 +712,7 @@ validateTrustResponse(
 ```
 
 **Description:**
-Validates a `btp_trust_response` by checking if the response is authorized (only the original receiver of a trust request can respond).
+Validates a `TRUST_RES` by checking if the response is authorized (only the original receiver of a trust request can respond).
 
 **Arguments:**
 

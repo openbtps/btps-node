@@ -36,7 +36,7 @@ import { BtpsServer, BtpsTransporter } from '@btps/sdk';
 const server = new BtpsServer({
   port: 3443,
   /* use this for development purposes for production use database based Trust Store instead */
-  trustStore: new JsonTrustStore({ connection: './trust.json' }) 
+  trustStore: new JsonTrustStore({ connection: './trust.json' })
 });
 await server.start();
 
@@ -50,7 +50,7 @@ const client = new BtpsTransporter({
 const trustRequest = {
   ...otherFields,
   to: 'pay$client.com',
-  type: 'btp_trust_request',
+  type: 'TRUST_REQ',
   document: {
     id: "uniqueUuid"
     name: 'Your Company Name',
@@ -66,6 +66,7 @@ const { response, error } = await client.transport(trustRequest);
 ### 🔧 Core Components
 
 #### 1. **Client** - Document Sender
+
 - **Purpose**: Initiates and sends secure documents to other organizations
 - **Responsibilities**:
   - Signs documents with cryptographic keys
@@ -75,6 +76,7 @@ const { response, error } = await client.transport(trustRequest);
 - **Use Case**: SaaS platforms sending invoices, fintech companies exchanging financial documents
 
 #### 2. **Server** - Trust Verifier & Router
+
 - **Purpose**: Receives, verifies, and routes documents to appropriate inboxes
 - **Responsibilities**:
   - Receives incoming BTPS messages over TLS
@@ -84,6 +86,7 @@ const { response, error } = await client.transport(trustRequest);
 - **Use Case**: Enterprise organizations receiving billing documents, payment processors
 
 #### 3. **Inbox** - Document Destination
+
 - **Purpose**: Final destination where documents are processed and stored
 - **Options**:
   - **SaaS Inbox**: Cloud-based solutions (webhooks, APIs)

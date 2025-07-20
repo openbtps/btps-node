@@ -57,7 +57,7 @@ flowchart LR
   "version": "1.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "btp_1234567890abcdef",
-  "type": "btp_trust_request",
+  "type": "TRUST_REQ",
   "from": "billing$vendorcorp.com",
   "to": "pay$client.com",
   "document": {
@@ -311,7 +311,7 @@ Receiver → Sender: Trust Response BTPS Artifact
 {
   "version": "1.0",
   "id": "trust_1234567890",
-  "type": "btp_trust_request",
+  "type": "TRUST_REQ",
   "from": "billing$vendor.com",
   "to": "pay$client.com",
   "document": {
@@ -342,7 +342,7 @@ Receiver → Sender: Trust Response BTPS Artifact
 {
   "version": "1.0",
   "id": "response_1234567890",
-  "type": "btp_trust_response",
+  "type": "TRUST_RES",
   "from": "pay$client.com",
   "to": "billing$vendor.com",
   "document": {
@@ -372,7 +372,7 @@ Sender → Receiver: Invoice BTPS Artifact
 {
   "version": "1.0",
   "id": "invoice_1234567890",
-  "type": "btp_invoice",
+  "type": "BTPS_DOC",
   "from": "billing$vendor.com",
   "to": "pay$client.com",
   "document": {

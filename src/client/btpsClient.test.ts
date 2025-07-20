@@ -107,7 +107,7 @@ describe('BtpsClient', () => {
         id: 'id',
         from: 'test$example.com',
         to: 'recipient$example.com',
-        type: 'btp_trust_request',
+        type: 'TRUST_REQ',
         issuedAt: '2023-01-01T00:00:00.000Z',
         document: {} as Record<string, unknown>,
         signature: { algorithm: 'sha256', value: 'sig', fingerprint: 'fp' },

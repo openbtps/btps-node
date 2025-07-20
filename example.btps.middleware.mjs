@@ -78,7 +78,7 @@ export default function createMiddleware(dependencies) {
         },
       },
       handler: async (req, res, next, context) => {
-        if (req.artifact?.type === 'btp_invoice' && req.artifact.document?.totalAmount) {
+        if (req.artifact?.type === 'BTPS_DOC' && req.artifact.document?.totalAmount) {
           const { maxInvoiceAmount } = context.config;
           const amount = req.artifact.document.totalAmount.value;
 

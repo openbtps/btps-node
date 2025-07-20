@@ -41,9 +41,9 @@ const server = new BtpsServer({
   port: 3443,
   trustStore: new JsonTrustStore({
     connection: './trust.json',
-    entityName: 'trusted_senders'
+    entityName: 'trusted_senders',
   }),
-  middlewarePath: './btps.middleware.mjs'
+  middlewarePath: './btps.middleware.mjs',
 });
 
 // Set up forwarding handler
@@ -59,7 +59,7 @@ server.forwardTo(async (processedArtifact) => {
 // Handle processed artifacts
 async function handleProcessedArtifact(processedArtifact) {
   const { artifact, isAgentArtifact } = processedArtifact;
-  
+
   try {
     if (isAgentArtifact) {
       // Handle agent artifacts
@@ -76,10 +76,10 @@ async function handleProcessedArtifact(processedArtifact) {
 // Handle agent artifacts
 async function handleAgentArtifact(artifact) {
   console.log('Processing agent artifact:', artifact.id);
-  
+
   // Forward to your processing system
   await forwardToProcessingSystem(artifact);
-  
+
   // Or trigger webhook
   await triggerWebhook(artifact);
 }
@@ -87,7 +87,7 @@ async function handleAgentArtifact(artifact) {
 // Handle transporter artifacts
 async function handleTransporterArtifact(artifact) {
   console.log('Processing transporter artifact:', artifact.id);
-  
+
   // Forward to your processing system
   await forwardToProcessingSystem(artifact);
 }
@@ -101,13 +101,13 @@ async function handleTransporterArtifact(artifact) {
 // Forward to internal processing system
 async function forwardToProcessingSystem(artifact) {
   const { id, type, from, to, document } = artifact;
-  
+
   // Example: Forward to internal API
   const response = await fetch('http://your-processing-api/artifacts', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.API_TOKEN}`
+      Authorization: `Bearer ${process.env.API_TOKEN}`,
     },
     body: JSON.stringify({
       artifactId: id,
@@ -115,14 +115,14 @@ async function forwardToProcessingSystem(artifact) {
       from: from,
       to: to,
       document: document,
-      timestamp: new Date().toISOString()
-    })
+      timestamp: new Date().toISOString(),
+    }),
   });
-  
+
   if (!response.ok) {
     throw new Error(`Failed to forward artifact: ${response.statusText}`);
   }
-  
+
   console.log('Artifact forwarded successfully:', id);
 }
 ```
@@ -134,21 +134,21 @@ async function forwardToProcessingSystem(artifact) {
 async function triggerWebhook(artifact) {
   const webhookUrl = process.env.WEBHOOK_URL;
   if (!webhookUrl) return;
-  
+
   try {
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Webhook-Signature': generateWebhookSignature(artifact)
+        'X-Webhook-Signature': generateWebhookSignature(artifact),
       },
       body: JSON.stringify({
         event: 'artifact.processed',
         artifact: artifact,
-        timestamp: new Date().toISOString()
-      })
+        timestamp: new Date().toISOString(),
+      }),
     });
-    
+
     if (!response.ok) {
       console.error('Webhook failed:', response.statusText);
     } else {
@@ -164,11 +164,8 @@ function generateWebhookSignature(artifact) {
   const crypto = require('crypto');
   const secret = process.env.WEBHOOK_SECRET;
   const payload = JSON.stringify(artifact);
-  
-  return crypto
-    .createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex');
+
+  return crypto.createHmac('sha256', secret).update(payload).digest('hex');
 }
 ```
 
@@ -180,21 +177,24 @@ function generateWebhookSignature(artifact) {
 // Forward to message queue
 async function forwardToMessageQueue(artifact) {
   const { id, type } = artifact;
-  
+
   // Example: Forward to Redis queue
   const redis = require('redis');
   const client = redis.createClient();
-  
+
   await client.connect();
-  
+
   try {
-    await client.lPush('btps-artifacts', JSON.stringify({
-      id: id,
-      type: type,
-      artifact: artifact,
-      timestamp: new Date().toISOString()
-    }));
-    
+    await client.lPush(
+      'btps-artifacts',
+      JSON.stringify({
+        id: id,
+        type: type,
+        artifact: artifact,
+        timestamp: new Date().toISOString(),
+      }),
+    );
+
     console.log('Artifact queued successfully:', id);
   } finally {
     await client.disconnect();
@@ -204,17 +204,17 @@ async function forwardToMessageQueue(artifact) {
 // Example: Forward to RabbitMQ
 async function forwardToRabbitMQ(artifact) {
   const amqp = require('amqplib');
-  
+
   const connection = await amqp.connect('amqp://localhost');
   const channel = await connection.createChannel();
-  
+
   try {
     await channel.assertQueue('btps-artifacts', { durable: true });
-    
+
     channel.sendToQueue('btps-artifacts', Buffer.from(JSON.stringify(artifact)), {
-      persistent: true
+      persistent: true,
     });
-    
+
     console.log('Artifact sent to RabbitMQ:', artifact.id);
   } finally {
     await connection.close();
@@ -233,10 +233,10 @@ server.forwardTo(async (processedArtifact) => {
     await handleProcessedArtifact(processedArtifact);
   } catch (error) {
     console.error('Forwarding error:', error);
-    
+
     // Log error for monitoring
     await logForwardingError(processedArtifact, error);
-    
+
     // Optionally retry or send to dead letter queue
     await handleForwardingFailure(processedArtifact, error);
   }
@@ -248,9 +248,9 @@ async function logForwardingError(artifact, error) {
     artifactId: artifact.artifact.id,
     error: error.message,
     stack: error.stack,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
-  
+
   // Log to your monitoring system
   console.error('Forwarding error log:', errorLog);
 }
@@ -259,7 +259,7 @@ async function logForwardingError(artifact, error) {
 async function handleForwardingFailure(artifact, error) {
   // Send to dead letter queue
   await sendToDeadLetterQueue(artifact, error);
-  
+
   // Or retry with exponential backoff
   // await retryWithBackoff(artifact);
 }
@@ -295,32 +295,40 @@ RETRY_ATTEMPTS=3
 ```typescript
 // Test forwarding with sample artifacts
 const testAgentArtifact = {
-  id: "msg_123",
-  type: "btp_invoice",
-  from: "alice$saas.com",
-  to: "bob$client.com",
-  document: { /* invoice data */ },
-  signature: { /* signature */ }
+  id: 'msg_123',
+  type: 'BTPS_DOC',
+  from: 'alice$saas.com',
+  to: 'bob$client.com',
+  document: {
+    /* invoice data */
+  },
+  signature: {
+    /* signature */
+  },
 };
 
 const testTransporterArtifact = {
-  id: "msg_124",
-  type: "btp_invoice",
-  from: "alice$saas.com",
-  to: "bob$client.com",
-  document: { /* invoice data */ },
-  signature: { /* signature */ }
+  id: 'msg_124',
+  type: 'BTPS_DOC',
+  from: 'alice$saas.com',
+  to: 'bob$client.com',
+  document: {
+    /* invoice data */
+  },
+  signature: {
+    /* signature */
+  },
 };
 
 // Test the forwarding handler
 await handleProcessedArtifact({
   artifact: testAgentArtifact,
-  isAgentArtifact: true
+  isAgentArtifact: true,
 });
 
 await handleProcessedArtifact({
   artifact: testTransporterArtifact,
-  isAgentArtifact: false
+  isAgentArtifact: false,
 });
 ```
 

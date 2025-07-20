@@ -34,7 +34,7 @@ const mockUtils = vi.mocked(utils);
 
 describe('signEncrypt', () => {
   let sender: ParsedIdentity & { pemFiles: PemKeys };
-  let payload: { document: BTPTrustReqDoc; type: 'btp_trust_request' };
+  let payload: { document: BTPTrustReqDoc; type: 'TRUST_REQ' };
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -55,7 +55,7 @@ describe('signEncrypt', () => {
         phone: '1234567890',
         reason: 'test',
       },
-      type: 'btp_trust_request',
+      type: 'TRUST_REQ',
     };
 
     mockUtils.parseIdentity.mockReturnValue({ accountName: 'receiver', domainName: 'example.com' });

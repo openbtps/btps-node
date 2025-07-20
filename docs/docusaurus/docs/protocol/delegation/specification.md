@@ -40,14 +40,14 @@ A delegation object contains the necessary information to authorize an agent to 
 
 ### **Required Fields**
 
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `agentId` | `string` | Unique identifier for the delegated agent | ✅ |
-| `agentPubKey` | `string` | PEM-encoded public key of the agent | ✅ |
-| `signedBy` | `string` | BTPS identity of the delegator | ✅ |
-| `issuedAt` | `string` | ISO 8601 timestamp of delegation creation | ✅ |
-| `signature` | `object` | Cryptographic signature of the delegator | ✅ |
-| `attestation` | `object` | Third-party attestation (see below) | Conditional |
+| Field         | Type     | Description                               | Required    |
+| ------------- | -------- | ----------------------------------------- | ----------- |
+| `agentId`     | `string` | Unique identifier for the delegated agent | ✅          |
+| `agentPubKey` | `string` | PEM-encoded public key of the agent       | ✅          |
+| `signedBy`    | `string` | BTPS identity of the delegator            | ✅          |
+| `issuedAt`    | `string` | ISO 8601 timestamp of delegation creation | ✅          |
+| `signature`   | `object` | Cryptographic signature of the delegator  | ✅          |
+| `attestation` | `object` | Third-party attestation (see below)       | Conditional |
 
 ### **Signature Object**
 
@@ -59,10 +59,10 @@ A delegation object contains the necessary information to authorize an agent to 
 }
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `algorithm` | `string` | Signature algorithm (currently only "sha256") |
-| `value` | `string` | Base64-encoded signature value |
+| Field         | Type     | Description                                    |
+| ------------- | -------- | ---------------------------------------------- |
+| `algorithm`   | `string` | Signature algorithm (currently only "sha256")  |
+| `value`       | `string` | Base64-encoded signature value                 |
 | `fingerprint` | `string` | SHA-256 fingerprint of the signer's public key |
 
 ## 🔐 Attestation Specification
@@ -86,11 +86,13 @@ A delegation object contains the necessary information to authorize an agent to 
 Attestation is **required** when the delegator (`signedBy`) is the same as the artifact sender (`from`). This prevents self-delegation without third-party oversight.
 
 **When Attestation is Required:**
+
 - Custom domain delegations where the delegator owns the domain
 - Self-delegation scenarios requiring third-party approval
 - Enhanced security requirements for sensitive operations
 
 **When Attestation is Optional:**
+
 - Standard SaaS-managed delegations
 - Delegations where delegator ≠ artifact sender
 
@@ -119,14 +121,14 @@ A delegated artifact is a standard BTPS artifact with an additional `delegation`
   "version": "1.0.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "msg_123",
-  "type": "btp_invoice",
+  "type": "BTPS_DOC",
   "from": "alice$saas.com",
   "to": "bob$client.com",
   "document": {
     "title": "Monthly Service Invoice",
     "id": "INV-2025-001",
     "totalAmount": {
-      "value": 1500.00,
+      "value": 1500.0,
       "currency": "USD"
     }
   },
@@ -177,22 +179,26 @@ A delegated artifact is a standard BTPS artifact with an additional `delegation`
 The BtpsServer performs verification in the following order:
 
 #### **Step 1: Attestation Requirement Check**
+
 - Determine if `delegation.signedBy === artifact.from`
 - If true and no attestation present, reject the artifact
 - If false, attestation is optional
 
 #### **Step 2: Attestation Verification (if present)**
+
 - Resolve attestor's public key via DNS
 - Verify attestation signature against delegation metadata
 - Reject if verification fails
 
 #### **Step 3: Delegation Signature Verification**
+
 - Resolve delegator's public key via DNS
 - Create signed message: `{ ...artifact, delegation: { ...delegation, signature: undefined } }`
 - Verify delegation signature using delegator's public key
 - Reject if verification fails
 
 #### **Step 4: Agent Signature Verification**
+
 - Extract original artifact (without delegation)
 - Verify agent signature using `delegation.agentPubKey`
 - Reject if verification fails
@@ -200,6 +206,7 @@ The BtpsServer performs verification in the following order:
 ### **DNS Resolution Requirements**
 
 #### **Delegator Public Key**
+
 ```bash
 # Resolve delegator identity
 dig TXT alice.btps.saas.com
@@ -209,6 +216,7 @@ alice.btps.saas.com. 300 IN TXT "p=...delegator_public_key..."
 ```
 
 #### **Attestor Public Key (if attestation present)**
+
 ```bash
 # Resolve attestor identity
 dig TXT admin.btps.saas.com
@@ -219,14 +227,14 @@ admin.btps.saas.com. 300 IN TXT "p=...attestor_public_key..."
 
 ### **Error Conditions**
 
-| Error Condition | Error Code | Description |
-|----------------|------------|-------------|
-| Missing attestation when required | `BTP_ERROR_DELEGATION_INVALID` | Custom domain delegation requires attestation |
-| Delegator public key not found | `BTP_ERROR_RESOLVE_PUBKEY` | DNS resolution failed for delegator |
-| Attestor public key not found | `BTP_ERROR_RESOLVE_PUBKEY` | DNS resolution failed for attestor |
-| Invalid delegation signature | `BTP_ERROR_DELEGATION_SIG_VERIFICATION` | Delegation signature verification failed |
-| Invalid attestation signature | `BTP_ERROR_ATTESTATION_VERIFICATION` | Attestation signature verification failed |
-| Invalid agent signature | `BTP_ERROR_DELEGATION_SIG_VERIFICATION` | Agent signature verification failed |
+| Error Condition                   | Error Code                              | Description                                   |
+| --------------------------------- | --------------------------------------- | --------------------------------------------- |
+| Missing attestation when required | `BTP_ERROR_DELEGATION_INVALID`          | Custom domain delegation requires attestation |
+| Delegator public key not found    | `BTP_ERROR_RESOLVE_PUBKEY`              | DNS resolution failed for delegator           |
+| Attestor public key not found     | `BTP_ERROR_RESOLVE_PUBKEY`              | DNS resolution failed for attestor            |
+| Invalid delegation signature      | `BTP_ERROR_DELEGATION_SIG_VERIFICATION` | Delegation signature verification failed      |
+| Invalid attestation signature     | `BTP_ERROR_ATTESTATION_VERIFICATION`    | Attestation signature verification failed     |
+| Invalid agent signature           | `BTP_ERROR_DELEGATION_SIG_VERIFICATION` | Agent signature verification failed           |
 
 ## 🏗️ Implementation Notes
 
@@ -302,4 +310,4 @@ The BtpsServer automatically handles delegation verification. Users need to:
     }
   }
 }
-``` 
+```

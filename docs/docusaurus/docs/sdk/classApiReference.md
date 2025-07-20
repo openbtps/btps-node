@@ -15,61 +15,74 @@ This reference documents all public classes exported by the BTPS SDK, including 
 The main server class for running a secure, multi-tenant BTPS server over TLS. Handles encrypted JSON message delivery, trust management, delegation verification, and extensible middleware.
 
 **Import:**
+
 ```js
 import { BtpsServer } from '@btps/sdk';
 ```
 
 ### constructor
+
 ```ts
 new BtpsServer(options: BtpsServerOptions)
 ```
+
 - **options**: [BtpsServerOptions](./typesAndInterfaces.md#btpsserveroptions) – Server configuration options (port, trustStore, TLS, middleware, etc.)
 
 **Example:**
+
 ```js
 import { BtpsServer, JsonTrustStore } from '@btps/sdk';
 const trustStore = new JsonTrustStore({ connection: './trust.json' });
-const server = new BtpsServer({ 
-  port: 3443, 
+const server = new BtpsServer({
+  port: 3443,
   trustStore,
   connectionTimeoutMs: 30000,
-  middlewarePath: './btps.middleware.mjs'
+  middlewarePath: './btps.middleware.mjs',
 });
 ```
 
 ### start
+
 ```ts
-await server.start()
+await server.start();
 ```
+
 Starts the BTPS server, loads middleware, and begins accepting TLS connections.
 
 **Example:**
+
 ```js
 await server.start();
 console.log('BTPS Server started on port 3443');
 ```
 
 ### stop
+
 ```ts
-server.stop()
+server.stop();
 ```
+
 Stops the server, releases resources, removes all listeners, and closes all connections.
 
 **Example:**
+
 ```js
 server.stop();
 console.log('BTPS Server stopped');
 ```
 
 ### forwardTo
+
 ```ts
-server.forwardTo(handler)
+server.forwardTo(handler);
 ```
+
 Forwards all verified artifacts to a custom handler function.
 
 - **handler**: `(msg: ProcessedArtifact) => Promise<void>` – Handler for incoming artifacts ([ProcessedArtifact](./typesAndInterfaces.md#processedartifact))
 
 **Example:**
+
 ```js
 server.forwardTo(async (artifact) => {
   if (artifact.isAgentArtifact) {
@@ -81,9 +94,11 @@ server.forwardTo(async (artifact) => {
 ```
 
 ### onIncomingArtifact
+
 ```ts
-server.onIncomingArtifact(type, handler)
+server.onIncomingArtifact(type, handler);
 ```
+
 Registers a handler for specific types of incoming artifacts.
 
 - **type**: `'Agent' | 'Transporter'` – Type of artifact to handle
@@ -92,6 +107,7 @@ Registers a handler for specific types of incoming artifacts.
   - For Transporter: `(artifact: BTPTransporterArtifact) => void`
 
 **Example:**
+
 ```js
 // Handle agent artifacts
 server.onIncomingArtifact('Agent', (artifact, resCtx) => {
@@ -108,24 +124,30 @@ server.onIncomingArtifact('Transporter', (artifact) => {
 ```
 
 ### getProtocolVersion
+
 ```ts
-const version = server.getProtocolVersion()
+const version = server.getProtocolVersion();
 ```
+
 Returns the BTPS protocol version string.
 
 **Returns:**
+
 - `string`: Protocol version (e.g., "1.0.0")
 
 **Example:**
+
 ```js
 const version = server.getProtocolVersion();
 console.log('BTPS Protocol Version:', version);
 ```
 
 ### prepareBtpsResponse
+
 ```ts
 const response = server.prepareBtpsResponse(status, reqId?)
 ```
+
 Prepares a BTPS server response object.
 
 - **status**: [BTPStatus](./typesAndInterfaces.md#btpstatus) – Response status object
@@ -133,6 +155,7 @@ Prepares a BTPS server response object.
 - **Returns**: `Omit<BTPServerResponse, 'type'>`
 
 **Example:**
+
 ```js
 const response = server.prepareBtpsResponse({ ok: true, code: 200 }, 'req_123');
 ```
@@ -144,17 +167,21 @@ const response = server.prepareBtpsResponse({ ok: true, code: 200 }, 'req_123');
 The main client class for sending BTPS artifacts (trust requests, invoices, etc.) to a BTPS server over TLS.
 
 **Import:**
+
 ```js
 import { BtpsClient } from '@btps/sdk';
 ```
 
 ### constructor
+
 ```ts
 new BtpsClient(options: BtpsClientOptions)
 ```
+
 - **options**: [BtpsClientOptions](./typesAndInterfaces.md#btpsclientoptions) – Client configuration (identity, keys, host, port, etc.)
 
 **Example:**
+
 ```js
 import { BtpsClient } from '@btps/sdk';
 const client = new BtpsClient({
@@ -168,15 +195,18 @@ const client = new BtpsClient({
 ```
 
 ### connect
+
 ```ts
 client.connect(receiverId, callbacks?)
 ```
+
 Establishes a TLS connection to a BTPS server.
 
 - **receiverId**: `string` – BTPS identity of the server (e.g., `inbox$vendor.com`)
 - **callbacks**: `(events: TypedEventEmitter) => void` (optional) – Register event listeners ([TypedEventEmitter](./typesAndInterfaces.md#typedeventemitter))
 
 **Example:**
+
 ```js
 client.connect('inbox$vendor.com', (events) => {
   events.on('connected', () => console.log('Connected!'));
@@ -187,29 +217,32 @@ client.connect('inbox$vendor.com', (events) => {
 ```
 
 ### send
+
 ```ts
-await client.send(artifact)
+await client.send(artifact);
 ```
+
 Signs, encrypts, and sends a BTPS artifact to the server.
 
 - **artifact**: [SendBTPArtifact](./typesAndInterfaces.md#sendbtpartifact) – Artifact to send
 - **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
 
 **Example:**
+
 ```js
 const res = await client.send({
   to: 'inbox$vendor.com',
-  type: 'btp_invoice',
-  document: { 
+  type: 'BTPS_DOC',
+  document: {
     title: 'Invoice #123',
     id: 'inv_123',
     issuedAt: new Date().toISOString(),
     status: 'unpaid',
-    totalAmount: { value: 100.00, currency: 'USD' },
+    totalAmount: { value: 100.0, currency: 'USD' },
     lineItems: {
       columns: ['Description', 'Amount'],
-      rows: [{ Description: 'Service', Amount: 100.00 }]
-    }
+      rows: [{ Description: 'Service', Amount: 100.0 }],
+    },
   },
 });
 if (res.response) {
@@ -220,38 +253,48 @@ if (res.response) {
 ```
 
 ### getProtocolVersion
+
 ```ts
-const version = client.getProtocolVersion()
+const version = client.getProtocolVersion();
 ```
+
 Returns the BTPS protocol version string.
 
 **Returns:**
+
 - `string`: Protocol version
 
 **Example:**
+
 ```js
 const version = client.getProtocolVersion();
 console.log('BTPS Protocol Version:', version);
 ```
 
 ### end
+
 ```ts
-client.end()
+client.end();
 ```
+
 Ends the current connection gracefully.
 
 **Example:**
+
 ```js
 client.end();
 ```
 
 ### destroy
+
 ```ts
-client.destroy()
+client.destroy();
 ```
+
 Destroys the client instance, closes sockets, and removes all listeners.
 
 **Example:**
+
 ```js
 client.destroy();
 ```
@@ -263,17 +306,21 @@ client.destroy();
 A specialized client for agent-based operations, extending BtpsClient with agent-specific functionality.
 
 **Import:**
+
 ```js
 import { BtpsAgent } from '@btps/sdk';
 ```
 
 ### constructor
+
 ```ts
 new BtpsAgent(options: BtpsClientOptions & { agentId: string })
 ```
+
 - **options**: [BtpsClientOptions](./typesAndInterfaces.md#btpsclientoptions) & `{ agentId: string }` – Client configuration with agent ID
 
 **Example:**
+
 ```js
 import { BtpsAgent } from '@btps/sdk';
 const agent = new BtpsAgent({
@@ -285,9 +332,11 @@ const agent = new BtpsAgent({
 ```
 
 ### command
+
 ```ts
 await agent.command(actionType, to, document?, options?)
 ```
+
 Executes an agent command with optional document payload.
 
 - **actionType**: [AgentAction](./typesAndInterfaces.md#agentaction) – Type of agent action
@@ -297,13 +346,14 @@ Executes an agent command with optional document payload.
 - **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
 
 **Example:**
+
 ```js
 // Authentication request
 const authRes = await agent.command('auth.request', 'server$domain.com', {
   identity: 'user$domain.com',
   authToken: 'ABC123DEF456',
   publicKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
-  agentInfo: { device: 'mobile', os: 'iOS' }
+  agentInfo: { device: 'mobile', os: 'iOS' },
 });
 
 // Trust request
@@ -311,7 +361,7 @@ const trustRes = await agent.command('trust.request', 'vendor$domain.com', {
   name: 'My Company',
   email: 'contact@mycompany.com',
   reason: 'Business partnership',
-  phone: '+1234567890'
+  phone: '+1234567890',
 });
 
 // Send artifact
@@ -320,11 +370,11 @@ const sendRes = await agent.command('artifact.send', 'client$domain.com', {
   id: 'inv_123',
   issuedAt: new Date().toISOString(),
   status: 'unpaid',
-  totalAmount: { value: 100.00, currency: 'USD' },
+  totalAmount: { value: 100.0, currency: 'USD' },
   lineItems: {
     columns: ['Description', 'Amount'],
-    rows: [{ Description: 'Service', Amount: 100.00 }]
-  }
+    rows: [{ Description: 'Service', Amount: 100.0 }],
+  },
 });
 ```
 
@@ -335,17 +385,21 @@ const sendRes = await agent.command('artifact.send', 'client$domain.com', {
 Server-side authentication management class for handling agent authentication, token management, and trust record creation.
 
 **Import:**
+
 ```js
 import { BtpsAuthentication } from '@btps/sdk/authentication';
 ```
 
 ### constructor
+
 ```ts
 new BtpsAuthentication(config: ServerAuthConfig)
 ```
+
 - **config**: [ServerAuthConfig](./typesAndInterfaces.md#serverauthconfig) – Authentication configuration
 
 **Example:**
+
 ```js
 import { BtpsAuthentication, InMemoryTokenStore } from '@btps/sdk/authentication';
 const auth = new BtpsAuthentication({
@@ -355,20 +409,23 @@ const auth = new BtpsAuthentication({
     authTokenLength: 12,
     authTokenExpiryMs: 15 * 60 * 1000, // 15 minutes
     refreshTokenExpiryMs: 7 * 24 * 60 * 60 * 1000, // 7 days
-  }
+  },
 });
 ```
 
 ### createAgent
+
 ```ts
-await auth.createAgent(options)
+await auth.createAgent(options);
 ```
+
 Creates an agent and associated trust record.
 
 - **options**: [CreateAgentOptions](./typesAndInterfaces.md#createagentoptions) – Agent creation options
 - **Returns**: `Promise<BTPAuthResDoc>` ([BTPAuthResDoc](./typesAndInterfaces.md#btpauthresdoc))
 
 **Example:**
+
 ```js
 const authResponse = await auth.createAgent({
   userIdentity: 'alice$company.com',
@@ -376,15 +433,17 @@ const authResponse = await auth.createAgent({
   agentInfo: { device: 'mobile', os: 'iOS' },
   decidedBy: 'admin$company.com',
   privacyType: 'encrypted',
-  trustExpiryMs: 30 * 24 * 60 * 60 * 1000 // 30 days
+  trustExpiryMs: 30 * 24 * 60 * 60 * 1000, // 30 days
 });
 console.log('Agent created:', authResponse.agentId);
 ```
 
 ### validateAuthToken
+
 ```ts
-await auth.validateAuthToken(userIdentity, token)
+await auth.validateAuthToken(userIdentity, token);
 ```
+
 Validates an authentication token and returns the associated user identity.
 
 - **userIdentity**: `string` – User identity to validate token for
@@ -392,6 +451,7 @@ Validates an authentication token and returns the associated user identity.
 - **Returns**: `Promise<AuthValidationResult>` ([AuthValidationResult](./typesAndInterfaces.md#authvalidationresult))
 
 **Example:**
+
 ```js
 const result = await auth.validateAuthToken('alice$company.com', 'ABC123DEF456');
 if (result.isValid) {
@@ -402,9 +462,11 @@ if (result.isValid) {
 ```
 
 ### validateRefreshToken
+
 ```ts
-await auth.validateRefreshToken(agentId, refreshToken)
+await auth.validateRefreshToken(agentId, refreshToken);
 ```
+
 Validates a refresh token and returns agent information.
 
 - **agentId**: `string` – Agent ID to validate
@@ -412,6 +474,7 @@ Validates a refresh token and returns agent information.
 - **Returns**: `Promise<RefreshTokenValidationResult>` ([RefreshTokenValidationResult](./typesAndInterfaces.md#refreshtokenvalidationresult))
 
 **Example:**
+
 ```js
 const result = await auth.validateRefreshToken('agent_123', 'refresh_token_456');
 if (result.isValid) {
@@ -423,9 +486,11 @@ if (result.isValid) {
 ```
 
 ### validateAndReissueRefreshToken
+
 ```ts
-await auth.validateAndReissueRefreshToken(agentId, refreshToken, options)
+await auth.validateAndReissueRefreshToken(agentId, refreshToken, options);
 ```
+
 Validates a refresh token and issues a new one with updated trust record.
 
 - **agentId**: `string` – Agent ID to validate
@@ -434,12 +499,13 @@ Validates a refresh token and issues a new one with updated trust record.
 - **Returns**: `Promise<ReissueRefreshTokenResult>` ([ReissueRefreshTokenResult](./typesAndInterfaces.md#reissuerefreshtokenresult))
 
 **Example:**
+
 ```js
 const result = await auth.validateAndReissueRefreshToken('agent_123', 'old_refresh_token', {
   agentInfo: { device: 'mobile', os: 'iOS' },
   decidedBy: 'admin$company.com',
   privacyType: 'encrypted',
-  trustExpiryMs: 30 * 24 * 60 * 60 * 1000
+  trustExpiryMs: 30 * 24 * 60 * 60 * 1000,
 });
 if (result.data) {
   console.log('New refresh token:', result.data.refreshToken);
@@ -450,9 +516,11 @@ if (result.data) {
 ```
 
 ### storeAuthToken
+
 ```ts
 await auth.storeAuthToken(token, userIdentity, metadata?)
 ```
+
 Stores an authentication token for a user.
 
 - **token**: `string` – Authentication token to store
@@ -460,20 +528,24 @@ Stores an authentication token for a user.
 - **metadata**: `Record<string, unknown>` (optional) – Additional metadata
 
 **Example:**
+
 ```js
 await auth.storeAuthToken('ABC123DEF456', 'alice$company.com', {
   issuedBy: 'admin$company.com',
-  purpose: 'device_activation'
+  purpose: 'device_activation',
 });
 ```
 
 ### cleanup
+
 ```ts
-await auth.cleanup()
+await auth.cleanup();
 ```
+
 Performs cleanup operations (removes expired tokens, etc.).
 
 **Example:**
+
 ```js
 await auth.cleanup();
 console.log('Authentication cleanup completed');
@@ -482,9 +554,11 @@ console.log('Authentication cleanup completed');
 ### Static Methods
 
 #### generateAuthToken
+
 ```ts
 BtpsAuthentication.generateAuthToken(userIdentity, length?, charactersFrom?)
 ```
+
 Generates a user authentication token (server-side).
 
 - **userIdentity**: `string` – User identity to generate token for
@@ -493,45 +567,54 @@ Generates a user authentication token (server-side).
 - **Returns**: `string` – Generated authentication token
 
 **Example:**
+
 ```js
 const token = BtpsAuthentication.generateAuthToken('alice$company.com', 12);
 console.log('Generated token:', token);
 ```
 
 #### generateAgentId
+
 ```ts
 BtpsAuthentication.generateAgentId(prefix?)
 ```
+
 Generates a unique agent ID.
 
 - **prefix**: `string` (optional, default: `'btp_ag'`) – Prefix for the agent ID
 - **Returns**: `string` – Generated agent ID
 
 **Example:**
+
 ```js
 const agentId = BtpsAuthentication.generateAgentId('mobile');
 console.log('Generated agent ID:', agentId);
 ```
 
 #### generateRefreshToken
+
 ```ts
 BtpsAuthentication.generateRefreshToken(size?)
 ```
+
 Generates a secure random refresh token.
 
 - **size**: `number` (optional, default: `32`) – Size of the token in bytes
 - **Returns**: `string` – Generated refresh token in base64url format
 
 **Example:**
+
 ```js
 const refreshToken = BtpsAuthentication.generateRefreshToken(32);
 console.log('Generated refresh token:', refreshToken);
 ```
 
 #### authenticate
+
 ```ts
 await BtpsAuthentication.authenticate(identity, authToken, keyPair, agentInfo?, agentOptions?)
 ```
+
 Authenticates using an auth token (client-side).
 
 - **identity**: `string` – User identity
@@ -542,12 +625,13 @@ Authenticates using an auth token (client-side).
 - **Returns**: `Promise<AuthRequestResponse>` ([AuthRequestResponse](./typesAndInterfaces.md#authrequestresponse))
 
 **Example:**
+
 ```js
 const result = await BtpsAuthentication.authenticate(
   'alice$company.com',
   'ABC123DEF456',
   { publicKey: 'PUBLIC_KEY', privateKey: 'PRIVATE_KEY' },
-  { device: 'mobile', os: 'iOS' }
+  { device: 'mobile', os: 'iOS' },
 );
 if (result.success) {
   console.log('Authentication successful:', result.response);
@@ -557,9 +641,11 @@ if (result.success) {
 ```
 
 #### refreshSession
+
 ```ts
 await BtpsAuthentication.refreshSession(agentId, identity, refreshToken, keyPair, agentInfo?, agentOptions?)
 ```
+
 Refreshes an authentication session (client-side).
 
 - **agentId**: `string` – Agent ID
@@ -571,13 +657,14 @@ Refreshes an authentication session (client-side).
 - **Returns**: `Promise<AuthRequestResponse>` ([AuthRequestResponse](./typesAndInterfaces.md#authrequestresponse))
 
 **Example:**
+
 ```js
 const result = await BtpsAuthentication.refreshSession(
   'agent_123',
   'alice$company.com',
   'refresh_token_456',
   { publicKey: 'PUBLIC_KEY', privateKey: 'PRIVATE_KEY' },
-  { device: 'mobile', os: 'iOS' }
+  { device: 'mobile', os: 'iOS' },
 );
 if (result.success) {
   console.log('Session refreshed:', result.response);
@@ -593,35 +680,42 @@ if (result.success) {
 Production-grade delegator for creating and managing BTPS delegations with attestation support.
 
 **Import:**
+
 ```js
 import { BtpsDelegator } from '@btps/sdk/delegation';
 ```
 
 ### constructor
+
 ```ts
 new BtpsDelegator(options: BtpsDelegatorOptions)
 ```
+
 - **options**: [BtpsDelegatorOptions](./typesAndInterfaces.md#btpsdelegatoroptions) – Delegator configuration
 
 **Example:**
+
 ```js
 import { BtpsDelegator } from '@btps/sdk/delegation';
 const delegator = new BtpsDelegator({
   identity: 'alice$saas.com',
   privateKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',
-  autoInit: true
+  autoInit: true,
 });
 ```
 
 ### init
+
 ```ts
-await delegator.init()
+await delegator.init();
 ```
+
 Initializes the delegator by verifying identity and setting public key.
 
 **Throws:** `BTPErrorException` if identity verification fails
 
 **Example:**
+
 ```js
 try {
   await delegator.init();
@@ -632,9 +726,11 @@ try {
 ```
 
 ### delegateArtifact
+
 ```ts
 await delegator.delegateArtifact(agentId, agentPubKey, artifact, onBehalfOf?)
 ```
+
 Decorates a BTPTransporterArtifact with delegation and attestation as needed.
 
 - **agentId**: `string` – Unique identifier for the delegated agent
@@ -644,12 +740,13 @@ Decorates a BTPTransporterArtifact with delegation and attestation as needed.
 - **Returns**: `Promise<BTPTransporterArtifact & { delegation: BTPDelegation }>`
 
 **Example:**
+
 ```js
 // SaaS managed user delegation
 const delegatedArtifact = await delegator.delegateArtifact(
   'device_mobile_iphone15_20250115_103000',
   agentPublicKey,
-  artifact
+  artifact,
 );
 
 // Custom domain user delegation with attestation
@@ -661,9 +758,9 @@ const delegatedArtifact = await delegator.delegateArtifact(
     identity: 'alice$enterprise.com',
     keyPair: {
       privateKey: userPrivateKey,
-      publicKey: userPublicKey
-    }
-  }
+      publicKey: userPublicKey,
+    },
+  },
 );
 ```
 
@@ -674,17 +771,21 @@ const delegatedArtifact = await delegator.delegateArtifact(
 Abstract base class for implementing a trust store backend (file, DB, etc.). Extend this class to create custom trust stores.
 
 **Import:**
+
 ```js
 import { AbstractTrustStore } from '@btps/sdk/trust';
 ```
 
 ### constructor
+
 ```ts
 new AbstractTrustStore(options: TrustStoreOptions)
 ```
+
 - **options**: [TrustStoreOptions](./typesAndInterfaces.md#truststoreoptions) – Trust store configuration
 
 **Example:**
+
 ```js
 class MyTrustStore extends AbstractTrustStore {
   // implement abstract methods...
@@ -693,23 +794,28 @@ const store = new MyTrustStore({ connection: '...' });
 ```
 
 ### getById
+
 ```ts
-await store.getById(computedId)
+await store.getById(computedId);
 ```
+
 Get a trust record by computed ID.
 
 - **computedId**: `string`
 - **Returns**: `Promise<BTPTrustRecord | undefined>` ([BTPTrustRecord](./typesAndInterfaces.md#btptrustrecord))
 
 **Example:**
+
 ```js
 const record = await store.getById('some-id');
 ```
 
 ### create
+
 ```ts
 await store.create(record, computedId?)
 ```
+
 Create a new trust record.
 
 - **record**: `Omit<BTPTrustRecord, 'id'>` ([BTPTrustRecord](./typesAndInterfaces.md#btptrustrecord))
@@ -717,14 +823,17 @@ Create a new trust record.
 - **Returns**: `Promise<BTPTrustRecord>`
 
 **Example:**
+
 ```js
 const newRecord = await store.create({ senderId: 'a', receiverId: 'b', ... });
 ```
 
 ### update
+
 ```ts
-await store.update(computedId, patch)
+await store.update(computedId, patch);
 ```
+
 Update an existing trust record.
 
 - **computedId**: `string`
@@ -732,34 +841,41 @@ Update an existing trust record.
 - **Returns**: `Promise<BTPTrustRecord>`
 
 **Example:**
+
 ```js
 const updated = await store.update('some-id', { status: 'accepted' });
 ```
 
 ### delete
+
 ```ts
-await store.delete(computedId)
+await store.delete(computedId);
 ```
+
 Delete a trust record by ID.
 
 - **computedId**: `string`
 - **Returns**: `Promise<void>`
 
 **Example:**
+
 ```js
 await store.delete('some-id');
 ```
 
 ### getAll
+
 ```ts
 await store.getAll(receiverId?)
 ```
+
 Get all trust records, optionally filtered by receiver.
 
 - **receiverId**: `string` (optional)
 - **Returns**: `Promise<BTPTrustRecord[]>`
 
 **Example:**
+
 ```js
 const all = await store.getAll();
 const filtered = await store.getAll('receiver-id');
@@ -772,11 +888,13 @@ const filtered = await store.getAll('receiver-id');
 A file-based trust store implementation for self-hosted or development use. Stores trust records in a JSON file, with advanced features for reliability, performance, and concurrency.
 
 **Import:**
+
 ```js
 import { JsonTrustStore } from '@btps/sdk/trust';
 ```
 
 ### Features & Functionality
+
 - **Atomic File Writes with Locking:** Uses file locks and writes to a temporary file before atomically replacing the main file, ensuring data integrity even under concurrent access or crashes.
 - **In-Memory Map for Fast Access:** All trust records are stored in a `Map` for fast lookup, update, and deletion, minimizing disk I/O.
 - **Debounced and Batched Writes:** Changes are batched and written to disk after a short delay, reducing the number of disk operations during rapid updates.
@@ -786,34 +904,42 @@ import { JsonTrustStore } from '@btps/sdk/trust';
 - **Graceful Shutdown:** Flushes all pending writes to disk on process exit (`SIGINT`/`SIGTERM`) to prevent data loss.
 
 ### constructor
+
 ```ts
 new JsonTrustStore(options: TrustStoreOptions)
 ```
+
 - **options**: [TrustStoreOptions](./typesAndInterfaces.md#truststoreoptions) – Trust store configuration
 
 **Example:**
+
 ```js
 const trustStore = new JsonTrustStore({ connection: './trust.json' });
 ```
 
 ### getById
+
 ```ts
-await trustStore.getById(computedId)
+await trustStore.getById(computedId);
 ```
+
 Get a trust record by computed ID.
 
 - **computedId**: `string`
 - **Returns**: `Promise<BTPTrustRecord | undefined>` ([BTPTrustRecord](./typesAndInterfaces.md#btptrustrecord))
 
 **Example:**
+
 ```js
 const record = await trustStore.getById('some-id');
 ```
 
 ### create
+
 ```ts
 await trustStore.create(record, computedId?)
 ```
+
 Create a new trust record.
 
 - **record**: `Omit<BTPTrustRecord, 'id'>` ([BTPTrustRecord](./typesAndInterfaces.md#btptrustrecord))
@@ -821,14 +947,17 @@ Create a new trust record.
 - **Returns**: `Promise<BTPTrustRecord>`
 
 **Example:**
+
 ```js
 const newRecord = await trustStore.create({ senderId: 'a', receiverId: 'b', ... });
 ```
 
 ### update
+
 ```ts
-await trustStore.update(computedId, patch)
+await trustStore.update(computedId, patch);
 ```
+
 Update an existing trust record.
 
 - **computedId**: `string`
@@ -836,57 +965,70 @@ Update an existing trust record.
 - **Returns**: `Promise<BTPTrustRecord>`
 
 **Example:**
+
 ```js
 const updated = await store.update('some-id', { status: 'accepted' });
 ```
 
 ### delete
+
 ```ts
-await trustStore.delete(computedId)
+await trustStore.delete(computedId);
 ```
+
 Delete a trust record by ID.
 
 - **computedId**: `string`
 - **Returns**: `Promise<void>`
 
 **Example:**
+
 ```js
 await trustStore.delete('some-id');
 ```
 
 ### getAll
+
 ```ts
 await trustStore.getAll(receiverId?)
 ```
+
 Get all trust records, optionally filtered by receiver.
 
 - **receiverId**: `string` (optional)
 - **Returns**: `Promise<BTPTrustRecord[]>`
 
 **Example:**
+
 ```js
 const all = await trustStore.getAll();
 const filtered = await trustStore.getAll('receiver-id');
 ```
 
 ### flushNow
+
 ```ts
-await trustStore.flushNow()
+await trustStore.flushNow();
 ```
+
 Immediately flushes all pending writes to disk.
 
 **Example:**
+
 ```js
 await trustStore.flushNow();
 ```
 
 ### flushAndReload
+
 ```ts
-await trustStore.flushAndReload()
+await trustStore.flushAndReload();
 ```
+
 Flushes and reloads trust records from disk.
 
 **Example:**
+
 ```js
 await trustStore.flushAndReload();
 ```
@@ -898,38 +1040,46 @@ await trustStore.flushAndReload();
 Custom error class for all BTPS errors. Includes error code, cause, and metadata. Provides a `toJSON()` method for structured logging.
 
 **Import:**
+
 ```js
 import { BTPErrorException } from '@btps/sdk/error';
 ```
 
 ### constructor
+
 ```ts
 new BTPErrorException(btpError, options?)
 ```
+
 - **btpError**: [BTPError](./typesAndInterfaces.md#btperror) – Error object with code and message
 - **options** (optional):
   - `cause` (`unknown`): Underlying cause of the error
   - `meta` (`object`): Additional metadata
 
 **Example:**
+
 ```js
 import { BTPErrorException, BTP_ERROR_IDENTITY } from '@btps/sdk/error';
-throw new BTPErrorException(BTP_ERROR_IDENTITY, { 
+throw new BTPErrorException(BTP_ERROR_IDENTITY, {
   cause: 'Invalid format',
-  meta: { identity: 'invalid-identity' }
+  meta: { identity: 'invalid-identity' },
 });
 ```
 
 ### toJSON
+
 ```ts
-const json = error.toJSON()
+const json = error.toJSON();
 ```
+
 Returns a JSON representation of the error for structured logging.
 
 **Returns:**
+
 - `object`: JSON representation with name, code, message, stack, meta, and cause
 
 **Example:**
+
 ```js
 const error = new BTPErrorException(BTP_ERROR_IDENTITY);
 console.log(error.toJSON());
@@ -937,6 +1087,7 @@ console.log(error.toJSON());
 ```
 
 ### Properties
+
 - `code` (`string | number`): Error code
 - `cause` (`unknown`): Underlying cause of the error
 - `meta` (`Record<string, unknown>`): Additional metadata

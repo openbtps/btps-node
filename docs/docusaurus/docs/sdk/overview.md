@@ -55,16 +55,16 @@ import type { BTPArtifact, BTPInvoiceDoc } from '@btps/sdk';
 
 ## 📦 Entry Points & Subpath Exports
 
-| Import Path                 | Description                      |
-| --------------------------- | -------------------------------- |
-| `@btps/sdk`                 | Main SDK (server, client, utils) |
-| `@btps/sdk/server`          | Server-side exports              |
-| `@btps/sdk/client`          | Client-side exports              |
-| `@btps/sdk/crypto`          | Cryptographic utilities          |
-| `@btps/sdk/trust`           | Trust store and trust types      |
-| `@btps/sdk/error`           | Error types and helpers          |
-| `@btps/sdk/authentication`  | Error types and helpers          |
-| `@btps/sdk/delegation`      | Error types and helpers          |
+| Import Path                | Description                      |
+| -------------------------- | -------------------------------- |
+| `@btps/sdk`                | Main SDK (server, client, utils) |
+| `@btps/sdk/server`         | Server-side exports              |
+| `@btps/sdk/client`         | Client-side exports              |
+| `@btps/sdk/crypto`         | Cryptographic utilities          |
+| `@btps/sdk/trust`          | Trust store and trust types      |
+| `@btps/sdk/error`          | Error types and helpers          |
+| `@btps/sdk/authentication` | Error types and helpers          |
+| `@btps/sdk/delegation`     | Error types and helpers          |
 
 ---
 
@@ -83,9 +83,9 @@ dist/
 │   │   └── index.js         ← @btps/sdk/crypto
 │   ├── error/
 │   │   └── index.js         ← @btps/sdk/error
-│   ├── authentication       
+│   ├── authentication
 │   │   └── index.js         ← @btps/sdk/authentication
-│   ├── delegation       
+│   ├── delegation
 │   │   └── index.js         ← @btps/sdk/delegation
 └── client/
 │   ├── index.js             ← @btps/sdk/client
@@ -122,7 +122,7 @@ const { payload, error } = await signEncrypt(
   'pay$client.com',
   { accountName: 'billing', domainName: 'vendorcorp.com', pemFiles: { publicKey, privateKey } },
   {
-    type: 'btp_invoice',
+    type: 'BTPS_DOC',
     document: {
       /* ... */
     },
