@@ -213,7 +213,7 @@ BTPS enables sophisticated document orchestration across the entire billing life
 
 ## 🏗️ High-Level Architecture
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for a protocol overview and diagrams.
+See [docs/ARCHITECTURE.md](docs/docusaurus/docs/protocol/overview.md) for a protocol overview and diagrams.
 
 ---
 
