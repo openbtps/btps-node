@@ -57,7 +57,7 @@ describe('BtpArtifactServerSchema superRefine', () => {
     from: 'user$domain.com',
     to: 'user$domain.com',
     signature: {
-      algorithm: 'sha256',
+      algorithmHash: 'sha256',
       value: 'sig',
       fingerprint: 'fp',
     },
@@ -69,10 +69,11 @@ describe('BtpArtifactServerSchema superRefine', () => {
       type: 'TRUST_REQ',
       document: 'encryptedstring',
       encryption: {
-        algorithm: 'aes-256-cbc',
+        algorithm: 'aes-256-gcm',
         encryptedKey: 'key',
         iv: 'iv',
         type: 'standardEncrypt',
+        authTag: 'authTag',
       },
     };
     const result = BtpArtifactServerSchema.safeParse(data);
@@ -85,10 +86,11 @@ describe('BtpArtifactServerSchema superRefine', () => {
       type: 'TRUST_REQ',
       document: { foo: 'bar' },
       encryption: {
-        algorithm: 'aes-256-cbc',
+        algorithm: 'aes-256-gcm',
         encryptedKey: 'key',
         iv: 'iv',
         type: 'standardEncrypt',
+        authTag: 'authTag',
       },
     };
     const result = BtpArtifactServerSchema.safeParse(data);

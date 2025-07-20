@@ -28,10 +28,10 @@ describe('BtpsAgent Schema Validation', () => {
         document: undefined,
         options: {
           signature: {
-            algorithm: 'sha256',
+            algorithmHash: 'sha256',
           },
           encryption: {
-            algorithm: 'aes-256-cbc',
+            algorithm: 'aes-256-gcm',
             mode: 'standardEncrypt',
           },
         },
@@ -140,7 +140,7 @@ describe('BtpsAgent Schema Validation', () => {
         document: undefined,
         options: {
           signature: {
-            algorithm: 'md5', // Invalid algorithm
+            algorithmHash: 'md5', // Invalid algorithm
           },
         },
       };
@@ -148,7 +148,7 @@ describe('BtpsAgent Schema Validation', () => {
       const result = BtpsAgentCommandSchema.safeParse(invalidCommand);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].path).toEqual(['options', 'signature', 'algorithm']);
+        expect(result.error.issues[0].path).toEqual(['options', 'signature', 'algorithmHash']);
       }
     });
   });
@@ -595,21 +595,21 @@ describe('BtpsAgent Schema Validation', () => {
       const validOptions = [
         {
           signature: {
-            algorithm: 'sha256',
+            algorithmHash: 'sha256',
           },
         },
         {
           encryption: {
-            algorithm: 'aes-256-cbc',
+            algorithm: 'aes-256-gcm',
             mode: 'standardEncrypt',
           },
         },
         {
           signature: {
-            algorithm: 'sha256',
+            algorithmHash: 'sha256',
           },
           encryption: {
-            algorithm: 'aes-256-cbc',
+            algorithm: 'aes-256-gcm',
             mode: '2faEncrypt',
           },
         },
@@ -625,21 +625,21 @@ describe('BtpsAgent Schema Validation', () => {
     it('should fail with invalid signature algorithm', () => {
       const invalidOptions = {
         signature: {
-          algorithm: 'md5', // Invalid
+          algorithmHash: 'md5', // Invalid
         },
       };
 
       const result = BtpsAgentOptionsSchema.safeParse(invalidOptions);
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].path).toEqual(['signature', 'algorithm']);
+        expect(result.error.issues[0].path).toEqual(['signature', 'algorithmHash']);
       }
     });
 
     it('should fail with invalid encryption mode', () => {
       const invalidOptions = {
         encryption: {
-          algorithm: 'aes-256-cbc',
+          algorithm: 'aes-256-gcm',
           mode: 'invalid-mode', // Invalid
         },
       };
@@ -656,10 +656,10 @@ describe('BtpsAgent Schema Validation', () => {
     it('should validate complete crypto options', () => {
       const options = {
         signature: {
-          algorithm: 'sha256',
+          algorithmHash: 'sha256',
         },
         encryption: {
-          algorithm: 'aes-256-cbc',
+          algorithm: 'aes-256-gcm',
           mode: 'standardEncrypt',
         },
       };
@@ -671,13 +671,13 @@ describe('BtpsAgent Schema Validation', () => {
     it('should validate partial crypto options', () => {
       const signatureOnly = {
         signature: {
-          algorithm: 'sha256',
+          algorithmHash: 'sha256',
         },
       };
 
       const encryptionOnly = {
         encryption: {
-          algorithm: 'aes-256-cbc',
+          algorithm: 'aes-256-gcm',
           mode: '2faEncrypt',
         },
       };

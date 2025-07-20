@@ -13,7 +13,7 @@ import {
   BTPSignature,
   EncryptionAlgorithmType,
   PemKeys,
-  SignatureAlgorithmType,
+  SignatureAlgorithmHash,
 } from './types.js';
 
 import {
@@ -35,20 +35,21 @@ export const encryptBtpPayload = (
   payload: unknown = '',
   receiverPubPem: string,
   options: BTPCryptoOptions['encryption'] = {
-    algorithm: 'aes-256-cbc',
+    algorithm: 'aes-256-gcm',
     mode: 'standardEncrypt',
   },
 ) => {
-  const aesKey = crypto.randomBytes(32);
-  const iv = crypto.randomBytes(16);
+  const aesKey = crypto.randomBytes(32); // 256-bit AES key
+  const iv = crypto.randomBytes(12); // 96-bit IV (recommended for GCM)
   const algorithm: EncryptionAlgorithmType = options.algorithm;
   const stringifiedPayload = typeof payload !== 'string' ? JSON.stringify(payload) : payload;
 
-  const cipher = crypto.createCipheriv(algorithm, aesKey, iv);
+  const cipher = crypto.createCipheriv(algorithm, aesKey, iv) as crypto.CipherGCM;
   let encryptedPayload = cipher.update(stringifiedPayload, 'utf8', 'base64');
   encryptedPayload += cipher.final('base64');
+  const authTag = cipher.getAuthTag(); // 16 bytes by default
 
-  const encryptedKey = encryptRSA(receiverPubPem, aesKey);
+  const encryptedKey = encryptRSA(receiverPubPem, aesKey); // RSA-OAEP-wrapped AES key
 
   return {
     data: encryptedPayload,
@@ -56,6 +57,7 @@ export const encryptBtpPayload = (
       algorithm,
       encryptedKey: encryptedKey.toString('base64'),
       iv: iv.toString('base64'),
+      authTag: authTag.toString('base64'),
       type: options.mode,
     },
   };
@@ -66,7 +68,7 @@ export const decryptBtpPayload = <T = unknown>(
   encryption: BTPEncryption,
   receiverPrivPem: string,
 ): { data?: T; error?: BTPErrorException } => {
-  if (encryption.algorithm !== 'aes-256-cbc') {
+  if (encryption.algorithm !== 'aes-256-gcm') {
     return {
       data: undefined,
       error: new BTPErrorException(BTP_ERROR_UNSUPPORTED_ENCRYPT),
@@ -78,11 +80,13 @@ export const decryptBtpPayload = <T = unknown>(
       receiverPrivPem,
       Buffer.from(encryption.encryptedKey, 'base64'),
     );
+
     const decipher = crypto.createDecipheriv(
       encryption.algorithm,
       decryptedKey,
       Buffer.from(encryption.iv, 'base64'),
     );
+    decipher.setAuthTag(Buffer.from(encryption.authTag, 'base64'));
 
     const stringifiedPayload = typeof payload !== 'string' ? JSON.stringify(payload) : payload;
 
@@ -118,58 +122,64 @@ export const decryptBtpPayload = <T = unknown>(
 };
 
 /**
- * Encrypts a buffer using RSA public key with OAEP and SHA-1
+ * Encrypts a buffer using RSA public key with OAEP and SHA-256
  */
 export const encryptRSA = (publicKeyPem: string, data: Buffer): Buffer => {
   return crypto.publicEncrypt(
     {
       key: publicKeyPem,
       padding: constants.RSA_PKCS1_OAEP_PADDING,
-      oaepHash: 'sha1',
+      oaepHash: 'sha256',
     },
     data,
   );
 };
 
 /**
- * Decrypts an RSA-encrypted buffer using a private key with OAEP and SHA-1
+ * Decrypts an RSA-encrypted buffer using a private key with OAEP and SHA-256
  */
 export const decryptRSA = (privateKeyPem: string, encrypted: Buffer): Buffer => {
   return crypto.privateDecrypt(
     {
       key: privateKeyPem,
       padding: constants.RSA_PKCS1_OAEP_PADDING,
-      oaepHash: 'sha1',
+      oaepHash: 'sha256',
     },
     encrypted,
   );
 };
 
-export const getFingerprintFromPem = (
-  pem: string,
-  algorithm: SignatureAlgorithmType = 'sha256',
-): string => {
+export const getFingerprintFromPem = (pem: string, hashAlgorithm = 'sha256'): string => {
+  const normalizedPem = pem.trim();
+  if (
+    !normalizedPem.startsWith('-----BEGIN PUBLIC KEY-----') ||
+    !normalizedPem.endsWith('-----END PUBLIC KEY-----')
+  ) {
+    throw new BTPErrorException(BTP_ERROR_SIG_MISMATCH, {
+      meta: { reason: 'Invalid PEM: Must be a public key in SPKI format' },
+    });
+  }
+
   const keyObj = crypto.createPublicKey({
-    key: pem,
+    key: normalizedPem,
     format: 'pem',
     type: 'spki',
   });
 
   const der = keyObj.export({ format: 'der', type: 'spki' }); // binary key
-  return crypto.createHash(algorithm).update(der).digest('base64');
+  return crypto.createHash(hashAlgorithm).update(der).digest('base64');
 };
 
 export const signBtpPayload = (payload: unknown = '', senderPemFiles: PemKeys): BTPSignature => {
   const stringifiedPayload = typeof payload !== 'string' ? JSON.stringify(payload) : payload;
   const { publicKey, privateKey } = senderPemFiles;
-  const algorithm: SignatureAlgorithmType = 'sha256';
+  const algorithmHash: SignatureAlgorithmHash = 'sha256';
 
-  const hash = crypto.createHash(algorithm).update(stringifiedPayload).digest();
-  const signature = crypto.sign(null, hash, privateKey);
+  const signature = crypto.sign('sha256', Buffer.from(stringifiedPayload, 'utf8'), privateKey);
   const senderFingerprint = getFingerprintFromPem(publicKey, 'sha256');
 
   return {
-    algorithm: algorithm,
+    algorithmHash,
     value: signature.toString('base64'),
     fingerprint: senderFingerprint,
   };
@@ -184,7 +194,7 @@ export const verifySignature = (
 
   let senderFingerprint;
   try {
-    senderFingerprint = getFingerprintFromPem(senderPubKey, signature.algorithm);
+    senderFingerprint = getFingerprintFromPem(senderPubKey, signature.algorithmHash);
   } catch (error) {
     const err =
       error instanceof Error
@@ -205,8 +215,12 @@ export const verifySignature = (
     };
   }
 
-  const hash = crypto.createHash('sha256').update(stringifiedPayload).digest();
-  const isValid = crypto.verify(null, hash, senderPubKey, Buffer.from(signature.value, 'base64'));
+  const isValid = crypto.verify(
+    signature.algorithmHash,
+    Buffer.from(stringifiedPayload, 'utf8'),
+    senderPubKey,
+    Buffer.from(signature.value, 'base64'),
+  );
   return {
     isValid,
     error: isValid

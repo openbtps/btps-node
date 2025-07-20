@@ -14,12 +14,12 @@ import { identitySchema } from './shared.js';
 export const BtpCryptoOptionsSchema = z.object({
   signature: z
     .object({
-      algorithm: z.literal('sha256'),
+      algorithmHash: z.literal('sha256'),
     })
     .optional(),
   encryption: z
     .object({
-      algorithm: z.literal('aes-256-cbc'),
+      algorithm: z.literal('aes-256-gcm'),
       mode: z.enum(['none', 'standardEncrypt', '2faEncrypt']),
     })
     .optional(),
@@ -29,14 +29,15 @@ export const BtpCryptoOptionsSchema = z.object({
 export const BtpsAgentActionTypeSchema = z.enum(AGENT_ACTIONS);
 
 export const BtpEncryptionSchema = z.object({
-  algorithm: z.literal('aes-256-cbc'),
+  algorithm: z.literal('aes-256-gcm'),
   encryptedKey: z.string(),
   iv: z.string(),
   type: z.enum(['none', 'standardEncrypt', '2faEncrypt']),
+  authTag: z.string(),
 });
 
 export const BtpSignatureSchema = z.object({
-  algorithm: z.literal('sha256'),
+  algorithmHash: z.literal('sha256'),
   value: z.string(),
   fingerprint: z.string(),
 });

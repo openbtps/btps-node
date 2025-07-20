@@ -91,7 +91,7 @@ describe('BtpsAgent', () => {
         type: 'TRUST_REQ',
         issuedAt: '2023-01-01T00:00:00.000Z',
         document: {} as BTPDocType,
-        signature: { algorithm: 'sha256', value: 'sig', fingerprint: 'fp' },
+        signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
         encryption: null,
       },
       error: undefined,
@@ -184,7 +184,7 @@ describe('BtpsAgent', () => {
     it('should reject invalid crypto options', async () => {
       const result = await agent.command('system.ping', 'alice$example.com', undefined, {
         signature: {
-          algorithm: 'md5' as never, // Invalid algorithm
+          algorithmHash: 'md5' as never, // Invalid algorithm
         },
       });
 
@@ -196,10 +196,10 @@ describe('BtpsAgent', () => {
     it('should accept valid crypto options', async () => {
       const promise = agent.command('system.ping', 'alice$example.com', undefined, {
         signature: {
-          algorithm: 'sha256',
+          algorithmHash: 'sha256',
         },
         encryption: {
-          algorithm: 'aes-256-cbc',
+          algorithm: 'aes-256-gcm',
           mode: 'standardEncrypt',
         },
       });

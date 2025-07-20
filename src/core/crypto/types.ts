@@ -17,19 +17,20 @@ import {
 
 export type EncryptionMode = 'none' | 'standardEncrypt' | '2faEncrypt';
 
-export type EncryptionAlgorithmType = 'aes-256-cbc';
+export type EncryptionAlgorithmType = 'aes-256-gcm';
 
 export type BTPEncryption = {
   algorithm: EncryptionAlgorithmType;
   encryptedKey: string;
   iv: string;
   type: EncryptionMode;
+  authTag: string;
 };
 
-export type SignatureAlgorithmType = 'sha256';
+export type SignatureAlgorithmHash = 'sha256';
 
 export type BTPSignature = {
-  algorithm: SignatureAlgorithmType;
+  algorithmHash: SignatureAlgorithmHash;
   value: string;
   fingerprint: string;
 };
@@ -41,7 +42,7 @@ export type PemKeys = {
 
 export type BTPCryptoOptions = {
   signature: {
-    algorithm: SignatureAlgorithmType;
+    algorithmHash: SignatureAlgorithmHash;
   };
   encryption?: {
     algorithm: EncryptionAlgorithmType;

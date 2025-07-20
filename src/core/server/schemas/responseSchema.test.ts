@@ -106,15 +106,17 @@ describe('BtpServerResponseSchema', () => {
       type: 'btps_response' as const,
       reqId: 'req-123',
       signature: {
-        algorithm: 'sha256' as const,
+        algorithmHash: 'sha256' as const,
         value: 'signature-value',
         fingerprint: 'fingerprint-value',
+        authTag: 'auth-tag-value',
       },
       encryption: {
-        algorithm: 'aes-256-cbc' as const,
+        algorithm: 'aes-256-gcm' as const,
         encryptedKey: 'encrypted-key',
         iv: 'iv-value',
         type: 'standardEncrypt' as const,
+        authTag: 'auth-tag-value',
       },
       signedBy: 'alice$example.com',
     };
