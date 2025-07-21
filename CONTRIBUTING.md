@@ -16,8 +16,8 @@ Thank you for your interest in contributing to the BTPS SDK! This document provi
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/btps-sdk.git
-cd btps-sdk
+git clone https://github.com/openbtps/btps-node
+cd btps-node
 
 # Install dependencies
 yarn install

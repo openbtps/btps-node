@@ -16,93 +16,14 @@ BTPS (Billing Trust Protocol Secure) is a next-generation protocol for exchangin
 
 ---
 
-## 💡 Why BTPS? (The Problem & Solution)
-
-- **Invoice fraud is rampant:** Billions are lost to fake invoices and business email compromise every year. BTPS ensures only trusted, cryptographically verified senders can deliver bills.
-- **Manual onboarding is slow:** BTPS automates trust establishment and key management using DNS and protocol handshakes, reducing friction and errors.
-- **Lack of interoperability:** BTPS is open and federated—any SaaS, bank, or enterprise can join and interoperate securely.
-- **Audit and compliance:** Every message and trust change is logged and verifiable, supporting compliance and audit needs.
-- **Flexible for all sizes:** From startups to global enterprises, BTPS scales from file-based trust stores to full database and cloud integrations.
-
----
-
-## 🔒 How Does BTPS Work?
-
-1. **Identity & Discovery:**
-   - Every participant publishes a DNS TXT record and optional `.well-known` trust file, advertising their public key and inbox endpoint.
-   - Addresses look like `username$domain.com` (e.g., `billing$vendorcorp.com`).
-2. **Trust Establishment:**
-   - Senders must request trust from receivers before sending business documents.
-   - Receivers approve, reject, or block senders. Only trusted senders can deliver documents.
-3. **Secure Message Exchange:**
-   - All messages are signed and encrypted using strong cryptography (RSA, Ed25519, AES-256, etc.).
-   - Servers verify sender identity, trust status, and document integrity before accepting any message.
-4. **Key Rotation & Revocation:**
-   - Key changes are managed via DNS and `.well-known` records. Trust can be revoked or expired at any time.
-5. **Extensible & Auditable:**
-   - Plug in custom trust stores (file, SQL, NoSQL, cloud), middleware, and integrations (webhooks, metrics, etc.).
-   - All trust and message operations are logged for audit and compliance.
-
----
-
-## 🚨 Problems with Current Billing Systems
-
-### User Problems with Sending and Receiving Bills
-
-- **Security Concerns:** Users worry about the security of sensitive financial information when bills are transmitted online.
-- **Lack of Integration:** Billing systems often don't integrate well with accounting software, CRM systems, or other business tools.
-- **Inconsistencies and Errors:** Manual processes lead to errors in bills, such as wrong amounts, duplicate bills, or missing invoices.
-- **Payment Inconvenience:** Different vendors require different payment methods, leading to confusion and inconvenience.
-- **Poor Tracking and Notifications:** Inadequate notifications about bill due dates lead to late payments and penalties.
-- **Accessibility Issues:** Many users struggle to access or navigate online billing platforms, especially those with disabilities or limited tech skills.
-- **Environmental Concerns:** Users want eco-friendly digital solutions but find current alternatives complex or unreliable.
-
-### How BTPS Solves These Problems
-
-- **Enhanced Security:** BTPS provides end-to-end encryption, cryptographic verification, and trust-based delivery to protect sensitive billing data.
-- **Seamless Integrations:** BTPS's open protocol and SDK enable easy integration with any accounting, CRM, or business software.
-- **Automated Error Prevention:** Built-in validation, trust verification, and cryptographic signing prevent errors and ensure data integrity.
-- **Unified Trust Network:** BTPS creates a federated network where any trusted sender can deliver to any trusted receiver, regardless of platform.
-- **Smart Notifications:** BTPS servers can integrate with notification systems to provide reliable, secure delivery confirmations.
-- **Accessible by Design:** BTPS's email-like addressing and standard protocols make it familiar and accessible to all users.
-- **Digital-First:** BTPS eliminates paper waste while providing secure, verifiable digital alternatives.
-
----
-
-## 🏢 Why SaaS Billing Systems Should Implement BTPS
-
-### Smart Transactions and Immutable Records
-
-Every bill, invoice, payslip, invitation, acceptance, and payment becomes a **smart transaction contract**—serving as the definitive, immutable, and irrefutable record at each point in time. Users enjoy complete transparency with comprehensive, cryptographically verified transaction histories.
-
-### Developer-Friendly Marketplace and Community
-
-BTPS enables a thriving ecosystem of tools, extensions, and modules:
-
-- **Layouts and Templates:** Pre-built, customizable billing document templates
-- **Accounting Platform Integrations:** Seamless connections with QuickBooks, Xero, Sage, and more
-- **Developer Tools:** Intuitive APIs and SDKs for custom integrations
-- **Monetization:** Developers can charge for extensions via subscription or one-time payments (similar to an "App Store" model)
-- **Innovation Hub:** Open protocol fosters collaboration and rapid innovation
-
-### Competitive Advantages for SaaS Platforms
-
-- **Trust and Security:** Distinguish your platform with enterprise-grade security and trust verification
-- **Interoperability:** Connect with any other BTPS-compliant system without custom integrations
-- **Compliance:** Built-in audit trails and cryptographic verification support regulatory requirements
-- **Scalability:** Handle millions of transactions with automated trust management
-- **User Experience:** Provide seamless, secure billing experiences that users trust
-
----
-
 ## 🚀 Quickstart
 
 ```sh
-npm install btps-sdk
+npm install @btps/sdk
 ```
 
 ```js
-import { BtpsServer, BtpsClient } from 'btps-sdk';
+import { BtpsServer, BtpsClient } from '@btps/sdk';
 
 // Start a BTPS server
 const server = new BtpsServer({
