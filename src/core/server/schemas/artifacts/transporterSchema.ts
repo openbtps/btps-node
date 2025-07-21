@@ -23,6 +23,7 @@ export const BtpTransporterArtifactBaseSchema = z.object({
   encryption: BtpEncryptionSchema.nullable(),
   document: z.unknown(),
   delegation: BtpDelegationSchema.optional(),
+  selector: z.string(),
 });
 
 // Schema for transporter artifacts with document validation

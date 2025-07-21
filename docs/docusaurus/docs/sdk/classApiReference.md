@@ -222,7 +222,7 @@ client.connect('inbox$vendor.com', (events) => {
 await client.send(artifact);
 ```
 
-Signs, encrypts, and sends a BTPS artifact to the server.
+Signs, encrypts, and sends a BTPS artifact to the server. Supports key rotation through selector-based public key resolution.
 
 - **artifact**: [SendBTPArtifact](./typesAndInterfaces.md#sendbtpartifact) – Artifact to send
 - **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
@@ -233,6 +233,7 @@ Signs, encrypts, and sends a BTPS artifact to the server.
 const res = await client.send({
   to: 'inbox$vendor.com',
   type: 'BTPS_DOC',
+  selector: 'btps1', // Optional: specify selector for key rotation support
   document: {
     title: 'Invoice #123',
     id: 'inv_123',
@@ -337,7 +338,7 @@ const agent = new BtpsAgent({
 await agent.command(actionType, to, document?, options?)
 ```
 
-Executes an agent command with optional document payload.
+Executes an agent command with optional document payload. Supports key rotation through selector-based public key resolution.
 
 - **actionType**: [AgentAction](./typesAndInterfaces.md#agentaction) – Type of agent action
 - **to**: `string` – Target BTPS identity
@@ -364,8 +365,9 @@ const trustRes = await agent.command('trust.request', 'vendor$domain.com', {
   phone: '+1234567890',
 });
 
-// Send artifact
+// Send artifact with selector for key rotation
 const sendRes = await agent.command('artifact.send', 'client$domain.com', {
+  selector: 'btps2', // Optional: specify selector for key rotation support
   title: 'Invoice #123',
   id: 'inv_123',
   issuedAt: new Date().toISOString(),
@@ -432,6 +434,7 @@ const authResponse = await auth.createAgent({
   publicKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
   agentInfo: { device: 'mobile', os: 'iOS' },
   decidedBy: 'admin$company.com',
+  decryptBy: 'alice$company.com', // Identity to decrypt by when decrypting the document
   privacyType: 'encrypted',
   trustExpiryMs: 30 * 24 * 60 * 60 * 1000, // 30 days
 });
@@ -504,6 +507,7 @@ Validates a refresh token and issues a new one with updated trust record.
 const result = await auth.validateAndReissueRefreshToken('agent_123', 'old_refresh_token', {
   agentInfo: { device: 'mobile', os: 'iOS' },
   decidedBy: 'admin$company.com',
+  decryptBy: 'alice$company.com', // Identity to decrypt by when decrypting the document
   privacyType: 'encrypted',
   trustExpiryMs: 30 * 24 * 60 * 60 * 1000,
 });
@@ -731,7 +735,7 @@ try {
 await delegator.delegateArtifact(agentId, agentPubKey, artifact, onBehalfOf?)
 ```
 
-Decorates a BTPTransporterArtifact with delegation and attestation as needed.
+Decorates a BTPTransporterArtifact with delegation and attestation as needed. Supports key rotation through selector-based public key resolution.
 
 - **agentId**: `string` – Unique identifier for the delegated agent
 - **agentPubKey**: `string` – PEM-encoded public key of the agent
@@ -749,11 +753,14 @@ const delegatedArtifact = await delegator.delegateArtifact(
   artifact,
 );
 
-// Custom domain user delegation with attestation
+// Custom domain user delegation with attestation and selector
 const delegatedArtifact = await delegator.delegateArtifact(
   'device_enterprise_laptop_20250115_103000',
   agentPublicKey,
-  artifact,
+  {
+    ...artifact,
+    selector: 'btps1', // Optional: specify selector for key rotation support
+  },
   {
     identity: 'alice$enterprise.com',
     keyPair: {
@@ -1059,10 +1066,20 @@ new BTPErrorException(btpError, options?)
 **Example:**
 
 ```js
-import { BTPErrorException, BTP_ERROR_IDENTITY } from '@btps/sdk/error';
+import {
+  BTPErrorException,
+  BTP_ERROR_IDENTITY,
+  BTP_ERROR_SELECTOR_NOT_FOUND,
+} from '@btps/sdk/error';
 throw new BTPErrorException(BTP_ERROR_IDENTITY, {
   cause: 'Invalid format',
   meta: { identity: 'invalid-identity' },
+});
+
+// Key rotation error example
+throw new BTPErrorException(BTP_ERROR_SELECTOR_NOT_FOUND, {
+  cause: 'Selector not found in DNS',
+  meta: { selector: 'btps1', identity: 'alice$example.com' },
 });
 ```
 

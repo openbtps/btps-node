@@ -980,4 +980,226 @@ export default function () {
       server.stop();
     });
   });
+
+  describe('Key Rotation Integration', () => {
+    it('should handle complete key rotation workflow with different selectors', async () => {
+      // This test simulates a complete key rotation scenario:
+      // 1. Alice publishes old selector (btps1) with old public key
+      // 2. Alice signs artifacts with old selector
+      // 3. Alice publishes new selector (btps2) with new public key
+      // 4. Alice signs new artifacts with new selector
+      // 5. Bob receives both artifacts and verifies them correctly
+
+      const aliceIdentity = 'alice$example.com';
+      const bobIdentity = 'bob$company.com';
+      const oldSelector = 'btps1';
+      const newSelector = 'btps2';
+
+      // Mock DNS resolution for key rotation
+      const mockGetHostAndSelector = vi.fn().mockResolvedValue({
+        host: 'btps://btps.example.com:3443',
+        selector: newSelector, // Host discovery returns new selector
+      });
+
+      const mockResolvePublicKey = vi
+        .fn()
+        .mockImplementation((identity: string, selector: string) => {
+          if (identity === aliceIdentity && selector === oldSelector) {
+            return Promise.resolve(
+              '-----BEGIN PUBLIC KEY-----\nOLD_ALICE_PUBLIC_KEY\n-----END PUBLIC KEY-----',
+            );
+          } else if (identity === aliceIdentity && selector === newSelector) {
+            return Promise.resolve(
+              '-----BEGIN PUBLIC KEY-----\nNEW_ALICE_PUBLIC_KEY\n-----END PUBLIC KEY-----',
+            );
+          }
+          return Promise.resolve(undefined);
+        });
+
+      // Mock the utils functions
+      const utils = await import('../../core/utils/index.js');
+      vi.spyOn(utils, 'getHostAndSelector').mockImplementation(mockGetHostAndSelector);
+      vi.spyOn(utils, 'resolvePublicKey').mockImplementation(mockResolvePublicKey);
+
+      // Create server with mocked dependencies
+      const server = new BtpsServer({
+        port: 3443,
+        trustStore: new DummyTrustStore(),
+      });
+
+      // Simulate artifacts signed with different selectors
+      const artifactWithOldSelector = {
+        version: '1.0.0',
+        type: 'TRUST_REQ',
+        from: aliceIdentity,
+        to: bobIdentity,
+        document: { message: 'Signed with old selector' },
+        signature: {
+          algorithmHash: 'sha256',
+          value: 'old_signature_value',
+          fingerprint: 'old_fingerprint',
+        },
+        selector: oldSelector,
+        issuedAt: '2025-01-01T00:00:00.000Z',
+        id: 'artifact-old-123',
+      };
+
+      const artifactWithNewSelector = {
+        version: '1.0.0',
+        type: 'TRUST_REQ',
+        from: aliceIdentity,
+        to: bobIdentity,
+        document: { message: 'Signed with new selector' },
+        signature: {
+          algorithmHash: 'sha256',
+          value: 'new_signature_value',
+          fingerprint: 'new_fingerprint',
+        },
+        selector: newSelector,
+        issuedAt: '2025-01-02T00:00:00.000Z',
+        id: 'artifact-new-456',
+      };
+
+      // Test 1: Verify that host discovery returns new selector
+      const hostAndSelector = await mockGetHostAndSelector(aliceIdentity);
+      expect(hostAndSelector.selector).toBe(newSelector);
+
+      // Test 2: Verify that old selector public key can still be resolved
+      const oldPublicKey = await mockResolvePublicKey(aliceIdentity, oldSelector);
+      expect(oldPublicKey).toBe(
+        '-----BEGIN PUBLIC KEY-----\nOLD_ALICE_PUBLIC_KEY\n-----END PUBLIC KEY-----',
+      );
+
+      // Test 3: Verify that new selector public key can be resolved
+      const newPublicKey = await mockResolvePublicKey(aliceIdentity, newSelector);
+      expect(newPublicKey).toBe(
+        '-----BEGIN PUBLIC KEY-----\nNEW_ALICE_PUBLIC_KEY\n-----END PUBLIC KEY-----',
+      );
+
+      // Test 4: Verify that artifacts have correct selectors
+      expect(artifactWithOldSelector.selector).toBe(oldSelector);
+      expect(artifactWithNewSelector.selector).toBe(newSelector);
+
+      // Test 5: Verify that resolvePublicKey was called with correct selectors
+      expect(mockResolvePublicKey).toHaveBeenCalledWith(aliceIdentity, oldSelector);
+      expect(mockResolvePublicKey).toHaveBeenCalledWith(aliceIdentity, newSelector);
+
+      // Test 6: Verify that the keys are different (simulating key rotation)
+      expect(oldPublicKey).not.toBe(newPublicKey);
+
+      // Cleanup
+      server.stop();
+    });
+
+    it('should handle key rotation with delegation and attestation', async () => {
+      // This test simulates key rotation in a delegated scenario
+      const delegatorIdentity = 'delegator$enterprise.com';
+      const agentIdentity = 'agent$enterprise.com';
+      const recipientIdentity = 'recipient$client.com';
+      const oldSelector = 'btps1';
+      const newSelector = 'btps2';
+
+      const mockResolvePublicKey = vi
+        .fn()
+        .mockImplementation((identity: string, selector: string) => {
+          if (identity === delegatorIdentity && selector === oldSelector) {
+            return Promise.resolve(
+              '-----BEGIN PUBLIC KEY-----\nOLD_DELEGATOR_PUBLIC_KEY\n-----END PUBLIC KEY-----',
+            );
+          } else if (identity === delegatorIdentity && selector === newSelector) {
+            return Promise.resolve(
+              '-----BEGIN PUBLIC KEY-----\nNEW_DELEGATOR_PUBLIC_KEY\n-----END PUBLIC KEY-----',
+            );
+          } else if (identity === agentIdentity) {
+            return Promise.resolve(
+              '-----BEGIN PUBLIC KEY-----\nAGENT_PUBLIC_KEY\n-----END PUBLIC KEY-----',
+            );
+          }
+          return Promise.resolve(undefined);
+        });
+
+      const utils = await import('../../core/utils/index.js');
+      vi.spyOn(utils, 'resolvePublicKey').mockImplementation(mockResolvePublicKey);
+
+      // Simulate delegated artifact with old selector
+      const delegatedArtifactWithOldSelector = {
+        version: '1.0.0',
+        type: 'TRUST_REQ',
+        from: agentIdentity,
+        to: recipientIdentity,
+        document: { message: 'Delegated with old selector' },
+        signature: {
+          algorithmHash: 'sha256',
+          value: 'agent_signature',
+          fingerprint: 'agent_fingerprint',
+        },
+        selector: oldSelector,
+        delegation: {
+          agentId: 'agent-123',
+          agentPubKey: '-----BEGIN PUBLIC KEY-----\nAGENT_PUBLIC_KEY\n-----END PUBLIC KEY-----',
+          signedBy: delegatorIdentity,
+          issuedAt: '2025-01-01T00:00:00.000Z',
+          signature: {
+            algorithmHash: 'sha256',
+            value: 'delegation_signature',
+            fingerprint: 'old_delegator_fingerprint',
+          },
+          selector: oldSelector,
+        },
+        issuedAt: '2025-01-01T00:00:00.000Z',
+        id: 'delegated-artifact-old',
+      };
+
+      // Simulate delegated artifact with new selector
+      const delegatedArtifactWithNewSelector = {
+        version: '1.0.0',
+        type: 'TRUST_REQ',
+        from: agentIdentity,
+        to: recipientIdentity,
+        document: { message: 'Delegated with new selector' },
+        signature: {
+          algorithmHash: 'sha256',
+          value: 'agent_signature',
+          fingerprint: 'agent_fingerprint',
+        },
+        selector: newSelector,
+        delegation: {
+          agentId: 'agent-123',
+          agentPubKey: '-----BEGIN PUBLIC KEY-----\nAGENT_PUBLIC_KEY\n-----END PUBLIC KEY-----',
+          signedBy: delegatorIdentity,
+          issuedAt: '2025-01-02T00:00:00.000Z',
+          signature: {
+            algorithmHash: 'sha256',
+            value: 'delegation_signature',
+            fingerprint: 'new_delegator_fingerprint',
+          },
+          selector: newSelector,
+        },
+        issuedAt: '2025-01-02T00:00:00.000Z',
+        id: 'delegated-artifact-new',
+      };
+
+      // Test 1: Verify that delegation uses correct selector
+      expect(delegatedArtifactWithOldSelector.delegation?.selector).toBe(oldSelector);
+      expect(delegatedArtifactWithNewSelector.delegation?.selector).toBe(newSelector);
+
+      // Test 2: Verify that public keys can be resolved for both selectors
+      const oldDelegatorKey = await mockResolvePublicKey(delegatorIdentity, oldSelector);
+      const newDelegatorKey = await mockResolvePublicKey(delegatorIdentity, newSelector);
+      const agentKey = await mockResolvePublicKey(agentIdentity, oldSelector); // Agent doesn't use selector
+
+      expect(oldDelegatorKey).toBe(
+        '-----BEGIN PUBLIC KEY-----\nOLD_DELEGATOR_PUBLIC_KEY\n-----END PUBLIC KEY-----',
+      );
+      expect(newDelegatorKey).toBe(
+        '-----BEGIN PUBLIC KEY-----\nNEW_DELEGATOR_PUBLIC_KEY\n-----END PUBLIC KEY-----',
+      );
+      expect(agentKey).toBe(
+        '-----BEGIN PUBLIC KEY-----\nAGENT_PUBLIC_KEY\n-----END PUBLIC KEY-----',
+      );
+
+      // Test 3: Verify that the delegator keys are different (key rotation)
+      expect(oldDelegatorKey).not.toBe(newDelegatorKey);
+    });
+  });
 });

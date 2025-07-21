@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { BTPErrorException, transformToBTPErrorException } from './index';
-import { BTP_ERROR_UNKNOWN } from './constant';
+import { BTP_ERROR_UNKNOWN, BTP_ERROR_SELECTOR_NOT_FOUND } from './constant';
 
 describe('BTPErrorException', () => {
   it('should create an instance with the correct properties', () => {
@@ -83,5 +83,12 @@ describe('transformToBTPErrorException', () => {
     expect(btpError).toBeInstanceOf(BTPErrorException);
     expect(btpError.message).toBe(BTP_ERROR_UNKNOWN.message);
     expect(btpError.cause).toBe(JSON.stringify(stringError));
+  });
+});
+
+describe('BTP_ERROR_SELECTOR_NOT_FOUND', () => {
+  it('should have correct properties', () => {
+    expect(BTP_ERROR_SELECTOR_NOT_FOUND.code).toBe('BTP_ERROR_SELECTOR_NOT_FOUND');
+    expect(BTP_ERROR_SELECTOR_NOT_FOUND.message).toBe('No valid selector found');
   });
 });

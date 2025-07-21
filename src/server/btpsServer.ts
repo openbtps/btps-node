@@ -432,13 +432,17 @@ export class BtpsServer {
 
     const { document } = artifact;
     if (document) {
-      const { publicKey } = document as BTPAuthReqDoc;
-      if (currentKeyFingerprint !== getFingerprintFromPem(publicKey)) {
-        /* Must be rotated */
-        return publicKey;
+      const isRefreshingAgent = artifact.action === 'auth.refresh';
+      if (isRefreshingAgent) {
+        const publicKey = (document as BTPAuthReqDoc)?.publicKey;
+        if (!publicKey) return null; // refreshing agent must have a public key
+        if (currentKeyFingerprint !== getFingerprintFromPem(publicKey)) {
+          /* Must be rotated */
+          return publicKey;
+        }
+      } else {
+        return base64ToPem(trustRecord.publicKeyBase64);
       }
-    } else {
-      return null;
     }
 
     return base64ToPem(trustRecord.publicKeyBase64);
@@ -496,7 +500,7 @@ export class BtpsServer {
     const { attestation, ...restDelegation } = delegation;
     const { signature, ...restAttestation } = attestation;
 
-    const attestorPubKey = await resolvePublicKey(attestation.signedBy);
+    const attestorPubKey = await resolvePublicKey(attestation.signedBy, attestation.selector);
     if (!attestorPubKey) {
       return {
         isValid: false,
@@ -590,7 +594,7 @@ export class BtpsServer {
     }
 
     /* Verify the delegation signature against the delegated artifact which includes the original artifact and signed artifact*/
-    const delegatorPubKey = await resolvePublicKey(delegation.signedBy);
+    const delegatorPubKey = await resolvePublicKey(delegation.signedBy, delegation.selector);
     if (!delegatorPubKey) {
       return {
         isValid: false,
@@ -655,7 +659,7 @@ export class BtpsServer {
     }
 
     const { signature, ...signedMsg } = artifact;
-    const publicKey = await resolvePublicKey(artifact.from);
+    const publicKey = await resolvePublicKey(artifact.from, artifact.selector);
 
     if (!publicKey) {
       return { isValid: false, error: new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY) };
@@ -840,7 +844,7 @@ export class BtpsServer {
     );
 
     this.onError?.(error);
-
+    this.sendBtpsError(req.socket, error, res.reqId);
     if (!req.socket.destroyed) {
       req.socket.destroy(); // Immediate teardown to prevent further resource usage
     }

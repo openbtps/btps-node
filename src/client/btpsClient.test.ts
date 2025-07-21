@@ -92,7 +92,10 @@ describe('BtpsClient', () => {
       retryDelayMs: 10,
       connectionTimeoutMs: 100,
     };
-    mockUtils.getDnsParts.mockResolvedValue('btps://server.example.com:3443');
+    mockUtils.getHostAndSelector.mockResolvedValue({
+      host: 'server.example.com',
+      selector: 'btps1',
+    });
     mockUtils.getBtpAddressParts.mockReturnValue({
       hostname: 'server.example.com',
       port: '3443',
@@ -153,7 +156,7 @@ describe('BtpsClient', () => {
 
     it('should emit error for DNS failure', async () => {
       const onError = vi.fn();
-      mockUtils.getDnsParts.mockResolvedValue(undefined);
+      mockUtils.getHostAndSelector.mockResolvedValue(undefined);
       await client.connect('recipient$example.com', (events) => {
         events.on('error', onError);
       });
@@ -455,7 +458,7 @@ describe('retry and error edge cases', () => {
       port: 9999,
     };
     const customClient = new BtpsClient(customOptions);
-    mockUtils.getDnsParts.mockResolvedValue(undefined);
+    mockUtils.getHostAndSelector.mockResolvedValue(undefined);
     mockUtils.getBtpAddressParts.mockImplementation((input: string) => new URL(`btps://${input}`));
     // Connect should use the custom host/port
     customClient.connect('recipient$example.com');

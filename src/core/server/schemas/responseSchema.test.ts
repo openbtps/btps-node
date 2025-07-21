@@ -62,11 +62,60 @@ describe('BtpServerResponseSchema', () => {
         agentId: 'agent-123',
         refreshToken: 'refresh-token-123',
         expiresAt: '2025-01-02T00:00:00.000Z',
+        decryptBy: 'alice$example.com',
       },
     };
 
     const result = validate(BtpServerResponseSchema, validResponseWithAuth);
     expect(result.success).toBe(true);
+  });
+
+  it('should validate response with auth document including decryptBy', () => {
+    const validResponseWithAuth = {
+      version: '1.0.0',
+      status: {
+        ok: true,
+        code: 200,
+        message: 'Success',
+      },
+      id: '123e4567-e89b-12d3-a456-426614174000',
+      issuedAt: '2025-01-01T00:00:00.000Z',
+      type: 'btps_response' as const,
+      reqId: 'req-123',
+      document: {
+        agentId: 'agent-123',
+        refreshToken: 'refresh-token-123',
+        expiresAt: '2025-01-02T00:00:00.000Z',
+        decryptBy: 'alice$example.com',
+      },
+    };
+
+    const result = validate(BtpServerResponseSchema, validResponseWithAuth);
+    expect(result.success).toBe(true);
+  });
+
+  it('should fail validation for auth document without decryptBy', () => {
+    const invalidResponseWithAuth = {
+      version: '1.0.0',
+      status: {
+        ok: true,
+        code: 200,
+        message: 'Success',
+      },
+      id: '123e4567-e89b-12d3-a456-426614174000',
+      issuedAt: '2025-01-01T00:00:00.000Z',
+      type: 'btps_response' as const,
+      reqId: 'req-123',
+      document: {
+        agentId: 'agent-123',
+        refreshToken: 'refresh-token-123',
+        expiresAt: '2025-01-02T00:00:00.000Z',
+        // Missing decryptBy field
+      },
+    };
+
+    const result = validate(BtpServerResponseSchema, invalidResponseWithAuth);
+    expect(result.success).toBe(false);
   });
 
   it('should validate response with query result document', () => {
@@ -105,11 +154,11 @@ describe('BtpServerResponseSchema', () => {
       issuedAt: '2025-01-01T00:00:00.000Z',
       type: 'btps_response' as const,
       reqId: 'req-123',
+      document: 'document-value',
       signature: {
         algorithmHash: 'sha256' as const,
         value: 'signature-value',
         fingerprint: 'fingerprint-value',
-        authTag: 'auth-tag-value',
       },
       encryption: {
         algorithm: 'aes-256-gcm' as const,
@@ -119,6 +168,7 @@ describe('BtpServerResponseSchema', () => {
         authTag: 'auth-tag-value',
       },
       signedBy: 'alice$example.com',
+      selector: 'btps1',
     };
 
     const result = validate(BtpServerResponseSchema, validResponseWithCrypto);

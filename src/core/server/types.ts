@@ -27,6 +27,7 @@ export type BTPAttestation = {
   signedBy: string;
   issuedAt: string;
   signature: BTPSignature;
+  selector: string;
 };
 
 export interface BTPDelegation {
@@ -36,6 +37,7 @@ export interface BTPDelegation {
   signature: BTPSignature; // Signature of devicePubKey using main private key
   issuedAt: string; // ISO timestamp
   attestation?: BTPAttestation;
+  selector: string;
 }
 
 export interface BTPAuthReqDoc {
@@ -49,6 +51,7 @@ export interface BTPAuthResDoc {
   agentId: string;
   refreshToken: string;
   expiresAt: string; // ISO timestamp
+  decryptBy: string; // Identity to decrypt by when decrypting the document
 }
 
 export interface BTPStringQueryFilter {
@@ -96,7 +99,8 @@ export interface BTPAgentArtifact {
     | BTPAuthReqDoc
     | BTPAgentMutation
     | BTPAgentQuery
-    | BTPIdsPayload;
+    | BTPIdsPayload
+    | string;
   agentId: string;
   to: string;
   issuedAt: string;
@@ -115,6 +119,7 @@ export interface BTPTransporterArtifact {
   signature: BTPSignature;
   encryption: BTPEncryption | null;
   delegation?: BTPDelegation;
+  selector: string;
 }
 
 export type BTPArtifact = BTPAgentArtifact | BTPTransporterArtifact;
@@ -162,7 +167,7 @@ export interface BTPDeliveryFailureArtifact {
   to: string;
 }
 
-export type BTPServerResDocs = BTPAuthResDoc | BTPQueryResult;
+export type BTPServerResDocs = BTPAuthResDoc | BTPQueryResult | string;
 
 export type BTPServerResponse<T = BTPServerResDocs> = {
   version: string;
@@ -175,4 +180,5 @@ export type BTPServerResponse<T = BTPServerResDocs> = {
   signature?: BTPSignature;
   encryption?: BTPEncryption;
   signedBy?: string;
+  selector?: string;
 };

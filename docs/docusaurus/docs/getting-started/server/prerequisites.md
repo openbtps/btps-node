@@ -61,7 +61,7 @@ const keyPair = getBTPKeyPair({
   keySize: 2048, // Default RSA key size
   format: 'pem',
   publicKeyEncoding: 'spki',
-  privateKeyEncoding: 'pkcs8'
+  privateKeyEncoding: 'pkcs8',
 });
 
 // Create keys directory
@@ -82,7 +82,7 @@ console.log('Public Key Fingerprint:', keyPair.fingerprint);
 - **Public Key**: Will be published in DNS TXT records for verification
 - **Backup**: Store keys securely and create backups
 
-## DNS TXT Record Setup
+## DNS TXT Identity Record Setup
 
 BTPS uses DNS TXT records to publish public keys and server information. This enables decentralized identity verification.
 
@@ -90,23 +90,57 @@ BTPS uses DNS TXT records to publish public keys and server information. This en
 
 For an identity like `billing$yourdomain.com`, create a DNS TXT record at:
 
+Name:
+
 ```
-btp1._btp.billing.yourdomain.com
+btps1._btps.billing.yourdomain.com
 ```
 
 ### Record Content
 
+Value:
+
 The TXT record should contain key-value pairs separated by semicolons:
 
 ```
-k=yourdomain.com;v=1.0.0;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...;u=btps://yourdomain.com:3443
+k=rsa;v=1.0.0;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
 ```
 
 **Parameters:**
-- `k`: Your domain name (for key verification)
+
+- `k`: key type (for key signature and encryption eg: rsa)
 - `v`: BTPS protocol version (currently "1.0.0")
 - `p`: Base64-encoded public key (without PEM headers)
-- `u`: BTPS server address (optional, for direct connections)
+
+## DNS TXT Host and Selector Record
+
+BTPS uses DNS TXT records to discover the btps server host and selector currently active in operation.
+
+### DNS Record Format
+
+For an static record to resolve the host and selector address, create a DNS TXT record at:
+
+Name:
+
+```
+_btps.yourdomain.com
+```
+
+### Record Content
+
+Value:
+
+The TXT record should contain key-value pairs separated by semicolons:
+
+```
+v=1.0.0;u=btps://btps.yourdomain.com:3443;s=btps1
+```
+
+**Parameters:**
+
+- `u`: btps server host running address followed by port. If port is not present default 3443 will be used
+- `v`: BTPS protocol version (currently "1.0.0")
+- `s`: selector. This is for key rotation feature. This is required
 
 ### Generate DNS Record
 
@@ -121,9 +155,9 @@ const publicKey = readFileSync('./keys/public.pem', 'utf8');
 const base64Key = pemToBase64(publicKey);
 
 // Create DNS record content
-const dnsRecord = `k=yourdomain.com;v=1.0.0;p=${base64Key};u=btps://yourdomain.com:3443`;
+const dnsRecord = `k=rsa;v=1.0.0;p=${base64Key}`;
 
-console.log('DNS TXT Record for: btp1._btp.billing.yourdomain.com');
+console.log('DNS TXT Record for: btp1._btps.billing.yourdomain.com');
 console.log('Content:', dnsRecord);
 ```
 
@@ -148,11 +182,13 @@ console.log('Resolved Public Key:', publicKey);
 BTPS identities follow the format: `account$domain.com`
 
 **Examples:**
+
 - `billing$company.com` - Billing department
 - `finance$enterprise.org` - Finance department
 - `hr$startup.io` - Human resources
 
 **Rules:**
+
 - Account name: lowercase letters, numbers, hyphens
 - Domain: valid domain name
 - Separator: `$` character
@@ -181,21 +217,24 @@ With these prerequisites in place, you're ready to:
 ### Common Issues
 
 **Node.js Version Too Old**
+
 ```bash
 # Error: SyntaxError: Unexpected token 'export'
 # Solution: Update to Node.js 20.11.1+
 ```
 
 **DNS Resolution Fails**
+
 ```bash
 # Check if DNS record is published
-dig TXT btp1._btp.billing.yourdomain.com
+dig TXT btps1._btps.billing.yourdomain.com
 
 # Verify record format
-nslookup -type=TXT btp1._btp.billing.yourdomain.com
+nslookup -type=TXT btps1._btps.billing.yourdomain.com
 ```
 
 **Key Generation Fails**
+
 ```bash
 # Ensure you have write permissions
 chmod 755 keys/

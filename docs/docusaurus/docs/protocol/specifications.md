@@ -45,43 +45,90 @@ BTPS uses email-like addressing for organizational identities:
 - `pay$client.com`
 - `accounts$enterprise.org`
 
-### DNS TXT Identity Record
+---
 
-#### Naming Convention
+## 🔐 DNS TXT Identity Record (Public Key)
 
-```
-<selector>._btp.<identity_domain>
-```
+Used to discover the **public key** and signing/encryption metadata for an identity.
 
-**Example:** `btp1._btp.billing.vendorcorp.com`
-
-#### TXT Record Format
+### Naming Convention
 
 ```
-v=BTP1; k=<key_type>; p=<base64_public_key>; u=<btps_host:port>
+<selector>._btps.<identity>.<domain>
+```
+
+**Example:**
+
+```
+btps1._btps.finance.vendorcorp.com
+```
+
+### TXT Record Format
+
+```
+v=1.0.0; k=<key_type>; p=<base64_public_key>
 ```
 
 **Parameters:**
 
-- `v`: Protocol version (must be `BTP1`)
-- `k`: Key algorithm (`rsa`, `ed25519`, `ecdsa`)
-- `p`: Public key, base64-encoded (no PEM headers/footers)
-- `u`: BTPS server host and port (default: 3443)
+- `v`: Protocol version (`1.0.0`)
+- `k`: Key type (`rsa`)
+- `p`: Public key (base64-encoded, SPKI format, no PEM headers/footers)
 
 **Example TXT Record:**
 
 ```
-v=BTP1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...; u=btps.vendorcorp.com:3443
+v=1.0.0; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
 ```
 
-**Key Guidelines:**
-
-- `p=` value contains only the key body (no `-----BEGIN PUBLIC KEY-----` headers)
-- DNS automatically handles TXT record segmentation
-- `u=` inbox URL must be BTPS and publicly reachable
-- Port 3443 is the default BTPS port
-
 ---
+
+## 🌐 DNS TXT Host Discovery Record and Selector for encryption (BTPS Server Location)
+
+Used to resolve the BTPS server endpoint for a given **domain** (not selector-based) and also used for discovering the selector by the sender
+
+### Naming Convention
+
+```
+_btps.<identity_domain>
+```
+
+**Example:**
+
+```
+_btps.vendorcorp.com
+```
+
+### TXT Record Format
+
+```
+v=1.0.0; u=<btps_host:port> s=<selector>
+```
+
+**Parameters:**
+
+- `v`: Protocol version (`1.0.0`)
+- `u`: BTPS server host and port (e.g., `btps.vendorcorp.com:3443`)
+- `s`: BTPS selector (e.g., `btps1`)
+
+**Example TXT Record:**
+
+```
+v=1.0.0; u=btps.vendorcorp.com:3443 s=btps1
+```
+
+### Lookup Flow
+
+1. Given identity: `billing$vendorcorp.com`
+2. Extract domain: `vendorcorp.com`
+3. Resolve `_btps.vendorcorp.com` → host address and selector
+4. Resolve `btps1._btp.finance.vendorcorp.com` → public key
+
+This separation enables:
+
+- Independent key rotation via `selector`
+- Centralized host resolution per domain
+- DNS compatibility across providers
 
 ## Message Envelope Format
 
@@ -109,6 +156,7 @@ All BTPS messages follow a standardized envelope structure:
     "encryptedKey": "base64-encoded-encrypted-key",
     "iv": "base64-encoded-initialization-vector"
   },
+  "selector": "btps1",
   "delegation": {
     // only used for delegated artifacts
     "agentId": "agentId",
@@ -120,6 +168,7 @@ All BTPS messages follow a standardized envelope structure:
       "value": "base64-encoded-signature",
       "fingerprint": "sha256-base64-fingerprint"
     },
+    "selector": "btps1",
     "attestation": {
       // only used for delegated artifacts which as delegated on behalf of original identity
       "issuedAt": "2025-01-15T10:30:00Z",
@@ -128,7 +177,8 @@ All BTPS messages follow a standardized envelope structure:
         "algorithm": "sha256",
         "value": "base64-encoded-signature",
         "fingerprint": "sha256-base64-fingerprint"
-      }
+      },
+      "selector": "btps1"
     }
   }
 }

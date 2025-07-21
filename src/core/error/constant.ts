@@ -42,6 +42,11 @@ export const BTP_ERROR_TRUST_ALREADY_ACTIVE: BTPError = {
   message: 'BTPS trust record already exist. Request invalid',
 };
 
+export const BTP_ERROR_SELECTOR_NOT_FOUND: BTPError = {
+  code: 'BTP_ERROR_SELECTOR_NOT_FOUND',
+  message: 'No valid selector found',
+};
+
 export const BTP_ERROR_RESOLVE_PUBKEY: BTPError = {
   code: 'BTP_ERROR_RESOLVE_PUBKEY',
   message: 'No valid public-key found',

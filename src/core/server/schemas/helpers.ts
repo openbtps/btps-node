@@ -20,6 +20,7 @@ import {
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
 } from './btpsDocsSchema.js';
+import { BTPEncryption } from '@core/crypto/types.js';
 export const processBtpDocSchema = (bptArtifactType: BTPArtifactType) => {
   switch (bptArtifactType) {
     case 'TRUST_RES':
@@ -62,12 +63,29 @@ export const processBtpDocSchemaForAgent = (actionType: string) => {
 };
 
 // Shared validation function for agent document validation
-export const validateAgentDocument = (action: AgentAction, document?: unknown) => {
+export const validateAgentDocument = (
+  action: AgentAction,
+  encryption: BTPEncryption | null,
+  document?: unknown,
+) => {
   // Check if document is required for certain action types
-  if (
-    AGENT_ACTIONS_REQUIRING_DOCUMENT.includes(action as AgentActionRequiringDocument) &&
-    !document
-  ) {
+
+  const isRequiredDocument = AGENT_ACTIONS_REQUIRING_DOCUMENT.includes(
+    action as AgentActionRequiringDocument,
+  );
+
+  if (isRequiredDocument && !document) {
+    return false;
+  }
+
+  if (encryption && typeof document !== 'string') {
+    return false;
+  }
+
+  /* If the action is auth.request, we don't want encrypted document as its authentication request
+   * implementing server cannot decrypt the document as it hasn't given decryptBy. Only happens once authenticated.
+   */
+  if (encryption && action === 'auth.request') {
     return false;
   }
 

@@ -1,4 +1,4 @@
-import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
+import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -53,7 +53,7 @@ const sidebars: SidebarsConfig = {
             'getting-started/client/btpsAgent',
             'getting-started/client/btpsTransporter',
           ],
-        }
+        },
       ],
     },
     {
@@ -64,6 +64,7 @@ const sidebars: SidebarsConfig = {
         'protocol/overview',
         'protocol/principles',
         'protocol/specifications',
+        'protocol/keyRotation',
         'protocol/trustRecord',
         'protocol/messageFlow',
         {
@@ -88,7 +89,6 @@ const sidebars: SidebarsConfig = {
             'protocol/authentication/authenticationFlow',
             'protocol/authentication/btpsAuthentication',
             'protocol/authentication/examples',
-            
           ],
         },
         {
@@ -104,7 +104,7 @@ const sidebars: SidebarsConfig = {
             'protocol/security/bestPractices',
           ],
         },
-        
+
         // Add more protocol docs here
       ],
     },
@@ -159,7 +159,6 @@ const sidebars: SidebarsConfig = {
         'sdk/apiReference',
         'sdk/classApiReference',
         'sdk/typesAndInterfaces',
-        
       ],
     },
   ],

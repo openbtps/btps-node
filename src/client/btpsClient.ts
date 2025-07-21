@@ -8,7 +8,7 @@
 import tls, { ConnectionOptions, TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
 import split2 from 'split2';
-import { getBtpAddressParts, getDnsParts, parseIdentity } from '@core/utils/index.js';
+import { getBtpAddressParts, getHostAndSelector, parseIdentity } from '@core/utils/index.js';
 import {
   BTPClientResponse,
   BtpsClientOptions,
@@ -106,13 +106,13 @@ export class BtpsClient {
         return;
       }
 
-      getDnsParts(receiverId, 'btpAddress')
+      getHostAndSelector(receiverId)
         .then((btpAddress) => {
           if (!btpAddress) {
             resolve(undefined);
             return;
           }
-          resolve(btpAddress);
+          resolve(btpAddress.host);
         })
         .catch(() => {
           resolve(undefined);

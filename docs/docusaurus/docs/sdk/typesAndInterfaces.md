@@ -351,6 +351,7 @@ interface BTPsTokenDocument {
   userIdentity: string;
   createdAt: string;
   expiresAt: string;
+  decryptBy: string; // Identity to decrypt by when decrypting the document
   metadata?: Record<string, unknown>;
 }
 ```
@@ -377,6 +378,7 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
     agentId: string | null,
     userIdentity: string,
     expiryMs: number,
+    decryptBy: string, // Identity to decrypt by when decrypting the document
     metadata?: Record<string, unknown>,
   ): Promise<void>;
   get(agentId: string, token: string): Promise<T | undefined>;
@@ -451,6 +453,7 @@ Options for reissuing refresh tokens.
 ```ts
 type ReissueRefreshTokenOptions = Omit<CreateAgentOptions, 'userIdentity' | 'publicKey'> & {
   publicKey?: string;
+  decryptBy: string; // Identity to decrypt by when decrypting the document
 };
 ```
 
@@ -692,6 +695,7 @@ interface BTPTransporterArtifact {
   signature: BTPSignature;
   encryption: BTPEncryption | null;
   delegation?: BTPDelegation;
+  selector: string; // Selector used for public key resolution (e.g., 'btps1', 'btps2')
 }
 ```
 
@@ -711,6 +715,7 @@ interface BTPServerResponse<T = BTPServerResDocs> {
   signature?: BTPSignature;
   encryption?: BTPEncryption;
   signedBy?: string;
+  selector?: string; // Selector used for public key resolution (e.g., 'btps1', 'btps2')
 }
 ```
 
@@ -738,6 +743,7 @@ interface BTPDelegation {
   signature: BTPSignature;
   issuedAt: string;
   attestation?: BTPAttestation;
+  selector: string; // Selector used for public key resolution (e.g., 'btps1', 'btps2')
 }
 ```
 
@@ -750,6 +756,7 @@ interface BTPAttestation {
   signedBy: string;
   issuedAt: string;
   signature: BTPSignature;
+  selector: string; // Selector used for public key resolution (e.g., 'btps1', 'btps2')
 }
 ```
 
@@ -775,6 +782,7 @@ interface BTPAuthResDoc {
   agentId: string;
   refreshToken: string;
   expiresAt: string;
+  decryptBy: string; // Identity to decrypt by when decrypting the document
 }
 ```
 
@@ -950,7 +958,7 @@ interface BTPDeliveryFailureArtifact {
 Server response document types.
 
 ```ts
-type BTPServerResDocs = BTPAuthResDoc | BTPQueryResult;
+type BTPServerResDocs = BTPAuthResDoc | BTPQueryResult | string;
 ```
 
 ### AgentAction

@@ -75,6 +75,7 @@ describe('BtpArtifactServerSchema superRefine', () => {
         type: 'standardEncrypt',
         authTag: 'authTag',
       },
+      selector: 'btps1',
     };
     const result = BtpArtifactServerSchema.safeParse(data);
     expect(result.success).toBe(true);
@@ -92,6 +93,7 @@ describe('BtpArtifactServerSchema superRefine', () => {
         type: 'standardEncrypt',
         authTag: 'authTag',
       },
+      selector: 'btps1',
     };
     const result = BtpArtifactServerSchema.safeParse(data);
     expect(result.success).toBe(false);
@@ -113,6 +115,7 @@ describe('BtpArtifactServerSchema superRefine', () => {
         phone: '123',
       },
       encryption: null,
+      selector: 'btps1',
     };
     const result = BtpArtifactServerSchema.safeParse(data);
     expect(result.success).toBe(true);
@@ -124,6 +127,7 @@ describe('BtpArtifactServerSchema superRefine', () => {
       type: 'TRUST_REQ',
       document: { foo: 'bar' },
       encryption: null,
+      selector: 'btps1',
     };
     const result = BtpArtifactServerSchema.safeParse(data);
     expect(result.success).toBe(false);
@@ -139,6 +143,7 @@ describe('BtpArtifactServerSchema superRefine', () => {
       type: 'unknown_type',
       document: {},
       encryption: null,
+      selector: 'btps1',
     };
     // Intentionally passing an invalid type to check runtime validation
     const result = BtpArtifactServerSchema.safeParse(data);
@@ -166,16 +171,16 @@ describe('validateAgentDocument', () => {
       reason: 'test',
       phone: '123',
     };
-    expect(validateAgentDocument('trust.request', doc)).toBe(true);
+    expect(validateAgentDocument('trust.request', null, doc)).toBe(true);
   });
 
   it('should return false for trust.request with missing document', () => {
-    expect(validateAgentDocument('trust.request', undefined)).toBe(false);
+    expect(validateAgentDocument('trust.request', null, undefined)).toBe(false);
   });
 
   it('should return false for trust.request with invalid document', () => {
     const doc = { foo: 'bar' };
-    expect(validateAgentDocument('trust.request', doc)).toBe(false);
+    expect(validateAgentDocument('trust.request', null, doc)).toBe(false);
   });
 
   it('should return true for trust.update with valid mutation document', () => {
@@ -189,22 +194,22 @@ describe('validateAgentDocument', () => {
         phone: '123',
       },
     };
-    expect(validateAgentDocument('trust.update', doc)).toBe(true);
+    expect(validateAgentDocument('trust.update', null, doc)).toBe(true);
   });
 
   it('should return false for trust.update with invalid mutation document', () => {
     const doc = { id: '1', document: { foo: 'bar' } };
-    expect(validateAgentDocument('trust.update', doc)).toBe(false);
+    expect(validateAgentDocument('trust.update', null, doc)).toBe(false);
   });
 
   it('should return true for trust.delete with valid delete cancel document', () => {
     const doc = { ids: ['1', '2'] };
-    expect(validateAgentDocument('trust.delete', doc)).toBe(true);
+    expect(validateAgentDocument('trust.delete', null, doc)).toBe(true);
   });
 
   it('should return false for trust.delete with invalid delete cancel document', () => {
     const doc = { foo: 'bar' };
-    expect(validateAgentDocument('trust.delete', doc)).toBe(false);
+    expect(validateAgentDocument('trust.delete', null, doc)).toBe(false);
   });
 
   it('should return true for draft.create with valid create document', () => {
@@ -218,16 +223,16 @@ describe('validateAgentDocument', () => {
         phone: '123',
       },
     };
-    expect(validateAgentDocument('draft.create', doc)).toBe(true);
+    expect(validateAgentDocument('draft.create', null, doc)).toBe(true);
   });
 
   it('should return false for draft.create with missing document', () => {
-    expect(validateAgentDocument('draft.create', undefined)).toBe(false);
+    expect(validateAgentDocument('draft.create', null, undefined)).toBe(false);
   });
 
   it('should return false for draft.create with invalid create document', () => {
     const doc = { foo: 'bar' };
-    expect(validateAgentDocument('draft.create', doc)).toBe(false);
+    expect(validateAgentDocument('draft.create', null, doc)).toBe(false);
   });
 
   it('should return false for draft.create with invalid type in create document', () => {
@@ -241,23 +246,23 @@ describe('validateAgentDocument', () => {
         phone: '123',
       },
     };
-    expect(validateAgentDocument('draft.create', doc)).toBe(false);
+    expect(validateAgentDocument('draft.create', null, doc)).toBe(false);
   });
 
   it('should return true for unknown action (not requiring document)', () => {
-    expect(validateAgentDocument('system.ping', undefined)).toBe(true);
+    expect(validateAgentDocument('system.ping', null, undefined)).toBe(true);
   });
 
   it('should return true for unknown action with document', () => {
-    expect(validateAgentDocument('system.ping', { foo: 'bar' })).toBe(true);
+    expect(validateAgentDocument('system.ping', null, { foo: 'bar' })).toBe(true);
   });
 
   it('should return false for required action with null document', () => {
-    expect(validateAgentDocument('trust.request', null)).toBe(false);
+    expect(validateAgentDocument('trust.request', null, undefined)).toBe(false);
   });
 
   it('should return false for required action with empty object', () => {
-    expect(validateAgentDocument('trust.request', {})).toBe(false);
+    expect(validateAgentDocument('trust.request', null, {})).toBe(false);
   });
 
   it('should return true for inbox.fetch with valid query document including cursor', () => {
@@ -266,7 +271,7 @@ describe('validateAgentDocument', () => {
       limit: 10,
       sort: 'desc',
     };
-    expect(validateAgentDocument('inbox.fetch', doc)).toBe(true);
+    expect(validateAgentDocument('inbox.fetch', null, doc)).toBe(true);
   });
 
   it('should return true for outbox.fetch with valid query document including cursor', () => {
@@ -278,7 +283,7 @@ describe('validateAgentDocument', () => {
       },
       limit: 20,
     };
-    expect(validateAgentDocument('outbox.fetch', doc)).toBe(true);
+    expect(validateAgentDocument('outbox.fetch', null, doc)).toBe(true);
   });
 
   it('should return true for draft.fetch with valid query document including cursor', () => {
@@ -288,7 +293,7 @@ describe('validateAgentDocument', () => {
       until: '2024-12-31T23:59:59.999Z',
       limit: 50,
     };
-    expect(validateAgentDocument('draft.fetch', doc)).toBe(true);
+    expect(validateAgentDocument('draft.fetch', null, doc)).toBe(true);
   });
 
   it('should return true for trash.fetch with valid query document including cursor', () => {
@@ -296,16 +301,16 @@ describe('validateAgentDocument', () => {
       cursor: 'eyJpZCI6IjEyMyIsImlzc3VlZEF0IjoiMjAyNC0wMS0wMVQwMDowMDowMC4wMDBaIn0=',
       limit: 100,
     };
-    expect(validateAgentDocument('trash.fetch', doc)).toBe(true);
+    expect(validateAgentDocument('trash.fetch', null, doc)).toBe(true);
   });
 
   it('should return false for fetch action with invalid query document', () => {
     const doc = { foo: 'bar' };
-    expect(validateAgentDocument('inbox.fetch', doc)).toBe(false);
+    expect(validateAgentDocument('inbox.fetch', null, doc)).toBe(false);
   });
 
   it('should return false for fetch action with empty query document', () => {
     const doc = {};
-    expect(validateAgentDocument('outbox.fetch', doc)).toBe(false);
+    expect(validateAgentDocument('outbox.fetch', null, doc)).toBe(false);
   });
 });

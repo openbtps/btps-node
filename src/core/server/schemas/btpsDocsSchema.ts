@@ -104,6 +104,7 @@ export const BtpAuthResDocSchema = z.object({
   agentId: z.string(),
   refreshToken: z.string(),
   expiresAt: z.string().datetime(),
+  decryptBy: identitySchema,
 });
 
 // Schema for BTPAgentQueryDoc

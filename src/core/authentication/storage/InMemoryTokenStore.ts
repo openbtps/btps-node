@@ -30,6 +30,7 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
     agentId: string | null,
     userIdentity: string,
     expiryMs: number,
+    decryptBy: string,
     metadata?: Record<string, unknown>,
   ): Promise<void> {
     const now = new Date();
@@ -41,6 +42,7 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
       userIdentity,
       createdAt: now.toISOString(),
       expiresAt: expiresAt.toISOString(),
+      decryptBy,
       metadata,
     } as T);
   }

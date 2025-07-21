@@ -1,0 +1,438 @@
+// BTPS Homepage Styles
+// Modern, developer-focused design with clean typography and spacing
+
+// Variables
+$primary-color: #1a365d;
+$secondary-color: #2d7d8a;
+$accent-color: #38a169;
+$text-primary: #2d3748;
+$text-secondary: #4a5568;
+$background-light: #f7fafc;
+$background-white: #ffffff;
+$border-color: #e2e8f0;
+$shadow-light: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+$shadow-medium: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+$border-radius: 8px;
+$transition: all 0.2s ease-in-out;
+
+// Main container
+.main {
+  min-height: 100vh;
+  background: linear-gradient(135deg, $background-light 0%, #ffffff 100%);
+}
+
+// Hero Section
+.hero {
+  padding: 6rem 0 4rem;
+  background: linear-gradient(135deg, $primary-color 0%, $secondary-color 100%);
+  color: white;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+  }
+
+  @media (max-width: 768px) {
+    padding: 4rem 0 2rem;
+  }
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.heroTitle {
+  font-size: 3.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+
+  @media (max-width: 768px) {
+    font-size: 2.5rem;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 2rem;
+  }
+}
+
+.heroSubtitle {
+  font-size: 7.25rem;
+  line-height: 1.6;
+  margin-bottom: 2.5rem;
+  opacity: 0.9;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+
+  @media (max-width: 768px) {
+    font-size: 1.1rem;
+  }
+}
+
+.heroButtons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+
+  @media (max-width: 480px) {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.875rem 2rem;
+  background: $accent-color;
+  color: white;
+  text-decoration: none;
+  border-radius: $border-radius;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: $transition;
+  border: 2px solid $accent-color;
+
+  &:hover {
+    background: darken($accent-color, 10%);
+    border-color: darken($accent-color, 10%);
+    color: white;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: $shadow-medium;
+  }
+}
+
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.875rem 2rem;
+  background: transparent;
+  color: white;
+  text-decoration: none;
+  border-radius: $border-radius;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: $transition;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: white;
+    text-decoration: none;
+    transform: translateY(-2px);
+  }
+}
+
+// Section Styles
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 3rem;
+
+  h2 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: $text-primary;
+    margin-bottom: 1rem;
+
+    @media (max-width: 768px) {
+      font-size: 2rem;
+    }
+  }
+}
+
+// About Section
+.about {
+  padding: 5rem 0;
+  background: $background-white;
+
+  .aboutContent {
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .aboutText {
+    font-size: 1.25rem;
+    line-height: 1.7;
+    color: $text-secondary;
+    margin: 0;
+  }
+}
+
+// Why Use Section
+.whyUse {
+  padding: 5rem 0;
+  background: $background-light;
+
+  .benefitsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .benefitCard {
+    background: $background-white;
+    padding: 2rem;
+    border-radius: $border-radius;
+    box-shadow: $shadow-light;
+    transition: $transition;
+    border: 1px solid $border-color;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: $shadow-medium;
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: $primary-color;
+      margin-bottom: 0.75rem;
+    }
+
+    p {
+      color: $text-secondary;
+      line-height: 1.6;
+      margin: 0;
+    }
+  }
+}
+
+// Principles Section
+.principles {
+  padding: 5rem 0;
+  background: $background-white;
+
+  .principlesGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .principleCard {
+    background: $background-light;
+    padding: 2rem;
+    border-radius: $border-radius;
+    border: 1px solid $border-color;
+    transition: $transition;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: $shadow-light;
+    }
+
+    .principleIcon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: $primary-color;
+      margin-bottom: 0.75rem;
+    }
+
+    p {
+      color: $text-secondary;
+      line-height: 1.6;
+      margin: 0;
+    }
+  }
+}
+
+// Engineer Features Section
+.engineerFeatures {
+  padding: 5rem 0;
+  background: $background-light;
+
+  .featuresGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .featureCard {
+    background: $background-white;
+    padding: 2rem;
+    border-radius: $border-radius;
+    box-shadow: $shadow-light;
+    transition: $transition;
+    border-left: 4px solid $secondary-color;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: $shadow-medium;
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: $primary-color;
+      margin-bottom: 0.75rem;
+    }
+
+    p {
+      color: $text-secondary;
+      line-height: 1.6;
+      margin: 0;
+    }
+  }
+}
+
+// Use Cases Section
+.useCases {
+  padding: 5rem 0;
+  background: $background-white;
+
+  .useCasesGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .useCaseCard {
+    background: $background-light;
+    padding: 2rem;
+    border-radius: $border-radius;
+    text-align: center;
+    transition: $transition;
+    border: 1px solid $border-color;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: $shadow-light;
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: $primary-color;
+      margin-bottom: 0.75rem;
+    }
+
+    p {
+      color: $text-secondary;
+      line-height: 1.6;
+      margin: 0;
+    }
+  }
+}
+
+// Technologies Section
+.technologies {
+  padding: 5rem 0;
+  background: $background-light;
+
+  .techBadges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .techBadge {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background: $background-white;
+    color: $primary-color;
+    border: 2px solid $border-color;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: $transition;
+
+    &:hover {
+      background: $primary-color;
+      color: white;
+      border-color: $primary-color;
+      transform: translateY(-2px);
+    }
+  }
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+  .heroTitle {
+    font-size: 2.5rem;
+  }
+
+  .heroSubtitle {
+    font-size: 1.1rem;
+  }
+
+  .sectionHeader h2 {
+    font-size: 2rem;
+  }
+
+  .aboutText {
+    font-size: 1.1rem;
+  }
+
+  .benefitsGrid,
+  .principlesGrid,
+  .featuresGrid,
+  .useCasesGrid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .techBadges {
+    gap: 0.75rem;
+  }
+
+  .techBadge {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .heroTitle {
+    font-size: 2rem;
+  }
+
+  .heroButtons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+    max-width: 280px;
+  }
+}

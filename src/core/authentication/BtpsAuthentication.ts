@@ -217,6 +217,7 @@ export class BtpsAuthentication {
   async storeAuthToken(
     token: string,
     userIdentity: string,
+    decryptBy: string,
     metadata?: Record<string, unknown>,
   ): Promise<void> {
     await this.tokenStore.store(
@@ -224,6 +225,7 @@ export class BtpsAuthentication {
       null,
       userIdentity,
       this.tokenConfig.authTokenExpiryMs,
+      decryptBy,
       metadata,
     );
   }
@@ -272,7 +274,10 @@ export class BtpsAuthentication {
   async validateAndReissueRefreshToken(
     agentId: string,
     refreshToken: string,
-    options: Omit<CreateAgentOptions, 'userIdentity' | 'publicKey'> & { publicKey?: string },
+    options: Omit<CreateAgentOptions, 'userIdentity' | 'publicKey'> & {
+      publicKey?: string;
+      decryptBy: string;
+    },
   ): Promise<{
     data?: BTPAuthResDoc;
     error?: BTPErrorException;
@@ -353,6 +358,7 @@ export class BtpsAuthentication {
       agentId,
       userIdentity,
       this.tokenConfig.refreshTokenExpiryMs,
+      options.decryptBy,
       { agentInfo },
     );
 
@@ -361,6 +367,7 @@ export class BtpsAuthentication {
         agentId,
         refreshToken: newRefreshToken,
         expiresAt: patch.expiresAt,
+        decryptBy: options.decryptBy,
       },
     };
   }
@@ -370,7 +377,7 @@ export class BtpsAuthentication {
    * @param options - Agent creation options
    * @returns Generated authentication response with agent ID and refresh token
    */
-  async createAgent(options: CreateAgentOptions): Promise<BTPAuthResDoc> {
+  async createAgent(options: CreateAgentOptions, decryptBy: string): Promise<BTPAuthResDoc> {
     const expiry = options.trustExpiryMs ?? this.tokenConfig.refreshTokenExpiryMs;
     const trustRecord = await this.createAgentTrustRecord({ ...options, trustExpiryMs: expiry });
     const { senderId: agentId, receiverId: userIdentity, metadata, expiresAt } = trustRecord;
@@ -384,6 +391,7 @@ export class BtpsAuthentication {
       agentId,
       userIdentity,
       this.tokenConfig.refreshTokenExpiryMs,
+      decryptBy,
       { agentInfo },
     );
 
@@ -391,6 +399,7 @@ export class BtpsAuthentication {
       agentId,
       refreshToken,
       expiresAt,
+      decryptBy,
     };
   }
 

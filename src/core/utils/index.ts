@@ -7,7 +7,7 @@
 
 import dns from 'dns/promises';
 import { ParsedIdentity } from './types.js';
-import { BTPTransporterArtifact } from 'server/index.js';
+import { BTP_PROTOCOL_VERSION, BTPS_NAME_SPACE, BTPTransporterArtifact } from 'server/index.js';
 
 export * from './types.js';
 
@@ -41,18 +41,56 @@ export function base64ToPem(base64: string): string {
   return ['-----BEGIN PUBLIC KEY-----', ...lines, '-----END PUBLIC KEY-----'].join('\n');
 }
 
-export const getDnsParts = async (
+export const getHostAndSelector = async (
   identity: string,
-  type?: 'key' | 'pem' | 'version' | 'btpAddress',
+): Promise<{ host: string; selector: string } | undefined> => {
+  const parsedIdentity = parseIdentity(identity);
+  if (!parsedIdentity) {
+    return undefined;
+  }
+
+  const dnsName = `${BTPS_NAME_SPACE}.${parsedIdentity.domainName}`;
+
+  try {
+    const txtRecords = await dns.resolveTxt(dnsName);
+    if (!txtRecords.length) {
+      return undefined;
+    }
+
+    const flat = txtRecords.map((r) => r.join('')).join('');
+    const parts = Object.fromEntries(
+      flat
+        .split(';')
+        .map((s) =>
+          s
+            .trim()
+            .split('=')
+            .map((p) => p.trim()),
+        )
+        .filter((pair) => pair.length === 2),
+    );
+    if (parts['v'] !== BTP_PROTOCOL_VERSION) return undefined;
+    if (!parts['u'] || !parts['s']) return undefined;
+    return {
+      host: parts['u'],
+      selector: parts['s'],
+    };
+  } catch (error: unknown) {
+    throw new Error(`DNS resolution failed for ${dnsName}: ${JSON.stringify(error)}`);
+  }
+};
+
+export const getDnsIdentityParts = async (
+  identity: string,
+  selector: string,
+  type?: 'key' | 'pem' | 'version',
 ) => {
   const typeMap = {
     key: 'k',
     version: 'v',
     pem: 'p',
-    btpAddress: 'u',
   };
-  const selector = 'btp1';
-  const nameSpace = '_btp';
+
   const parsedIdentity = parseIdentity(identity);
   if (!parsedIdentity) {
     return undefined;
@@ -60,7 +98,7 @@ export const getDnsParts = async (
 
   const { accountName, domainName } = parsedIdentity;
 
-  const dnsName = `${selector}.${nameSpace}.${accountName}.${domainName}`;
+  const dnsName = `${selector}.${BTPS_NAME_SPACE}.${accountName}.${domainName}`;
 
   try {
     const txtRecords = await dns.resolveTxt(dnsName);
@@ -87,7 +125,6 @@ export const getDnsParts = async (
         key: parts['k'],
         version: parts['v'],
         pem: base64ToPem(parts['p']),
-        btpAddress: parts['u'],
       };
     }
 
@@ -111,8 +148,11 @@ export const getBtpAddressParts = (input: string): URL | null => {
   }
 };
 
-export const resolvePublicKey = async (identity: string): Promise<string | undefined> => {
-  return await getDnsParts(identity, 'pem');
+export const resolvePublicKey = async (
+  identity: string,
+  selector: string,
+): Promise<string | undefined> => {
+  return await getDnsIdentityParts(identity, selector, 'pem');
 };
 
 export const isBtpsTransportArtifact = (artifact: unknown): artifact is BTPTransporterArtifact => {

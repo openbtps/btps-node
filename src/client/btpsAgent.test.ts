@@ -72,7 +72,10 @@ describe('BtpsAgent', () => {
       connectionTimeoutMs: 100,
     };
 
-    mockUtils.getDnsParts.mockResolvedValue('btps://server.example.com:3443');
+    mockUtils.getHostAndSelector.mockResolvedValue({
+      host: 'server.example.com',
+      selector: 'btps1',
+    });
     mockUtils.getBtpAddressParts.mockReturnValue({
       hostname: 'server.example.com',
       port: '3443',

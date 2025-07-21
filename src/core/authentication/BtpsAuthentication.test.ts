@@ -158,9 +158,10 @@ describe('BtpsAuthentication', () => {
       it('should store auth token successfully', async () => {
         const token = 'AUTH_TOKEN_123';
         const userIdentity = 'alice$saas.com';
+        const decryptBy = 'admin$saas.com';
         const metadata = { requestedBy: 'admin' };
 
-        await auth.storeAuthToken(token, userIdentity, metadata);
+        await auth.storeAuthToken(token, userIdentity, decryptBy, metadata);
 
         const storedToken = await tokenStore.get(userIdentity, token);
         expect(storedToken).toBeDefined();
@@ -172,8 +173,9 @@ describe('BtpsAuthentication', () => {
       it('should store auth token without metadata', async () => {
         const token = 'AUTH_TOKEN_123';
         const userIdentity = 'alice$saas.com';
+        const decryptBy = 'admin$saas.com';
 
-        await auth.storeAuthToken(token, userIdentity);
+        await auth.storeAuthToken(token, userIdentity, decryptBy);
 
         const storedToken = await tokenStore.get(userIdentity, token);
         expect(storedToken).toBeDefined();
@@ -185,8 +187,9 @@ describe('BtpsAuthentication', () => {
       it('should validate existing auth token', async () => {
         const token = 'AUTH_TOKEN_123';
         const userIdentity = 'alice$saas.com';
+        const decryptBy = 'admin$saas.com';
 
-        await auth.storeAuthToken(token, userIdentity);
+        await auth.storeAuthToken(token, userIdentity, decryptBy);
 
         const result = await auth.validateAuthToken(userIdentity, token);
 
@@ -205,9 +208,10 @@ describe('BtpsAuthentication', () => {
         const token = 'AUTH_TOKEN_123';
         const userIdentity = 'alice$saas.com';
         const agentId = 'btps_ag_test_123';
+        const decryptBy = 'admin$saas.com';
 
         // Store token with very short expiry
-        await tokenStore.store(token, agentId, userIdentity, 1); // 1ms expiry
+        await tokenStore.store(token, agentId, userIdentity, 1, decryptBy); // 1ms expiry
 
         // Wait for token to expire
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -222,8 +226,9 @@ describe('BtpsAuthentication', () => {
         const token = 'AUTH_TOKEN_123';
         const userIdentity = 'alice$saas.com';
         const agentId = 'btps_ag_test_123';
+        const decryptBy = 'admin$saas.com';
 
-        await auth.storeAuthToken(token, userIdentity);
+        await auth.storeAuthToken(token, userIdentity, decryptBy);
         await auth.validateAuthToken(agentId, token);
 
         // Token should be removed after validation
@@ -242,8 +247,9 @@ describe('BtpsAuthentication', () => {
           privacyType: 'encrypted' as const,
           trustExpiryMs: 365 * 24 * 60 * 60 * 1000, // 1 year
         };
+        const decryptBy = 'admin$saas.com';
 
-        const result = await auth.createAgent(options);
+        const result = await auth.createAgent(options, decryptBy);
         expect(result.agentId).toMatch(/^btps_ag_[a-f0-9-]+$/);
         expect(result.refreshToken).toHaveLength(43);
         expect(result.expiresAt).toBeDefined();
@@ -256,8 +262,9 @@ describe('BtpsAuthentication', () => {
           agentInfo: { deviceName: 'iPhone 15' },
           decidedBy: 'admin',
         };
+        const decryptBy = 'admin$saas.com';
 
-        const result = await auth.createAgent(options);
+        const result = await auth.createAgent(options, decryptBy);
         const trustRecord = await trustStore.getByAgentId(result.agentId);
         expect(trustRecord).toBeDefined();
         expect(trustRecord?.decidedBy).toBe(options.decidedBy);
@@ -267,6 +274,7 @@ describe('BtpsAuthentication', () => {
       });
 
       it('should create agent with default privacy type', async () => {
+        const decryptBy = 'admin$saas.com';
         const options = {
           userIdentity: 'alice$saas.com',
           publicKey: mockKeyPair.publicKey,
@@ -274,7 +282,7 @@ describe('BtpsAuthentication', () => {
           decidedBy: 'admin',
         };
 
-        const result = await auth.createAgent(options);
+        const result = await auth.createAgent(options, decryptBy);
         const trustRecord = await trustStore.getByAgentId(result.agentId);
         expect(trustRecord).toBeDefined();
         expect(trustRecord?.privacyType).toBe('encrypted');
@@ -287,8 +295,9 @@ describe('BtpsAuthentication', () => {
           agentInfo: { deviceName: 'iPhone 15' },
           decidedBy: 'admin',
         };
+        const decryptBy = 'admin$saas.com';
 
-        const result = await auth.createAgent(options);
+        const result = await auth.createAgent(options, decryptBy);
 
         const storedToken = await tokenStore.get(result.agentId, result.refreshToken);
         expect(storedToken).toBeDefined();
@@ -301,8 +310,9 @@ describe('BtpsAuthentication', () => {
         const refreshToken = 'REFRESH_TOKEN_123';
         const userIdentity = 'alice$saas.com';
         const agentId = 'btps_ag_test_123';
+        const decryptBy = 'admin$saas.com';
 
-        await tokenStore.store(refreshToken, agentId, userIdentity, 3600000); // 1 hour
+        await tokenStore.store(refreshToken, agentId, userIdentity, 3600000, decryptBy); // 1 hour
 
         const result = await auth.validateRefreshToken(agentId, refreshToken);
         expect(result.isValid).toBe(true);
@@ -325,9 +335,10 @@ describe('BtpsAuthentication', () => {
         const refreshToken = 'REFRESH_TOKEN_123';
         const userIdentity = 'alice$saas.com';
         const agentId = 'btps_ag_test_123';
+        const decryptBy = 'admin$saas.com';
 
         // Store token with very short expiry
-        await tokenStore.store(refreshToken, agentId, userIdentity, 1); // 1ms expiry
+        await tokenStore.store(refreshToken, agentId, userIdentity, 1, decryptBy); // 1ms expiry
 
         // Wait for token to expire
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -345,11 +356,12 @@ describe('BtpsAuthentication', () => {
         const token2 = 'TOKEN_2';
         const agentId = 'btps_ag_test_123';
         const userIdentity = 'alice$saas.com';
+        const decryptBy = 'admin$saas.com';
 
         // Store one token with short expiry
-        await tokenStore.store(token1, agentId, userIdentity, 1); // 1ms expiry
+        await tokenStore.store(token1, agentId, userIdentity, 1, decryptBy); // 1ms expiry
         // Store another token with long expiry
-        await tokenStore.store(token2, agentId, userIdentity, 3600000); // 1 hour
+        await tokenStore.store(token2, agentId, userIdentity, 3600000, decryptBy); // 1 hour
 
         // Wait for first token to expire
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -363,6 +375,109 @@ describe('BtpsAuthentication', () => {
         expect(storedToken1).toBeUndefined();
         expect(storedToken2).toBeDefined();
       });
+    });
+  });
+
+  describe('validateAndReissueRefreshToken', () => {
+    it('should validate and reissue refresh token successfully', async () => {
+      const userIdentity = 'alice$saas.com';
+      const decryptBy = 'admin$saas.com';
+
+      // Create a trust record first
+      const agentResult = await auth.createAgent(
+        {
+          userIdentity,
+          publicKey: mockKeyPair.publicKey,
+          agentInfo: { deviceName: 'iPhone 15' },
+          decidedBy: 'admin',
+        },
+        decryptBy,
+      );
+
+      const agentId = agentResult.agentId;
+      const refreshToken = 'REFRESH_TOKEN_123';
+
+      // Store the refresh token with the correct agentId
+      await tokenStore.store(refreshToken, agentId, userIdentity, 3600000, decryptBy);
+
+      const result = await auth.validateAndReissueRefreshToken(agentId, refreshToken, {
+        publicKey: mockKeyPair.publicKey,
+        decryptBy,
+        decidedBy: 'admin',
+      });
+
+      expect(result.data).toBeDefined();
+      expect(result.data?.agentId).toBe(agentId);
+      expect(result.data?.refreshToken).not.toBe(refreshToken); // Should be a new token
+      expect(result.data?.decryptBy).toBe(decryptBy);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should handle key rotation during refresh', async () => {
+      const userIdentity = 'alice$saas.com';
+      const decryptBy = 'admin$saas.com';
+      const newPublicKey = mockKeyPair.publicKey; // Use the same valid key for testing
+
+      // Create a trust record first
+      const agentResult = await auth.createAgent(
+        {
+          userIdentity,
+          publicKey: mockKeyPair.publicKey,
+          agentInfo: { deviceName: 'iPhone 15' },
+          decidedBy: 'admin',
+        },
+        decryptBy,
+      );
+
+      const agentId = agentResult.agentId;
+      const refreshToken = 'REFRESH_TOKEN_123';
+
+      // Store the refresh token with the correct agentId
+      await tokenStore.store(refreshToken, agentId, userIdentity, 3600000, decryptBy);
+
+      const result = await auth.validateAndReissueRefreshToken(agentId, refreshToken, {
+        publicKey: newPublicKey,
+        decryptBy,
+        decidedBy: 'admin',
+      });
+
+      expect(result.data).toBeDefined();
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should return error for invalid refresh token', async () => {
+      const agentId = 'btps_ag_test_123';
+      const invalidToken = 'INVALID_TOKEN';
+      const decryptBy = 'admin$saas.com';
+
+      const result = await auth.validateAndReissueRefreshToken(agentId, invalidToken, {
+        decryptBy,
+        decidedBy: 'admin',
+      });
+
+      expect(result.data).toBeUndefined();
+      expect(result.error).toBeDefined();
+    });
+
+    it('should return error for expired refresh token', async () => {
+      const agentId = 'btps_ag_test_123';
+      const refreshToken = 'REFRESH_TOKEN_123';
+      const userIdentity = 'alice$saas.com';
+      const decryptBy = 'admin$saas.com';
+
+      // Store token with very short expiry
+      await tokenStore.store(refreshToken, agentId, userIdentity, 1, decryptBy);
+
+      // Wait for token to expire
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const result = await auth.validateAndReissueRefreshToken(agentId, refreshToken, {
+        decryptBy,
+        decidedBy: 'admin',
+      });
+
+      expect(result.data).toBeUndefined();
+      expect(result.error).toBeDefined();
     });
   });
 
@@ -420,8 +535,9 @@ describe('BtpsAuthentication', () => {
         agentInfo: { deviceName: 'iPhone 15' },
         decidedBy: 'admin',
       };
+      const decryptBy = 'admin$saas.com';
 
-      await expect(auth.createAgent(options)).rejects.toThrow('Trust store error');
+      await expect(auth.createAgent(options, decryptBy)).rejects.toThrow('Trust store error');
     });
 
     it('should handle token store errors', async () => {
@@ -438,7 +554,11 @@ describe('BtpsAuthentication', () => {
         refreshTokenStore: mockTokenStore,
       });
 
-      await expect(auth.storeAuthToken('token', 'user')).rejects.toThrow('Token store error');
+      const decryptBy = 'admin$saas.com';
+
+      await expect(auth.storeAuthToken('token', 'user', decryptBy)).rejects.toThrow(
+        'Token store error',
+      );
     });
   });
 
@@ -449,7 +569,8 @@ describe('BtpsAuthentication', () => {
       const authToken = BtpsAuthentication.generateAuthToken(userIdentity);
 
       // 2. Store auth token
-      await auth.storeAuthToken(authToken, userIdentity);
+      const decryptBy = 'admin$saas.com';
+      await auth.storeAuthToken(authToken, userIdentity, decryptBy);
 
       // 3. Validate auth token
       const validation = await auth.validateAuthToken(userIdentity, authToken);
@@ -457,12 +578,15 @@ describe('BtpsAuthentication', () => {
       expect(validation.userIdentity).toBe(userIdentity);
 
       // 4. Create agent
-      const agentResult = await auth.createAgent({
-        userIdentity,
-        publicKey: mockKeyPair.publicKey,
-        agentInfo: { deviceName: 'iPhone 15' },
-        decidedBy: 'admin',
-      });
+      const agentResult = await auth.createAgent(
+        {
+          userIdentity,
+          publicKey: mockKeyPair.publicKey,
+          agentInfo: { deviceName: 'iPhone 15' },
+          decidedBy: 'admin',
+        },
+        decryptBy,
+      );
 
       expect(agentResult.agentId).toBeDefined();
       expect(agentResult.refreshToken).toBeDefined();

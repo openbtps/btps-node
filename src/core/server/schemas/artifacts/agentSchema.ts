@@ -31,6 +31,7 @@ export const BtpAgentArtifactSchema = z
         BtpAgentQuerySchema,
         BtpAgentMutationSchema,
         BtpIdsPayloadSchema,
+        z.string(),
       ])
       .optional(),
     agentId: z.string(),
@@ -39,7 +40,7 @@ export const BtpAgentArtifactSchema = z
     signature: BtpSignatureSchema,
     encryption: BtpEncryptionSchema.nullable(),
   })
-  .refine((data) => validateAgentDocument(data.action, data.document), {
+  .refine((data) => validateAgentDocument(data.action, data.encryption, data.document), {
     message: 'Document is required for this action type or document format is invalid',
     path: ['document'],
   });

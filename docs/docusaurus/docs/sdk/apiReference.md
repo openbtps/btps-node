@@ -145,6 +145,61 @@ const pem = await getDnsParts('billing$company.com', 'pem');
 
 ---
 
+### getHostAndSelector
+
+```ts
+getHostAndSelector(identity: string): Promise<{ host: string; selector: string } | undefined>
+```
+
+**Description:**
+Resolves the BTPS host and selector for a given identity by querying DNS TXT records. This function is used for key rotation support, allowing multiple public keys to be published under different selectors.
+
+**Arguments:**
+
+- `identity` (`string`, required): The BTPS identity to resolve.
+
+**Returns:**
+
+- `Promise<{ host: string; selector: string } | undefined>`: Object containing the host URL and current selector, or `undefined` if not found.
+
+**Example:**
+
+```js
+import { getHostAndSelector } from '@btps/sdk';
+const result = await getHostAndSelector('billing$company.com');
+// result = { host: 'btps://btps.company.com:3443', selector: 'btps2' }
+```
+
+---
+
+### getDnsIdentityParts
+
+```ts
+getDnsIdentityParts(identity: string, selector: string, type?: 'key' | 'pem' | 'version'): Promise<any>
+```
+
+**Description:**
+Resolves DNS TXT records for a specific selector of a BTPS identity and extracts key, version, or PEM information. This function supports key rotation by allowing resolution of public keys for specific selectors.
+
+**Arguments:**
+
+- `identity` (`string`, required): The BTPS identity to resolve.
+- `selector` (`string`, required): The selector to use for DNS resolution (e.g., 'btps1', 'btps2').
+- `type` (`'key' | 'pem' | 'version'`, optional): The specific part to extract. If omitted, returns all parts.
+
+**Returns:**
+
+- `Promise<any>`: The requested DNS part, or an object with all parts if `type` is omitted.
+
+**Example:**
+
+```js
+import { getDnsIdentityParts } from '@btps/sdk';
+const pem = await getDnsIdentityParts('billing$company.com', 'btps1', 'pem');
+```
+
+---
+
 ### getBtpAddressParts
 
 ```ts
@@ -175,15 +230,16 @@ const url = getBtpAddressParts('btps://server.example.com:3443');
 ### resolvePublicKey
 
 ```ts
-resolvePublicKey(identity: string): Promise<string | undefined>
+resolvePublicKey(identity: string, selector: string): Promise<string | undefined>
 ```
 
 **Description:**
-Resolves the public key PEM for a BTPS identity using DNS.
+Resolves the public key PEM for a BTPS identity using DNS with a specific selector. This function supports key rotation by allowing resolution of public keys for different selectors.
 
 **Arguments:**
 
 - `identity` (`string`, required): The BTPS identity to resolve.
+- `selector` (`string`, required): The selector to use for DNS resolution (e.g., 'btps1', 'btps2').
 
 **Returns:**
 
@@ -193,7 +249,7 @@ Resolves the public key PEM for a BTPS identity using DNS.
 
 ```js
 import { resolvePublicKey } from '@btps/sdk';
-const pubKey = await resolvePublicKey('billing$company.com');
+const pubKey = await resolvePublicKey('billing$company.com', 'btps1');
 ```
 
 ---
@@ -237,6 +293,7 @@ signEncrypt<T>(
   sender: ParsedIdentity & { pemFiles: PemKeys },
   payload: {
     document: T;
+    selector?: string;
     [key: string]: unknown;
   },
   options?: BTPCryptoOptions
@@ -244,7 +301,7 @@ signEncrypt<T>(
 ```
 
 **Description:**
-Signs and (optionally) encrypts a BTPS document for secure transmission. Handles key lookup, encryption, and signature in one step.
+Signs and (optionally) encrypts a BTPS document for secure transmission. Handles key lookup, encryption, and signature in one step. Now supports key rotation through selector-based public key resolution.
 
 **Arguments:**
 
@@ -252,6 +309,7 @@ Signs and (optionally) encrypts a BTPS document for secure transmission. Handles
 - `sender` (`ParsedIdentity & { pemFiles: PemKeys }`, required): Sender identity and PEM key pair.
 - `payload` (object, required): Document and metadata to send.
   - `document` (`T`, required): The document payload.
+  - `selector` (`string`, optional): The selector to use for public key resolution (e.g., 'btps1', 'btps2'). Required for encryption when `to` is provided.
   - `[key: string]` (`unknown`): Additional metadata fields.
 - `options` (`BTPCryptoOptions`, optional): Signature and encryption options.
 
@@ -271,6 +329,7 @@ const { payload, error } = await signEncrypt(
     document: {
       /* ... */
     },
+    selector: 'btps1', // Specify selector for key rotation support
   },
   {
     signature: { algorithm: 'sha256' },
@@ -891,6 +950,22 @@ Error constant for missing or invalid public key resolution.
 
 - `code`: `'BTP_ERROR_RESOLVE_PUBKEY'`
 - `message`: `'No valid public-key found'`
+
+---
+
+### BTP_ERROR_SELECTOR_NOT_FOUND
+
+```ts
+const BTP_ERROR_SELECTOR_NOT_FOUND: BTPError;
+```
+
+**Description:**
+Error constant for missing or invalid selector during DNS resolution. Used when a specific selector cannot be found for key rotation scenarios.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_SELECTOR_NOT_FOUND'`
+- `message`: `'No valid selector found'`
 
 ---
 

@@ -7,6 +7,8 @@
 
 import {
   BTPErrorException,
+  BTP_ERROR_RESOLVE_PUBKEY,
+  BTP_ERROR_SELECTOR_NOT_FOUND,
   BTP_ERROR_VALIDATION,
   transformToBTPErrorException,
 } from '@core/error/index.js';
@@ -34,7 +36,7 @@ import {
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
 import { validate } from '@core/utils/validation.js';
 import { AGENT_ACTIONS_REQUIRING_DOCUMENT } from '@core/server/constants/index.js';
-import { resolvePublicKey } from '@core/utils/index.js';
+import { getHostAndSelector, resolvePublicKey } from '@core/utils/index.js';
 const mappedTransporterAction = {
   'trust.request': 'TRUST_REQ',
   'trust.respond': 'TRUST_RES',
@@ -61,6 +63,7 @@ export class BtpsAgent extends BtpsClient {
       document: BTPDocType | BTPAuthReqDoc | BTPAgentMutation | BTPIdsPayload | BTPAgentQuery;
       actionType: AgentAction;
       from: string;
+      selector: string;
     },
     options?: BTPCryptoOptions,
   ): Promise<BTPCryptoResponse<BTPDocType | BTPAuthReqDoc>> {
@@ -77,6 +80,7 @@ export class BtpsAgent extends BtpsClient {
       document: payload.document as BTPDocType,
       from: payload.from as string,
       to: payload.to,
+      selector: payload.selector,
     };
 
     const { payload: transporterPayload, error: transporterError } = await this.signEncryptArtifact(
@@ -148,10 +152,28 @@ export class BtpsAgent extends BtpsClient {
                 );
                 return;
               }
+              // Get the selector for the to identity
+              const dnsHostAndSelector = await getHostAndSelector(to);
+              if (!dnsHostAndSelector) {
+                resolve(
+                  await this.buildClientErrorResponse(
+                    new BTPErrorException(BTP_ERROR_SELECTOR_NOT_FOUND, {
+                      cause: `No valid selector found for identity: ${to}`,
+                    }),
+                  ),
+                );
+                return;
+              }
 
               const { payload: transporterPayload, error: transporterError } =
                 await this.signEncryptTransportArtifact(
-                  { to, document, actionType, from: this.options.identity as string },
+                  {
+                    to,
+                    document,
+                    actionType,
+                    from: this.options.identity as string,
+                    selector: dnsHostAndSelector.selector,
+                  },
                   options,
                 );
 
@@ -184,6 +206,7 @@ export class BtpsAgent extends BtpsClient {
             }
 
             const cryptoOptions = options ? { ...options } : undefined;
+            /* If the action is auth.request, we don't need to encrypt the document as its authentication request */
             if (cryptoOptions && actionType === 'auth.request') {
               delete cryptoOptions.encryption;
             }
@@ -203,20 +226,20 @@ export class BtpsAgent extends BtpsClient {
 
           events.on('message', async (msg) => {
             messageReceived = true;
-            const { signature, signedBy } = msg;
+            const { signature, signedBy, selector } = msg;
             /* If the message is not signed and also not encrypted, no need to decrypt and verify as it is system message */
             if (!msg.signature && !msg.encryption) {
               resolve({ response: msg, error: undefined });
               return;
             }
 
-            if (signature && signedBy) {
-              const senderPubPem = await resolvePublicKey(signedBy);
+            if (signature && signedBy && selector) {
+              const senderPubPem = await resolvePublicKey(signedBy, selector);
               if (!senderPubPem) {
                 resolve(
                   this.buildClientErrorResponse(
-                    new BTPErrorException(BTP_ERROR_VALIDATION, {
-                      cause: 'SignedBy is present but public key is not found',
+                    new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
+                      cause: `SignedBy is present but public key is not found for identity: ${signedBy} and selector: ${selector}`,
                       meta: msg,
                     }),
                   ),
@@ -243,7 +266,7 @@ export class BtpsAgent extends BtpsClient {
             resolve({
               response: undefined,
               error: new BTPErrorException(BTP_ERROR_VALIDATION, {
-                cause: 'Message is not signed',
+                cause: 'Message is either not signed or does not have signedBy',
                 meta: msg,
               }),
             });

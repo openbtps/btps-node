@@ -1,11 +1,11 @@
-import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
+import { themes as prismThemes } from 'prism-react-renderer';
+import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: 'BTPS Documentation',
+  title: 'BTPS Documentation Alpha',
   tagline: 'Billing Trust Protocol Secure',
   favicon: 'img/favicon.ico',
 
@@ -40,15 +40,14 @@ const config: Config = {
     [
       'classic',
       /** @type {import('@docusaurus/preset-classic').Options} */
-      ({
+      {
         docs: {
           path: 'docs',
           routeBasePath: 'docs',
           sidebarPath: './sidebars.ts',
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/btps/btps-docs/tree/main/',
+          editUrl: 'https://github.com/btps/btps-docs/tree/main/',
           // Versioning configuration
           // includeCurrentVersion: false,
         },
@@ -61,22 +60,21 @@ const config: Config = {
           priority: 0.5,
           ignorePatterns: ['/tags/**'],
           filename: 'sitemap.xml',
-        }
-      }) satisfies Preset.Options,
-      
+        },
+      } satisfies Preset.Options,
     ],
   ],
 
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
-    ({
+    {
       // Replace with your project's social card
       image: 'img/btps-social-card.jpg',
       navbar: {
-        title: 'BTPS',
         logo: {
           alt: 'BTPS Logo',
-          src: 'img/logo.svg',
+          src: 'img/btps.png',
+          srcDark: 'img/btps-white.svg',
         },
         items: [
           // {
@@ -88,7 +86,7 @@ const config: Config = {
             type: 'docSidebar',
             sidebarId: 'docs',
             position: 'left',
-            label: 'Documentation',
+            label: 'Docs',
           },
           {
             href: 'https://github.com/btps/btps-sdk',
@@ -101,60 +99,117 @@ const config: Config = {
         style: 'dark',
         links: [
           {
-            title: 'Docs',
+            title: 'Protocol',
             items: [
               {
-                label: 'Introduction',
-                to: '/docs/',
-              },
-              {
-                label: 'Protocol Overview',
+                label: 'Overview',
                 to: '/docs/protocol/overview',
               },
               {
-                label: 'SDK Overview',
-                to: '/docs/sdk/overview',
+                label: 'Architecture',
+                to: '/docs/',
+              },
+              {
+                label: 'Principles',
+                to: '/docs/protocol/principles',
+              },
+              {
+                label: 'Specifications',
+                to: '/docs/protocol/specifications',
+              },
+              {
+                label: 'Security',
+                to: '/docs/protocol/security/overview',
+              },
+              {
+                label: 'Authentication',
+                to: '/docs/protocol/authentication/overview',
+              },
+              {
+                label: 'Delegation',
+                to: '/docs/protocol/delegation/overview',
               },
             ],
           },
-          // {
-          //   title: 'Community',
-          //   items: [
-          //     {
-          //       label: 'GitHub',
-          //       href: 'https://github.com/btps/btps-sdk',
-          //     },
-          //     {
-          //       label: 'Discussions',
-          //       href: 'https://github.com/btps/btps-sdk/discussions',
-          //     },
-          //     {
-          //       label: 'Issues',
-          //       href: 'https://github.com/btps/btps-sdk/issues',
-          //     },
-          //   ],
-          // },
-          // {
-          //   title: 'More',
-          //   items: [
-          //     {
-          //       label: 'Blog',
-          //       to: '/blog',
-          //     },
-          //     {
-          //       label: 'Apache 2.0 License',
-          //       href: 'https://github.com/btps/btps-sdk/blob/main/LICENSE',
-          //     },
-          //   ],
-          // },
+          {
+            title: 'Getting Started',
+            items: [
+              {
+                label: 'Quick Start',
+                to: '/docs/getting-started/installation',
+              },
+              {
+                label: 'Server Setup',
+                to: '/docs/getting-started/server/setup',
+              },
+              {
+                label: 'Client Setup',
+                to: '/docs/getting-started/client/setup',
+              },
+              {
+                label: 'Btps Agent',
+                to: '/docs/getting-started/client/agent-setup',
+              },
+              {
+                label: 'Btps Transporter',
+                to: '/docs/getting-started/client/transporter-setup',
+              },
+            ],
+          },
+          {
+            title: 'SDK Documentation',
+            items: [
+              {
+                label: 'Overview',
+                to: '/docs/sdk/overview',
+              },
+              {
+                label: 'API References',
+                to: '/docs/sdk/api-references',
+              },
+              {
+                label: 'Class References',
+                to: '/docs/sdk/class-api-references',
+              },
+              {
+                label: 'Types and Interfaces',
+                to: '/docs/sdk/types-and-interfaces',
+              },
+            ],
+          },
+          {
+            title: 'Developer Resources',
+            items: [
+              {
+                label: 'BTPS Client',
+                to: '/docs/client/overview',
+              },
+              {
+                label: 'Client Best Practices',
+                to: '/docs/client/best-practices',
+              },
+              {
+                label: 'BTPS Server',
+                to: '/docs/server/overview',
+              },
+              {
+                label: 'Middlewares',
+                to: '/docs/server/middlewares',
+              },
+              {
+                label: 'Advanced Usages',
+                to: '/docs/server/advanced-usages',
+              },
+            ],
+          },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} Bhupendra Tamang. Built with Docusaurus.`,
+        copyright: `Copyright © ${new Date().getFullYear()} Bhupendra Tamang`,
       },
       prism: {
         theme: prismThemes.github,
         darkTheme: prismThemes.dracula,
       },
-    }) satisfies Preset.ThemeConfig,
+    } satisfies Preset.ThemeConfig,
 
   // Mermaid plugin configuration
   themes: ['@docusaurus/theme-mermaid'],

@@ -49,7 +49,7 @@ export const BtpsAgentCommandSchema = z.object({
 
 // Schema for validating the complete command call - use server's validation logic
 export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
-  (data) => validateAgentDocument(data.actionType, data.document),
+  (data) => validateAgentDocument(data.actionType, null, data.document),
   {
     message: 'Document is required for this action type or document format is invalid',
     path: ['document'],

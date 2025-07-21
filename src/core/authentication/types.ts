@@ -52,6 +52,8 @@ export interface BTPsTokenDocument {
   createdAt: string;
   /** When the token expires */
   expiresAt: string;
+  /** Identity to decrypt by when decrypting the document */
+  decryptBy: string;
   /** Additional metadata */
   metadata?: Record<string, unknown>;
 }
@@ -102,6 +104,7 @@ export interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
     agentId: string | null,
     userIdentity: string,
     expiryMs: number,
+    decryptBy: string,
     metadata?: Record<string, unknown>,
   ): Promise<void>;
   /** Retrieve and validate a refresh token */

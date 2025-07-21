@@ -8,7 +8,7 @@
 import type { BTPTransporterArtifact, BTPDelegation, BTPAttestation } from '../server/types.js';
 import { signBtpPayload } from '../crypto/index.js';
 import type { PemKeys } from '@core/crypto/types.js';
-import { resolvePublicKey } from '@core/utils/index.js';
+import { getHostAndSelector, resolvePublicKey } from '@core/utils/index.js';
 import { createSign, createVerify } from 'crypto';
 import { BTP_ERROR_SIG_VERIFICATION, BTPErrorException } from '@core/error/index.js';
 
@@ -29,6 +29,7 @@ export class BtpsDelegator {
   private readonly identity: string;
   private readonly privateKey: PemKeys['privateKey'];
   private publicKey?: PemKeys['publicKey'];
+  private selector: string = 'btps1';
   private isInitialized = false;
 
   /**
@@ -70,7 +71,11 @@ export class BtpsDelegator {
    * @returns {isValid: boolean, publicKey?: string} - The result of the verification
    */
   protected async verifyDelegatorIdentity(): Promise<{ isValid: boolean; publicKey?: string }> {
-    const publicKey = await resolvePublicKey(this.identity);
+    const dnsHostAndSelector = await getHostAndSelector(this.identity);
+    if (!dnsHostAndSelector) return { isValid: false, publicKey: undefined };
+    this.selector = dnsHostAndSelector.selector;
+
+    const publicKey = await resolvePublicKey(this.identity, this.selector);
     if (!publicKey) return { isValid: false, publicKey: undefined };
     return { isValid: this.isKeyPairMatching(this.privateKey, publicKey), publicKey };
   }
@@ -104,6 +109,16 @@ export class BtpsDelegator {
   ): Promise<BTPTransporterArtifact & { delegation: BTPDelegation }> {
     if (!this.isInitialized || !this.publicKey)
       throw new BTPErrorException({ message: 'Delegator not initialized' });
+
+    let selector = this.selector;
+    if (onBehalfOf) {
+      const dnsHostAndSelector = await getHostAndSelector(onBehalfOf.identity);
+      if (!dnsHostAndSelector)
+        throw new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
+          cause: 'Delegator identity verification failed',
+        });
+      selector = dnsHostAndSelector.selector;
+    }
     const delegation = await this.createDelegation({
       artifact,
       delegatorIdentity: onBehalfOf?.identity ?? this.identity,
@@ -113,6 +128,7 @@ export class BtpsDelegator {
       },
       agentId,
       agentPubKey,
+      selector,
     });
 
     if (onBehalfOf) {
@@ -124,6 +140,7 @@ export class BtpsDelegator {
           privateKey: this.privateKey,
           publicKey: this.publicKey,
         },
+        selector,
       });
       delegation.attestation = attestation;
     }
@@ -140,6 +157,7 @@ export class BtpsDelegator {
     delegatorKey: PemKeys;
     agentId: string;
     agentPubKey: string;
+    selector: string;
   }): Promise<BTPDelegation> {
     const issuedAt = new Date().toISOString();
     const delegationPayload = {
@@ -149,6 +167,7 @@ export class BtpsDelegator {
         agentPubKey: params.agentPubKey,
         signedBy: params.delegatorIdentity,
         issuedAt,
+        selector: params.selector,
       },
     };
     const signature = signBtpPayload(delegationPayload, params.delegatorKey);
@@ -165,6 +184,7 @@ export class BtpsDelegator {
     delegation: Omit<BTPDelegation, 'attestation'>;
     attestorIdentity: string;
     attestorKey: PemKeys;
+    selector: string;
   }): Promise<BTPAttestation> {
     const issuedAt = new Date().toISOString();
     const attestationPayload = {
@@ -172,6 +192,7 @@ export class BtpsDelegator {
       attestation: {
         signedBy: params.attestorIdentity,
         issuedAt,
+        selector: params.selector,
       },
     };
     const signature = signBtpPayload(attestationPayload, params.attestorKey);

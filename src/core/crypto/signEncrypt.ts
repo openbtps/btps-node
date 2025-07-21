@@ -31,6 +31,7 @@ export const signEncrypt = async <T = unknown>(
   sender: ParsedIdentity & { pemFiles: PemKeys },
   payload: {
     document: T;
+    selector?: string;
     [key: string]: unknown;
   },
   options?: BTPCryptoOptions,
@@ -39,10 +40,10 @@ export const signEncrypt = async <T = unknown>(
   let encryption: BTPEncryption | null = null;
   let encryptedDoc: string | T = document;
 
-  if (to) {
+  if (to && payload.selector) {
     const parsedReceiver = parseIdentity(to);
     if (!parsedReceiver) return genEncryptError(new BTPErrorException(BTP_ERROR_IDENTITY));
-    const receiverPubPem = await resolvePublicKey(to);
+    const receiverPubPem = await resolvePublicKey(to, payload.selector);
     if (!receiverPubPem) return genEncryptError(new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY));
 
     try {

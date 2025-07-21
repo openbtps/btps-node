@@ -54,8 +54,10 @@ export const BtpDelegationSchema = z.object({
       signedBy: identitySchema,
       issuedAt: z.string().datetime(),
       signature: BtpSignatureSchema,
+      selector: z.string(),
     })
     .optional(),
+  selector: z.string(),
 });
 
 // Schema for BTPAgentQuery

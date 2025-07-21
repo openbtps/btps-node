@@ -17,6 +17,7 @@ vi.mock('../utils/index.js');
 vi.mock('../crypto/index.js');
 
 const mockResolvePublicKey = vi.mocked(utils.resolvePublicKey);
+const mockGetHostAndSelector = vi.mocked(utils.getHostAndSelector);
 const mockSignBtpPayload = vi.mocked(crypto.signBtpPayload);
 
 const saasKeys: PemKeys = {
@@ -39,11 +40,12 @@ const artifact: BTPTransporterArtifact = {
   issuedAt: '2024-01-01T00:00:00.000Z',
   document: {},
   signature: {
-    algorithm: 'sha256',
+    algorithmHash: 'sha256',
     value: 'sig',
     fingerprint: 'agent-device-fingerprint',
   },
   encryption: null,
+  selector: 'btps1',
 };
 
 // Helper function to create a properly mocked delegator
@@ -65,9 +67,13 @@ async function createMockedDelegator(
 describe('BtpsDelegator', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetHostAndSelector.mockResolvedValue({
+      host: 'btps://btps.platform.com:3443',
+      selector: 'btps1',
+    });
     mockResolvePublicKey.mockResolvedValue(saasKeys.publicKey);
     mockSignBtpPayload.mockImplementation((payload, keys) => ({
-      algorithm: 'sha256',
+      algorithmHash: 'sha256',
       value: 'signed-' + JSON.stringify(payload),
       fingerprint: keys.publicKey,
     }));
@@ -205,12 +211,14 @@ describe('BtpsDelegator', () => {
         agentPubKey: agentPubKey,
         signedBy: 'user456$customdomain.com',
         issuedAt: '2024-01-01T00:00:00.000Z',
-        signature: { algorithm: 'sha256', value: 'sig', fingerprint: 'user-public-key' },
+        signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'user-public-key' },
+        selector: 'btps1',
       };
       const attestation = await delegator['createAttestation']({
         delegation,
         attestorIdentity: 'saas$platform.com',
         attestorKey: saasKeys,
+        selector: 'btps1',
       });
       expect(attestation.signature.fingerprint).toBe(saasKeys.publicKey);
       expect(attestation.signedBy).toBe('saas$platform.com');
