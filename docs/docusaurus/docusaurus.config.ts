@@ -5,9 +5,62 @@ import type * as Preset from '@docusaurus/preset-classic';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: 'BTPS Documentation Alpha',
+  title: 'BTPS Documentation',
   tagline: 'Billing Trust Protocol Secure',
-  favicon: 'img/favicon.ico',
+  favicon: 'favicon.ico',
+  headTags: [
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'apple-touch-icon',
+        sizes: '180x180',
+        href: 'favicon/apple-touch-icon.png',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '32x32',
+        href: 'favicon/favicon-32x32.png',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '16x16',
+        href: 'favicon/favicon-16x16.png',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'manifest',
+        href: 'favicon/site.webmanifest',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '192x192',
+        href: 'favicon/android-chrome-192x192.png',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '512x512',
+        href: 'favicon/android-chrome-512x512.png',
+      },
+    },
+  ],
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -15,15 +68,15 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: 'https://btps.org',
+  url: 'https://openbtps.org',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'btps', // Usually your GitHub org/user name.
-  projectName: 'btps-docs', // Usually your repo name.
+  organizationName: 'openbtps', // Usually your GitHub org/user name.
+  projectName: 'btps-node', // Usually your repo name.
 
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
@@ -89,7 +142,7 @@ const config: Config = {
             label: 'Docs',
           },
           {
-            href: 'https://github.com/btps/btps-sdk',
+            href: 'https://github.com/openbtps/btps-node',
             label: 'GitHub',
             position: 'right',
           },
