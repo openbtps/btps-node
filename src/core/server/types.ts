@@ -15,6 +15,7 @@ import {
 } from './constants/index.js';
 import { CURRENCY_CODES } from './constants/currency.js';
 import { BTPErrorException } from '@core/error/index.js';
+import { IdentityPubKeyRecord } from '@core/storage/types.js';
 
 export type BTPArtifactType = (typeof TRANSPORTER_ACTIONS)[number];
 export type CurrencyCode = (typeof CURRENCY_CODES)[number];
@@ -91,38 +92,47 @@ export interface BTPIdsPayload {
   ids: string[];
 }
 
-export interface BTPAgentArtifact {
+export interface BTPGenericArtifact<T = string> {
+  version: string;
   id: string; // Random Id
-  action: AgentAction;
-  document?:
+  document?: T;
+  issuedAt: string;
+  to: string;
+  signature: BTPSignature;
+}
+
+export interface BTPIdentityLookupRequest
+  extends Omit<BTPGenericArtifact, 'document' | 'signature' | 'to'> {
+  identity: string;
+  from: string;
+  hostSelector: string;
+  identitySelector?: string;
+}
+
+export interface BTPAgentArtifact
+  extends BTPGenericArtifact<
     | BTPTransporterArtifact
     | BTPAuthReqDoc
     | BTPAgentMutation
     | BTPAgentQuery
     | BTPIdsPayload
-    | string;
+    | string
+  > {
+  action: AgentAction;
   agentId: string;
-  to: string;
-  issuedAt: string;
-  signature: BTPSignature;
   encryption: BTPEncryption | null;
 }
 
-export interface BTPTransporterArtifact {
-  version: string;
-  issuedAt: string; // ISO Format
+export interface BTPTransporterArtifact extends BTPGenericArtifact<BTPDocType | string> {
   document: BTPDocType | string;
-  id: string; // Random Id
   type: BTPArtifactType;
   from: string;
-  to: string;
-  signature: BTPSignature;
   encryption: BTPEncryption | null;
   delegation?: BTPDelegation;
   selector: string;
 }
 
-export type BTPArtifact = BTPAgentArtifact | BTPTransporterArtifact;
+export type BTPArtifact = BTPAgentArtifact | BTPTransporterArtifact | BTPIdentityLookupRequest;
 
 export type BTPStatus = {
   ok: boolean;
@@ -167,7 +177,9 @@ export interface BTPDeliveryFailureArtifact {
   to: string;
 }
 
-export type BTPServerResDocs = BTPAuthResDoc | BTPQueryResult | string;
+export type BTPIdentityResDoc = Omit<IdentityPubKeyRecord, 'createdAt'>;
+
+export type BTPServerResDocs = BTPAuthResDoc | BTPQueryResult | BTPIdentityResDoc | string;
 
 export type BTPServerResponse<T = BTPServerResDocs> = {
   version: string;

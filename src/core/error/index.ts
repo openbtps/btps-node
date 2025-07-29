@@ -59,7 +59,14 @@ export const transformToBTPErrorException = (err: unknown): BTPErrorException =>
   }
 
   if (err instanceof Error) {
-    return new BTPErrorException({ message: err.message }, { ...err });
+    const code = (err as unknown as { code?: string | number })?.code;
+    return new BTPErrorException(
+      { message: err?.message ?? err.name, code: code ?? BTP_ERROR_UNKNOWN.code },
+      {
+        cause: err.cause,
+        meta: { ...err },
+      },
+    );
   }
 
   return new BTPErrorException(BTP_ERROR_UNKNOWN, { cause: JSON.stringify(err) });

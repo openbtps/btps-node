@@ -11,15 +11,24 @@ import { BTPTrustRecord } from '@core/trust/index.js';
 import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import {
   BTPAgentArtifact,
+  BTPIdentityLookupRequest,
   BTPServerResponse,
   BTPTransporterArtifact,
   CurrencyCode,
 } from '@core/server/types.js';
 import { BTPError } from '@core/error/types.js';
 import { BTPErrorException } from '@core/error/index.js';
+import { BTPIdentityRecord } from '@core/storage/types.js';
+import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 
 export interface BtpsServerOptions {
+  serverIdentity: {
+    identity: string;
+    publicKey: string;
+    privateKey: string;
+  };
   trustStore: AbstractTrustStore<BTPTrustRecord>;
+  identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   port?: number;
   onError?: (err: BTPErrorException) => void;
   options?: TlsOptions;
@@ -45,6 +54,7 @@ export interface MiddlewareConfig {
 export interface MiddlewareContext {
   dependencies: {
     trustStore: AbstractTrustStore<BTPTrustRecord>;
+    identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
     // Add other dependencies as needed
   };
   config: Record<string, unknown>;
@@ -103,9 +113,38 @@ type HasRawPacket<P extends Phase, S extends Step> = S extends 'parsing'
     : true
   : false;
 
-export type ProcessedArtifact =
-  | { artifact: BTPTransporterArtifact; isAgentArtifact: false }
-  | { artifact: BTPAgentArtifact; isAgentArtifact: true; respondNow: boolean };
+// Utility type to add respondNow only for 'agent'
+type WithRespondNow<K extends string, T> = K extends 'agent'
+  ? { artifact: T; type: K; respondNow: boolean }
+  : { artifact: T; type: K };
+
+// Mapped type for strict correlation between 'type' and 'artifact'
+type ArtifactMap = {
+  transporter: BTPTransporterArtifact;
+  agent: BTPAgentArtifact;
+  identityLookup: BTPIdentityLookupRequest;
+};
+
+// Mapped type for processed artifacts (subset)
+type ProcessedArtifactMap = {
+  transporter: BTPTransporterArtifact;
+  agent: BTPAgentArtifact;
+};
+
+export type PreProcessedArtifact = {
+  [K in keyof ArtifactMap]: WithRespondNow<K, ArtifactMap[K]>;
+}[keyof ArtifactMap];
+
+export type ProcessedArtifact = {
+  [K in keyof ProcessedArtifactMap]: WithRespondNow<K, ProcessedArtifactMap[K]>;
+}[keyof ProcessedArtifactMap];
+
+// Helper type for conditional artifact data
+// Only before parsing gets PreProcessedArtifact, all others get ProcessedArtifact
+// Used in BTPRequestCtx and BTPResponseCtx
+type ArtifactDataType<_P extends Phase, S extends Step> = S extends 'parsing'
+  ? PreProcessedArtifact
+  : ProcessedArtifact;
 
 // Conditional request context based on phase and step
 export type BTPRequestCtx<P extends Phase = Phase, S extends Step = Step> = Omit<
@@ -114,7 +153,9 @@ export type BTPRequestCtx<P extends Phase = Phase, S extends Step = Step> = Omit
 > & {
   from?: string;
 } & (HasRawPacket<P, S> extends true ? { rawPacket: string } : { rawPacket?: string }) &
-  (HasArtifact<P, S> extends true ? { data: ProcessedArtifact } : { data?: ProcessedArtifact }) &
+  (HasArtifact<P, S> extends true
+    ? { data: ArtifactDataType<P, S> }
+    : { data?: ArtifactDataType<P, S> }) &
   (HasIsValid<P, S> extends true ? { isValid: boolean } : { isValid?: boolean }) &
   (HasIsTrusted<P, S> extends true ? { isTrusted: boolean } : { isTrusted?: boolean }) &
   (HasError<P, S> extends true ? { error: BTPErrorException } : { error?: BTPErrorException }) & {
@@ -128,7 +169,9 @@ export type BTPResponseCtx<P extends Phase = Phase, S extends Step = Step> = Set
   'sendRes' | 'sendError'
 > &
   (HasReqId<P, S> extends true ? { reqId: string } : { reqId?: string }) &
-  (HasArtifact<P, S> extends true ? { data: ProcessedArtifact } : { data?: ProcessedArtifact }) & {
+  (HasArtifact<P, S> extends true
+    ? { data: ArtifactDataType<P, S> }
+    : { data?: ArtifactDataType<P, S> }) & {
     // Allow middleware to add custom properties
     [key: string]: unknown;
   };

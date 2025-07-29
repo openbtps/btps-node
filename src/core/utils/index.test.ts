@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import dns from 'dns/promises';
+import { resolveTxt } from 'dns/promises';
 import {
   parseIdentity,
   isValidIdentity,
@@ -16,15 +16,15 @@ import {
   getDnsIdentityParts,
   getBtpAddressParts,
   resolvePublicKey,
-} from './index';
+  isDelegationAllowed,
+} from './index.js';
+import type { BTPTransporterArtifact } from '../server/types.js';
 
 vi.mock('dns/promises', () => ({
-  default: {
-    resolveTxt: vi.fn(),
-  },
+  resolveTxt: vi.fn(),
 }));
 
-const mockDns = vi.mocked(dns);
+const mockDns = vi.mocked(resolveTxt);
 
 describe('utils/index', () => {
   beforeEach(() => {
@@ -71,7 +71,7 @@ describe('utils/index', () => {
   describe('getDnsIdentityParts', () => {
     it('should resolve all DNS parts correctly', async () => {
       const txtRecord = `k=key;v=1.0.0;p=cGVt;u=btps://btps.example.com`;
-      mockDns.resolveTxt.mockResolvedValue([[txtRecord]]);
+      mockDns.mockResolvedValue([[txtRecord]]);
 
       const parts = await getDnsIdentityParts('test$example.com', 'btps1');
       expect(parts).toEqual({
@@ -83,7 +83,7 @@ describe('utils/index', () => {
 
     it('should resolve a specific DNS part', async () => {
       const txtRecord = `u=btps://btps.example.com;s=btps1; v=1.0.0`;
-      mockDns.resolveTxt.mockResolvedValue([[txtRecord]]);
+      mockDns.mockResolvedValue([[txtRecord]]);
 
       const version = await getDnsIdentityParts('test$example.com', 'btps1', 'version');
       expect(version).toBe('1.0.0');
@@ -95,10 +95,8 @@ describe('utils/index', () => {
     });
 
     it('should throw an error on DNS resolution failure', async () => {
-      mockDns.resolveTxt.mockRejectedValue(new Error('DNS error'));
-      await expect(getDnsIdentityParts('test$example.com', 'btps1')).rejects.toThrow(
-        'DNS resolution failed',
-      );
+      mockDns.mockRejectedValue(new Error('DNS error'));
+      await expect(getDnsIdentityParts('test$example.com', 'btps1')).rejects.toThrow('DNS error');
     });
   });
 
@@ -122,7 +120,7 @@ describe('utils/index', () => {
   describe('resolvePublicKey', () => {
     it('should resolve the public key PEM', async () => {
       const txtRecord = `p=cGVt`;
-      mockDns.resolveTxt.mockResolvedValue([[txtRecord]]);
+      mockDns.mockResolvedValue([[txtRecord]]);
       const pem = await resolvePublicKey('test$example.com', 'btps1');
       expect(pem).toBe('-----BEGIN PUBLIC KEY-----\ncGVt\n-----END PUBLIC KEY-----'); // getDnsIdentityParts returns the raw value here
     });
@@ -131,9 +129,13 @@ describe('utils/index', () => {
   describe('getHostAndSelector', () => {
     it('should resolve the host and selector', async () => {
       const txtRecord = `u=btps://btps.example.com;s=btps1; v=1.0.0`;
-      mockDns.resolveTxt.mockResolvedValue([[txtRecord]]);
+      mockDns.mockResolvedValue([[txtRecord]]);
       const hostAndSelector = await getHostAndSelector('test$example.com');
-      expect(hostAndSelector).toEqual({ host: 'btps://btps.example.com', selector: 'btps1' });
+      expect(hostAndSelector).toEqual({
+        host: 'btps://btps.example.com',
+        selector: 'btps1',
+        version: '1.0.0',
+      });
     });
 
     it('should return undefined if the identity is invalid', async () => {
@@ -143,7 +145,7 @@ describe('utils/index', () => {
 
     it('should return undefined if the selector is not found', async () => {
       const txtRecord = `u=btps://btps.example.com; v=1.0.0`;
-      mockDns.resolveTxt.mockResolvedValue([[txtRecord]]);
+      mockDns.mockResolvedValue([[txtRecord]]);
       const hostAndSelector = await getHostAndSelector('test$example.com');
       expect(hostAndSelector).toBeUndefined();
     });
@@ -157,14 +159,14 @@ describe('utils/index', () => {
       const identity = 'alice$example.com';
 
       // Mock DNS resolution for host and selector
-      mockDns.resolveTxt.mockImplementation((dnsName: string) => {
-        if (dnsName === '_btps.example.com') {
+      mockDns.mockImplementation((dnsName: string) => {
+        if (dnsName === '_btps.host.example.com') {
           // Host discovery record - returns new selector
           return Promise.resolve([['v=1.0.0; u=btps://btps.example.com:3443; s=btps2']]);
-        } else if (dnsName === 'btps1._btps.alice.example.com') {
+        } else if (dnsName === 'btps1._btps.host.alice.example.com') {
           // Old selector DNS record
           return Promise.resolve([['v=1.0.0; k=rsa; p=OLD_PUBLIC_KEY_BASE64']]);
-        } else if (dnsName === 'btps2._btps.alice.example.com') {
+        } else if (dnsName === 'btps2._btps.host.alice.example.com') {
           // New selector DNS record
           return Promise.resolve([['v=1.0.0; k=rsa; p=NEW_PUBLIC_KEY_BASE64']]);
         }
@@ -176,6 +178,7 @@ describe('utils/index', () => {
       expect(hostAndSelector).toEqual({
         host: 'btps://btps.example.com:3443',
         selector: newSelector,
+        version: '1.0.0',
       });
 
       // Test 2: Resolve public key using old selector (should work)
@@ -198,10 +201,10 @@ describe('utils/index', () => {
       const identity = 'alice$example.com';
       const nonExistentSelector = 'btps999';
 
-      mockDns.resolveTxt.mockImplementation((dnsName: string) => {
-        if (dnsName === '_btps.example.com') {
+      mockDns.mockImplementation((dnsName: string) => {
+        if (dnsName === '_btps.host.example.com') {
           return Promise.resolve([['v=1.0.0; u=btps://btps.example.com:3443; s=btps1']]);
-        } else if (dnsName === 'btps999._btps.alice.example.com') {
+        } else if (dnsName === 'btps999._btps.host.alice.example.com') {
           // Non-existent selector - return empty
           return Promise.resolve([]);
         }
@@ -218,17 +221,17 @@ describe('utils/index', () => {
       const selector2 = 'btps2';
       const selector3 = 'btps3';
 
-      mockDns.resolveTxt.mockImplementation((dnsName: string) => {
-        if (dnsName === '_btps.company.com') {
+      mockDns.mockImplementation((dnsName: string) => {
+        if (dnsName === '_btps.host.company.com') {
           // Host discovery - returns latest selector
           return Promise.resolve([['v=1.0.0; u=btps://btps.company.com:3443; s=btps3']]);
-        } else if (dnsName === 'btps1._btps.bob.company.com') {
+        } else if (dnsName === 'btps1._btps.host.bob.company.com') {
           // Oldest selector
           return Promise.resolve([['v=1.0.0; k=rsa; p=KEY_1_BASE64']]);
-        } else if (dnsName === 'btps2._btps.bob.company.com') {
+        } else if (dnsName === 'btps2._btps.host.bob.company.com') {
           // Middle selector
           return Promise.resolve([['v=1.0.0; k=rsa; p=KEY_2_BASE64']]);
-        } else if (dnsName === 'btps3._btps.bob.company.com') {
+        } else if (dnsName === 'btps3._btps.host.bob.company.com') {
           // Latest selector
           return Promise.resolve([['v=1.0.0; k=rsa; p=KEY_3_BASE64']]);
         }
@@ -254,6 +257,7 @@ describe('utils/index', () => {
       expect(hostAndSelector).toEqual({
         host: 'btps://btps.company.com:3443',
         selector: selector3,
+        version: '1.0.0',
       });
     });
 
@@ -262,14 +266,14 @@ describe('utils/index', () => {
       const oldSelector = 'btps1';
       const newSelector = 'btps2';
 
-      mockDns.resolveTxt.mockImplementation((dnsName: string) => {
-        if (dnsName === '_btps.enterprise.org') {
+      mockDns.mockImplementation((dnsName: string) => {
+        if (dnsName === '_btps.host.enterprise.org') {
           // Host discovery - returns new selector
           return Promise.resolve([['v=1.0.0; u=btps://btps.enterprise.org:3443; s=btps2']]);
-        } else if (dnsName === 'btps1._btps.charlie.enterprise.org') {
+        } else if (dnsName === 'btps1._btps.host.charlie.enterprise.org') {
           // Old selector - still exists but deprecated
           return Promise.resolve([['v=1.0.0; k=rsa; p=OLD_KEY_BASE64']]);
-        } else if (dnsName === 'btps2._btps.charlie.enterprise.org') {
+        } else if (dnsName === 'btps2._btps.host.charlie.enterprise.org') {
           // New selector - active
           return Promise.resolve([['v=1.0.0; k=rsa; p=NEW_KEY_BASE64']]);
         }
@@ -293,11 +297,11 @@ describe('utils/index', () => {
       const identity = 'dave$startup.io';
       const selector = 'btps1';
 
-      mockDns.resolveTxt.mockImplementation((dnsName: string) => {
-        if (dnsName === '_btps.startup.io') {
+      mockDns.mockImplementation((dnsName: string) => {
+        if (dnsName === '_btps.host.startup.io') {
           // Host discovery fails
           return Promise.reject(new Error('DNS resolution failed'));
-        } else if (dnsName === 'btps1._btps.dave.startup.io') {
+        } else if (dnsName === 'btps1._btps.host.dave.startup.io') {
           // Key resolution works
           return Promise.resolve([['v=1.0.0; k=rsa; p=KEY_BASE64']]);
         }
@@ -311,5 +315,92 @@ describe('utils/index', () => {
       const publicKey = await resolvePublicKey(identity, selector);
       expect(publicKey).toBe('-----BEGIN PUBLIC KEY-----\nKEY_BASE64\n-----END PUBLIC KEY-----');
     });
+  });
+});
+
+describe('isDelegationAllowed', () => {
+  it('should return false if artifact has no delegation', () => {
+    expect(
+      isDelegationAllowed({
+        from: 'alice$company.com',
+        document: '',
+      } as Partial<BTPTransporterArtifact> as BTPTransporterArtifact),
+    ).toBe(false);
+    expect(
+      isDelegationAllowed({
+        delegation: { signedBy: 'admin$company.com' },
+        document: '',
+      } as Partial<BTPTransporterArtifact> as BTPTransporterArtifact),
+    ).toBe(false);
+    expect(
+      isDelegationAllowed({
+        document: '',
+      } as Partial<BTPTransporterArtifact> as BTPTransporterArtifact),
+    ).toBe(false);
+    expect(isDelegationAllowed(undefined as unknown as BTPTransporterArtifact)).toBe(false);
+  });
+
+  it('should return false if delegation has no signedBy', () => {
+    expect(
+      isDelegationAllowed({
+        from: 'alice$company.com',
+        delegation: {},
+        document: '',
+      } as Partial<BTPTransporterArtifact> as BTPTransporterArtifact),
+    ).toBe(false);
+  });
+
+  it('should return false if from or signedBy is invalid identity', () => {
+    expect(
+      isDelegationAllowed({
+        from: 'invalididentity',
+        delegation: { signedBy: 'admin$company.com' },
+        document: '',
+      } as Partial<BTPTransporterArtifact> as BTPTransporterArtifact),
+    ).toBe(false);
+    expect(
+      isDelegationAllowed({
+        from: 'alice$company.com',
+        delegation: { signedBy: 'invalididentity' },
+        document: '',
+      } as Partial<BTPTransporterArtifact> as BTPTransporterArtifact),
+    ).toBe(false);
+  });
+
+  it('should return true if from and signedBy are the same (custom domain)', () => {
+    expect(
+      isDelegationAllowed({
+        from: 'alice$alice.com',
+        delegation: { signedBy: 'alice$alice.com' },
+        document: '',
+      } as Partial<BTPTransporterArtifact> as BTPTransporterArtifact),
+    ).toBe(true);
+  });
+
+  it('should return true if from and signedBy are different but same domain (SaaS domain)', () => {
+    expect(
+      isDelegationAllowed({
+        from: 'alice$company.com',
+        delegation: { signedBy: 'admin$company.com' },
+        document: '',
+      } as Partial<BTPTransporterArtifact> as BTPTransporterArtifact),
+    ).toBe(true);
+  });
+
+  it('should return false if from and signedBy are different and different domains', () => {
+    expect(
+      isDelegationAllowed({
+        from: 'alice$company.com',
+        delegation: { signedBy: 'admin$other.com' },
+        document: '',
+      } as Partial<BTPTransporterArtifact> as BTPTransporterArtifact),
+    ).toBe(false);
+    expect(
+      isDelegationAllowed({
+        from: 'alice$alice.com',
+        delegation: { signedBy: 'admin$other.com' },
+        document: '',
+      } as Partial<BTPTransporterArtifact> as BTPTransporterArtifact),
+    ).toBe(false);
   });
 });

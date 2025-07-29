@@ -46,7 +46,7 @@
     "clean": "rimraf dist",
     "build:mjs": "node build/index.mjs",
     "build:add-license": "sh scripts/add-license-header.sh",
-    "build:types": "tsc && tsc-alias",
+    "build:types": "tsc -p tsconfig.build.json && tsc-alias",
     "build": "yarn build:add-license && yarn clean && yarn build:mjs && yarn build:types && yarn build:add-license -dir ./dist",
     "dev": "nodemon --config nodemon.json",
     "start": "node ./dist/server/index.js",

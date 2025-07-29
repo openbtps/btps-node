@@ -39,7 +39,7 @@ const config: Config = {
       tagName: 'link',
       attributes: {
         rel: 'manifest',
-        href: 'favicon/site.webmanifest',
+        href: 'site.webmanifest',
       },
     },
     {

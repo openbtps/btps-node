@@ -5,7 +5,6 @@ import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 
 import styles from './index.module.css';
-console.log(styles);
 function HeroSection() {
   return (
     <section className={styles.hero}>

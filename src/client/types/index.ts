@@ -18,6 +18,8 @@ export interface BtpsClientOptions {
   connectionTimeoutMs?: number;
   btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
   host?: string;
+  hostSelector?: string;
+  version?: string;
   port?: number;
 }
 
@@ -42,3 +44,10 @@ export interface BTPClientResponse {
   response?: BTPServerResponse;
   error?: BTPErrorException;
 }
+
+export type BtpsHostDnsTxt = {
+  version: string;
+  hostname: string;
+  selector: string;
+  port: number;
+};

@@ -17,6 +17,11 @@ export const BTP_ERROR_IDENTITY: BTPError = {
   message: 'BTPS identity is expected in the format username$domain.',
 };
 
+export const BTP_ERROR_IDENTITY_NOT_FOUND: BTPError = {
+  code: 'BTP_ERROR_IDENTITY_NOT_FOUND',
+  message: 'Identity not found',
+};
+
 export const BTP_ERROR_TRUST_NON_EXISTENT: BTPError = {
   code: 'BTP_ERROR_TRUST_NON_EXISTENT',
   message: 'BTPS trust record does not exist or has been expired',
@@ -42,9 +47,9 @@ export const BTP_ERROR_TRUST_ALREADY_ACTIVE: BTPError = {
   message: 'BTPS trust record already exist. Request invalid',
 };
 
-export const BTP_ERROR_SELECTOR_NOT_FOUND: BTPError = {
-  code: 'BTP_ERROR_SELECTOR_NOT_FOUND',
-  message: 'No valid selector found',
+export const BTP_ERROR_RESOLVE_DNS: BTPError = {
+  code: 'BTP_ERROR_RESOLVE_DNS',
+  message: 'No valid DNS record found',
 };
 
 export const BTP_ERROR_RESOLVE_PUBKEY: BTPError = {

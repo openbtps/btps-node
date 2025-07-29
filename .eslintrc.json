@@ -16,9 +16,9 @@
   },
   "overrides": [
     {
-      "files": ["webpack.config.js"],
-      "rules": {
-        "@typescript-eslint/no-var-requires": "off"
+      "files": ["**/*.test.ts", "**/*.spec.ts"],
+      "parserOptions": {
+        "project": "./tsconfig.vitest.json"
       }
     }
   ],

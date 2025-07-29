@@ -16,7 +16,13 @@ import JsonTrustStore from '../../core/trust/storage/JsonTrustStore.js';
 import path from 'path';
 import fs from 'fs/promises';
 import type { BTPRequestCtx, BTPResponseCtx, ProcessedArtifact } from '../types.js';
-import { BTPAgentArtifact } from '../../core/server/types.js';
+import {
+  BTPAgentArtifact,
+  BTPAttestation,
+  BTPDelegation,
+  BTPServerResponse,
+  BTPStatus,
+} from '../../core/server/types.js';
 
 const TEST_FILE = path.join(__dirname, 'test-trust-store.json');
 
@@ -75,12 +81,19 @@ describe('BtpsServer', () => {
 
   describe('Constructor', () => {
     it('constructs with minimal options', () => {
-      server = new BtpsServer({ trustStore });
+      server = new BtpsServer({
+        trustStore,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
       expect(server).toBeInstanceOf(BtpsServer);
     });
 
     it('constructs with custom port', () => {
-      server = new BtpsServer({ trustStore, port: 5000 });
+      server = new BtpsServer({
+        trustStore,
+        port: 5000,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
       expect(server).toBeInstanceOf(BtpsServer);
     });
 
@@ -89,18 +102,30 @@ describe('BtpsServer', () => {
         key: 'test-key',
         cert: 'test-cert',
       };
-      server = new BtpsServer({ trustStore, options: tlsOptions });
+      server = new BtpsServer({
+        trustStore,
+        options: tlsOptions,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
       expect(server).toBeInstanceOf(BtpsServer);
     });
 
     it('constructs with error handler', () => {
       const onError = vi.fn();
-      server = new BtpsServer({ trustStore, onError });
+      server = new BtpsServer({
+        trustStore,
+        onError,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
       expect(server).toBeInstanceOf(BtpsServer);
     });
 
     it('constructs with middleware path', () => {
-      server = new BtpsServer({ trustStore, middlewarePath: '/path/to/middleware' });
+      server = new BtpsServer({
+        trustStore,
+        middlewarePath: '/path/to/middleware',
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
       expect(server).toBeInstanceOf(BtpsServer);
     });
 
@@ -113,6 +138,7 @@ describe('BtpsServer', () => {
         onError,
         options: tlsOptions,
         middlewarePath: '/path/to/middleware',
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
       });
       expect(server).toBeInstanceOf(BtpsServer);
     });
@@ -120,7 +146,10 @@ describe('BtpsServer', () => {
 
   describe('Public Methods', () => {
     beforeEach(() => {
-      server = new BtpsServer({ trustStore });
+      server = new BtpsServer({
+        trustStore,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
     });
 
     describe('getProtocolVersion()', () => {
@@ -188,7 +217,11 @@ describe('BtpsServer', () => {
       });
 
       it('starts on custom port when specified', async () => {
-        server = new BtpsServer({ trustStore, port: 5000 });
+        server = new BtpsServer({
+          trustStore,
+          port: 5000,
+          serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        });
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
         await server.start();
@@ -286,25 +319,41 @@ describe('BtpsServer', () => {
 
   describe('Error Handling', () => {
     beforeEach(() => {
-      server = new BtpsServer({ trustStore });
+      server = new BtpsServer({
+        trustStore,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
     });
 
     it('calls onError handler when provided', () => {
       const onError = vi.fn();
-      server = new BtpsServer({ trustStore, onError });
+      server = new BtpsServer({
+        trustStore,
+        onError,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
 
       // We can't test private methods directly, but we can verify the constructor works
       expect(onError).toBeDefined();
     });
 
     it('does not throw when onError is not provided', () => {
-      expect(() => new BtpsServer({ trustStore })).not.toThrow();
+      expect(
+        () =>
+          new BtpsServer({
+            trustStore,
+            serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+          }),
+      ).not.toThrow();
     });
   });
 
   describe('Message Processing', () => {
     beforeEach(() => {
-      server = new BtpsServer({ trustStore });
+      server = new BtpsServer({
+        trustStore,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
     });
 
     it('emits message event when message is processed', async () => {
@@ -332,7 +381,10 @@ describe('BtpsServer', () => {
 
   describe('Response Generation', () => {
     beforeEach(() => {
-      server = new BtpsServer({ trustStore });
+      server = new BtpsServer({
+        trustStore,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
     });
 
     it('generates responses with correct structure', () => {
@@ -363,17 +415,29 @@ describe('BtpsServer', () => {
   describe('Edge Cases', () => {
     it('handles invalid port numbers', () => {
       // Should use default port when port is invalid
-      server = new BtpsServer({ trustStore, port: -1 });
+      server = new BtpsServer({
+        trustStore,
+        port: -1,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
       expect(server).toBeInstanceOf(BtpsServer);
     });
 
     it('handles null/undefined options gracefully', () => {
-      server = new BtpsServer({ trustStore, onError: undefined });
+      server = new BtpsServer({
+        trustStore,
+        onError: undefined,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
       expect(server).toBeInstanceOf(BtpsServer);
     });
 
     it('handles empty middleware path', () => {
-      server = new BtpsServer({ trustStore, middlewarePath: '' });
+      server = new BtpsServer({
+        trustStore,
+        middlewarePath: '',
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
       expect(server).toBeInstanceOf(BtpsServer);
     });
   });
@@ -383,8 +447,14 @@ describe('BtpsServer', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
       // Create separate server instances to avoid mock state issues
-      const server1 = new BtpsServer({ trustStore });
-      const server2 = new BtpsServer({ trustStore });
+      const server1 = new BtpsServer({
+        trustStore,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
+      const server2 = new BtpsServer({
+        trustStore,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
 
       await server1.start();
       server1.stop();
@@ -438,7 +508,10 @@ describe('BtpsServer', () => {
           return fakeServer as unknown as tls.Server;
         },
       );
-      server = new BtpsServer({ trustStore });
+      server = new BtpsServer({
+        trustStore,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+      });
     });
 
     afterEach(() => {
@@ -452,6 +525,7 @@ describe('BtpsServer', () => {
           connection: TEST_FILE,
           entityName: 'trusted_sender',
         }),
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
       });
 
       await server.start();
@@ -484,6 +558,7 @@ export default function () {
           entityName: 'trusted_sender',
         }),
         middlewarePath: middlewareFile,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
       });
 
       await server.start();
@@ -508,11 +583,13 @@ export default function () {
 
       const mockRes = {
         socket: mockSocket,
+        remoteAddress: '127.0.0.1',
+        startTime: new Date().toISOString(),
         sendError: (error: { code: number; message: string }) => {
           console.log('📨 sendError called with:', error);
           server['sendBtpsError'](mockSocket, error);
         },
-        sendRes: (response: { type: string; status: { code: number; message: string } }) => {
+        sendRes: (response: { type: BTPServerResponse['type']; status: BTPStatus }) => {
           console.log('📨 sendRes called with:', response);
           // Always add required fields for BtpServerResponseSchema
           const completeResponse = {
@@ -580,6 +657,7 @@ export default function () {
           entityName: 'trusted_sender',
         }),
         middlewarePath: middlewareFile,
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
       });
 
       await server.start();
@@ -604,11 +682,13 @@ export default function () {
 
       const mockRes = {
         socket: mockSocket,
+        remoteAddress: '127.0.0.1',
+        startTime: new Date().toISOString(),
         sendError: (error: { code: number; message: string }) => {
           console.log('📨 sendError called with:', error);
           server['sendBtpsError'](mockSocket, error);
         },
-        sendRes: (response: { type: string; status: { code: number; message: string } }) => {
+        sendRes: (response: BTPServerResponse) => {
           console.log('📨 sendRes called with:', response);
           server['sendBtpsResponse'](mockSocket, response);
         },
@@ -717,9 +797,8 @@ export default function () {
         action: 'trust.request',
         document: {},
         agentId: 'agent',
-        from: 'from$domain.com',
         issuedAt: new Date().toISOString(),
-        signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+        signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
         encryption: null,
       });
       expect(result.isValid).toBe(false);
@@ -729,9 +808,8 @@ export default function () {
         action: 'trust.request',
         document: {},
         agentId: 'agent',
-        from: 'from$domain.com',
         issuedAt: new Date().toISOString(),
-        signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+        signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
         encryption: null,
       });
       expect(trust.isTrusted).toBe(false);
@@ -742,18 +820,20 @@ export default function () {
       const utils = await import('../../core/utils/index.js');
       vi.spyOn(utils, 'resolvePublicKey').mockResolvedValue(undefined);
 
-      const attestation = {
+      const attestation: BTPAttestation = {
         signedBy: 'attestor$domain.com',
         issuedAt: new Date().toISOString(),
-        signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+        signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
+        selector: 'selector',
       };
       // @ts-expect-error - test access to private method
       const result = await server.verifyAttestation({
         agentId: 'agent',
         agentPubKey: 'pub',
         signedBy: 'attestor$domain.com',
-        signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+        signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
         issuedAt: new Date().toISOString(),
+        selector: 'selector',
         attestation,
       });
       expect(result.isValid).toBe(false);
@@ -764,12 +844,13 @@ export default function () {
       const utils = await import('../../core/utils/index.js');
       vi.spyOn(utils, 'resolvePublicKey').mockResolvedValue(undefined);
 
-      const delegation = {
+      const delegation: BTPDelegation = {
         agentId: 'agent',
         agentPubKey: 'pub',
         signedBy: 'delegator$domain.com',
-        signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+        signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
         issuedAt: new Date().toISOString(),
+        selector: 'selector',
       };
       // @ts-expect-error - test access to private method
       const result = await server.verifyDelegation({
@@ -778,9 +859,9 @@ export default function () {
         from: 'from$domain.com',
         to: 'to$domain.com',
         issuedAt: new Date().toISOString(),
-        signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+        signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
         encryption: null,
-        document: {},
+        document: 'document',
         delegation,
       });
       expect(result.isValid).toBe(false);
@@ -794,16 +875,18 @@ export default function () {
       // @ts-expect-error - test access to private method
       const result = await server.verifySignature({
         artifact: {
+          version: '1.0.0',
           id: 'id',
           type: 'TRUST_REQ',
           from: 'from$domain.com',
           to: 'to$domain.com',
           issuedAt: new Date().toISOString(),
-          signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+          signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
           encryption: null,
-          document: {},
+          document: 'document',
+          selector: 'selector',
         },
-        isAgentArtifact: false,
+        type: 'transporter',
       });
       expect(result.isValid).toBe(false);
     });
@@ -829,32 +912,36 @@ export default function () {
       // @ts-expect-error - test access to private method
       const res1 = await server.verifyTrust({
         artifact: {
+          version: '1.0.0',
           id: 'id',
           type: 'TRUST_RES',
           from: 'from$domain.com',
           to: 'to$domain.com',
           issuedAt: new Date().toISOString(),
-          signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+          signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
           encryption: null,
-          document: {},
+          document: 'document',
+          selector: 'selector',
         },
-        isAgentArtifact: false,
+        type: 'transporter',
       });
       expect(res1.isTrusted).toBe(true);
 
       // @ts-expect-error - test access to private method
       const res2 = await server.verifyTrust({
         artifact: {
+          version: '1.0.0',
           id: 'id',
           type: 'TRUST_REQ',
           from: 'from$domain.com',
           to: 'to$domain.com',
           issuedAt: new Date().toISOString(),
-          signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+          signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
           encryption: null,
-          document: {},
+          document: 'document',
+          selector: 'selector',
         },
-        isAgentArtifact: false,
+        type: 'transporter',
       });
       expect(res2.isTrusted).toBe(true);
     });
@@ -869,7 +956,7 @@ export default function () {
           from: 'from$domain.com',
           to: 'to$domain.com',
           issuedAt: new Date().toISOString(),
-          signature: { algorithm: 'sha256', value: 'v', fingerprint: 'f' },
+          signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
           encryption: null,
           document: {},
         }),
@@ -899,6 +986,7 @@ export default function () {
           connection: TEST_FILE,
           entityName: 'trusted_sender',
         }),
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
       });
 
       await server.start();
@@ -936,7 +1024,7 @@ export default function () {
           console.log('📨 sendError called with:', error);
           server['sendBtpsError'](mockSocket, error);
         },
-        sendRes: (response: { type: string; status: { code: number; message: string } }) => {
+        sendRes: (response: BTPServerResponse) => {
           console.log('📨 sendRes called with:', response);
           server['sendBtpsResponse'](mockSocket, response);
         },
@@ -957,14 +1045,21 @@ export default function () {
       // Create test data for an agent artifact with respondNow = true
       const testData: ProcessedArtifact = {
         artifact: {
+          version: '1.0.0',
+          issuedAt: new Date().toISOString(),
+          encryption: null,
           id: 'test-id',
           agentId: 'test-agent',
           action: 'auth.request',
           to: 'test-to',
-          signature: 'test-signature',
-          document: { publicKey: 'test-key' },
-        } as BTPAgentArtifact,
-        isAgentArtifact: true,
+          signature: {
+            algorithmHash: 'sha256',
+            value: 'test-signature',
+            fingerprint: 'test-fingerprint',
+          },
+          document: 'test-document',
+        } as unknown as BTPAgentArtifact,
+        type: 'agent',
         respondNow: true,
       };
 
@@ -1025,6 +1120,7 @@ export default function () {
       const server = new BtpsServer({
         port: 3443,
         trustStore: new DummyTrustStore(),
+        serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
       });
 
       // Simulate artifacts signed with different selectors

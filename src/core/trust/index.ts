@@ -5,7 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import crypto from 'crypto';
+import { createHash } from 'crypto';
 import {
   BTP_ERROR_TRUST_ALREADY_ACTIVE,
   BTP_ERROR_TRUST_BLOCKED,
@@ -74,7 +74,7 @@ export const validateTrustRequest = (
  */
 export function computeTrustId(senderId: string, receiverId: string): string {
   const input = `${senderId}:${receiverId}`.toLowerCase(); // Ensure consistent direction-sensitive format
-  const hash = crypto.createHash('sha256').update(input).digest('hex');
+  const hash = createHash('sha256').update(input).digest('hex');
   return hash;
 }
 

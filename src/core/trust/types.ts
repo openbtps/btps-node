@@ -5,10 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-export interface TrustStoreOptions {
-  connection: unknown; // could be file path, MongoClient, Sequelize, etc.
-  entityName?: string; // e.g. 'trustedSenders', 'trust_rejections'
-}
+import { BTPStorageRecord } from '@core/storage/types.js';
 
 export type BTPTrustStatus = 'accepted' | 'rejected' | 'revoked' | 'pending' | 'blocked';
 export type BTPTrustDecisionType = Exclude<BTPTrustStatus, 'pending'>;
@@ -21,12 +18,10 @@ export type KeyHistory = {
   lastSeen: string; // date and time it was last used by the identity
 };
 
-export type BTPTrustRecord = {
-  id: string; // unique trust id in format 'from:to'using computeTrustId
+export type BTPTrustRecord = Omit<BTPStorageRecord, 'updatedAt'> & {
   senderId: string; // unique btps from identity in format 'user$domain.com
   receiverId: string; // unique btps to identity in format 'user$domain.com
   status: BTPTrustStatus; // current trust status
-  createdAt: string; // trust record creation date and time in ISO Format
   decidedBy: string; // Name | Initial | email of the deciding authoritarian person
   decidedAt: string; // date and time of the decision made in ISO Format
   expiresAt?: string; // @optional expiry date of the trust record in ISO Format

@@ -9,8 +9,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
-import { BTPTrustRecord } from '../types';
-import JsonTrustStore from './JsonTrustStore';
+import { BTPTrustRecord } from '../types.js';
+import JsonTrustStore from './JsonTrustStore.js';
 import { computeTrustId } from '../index.js';
 
 const TEST_FILE = path.join(__dirname, 'test-trust-store.json');

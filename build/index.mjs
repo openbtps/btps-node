@@ -29,7 +29,7 @@ const __dirname = path.dirname(__filename);
       bundle: false,
       platform: 'node',
       sourcemap: false,
-      tsconfig: './tsconfig.json',
+      tsconfig: './tsconfig.build.json',
       logLevel: 'silent',
       minifySyntax: true,
       plugins: [

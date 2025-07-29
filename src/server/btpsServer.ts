@@ -28,15 +28,30 @@ import {
   BTP_ERROR_DELEGATION_INVALID,
   BTP_ERROR_ATTESTATION_VERIFICATION,
   BTP_ERROR_SOCKET_TIMEOUT,
+  BTP_ERROR_IDENTITY_NOT_FOUND,
+  BTP_ERROR_UNKNOWN,
 } from '@core/error/constant.js';
-import { getFingerprintFromPem, verifySignature } from '@core/crypto/index.js';
-import { base64ToPem, isBtpsTransportArtifact, resolvePublicKey } from '@core/utils/index.js';
+import {
+  getFingerprintFromPem,
+  PemKeys,
+  signBtpPayload,
+  verifySignature,
+} from '@core/crypto/index.js';
+import {
+  base64ToPem,
+  isDelegationAllowed,
+  computeId,
+  isBtpsIdentityRequest,
+  isBtpsTransportArtifact,
+  resolvePublicKey,
+} from '@core/utils/index.js';
 import { BTPError } from '@core/error/types.js';
 import {
   BTPAgentArtifact,
   BTPAttestation,
   BTPAuthReqDoc,
   BTPDelegation,
+  BTPIdentityLookupRequest,
   BTPServerResponse,
   BTPStatus,
   BTPTransporterArtifact,
@@ -52,12 +67,15 @@ import {
   ProcessedArtifact,
   ArtifactResCtx,
   BTPContext,
+  PreProcessedArtifact,
 } from './types.js';
 import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { validate } from '@core/utils/validation.js';
 import { MiddlewareManager } from './libs/middlewareManager.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
+import { BTPIdentityRecord } from '@core/storage/types.js';
+import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 
 /**
  * BTPS Secure Server over TLS (btps://)
@@ -65,7 +83,9 @@ import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js'
  */
 export class BtpsServer {
   private readonly tlsOptions?: TlsOptions;
+  private readonly serverIdentity: BtpsServerOptions['serverIdentity'];
   private readonly onError?: (err: BTPErrorException) => void;
+  private readonly identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   private readonly trustStore: AbstractTrustStore<BTPTrustRecord>;
   private readonly middlewareManager: MiddlewareManager;
   private readonly connectionTimeoutMs: number;
@@ -75,11 +95,17 @@ export class BtpsServer {
   private emitter = new EventEmitter();
   private handlerFn: ((data: ProcessedArtifact) => Promise<void>) | null = null;
 
+  /**
+   * Creates a new BtpsServer instance
+   * @param options - The server options
+   */
   constructor(options: BtpsServerOptions) {
+    this.serverIdentity = options.serverIdentity;
     this.port = options.port ?? 3443;
     this.onError = options.onError;
     this.tlsOptions = options.options;
     this.trustStore = options.trustStore;
+    this.identityStore = options.identityStore;
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 30000;
     this.middlewareManager = new MiddlewareManager(options.middlewarePath);
 
@@ -98,6 +124,7 @@ export class BtpsServer {
   private async initialize(): Promise<void> {
     const dependencies = {
       trustStore: this.trustStore,
+      identityStore: this.identityStore,
     };
 
     await this.middlewareManager.loadMiddleware(dependencies);
@@ -167,7 +194,6 @@ export class BtpsServer {
         const parseErrException: BTPErrorException | undefined = parseError
           ? new BTPErrorException(parseError)
           : undefined;
-
         /*
          * reqId may be not available in the after parsing middleware
          * but we need to set it here incase if parsing is successful
@@ -192,6 +218,14 @@ export class BtpsServer {
           const errorToSend = parseError ?? BTP_ERROR_INVALID_JSON;
           return this.sendBtpsError(socket, errorToSend);
         }
+
+        if (data.type === 'identityLookup') {
+          return this.handleIdentityLookup(data.artifact, {
+            req: parseReq,
+            res: parseRes,
+          });
+        }
+
         const reqCtx: BTPRequestCtx<'before', 'signatureVerification'> = { ...parseReq, data };
         const resCtx: BTPResponseCtx<'before', 'signatureVerification'> = {
           ...parseRes,
@@ -244,6 +278,58 @@ export class BtpsServer {
   }
 
   /**
+   * Handles an identity lookup request
+   * @param artifact - The identity lookup request artifact
+   * @param context - The request and response context
+   */
+  private async handleIdentityLookup(
+    artifact: BTPIdentityLookupRequest,
+    context: {
+      req: BTPRequestCtx;
+      res: BTPResponseCtx;
+    },
+  ) {
+    const { res } = context;
+    const { identity, hostSelector, identitySelector } = artifact;
+
+    const computedId = computeId(identity);
+    const identityRecord = await this.identityStore?.getPublicKeyRecord(
+      computedId,
+      identitySelector,
+    );
+    if (!identityRecord) return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND);
+
+    const { createdAt, ...restRecord } = identityRecord;
+    const data: BTPServerResponse = {
+      ...this.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }, res.reqId),
+      type: 'btps_response',
+      selector: hostSelector,
+      document: restRecord,
+      signedBy: this.serverIdentity.identity,
+    };
+
+    const serverPemKeys: PemKeys = {
+      publicKey: this.serverIdentity.publicKey,
+      privateKey: this.serverIdentity.privateKey,
+    };
+
+    try {
+      const signature = signBtpPayload(data, serverPemKeys);
+      this.sendBtpsResponse(res.socket, {
+        ...data,
+        signature,
+      });
+    } catch (error) {
+      const err = transformToBTPErrorException(error);
+      const newErr = new BTPErrorException(BTP_ERROR_UNKNOWN, {
+        cause: err,
+        meta: data,
+      });
+      return this.handleOnSocketError(newErr, context);
+    }
+  }
+
+  /**
    * Executes the complete request pipeline with middleware support
    * use this method inside try catch block to handle errors
    * use this method inside handleConnection method
@@ -261,9 +347,8 @@ export class BtpsServer {
     if (beforeSigVerResponseSent) return; // Response already sent, stop processing
 
     // Core signature verification (non-negotiable)
-    // artifact is not undefined as it is checked in the parent handleConnection method
     const { data } = reqCtx;
-    const { isValid, error: verificationError } = await this.verifySignature(data!);
+    const { isValid, error: verificationError } = await this.verifySignature(data);
     reqCtx.isValid = isValid;
     if (verificationError) reqCtx.error = verificationError;
 
@@ -288,7 +373,7 @@ export class BtpsServer {
     if (beforeTrustVerResponseSent) return; // Response already sent, stop processing
 
     // Core trust verification (non-negotiable)
-    const { isTrusted, error: trustError } = await this.verifyTrust(data!);
+    const { isTrusted, error: trustError } = await this.verifyTrust(data);
     reqCtx.isTrusted = isTrusted;
     if (trustError) reqCtx.error = trustError;
 
@@ -313,7 +398,7 @@ export class BtpsServer {
     if (beforeOnArtifactResponseSent) return; // Response already sent, stop processing
 
     // Core message processing (non-negotiable)
-    const isResponseSent = await this.processMessage(data!, resCtx, reqCtx);
+    const isResponseSent = await this.processMessage(data, resCtx, reqCtx);
     if (isResponseSent) return; // Response already sent, stop processing
 
     // Execute after onArtifact middleware (if any)
@@ -349,6 +434,7 @@ export class BtpsServer {
       const context: MiddlewareContext = {
         dependencies: {
           trustStore: this.trustStore,
+          identityStore: this.identityStore,
         },
         config: mw.config?.options ?? {},
         serverInstance: this,
@@ -567,6 +653,15 @@ export class BtpsServer {
       delegation: BTPDelegation;
     },
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
+    /* If the artifact is not allowed to be delegated, return an error */
+    if (!isDelegationAllowed(artifactWithDelegation)) {
+      return {
+        isValid: false,
+        error: new BTPErrorException(BTP_ERROR_DELEGATION_INVALID, {
+          cause: 'Delegation is not allowed',
+        }),
+      };
+    }
     const { delegation, ...restArtifact } = artifactWithDelegation;
     const isAttestationRequired = delegation.signedBy === artifactWithDelegation.from;
 
@@ -648,8 +743,8 @@ export class BtpsServer {
   private async verifySignature(
     data: ProcessedArtifact,
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
-    const { artifact, isAgentArtifact } = data;
-    if (isAgentArtifact) return this.verifyAgentSignature(artifact);
+    const { artifact, type } = data;
+    if (type === 'agent') return this.verifyAgentSignature(artifact);
 
     // check delegation
     if (artifact.delegation) {
@@ -674,9 +769,9 @@ export class BtpsServer {
   private async verifyTrust(
     data: ProcessedArtifact,
   ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
-    const { artifact, isAgentArtifact } = data;
+    const { artifact, type } = data;
 
-    if (isAgentArtifact) return this.verifyAgentTrust(artifact);
+    if (type === 'agent') return this.verifyAgentTrust(artifact);
 
     if (artifact.type === 'TRUST_RES') {
       const { isValid, error } = await validateTrustResponse(
@@ -750,9 +845,9 @@ export class BtpsServer {
     resCtx: BTPResponseCtx,
     reqCtx: BTPRequestCtx,
   ): Promise<boolean> {
-    const { artifact, isAgentArtifact } = data;
+    const { artifact, type } = data;
 
-    if (isAgentArtifact) {
+    if (type === 'agent') {
       const { respondNow } = data;
       await this.awaitableEmitIfNeeded('agentArtifact', respondNow === true, reqCtx, resCtx, {
         ...artifact,
@@ -769,8 +864,13 @@ export class BtpsServer {
     return false;
   }
 
+  /**
+   * Parses and validates an artifact from a string
+   * @param line - The string to parse
+   * @returns The parsed and validated artifact or an error
+   */
   private _parseAndValidateArtifact(line: string): {
-    data?: ProcessedArtifact;
+    data?: PreProcessedArtifact;
     error?: 'JSON' | 'VALIDATION';
   } {
     try {
@@ -778,30 +878,47 @@ export class BtpsServer {
       const validationResult = validate(BtpArtifactServerSchema, data);
       const isTransporterArtifact = isBtpsTransportArtifact(data);
 
+      const type = isTransporterArtifact
+        ? 'transporter'
+        : isBtpsIdentityRequest(data)
+          ? 'identityLookup'
+          : 'agent';
+
       if (!validationResult.success) {
         return {
           error: 'VALIDATION',
-          data: { artifact: data, isAgentArtifact: !isTransporterArtifact } as ProcessedArtifact,
+          data:
+            type === 'agent'
+              ? { artifact: data, type, respondNow: false } // Default value for agent artifacts
+              : { artifact: data, type },
         };
       }
 
       // IMPORTANT: For signature verification, always use the original data.
       // Zod may coerce, strip, or reorder fields, which will break signature verification.
       // Use validationResult.data only for type-safe business logic, not for cryptographic checks.
+
       return isTransporterArtifact
         ? {
             data: {
               artifact: data as BTPTransporterArtifact,
-              isAgentArtifact: false,
+              type: 'transporter',
             },
           }
-        : {
-            data: {
-              artifact: data as BTPAgentArtifact,
-              isAgentArtifact: true,
-              respondNow: this.isImmediateAction((data as BTPAgentArtifact).action),
-            },
-          };
+        : type === 'identityLookup'
+          ? {
+              data: {
+                artifact: data as BTPIdentityLookupRequest,
+                type: 'identityLookup',
+              },
+            }
+          : {
+              data: {
+                artifact: data as BTPAgentArtifact,
+                type: 'agent',
+                respondNow: this.isImmediateAction((data as BTPAgentArtifact).action),
+              },
+            };
     } catch {
       return { error: 'JSON' };
     }
@@ -837,6 +954,8 @@ export class BtpsServer {
     },
   ) {
     const { req, res } = context;
+
+    req.error = error;
     await this.executeMiddleware(
       this.middlewareManager.getMiddleware('before', 'onError'),
       req,

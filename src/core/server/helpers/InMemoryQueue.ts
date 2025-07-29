@@ -8,6 +8,7 @@
 import { BTPArtifact } from '@core/server/types.js';
 import { BTPSMessageQueue } from './BtpsMessageQueue.js';
 import { EventEmitter } from 'events';
+import { isBtpsIdentityRequest, isBtpsTransportArtifact } from '@core/utils/index.js';
 
 type UserScopedQueue = {
   [identity: string]: BTPArtifact[];
@@ -18,8 +19,11 @@ export class InMemoryQueue extends BTPSMessageQueue {
   private emitter = new EventEmitter();
 
   async add(message: BTPArtifact): Promise<void> {
-    const isTransporter = 'to' in message && 'from' in message;
-    const key = isTransporter ? message.to : message.agentId;
+    const key = isBtpsTransportArtifact(message)
+      ? message.to
+      : isBtpsIdentityRequest(message)
+        ? message.from
+        : message.agentId;
     if (!this.queues[key]) this.queues[key] = [];
     this.queues[key].push(message);
     this.emitter.emit('message', message);
