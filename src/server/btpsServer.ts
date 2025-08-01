@@ -30,6 +30,7 @@ import {
   BTP_ERROR_SOCKET_TIMEOUT,
   BTP_ERROR_IDENTITY_NOT_FOUND,
   BTP_ERROR_UNKNOWN,
+  BTP_ERROR_INVALID_ACTION,
 } from '@core/error/constant.js';
 import {
   getFingerprintFromPem,
@@ -44,12 +45,15 @@ import {
   isBtpsIdentityRequest,
   isBtpsTransportArtifact,
   resolvePublicKey,
+  isBtpsControlArtifact,
+  isBtpsAgentArtifact,
 } from '@core/utils/index.js';
 import { BTPError } from '@core/error/types.js';
-import {
+import type {
   BTPAgentArtifact,
   BTPAttestation,
   BTPAuthReqDoc,
+  BTPControlArtifact,
   BTPDelegation,
   BTPIdentityLookupRequest,
   BTPServerResponse,
@@ -58,7 +62,7 @@ import {
 } from '@core/server/types.js';
 import { BTPErrorException, transformToBTPErrorException } from '@core/error/index.js';
 import { BTP_PROTOCOL_VERSION, IMMEDIATE_ACTIONS } from '../core/server/constants/index.js';
-import {
+import type {
   BtpsServerOptions,
   BTPRequestCtx,
   BTPResponseCtx,
@@ -68,14 +72,15 @@ import {
   ArtifactResCtx,
   BTPContext,
   PreProcessedArtifact,
+  BtpsErrorAction,
 } from './types.js';
-import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
+import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { validate } from '@core/utils/validation.js';
 import { MiddlewareManager } from './libs/middlewareManager.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
-import { BTPIdentityRecord } from '@core/storage/types.js';
-import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
+import type { BTPIdentityRecord } from '@core/storage/types.js';
+import type { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 
 /**
  * BTPS Secure Server over TLS (btps://)
@@ -131,6 +136,81 @@ export class BtpsServer {
     await this.middlewareManager.onServerStart();
   }
 
+  private async updateIdentityInfo(
+    data: PreProcessedArtifact | undefined,
+    identityRef: {
+      update: (to: string, from: string) => void;
+      get: () => { to?: string; from?: string };
+    },
+    remoteAddress: string,
+  ): Promise<{ to: string; from: string }> {
+    const { update, get } = identityRef;
+    const { to: currentTo, from: currentFrom } = get();
+
+    /*
+     * If the identity is already set, return it
+     * This is to avoid updating the identity if the identity is already set for current connection
+     */
+    if (
+      typeof currentTo === 'string' &&
+      typeof currentFrom === 'string' &&
+      currentTo !== 'unknown' &&
+      currentFrom
+    ) {
+      return {
+        to: currentTo,
+        from: currentFrom,
+      };
+    }
+
+    const { type, artifact } = data || {};
+    const updatedTo = currentTo ?? 'unknown';
+    const updatedFrom = currentFrom ?? remoteAddress;
+    if (!artifact) {
+      update(updatedTo, updatedFrom);
+      return {
+        to: updatedTo,
+        from: updatedFrom,
+      };
+    }
+
+    if (!type) {
+      const fromMaybe = (artifact as unknown as { from?: string })?.from ?? updatedFrom;
+      const toMaybe = (artifact as unknown as { to?: string })?.to ?? updatedTo;
+      update(toMaybe, fromMaybe);
+      return {
+        to: toMaybe,
+        from: fromMaybe,
+      };
+    }
+
+    let to: string;
+    let from: string;
+    switch (type) {
+      case 'agent':
+        to = artifact.to;
+        from = artifact.agentId;
+        break;
+      case 'transporter':
+        to = artifact.to;
+        from = artifact.from;
+        break;
+      case 'identityLookup':
+        to = artifact.identity;
+        from = artifact.from;
+        break;
+      case 'control':
+        to = updatedTo;
+        from = updatedFrom;
+        break;
+    }
+    update(to, from);
+    return {
+      to,
+      from,
+    };
+  }
+
   /**
    * Handles an incoming TLS socket connection.
    *
@@ -154,12 +234,36 @@ export class BtpsServer {
       remoteAddress: ipAddress,
       startTime,
     };
+    let responseSent: boolean = false;
+    let fromIdentity: string | undefined = undefined;
+    let toIdentity: string | undefined = undefined;
 
-    const reqCtx: BTPRequestCtx<'before', 'parsing'> = { ...context };
+    const identityRef = {
+      update: (to: string, from: string) => {
+        toIdentity = to;
+        fromIdentity = from;
+      },
+      get: () => ({ to: toIdentity, from: fromIdentity }),
+    };
+
+    const reqCtx: BTPRequestCtx<'before', 'parsing'> = { ...context, getIdentity: identityRef.get };
     const resCtx: BTPResponseCtx<'before', 'parsing'> = {
       ...context,
-      sendRes: (response) => this.sendBtpsResponse(socket, response),
-      sendError: (error) => this.sendBtpsError(socket, error),
+      sendRes: (response) => {
+        if (!responseSent) {
+          responseSent = true;
+        }
+        this.sendBtpsResponse(socket, response);
+      },
+      sendError: (error, reqId, action) => {
+        if (!responseSent) {
+          responseSent = true;
+        }
+        this.sendBtpsError(socket, error, reqId, action);
+      },
+      get responseSent() {
+        return responseSent;
+      },
     };
 
     // Data event handler
@@ -194,6 +298,7 @@ export class BtpsServer {
         const parseErrException: BTPErrorException | undefined = parseError
           ? new BTPErrorException(parseError)
           : undefined;
+
         /*
          * reqId may be not available in the after parsing middleware
          * but we need to set it here incase if parsing is successful
@@ -204,6 +309,9 @@ export class BtpsServer {
         parseRes.sendRes = (response) =>
           this.sendBtpsResponse(socket, { ...response, reqId: data?.artifact?.id });
         parseRes.sendError = (error) => this.sendBtpsError(socket, error, data?.artifact?.id);
+
+        // Get identity info from the artifact
+        await this.updateIdentityInfo(data, identityRef, ipAddress);
 
         const afterParseResponseSent = await this.executeMiddleware(
           this.middlewareManager.getMiddleware('after', 'parsing'),
@@ -219,6 +327,13 @@ export class BtpsServer {
           return this.sendBtpsError(socket, errorToSend);
         }
 
+        if (data.type === 'control') {
+          return this.handleControl(data.artifact, {
+            req: parseReq,
+            res: parseRes,
+          });
+        }
+
         if (data.type === 'identityLookup') {
           return this.handleIdentityLookup(data.artifact, {
             req: parseReq,
@@ -226,7 +341,11 @@ export class BtpsServer {
           });
         }
 
-        const reqCtx: BTPRequestCtx<'before', 'signatureVerification'> = { ...parseReq, data };
+        const reqCtx: BTPRequestCtx<'before', 'signatureVerification'> = {
+          ...parseReq,
+          data,
+          getIdentity: identityRef.get as () => { to: string; from: string },
+        };
         const resCtx: BTPResponseCtx<'before', 'signatureVerification'> = {
           ...parseRes,
           reqId: data.artifact.id, // reqId must be there as its successfully parsed and validated
@@ -277,6 +396,30 @@ export class BtpsServer {
     });
   }
 
+  private async handleControl(
+    artifact: BTPControlArtifact,
+    context: {
+      req: BTPRequestCtx;
+      res: BTPResponseCtx;
+    },
+  ) {
+    const { res } = context;
+    const { action } = artifact;
+    switch (action) {
+      case 'QUIT':
+        return this.sendBtpsResponse(
+          res.socket,
+          {
+            ...this.prepareBtpsResponse({ ok: true, message: 'bye', code: 200 }, res.reqId),
+            type: 'btps_response',
+          },
+          'end',
+        );
+      default:
+        return this.sendBtpsError(res.socket, BTP_ERROR_INVALID_ACTION, res.reqId, 'end');
+    }
+  }
+
   /**
    * Handles an identity lookup request
    * @param artifact - The identity lookup request artifact
@@ -315,10 +458,14 @@ export class BtpsServer {
 
     try {
       const signature = signBtpPayload(data, serverPemKeys);
-      this.sendBtpsResponse(res.socket, {
-        ...data,
-        signature,
-      });
+      this.sendBtpsResponse(
+        res.socket,
+        {
+          ...data,
+          signature,
+        },
+        'end',
+      );
     } catch (error) {
       const err = transformToBTPErrorException(error);
       const newErr = new BTPErrorException(BTP_ERROR_UNKNOWN, {
@@ -416,6 +563,11 @@ export class BtpsServer {
     });
   }
 
+  private isResponseSent(resCtx: BTPResponseCtx): boolean {
+    const { socket, responseSent } = resCtx;
+    return socket.destroyed || socket.writableEnded || responseSent;
+  }
+
   /**
    * Executes a list of middleware functions
    * @returns true if a response was sent (flow should stop), false otherwise
@@ -427,9 +579,7 @@ export class BtpsServer {
   ): Promise<boolean> {
     for (const mw of middleware) {
       // Check if socket is already destroyed before executing middleware
-      if (req.socket.destroyed || req.socket.writableEnded) {
-        return true; // Socket destroyed, response already sent
-      }
+      if (this.isResponseSent(res)) return true;
 
       const context: MiddlewareContext = {
         dependencies: {
@@ -453,9 +603,7 @@ export class BtpsServer {
 
       // Check if socket was destroyed after middleware execution
       // This indicates sendError or sendRes was called
-      if (req.socket.destroyed || req.socket.writableEnded) {
-        return true; // Response was sent, stop all further processing
-      }
+      if (this.isResponseSent(res)) return true;
     }
 
     return false; // No response was sent, continue with normal flow
@@ -875,14 +1023,23 @@ export class BtpsServer {
   } {
     try {
       const data = JSON.parse(line);
-      const validationResult = validate(BtpArtifactServerSchema, data);
-      const isTransporterArtifact = isBtpsTransportArtifact(data);
 
-      const type = isTransporterArtifact
-        ? 'transporter'
-        : isBtpsIdentityRequest(data)
-          ? 'identityLookup'
-          : 'agent';
+      let type: 'agent' | 'transporter' | 'identityLookup' | 'control' | undefined;
+      if (isBtpsControlArtifact(data)) {
+        type = 'control';
+      } else if (isBtpsTransportArtifact(data)) {
+        type = 'transporter';
+      } else if (isBtpsIdentityRequest(data)) {
+        type = 'identityLookup';
+      } else if (isBtpsAgentArtifact(data)) {
+        type = 'agent';
+      }
+
+      if (!type) {
+        return { error: 'VALIDATION', data };
+      }
+
+      const validationResult = validate(BtpArtifactServerSchema, data);
 
       if (!validationResult.success) {
         return {
@@ -898,27 +1055,24 @@ export class BtpsServer {
       // Zod may coerce, strip, or reorder fields, which will break signature verification.
       // Use validationResult.data only for type-safe business logic, not for cryptographic checks.
 
-      return isTransporterArtifact
-        ? {
+      switch (type) {
+        case 'transporter':
+          return { data: { artifact: data as BTPTransporterArtifact, type } };
+        case 'identityLookup':
+          return { data: { artifact: data as BTPIdentityLookupRequest, type } };
+        case 'agent':
+          return {
             data: {
-              artifact: data as BTPTransporterArtifact,
-              type: 'transporter',
+              artifact: data as BTPAgentArtifact,
+              type,
+              respondNow: this.isImmediateAction((data as BTPAgentArtifact).action),
             },
-          }
-        : type === 'identityLookup'
-          ? {
-              data: {
-                artifact: data as BTPIdentityLookupRequest,
-                type: 'identityLookup',
-              },
-            }
-          : {
-              data: {
-                artifact: data as BTPAgentArtifact,
-                type: 'agent',
-                respondNow: this.isImmediateAction((data as BTPAgentArtifact).action),
-              },
-            };
+          };
+        case 'control':
+          return { data: { artifact: data as BTPControlArtifact, type } };
+        default:
+          return { error: 'VALIDATION', data: undefined };
+      }
     } catch {
       return { error: 'JSON' };
     }
@@ -963,7 +1117,7 @@ export class BtpsServer {
     );
 
     this.onError?.(error);
-    this.sendBtpsError(req.socket, error, res.reqId);
+    this.sendBtpsError(req.socket, error, res.reqId, 'destroy');
     if (!req.socket.destroyed) {
       req.socket.destroy(); // Immediate teardown to prevent further resource usage
     }
@@ -978,7 +1132,12 @@ export class BtpsServer {
   /**
    * Sends a BTPS error response to the client
    */
-  private async sendBtpsError(socket: TLSSocket, error: BTPError, reqId?: string) {
+  private async sendBtpsError(
+    socket: TLSSocket,
+    error: BTPError,
+    reqId?: string,
+    action?: BtpsErrorAction,
+  ) {
     const response = this.prepareBtpsResponse(
       {
         ok: false,
@@ -988,10 +1147,14 @@ export class BtpsServer {
       reqId,
     );
 
-    this.sendBtpsResponse(socket, {
-      ...response,
-      type: 'btps_error',
-    });
+    this.sendBtpsResponse(
+      socket,
+      {
+        ...response,
+        type: 'btps_error',
+      },
+      action,
+    );
   }
 
   /**
@@ -999,7 +1162,11 @@ export class BtpsServer {
    * @param socket - The socket to send the response to
    * @param artifact - The artifact to send
    */
-  private sendBtpsResponse(socket: TLSSocket, artifact: BTPServerResponse) {
+  private sendBtpsResponse(
+    socket: TLSSocket,
+    artifact: BTPServerResponse,
+    action?: BtpsErrorAction,
+  ) {
     if (socket.destroyed || socket.writableEnded) return;
 
     // Validate the response artifact using Zod schema
@@ -1017,7 +1184,17 @@ export class BtpsServer {
     try {
       socket.write(JSON.stringify(artifact) + '\n');
       this.middlewareManager.onResponseSent(artifact);
-      socket.end(); // Graceful close
+      if (action) {
+        if (action === 'destroy') {
+          socket.destroy();
+        } else {
+          socket.end(); // Graceful close
+          // If the socket is not destroyed after the timeout, destroy it
+          setTimeout(() => {
+            if (!socket.destroyed) socket.destroy();
+          }, this.connectionTimeoutMs);
+        }
+      }
     } catch (err) {
       this.onError?.(transformToBTPErrorException(err));
       if (!socket.destroyed) socket.destroy();

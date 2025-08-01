@@ -8,6 +8,8 @@
 import { resolveTxt } from 'dns/promises';
 import { ParsedIdentity } from './types.js';
 import {
+  BTPControlArtifact,
+  BTPAgentArtifact,
   BTPIdentityLookupRequest,
   BTPS_DNS_NAME_SPACE,
   BTPTransporterArtifact,
@@ -175,6 +177,38 @@ export const isBtpsTransportArtifact = (artifact: unknown): artifact is BTPTrans
 
   const maybe = artifact as Partial<BTPTransporterArtifact>;
   return typeof maybe.from === 'string' && typeof maybe.type === 'string' && !('agentId' in maybe);
+};
+
+export const isBtpsAgentArtifact = (artifact: unknown): artifact is BTPAgentArtifact => {
+  if (typeof artifact !== 'object' || artifact === null) {
+    return false;
+  }
+  const maybe = artifact as Partial<BTPAgentArtifact>;
+  return (
+    typeof maybe.to === 'string' &&
+    typeof maybe.action === 'string' &&
+    'agentId' in maybe &&
+    'signature' in maybe
+  );
+};
+
+/**
+ * Checks if the artifact is a BTP control artifact
+ * @param artifact - The artifact to check
+ * @returns True if the artifact is a BTP control artifact, false otherwise
+ */
+export const isBtpsControlArtifact = (artifact: unknown): artifact is BTPControlArtifact => {
+  if (typeof artifact !== 'object' || artifact === null) {
+    return false;
+  }
+  const maybe = artifact as Partial<BTPControlArtifact>;
+  return (
+    typeof maybe.action === 'string' &&
+    !('agentId' in maybe) &&
+    !('document' in maybe) &&
+    !('signature' in maybe) &&
+    !('to' in maybe)
+  );
 };
 
 /**

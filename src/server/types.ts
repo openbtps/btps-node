@@ -11,6 +11,7 @@ import { BTPTrustRecord } from '@core/trust/index.js';
 import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import {
   BTPAgentArtifact,
+  BTPControlArtifact,
   BTPIdentityLookupRequest,
   BTPServerResponse,
   BTPTransporterArtifact,
@@ -62,13 +63,14 @@ export interface MiddlewareContext {
   currentTime: string;
 }
 
+export type BtpsErrorAction = 'destroy' | 'end';
 export interface BTPContext {
   socket: TLSSocket;
   startTime: string;
   remoteAddress: string;
   rawPacket?: string;
   sendRes?: (res: BTPServerResponse) => void;
-  sendError?: (err: BTPError) => void;
+  sendError?: (err: BTPError, reqId?: string, action?: BtpsErrorAction) => void;
 }
 
 export type SetRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
@@ -113,6 +115,12 @@ type HasRawPacket<P extends Phase, S extends Step> = S extends 'parsing'
     : true
   : false;
 
+type HasIdentity<P extends Phase, S extends Step> = S extends 'parsing'
+  ? P extends 'before'
+    ? false
+    : true
+  : true;
+
 // Utility type to add respondNow only for 'agent'
 type WithRespondNow<K extends string, T> = K extends 'agent'
   ? { artifact: T; type: K; respondNow: boolean }
@@ -123,6 +131,7 @@ type ArtifactMap = {
   transporter: BTPTransporterArtifact;
   agent: BTPAgentArtifact;
   identityLookup: BTPIdentityLookupRequest;
+  control: BTPControlArtifact;
 };
 
 // Mapped type for processed artifacts (subset)
@@ -150,15 +159,17 @@ type ArtifactDataType<_P extends Phase, S extends Step> = S extends 'parsing'
 export type BTPRequestCtx<P extends Phase = Phase, S extends Step = Step> = Omit<
   BTPContext,
   'sendRes' | 'sendError'
-> & {
-  from?: string;
-} & (HasRawPacket<P, S> extends true ? { rawPacket: string } : { rawPacket?: string }) &
+> &
+  (HasRawPacket<P, S> extends true ? { rawPacket: string } : { rawPacket?: string }) &
   (HasArtifact<P, S> extends true
     ? { data: ArtifactDataType<P, S> }
     : { data?: ArtifactDataType<P, S> }) &
   (HasIsValid<P, S> extends true ? { isValid: boolean } : { isValid?: boolean }) &
   (HasIsTrusted<P, S> extends true ? { isTrusted: boolean } : { isTrusted?: boolean }) &
-  (HasError<P, S> extends true ? { error: BTPErrorException } : { error?: BTPErrorException }) & {
+  (HasError<P, S> extends true ? { error: BTPErrorException } : { error?: BTPErrorException }) &
+  (HasIdentity<P, S> extends true
+    ? { getIdentity: () => { to: string; from: string } }
+    : { getIdentity: () => { to?: string; from?: string } }) & {
     // Allow middleware to add custom properties
     [key: string]: unknown;
   };
@@ -172,6 +183,7 @@ export type BTPResponseCtx<P extends Phase = Phase, S extends Step = Step> = Set
   (HasArtifact<P, S> extends true
     ? { data: ArtifactDataType<P, S> }
     : { data?: ArtifactDataType<P, S> }) & {
+    responseSent: boolean;
     // Allow middleware to add custom properties
     [key: string]: unknown;
   };

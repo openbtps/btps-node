@@ -54,12 +54,9 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
         enabled: true,
       },
       handler: async (req, res, next) => {
-        const { data, error, remoteAddress } = req;
+        const { data, error, remoteAddress, getIdentity } = req;
+        const { to, from } = getIdentity();
         if (!data) return; // Returning here only skips further middleware; the main server will handle the error response.
-        const { artifact, type } = data;
-        const from = type === 'agent' ? artifact.agentId : artifact.from;
-        const to = type === 'transporter' || type === 'agent' ? artifact.to : artifact.identity;
-
         if (error) {
           // Returning here only skips further middleware; the main server will handle the error response.
           error.code === 'BTP_ERROR_VALIDATION'
@@ -93,11 +90,8 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
         enabled: true,
       },
       handler: async (req, res, next) => {
-        const { data, error } = req;
-        const { artifact, type } = data;
-        // Check for signature verification errors first
-        const from = type === 'agent' ? artifact.agentId : artifact.from;
-        const to = artifact.to;
+        const { error, getIdentity } = req;
+        const { to, from } = getIdentity();
         if (error) {
           metrics.onMessageRejected(from, to, error.message);
           metrics.onError(error);
@@ -118,11 +112,9 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
         enabled: true,
       },
       handler: async (req, res, next) => {
-        const { data, error } = req;
-        const { artifact, type } = data;
+        const { error, getIdentity } = req;
+        const { to, from } = getIdentity();
         // Check for signature verification errors first
-        const from = type === 'agent' ? artifact.agentId : artifact.from;
-        const to = artifact.to;
         if (error) {
           metrics.onMessageRejected(from, to, error.message);
           // Returning here only skips further middleware; the main server will handle the error response.
@@ -142,10 +134,8 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
         enabled: true,
       },
       handler: async (req, _res, next) => {
-        const { data } = req;
-        const { artifact, type } = data;
-        const from = type === 'agent' ? artifact.agentId : artifact.from;
-        const to = artifact.to;
+        const { getIdentity } = req;
+        const { to, from } = getIdentity();
 
         // artifact, isValid, and isTrusted are guaranteed to be present before onMessage
         if (from && to) {

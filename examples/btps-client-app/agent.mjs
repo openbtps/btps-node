@@ -6,17 +6,17 @@ const privateKey = readFileSync('./keys/finance/finance-private.pem');
 
 const btpsAgent = new BtpsAgent({
   identity: 'finance$ebilladdress.com',
-  bptIdentityCert: publicKey,
-  btpIdentityKey: privateKey,
-  connectionTimeoutMs: 20000,
-  maxRetries: 0,
+  bptIdentityCert: publicKey.toString('utf8'),
+  btpIdentityKey: privateKey.toString('utf8'),
+  connectionTimeoutMs: 30000,
+  maxRetries: 5,
   retryDelayMs: 500,
   btpMtsOptions: {
     rejectUnauthorized: false,
   },
   host: 'localhost',
   port: 3443,
-  agentId: 'testingAgent123',
+  agentId: 'btp_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
 });
 
 (async () => {
@@ -39,10 +39,71 @@ const btpsAgent = new BtpsAgent({
   //     },
   //   },
   // );
-  const data = await btpsAgent.command('inbox.fetch', 'finance$ebilladdress.com', {
-    limit: 10,
-    sort: 'asc',
-  });
+
+  // btpsAgent.connect('finance$ebilladdress.com', (events) => {
+  //   events.on('connected', () => {
+  //     console.log('connected');
+  //   });
+  // });
+  // console.log('current listeners', btpsAgent.getListeners());
+  // const data = await btpsAgent.command('inbox.fetch', 'finance$ebilladdress.com', {
+  //   limit: 10,
+  //   sort: 'asc',
+  // });
+
+  // console.log('data:', data);
+
+  // setTimeout(async () => {
+  //   console.log('current listeners after 5 seconds', btpsAgent.getListeners());
+  //   const data2 = await btpsAgent.command('inbox.fetch', 'finance$ebilladdress.com', {
+  //     limit: 10,
+  //     sort: 'asc',
+  //   });
+
+  //   console.log('data2:', data2);
+  //   setTimeout(() => {
+  //     console.log('current listeners after 5 seconds', btpsAgent.getListeners());
+  //   }, 5000);
+  // }, 5000);
+
+  const promises = [];
+  promises.push(
+    btpsAgent.command('inbox.fetch', 'finance$ebilladdress.com', {
+      limit: 10,
+      sort: 'asc',
+    }),
+  );
+  promises.push(
+    btpsAgent.command('inbox.fetch', 'hr$ebilladdress.com', {
+      limit: 13,
+      sort: 'asc',
+    }),
+  );
+  promises.push(
+    btpsAgent.command('inbox.fetch', 'hr$ebilladdress.com', {
+      limit: 13,
+      sort: 'asc',
+    }),
+  );
+  promises.push(
+    btpsAgent.command('inbox.fetch', 'billing$ebilladdress.com', {
+      limit: 13,
+      sort: 'asc',
+    }),
+  );
+  promises.push(
+    btpsAgent.command('inbox.fetch', 'billing$ebilladdress.com', {
+      limit: 13,
+      sort: 'asc',
+    }),
+  );
+
+  // console.log('promises:', promises);
+  const data = await Promise.all(promises);
+
+  // setTimeout(() => {
+  //   console.log('current listeners after 10 seconds', btpsAgent.getListeners());
+  // }, 10000);
   // const data = await btpsClient.send({
   //   to: 'billing$ebilladdress.com',
   //   type: 'TRUST_REQ',
@@ -57,5 +118,5 @@ const btpsAgent = new BtpsAgent({
   //     message: 'Would love to able to send the document via the Btp protocol',
   //   },
   // });
-  console.log(data);
+  console.log('data', JSON.stringify(data, null, 2));
 })();

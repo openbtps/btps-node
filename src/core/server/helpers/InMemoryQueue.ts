@@ -8,7 +8,11 @@
 import { BTPArtifact } from '@core/server/types.js';
 import { BTPSMessageQueue } from './BtpsMessageQueue.js';
 import { EventEmitter } from 'events';
-import { isBtpsIdentityRequest, isBtpsTransportArtifact } from '@core/utils/index.js';
+import {
+  isBtpsControlArtifact,
+  isBtpsIdentityRequest,
+  isBtpsTransportArtifact,
+} from '@core/utils/index.js';
 
 type UserScopedQueue = {
   [identity: string]: BTPArtifact[];
@@ -23,7 +27,10 @@ export class InMemoryQueue extends BTPSMessageQueue {
       ? message.to
       : isBtpsIdentityRequest(message)
         ? message.from
-        : message.agentId;
+        : !isBtpsControlArtifact(message) && 'agentId' in message
+          ? message.agentId
+          : 'unknown-control-request';
+
     if (!this.queues[key]) this.queues[key] = [];
     this.queues[key].push(message);
     this.emitter.emit('message', message);

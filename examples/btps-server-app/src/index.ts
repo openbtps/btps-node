@@ -4,6 +4,7 @@ import { BtpsAuthentication } from '@btps/sdk/authentication';
 import { BtpsServerSingletonFactory } from '@btps/sdk/server/core';
 import { computeTrustId, JsonTrustStore } from '@btps/sdk/trust';
 import type { BTPAuthReqDoc } from '@btps/sdk/server';
+import { readFileSync } from 'fs';
 const TrustStore = new JsonTrustStore({
   connection: `${process.cwd()}/.well-known/btps-trust.json`,
   entityName: 'trusted_senders',
@@ -31,7 +32,7 @@ const Auth = new BtpsAuthentication({
 
 const authToken = BtpsAuthentication.generateAuthToken('finance$ebilladdress.com');
 console.log('authToken: ', authToken);
-Auth.storeAuthToken(authToken, 'finance$ebilladdress.com', {
+Auth.storeAuthToken(authToken, 'finance$ebilladdress.com', 'admin$ebilladdress.com', {
   requestedBy: 'admin',
   purpose: 'device_registration',
 });
@@ -53,6 +54,11 @@ const BTPsServer = BtpsServerSingletonFactory.create({
     requestCert: false,
   },
   connectionTimeoutMs: 5000,
+  serverIdentity: {
+    identity: 'hr$ebilladdress.com',
+    publicKey: readFileSync(process.cwd() + '/keys/hr/hr-public.pem').toString('utf8'),
+    privateKey: readFileSync(process.cwd() + '/keys/hr/hr-private.pem').toString('utf8'),
+  },
 });
 
 BTPsServer.start();
@@ -73,12 +79,15 @@ BTPsServer.onIncomingArtifact('Agent', async (artifact, resCtx) => {
           return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
         }
 
-        const authResponseDoc = await Auth.createAgent({
-          decidedBy: 'finance$ebilladdress.com',
-          publicKey,
-          userIdentity: identity,
-          agentInfo,
-        });
+        const authResponseDoc = await Auth.createAgent(
+          {
+            decidedBy: 'finance$ebilladdress.com',
+            publicKey,
+            userIdentity: identity,
+            agentInfo,
+          },
+          'hr$ebilladdress.com',
+        );
 
         return resCtx.sendRes({
           ...BTPsServer.prepareBtpsResponse(
@@ -103,6 +112,7 @@ BTPsServer.onIncomingArtifact('Agent', async (artifact, resCtx) => {
           agentId,
           authDoc.authToken,
           {
+            decryptBy: 'hr$ebilladdress.com',
             decidedBy: 'admin$ebilladdress.com',
             publicKey: authDoc.publicKey,
             agentInfo: authDoc?.agentInfo ?? {},
@@ -131,5 +141,5 @@ BTPsServer.onIncomingArtifact('Agent', async (artifact, resCtx) => {
     }
   }
 
-  // console.log('INCOMING AGENT ARTIFACT', JSON.stringify(artifact, null, 2));
+  console.log('INCOMING AGENT ARTIFACT', JSON.stringify(artifact, null, 2));
 });

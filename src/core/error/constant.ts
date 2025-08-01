@@ -62,6 +62,11 @@ export const BTP_ERROR_RATE_LIMITER: BTPError = {
   message: 'Too many request than its allowed',
 };
 
+export const BTP_ERROR_INVALID_ACTION: BTPError = {
+  code: 'BTP_ERROR_INVALID_ACTION',
+  message: 'Invalid action',
+};
+
 export const BTP_ERROR_INVALID_JSON = {
   code: 'BTP_ERROR_INVALID_JSON',
   message: 'Invalid JSON format',

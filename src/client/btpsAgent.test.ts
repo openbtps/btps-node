@@ -7,12 +7,12 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EventEmitter } from 'events';
-import { BtpsAgent } from './btpsAgent';
-import { BTPErrorException, BTP_ERROR_VALIDATION } from '../core/error/index';
-import * as utils from '../core/utils/index';
-import * as crypto from '../core/crypto/index';
-import { BTPDocType } from '../core/server/types';
-import { BtpsClientOptions } from './types/index';
+import { BtpsAgent } from './btpsAgent.js';
+import { BTPErrorException, BTP_ERROR_VALIDATION } from '../core/error/index.js';
+import * as utils from '../core/utils/index.js';
+import * as crypto from '../core/crypto/index.js';
+import { BTPDocType } from '../core/server/types.js';
+import { BtpsClientOptions } from './types/index.js';
 
 // --- Mocks ---
 vi.mock('../core/utils/index');
@@ -73,6 +73,7 @@ describe('BtpsAgent', () => {
     };
 
     mockUtils.getHostAndSelector.mockResolvedValue({
+      version: '1.0.0',
       host: 'server.example.com',
       selector: 'btps1',
     });
@@ -96,6 +97,8 @@ describe('BtpsAgent', () => {
         document: {} as BTPDocType,
         signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
         encryption: null,
+        version: '1.0.0',
+        selector: 'btps1',
       },
       error: undefined,
     });

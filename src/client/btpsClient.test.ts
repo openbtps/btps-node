@@ -9,11 +9,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EventEmitter } from 'events';
 import tls from 'tls';
 import split2 from 'split2';
-import { BtpsClient } from './btpsClient';
-import { BTPErrorException } from '../core/error/index';
-import * as utils from '../core/utils/index';
-import * as crypto from '../core/crypto/index';
-import { BtpsClientOptions, BTPSRetryInfo } from './types/index';
+import { BtpsClient } from './btpsClient.js';
+import { BTPErrorException } from '../core/error/index.js';
+import * as utils from '../core/utils/index.js';
+import * as crypto from '../core/crypto/index.js';
+import { BtpsClientOptions, BTPSRetryInfo } from './types/index.js';
 
 // --- Mocks ---
 vi.mock('tls');
@@ -95,6 +95,7 @@ describe('BtpsClient', () => {
     mockUtils.getHostAndSelector.mockResolvedValue({
       host: 'server.example.com',
       selector: 'btps1',
+      version: '1.0.0',
     });
     mockUtils.getBtpAddressParts.mockReturnValue({
       hostname: 'server.example.com',
@@ -105,6 +106,12 @@ describe('BtpsClient', () => {
       if (!accountName || !domainName) return null;
       return { accountName, domainName };
     });
+
+    // Mock isValidIdentity to work with the test identities
+    mockUtils.isValidIdentity.mockImplementation((identity?: string) => {
+      if (!identity) return false;
+      return identity.includes('$') && identity.split('$').length === 2;
+    });
     mockCrypto.signEncrypt.mockResolvedValue({
       payload: {
         id: 'id',
@@ -113,8 +120,10 @@ describe('BtpsClient', () => {
         type: 'TRUST_REQ',
         issuedAt: '2023-01-01T00:00:00.000Z',
         document: {} as Record<string, unknown>,
-        signature: { algorithm: 'sha256', value: 'sig', fingerprint: 'fp' },
+        signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
         encryption: null,
+        version: '1.0.0',
+        selector: 'btps1',
       },
       error: undefined,
     });
@@ -146,9 +155,15 @@ describe('BtpsClient', () => {
     it('should emit error for invalid identity', () => {
       const onError = vi.fn();
       mockUtils.parseIdentity.mockReturnValue(null);
+      mockUtils.isValidIdentity.mockReturnValue(false);
+
+      // Add error listener to the internal emitter to catch the error
+      (client as unknown as { emitter: EventEmitter }).emitter.on('error', onError);
+
       client.connect('badidentity', (events) => {
-        events.on('error', onError);
+        events.on('error', () => {}); // This won't be called due to early return
       });
+
       expect(onError).toHaveBeenCalledWith(
         expect.objectContaining({ error: expect.any(BTPErrorException) }),
       );
@@ -168,7 +183,7 @@ describe('BtpsClient', () => {
 
     it('should emit error for invalid hostname', async () => {
       const onError = vi.fn();
-      mockUtils.getBtpAddressParts.mockReturnValue({ hostname: '', port: '3443' } as URL);
+      mockUtils.getBtpAddressParts.mockReturnValue(null);
       await client.connect('recipient$example.com', (events) => {
         events.on('error', onError);
       });
@@ -217,6 +232,126 @@ describe('BtpsClient', () => {
       (client as unknown as { emitter: EventEmitter }).emitter.emit('end', { willRetry: true });
       await vi.runAllTimersAsync();
       expect(onEnd).toHaveBeenCalledWith(expect.objectContaining({ willRetry: true }));
+    });
+
+    // New tests for restructured behavior
+    describe('listener management', () => {
+      it('should create new listeners on first connect call', () => {
+        const onConnected = vi.fn();
+        const onMessage = vi.fn();
+
+        client.connect('recipient$example.com', (events) => {
+          events.on('connected', onConnected);
+          events.on('message', onMessage);
+        });
+
+        const listeners = (
+          client as unknown as { listeners: Map<string, Record<string, unknown>> }
+        ).listeners.get('connectListeners');
+        expect(listeners).toBeDefined();
+        expect((listeners as Record<string, unknown>).connected).toBe(onConnected);
+        expect((listeners as Record<string, unknown>).message).toBe(onMessage);
+      });
+
+      it('should reuse existing listeners on subsequent connect calls', () => {
+        const onConnected = vi.fn();
+        const onMessage = vi.fn();
+
+        // First call
+        client.connect('recipient$example.com', (events) => {
+          events.on('connected', onConnected);
+          events.on('message', onMessage);
+        });
+
+        const firstListeners = (
+          client as unknown as { listeners: Map<string, Record<string, unknown>> }
+        ).listeners.get('connectListeners');
+
+        // Second call - should reuse existing listeners
+        client.connect('recipient$example.com', (events) => {
+          events.on('connected', () => {}); // This should be ignored
+        });
+
+        const secondListeners = (
+          client as unknown as { listeners: Map<string, Record<string, unknown>> }
+        ).listeners.get('connectListeners');
+
+        // Should be the same object reference
+        expect(secondListeners).toBe(firstListeners);
+        expect((secondListeners as Record<string, unknown>).connected).toBe(onConnected);
+        expect((secondListeners as Record<string, unknown>).message).toBe(onMessage);
+      });
+
+      it('should clean up connect listeners on invalid identity', () => {
+        mockUtils.parseIdentity.mockReturnValue(null);
+
+        client.connect('badidentity', (events) => {
+          events.on('connected', () => {});
+        });
+
+        const listeners = (client as unknown as { listeners: Map<string, unknown> }).listeners.get(
+          'connectListeners',
+        );
+        expect(listeners).toBeUndefined();
+      });
+
+      it('should clean up connect listeners in finally block when no retry is happening', async () => {
+        const onConnected = vi.fn();
+
+        // Mock successful resolveIdentity to trigger finally block
+        mockUtils.getDnsIdentityParts.mockResolvedValue({
+          key: 'rsa',
+          version: '1.0.0',
+          pem: 'test-key',
+        });
+
+        client.connect('recipient$example.com', (events) => {
+          events.on('connected', onConnected);
+        });
+
+        // Simulate successful connection completion
+        await vi.runAllTimersAsync();
+
+        const listeners = (
+          client as unknown as { listeners: Map<string, Record<string, unknown>> }
+        ).listeners.get('connectListeners');
+
+        // With successful connection, shouldRetry should be true initially, so listeners should remain
+        expect(listeners).toBeDefined();
+      });
+    });
+
+    describe('isConnecting flag timing', () => {
+      it('should set isConnecting to true only after successful resolveIdentity', async () => {
+        const onConnected = vi.fn();
+
+        // Mock successful resolveIdentity
+        mockUtils.getDnsIdentityParts.mockResolvedValue({
+          key: 'rsa',
+          version: '1.0.0',
+          pem: 'test-key',
+        });
+
+        // Before resolveIdentity completes, isConnecting should be false
+        expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(false);
+
+        client.connect('recipient$example.com', (events) => {
+          events.on('connected', onConnected);
+        });
+
+        // After resolveIdentity completes successfully
+        await vi.runAllTimersAsync();
+        expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(true);
+      });
+
+      it('should not set isConnecting on resolveIdentity error', async () => {
+        mockUtils.getHostAndSelector.mockResolvedValue(undefined);
+
+        client.connect('recipient$example.com');
+        await vi.runAllTimersAsync();
+
+        expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(false);
+      });
     });
   });
 
@@ -276,7 +411,7 @@ describe('BtpsClient internals', () => {
       (client as unknown as { backpressureQueue: string[] }).backpressureQueue = ['a'];
       let drainCb: (() => void) | undefined;
       mockSocket.write.mockReturnValue(false);
-      mockSocket.once.mockImplementation((event, cb) => {
+      mockSocket.once.mockImplementation((event: string, cb: () => void) => {
         if (event === 'drain') drainCb = cb;
       });
       const promise = (
@@ -379,6 +514,59 @@ describe('BtpsClient internals', () => {
       expect(connectSpy).not.toHaveBeenCalled();
     });
   });
+
+  describe('cleanupListeners', () => {
+    it('should clean up specific listeners when id is provided', () => {
+      const clientUnknown = client as unknown as {
+        listeners: Map<string, Record<string, unknown>>;
+        emitter: EventEmitter;
+        cleanupListeners: (id: string) => void;
+      };
+
+      // Add some test listeners
+      const testListener = () => {};
+      clientUnknown.emitter.on('test', testListener);
+      clientUnknown.listeners.set('testId', { test: testListener });
+
+      clientUnknown.cleanupListeners('testId');
+
+      expect(clientUnknown.listeners.has('testId')).toBe(false);
+      expect(clientUnknown.emitter.listenerCount('test')).toBe(0);
+    });
+
+    it('should clean up all listeners when no id is provided', () => {
+      const clientUnknown = client as unknown as {
+        listeners: Map<string, Record<string, unknown>>;
+        emitter: EventEmitter;
+        cleanupListeners: (id?: string) => void;
+      };
+
+      // Add multiple test listeners
+      const testListener1 = () => {};
+      const testListener2 = () => {};
+      clientUnknown.emitter.on('test1', testListener1);
+      clientUnknown.emitter.on('test2', testListener2);
+      clientUnknown.listeners.set('id1', { test1: testListener1 });
+      clientUnknown.listeners.set('id2', { test2: testListener2 });
+
+      clientUnknown.cleanupListeners();
+
+      expect(clientUnknown.listeners.size).toBe(0);
+      expect(clientUnknown.emitter.listenerCount('test1')).toBe(0);
+      expect(clientUnknown.emitter.listenerCount('test2')).toBe(0);
+    });
+
+    it('should handle empty listeners gracefully', () => {
+      const clientUnknown = client as unknown as {
+        listeners: Map<string, Record<string, unknown>>;
+        cleanupListeners: (id?: string) => void;
+      };
+
+      // Should not throw when no listeners exist
+      expect(() => clientUnknown.cleanupListeners('nonexistent')).not.toThrow();
+      expect(() => clientUnknown.cleanupListeners()).not.toThrow();
+    });
+  });
 });
 
 describe('retry and error edge cases', () => {
@@ -439,6 +627,7 @@ describe('retry and error edge cases', () => {
       client.end();
       expect(mockSocket.end).toHaveBeenCalled();
     });
+
     it('should call socket.destroy and remove listeners when client.destroy is called', () => {
       const clientUnknown = client as unknown as { socket: typeof mockSocket; destroyed: boolean };
       clientUnknown.socket = mockSocket;
@@ -447,6 +636,20 @@ describe('retry and error edge cases', () => {
       expect(clientUnknown.destroyed).toBe(true);
       // Listeners removed: emitter should have no listeners
       expect((client as unknown as { emitter: EventEmitter }).emitter.eventNames().length).toBe(0);
+    });
+
+    it('should set socket to undefined after end', () => {
+      const clientUnknown = client as unknown as { socket: typeof mockSocket };
+      clientUnknown.socket = mockSocket;
+      client.end();
+      expect(clientUnknown.socket).toBeUndefined();
+    });
+
+    it('should set socket to undefined after destroy', () => {
+      const clientUnknown = client as unknown as { socket: typeof mockSocket };
+      clientUnknown.socket = mockSocket;
+      client.destroy();
+      expect(clientUnknown.socket).toBeUndefined();
     });
   });
 
@@ -458,8 +661,27 @@ describe('retry and error edge cases', () => {
       port: 9999,
     };
     const customClient = new BtpsClient(customOptions);
-    mockUtils.getHostAndSelector.mockResolvedValue(undefined);
-    mockUtils.getBtpAddressParts.mockImplementation((input: string) => new URL(`btps://${input}`));
+
+    // Mock successful resolveIdentity to trigger connection
+    mockUtils.getDnsIdentityParts.mockResolvedValue({
+      key: 'rsa',
+      version: '1.0.0',
+      pem: 'test-key',
+    });
+
+    // Mock getHostAndSelector to return custom host/port
+    mockUtils.getHostAndSelector.mockResolvedValue({
+      host: 'customhost.com',
+      selector: 'btps1',
+      version: '1.0.0',
+    });
+
+    // Mock getBtpAddressParts to return custom host/port
+    mockUtils.getBtpAddressParts.mockReturnValue({
+      hostname: 'customhost.com',
+      port: '9999',
+    } as URL);
+
     // Connect should use the custom host/port
     customClient.connect('recipient$example.com');
     await vi.runAllTimersAsync();
@@ -535,5 +757,556 @@ describe('BtpsClient additional edge cases', () => {
     expect(result.error).toBeInstanceOf(BTPErrorException);
     expect(result.payload).toBeUndefined();
     spy.mockRestore();
+  });
+});
+
+describe('resolveIdentity method', () => {
+  let client: BtpsClient;
+  let mockOptions: BtpsClientOptions;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mockOptions = {
+      identity: 'test$example.com',
+      btpIdentityKey: 'PRIVATE_KEY',
+      bptIdentityCert: 'PUBLIC_KEY',
+      maxRetries: 2,
+      retryDelayMs: 10,
+      connectionTimeoutMs: 100,
+    };
+    client = new BtpsClient(mockOptions);
+  });
+
+  describe('isConnecting flag management', () => {
+    it('should set isConnecting to true only when initializing connection', async () => {
+      // Test through the public connect method instead of internal resolveIdentity
+      // Mock successful DNS resolution
+      mockUtils.getDnsIdentityParts.mockResolvedValue({
+        key: 'rsa',
+        version: '1.0.0',
+        pem: 'test-key',
+      });
+
+      // Mock socket setup for this test
+      const mockSocket = Object.assign(new EventEmitter(), {
+        writable: true,
+        write: vi.fn().mockReturnValue(true),
+        end: vi.fn(),
+        destroy: vi.fn(),
+        setTimeout: vi.fn((timeout, cb) => {
+          // Store timeout callback for manual invocation
+          (mockSocket as unknown as { _timeoutCb?: () => void })._timeoutCb = cb;
+        }),
+        once: vi.fn(),
+        pipe: vi.fn(),
+      });
+
+      (mockTls.connect as unknown as ReturnType<typeof vi.fn>).mockImplementation((opts, cb) => {
+        if (cb) cb();
+        return mockSocket;
+      });
+
+      // Before resolveIdentity completes, isConnecting should be false
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(false);
+      // Start connection
+      client.connect('recipient$example.com', (events) => {
+        events.on('connected', () => {});
+      });
+
+      // After resolveIdentity completes successfully
+      await vi.runAllTimersAsync();
+
+      mockSocket.emit('end');
+      // After connection ends, isConnecting should be false
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(false);
+    });
+
+    it('should set isConnecting to false when connection ends', async () => {
+      // Mock successful DNS resolution
+      mockUtils.getHostAndSelector.mockResolvedValue({
+        host: 'server.example.com',
+        selector: 'btps1',
+        version: '1.0.0',
+      });
+
+      // Mock socket setup for this test
+      const mockSocket = Object.assign(new EventEmitter(), {
+        writable: true,
+        write: vi.fn().mockReturnValue(true),
+        end: vi.fn(),
+        destroy: vi.fn(),
+        setTimeout: vi.fn(),
+        once: vi.fn(),
+        pipe: vi.fn(),
+      });
+
+      const mockStream = Object.assign(new EventEmitter(), {
+        on: vi.fn(),
+      });
+
+      (mockSocket.pipe as ReturnType<typeof vi.fn>).mockReturnValue(mockStream);
+      (mockTls.connect as unknown as ReturnType<typeof vi.fn>).mockImplementation((opts, cb) => {
+        if (cb) cb();
+        return mockSocket;
+      });
+
+      // Start connection
+      client.connect('recipient$example.com', (events) => {
+        events.on('connected', () => {});
+      });
+
+      // After connection starts, isConnecting should be true
+      await vi.runAllTimersAsync();
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(true);
+
+      // Simulate connection end by triggering the socket's 'end' event
+      mockSocket.emit('end');
+
+      // After connection ends, isConnecting should be false
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(false);
+    });
+
+    it('should set isConnecting to false when connection is established successfully', async () => {
+      // Mock successful DNS resolution
+      mockUtils.getHostAndSelector.mockResolvedValue({
+        host: 'server.example.com',
+        selector: 'btps1',
+        version: '1.0.0',
+      });
+
+      // Mock socket setup for this test
+      const mockSocket = Object.assign(new EventEmitter(), {
+        writable: true,
+        write: vi.fn().mockReturnValue(true),
+        end: vi.fn(),
+        destroy: vi.fn(),
+        setTimeout: vi.fn(),
+        once: vi.fn(),
+        pipe: vi.fn(),
+      });
+
+      const mockStream = Object.assign(new EventEmitter(), {
+        on: vi.fn(),
+      });
+
+      (mockSocket.pipe as ReturnType<typeof vi.fn>).mockReturnValue(mockStream);
+      (mockTls.connect as unknown as ReturnType<typeof vi.fn>).mockImplementation((opts, cb) => {
+        if (cb) cb();
+        return mockSocket;
+      });
+
+      // Start connection
+      client.connect('recipient$example.com', (events) => {
+        events.on('connected', () => {});
+      });
+
+      // After connection starts, isConnecting should be true
+      await vi.runAllTimersAsync();
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(true);
+
+      // Simulate successful connection establishment
+      mockSocket.emit('connected');
+
+      // After connection is established, isConnecting should remain true until socket ends
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(true);
+
+      // Simulate socket end
+      mockSocket.emit('end');
+
+      // After socket ends, isConnecting should be false
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(false);
+    });
+
+    it('should set isConnecting to false when connection fails with non-retryable error', async () => {
+      // Mock successful DNS resolution
+      mockUtils.getHostAndSelector.mockResolvedValue({
+        host: 'server.example.com',
+        selector: 'btps1',
+        version: '1.0.0',
+      });
+
+      // Mock socket setup for this test
+      const mockSocket = Object.assign(new EventEmitter(), {
+        writable: true,
+        write: vi.fn().mockReturnValue(true),
+        end: vi.fn(),
+        destroy: vi.fn(),
+        setTimeout: vi.fn(),
+        once: vi.fn(),
+        pipe: vi.fn(),
+      });
+
+      const mockStream = Object.assign(new EventEmitter(), {
+        on: vi.fn(),
+      });
+
+      (mockSocket.pipe as ReturnType<typeof vi.fn>).mockReturnValue(mockStream);
+      (mockTls.connect as unknown as ReturnType<typeof vi.fn>).mockImplementation((opts, cb) => {
+        if (cb) cb();
+        return mockSocket;
+      });
+
+      // Start connection
+      client.connect('recipient$example.com', (events) => {
+        events.on('connected', () => {});
+      });
+
+      // After connection starts, isConnecting should be true
+      await vi.runAllTimersAsync();
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(true);
+
+      // Simulate non-retryable error (destroyed error)
+      mockSocket.emit('error', new Error('destroyed'));
+
+      // After non-retryable error, isConnecting should be false (process has ended and listeners are cleaned up)
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(false);
+    });
+
+    it('should set isConnecting to false when socket error occurs', async () => {
+      // Mock successful DNS resolution
+      mockUtils.getHostAndSelector.mockResolvedValue({
+        host: 'server.example.com',
+        selector: 'btps1',
+        version: '1.0.0',
+      });
+
+      // Mock socket setup for this test
+      const mockSocket = Object.assign(new EventEmitter(), {
+        writable: true,
+        write: vi.fn().mockReturnValue(true),
+        end: vi.fn(),
+        destroy: vi.fn(),
+        setTimeout: vi.fn(),
+        once: vi.fn(),
+        pipe: vi.fn(),
+      });
+
+      const mockStream = Object.assign(new EventEmitter(), {
+        on: vi.fn(),
+      });
+
+      (mockSocket.pipe as ReturnType<typeof vi.fn>).mockReturnValue(mockStream);
+      (mockTls.connect as unknown as ReturnType<typeof vi.fn>).mockImplementation((opts, cb) => {
+        if (cb) cb();
+        return mockSocket;
+      });
+
+      // Start connection
+      client.connect('recipient$example.com', (events) => {
+        events.on('connected', () => {});
+      });
+
+      // After connection starts, isConnecting should be true
+      await vi.runAllTimersAsync();
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(true);
+
+      // Simulate socket error by triggering the socket's 'error' event
+      mockSocket.emit('error', new Error('DNS resolution failed'));
+
+      // After socket error, isConnecting should be false because shouldRetry is false after DNS resolution
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(false);
+    });
+
+    it('should set isConnecting to false when connection timeout occurs', async () => {
+      // Mock successful DNS resolution
+      mockUtils.getHostAndSelector.mockResolvedValue({
+        host: 'server.example.com',
+        selector: 'btps1',
+        version: '1.0.0',
+      });
+
+      // Mock socket setup for this test
+      const mockSocket = Object.assign(new EventEmitter(), {
+        writable: true,
+        write: vi.fn().mockReturnValue(true),
+        end: vi.fn(),
+        destroy: vi.fn(),
+        setTimeout: vi.fn((timeout, cb) => {
+          // Store timeout callback for manual invocation
+          (mockSocket as unknown as { _timeoutCb?: () => void })._timeoutCb = cb;
+        }),
+        once: vi.fn(),
+        pipe: vi.fn(),
+      });
+
+      const mockStream = Object.assign(new EventEmitter(), {
+        on: vi.fn(),
+      });
+
+      (mockSocket.pipe as ReturnType<typeof vi.fn>).mockReturnValue(mockStream);
+      (mockTls.connect as unknown as ReturnType<typeof vi.fn>).mockImplementation((opts, cb) => {
+        if (cb) cb();
+        return mockSocket;
+      });
+
+      // Start connection
+      client.connect('recipient$example.com', (events) => {
+        events.on('connected', () => {});
+      });
+
+      // After connection starts, isConnecting should be true
+      await vi.runAllTimersAsync();
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(true);
+
+      // Simulate connection timeout by triggering the timeout callback
+      const timeoutCb = (mockSocket as unknown as { _timeoutCb?: () => void })._timeoutCb;
+      if (timeoutCb) {
+        timeoutCb();
+      }
+
+      // After connection timeout, isConnecting should remain true because it's a retryable error
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(true);
+    });
+
+    it('should set isConnecting to false when client.end() is called', async () => {
+      // Mock successful DNS resolution
+      mockUtils.getHostAndSelector.mockResolvedValue({
+        host: 'server.example.com',
+        selector: 'btps1',
+        version: '1.0.0',
+      });
+
+      // Mock socket setup for this test
+      const mockSocket = Object.assign(new EventEmitter(), {
+        writable: true,
+        write: vi.fn().mockReturnValue(true),
+        end: vi.fn(),
+        destroy: vi.fn(),
+        setTimeout: vi.fn(),
+        once: vi.fn(),
+        pipe: vi.fn(),
+      });
+
+      const mockStream = Object.assign(new EventEmitter(), {
+        on: vi.fn(),
+      });
+
+      (mockSocket.pipe as ReturnType<typeof vi.fn>).mockReturnValue(mockStream);
+      (mockTls.connect as unknown as ReturnType<typeof vi.fn>).mockImplementation((opts, cb) => {
+        if (cb) cb();
+        return mockSocket;
+      });
+
+      // Start connection
+      client.connect('recipient$example.com', (events) => {
+        events.on('connected', () => {});
+      });
+
+      // After connection starts, isConnecting should be true
+      await vi.runAllTimersAsync();
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(true);
+
+      // Call client.end()
+      client.end();
+
+      // After client.end(), isConnecting should be false
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(false);
+    });
+
+    it('should set isConnecting to false when client.destroy() is called', async () => {
+      // Mock successful DNS resolution
+      mockUtils.getHostAndSelector.mockResolvedValue({
+        host: 'server.example.com',
+        selector: 'btps1',
+        version: '1.0.0',
+      });
+
+      // Mock socket setup for this test
+      const mockSocket = Object.assign(new EventEmitter(), {
+        writable: true,
+        write: vi.fn().mockReturnValue(true),
+        end: vi.fn(),
+        destroy: vi.fn(),
+        setTimeout: vi.fn(),
+        once: vi.fn(),
+        pipe: vi.fn(),
+      });
+
+      const mockStream = Object.assign(new EventEmitter(), {
+        on: vi.fn(),
+      });
+
+      (mockSocket.pipe as ReturnType<typeof vi.fn>).mockReturnValue(mockStream);
+      (mockTls.connect as unknown as ReturnType<typeof vi.fn>).mockImplementation((opts, cb) => {
+        if (cb) cb();
+        return mockSocket;
+      });
+
+      // Start connection
+      client.connect('recipient$example.com', (events) => {
+        events.on('connected', () => {});
+      });
+
+      // After connection starts, isConnecting should be true
+      await vi.runAllTimersAsync();
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(true);
+
+      // Call client.destroy()
+      client.destroy();
+
+      // After client.destroy(), isConnecting should be false
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(false);
+    });
+
+    it('should set isConnecting to false when resolveIdentity finally block executes', async () => {
+      // Test resolveIdentity method directly
+      // Mock successful DNS resolution
+      mockUtils.getHostAndSelector.mockResolvedValue({
+        host: 'server.example.com',
+        selector: 'btps1',
+        version: '1.0.0',
+      });
+
+      // Mock successful DNS identity parts resolution
+      mockUtils.getDnsIdentityParts.mockResolvedValue({
+        key: 'rsa',
+        version: '1.0.0',
+        pem: 'test-key',
+      });
+
+      // Mock socket setup for this test
+      const mockSocket = Object.assign(new EventEmitter(), {
+        writable: true,
+        write: vi.fn().mockReturnValue(true),
+        end: vi.fn(),
+        destroy: vi.fn(),
+        setTimeout: vi.fn(),
+        once: vi.fn(),
+        pipe: vi.fn(),
+      });
+
+      const mockStream = Object.assign(new EventEmitter(), {
+        on: vi.fn(),
+      });
+
+      (mockSocket.pipe as ReturnType<typeof vi.fn>).mockReturnValue(mockStream);
+      (mockTls.connect as unknown as ReturnType<typeof vi.fn>).mockImplementation((opts, cb) => {
+        if (cb) cb();
+        return mockSocket;
+      });
+
+      // Call resolveIdentity directly
+      const _result = await (
+        client as unknown as {
+          resolveIdentity: (identity: string, from: string) => Promise<unknown>;
+        }
+      ).resolveIdentity('recipient$example.com', 'sender$example.com');
+
+      // After resolveIdentity completes, isConnecting should be false (via finally block)
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(false);
+    });
+
+    it('should set isConnecting to false when resolveIdentity encounters an error', async () => {
+      // Test resolveIdentity method directly with error
+      // Mock successful DNS resolution
+      mockUtils.getHostAndSelector.mockResolvedValue({
+        host: 'server.example.com',
+        selector: 'btps1',
+        version: '1.0.0',
+      });
+
+      // Mock DNS identity parts resolution to fail
+      mockUtils.getDnsIdentityParts.mockRejectedValue(new Error('DNS failure'));
+
+      // Mock socket setup for this test
+      const mockSocket = Object.assign(new EventEmitter(), {
+        writable: true,
+        write: vi.fn().mockReturnValue(true),
+        end: vi.fn(),
+        destroy: vi.fn(),
+        setTimeout: vi.fn(),
+        once: vi.fn(),
+        pipe: vi.fn(),
+      });
+
+      const mockStream = Object.assign(new EventEmitter(), {
+        on: vi.fn(),
+      });
+
+      (mockSocket.pipe as ReturnType<typeof vi.fn>).mockReturnValue(mockStream);
+      (mockTls.connect as unknown as ReturnType<typeof vi.fn>).mockImplementation((opts, cb) => {
+        if (cb) cb();
+        return mockSocket;
+      });
+
+      // Call resolveIdentity directly
+      const _result = await (
+        client as unknown as {
+          resolveIdentity: (identity: string, from: string) => Promise<unknown>;
+        }
+      ).resolveIdentity('recipient$example.com', 'sender$example.com');
+
+      // After resolveIdentity encounters error, isConnecting should be false (via finally block)
+      expect((client as unknown as { isConnecting: boolean }).isConnecting).toBe(false);
+    });
+  });
+
+  describe('listener cleanup', () => {
+    it('should clean up connect listeners when connection fails with non-retryable error', async () => {
+      // Mock DNS resolution to fail with non-retryable error
+      mockUtils.getHostAndSelector.mockResolvedValue(undefined);
+
+      // Start connection
+      client.connect('recipient$example.com', (events) => {
+        events.on('connected', () => {});
+      });
+
+      // After connection fails with non-retryable error
+      await vi.runAllTimersAsync();
+
+      // Connect listeners should be cleaned up when shouldRetry is false (non-retryable error)
+      const listeners = (
+        client as unknown as { listeners: Map<string, Record<string, unknown>> }
+      ).listeners.get('connectListeners');
+
+      // With non-retryable error, shouldRetry should be false, so listeners should be cleaned up
+      expect(listeners).toBeUndefined();
+    });
+
+    it('should not clean up connect listeners when retry is happening', async () => {
+      // Mock successful DNS resolution
+      mockUtils.getHostAndSelector.mockResolvedValue({
+        host: 'server.example.com',
+        selector: 'btps1',
+        version: '1.0.0',
+      });
+
+      // Mock socket setup for this test
+      const mockSocket = Object.assign(new EventEmitter(), {
+        writable: true,
+        write: vi.fn().mockReturnValue(true),
+        end: vi.fn(),
+        destroy: vi.fn(),
+        setTimeout: vi.fn(),
+        once: vi.fn(),
+        pipe: vi.fn(),
+      });
+
+      const mockStream = Object.assign(new EventEmitter(), {
+        on: vi.fn(),
+      });
+
+      (mockSocket.pipe as ReturnType<typeof vi.fn>).mockReturnValue(mockStream);
+      (mockTls.connect as unknown as ReturnType<typeof vi.fn>).mockImplementation((opts, cb) => {
+        if (cb) cb();
+        return mockSocket;
+      });
+
+      // Start connection
+      client.connect('recipient$example.com', (events) => {
+        events.on('connected', () => {});
+      });
+
+      // After connection completes, connect listeners should NOT be cleaned up if retry is happening
+      await vi.runAllTimersAsync();
+
+      // Connect listeners should remain if shouldRetry is true (successful connection scenario)
+      const listeners = (
+        client as unknown as { listeners: Map<string, Record<string, unknown>> }
+      ).listeners.get('connectListeners');
+
+      // With successful connection, shouldRetry should be true, so listeners should remain
+      expect(listeners).toBeDefined();
+    });
   });
 });

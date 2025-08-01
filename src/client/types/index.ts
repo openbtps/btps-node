@@ -5,9 +5,18 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import { BTPErrorException } from '@core/error/index.js';
-import { BTPServerResponse } from 'server/index.js';
-import { ConnectionOptions } from 'tls';
+import { BTPCryptoOptions } from '@core/crypto/types.js';
+import type { BTPErrorException } from '@core/error/index.js';
+import type {
+  BTPAgentMutation,
+  BTPAgentQuery,
+  BTPDocType,
+  BTPIdsPayload,
+  BTPAuthReqDoc,
+  BTPServerResponse,
+  AgentAction,
+} from 'server/index.js';
+import type { ConnectionOptions } from 'tls';
 
 export interface BtpsClientOptions {
   identity: string;
@@ -21,6 +30,28 @@ export interface BtpsClientOptions {
   hostSelector?: string;
   version?: string;
   port?: number;
+}
+
+export type BtpsAgentDoc =
+  | BTPDocType
+  | BTPAuthReqDoc
+  | BTPAgentMutation
+  | BTPIdsPayload
+  | BTPAgentQuery;
+
+export type BtpsAgentCommandParams = {
+  actionType: AgentAction;
+  to: string;
+  document?: BtpsAgentDoc;
+  options?: BTPCryptoOptions;
+};
+
+export interface ConnectionStates {
+  isConnecting: boolean;
+  isConnected: boolean;
+  isDraining: boolean;
+  isDestroyed: boolean;
+  shouldRetry: boolean;
 }
 
 export interface BTPSRetryInfo {

@@ -101,6 +101,11 @@ export interface BTPGenericArtifact<T = string> {
   signature: BTPSignature;
 }
 
+export interface BTPControlArtifact
+  extends Omit<BTPGenericArtifact, 'document' | 'signature' | 'to'> {
+  action: 'QUIT' | 'PING';
+}
+
 export interface BTPIdentityLookupRequest
   extends Omit<BTPGenericArtifact, 'document' | 'signature' | 'to'> {
   identity: string;
@@ -109,15 +114,15 @@ export interface BTPIdentityLookupRequest
   identitySelector?: string;
 }
 
-export interface BTPAgentArtifact
-  extends BTPGenericArtifact<
-    | BTPTransporterArtifact
-    | BTPAuthReqDoc
-    | BTPAgentMutation
-    | BTPAgentQuery
-    | BTPIdsPayload
-    | string
-  > {
+export type BTPAgentDocument =
+  | BTPTransporterArtifact
+  | BTPAuthReqDoc
+  | BTPAgentMutation
+  | BTPAgentQuery
+  | BTPIdsPayload
+  | string;
+
+export interface BTPAgentArtifact extends BTPGenericArtifact<BTPAgentDocument> {
   action: AgentAction;
   agentId: string;
   encryption: BTPEncryption | null;
@@ -132,7 +137,11 @@ export interface BTPTransporterArtifact extends BTPGenericArtifact<BTPDocType | 
   selector: string;
 }
 
-export type BTPArtifact = BTPAgentArtifact | BTPTransporterArtifact | BTPIdentityLookupRequest;
+export type BTPArtifact =
+  | BTPAgentArtifact
+  | BTPTransporterArtifact
+  | BTPIdentityLookupRequest
+  | BTPControlArtifact;
 
 export type BTPStatus = {
   ok: boolean;
