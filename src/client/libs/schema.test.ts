@@ -12,6 +12,10 @@ import {
   BtpsAgentCommandDocumentSchema,
   BtpsAgentOptionsSchema,
 } from './schema.js';
+import { BtpControlArtifactSchema } from '../../core/server/schemas/artifacts/controlSchema.js';
+import { BtpIdentityLookupRequestSchema } from '../../core/server/schemas/artifacts/identityLookupSchema.js';
+import { BtpArtifactServerSchema } from '../../core/server/schemas/artifacts/artifacts.js';
+import { BtpTransporterArtifactSchema } from '../../core/server/schemas/artifacts/transporterSchema.js';
 import { processBtpDocSchemaForAgent } from '../../core/server/schemas/helpers.js';
 import {
   BtpCryptoOptionsSchema,
@@ -720,6 +724,176 @@ describe('BtpsAgent Schema Validation', () => {
     it('should return null for system.ping', () => {
       const schema = processBtpDocSchemaForAgent('system.ping');
       expect(schema).toBeNull();
+    });
+  });
+
+  describe('New Artifact Schemas', () => {
+    describe('BtpControlArtifactSchema', () => {
+      it('should validate a valid QUIT control artifact', () => {
+        const validControl = {
+          version: '1.0.0',
+          id: 'test-id-123',
+          issuedAt: '2024-01-01T00:00:00.000Z',
+          action: 'QUIT',
+        };
+
+        const result = BtpControlArtifactSchema.safeParse(validControl);
+        expect(result.success).toBe(true);
+      });
+
+      it('should validate a valid PING control artifact', () => {
+        const validControl = {
+          version: '1.0.0',
+          id: 'test-id-456',
+          issuedAt: '2024-01-01T00:00:00.000Z',
+          action: 'PING',
+        };
+
+        const result = BtpControlArtifactSchema.safeParse(validControl);
+        expect(result.success).toBe(true);
+      });
+
+      it('should fail validation for invalid action', () => {
+        const invalidControl = {
+          version: '1.0.0',
+          id: 'test-id-123',
+          issuedAt: '2024-01-01T00:00:00.000Z',
+          action: 'INVALID',
+        };
+
+        const result = BtpControlArtifactSchema.safeParse(invalidControl);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].path).toEqual(['action']);
+        }
+      });
+    });
+
+    describe('BtpIdentityLookupRequestSchema', () => {
+      it('should validate a valid identity lookup request', () => {
+        const validRequest = {
+          version: '1.0.0',
+          id: 'test-id-123',
+          issuedAt: '2024-01-01T00:00:00.000Z',
+          identity: 'alice$example.com',
+          from: 'bob$example.com',
+          hostSelector: 'default',
+        };
+
+        const result = BtpIdentityLookupRequestSchema.safeParse(validRequest);
+        expect(result.success).toBe(true);
+      });
+
+      it('should validate a valid identity lookup request with optional identitySelector', () => {
+        const validRequest = {
+          version: '1.0.0',
+          id: 'test-id-123',
+          issuedAt: '2024-01-01T00:00:00.000Z',
+          identity: 'alice$example.com',
+          from: 'bob$example.com',
+          hostSelector: 'default',
+          identitySelector: 'custom',
+        };
+
+        const result = BtpIdentityLookupRequestSchema.safeParse(validRequest);
+        expect(result.success).toBe(true);
+      });
+
+      it('should fail validation for invalid identity format', () => {
+        const invalidRequest = {
+          version: '1.0.0',
+          id: 'test-id-123',
+          issuedAt: '2024-01-01T00:00:00.000Z',
+          identity: 'invalid-identity',
+          from: 'bob$example.com',
+          hostSelector: 'default',
+        };
+
+        const result = BtpIdentityLookupRequestSchema.safeParse(invalidRequest);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.issues[0].path).toEqual(['identity']);
+        }
+      });
+    });
+
+    describe('BtpArtifactServerSchema', () => {
+      it('should validate all artifact types', () => {
+        const validArtifacts = [
+          // Control artifact
+          {
+            version: '1.0.0',
+            id: 'test-id-123',
+            issuedAt: '2024-01-01T00:00:00.000Z',
+            action: 'QUIT',
+          },
+          // Identity lookup artifact
+          {
+            version: '1.0.0',
+            id: 'test-id-456',
+            issuedAt: '2024-01-01T00:00:00.000Z',
+            identity: 'alice$example.com',
+            from: 'bob$example.com',
+            hostSelector: 'default',
+          },
+          // Agent artifact
+          {
+            id: 'test-id-789',
+            action: 'system.ping',
+            agentId: 'agent$example.com',
+            to: 'alice$example.com',
+            issuedAt: '2024-01-01T00:00:00.000Z',
+            signature: {
+              algorithmHash: 'sha256',
+              value: 'test-signature',
+              fingerprint: 'test-fingerprint',
+            },
+            encryption: null,
+          },
+        ];
+
+        validArtifacts.forEach((artifact) => {
+          const result = BtpArtifactServerSchema.safeParse(artifact);
+          expect(result.success).toBe(true);
+        });
+      });
+    });
+
+    describe('BtpTransporterArtifactSchema', () => {
+      it('should validate a valid transporter artifact', () => {
+        const validTransporter = {
+          version: '1.0.0',
+          id: 'test-id-123',
+          issuedAt: '2024-01-01T00:00:00.000Z',
+          type: 'TRUST_REQ',
+          from: 'alice$example.com',
+          to: 'bob$example.com',
+          signature: {
+            algorithmHash: 'sha256',
+            value: 'test-signature',
+            fingerprint: 'test-fingerprint',
+          },
+          encryption: null,
+          document: {
+            id: 'trust-req-123',
+            name: 'Test Company',
+            email: 'test@example.com',
+            reason: 'Business partnership',
+            phone: '+1234567890',
+            address: '123 Test St, Test City, TC 12345',
+            logoUrl: 'https://example.com/logo.png',
+            displayName: 'Test Company Inc',
+            websiteUrl: 'https://example.com',
+            message: 'We would like to establish a trust relationship',
+            expiresAt: '2024-12-31T23:59:59.000Z',
+            privacyType: 'unencrypted',
+          },
+          selector: 'default',
+        };
+
+        const result = BtpTransporterArtifactSchema.safeParse(validTransporter);
+        expect(result.success).toBe(true);
+      });
     });
   });
 

@@ -8,17 +8,16 @@
 import {
   BTPErrorException,
   BTP_ERROR_RESOLVE_DNS,
-  BTP_ERROR_RESOLVE_PUBKEY,
   BTP_ERROR_UNSUPPORTED_ENCRYPT,
   BTP_ERROR_VALIDATION,
   transformToBTPErrorException,
 } from '@core/error/index.js';
 import { BtpsClient } from './btpsClient.js';
 import type {
+  BTPAgentOptions,
   BTPClientResponse,
   BtpsAgentCommandParams,
   BtpsAgentDoc,
-  BtpsClientOptions,
 } from './types/index.js';
 import type {
   AgentActionRequiringDocument,
@@ -27,7 +26,6 @@ import type {
   BTPDocType,
   BTPTransporterArtifact,
   BTPIdentityResDoc,
-  BTPServerResponse,
   AgentAction,
   BTPAgentDocument,
 } from 'server/index.js';
@@ -36,14 +34,14 @@ import type {
   BTPCryptoOptions,
   BTPCryptoResponse,
   BTPEncryption,
-  VerifyEncryptedPayload,
+  PemKeys,
 } from '@core/crypto/types.js';
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
 import { validate } from '@core/utils/validation.js';
 import { AGENT_ACTIONS_REQUIRING_DOCUMENT } from '@core/server/constants/index.js';
-import EventEmitter from 'events';
 import { encryptBtpPayload, signBtpPayload } from '@core/crypto/index.js';
 import { randomUUID } from 'crypto';
+import { isValidIdentity } from '@core/utils/index.js';
 
 const mappedTransporterAction = {
   'trust.request': 'TRUST_REQ',
@@ -53,27 +51,33 @@ const mappedTransporterAction = {
   'artifact.send': 'BTPS_DOC',
 };
 
-export class BtpsAgent {
+export class BtpsAgent extends BtpsClient {
   private agentId: string;
-  private readonly client: BtpsClient;
-  private readonly clientOptions: BtpsClientOptions;
-  private queue: Map<
-    string,
-    {
-      commandParams: BtpsAgentCommandParams;
-      emitter: EventEmitter;
-    }
-  > = new Map();
+  private readonly keyPair: PemKeys;
 
-  constructor(
-    options: BtpsClientOptions & {
-      agentId: string;
-    },
-  ) {
-    const { agentId, ...clientOptions } = options;
-    this.agentId = agentId;
-    this.clientOptions = clientOptions;
-    this.client = new BtpsClient(this.clientOptions);
+  constructor(agentOptions: BTPAgentOptions) {
+    const { agent, btpIdentity, ...restOptions } = agentOptions;
+    super({
+      to: btpIdentity,
+      ...restOptions,
+    });
+
+    this.keyPair = {
+      publicKey: agent.identityCert,
+      privateKey: agent.identityKey,
+    };
+
+    this.agentId = agent.id;
+
+    if (
+      !agent.id ||
+      !agent.identityKey ||
+      !agent.identityCert ||
+      !btpIdentity ||
+      !isValidIdentity(btpIdentity)
+    ) {
+      throw new BTPErrorException({ message: 'Invalid agent or btpIdentity' });
+    }
   }
 
   protected async getAgentArtifact(
@@ -92,7 +96,7 @@ export class BtpsAgent {
 
     if (documentRequired) {
       if (!providedDocument) {
-        return await this.client.buildClientErrorResponse(
+        return await this.buildClientErrorResponse(
           new BTPErrorException(BTP_ERROR_VALIDATION, {
             cause: `Document is required for ${commandParams.actionType}`,
           }),
@@ -113,7 +117,7 @@ export class BtpsAgent {
         });
 
       if (transporterError) {
-        return await this.client.buildClientErrorResponse(transporterError);
+        return await this.buildClientErrorResponse(transporterError);
       }
       if (transporterPayload) {
         agentArtifact.document = transporterPayload as BTPTransporterArtifact;
@@ -127,14 +131,14 @@ export class BtpsAgent {
     }
 
     agentArtifact.encryption = null;
-    agentArtifact.id = crypto.randomUUID();
+    agentArtifact.id = randomUUID();
     agentArtifact.issuedAt = new Date().toISOString();
-    agentArtifact.version = this.client.getProtocolVersion();
+    agentArtifact.version = this.getProtocolVersion();
 
     try {
       const signature = signBtpPayload(agentArtifact, {
-        publicKey: this.clientOptions.bptIdentityCert,
-        privateKey: this.clientOptions.btpIdentityKey,
+        publicKey: this.keyPair.publicKey,
+        privateKey: this.keyPair.privateKey,
       });
       agentArtifact.signature = signature;
 
@@ -143,7 +147,7 @@ export class BtpsAgent {
         error: undefined,
       };
     } catch (error) {
-      return await this.client.buildClientErrorResponse(transformToBTPErrorException(error));
+      return await this.buildClientErrorResponse(transformToBTPErrorException(error));
     }
   }
 
@@ -155,7 +159,7 @@ export class BtpsAgent {
     // Document validation is already handled by schema validation above
     // This check is redundant but kept for clarity
     if (!document) {
-      return await this.client.buildClientErrorResponse(
+      return await this.buildClientErrorResponse(
         new BTPErrorException(BTP_ERROR_VALIDATION, {
           cause: `Document is required for ${actionType}`,
         }),
@@ -163,11 +167,11 @@ export class BtpsAgent {
     }
     // Get the selector for the to identity
     const receiverDnsTxt = options?.encryption
-      ? (await this.client.resolveIdentity(to, this.clientOptions.identity)).response
-      : await this.client.resolveBtpsHostDnsTxt(to);
+      ? (await this.resolveIdentity(to, this.options.to, this.keyPair.privateKey)).response
+      : await this.resolveBtpsHostDnsTxt(to);
 
     if (!receiverDnsTxt) {
-      return await this.client.buildClientErrorResponse(
+      return await this.buildClientErrorResponse(
         new BTPErrorException(BTP_ERROR_RESOLVE_DNS, {
           cause: options?.encryption
             ? `Could not resolve identity or host and selector for: ${to}`
@@ -194,7 +198,7 @@ export class BtpsAgent {
         encryptedDocument = data;
         encryption = encryptionInfo;
       } catch (error) {
-        return await this.client.buildClientErrorResponse(
+        return await this.buildClientErrorResponse(
           new BTPErrorException(BTP_ERROR_UNSUPPORTED_ENCRYPT, {
             cause: `Failed to encrypt document for ${to}`,
             meta: {
@@ -210,21 +214,21 @@ export class BtpsAgent {
     ] as BTPArtifactType;
 
     const transporterArtifact: Omit<BTPTransporterArtifact, 'signature'> = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       issuedAt: new Date().toISOString(),
-      version: this.client.getProtocolVersion(),
+      version: this.getProtocolVersion(),
       type: artifactType,
       document: encryptedDocument as BTPDocType | string,
-      from: this.agentId,
-      to: this.clientOptions.identity,
+      from: this.options.to,
+      to: to,
       selector: receiverDnsTxt.selector,
       encryption: encryption,
     };
 
     try {
       const signature = signBtpPayload(transporterArtifact, {
-        publicKey: this.clientOptions.bptIdentityCert,
-        privateKey: this.clientOptions.btpIdentityKey,
+        publicKey: this.keyPair.publicKey,
+        privateKey: this.keyPair.privateKey,
       });
 
       return {
@@ -235,119 +239,7 @@ export class BtpsAgent {
         error: undefined,
       };
     } catch (error) {
-      return this.client.buildClientErrorResponse(error as BTPErrorException);
-    }
-  }
-
-  protected async processMessage(msg: BTPServerResponse): Promise<BTPClientResponse> {
-    const { signature, signedBy, selector } = msg;
-    /* If the message is not signed and also not encrypted, no need to decrypt and verify as it is system message */
-    if (!msg.signature && !msg.encryption) {
-      return {
-        response: msg,
-        error: undefined,
-      };
-    }
-
-    if (signature && signedBy && selector) {
-      const { response, error } = await this.client.resolveIdentity(
-        signedBy,
-        this.clientOptions.identity,
-      );
-      if (error) {
-        return await this.client.buildClientErrorResponse(error);
-      }
-
-      const { publicKey: senderPubPem } = response;
-
-      if (!senderPubPem) {
-        return await this.client.buildClientErrorResponse(
-          new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
-            cause: `SignedBy is present but public key is not found for identity: ${signedBy} and selector: ${selector}`,
-            meta: msg,
-          }),
-        );
-      }
-
-      const encryptedPayload = {
-        ...msg,
-        encryption: msg?.encryption ?? null,
-      } as VerifyEncryptedPayload<BTPServerResponse>;
-      const { payload: decryptedPayload, error: decryptError } =
-        await this.client.decryptVerifyArtifact(encryptedPayload, senderPubPem);
-
-      if (decryptError) {
-        return await this.client.buildClientErrorResponse(decryptError);
-      }
-
-      return {
-        response: decryptedPayload as BTPServerResponse,
-        error: undefined,
-      };
-    }
-
-    return await this.client.buildClientErrorResponse(
-      new BTPErrorException(BTP_ERROR_VALIDATION, {
-        cause: 'Message is either not signed or does not have signedBy',
-        meta: msg,
-      }),
-    );
-  }
-
-  protected resolveOnMessageQueue(
-    response: BTPClientResponse,
-    queueId?: string,
-  ): Promise<BTPClientResponse> {
-    return new Promise((resolve) => {
-      if (queueId && this.queue.has(queueId)) {
-        this.queue.get(queueId)?.emitter.emit('processed', response);
-        this.removeQueue(queueId);
-      }
-      resolve(response);
-    });
-  }
-
-  protected resolveOnErrorQueue(response: BTPClientResponse): Promise<BTPClientResponse> {
-    return new Promise((resolve) => {
-      const queues = Array.from(this.queue.entries());
-      for (const [queueId, { emitter }] of queues) {
-        emitter.emit('processed', response);
-        this.removeQueue(queueId);
-      }
-      resolve(response);
-    });
-  }
-
-  protected async processQueue(queueId: string) {
-    const queue = this.queue.get(queueId);
-    if (!queue) return;
-    const { commandParams, emitter } = queue;
-    const { payload, error } = await this.getAgentArtifact(commandParams);
-    if (error) {
-      emitter.emit('processed', { response: undefined, error });
-      return;
-    }
-
-    if (payload) {
-      this.client.sendArtifact(payload as BTPAgentArtifact);
-    }
-  }
-
-  protected removeAllQueues() {
-    const queues = Array.from(this.queue.entries());
-    for (const [queueId, { emitter }] of queues) {
-      emitter.removeAllListeners();
-      this.queue.delete(queueId);
-    }
-  }
-
-  protected removeQueue(queueId: string) {
-    if (queueId) {
-      const queue = this.queue.get(queueId);
-      if (!queue) return;
-      const { emitter } = queue;
-      emitter.removeAllListeners();
-      this.queue.delete(queueId);
+      return this.buildClientErrorResponse(error as BTPErrorException);
     }
   }
 
@@ -356,6 +248,7 @@ export class BtpsAgent {
     identity: string,
     document?: BtpsAgentDoc,
     options?: BTPCryptoOptions,
+    timeoutMs?: number,
   ): Promise<BTPClientResponse> {
     // Validate command parameters using schema
 
@@ -371,7 +264,7 @@ export class BtpsAgent {
         .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
         .join(', ');
 
-      return await this.client.buildClientErrorResponse(
+      return await this.buildClientErrorResponse(
         new BTPErrorException(BTP_ERROR_VALIDATION, {
           cause: `Command validation failed: ${errorDetails}`,
           meta: { validationErrors: validationResult.error.issues },
@@ -379,90 +272,19 @@ export class BtpsAgent {
       );
     }
 
-    const states = this.client.getConnectionStates();
-    if (states.isConnecting || states.isConnected) {
-      const queueId = randomUUID();
-      this.queue.set(queueId, { commandParams, emitter: new EventEmitter() });
-      try {
-        return await new Promise<BTPClientResponse>((resolve) => {
-          this.queue.get(queueId)?.emitter.on('processed', (response) => {
-            resolve(response);
-            return;
-          });
-        });
-      } catch (error) {
-        return await this.client.buildClientErrorResponse(transformToBTPErrorException(error));
-      }
+    const { payload, error } = await this.getAgentArtifact(commandParams);
+    if (error) {
+      return await this.buildClientErrorResponse(error);
     }
 
-    try {
-      return await new Promise<BTPClientResponse>((resolve) => {
-        let messageReceived = false;
-        let currentQueueId: string | undefined = undefined;
-        this.client.connect(this.clientOptions.identity, (events) => {
-          events.on('connected', async () => {
-            const { payload, error } = await this.getAgentArtifact(commandParams);
-            if (error) {
-              resolve(await this.client.buildClientErrorResponse(error));
-              return;
-            }
-            this.client.sendArtifact(payload as BTPAgentArtifact);
-          });
-
-          events.on('message', async (msg) => {
-            messageReceived = true;
-            const processedResponse = await this.processMessage(msg);
-            // console.log('processedResponse', processedResponse, currentQueueId);
-            resolve(this.resolveOnMessageQueue(processedResponse, currentQueueId));
-
-            const firstQueueId = this.queue.keys().next().value;
-            if (firstQueueId) {
-              currentQueueId = firstQueueId;
-              if (this.queue.has(firstQueueId)) {
-                messageReceived = false;
-                this.processQueue(firstQueueId);
-              }
-            } else {
-              // If there are no more queues, destroy the client
-              this.destroy(false);
-            }
-          });
-
-          events.on('error', async (errors) => {
-            const { error, ...restErrors } = errors;
-            if (!messageReceived && !restErrors.willRetry) {
-              const response = await this.client.buildClientErrorResponse(
-                transformToBTPErrorException(error),
-              );
-
-              resolve(this.resolveOnErrorQueue(response));
-            }
-          });
-
-          events.on('end', async ({ willRetry }) => {
-            if (!messageReceived && !willRetry) {
-              const response = await this.client.buildClientErrorResponse(
-                new BTPErrorException({
-                  message: 'Connection ended before message was received',
-                }),
-              );
-
-              resolve(this.resolveOnErrorQueue(response));
-            }
-          });
-        });
-      });
-    } catch (error) {
-      return await this.client.buildClientErrorResponse(transformToBTPErrorException(error));
-    }
+    return this.send(payload as BTPAgentArtifact, timeoutMs);
   }
 
   destroy(soft: boolean = false) {
     if (soft) {
-      this.client.end();
+      super.end();
     } else {
-      this.client.destroy();
+      super.destroy();
     }
-    this.removeAllQueues();
   }
 }

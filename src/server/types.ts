@@ -70,7 +70,7 @@ export interface BTPContext {
   remoteAddress: string;
   rawPacket?: string;
   sendRes?: (res: BTPServerResponse) => void;
-  sendError?: (err: BTPError, reqId?: string, action?: BtpsErrorAction) => void;
+  sendError?: (err: BTPError, action?: BtpsErrorAction) => void;
 }
 
 export type SetRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;

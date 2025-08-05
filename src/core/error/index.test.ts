@@ -6,8 +6,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { BTPErrorException, transformToBTPErrorException } from './index';
-import { BTP_ERROR_UNKNOWN, BTP_ERROR_SELECTOR_NOT_FOUND } from './constant';
+import { BTPErrorException, transformToBTPErrorException } from './index.js';
+import { BTP_ERROR_UNKNOWN, BTP_ERROR_RESOLVE_DNS } from './constant.js';
 
 describe('BTPErrorException', () => {
   it('should create an instance with the correct properties', () => {
@@ -88,7 +88,7 @@ describe('transformToBTPErrorException', () => {
 
 describe('BTP_ERROR_SELECTOR_NOT_FOUND', () => {
   it('should have correct properties', () => {
-    expect(BTP_ERROR_SELECTOR_NOT_FOUND.code).toBe('BTP_ERROR_SELECTOR_NOT_FOUND');
-    expect(BTP_ERROR_SELECTOR_NOT_FOUND.message).toBe('No valid selector found');
+    expect(BTP_ERROR_RESOLVE_DNS.code).toBe('BTP_ERROR_RESOLVE_DNS');
+    expect(BTP_ERROR_RESOLVE_DNS.message).toBe('No valid DNS record found');
   });
 });

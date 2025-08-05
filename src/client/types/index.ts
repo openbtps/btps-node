@@ -5,8 +5,9 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import { BTPCryptoOptions } from '@core/crypto/types.js';
+import type { BTPCryptoOptions } from '@core/crypto/types.js';
 import type { BTPErrorException } from '@core/error/index.js';
+import type { BtpsClient } from 'client/btpsClient.js';
 import type {
   BTPAgentMutation,
   BTPAgentQuery,
@@ -18,10 +19,13 @@ import type {
 } from 'server/index.js';
 import type { ConnectionOptions } from 'tls';
 
-export interface BtpsClientOptions {
-  identity: string;
-  btpIdentityKey: string;
-  bptIdentityCert: string;
+export interface BTPTransporterMetrics {
+  totalConnections: number;
+  activeConnections: number;
+}
+
+export interface BTPClientOptions {
+  to: string;
   maxRetries?: number;
   retryDelayMs?: number;
   connectionTimeoutMs?: number;
@@ -30,6 +34,23 @@ export interface BtpsClientOptions {
   hostSelector?: string;
   version?: string;
   port?: number;
+  maxQueue?: number;
+}
+
+export type BTPAgent = {
+  id: string;
+  identityKey: string;
+  identityCert: string;
+};
+
+export interface BTPAgentOptions extends Omit<BTPClientOptions, 'to'> {
+  agent: BTPAgent;
+  btpIdentity: string;
+}
+
+export interface BTPTransporterOptions extends Omit<BTPClientOptions, 'to'> {
+  maxConnections?: number; // Max active connections allowed
+  connectionTTLSeconds?: number; // Optional TTL per connection
 }
 
 export type BtpsAgentDoc =
@@ -60,15 +81,62 @@ export interface BTPSRetryInfo {
   attempt: number;
 }
 
+export type BtpsClientErrorInfo = BTPSRetryInfo & { error: BTPErrorException };
+
+export interface UpdateBTPClientOptions {
+  maxRetries?: number;
+  retryDelayMs?: number;
+  connectionTimeoutMs?: number;
+  maxQueue?: number;
+}
+
 export type BtpsClientEvents = {
   connected: () => void;
-  end: (endInfo: BTPSRetryInfo) => void;
-  error: (errorInfo: BTPSRetryInfo & { error: BTPErrorException }) => void;
-  message: (msg: BTPServerResponse) => void;
+  end: (endInfo: BtpsClientErrorInfo) => void;
+  error: (errorInfo: BtpsClientErrorInfo) => void;
+  message: (msg: BTPClientResponse & { validSignature: boolean }) => void;
+  close: (closeInfo: BtpsClientErrorInfo) => void;
+};
+
+export type BTPConnectionInternal = BTPConnection & {
+  timeout: NodeJS.Timeout;
+  listeners?: BtpsClientEvents;
+};
+
+export type BTPConnection = {
+  id: string;
+  client: BtpsClient;
+  createdAt: string; // ISO string
+  updatedAt: string; // ISO string
+  lastUsedAt: string; // ISO string
+  isActive: boolean; // Whether the connection is active
+  clientOptions: BTPClientOptions;
+  getStatus: () => ConnectionStates;
+};
+
+export type BTPConnectionUpdate = {
+  clientOptions?: BTPClientOptions;
+  ttl?: number;
+  maxQueue?: number;
+};
+
+export type BtpsTransporterEvents = {
+  connectionCreated: (connectionId: string) => void;
+  connectionUpdated: (connectionId: string) => void;
+  connectionDestroyed: (connectionId: string) => void;
+  connectionError: (connectionId: string, errorInfo: BtpsClientErrorInfo) => void;
+  connectionEnd: (connectionId: string, endInfo: BtpsClientErrorInfo) => void;
+  connectionConnected: (connectionId: string) => void;
+  connectionClose: (connectionId: string, closeInfo: BtpsClientErrorInfo) => void;
+  connectionMessage: (
+    connectionId: string,
+    message: BTPClientResponse & { validSignature: boolean },
+  ) => void;
 };
 
 export type TypedEventEmitter<T = BtpsClientEvents> = {
   on<K extends keyof T>(event: K, listener: T[K]): void;
+  off<K extends keyof T>(event: K, listener: T[K]): void;
 };
 
 export interface BTPClientResponse {

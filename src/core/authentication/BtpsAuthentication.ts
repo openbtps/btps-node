@@ -7,18 +7,18 @@
 
 import { randomUUID, randomBytes } from 'crypto';
 import { BtpsAgent } from '../../client/btpsAgent.js';
-import { BtpsClientOptions } from '../../client/types/index.js';
-import { BTPAuthReqDoc, BTPAuthResDoc } from '@core/server/types.js';
-import { BTPTrustRecord } from '@core/trust/types.js';
-import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
+import type { BTPAgentOptions } from '../../client/types/index.js';
+import type { BTPAuthReqDoc, BTPAuthResDoc } from '@core/server/types.js';
+import type { BTPTrustRecord } from '@core/trust/types.js';
+import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { computeTrustId } from '@core/trust/index.js';
 import {
   generateUserToken,
   getFingerprintFromPem,
   DEFAULT_ALPHABET,
-  PemKeys,
+  type PemKeys,
 } from '@core/crypto/index.js';
-import {
+import type {
   ServerAuthConfig,
   AuthRequestResponse,
   AuthValidationResult,
@@ -31,7 +31,7 @@ import {
 import { isValidIdentity, pemToBase64 } from '@core/utils/index.js';
 import { BTP_ERROR_AUTHENTICATION_INVALID, BTP_ERROR_IDENTITY } from '@core/error/constant.js';
 import { BTPErrorException, transformToBTPErrorException } from '@core/error/index.js';
-import { SetRequired } from 'server/index.js';
+import type { SetRequired } from 'server/index.js';
 
 const DEFAULT_TOKEN_CONFIG: TokenConfig = {
   authTokenLength: 12,
@@ -114,12 +114,14 @@ export class BtpsAuthentication {
 
     try {
       // Create BtpsAgent for communication
-      const options: BtpsClientOptions & { agentId: string } = {
+      const options: BTPAgentOptions = {
         ...agentOptions,
-        identity,
-        agentId,
-        btpIdentityKey: keyPair.privateKey,
-        bptIdentityCert: keyPair.publicKey,
+        agent: {
+          id: agentId,
+          identityKey: keyPair.privateKey,
+          identityCert: keyPair.publicKey,
+        },
+        btpIdentity: identity,
       };
 
       const agent = new BtpsAgent(options);

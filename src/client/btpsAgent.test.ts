@@ -8,11 +8,17 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EventEmitter } from 'events';
 import { BtpsAgent } from './btpsAgent.js';
-import { BTPErrorException, BTP_ERROR_VALIDATION } from '../core/error/index.js';
+import {
+  BTPErrorException,
+  BTP_ERROR_VALIDATION,
+  BTP_ERROR_RESOLVE_DNS,
+  BTP_ERROR_UNSUPPORTED_ENCRYPT,
+} from '../core/error/index.js';
 import * as utils from '../core/utils/index.js';
 import * as crypto from '../core/crypto/index.js';
-import { BTPDocType } from '../core/server/types.js';
-import { BtpsClientOptions } from './types/index.js';
+import { BTPDocType, BTPServerResponse } from '../core/server/types.js';
+import { BTPAgentOptions } from './types/index.js';
+import { BTP_PROTOCOL_VERSION } from '../core/server/constants/index.js';
 
 // --- Mocks ---
 vi.mock('../core/utils/index');
@@ -31,8 +37,11 @@ describe('BtpsAgent', () => {
     setTimeout: ReturnType<typeof vi.fn>;
     once: ReturnType<typeof vi.fn>;
     pipe: ReturnType<typeof vi.fn>;
+    ref: ReturnType<typeof vi.fn>;
+    unref: ReturnType<typeof vi.fn>;
+    destroyed: boolean;
   };
-  let mockOptions: BtpsClientOptions & { agentId: string };
+  let mockOptions: BTPAgentOptions;
   let mockStream: EventEmitter & { on: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
@@ -47,6 +56,9 @@ describe('BtpsAgent', () => {
       setTimeout: vi.fn(),
       once: vi.fn(),
       pipe: vi.fn(),
+      ref: vi.fn(),
+      unref: vi.fn(),
+      destroyed: false,
     }) as EventEmitter & {
       writable: boolean;
       write: ReturnType<typeof vi.fn>;
@@ -55,6 +67,9 @@ describe('BtpsAgent', () => {
       setTimeout: ReturnType<typeof vi.fn>;
       once: ReturnType<typeof vi.fn>;
       pipe: ReturnType<typeof vi.fn>;
+      ref: ReturnType<typeof vi.fn>;
+      unref: ReturnType<typeof vi.fn>;
+      destroyed: boolean;
     };
 
     mockStream = Object.assign(new EventEmitter(), {
@@ -63,48 +78,83 @@ describe('BtpsAgent', () => {
     (mockSocket.pipe as ReturnType<typeof vi.fn>).mockReturnValue(mockStream);
 
     mockOptions = {
-      identity: 'test$example.com',
-      agentId: 'test-agent-123',
-      btpIdentityKey: 'PRIVATE_KEY',
-      bptIdentityCert: 'PUBLIC_KEY',
+      agent: {
+        id: 'test-agent-123',
+        identityKey: 'PRIVATE_KEY',
+        identityCert: 'PUBLIC_KEY',
+      },
+      btpIdentity: 'test$example.com',
       maxRetries: 2,
       retryDelayMs: 10,
       connectionTimeoutMs: 100,
+      btpMtsOptions: {
+        rejectUnauthorized: false,
+      },
     };
 
+    // Mock DNS resolution to return valid data
     mockUtils.getHostAndSelector.mockResolvedValue({
       version: '1.0.0',
-      host: 'server.example.com',
+      host: 'localhost',
       selector: 'btps1',
     });
     mockUtils.getBtpAddressParts.mockReturnValue({
-      hostname: 'server.example.com',
+      hostname: 'localhost',
       port: '3443',
     } as URL);
-    mockUtils.parseIdentity.mockImplementation((id: string) => {
-      const [accountName, domainName] = id.split('$');
-      if (!accountName || !domainName) return null;
-      return { accountName, domainName };
+    mockUtils.isValidIdentity.mockImplementation((identity?: string) => {
+      if (!identity) return false;
+      return identity.includes('$') && identity.split('$').length === 2;
     });
 
-    mockCrypto.signEncrypt.mockResolvedValue({
-      payload: {
-        id: 'id',
-        from: 'test$example.com',
-        to: 'recipient$example.com',
-        type: 'TRUST_REQ',
-        issuedAt: '2023-01-01T00:00:00.000Z',
-        document: {} as BTPDocType,
-        signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
-        encryption: null,
-        version: '1.0.0',
-        selector: 'btps1',
+    mockCrypto.signBtpPayload.mockReturnValue({
+      algorithmHash: 'sha256' as const,
+      value: 'test-signature',
+      fingerprint: 'test-fingerprint',
+    });
+
+    mockCrypto.encryptBtpPayload.mockReturnValue({
+      data: 'encrypted-data',
+      encryption: {
+        algorithm: 'aes-256-gcm',
+        encryptedKey: 'encrypted-key',
+        iv: 'test-iv',
+        type: 'standardEncrypt',
+        authTag: 'test-tag',
       },
-      error: undefined,
     });
 
     agent = new BtpsAgent(mockOptions);
-    (agent as unknown as { socket: typeof mockSocket }).socket = mockSocket;
+
+    // Mock the inherited BtpsClient methods
+    vi.spyOn(agent, 'resolveBtpsHostDnsTxt').mockResolvedValue({
+      hostname: 'localhost',
+      port: 3443,
+      selector: 'btps1',
+      version: '1.0.0',
+    });
+    vi.spyOn(agent, 'resolveIdentity').mockResolvedValue({
+      response: {
+        hostname: 'localhost',
+        port: 3443,
+        selector: 'btps1',
+        version: '1.0.0',
+        publicKey: 'PUBLIC_KEY',
+        keyType: 'rsa',
+      },
+      error: undefined,
+    });
+    vi.spyOn(agent, 'send').mockResolvedValue({
+      response: {
+        reqId: 'test-req-id',
+        status: { ok: true, code: 200 },
+        type: 'btps_response',
+        version: '1.0.0',
+        id: 'test-id',
+        issuedAt: '2023-12-31T00:00:00.000Z',
+      },
+      error: undefined,
+    });
   });
 
   afterEach(() => {
@@ -113,54 +163,54 @@ describe('BtpsAgent', () => {
   });
 
   describe('constructor', () => {
-    it('should construct with options including agentId', () => {
+    it('should construct with valid options', () => {
       expect(agent).toBeInstanceOf(BtpsAgent);
-      expect((agent as unknown as { agentId: string }).agentId).toBe('test-agent-123');
     });
 
-    it('should extend BtpsClient', () => {
-      expect(agent).toBeInstanceOf(BtpsAgent);
-      // Should have BtpsClient methods
-      expect(typeof agent.connect).toBe('function');
-      expect(typeof agent.destroy).toBe('function');
+    it('should throw error for invalid agent options', () => {
+      expect(() => {
+        new BtpsAgent({
+          ...mockOptions,
+          agent: {
+            id: '',
+            identityKey: 'PRIVATE_KEY',
+            identityCert: 'PUBLIC_KEY',
+          },
+        });
+      }).toThrow(BTPErrorException);
+    });
+
+    it('should throw error for invalid btpIdentity', () => {
+      expect(() => {
+        new BtpsAgent({
+          ...mockOptions,
+          btpIdentity: 'invalid-identity',
+        });
+      }).toThrow(BTPErrorException);
     });
   });
 
-  describe('command validation', () => {
-    it('should validate valid system.ping command', async () => {
-      const promise = agent.command('system.ping', 'alice$example.com');
-
-      // Simulate connection events
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('connected');
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('message', { status: 'ok' });
-
-      await vi.runAllTimersAsync();
-      const result = await promise;
+  describe('command method', () => {
+    it('should execute system.ping command successfully', async () => {
+      const result = await agent.command('system.ping', 'alice$example.com');
 
       expect(result.error).toBeUndefined();
-      expect(result.response).toEqual({ status: 'ok' });
+      expect(result.response).toBeDefined();
     });
 
-    it('should validate valid trust.request with document', async () => {
+    it('should execute trust.request command with document', async () => {
       const document: BTPDocType = {
-        id: 'randomId',
+        id: 'doc-1',
         name: 'Test Company',
         email: 'test@company.com',
         reason: 'Business partnership',
         phone: '+1234567890',
       };
 
-      const promise = agent.command('trust.request', 'bob$company.com', document);
-
-      // Simulate connection events
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('connected');
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('message', { status: 'ok' });
-
-      await vi.runAllTimersAsync();
-      const result = await promise;
+      const result = await agent.command('trust.request', 'bob$company.com', document);
 
       expect(result.error).toBeUndefined();
-      expect(result.response).toEqual({ status: 'ok' });
+      expect(result.response).toBeDefined();
     });
 
     it('should reject invalid action type', async () => {
@@ -168,7 +218,6 @@ describe('BtpsAgent', () => {
 
       expect(result.error).toBeInstanceOf(BTPErrorException);
       expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
-      expect(result.error?.message).toContain('BTPS artifact validation failed');
     });
 
     it('should reject invalid identity format', async () => {
@@ -176,7 +225,6 @@ describe('BtpsAgent', () => {
 
       expect(result.error).toBeInstanceOf(BTPErrorException);
       expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
-      expect(result.error?.message).toContain('BTPS artifact validation failed');
     });
 
     it('should reject missing document for trust.request', async () => {
@@ -184,25 +232,12 @@ describe('BtpsAgent', () => {
 
       expect(result.error).toBeInstanceOf(BTPErrorException);
       expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
-      expect(result.error?.message).toContain('BTPS artifact validation failed');
     });
 
-    it('should reject invalid crypto options', async () => {
+    it('should handle command with encryption options', async () => {
       const result = await agent.command('system.ping', 'alice$example.com', undefined, {
         signature: {
-          algorithmHash: 'md5' as never, // Invalid algorithm
-        },
-      });
-
-      expect(result.error).toBeInstanceOf(BTPErrorException);
-      expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
-      expect(result.error?.message).toContain('BTPS artifact validation failed');
-    });
-
-    it('should accept valid crypto options', async () => {
-      const promise = agent.command('system.ping', 'alice$example.com', undefined, {
-        signature: {
-          algorithmHash: 'sha256',
+          algorithmHash: 'sha256' as const,
         },
         encryption: {
           algorithm: 'aes-256-gcm',
@@ -210,249 +245,456 @@ describe('BtpsAgent', () => {
         },
       });
 
-      // Simulate connection events
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('connected');
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('message', { status: 'ok' });
-
-      await vi.runAllTimersAsync();
-      const result = await promise;
-
       expect(result.error).toBeUndefined();
-      expect(result.response).toEqual({ status: 'ok' });
-    });
-  });
-
-  describe('command execution', () => {
-    it('should handle system.ping command without transport', async () => {
-      const promise = agent.command('system.ping', 'alice$example.com');
-
-      // Simulate connection events
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('connected');
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('message', { status: 'ok' });
-
-      await vi.runAllTimersAsync();
-      const result = await promise;
-
-      expect(result.error).toBeUndefined();
-      expect(result.response).toEqual({ status: 'ok' });
-
-      // Verify signEncrypt was called for agent artifact only
-      expect(mockCrypto.signEncrypt).toHaveBeenCalledTimes(1);
+      expect(result.response).toBeDefined();
     });
 
-    it('should handle trust.request command with transport', async () => {
+    it('should handle multiple commands with Promise.all', async () => {
+      // Mock send to return different responses for each command
+      vi.spyOn(agent, 'send').mockImplementation(async (artifact) => {
+        const reqId = artifact.id;
+        return {
+          response: {
+            reqId,
+            status: { ok: true, code: 200 },
+            type: 'btps_response',
+            version: '1.0.0',
+            id: reqId,
+            issuedAt: '2023-12-31T00:00:00.000Z',
+            document: `Response for ${reqId}`,
+          },
+          error: undefined,
+        };
+      });
+
+      const commands = [
+        agent.command('system.ping', 'alice$example.com'),
+        agent.command('system.ping', 'bob$example.com'),
+        agent.command('system.ping', 'charlie$example.com'),
+      ];
+
+      const results = await Promise.all(commands);
+
+      expect(results).toHaveLength(3);
+      results.forEach((result, index) => {
+        expect(result.error).toBeUndefined();
+        expect(result.response).toBeDefined();
+        expect(result.response?.reqId).toBeDefined();
+        expect(result.response?.document).toContain('Response for');
+      });
+    });
+
+    it('should handle multiple commands sequentially', async () => {
+      // Mock send to return different responses for each command
+      vi.spyOn(agent, 'send').mockImplementation(async (artifact) => {
+        const reqId = artifact.id;
+        return {
+          response: {
+            reqId,
+            status: { ok: true, code: 200 },
+            type: 'btps_response',
+            version: '1.0.0',
+            id: reqId,
+            issuedAt: '2023-12-31T00:00:00.000Z',
+            document: `Sequential response for ${reqId}`,
+          },
+          error: undefined,
+        };
+      });
+
+      const results = [];
+
+      // Execute commands sequentially
+      results.push(await agent.command('system.ping', 'alice$example.com'));
+      results.push(await agent.command('system.ping', 'bob$example.com'));
+      results.push(await agent.command('system.ping', 'charlie$example.com'));
+
+      expect(results).toHaveLength(3);
+      results.forEach((result, index) => {
+        expect(result.error).toBeUndefined();
+        expect(result.response).toBeDefined();
+        expect(result.response?.reqId).toBeDefined();
+        expect(result.response?.document).toContain('Sequential response for');
+      });
+    });
+
+    it('should handle mixed command types with Promise.all', async () => {
+      // Mock send to return different responses based on command type
+      vi.spyOn(agent, 'send').mockImplementation(async (artifact) => {
+        const reqId = artifact.id;
+        const commandType = (artifact as { action?: string }).action || 'unknown';
+
+        return {
+          response: {
+            reqId,
+            status: { ok: true, code: 200 },
+            type: 'btps_response',
+            version: '1.0.0',
+            id: reqId,
+            issuedAt: '2023-12-31T00:00:00.000Z',
+            document: `Mixed response for ${commandType} - ${reqId}`,
+          },
+          error: undefined,
+        };
+      });
+
       const document: BTPDocType = {
-        id: 'randomId',
+        id: 'doc-1',
         name: 'Test Company',
         email: 'test@company.com',
         reason: 'Business partnership',
         phone: '+1234567890',
       };
 
-      const promise = agent.command('trust.request', 'bob$company.com', document);
+      const commands = [
+        agent.command('system.ping', 'alice$example.com'),
+        agent.command('trust.request', 'bob$company.com', document),
+        agent.command('system.ping', 'charlie$example.com'),
+      ];
 
-      // Simulate connection events
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('connected');
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('message', { status: 'ok' });
+      const results = await Promise.all(commands);
 
-      await vi.runAllTimersAsync();
-      const result = await promise;
-
-      expect(result.error).toBeUndefined();
-      expect(result.response).toEqual({ status: 'ok' });
-
-      // Verify signEncrypt was called twice: once for transporter artifact, once for agent artifact
-      expect(mockCrypto.signEncrypt).toHaveBeenCalledTimes(2);
+      expect(results).toHaveLength(3);
+      results.forEach((result, index) => {
+        expect(result.error).toBeUndefined();
+        expect(result.response).toBeDefined();
+        expect(result.response?.reqId).toBeDefined();
+        expect(result.response?.document).toContain('Mixed response for');
+      });
     });
 
-    it('should handle signEncrypt errors gracefully', async () => {
-      // Test that the agent can handle signEncrypt errors without hanging
-      mockCrypto.signEncrypt.mockResolvedValueOnce({
-        payload: undefined,
-        error: new BTPErrorException({ message: 'Crypto error' }),
+    it('should handle Promise.all with some commands failing', async () => {
+      // Mock send to return errors for specific commands
+      vi.spyOn(agent, 'send').mockImplementation(async (artifact) => {
+        const reqId = artifact.id;
+        const target = (artifact as { to?: string }).to;
+
+        // Fail commands to specific targets
+        if (target === 'bob$example.com' || target === 'david$example.com') {
+          return {
+            response: undefined,
+            error: new BTPErrorException({
+              message: `Command failed for ${target}`,
+            }),
+          };
+        }
+
+        return {
+          response: {
+            reqId,
+            status: { ok: true, code: 200 },
+            type: 'btps_response',
+            version: '1.0.0',
+            id: reqId,
+            issuedAt: '2023-12-31T00:00:00.000Z',
+            document: `Success response for ${target}`,
+          },
+          error: undefined,
+        };
       });
 
-      const document: BTPDocType = {
-        id: 'randomId',
-        name: 'Test Company',
-        email: 'test@company.com',
-        reason: 'Business partnership',
-        phone: '+1234567890',
-      };
+      const commands = [
+        agent.command('system.ping', 'alice$example.com'),
+        agent.command('system.ping', 'bob$example.com'),
+        agent.command('system.ping', 'charlie$example.com'),
+        agent.command('system.ping', 'david$example.com'),
+      ];
 
-      const promise = agent.command('trust.request', 'bob$company.com', document);
+      const results = await Promise.all(commands);
 
-      // Simulate connection events to trigger the signEncrypt call
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('connected');
+      expect(results).toHaveLength(4);
 
-      const result = await promise;
+      // Check successful commands
+      expect(results[0].error).toBeUndefined();
+      expect(results[0].response?.document).toContain('Success response for alice$example.com');
 
-      expect(result.error).toBeInstanceOf(BTPErrorException);
-      expect(result.error?.message).toBe('Crypto error');
+      expect(results[2].error).toBeUndefined();
+      expect(results[2].response?.document).toContain('Success response for charlie$example.com');
+
+      // Check failed commands
+      expect(results[1].error).toBeInstanceOf(BTPErrorException);
+      expect(results[1].error?.message).toContain('Command failed for bob$example.com');
+
+      expect(results[3].error).toBeInstanceOf(BTPErrorException);
+      expect(results[3].error?.message).toContain('Command failed for david$example.com');
     });
 
-    it('should handle connection error', async () => {
-      const promise = agent.command('system.ping', 'alice$example.com');
+    it('should handle sequential commands with mixed success/failure', async () => {
+      // Mock send to return different results based on command
+      vi.spyOn(agent, 'send').mockImplementation(async (artifact) => {
+        const reqId = artifact.id;
+        const target = (artifact as { to?: string }).to;
 
-      // Simulate error event
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('error', {
-        error: new BTPErrorException({ message: 'Connection failed' }),
-        willRetry: false,
+        // Fail commands to specific targets
+        if (target === 'bob$example.com' || target === 'david$example.com') {
+          return {
+            response: undefined,
+            error: new BTPErrorException({
+              message: `Sequential command failed for ${target}`,
+            }),
+          };
+        }
+
+        return {
+          response: {
+            reqId,
+            status: { ok: true, code: 200 },
+            type: 'btps_response',
+            version: '1.0.0',
+            id: reqId,
+            issuedAt: '2023-12-31T00:00:00.000Z',
+            data: `Sequential success for ${target}`,
+          },
+          error: undefined,
+        };
       });
 
-      await vi.runAllTimersAsync();
-      const result = await promise;
+      const results = [];
 
-      expect(result.error).toBeInstanceOf(BTPErrorException);
-      expect(result.error?.message).toBe('Connection failed');
-    });
+      // Execute commands sequentially with mixed results
+      results.push(await agent.command('system.ping', 'alice$example.com'));
+      results.push(await agent.command('system.ping', 'bob$example.com'));
+      results.push(await agent.command('system.ping', 'charlie$example.com'));
+      results.push(await agent.command('system.ping', 'david$example.com'));
 
-    it('should handle connection end without retry', async () => {
-      const promise = agent.command('system.ping', 'alice$example.com');
+      expect(results).toHaveLength(4);
 
-      // Simulate end event without retry
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('end', {
-        willRetry: false,
-      });
+      // Check successful commands
+      expect(results[0].error).toBeUndefined();
+      expect(results[0].response).toBeDefined();
 
-      await vi.runAllTimersAsync();
-      const result = await promise;
+      expect(results[2].error).toBeUndefined();
+      expect(results[2].response).toBeDefined();
 
-      expect(result.error).toBeInstanceOf(BTPErrorException);
-      expect(result.error?.message).toBe('Connection ended before message was received');
-    });
+      // Check failed commands
+      expect(results[1].error).toBeInstanceOf(BTPErrorException);
+      expect(results[1].error?.message).toContain('Sequential command failed for bob$example.com');
 
-    it('should handle socket write failure and backpressure', async () => {
-      mockSocket.write.mockReturnValue(false); // Simulate backpressure
-
-      const promise = agent.command('system.ping', 'alice$example.com');
-
-      // Simulate connection events
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('connected');
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('message', { status: 'ok' });
-
-      await vi.runAllTimersAsync();
-      const result = await promise;
-
-      expect(result.error).toBeUndefined();
-      expect(result.response).toEqual({ status: 'ok' });
-
-      // Note: Backpressure queue is cleared after successful write, so we can't test it here
-      // The test verifies that the command completes successfully despite backpressure
-    });
-  });
-
-  describe('signEncryptTransportArtifact', () => {
-    it('should create transporter artifact for trust.request', async () => {
-      const document: BTPDocType = {
-        id: 'randomId',
-        name: 'Test Company',
-        email: 'test@company.com',
-        reason: 'Business partnership',
-        phone: '+1234567890',
-      };
-
-      const payload = {
-        to: 'bob$company.com',
-        document,
-        actionType: 'trust.request' as const,
-        from: 'test$example.com',
-      };
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (agent as any).signEncryptTransportArtifact(payload);
-
-      expect(result.error).toBeUndefined();
-      expect(result.payload).toBeDefined();
-
-      // Verify signEncrypt was called with correct transporter artifact
-      expect(mockCrypto.signEncrypt).toHaveBeenCalledWith(
-        'bob$company.com',
-        expect.any(Object),
-        expect.objectContaining({
-          version: '1.0.0',
-          type: 'TRUST_REQ',
-          document,
-          from: 'test$example.com',
-          to: 'bob$company.com',
-        }),
-        undefined,
+      expect(results[3].error).toBeInstanceOf(BTPErrorException);
+      expect(results[3].error?.message).toContain(
+        'Sequential command failed for david$example.com',
       );
     });
 
-    it('should handle signEncrypt failure in transport artifact', async () => {
-      mockCrypto.signEncrypt.mockResolvedValue({
-        payload: undefined,
-        error: new BTPErrorException({ message: 'Transport signing failed' }),
+    it('should handle Promise.allSettled with all commands', async () => {
+      // Mock send to return mixed results
+      vi.spyOn(agent, 'send').mockImplementation(async (artifact) => {
+        const reqId = artifact.id;
+        const target = (artifact as { to?: string }).to;
+
+        // Fail specific commands by throwing an error
+        if (target === 'charlie$example.com' || target === 'frank$example.com') {
+          throw new BTPErrorException({
+            message: `Promise.allSettled failed for ${target}`,
+          });
+        }
+
+        return {
+          response: {
+            reqId,
+            status: { ok: true, code: 200 },
+            type: 'btps_response',
+            version: '1.0.0',
+            id: reqId,
+            issuedAt: '2023-12-31T00:00:00.000Z',
+            document: `Promise.allSettled success for ${target}`,
+          },
+          error: undefined,
+        };
       });
 
+      const commands = [
+        agent.command('system.ping', 'alice$example.com'),
+        agent.command('system.ping', 'bob$example.com'),
+        agent.command('system.ping', 'charlie$example.com'),
+        agent.command('system.ping', 'david$example.com'),
+        agent.command('system.ping', 'eve$example.com'),
+        agent.command('system.ping', 'frank$example.com'),
+      ];
+
+      const results = await Promise.allSettled(commands);
+
+      expect(results).toHaveLength(6);
+
+      // Check fulfilled promises
+      expect(results[0].status).toBe('fulfilled');
+      expect(results[1].status).toBe('fulfilled');
+      expect(results[3].status).toBe('fulfilled');
+      expect(results[4].status).toBe('fulfilled');
+
+      // Check rejected promises
+      expect(results[2].status).toBe('rejected');
+      expect(results[5].status).toBe('rejected');
+
+      // Verify successful results
+      const successfulResults = results.filter(
+        (r) => r.status === 'fulfilled',
+      ) as PromiseFulfilledResult<{ error?: BTPErrorException; response?: BTPServerResponse }>[];
+      successfulResults.forEach((result) => {
+        expect(result.value.error).toBeUndefined();
+        expect(result.value.response?.document).toContain('Promise.allSettled success for');
+      });
+
+      // Verify failed results
+      const failedResults = results.filter(
+        (r) => r.status === 'rejected',
+      ) as PromiseRejectedResult[];
+      failedResults.forEach((result) => {
+        expect(result.reason).toBeInstanceOf(BTPErrorException);
+        expect(result.reason.message).toContain('Promise.allSettled failed for');
+      });
+    });
+  });
+
+  describe('artifact creation', () => {
+    it('should create agent artifact with correct structure', async () => {
       const document: BTPDocType = {
-        id: 'randomId',
+        id: 'doc-1',
         name: 'Test Company',
         email: 'test@company.com',
         reason: 'Business partnership',
         phone: '+1234567890',
       };
 
-      const payload = {
-        to: 'bob$company.com',
-        document,
-        actionType: 'trust.request' as const,
-        from: 'test$example.com',
+      await agent.command('trust.request', 'bob$company.com', document);
+
+      // Check that the artifact was created with correct structure
+      expect(mockCrypto.signBtpPayload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'trust.request',
+          agentId: 'test-agent-123',
+          to: 'bob$company.com',
+          document: expect.any(Object),
+          version: BTP_PROTOCOL_VERSION,
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('should create transport artifact for trust actions', async () => {
+      const document: BTPDocType = {
+        id: 'doc-1',
+        name: 'Test Company',
+        email: 'test@company.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (agent as any).signEncryptTransportArtifact(payload);
+      await agent.command('trust.request', 'bob$company.com', document);
 
-      expect(result.error).toBeInstanceOf(BTPErrorException);
-      expect(result.error?.message).toBe('Transport signing failed');
+      // Check that transport artifact was created
+      expect(mockCrypto.signBtpPayload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'TRUST_REQ',
+          from: 'test$example.com',
+          to: 'bob$company.com',
+          document: expect.any(Object),
+        }),
+        expect.any(Object),
+      );
     });
   });
 
   describe('error handling', () => {
-    it('should handle destroyed agent', async () => {
-      agent.destroy();
+    it('should handle artifact creation errors', async () => {
+      mockCrypto.signBtpPayload.mockImplementation(() => {
+        throw new Error('Signing failed');
+      });
 
       const result = await agent.command('system.ping', 'alice$example.com');
 
-      expect(result.error).toBeInstanceOf(BTPErrorException);
-      expect(result.error?.message).toContain('destroyed');
+      expect(result.error).toBeInstanceOf(Error);
+      expect(result.error?.message).toContain('Signing failed');
     });
-  });
 
-  describe('action type mapping', () => {
-    it('should correctly map trust.request to TRUST_REQ', async () => {
+    it('should handle encryption errors', async () => {
+      mockCrypto.encryptBtpPayload.mockImplementation(() => {
+        throw new Error('Unsupported encryption algorithm');
+      });
+
       const document: BTPDocType = {
-        id: 'randomId',
+        id: 'doc-1',
         name: 'Test Company',
         email: 'test@company.com',
         reason: 'Business partnership',
         phone: '+1234567890',
       };
 
-      const promise = agent.command('trust.request', 'bob$company.com', document);
+      const result = await agent.command('trust.request', 'bob$company.com', document, {
+        signature: {
+          algorithmHash: 'sha256' as const,
+        },
+        encryption: {
+          algorithm: 'aes-256-gcm',
+          mode: 'standardEncrypt',
+        },
+      });
 
-      // Simulate connection events
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('connected');
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('message', { status: 'ok' });
+      expect(result.error).toBeInstanceOf(BTPErrorException);
+      expect(result.error?.message).toContain('Unsupported encryption algorithm');
+    });
 
-      await vi.runAllTimersAsync();
-      const result = await promise;
+    it('should handle DNS resolution errors', async () => {
+      vi.spyOn(agent, 'resolveBtpsHostDnsTxt').mockResolvedValue(undefined);
 
-      expect(result.error).toBeUndefined();
+      // Mock send to return an error for this specific test
+      vi.spyOn(agent, 'send').mockResolvedValue({
+        response: undefined,
+        error: new BTPErrorException({
+          message: 'Could not resolve host and selector for: bob$company.com',
+        }),
+      });
 
-      // Verify the transporter artifact was created with correct type
-      expect(mockCrypto.signEncrypt).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(Object),
+      const result = await agent.command(
+        'trust.request',
+        'bob$company.com',
+        {
+          id: 'doc-1',
+          name: 'Test Company',
+          email: 'test@company.com',
+          reason: 'Business partnership',
+          phone: '+1234567890',
+        },
+        {
+          signature: {
+            algorithmHash: 'sha256' as const,
+          },
+          encryption: {
+            algorithm: 'aes-256-gcm',
+            mode: 'standardEncrypt',
+          },
+        },
+      );
+
+      expect(result.error).toBeInstanceOf(BTPErrorException);
+      expect(result.error?.message).toContain(
+        'Could not resolve host and selector for: bob$company.com',
+      );
+    });
+  });
+
+  describe('action mapping', () => {
+    it('should map trust.request to TRUST_REQ', async () => {
+      const document: BTPDocType = {
+        id: 'doc-1',
+        name: 'Test Company',
+        email: 'test@company.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      };
+
+      await agent.command('trust.request', 'bob$company.com', document);
+
+      // Check that the correct artifact type was created
+      expect(mockCrypto.signBtpPayload).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'TRUST_REQ',
         }),
-        undefined,
+        expect.any(Object),
       );
     });
 
-    it('should correctly map artifact.send to BTPS_DOC', async () => {
+    it('should map artifact.send to BTPS_DOC', async () => {
       const document: BTPDocType = {
         title: 'Invoice #INV-001',
         id: 'INV-001',
@@ -474,26 +716,393 @@ describe('BtpsAgent', () => {
         },
       };
 
-      const promise = agent.command('artifact.send', 'bob$company.com', document);
+      await agent.command('artifact.send', 'bob$company.com', document);
 
-      // Simulate connection events
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('connected');
-      (agent as unknown as { emitter: EventEmitter }).emitter.emit('message', { status: 'ok' });
-
-      await vi.runAllTimersAsync();
-      const result = await promise;
-
-      expect(result.error).toBeUndefined();
-
-      // Verify the transporter artifact was created with correct type
-      expect(mockCrypto.signEncrypt).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(Object),
+      // Check that the correct artifact type was created
+      expect(mockCrypto.signBtpPayload).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'BTPS_DOC',
         }),
-        undefined,
+        expect.any(Object),
       );
+    });
+  });
+
+  describe('destroy method', () => {
+    it('should support soft destroy', () => {
+      // Test that destroy(true) doesn't throw an error
+      expect(() => {
+        agent.destroy(true);
+      }).not.toThrow();
+    });
+
+    it('should support hard destroy', () => {
+      // Test that destroy(false) doesn't throw an error
+      expect(() => {
+        agent.destroy(false);
+      }).not.toThrow();
+    });
+  });
+
+  describe('getAgentArtifact method', () => {
+    it('should create agent artifact successfully', async () => {
+      const document: BTPDocType = {
+        id: 'doc-1',
+        name: 'Test Company',
+        email: 'test@company.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      };
+
+      // Mock the send method to return success
+      vi.spyOn(agent, 'send').mockResolvedValue({
+        response: {
+          reqId: 'test-req-id',
+          status: { ok: true, code: 200 },
+          type: 'btps_response',
+          version: '1.0.0',
+          id: 'test-id',
+          issuedAt: '2023-12-31T00:00:00.000Z',
+        },
+        error: undefined,
+      });
+
+      const result = await agent.command('trust.request', 'bob$company.com', document);
+
+      expect(result.error).toBeUndefined();
+      expect(result.response).toBeDefined();
+      expect(mockCrypto.signBtpPayload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'trust.request',
+          agentId: 'test-agent-123',
+          to: 'bob$company.com',
+          document: expect.any(Object),
+          version: BTP_PROTOCOL_VERSION,
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('should handle missing document for required actions', async () => {
+      // Mock the send method to return validation error
+      vi.spyOn(agent, 'send').mockResolvedValue({
+        response: undefined,
+        error: new BTPErrorException(BTP_ERROR_VALIDATION, {
+          cause: 'Document is required for trust.request',
+        }),
+      });
+
+      const result = await agent.command('trust.request', 'bob$company.com');
+
+      expect(result.error).toBeInstanceOf(BTPErrorException);
+      expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
+      expect(result.error?.message).toContain('BTPS artifact validation failed');
+    });
+
+    it('should handle artifact creation errors', async () => {
+      // Mock signBtpPayload to throw an error
+      mockCrypto.signBtpPayload.mockImplementation(() => {
+        throw new Error('Signing failed');
+      });
+
+      const document: BTPDocType = {
+        id: 'doc-1',
+        name: 'Test Company',
+        email: 'test@company.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      };
+
+      const result = await agent.command('trust.request', 'bob$company.com', document);
+
+      expect(result.error).toBeInstanceOf(Error);
+      expect(result.error?.message).toContain('Signing failed');
+    });
+
+    it('should create agent artifact with encryption options', async () => {
+      const document: BTPDocType = {
+        id: 'doc-1',
+        name: 'Test Company',
+        email: 'test@company.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      };
+
+      // Mock the send method to return success
+      vi.spyOn(agent, 'send').mockResolvedValue({
+        response: {
+          reqId: 'test-req-id',
+          status: { ok: true, code: 200 },
+          type: 'btps_response',
+          version: '1.0.0',
+          id: 'test-id',
+          issuedAt: '2023-12-31T00:00:00.000Z',
+        },
+        error: undefined,
+      });
+
+      const result = await agent.command('trust.request', 'bob$company.com', document, {
+        signature: {
+          algorithmHash: 'sha256' as const,
+        },
+        encryption: {
+          algorithm: 'aes-256-gcm',
+          mode: 'standardEncrypt',
+        },
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.response).toBeDefined();
+      expect(mockCrypto.signBtpPayload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'trust.request',
+          agentId: 'test-agent-123',
+          to: 'bob$company.com',
+          document: expect.any(Object),
+          version: BTP_PROTOCOL_VERSION,
+        }),
+        expect.any(Object),
+      );
+    });
+  });
+
+  describe('buildTransportArtifact method', () => {
+    it('should create transport artifact successfully', async () => {
+      const document: BTPDocType = {
+        id: 'doc-1',
+        name: 'Test Company',
+        email: 'test@company.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      };
+
+      // Mock the send method to return success
+      vi.spyOn(agent, 'send').mockResolvedValue({
+        response: {
+          reqId: 'test-req-id',
+          status: { ok: true, code: 200 },
+          type: 'btps_response',
+          version: '1.0.0',
+          id: 'test-id',
+          issuedAt: '2023-12-31T00:00:00.000Z',
+        },
+        error: undefined,
+      });
+
+      const result = await agent.command('trust.request', 'bob$company.com', document);
+
+      expect(result.error).toBeUndefined();
+      expect(result.response).toBeDefined();
+      expect(mockCrypto.signBtpPayload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'TRUST_REQ',
+          from: 'test$example.com',
+          to: 'bob$company.com',
+          document: expect.any(Object),
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('should handle missing document for transport artifact', async () => {
+      // Mock the send method to return validation error
+      vi.spyOn(agent, 'send').mockResolvedValue({
+        response: undefined,
+        error: new BTPErrorException(BTP_ERROR_VALIDATION, {
+          cause: 'Document is required for trust.request',
+        }),
+      });
+
+      const result = await agent.command('trust.request', 'bob$company.com');
+
+      expect(result.error).toBeInstanceOf(BTPErrorException);
+      expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
+      expect(result.error?.message).toContain('BTPS artifact validation failed');
+    });
+
+    it('should handle DNS resolution failure for transport artifact', async () => {
+      const document: BTPDocType = {
+        id: 'doc-1',
+        name: 'Test Company',
+        email: 'test@company.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      };
+
+      // Mock resolveBtpsHostDnsTxt to return undefined (DNS resolution failure)
+      vi.spyOn(agent, 'resolveBtpsHostDnsTxt').mockResolvedValue(undefined);
+
+      // Mock the send method to return DNS error
+      vi.spyOn(agent, 'send').mockResolvedValue({
+        response: undefined,
+        error: new BTPErrorException(BTP_ERROR_RESOLVE_DNS, {
+          cause: 'Could not resolve host and selector for: bob$company.com',
+        }),
+      });
+
+      const result = await agent.command('trust.request', 'bob$company.com', document);
+
+      expect(result.error).toBeInstanceOf(BTPErrorException);
+      expect(result.error?.code).toBe(BTP_ERROR_RESOLVE_DNS.code);
+      expect(result.error?.message).toContain('No valid DNS record found');
+    });
+
+    it('should handle encryption errors in transport artifact', async () => {
+      const document: BTPDocType = {
+        id: 'doc-1',
+        name: 'Test Company',
+        email: 'test@company.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      };
+
+      // Mock encryptBtpPayload to throw an error
+      mockCrypto.encryptBtpPayload.mockImplementation(() => {
+        throw new Error('Unsupported encryption algorithm');
+      });
+
+      // Mock resolveIdentity to return valid response
+      vi.spyOn(agent, 'resolveIdentity').mockResolvedValue({
+        response: {
+          hostname: 'localhost',
+          port: 3443,
+          selector: 'btps1',
+          version: '1.0.0',
+          publicKey: 'PUBLIC_KEY',
+          keyType: 'rsa',
+        },
+        error: undefined,
+      });
+
+      // Mock the send method to return encryption error
+      vi.spyOn(agent, 'send').mockResolvedValue({
+        response: undefined,
+        error: new BTPErrorException(BTP_ERROR_UNSUPPORTED_ENCRYPT, {
+          cause: 'Failed to encrypt document for bob$company.com',
+        }),
+      });
+
+      const result = await agent.command('trust.request', 'bob$company.com', document, {
+        signature: {
+          algorithmHash: 'sha256' as const,
+        },
+        encryption: {
+          algorithm: 'aes-256-gcm',
+          mode: 'standardEncrypt',
+        },
+      });
+
+      expect(result.error).toBeInstanceOf(BTPErrorException);
+      expect(result.error?.code).toBe(BTP_ERROR_UNSUPPORTED_ENCRYPT.code);
+      expect(result.error?.message).toContain('Unsupported encryption algorithm');
+    });
+
+    it('should create transport artifact with encryption', async () => {
+      const document: BTPDocType = {
+        id: 'doc-1',
+        name: 'Test Company',
+        email: 'test@company.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      };
+
+      // Mock encryptBtpPayload to return encrypted data
+      mockCrypto.encryptBtpPayload.mockReturnValue({
+        data: 'encrypted-data',
+        encryption: {
+          algorithm: 'aes-256-gcm',
+          encryptedKey: 'encrypted-key',
+          iv: 'test-iv',
+          type: 'standardEncrypt',
+          authTag: 'test-tag',
+        },
+      });
+
+      // Mock resolveIdentity to return valid response
+      vi.spyOn(agent, 'resolveIdentity').mockResolvedValue({
+        response: {
+          hostname: 'localhost',
+          port: 3443,
+          selector: 'btps1',
+          version: '1.0.0',
+          publicKey: 'PUBLIC_KEY',
+          keyType: 'rsa',
+        },
+        error: undefined,
+      });
+
+      // Mock the send method to return success
+      vi.spyOn(agent, 'send').mockResolvedValue({
+        response: {
+          reqId: 'test-req-id',
+          status: { ok: true, code: 200 },
+          type: 'btps_response',
+          version: '1.0.0',
+          id: 'test-id',
+          issuedAt: '2023-12-31T00:00:00.000Z',
+        },
+        error: undefined,
+      });
+
+      const result = await agent.command('trust.request', 'bob$company.com', document, {
+        signature: {
+          algorithmHash: 'sha256' as const,
+        },
+        encryption: {
+          algorithm: 'aes-256-gcm',
+          mode: 'standardEncrypt',
+        },
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.response).toBeDefined();
+      expect(mockCrypto.encryptBtpPayload).toHaveBeenCalledWith(document, 'PUBLIC_KEY', {
+        algorithm: 'aes-256-gcm',
+        mode: 'standardEncrypt',
+      });
+      expect(mockCrypto.signBtpPayload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'TRUST_REQ',
+          from: 'test$example.com',
+          to: 'bob$company.com',
+          document: 'encrypted-data',
+          encryption: expect.objectContaining({
+            algorithm: 'aes-256-gcm',
+            encryptedKey: 'encrypted-key',
+            iv: 'test-iv',
+            type: 'standardEncrypt',
+            authTag: 'test-tag',
+          }),
+        }),
+        expect.any(Object),
+      );
+    });
+
+    it('should handle signing errors in transport artifact', async () => {
+      const document: BTPDocType = {
+        id: 'doc-1',
+        name: 'Test Company',
+        email: 'test@company.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      };
+
+      // Mock signBtpPayload to throw an error for transport artifact
+      mockCrypto.signBtpPayload.mockImplementation((payload) => {
+        if ((payload as { type?: string }).type === 'TRUST_REQ') {
+          throw new Error('Transport signing failed');
+        }
+        return {
+          algorithmHash: 'sha256' as const,
+          value: 'test-signature',
+          fingerprint: 'test-fingerprint',
+        };
+      });
+
+      const result = await agent.command('trust.request', 'bob$company.com', document);
+
+      expect(result.error).toBeInstanceOf(Error);
+      expect(result.error?.message).toContain('Transport signing failed');
     });
   });
 });

@@ -5,10 +5,10 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import { BTPAuthResDoc, BTPServerResponse } from '@core/server/types.js';
-import { BTPTrustRecord } from '@core/trust/types.js';
-import { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
-import { BtpsClientOptions } from 'client/index.js';
+import type { BTPAuthResDoc, BTPServerResponse } from '@core/server/types.js';
+import type { BTPTrustRecord } from '@core/trust/types.js';
+import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
+import type { BTPAgentOptions } from '../../client/types/index.js';
 
 /**
  * Configuration for token generation and validation
@@ -63,10 +63,7 @@ export type AuthSession = BTPsTokenDocument & {
   refreshToken: string;
 };
 
-export type AuthAgentOptions = Omit<
-  BtpsClientOptions,
-  'identity' | 'agentId' | 'btpIdentityKey' | 'bptIdentityCert'
->;
+export type AuthAgentOptions = Omit<BTPAgentOptions, 'btpIdentity' | 'agent'>;
 
 /**
  * Authentication request result

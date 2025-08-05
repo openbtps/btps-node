@@ -126,3 +126,18 @@ export const BTP_ERROR_AUTHENTICATION_INVALID: BTPError = {
   code: 'BTP_ERROR_AUTHENTICATION_INVALID',
   message: 'Authentication failed',
 };
+
+export const BTP_ERROR_TIMEOUT: BTPError = {
+  code: 'BTP_ERROR_TIMEOUT',
+  message: 'Timeout',
+};
+
+export const BTP_ERROR_CONNECTION_CLOSED: BTPError = {
+  code: 'BTP_ERROR_CONNECTION_CLOSED',
+  message: 'Connection closed',
+};
+
+export const BTP_ERROR_CONNECTION_ENDED: BTPError = {
+  code: 'BTP_ERROR_CONNECTION_ENDED',
+  message: 'Connection ended',
+};

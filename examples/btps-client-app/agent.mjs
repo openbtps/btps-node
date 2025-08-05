@@ -5,9 +5,12 @@ const publicKey = readFileSync('./keys/finance/finance-public.pem');
 const privateKey = readFileSync('./keys/finance/finance-private.pem');
 
 const btpsAgent = new BtpsAgent({
-  identity: 'finance$ebilladdress.com',
-  bptIdentityCert: publicKey.toString('utf8'),
-  btpIdentityKey: privateKey.toString('utf8'),
+  agent: {
+    id: 'btp_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
+    identityKey: privateKey.toString('utf8'),
+    identityCert: publicKey.toString('utf8'),
+  },
+  btpIdentity: 'finance$ebilladdress.com',
   connectionTimeoutMs: 30000,
   maxRetries: 5,
   retryDelayMs: 500,
@@ -16,8 +19,15 @@ const btpsAgent = new BtpsAgent({
   },
   host: 'localhost',
   port: 3443,
-  agentId: 'btp_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
 });
+
+// btpsAgent.on('message', (msg) => {
+//   console.log('message here', msg);
+// });
+
+// btpsAgent.on('error', (err) => {
+//   console.log('error here', err);
+// });
 
 (async () => {
   // const data = await btpsAgent.command(
@@ -97,9 +107,19 @@ const btpsAgent = new BtpsAgent({
       sort: 'asc',
     }),
   );
+  promises.push(
+    btpsAgent.command('inbox.fetch', 'finance$ebilladdress.com', {
+      limit: 10,
+      sort: 'asc',
+    }),
+  );
 
   // console.log('promises:', promises);
   const data = await Promise.all(promises);
+  // const data = await btpsAgent.command('inbox.fetch', 'finance$ebilladdress.com', {
+  //   limit: 10,
+  //   sort: 'asc',
+  // });
 
   // setTimeout(() => {
   //   console.log('current listeners after 10 seconds', btpsAgent.getListeners());

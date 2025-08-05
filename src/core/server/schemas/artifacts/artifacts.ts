@@ -8,9 +8,13 @@
 import { z } from 'zod';
 import { BtpAgentArtifactSchema } from './agentSchema.js';
 import { BtpTransporterArtifactSchema } from './transporterSchema.js';
+import { BtpControlArtifactSchema } from './controlSchema.js';
+import { BtpIdentityLookupRequestSchema } from './identityLookupSchema.js';
 
-// Union schema that can validate either agent or transporter artifacts
+// Union schema that can validate agent, transporter, control, or identity lookup artifacts
 export const BtpArtifactServerSchema = z.union([
   BtpAgentArtifactSchema,
   BtpTransporterArtifactSchema,
+  BtpControlArtifactSchema,
+  BtpIdentityLookupRequestSchema,
 ]);

@@ -253,12 +253,16 @@ export class BtpsServer {
         if (!responseSent) {
           responseSent = true;
         }
+        /* always try to send the response with the reqId */
+        response.reqId = reqCtx?.reqId as string | undefined;
         this.sendBtpsResponse(socket, response);
       },
-      sendError: (error, reqId, action) => {
+      sendError: (error, action) => {
         if (!responseSent) {
           responseSent = true;
         }
+        /* always try to send the error with the reqId */
+        const reqId = resCtx.reqId as string | undefined;
         this.sendBtpsError(socket, error, reqId, action);
       },
       get responseSent() {
@@ -440,7 +444,8 @@ export class BtpsServer {
       computedId,
       identitySelector,
     );
-    if (!identityRecord) return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND);
+    if (!identityRecord)
+      return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND, res.reqId);
 
     const { createdAt, ...restRecord } = identityRecord;
     const data: BTPServerResponse = {
@@ -508,7 +513,7 @@ export class BtpsServer {
     if (afterSigVerResponseSent) return; // Response already sent, stop processing
 
     if (!isValid) {
-      return this.sendBtpsError(resCtx.socket, BTP_ERROR_SIG_VERIFICATION);
+      return this.sendBtpsError(resCtx.socket, BTP_ERROR_SIG_VERIFICATION, resCtx.reqId);
     }
 
     // Execute before trust verification middleware
@@ -533,7 +538,7 @@ export class BtpsServer {
     if (afterTrustVerResponseSent) return; // Response already sent, stop processing
 
     if (!isTrusted) {
-      return this.sendBtpsError(resCtx.socket, BTP_ERROR_TRUST_NOT_ALLOWED);
+      return this.sendBtpsError(resCtx.socket, BTP_ERROR_TRUST_NOT_ALLOWED, resCtx.reqId);
     }
 
     // Execute before onArtifact middleware

@@ -6,6 +6,7 @@
  */
 
 export * from './btps-protocol.js';
+export * from './control.js';
 
 const TRUST_ACTIONS = ['trust.request', 'trust.respond'] as const;
 

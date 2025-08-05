@@ -5,7 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import tls, { type ConnectionOptions, type TLSSocket } from 'tls';
+import tls, { type TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
 import split2 from 'split2';
 import {
@@ -13,35 +13,32 @@ import {
   getDnsIdentityParts,
   getHostAndSelector,
   isValidIdentity,
-  parseIdentity,
   resolvePublicKey,
 } from '@core/utils/index.js';
 import {
+  BTPClientOptions,
   BTPClientResponse,
   BtpsClientEvents,
-  BtpsClientOptions,
   BtpsHostDnsTxt,
   BTPSRetryInfo,
   ConnectionStates,
   TypedEventEmitter,
+  UpdateBTPClientOptions,
 } from './types/index.js';
 import {
+  BTP_ERROR_CONNECTION_CLOSED,
+  BTP_ERROR_CONNECTION_ENDED,
   BTP_ERROR_IDENTITY,
   BTP_ERROR_IDENTITY_NOT_FOUND,
   BTP_ERROR_RESOLVE_DNS,
   BTP_ERROR_RESOLVE_PUBKEY,
+  BTP_ERROR_SIG_VERIFICATION,
+  BTP_ERROR_SOCKET_TIMEOUT,
+  BTP_ERROR_TIMEOUT,
   BTP_ERROR_VALIDATION,
   BTPErrorException,
   transformToBTPErrorException,
 } from '@core/error/index.js';
-import isEmpty from 'lodash/isEmpty.js';
-import {
-  signEncrypt,
-  BTPCryptoResponse,
-  BTPCryptoOptions,
-  decryptVerify,
-  VerifyEncryptedPayload,
-} from '@core/crypto/index.js';
 import type {
   BTPArtifact,
   BTPIdentityLookupRequest,
@@ -50,91 +47,225 @@ import type {
 } from '@core/server/types.js';
 import { BTP_PROTOCOL_VERSION } from '@core/server/constants/index.js';
 import { randomUUID } from 'crypto';
+import isEmpty from 'lodash/isEmpty.js';
+import { BTPCryptoResponse, VerifyEncryptedPayload } from '@core/crypto/types.js';
+import { decryptVerify } from '@core/crypto/decryptVerify.js';
+import { validate } from '@core/utils/validation.js';
+import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 export class BtpsClient {
-  private socket?: TLSSocket;
-  private emitter: EventEmitter = new EventEmitter();
-  private retries = 0;
-  private backpressureQueue: string[] = [];
-  private isDraining = false;
-  private destroyed = false;
-  private shouldRetry = true;
-  private isConnected = false;
-  private isConnecting = false;
-
-  constructor(protected options: BtpsClientOptions) {}
-
-  /**
-   * Initialize the connection to the server
-   * @param receiverId - The identity of the receiver
-   * @param tlsOptions - The tls options for the connection
-   */
-  private initializeConnection(receiverId: string, tlsOptions: ConnectionOptions): void {
-    if (this.destroyed) {
-      this.isConnecting = false;
-      this.resolveError(new BTPErrorException({ message: 'BtpsClient instance is destroyed' }));
-      return;
+  protected socket?: TLSSocket;
+  protected emitter: EventEmitter = new EventEmitter();
+  protected retries = 0;
+  protected backpressureQueue: string[] = [];
+  protected states: ConnectionStates = {
+    isConnecting: false,
+    isConnected: false,
+    isDraining: false,
+    isDestroyed: false,
+    shouldRetry: true,
+  };
+  protected queue = new Map<
+    string,
+    {
+      artifact: BTPArtifact;
+      resolve: (v: BTPClientResponse) => void;
+      timeout: NodeJS.Timeout;
     }
+  >();
 
-    this.socket = tls.connect(tlsOptions, () => {
-      this.isConnected = true;
-      this.isConnecting = false;
-      this.emitter.emit('connected');
-    });
-
-    if (this.options.connectionTimeoutMs) {
-      this.socket.setTimeout(this.options.connectionTimeoutMs, () => {
-        this.isConnecting = false;
-        this.socket?.destroy();
-        const errorInfo = this.resolveError(
-          new BTPErrorException({ message: 'Client disconnected after inactivity' }),
-        );
-        if (errorInfo.willRetry) this.retryConnect(receiverId);
+  constructor(protected options: BTPClientOptions) {
+    const { to } = this.options;
+    // Validate to identity
+    if (!to || !isValidIdentity(to)) {
+      throw new BTPErrorException(BTP_ERROR_IDENTITY, {
+        cause: 'Invalid to identity',
       });
     }
+  }
 
-    this.socket.on('error', (err) => {
+  protected async getSocket(): Promise<
+    | {
+        socket: TLSSocket;
+        error: undefined;
+      }
+    | {
+        socket: undefined;
+        error: BTPErrorException;
+      }
+  > {
+    if (this.socket && !this.socket.destroyed) return { socket: this.socket, error: undefined };
+
+    if (this.states.isConnecting) {
+      const error = new BTPErrorException({ message: 'already connecting' });
+      this.emitter.emit('error', {
+        error,
+        ...this.getRetryInfo(error),
+      });
+      return {
+        socket: undefined,
+        error,
+      };
+    }
+
+    this.states.isConnecting = true;
+
+    const btpHostDnsConfig = await this.resolveBtpsHostDnsTxt(this.options.to);
+    if (!btpHostDnsConfig) {
+      this.states.isConnecting = false;
+      const error = new BTPErrorException({
+        message: `DNS resolution failed for ${this.options.to}`,
+      });
+      return { socket: undefined, error };
+    }
+
+    const { hostname, port } = btpHostDnsConfig;
+
+    const tlsOptions = {
+      ...this.options.btpMtsOptions,
+      host: hostname,
+      port: port,
+    };
+
+    return new Promise((resolve) => {
+      const sock = tls.connect(tlsOptions, () => {
+        this.states.isConnected = true;
+        this.states.isConnecting = false;
+        sock.ref(); // keep process alive on connect
+        this.attachListeners(sock, this.options.to);
+        this.socket = sock;
+        this.emitter.emit('connected', {
+          identity: this.options.to,
+          retries: this.retries,
+          states: this.states,
+          socket: sock,
+        });
+        resolve({ socket: sock, error: undefined });
+      });
+
+      if (this.options.connectionTimeoutMs) {
+        sock.setTimeout(this.options.connectionTimeoutMs, () => {
+          sock.destroy(
+            new BTPErrorException(BTP_ERROR_SOCKET_TIMEOUT, {
+              cause: 'connection timeout',
+            }),
+          );
+          this.destroy();
+        });
+      }
+    });
+  }
+
+  protected attachListeners(socket: TLSSocket, receiverId: string) {
+    socket.pipe(split2()).on('data', (line: string) => this.onData(line));
+
+    socket.on('drain', () => {
+      void this.flushBackpressure();
+    });
+
+    const onSocketError = (err: unknown) => {
       const error = transformToBTPErrorException(err);
-      this.isConnecting = false;
-      const info = this.resolveError(error);
-      if (info.willRetry) this.retryConnect(receiverId);
-    });
+      const info = this.getRetryInfo(error);
+      const errorInfo = { ...info, error };
+      this.states.isConnecting = false;
+      this.states.isConnected = false;
+      if (this.emitter.listenerCount('error') === 0) {
+        // No error handler registered: log instead of emitting
+        console.error('[BtpsClient]::Unhandled error:', errorInfo);
+      } else {
+        this.emitter.emit('error', errorInfo);
+      }
 
-    this.socket.on('end', () => {
-      this.isConnected = false;
-      this.isConnecting = false;
+      if (info.willRetry) {
+        this.retryConnect(receiverId);
+      } else {
+        this.resolveError(error);
+      }
+    };
+
+    socket.on('error', onSocketError);
+
+    socket.on('end', () => {
+      this.states.isConnected = false;
+      this.states.isConnecting = false;
       const info = this.getRetryInfo();
-      this.emitter.emit('end', info);
-      if (!info.willRetry) this.retryConnect(receiverId);
-    });
-
-    this.socket.pipe(split2()).on('data', (line: string) => {
-      try {
-        const msg: BTPServerResponse = JSON.parse(line);
-        this.shouldRetry = false;
-        this.emitter.emit('message', msg);
-      } catch (e) {
-        const err = new SyntaxError(`Invalid JSON: ${e}`);
-        this.shouldRetry = false;
-        this.emitter.emit('error', { error: err, ...this.getRetryInfo(err) });
-        this.socket?.end();
+      const error = new BTPErrorException(BTP_ERROR_CONNECTION_ENDED);
+      this.emitter.emit('end', {
+        ...info,
+        error,
+      });
+      if (!info.willRetry) {
+        this.retryConnect(receiverId);
+      } else {
+        this.resolveError(error);
       }
     });
 
-    this.socket.on('drain', () => {
-      this.flushBackpressure().catch((err) => {
-        const error = transformToBTPErrorException(err);
-        this.isConnecting = false;
-        this.resolveError(error);
+    socket.on('close', () => {
+      // Reject all in-flight
+      const err = new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, {
+        cause: 'connection closed',
       });
+      const info = this.getRetryInfo(err);
+      this.emitter.emit('end', { ...info, error: err });
+      this.resolveError(err);
     });
+  }
+
+  protected onData(line: string) {
+    if (!line.trim()) return;
+
+    try {
+      const msg: BTPServerResponse = JSON.parse(line);
+      this.states.shouldRetry = false;
+      this.verifyServerMessage(msg).then(({ isValid: validSignature, error }) => {
+        if (msg?.reqId && this.queue.has(msg.reqId)) {
+          const pendingMsg = this.queue.get(msg.reqId)!;
+          clearTimeout(pendingMsg.timeout);
+          this.queue.delete(msg.reqId);
+          pendingMsg.resolve({
+            response: validSignature ? msg : undefined,
+            error: !validSignature ? error : undefined,
+          });
+
+          // Unref socket if no more pending requests
+          this.unrefSocketIfNoQueue();
+          this.pumpQueue();
+        }
+        this.emitter.emit('message', { response: msg, validSignature, error });
+      });
+    } catch (e) {
+      const err = new SyntaxError(`Invalid JSON: ${e}`);
+      this.states.shouldRetry = false;
+      this.emitter.emit('error', { error: err, ...this.getRetryInfo(err) });
+    }
+  }
+
+  protected pumpQueue() {
+    if (this.queue.size && this.states.isConnected) {
+      for (const [_id, job] of this.queue) {
+        this.sendArtifact(job.artifact, {
+          resolve: job.resolve,
+          timeout: job.timeout,
+        });
+      }
+    }
+  }
+
+  /**
+   * Unref the socket when there are no pending requests to allow process termination
+   */
+  protected unrefSocketIfNoQueue() {
+    if (this.queue.size === 0 && this.socket && !this.socket.destroyed) {
+      this.socket.unref();
+    }
   }
 
   /**
    * Flush the backpressure queue
    */
-  private async flushBackpressure(): Promise<void> {
-    if (this.isDraining) return;
-    this.isDraining = true;
+  protected async flushBackpressure(): Promise<void> {
+    if (this.states.isDraining) return;
+    this.states.isDraining = true;
 
     try {
       while (this.backpressureQueue.length && this.socket?.writable) {
@@ -147,7 +278,7 @@ export class BtpsClient {
         }
       }
     } finally {
-      this.isDraining = false;
+      this.states.isDraining = false;
     }
   }
 
@@ -162,7 +293,9 @@ export class BtpsClient {
 
     this.retries++;
     setTimeout(() => {
-      this.connect(receiverId);
+      void this.getSocket().catch((err) => {
+        /* next error will schedule again */
+      });
     }, delay);
   }
 
@@ -171,17 +304,29 @@ export class BtpsClient {
    * @param error - The error to resolve
    * @returns The error info
    */
-  protected resolveError(error: BTPErrorException) {
-    const errorInfo = this.getRetryInfo({ message: error.message });
+  protected resolveError(error?: BTPErrorException) {
+    this.states.isConnected = false;
+    this.states.isConnecting = false;
+    this.socket = undefined;
+    this.cleanupQueue(error);
+  }
 
-    if (this.emitter.listenerCount('error') === 0) {
-      // No error handler registered: log instead of emitting
-      console.error('[BtpsClient]::Unhandled error:', error);
-    } else {
-      this.emitter.emit('error', { ...errorInfo, error });
+  /**
+   * Cleanup the queue
+   * @param resolveError - The error to resolve
+   */
+  protected cleanupQueue(resolveError?: BTPErrorException) {
+    if (this.queue.size === 0) return;
+    for (const [_id, qItem] of this.queue) {
+      clearTimeout(qItem.timeout);
+      if (resolveError) {
+        qItem.resolve({
+          response: undefined,
+          error: resolveError,
+        });
+      }
     }
-
-    return errorInfo;
+    this.queue.clear();
   }
 
   /**
@@ -194,10 +339,10 @@ export class BtpsClient {
     let willRetry = this.retries < maxRetries;
 
     if (
-      this.destroyed ||
+      this.states.isDestroyed ||
       forError instanceof SyntaxError ||
       this.isNonRetryableError(forError) ||
-      !this.shouldRetry
+      !this.states.shouldRetry
     ) {
       willRetry = false;
     }
@@ -214,8 +359,23 @@ export class BtpsClient {
    * @param error - The error to build the response
    * @returns The client error response
    */
-  buildClientErrorResponse<T = BTPClientResponse>(error: BTPErrorException): Promise<T> {
-    return Promise.resolve({ response: undefined, error } as T);
+  buildClientErrorResponse<T>(
+    error: BTPErrorException,
+    responseProp: string = 'response',
+  ): Promise<T> {
+    return Promise.resolve({ [responseProp]: undefined, error } as T);
+  }
+
+  /**
+   * Update the client options
+   * @param options - The options to update
+   */
+  update(options: UpdateBTPClientOptions): void {
+    const { maxRetries, retryDelayMs, connectionTimeoutMs, maxQueue } = options;
+    this.options.maxRetries = maxRetries ?? this.options.maxRetries;
+    this.options.retryDelayMs = retryDelayMs ?? this.options.retryDelayMs;
+    this.options.connectionTimeoutMs = connectionTimeoutMs ?? this.options.connectionTimeoutMs;
+    this.options.maxQueue = maxQueue ?? this.options.maxQueue;
   }
 
   /**
@@ -223,13 +383,7 @@ export class BtpsClient {
    * @returns The connection states
    */
   getConnectionStates(): ConnectionStates {
-    return {
-      isConnecting: this.isConnecting,
-      isConnected: this.isConnected,
-      isDraining: this.isDraining,
-      isDestroyed: this.destroyed,
-      shouldRetry: this.shouldRetry,
-    };
+    return this.states;
   }
 
   /**
@@ -284,41 +438,284 @@ export class BtpsClient {
     });
   }
 
-  /**
-   * Sign and encrypt the artifact
-   * @param artifact - The artifact to sign and encrypt
-   * @param options - The options for the sign and encrypt
-   * @returns The signed and encrypted artifact
-   */
-  signEncryptArtifact = async <T = Record<string, unknown>>(
-    artifact: {
-      document?: T;
-      [key: string]: unknown;
+  protected processResolveOnError(
+    artifactId: string,
+    error: BTPErrorException,
+    resolveOnError?: {
+      resolve: (v: BTPClientResponse) => void;
+      timeout: NodeJS.Timeout;
     },
-    options?: BTPCryptoOptions,
-  ): Promise<BTPCryptoResponse<T>> => {
-    const { document, ...restArtifact } = artifact;
-    const { identity, bptIdentityCert: publicKey, btpIdentityKey: privateKey } = this.options;
-    const parsedSender = parseIdentity(identity);
-    if (!parsedSender) {
-      return {
-        payload: undefined,
-        error: new BTPErrorException(BTP_ERROR_IDENTITY, {
-          cause: `couldn't parse senderIdentity: ${identity}`,
+  ): void {
+    const { resolve, timeout } = resolveOnError ?? {};
+
+    if (resolve) {
+      resolve({ response: undefined, error });
+    } else {
+      this.emitter.emit('error', { error, ...this.getRetryInfo(error) });
+    }
+    clearTimeout(timeout);
+    if (this.queue.has(artifactId)) {
+      this.queue.delete(artifactId);
+    }
+    // Unref socket if no more pending requests
+    this.unrefSocketIfNoQueue();
+  }
+
+  /**
+   * Send the artifact to the server
+   * @param artifact - The artifact to send
+   */
+  protected sendArtifact(
+    artifact: BTPArtifact,
+    resolveOnError?: {
+      resolve: (v: BTPClientResponse) => void;
+      timeout: NodeJS.Timeout;
+    },
+  ): void {
+    const { isValid, error } = this.validateArtifact(artifact);
+    if (!isValid) {
+      this.processResolveOnError(artifact.id, error, resolveOnError);
+      return;
+    }
+
+    if (
+      this.socket?.destroyed ||
+      this.socket?.writableEnded ||
+      !this.states.isConnected ||
+      this.states.isDestroyed ||
+      this.states.isConnecting
+    ) {
+      this.processResolveOnError(
+        artifact.id,
+        new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, {
+          cause: 'connection closed',
         }),
+        resolveOnError,
+      );
+      return;
+    }
+
+    const serialized = JSON.stringify(artifact) + '\n';
+    if (!this.socket?.write(serialized)) {
+      this.backpressureQueue.push(serialized);
+      this.states.isDraining = true;
+    }
+  }
+
+  /**
+   * Dispatch the artifact to the server
+   * @param job - The job to dispatch
+   *
+   */
+  protected async dispatch(job: {
+    artifact: BTPArtifact;
+    resolve: (v: BTPClientResponse) => void;
+    timeoutMs: number;
+  }) {
+    // Ensure socket
+    const { artifact, resolve, timeoutMs } = job;
+    const id = artifact.id;
+    const timeout = setTimeout(() => {
+      if (this.queue.has(id)) this.queue.delete(id);
+      resolve({
+        response: undefined,
+        error: new BTPErrorException(BTP_ERROR_TIMEOUT, {
+          cause: `timeout waiting for response reqId=${id}`,
+        }),
+      });
+      // Unref socket if no more pending requests
+      this.unrefSocketIfNoQueue();
+    }, timeoutMs);
+
+    this.queue.set(id, { artifact, resolve, timeout });
+
+    if (this.states.isConnecting) {
+      /* If the client is connecting, do not dispatch the artifact */
+      return;
+    }
+
+    const { socket, error } = await this.getSocket();
+
+    if (error && !this.states.isConnecting) {
+      this.queue.delete(id);
+      clearTimeout(timeout);
+      resolve({
+        response: undefined,
+        error,
+      });
+
+      if (this.queue.size) {
+        this.cleanupQueue(
+          new BTPErrorException({ message: 'socket could not be established.' }, { cause: error }),
+        );
+      }
+      // Unref socket if no more pending requests
+      this.unrefSocketIfNoQueue();
+      return;
+    }
+
+    // Keep process alive while there are pending requests
+    socket?.ref();
+    if (socket) this.sendArtifact(artifact, { resolve, timeout });
+  }
+
+  /**
+   * Check if the error is non-retryable
+   * @param err - The error to check
+   * @returns True if the error is non-retryable, false otherwise
+   */
+  protected isNonRetryableError(err: unknown): boolean {
+    const message = ((err as BTPErrorException)?.message ?? '').toLowerCase();
+    const nonRetrayableError = [
+      'client disconnected after inactivity',
+      'already connecting',
+      'dns resolution failed',
+      'invalid identity',
+      'invalid btpaddress',
+      'invalid hostname',
+      'invalid artifact',
+      'unsupported protocol',
+      'signature verification failed',
+      'destroyed',
+    ];
+    return nonRetrayableError.some((m) => message.includes(m));
+  }
+
+  protected async verifyServerMessage(
+    msg: BTPServerResponse,
+  ): Promise<{ isValid: true; error: undefined } | { isValid: false; error: BTPErrorException }> {
+    const { signature, signedBy, selector } = msg;
+    /* If the message is not signed, no need to decrypt and verify as it is system message */
+    if (!msg.signature) {
+      return {
+        isValid: true,
+        error: undefined,
       };
     }
 
-    return await signEncrypt(
-      artifact.to as string,
-      { ...parsedSender, pemFiles: { publicKey, privateKey } },
-      {
-        document: document as T,
-        ...restArtifact,
-      },
-      options,
-    );
-  };
+    if (signature && signedBy && selector) {
+      let senderPubPem: string | undefined;
+      let error: BTPErrorException | undefined;
+      try {
+        senderPubPem = await resolvePublicKey(signedBy, selector);
+        if (!senderPubPem) {
+          error = new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
+            cause: `Failed to resolve public key for identity: ${signedBy} and selector: ${selector}`,
+            meta: msg,
+          });
+        }
+      } catch (err) {
+        error = transformToBTPErrorException(err, {
+          cause: `Failed to resolve public key for identity: ${signedBy} and selector: ${selector}`,
+          meta: { msg },
+        });
+      }
+
+      if (error) {
+        return {
+          isValid: false,
+          error,
+        };
+      }
+
+      const encryptedPayload = {
+        ...msg,
+        encryption: msg?.encryption ?? null,
+      } as VerifyEncryptedPayload<BTPServerResponse>;
+      const { error: decryptError } = await this.decryptVerifyArtifact(
+        encryptedPayload,
+        senderPubPem!,
+      );
+
+      if (decryptError) {
+        return {
+          isValid: false,
+          error: decryptError,
+        };
+      }
+
+      return {
+        isValid: true,
+        error: undefined,
+      };
+    }
+
+    return {
+      isValid: false,
+      error: new BTPErrorException(BTP_ERROR_VALIDATION, {
+        cause: 'Message is either not signed or does not have signedBy',
+        meta: msg,
+      }),
+    };
+  }
+
+  protected validateArtifact(
+    artifact: BTPArtifact,
+  ): { isValid: true; error: undefined } | { isValid: false; error: BTPErrorException } {
+    const validationResult = validate(BtpArtifactServerSchema, artifact);
+    if (!validationResult.success) {
+      return {
+        isValid: false,
+        error: new BTPErrorException(BTP_ERROR_VALIDATION, {
+          cause: 'Invalid artifact',
+          meta: validationResult.error.issues.reduce(
+            (acc, issue) => {
+              acc[issue.path.join('.')] = issue.message;
+              return acc;
+            },
+            {} as Record<string, string>,
+          ),
+        }),
+      };
+    }
+    return { isValid: true, error: undefined };
+  }
+
+  /**
+   * Send the artifact to the server
+   * @param artifact - The artifact to send
+   * @param timeoutMs - The timeout in milliseconds
+   * @returns The response from the server
+   */
+  async send(
+    artifact: BTPArtifact,
+    timeoutMs: number = this.options.connectionTimeoutMs ?? 5000,
+  ): Promise<BTPClientResponse> {
+    if (this.states.isDestroyed) {
+      return this.buildClientErrorResponse(
+        new BTPErrorException({ message: 'BtpsClient instance is destroyed' }),
+        'response',
+      );
+    }
+
+    const { isValid, error } = this.validateArtifact(artifact);
+    if (!isValid) {
+      return this.buildClientErrorResponse(error, 'response');
+    }
+
+    // Ensure id exists for correlation
+    const id = artifact.id ?? randomUUID();
+    artifact.id = id;
+    artifact.issuedAt = artifact.issuedAt ?? new Date().toISOString();
+
+    return await new Promise<BTPClientResponse>((resolve) => {
+      const job = { artifact, resolve, timeoutMs };
+
+      if (this.queue.size < (this.options.maxQueue ?? 100)) {
+        void this.dispatch(job);
+      } else {
+        resolve({
+          response: undefined,
+          error: new BTPErrorException(
+            {
+              message: 'request queue full. Please try again later or increase maxQueue',
+            },
+            { meta: { maxQueue: this.options.maxQueue ?? 100 } },
+          ),
+        });
+      }
+    });
+  }
 
   /**
    * Decrypt and verify the artifact
@@ -329,125 +726,29 @@ export class BtpsClient {
   decryptVerifyArtifact = async <T = Record<string, unknown>>(
     artifact: VerifyEncryptedPayload<T>,
     senderPubPem: string,
+    receiverPrivatePem?: string,
   ): Promise<BTPCryptoResponse<T>> => {
-    const { btpIdentityKey } = this.options;
-    return await decryptVerify(senderPubPem, artifact, btpIdentityKey);
+    return await decryptVerify(senderPubPem, artifact, receiverPrivatePem);
   };
-
-  /**
-   * Send the artifact to the server
-   * @param artifact - The artifact to send
-   */
-  sendArtifact(artifact: BTPArtifact) {
-    const serialized = JSON.stringify(artifact) + '\n';
-    if (!this.socket?.write(serialized)) {
-      this.backpressureQueue.push(serialized);
-      this.isDraining = true;
-    }
-  }
-
-  /**
-   * Check if the error is non-retryable
-   * @param err - The error to check
-   * @returns True if the error is non-retryable, false otherwise
-   */
-  isNonRetryableError(err: unknown): boolean {
-    const message = ((err as BTPErrorException)?.message ?? '').toLowerCase();
-    const nonRetrayableError = [
-      'client disconnected after inactivity',
-      'already connecting',
-      'dns resolution failed',
-      'invalid identity',
-      'invalid btpaddress',
-      'invalid hostname',
-      'unsupported protocol',
-      'signature verification failed',
-      'destroyed',
-    ];
-    return nonRetrayableError.some((m) => message.includes(m));
-  }
-
-  /**
-   * Cleanup the listeners
-   */
-  cleanupListeners() {
-    this.emitter.removeAllListeners();
-  }
-
-  /**
-   * Connect to the server
-   * @param receiverId - The identity of the receiver
-   * @param callbacks - The callbacks for the connection
-   */
-  connect(receiverId: string, callbacks?: (events: TypedEventEmitter<BtpsClientEvents>) => void) {
-    callbacks?.({
-      on: (event, listener) => {
-        this.emitter.on(event, listener);
-      },
-    });
-
-    if (this.isConnected) {
-      this.emitter.emit('connected');
-      return;
-    }
-
-    if (this.isConnecting) {
-      this.resolveError(new BTPErrorException({ message: 'Already connecting' }));
-      return;
-    }
-    this.isConnecting = true;
-
-    const parsedIdentity = parseIdentity(receiverId);
-    if (!parsedIdentity) {
-      this.isConnecting = false;
-      this.resolveError(new BTPErrorException({ message: `invalid identity: ${receiverId}` }));
-      return;
-    }
-
-    this.resolveBtpsHostDnsTxt(receiverId)
-      .then((hostDnsTxt) => {
-        if (!hostDnsTxt) {
-          this.isConnecting = false;
-          this.resolveError(
-            new BTPErrorException({ message: `DNS resolution failed for ${receiverId}` }),
-          );
-          return;
-        }
-
-        const { hostname, port, version, selector } = hostDnsTxt;
-
-        const tlsOptions = {
-          ...this.options.btpMtsOptions,
-          host: hostname,
-          port: port,
-          version,
-          hostSelector: selector,
-        };
-
-        this.initializeConnection(receiverId, tlsOptions);
-      })
-      .catch((error) => {
-        this.isConnecting = false;
-        this.resolveError(
-          new BTPErrorException({
-            message: `DNS resolution failed for ${receiverId}: ${error?.message || error}`,
-          }),
-        );
-      });
-  }
 
   /**
    * Resolve the identity
    * @param identity - The identity to resolve
-   * @param from - The identity of the sender
-   * @returns The identity
+   * @param from - The from identity
+   * @param receiverPrivatePem - The private key of the receiver
+   * @returns The resolved identity
    */
   async resolveIdentity(
     identity: string,
     from: string,
+    receiverPrivatePem?: string,
   ): Promise<
     | {
-        response: BTPIdentityResDoc & { hostname: string; port: number; version: string };
+        response: BTPIdentityResDoc & {
+          hostname: string;
+          port: number;
+          version: string;
+        };
         error: undefined;
       }
     | {
@@ -508,29 +809,28 @@ export class BtpsClient {
 
       /* Call the server to get the identity */
       return await new Promise((resolve) => {
-        let messageReceived = false;
-
-        // Store listener references for cleanup
-        const listeners: BtpsClientEvents = {
-          connected: async () => {
-            const identityLookupRequest: BTPIdentityLookupRequest = {
-              identity,
-              from,
-              hostSelector: selector,
-              version: BTP_PROTOCOL_VERSION,
-              id: randomUUID(),
-              issuedAt: new Date().toISOString(),
-            };
-            this.sendArtifact(identityLookupRequest);
-            this.shouldRetry = false;
-            this.isConnecting = false;
-            this.isConnected = false;
-            this.socket?.end();
-          },
-          message: async (msg) => {
-            messageReceived = true;
+        const tlsOptions = {
+          ...this.options.btpMtsOptions,
+          host: hostname,
+          port: port,
+        };
+        let tempSocket: TLSSocket | undefined = tls.connect(tlsOptions);
+        if (tempSocket) {
+          const identityLookupRequest: BTPIdentityLookupRequest = {
+            identity,
+            from,
+            hostSelector: selector,
+            version: BTP_PROTOCOL_VERSION,
+            id: randomUUID(),
+            issuedAt: new Date().toISOString(),
+          };
+          tempSocket?.write(JSON.stringify(identityLookupRequest) + '\n');
+        }
+        try {
+          tempSocket?.on('data', async (data) => {
+            const msg: BTPServerResponse = JSON.parse(data.toString());
             const { signature, signedBy, selector, type, status } = msg;
-            /* If the server returns an error, return the error */
+
             if (type === 'btps_error' || !status.ok) {
               resolve(
                 this.buildClientErrorResponse(
@@ -575,7 +875,7 @@ export class BtpsClient {
               encryption: msg?.encryption ?? null,
             } as VerifyEncryptedPayload<BTPServerResponse>;
             const { payload: decryptedPayload, error: decryptError } =
-              await this.decryptVerifyArtifact(encryptedPayload, hostPubPem);
+              await this.decryptVerifyArtifact(encryptedPayload, hostPubPem, receiverPrivatePem);
 
             if (decryptError) {
               resolve(this.buildClientErrorResponse(decryptError));
@@ -605,60 +905,95 @@ export class BtpsClient {
               },
               error: undefined,
             });
-          },
-          error: (errors) => {
-            const { error, ...restErrors } = errors;
-            if (!messageReceived && !restErrors.willRetry) {
-              const btpError = new BTPErrorException(error, { meta: restErrors });
-              resolve(this.buildClientErrorResponse(btpError));
-            }
-            // If willRetry is true, don't resolve - let retry logic handle it
-          },
-          end: ({ willRetry }) => {
-            if (!messageReceived && !willRetry) {
-              resolve(
-                this.buildClientErrorResponse(
-                  new BTPErrorException({
-                    message: 'Connection ended before message was received',
-                  }),
-                ),
-              );
-            }
-            // If willRetry is true, don't resolve - let retry logic handle it
-          },
-        };
-
-        /* Initialize the connection to the server */
-        this.connect(identity, (scopedEmitter) => {
-          const { connected, message, error, end } = listeners;
-          scopedEmitter.on('connected', connected);
-          scopedEmitter.on('message', message);
-          scopedEmitter.on('error', error);
-          scopedEmitter.on('end', end);
-        });
+          });
+          tempSocket?.on('error', (err) => {
+            resolve(this.buildClientErrorResponse(transformToBTPErrorException(err)));
+          });
+          tempSocket?.on('end', () => {
+            resolve(
+              this.buildClientErrorResponse(
+                new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, { cause: 'connection ended' }),
+              ),
+            );
+          });
+          tempSocket?.on('close', () => {
+            resolve(
+              this.buildClientErrorResponse(
+                new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, { cause: 'connection closed' }),
+              ),
+            );
+          });
+        } catch (error) {
+          resolve(this.buildClientErrorResponse(transformToBTPErrorException(error)));
+        } finally {
+          tempSocket?.destroy();
+          tempSocket = undefined;
+        }
       });
     } catch (error) {
       return await this.buildClientErrorResponse(transformToBTPErrorException(error));
     }
   }
 
+  /**
+   * Add a listener to the client
+   * @param event - The event to listen to
+   * @param listener - The listener to add
+   * @returns The client instance
+   */
+  on: TypedEventEmitter<BtpsClientEvents>['on'] = (event, listener) => {
+    this.emitter.on(event, listener);
+    return this;
+  };
+
+  /**
+   * Remove a listener from the client
+   * @param event - The event to remove the listener from
+   * @param listener - The listener to remove
+   * @returns The client instance
+   */
+  off: TypedEventEmitter<BtpsClientEvents>['off'] = (event, listener) => {
+    this.emitter.off(event, listener);
+    return this;
+  };
+
+  /**
+   * Cleanup the listeners
+   */
+  removeAllListeners() {
+    this.emitter.removeAllListeners();
+  }
+
+  /**
+   * Get the protocol version
+   * @returns The protocol version
+   */
   getProtocolVersion(): string {
     return BTP_PROTOCOL_VERSION;
   }
 
+  /**
+   * End the connection
+   */
   end(): void {
-    this.isConnecting = false;
+    this.states.isConnecting = false;
+    this.states.isConnected = false;
     this.socket?.end();
     this.socket = undefined;
   }
 
+  /**
+   * Destroy the client
+   */
   destroy(): void {
-    this.isConnecting = false;
-    this.isConnected = false;
-    this.destroyed = true;
+    this.states.isConnecting = false;
+    this.states.isConnected = false;
+    this.states.isDestroyed = true;
+    this.states.shouldRetry = false;
+    this.states.isDraining = false;
     this.backpressureQueue = [];
-    this.cleanupListeners();
+    this.removeAllListeners();
     this.socket?.destroy();
-    this.socket = undefined;
+    this.cleanupQueue();
   }
 }

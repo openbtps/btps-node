@@ -53,7 +53,13 @@ export class BTPErrorException extends Error {
   }
 }
 
-export const transformToBTPErrorException = (err: unknown): BTPErrorException => {
+export const transformToBTPErrorException = (
+  err: unknown,
+  options?: {
+    cause?: unknown;
+    meta?: Record<string, unknown>;
+  },
+): BTPErrorException => {
   if (err instanceof BTPErrorException) {
     return err;
   }
@@ -63,11 +69,14 @@ export const transformToBTPErrorException = (err: unknown): BTPErrorException =>
     return new BTPErrorException(
       { message: err?.message ?? err.name, code: code ?? BTP_ERROR_UNKNOWN.code },
       {
-        cause: err.cause,
-        meta: { ...err },
+        cause: options?.cause ?? err.cause,
+        meta: { ...err, ...(options?.meta ?? {}) },
       },
     );
   }
 
-  return new BTPErrorException(BTP_ERROR_UNKNOWN, { cause: JSON.stringify(err) });
+  return new BTPErrorException(BTP_ERROR_UNKNOWN, {
+    cause: options?.cause ?? JSON.stringify(err),
+    meta: options?.meta ?? { err: err },
+  });
 };
