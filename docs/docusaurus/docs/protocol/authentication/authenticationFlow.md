@@ -67,7 +67,7 @@ const authToken = BtpsAuthentication.generateAuthToken(userIdentity);
 const agentId = BtpsAuthentication.generateAgentId();
 
 // Store token for validation
-await auth.storeAuthToken(authToken, userIdentity, agentId, {
+await auth.storeAuthToken(authToken, userIdentity, 'alice$saas.com', {
   requestedBy: 'user',
   purpose: 'device_registration',
   timestamp: new Date().toISOString(),
@@ -291,7 +291,7 @@ async createAgent(options: CreateAgentOptions): Promise<BTPAuthResDoc> {
     "agentId": "btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28",
     "refreshToken": "-PnjR_MKMiEpG94Tr1dS-hU4VHbnG3g9Z0pMLWUY1eE",
     "expiresAt": "2025-02-15T10:30:15Z",
-    "trustId": "btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28"
+    "decryptBy": "alice$saas.com"
   }
 }
 ```
@@ -410,7 +410,7 @@ async validateAndReissueRefreshToken(
     "agentId": "btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28",
     "refreshToken": "new_refresh_token_here",
     "expiresAt": "2025-02-15T10:30:15Z",
-    "trustId": "btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28"
+    "decryptBy": "alice$saas.com"
   }
 }
 ```

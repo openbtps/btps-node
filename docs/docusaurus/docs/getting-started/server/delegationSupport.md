@@ -29,10 +29,15 @@ For detailed delegation concepts, see [Delegation Overview](/docs/protocol/deleg
 import { BtpsServer } from '@btps/sdk/server';
 import { BtpsDelegator } from '@btps/sdk/delegation';
 import { JsonTrustStore } from '@btps/sdk/trust';
-import { parseIdentity } from '@btps/sdk/utilities';
+import { readFileSync } from 'fs';
 
 const server = new BtpsServer({
   port: 3443,
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
   trustStore: new JsonTrustStore({
     connection: './trust.json',
     entityName: 'trusted_senders',
@@ -54,6 +59,12 @@ const delegator = new BtpsDelegator({
 //   autoInit: false
 // });
 // await delegator.init();
+
+// The delegator verifies your identity by:
+// 1. Looking up your DNS TXT record
+// 2. Resolving your public key
+// 3. Verifying your private key matches the public key
+// 4. Setting the selector from DNS
 ```
 
 ### Step 2: Handle Agent Artifacts and Create Delegations
@@ -163,6 +174,13 @@ async function getUserKeyPair(userIdentity) {
   };
 }
 
+// Helper function to determine user type
+function getUserSettings(userIdentity) {
+  // Implement based on your user database
+  // Return true for custom domain users, false for SaaS domain users
+  return userIdentity.includes('enterprise.com'); // Example logic
+}
+
 // Send delegated artifact to recipient
 async function sendDelegatedArtifact(delegatedArtifact) {
   // Use your transporter to send the delegated artifact
@@ -195,8 +213,9 @@ async function sendDelegatedArtifact(delegatedArtifact) {
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
     "signedBy": "alice$yourdomain.com",
     "issuedAt": "2025-01-15T10:30:00Z",
+    "selector": "btps1",
     "signature": {
-      "algorithm": "sha256",
+      "algorithmHash": "sha256",
       "value": "delegation_signature",
       "fingerprint": "delegator_fingerprint"
     }
@@ -224,16 +243,18 @@ async function sendDelegatedArtifact(delegatedArtifact) {
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
     "signedBy": "alice$enterprise.com", // User signs delegation. SaaS signs on behalf of user
     "issuedAt": "2025-01-15T10:30:00Z",
+    "selector": "btps1",
     "signature": {
-      "algorithm": "sha256",
+      "algorithmHash": "sha256",
       "value": "delegation_signature",
       "fingerprint": "delegator_fingerprint"
     },
     "attestation": {
       "issuedAt": "2025-01-15T10:30:00Z",
       "signedBy": "your-saas$yourdomain.com", // SaaS attests
+      "selector": "btps1",
       "signature": {
-        "algorithm": "sha256",
+        "algorithmHash": "sha256",
         "value": "attestation_signature",
         "fingerprint": "attestor_fingerprint"
       }

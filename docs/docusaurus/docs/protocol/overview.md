@@ -53,9 +53,18 @@ Or, as ASCII:
 
 ### 1. Discovery
 
-Sender does a DNS TXT lookup for:  
-`_btp.finance.vendor.com`  
-Retrieves public key and protocol support.
+Sender does a DNS Host and Identity TXT lookup for:
+
+- `_btps.host.vendor.com` - Host lookup retrieves:
+
+  - version
+  - host address
+  - selector key for protocol support.
+
+- `btps1._btps.identity.finance.vendor.com` - Identity lookup retrieves:
+  - key type
+  - version and
+  - public key for protocol support.
 
 ### 2. Request Consent
 

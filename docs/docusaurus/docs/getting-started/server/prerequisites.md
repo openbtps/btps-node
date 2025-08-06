@@ -11,7 +11,7 @@ Before setting up your BTPS server, you'll need to ensure your development envir
 
 ### Node.js Version
 
-BTPS requires **Node.js 20.11.1 or higher** with ES module support.
+BTPS requires **Node.js 16 or higher** with ES module support.
 
 ```bash
 # Check your Node.js version
@@ -52,11 +52,16 @@ npx @btps/sdk generate-keys your-server-identity
 Or programmatically:
 
 ```typescript
-import { getBTPKeyPair } from '@btps/sdk/crypto';
+import { getBTPKeyPair, generateKeys } from '@btps/sdk/crypto';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
-// Generate RSA key pair
+// Method 1: Generate keys with automatic file creation
+await generateKeys('your-server-identity');
+// Creates: keys/your-server-identity/your-server-identity-private.pem
+// Creates: keys/your-server-identity/your-server-identity-public.pem
+
+// Method 2: Generate keys programmatically
 const keyPair = getBTPKeyPair({
   keySize: 2048, // Default RSA key size
   format: 'pem',
@@ -93,7 +98,7 @@ For an identity like `billing$yourdomain.com`, create a DNS TXT record at:
 Name:
 
 ```
-btps1._btps.billing.yourdomain.com
+btps1._btps.identity.billing.yourdomain.com
 ```
 
 ### Record Content
@@ -123,7 +128,7 @@ For an static record to resolve the host and selector address, create a DNS TXT 
 Name:
 
 ```
-_btps.yourdomain.com
+_btps.host.yourdomain.com
 ```
 
 ### Record Content
@@ -145,7 +150,7 @@ v=1.0.0;u=btps://btps.yourdomain.com:3443;s=btps1
 ### Generate DNS Record
 
 ```typescript
-import { pemToBase64 } from '@btps/sdk/utils';
+import { pemToBase64 } from '@btps/sdk';
 import { readFileSync } from 'fs';
 
 // Read your public key
@@ -157,7 +162,7 @@ const base64Key = pemToBase64(publicKey);
 // Create DNS record content
 const dnsRecord = `k=rsa;v=1.0.0;p=${base64Key}`;
 
-console.log('DNS TXT Record for: btp1._btps.billing.yourdomain.com');
+console.log('DNS TXT Record for: btps1._btps.billing.yourdomain.com');
 console.log('Content:', dnsRecord);
 ```
 
@@ -166,14 +171,15 @@ console.log('Content:', dnsRecord);
 Test your DNS configuration:
 
 ```typescript
-import { getDnsParts } from '@btps/sdk/utils';
+import { getHostAndSelector, getDnsIdentityParts } from '@btps/sdk';
 
-// Test DNS resolution
-const dnsInfo = await getDnsParts('billing$yourdomain.com');
-console.log('DNS Info:', dnsInfo);
+// Test host and selector resolution
+const hostInfo = await getHostAndSelector('billing$yourdomain.com');
+console.log('Host Info:', hostInfo);
+// Output: { version: '1.0.0', host: 'btps://btps.yourdomain.com:3443', selector: 'btps1' }
 
 // Test public key resolution
-const publicKey = await getDnsParts('billing$yourdomain.com', 'pem');
+const publicKey = await getDnsIdentityParts('billing$yourdomain.com', 'btps1', 'pem');
 console.log('Resolved Public Key:', publicKey);
 ```
 
@@ -227,10 +233,15 @@ With these prerequisites in place, you're ready to:
 
 ```bash
 # Check if DNS record is published
-dig TXT btps1._btps.billing.yourdomain.com
+dig TXT btps1._btps.identity.billing.yourdomain.com
 
 # Verify record format
-nslookup -type=TXT btps1._btps.billing.yourdomain.com
+nslookup -type=TXT btps1._btps.identity.billing.yourdomain.com
+
+# Test with BTPS SDK
+import { getHostAndSelector } from '@btps/sdk';
+const hostInfo = await getHostAndSelector('billing$yourdomain.com');
+console.log('Host Info:', hostInfo);
 ```
 
 **Key Generation Fails**

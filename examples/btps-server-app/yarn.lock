@@ -7,13 +7,13 @@ __metadata:
 
 "@btps/sdk@file:./package.tgz::locator=btps-server-app%40workspace%3A.":
   version: 1.0.0
-  resolution: "@btps/sdk@file:./package.tgz#./package.tgz::hash=cbbec0&locator=btps-server-app%40workspace%3A."
+  resolution: "@btps/sdk@file:./package.tgz#./package.tgz::hash=ef7262&locator=btps-server-app%40workspace%3A."
   dependencies:
     lodash: "npm:^4.17.21"
     proper-lockfile: "npm:^4.1.2"
     split2: "npm:^4.2.0"
     zod: "npm:^3.25.67"
-  checksum: 10c0/00aeb0c78fc44d6d411a5ddf75120b6b8b369ae96571f4fb24dfbc2c218b6a9cf719559cbe8124b63177e83b74e5537c0b04a86e3a6fbc6edde84b3ad7685f56
+  checksum: 10c0/ef9564f483b683fd3596cc899768d5c8272233bfb3a267df2adb115638f22f219e1caa8fa4fc460e3b13bb504cc0d3bcf0d568f741b2f2a40578a17fb49257e0
   languageName: node
   linkType: hard
 

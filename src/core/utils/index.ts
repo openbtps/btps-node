@@ -11,9 +11,12 @@ import {
   BTPControlArtifact,
   BTPAgentArtifact,
   BTPIdentityLookupRequest,
-  BTPS_DNS_NAME_SPACE,
   BTPTransporterArtifact,
 } from 'server/index.js';
+import {
+  BTPS_DNS_HOST_NAME_SPACE,
+  BTPS_DNS_IDENTITY_NAME_SPACE,
+} from '@core/server/constants/btps-protocol.js';
 import { createHash } from 'crypto';
 import { transformToBTPErrorException } from '@core/error/index.js';
 
@@ -57,7 +60,7 @@ export const getHostAndSelector = async (
     return undefined;
   }
 
-  const dnsName = `${BTPS_DNS_NAME_SPACE}.${parsedIdentity.domainName}`;
+  const dnsName = `${BTPS_DNS_HOST_NAME_SPACE}.${parsedIdentity.domainName}`;
 
   try {
     const txtRecords = await resolveTxt(dnsName);
@@ -108,7 +111,7 @@ export const getDnsIdentityParts = async (
 
   const { accountName, domainName } = parsedIdentity;
 
-  const dnsName = `${selector}.${BTPS_DNS_NAME_SPACE}.${accountName}.${domainName}`;
+  const dnsName = `${selector}.${BTPS_DNS_IDENTITY_NAME_SPACE}.${accountName}.${domainName}`;
 
   try {
     const txtRecords = await resolveTxt(dnsName);

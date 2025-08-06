@@ -289,7 +289,7 @@ Stores a temporary authentication token for later validation.
 async storeAuthToken(
   token: string,
   userIdentity: string,
-  agentId: string,
+  decryptBy: string,
   metadata?: Record<string, unknown>
 ): Promise<void>
 ```
@@ -298,7 +298,7 @@ async storeAuthToken(
 
 - `token`: `string` - Authentication token to store
 - `userIdentity`: `string` - User identity
-- `agentId`: `string` - Agent identifier
+- `decryptBy`: `string` - Identity to decrypt by when decrypting documents
 - `metadata` (optional): `Record<string, unknown>` - Additional metadata
 
 **Example:**
@@ -307,7 +307,7 @@ async storeAuthToken(
 const authToken = BtpsAuthentication.generateAuthToken('alice$saas.com');
 const agentId = BtpsAuthentication.generateAgentId();
 
-await auth.storeAuthToken(authToken, 'alice$saas.com', agentId, {
+await auth.storeAuthToken(authToken, 'alice$saas.com', 'alice$saas.com', {
   requestedBy: 'admin',
   purpose: 'device_registration',
   ipAddress: '192.168.1.100',
@@ -422,7 +422,10 @@ Validates a refresh token and issues a new one.
 async validateAndReissueRefreshToken(
   agentId: string,
   refreshToken: string,
-  options: CreateAgentOptions
+  options: Omit<CreateAgentOptions, 'userIdentity' | 'publicKey'> & {
+    publicKey?: string;
+    decryptBy: string;
+  }
 ): Promise<{ data?: BTPAuthResDoc; error?: Error }>
 ```
 
@@ -430,7 +433,7 @@ async validateAndReissueRefreshToken(
 
 - `agentId`: `string` - Agent identifier
 - `refreshToken`: `string` - Current refresh token
-- `options`: [CreateAgentOptions](#createagentoptions) - Options for new token
+- `options`: `Omit<CreateAgentOptions, 'userIdentity' | 'publicKey'> & { publicKey?: string; decryptBy: string }` - Options for new token
 
 **Returns:** `Promise<{ data?: BTPAuthResDoc; error?: Error }>` - Result with new token or error
 
@@ -440,6 +443,7 @@ async validateAndReissueRefreshToken(
 const result = await auth.validateAndReissueRefreshToken(agentId, refreshToken, {
   decidedBy: 'system',
   privacyType: 'encrypted',
+  decryptBy: 'alice$saas.com',
 });
 
 if (result.data) {
@@ -577,8 +581,8 @@ interface BTPAuthResDoc {
   /** Token expiry timestamp */
   expiresAt: string;
 
-  /** Trust record identifier */
-  trustId: string;
+  /** Identity to decrypt by when decrypting documents */
+  decryptBy: string;
 }
 ```
 

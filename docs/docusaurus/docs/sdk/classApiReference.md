@@ -26,7 +26,7 @@ import { BtpsServer } from '@btps/sdk';
 new BtpsServer(options: BtpsServerOptions)
 ```
 
-- **options**: [BtpsServerOptions](./typesAndInterfaces.md#btpsserveroptions) – Server configuration options (port, trustStore, TLS, middleware, etc.)
+- **options**: [BtpsServerOptions](./typesAndInterfaces.md#btpsserveroptions) – Server configuration options (serverIdentity, trustStore, port, TLS, middleware, etc.)
 
 **Example:**
 
@@ -34,8 +34,13 @@ new BtpsServer(options: BtpsServerOptions)
 import { BtpsServer, JsonTrustStore } from '@btps/sdk';
 const trustStore = new JsonTrustStore({ connection: './trust.json' });
 const server = new BtpsServer({
-  port: 3443,
+  serverIdentity: {
+    identity: 'server$example.com',
+    publicKey: '-----BEGIN PUBLIC KEY-----...',
+    privateKey: '-----BEGIN PRIVATE KEY-----...',
+  },
   trustStore,
+  port: 3443,
   connectionTimeoutMs: 30000,
   middlewarePath: './btps.middleware.mjs',
 });
@@ -175,22 +180,21 @@ import { BtpsClient } from '@btps/sdk';
 ### constructor
 
 ```ts
-new BtpsClient(options: BtpsClientOptions)
+new BtpsClient(options: BTPClientOptions)
 ```
 
-- **options**: [BtpsClientOptions](./typesAndInterfaces.md#btpsclientoptions) – Client configuration (identity, keys, host, port, etc.)
+- **options**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) – Client configuration (to, maxRetries, retryDelayMs, connectionTimeoutMs, etc.)
 
 **Example:**
 
 ```js
 import { BtpsClient } from '@btps/sdk';
 const client = new BtpsClient({
-  identity: 'billing$yourdomain.com',
-  btpIdentityKey: 'PRIVATE_KEY',
-  bptIdentityCert: 'PUBLIC_KEY',
+  to: 'billing$yourdomain.com',
   maxRetries: 5,
   retryDelayMs: 1000,
   connectionTimeoutMs: 30000,
+  maxQueue: 100,
 });
 ```
 
@@ -219,33 +223,46 @@ client.connect('inbox$vendor.com', (events) => {
 ### send
 
 ```ts
-await client.send(artifact);
+await client.send(artifact, timeoutMs?);
 ```
 
-Signs, encrypts, and sends a BTPS artifact to the server. Supports key rotation through selector-based public key resolution.
+Sends a pre-signed BTPS artifact to the server. **Note**: The artifact must be pre-signed using `signAndEncrypt` from the crypto module before sending.
 
-- **artifact**: [SendBTPArtifact](./typesAndInterfaces.md#sendbtpartifact) – Artifact to send
+- **artifact**: [BTPArtifact](./typesAndInterfaces.md#btpartifact) – Pre-signed artifact to send
+- **timeoutMs**: `number` (optional, default: 5000) – Timeout in milliseconds
 - **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
 
 **Example:**
 
 ```js
-const res = await client.send({
-  to: 'inbox$vendor.com',
-  type: 'BTPS_DOC',
-  selector: 'btps1', // Optional: specify selector for key rotation support
+import { signAndEncrypt } from '@btps/sdk/crypto';
+
+// First, sign the artifact
+const artifact = {
+  id: 'trust_req_123',
+  type: 'btp_trust_request',
+  issuedAt: new Date().toISOString(),
   document: {
-    title: 'Invoice #123',
-    id: 'inv_123',
-    issuedAt: new Date().toISOString(),
-    status: 'unpaid',
-    totalAmount: { value: 100.0, currency: 'USD' },
-    lineItems: {
-      columns: ['Description', 'Amount'],
-      rows: [{ Description: 'Service', Amount: 100.0 }],
-    },
+    name: 'Your Company Name',
+    email: 'billing@yourdomain.com',
+    reason: 'To send monthly invoices',
+    phone: '+1234567890',
   },
-});
+};
+
+// Sign the artifact before sending (REQUIRED)
+const signedArtifact = await signAndEncrypt(
+  'billing$yourdomain.com',
+  { accountName: 'billing', domainName: 'yourdomain.com', pemFiles: { publicKey, privateKey } },
+  {
+    type: 'BTPS_DOC',
+    document: artifact,
+    selector: 'btps1',
+  },
+);
+
+// Then send the signed artifact
+const res = await client.send(signedArtifact.payload, 10000); // 10 second timeout
 if (res.response) {
   console.log('Server response:', res.response);
 } else {
@@ -315,35 +332,41 @@ import { BtpsAgent } from '@btps/sdk';
 ### constructor
 
 ```ts
-new BtpsAgent(options: BtpsClientOptions & { agentId: string })
+new BtpsAgent(options: BTPAgentOptions)
 ```
 
-- **options**: [BtpsClientOptions](./typesAndInterfaces.md#btpsclientoptions) & `{ agentId: string }` – Client configuration with agent ID
+- **options**: [BTPAgentOptions](./typesAndInterfaces.md#btpagentoptions) – Agent configuration with agent details and BTPS identity
 
 **Example:**
 
 ```js
 import { BtpsAgent } from '@btps/sdk';
 const agent = new BtpsAgent({
-  identity: 'billing$yourdomain.com',
-  btpIdentityKey: 'PRIVATE_KEY',
-  bptIdentityCert: 'PUBLIC_KEY',
-  agentId: 'agent_123',
+  agent: {
+    id: 'agent_123',
+    identityKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',
+    identityCert: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
+  },
+  btpIdentity: 'billing$yourdomain.com',
+  maxRetries: 5,
+  retryDelayMs: 1000,
+  connectionTimeoutMs: 30000,
 });
 ```
 
 ### command
 
 ```ts
-await agent.command(actionType, to, document?, options?)
+await agent.command(actionType, identity, document?, options?, timeoutMs?)
 ```
 
-Executes an agent command with optional document payload. Supports key rotation through selector-based public key resolution.
+Executes an agent command with optional document payload.
 
 - **actionType**: [AgentAction](./typesAndInterfaces.md#agentaction) – Type of agent action
-- **to**: `string` – Target BTPS identity
-- **document**: [BTPDocType](./typesAndInterfaces.md#btpdoctype) | [BTPAuthReqDoc](./typesAndInterfaces.md#btpauthreqdoc) | [BTPAgentMutation](./typesAndInterfaces.md#btpagentmutation) | [BTPIdsPayload](./typesAndInterfaces.md#btpidspayload) | [BTPAgentQuery](./typesAndInterfaces.md#btpagentquery) (optional) – Document payload
+- **identity**: `string` – Target BTPS identity
+- **document**: [BtpsAgentDoc](./typesAndInterfaces.md#btpsagentdoc) (optional) – Document payload
 - **options**: [BTPCryptoOptions](./typesAndInterfaces.md#btpcryptooptions) (optional) – Cryptographic options
+- **timeoutMs**: `number` (optional) – Timeout in milliseconds
 - **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
 
 **Example:**
@@ -365,9 +388,8 @@ const trustRes = await agent.command('trust.request', 'vendor$domain.com', {
   phone: '+1234567890',
 });
 
-// Send artifact with selector for key rotation
+// Send artifact
 const sendRes = await agent.command('artifact.send', 'client$domain.com', {
-  selector: 'btps2', // Optional: specify selector for key rotation support
   title: 'Invoice #123',
   id: 'inv_123',
   issuedAt: new Date().toISOString(),
@@ -378,6 +400,247 @@ const sendRes = await agent.command('artifact.send', 'client$domain.com', {
     rows: [{ Description: 'Service', Amount: 100.0 }],
   },
 });
+```
+
+---
+
+## BtpsTransporter
+
+A connection management and message delivery service that handles direct message delivery between BTPS servers. Manages a pool of `BtpsClient` connections and provides efficient artifact transport.
+
+**Import:**
+
+```js
+import { BtpsTransporter } from '@btps/sdk';
+```
+
+### constructor
+
+```ts
+new BtpsTransporter(options: BTPTransporterOptions)
+```
+
+- **options**: [BTPTransporterOptions](./typesAndInterfaces.md#btptransporteroptions) – Transporter configuration
+
+**Example:**
+
+```js
+import { BtpsTransporter } from '@btps/sdk';
+const transporter = new BtpsTransporter({
+  maxConnections: 50,
+  connectionTTLSeconds: 300,
+  maxRetries: 3,
+  retryDelayMs: 1000,
+  connectionTimeoutMs: 30000,
+  maxQueue: 100,
+});
+```
+
+### registerConnection
+
+```ts
+await transporter.registerConnection(to, clientOptions?, override?)
+```
+
+Registers a new connection for a specific recipient.
+
+- **to**: `string` – Recipient identity
+- **clientOptions**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) (optional) – Custom client options for this connection
+- **override**: `boolean` (optional, default: `false`) – Whether to override existing connection
+- **Returns**: `Promise<BTPConnection>` ([BTPConnection](./typesAndInterfaces.md#btpconnection))
+
+**Example:**
+
+```js
+const connection = await transporter.registerConnection('client$domain.com', {
+  maxQueue: 200,
+  maxRetries: 5,
+});
+console.log('Connection registered:', connection.id);
+```
+
+### deregisterConnection
+
+```ts
+transporter.deregisterConnection(to);
+```
+
+Deregisters a connection for a specific recipient.
+
+- **to**: `string` – Recipient identity
+
+**Example:**
+
+```js
+transporter.deregisterConnection('client$domain.com');
+console.log('Connection deregistered');
+```
+
+### transport
+
+```ts
+await transporter.transport(to, artifact, clientOptions?)
+```
+
+Transports a single artifact to a recipient.
+
+- **to**: `string` – Recipient identity
+- **artifact**: [BTPTransporterArtifact](./typesAndInterfaces.md#btptransporterartifact) – Artifact to transport
+- **clientOptions**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) (optional) – Custom client options for this transport
+- **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
+
+**Example:**
+
+```js
+const result = await transporter.transport('client$domain.com', artifact);
+if (result.response) {
+  console.log('Transport successful:', result.response);
+} else {
+  console.error('Transport failed:', result.error);
+}
+```
+
+### transportBatch
+
+```ts
+await transporter.transportBatch(to, artifacts, clientOptions?)
+```
+
+Transports multiple artifacts to a recipient efficiently.
+
+- **to**: `string` – Recipient identity
+- **artifacts**: `BTPTransporterArtifact[]` – Array of artifacts to transport
+- **clientOptions**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) (optional) – Custom client options for this batch transport
+- **Returns**: `Promise<BTPClientResponse[]>` – Array of transport results
+
+**Example:**
+
+```js
+const results = await transporter.transportBatch('client$domain.com', [
+  artifact1,
+  artifact2,
+  artifact3,
+]);
+results.forEach((result, index) => {
+  if (result.response) {
+    console.log(`Artifact ${index + 1} transported successfully`);
+  } else {
+    console.error(`Artifact ${index + 1} failed:`, result.error);
+  }
+});
+```
+
+### getConnections
+
+```ts
+const connections = transporter.getConnections();
+```
+
+Returns all registered connections.
+
+- **Returns**: `BTPConnection[]` – Array of all connections
+
+**Example:**
+
+```js
+const connections = transporter.getConnections();
+console.log('Active connections:', connections.length);
+```
+
+### getConnection
+
+```ts
+const connection = transporter.getConnection(id);
+```
+
+Returns a specific connection by ID.
+
+- **id**: `string` – Connection ID
+- **Returns**: `BTPConnection | undefined` – Connection if found
+
+**Example:**
+
+```js
+const connection = transporter.getConnection('conn_123');
+if (connection) {
+  console.log('Connection status:', connection.isActive);
+}
+```
+
+### updateConnection
+
+```ts
+const connection = transporter.updateConnection(id, clientOptions?, ttlSeconds?)
+```
+
+Updates an existing connection with new options.
+
+- **id**: `string` – Connection ID
+- **clientOptions**: [UpdateBTPClientOptions](./typesAndInterfaces.md#updatebtpclientoptions) (optional) – New client options
+- **ttlSeconds**: `number` (optional) – New TTL in seconds
+- **Returns**: `BTPConnection | undefined` – Updated connection if found
+
+**Example:**
+
+```js
+const updatedConnection = transporter.updateConnection(
+  'conn_123',
+  {
+    maxQueue: 300,
+    maxRetries: 5,
+  },
+  600,
+);
+```
+
+### getActiveConnections
+
+```ts
+const activeConnections = transporter.getActiveConnections();
+```
+
+Returns all active connections.
+
+- **Returns**: `BTPConnection[]` – Array of active connections
+
+**Example:**
+
+```js
+const activeConnections = transporter.getActiveConnections();
+console.log('Active connections:', activeConnections.length);
+```
+
+### getMetrics
+
+```ts
+const metrics = transporter.getMetrics();
+```
+
+Returns transporter metrics.
+
+- **Returns**: `BTPTransporterMetrics` ([BTPTransporterMetrics](./typesAndInterfaces.md#btptransportermetrics)) – Transporter metrics
+
+**Example:**
+
+```js
+const metrics = transporter.getMetrics();
+console.log('Total connections:', metrics.totalConnections);
+console.log('Active connections:', metrics.activeConnections);
+```
+
+### destroy
+
+```ts
+transporter.destroy();
+```
+
+Destroys the transporter, closes all connections, and removes all listeners.
+
+**Example:**
+
+```js
+transporter.destroy();
+console.log('Transporter destroyed');
 ```
 
 ---
@@ -773,15 +1036,318 @@ const delegatedArtifact = await delegator.delegateArtifact(
 
 ---
 
-## AbstractTrustStore
+## AbstractStorageStore
 
-Abstract base class for implementing a trust store backend (file, DB, etc.). Extend this class to create custom trust stores.
+Abstract base class for implementing a storage store backend (file, DB, etc.). Extend this class to create custom storage stores.
 
 **Import:**
 
 ```js
-import { AbstractTrustStore } from '@btps/sdk/trust';
+import { AbstractStorageStore } from '@btps/sdk/storage';
 ```
+
+### constructor
+
+```ts
+new AbstractStorageStore(options: StorageStoreOptions)
+```
+
+- **options**: [StorageStoreOptions](./typesAndInterfaces.md#storagestoreoptions) – Storage configuration
+
+**Example:**
+
+```js
+import { AbstractStorageStore } from '@btps/sdk/storage';
+class MyStorageStore extends AbstractStorageStore {
+  async getById(computedId: string) {
+    // Implementation
+  }
+  async create(record, computedId) {
+    // Implementation
+  }
+  async update(computedId, patch) {
+    // Implementation
+  }
+  async delete(computedId) {
+    // Implementation
+  }
+}
+```
+
+### getById
+
+```ts
+await store.getById(computedId);
+```
+
+Retrieves a record by its computed ID.
+
+- **computedId**: `string` – Computed ID of the record
+- **Returns**: `Promise<T | undefined>` – Record if found, undefined otherwise
+
+### create
+
+```ts
+await store.create(record, computedId?)
+```
+
+Creates a new record.
+
+- **record**: `Omit<T, 'id'>` – Record data without ID
+- **computedId**: `string` (optional) – Computed ID for the record
+- **Returns**: `Promise<T>` – Created record with ID
+
+### update
+
+```ts
+await store.update(computedId, patch);
+```
+
+Updates an existing record.
+
+- **computedId**: `string` – Computed ID of the record to update
+- **patch**: `Partial<T>` – Partial record data to update
+- **Returns**: `Promise<T>` – Updated record
+
+### delete
+
+```ts
+await store.delete(computedId);
+```
+
+Deletes a record.
+
+- **computedId**: `string` – Computed ID of the record to delete
+- **Returns**: `Promise<void>`
+
+---
+
+## AbstractIdentityStore
+
+Abstract base class for implementing an identity store backend. Extends `AbstractStorageStore` with identity-specific functionality.
+
+**Import:**
+
+```js
+import { AbstractIdentityStore } from '@btps/sdk/storage';
+```
+
+### constructor
+
+```ts
+new AbstractIdentityStore(options: StorageStoreOptions)
+```
+
+- **options**: [StorageStoreOptions](./typesAndInterfaces.md#storagestoreoptions) – Storage configuration
+
+### getPublicKeyRecord
+
+```ts
+await store.getPublicKeyRecord(identity, selector?)
+```
+
+Retrieves a public key record for a given identity and selector.
+
+- **identity**: `string` – Identity to get public key for
+- **selector**: `string` (optional) – Selector for key rotation (defaults to current selector)
+- **Returns**: `Promise<IdentityPubKeyRecord | undefined>` – Public key record if found
+
+---
+
+## JsonStorageStore
+
+JSON-based storage store for self-hosted environments. Uses a Map internally for fast lookup and persists storage records to a single JSON file.
+
+**Import:**
+
+```js
+import { JsonStorageStore } from '@btps/sdk/storage';
+```
+
+### constructor
+
+```ts
+new JsonStorageStore(options: StorageStoreOptions)
+```
+
+- **options**: [StorageStoreOptions](./typesAndInterfaces.md#storagestoreoptions) – Storage configuration (connection must be a file path)
+
+**Example:**
+
+```js
+import { JsonStorageStore } from '@btps/sdk/storage';
+const store = new JsonStorageStore({
+  connection: './data/storage.json',
+  entityName: 'myRecords',
+});
+```
+
+### getById
+
+```ts
+await store.getById(computedId);
+```
+
+Retrieves a record by its computed ID.
+
+- **computedId**: `string` – Computed ID of the record
+- **Returns**: `Promise<T | undefined>` – Record if found, undefined otherwise
+
+### create
+
+```ts
+await store.create(record, identity);
+```
+
+Creates a new record with computed ID based on identity.
+
+- **record**: `Omit<T, 'id'>` – Record data without ID
+- **identity**: `string` – Identity to compute ID from
+- **Returns**: `Promise<T>` – Created record with ID
+
+### update
+
+```ts
+await store.update(computedId, patch);
+```
+
+Updates an existing record.
+
+- **computedId**: `string` – Computed ID of the record to update
+- **patch**: `Partial<T>` – Partial record data to update
+- **Returns**: `Promise<T>` – Updated record
+
+### delete
+
+```ts
+await store.delete(computedId);
+```
+
+Deletes a record.
+
+- **computedId**: `string` – Computed ID of the record to delete
+- **Returns**: `Promise<void>`
+
+### flushNow
+
+```ts
+await store.flushNow();
+```
+
+Immediately writes all pending changes to disk.
+
+- **Returns**: `Promise<void>`
+
+### flushAndReload
+
+```ts
+await store.flushAndReload();
+```
+
+Writes pending changes and reloads from disk.
+
+- **Returns**: `Promise<void>`
+
+---
+
+## JsonIdentityStore
+
+JSON-based identity store for self-hosted environments. Extends `JsonStorageStore` with identity-specific functionality.
+
+**Import:**
+
+```js
+import { JsonIdentityStore } from '@btps/sdk/storage';
+```
+
+### constructor
+
+```ts
+new JsonIdentityStore(options: StorageStoreOptions)
+```
+
+- **options**: [StorageStoreOptions](./typesAndInterfaces.md#storagestoreoptions) – Storage configuration (connection must be a file path)
+
+**Example:**
+
+```js
+import { JsonIdentityStore } from '@btps/sdk/storage';
+const identityStore = new JsonIdentityStore({
+  connection: './data/identities.json',
+});
+```
+
+### getById
+
+```ts
+await store.getById(computedId);
+```
+
+Retrieves an identity record by its computed ID.
+
+- **computedId**: `string` – Computed ID of the identity record
+- **Returns**: `Promise<BTPIdentityRecord | undefined>` – Identity record if found, undefined otherwise
+
+### create
+
+```ts
+await store.create(record, identity);
+```
+
+Creates a new identity record.
+
+- **record**: `Omit<BTPIdentityRecord, 'id'>` – Identity record data without ID
+- **identity**: `string` – Identity string to compute ID from
+- **Returns**: `Promise<BTPIdentityRecord>` – Created identity record with ID
+
+### update
+
+```ts
+await store.update(computedId, patch);
+```
+
+Updates an existing identity record.
+
+- **computedId**: `string` – Computed ID of the identity record to update
+- **patch**: `Partial<BTPIdentityRecord>` – Partial identity record data to update
+- **Returns**: `Promise<BTPIdentityRecord>` – Updated identity record
+
+### delete
+
+```ts
+await store.delete(computedId);
+```
+
+Deletes an identity record.
+
+- **computedId**: `string` – Computed ID of the identity record to delete
+- **Returns**: `Promise<void>`
+
+### getPublicKeyRecord
+
+```ts
+await store.getPublicKeyRecord(identity, selector?)
+```
+
+Retrieves a public key record for a given identity and selector.
+
+- **identity**: `string` – Identity to get public key for
+- **selector**: `string` (optional) – Selector for key rotation (defaults to current selector)
+- **Returns**: `Promise<IdentityPubKeyRecord | undefined>` – Public key record if found
+
+**Example:**
+
+```js
+const publicKeyRecord = await identityStore.getPublicKeyRecord('alice$company.com', 'btps1');
+if (publicKeyRecord) {
+  console.log('Public key:', publicKeyRecord.publicKey);
+  console.log('Version:', publicKeyRecord.version);
+}
+```
+
+---
+
+## AbstractTrustStore
 
 ### constructor
 

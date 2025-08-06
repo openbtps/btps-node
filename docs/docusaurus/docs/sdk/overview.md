@@ -59,12 +59,14 @@ import type { BTPArtifact, BTPInvoiceDoc } from '@btps/sdk';
 | -------------------------- | -------------------------------- |
 | `@btps/sdk`                | Main SDK (server, client, utils) |
 | `@btps/sdk/server`         | Server-side exports              |
+| `@btps/sdk/server/core`    | Server core libraries            |
 | `@btps/sdk/client`         | Client-side exports              |
 | `@btps/sdk/crypto`         | Cryptographic utilities          |
 | `@btps/sdk/trust`          | Trust store and trust types      |
+| `@btps/sdk/authentication` | Authentication utilities         |
+| `@btps/sdk/delegation`     | Delegation utilities             |
 | `@btps/sdk/error`          | Error types and helpers          |
-| `@btps/sdk/authentication` | Error types and helpers          |
-| `@btps/sdk/delegation`     | Error types and helpers          |
+| `@btps/sdk/storage`        | Storage utilities                |
 
 ---
 
@@ -74,7 +76,7 @@ Your installed `node_modules/@btps/sdk` will contain:
 
 ```
 dist/
-├── index.js                  ← Main entry
+├── index.js                  ← Main entry (@btps/sdk)
 ├── index.d.ts                ← Type declarations
 ├── core/
 │   ├── trust/
@@ -83,13 +85,14 @@ dist/
 │   │   └── index.js         ← @btps/sdk/crypto
 │   ├── error/
 │   │   └── index.js         ← @btps/sdk/error
-│   ├── authentication
+│   ├── authentication/
 │   │   └── index.js         ← @btps/sdk/authentication
-│   ├── delegation
+│   ├── delegation/
 │   │   └── index.js         ← @btps/sdk/delegation
-└── client/
-│   ├── index.js             ← @btps/sdk/client
-│
+│   └── storage/
+│       └── index.js         ← @btps/sdk/storage
+├── client/
+│   └── index.js             ← @btps/sdk/client
 └── server/
     ├── index.js             ← @btps/sdk/server
     └── libs/
@@ -140,6 +143,14 @@ const { payload, error } = await signEncrypt(
 import { JsonTrustStore } from '@btps/sdk/trust';
 const trustStore = new JsonTrustStore({ connection: './trust.json' });
 const allTrusts = await trustStore.getAll();
+```
+
+### Use Storage Utilities
+
+```js
+import { JsonIdentityStore } from '@btps/sdk/storage';
+const identityStore = new JsonIdentityStore({ connection: './identities.json' });
+const publicKey = await identityStore.getPublicKeyRecord('alice$saas.com');
 ```
 
 ---

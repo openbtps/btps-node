@@ -21,18 +21,21 @@ A delegation object contains the necessary information to authorize an agent to 
     "signedBy": "alice$saas.com",
     "issuedAt": "2025-01-15T10:30:00Z",
     "signature": {
-      "algorithm": "sha256",
-      "value": "base64_encoded_signature",
-      "fingerprint": "sha256_fingerprint"
+      "algorithmHash": "sha256",
+      "value": "base64-encoded-signature",
+      "fingerprint": "sha256-base64-fingerprint"
     },
+    "selector": "btps1",
+
     "attestation": {
       "issuedAt": "2025-01-15T10:30:00Z",
       "signedBy": "admin$saas.com",
       "signature": {
-        "algorithm": "sha256",
-        "value": "base64_encoded_signature",
-        "fingerprint": "sha256_fingerprint"
-      }
+        "algorithmHash": "sha256",
+        "value": "base64-encoded-signature",
+        "fingerprint": "sha256-base64-fingerprint"
+      },
+      "selector": "btps1"
     }
   }
 }
@@ -47,23 +50,24 @@ A delegation object contains the necessary information to authorize an agent to 
 | `signedBy`    | `string` | BTPS identity of the delegator            | ✅          |
 | `issuedAt`    | `string` | ISO 8601 timestamp of delegation creation | ✅          |
 | `signature`   | `object` | Cryptographic signature of the delegator  | ✅          |
+| `selector`    | `string` | DNS selector for key management           | ✅          |
 | `attestation` | `object` | Third-party attestation (see below)       | Conditional |
 
 ### **Signature Object**
 
 ```json
 {
-  "algorithm": "sha256",
-  "value": "base64_encoded_signature",
-  "fingerprint": "sha256_fingerprint"
+  "algorithmHash": "sha256",
+  "value": "base64-encoded-signature",
+  "fingerprint": "sha256-base64-fingerprint"
 }
 ```
 
-| Field         | Type     | Description                                    |
-| ------------- | -------- | ---------------------------------------------- |
-| `algorithm`   | `string` | Signature algorithm (currently only "sha256")  |
-| `value`       | `string` | Base64-encoded signature value                 |
-| `fingerprint` | `string` | SHA-256 fingerprint of the signer's public key |
+| Field           | Type     | Description                                    |
+| --------------- | -------- | ---------------------------------------------- |
+| `algorithmHash` | `string` | Signature algorithm (currently only "sha256")  |
+| `value`         | `string` | Base64-encoded signature value                 |
+| `fingerprint`   | `string` | SHA-256 fingerprint of the signer's public key |
 
 ## 🔐 Attestation Specification
 
@@ -74,10 +78,11 @@ A delegation object contains the necessary information to authorize an agent to 
   "issuedAt": "2025-01-15T10:30:00Z",
   "signedBy": "admin$saas.com",
   "signature": {
-    "algorithm": "sha256",
-    "value": "base64_encoded_signature",
-    "fingerprint": "sha256_fingerprint"
-  }
+    "algorithmHash": "sha256",
+    "value": "base64-encoded-signature",
+    "fingerprint": "sha256-base64-fingerprint"
+  },
+  "selector": "btps1"
 }
 ```
 
@@ -133,23 +138,24 @@ A delegated artifact is a standard BTPS artifact with an additional `delegation`
     }
   },
   "signature": {
-    "algorithm": "sha256",
-    "value": "agent_signature",
-    "fingerprint": "agent_public_key_fingerprint"
+    "algorithmHash": "sha256",
+    "value": "base64-encoded-signature",
+    "fingerprint": "sha256-base64-fingerprint"
   },
   "encryption": {
-    "algorithm": "aes-256-cbc",
-    "encryptedKey": "base64_encrypted_aes_key",
-    "iv": "base64_iv",
-    "type": "standardEncrypt"
-  },
+    "algorithm": "aes-256-gcm",
+    "encryptedKey": "base64-encoded-encrypted-key",
+    "iv": "base64-encoded-initialization-vector",
+    "type": "standardEncrypt",
+    "authTag": "authTagString"
+  }
   "delegation": {
     "agentId": "device_agent_123",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
     "signedBy": "alice$saas.com",
     "issuedAt": "2025-01-15T10:30:00Z",
     "signature": {
-      "algorithm": "sha256",
+      "algorithmHash": "sha256",
       "value": "delegation_signature",
       "fingerprint": "delegator_public_key_fingerprint"
     },
@@ -157,11 +163,13 @@ A delegated artifact is a standard BTPS artifact with an additional `delegation`
       "issuedAt": "2025-01-15T10:30:00Z",
       "signedBy": "admin$saas.com",
       "signature": {
-        "algorithm": "sha256",
+        "algorithmHash": "sha256",
         "value": "attestation_signature",
         "fingerprint": "attestor_public_key_fingerprint"
-      }
-    }
+      },
+      "selector": "btps1"
+    },
+    "selector": "btps1"
   }
 }
 ```
@@ -277,10 +285,11 @@ The BtpsServer automatically handles delegation verification. Users need to:
     "signedBy": "alice$saas.com",
     "issuedAt": "2025-01-15T10:30:00Z",
     "signature": {
-      "algorithm": "sha256",
+      "algorithmHash": "sha256",
       "value": "delegation_signature",
       "fingerprint": "delegator_fingerprint"
-    }
+    },
+    "selector": "btps1"
   }
 }
 ```
@@ -295,18 +304,20 @@ The BtpsServer automatically handles delegation verification. Users need to:
     "signedBy": "alice$enterprise.com",
     "issuedAt": "2025-01-15T10:30:00Z",
     "signature": {
-      "algorithm": "sha256",
+      "algorithmHash": "sha256",
       "value": "delegation_signature",
       "fingerprint": "delegator_fingerprint"
     },
+    "selector": "btps1",
     "attestation": {
       "issuedAt": "2025-01-15T10:30:00Z",
       "signedBy": "admin$enterprise.com",
       "signature": {
-        "algorithm": "sha256",
+        "algorithmHash": "sha256",
         "value": "attestation_signature",
         "fingerprint": "attestor_fingerprint"
-      }
+      },
+      "selector": "btps1"
     }
   }
 }

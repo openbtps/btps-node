@@ -37,15 +37,20 @@ const trustStore = new JsonTrustStore({
 });
 
 const server = new BtpsServer({
-  port: 3443,
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
   trustStore,
-  middlewarePath: './btps.middleware.mjs',
+  port: 3443,
 });
 
 // Create authentication instance
 const auth = new BtpsAuthentication({
-  trustStore: server.trustStore,
+  trustStore,
   tokenStore: new InMemoryTokenStore(),
+  refreshTokenStore: new InMemoryTokenStore(),
   tokenConfig: {
     authTokenLength: 12,
     authTokenExpiryMs: 15 * 60 * 1000, // 15 minutes
@@ -106,12 +111,15 @@ async function handleAuthRequest(artifact, resCtx, auth, server) {
   }
 
   // Create agent and trust record
-  const authResponseDoc = await auth.createAgent({
-    decidedBy: identity,
-    publicKey,
-    userIdentity: identity,
-    agentInfo,
-  });
+  const authResponseDoc = await auth.createAgent(
+    {
+      userIdentity: identity,
+      publicKey,
+      agentInfo,
+      decidedBy: identity,
+    },
+    identity, // decryptBy parameter
+  );
 
   return resCtx.sendRes({
     ...server.prepareBtpsResponse(
@@ -140,6 +148,7 @@ async function handleAuthRefresh(artifact, resCtx, auth, server) {
     decidedBy: 'system',
     publicKey: authDoc.publicKey,
     agentInfo: authDoc?.agentInfo ?? {},
+    decryptBy: artifact.to, // decryptBy parameter
   });
 
   if (error) {
@@ -169,7 +178,7 @@ async function generateDeviceToken(userIdentity: string) {
   const authToken = BtpsAuthentication.generateAuthToken(userIdentity);
   const agentId = BtpsAuthentication.generateAgentId();
 
-  await auth.storeAuthToken(authToken, userIdentity, agentId, {
+  await auth.storeAuthToken(authToken, userIdentity, userIdentity, {
     requestedBy: 'user',
     purpose: 'device_registration',
     timestamp: new Date().toISOString(),
@@ -184,6 +193,11 @@ async function generateDeviceToken(userIdentity: string) {
     expiresIn: storedToken?.expiresAt, // Use actual stored expiry
   };
 }
+
+// Static methods for token generation
+const authToken = BtpsAuthentication.generateAuthToken('user$domain.com');
+const agentId = BtpsAuthentication.generateAgentId();
+const refreshToken = BtpsAuthentication.generateRefreshToken();
 ```
 
 ## Environment Configuration
@@ -235,6 +249,35 @@ const refreshResult = await agent.command('auth.refresh', null, {
 - **Session Management**: Handle refresh tokens for long-term access
 - **Trust Integration**: Store trust records in the trust store
 - **Token Management**: Generate and validate authentication tokens
+
+### Static Authentication Methods
+
+The `BtpsAuthentication` class provides static methods for client-side authentication:
+
+```typescript
+import { BtpsAuthentication } from '@btps/sdk/authentication';
+
+// Generate tokens
+const authToken = BtpsAuthentication.generateAuthToken('user$domain.com');
+const agentId = BtpsAuthentication.generateAgentId();
+const refreshToken = BtpsAuthentication.generateRefreshToken();
+
+// Client-side authentication
+const authResult = await BtpsAuthentication.authenticate(
+  'user$domain.com',
+  authToken,
+  { publicKey: 'device-public-key', privateKey: 'device-private-key' },
+  { deviceName: 'Test Device', platform: 'test' },
+);
+
+// Session refresh
+const refreshResult = await BtpsAuthentication.refreshSession(
+  agentId,
+  'user$domain.com',
+  refreshToken,
+  { publicKey: 'device-public-key', privateKey: 'device-private-key' },
+);
+```
 
 ### Authentication Flow
 

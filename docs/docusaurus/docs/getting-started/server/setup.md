@@ -59,26 +59,37 @@ import { join } from 'path';
 // Initialize trust store for development
 const trustStore = new JsonTrustStore({
   connection: join(process.cwd(), 'data', 'trust.json'),
-  entityName: 'trusted_senders'
+  entityName: 'trusted_senders',
 });
 
+// Server identity configuration (required)
+const serverIdentity = {
+  identity: 'admin$yourdomain.com',
+  publicKey: readFileSync('./keys/your-server-identity-public.pem', 'utf8'),
+  privateKey: readFileSync('./keys/your-server-identity-private.pem', 'utf8'),
+};
+
 // TLS configuration (optional for development)
-const tlsOptions = process.env.USE_TLS === 'true' ? {
-  key: readFileSync('./keys/private.pem'),
-  cert: readFileSync('./keys/cert.pem'),
-  requestCert: false,
-  rejectUnauthorized: false
-} : undefined;
+const tlsOptions =
+  process.env.USE_TLS === 'true'
+    ? {
+        key: readFileSync('./keys/private.pem'),
+        cert: readFileSync('./keys/cert.pem'),
+        requestCert: false,
+        rejectUnauthorized: false,
+      }
+    : undefined;
 
 // Create BTPS server
 const server = new BtpsServer({
-  port: 3443,
+  serverIdentity,
   trustStore,
+  port: 3443,
   options: tlsOptions,
   connectionTimeoutMs: 30000,
   onError: (error) => {
     console.error('Server Error:', error.message);
-  }
+  },
 });
 
 // Start the server
@@ -180,36 +191,41 @@ Create a simple test client to verify your server is working:
 ```typescript
 // test-client.ts
 import { BtpsClient } from '@btps/sdk';
-import { readFileSync } from 'fs';
 
 const client = new BtpsClient({
-  identity: 'test$example.com',
-  btpIdentityKey: readFileSync('./keys/private.pem'),
-  bptIdentityCert: readFileSync('./keys/public.pem'),
-  /* for development as this will override real server lookup based on the identity and dns txt record
-   * for production and users that have custom domain DNS TXT published do not require this as it will be resolved automatically
-  */
-  host: 'localhost',
-  port: 3443,
+  to: 'admin$yourdomain.com', // Target server identity
+  maxRetries: 3,
+  retryDelayMs: 1000,
   connectionTimeoutMs: 5000,
+  host: 'localhost', // For development - overrides DNS lookup
+  port: 3443,
   btpMtsOptions: {
-    rejectUnauthorized: false // For self-signed certificates
-  }
+    rejectUnauthorized: false, // For self-signed certificates
+  },
 });
 
 async function testConnection() {
   try {
-    await client.connect('billing$yourdomain.com', (events) => {
-      events.on('connected', () => {
-        console.log('✅ Connected to BTPS server');
-      });
-      
-      events.on('error', (errorInfo) => {
-        console.error('❌ Connection error:', errorInfo.error.message);
-      });
-    });
+    // Create a simple control artifact to test connection
+    const controlArtifact = {
+      version: '1.0.0.0',
+      id: 'test_control_123',
+      issuedAt: new Date().toISOString(),
+      action: 'QUIT' as const,
+    };
+
+    const result = await client.send(controlArtifact, 5000);
+
+    if (result.error) {
+      console.error('❌ Connection failed:', result.error.message);
+    } else {
+      console.log('✅ Connected to BTPS server');
+      console.log('Response:', result.response);
+    }
   } catch (error) {
     console.error('❌ Failed to connect:', error);
+  } finally {
+    client.destroy();
   }
 }
 
@@ -226,8 +242,11 @@ npx tsx test-client.ts
 
 Your basic server now includes:
 
+- **Server Identity**: Required identity configuration for signing responses
 - **TLS Support**: Secure communication over port 3443
 - **Trust Store**: JSON-based trust record storage
+- **Identity Store**: Optional identity store for SaaS-managed users
+- **Middleware Support**: Custom middleware for request processing
 - **Error Handling**: Graceful error management
 - **Graceful Shutdown**: Proper cleanup on exit
 - **Protocol Version**: BTPS 1.0.0 compliance
@@ -237,6 +256,11 @@ Your basic server now includes:
 Configure your server with environment variables:
 
 ```bash
+# Server identity configuration
+SERVER_IDENTITY=admin$yourdomain.com
+SERVER_PUBLIC_KEY_PATH=./keys/your-server-identity-public.pem
+SERVER_PRIVATE_KEY_PATH=./keys/your-server-identity-private.pem
+
 # Server configuration
 PORT=3443
 USE_TLS=true
@@ -251,13 +275,24 @@ Update your server to use environment variables:
 
 ```typescript
 const server = new BtpsServer({
-  port: parseInt(process.env.PORT || '3443'),
+  serverIdentity: {
+    identity: process.env.SERVER_IDENTITY || 'admin$yourdomain.com',
+    publicKey: readFileSync(
+      process.env.SERVER_PUBLIC_KEY_PATH || './keys/your-server-identity-public.pem',
+      'utf8',
+    ),
+    privateKey: readFileSync(
+      process.env.SERVER_PRIVATE_KEY_PATH || './keys/your-server-identity-private.pem',
+      'utf8',
+    ),
+  },
   trustStore: new JsonTrustStore({
     connection: process.env.TRUST_STORE_PATH || './data/trust.json',
-    entityName: process.env.TRUST_STORE_ENTITY || 'trusted_senders'
+    entityName: process.env.TRUST_STORE_ENTITY || 'trusted_senders',
   }),
+  port: parseInt(process.env.PORT || '3443'),
   options: process.env.USE_TLS === 'true' ? tlsOptions : undefined,
-  connectionTimeoutMs: parseInt(process.env.CONNECTION_TIMEOUT_MS || '30000')
+  connectionTimeoutMs: parseInt(process.env.CONNECTION_TIMEOUT_MS || '30000'),
 });
 ```
 
@@ -274,6 +309,7 @@ Your basic server is now running! Next, you'll learn how to:
 ### Common Issues
 
 **Port Already in Use**
+
 ```bash
 # Error: EADDRINUSE: address already in use :::3443
 # Solution: Change port or kill existing process
@@ -281,6 +317,7 @@ lsof -ti:3443 | xargs kill -9
 ```
 
 **TLS Certificate Issues**
+
 ```bash
 # Error: self signed certificate
 # Solution: Set rejectUnauthorized: false for development
@@ -288,6 +325,7 @@ lsof -ti:3443 | xargs kill -9
 ```
 
 **Trust Store File Not Found**
+
 ```bash
 # Error: ENOENT: no such file or directory
 # Solution: Ensure data directory exists
@@ -295,6 +333,7 @@ mkdir -p data
 ```
 
 **Module Import Errors**
+
 ```bash
 # Error: Cannot use import statement outside a module
 # Solution: Ensure "type": "module" in package.json

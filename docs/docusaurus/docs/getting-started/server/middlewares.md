@@ -24,18 +24,23 @@ export default function createMiddleware(dependencies) {
     middleware: [
       // Include default middleware for essential functionality
       ...createDefaultMiddleware(),
-      
+
       // Add your custom middleware here
     ],
-    
+
     // Lifecycle hooks
     onServerStart: async () => {
       console.log('🔄 Middleware initialized');
     },
-    
+
     onServerStop: async () => {
       console.log('🔄 Middleware cleaned up');
-    }
+    },
+
+    // Optional: Handle response sent events
+    onResponseSent: async (response) => {
+      console.log('📤 Response sent:', response.id);
+    },
   };
 }
 ```
@@ -48,17 +53,23 @@ Modify your server setup to include the middleware path:
 // src/index.ts
 import { BtpsServer } from '@btps/sdk/server';
 import { JsonTrustStore } from '@btps/sdk/trust';
+import { readFileSync } from 'fs';
 
 const trustStore = new JsonTrustStore({
   connection: './trust.json',
-  entityName: 'trusted_senders'
+  entityName: 'trusted_senders',
 });
 
 const server = new BtpsServer({
-  port: 3443,
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
   trustStore,
+  port: 3443,
   middlewarePath: './btps.middleware.mjs', // Add this line
-  connectionTimeoutMs: 30000
+  connectionTimeoutMs: 30000,
 });
 
 await server.start();
@@ -74,6 +85,53 @@ The `createDefaultMiddleware()` function provides essential functionality:
 - **Error handling**
 - **Signature and trust verification tracking**
 
+## Middleware Phases and Steps
+
+The middleware system operates in specific phases and steps:
+
+### Phases
+
+- **before**: Execute before the step
+- **after**: Execute after the step
+
+### Steps
+
+- **parsing**: JSON parsing and validation
+- **signatureVerification**: Cryptographic signature verification
+- **trustVerification**: Trust relationship verification
+- **onArtifact**: Event handler execution
+- **onError**: Error handling
+
+### Middleware Structure
+
+```typescript
+interface MiddlewareDefinition {
+  phase: 'before' | 'after';
+  step: 'parsing' | 'signatureVerification' | 'trustVerification' | 'onArtifact' | 'onError';
+  priority?: number; // Lower numbers execute first
+  config?: {
+    name?: string;
+    enabled?: boolean;
+    options?: Record<string, unknown>;
+  };
+  handler: (req: BTPRequestCtx, res: BTPResponseCtx, next: Next) => Promise<void> | void;
+}
+```
+
+## Middleware Dependencies
+
+The middleware function receives dependencies that you can use:
+
+```typescript
+interface MiddlewareDependencies {
+  trustStore: AbstractTrustStore<BTPTrustRecord>;
+  identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
+  config: Record<string, unknown>;
+  serverInstance: BtpsServer;
+  currentTime: string;
+}
+```
+
 ## Simple Custom Middleware Example
 
 Add basic request logging to your middleware file:
@@ -86,7 +144,7 @@ export default function createMiddleware(dependencies) {
   return {
     middleware: [
       ...createDefaultMiddleware(),
-      
+
       // Simple request logging
       {
         phase: 'before',
@@ -94,18 +152,18 @@ export default function createMiddleware(dependencies) {
         priority: 1,
         config: {
           name: 'request-logger',
-          enabled: true
+          enabled: true,
         },
         handler: async (req, res, next) => {
           console.log(`[${new Date().toISOString()}] Request from ${req.remoteAddress}`);
           await next();
-        }
-      }
+        },
+      },
     ],
-    
+
     onServerStart: async () => {
       console.log('🔄 Middleware loaded');
-    }
+    },
   };
 }
 ```
@@ -119,6 +177,7 @@ npm start
 ```
 
 You should see:
+
 ```
 🔄 Middleware loaded
 🚀 BTPS Server with middleware running
@@ -136,11 +195,9 @@ import { createDefaultMiddleware } from '@btps/sdk/server/core';
 
 export default function createMiddleware(dependencies) {
   const isProduction = process.env.NODE_ENV === 'production';
-  
-  const middleware = [
-    ...createDefaultMiddleware()
-  ];
-  
+
+  const middleware = [...createDefaultMiddleware()];
+
   // Add production-specific middleware
   if (isProduction) {
     middleware.push({
@@ -149,15 +206,15 @@ export default function createMiddleware(dependencies) {
       priority: 1,
       config: {
         name: 'production-logger',
-        enabled: true
+        enabled: true,
       },
       handler: async (req, res, next) => {
         console.log(`[PROD] ${req.remoteAddress} - ${new Date().toISOString()}`);
         await next();
-      }
+      },
     });
   }
-  
+
   return { middleware };
 }
 ```

@@ -110,7 +110,7 @@ async function handleAuthRequest(artifact, resCtx, auth) {
   const { authToken, publicKey, identity, agentInfo } = document;
 
   // Validate the auth token
-  const { isValid } = await auth.validateAuthToken(to, authToken);
+  const { isValid } = await auth.validateAuthToken(userIdentity, authToken);
   if (!isValid) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
   }
@@ -149,6 +149,7 @@ async function handleAuthRefresh(artifact, resCtx, auth) {
     decidedBy: 'system',
     publicKey: authDoc.publicKey,
     agentInfo: authDoc?.agentInfo ?? {},
+    decryptBy: 'alice$saas.com',
   });
 
   if (error) {
@@ -180,7 +181,7 @@ async function generateDeviceToken(userIdentity: string) {
   const authToken = BtpsAuthentication.generateAuthToken(userIdentity);
   const agentId = BtpsAuthentication.generateAgentId();
 
-  await auth.storeAuthToken(authToken, userIdentity, agentId, {
+  await auth.storeAuthToken(authToken, userIdentity, userIdentity, {
     requestedBy: 'user',
     purpose: 'device_registration',
     timestamp: new Date().toISOString(),

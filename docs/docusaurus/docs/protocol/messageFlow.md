@@ -61,18 +61,19 @@ flowchart LR
   "from": "billing$vendorcorp.com",
   "to": "pay$client.com",
   "document": {
-    // BTPS Document content goes here
+    // BTPS Document content goes here can be string if encrypted
   },
   "signature": {
-    "algorithm": "sha256",
+    "algorithmHash": "sha256",
     "value": "base64-encoded-signature",
     "fingerprint": "sha256-base64-fingerprint"
   },
   "encryption": {
-    "algorithm": "aes-256-cbc",
-    "encryptedPayload": "base64-encoded-encrypted-document",
+    "algorithm": "aes-256-gcm",
     "encryptedKey": "base64-encoded-encrypted-key",
-    "iv": "base64-encoded-initialization-vector"
+    "iv": "base64-encoded-initialization-vector",
+    "type": "standardEncrypt",
+    "authTag": "authTagString"
   }
 }
 ```

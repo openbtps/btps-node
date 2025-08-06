@@ -37,6 +37,9 @@
     },
     "./error": {
       "import": "./dist/core/error/index.js"
+    },
+    "./storage": {
+      "import": "./dist/core/storage/index.js"
     }
   },
   "files": [

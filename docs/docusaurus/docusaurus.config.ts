@@ -168,7 +168,7 @@ const config: Config = {
               },
               {
                 label: 'Specifications',
-                to: '/docs/protocol/specifications',
+                to: '/docs/protocol/specifications/overview',
               },
               {
                 label: 'Security',

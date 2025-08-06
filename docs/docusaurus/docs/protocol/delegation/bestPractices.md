@@ -13,6 +13,7 @@ This document provides comprehensive guidelines for implementing and operating B
 ### **1. Delegation Structure**
 
 #### **Proper Delegation Format**
+
 ```json
 // ✅ GOOD: Complete delegation structure
 {
@@ -22,18 +23,20 @@ This document provides comprehensive guidelines for implementing and operating B
     "signedBy": "alice$saas.com",
     "issuedAt": "2025-01-15T10:30:00Z",
     "signature": {
-      "algorithm": "sha256",
+      "algorithmHash": "sha256",
       "value": "base64_encoded_signature",
       "fingerprint": "sha256_fingerprint"
     },
+    "selector": "btps1",
     "attestation": {
       "issuedAt": "2025-01-15T10:30:00Z",
       "signedBy": "admin$saas.com",
       "signature": {
-        "algorithm": "sha256",
+        "algorithmHash": "sha256",
         "value": "base64_encoded_signature",
         "fingerprint": "sha256_fingerprint"
-      }
+      },
+      "selector": "btps1"
     }
   }
 }
@@ -49,42 +52,44 @@ This document provides comprehensive guidelines for implementing and operating B
 ```
 
 #### **Agent ID Management**
+
 ```typescript
 // ✅ GOOD: Unique, descriptive agent IDs
 const agentId = `device_${deviceType}_${deviceId}_${timestamp}`;
 // Example: "device_mobile_iphone15_20250115_103000"
 
 // ❌ BAD: Generic or non-unique IDs
-const agentId = "device"; // Too generic
-const agentId = "123"; // Not descriptive
+const agentId = 'device'; // Too generic
+const agentId = '123'; // Not descriptive
 ```
 
 ### **2. Signature Verification**
 
 #### **Comprehensive Verification**
+
 ```typescript
 // ✅ GOOD: Complete verification pipeline
 class DelegationVerifier {
   async verifyDelegation(artifact) {
     const { delegation } = artifact;
-    
+
     // Step 1: Check attestation requirement
     const isAttestationRequired = delegation.signedBy === artifact.from;
     if (isAttestationRequired && !delegation.attestation) {
       throw new Error('DELEGATION_INVALID: Attestation required');
     }
-    
+
     // Step 2: Verify attestation (if present)
     if (delegation.attestation) {
       await this.verifyAttestation(delegation);
     }
-    
+
     // Step 3: Verify delegation signature
     await this.verifyDelegationSignature(artifact, delegation);
-    
+
     // Step 4: Verify agent signature
     await this.verifyAgentSignature(artifact, delegation.agentPubKey);
-    
+
     return { isValid: true };
   }
 }
@@ -97,6 +102,7 @@ async verifyDelegation(artifact) {
 ```
 
 #### **Error Handling**
+
 ```typescript
 // ✅ GOOD: Comprehensive error handling
 class DelegationErrorHandler {
@@ -105,12 +111,12 @@ class DelegationErrorHandler {
       timestamp: new Date().toISOString(),
       error: error.message,
       context,
-      stack: error.stack
+      stack: error.stack,
     };
-    
+
     // Log error for monitoring
     this.logger.log('delegation_error', errorInfo);
-    
+
     // Handle specific error types
     switch (error.message) {
       case 'DELEGATION_INVALID':
@@ -137,6 +143,7 @@ try {
 ### **3. DNS Security**
 
 #### **TTL Configuration**
+
 ```bash
 # ✅ GOOD: Short TTL for delegation records
 alice.btps.saas.com IN TXT "p=..." 300  # 5 minutes
@@ -146,6 +153,7 @@ alice.btps.saas.com IN TXT "p=..." 86400  # 24 hours - too long
 ```
 
 #### **DNS Resolution**
+
 ```typescript
 // ✅ GOOD: Robust DNS resolution with caching
 class DNSResolver {
@@ -153,15 +161,15 @@ class DNSResolver {
     this.cache = new Map();
     this.cacheTTL = 300000; // 5 minutes
   }
-  
+
   async resolveDNS(domain) {
     const cacheKey = `dns_${domain}`;
     const cached = this.cache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
       return cached.data;
     }
-    
+
     try {
       const records = await this.performDNSLookup(domain);
       this.cache.set(cacheKey, {
@@ -174,11 +182,11 @@ class DNSResolver {
       throw error;
     }
   }
-  
+
   async performDNSLookup(domain) {
     // Use multiple DNS servers for redundancy
     const dnsServers = ['8.8.8.8', '1.1.1.1', '208.67.222.222'];
-    
+
     for (const server of dnsServers) {
       try {
         return await this.queryDNSServer(domain, server);
@@ -186,7 +194,7 @@ class DNSResolver {
         console.warn(`DNS server ${server} failed:`, error);
       }
     }
-    
+
     throw new Error('All DNS servers failed');
   }
 }
@@ -202,6 +210,7 @@ async resolveDNS(domain) {
 ### **1. Server-Side Implementation**
 
 #### **Delegation Verification Pipeline**
+
 ```typescript
 // ✅ GOOD: Complete verification pipeline
 class DelegationVerificationPipeline {
@@ -209,33 +218,33 @@ class DelegationVerificationPipeline {
     this.dnsResolver = new DNSResolver();
     this.cryptoVerifier = new CryptoVerifier();
   }
-  
+
   async verifyDelegation(artifact) {
     const startTime = Date.now();
-    
+
     try {
       // Step 1: Validate delegation structure
       this.validateDelegationStructure(artifact.delegation);
-      
+
       // Step 2: Check attestation requirement
       const isAttestationRequired = this.isAttestationRequired(artifact);
       if (isAttestationRequired && !artifact.delegation.attestation) {
         throw new Error('DELEGATION_INVALID: Attestation required');
       }
-      
+
       // Step 3: Verify attestation (if present)
       if (artifact.delegation.attestation) {
         await this.verifyAttestation(artifact.delegation);
       }
-      
+
       // Step 4: Verify delegation signature
       await this.verifyDelegationSignature(artifact);
-      
+
       // Step 5: Verify agent signature
       await this.verifyAgentSignature(artifact);
-      
+
       const verificationTime = Date.now() - startTime;
-      
+
       return {
         isValid: true,
         verificationTime,
@@ -243,7 +252,7 @@ class DelegationVerificationPipeline {
         delegator: artifact.delegation.signedBy,
         attestor: artifact.delegation.attestation?.signedBy
       };
-      
+
     } catch (error) {
       return {
         isValid: false,
@@ -252,7 +261,7 @@ class DelegationVerificationPipeline {
       };
     }
   }
-  
+
   private validateDelegationStructure(delegation) {
     const requiredFields = ['agentId', 'agentPubKey', 'signedBy', 'issuedAt', 'signature'];
     for (const field of requiredFields) {
@@ -261,7 +270,7 @@ class DelegationVerificationPipeline {
       }
     }
   }
-  
+
   private isAttestationRequired(artifact) {
     return artifact.delegation.signedBy === artifact.from;
   }
@@ -275,21 +284,22 @@ async verifyDelegation(artifact) {
 ```
 
 #### **Attestation Verification**
+
 ```typescript
 // ✅ GOOD: Complete attestation verification
 class AttestationVerifier {
   async verifyAttestation(delegation) {
     const { attestation } = delegation;
-    
+
     // Validate attestation structure
     this.validateAttestationStructure(attestation);
-    
+
     // Resolve attestor public key
     const attestorPubKey = await this.dnsResolver.resolvePublicKey(attestation.signedBy);
     if (!attestorPubKey) {
       throw new Error('ATTESTATION_VERIFICATION_FAILED: Attestor public key not found');
     }
-    
+
     // Verify attestation signature
     const signedMsg = { ...delegation, attestation: { ...attestation, signature: undefined } };
     const isValid = await this.cryptoVerifier.verifySignature(
@@ -297,14 +307,14 @@ class AttestationVerifier {
       attestation.signature,
       attestorPubKey
     );
-    
+
     if (!isValid) {
       throw new Error('ATTESTATION_VERIFICATION_FAILED: Invalid signature');
     }
-    
+
     return { isValid: true, attestor: attestation.signedBy };
   }
-  
+
   private validateAttestationStructure(attestation) {
     const requiredFields = ['issuedAt', 'signedBy', 'signature'];
     for (const field of requiredFields) {
@@ -325,6 +335,7 @@ async verifyAttestation(delegation) {
 ### **2. Client-Side Implementation**
 
 #### **Delegation Creation**
+
 ```typescript
 // ✅ GOOD: Proper delegation creation
 class DelegationCreator {
@@ -332,44 +343,46 @@ class DelegationCreator {
     this.privateKey = privateKey;
     this.identity = identity;
   }
-  
+
   async createDelegation(agentId, agentPubKey, artifact, attestorPrivateKey = null) {
     const delegation = {
       agentId,
       agentPubKey,
       signedBy: this.identity,
       issuedAt: new Date().toISOString(),
+      selector: 'btps1',
     };
-    
+
     // Add attestation if required
     if (this.isAttestationRequired(artifact)) {
       if (!attestorPrivateKey) {
         throw new Error('ATTESTATION_REQUIRED: Attestor private key needed');
       }
-      
+
       delegation.attestation = await this.createAttestation(delegation, attestorPrivateKey);
     }
-    
+
     // Sign delegation
     const signedMsg = { ...artifact, delegation: { ...delegation, signature: undefined } };
     delegation.signature = await this.signMessage(signedMsg, this.privateKey);
-    
+
     return delegation;
   }
-  
+
   private isAttestationRequired(artifact) {
     return artifact.from === this.identity;
   }
-  
+
   private async createAttestation(delegation, attestorPrivateKey) {
     const attestation = {
       issuedAt: new Date().toISOString(),
       signedBy: 'admin$saas.com', // Attestor identity
+      selector: 'btps1',
     };
-    
+
     const signedMsg = { ...delegation, attestation: { ...attestation, signature: undefined } };
     attestation.signature = await this.signMessage(signedMsg, attestorPrivateKey);
-    
+
     return attestation;
   }
 }
@@ -381,8 +394,9 @@ async createDelegation(agentId, agentPubKey, artifact) {
     agentPubKey,
     signedBy: this.identity,
     issuedAt: new Date().toISOString(),
+    selector: 'btps1',
   };
-  
+
   // No attestation handling
   delegation.signature = await this.signMessage(delegation, this.privateKey);
   return delegation;
@@ -392,6 +406,7 @@ async createDelegation(agentId, agentPubKey, artifact) {
 ### **3. Performance Optimization**
 
 #### **Caching Strategy**
+
 ```typescript
 // ✅ GOOD: Intelligent caching
 class DelegationCache {
@@ -400,42 +415,42 @@ class DelegationCache {
     this.delegationCache = new Map();
     this.cacheTTL = 300000; // 5 minutes
   }
-  
+
   async getPublicKey(identity) {
     const cacheKey = `pubkey_${identity}`;
     const cached = this.publicKeyCache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
       return cached.data;
     }
-    
+
     const publicKey = await this.dnsResolver.resolvePublicKey(identity);
     this.publicKeyCache.set(cacheKey, {
       data: publicKey,
       timestamp: Date.now()
     });
-    
+
     return publicKey;
   }
-  
+
   async getDelegation(agentId, delegator) {
     const cacheKey = `delegation_${agentId}_${delegator}`;
     const cached = this.delegationCache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
       return cached.data;
     }
-    
+
     // Fetch delegation from storage
     const delegation = await this.storage.getDelegation(agentId, delegator);
     this.delegationCache.set(cacheKey, {
       data: delegation,
       timestamp: Date.now()
     });
-    
+
     return delegation;
   }
-  
+
   invalidateCache(pattern) {
     // Invalidate cache entries matching pattern
     for (const [key] of this.publicKeyCache) {
@@ -443,7 +458,7 @@ class DelegationCache {
         this.publicKeyCache.delete(key);
       }
     }
-    
+
     for (const [key] of this.delegationCache) {
       if (key.includes(pattern)) {
         this.delegationCache.delete(key);
@@ -471,7 +486,7 @@ enum DelegationErrorType {
   AGENT_SIG_VERIFICATION_FAILED = 'AGENT_SIG_VERIFICATION_FAILED',
   DNS_RESOLUTION_FAILED = 'DNS_RESOLUTION_FAILED',
   PUBLIC_KEY_NOT_FOUND = 'PUBLIC_KEY_NOT_FOUND',
-  ATTESTATION_REQUIRED = 'ATTESTATION_REQUIRED'
+  ATTESTATION_REQUIRED = 'ATTESTATION_REQUIRED',
 }
 
 class DelegationError extends Error {
@@ -496,37 +511,37 @@ class DelegationMonitor {
       verificationFailures: 0,
       averageVerificationTime: 0,
       dnsLookups: 0,
-      dnsFailures: 0
+      dnsFailures: 0,
     };
   }
-  
+
   recordVerificationAttempt() {
     this.metrics.verificationAttempts++;
   }
-  
+
   recordVerificationSuccess(verificationTime: number) {
     this.metrics.verificationSuccess++;
     this.updateAverageVerificationTime(verificationTime);
   }
-  
+
   recordVerificationFailure(error: DelegationError) {
     this.metrics.verificationFailures++;
     this.logError(error);
   }
-  
+
   recordDNSLookup() {
     this.metrics.dnsLookups++;
   }
-  
+
   recordDNSFailure() {
     this.metrics.dnsFailures++;
   }
-  
+
   getMetrics() {
     return {
       ...this.metrics,
       successRate: this.metrics.verificationSuccess / this.metrics.verificationAttempts,
-      dnsFailureRate: this.metrics.dnsFailures / this.metrics.dnsLookups
+      dnsFailureRate: this.metrics.dnsFailures / this.metrics.dnsLookups,
     };
   }
 }
@@ -557,22 +572,22 @@ const delegationConfig = {
   dnsServers: ['8.8.8.8', '1.1.1.1', '208.67.222.222'],
   dnsTimeout: 5000,
   dnsRetries: 3,
-  
+
   // Caching settings
   cacheTTL: 300000, // 5 minutes
   maxCacheSize: 1000,
-  
+
   // Verification settings
   maxVerificationTime: 10000, // 10 seconds
   requireAttestation: true, // For custom domains
-  
+
   // Security settings
   allowedSignatureAlgorithms: ['sha256'],
   minKeySize: 2048,
-  
+
   // Monitoring settings
   enableMetrics: true,
-  logLevel: 'info'
+  logLevel: 'info',
 };
 ```
 
@@ -585,4 +600,4 @@ const delegationConfig = {
 - [ ] **Security**: Proper signature verification and attestation
 - [ ] **Performance**: Timeout handling and fallback mechanisms
 - [ ] **Documentation**: Clear documentation and runbooks
-- [ ] **Testing**: Comprehensive test coverage for all scenarios 
+- [ ] **Testing**: Comprehensive test coverage for all scenarios

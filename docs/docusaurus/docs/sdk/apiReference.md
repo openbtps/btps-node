@@ -118,37 +118,10 @@ const pem = base64ToPem(base64String);
 
 ---
 
-### getDnsParts
-
-```ts
-getDnsParts(identity: string, type?: 'key' | 'pem' | 'version' | 'btpAddress'): Promise<any>
-```
-
-**Description:**
-Resolves DNS TXT records for a BTPS identity and extracts key, version, PEM, or BTPS address information.
-
-**Arguments:**
-
-- `identity` (`string`, required): The BTPS identity to resolve.
-- `type` (`'key' | 'pem' | 'version' | 'btpAddress'`, optional): The specific part to extract. If omitted, returns all parts.
-
-**Returns:**
-
-- `Promise<any>`: The requested DNS part, or an object with all parts if `type` is omitted.
-
-**Example:**
-
-```js
-import { getDnsParts } from '@btps/sdk';
-const pem = await getDnsParts('billing$company.com', 'pem');
-```
-
----
-
 ### getHostAndSelector
 
 ```ts
-getHostAndSelector(identity: string): Promise<{ host: string; selector: string } | undefined>
+getHostAndSelector(identity: string): Promise<{ host: string; selector: string; version: string } | undefined>
 ```
 
 **Description:**
@@ -160,14 +133,14 @@ Resolves the BTPS host and selector for a given identity by querying DNS TXT rec
 
 **Returns:**
 
-- `Promise<{ host: string; selector: string } | undefined>`: Object containing the host URL and current selector, or `undefined` if not found.
+- `Promise<{ host: string; selector: string; version: string } | undefined>`: Object containing the host URL, current selector, and version, or `undefined` if not found.
 
 **Example:**
 
 ```js
 import { getHostAndSelector } from '@btps/sdk';
 const result = await getHostAndSelector('billing$company.com');
-// result = { host: 'btps://btps.company.com:3443', selector: 'btps2' }
+// result = { host: 'btps://btps.company.com:3443', selector: 'btps1', version: '1.0.0.0' }
 ```
 
 ---
@@ -175,7 +148,11 @@ const result = await getHostAndSelector('billing$company.com');
 ### getDnsIdentityParts
 
 ```ts
-getDnsIdentityParts(identity: string, selector: string, type?: 'key' | 'pem' | 'version'): Promise<any>
+getDnsIdentityParts(
+  identity: string,
+  selector: string,
+  type?: 'key' | 'pem' | 'version'
+): Promise<{ key: string; version: string; pem: string } | string | undefined>
 ```
 
 **Description:**
@@ -189,13 +166,20 @@ Resolves DNS TXT records for a specific selector of a BTPS identity and extracts
 
 **Returns:**
 
-- `Promise<any>`: The requested DNS part, or an object with all parts if `type` is omitted.
+- `Promise<{ key: string; version: string; pem: string } | string | undefined>`: The requested DNS part, or an object with all parts if `type` is omitted.
 
 **Example:**
 
 ```js
 import { getDnsIdentityParts } from '@btps/sdk';
-const pem = await getDnsIdentityParts('billing$company.com', 'btps1', 'pem');
+const allParts = await getDnsIdentityParts('billing$company.com', 'btps1');
+// Returns: { key: 'abc123', version: '1.0.0', pem: '-----BEGIN PUBLIC KEY-----...' }
+
+const justPem = await getDnsIdentityParts('billing$company.com', 'btps1', 'pem');
+// Returns: '-----BEGIN PUBLIC KEY-----...'
+
+const justKey = await getDnsIdentityParts('billing$company.com', 'btps1', 'key');
+// Returns: 'abc123'
 ```
 
 ---
@@ -283,6 +267,146 @@ if (isBtpsTransportArtifact(data)) {
 
 ---
 
+### isBtpsAgentArtifact
+
+```ts
+isBtpsAgentArtifact(artifact: unknown): artifact is BTPAgentArtifact
+```
+
+**Description:**
+Type guard function that checks if an object is a valid BTPS agent artifact.
+
+**Arguments:**
+
+- `artifact` (`unknown`, required): The object to check.
+
+**Returns:**
+
+- `boolean`: `true` if the object is a valid BTPS agent artifact.
+
+**Example:**
+
+```js
+import { isBtpsAgentArtifact } from '@btps/sdk';
+if (isBtpsAgentArtifact(data)) {
+  // data is now typed as BTPAgentArtifact
+  console.log(data.agentId, data.action);
+}
+```
+
+---
+
+### isBtpsControlArtifact
+
+```ts
+isBtpsControlArtifact(artifact: unknown): artifact is BTPControlArtifact
+```
+
+**Description:**
+Type guard function that checks if an object is a valid BTPS control artifact.
+
+**Arguments:**
+
+- `artifact` (`unknown`, required): The object to check.
+
+**Returns:**
+
+- `boolean`: `true` if the object is a valid BTPS control artifact.
+
+**Example:**
+
+```js
+import { isBtpsControlArtifact } from '@btps/sdk';
+if (isBtpsControlArtifact(data)) {
+  // data is now typed as BTPControlArtifact
+  console.log(data.action);
+}
+```
+
+---
+
+### isBtpsIdentityRequest
+
+```ts
+isBtpsIdentityRequest(artifact: unknown): artifact is BTPIdentityLookupRequest
+```
+
+**Description:**
+Type guard function that checks if an object is a valid BTPS identity lookup request.
+
+**Arguments:**
+
+- `artifact` (`unknown`, required): The object to check.
+
+**Returns:**
+
+- `boolean`: `true` if the object is a valid BTPS identity lookup request.
+
+**Example:**
+
+```js
+import { isBtpsIdentityRequest } from '@btps/sdk';
+if (isBtpsIdentityRequest(data)) {
+  // data is now typed as BTPIdentityLookupRequest
+  console.log(data.identity, data.hostSelector);
+}
+```
+
+---
+
+### computeId
+
+```ts
+computeId(identity: string): string
+```
+
+**Description:**
+Computes a globally unique, deterministic ID for a given identity using SHA-256. This ID is collision-resistant and suitable for billions of records.
+
+**Arguments:**
+
+- `identity` (`string`, required): The identity to compute ID for.
+
+**Returns:**
+
+- `string`: 64-character hexadecimal SHA-256 hash of the identity.
+
+**Example:**
+
+```js
+import { computeId } from '@btps/sdk';
+const id = computeId('billing$company.com');
+// Returns: "a1b2c3d4e5f6..."
+```
+
+---
+
+### isDelegationAllowed
+
+```ts
+isDelegationAllowed(artifact: BTPTransporterArtifact): boolean
+```
+
+**Description:**
+Checks if an artifact can be delegated based on delegation rules and domain validation.
+
+**Arguments:**
+
+- `artifact` (`BTPTransporterArtifact`, required): The artifact to check.
+
+**Returns:**
+
+- `boolean`: `true` if delegation is allowed, `false` otherwise.
+
+**Example:**
+
+```js
+import { isDelegationAllowed } from '@btps/sdk';
+const canDelegate = isDelegationAllowed(artifact);
+```
+
+---
+
 ## Cryptography (`@btps/sdk/crypto`)
 
 ### signEncrypt
@@ -332,8 +456,8 @@ const { payload, error } = await signEncrypt(
     selector: 'btps1', // Specify selector for key rotation support
   },
   {
-    signature: { algorithm: 'sha256' },
-    encryption: { algorithm: 'aes-256-cbc', mode: 'standardEncrypt' },
+    signature: { algorithmHash: 'sha256' },
+    encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
   },
 );
 ```
@@ -436,18 +560,18 @@ const { publicKey, privateKey, fingerprint } = getBTPKeyPair({
 
 ```ts
 encryptBtpPayload(
-  payload: unknown,
+  payload: unknown = '',
   receiverPubPem: string,
   options?: BTPCryptoOptions['encryption']
 ): { data: string; encryption: BTPEncryption }
 ```
 
 **Description:**
-Encrypts a payload using AES-256-CBC and the recipient's public key. Returns the encrypted data and encryption metadata.
+Encrypts a payload using AES-256-GCM and the recipient's public key. Returns the encrypted data and encryption metadata.
 
 **Arguments:**
 
-- `payload` (`unknown`, required): The data to encrypt.
+- `payload` (`unknown`, required): The data to encrypt (defaults to empty string).
 - `receiverPubPem` (`string`, required): Recipient's public key (PEM).
 - `options` (`BTPCryptoOptions['encryption']`, optional): Encryption algorithm and mode.
 
@@ -460,7 +584,7 @@ Encrypts a payload using AES-256-CBC and the recipient's public key. Returns the
 ```js
 import { encryptBtpPayload } from '@btps/sdk/crypto';
 const encrypted = encryptBtpPayload({ foo: 'bar' }, receiverPublicKeyPem, {
-  algorithm: 'aes-256-cbc',
+  algorithm: 'aes-256-gcm',
   mode: 'standardEncrypt',
 });
 ```
@@ -470,19 +594,19 @@ const encrypted = encryptBtpPayload({ foo: 'bar' }, receiverPublicKeyPem, {
 ### decryptBtpPayload
 
 ```ts
-decryptBtpPayload<T>(
-  payload: unknown,
+decryptBtpPayload<T = unknown>(
+  payload: unknown = '',
   encryption: BTPEncryption,
   receiverPrivPem: string
 ): { data?: T; error?: BTPErrorException }
 ```
 
 **Description:**
-Decrypts an AES-256-CBC encrypted payload using the receiver's private key and the provided encryption metadata.
+Decrypts an AES-256-GCM encrypted payload using the receiver's private key and the provided encryption metadata.
 
 **Arguments:**
 
-- `payload` (`unknown`, required): The encrypted data to decrypt (base64 string or object).
+- `payload` (`unknown`, required): The encrypted data to decrypt (base64 string or object, defaults to empty string).
 - `encryption` (`BTPEncryption`, required): Encryption metadata (algorithm, key, iv, type).
 - `receiverPrivPem` (`string`, required): Receiver's private key (PEM).
 
@@ -506,7 +630,7 @@ encryptRSA(publicKeyPem: string, data: Buffer): Buffer
 ```
 
 **Description:**
-Encrypts a buffer using the recipient's RSA public key (OAEP, SHA-1).
+Encrypts a buffer using the recipient's RSA public key (OAEP, SHA-256).
 
 **Arguments:**
 
@@ -533,7 +657,7 @@ decryptRSA(privateKeyPem: string, encrypted: Buffer): Buffer
 ```
 
 **Description:**
-Decrypts an RSA-encrypted buffer using the receiver's private key (OAEP, SHA-1).
+Decrypts an RSA-encrypted buffer using the receiver's private key (OAEP, SHA-256).
 
 **Arguments:**
 
@@ -558,7 +682,7 @@ const decrypted = decryptRSA(privateKeyPem, encryptedBuffer);
 ```ts
 getFingerprintFromPem(
   pem: string,
-  algorithm?: SignatureAlgorithmType
+  hashAlgorithm?: string
 ): string
 ```
 
@@ -568,7 +692,7 @@ Computes a fingerprint (hash) of a PEM public key using the specified algorithm 
 **Arguments:**
 
 - `pem` (`string`, required): The PEM-formatted public key.
-- `algorithm` (`SignatureAlgorithmType`, optional, default: `'sha256'`): Hash algorithm.
+- `hashAlgorithm` (`string`, optional, default: `'sha256'`): Hash algorithm.
 
 **Returns:**
 
@@ -586,20 +710,20 @@ const fingerprint = getFingerprintFromPem(publicKeyPem);
 ### signBtpPayload
 
 ```ts
-signBtpPayload(payload: unknown, senderPemFiles: PemKeys): BTPSignature
+signBtpPayload(payload: unknown = '', senderPemFiles: PemKeys): BTPSignature
 ```
 
 **Description:**
-Signs a payload using the sender's private key and returns a signature object (algorithm, value, fingerprint).
+Signs a payload using the sender's private key and returns a signature object (algorithmHash, value, fingerprint).
 
 **Arguments:**
 
-- `payload` (`unknown`, required): The data to sign (object or string).
+- `payload` (`unknown`, required): The data to sign (object or string, defaults to empty string).
 - `senderPemFiles` (`PemKeys`, required): Sender's PEM key pair.
 
 **Returns:**
 
-- `BTPSignature`: Signature object with algorithm, value, and fingerprint.
+- `BTPSignature`: Signature object with algorithmHash, value, and fingerprint.
 
 **Example:**
 
@@ -614,7 +738,7 @@ const signature = signBtpPayload({ foo: 'bar' }, { publicKey, privateKey });
 
 ```ts
 verifySignature(
-  payload: unknown,
+  payload: unknown = '',
   signature: BTPSignature,
   senderPubKey: string
 ): { isValid: boolean; error?: BTPErrorException }
@@ -625,7 +749,7 @@ Verifies a payload's signature using the sender's public key and returns validit
 
 **Arguments:**
 
-- `payload` (`unknown`, required): The data to verify (object or string).
+- `payload` (`unknown`, required): The data to verify (object or string, defaults to empty string).
 - `signature` (`BTPSignature`, required): Signature object.
 - `senderPubKey` (`string`, required): Sender's public key (PEM).
 
@@ -823,7 +947,13 @@ const canRetry = canRetryTrust(trustRecord);
 ### transformToBTPErrorException
 
 ```ts
-transformToBTPErrorException(err: unknown): BTPErrorException
+transformToBTPErrorException(
+  err: unknown,
+  options?: {
+    cause?: unknown;
+    meta?: Record<string, unknown>;
+  }
+): BTPErrorException
 ```
 
 **Description:**
@@ -832,6 +962,9 @@ Converts any error (native, string, or unknown) into a `BTPErrorException` for c
 **Arguments:**
 
 - `err` (`unknown`, required): The error to transform.
+- `options` (`object`, optional): Additional error context.
+  - `cause` (`unknown`, optional): Original cause of the error.
+  - `meta` (`Record<string, unknown>`, optional): Additional metadata.
 
 **Returns:**
 
@@ -842,9 +975,16 @@ Converts any error (native, string, or unknown) into a `BTPErrorException` for c
 ```js
 import { transformToBTPErrorException } from '@btps/sdk/error';
 try {
-  // ...
-} catch (err) {
-  throw transformToBTPErrorException(err);
+  // Some operation that might fail
+} catch (error) {
+  const btpError = transformToBTPErrorException(error, {
+    cause: 'DNS resolution failed',
+    meta: { domain: 'example.com' },
+  });
+  console.error('BTPS Error:', btpError.message);
+  console.log('Error code:', btpError.code);
+  console.log('Error cause:', btpError.cause);
+  console.log('Error meta:', btpError.meta);
 }
 ```
 
@@ -998,6 +1138,310 @@ Error constant for invalid JSON format.
 
 - `code`: `'BTP_ERROR_INVALID_JSON'`
 - `message`: `'Invalid JSON format'`
+
+---
+
+### BTP_ERROR_VALIDATION
+
+```ts
+const BTP_ERROR_VALIDATION: BTPError;
+```
+
+**Description:**
+Error constant for BTPS artifact validation failures.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_VALIDATION'`
+- `message`: `'BTPS artifact validation failed'`
+
+---
+
+### BTP_ERROR_SIG_MISMATCH
+
+```ts
+const BTP_ERROR_SIG_MISMATCH: BTPError;
+```
+
+**Description:**
+Error constant for signature fingerprint mismatches.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_SIG_MISMATCH'`
+- `message`: `'fingerprint mis-match'`
+
+---
+
+### BTP_ERROR_SIG_VERIFICATION
+
+```ts
+const BTP_ERROR_SIG_VERIFICATION: BTPError;
+```
+
+**Description:**
+Error constant for signature verification failures.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_SIG_VERIFICATION'`
+- `message`: `' Signature verification failed'`
+
+---
+
+### BTP_ERROR_DELEGATION_SIG_VERIFICATION
+
+```ts
+const BTP_ERROR_DELEGATION_SIG_VERIFICATION: BTPError;
+```
+
+**Description:**
+Error constant for delegation signature verification failures.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_DELEGATION_SIG_VERIFICATION'`
+- `message`: `'Delegation signature verification failed'`
+
+---
+
+### BTP_ERROR_ATTESTATION_VERIFICATION
+
+```ts
+const BTP_ERROR_ATTESTATION_VERIFICATION: BTPError;
+```
+
+**Description:**
+Error constant for attestation verification failures.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_ATTESTATION_VERIFICATION'`
+- `message`: `'Attestation verification failed'`
+
+---
+
+### BTP_ERROR_DELEGATION_INVALID
+
+```ts
+const BTP_ERROR_DELEGATION_INVALID: BTPError;
+```
+
+**Description:**
+Error constant for invalid delegations.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_DELEGATION_INVALID'`
+- `message`: `'Delegation is invalid'`
+
+---
+
+### BTP_ERROR_UNSUPPORTED_ENCRYPT
+
+```ts
+const BTP_ERROR_UNSUPPORTED_ENCRYPT: BTPError;
+```
+
+**Description:**
+Error constant for unsupported encryption algorithms.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_UNSUPPORTED_ENCRYPT'`
+- `message`: `'Unsupported encryption algorithm'`
+
+---
+
+### BTP_ERROR_DECRYPTION_UNINTENDED
+
+```ts
+const BTP_ERROR_DECRYPTION_UNINTENDED: BTPError;
+```
+
+**Description:**
+Error constant for decryption failures when message was not intended for this receiver.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_DECRYPTION_UNINTENDED'`
+- `message`: `'Decryption failed: Message was not intended for this receiver.'`
+
+---
+
+### BTP_ERROR_UNKNOWN
+
+```ts
+const BTP_ERROR_UNKNOWN: BTPError;
+```
+
+**Description:**
+Error constant for unknown errors.
+
+**Properties:**
+
+- `code`: `'BTP_UNKNOWN_ERROR'`
+- `message`: `'Unknown error'`
+
+---
+
+### BTP_ERROR_SOCKET_TIMEOUT
+
+```ts
+const BTP_ERROR_SOCKET_TIMEOUT: BTPError;
+```
+
+**Description:**
+Error constant for socket timeouts.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_SOCKET_TIMEOUT'`
+- `message`: `'Socket timeout. Connection closed'`
+
+---
+
+### BTP_ERROR_AUTHENTICATION_INVALID
+
+```ts
+const BTP_ERROR_AUTHENTICATION_INVALID: BTPError;
+```
+
+**Description:**
+Error constant for authentication failures.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_AUTHENTICATION_INVALID'`
+- `message`: `'Authentication failed'`
+
+---
+
+### BTP_ERROR_TIMEOUT
+
+```ts
+const BTP_ERROR_TIMEOUT: BTPError;
+```
+
+**Description:**
+Error constant for general timeouts.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_TIMEOUT'`
+- `message`: `'Timeout'`
+
+---
+
+### BTP_ERROR_CONNECTION_CLOSED
+
+```ts
+const BTP_ERROR_CONNECTION_CLOSED: BTPError;
+```
+
+**Description:**
+Error constant for closed connections.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_CONNECTION_CLOSED'`
+- `message`: `'Connection closed'`
+
+---
+
+### BTP_ERROR_CONNECTION_ENDED
+
+```ts
+const BTP_ERROR_CONNECTION_ENDED: BTPError;
+```
+
+**Description:**
+Error constant for ended connections.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_CONNECTION_ENDED'`
+- `message`: `'Connection ended'`
+
+---
+
+### BTP_ERROR_SOCKET_CLOSED
+
+```ts
+const BTP_ERROR_SOCKET_CLOSED: BTPError;
+```
+
+**Description:**
+Error constant for already closed sockets.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_SOCKET_CLOSED'`
+- `message`: `'Socket already closed'`
+
+---
+
+### BTP_ERROR_IDENTITY_NOT_FOUND
+
+```ts
+const BTP_ERROR_IDENTITY_NOT_FOUND: BTPError;
+```
+
+**Description:**
+Error constant for identity not found.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_IDENTITY_NOT_FOUND'`
+- `message`: `'Identity not found'`
+
+---
+
+### BTPS_ERROR_ACTION_TYPE
+
+```ts
+const BTPS_ERROR_ACTION_TYPE: BTPError;
+```
+
+**Description:**
+Error constant for invalid BTPS action types.
+
+**Properties:**
+
+- `code`: `'BTPS_ERROR_ACTION_TYPE'`
+- `message`: `'BTPS action type is not valid'`
+
+---
+
+### BTP_ERROR_RESOLVE_DNS
+
+```ts
+const BTP_ERROR_RESOLVE_DNS: BTPError;
+```
+
+**Description:**
+Error constant for DNS resolution failures.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_RESOLVE_DNS'`
+- `message`: `'No valid DNS record found'`
+
+---
+
+### BTP_ERROR_INVALID_ACTION
+
+```ts
+const BTP_ERROR_INVALID_ACTION: BTPError;
+```
+
+**Description:**
+Error constant for invalid actions.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_INVALID_ACTION'`
+- `message`: `'Invalid action'`
 
 ---
 

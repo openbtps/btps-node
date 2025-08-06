@@ -28,6 +28,20 @@ The BtpsServer automatically forwards all processed artifacts (after verificatio
 4. **Event Emission**: Agent/Transporter event handlers
 5. **Artifact Forwarding**: Forward to your handler function
 
+### ProcessedArtifact Structure
+
+The forwarded artifact has the following structure:
+
+```typescript
+type ProcessedArtifact =
+  | { artifact: BTPAgentArtifact; type: 'agent'; respondNow: boolean }
+  | { artifact: BTPTransporterArtifact; type: 'transporter' };
+```
+
+- **artifact**: The actual artifact data
+- **type**: Either 'agent' or 'transporter'
+- **respondNow**: Only present for agent artifacts, indicates if immediate response is required
+
 ## Setting Up Artifact Forwarding
 
 ### Step 1: Configure Forwarding Handler
@@ -36,13 +50,19 @@ The BtpsServer automatically forwards all processed artifacts (after verificatio
 // src/index.ts
 import { BtpsServer } from '@btps/sdk/server';
 import { JsonTrustStore } from '@btps/sdk/trust';
+import { readFileSync } from 'fs';
 
 const server = new BtpsServer({
-  port: 3443,
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
   trustStore: new JsonTrustStore({
     connection: './trust.json',
     entityName: 'trusted_senders',
   }),
+  port: 3443,
   middlewarePath: './btps.middleware.mjs',
 });
 
@@ -58,13 +78,13 @@ server.forwardTo(async (processedArtifact) => {
 ```typescript
 // Handle processed artifacts
 async function handleProcessedArtifact(processedArtifact) {
-  const { artifact, isAgentArtifact } = processedArtifact;
+  const { artifact, type } = processedArtifact;
 
   try {
-    if (isAgentArtifact) {
+    if (type === 'agent') {
       // Handle agent artifacts
       await handleAgentArtifact(artifact);
-    } else {
+    } else if (type === 'transporter') {
       // Handle transporter artifacts
       await handleTransporterArtifact(artifact);
     }
@@ -323,12 +343,13 @@ const testTransporterArtifact = {
 // Test the forwarding handler
 await handleProcessedArtifact({
   artifact: testAgentArtifact,
-  isAgentArtifact: true,
+  type: 'agent',
+  respondNow: true,
 });
 
 await handleProcessedArtifact({
   artifact: testTransporterArtifact,
-  isAgentArtifact: false,
+  type: 'transporter',
 });
 ```
 

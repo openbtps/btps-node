@@ -8,9 +8,39 @@ slug: supporting-data-storage
 
 While the basic setup uses JSON files for development, production BTPS servers need robust database storage for trust records, inbox, outbox, and trash management. This guide shows how to extend `AbstractTrustStore` for various databases with a focus on MongoDB.
 
-## Understanding AbstractTrustStore
+## Storage Architecture
 
-The `AbstractTrustStore` class provides the interface for implementing custom storage backends. You must implement these methods:
+BTPS SDK provides a comprehensive storage architecture with multiple abstract classes for different storage needs:
+
+### AbstractStorageStore
+
+The base storage class for any type of record storage:
+
+```typescript
+abstract class AbstractStorageStore<T extends BTPStorageRecord> {
+  abstract getById(computedId: string): Promise<T | undefined>;
+  abstract create(record: Omit<T, 'id'>, computedId?: string): Promise<T>;
+  abstract update(computedId: string, patch: Partial<T>): Promise<T>;
+  abstract delete(computedId: string): Promise<void>;
+}
+```
+
+### AbstractIdentityStore
+
+Extends `AbstractStorageStore` for identity-specific storage (public keys, selectors):
+
+```typescript
+abstract class AbstractIdentityStore<T extends BTPIdentityRecord> extends AbstractStorageStore<T> {
+  abstract getPublicKeyRecord(
+    identity: string,
+    selector?: string,
+  ): Promise<IdentityPubKeyRecord | undefined>;
+}
+```
+
+### AbstractTrustStore
+
+The trust store interface for trust relationship management:
 
 ```typescript
 abstract class AbstractTrustStore<T extends BTPTrustRecord> {
@@ -21,6 +51,34 @@ abstract class AbstractTrustStore<T extends BTPTrustRecord> {
   abstract getAll(receiverId?: string): Promise<T[]>;
 }
 ```
+
+### JsonStorageStore
+
+A file-based implementation of `AbstractStorageStore` for development and small-scale deployments:
+
+```typescript
+import { JsonStorageStore } from '@btps/sdk/storage';
+
+// For general storage
+const storage = new JsonStorageStore({
+  connection: './data/storage.json',
+  entityName: 'my_records',
+});
+
+// For identity storage
+const identityStore = new JsonIdentityStore({
+  connection: './data/identities.json',
+  entityName: 'identities',
+});
+```
+
+**Features:**
+
+- **File-based storage**: JSON files for simple deployment
+- **Atomic writes**: Uses file locking for data integrity
+- **Debounced writes**: Performance optimization with delayed disk writes
+- **Multi-tenant support**: Entity-based organization
+- **Auto-reload**: Detects external file changes
 
 ## MongoDB Trust Store Implementation
 
@@ -236,10 +294,20 @@ const trustStore = new MongoTrustStore({
 // Create artifact storage
 const artifactStorage = new MongoArtifactStorage(mongoClient, 'btps');
 
-// Create server
+// Create server with identity store (optional)
 const server = new BtpsServer({
-  port: 3443,
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
   trustStore,
+  identityStore: new MongoIdentityStore({
+    // Optional: for SaaS-managed users
+    connection: mongoClient,
+    entityName: 'btps_identities',
+  }),
+  port: 3443,
   connectionTimeoutMs: 30000,
 });
 
@@ -268,6 +336,32 @@ server.onIncomingArtifact('Transporter', async (artifact) => {
 
 await server.start();
 console.log('🚀 BTPS Server with MongoDB storage running');
+```
+
+### Using JsonStorageStore for Development
+
+For development and testing, you can use the built-in JSON storage:
+
+```typescript
+import { BtpsServer, JsonTrustStore, JsonIdentityStore } from '@btps/sdk';
+
+const server = new BtpsServer({
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
+  trustStore: new JsonTrustStore({
+    connection: './data/trust.json',
+    entityName: 'trusted_senders',
+  }),
+  identityStore: new JsonIdentityStore({
+    // Optional: for SaaS-managed users
+    connection: './data/identities.json',
+    entityName: 'identities',
+  }),
+  port: 3443,
+});
 ```
 
 ## SQL Database Examples
@@ -322,6 +416,58 @@ export class PostgresTrustStore extends AbstractTrustStore<BTPTrustRecord> {
 
 **Important**: The `computedId` parameter should be used as the record's `id` field. Do not generate your own IDs for trust records.
 
+## Storage Types and Interfaces
+
+### BTPStorageRecord
+
+Base interface for all storage records:
+
+```typescript
+interface BTPStorageRecord {
+  id: string; // unique computed id of the storage record
+  createdAt: string; // date and time of the storage record creation in ISO Format
+  updatedAt?: string; // date and time of the storage record update in ISO Format
+  metadata?: Record<string, unknown>; // @optional Metadata of the storage record
+}
+```
+
+### BTPIdentityRecord
+
+Interface for identity storage records:
+
+```typescript
+interface BTPIdentityRecord extends BTPStorageRecord {
+  identity: string; // unique identity of the storage record
+  currentSelector: string; // unique selector of the storage record
+  publicKeys: IdentityPubKeyRecord[]; // current base64 public key of the identity
+}
+```
+
+### IdentityPubKeyRecord
+
+Interface for public key records within identity storage:
+
+```typescript
+type IdentityPubKeyRecord = {
+  selector: string;
+  publicKey: string;
+  keyType: 'rsa';
+  version: string;
+  createdAt: string;
+};
+```
+
+### StorageStoreOptions
+
+Configuration options for storage stores:
+
+```typescript
+interface StorageStoreOptions {
+  connection: unknown; // could be file path, MongoClient, Sequelize, etc.
+  entityName?: string; // e.g. 'trustedSenders', 'trust_rejections'
+}
+```
+
 ## Environment Configuration
 
 ```bash
@@ -335,6 +481,10 @@ POSTGRES_URI=postgresql://user:password@localhost:5432/btps
 # Trust store configuration
 TRUST_STORE_TYPE=mongodb
 TRUST_STORE_ENTITY=btps_trust
+
+# Identity store configuration (optional)
+IDENTITY_STORE_TYPE=mongodb
+IDENTITY_STORE_ENTITY=btps_identities
 ```
 
 ## Advanced Examples

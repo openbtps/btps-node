@@ -45,6 +45,7 @@ A BTPS trust record contains comprehensive information about a trust relationshi
   "senderId": "billing$vendorcorp.com",
   "receiverId": "pay$client.com",
   "status": "accepted",
+  "updatedAt": "2025-01-16T10:30:00Z",
   "createdAt": "2025-01-15T10:30:00Z",
   "decidedBy": "admin@client.com",
   "decidedAt": "2025-01-15T11:00:00Z",
@@ -96,6 +97,7 @@ The computed trust ID enforces **explicit, directional trust relationships**. Th
 **Status & Timeline:**
 
 - `status`: Current trust status (`accepted`, `rejected`, `revoked`, `pending`, `blocked`)
+- `updatedAt`: Optional Updated record timestamp (ISO format)
 - `createdAt`: Trust record creation timestamp (ISO format)
 - `decidedBy`: Identity of the person/system that made the decision
 - `decidedAt`: Decision timestamp (ISO format)
@@ -121,7 +123,7 @@ The computed trust ID enforces **explicit, directional trust relationships**. Th
 - **`accepted`**: Trust relationship is active and sender can deliver documents
 - **`pending`**: Trust request received, awaiting decision from receiver
 
-### Inactive Statuses  
+### Inactive Statuses
 
 - **`rejected`**: Trust request denied, sender cannot send documents
 - **`revoked`**: Previously accepted trust has been terminated
@@ -155,7 +157,7 @@ BTPS maintains a complete history of public keys used by each identity:
   "keyHistory": [
     {
       "fingerprint": "sha256:abc123def456...",
-      "firstSeen": "2024-01-15T10:30:00Z", 
+      "firstSeen": "2024-01-15T10:30:00Z",
       "lastSeen": "2025-01-10T15:45:00Z"
     },
     {
@@ -214,16 +216,19 @@ BTPS supports three privacy levels for document exchange:
 ## Detailed Trust Flow
 
 1. **Trust Request Initiation**
+
    - Sender creates trust request with business details
    - Request includes: company name, contact info, reason, privacy preferences
    - Request signed with sender's private key
 
 2. **Identity Verification**
+
    - Receiver's BTPS server queries sender's DNS TXT record
    - Verifies public key and server endpoint
    - Validates cryptographic signature on trust request
 
 3. **Trust Record Creation (Anti-Spam Protection)**
+
    - Unique trust ID generated: `senderId:receiverId`
    - Current timestamp and request details recorded
    - Public key and fingerprint stored
@@ -234,11 +239,13 @@ BTPS supports three privacy levels for document exchange:
    - **Purpose**: Rejects duplicate trust requests from same sender within the cooling-off period
 
 4. **Trust Decision**
+
    - Receiver reviews trust request and sender information
    - Decision options: accept, reject, or block
    - Trust record updated with appropriate status
 
 5. **Trust Record Finalization**
+
    - Decision timestamp and decision maker recorded
    - Trust expiration date set (if applicable)
    - Final trust record stored in trust store
@@ -294,6 +301,7 @@ Revocation → Blocking → Record Archival
       "decidedBy": "admin@client.com",
       "decidedAt": "2025-01-15T11:00:00Z",
       "expiresAt": "2026-01-15T11:00:00Z",
+      "updatedAt": "2025-01-16T10:30:00Z",
       "publicKeyBase64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
       "publicKeyFingerprint": "sha256:abc123def456...",
       "keyHistory": [],

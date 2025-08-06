@@ -34,16 +34,16 @@ BTPS uses DNS TXT records to publish multiple public keys under different select
 Selectors can be any meaningful identifier and follow this naming pattern:
 
 ```
-<selector>._btps.<identity>.<domain>
+<selector>._btps.identity.<identity>.<domain>
 ```
 
 **Examples:**
 
 ```
-btps1._btps.finance.vendorcorp.com  → First generation key
-btps2._btps.finance.vendorcorp.com  → Second generation key
-current._btps.finance.vendorcorp.com → Current production key
-legacy._btps.finance.vendorcorp.com  → Legacy key for backward compatibility
+btps1._btps.identity.finance.vendorcorp.com  → First generation key
+btps2._btps.identity.finance.vendorcorp.com  → Second generation key
+current._btps.identity.finance.vendorcorp.com → Current production key
+legacy._btps.identity.finance.vendorcorp.com  → Legacy key for backward compatibility
 ```
 
 **Selector Guidelines:**
@@ -60,7 +60,7 @@ legacy._btps.finance.vendorcorp.com  → Legacy key for backward compatibility
 Each selector publishes a DNS TXT record with the following format:
 
 ```
-btps1._btps.finance.vendorcorp.com. IN TXT "v=BTPS1;k=rsa-sha256;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
+btps1._btps.identity.finance.vendorcorp.com. IN TXT "v=1.0.0;k=rsa-sha256;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
 ```
 
 **Record Components:**
@@ -149,16 +149,16 @@ Create the new DNS TXT records before publishing:
 #### Public Key Record
 
 ```dns
-btps2._btps.finance.vendorcorp.com. IN TXT "v=BTPS1;k=rsa-sha256;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
+btps2._btps.identity.finance.vendorcorp.com. IN TXT "v=BTPS1;k=rsa-sha256;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
 ```
 
 #### Selector Resolution Record
 
 ```dns
-_btps.finance.vendorcorp.com. IN TXT "v=1.0.0;u=btps.vendorcorp.com:3443;s=btps2"
+_btps.host.vendorcorp.com. IN TXT "v=1.0.0;u=btps.vendorcorp.com:3443;s=btps2"
 ```
 
-**Note:** The selector resolution record (`_btps.finance.vendorcorp.com`) must be updated to point to the new selector (`s=btps2`) during key rotation.
+**Note:** The selector resolution record (`_btps.host.vendorcorp.com`) must be updated to point to the new selector (`s=btps2`) during key rotation.
 
 ### 3. Testing Strategy
 
@@ -257,9 +257,9 @@ const isValid = await verifyArtifact(artifact);
 - **Document rotation procedures** for team reference
 - **Test rotation process** in staging environment first
 - **Plan realistic timelines**:
-  - Preparation: 1-3 days
-  - Migration: 2-4 weeks
-  - Cleanup: 2-3 months for large platforms
+  - Preparation: 1 to 2 days
+  - Migration: 1 to 2 weeks
+  - Cleanup: 2 - 4 weeks for large platforms depending on messages queuing period
 
 ### 2. DNS Management
 
@@ -294,7 +294,7 @@ const isValid = await verifyArtifact(artifact);
 - **Monitor for issues** that might require rollback
 - **Document rollback decision criteria**
 - **Extended key retention** for large platforms:
-  - Keep old keys for 2-3 months after migration
+  - Keep old keys for 1 month after migration
   - Monitor for any systems still using old selectors
   - Gradual removal based on usage analytics
 
@@ -305,13 +305,12 @@ gantt
     title Key Rotation Timeline
     dateFormat  YYYY-MM-DD
     section Preparation
-    Key Generation           :done, keygen, 2024-01-01, 1d
-    DNS Record Creation      :done, dns, after keygen, 1d
-    Testing                  :done, test, after dns, 1d
+    Key Generation and DNS Record Creation         :done, keygen, 2025-01-01, 1d
+    Testing                  :done, test, after keygen, 1d
     section Migration
-    Publish New Key          :active, publish, 2024-01-04, 1d
-    Gradual Migration        :migration, after publish, 21d
-    Monitor & Validate       :monitor, after publish, 21d
+    Publish New Key          :active, publish, 2025-01-02, 1d
+    Gradual Migration        :migration, after publish, 5d
+    Monitor & Validate       :monitor, after publish, 7d
     section Cleanup
     Remove Old Key           :cleanup, after migration, 1d
     Update Documentation     :docs, after cleanup, 1d
@@ -319,16 +318,16 @@ gantt
 
 ### Timeline Breakdown
 
-#### Preparation Phase (1-3 days)
+#### Preparation Phase (1-2 days)
 
 - **Key Generation**: 1 day
 - **DNS Record Creation**: 1 day
 - **Testing**: 1 day
 - **Total**: 3 days maximum
 
-#### Migration Phase (2-4 weeks)
+#### Migration Phase (2 weeks)
 
-- **Gradual Migration**: 2-4 weeks depending on infrastructure and user base
+- **Gradual Migration**: 1-2 weeks depending on infrastructure and user base
 - **Monitoring & Validation**: Continuous during migration period
 - **Key Factors**:
   - Number of users and systems
@@ -336,13 +335,13 @@ gantt
   - DNS propagation requirements
   - Application deployment cycles
 
-#### Cleanup Phase (2-3 months for large platforms)
+#### Cleanup Phase (2-4 weeks for large platforms)
 
-- **Remove Old Keys**: 2-3 months after migration completion
+- **Remove Old Keys**: 2-4 weeks after migration completion
 - **Recommended Timeline**:
-  - **Small platforms** (< 10K users): 1-2 weeks
-  - **Medium platforms** (10K-100K users): 1-2 months
-  - **Large platforms** (> 1M users): 2-3 months
+  - **Small platforms** (< 10K users): 1-2 days
+  - **Medium platforms** (10K-100K users): 1-2 weeks
+  - **Large platforms** (> 1M users): 2-4 weeks
 - **Rationale**: Ensures all cached DNS records expire and all systems have migrated
 
 ## Error Handling
@@ -464,16 +463,16 @@ If a key is compromised:
 
 ```bash
 # Check DNS resolution for public key records
-dig TXT btps1._btps.finance.vendorcorp.com
-dig TXT btps2._btps.finance.vendorcorp.com
+dig TXT btps1._btps.identity.finance.vendorcorp.com
+dig TXT btps2._btps.identity.finance.vendorcorp.com
 
 # Check DNS resolution for selector record
-dig TXT _btps.finance.vendorcorp.com
+dig TXT _btps.host.vendorcorp.com
 
 # Check DNS propagation
-nslookup btps1._btps.finance.vendorcorp.com
-nslookup btps2._btps.finance.vendorcorp.com
-nslookup _btps.finance.vendorcorp.com
+nslookup btps1._btps.identity.finance.vendorcorp.com
+nslookup btps2._btps.identity.finance.vendorcorp.com
+nslookup _btps.host.vendorcorp.com
 ```
 
 ### Key Resolution Issues

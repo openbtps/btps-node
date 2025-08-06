@@ -18,12 +18,14 @@ BTPS servers receive two main types of artifacts:
 - **Purpose**: Client requests that require immediate responses
 - **Examples**: Authentication, inbox queries, system commands
 - **Response**: Must respond immediately using `resCtx.sendRes()` or `resCtx.sendError()`
+- **Signature**: `(artifact: BTPAgentArtifact & { respondNow: boolean }, resCtx: ArtifactResCtx) => void`
 
 ### 2. Transporter Artifacts
 
 - **Purpose**: Document delivery (invoices, messages, etc.)
 - **Examples**: Trust requests, invoices, notifications
 - **Response**: No immediate response required (processed asynchronously)
+- **Signature**: `(artifact: BTPTransporterArtifact) => void`
 
 ## Adding Event Handlers to Your Server
 
@@ -35,6 +37,7 @@ Update your server to handle incoming artifacts:
 // src/index.ts
 import { BtpsServer } from '@btps/sdk/server';
 import { JsonTrustStore } from '@btps/sdk/trust';
+import { readFileSync } from 'fs';
 
 const trustStore = new JsonTrustStore({
   connection: './trust.json',
@@ -42,8 +45,13 @@ const trustStore = new JsonTrustStore({
 });
 
 const server = new BtpsServer({
-  port: 3443,
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
   trustStore,
+  port: 3443,
   middlewarePath: './btps.middleware.mjs',
   connectionTimeoutMs: 30000,
 });
@@ -378,12 +386,18 @@ Create a test script to verify your handlers:
 import { BtpsAgent } from '@btps/sdk/client';
 
 const agent = new BtpsAgent({
-  identity: 'test$example.com',
-  bptIdentityCert: 'your-public-key',
-  btpIdentityKey: 'your-private-key',
+  agent: {
+    id: 'test-agent-123',
+    identityKey: '-----BEGIN PRIVATE KEY-----\n...', // Your private key
+    identityCert: '-----BEGIN PUBLIC KEY-----\n...', // Your public key
+  },
+  btpIdentity: 'test$example.com',
   host: 'localhost',
   port: 3443,
-  agentId: 'test-agent-123',
+  maxRetries: 3,
+  retryDelayMs: 1000,
+  connectionTimeoutMs: 5000,
+  btpMtsOptions: { rejectUnauthorized: false },
 });
 
 // Test ping

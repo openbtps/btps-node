@@ -24,7 +24,7 @@ BTPS requires a trust store to manage trust relationships. There are two main op
   - **Not recommended for:** Production, multi-instance, or high-throughput deployments due to lack of distributed locking and scalability.
   - **Usage:**
     ```js
-    import { JsonTrustStore } from 'btps-sdk';
+    import { JsonTrustStore } from '@btps/sdk';
     const trustStore = new JsonTrustStore({ connection: './trust.json' });
     ```
 - **Database-backed Trust Stores (Recommended for Production):**
@@ -48,7 +48,7 @@ The `BtpsServer` class accepts the following options:
 **Example:**
 
 ```js
-import { BtpsServer, JsonTrustStore } from 'btps-sdk';
+import { BtpsServer, JsonTrustStore } from '@btps/sdk';
 const trustStore = new JsonTrustStore({ connection: './trust.json' });
 const server = new BtpsServer({
   port: 3443,

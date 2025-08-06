@@ -41,7 +41,7 @@ sequenceDiagram
     SaaS Auth->>SaaS Auth: Registers and stores device public key
     SaaS Auth->>BTPS Server: Return Tokens
     BTPS Server->>BTPS App (Agent): Authentication Success
-    
+
     Note over BTPS App (Agent),Receiver: Message Sending Flow
     BTPS App (Agent)->>BTPS Server: Send BTPS Message
     BTPS Server->>SaaS Auth: Verify Device and Signature
@@ -87,7 +87,7 @@ sequenceDiagram
     SaaS Auth->>SaaS Auth: Registers and stores device public key
     SaaS Auth->>BTPS Server: Return Tokens
     BTPS Server->>BTPS App (Agent): Authentication Success
-    
+
     Note over BTPS App (Agent),Receiver: Message Sending Flow (Attestation Required)
     BTPS App (Agent)->>BTPS Server: Send BTPS Message
     BTPS Server->>SaaS Auth: Verify Device and Signature
@@ -135,7 +135,7 @@ sequenceDiagram
     SaaS Auth->>SaaS Auth: Registers and stores device public key
     SaaS Auth->>BTPS Server: Return Tokens
     BTPS Server->>BTPS App (Agent & Transporter): Authentication Success
-    
+
     Note over BTPS App (Agent & Transporter),Receiver: Message Sending Flow (No Delegation Needed)
     BTPS App (Agent & Transporter)->>Receiver: Send BTPS Message Directly
     Receiver->>DNS: Query user's domain for public key
@@ -185,20 +185,24 @@ sequenceDiagram
 The receiver performs comprehensive verification:
 
 #### **Step 1: Attestation Requirement Check**
+
 - **SaaS Users**: No attestation required (`delegation.signedBy !== artifact.from`)
 - **Custom Domain Users**: Attestation required (`delegation.signedBy === artifact.from`)
 
 #### **Step 2: Attestation Verification (Custom Domain Only)**
+
 - Resolve SaaS attestor's public key via DNS
 - Verify attestation signature against delegation metadata
 - Reject if verification fails
 
 #### **Step 3: Delegation Signature Verification**
+
 - Resolve delegator's public key via DNS
 - Verify delegation signature using delegator's public key
 - Reject if verification fails
 
 #### **Step 4: Agent Signature Verification**
+
 - Extract original artifact (without delegation)
 - Verify agent signature using `delegation.agentPubKey`
 - Reject if verification fails
@@ -208,68 +212,77 @@ The receiver performs comprehensive verification:
 The receiver performs direct verification:
 
 #### **Step 1: Public Key Resolution**
+
 - Resolve user's public key via DNS from their domain
 - Verify user signature directly
 - Reject if verification fails
 
 ## 🔐 DNS Resolution by User Type
 
-### **SaaS Managed Users**
+### **SaaS Identity Users**
+
 ```bash
 # Resolve SaaS delegation records
-dig TXT alice.btps.saas.com
+dig TXT _btps1.identity.admin.saas.com
 # Returns: SaaS public key for delegation verification
 ```
 
 ### **Custom Domain Users**
+
 ```bash
 # Resolve custom domain delegation records
-dig TXT alice.btps.enterprise.com
+dig TXT _btps1.identity.alice.btps.enterprise.com
 # Returns: Custom domain public key for delegation verification
 
 # Resolve SaaS attestation records
-dig TXT admin.btps.saas.com
+dig TXT _btps1.identity.admin.btps.saas.com
 # Returns: SaaS public key for attestation verification
 ```
 
 ### **E2E Users**
+
 ```bash
 # Resolve user's own domain records
-dig TXT alice.btps.mye2e.com
+dig TXT _btps1.identity.alice.btps.mye2e.com
 # Returns: User's public key for direct verification
 ```
 
 ## 🚨 Error Handling by User Type
 
 ### **SaaS Managed Users**
-| Error | Cause | Action |
-|-------|-------|--------|
-| `DELEGATION_INVALID` | Invalid delegation structure | Reject message |
-| `DELEGATION_SIG_VERIFICATION_FAILED` | Invalid delegation signature | Reject message |
-| `RESOLVE_PUBKEY` | SaaS DNS resolution failed | Retry with fallback DNS |
+
+| Error                                | Cause                        | Action                  |
+| ------------------------------------ | ---------------------------- | ----------------------- |
+| `DELEGATION_INVALID`                 | Invalid delegation structure | Reject message          |
+| `DELEGATION_SIG_VERIFICATION_FAILED` | Invalid delegation signature | Reject message          |
+| `RESOLVE_PUBKEY`                     | SaaS DNS resolution failed   | Retry with fallback DNS |
 
 ### **Custom Domain Users**
-| Error | Cause | Action |
-|-------|-------|--------|
-| `DELEGATION_INVALID` | Missing attestation | Reject message |
-| `ATTESTATION_VERIFICATION_FAILED` | Invalid attestation signature | Reject message |
-| `DELEGATION_SIG_VERIFICATION_FAILED` | Invalid delegation signature | Reject message |
-| `RESOLVE_PUBKEY` | DNS resolution failed | Retry with fallback DNS |
+
+| Error                                | Cause                         | Action                  |
+| ------------------------------------ | ----------------------------- | ----------------------- |
+| `DELEGATION_INVALID`                 | Missing attestation           | Reject message          |
+| `ATTESTATION_VERIFICATION_FAILED`    | Invalid attestation signature | Reject message          |
+| `DELEGATION_SIG_VERIFICATION_FAILED` | Invalid delegation signature  | Reject message          |
+| `RESOLVE_PUBKEY`                     | DNS resolution failed         | Retry with fallback DNS |
 
 ### **E2E Users**
-| Error | Cause | Action |
-|-------|-------|--------|
-| `RESOLVE_PUBKEY` | User DNS resolution failed | Retry with fallback DNS |
-| `SIGNATURE_VERIFICATION_FAILED` | Invalid user signature | Reject message |
+
+| Error                           | Cause                      | Action                  |
+| ------------------------------- | -------------------------- | ----------------------- |
+| `RESOLVE_PUBKEY`                | User DNS resolution failed | Retry with fallback DNS |
+| `SIGNATURE_VERIFICATION_FAILED` | Invalid user signature     | Reject message          |
 
 ## 📊 Performance Considerations
 
 ### **DNS Resolution**
+
 - **TTL Settings**: Use appropriate TTL for each user type
 - **Caching**: Implement DNS caching with user-type-aware invalidation
 - **Fallback**: Handle DNS resolution failures gracefully
 
 ### **Signature Verification**
+
 - **Parallel Processing**: Verify multiple signatures concurrently where possible
 - **Key Caching**: Cache verified public keys to reduce DNS lookups
 - **Timeout Handling**: Implement timeouts for slow cryptographic operations
@@ -295,4 +308,4 @@ dig TXT alice.btps.mye2e.com
 1. **User Type Routing**: Route messages to appropriate verification flow
 2. **Verification Pipeline**: Apply correct verification process for each user type
 3. **Error Reporting**: Provide clear error messages for each user type
-4. **Monitoring**: Monitor performance and errors by user type 
+4. **Monitoring**: Monitor performance and errors by user type

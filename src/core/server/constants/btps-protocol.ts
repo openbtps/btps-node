@@ -8,4 +8,5 @@
 export const BTP_PROTOCOL_VERSION = '1.0.0';
 export const MIN_SUPPORTED_VERSION = '1.0.0';
 export const MAX_SUPPORTED_VERSION = '1.0.0';
-export const BTPS_DNS_NAME_SPACE = '_btps.host';
+export const BTPS_DNS_HOST_NAME_SPACE = '_btps.host';
+export const BTPS_DNS_IDENTITY_NAME_SPACE = '_btps.identity';

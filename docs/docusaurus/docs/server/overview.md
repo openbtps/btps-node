@@ -44,14 +44,18 @@ graph TD
 ## Main Class: `BtpsServer`
 
 ```js
-import { BtpsServer } from 'btps-sdk';
+import { BtpsServer } from '@btps/sdk';
 
 const server = new BtpsServer({
   port: 3443,
   trustStore, // Instance of a TrustStore (see advancedUsages)
   middlewarePath: './btps.middleware.mjs',
-  onError: (err) => { /* handle errors */ },
-  options: { /* TLS options */ },
+  onError: (err) => {
+    /* handle errors */
+  },
+  options: {
+    /* TLS options */
+  },
 });
 ```
 

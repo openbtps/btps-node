@@ -18,7 +18,13 @@ Configuration options for the BTPS server.
 
 ```ts
 interface BtpsServerOptions {
+  serverIdentity: {
+    identity: string;
+    publicKey: string;
+    privateKey: string;
+  };
   trustStore: AbstractTrustStore<BTPTrustRecord>;
+  identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   port?: number;
   onError?: (err: BTPErrorException) => void;
   options?: TlsOptions;
@@ -29,12 +35,507 @@ interface BtpsServerOptions {
 
 **Properties:**
 
+- `serverIdentity`: Required server identity configuration with identity, public key, and private key
 - `trustStore`: Required trust store instance for managing trust records
+- `identityStore`: Optional identity store instance for managing identity records
 - `port`: Optional port number (default: 3443)
 - `onError`: Optional error handler function
 - `options`: Optional TLS configuration options
 - `connectionTimeoutMs`: Optional connection timeout in milliseconds (default: 30000)
 - `middlewarePath`: Optional path to middleware file
+
+---
+
+## Client Types
+
+### BTPClientOptions
+
+Configuration options for BTPS client connections.
+
+```ts
+interface BTPClientOptions {
+  to: string;
+  maxRetries?: number;
+  retryDelayMs?: number;
+  connectionTimeoutMs?: number;
+  btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
+  host?: string;
+  hostSelector?: string;
+  version?: string;
+  port?: number;
+  maxQueue?: number;
+}
+```
+
+**Properties:**
+
+- `to`: Required recipient identity (e.g., 'billing$yourdomain.com')
+- `maxRetries`: Optional maximum retry attempts (default: 3)
+- `retryDelayMs`: Optional delay between retries in milliseconds (default: 1000)
+- `connectionTimeoutMs`: Optional connection timeout in milliseconds (default: 5000)
+- `btpMtsOptions`: Optional TLS connection options (excluding port and host)
+- `host`: Optional custom host override
+- `hostSelector`: Optional DNS selector for key management (default: 'btps1')
+- `version`: Optional protocol version (default: '1.0.0.0')
+- `port`: Optional custom port override
+- `maxQueue`: Optional maximum queue size for request handling (default: 100)
+
+### BTPAgentOptions
+
+Configuration options for BTPS agent connections.
+
+```ts
+interface BTPAgentOptions extends Omit<BTPClientOptions, 'to'> {
+  agent: {
+    id: string;
+    identityKey: string;
+    identityCert: string;
+  };
+  btpIdentity: string;
+}
+```
+
+**Properties:**
+
+- `agent`: Required agent configuration with ID, identity key, and certificate
+- `btpIdentity`: Required BTPS identity for the agent
+- All properties from `BTPClientOptions` except `to`
+
+### BTPTransporterOptions
+
+Configuration options for BTPS transporter connections.
+
+```ts
+interface BTPTransporterOptions extends Omit<BTPClientOptions, 'to'> {
+  maxConnections?: number;
+  connectionTTLSeconds?: number;
+}
+```
+
+**Properties:**
+
+- `maxConnections`: Optional maximum active connections allowed (default: 10)
+- `connectionTTLSeconds`: Optional TTL per connection in seconds (default: 300)
+- All properties from `BTPClientOptions` except `to`
+
+### BTPClientResponse
+
+Response from a BTPS client operation.
+
+```ts
+interface BTPClientResponse {
+  response?: BTPServerResponse;
+  error?: BTPErrorException;
+}
+```
+
+**Properties:**
+
+- `response`: Optional server response if successful
+- `error`: Optional error if the operation failed
+
+### ConnectionStates
+
+Current state of a BTPS client connection.
+
+```ts
+interface ConnectionStates {
+  isConnecting: boolean;
+  isConnected: boolean;
+  isDraining: boolean;
+  isDestroyed: boolean;
+  shouldRetry: boolean;
+}
+```
+
+**Properties:**
+
+- `isConnecting`: Whether the connection is currently being established
+- `isConnected`: Whether the connection is active and ready
+- `isDraining`: Whether the connection is draining (finishing pending operations)
+- `isDestroyed`: Whether the connection has been destroyed
+- `shouldRetry`: Whether the connection should be retried on failure
+
+### BtpsClientEvents
+
+Event types emitted by BTPS client instances.
+
+```ts
+type BtpsClientEvents = {
+  connected: () => void;
+  end: (endInfo: BtpsClientErrorInfo) => void;
+  error: (errorInfo: BtpsClientErrorInfo) => void;
+  message: (msg: BTPClientResponse & { validSignature: boolean }) => void;
+  close: (closeInfo: BtpsClientErrorInfo) => void;
+};
+```
+
+**Events:**
+
+- `connected`: Emitted when connection is established
+- `end`: Emitted when connection ends with error info
+- `error`: Emitted when an error occurs with error info
+- `message`: Emitted when a message is received with signature validation
+- `close`: Emitted when connection closes with close info
+
+### BtpsTransporterEvents
+
+Event types emitted by BTPS transporter instances.
+
+```ts
+type BtpsTransporterEvents = {
+  connectionCreated: (connectionId: string) => void;
+  connectionUpdated: (connectionId: string) => void;
+  connectionDestroyed: (connectionId: string) => void;
+  connectionError: (connectionId: string, errorInfo: BtpsClientErrorInfo) => void;
+  connectionEnd: (connectionId: string, endInfo: BtpsClientErrorInfo) => void;
+  connectionConnected: (connectionId: string) => void;
+  connectionClose: (connectionId: string, closeInfo: BtpsClientErrorInfo) => void;
+  connectionMessage: (
+    connectionId: string,
+    message: BTPClientResponse & { validSignature: boolean },
+  ) => void;
+};
+```
+
+**Events:**
+
+- `connectionCreated`: Emitted when a new connection is created
+- `connectionUpdated`: Emitted when a connection is updated
+- `connectionDestroyed`: Emitted when a connection is destroyed
+- `connectionError`: Emitted when a connection error occurs
+- `connectionEnd`: Emitted when a connection ends
+- `connectionConnected`: Emitted when a connection is established
+- `connectionClose`: Emitted when a connection closes
+- `connectionMessage`: Emitted when a message is received on a connection
+
+---
+
+## Artifact Types
+
+### BTPArtifact
+
+Base type for all BTPS artifacts.
+
+```ts
+type BTPArtifact =
+  | BTPTransporterArtifact
+  | BTPAgentArtifact
+  | BTPControlArtifact
+  | BTPIdentityLookupRequest;
+```
+
+**Variants:**
+
+- `BTPTransporterArtifact`: Transport artifacts for sending documents and trust requests
+- `BTPAgentArtifact`: Agent artifacts for server commands
+- `BTPControlArtifact`: Control artifacts for connection management
+- `BTPIdentityLookupRequest`: Identity lookup requests
+
+### BtpsAgentDoc
+
+Document types that can be sent by BTPS agents.
+
+```ts
+type BtpsAgentDoc = BTPDocType | BTPAuthReqDoc | BTPAgentMutation | BTPIdsPayload | BTPAgentQuery;
+```
+
+**Variants:**
+
+- `BTPDocType`: Standard BTPS document types (invoices, etc.)
+- `BTPAuthReqDoc`: Authentication request documents
+- `BTPAgentMutation`: Agent mutation documents
+- `BTPIdsPayload`: ID payload documents
+- `BTPAgentQuery`: Agent query documents
+
+### BTPConnection
+
+Represents a BTPS client connection managed by the transporter.
+
+```ts
+interface BTPConnection {
+  id: string;
+  client: BtpsClient;
+  createdAt: string; // ISO string
+  updatedAt: string; // ISO string
+  lastUsedAt: string; // ISO string
+  isActive: boolean; // Whether the connection is active
+  clientOptions: BTPClientOptions;
+  getStatus: () => ConnectionStates;
+}
+```
+
+**Properties:**
+
+- `id`: Unique connection identifier
+- `client`: The underlying BTPS client instance
+- `createdAt`: ISO timestamp when connection was created
+- `updatedAt`: ISO timestamp when connection was last updated
+- `lastUsedAt`: ISO timestamp when connection was last used
+- `isActive`: Whether the connection is currently active
+- `clientOptions`: Client configuration options
+- `getStatus`: Function to get current connection states
+
+### UpdateBTPClientOptions
+
+Options for updating BTPS client connections.
+
+```ts
+interface UpdateBTPClientOptions {
+  maxRetries?: number;
+  retryDelayMs?: number;
+  connectionTimeoutMs?: number;
+  maxQueue?: number;
+}
+```
+
+**Properties:**
+
+- `maxRetries`: Optional maximum retry attempts
+- `retryDelayMs`: Optional delay between retries in milliseconds
+- `connectionTimeoutMs`: Optional connection timeout in milliseconds
+- `maxQueue`: Optional maximum queue size for request handling
+
+### BTPTransporterMetrics
+
+Metrics for BTPS transporter instances.
+
+```ts
+interface BTPTransporterMetrics {
+  totalConnections: number;
+  activeConnections: number;
+}
+```
+
+**Properties:**
+
+- `totalConnections`: Total number of registered connections
+- `activeConnections`: Number of currently active connections
+
+---
+
+## Authentication Types
+
+### ServerAuthConfig
+
+Configuration for BTPS authentication server.
+
+```ts
+interface ServerAuthConfig {
+  trustStore: AbstractTrustStore<BTPTrustRecord>;
+  tokenStore: TokenStore;
+  tokenConfig?: TokenConfig;
+}
+```
+
+**Properties:**
+
+- `trustStore`: Required trust store for managing trust records
+- `tokenStore`: Required token store for managing authentication tokens
+- `tokenConfig`: Optional token configuration
+
+### TokenConfig
+
+Configuration for authentication tokens.
+
+```ts
+interface TokenConfig {
+  authTokenLength?: number;
+  authTokenAlphabet?: string;
+  authTokenExpiryMs?: number;
+  refreshTokenExpiryMs?: number;
+}
+```
+
+**Properties:**
+
+- `authTokenLength`: Optional length of auth tokens (default: 12)
+- `authTokenAlphabet`: Optional character set for auth tokens (default: CrockFord Base32)
+- `authTokenExpiryMs`: Optional expiry time for auth tokens in milliseconds (default: 15 minutes)
+- `refreshTokenExpiryMs`: Optional expiry time for refresh tokens in milliseconds (default: 7 days)
+
+### CreateAgentOptions
+
+Options for creating a new agent.
+
+```ts
+interface CreateAgentOptions {
+  userIdentity: string;
+  publicKey: string;
+  agentInfo?: Record<string, string | string[]>;
+  decidedBy: string;
+  decryptBy: string;
+  privacyType?: 'unencrypted' | 'encrypted' | 'mixed';
+  trustExpiryMs?: number;
+}
+```
+
+**Properties:**
+
+- `userIdentity`: Required user identity for the agent
+- `publicKey`: Required public key for the agent
+- `agentInfo`: Optional agent information (device, OS, etc.)
+- `decidedBy`: Required identity that decided to create the agent
+- `decryptBy`: Required identity to decrypt by when decrypting documents
+- `privacyType`: Optional privacy level (default: 'encrypted')
+- `trustExpiryMs`: Optional trust expiry time in milliseconds
+
+### AuthValidationResult
+
+Result of authentication token validation.
+
+```ts
+interface AuthValidationResult {
+  isValid: boolean;
+  userIdentity?: string;
+  error?: Error;
+}
+```
+
+**Properties:**
+
+- `isValid`: Whether the token is valid
+- `userIdentity`: User identity if token is valid
+- `error`: Error if validation failed
+
+### AuthRequestResponse
+
+Response from authentication request operations.
+
+```ts
+interface AuthRequestResponse {
+  success: boolean;
+  response?: BTPAuthResDoc;
+  error?: BTPErrorException;
+}
+```
+
+**Properties:**
+
+- `success`: Whether the operation was successful
+- `response`: Authentication response document if successful
+- `error`: Error if operation failed
+
+### AuthAgentOptions
+
+Options for agent authentication.
+
+```ts
+interface AuthAgentOptions {
+  agentInfo?: Record<string, string | string[]>;
+  agentOptions?: Record<string, unknown>;
+}
+```
+
+**Properties:**
+
+- `agentInfo`: Optional agent information
+- `agentOptions`: Optional agent-specific options
+
+---
+
+## Delegation Types
+
+### BtpsDelegatorOptions
+
+Configuration options for BTPS delegator.
+
+```ts
+interface BtpsDelegatorOptions {
+  identity: string;
+  privateKey: string;
+  autoInit?: boolean;
+}
+```
+
+**Properties:**
+
+- `identity`: Required delegator identity
+- `privateKey`: Required delegator private key in PEM format
+- `autoInit`: Optional flag to disable auto-initialization (default: true)
+
+---
+
+## Storage Types
+
+### BTPStorageRecord
+
+Base interface for all storage records.
+
+```ts
+interface BTPStorageRecord {
+  id: string; // unique computed id of the storage record
+  createdAt: string; // date and time of the storage record creation in ISO Format
+  updatedAt?: string; // date and time of the storage record update in ISO Format
+  metadata?: Record<string, unknown>; // @optional Metadata of the storage record
+}
+```
+
+**Properties:**
+
+- `id`: Unique computed ID of the storage record
+- `createdAt`: ISO timestamp when the record was created
+- `updatedAt`: Optional ISO timestamp when the record was last updated
+- `metadata`: Optional metadata for the storage record
+
+### BTPIdentityRecord
+
+Interface for identity storage records.
+
+```ts
+interface BTPIdentityRecord extends BTPStorageRecord {
+  identity: string; // unique identity of the storage record
+  currentSelector: string; // unique selector of the storage record
+  publicKeys: IdentityPubKeyRecord[]; // current base64 public key of the identity
+}
+```
+
+**Properties:**
+
+- `identity`: Unique identity string
+- `currentSelector`: Current selector for key management
+- `publicKeys`: Array of public key records for this identity
+- All properties from `BTPStorageRecord`
+
+### IdentityPubKeyRecord
+
+Interface for public key records within identity storage.
+
+```ts
+type IdentityPubKeyRecord = {
+  selector: string;
+  publicKey: string;
+  keyType: 'rsa';
+  version: string;
+  createdAt: string;
+};
+```
+
+**Properties:**
+
+- `selector`: Key selector for rotation management
+- `publicKey`: Base64-encoded public key
+- `keyType`: Key type (currently only 'rsa' supported)
+- `version`: Key version string
+- `createdAt`: ISO timestamp when the key was created
+
+### StorageStoreOptions
+
+Configuration options for storage stores.
+
+```ts
+interface StorageStoreOptions {
+  connection: unknown; // could be file path, MongoClient, Sequelize, etc.
+  entityName?: string; // e.g. 'trustedSenders', 'trust_rejections'
+}
+```
+
+**Properties:**
+
+- `connection`: Storage connection (file path, database client, etc.)
+- `entityName`: Optional entity name for multi-entity storage
+
+---
 
 ### ProcessedArtifact
 

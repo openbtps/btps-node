@@ -27,6 +27,7 @@ The server first determines if attestation is required based on the delegation s
 - **Attestation Optional**: When `delegation.signedBy !== artifact.from`
 
 **Why Attestation is Required:**
+
 - Prevents self-delegation without third-party oversight
 - Ensures custom domain delegations have proper authorization
 - Provides audit trail for sensitive operations
@@ -42,6 +43,7 @@ When attestation is present, the server verifies the third-party signature:
 3. **Reject if Invalid**: If verification fails, the entire delegation is rejected
 
 **Attestation Purpose:**
+
 - Provides third-party validation of the delegation
 - Ensures proper oversight for custom domain operations
 - Creates an audit trail for delegation approvals
@@ -56,6 +58,7 @@ The server verifies that the delegator has properly authorized the delegation:
 4. **Reject if Invalid**: If verification fails, the delegation is rejected
 
 **Delegation Signature Purpose:**
+
 - Proves the delegator authorized this specific delegation
 - Binds the delegation to the specific artifact and agent
 - Ensures delegation integrity and authenticity
@@ -69,6 +72,7 @@ Finally, the server verifies that the agent properly signed the original message
 3. **Reject if Invalid**: If verification fails, the message is rejected
 
 **Agent Signature Purpose:**
+
 - Proves the agent created and signed the message
 - Ensures message integrity and authenticity
 - Confirms the agent has the private key corresponding to the public key in the delegation
@@ -80,21 +84,24 @@ Finally, the server verifies that the agent properly signed the original message
 The verification process relies on DNS to resolve public keys:
 
 #### **Delegator Public Key**
+
 ```bash
+
 # Resolve delegator identity
-dig TXT alice.btps.saas.com
+dig TXT btps1._btps.identity.admin.saas.com
 
 # Expected response
-alice.btps.saas.com. 300 IN TXT "p=...delegator_public_key..."
+identity.admin.saas.com. 300 IN TXT "p=...public_key..."
 ```
 
 #### **Attestor Public Key (if attestation present)**
+
 ```bash
 # Resolve attestor identity
-dig TXT admin.btps.saas.com
+dig TXT btps1._btps.identity.admin.saas.com
 
 # Expected response
-admin.btps.saas.com. 300 IN TXT "p=...attestor_public_key..."
+identity.admin.saas.com. 300 IN TXT "p=...public_key..."
 ```
 
 ### **DNS Security Considerations**
@@ -108,13 +115,13 @@ admin.btps.saas.com. 300 IN TXT "p=...attestor_public_key..."
 
 ### **Common Error Scenarios**
 
-| Scenario | Error | Description |
-|----------|-------|-------------|
-| Missing attestation when required | `DELEGATION_INVALID` | Custom domain delegation requires attestation |
-| Invalid delegation signature | `DELEGATION_SIG_VERIFICATION_FAILED` | Delegation signature verification failed |
-| Invalid agent signature | `DELEGATION_SIG_VERIFICATION_FAILED` | Agent signature verification failed |
-| DNS resolution failed | `RESOLVE_PUBKEY` | Public key resolution failed |
-| Invalid attestation | `ATTESTATION_VERIFICATION_FAILED` | Attestation signature verification failed |
+| Scenario                          | Error                                | Description                                   |
+| --------------------------------- | ------------------------------------ | --------------------------------------------- |
+| Missing attestation when required | `DELEGATION_INVALID`                 | Custom domain delegation requires attestation |
+| Invalid delegation signature      | `DELEGATION_SIG_VERIFICATION_FAILED` | Delegation signature verification failed      |
+| Invalid agent signature           | `DELEGATION_SIG_VERIFICATION_FAILED` | Agent signature verification failed           |
+| DNS resolution failed             | `RESOLVE_PUBKEY`                     | Public key resolution failed                  |
+| Invalid attestation               | `ATTESTATION_VERIFICATION_FAILED`    | Attestation signature verification failed     |
 
 ### **Error Recovery**
 
@@ -138,6 +145,7 @@ The delegation verification is automatically integrated into the BtpsServer pipe
 ### **Automatic Handling**
 
 The BtpsServer automatically:
+
 - Detects delegated artifacts
 - Applies the complete verification process
 - Handles all error conditions
@@ -147,24 +155,28 @@ The BtpsServer automatically:
 ## 🛡️ Security Model
 
 ### **Cryptographic Security**
+
 - All signatures use SHA-256 algorithm
 - Public keys resolved via DNS for authenticity
 - No key sharing between delegator and agent
 - Complete signature chain verification
 
 ### **Attestation Security**
+
 - Required for custom domain delegations
 - Prevents self-delegation without oversight
 - Provides third-party validation
 - Creates audit trail for sensitive operations
 
 ### **DNS Security**
+
 - Delegation records published in DNS TXT
 - Real-time verification without server dependency
 - Fast revocation through DNS record removal
 - DNSSEC support for enhanced security
 
 ### **Error Handling**
+
 - Comprehensive error reporting
 - Detailed error context for debugging
 - Graceful failure handling
@@ -173,18 +185,21 @@ The BtpsServer automatically:
 ## 📊 Performance Considerations
 
 ### **DNS Resolution**
+
 - Implement DNS caching for performance
 - Use multiple DNS servers for redundancy
 - Handle DNS resolution failures gracefully
 - Monitor DNS resolution metrics
 
 ### **Signature Verification**
+
 - Cryptographic operations are CPU-intensive
 - Consider caching verified public keys
 - Implement timeout handling for slow operations
 - Monitor verification performance metrics
 
 ### **Error Recovery**
+
 - Log verification failures for monitoring
 - Implement retry mechanisms where appropriate
 - Provide clear error messages for debugging
@@ -217,4 +232,4 @@ BtpsServer users need to:
 - **Specification Compliance**: Follow the delegation specification exactly
 - **DNS Requirements**: Ensure proper DNS configuration for public key resolution
 - **Error Monitoring**: Monitor verification failures and DNS resolution issues
-- **Security Best Practices**: Follow security guidelines for key management and DNS configuration 
+- **Security Best Practices**: Follow security guidelines for key management and DNS configuration

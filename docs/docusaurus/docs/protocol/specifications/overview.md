@@ -1,6 +1,6 @@
 ---
-title: Protocol Specifications
-sidebar_label: Specifications
+title: Protocol Specification Overview
+sidebar_label: Overview
 ---
 
 # BTPS Protocol Specifications
@@ -44,6 +44,8 @@ BTPS uses email-like addressing for organizational identities:
 - `billing$vendorcorp.com`
 - `pay$client.com`
 - `accounts$enterprise.org`
+- `subdomain.accounts$vendor.com`
+- `pay.john$vendor.com`
 
 ---
 
@@ -54,13 +56,13 @@ Used to discover the **public key** and signing/encryption metadata for an ident
 ### Naming Convention
 
 ```
-<selector>._btps.<identity>.<domain>
+<selector>._btps.identity.<identityName>.<domain>
 ```
 
 **Example:**
 
 ```
-btps1._btps.finance.vendorcorp.com
+btps1._btps.identity.finance.vendorcorp.com
 ```
 
 ### TXT Record Format
@@ -90,13 +92,13 @@ Used to resolve the BTPS server endpoint for a given **domain** (not selector-ba
 ### Naming Convention
 
 ```
-_btps.<identity_domain>
+_btps.host.<identity_domain>
 ```
 
 **Example:**
 
 ```
-_btps.vendorcorp.com
+_btps.host.vendorcorp.com
 ```
 
 ### TXT Record Format
@@ -108,7 +110,7 @@ v=1.0.0; u=<btps_host:port> s=<selector>
 **Parameters:**
 
 - `v`: Protocol version (`1.0.0`)
-- `u`: BTPS server host and port (e.g., `btps.vendorcorp.com:3443`)
+- `u`: BTPS server host and port (e.g., `btps.vendorcorp.com:3443`). Default port is `3443` if not present.
 - `s`: BTPS selector (e.g., `btps1`)
 
 **Example TXT Record:**
@@ -121,8 +123,8 @@ v=1.0.0; u=btps.vendorcorp.com:3443 s=btps1
 
 1. Given identity: `billing$vendorcorp.com`
 2. Extract domain: `vendorcorp.com`
-3. Resolve `_btps.vendorcorp.com` → host address and selector
-4. Resolve `btps1._btp.finance.vendorcorp.com` → public key
+3. Resolve `_btps.host.vendorcorp.com` → host address and selector
+4. Resolve `btps1._btps.identity.finance.vendorcorp.com` → public key
 
 This separation enables:
 
@@ -201,141 +203,27 @@ All BTPS messages follow a standardized envelope structure:
 
 ## Artifact Types
 
-BTPS supports three primary artifact types:
+BTPS supports three primary artifact types and different Doc types within each artifact types:
 
-### 1. Trust Request (`TRUST_REQ`)
+### 1. Transporter Artifact (`BTPTransporterArtifact`)
 
-Establishes a trust relationship between organizations.
+Transporter related artifacts are used for sending to receivers server. Mostly used server to server communication. Some instances when E2E or BYOK users may use this type artifact directly from client to server which removes server dependencies once setup properly.
 
-### 2. Trust Response (`TRUST_RES`)
+### 2. Agent Artifact (`BTPAgentArtifact`)
 
-Responds to trust requests with accept, reject, or block decisions.
+Agent artifacts types are used for communicating from client to their identity host server. Most use cases are mobile/portable devices identities communicating to their own server communication.
 
-### 3. Invoice (`BTPS_DOC`)
+### 3. IdentityLookup Artifact (`BTPIdentityLookupRequest`)
 
-Secure billing document with line items and payment details.
+IdentityLookup artifacts are used for requesting identity public records for those identity records that are not published in DNS records. Commonly used for users operating under SaaS domain. eg: `john$ebilladdress.com`. Requires delegation support and identity storage at the implementing server.
 
----
+### 4. Control Artifact (`BTPControlArtifact`)
 
-## Document Specifications
+These control artifacts are control based artifact such as pinging server and requesting graceful end session
 
-### Trust Request Document
+### 5. Delivery Failure Artifact (`BTPDeliveryFailureArtifact`)
 
-```json
-{
-  "id": "uniqueUuid",
-  "name": "Acme Corporation",
-  "email": "billing@acme.com",
-  "reason": "To send monthly service invoices",
-  "phone": "+1-555-0123",
-  "address": "123 Business St, City, State 12345",
-  "logoUrl": "https://acme.com/logo.png",
-  "displayName": "Acme Corp",
-  "websiteUrl": "https://acme.com",
-  "message": "We would like to establish a trusted relationship for billing purposes.",
-  "expiresAt": "2025-12-31T23:59:59Z",
-  "privacyType": "encrypted"
-}
-```
-
-**Required Fields:**
-
-- `id`: Unique uuid for future reference and data management
-- `name`: Legal business name
-- `email`: Contact email address
-- `reason`: Purpose of trust request
-- `phone`: Contact phone number
-
-**Optional Fields:**
-
-- `address`: Business address
-- `logoUrl`: Company logo URL
-- `displayName`: Display name for UI
-- `websiteUrl`: Company website
-- `message`: Custom message to recipient
-- `expiresAt`: Trust expiration date (ISO format)
-- `privacyType`: Privacy level (`unencrypted`, `encrypted`, `mixed`)
-
-### Invoice Document
-
-```json
-{
-  "title": "Monthly Service Invoice",
-  "id": "INV-2025-001",
-  "issuedAt": "2025-01-15T10:30:00Z",
-  "status": "unpaid",
-  "dueAt": "2025-02-15T23:59:59Z",
-  "totalAmount": {
-    "value": 1500.0,
-    "currency": "USD"
-  },
-  "lineItems": {
-    "columns": ["Description", "Quantity", "Unit Price", "Amount"],
-    "rows": [
-      {
-        "Description": "Cloud Hosting Service",
-        "Quantity": "1",
-        "Unit Price": "1000.00",
-        "Amount": "1000.00"
-      },
-      {
-        "Description": "Support Services",
-        "Quantity": "10",
-        "Unit Price": "50.00",
-        "Amount": "500.00"
-      }
-    ]
-  },
-  "issuer": {
-    "name": "Acme Corporation",
-    "email": "billing@acme.com",
-    "phone": "+1-555-0123"
-  },
-  "paymentLink": {
-    "linkText": "Pay Now",
-    "url": "https://pay.acme.com/invoice/INV-2025-001"
-  },
-  "description": "Monthly services for January 2025",
-  "attachment": {
-    "content": "base64-encoded-pdf-content",
-    "type": "application/pdf",
-    "filename": "invoice-INV-2025-001.pdf"
-  }
-}
-```
-
-**Required Fields:**
-
-- `title`: Invoice title/description
-- `id`: Unique invoice identifier (per sender)
-- `issuedAt`: Issue date (ISO format)
-- `status`: Invoice status
-- `totalAmount`: Total amount with currency
-- `lineItems`: Invoice line items with columns and rows
-
-**Optional Fields:**
-
-- `dueAt`: Payment due date
-- `paidAt`: Payment received date
-- `refundedAt`: Refund date
-- `disputedAt`: Dispute date
-- `issuer`: Issuer contact information
-- `paymentLink`: Payment processing link
-- `description`: Additional description
-- `attachment`: Supporting document attachment
-- `template`: Template information
-
-**Invoice Status Values:**
-
-- `unpaid`: Invoice issued, payment pending
-- `paid`: Payment received
-- `partial`: Partial payment received
-- `refunded`: Payment refunded
-- `disputed`: Invoice under dispute
-
-**Supported Currencies:**
-
-- `USD`, `EUR`, `GBP`, `AUD`, `CAD`, `JPY`, `CHF`, `CNY`, and other ISO 4217 codes
+These are used for notifying the agent or client related to delivery failure. Not to be mistaken as server to server communication as this is usually used when queue artifacts could not be delivered to receiver server or receiver sent an error upon receiving by the implementing server to notify its agents by directly adding to inbox storages.
 
 ---
 
@@ -376,7 +264,7 @@ Secure billing document with line items and payment details.
 
 - Must generate unique message IDs
 - Must sign all outgoing messages
-- Must encrypt sensitive documents
+- may encrypt sensitive documents
 - Must handle trust establishment before sending invoices
 - Must implement retry logic for failed deliveries
 

@@ -18,7 +18,7 @@ import { BtpsDelegator } from '@btps/sdk/core/delegation';
 
 The `BtpsDelegator` class provides:
 
-- **Identity Verification**: Verifies delegator identity and key pair matching
+- **Identity Verification**: Verifies delegator identity and key pair matching via DNS resolution
 - **Delegation Creation**: Creates properly signed delegation objects
 - **Attestation Support**: Handles attestation for custom domain delegations
 - **Key Management**: Supports both SaaS-managed and user-managed keys
@@ -148,6 +148,7 @@ protected async createDelegation(params: {
   delegatorKey: PemKeys;
   agentId: string;
   agentPubKey: string;
+  selector: string;
 }): Promise<BTPDelegation>
 ```
 
@@ -158,6 +159,7 @@ protected async createDelegation(params: {
 - `params.delegatorKey`: `PemKeys` - Key pair of the delegator
 - `params.agentId`: `string` - Unique identifier for the agent
 - `params.agentPubKey`: `string` - Public key of the agent
+- `params.selector`: `string` - DNS selector for key management
 
 **Returns:** `Promise<BTPDelegation>` - Complete delegation object with signature
 
@@ -170,6 +172,7 @@ protected async createAttestation(params: {
   delegation: Omit<BTPDelegation, 'attestation'>;
   attestorIdentity: string;
   attestorKey: PemKeys;
+  selector: string;
 }): Promise<BTPAttestation>
 ```
 
@@ -178,6 +181,7 @@ protected async createAttestation(params: {
 - `params.delegation`: `Omit<BTPDelegation, 'attestation'>` - The delegation to attest
 - `params.attestorIdentity`: `string` - Identity of the attestor
 - `params.attestorKey`: `PemKeys` - Key pair of the attestor
+- `params.selector`: `string` - DNS selector for key management
 
 **Returns:** `Promise<BTPAttestation>` - Complete attestation object with signature
 
@@ -217,10 +221,11 @@ const delegatedArtifact = await delegator.delegateArtifact(agentId, agentPubKey,
     "signedBy": "alice$saas.com",
     "issuedAt": "2025-01-15T10:30:00Z",
     "signature": {
-      "algorithm": "sha256",
+      "algorithmHash": "sha256",
       "value": "delegation_signature",
       "fingerprint": "delegator_fingerprint"
-    }
+    },
+    "selector": "btps1"
   }
 }
 ```
@@ -265,18 +270,20 @@ const delegatedArtifact = await delegator.delegateArtifact(agentId, agentPubKey,
     "signedBy": "alice$enterprise.com",
     "issuedAt": "2025-01-15T10:30:00Z",
     "signature": {
-      "algorithm": "sha256",
+      "algorithmHash": "sha256",
       "value": "delegation_signature",
       "fingerprint": "delegator_fingerprint"
     },
+    "selector": "btps1",
     "attestation": {
       "issuedAt": "2025-01-15T10:30:00Z",
       "signedBy": "alice$saas.com",
       "signature": {
-        "algorithm": "sha256",
+        "algorithmHash": "sha256",
         "value": "attestation_signature",
         "fingerprint": "attestor_fingerprint"
-      }
+      },
+      "selector": "btps1"
     }
   }
 }
@@ -288,11 +295,19 @@ The delegator automatically verifies the delegator identity during initializatio
 
 ### **Verification Process**
 
-1. **Public Key Resolution**: Resolves the delegator's public key via DNS
-2. **Key Pair Matching**: Verifies that the provided private key matches the public key
-3. **Initialization**: Sets the public key and marks the delegator as initialized
+1. **DNS Resolution**: Resolves the delegator's host and selector via DNS TXT records
+2. **Public Key Resolution**: Resolves the delegator's public key via DNS TXT records
+3. **Key Pair Matching**: Verifies that the provided private key matches the public key
+4. **Initialization**: Sets the public key and marks the delegator as initialized
 
-### **Key Pair Matching**(Protected)
+### **DNS Resolution**
+
+The delegator uses DNS TXT records to resolve identity information:
+
+- **Host Resolution**: `_btps.host.<domain>` for host and selector information
+- **Key Resolution**: `<selector>._btps.identity.<account>.<domain>` for public key information
+
+### **Key Pair Matching** (Protected)
 
 The delegator uses a cryptographic test to verify key pair matching:
 
@@ -329,6 +344,17 @@ If the delegator is not initialized when used:
 ```typescript
 // Throws BTPErrorException
 throw new BTPErrorException({ message: 'Delegator not initialized' });
+```
+
+### **DNS Resolution Errors**
+
+If DNS resolution fails for custom domain delegations:
+
+```typescript
+// Throws BTPErrorException with BTP_ERROR_SIG_VERIFICATION
+throw new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
+  cause: 'Delegator identity verification failed',
+});
 ```
 
 ## 🔧 Usage Examples
@@ -506,6 +532,12 @@ const delegator = new BtpsDelegator({
 - Ensures the provided private key matches the public key published in DNS
 - Prevents unauthorized delegation creation
 
+### **DNS-Based Verification**
+
+- Uses DNS TXT records for identity resolution
+- Verifies host and selector information via `_btps.host.<domain>`
+- Resolves public keys via `<selector>._btps.identity.<account>.<domain>`
+
 ### **Attestation Requirements**
 
 - Custom domain delegations automatically include attestation
@@ -527,17 +559,38 @@ const delegator = new BtpsDelegator({
    - Verify the private key matches the public key in DNS
    - Check DNS resolution for the delegator identity
    - Ensure proper key format (PEM encoding)
+   - Verify DNS TXT records are properly configured
 
 2. **Delegation Creation Failures**
 
    - Ensure the delegator is properly initialized
    - Verify all required parameters are provided
    - Check agent ID format and uniqueness
+   - Verify DNS resolution for custom domain identities
 
 3. **Attestation Issues**
    - Verify attestor private key is available for custom domains
    - Check attestor identity configuration
    - Ensure proper key pair matching
+   - Verify DNS resolution for attestor identity
+
+### **DNS Configuration**
+
+Ensure proper DNS TXT records are configured:
+
+**Host Record:**
+
+```
+_btps.host.saas.com
+v=1.0.0; u=btps.saas.com:3443; s=btps1
+```
+
+**Identity Record:**
+
+```
+btps1._btps.identity.alice.saas.com
+v=1.0.0; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...
+```
 
 ### **Debug Mode**
 
@@ -550,4 +603,18 @@ const delegator = new BtpsDelegator({
 
 // Check initialization status
 console.log('Delegator initialized:', delegator.isInitialized);
+```
+
+### **DNS Resolution Testing**
+
+```typescript
+import { getHostAndSelector, resolvePublicKey } from '@btps/sdk';
+
+// Test DNS resolution
+const hostAndSelector = await getHostAndSelector('alice$saas.com');
+console.log('Host and selector:', hostAndSelector);
+
+// Test public key resolution
+const publicKey = await resolvePublicKey('alice$saas.com', 'btps1');
+console.log('Public key resolved:', !!publicKey);
 ```

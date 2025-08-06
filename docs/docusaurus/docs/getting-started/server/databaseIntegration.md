@@ -15,7 +15,13 @@ The `BtpsServer` constructor accepts a `BtpsServerOptions` object that includes 
 
 ```typescript
 interface BtpsServerOptions {
+  serverIdentity: {
+    identity: string;
+    publicKey: string;
+    privateKey: string;
+  };
   trustStore: AbstractTrustStore<BTPTrustRecord>;
+  identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   port?: number;
   onError?: (err: BTPErrorException) => void;
   options?: TlsOptions;
@@ -24,7 +30,9 @@ interface BtpsServerOptions {
 }
 ```
 
-The `trustStore` parameter is **required** and must implement the `AbstractTrustStore` interface.
+The `trustStore` parameter is **required** and must implement the `AbstractTrustStore` interface. The `identityStore` parameter is **optional** and must implement the `AbstractIdentityStore` interface.
+
+For complete storage API documentation, see [Storage Classes](/docs/sdk/class-api-references#abstractstoragestore).
 
 ## Basic Integration
 
@@ -34,6 +42,7 @@ The `trustStore` parameter is **required** and must implement the `AbstractTrust
 import { BtpsServer } from '@btps/sdk/server';
 import { MongoTrustStore } from './storage/MongoTrustStore';
 import { MongoClient } from 'mongodb';
+import { readFileSync } from 'fs';
 
 // Initialize your database connection
 const mongoClient = new MongoClient('mongodb://localhost:27017/btps');
@@ -47,17 +56,129 @@ const trustStore = new MongoTrustStore({
 
 // Inject into BtpsServer
 const server = new BtpsServer({
-  port: 3443,
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
   trustStore, // Your custom implementation
+  port: 3443,
   connectionTimeoutMs: 30000,
+  middlewarePath: './btps.middleware.mjs',
 });
 
 await server.start();
 ```
 
-### Using Built-in Trust Stores
+### Using Custom Identity Store
 
-For development or simple deployments, you can use the built-in `JsonTrustStore`:
+Similar to trust stores, you can implement custom identity stores for production deployments:
+
+```typescript
+import { BtpsServer } from '@btps/sdk/server';
+import { AbstractIdentityStore, BTPIdentityRecord } from '@btps/sdk/storage';
+import { MongoClient } from 'mongodb';
+import { readFileSync } from 'fs';
+
+// Custom MongoDB Identity Store Implementation
+class MongoIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
+  private client: MongoClient;
+  private collection: string;
+
+  constructor(options: { connection: MongoClient; entityName: string }) {
+    super(options);
+    this.client = options.connection;
+    this.collection = options.entityName;
+  }
+
+  async getById(computedId: string): Promise<BTPIdentityRecord | undefined> {
+    const db = this.client.db();
+    const record = await db.collection(this.collection).findOne({ id: computedId });
+    return record || undefined;
+  }
+
+  async create(record: BTPIdentityRecord, computedId: string): Promise<BTPIdentityRecord> {
+    const db = this.client.db();
+    const newRecord = { ...record, id: computedId };
+    await db.collection(this.collection).insertOne(newRecord);
+    return newRecord;
+  }
+
+  async update(computedId: string, patch: Partial<BTPIdentityRecord>): Promise<BTPIdentityRecord> {
+    const db = this.client.db();
+    const result = await db
+      .collection(this.collection)
+      .findOneAndUpdate(
+        { id: computedId },
+        { $set: { ...patch, updatedAt: new Date().toISOString() } },
+        { returnDocument: 'after' },
+      );
+    if (!result.value) {
+      throw new Error(`Identity record not found: ${computedId}`);
+    }
+    return result.value;
+  }
+
+  async delete(computedId: string): Promise<void> {
+    const db = this.client.db();
+    await db.collection(this.collection).deleteOne({ id: computedId });
+  }
+
+  // Identity-specific methods
+  async getPublicKeyRecord(identity: string): Promise<BTPIdentityRecord | undefined> {
+    const db = this.client.db();
+    const record = await db.collection(this.collection).findOne({ identity });
+    return record || undefined;
+  }
+
+  async storePublicKeyRecord(
+    identity: string,
+    publicKeyRecord: BTPIdentityRecord,
+  ): Promise<BTPIdentityRecord> {
+    const db = this.client.db();
+    const result = await db
+      .collection(this.collection)
+      .findOneAndUpdate(
+        { identity },
+        { $set: publicKeyRecord },
+        { upsert: true, returnDocument: 'after' },
+      );
+    return result.value!;
+  }
+}
+
+// Initialize your database connection
+const mongoClient = new MongoClient('mongodb://localhost:27017/btps');
+await mongoClient.connect();
+
+// Create your custom identity store
+const identityStore = new MongoIdentityStore({
+  connection: mongoClient,
+  entityName: 'identity_records',
+});
+
+// Inject into BtpsServer
+const server = new BtpsServer({
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
+  trustStore, // Your custom trust store
+  identityStore, // Your custom identity store
+  port: 3443,
+  connectionTimeoutMs: 30000,
+  middlewarePath: './btps.middleware.mjs',
+});
+
+await server.start();
+```
+
+### Using Built-in Storage Classes
+
+For development or simple deployments, you can use the built-in storage classes:
+
+#### JsonTrustStore
 
 ```typescript
 import { BtpsServer } from '@btps/sdk/server';
@@ -69,8 +190,68 @@ const trustStore = new JsonTrustStore({
 });
 
 const server = new BtpsServer({
-  port: 3443,
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
   trustStore,
+  port: 3443,
+  middlewarePath: './btps.middleware.mjs',
+});
+
+await server.start();
+```
+
+#### JsonIdentityStore
+
+```typescript
+import { BtpsServer } from '@btps/sdk/server';
+import { JsonTrustStore } from '@btps/sdk/trust';
+import { JsonIdentityStore } from '@btps/sdk/storage';
+
+const trustStore = new JsonTrustStore({
+  connection: './trust.json',
+  entityName: 'trusted_senders',
+});
+
+const identityStore = new JsonIdentityStore({
+  connection: './identities.json',
+});
+
+const server = new BtpsServer({
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
+  trustStore,
+  identityStore,
+  port: 3443,
+  middlewarePath: './btps.middleware.mjs',
+});
+
+await server.start();
+```
+
+```typescript
+import { BtpsServer } from '@btps/sdk/server';
+import { JsonTrustStore } from '@btps/sdk/trust';
+
+const trustStore = new JsonTrustStore({
+  connection: './trust.json',
+  entityName: 'trusted_senders',
+});
+
+const server = new BtpsServer({
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
+  trustStore,
+  port: 3443,
+  middlewarePath: './btps.middleware.mjs',
 });
 
 await server.start();
@@ -114,18 +295,76 @@ async function createTrustStore() {
   }
 }
 
+async function createIdentityStore() {
+  const storageType = process.env.STORAGE_TYPE || 'json';
+
+  switch (storageType) {
+    case 'mongodb':
+      const mongoClient = new MongoClient(process.env.MONGODB_URI!);
+      await mongoClient.connect();
+      return new MongoIdentityStore({
+        connection: mongoClient,
+        entityName: process.env.MONGODB_IDENTITY_COLLECTION || 'identity_records',
+      });
+
+    case 'postgres':
+      const { Pool } = await import('pg');
+      const pool = new Pool({ connectionString: process.env.POSTGRES_URI });
+      return new PostgresIdentityStore({
+        connection: pool,
+        entityName: process.env.POSTGRES_IDENTITY_TABLE || 'btps_identity',
+      });
+
+    default:
+      return new JsonIdentityStore({
+        connection: process.env.IDENTITY_FILE_PATH || './identities.json',
+      });
+  }
+}
+
 // Create server with environment-based storage
 const trustStore = await createTrustStore();
+const identityStore = await createIdentityStore();
+
 const server = new BtpsServer({
-  port: parseInt(process.env.PORT || '3443'),
+  serverIdentity: {
+    identity: process.env.SERVER_IDENTITY || 'admin$yourdomain.com',
+    publicKey: readFileSync(process.env.SERVER_PUBLIC_KEY_PATH || './keys/public.pem', 'utf8'),
+    privateKey: readFileSync(process.env.SERVER_PRIVATE_KEY_PATH || './keys/private.pem', 'utf8'),
+  },
   trustStore,
+  identityStore,
+  port: parseInt(process.env.PORT || '3443'),
   connectionTimeoutMs: parseInt(process.env.CONNECTION_TIMEOUT || '30000'),
+  middlewarePath: process.env.MIDDLEWARE_PATH || './btps.middleware.mjs',
   onError: (error) => {
     console.error('[BTPS ERROR]', error);
   },
 });
 
 await server.start();
+```
+
+### Environment Variables for Identity Store
+
+When using custom identity stores, you can configure them via environment variables:
+
+```bash
+# Storage Configuration
+STORAGE_TYPE=mongodb                    # json, mongodb, postgres
+MONGODB_URI=mongodb://localhost:27017/btps
+MONGODB_COLLECTION=trust_records       # Trust store collection
+MONGODB_IDENTITY_COLLECTION=identity_records  # Identity store collection
+
+# PostgreSQL Configuration
+POSTGRES_URI=postgresql://user:pass@localhost:5432/btps
+POSTGRES_TABLE=btps_trust             # Trust store table
+POSTGRES_IDENTITY_TABLE=btps_identity  # Identity store table
+
+# File-based Storage
+TRUST_FILE_PATH=./trust.json
+IDENTITY_FILE_PATH=./identities.json
+TRUST_ENTITY_NAME=trusted_senders
 ```
 
 ### Multi-Tenant Storage Configuration
@@ -175,26 +414,110 @@ class MultiTenantTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   }
 }
 
+class MultiTenantIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
+  private stores: Map<string, AbstractIdentityStore<BTPIdentityRecord>> = new Map();
+
+  constructor() {
+    super({ connection: null, entityName: 'multi_tenant_identity' });
+  }
+
+  addTenant(tenantId: string, store: AbstractIdentityStore<BTPIdentityRecord>) {
+    this.stores.set(tenantId, store);
+  }
+
+  private getStoreForTenant(tenantId: string) {
+    const store = this.stores.get(tenantId);
+    if (!store) {
+      throw new Error(`No identity store found for tenant: ${tenantId}`);
+    }
+    return store;
+  }
+
+  async getById(computedId: string): Promise<BTPIdentityRecord | undefined> {
+    const tenantId = this.extractTenantId(computedId);
+    return this.getStoreForTenant(tenantId).getById(computedId);
+  }
+
+  async create(record: BTPIdentityRecord, computedId: string): Promise<BTPIdentityRecord> {
+    const tenantId = this.extractTenantId(computedId);
+    return this.getStoreForTenant(tenantId).create(record, computedId);
+  }
+
+  async update(computedId: string, patch: Partial<BTPIdentityRecord>): Promise<BTPIdentityRecord> {
+    const tenantId = this.extractTenantId(computedId);
+    return this.getStoreForTenant(tenantId).update(computedId, patch);
+  }
+
+  async delete(computedId: string): Promise<void> {
+    const tenantId = this.extractTenantId(computedId);
+    return this.getStoreForTenant(tenantId).delete(computedId);
+  }
+
+  async getPublicKeyRecord(identity: string): Promise<BTPIdentityRecord | undefined> {
+    const tenantId = this.extractTenantIdFromIdentity(identity);
+    return this.getStoreForTenant(tenantId).getPublicKeyRecord(identity);
+  }
+
+  async storePublicKeyRecord(
+    identity: string,
+    publicKeyRecord: BTPIdentityRecord,
+  ): Promise<BTPIdentityRecord> {
+    const tenantId = this.extractTenantIdFromIdentity(identity);
+    return this.getStoreForTenant(tenantId).storePublicKeyRecord(identity, publicKeyRecord);
+  }
+
+  private extractTenantId(computedId: string): string {
+    // Extract tenant ID from computedId format: 'tenant:identity'
+    return computedId.split(':')[0];
+  }
+
+  private extractTenantIdFromIdentity(identity: string): string {
+    // Extract tenant ID from identity format: 'user$tenant.com'
+    return identity.split('$')[1].split('.')[0];
+  }
+}
+
 // Usage
-const multiTenantStore = new MultiTenantTrustStore();
+const multiTenantTrustStore = new MultiTenantTrustStore();
+const multiTenantIdentityStore = new MultiTenantIdentityStore();
 
 // Add tenants with different storage backends
-const tenantAStore = new MongoTrustStore({
+const tenantATrustStore = new MongoTrustStore({
   connection: mongoClientA,
   entityName: 'tenant_a_trust',
 });
 
-const tenantBStore = new MongoTrustStore({
+const tenantAIdentityStore = new MongoIdentityStore({
+  connection: mongoClientA,
+  entityName: 'tenant_a_identity',
+});
+
+const tenantBTrustStore = new MongoTrustStore({
   connection: mongoClientB,
   entityName: 'tenant_b_trust',
 });
 
-multiTenantStore.addTenant('tenant_a', tenantAStore);
-multiTenantStore.addTenant('tenant_b', tenantBStore);
+const tenantBIdentityStore = new MongoIdentityStore({
+  connection: mongoClientB,
+  entityName: 'tenant_b_identity',
+});
+
+multiTenantTrustStore.addTenant('tenant_a', tenantATrustStore);
+multiTenantTrustStore.addTenant('tenant_b', tenantBTrustStore);
+
+multiTenantIdentityStore.addTenant('tenant_a', tenantAIdentityStore);
+multiTenantIdentityStore.addTenant('tenant_b', tenantBIdentityStore);
 
 const server = new BtpsServer({
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
+  trustStore: multiTenantTrustStore,
+  identityStore: multiTenantIdentityStore,
   port: 3443,
-  trustStore: multiTenantStore,
+  middlewarePath: './btps.middleware.mjs',
 });
 ```
 
@@ -414,4 +737,8 @@ With your database integration configured, you can now:
 
 - [Data Storage Support](./dataStorageSupport.md)
 - [Server Setup](./setup.md)
+- [BtpsServer Class Reference](/docs/sdk/class-api-references#btpsserver) - Complete server API documentation
+- [AbstractStorageStore](/docs/sdk/class-api-references#abstractstoragestore) - Storage base class documentation
+- [JsonTrustStore](/docs/sdk/class-api-references#jsontruststore) - File-based trust store documentation
+- [JsonIdentityStore](/docs/sdk/class-api-references#jsonidentitystore) - File-based identity store documentation
 - [Trust Model](../../protocol/trustRecord.md)

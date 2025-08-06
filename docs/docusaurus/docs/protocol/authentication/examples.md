@@ -102,6 +102,7 @@ async function handleAuthRefresh(artifact, resCtx, auth, server) {
     decidedBy: 'system',
     publicKey: authDoc.publicKey,
     agentInfo: authDoc?.agentInfo ?? {},
+    decryptBy: 'alice$saas.com',
   });
 
   if (error) {
@@ -165,7 +166,7 @@ class ProductionAuthService {
       const authToken = BtpsAuthentication.generateAuthToken(userIdentity);
       const agentId = BtpsAuthentication.generateAgentId();
 
-      await this.auth.storeAuthToken(authToken, userIdentity, agentId, {
+      await this.auth.storeAuthToken(authToken, userIdentity, userIdentity, {
         ...metadata,
         timestamp: new Date().toISOString(),
       });

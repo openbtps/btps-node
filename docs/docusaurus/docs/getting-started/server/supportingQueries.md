@@ -19,6 +19,8 @@ BTPS agents can send commands with `respondNow: true` to get immediate responses
 - **Trash Management**: Fetch, permanently delete
 - **Sentbox Management**: Fetch, delete sent messages
 
+For complete BtpsAgent command documentation, see [BtpsAgent.command()](/docs/sdk/class-api-references#command).
+
 ## Supported Agent Actions
 
 ### Immediate Response Actions
@@ -59,6 +61,26 @@ BTPS agents can send commands with `respondNow: true` to get immediate responses
 'trust.fetch'; // Fetch trust relationships
 ```
 
+### Query Structure
+
+Agent commands with `respondNow: true` follow this structure:
+
+```typescript
+interface QueryCommand {
+  action: string; // e.g., 'inbox.fetch', 'outbox.fetch'
+  document?: {
+    // Query parameters specific to the action
+    limit?: number;
+    cursor?: string;
+    since?: string;
+    until?: string;
+    query?: Record<string, unknown>;
+    sort?: 'asc' | 'desc';
+  };
+  respondNow: true; // Required for immediate response
+}
+```
+
 ## Implementing Query Handlers
 
 ### Step 1: Basic Query Handler Structure
@@ -67,13 +89,20 @@ BTPS agents can send commands with `respondNow: true` to get immediate responses
 // src/index.ts
 import { BtpsServer } from '@btps/sdk/server';
 import { JsonTrustStore } from '@btps/sdk/trust';
+import { readFileSync } from 'fs';
 
 const server = new BtpsServer({
-  port: 3443,
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
   trustStore: new JsonTrustStore({
     connection: './trust.json',
     entityName: 'trusted_senders',
   }),
+  port: 3443,
+  middlewarePath: './btps.middleware.mjs',
 });
 
 // Handle immediate response commands
@@ -158,6 +187,19 @@ async function handleInboxFetch(artifact: any, resCtx: any) {
       message: 'Failed to fetch inbox',
     });
   }
+}
+```
+
+### Response Structure
+
+Query responses follow this structure:
+
+```typescript
+interface QueryResponse {
+  results: unknown[]; // Array of items
+  cursor?: string; // Pagination cursor
+  total: number; // Total count
+  hasNext: boolean; // Whether more items exist
 }
 
 // Handle inbox.delete command
@@ -798,7 +840,8 @@ With query support implemented, you can now:
 
 ## See Also
 
-- [Agent Commands Reference](/docs/client/btpsAgent/commands)
+- [BtpsAgent.command()](/docs/sdk/class-api-references#command) - Complete command API documentation
 - [Data Storage Support](./dataStorageSupport.md)
 - [Event Handlers](./eventHandlers.md)
 - [Server Setup](./setup.md)
+- [BtpsServer.onIncomingArtifact()](/docs/sdk/class-api-references#onincomingartifact) - Event handler documentation
