@@ -108,7 +108,7 @@ export class BtpsServer {
     this.serverIdentity = options.serverIdentity;
     this.port = options.port ?? 3443;
     this.onError = options.onError;
-    this.tlsOptions = options.options;
+    this.tlsOptions = options.tlsOptions;
     this.trustStore = options.trustStore;
     this.identityStore = options.identityStore;
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 30000;
@@ -117,7 +117,7 @@ export class BtpsServer {
     // TLS server creation with certs
     this.server = tls.createServer(
       {
-        ...(this?.tlsOptions ?? {}),
+        ...this.tlsOptions,
       },
       this.handleConnection.bind(this),
     );

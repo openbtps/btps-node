@@ -81,6 +81,7 @@ For advanced scenarios—such as multi-tenant SaaS, test orchestration, or runni
   - **Multi-regional, multi-tenant:** Combine region and tenant separation for large-scale SaaS, with each server using a different middleware file path for region/tenant-specific logic.
   - **Central monitoring and orchestration:** Start, stop, and monitor all regional/sharded servers from a single control plane.
 - **Example: Region-based multi-tenant servers with custom middleware**
+
   ```js
   import { BtpsServerFactory, BtpsServerRegistry } from 'btps-sdk';
 
@@ -97,6 +98,7 @@ For advanced scenarios—such as multi-tenant SaaS, test orchestration, or runni
   await BtpsServerRegistry.startAll();
   // Central monitoring can query BtpsServerRegistry.get(region) for status, metrics, etc.
   ```
+
 - **Note:** The default `BtpsServer` is already multi-tenant (can serve many identities and trust relationships from a single instance). Use the registry pattern when you need to:
   - Isolate traffic by region, shard, or tenant
   - Apply different middleware or trust store per server
@@ -120,6 +122,7 @@ For advanced scenarios—such as multi-tenant SaaS, test orchestration, or runni
 ---
 
 **When to use which?**
+
 - Use **BtpsServerFactory** for stateless, on-demand server creation.
 - Use **BtpsServerRegistry** to manage and orchestrate multiple named servers (region, shard, tenant, or hybrid).
 - Use **BtpsServerSingletonFactory** when you want a single, global server instance per process.
@@ -138,7 +141,7 @@ await mongoClient.connect();
 class MongoTrustStore extends AbstractTrustStore {
   constructor({ connection, entityName }) {
     super({ connection, entityName });
-    this.client = connection; // MongoClient instance
+    this.client = connection; // MongoClient instance or null
     this.entityName = entityName; // Collection name
   }
   async getById(computedId) {
@@ -151,7 +154,10 @@ class MongoTrustStore extends AbstractTrustStore {
     return newRecord;
   }
   async update(computedId, patch) {
-    await this.client.db().collection(this.entityName).updateOne({ id: computedId }, { $set: patch });
+    await this.client
+      .db()
+      .collection(this.entityName)
+      .updateOne({ id: computedId }, { $set: patch });
     return this.getById(computedId);
   }
   async delete(computedId) {
@@ -167,7 +173,7 @@ class MongoTrustStore extends AbstractTrustStore {
 // Usage:
 const trustStore = new MongoTrustStore({
   connection: mongoClient, // MongoClient instance
-  entityName: 'trust',     // Collection name
+  entityName: 'trust', // Collection name
 });
 const server = new BtpsServer({ port: 3443, trustStore });
 ```
@@ -176,7 +182,12 @@ const server = new BtpsServer({ port: 3443, trustStore });
 
 ```js
 import { AbstractTrustStore } from 'btps-sdk';
-import { DynamoDBClient, GetItemCommand, PutItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
+import {
+  DynamoDBClient,
+  GetItemCommand,
+  PutItemCommand,
+  DeleteItemCommand,
+} from '@aws-sdk/client-dynamodb';
 
 const dynamoClient = new DynamoDBClient({ region: 'us-east-1' });
 
@@ -191,7 +202,7 @@ class DynamoTrustStore extends AbstractTrustStore {
       new GetItemCommand({
         TableName: this.entityName,
         Key: { id: { S: computedId } },
-      })
+      }),
     );
     return result.Item ? AWS.DynamoDB.Converter.unmarshall(result.Item) : null;
   }
@@ -202,7 +213,7 @@ class DynamoTrustStore extends AbstractTrustStore {
       new PutItemCommand({
         TableName: this.entityName,
         Item: AWS.DynamoDB.Converter.marshall(newRecord),
-      })
+      }),
     );
     return newRecord;
   }
@@ -213,7 +224,7 @@ class DynamoTrustStore extends AbstractTrustStore {
       new PutItemCommand({
         TableName: this.entityName,
         Item: AWS.DynamoDB.Converter.marshall(updated),
-      })
+      }),
     );
     return updated;
   }
@@ -222,7 +233,7 @@ class DynamoTrustStore extends AbstractTrustStore {
       new DeleteItemCommand({
         TableName: this.entityName,
         Key: { id: { S: computedId } },
-      })
+      }),
     );
   }
   async getAll(receiverId) {
@@ -254,7 +265,11 @@ const server = new BtpsServer({ port: 3443, trustStore });
 import { AbstractTrustStore } from 'btps-sdk';
 import mysql from 'mysql2/promise';
 
-const sqlConnection = await mysql.createConnection({ host: 'localhost', user: 'root', database: 'btps' });
+const sqlConnection = await mysql.createConnection({
+  host: 'localhost',
+  user: 'root',
+  database: 'btps',
+});
 
 class SqlTrustStore extends AbstractTrustStore {
   constructor({ connection, entityName }) {
@@ -263,7 +278,9 @@ class SqlTrustStore extends AbstractTrustStore {
     this.entityName = entityName; // Table name
   }
   async getById(computedId) {
-    const [rows] = await this.db.query(`SELECT * FROM ${this.entityName} WHERE id = ?`, [computedId]);
+    const [rows] = await this.db.query(`SELECT * FROM ${this.entityName} WHERE id = ?`, [
+      computedId,
+    ]);
     return rows[0];
   }
   async create(record, computedId) {
@@ -292,7 +309,7 @@ class SqlTrustStore extends AbstractTrustStore {
 // Usage:
 const trustStore = new SqlTrustStore({
   connection: sqlConnection, // SQL connection instance
-  entityName: 'btps_trust',  // Table name
+  entityName: 'btps_trust', // Table name
 });
 const server = new BtpsServer({ port: 3443, trustStore });
 ```
@@ -312,7 +329,9 @@ class PostgresTrustStore extends AbstractTrustStore {
     this.entityName = entityName; // Table name
   }
   async getById(computedId) {
-    const { rows } = await this.pool.query(`SELECT * FROM ${this.entityName} WHERE id = $1`, [computedId]);
+    const { rows } = await this.pool.query(`SELECT * FROM ${this.entityName} WHERE id = $1`, [
+      computedId,
+    ]);
     return rows[0];
   }
   async create(record, computedId) {
@@ -346,8 +365,8 @@ class PostgresTrustStore extends AbstractTrustStore {
 
 // Usage:
 const trustStore = new PostgresTrustStore({
-  connection: pgPool,         // Pool instance
-  entityName: 'btps_trust',   // Table name
+  connection: pgPool, // Pool instance
+  entityName: 'btps_trust', // Table name
 });
 const server = new BtpsServer({ port: 3443, trustStore });
 ```
@@ -402,7 +421,7 @@ const server = new BtpsServer({
   port: 3443,
   trustStore,
   middlewarePath: './btps.middleware.mjs',
-  options: {
+  tlsOptions: {
     cert: process.env.TLS_CERT,
     key: process.env.TLS_KEY,
     minVersion: 'TLSv1.2',

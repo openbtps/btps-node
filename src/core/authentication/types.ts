@@ -32,8 +32,6 @@ export interface ServerAuthConfig {
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   /** Storage for auth tokens */
   tokenStore: TokenStore;
-  /** Storage for refresh tokens */
-  refreshTokenStore: TokenStore;
   /** Token configuration */
   tokenConfig?: TokenConfig;
 }

@@ -39,6 +39,10 @@ const server = new BtpsServer({
     publicKey: '-----BEGIN PUBLIC KEY-----...',
     privateKey: '-----BEGIN PRIVATE KEY-----...',
   },
+  tlsOptions: {
+    cert: '-----BEGIN PUBLIC KEY-----...',
+    key: '-----BEGIN PRIVATE KEY-----...'
+  }
   trustStore,
   port: 3443,
   connectionTimeoutMs: 30000,

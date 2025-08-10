@@ -85,7 +85,7 @@ const server = new BtpsServer({
   serverIdentity,
   trustStore,
   port: 3443,
-  options: tlsOptions,
+  tlsOptions,
   connectionTimeoutMs: 30000,
   onError: (error) => {
     console.error('Server Error:', error.message);

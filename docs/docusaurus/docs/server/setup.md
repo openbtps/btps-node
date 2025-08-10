@@ -54,7 +54,7 @@ const server = new BtpsServer({
   port: 3443,
   trustStore,
   middlewarePath: './btps.middleware.mjs',
-  options: {
+  tlsOptions: {
     cert: fs.readFileSync('./cert.pem'),
     key: fs.readFileSync('./key.pem'),
     minVersion: 'TLSv1.2',
@@ -106,7 +106,7 @@ const server = new BtpsServer({
 **Example:**
 
 ```js
-options: {
+tlsOptions: {
   cert: fs.readFileSync('./cert.pem'),
   key: fs.readFileSync('./key.pem'),
   minVersion: 'TLSv1.2',

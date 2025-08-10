@@ -27,7 +27,7 @@ interface BtpsServerOptions {
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   port?: number;
   onError?: (err: BTPErrorException) => void;
-  options?: TlsOptions;
+  tlsOptions: BtpsTlsOptions;
   connectionTimeoutMs?: number;
   middlewarePath?: string;
 }
@@ -40,7 +40,7 @@ interface BtpsServerOptions {
 - `identityStore`: Optional identity store instance for managing identity records
 - `port`: Optional port number (default: 3443)
 - `onError`: Optional error handler function
-- `options`: Optional TLS configuration options
+- `tlsOptions`: Required TLS cert and key options. Use self signed cert for local development. Make sure to set rejectUnauthorized false when connecting using BtpsClient for local development
 - `connectionTimeoutMs`: Optional connection timeout in milliseconds (default: 30000)
 - `middlewarePath`: Optional path to middleware file
 
@@ -823,7 +823,6 @@ Configuration for server-side authentication.
 interface ServerAuthConfig {
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tokenStore: TokenStore;
-  refreshTokenStore: TokenStore;
   tokenConfig?: TokenConfig;
 }
 ```

@@ -42,6 +42,10 @@ const server = new BtpsServer({
     privateKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',
   },
   trustStore: new JsonTrustStore({ connection: './trust.json' }),
+  tlsOptions: {
+    cert:'-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
+    key: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',
+  }
   port: 3443,
 });
 await server.start();

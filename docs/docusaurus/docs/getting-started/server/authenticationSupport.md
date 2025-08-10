@@ -27,7 +27,10 @@ For detailed authentication concepts, see [Authentication Overview](/docs/protoc
 ```typescript
 // src/index.ts
 import { BtpsServer } from '@btps/sdk/server';
-import { BtpsAuthentication, InMemoryTokenStore } from '@btps/sdk/authentication';
+import {
+  BtpsAuthentication,
+  InMemoryTokenStore,
+} from '@btps/sdk/authentication';
 import { JsonTrustStore } from '@btps/sdk/trust';
 
 // Configure trust store for authentication
@@ -50,7 +53,6 @@ const server = new BtpsServer({
 const auth = new BtpsAuthentication({
   trustStore,
   tokenStore: new InMemoryTokenStore(),
-  refreshTokenStore: new InMemoryTokenStore(),
   tokenConfig: {
     authTokenLength: 12,
     authTokenExpiryMs: 15 * 60 * 1000, // 15 minutes
@@ -144,12 +146,16 @@ async function handleAuthRefresh(artifact, resCtx, auth, server) {
   }
 
   const authDoc = refreshAuthDoc;
-  const { data, error } = await auth.validateAndReissueRefreshToken(agentId, authDoc.authToken, {
-    decidedBy: 'system',
-    publicKey: authDoc.publicKey,
-    agentInfo: authDoc?.agentInfo ?? {},
-    decryptBy: artifact.to, // decryptBy parameter
-  });
+  const { data, error } = await auth.validateAndReissueRefreshToken(
+    agentId,
+    authDoc.authToken,
+    {
+      decidedBy: 'system',
+      publicKey: authDoc.publicKey,
+      agentInfo: authDoc?.agentInfo ?? {},
+      decryptBy: artifact.to, // decryptBy parameter
+    },
+  );
 
   if (error) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);

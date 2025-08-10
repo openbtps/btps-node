@@ -22,6 +22,11 @@ import { BTPErrorException } from '@core/error/index.js';
 import { BTPIdentityRecord } from '@core/storage/types.js';
 import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 
+export interface BtpsTlsOptions extends TlsOptions {
+  cert: string;
+  key: string;
+}
+
 export interface BtpsServerOptions {
   serverIdentity: {
     identity: string;
@@ -29,10 +34,11 @@ export interface BtpsServerOptions {
     privateKey: string;
   };
   trustStore: AbstractTrustStore<BTPTrustRecord>;
+  tlsOptions: BtpsTlsOptions;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   port?: number;
   onError?: (err: BTPErrorException) => void;
-  options?: TlsOptions;
+
   connectionTimeoutMs?: number;
   middlewarePath?: string; // Path to btps.middleware.mjs file
 }

@@ -38,7 +38,10 @@ new BtpsAuthentication(config: ServerAuthConfig): BtpsAuthentication
 **Example:**
 
 ```typescript
-import { BtpsAuthentication, InMemoryTokenStore } from '@btps/sdk/authentication';
+import {
+  BtpsAuthentication,
+  InMemoryTokenStore,
+} from '@btps/sdk/authentication';
 import { JsonTrustStore } from '@btps/sdk/trust';
 
 const auth = new BtpsAuthentication({
@@ -63,9 +66,6 @@ interface ServerAuthConfig {
 
   /** Token storage backend */
   tokenStore: TokenStore;
-
-  /** Refresh token storage backend (optional, defaults to tokenStore) */
-  refreshTokenStore?: TokenStore;
 
   /** Token generation and expiry configuration */
   tokenConfig?: TokenConfig;
@@ -222,7 +222,11 @@ const result = await BtpsAuthentication.authenticate(
 
 if (result.success) {
   const { agentId, refreshToken, expiresAt } = result.response?.document;
-  console.log('Authentication successful:', { agentId, refreshToken, expiresAt });
+  console.log('Authentication successful:', {
+    agentId,
+    refreshToken,
+    expiresAt,
+  });
 } else {
   console.error('Authentication failed:', result.error);
 }
@@ -274,7 +278,8 @@ const refreshResult = await BtpsAuthentication.refreshSession(
 );
 
 if (refreshResult.success) {
-  const { refreshToken: newToken, expiresAt } = refreshResult.response?.document;
+  const { refreshToken: newToken, expiresAt } =
+    refreshResult.response?.document;
   console.log('Session refreshed:', { newToken, expiresAt });
 }
 ```
@@ -440,11 +445,15 @@ async validateAndReissueRefreshToken(
 **Example:**
 
 ```typescript
-const result = await auth.validateAndReissueRefreshToken(agentId, refreshToken, {
-  decidedBy: 'system',
-  privacyType: 'encrypted',
-  decryptBy: 'alice$saas.com',
-});
+const result = await auth.validateAndReissueRefreshToken(
+  agentId,
+  refreshToken,
+  {
+    decidedBy: 'system',
+    privacyType: 'encrypted',
+    decryptBy: 'alice$saas.com',
+  },
+);
 
 if (result.data) {
   console.log('New refresh token:', result.data.refreshToken);
@@ -636,7 +645,11 @@ The `BtpsAuthentication` class provides comprehensive error handling:
 
 ```typescript
 try {
-  const result = await BtpsAuthentication.authenticate(identity, token, keyPair);
+  const result = await BtpsAuthentication.authenticate(
+    identity,
+    token,
+    keyPair,
+  );
   if (!result.success) {
     console.error('Authentication failed:', result.error);
     return;
