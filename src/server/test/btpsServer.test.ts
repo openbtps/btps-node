@@ -15,7 +15,7 @@ import { BTP_PROTOCOL_VERSION } from '../../core/server/constants/index.js';
 import JsonTrustStore from '../../core/trust/storage/JsonTrustStore.js';
 import path from 'path';
 import fs from 'fs/promises';
-import type { BTPRequestCtx, BTPResponseCtx, ProcessedArtifact } from '../types.js';
+import type { BTPRequestCtx, BTPResponseCtx, ProcessedArtifact, BtpsTlsOptions } from '../types.js';
 import {
   BTPAgentArtifact,
   BTPAttestation,
@@ -86,6 +86,10 @@ describe('BtpsServer', () => {
       server = new BtpsServer({
         trustStore,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
       expect(server).toBeInstanceOf(BtpsServer);
     });
@@ -95,18 +99,22 @@ describe('BtpsServer', () => {
         trustStore,
         port: 5000,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
       expect(server).toBeInstanceOf(BtpsServer);
     });
 
     it('constructs with TLS options', () => {
-      const tlsOptions: TlsOptions = {
+      const tlsOptions: BtpsTlsOptions = {
         key: 'test-key',
         cert: 'test-cert',
       };
       server = new BtpsServer({
         trustStore,
-        options: tlsOptions,
+        tlsOptions,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
       });
       expect(server).toBeInstanceOf(BtpsServer);
@@ -118,6 +126,10 @@ describe('BtpsServer', () => {
         trustStore,
         onError,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
       expect(server).toBeInstanceOf(BtpsServer);
     });
@@ -127,18 +139,22 @@ describe('BtpsServer', () => {
         trustStore,
         middlewarePath: '/path/to/middleware',
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
       expect(server).toBeInstanceOf(BtpsServer);
     });
 
     it('constructs with all options', () => {
       const onError = vi.fn();
-      const tlsOptions: TlsOptions = { key: 'test-key', cert: 'test-cert' };
+      const tlsOptions: BtpsTlsOptions = { key: 'test-key', cert: 'test-cert' };
       server = new BtpsServer({
         trustStore,
         port: 5000,
         onError,
-        options: tlsOptions,
+        tlsOptions,
         middlewarePath: '/path/to/middleware',
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
       });
@@ -151,6 +167,10 @@ describe('BtpsServer', () => {
       server = new BtpsServer({
         trustStore,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
     });
 
@@ -223,6 +243,10 @@ describe('BtpsServer', () => {
           trustStore,
           port: 5000,
           serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+          tlsOptions: {
+            key: 'test-key',
+            cert: 'test-cert',
+          },
         });
         const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -324,6 +348,10 @@ describe('BtpsServer', () => {
       server = new BtpsServer({
         trustStore,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
     });
 
@@ -333,6 +361,10 @@ describe('BtpsServer', () => {
         trustStore,
         onError,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
 
       // We can't test private methods directly, but we can verify the constructor works
@@ -345,6 +377,10 @@ describe('BtpsServer', () => {
           new BtpsServer({
             trustStore,
             serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+            tlsOptions: {
+              key: 'test-key',
+              cert: 'test-cert',
+            },
           }),
       ).not.toThrow();
     });
@@ -355,6 +391,10 @@ describe('BtpsServer', () => {
       server = new BtpsServer({
         trustStore,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
     });
 
@@ -386,6 +426,10 @@ describe('BtpsServer', () => {
       server = new BtpsServer({
         trustStore,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
     });
 
@@ -421,6 +465,10 @@ describe('BtpsServer', () => {
         trustStore,
         port: -1,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
       expect(server).toBeInstanceOf(BtpsServer);
     });
@@ -430,6 +478,10 @@ describe('BtpsServer', () => {
         trustStore,
         onError: undefined,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
       expect(server).toBeInstanceOf(BtpsServer);
     });
@@ -439,6 +491,10 @@ describe('BtpsServer', () => {
         trustStore,
         middlewarePath: '',
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
       expect(server).toBeInstanceOf(BtpsServer);
     });
@@ -452,10 +508,18 @@ describe('BtpsServer', () => {
       const server1 = new BtpsServer({
         trustStore,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
       const server2 = new BtpsServer({
         trustStore,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
 
       await server1.start();
@@ -513,6 +577,10 @@ describe('BtpsServer', () => {
       server = new BtpsServer({
         trustStore,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
     });
 
@@ -528,6 +596,10 @@ describe('BtpsServer', () => {
           entityName: 'trusted_sender',
         }),
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
 
       await server.start();
@@ -561,6 +633,10 @@ export default function () {
         }),
         middlewarePath: middlewareFile,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
 
       await server.start();
@@ -671,6 +747,10 @@ export default function () {
         }),
         middlewarePath: middlewareFile,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
 
       await server.start();
@@ -1000,6 +1080,10 @@ export default function () {
           entityName: 'trusted_sender',
         }),
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
 
       await server.start();
@@ -1091,7 +1175,7 @@ export default function () {
       const processMessageResult = await server['processMessage'](testData, mockRes, mockReq);
 
       console.log('🔍 processMessage returned:', processMessageResult);
-      expect(processMessageResult).toBe(false); // processMessage returns false, socket destruction is handled separately
+      expect(processMessageResult).toBe(true); // processMessage returns true, socket destruction is handled separately
       expect(socketDestroyed).toBe(false); // Socket is not destroyed in this test
       expect(mockSocket.write).toHaveBeenCalled(); // Should have written the response
       // Note: mockSocket.end is not called in this test scenario
@@ -1109,6 +1193,10 @@ export default function () {
       server = new BtpsServer({
         trustStore,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
     });
 
@@ -1828,6 +1916,10 @@ export default function () {
         port: 3443,
         trustStore: new DummyTrustStore(),
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+        tlsOptions: {
+          key: 'test-key',
+          cert: 'test-cert',
+        },
       });
 
       // Simulate artifacts signed with different selectors

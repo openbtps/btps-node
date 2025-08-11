@@ -11,12 +11,15 @@ import type {
   ArtifactResCtx,
   BTPAgentArtifact,
   BTPTransporterArtifact,
+  BtpsServerOptions,
+  BTPServerResponse,
 } from '@btps/sdk/server';
 
 @Injectable()
 export class BtpsService implements OnModuleInit, OnModuleDestroy {
   private server!: BtpsServer;
   private auth!: BtpsAuthentication;
+  private serverConfig!: BtpsServerOptions;
 
   constructor(
     private readonly configService: BtpsConfigService,
@@ -25,21 +28,9 @@ export class BtpsService implements OnModuleInit, OnModuleDestroy {
     private readonly tokenStore: RedisTokenStoreService,
   ) {}
 
-  async onModuleInit() {
-    try {
-      await this.initializeAuth();
-      await this.initializeServer();
-      await this.startServer();
-    } catch (error) {
-      console.error('❌ Failed to initialize BTPS service:', error);
-      throw error;
-    }
-  }
-
-  async onModuleDestroy() {
-    if (this.server) {
-      this.server.stop();
-    }
+  private async cleanupServer() {
+    if (this.server) this.server.stop();
+    console.log('✅ BTPS server stopped successfully');
   }
 
   private async initializeAuth() {
@@ -48,20 +39,28 @@ export class BtpsService implements OnModuleInit, OnModuleDestroy {
       tokenStore: this.tokenStore,
       tokenConfig: {
         authTokenLength: 12,
-        authTokenExpiryMs: 15 * 60 * 1000, // 15 minutes
+        authTokenExpiryMs: 100 * 60 * 1000, // 100 minutes
         refreshTokenExpiryMs: 7 * 24 * 60 * 60 * 1000, // 7 days
       },
     });
+
+    // const identity = 'finance$ebilladdress.com';
+    // const authToken = BtpsAuthentication.generateAuthToken(identity);
+    // console.log('authToken', authToken);
+    // this.auth.storeAuthToken(authToken, identity, 'admin$ebilladdress.com', {
+    //   requestedBy: 'admin',
+    //   purpose: 'device_registration',
+    // });
   }
 
   private async initializeServer() {
-    const config = this.configService.getServerConfig(
+    this.serverConfig = this.configService.getServerConfig(
       this.trustStore,
       this.identityStore,
     );
 
     this.server = new BtpsServer({
-      ...config,
+      ...this.serverConfig,
       onError: error => console.error('BTPS Server Error:', error.message),
     });
 
@@ -70,6 +69,7 @@ export class BtpsService implements OnModuleInit, OnModuleDestroy {
 
   private async startServer() {
     await this.server.start();
+    console.log('✅ BTPS server started successfully');
   }
 
   private setupEventHandlers() {
@@ -108,7 +108,7 @@ export class BtpsService implements OnModuleInit, OnModuleDestroy {
     resCtx: ArtifactResCtx,
   ) {
     const { document, to, id: reqId } = artifact;
-
+    console.log('artifacts', artifact);
     if (!document) {
       return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
     }
@@ -117,28 +117,35 @@ export class BtpsService implements OnModuleInit, OnModuleDestroy {
       document as BTPAuthReqDoc;
 
     const { isValid } = await this.auth.validateAuthToken(to, authToken);
+
+    console.log('isValid', isValid);
+
     if (!isValid) {
       return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
     }
-
+    const serverIdentity = this.serverConfig.serverIdentity.identity;
     const authResponseDoc = await this.auth.createAgent(
       {
         userIdentity: identity,
         publicKey,
         agentInfo,
-        decidedBy: identity,
+        decidedBy: serverIdentity,
       },
-      identity,
+      serverIdentity,
     );
+    console.log('Auth response:', authResponseDoc);
 
-    return resCtx.sendRes({
+    const response: BTPServerResponse = {
       ...this.server.prepareBtpsResponse(
         { ok: true, message: 'Authentication successful', code: 200 },
         reqId,
       ),
       type: 'btps_response',
       document: authResponseDoc,
-    });
+    };
+    console.log('response', response);
+
+    return resCtx.sendRes(response);
   }
 
   private async handleAuthRefresh(
@@ -175,6 +182,21 @@ export class BtpsService implements OnModuleInit, OnModuleDestroy {
       type: 'btps_response',
       document: data,
     });
+  }
+
+  async onModuleInit() {
+    try {
+      await this.initializeAuth();
+      await this.initializeServer();
+      await this.startServer();
+    } catch (error) {
+      console.error('❌ Failed to initialize BTPS service:', error);
+      throw error;
+    }
+  }
+
+  async onModuleDestroy() {
+    await this.cleanupServer();
   }
 
   getServer(): BtpsServer {

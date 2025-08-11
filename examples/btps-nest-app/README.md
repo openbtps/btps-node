@@ -74,7 +74,6 @@ yarn docker:logs
 ### Container Details
 
 - **MongoDB**:
-
   - Port: 27017
   - Database: btps
   - Username: admin

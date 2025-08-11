@@ -28,10 +28,9 @@ export class BtpsConfigService {
     identityStore?: AbstractIdentityStore<BTPIdentityRecord>,
   ): BtpsServerOptions {
     const serverIdentity = this.getServerIdentity();
-    const port = this.configService.get<number>('BTPS_PORT') || 3443;
+    const port = this.getPort();
     const connectionTimeoutMs = parseInt(
       this.configService.get<string>('BTPS_CONNECTION_TIMEOUT_MS') || '30000',
-      10,
     );
 
     return {
@@ -83,6 +82,10 @@ export class BtpsConfigService {
       cert: Buffer.from(tlsCertPath, 'base64').toString('utf8'),
       requestCert: false,
     };
+  }
+
+  getPort(): number {
+    return parseInt(this.configService.get<string>('BTPS_PORT') || '3443');
   }
 
   validateConfig(

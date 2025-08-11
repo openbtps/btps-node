@@ -127,8 +127,9 @@ export class RedisTokenStoreService
     };
 
     const ttlSec = Math.ceil(expiryMs / 1000);
-    const primaryKey = this.agentKey(doc.agentId, doc.token);
-    const userKey = this.userKey(doc.userIdentity, doc.agentId, doc.token);
+    const agentKey = agentId ?? userIdentity;
+    const primaryKey = this.agentKey(agentKey, doc.token);
+    const userKey = this.userKey(doc.userIdentity, agentKey, doc.token);
     const payload = JSON.stringify(doc);
 
     // Write both keys with identical TTLs
@@ -144,6 +145,7 @@ export class RedisTokenStoreService
   ): Promise<BTPsTokenDocument | undefined> {
     try {
       const primaryKey = this.agentKey(agentId, token);
+
       const serialized = await this.redis.get(primaryKey);
       if (!serialized) return undefined;
 
@@ -164,13 +166,14 @@ export class RedisTokenStoreService
     try {
       const primaryKey = this.agentKey(agentId, token);
       const serialized = await this.redis.get(primaryKey);
+      console.log('Removing token from Redis:', { primaryKey, serialized });
       if (!serialized) {
         // Nothing to do (may already be expired)
         await this.redis.unlink(primaryKey);
         return;
       }
       const doc: BTPsTokenDocument = JSON.parse(serialized);
-      await this.safeDeletePair(doc.userIdentity, doc.agentId, doc.token);
+      await this.safeDeletePair(doc.userIdentity, agentId, token);
     } catch (error) {
       console.error('Error removing token from Redis:', error);
     }

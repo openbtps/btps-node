@@ -441,13 +441,13 @@ __metadata:
 
 "@btps/sdk@file:./package.tgz::locator=btps-nest-app%40workspace%3A.":
   version: 1.0.0
-  resolution: "@btps/sdk@file:./package.tgz#./package.tgz::hash=54a9dc&locator=btps-nest-app%40workspace%3A."
+  resolution: "@btps/sdk@file:./package.tgz#./package.tgz::hash=2c7544&locator=btps-nest-app%40workspace%3A."
   dependencies:
     lodash: "npm:^4.17.21"
     proper-lockfile: "npm:^4.1.2"
     split2: "npm:^4.2.0"
     zod: "npm:^3.25.67"
-  checksum: 10c0/b312958e234f8e1f9a4d52549726504ded324d1bb04c2f8bc58f7eed8d6097a1d1a0076af92bcd766131a44afed76cac7f8f5e434ea75132cb0fcbaf9524b6ff
+  checksum: 10c0/db4d961520b9add8949680579bfd538aed14590283d7c1d14fa95518a55a0d119f743daf0ce75274d5d94b7b1f79e9c0727ad6ec447074bedcf42a6cc387202e
   languageName: node
   linkType: hard
 

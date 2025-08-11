@@ -163,10 +163,10 @@ describe('utils/index', () => {
         if (dnsName === '_btps.host.example.com') {
           // Host discovery record - returns new selector
           return Promise.resolve([['v=1.0.0; u=btps://btps.example.com:3443; s=btps2']]);
-        } else if (dnsName === 'btps1._btps.host.alice.example.com') {
+        } else if (dnsName === 'btps1._btps.identity.alice.example.com') {
           // Old selector DNS record
           return Promise.resolve([['v=1.0.0; k=rsa; p=OLD_PUBLIC_KEY_BASE64']]);
-        } else if (dnsName === 'btps2._btps.host.alice.example.com') {
+        } else if (dnsName === 'btps2._btps.identity.alice.example.com') {
           // New selector DNS record
           return Promise.resolve([['v=1.0.0; k=rsa; p=NEW_PUBLIC_KEY_BASE64']]);
         }
@@ -204,7 +204,7 @@ describe('utils/index', () => {
       mockDns.mockImplementation((dnsName: string) => {
         if (dnsName === '_btps.host.example.com') {
           return Promise.resolve([['v=1.0.0; u=btps://btps.example.com:3443; s=btps1']]);
-        } else if (dnsName === 'btps999._btps.host.alice.example.com') {
+        } else if (dnsName === 'btps999._btps.identity.alice.example.com') {
           // Non-existent selector - return empty
           return Promise.resolve([]);
         }
@@ -225,13 +225,13 @@ describe('utils/index', () => {
         if (dnsName === '_btps.host.company.com') {
           // Host discovery - returns latest selector
           return Promise.resolve([['v=1.0.0; u=btps://btps.company.com:3443; s=btps3']]);
-        } else if (dnsName === 'btps1._btps.host.bob.company.com') {
+        } else if (dnsName === 'btps1._btps.identity.bob.company.com') {
           // Oldest selector
           return Promise.resolve([['v=1.0.0; k=rsa; p=KEY_1_BASE64']]);
-        } else if (dnsName === 'btps2._btps.host.bob.company.com') {
+        } else if (dnsName === 'btps2._btps.identity.bob.company.com') {
           // Middle selector
           return Promise.resolve([['v=1.0.0; k=rsa; p=KEY_2_BASE64']]);
-        } else if (dnsName === 'btps3._btps.host.bob.company.com') {
+        } else if (dnsName === 'btps3._btps.identity.bob.company.com') {
           // Latest selector
           return Promise.resolve([['v=1.0.0; k=rsa; p=KEY_3_BASE64']]);
         }
@@ -270,10 +270,10 @@ describe('utils/index', () => {
         if (dnsName === '_btps.host.enterprise.org') {
           // Host discovery - returns new selector
           return Promise.resolve([['v=1.0.0; u=btps://btps.enterprise.org:3443; s=btps2']]);
-        } else if (dnsName === 'btps1._btps.host.charlie.enterprise.org') {
+        } else if (dnsName === 'btps1._btps.identity.charlie.enterprise.org') {
           // Old selector - still exists but deprecated
           return Promise.resolve([['v=1.0.0; k=rsa; p=OLD_KEY_BASE64']]);
-        } else if (dnsName === 'btps2._btps.host.charlie.enterprise.org') {
+        } else if (dnsName === 'btps2._btps.identity.charlie.enterprise.org') {
           // New selector - active
           return Promise.resolve([['v=1.0.0; k=rsa; p=NEW_KEY_BASE64']]);
         }
@@ -301,7 +301,7 @@ describe('utils/index', () => {
         if (dnsName === '_btps.host.startup.io') {
           // Host discovery fails
           return Promise.reject(new Error('DNS resolution failed'));
-        } else if (dnsName === 'btps1._btps.host.dave.startup.io') {
+        } else if (dnsName === 'btps1._btps.identity.dave.startup.io') {
           // Key resolution works
           return Promise.resolve([['v=1.0.0; k=rsa; p=KEY_BASE64']]);
         }

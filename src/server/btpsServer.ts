@@ -254,7 +254,7 @@ export class BtpsServer {
           responseSent = true;
         }
         /* always try to send the response with the reqId */
-        response.reqId = reqCtx?.reqId as string | undefined;
+        response.reqId = resCtx?.reqId as string | undefined;
         this.sendBtpsResponse(socket, response);
       },
       sendError: (error, action) => {
@@ -262,7 +262,7 @@ export class BtpsServer {
           responseSent = true;
         }
         /* always try to send the error with the reqId */
-        const reqId = resCtx.reqId as string | undefined;
+        const reqId = resCtx?.reqId as string | undefined;
         this.sendBtpsError(socket, error, reqId, action);
       },
       get responseSent() {
@@ -274,11 +274,9 @@ export class BtpsServer {
     stream.on('data', async (line: string) => {
       if (!line.trim()) return;
 
-      const parseReq: BTPRequestCtx<'before', 'parsing'> = {
-        ...reqCtx,
-        rawPacket: line,
-      };
-      const parseRes = { ...resCtx };
+      const parseReq: BTPRequestCtx<'before', 'parsing'> = reqCtx;
+      parseReq.rawPacket = line;
+      const parseRes = resCtx;
 
       try {
         // Execute before parsing middleware
@@ -306,21 +304,23 @@ export class BtpsServer {
         /*
          * reqId may be not available in the after parsing middleware
          * but we need to set it here incase if parsing is successful
-         * and sendRes and sendError are used to send the response and error to the client
+         * assign reqId, data and error to the request and response context
          * so that the middleware can use them to send the response and error to the client
          */
         parseRes.reqId = data?.artifact?.id;
-        parseRes.sendRes = (response) =>
-          this.sendBtpsResponse(socket, { ...response, reqId: data?.artifact?.id });
-        parseRes.sendError = (error) => this.sendBtpsError(socket, error, data?.artifact?.id);
+        parseRes.data = data;
+        parseRes.error = parseErrException;
+
+        parseReq.data = data;
+        parseReq.error = parseErrException;
 
         // Get identity info from the artifact
         await this.updateIdentityInfo(data, identityRef, ipAddress);
 
         const afterParseResponseSent = await this.executeMiddleware(
           this.middlewareManager.getMiddleware('after', 'parsing'),
-          { ...parseReq, data, error: parseErrException },
-          { ...parseRes, data, error: parseErrException },
+          parseReq,
+          parseRes,
         );
         if (afterParseResponseSent) {
           return; // Response already sent, stop processing
@@ -345,22 +345,16 @@ export class BtpsServer {
           });
         }
 
-        const reqCtx: BTPRequestCtx<'before', 'signatureVerification'> = {
-          ...parseReq,
-          data,
-          getIdentity: identityRef.get as () => { to: string; from: string },
-        };
-        const resCtx: BTPResponseCtx<'before', 'signatureVerification'> = {
-          ...parseRes,
-          reqId: data.artifact.id, // reqId must be there as its successfully parsed and validated
-          data,
-        };
+        parseReq.getIdentity = identityRef.get as () => { to: string; from: string };
+        const reqCtx = parseReq as BTPRequestCtx<'before', 'signatureVerification'>;
+        const resCtx = parseRes as BTPResponseCtx<'before', 'signatureVerification'>;
 
         await this.executeRequestPipeline(reqCtx, resCtx);
       } catch (err) {
         const error = transformToBTPErrorException(err);
         // Execute onError middleware
-        const errorReq: BTPRequestCtx = { ...parseReq, error };
+        const errorReq = parseReq as BTPRequestCtx<'before', 'onError'>;
+        errorReq.error = error;
 
         console.error('[BtpsServer] Error', error.toJSON());
         return await this.handleOnSocketError(error, {
@@ -375,8 +369,10 @@ export class BtpsServer {
         cause: `Connection timeout after ${this.connectionTimeoutMs}ms`,
         meta: { remoteAddress: socket.remoteAddress, timeoutMs: this.connectionTimeoutMs },
       });
+      const errorReq = reqCtx as BTPRequestCtx<'before', 'onError'>;
+      errorReq.error = timeoutError;
       this.handleOnSocketError(timeoutError, {
-        req: { ...reqCtx, error: timeoutError },
+        req: errorReq,
         res: resCtx,
       });
     });
@@ -384,9 +380,11 @@ export class BtpsServer {
     // Shared error handler for both socket and stream
     const handleError = (err: unknown) => {
       const error = transformToBTPErrorException(err);
-      this.handleOnSocketError(transformToBTPErrorException(err), {
-        req: reqCtx,
-        res: { ...resCtx, error },
+      const errorReq = reqCtx as BTPRequestCtx<'before', 'onError'>;
+      errorReq.error = error;
+      this.handleOnSocketError(error, {
+        req: errorReq,
+        res: resCtx,
       });
     };
 
@@ -477,7 +475,12 @@ export class BtpsServer {
         cause: err,
         meta: data,
       });
-      return this.handleOnSocketError(newErr, context);
+      const errorReq = context.req as BTPRequestCtx<'before', 'onError'>;
+      errorReq.error = newErr;
+      return this.handleOnSocketError(newErr, {
+        req: errorReq,
+        res: context.res,
+      });
     }
   }
 
@@ -1007,9 +1010,7 @@ export class BtpsServer {
         respondNow,
       });
 
-      if (reqCtx.socket.destroyed || reqCtx.socket.writableEnded) {
-        return true;
-      }
+      if (this.isResponseSent(resCtx)) return true;
     } else {
       this.emitter.emit('transporterArtifact', artifact);
     }

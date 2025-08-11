@@ -3,6 +3,7 @@ import { AppModule } from './app.module.js';
 
 async function bootstrap() {
   // Create application context (no HTTP server, just for dependency injection)
+
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
@@ -11,13 +12,11 @@ async function bootstrap() {
   process.on('SIGINT', async () => {
     console.log('🛑 Shutting down...');
     await app.close();
-    process.exit(0);
   });
 
   process.on('SIGTERM', async () => {
     console.log('🛑 Shutting down...');
     await app.close();
-    process.exit(0);
   });
 }
 
