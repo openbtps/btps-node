@@ -19,7 +19,7 @@ export class BtpsSimpleRateLimiter implements RateLimiter {
   constructor(options: IRateLimitOptions = {}) {
     this.identityLimitPerSec = options.fromIdentity ?? 10;
     this.ipLimitPerSec = options.ipAddress ?? 50;
-    this.cleanupIntervalMs = options?.cleanupIntervalSec ?? 60 * 1000;
+    this.cleanupIntervalMs = (options?.cleanupIntervalSec ?? 60) * 1000;
 
     this.startCleanupTimer();
   }

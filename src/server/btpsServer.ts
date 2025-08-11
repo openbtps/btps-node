@@ -47,6 +47,7 @@ import {
   resolvePublicKey,
   isBtpsControlArtifact,
   isBtpsAgentArtifact,
+  isValidIdentity,
 } from '@core/utils/index.js';
 import { BTPError } from '@core/error/types.js';
 import type {
@@ -151,15 +152,10 @@ export class BtpsServer {
      * If the identity is already set, return it
      * This is to avoid updating the identity if the identity is already set for current connection
      */
-    if (
-      typeof currentTo === 'string' &&
-      typeof currentFrom === 'string' &&
-      currentTo !== 'unknown' &&
-      currentFrom
-    ) {
+    if (isValidIdentity(currentTo) && isValidIdentity(currentFrom)) {
       return {
-        to: currentTo,
-        from: currentFrom,
+        to: currentTo as string,
+        from: currentFrom as string,
       };
     }
 
@@ -315,6 +311,7 @@ export class BtpsServer {
         parseReq.error = parseErrException;
 
         // Get identity info from the artifact
+        parseReq.getIdentity = identityRef.get;
         await this.updateIdentityInfo(data, identityRef, ipAddress);
 
         const afterParseResponseSent = await this.executeMiddleware(
@@ -345,7 +342,6 @@ export class BtpsServer {
           });
         }
 
-        parseReq.getIdentity = identityRef.get as () => { to: string; from: string };
         const reqCtx = parseReq as BTPRequestCtx<'before', 'signatureVerification'>;
         const resCtx = parseRes as BTPResponseCtx<'before', 'signatureVerification'>;
 
@@ -1173,7 +1169,7 @@ export class BtpsServer {
     artifact: BTPServerResponse,
     action?: BtpsErrorAction,
   ) {
-    if (socket.destroyed || socket.writableEnded) return;
+    if (socket.destroyed || socket.writableEnded || !socket.writable) return;
 
     // Validate the response artifact using Zod schema
     const validationResult = validate(BtpServerResponseSchema, artifact);

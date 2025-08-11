@@ -61,7 +61,7 @@ export class BtpsService implements OnModuleInit, OnModuleDestroy {
 
     this.server = new BtpsServer({
       ...this.serverConfig,
-      onError: error => console.error('BTPS Server Error:', error.message),
+      onError: error => console.error('BTPS Server Error:', error),
     });
 
     this.setupEventHandlers();

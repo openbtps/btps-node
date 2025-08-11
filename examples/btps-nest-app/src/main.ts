@@ -5,7 +5,7 @@ async function bootstrap() {
   // Create application context (no HTTP server, just for dependency injection)
 
   const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: ['error', 'warn', 'log'],
+    logger: ['error'],
   });
 
   // Handle shutdown

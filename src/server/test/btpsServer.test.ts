@@ -648,6 +648,9 @@ export default function () {
         get destroyed() {
           return socketDestroyed;
         },
+        get writable() {
+          return true; // Socket is writable
+        },
         write: vi.fn(),
         end: vi.fn(() => {
           socketDestroyed = true;
@@ -760,6 +763,9 @@ export default function () {
       const mockSocket = {
         get destroyed() {
           return socketDestroyed;
+        },
+        get writable() {
+          return true; // Socket is writable
         },
         write: vi.fn(),
         end: vi.fn(() => {
@@ -1099,6 +1105,9 @@ export default function () {
         get writableEnded() {
           return socketWritableEnded;
         },
+        get writable() {
+          return true; // Socket is writable
+        },
         write: vi.fn(),
         end: vi.fn(() => {
           socketDestroyed = true;
@@ -1279,6 +1288,7 @@ export default function () {
         const mockSocket = {
           destroyed: false,
           writableEnded: false,
+          writable: true, // Socket is writable
           write: vi.fn(),
           end: vi.fn(),
         } as unknown as TLSSocket;
@@ -1336,6 +1346,7 @@ export default function () {
         const mockSocket = {
           destroyed: false,
           writableEnded: false,
+          writable: true, // Socket is writable
           write: vi.fn(),
           end: vi.fn(),
         } as unknown as TLSSocket;
@@ -1386,6 +1397,7 @@ export default function () {
         const mockSocket = {
           destroyed: false,
           writableEnded: false,
+          writable: true, // Socket is writable
           write: vi.fn(),
           end: vi.fn(),
         } as unknown as TLSSocket;
@@ -1429,6 +1441,7 @@ export default function () {
         const mockSocket = {
           destroyed: true, // Socket is already destroyed
           writableEnded: false,
+          writable: false, // Socket is not writable when destroyed
           write: vi.fn(),
           end: vi.fn(),
         } as unknown as TLSSocket;

@@ -6,13 +6,13 @@ const privateKey = readFileSync('./keys/finance/finance-private.pem');
 
 const btpsAgent = new BtpsAgent({
   agent: {
-    id: 'btp_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
+    id: 'btps_ag_e138e898-192a-438a-bf23-ee8ab14fea38',
     identityKey: privateKey.toString('utf8'),
     identityCert: publicKey.toString('utf8'),
   },
   btpIdentity: 'finance$ebilladdress.com',
   connectionTimeoutMs: 30000,
-  maxRetries: 5,
+  maxRetries: 0,
   retryDelayMs: 500,
   btpMtsOptions: {
     rejectUnauthorized: false,
@@ -35,7 +35,7 @@ const btpsAgent = new BtpsAgent({
   //   'finance$ebilladdress.com',
   //   {
   //     identity: 'finance$ebilladdress.com',
-  //     authToken: '7Q7BYJPB9ECL',
+  //     authToken: 'BP8T6XGC5CD5',
   //     publicKey: publicKey.toString('utf8'),
   //     agentInfo: {
   //       deviceName: 'iPhone 15',
@@ -44,17 +44,16 @@ const btpsAgent = new BtpsAgent({
   //   },
   //   {
   //     encryption: {
-  //       algorithm: 'aes-256-cbc',
+  //       algorithm: 'aes-256-gcm',
   //       mode: 'standardEncrypt',
   //     },
   //   },
   // );
 
-  // btpsAgent.connect('finance$ebilladdress.com', (events) => {
-  //   events.on('connected', () => {
-  //     console.log('connected');
-  //   });
-  // });
+  btpsAgent.on('connected', () => {
+    console.log('connected');
+  });
+
   // console.log('current listeners', btpsAgent.getListeners());
   // const data = await btpsAgent.command('inbox.fetch', 'finance$ebilladdress.com', {
   //   limit: 10,
@@ -90,8 +89,8 @@ const btpsAgent = new BtpsAgent({
     }),
   );
   promises.push(
-    btpsAgent.command('inbox.fetch', 'hr$ebilladdress.com', {
-      limit: 13,
+    btpsAgent.command('inbox.fetch', 'admin$ebilladdress.com', {
+      limit: 15,
       sort: 'asc',
     }),
   );

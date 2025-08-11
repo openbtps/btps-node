@@ -131,7 +131,7 @@ export class BtpsClient {
         this.states.isConnected = true;
         this.states.isConnecting = false;
         sock.ref(); // keep process alive on connect
-        this.attachListeners(sock, this.options.to);
+
         this.socket = sock;
         this.emitter.emit('connected', {
           identity: this.options.to,
@@ -141,7 +141,7 @@ export class BtpsClient {
         });
         resolve({ socket: sock, error: undefined });
       });
-
+      this.attachListeners(sock, this.options.to);
       if (this.options.connectionTimeoutMs) {
         sock.setTimeout(this.options.connectionTimeoutMs, () => {
           sock.destroy(
@@ -211,28 +211,26 @@ export class BtpsClient {
     });
   }
 
-  protected onData(line: string) {
+  protected async onData(line: string) {
     if (!line.trim()) return;
 
     try {
       const msg: BTPServerResponse = JSON.parse(line);
       this.states.shouldRetry = false;
-      this.verifyServerMessage(msg).then(({ isValid: validSignature, error }) => {
-        if (msg?.reqId && this.queue.has(msg.reqId)) {
-          const pendingMsg = this.queue.get(msg.reqId)!;
-          clearTimeout(pendingMsg.timeout);
-          this.queue.delete(msg.reqId);
-          pendingMsg.resolve({
-            response: validSignature ? msg : undefined,
-            error: !validSignature ? error : undefined,
-          });
-
-          // Unref socket if no more pending requests
-          this.unrefSocketIfNoQueue();
-          this.pumpQueue();
-        }
+      const { isValid: validSignature, error } = await this.verifyServerMessage(msg);
+      if (msg?.reqId && this.queue.has(msg.reqId)) {
+        const pendingMsg = { ...this.queue.get(msg.reqId)! };
+        const { resolve, timeout } = pendingMsg;
+        this.queue.delete(msg.reqId);
+        clearTimeout(timeout);
+        resolve({
+          response: validSignature ? msg : undefined,
+          error: !validSignature ? error : undefined,
+        });
+        this.pumpNextQueue();
+      } else {
         this.emitter.emit('message', { response: msg, validSignature, error });
-      });
+      }
     } catch (e) {
       const err = new SyntaxError(`Invalid JSON: ${e}`);
       this.states.shouldRetry = false;
@@ -240,14 +238,17 @@ export class BtpsClient {
     }
   }
 
-  protected pumpQueue() {
+  protected pumpNextQueue() {
     if (this.queue.size && this.states.isConnected) {
-      for (const [_id, job] of this.queue) {
-        this.sendArtifact(job.artifact, {
-          resolve: job.resolve,
-          timeout: job.timeout,
+      const firstJob = this.queue.values().next().value;
+      if (firstJob) {
+        this.sendArtifact(firstJob.artifact, {
+          resolve: firstJob.resolve,
+          timeout: firstJob.timeout,
         });
       }
+    } else {
+      this.unrefSocketIfNoQueue();
     }
   }
 
@@ -453,10 +454,8 @@ export class BtpsClient {
     } else {
       this.emitter.emit('error', { error, ...this.getRetryInfo(error) });
     }
-    clearTimeout(timeout);
-    if (this.queue.has(artifactId)) {
-      this.queue.delete(artifactId);
-    }
+    if (timeout) clearTimeout(timeout);
+    if (this.queue.has(artifactId)) this.queue.delete(artifactId);
     // Unref socket if no more pending requests
     this.unrefSocketIfNoQueue();
   }
