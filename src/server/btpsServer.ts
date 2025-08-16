@@ -95,6 +95,10 @@ export class BtpsServer {
   private readonly trustStore: AbstractTrustStore<BTPTrustRecord>;
   private readonly middlewareManager: MiddlewareManager;
   private readonly connectionTimeoutMs: number;
+  private readonly dependencies: {
+    trustStore: AbstractTrustStore<BTPTrustRecord>;
+    identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
+  };
 
   private readonly port: number;
   private server: tls.Server;
@@ -114,6 +118,10 @@ export class BtpsServer {
     this.identityStore = options.identityStore;
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 30000;
     this.middlewareManager = new MiddlewareManager(options.middlewarePath);
+    this.dependencies = {
+      trustStore: this.trustStore,
+      identityStore: this.identityStore,
+    };
 
     // TLS server creation with certs
     this.server = tls.createServer(
@@ -128,12 +136,7 @@ export class BtpsServer {
    * Initializes the server and loads middleware
    */
   private async initialize(): Promise<void> {
-    const dependencies = {
-      trustStore: this.trustStore,
-      identityStore: this.identityStore,
-    };
-
-    await this.middlewareManager.loadMiddleware(dependencies);
+    await this.middlewareManager.loadMiddleware(this.dependencies);
     await this.middlewareManager.onServerStart();
   }
 
@@ -586,10 +589,7 @@ export class BtpsServer {
       if (this.isResponseSent(res)) return true;
 
       const context: MiddlewareContext = {
-        dependencies: {
-          trustStore: this.trustStore,
-          identityStore: this.identityStore,
-        },
+        dependencies: this.dependencies,
         config: mw.config?.options ?? {},
         serverInstance: this,
         currentTime: new Date().toISOString(),
@@ -1282,5 +1282,16 @@ export class BtpsServer {
     } else {
       this.emitter.on('transporterArtifact', handler as (artifact: BTPTransporterArtifact) => void);
     }
+  }
+
+  public getServerIdentity(): BtpsServerOptions['serverIdentity'] {
+    return this.serverIdentity;
+  }
+
+  public getDependencies(): {
+    trustStore: AbstractTrustStore<BTPTrustRecord>;
+    identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
+  } {
+    return this.dependencies;
   }
 }

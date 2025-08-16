@@ -1,4 +1,21 @@
 services:
+  btps-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: btps-nest-app
+    restart: unless-stopped
+    ports:
+      - '3443:3443'
+    env_file:
+      - .env.docker
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - btps-network
+
   mongodb:
     image: mongo:7.0
     container_name: btps-mongodb

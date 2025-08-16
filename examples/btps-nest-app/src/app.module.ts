@@ -1,9 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './database/database.module.js';
-import { BtpsService } from './btps/btps.service.js';
-import { BtpsConfigService } from './btps/config/btps.config.js';
-import { BtpsMiddlewareConfigService } from './btps/middleware/btps-middleware-config.service.js';
+import { BtpsModule } from './btps/btps.module.js';
 
 @Module({
   imports: [
@@ -12,8 +10,9 @@ import { BtpsMiddlewareConfigService } from './btps/middleware/btps-middleware-c
       envFilePath: ['.env.local', '.env'],
     }),
     DatabaseModule, // For MongoDB and Redis
+    BtpsModule, // BTPS services and authentication
   ],
   controllers: [],
-  providers: [BtpsService, BtpsConfigService, BtpsMiddlewareConfigService],
+  providers: [],
 })
 export class AppModule {}

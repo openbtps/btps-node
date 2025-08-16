@@ -27,7 +27,7 @@ import { Connection } from 'mongoose';
         return {
           uri,
           dbName,
-          connectionFactory: (connection: Connection) => {
+          onConnectionCreate: (connection: Connection) => {
             // Add MongoDB connection event listeners immediately when connection is created
             connection.on('connected', () => {
               console.log('✅ Connected to MongoDB');
@@ -40,11 +40,6 @@ import { Connection } from 'mongoose';
             connection.on('disconnected', () => {
               console.log('❌ Disconnected from MongoDB');
             });
-
-            // Check if already connected
-            if (connection.readyState === 1) {
-              console.log('✅ Connected to MongoDB (already connected)');
-            }
 
             return connection;
           },

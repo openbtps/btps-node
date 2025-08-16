@@ -5,16 +5,20 @@ export type TrustRecordDocument = TrustRecord & Document;
 
 @Schema({ timestamps: true })
 export class TrustRecord {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: true, index: true })
   id!: string; // computedId from BTPS SDK
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   senderId!: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   receiverId!: string;
 
-  @Prop({ required: true, enum: ['pending', 'accepted', 'rejected'] })
+  @Prop({
+    required: true,
+    enum: ['pending', 'accepted', 'rejected'],
+    index: true,
+  })
   status: 'pending' | 'accepted' | 'rejected' = 'pending';
 
   @Prop({ required: true })
@@ -26,13 +30,13 @@ export class TrustRecord {
   @Prop()
   decidedAt?: string;
 
-  @Prop()
+  @Prop({ index: true })
   expiresAt?: string;
 
   @Prop({ required: true })
   publicKeyBase64!: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   publicKeyFingerprint!: string;
 
   @Prop({ type: [Object], default: [] })
@@ -50,9 +54,3 @@ export class TrustRecord {
 }
 
 export const TrustRecordSchema = SchemaFactory.createForClass(TrustRecord);
-
-// Create indexes for better performance
-TrustRecordSchema.index({ senderId: 1, receiverId: 1 });
-TrustRecordSchema.index({ status: 1 });
-TrustRecordSchema.index({ expiresAt: 1 });
-TrustRecordSchema.index({ publicKeyFingerprint: 1 });

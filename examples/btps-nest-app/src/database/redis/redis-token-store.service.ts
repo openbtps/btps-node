@@ -183,6 +183,8 @@ export class RedisTokenStoreService
     if (this.redis) {
       await this.redis.quit();
     }
+
+    console.log('🔑 Redis token store shutdown');
   }
 
   async getTokenCount(): Promise<number> {

@@ -3,16 +3,18 @@ import { BtpsAgent } from '../../dist/client/btpsAgent.js';
 
 const publicKey = readFileSync('./keys/finance/finance-public.pem');
 const privateKey = readFileSync('./keys/finance/finance-private.pem');
+// const publicKey2 = readFileSync('./keys/hr/hr-public.pem');
+// const privateKey2 = readFileSync('./keys/hr/hr-private.pem');
 
 const btpsAgent = new BtpsAgent({
   agent: {
-    id: 'btps_ag_e138e898-192a-438a-bf23-ee8ab14fea38',
+    id: 'btps_ag_e0c57f36-91c2-42b1-8f4d-470f3131f249', //'btps_ag_e138e898-192a-438a-bf23-ee8ab14fea38',
     identityKey: privateKey.toString('utf8'),
     identityCert: publicKey.toString('utf8'),
   },
   btpIdentity: 'finance$ebilladdress.com',
   connectionTimeoutMs: 30000,
-  maxRetries: 0,
+  maxRetries: 5,
   retryDelayMs: 500,
   btpMtsOptions: {
     rejectUnauthorized: false,
@@ -30,25 +32,25 @@ const btpsAgent = new BtpsAgent({
 // });
 
 (async () => {
-  // const data = await btpsAgent.command(
-  //   'auth.request',
-  //   'finance$ebilladdress.com',
-  //   {
-  //     identity: 'finance$ebilladdress.com',
-  //     authToken: 'BP8T6XGC5CD5',
-  //     publicKey: publicKey.toString('utf8'),
-  //     agentInfo: {
-  //       deviceName: 'iPhone 15',
-  //       appVersion: '1.0.0',
-  //     },
-  //   },
-  //   {
-  //     encryption: {
-  //       algorithm: 'aes-256-gcm',
-  //       mode: 'standardEncrypt',
-  //     },
-  //   },
-  // );
+  const data = await btpsAgent.command(
+    'auth.refresh',
+    'finance$ebilladdress.com',
+    {
+      identity: 'finance$ebilladdress.com',
+      authToken: 'pptv2xZZ3_g_CFBDEbZF7rn7A_FJD8cOh5qonGkvm1g',
+      publicKey: publicKey.toString('utf8'),
+      agentInfo: {
+        deviceName: 'iPhone 40',
+        appVersion: '18.0.0',
+      },
+    },
+    {
+      encryption: {
+        algorithm: 'aes-256-gcm',
+        mode: 'standardEncrypt',
+      },
+    },
+  );
 
   btpsAgent.on('connected', () => {
     console.log('connected');
@@ -75,46 +77,46 @@ const btpsAgent = new BtpsAgent({
   //   }, 5000);
   // }, 5000);
 
-  const promises = [];
-  promises.push(
-    btpsAgent.command('inbox.fetch', 'finance$ebilladdress.com', {
-      limit: 10,
-      sort: 'asc',
-    }),
-  );
-  promises.push(
-    btpsAgent.command('inbox.fetch', 'hr$ebilladdress.com', {
-      limit: 13,
-      sort: 'asc',
-    }),
-  );
-  promises.push(
-    btpsAgent.command('inbox.fetch', 'admin$ebilladdress.com', {
-      limit: 15,
-      sort: 'asc',
-    }),
-  );
-  promises.push(
-    btpsAgent.command('inbox.fetch', 'billing$ebilladdress.com', {
-      limit: 13,
-      sort: 'asc',
-    }),
-  );
-  promises.push(
-    btpsAgent.command('inbox.fetch', 'billing$ebilladdress.com', {
-      limit: 13,
-      sort: 'asc',
-    }),
-  );
-  promises.push(
-    btpsAgent.command('inbox.fetch', 'finance$ebilladdress.com', {
-      limit: 10,
-      sort: 'asc',
-    }),
-  );
+  // const promises = [];
+  // promises.push(
+  //   btpsAgent.command('inbox.fetch', 'finance$ebilladdress.com', {
+  //     limit: 10,
+  //     sort: 'asc',
+  //   }),
+  // );
+  // promises.push(
+  //   btpsAgent.command('inbox.fetch', 'hr$ebilladdress.com', {
+  //     limit: 13,
+  //     sort: 'asc',
+  //   }),
+  // );
+  // promises.push(
+  //   btpsAgent.command('inbox.fetch', 'admin$ebilladdress.com', {
+  //     limit: 15,
+  //     sort: 'asc',
+  //   }),
+  // );
+  // promises.push(
+  //   btpsAgent.command('inbox.fetch', 'billing$ebilladdress.com', {
+  //     limit: 13,
+  //     sort: 'asc',
+  //   }),
+  // );
+  // promises.push(
+  //   btpsAgent.command('inbox.fetch', 'billing$ebilladdress.com', {
+  //     limit: 13,
+  //     sort: 'asc',
+  //   }),
+  // );
+  // promises.push(
+  //   btpsAgent.command('inbox.fetch', 'finance$ebilladdress.com', {
+  //     limit: 10,
+  //     sort: 'asc',
+  //   }),
+  // );
 
-  // console.log('promises:', promises);
-  const data = await Promise.all(promises);
+  // // console.log('promises:', promises);
+  // const data = await Promise.all(promises);
   // const data = await btpsAgent.command('inbox.fetch', 'finance$ebilladdress.com', {
   //   limit: 10,
   //   sort: 'asc',

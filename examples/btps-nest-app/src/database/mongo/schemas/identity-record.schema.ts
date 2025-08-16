@@ -5,13 +5,13 @@ export type IdentityRecordDocument = IdentityRecord & Document;
 
 @Schema({ timestamps: true })
 export class IdentityRecord {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true, unique: true, index: true })
   id!: string; // computedId from BTPS SDK
 
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true, index: true })
   identity!: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   currentSelector!: string;
 
   @Prop({ type: [Object], required: true, default: [] })
@@ -29,8 +29,3 @@ export class IdentityRecord {
 
 export const IdentityRecordSchema =
   SchemaFactory.createForClass(IdentityRecord);
-
-// Create indexes for better performance
-IdentityRecordSchema.index({ identity: 1 });
-IdentityRecordSchema.index({ currentSelector: 1 });
-IdentityRecordSchema.index({ 'publicKeys.selector': 1 });

@@ -20,7 +20,7 @@ btp*.json
 .DS_Store
 client
 !src/client
-.env
+.env*
 *.tgz
 test
 !src/server/test
