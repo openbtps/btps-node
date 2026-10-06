@@ -1,0 +1,47 @@
+{
+  "item": 6,
+  "tickets": ["EBA-116", "EBA-117"],
+  "description": "The sender rotated its signing key from btps1 to btps2 and kept the old key published; the receiver still encrypts on btps1. An artifact must name the sender key it was signed with (signatureSelector) apart from the receiver key it was encrypted to (encryptionSelector). On 367cd09 one `selector` field carries the receiver selector, so a verifier looks up the wrong sender key.",
+  "provenance": "TEST-ONLY key generated locally for the BTPS golden vectors (EBA-110). Never use it for anything else. The receiver encryption key is the one in oaep-wrap.vector.json.",
+  "sender": {
+    "identity": "alice$saas.example",
+    "hostSelector": "btps2",
+    "keys": {
+      "btps1": {
+        "status": "rotated-out",
+        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAru3eBPQLwKwoqfpY/3QR\nZwwfr6T5UsSG1WyplktxE255qooAuZqRsZKeh2dO4cSxPFS/i1oykTvvbKq5HNXH\nupolKiZm8UughN9ZQq89clP9aVn6JwP6nMc1EdiZqsDb9vZfdo8LrF3SvcvEl8nu\n3R7LI1pkGLkH9WOerL+ichGQ5BUGsUTxMNiqVMCjk+JTh4gDpzwdYgfuSKgADWaK\nFPaa61+B7tKcmMtt5bcvbRIWDG6TKjdPoESzHrngQKySCl3osn1f8RwC7/mm+kH/\ns4xI3BCLtp3wTBjXhvIx4A2Ven2yp/qtR8BctluQevb8ZW4dGSIODlntxZB9C1K7\nKQIDAQAB\n-----END PUBLIC KEY-----\n",
+        "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCu7d4E9AvArCip\n+lj/dBFnDB+vpPlSxIbVbKmWS3ETbnmqigC5mpGxkp6HZ07hxLE8VL+LWjKRO+9s\nqrkc1ce6miUqJmbxS6CE31lCrz1yU/1pWfonA/qcxzUR2JmqwNv29l92jwusXdK9\ny8SXye7dHssjWmQYuQf1Y56sv6JyEZDkFQaxRPEw2KpUwKOT4lOHiAOnPB1iB+5I\nqAANZooU9prrX4Hu0pyYy23lty9tEhYMbpMqN0+gRLMeueBArJIKXeiyfV/xHALv\n+ab6Qf+zjEjcEIu2nfBMGNeG8jHgDZV6fbKn+q1HwFy2W5B69vxlbh0ZIg4OWe3F\nkH0LUrspAgMBAAECggEAGHG44qxPsB7el9IZ+ah4fhPdoafGB2DbDpventfv9y0q\n5z/dlhIZZdz9NiKjjTz1H18gXRK/mjfr3x2EPJlLDbJYmyk+nV1aEvc6++yNA5rl\nAIHISQdvT9Uuf03rO0cz9bC76k9W7EE4H7mHwUZAkLmq3UfWUPYaPJotJCqrQpEi\ne7iCgRP7aeiuA3GWKGXFv6hgZGHq46Wr0ViNwY7xkTJT+yxzy2amOr/uXbcjJIMV\nUxrOrC0WB3S81eAfug6YUWa0xQZ2SrvWYoXcBTBxFfTxoXl8oi4UhzAX45eDDcIG\n3xAJo0Eo8wM/kNYBo/YTTMOfY/TPuAByBJ/2QiyJGQKBgQDl3jkdHR4/MyWsMkfm\n1AvuXj4Ny+QWz1yTRhPz4Tql+oMk+kVwV/wkZ7yCMgo28KyG/Mmej+jRFbIGG1c/\nSelMm+3R+QUX1D5BjlMwzS7bwTVYsNJgFBWiGurNCy0hyaciqgP2tttstl3DwO/G\nABDJAoX45jLpeNSW0cQpH2yVewKBgQDC0MZwDCu2lBZl84VFjiNDhV1qLcxx+7Ql\n3p6VT23xLoZTEcuo0qVy9AC+tM7FSNgBf5E59NPT5ZGa/nBIApss1Q4iXFl+7Kuh\nj2Aru+e/ozrUCSn8H3ctkAmPKRl3CI+UKR6Hk5ES8VEVEh0PW+DpAYvVfjxcMG+J\nA/S5Y74GqwKBgQCIwz6X48srLvMrEH9XBrJSkB+7daOvLpCVzwvv/gE232VHit/l\nh3Os9Uti6wLIzUjYx23tuRF71LymhX3TWdZEjkFgvBgbpVulBVjZoDpQ5RMoQYvp\nPgng+MLaW9vuTlvyc9UH5KOIerguz4vY8hEKh0XOYKfJ4OobEZL0JI4mIQKBgQDB\nPvlokhoWfSUOspZDnbALPVKhjZachnJ3kjG6qFTFhkIGSsO7zmAB/Fp00cO93Pkv\n20vCssIhEjryBWx5ceRdf2YK3ZKFHd1OYHukRjunVBJ53DFCgC/nCVcCJGG3Os25\nyWQYVl/0611jylj7MEeUukzsVNEpHX616i+qam9ICwKBgHcr0IYKmw3GUmhiQzal\nKMy2Z+sIKl9KVRl3Lmbl9x4UXPwfL7YwQB6lXXcbYotRnd3bf4ccR8b9CLsEkqIB\nRdWLQF8DCMe5kkUyvfxxuIuE22rMFoek44Qz9OwN/qwO3iAt8AgiEzySFlYhjdID\nsDENSyRjglkqM4D5q9GQmFlt\n-----END PRIVATE KEY-----\n",
+        "fingerprint": "YTqUM0ydQQd68wbKaIYr5MzGRrQmVb4RbeaVcGv0mN8="
+      },
+      "btps2": {
+        "status": "current",
+        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvMhdT/Kh/Ki3OaHi5lk2\npekuM2K3QJZuBg3IjhH6cOQVlvYW4kCOyOO6nF1iCKt2DUkH7jjxZ4TQ16iSDPTl\niIDC+LjQtKpZmcvfehI+/1IlFpXBTeeASFBCw+2zoRvJ69o5skE/x09lG3Xv0TKo\nIvlbWGlBuxUz+/jQaUHuOMrsDZu/oTqBt6xzMQrWCs8ylt2e1EI4J6M1r9wtG9Kb\nEFm19AJhpP1E/2cA0ne296Sn9IrxGlyxL2jEb/xpQvr7D5B29WSEF1xqDRZEznlG\n4AnevVY0PCmSqItEfe6jhcKUvQClS61RxcoYcu+WsEbdH7vPo2RqW7gT2wZdXAVU\n+wIDAQAB\n-----END PUBLIC KEY-----\n",
+        "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC8yF1P8qH8qLc5\noeLmWTal6S4zYrdAlm4GDciOEfpw5BWW9hbiQI7I47qcXWIIq3YNSQfuOPFnhNDX\nqJIM9OWIgML4uNC0qlmZy996Ej7/UiUWlcFN54BIUELD7bOhG8nr2jmyQT/HT2Ub\nde/RMqgi+VtYaUG7FTP7+NBpQe44yuwNm7+hOoG3rHMxCtYKzzKW3Z7UQjgnozWv\n3C0b0psQWbX0AmGk/UT/ZwDSd7b3pKf0ivEaXLEvaMRv/GlC+vsPkHb1ZIQXXGoN\nFkTOeUbgCd69VjQ8KZKoi0R97qOFwpS9AKVLrVHFyhhy75awRt0fu8+jZGpbuBPb\nBl1cBVT7AgMBAAECggEAHwNxpPUw3G+hLjQksP/+BNKidumkPlWYPKFeDczxTkOC\nMns6NjAx5NnYqeCDfvYgHj2dsmqjagS9RHiaictfvAWfQjome0+zCZufGpBNzici\nFaxDhfdesUKSPVrbFEAa84a1zM2AW091RkYhQEZordo2QfeEx2XL1PzCzE/7AVQ4\npbsm0TCzymglg1B47+QXdAgYwfPPvdsS+KlYKlWXSRHsdBiPT/T4lhKVvu4nURka\n+BcyGyrJj+Siyj0roX035f/1udUpWsowA3aSG0GcyM7HkT1hKNpmpZriMTZOVRn8\nDsGVPP3HKPpP9gO/yNxBmgixXcsdyxzZvRRfrKQ/HQKBgQDgHHMFP6TqlForHATt\namW0xgnfB6ciTWE074uEHe/Fx50wL/oCs1ZF+vdiXnItpitoo4WT2YpsiJJHItNu\nySiiqtGX49xXmmXH2XE92tWdIf43de7u+pBrh+fcl4llsBiH8Opy353W8SjG+uIt\nUqP2r+YQOnXpFQblphCoLwzS1QKBgQDXpQdIrl+IZLLzY0NeERS0avCGYyzG8W7v\nPtPSGUWH0DckbqjPu1+giVwdJqn/y5u/L98KzuHfZCAft1/6kTLQJ8iXSg26MOkD\nh/s09xf+SPa7dCFLvfDnTwP4j0x24QKtOtnERXILsEyBaI5uzuY3DCQVu/mPN1cg\nfStU7JVQjwKBgEvCEjex/gO2RozQGfJPxzXGxEt6gMsdsUB9wYHVxNns0nwZm8AR\n85YQclP0bVB1HbNvo5YJMbvipuAZK7QFmBD1AYkA49lRPhrCrH8mXJOTjCYfXbe3\nR96xwHVXXIDdeE1r6TUP1oF0YD5zTMXZa8fWSkUuHfG+w+gZrQPNc95JAoGAN3yI\nHkR34mF+xi9xYx/kAvRNRVb5a4st7zNsT3AfOu3xcldi6midF3KgmAOd1GqwfYY0\nztQivFdICMEnWhLIT1UdQQhV9eWl3zm7Aordypk9m0grVRDfjrT/IZLFqwUEqkwt\nQlpYGPfZB6c+lvZ3uAxQsKL4eMhVi8+JOcXSObMCgYBDGNNRBWd1CsBgAQr67ofB\nredpY2dvtwpcUe0Zr/NFnZj5HUSrkjMb940dsA0qjvjbYjYUuvCc+5s4UDuijs7a\nkpFOXlA7R52SqQmHvr/aoor540KEaVwJ4udepvb7jpeDHGUeh55kf2xZG1gCHO5V\nPQ3nlgKLhUwHOmufFd/hjg==\n-----END PRIVATE KEY-----\n",
+        "fingerprint": "mlgHJvqlWDYnOTjWvwf9jwBmOr5VGdYPVD+zNs2UuEc="
+      }
+    }
+  },
+  "receiver": {
+    "identity": "bob$receiver.example",
+    "hostSelector": "btps1",
+    "keys": {
+      "btps1": {
+        "status": "current",
+        "keyVector": "oaep-wrap.vector.json",
+        "fingerprint": "ZYMPJtlXDCcBOcXNJoYRi+nshJFxc/MwGxzlQKC165Q="
+      }
+    }
+  },
+  "artifact": {
+    "type": "BTPS_DOC",
+    "document": {
+      "invoiceId": "INV-6",
+      "amountCents": 9900,
+      "currency": "AUD"
+    }
+  },
+  "expect": {
+    "signatureSelector": "btps2",
+    "encryptionSelector": "btps1"
+  }
+}

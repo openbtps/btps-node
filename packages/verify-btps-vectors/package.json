@@ -1,0 +1,29 @@
+{
+  "name": "@btps/verify-btps-vectors",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Runs the BTPS golden vectors on every runtime driver (Node, web/WebCrypto) and against the @btps/sdk source tree.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "bin": {
+    "verify-btps-vectors": "./bin/verify-btps-vectors.mjs"
+  },
+  "exports": {
+    "./jcs": "./src/jcs.mjs",
+    "./runtimes/web": "./src/runtimes/web.mjs",
+    "./runtimes/node": "./src/runtimes/node.mjs",
+    "./checks/vectors": "./src/checks/vectors.mjs",
+    "./checks/interop": "./src/checks/interop.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "verify:btps-vectors": "node bin/verify-btps-vectors.mjs --known-failing ../../test/vectors/known-failing.json",
+    "verify:btps-vectors:strict": "node bin/verify-btps-vectors.mjs",
+    "generate-vectors": "node scripts/generate-vectors.mjs"
+  },
+  "peerDependencies": {
+    "esbuild": ">=0.25"
+  }
+}

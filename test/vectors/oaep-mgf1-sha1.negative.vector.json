@@ -1,0 +1,9 @@
+{
+  "description": "An AES key wrapped with OAEP-SHA-256 but MGF1-SHA-1 (the Java/Android default for \"OAEPWithSHA-256AndMGF1Padding\"). The BTPS 1.1 profile pins MGF1 to SHA-256, as AWS KMS RSAES_OAEP_SHA_256 does, so every runtime must refuse to unwrap it.",
+  "keyVector": "oaep-wrap.vector.json",
+  "oaepHash": "SHA_256",
+  "mgf1Algorithm": "SHA_1",
+  "plaintextKeyBase64": "ZQ8LrpMOWvRCRtesLg+2tw5XDOHYd4GeVGJablhUAv8=",
+  "wrappedKeyBase64": "P0olFI7i7H9d8kmTnCf+NBCk5lrC8sBp9pw9JtHFhX2eGqYfvcpupN8VOFNjYlRccptcA+C4LWD9XwltUtrrYRnxhbuxsWmfWq++VsJ4QKO3It6VlKWGuGngEFG2NeInkB6iF7oAFdqAta1tW9CEZ9KHVTX/C1wB14lMsp79kEPD/SPXiAJKNv8KUsxiRqht76ZDuY4pMb+sNAfTYVMT+ofoKtXH+vNfImwr6bv4qpBW3CTW2g/94da8UfOgTq97sn9V2UsRtXePxOJ1RaAXQZXUNDQK2AI+MGGK0zyAM5FVvawUrzW8jcTz019zN7nMxmU9fqP5MYn4zacaZ3Azfg==",
+  "expect": "reject"
+}
