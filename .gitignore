@@ -24,4 +24,7 @@ client
 *.tgz
 test
 !src/server/test
+!/test/
+/test/*
+!/test/vectors/
 coverage
