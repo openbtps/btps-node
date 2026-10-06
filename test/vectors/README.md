@@ -24,6 +24,12 @@ algorithm is the one that mode uses.
 
 The signing keys and the encryption key are distinct, and a check enforces it.
 
+The item 6 vectors cover EBA-116 (6a, separate selectors) and EBA-117 (6b,
+the encryption-key lookup rule). **EBA-118 (6c, a DoH client that checks the
+AD bit) has no vector here, on purpose.** There is no DoH client on 367cd09
+to fail against, and its behaviour depends on a resolver rather than on bytes
+a vector can pin. EBA-118 brings its own tests.
+
 ## Changing vectors
 
 Vectors are frozen once other code is tested against them. The item 6b
