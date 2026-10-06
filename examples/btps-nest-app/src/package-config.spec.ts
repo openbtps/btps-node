@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 
 /**
  * EBA-154: @nestjs/testing must be a devDependency of examples/btps-nest-app,
@@ -84,6 +85,45 @@ describe('examples/btps-nest-app dependency configuration (EBA-154)', () => {
       const resolvedTestingVersion = resolvedVersionFor('@nestjs/testing', testingRange);
 
       expect(majorVersion(resolvedTestingVersion)).toBe(majorVersion(resolvedCoreVersion));
+    });
+  });
+
+  describe('@btps/sdk local tarball lock entry (EBA-154)', () => {
+    // yarn's file: protocol resolver stamps the resolution string with
+    // `hash=<first 6 hex chars of sha512(tarball bytes)>`. If package.tgz is
+    // rebuilt (or package.json's dependency changes) without re-running
+    // `yarn install`, this value goes stale and `yarn install
+    // --frozen-lockfile` fails. This test re-derives that hash from the
+    // tarball on disk and compares it against what yarn.lock has recorded,
+    // so a stale entry fails here with a clear cause instead of surfacing
+    // only as an opaque frozen-install error.
+    const tgzPath = path.join(appRoot, 'package.tgz');
+
+    it('has a @btps/sdk file: dependency pointing at ./package.tgz', () => {
+      expect(packageJson.dependencies).toHaveProperty('@btps/sdk', './package.tgz');
+    });
+
+    it('package.tgz is present on disk so the lock entry can be verified', () => {
+      expect(fs.existsSync(tgzPath)).toBe(true);
+    });
+
+    it("yarn.lock's @btps/sdk resolution hash matches the sha512 of package.tgz", () => {
+      const tgzBuffer = fs.readFileSync(tgzPath);
+      const expectedHash = crypto.createHash('sha512').update(tgzBuffer).digest('hex').slice(0, 6);
+
+      const lockFile = fs.readFileSync(yarnLockPath, 'utf-8');
+      const resolutionMatch = lockFile.match(
+        /"@btps\/sdk@file:\.\/package\.tgz::locator=[^"]*":\n(?:[^\n]*\n)*?\s+resolution: "@btps\/sdk@file:\.\/package\.tgz#\.\/package\.tgz::hash=([0-9a-f]+)&/,
+      );
+
+      if (!resolutionMatch) {
+        throw new Error(
+          'yarn.lock has no resolution entry for the @btps/sdk file: dependency. ' +
+            'Run `yarn install` to add/refresh it after editing package.json or package.tgz.',
+        );
+      }
+
+      expect(resolutionMatch[1]).toBe(expectedHash);
     });
   });
 });
