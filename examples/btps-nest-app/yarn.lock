@@ -448,7 +448,7 @@ __metadata:
 
 "@btps/sdk@file:./package.tgz::locator=btps-nest-app%40workspace%3A.":
   version: 1.0.0
-  resolution: "@btps/sdk@file:./package.tgz#./package.tgz::hash=973207&locator=btps-nest-app%40workspace%3A."
+  resolution: "@btps/sdk@file:./package.tgz#./package.tgz::hash=03bb05&locator=btps-nest-app%40workspace%3A."
   dependencies:
     lodash: "npm:^4.17.21"
     proper-lockfile: "npm:^4.1.2"
