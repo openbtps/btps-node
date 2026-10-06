@@ -5,6 +5,9 @@ runtime driver, across runtimes, and against the `@btps/sdk` source tree.
 This is the `verify:btps-vectors` verb from EBA-110 (BTPS 1.1 epic EBA-109).
 
 ```sh
+# From the repository root (same as the CI form below)
+yarn verify:btps-vectors
+
 # CI form: passes while the failing checks are exactly the known-failing list
 node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs \
   --known-failing test/vectors/known-failing.json
@@ -47,6 +50,16 @@ failing set is **exactly** that list:
 So the list can only shrink, and it can never hide a check that started
 passing or stopped running. Delete the file when it is empty, and switch CI
 to the strict form.
+
+### The same ratchet in `yarn test`
+
+EBA-110's acceptance tests in `src/core/crypto/{index,jcs,identityKeys}.test.ts`
+reproduce the same defects as vitest tests. Each one that fails on 367cd09 is
+written as `it.fails`, and its name says which ticket's fix makes it pass:
+"(expected failure until EBA-115 lands)". So `yarn test` stays green on
+master. When the fix lands, those tests turn red, and the fix ticket must
+change `it.fails` to `it` in the same change, just as it removes its
+known-failing entries.
 
 ### Running against another SDK tree
 
