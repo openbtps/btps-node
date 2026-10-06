@@ -1,0 +1,91 @@
+[
+  {
+    "name": "key-order-is-insignificant",
+    "inputs": [
+      "{\"to\":\"bob$example.com\",\"from\":\"alice$example.com\",\"amountCents\":150000}",
+      "{\"amountCents\":150000,\"from\":\"alice$example.com\",\"to\":\"bob$example.com\"}"
+    ],
+    "expectedCanonical": "{\"amountCents\":150000,\"from\":\"alice$example.com\",\"to\":\"bob$example.com\"}"
+  },
+  {
+    "name": "unicode-content-is-preserved-byte-for-byte",
+    "inputs": [
+      "{\"memo\":\"café ☕ 日本語 \\ud83d\\ude00\",\"id\":1}",
+      "{\"id\":1,\"memo\":\"café ☕ 日本語 😀\"}"
+    ],
+    "expectedCanonical": "{\"id\":1,\"memo\":\"café ☕ 日本語 😀\"}"
+  },
+  {
+    "name": "nested-objects-are-canonicalized-recursively",
+    "inputs": [
+      "{\"outer\":{\"z\":1,\"a\":{\"inner2\":true,\"inner1\":false}},\"top\":2}",
+      "{\"top\":2,\"outer\":{\"a\":{\"inner1\":false,\"inner2\":true},\"z\":1}}"
+    ],
+    "expectedCanonical": "{\"outer\":{\"a\":{\"inner1\":false,\"inner2\":true},\"z\":1},\"top\":2}"
+  },
+  {
+    "name": "integer-money-values-keep-exact-precision",
+    "inputs": [
+      "{\"amountCents\":9007199254740991,\"currency\":\"USD\"}",
+      "{\"currency\":\"USD\",\"amountCents\":9007199254740991}"
+    ],
+    "expectedCanonical": "{\"amountCents\":9007199254740991,\"currency\":\"USD\"}"
+  },
+  {
+    "name": "duplicate-keys-are-rejected",
+    "inputs": ["{\"amountCents\":100,\"amountCents\":200}"],
+    "expectError": true
+  },
+  {
+    "name": "insignificant-whitespace-is-removed",
+    "inputs": ["{ \"b\" : [ 1 , 2 ] ,\n\t\"a\" : null }", "{\"a\":null,\"b\":[1,2]}"],
+    "expectedCanonical": "{\"a\":null,\"b\":[1,2]}"
+  },
+  {
+    "name": "array-order-is-significant-and-kept",
+    "inputs": ["{\"lines\":[{\"n\":2},{\"n\":1}]}"],
+    "expectedCanonical": "{\"lines\":[{\"n\":2},{\"n\":1}]}"
+  },
+  {
+    "name": "keys-sort-by-utf16-code-units",
+    "inputs": [
+      "{\"\\ufb33\":1,\"\\ud83d\\ude00\":2,\"\\u20ac\":3,\"\\u00f6\":4,\"\\u0080\":5,\"a\":6,\"B\":7}"
+    ],
+    "expectedCanonical": "{\"B\":7,\"a\":6,\"\":5,\"ö\":4,\"€\":3,\"😀\":2,\"דּ\":1}"
+  },
+  {
+    "name": "string-escaping-is-minimal",
+    "inputs": ["{\"s\":\"\\u0041\\/\\u001f\\t\\\"\\\\\\u00e9\"}"],
+    "expectedCanonical": "{\"s\":\"A/\\u001f\\t\\\"\\\\é\"}"
+  },
+  {
+    "name": "number-forms-normalise",
+    "inputs": ["{\"a\":1.0,\"b\":1E2,\"c\":-0,\"d\":0.000001,\"e\":1e21}"],
+    "expectedCanonical": "{\"a\":1,\"b\":100,\"c\":0,\"d\":0.000001,\"e\":1e+21}"
+  },
+  {
+    "name": "nested-duplicate-keys-are-rejected",
+    "inputs": ["{\"outer\":{\"x\":1,\"x\":1}}"],
+    "expectError": true
+  },
+  {
+    "name": "duplicate-keys-after-unescaping-are-rejected",
+    "inputs": ["{\"amountCents\":1,\"amount\\u0043ents\":2}"],
+    "expectError": true
+  },
+  {
+    "name": "lone-surrogate-is-rejected",
+    "inputs": ["{\"memo\":\"\\ud800\"}"],
+    "expectError": true
+  },
+  {
+    "name": "number-overflowing-a-double-is-rejected",
+    "inputs": ["{\"amountCents\":1e400}"],
+    "expectError": true
+  },
+  {
+    "name": "trailing-content-is-rejected",
+    "inputs": ["{\"a\":1} {\"a\":2}"],
+    "expectError": true
+  }
+]

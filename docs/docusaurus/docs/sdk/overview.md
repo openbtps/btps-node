@@ -167,6 +167,7 @@ const publicKey = await identityStore.getPublicKeyRecord('alice$saas.com');
 - `yarn build` — Build the SDK
 - `yarn test` — Run tests
 - `yarn dev` — Start in development mode
+- `yarn verify:btps-vectors` — Run the BTPS golden vectors (`test/vectors/`) against every runtime driver and the SDK source tree; see `packages/verify-btps-vectors/README.md`
 
 ---
 

@@ -1,0 +1,68 @@
+{
+  "item": 10,
+  "tickets": ["EBA-122"],
+  "description": "BTPS 1.1 item 10 defects that can be expressed as data. The other item-10 defects (server schema, crossed responses, line length, error codes) are server-path behaviour and are tested by EBA-122 itself.",
+  "provenance": "TEST-ONLY key generated locally for the BTPS golden vectors (EBA-110). Never use it for anything else. The receiver key is the one in oaep-wrap.vector.json.",
+  "gcmTag": {
+    "receiverKeyVector": "oaep-wrap.vector.json",
+    "data": "gcg6kXSGmBMWVvT+R31/KwxUno+iR+qgTWD7396iQtvADyQKMQS7Eg==",
+    "plaintext": "{\"invoiceId\":\"INV-10\",\"amountCents\":100}",
+    "cases": [
+      {
+        "name": "full-16-byte-tag-decrypts",
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AFaJIei/vHIGlmAQEZ6pdTjigQfg9F4B0na9PQrIB1YLgIrTLKo3Mtvu1VTWeW31U6VqCQtlaUKG8CvpzmiZF/eTf3eELBSC21Bkh6ppWzjxDEee9AadL7MgmuA5SjtVt+KpprY175723WIyZtOYmIuufvWR4GTQGi0Zm71332qFGrA/+raaPmWVsxt7nxuPb8uH6TyjC2oJc+FXGWutZ6dyQUSnikDxsKOciEDgelg+LH8lTKc+GkTGpLSVRISQDh3EbeiR8wmbRS8OtxP6IIRPYwXA5+k68JdniKRhqBMwVkBT8uimcTKlZD5hZWZiigh8ZDa3K+ipo5jzIpx/0w==",
+          "iv": "ShxYvurESDRIH2RD",
+          "authTag": "IdQU9vH6G8NFCj0PyzFLQA==",
+          "type": "standardEncrypt"
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "truncated-4-byte-tag-rejected",
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AFaJIei/vHIGlmAQEZ6pdTjigQfg9F4B0na9PQrIB1YLgIrTLKo3Mtvu1VTWeW31U6VqCQtlaUKG8CvpzmiZF/eTf3eELBSC21Bkh6ppWzjxDEee9AadL7MgmuA5SjtVt+KpprY175723WIyZtOYmIuufvWR4GTQGi0Zm71332qFGrA/+raaPmWVsxt7nxuPb8uH6TyjC2oJc+FXGWutZ6dyQUSnikDxsKOciEDgelg+LH8lTKc+GkTGpLSVRISQDh3EbeiR8wmbRS8OtxP6IIRPYwXA5+k68JdniKRhqBMwVkBT8uimcTKlZD5hZWZiigh8ZDa3K+ipo5jzIpx/0w==",
+          "iv": "ShxYvurESDRIH2RD",
+          "authTag": "IdQU9g==",
+          "type": "standardEncrypt"
+        },
+        "expect": "reject"
+      },
+      {
+        "name": "truncated-12-byte-tag-rejected",
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AFaJIei/vHIGlmAQEZ6pdTjigQfg9F4B0na9PQrIB1YLgIrTLKo3Mtvu1VTWeW31U6VqCQtlaUKG8CvpzmiZF/eTf3eELBSC21Bkh6ppWzjxDEee9AadL7MgmuA5SjtVt+KpprY175723WIyZtOYmIuufvWR4GTQGi0Zm71332qFGrA/+raaPmWVsxt7nxuPb8uH6TyjC2oJc+FXGWutZ6dyQUSnikDxsKOciEDgelg+LH8lTKc+GkTGpLSVRISQDh3EbeiR8wmbRS8OtxP6IIRPYwXA5+k68JdniKRhqBMwVkBT8uimcTKlZD5hZWZiigh8ZDa3K+ipo5jzIpx/0w==",
+          "iv": "ShxYvurESDRIH2RD",
+          "authTag": "IdQU9vH6G8NFCj0P",
+          "type": "standardEncrypt"
+        },
+        "expect": "reject"
+      }
+    ]
+  },
+  "identities": [
+    {
+      "input": "alice$saas.example",
+      "expect": "accept"
+    },
+    {
+      "input": "alice$saas.example$evil.example",
+      "expect": "reject"
+    },
+    {
+      "input": "alice$$saas.example",
+      "expect": "reject"
+    },
+    {
+      "input": "$saas.example",
+      "expect": "reject"
+    },
+    {
+      "input": "alice$",
+      "expect": "reject"
+    }
+  ]
+}
