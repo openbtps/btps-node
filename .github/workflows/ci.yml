@@ -1,0 +1,100 @@
+# EBA-156: reproducible @btps/sdk resolution for examples/btps-nest-app.
+#
+# example-app  - acceptance criteria 2 and 3. The example depends on the SDK
+#                through `portal:../..` and the SDK's `main` points at ./dist,
+#                so the root package is built *before* the example is
+#                installed and tested. Both installs are --immutable, on a
+#                fresh checkout with no hand-built artifacts.
+# pack-smoke   - acceptance criterion 4. Proves the artifact a consumer would
+#                receive: `yarn pack` at the root, install the tarball in an
+#                empty project outside the checkout (not --immutable: it has
+#                no lockfile), check that @btps/sdk resolved to a real copy
+#                inside that project rather than a portal:/symlink back into
+#                the repo, then import it.
+#
+# Root `yarn test` and verify:btps-vectors belong to EBA-152, which builds on
+# this file. btps-node's only integration branch is master (DR-INF-11).
+#
+# Pins: actions by commit SHA (release tag in the comment), resolved with
+# `gh api repos/<action>/commits/<tag>` on 2026-10-07. Corepack is pinned to
+# 0.34.7, the newest release whose engines include Node 20 (.nvmrc is
+# 20.11.1; 0.35.0+ require Node >=22.22.2). The Corepack bundled with Node
+# 20.11.1 carries npm signing keys rotated in early 2025 and can refuse to
+# fetch Yarn, so it is replaced before `corepack enable`.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Supersede stale PR runs; never cancel a run on master.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  example-app:
+    name: btps-nest-app (root build, then install --immutable and test)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Enable Yarn via Corepack
+        run: npm install -g corepack@0.34.7 && corepack enable
+      - name: Install root dependencies
+        run: yarn install --immutable
+      - name: Build @btps/sdk (main points at dist)
+        run: yarn build
+      - name: Install example dependencies
+        working-directory: examples/btps-nest-app
+        run: yarn install --immutable
+      - name: Test example
+        working-directory: examples/btps-nest-app
+        run: yarn test
+
+  pack-smoke:
+    name: pack-smoke (yarn pack, install tarball, import @btps/sdk)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Enable Yarn via Corepack
+        run: npm install -g corepack@0.34.7 && corepack enable
+      - name: Install root dependencies
+        run: yarn install --immutable
+      - name: Build @btps/sdk
+        run: yarn build
+      - name: Pack
+        run: yarn pack -o "$RUNNER_TEMP/btps-sdk.tgz"
+      - name: Install the tarball in an empty project and import @btps/sdk
+        run: |
+          mkdir "$RUNNER_TEMP/pack-smoke"
+          cd "$RUNNER_TEMP/pack-smoke"
+          echo '{"name":"btps-pack-smoke","version":"0.0.0","private":true}' > package.json
+          npm install --no-audit --no-fund "$RUNNER_TEMP/btps-sdk.tgz"
+          # Criterion 4: the import must come from the installed tarball, not
+          # from a portal:/link back into the checkout.
+          test -d node_modules/@btps/sdk && test ! -L node_modules/@btps/sdk
+          node --input-type=module -e "
+            import fs from 'node:fs';
+            import path from 'node:path';
+            import { fileURLToPath } from 'node:url';
+            const resolved = fs.realpathSync(fileURLToPath(import.meta.resolve('@btps/sdk')));
+            const expected = path.join(fs.realpathSync(process.cwd()), 'node_modules/@btps/sdk') + path.sep;
+            if (!resolved.startsWith(expected)) {
+              console.error('@btps/sdk resolved outside the installed tarball: ' + resolved);
+              process.exit(1);
+            }
+            await import('@btps/sdk');
+            console.log('import @btps/sdk OK from ' + resolved);
+          "

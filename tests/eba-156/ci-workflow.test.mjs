@@ -3,14 +3,13 @@
 // "pack smoke" job that `yarn pack`s the root, installs the resulting
 // tarball in a temp directory without --immutable, and imports @btps/sdk.
 //
-// Expected failures (`it.fails`) until .github/workflows/ci.yml exists. There
-// is no such directory in this repository today, so every check here fails
-// now for the simplest possible reason: the file these checks read does not
-// exist yet. .github/workflows/** is a protected path that an agent run may
-// not write, so the file is written up for a human to apply:
-// https://ebilladdress.atlassian.net/wiki/spaces/ES/pages/8749306/EBA-156+proposed+.github+workflows+ci.yml+for+a+human+to+apply+and+root-build+blocker Whoever adds it must flip `it.fails` to `it` in the same change,
-// or every test here turns red. Same ratchet as src/core/crypto/jcs.test.ts
-// and test/vectors/known-failing.json.
+// These checks were written as `it.fails` before .github/workflows/ci.yml
+// existed, and were flipped to `it` in the same change that added it — the
+// same ratchet as src/core/crypto/jcs.test.ts and
+// test/vectors/known-failing.json. Removing or renaming the workflow, or
+// reordering the example job so the root build no longer comes first, turns
+// them red. The workflow's design notes are on
+// https://ebilladdress.atlassian.net/wiki/spaces/ES/pages/8749306
 //
 // No YAML parser is a project dependency, so job bodies are isolated with a
 // small indentation-based splitter rather than adding one just for this test.
@@ -18,8 +17,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-
-const XFAIL = 'expected failure until a human applies .github/workflows/ci.yml (protected path)';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const WORKFLOWS_DIR = path.join(ROOT, '.github/workflows');
@@ -61,14 +58,14 @@ function allJobs() {
 }
 
 describe('CI: root build runs before the example app is installed/tested', () => {
-  it.fails(`a GitHub Actions workflow exists (${XFAIL})`, () => {
+  it('a GitHub Actions workflow exists', () => {
     expect(
       listWorkflowFiles().length,
       'expected at least one file under .github/workflows',
     ).toBeGreaterThan(0);
   });
 
-  it.fails(`the job that installs/tests examples/btps-nest-app runs root \`yarn build\` first (${XFAIL})`, () => {
+  it('the job that installs/tests examples/btps-nest-app runs root `yarn build` first', () => {
     const jobs = allJobs();
     expect(jobs.length, 'expected at least one job to be parseable from the workflow(s)').toBeGreaterThan(0);
 
@@ -103,7 +100,7 @@ describe('CI: root build runs before the example app is installed/tested', () =>
 });
 
 describe('CI: a separate pack-smoke job validates the published tarball', () => {
-  it.fails(`a job runs \`yarn pack\` at the root, installs the tarball without --immutable, and imports @btps/sdk (${XFAIL})`, () => {
+  it('a job runs `yarn pack` at the root, installs the tarball without --immutable, and imports @btps/sdk', () => {
     const jobs = allJobs();
     const packJob = jobs.find((j) => /\byarn pack\b/.test(j.body));
 

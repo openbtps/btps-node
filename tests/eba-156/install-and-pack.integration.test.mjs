@@ -11,6 +11,15 @@
 //
 // Root devDependencies (vitest, esbuild, tsc, ...) are assumed already
 // installed, since this file cannot run under vitest at all otherwise.
+//
+// Opt-in only. These rebuild dist/, rewrite license headers, install the
+// example app's dependencies and hit the registry, so a plain `yarn test`
+// skips them. Run them deliberately with:
+//
+//   BTPS_INTEGRATION=1 yarn vitest run tests/eba-156/install-and-pack.integration.test.mjs
+//
+// CI does not set the flag: .github/workflows/ci.yml runs the same steps
+// natively (example-app and pack-smoke jobs), on a fresh checkout.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -23,12 +32,15 @@ const NEST_APP = path.join(ROOT, 'examples/btps-nest-app');
 
 const LONG_TIMEOUT = 10 * 60 * 1000;
 
+const INTEGRATION = process.env.BTPS_INTEGRATION === '1';
+const integration = describe.skipIf(!INTEGRATION);
+
 function run(cmd, args, cwd) {
   const r = spawnSync(cmd, args, { cwd, encoding: 'utf8' });
   return { status: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
 
-describe('fresh-clone install (EBA-156 acceptance criterion 2)', () => {
+integration('fresh-clone install (EBA-156 acceptance criterion 2)', () => {
   it(
     'root `yarn build`, then `yarn install --immutable` in examples/btps-nest-app, exits 0',
     () => {
@@ -46,7 +58,7 @@ describe('fresh-clone install (EBA-156 acceptance criterion 2)', () => {
   );
 });
 
-describe('pack smoke (EBA-156 acceptance criterion 4)', () => {
+integration('pack smoke (EBA-156 acceptance criterion 4)', () => {
   it(
     'yarn pack at the root produces a tarball that installs (without --immutable) and imports as @btps/sdk',
     () => {
@@ -70,6 +82,13 @@ describe('pack smoke (EBA-156 acceptance criterion 4)', () => {
       // installs on its own, independent of this repo's own lockfile.
       const install = run('npm', ['install', tarballPath], installDir);
       expect(install.status, `npm install of the packed tarball failed:\n${install.out}`).toBe(0);
+
+      // Criterion 4: the import must come from the installed tarball, not a
+      // portal:/symlink back into this checkout.
+      const installedSdk = path.join(installDir, 'node_modules/@btps/sdk');
+      expect(fs.lstatSync(installedSdk).isSymbolicLink(), '@btps/sdk was linked, not installed from the tarball').toBe(
+        false,
+      );
 
       const importCheck = run(
         'node',
