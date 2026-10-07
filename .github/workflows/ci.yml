@@ -4,7 +4,10 @@
 #                through `portal:../..` and the SDK's `main` points at ./dist,
 #                so the root package is built *before* the example is
 #                installed and tested. Both installs are --immutable, on a
-#                fresh checkout with no hand-built artifacts.
+#                fresh checkout with no hand-built artifacts. Before the
+#                build it runs this ticket's own checks (tests/eba-156,
+#                scoped), so criterion 1's portal-checksum gate is enforced
+#                on every PR rather than only when someone runs it locally.
 # pack-smoke   - acceptance criterion 4. Proves the artifact a consumer would
 #                receive: `yarn pack` at the root, install the tarball in an
 #                empty project outside the checkout (not --immutable: it has
@@ -12,8 +15,9 @@
 #                inside that project rather than a portal:/symlink back into
 #                the repo, then import it.
 #
-# Root `yarn test` and verify:btps-vectors belong to EBA-152, which builds on
-# this file. btps-node's only integration branch is master (DR-INF-11).
+# The full root `yarn test` and verify:btps-vectors belong to EBA-152, which
+# builds on this file; the scoped tests/eba-156 step is not a substitute for
+# it. btps-node's only integration branch is master (DR-INF-11).
 #
 # Pins: actions by commit SHA (release tag in the comment), resolved with
 # `gh api repos/<action>/commits/<tag>` on 2026-10-07. Corepack is pinned to
@@ -50,6 +54,8 @@ jobs:
         run: npm install -g corepack@0.34.7 && corepack enable
       - name: Install root dependencies
         run: yarn install --immutable
+      - name: EBA-156 checks (portal checksum gate, dependency spec, workflow shape)
+        run: yarn vitest run tests/eba-156
       - name: Build @btps/sdk (main points at dist)
         run: yarn build
       - name: Install example dependencies

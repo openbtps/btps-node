@@ -99,6 +99,20 @@ describe('CI: root build runs before the example app is installed/tested', () =>
   });
 });
 
+describe('CI: this ticket\'s own checks run on every PR', () => {
+  // Without this, criterion 1's portal-checksum gate (portal-checksum.test.mjs)
+  // only ran when someone remembered to run it locally.
+  it('a workflow step runs vitest over tests/eba-156', () => {
+    const steps = allJobs()
+      .flatMap((j) => j.body.split('\n'))
+      .filter((l) => /^\s*run:/.test(l));
+    expect(
+      steps.some((l) => /\b(yarn|npx)\s+vitest\s+run\b.*\btests\/eba-156\b/.test(l)),
+      'expected a `run:` step executing `vitest run tests/eba-156`',
+    ).toBe(true);
+  });
+});
+
 describe('CI: a separate pack-smoke job validates the published tarball', () => {
   it('a job runs `yarn pack` at the root, installs the tarball without --immutable, and imports @btps/sdk', () => {
     const jobs = allJobs();
