@@ -1,15 +1,15 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as crypto from 'crypto';
 
 /**
  * EBA-154: confirms @nestjs/testing has been a devDependency of
  * examples/btps-nest-app since 6b73e35, pinned to the same major version
  * as @nestjs/core, and guards that pin against drifting out of sync between
- * package.json and yarn.lock (criterion 1). Also guards yarn.lock's
- * @btps/sdk resolution hash against going stale again (criterion 2), the
- * failure c997031 fixed. These checks read the raw config files so they do
- * not depend on node_modules being installed.
+ * package.json and yarn.lock (criterion 1). Also guards that @btps/sdk
+ * stays declared as a dependency (criterion 2) — see the inner describe
+ * below for how that guard's expected value tracks EBA-156. These checks
+ * read the raw config files so they do not depend on node_modules being
+ * installed.
  */
 describe('examples/btps-nest-app dependency configuration (EBA-154)', () => {
   const appRoot = path.join(__dirname, '..');
@@ -91,50 +91,17 @@ describe('examples/btps-nest-app dependency configuration (EBA-154)', () => {
     });
   });
 
-  describe('@btps/sdk local tarball lock entry (EBA-154)', () => {
-    // yarn's file: protocol resolver stamps the resolution string with
-    // `hash=<first 6 hex chars of sha512(tarball bytes)>`. If package.tgz is
-    // rebuilt (or package.json's dependency changes) without re-running
-    // `yarn install`, this value goes stale and `yarn install
-    // --frozen-lockfile` fails. This test re-derives that hash from the
-    // tarball on disk and compares it against what yarn.lock has recorded,
-    // so a stale entry fails here with a clear cause instead of surfacing
-    // only as an opaque frozen-install error.
-    const tgzPath = path.join(appRoot, 'package.tgz');
-
-    it('has a @btps/sdk file: dependency pointing at ./package.tgz', () => {
-      expect(packageJson.dependencies).toHaveProperty('@btps/sdk', './package.tgz');
-    });
-
-    // package.tgz is hand-built per the app's README ("yarn add
-    // ./package.tgz") and is gitignored (root .gitignore:24, `*.tgz`) — it
-    // is never present on a fresh clone or in CI. The hash check below only
-    // makes sense when it exists on disk to compare against; it is not this
-    // ticket's job to make the dependency reproducible there (that is a
-    // separate T2 follow-up the infra lead raised on this ticket). Skip
-    // rather than fail when the tarball is absent, so this stays a local
-    // regression guard and not a false CI failure.
-    const describeWhenTgzPresent = fs.existsSync(tgzPath) ? describe : describe.skip;
-
-    describeWhenTgzPresent('when package.tgz is present on disk', () => {
-      it("yarn.lock's @btps/sdk resolution hash matches the sha512 of package.tgz", () => {
-        const tgzBuffer = fs.readFileSync(tgzPath);
-        const expectedHash = crypto.createHash('sha512').update(tgzBuffer).digest('hex').slice(0, 6);
-
-        const lockFile = fs.readFileSync(yarnLockPath, 'utf-8');
-        const resolutionMatch = lockFile.match(
-          /"@btps\/sdk@file:\.\/package\.tgz::locator=[^"]*":\n(?:[^\n]*\n)*?\s+resolution: "@btps\/sdk@file:\.\/package\.tgz#\.\/package\.tgz::hash=([0-9a-f]+)&/,
-        );
-
-        if (!resolutionMatch) {
-          throw new Error(
-            'yarn.lock has no resolution entry for the @btps/sdk file: dependency. ' +
-              'Run `yarn install` to add/refresh it after editing package.json or package.tgz.',
-          );
-        }
-
-        expect(resolutionMatch[1]).toBe(expectedHash);
-      });
+  describe('@btps/sdk dependency (EBA-154)', () => {
+    // EBA-156 replaced the gitignored, hand-built package.tgz (a file:
+    // dependency whose yarn.lock hash went stale whenever the tarball was
+    // rebuilt, c997031) with a portal: reference to the workspace root,
+    // which has no tarball hash to go stale. Full coverage of that
+    // resolution — package.json, yarn.lock, and the absence of
+    // package.tgz — lives in tests/eba-156/package-dependency.test.mjs;
+    // this just keeps EBA-154's "is @btps/sdk declared at all" guard
+    // pointed at the dependency's current, correct value.
+    it('has a @btps/sdk dependency pointing at the workspace root via portal:', () => {
+      expect(packageJson.dependencies).toHaveProperty('@btps/sdk', 'portal:../..');
     });
   });
 });

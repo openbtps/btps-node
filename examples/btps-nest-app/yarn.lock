@@ -446,17 +446,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@btps/sdk@file:./package.tgz::locator=btps-nest-app%40workspace%3A.":
-  version: 1.0.0
-  resolution: "@btps/sdk@file:./package.tgz#./package.tgz::hash=03bb05&locator=btps-nest-app%40workspace%3A."
+"@btps/sdk@portal:../..::locator=btps-nest-app%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@btps/sdk@portal:../..::locator=btps-nest-app%40workspace%3A."
   dependencies:
     lodash: "npm:^4.17.21"
     proper-lockfile: "npm:^4.1.2"
     split2: "npm:^4.2.0"
     zod: "npm:^3.25.67"
-  checksum: 10c0/4eae5974c3055f834111c748dfc6635a0baf27ac9e32cd05ec857650e65a8b41423426d5dcb4e53f384ccf548cc17133943bf8893574f2bbe971b9b91a154238
   languageName: node
-  linkType: hard
+  linkType: soft
 
 "@colors/colors@npm:1.5.0":
   version: 1.5.0
@@ -2243,7 +2242,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "btps-nest-app@workspace:."
   dependencies:
-    "@btps/sdk": ./package.tgz
+    "@btps/sdk": "portal:../.."
     "@nestjs/cache-manager": "npm:^2.1.0"
     "@nestjs/cli": "npm:^10.0.0"
     "@nestjs/common": "npm:^10.0.0"
