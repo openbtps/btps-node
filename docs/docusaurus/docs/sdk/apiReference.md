@@ -1072,7 +1072,7 @@ const BTP_ERROR_TRUST_EXPIRED: BTPError;
 ```
 
 **Description:**
-Error constant for a trust record whose `expiresAt` has passed. Unlike a revoked or never-existent trust, an expired trust produces its own distinct response `message` on the wire, so a sender can tell the difference and know a request may re-establish trust (see the note on `BTP_ERROR_TRUST_NOT_ALLOWED` above — the numeric `status.code` does not carry this distinction today). An un-upgraded peer that does not recognize this message must still treat it as a refusal (not-allowed), which is why `status.ok` and `status.code` stay identical to a plain not-allowed refusal.
+Error constant for a trust record that was `accepted` and whose `expiresAt` has since passed. A `blocked`, `rejected`, or `pending` record with a past `expiresAt` is reported under its own status instead — it is not "expired". Unlike a revoked or never-existent trust, an expired trust produces its own distinct response `message` on the wire, so a sender can tell the difference and know a request may re-establish trust (see the note on `BTP_ERROR_TRUST_NOT_ALLOWED` above — the numeric `status.code` does not carry this distinction today). An un-upgraded peer that does not recognize this message must still treat it as a refusal (not-allowed), which is why `status.ok` and `status.code` stay identical to a plain not-allowed refusal.
 
 **Properties:**
 
