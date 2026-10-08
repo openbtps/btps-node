@@ -1020,12 +1020,12 @@ const BTP_ERROR_TRUST_NON_EXISTENT: BTPError;
 ```
 
 **Description:**
-Error constant for non-existent or expired trust records.
+Error constant for a never-trusted sender: no trust record exists between sender and receiver. On the wire this is reported as `BTP_ERROR_TRUST_NOT_ALLOWED` (see below); a receiver's server-side context keeps this more precise code.
 
 **Properties:**
 
 - `code`: `'BTP_ERROR_TRUST_NON_EXISTENT'`
-- `message`: `'BTPS trust record does not exist or has been expired'`
+- `message`: `'BTPS trust record does not exist'`
 
 ---
 
@@ -1058,6 +1058,42 @@ Error constant for trust requests not allowed at this time.
 
 - `code`: `'BTP_ERROR_TRUST_NOT_ALLOWED'`
 - `message`: `'BTPS trust request is not allowed at this time. Contact receiver'`
+
+This is also the response a sender receives for a **revoked** trust record: on the wire, revoked and never-trusted produce an identical response body (the same `message`), so a sender who was removed cannot tell their refusal apart from one who was never trusted. The server's own context keeps the precise reason (see `BTP_ERROR_TRUST_REVOKED` below).
+
+The distinction between trust-refusal cases described on this page lives in the response's `status.message` text, not in its numeric `status.code`. Today `status.code` is `500` for this and for every other application-level BTPS error, regardless of which of these constants produced it — a separate, pre-existing gap (`sendBtpsError`'s `typeof error.code === 'number' ? error.code : 500` fallback) tracked by EBA-188, not fixed by the trust-refusal work described here.
+
+---
+
+### BTP_ERROR_TRUST_EXPIRED
+
+```ts
+const BTP_ERROR_TRUST_EXPIRED: BTPError;
+```
+
+**Description:**
+Error constant for a trust record that was `accepted` and whose `expiresAt` has since passed. A `blocked`, `rejected`, or `pending` record with a past `expiresAt` is reported under its own status instead — it is not "expired". Unlike a revoked or never-existent trust, an expired trust produces its own distinct response `message` on the wire, so a sender can tell the difference and know a request may re-establish trust (see the note on `BTP_ERROR_TRUST_NOT_ALLOWED` above — the numeric `status.code` does not carry this distinction today). An un-upgraded peer that does not recognize this message must still treat it as a refusal (not-allowed), which is why `status.ok` and `status.code` stay identical to a plain not-allowed refusal.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_TRUST_EXPIRED'`
+- `message`: `'BTPS trust record has expired'`
+
+---
+
+### BTP_ERROR_TRUST_REVOKED
+
+```ts
+const BTP_ERROR_TRUST_REVOKED: BTPError;
+```
+
+**Description:**
+Server-side-only error constant for a trust record with `status: 'revoked'`. This code never reaches the wire — a receiver reports `BTP_ERROR_TRUST_NOT_ALLOWED` to the sender instead, so revocation cannot be distinguished from a sender who was never trusted.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_TRUST_REVOKED'`
+- `message`: `'BTPS trust record has been revoked'`
 
 ---
 

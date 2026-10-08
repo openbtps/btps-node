@@ -7,7 +7,13 @@
 
 import { describe, it, expect } from 'vitest';
 import { BTPErrorException, transformToBTPErrorException } from './index.js';
-import { BTP_ERROR_UNKNOWN, BTP_ERROR_RESOLVE_DNS } from './constant.js';
+import {
+  BTP_ERROR_UNKNOWN,
+  BTP_ERROR_RESOLVE_DNS,
+  BTP_ERROR_TRUST_EXPIRED,
+  BTP_ERROR_TRUST_REVOKED,
+  BTP_ERROR_TRUST_NOT_ALLOWED,
+} from './constant.js';
 
 describe('BTPErrorException', () => {
   it('should create an instance with the correct properties', () => {
@@ -90,5 +96,26 @@ describe('BTP_ERROR_SELECTOR_NOT_FOUND', () => {
   it('should have correct properties', () => {
     expect(BTP_ERROR_RESOLVE_DNS.code).toBe('BTP_ERROR_RESOLVE_DNS');
     expect(BTP_ERROR_RESOLVE_DNS.message).toBe('No valid DNS record found');
+  });
+});
+
+// EBA-124: trust-refusal error codes (never-trusted, expired, revoked).
+// Decision (option B, 2026-10-06): expired gets its own wire code; revoked
+// and never-trusted both collapse onto BTP_ERROR_TRUST_NOT_ALLOWED on the
+// wire, per documentation in the EBA-123 spec.
+describe('BTP_ERROR_TRUST_EXPIRED', () => {
+  it('is a distinct, documented wire code for an expired trust', () => {
+    expect(BTP_ERROR_TRUST_EXPIRED.code).toBe('BTP_ERROR_TRUST_EXPIRED');
+    expect(BTP_ERROR_TRUST_EXPIRED.message).toBeTruthy();
+    expect(BTP_ERROR_TRUST_EXPIRED.code).not.toBe(BTP_ERROR_TRUST_NOT_ALLOWED.code);
+  });
+});
+
+describe('BTP_ERROR_TRUST_REVOKED', () => {
+  it('is a distinct, precise server-side reason code for a revoked trust', () => {
+    expect(BTP_ERROR_TRUST_REVOKED.code).toBe('BTP_ERROR_TRUST_REVOKED');
+    expect(BTP_ERROR_TRUST_REVOKED.message).toBeTruthy();
+    expect(BTP_ERROR_TRUST_REVOKED.code).not.toBe(BTP_ERROR_TRUST_NOT_ALLOWED.code);
+    expect(BTP_ERROR_TRUST_REVOKED.code).not.toBe(BTP_ERROR_TRUST_EXPIRED.code);
   });
 });

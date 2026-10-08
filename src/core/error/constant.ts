@@ -24,7 +24,7 @@ export const BTP_ERROR_IDENTITY_NOT_FOUND: BTPError = {
 
 export const BTP_ERROR_TRUST_NON_EXISTENT: BTPError = {
   code: 'BTP_ERROR_TRUST_NON_EXISTENT',
-  message: 'BTPS trust record does not exist or has been expired',
+  message: 'BTPS trust record does not exist',
 };
 
 export const BTPS_ERROR_ACTION_TYPE: BTPError = {
@@ -40,6 +40,31 @@ export const BTP_ERROR_TRUST_BLOCKED: BTPError = {
 export const BTP_ERROR_TRUST_NOT_ALLOWED: BTPError = {
   code: 'BTP_ERROR_TRUST_NOT_ALLOWED',
   message: 'BTPS trust request is not allowed at this time. Contact receiver',
+};
+
+/**
+ * EBA-124 (option B, decided 2026-10-06): an expired trust record gets its
+ * own distinct response `message` on the wire, separate from
+ * BTP_ERROR_TRUST_NOT_ALLOWED. This distinction lives only in the response
+ * body text - sendBtpsError's `typeof error.code === 'number' ? error.code
+ * : 500` fallback (btpsServer.ts:1178) means the numeric `status.code` is
+ * 500 for this and every other application error today, a separate,
+ * pre-existing gap tracked by EBA-188, not fixed here.
+ */
+export const BTP_ERROR_TRUST_EXPIRED: BTPError = {
+  code: 'BTP_ERROR_TRUST_EXPIRED',
+  message: 'BTPS trust record has expired',
+};
+
+/**
+ * EBA-124: the precise, server-side-only reason for a revoked trust record.
+ * On the wire this collapses onto BTP_ERROR_TRUST_NOT_ALLOWED (option B) -
+ * same response `message`, same `status.code` - so a revoked sender cannot
+ * distinguish their refusal from a never-trusted one.
+ */
+export const BTP_ERROR_TRUST_REVOKED: BTPError = {
+  code: 'BTP_ERROR_TRUST_REVOKED',
+  message: 'BTPS trust record has been revoked',
 };
 
 export const BTP_ERROR_TRUST_ALREADY_ACTIVE: BTPError = {
