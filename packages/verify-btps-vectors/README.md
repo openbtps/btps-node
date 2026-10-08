@@ -27,8 +27,8 @@ devDependency of the repository root). It has been run on Node 24.21.0 only.
 
 | Suite                 | Runs on            | What it shows                                                                                                                                                                                                                                                                                                        |
 | --------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vectors/<runtime>/…` | node, web          | JCS (RFC 8785) vectors; managed and self-held signatures verify over the canonical bytes and **not** over the raw key order; re-signing reproduces the vector bytes; the KMS-style OAEP wrap unwraps; an MGF1-SHA-1 wrap is refused; the signing and encryption keys are distinct and cannot stand in for each other |
-| `interop/<a>-><b>/…`  | node→web, web→node | a signature or wrap made by one runtime is accepted by the other, and signatures are byte-identical to the vector                                                                                                                                                                                                    |
+| `vectors/<runtime>/…` | node, web, ios, android | JCS (RFC 8785) vectors; managed and self-held signatures verify over the canonical bytes and **not** over the raw key order; re-signing reproduces the vector bytes; the KMS-style OAEP wrap unwraps; an MGF1-SHA-1 wrap is refused; the signing and encryption keys are distinct and cannot stand in for each other |
+| `interop/<a>-><b>/…`  | every ordered pair of node, web, ios, android | a signature or wrap made by one runtime is accepted by the other, and signatures are byte-identical to the vector                                                                                                                                                                                                    |
 | `oracle/oaep/…`       | node               | the reference OAEP (raw RSA) confirms the positive wrap decodes only under MGF1-SHA-256, and that the negative vector really is an MGF1-SHA-1 wrap                                                                                                                                                                   |
 | `sdk/kms/…`           | node, SDK          | the SDK's fingerprint, `encryptRSA` and `decryptRSA` match the KMS profile. Passes on 367cd09                                                                                                                                                                                                                        |
 | `sdk/item-5/…`        | node, SDK          | BTPS 1.1 item 5, JCS signing (EBA-115). **Fails on 367cd09**                                                                                                                                                                                                                                                         |
@@ -84,12 +84,29 @@ checks and the interop checks import nothing from Node — a test enforces
 that — so a browser or React Native harness can import
 `checks/vectors.mjs` and `runtimes/web.mjs` as they are.
 
+[`src/runtimes/ios.mjs`](src/runtimes/ios.mjs) and
+[`src/runtimes/android.mjs`](src/runtimes/android.mjs) (EBA-150) are that
+driver applied to Expo: each re-exports the web driver under its own
+platform name, because the WebCrypto surface is what an Expo app calls
+through on either platform. They carry the same portability rule as
+`web.mjs` — no Node built-in, no third-party import — enforced by the same
+test.
+
 ## Limitations — read before relying on a green run
 
-- **"web" here is WebCrypto as implemented by Node**, not a browser. Node's
-  WebCrypto and `node:crypto` share OpenSSL, so node↔web interop is weaker
-  evidence of independence than a real browser would give. No browser,
-  iOS or Android harness exists yet.
+- **"web", "ios" and "android" here are all the same WebCrypto
+  implementation — Node's.** `ios.mjs` and `android.mjs` (EBA-150) prove
+  the harness's wiring (that an iOS- or Android-named driver sees the
+  managed and self-held vectors and passes every vector and interop check),
+  not that a real device or Expo build does the same. There is no Xcode,
+  Android SDK, simulator or Expo runtime in this sandbox: both drivers are
+  exercised under plain Node, exactly as "web" already is. Node's WebCrypto
+  and `node:crypto` share OpenSSL, so this is weaker evidence of
+  independence than a real browser or device would give. Binding these
+  operations to the real Keychain or Keystore (BTPS 1.1 item 8's
+  Signer/Decrypter interfaces, ARCH-05 DEC-012) is separate work this
+  ticket does not do — running the Expo app on an actual iOS/Android
+  target is still owed.
 - **No vector was produced by AWS KMS or a device keystore.** The managed
   vector is signed by node:crypto with the algorithm KMS uses
   (RSASSA_PKCS1_V1_5_SHA_256), and the self-held one by WebCrypto. A vector

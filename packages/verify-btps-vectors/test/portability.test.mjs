@@ -11,6 +11,10 @@ const PORTABLE_ENTRIES = [
   'src/runtimes/web.mjs',
   'src/checks/vectors.mjs',
   'src/checks/interop.mjs',
+  // EBA-150: the iOS and Android drivers run inside the Expo app, so they
+  // must clear the same bar as the web driver they stand next to.
+  'src/runtimes/ios.mjs',
+  'src/runtimes/android.mjs',
 ];
 const BUILTINS = new Set(builtinModules.flatMap((m) => [m, `node:${m}`]));
 const IMPORT =

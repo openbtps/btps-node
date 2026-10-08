@@ -13,6 +13,8 @@ import fs from 'node:fs';
 import { loadVectorSet } from './vectors.mjs';
 import { createNodeRuntime } from './runtimes/node.mjs';
 import { createWebRuntime } from './runtimes/web.mjs';
+import { createIosRuntime } from './runtimes/ios.mjs';
+import { createAndroidRuntime } from './runtimes/android.mjs';
 import { vectorChecks } from './checks/vectors.mjs';
 import { interopChecks } from './checks/interop.mjs';
 import { oracleChecks } from './checks/oracle.mjs';
@@ -36,7 +38,12 @@ import { loadSdk } from './sdk-loader.mjs';
  */
 export async function buildChecks({ vectorsDir, sdkRoot }) {
   const set = loadVectorSet(vectorsDir);
-  const runtimes = [createNodeRuntime(), createWebRuntime()];
+  const runtimes = [
+    createNodeRuntime(),
+    createWebRuntime(),
+    createIosRuntime(),
+    createAndroidRuntime(),
+  ];
   const checks = [
     ...runtimes.flatMap((runtime) => vectorChecks(runtime, set)),
     ...interopChecks(runtimes, set),
