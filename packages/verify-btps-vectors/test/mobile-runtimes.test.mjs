@@ -1,37 +1,31 @@
 // EBA-150: React Native + Expo vector harness (iOS, Android).
 //
-// Outcome: EBA-110's test/vectors/ run unchanged on React Native with Expo,
-// exercising managed and self-held custody. The README's own "Adding a
-// runtime" section says what that takes: a driver implementing the five
-// RuntimeDriver functions in src/runtimes/types.mjs. Once that driver is
-// registered in buildChecks(), the existing generic vectorChecks and
-// interopChecks already produce everything this ticket's acceptance
-// criteria ask for — they are not new mechanics, just new participants in
-// mechanics EBA-110 already built:
+// Outcome wanted: EBA-110's test/vectors/ run unchanged on React Native
+// with Expo, exercising managed and self-held custody. NOT YET MET — see
+// principal-architect's round-1 review of PR #4
+// (https://github.com/openbtps/btps-node/pull/4) and the README's
+// Limitations section.
 //
-//   - vectorChecks(iosRuntime, set) checks both set.managedSignature
-//     (signed by node:crypto — "Node's signature") and
-//     set.selfHeldSignature (signed by WebCrypto — "web's signature")
-//     against the iOS driver, so "iOS verifies Node's and web's
-//     signatures" and "managed/self-held custody is exercised" fall out
-//     of the same loop that already runs for node and web.
-//   - interopChecks([..., ios, android], set) crosses every pair, so
-//     interop/ios->node and interop/ios->web (and the android equivalents)
-//     are exactly "Node verifies iOS[...] signatures" / "web verifies
-//     iOS[...] signatures".
+// createIosRuntime()/createAndroidRuntime() (src/runtimes/ios.mjs,
+// android.mjs) are web.mjs's WebCrypto driver re-exported under a
+// platform name. There is no Xcode, Android SDK, simulator or Expo runtime
+// in this sandbox, so the tests below exercise them under plain Node, the
+// same way createWebRuntime() already is elsewhere in this suite. That
+// proves only that the driver object satisfies the RuntimeDriver contract
+// (src/runtimes/types.mjs) — it is not a signature made or verified on
+// iOS or Android, no KMS signer is called, and no Keychain or Keystore is
+// touched.
 //
-// What this file cannot check: whether a real iOS or Android device (or
-// simulator) actually produces/verifies these signatures. There is no
-// Xcode, Android SDK, simulator or Expo runtime in this sandbox, so
-// createIosRuntime()/createAndroidRuntime() are exercised here under plain
-// Node, the same way createWebRuntime() already is in the rest of this
-// package's suite. That proves the harness wiring; it does not replace
-// actually running the Expo app on iOS and Android, which is the only way
-// to confirm this ticket's outcome for real.
+// Because of that, these two drivers are deliberately NOT registered in
+// buildChecks() (see src/runner.mjs): wiring them in would make
+// vectors/ios/*, vectors/android/* and interop/*-><->ios|android pass on
+// Node while naming a platform that never ran, which is what round 1
+// found wrong. The second describe block below is a regression guard for
+// that, not a claim that the acceptance criteria are met.
 import { describe, expect, it } from 'vitest';
 import { createIosRuntime } from '../src/runtimes/ios.mjs';
 import { createAndroidRuntime } from '../src/runtimes/android.mjs';
-import { buildChecks, runChecks } from '../src/runner.mjs';
+import { buildChecks } from '../src/runner.mjs';
 import { loadVectorSet } from '../src/vectors.mjs';
 import { fromBase64, utf8 } from '../src/encoding.mjs';
 import { VECTORS_DIR } from './helpers.mjs';
@@ -96,38 +90,27 @@ describe.each(DRIVERS)('%s runtime driver', (name, create) => {
   });
 });
 
-describe('buildChecks wires ios and android into the existing generic checks', () => {
-  it('runs both custody vectors against ios and android (managed + self-held exercised)', async () => {
+describe('buildChecks does not wire ios/android into the check gate yet', () => {
+  // Regression guard for EBA-150 round 1: a check id that names "ios" or
+  // "android" is a claim that something ran on that platform. Until
+  // createIosRuntime()/createAndroidRuntime() run against a real Expo/RN
+  // target, no such id may exist in the set verify:btps-vectors reports —
+  // see src/runner.mjs and the README's Limitations section.
+  it('has no vectors/ios, vectors/android, or ios/android interop check ids', async () => {
     const checks = await buildChecks({ vectorsDir: VECTORS_DIR, sdkRoot: null });
     const ids = checks.map((c) => c.id);
-    for (const runtime of ['ios', 'android']) {
-      for (const custody of ['managed', 'self-held']) {
-        expect(ids).toContain(
-          `vectors/${runtime}/signature/${custody}/signature-verifies-over-canonical-bytes`,
-        );
-      }
-    }
-  });
-
-  it('node and web verify ios/android signatures, and ios/android verify node/web signatures — all pass', async () => {
-    const checks = await buildChecks({ vectorsDir: VECTORS_DIR, sdkRoot: null });
-    const ids = checks.map((c) => c.id);
-
-    const required = [];
-    for (const mobile of ['ios', 'android']) {
-      for (const other of ['node', 'web']) {
-        for (const custody of ['managed', 'self-held']) {
-          // "Node/web verifies iOS/Android signatures": mobile is the producer.
-          required.push(`interop/${mobile}->${other}/signature/${custody}`);
-          // "iOS/Android verifies Node's and web's signatures": mobile is the consumer.
-          required.push(`interop/${other}->${mobile}/signature/${custody}`);
-        }
-      }
-    }
-    for (const id of required) expect(ids).toContain(id);
-
-    const results = await runChecks(checks);
-    const failed = results.filter((r) => !r.passed).map((r) => r.id);
-    expect(failed).toEqual([]);
+    const mobileNamed = ids.filter(
+      (id) =>
+        id.startsWith('vectors/ios/') ||
+        id.startsWith('vectors/android/') ||
+        id.startsWith('interop/ios->') ||
+        id.startsWith('interop/android->') ||
+        id.includes('->ios/') ||
+        id.includes('->android/'),
+    );
+    expect(
+      mobileNamed,
+      'a check id naming ios or android must not appear in buildChecks() until that driver runs on a real Expo/RN target',
+    ).toEqual([]);
   });
 });

@@ -7,6 +7,17 @@
 // pass more easily. This pins both down the same way EBA-156's
 // tests/eba-156/ci-workflow.test.mjs pins CI shape: by reading the actual
 // diff, not by trusting the PR description.
+//
+// This is a PR-time check, not a standing invariant: it needs a base to
+// diff this branch against. Round 1 of EBA-150's review
+// (https://ebilladdress.atlassian.net/browse/EBA-150) found it broke
+// master once merged — after a squash merge HEAD *is* master,
+// merge-base(origin/master, HEAD) is HEAD itself, the changed-file list is
+// legitimately empty, and the old toBeGreaterThan(0) assertion failed
+// every time. It also throws outright in a shallow clone or any checkout
+// that never fetched origin/master. Both cases mean "nothing to compare
+// against", not "scope violated", so this skips rather than failing or
+// throwing when either is true.
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { REPO_ROOT } from './helpers.mjs';
@@ -15,8 +26,15 @@ function git(args) {
   return execFileSync('git', args, { cwd: REPO_ROOT, encoding: 'utf8' });
 }
 
-function changedSinceMaster() {
-  const base = git(['merge-base', 'origin/master', 'HEAD']).trim();
+function tryMergeBase() {
+  try {
+    return git(['merge-base', 'origin/master', 'HEAD']).trim();
+  } catch {
+    return null; // no origin/master reachable: shallow clone, or a checkout that never fetched it
+  }
+}
+
+function changedSince(base) {
   const tracked = git(['diff', '--name-only', base]).split('\n').filter(Boolean);
   const untracked = git(['ls-files', '--others', '--exclude-standard'])
     .split('\n')
@@ -24,12 +42,15 @@ function changedSinceMaster() {
   return [...new Set([...tracked, ...untracked])];
 }
 
-describe('EBA-150 touches only its declared scope', () => {
+const base = tryMergeBase();
+const changed = base ? changedSince(base) : [];
+// Nothing to compare against: no base ref, or HEAD already matches it
+// (post-merge on master). Either way there is no diff for this check to
+// read, so it has nothing to say.
+const hasComparison = base !== null && changed.length > 0;
+
+describe.skipIf(!hasComparison)('EBA-150 touches only its declared scope', () => {
   it('every changed or added file is under packages/verify-btps-vectors/', () => {
-    const changed = changedSinceMaster();
-    expect(changed.length, 'expected at least this ticket\'s own new test files').toBeGreaterThan(
-      0,
-    );
     const outOfScope = changed.filter((f) => !f.startsWith('packages/verify-btps-vectors/'));
     expect(
       outOfScope,
@@ -38,7 +59,6 @@ describe('EBA-150 touches only its declared scope', () => {
   });
 
   it("EBA-110's test/vectors/ is unchanged", () => {
-    const changed = changedSinceMaster();
     const vectorChanges = changed.filter((f) => f.startsWith('test/vectors/'));
     expect(
       vectorChanges,

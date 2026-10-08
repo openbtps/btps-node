@@ -13,8 +13,6 @@ import fs from 'node:fs';
 import { loadVectorSet } from './vectors.mjs';
 import { createNodeRuntime } from './runtimes/node.mjs';
 import { createWebRuntime } from './runtimes/web.mjs';
-import { createIosRuntime } from './runtimes/ios.mjs';
-import { createAndroidRuntime } from './runtimes/android.mjs';
 import { vectorChecks } from './checks/vectors.mjs';
 import { interopChecks } from './checks/interop.mjs';
 import { oracleChecks } from './checks/oracle.mjs';
@@ -38,12 +36,17 @@ import { loadSdk } from './sdk-loader.mjs';
  */
 export async function buildChecks({ vectorsDir, sdkRoot }) {
   const set = loadVectorSet(vectorsDir);
-  const runtimes = [
-    createNodeRuntime(),
-    createWebRuntime(),
-    createIosRuntime(),
-    createAndroidRuntime(),
-  ];
+  // EBA-150's ios.mjs and android.mjs drivers are deliberately NOT wired in
+  // here. Each is web.mjs's WebCrypto driver renamed, so wiring it in would
+  // make vectors/ios/*, vectors/android/* and interop/*-><->ios|android
+  // green on plain Node while naming a platform that never ran — the exact
+  // failure principal-architect's review of PR #4 caught (EBA-150 round 1).
+  // Adding a runtime here is a claim that it ran there; a driver may only
+  // join this list once it runs in a real Expo/RN target (iOS Simulator,
+  // Android emulator, or EAS) or an equivalent on-device signal. See the
+  // README's "Adding a runtime" section and Limitations, and
+  // mobile-runtimes.test.mjs, which guards against this regressing.
+  const runtimes = [createNodeRuntime(), createWebRuntime()];
   const checks = [
     ...runtimes.flatMap((runtime) => vectorChecks(runtime, set)),
     ...interopChecks(runtimes, set),
