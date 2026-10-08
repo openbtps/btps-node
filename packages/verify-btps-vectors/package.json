@@ -2,7 +2,7 @@
   "name": "@btps/verify-btps-vectors",
   "version": "0.1.0",
   "private": true,
-  "description": "Runs the BTPS golden vectors on every runtime driver (Node, web/WebCrypto, iOS, Android) and against the @btps/sdk source tree.",
+  "description": "Runs the BTPS golden vectors on registered runtime drivers (Node, web/WebCrypto) and against the @btps/sdk source tree. iOS and Android driver scaffolding exists under exports but is not registered in the check gate — see README Limitations.",
   "type": "module",
   "license": "Apache-2.0",
   "bin": {
