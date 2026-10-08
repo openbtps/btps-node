@@ -12,10 +12,27 @@ A NestJS application that integrates the BTPS Server with MongoDB and Redis supp
 
 1. **Install dependencies:**
 
+   `@btps/sdk` is linked from this repository with `"@btps/sdk": "portal:../.."`
+   in `package.json`. There is no tarball to add. The SDK's `main` points at
+   `dist/`, so build the SDK at the repository root first:
+
    ```bash
+   # from the repository root
    yarn install
-   yarn add ./package.tgz
+   yarn build
+
+   # then in this example
+   cd examples/btps-nest-app
+   yarn install
    ```
+
+   Do not run `yarn add ./package.tgz`. It replaces the portal link with a
+   tarball that is not committed, and a fresh clone can no longer install.
+
+   If you change the SDK's own dependencies (root `package.json`), run
+   `yarn install` in this directory as well, and commit the updated
+   `examples/btps-nest-app/yarn.lock`. If you don't, CI's
+   `yarn install --immutable` for this example fails.
 
 2. **Generate BTPS server keys:**
 
@@ -47,6 +64,14 @@ A NestJS application that integrates the BTPS Server with MongoDB and Redis supp
 ## Docker Setup
 
 This application uses Docker Compose to run MongoDB and Redis containers.
+
+> **Known limitation:** the `btps-server` image does not build at the moment.
+> `Dockerfile` still copies `package.tgz`, and its build context is this
+> directory, so `portal:../..` cannot reach the SDK. `docker compose up`
+> (and so `yarn start:docker` and `yarn docker:up`) fails while building
+> that image. Until the Dockerfile is updated, run the app with
+> `yarn start:dev` and start MongoDB and Redis on their own with
+> `docker compose up -d mongodb redis`.
 
 ### Quick Start
 
