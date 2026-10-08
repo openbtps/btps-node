@@ -26,6 +26,7 @@ import {
   BTP_ERROR_TRUST_NON_EXISTENT,
   BTP_ERROR_TRUST_EXPIRED,
   BTP_ERROR_TRUST_REVOKED,
+  BTP_ERROR_TRUST_BLOCKED,
   BTP_ERROR_DELEGATION_SIG_VERIFICATION,
   BTP_ERROR_DELEGATION_INVALID,
   BTP_ERROR_ATTESTATION_VERIFICATION,
@@ -962,13 +963,19 @@ export class BtpsServer {
 
   /**
    * EBA-124: determines the precise, server-side-only reason a non-trust
-   * artifact is refused - never-trusted, expired, or revoked.
+   * artifact is refused - never-trusted, expired, revoked, or blocked.
    *
    * Option B (decided 2026-10-06): only the expired case gets its own wire
-   * code (BTP_ERROR_TRUST_EXPIRED); revoked and never-trusted both collapse
-   * onto BTP_ERROR_TRUST_NOT_ALLOWED on the wire (see executeRequestPipeline).
-   * This method's result is what reqCtx.error carries internally - the exact
-   * reason - regardless of what later goes out on the wire.
+   * code (BTP_ERROR_TRUST_EXPIRED); revoked, blocked, never-trusted, pending
+   * and rejected all collapse onto BTP_ERROR_TRUST_NOT_ALLOWED on the wire
+   * (see executeRequestPipeline). This method's result is what reqCtx.error
+   * carries internally - the exact reason - regardless of what later goes
+   * out on the wire.
+   *
+   * "Expired" means an *accepted* trust whose expiresAt has passed - a
+   * blocked, rejected or pending record with a past expiresAt is not
+   * "expired", it is whatever it already was, so the expiry check only
+   * runs for status === 'accepted'.
    */
   private getTrustRefusalError(trustRecord?: BTPTrustRecord): BTPErrorException {
     if (!trustRecord) {
@@ -977,7 +984,14 @@ export class BtpsServer {
     if (trustRecord.status === 'revoked') {
       return new BTPErrorException(BTP_ERROR_TRUST_REVOKED);
     }
-    if (trustRecord.expiresAt && new Date(trustRecord.expiresAt).getTime() < Date.now()) {
+    if (trustRecord.status === 'blocked') {
+      return new BTPErrorException(BTP_ERROR_TRUST_BLOCKED);
+    }
+    if (
+      trustRecord.status === 'accepted' &&
+      trustRecord.expiresAt &&
+      new Date(trustRecord.expiresAt).getTime() < Date.now()
+    ) {
       return new BTPErrorException(BTP_ERROR_TRUST_EXPIRED);
     }
     return new BTPErrorException(BTP_ERROR_TRUST_NOT_ALLOWED);
