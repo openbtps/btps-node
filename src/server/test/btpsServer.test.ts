@@ -23,8 +23,15 @@ import {
   BTPServerResponse,
   BTPStatus,
   BTPAuthReqDoc,
+  BTPTransporterArtifact,
 } from '../../core/server/types.js';
-import { BTPErrorException } from '../../core/error/index.js';
+import {
+  BTPErrorException,
+  BTP_ERROR_TRUST_NOT_ALLOWED,
+  BTP_ERROR_TRUST_NON_EXISTENT,
+  BTP_ERROR_TRUST_EXPIRED,
+  BTP_ERROR_TRUST_REVOKED,
+} from '../../core/error/index.js';
 
 const TEST_FILE = path.join(__dirname, 'test-trust-store.json');
 
@@ -1880,6 +1887,226 @@ export default function () {
         await server['awaitableEmitIfNeeded']('agentArtifact', true, mockReq, mockRes, artifact);
 
         expect(mockListener).toHaveBeenCalledWith(artifact, mockRes);
+      });
+    });
+
+    describe('trust-refusal error codes (EBA-124)', () => {
+      const PAST = new Date('2020-01-01T00:00:00.000Z').toISOString();
+
+      const transporterArtifact = (): BTPTransporterArtifact => ({
+        version: '1.0.0',
+        id: 'artifact-id',
+        type: 'BTPS_DOC',
+        from: 'sender$domain.com',
+        to: 'receiver$domain.com',
+        issuedAt: new Date().toISOString(),
+        signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
+        encryption: null,
+        document: 'document',
+        selector: 'selector',
+      });
+
+      const trustRecord = (overrides: Partial<BTPTrustRecord>): BTPTrustRecord => ({
+        id: 'trust-id',
+        senderId: 'sender$domain.com',
+        receiverId: 'receiver$domain.com',
+        status: 'accepted',
+        createdAt: new Date().toISOString(),
+        decidedBy: 'admin',
+        decidedAt: new Date().toISOString(),
+        publicKeyBase64: 'key',
+        publicKeyFingerprint: 'fp',
+        keyHistory: [],
+        privacyType: 'unencrypted',
+        ...overrides,
+      });
+
+      // "Server-side reason codes" AC: reqCtx.error must carry the precise
+      // reason, even though the wire later collapses some of these together.
+      describe('server-side reason codes (reqCtx.error)', () => {
+        it('reports the precise reason for a never-trusted sender', async () => {
+          trustStore.getById = vi.fn().mockResolvedValue(undefined);
+
+          const result = await server['verifyTrust']({
+            artifact: transporterArtifact(),
+            type: 'transporter',
+          });
+
+          expect(result.isTrusted).toBe(false);
+          expect(result.error?.code).toBe(BTP_ERROR_TRUST_NON_EXISTENT.code);
+        });
+
+        it('reports the precise reason for an expired trust', async () => {
+          trustStore.getById = vi
+            .fn()
+            .mockResolvedValue(trustRecord({ status: 'accepted', expiresAt: PAST }));
+
+          const result = await server['verifyTrust']({
+            artifact: transporterArtifact(),
+            type: 'transporter',
+          });
+
+          expect(result.isTrusted).toBe(false);
+          expect(result.error?.code).toBe(BTP_ERROR_TRUST_EXPIRED.code);
+        });
+
+        it('reports the precise reason for a revoked trust', async () => {
+          trustStore.getById = vi.fn().mockResolvedValue(trustRecord({ status: 'revoked' }));
+
+          const result = await server['verifyTrust']({
+            artifact: transporterArtifact(),
+            type: 'transporter',
+          });
+
+          expect(result.isTrusted).toBe(false);
+          expect(result.error?.code).toBe(BTP_ERROR_TRUST_REVOKED.code);
+        });
+
+        it('keeps the three reasons distinct from one another', async () => {
+          trustStore.getById = vi.fn().mockResolvedValue(undefined);
+          const neverTrusted = await server['verifyTrust']({
+            artifact: transporterArtifact(),
+            type: 'transporter',
+          });
+
+          trustStore.getById = vi
+            .fn()
+            .mockResolvedValue(trustRecord({ status: 'accepted', expiresAt: PAST }));
+          const expired = await server['verifyTrust']({
+            artifact: transporterArtifact(),
+            type: 'transporter',
+          });
+
+          trustStore.getById = vi.fn().mockResolvedValue(trustRecord({ status: 'revoked' }));
+          const revoked = await server['verifyTrust']({
+            artifact: transporterArtifact(),
+            type: 'transporter',
+          });
+
+          const codes = [neverTrusted.error?.code, expired.error?.code, revoked.error?.code];
+          expect(new Set(codes).size).toBe(3);
+        });
+      });
+
+      // "Wire error codes" AC: option B (decided 2026-10-06) - expired keeps its
+      // own wire code, revoked and never-trusted both collapse to NOT_ALLOWED.
+      // This exercises the trust-refusal path in executeRequestPipeline
+      // (btpsServer.ts, around :543).
+      describe('wire error codes (trust-refusal path)', () => {
+        const buildMockSocket = () =>
+          ({
+            destroyed: false,
+            writableEnded: false,
+            writable: true,
+            write: vi.fn(),
+            end: vi.fn(),
+          }) as unknown as TLSSocket;
+
+        const buildPipelineCtx = (socket: TLSSocket, artifact: BTPTransporterArtifact) => {
+          const reqCtx = {
+            socket,
+            startTime: new Date().toISOString(),
+            remoteAddress: '127.0.0.1',
+            data: { artifact, type: 'transporter' },
+          } as unknown as BTPRequestCtx<'before', 'signatureVerification'>;
+
+          const resCtx = {
+            socket,
+            startTime: new Date().toISOString(),
+            remoteAddress: '127.0.0.1',
+            reqId: 'test-req-id',
+            data: { artifact, type: 'transporter' },
+            responseSent: false,
+            sendRes: () => {},
+            sendError: () => {},
+          } as unknown as BTPResponseCtx<'before', 'signatureVerification'>;
+
+          return { reqCtx, resCtx };
+        };
+
+        const spyOnSendBtpsError = () =>
+          vi.spyOn(
+            server as unknown as Record<string, (...args: unknown[]) => unknown>,
+            'sendBtpsError',
+          );
+
+        beforeEach(async () => {
+          // Signature verification isn't the concern of this ticket - force it
+          // to pass so the trust-refusal branch is reached.
+          const utils = await import('../../core/utils/index.js');
+          vi.spyOn(utils, 'resolvePublicKey').mockResolvedValue(
+            '-----BEGIN PUBLIC KEY-----\nTEST\n-----END PUBLIC KEY-----',
+          );
+          const crypto = await import('../../core/crypto/index.js');
+          vi.spyOn(crypto, 'verifySignature').mockReturnValue({ isValid: true });
+        });
+
+        it('sends BTP_ERROR_TRUST_NOT_ALLOWED for a never-trusted sender', async () => {
+          trustStore.getById = vi.fn().mockResolvedValue(undefined);
+          const { reqCtx, resCtx } = buildPipelineCtx(buildMockSocket(), transporterArtifact());
+          const sendBtpsErrorSpy = spyOnSendBtpsError();
+
+          await server['executeRequestPipeline'](reqCtx, resCtx);
+
+          expect(sendBtpsErrorSpy).toHaveBeenCalled();
+          const [, errorArg] = sendBtpsErrorSpy.mock.calls[0];
+          expect((errorArg as { code?: string }).code).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.code);
+        });
+
+        it('sends BTP_ERROR_TRUST_EXPIRED for an expired trust', async () => {
+          trustStore.getById = vi
+            .fn()
+            .mockResolvedValue(trustRecord({ status: 'accepted', expiresAt: PAST }));
+          const { reqCtx, resCtx } = buildPipelineCtx(buildMockSocket(), transporterArtifact());
+          const sendBtpsErrorSpy = spyOnSendBtpsError();
+
+          await server['executeRequestPipeline'](reqCtx, resCtx);
+
+          expect(sendBtpsErrorSpy).toHaveBeenCalled();
+          const [, errorArg] = sendBtpsErrorSpy.mock.calls[0];
+          expect((errorArg as { code?: string }).code).toBe(BTP_ERROR_TRUST_EXPIRED.code);
+        });
+
+        it('sends BTP_ERROR_TRUST_NOT_ALLOWED for a revoked trust', async () => {
+          trustStore.getById = vi.fn().mockResolvedValue(trustRecord({ status: 'revoked' }));
+          const { reqCtx, resCtx } = buildPipelineCtx(buildMockSocket(), transporterArtifact());
+          const sendBtpsErrorSpy = spyOnSendBtpsError();
+
+          await server['executeRequestPipeline'](reqCtx, resCtx);
+
+          expect(sendBtpsErrorSpy).toHaveBeenCalled();
+          const [, errorArg] = sendBtpsErrorSpy.mock.calls[0];
+          expect((errorArg as { code?: string }).code).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.code);
+        });
+
+        it('BTPS 1.1 interop: a 1.0 peer receiving BTP_ERROR_TRUST_EXPIRED treats it as not-allowed', async () => {
+          // A 1.0 peer only understands `type` and `status.ok` - it has no
+          // notion of BTP_ERROR_TRUST_EXPIRED. The wire response for an
+          // expired trust must be structurally identical, on those fields, to
+          // a plain "not allowed" refusal so an un-upgraded peer refuses
+          // instead of mishandling the artifact.
+          const expiredSocket = buildMockSocket();
+          await server['sendBtpsError'](expiredSocket, BTP_ERROR_TRUST_EXPIRED, 'req-expired');
+          const expiredWritten = JSON.parse(
+            (expiredSocket.write as Mock).mock.calls[0][0] as string,
+          );
+
+          const notAllowedSocket = buildMockSocket();
+          await server['sendBtpsError'](
+            notAllowedSocket,
+            BTP_ERROR_TRUST_NOT_ALLOWED,
+            'req-not-allowed',
+          );
+          const notAllowedWritten = JSON.parse(
+            (notAllowedSocket.write as Mock).mock.calls[0][0] as string,
+          );
+
+          expect(expiredWritten.type).toBe('btps_error');
+          expect(expiredWritten.status.ok).toBe(false);
+          expect(expiredWritten.type).toBe(notAllowedWritten.type);
+          expect(expiredWritten.status.ok).toBe(notAllowedWritten.status.ok);
+          expect(expiredWritten.status.code).toBe(notAllowedWritten.status.code);
+        });
       });
     });
   });

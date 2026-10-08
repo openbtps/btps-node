@@ -22,8 +22,10 @@ import {
   BTP_ERROR_INVALID_JSON,
   BTP_ERROR_VALIDATION,
   BTP_ERROR_RESOLVE_PUBKEY,
-  BTP_ERROR_TRUST_ALREADY_ACTIVE,
   BTP_ERROR_TRUST_NOT_ALLOWED,
+  BTP_ERROR_TRUST_NON_EXISTENT,
+  BTP_ERROR_TRUST_EXPIRED,
+  BTP_ERROR_TRUST_REVOKED,
   BTP_ERROR_DELEGATION_SIG_VERIFICATION,
   BTP_ERROR_DELEGATION_INVALID,
   BTP_ERROR_ATTESTATION_VERIFICATION,
@@ -540,7 +542,16 @@ export class BtpsServer {
     if (afterTrustVerResponseSent) return; // Response already sent, stop processing
 
     if (!isTrusted) {
-      return this.sendBtpsError(resCtx.socket, BTP_ERROR_TRUST_NOT_ALLOWED, resCtx.reqId);
+      // EBA-124 (option B, decided 2026-10-06): reqCtx.error carries the
+      // precise server-side reason (never-trusted, expired, revoked); the
+      // wire only distinguishes expired from everything else, so an
+      // un-upgraded 1.0 peer still just sees "not allowed" for a revoked or
+      // never-trusted sender.
+      const wireError =
+        reqCtx.error?.code === BTP_ERROR_TRUST_EXPIRED.code
+          ? BTP_ERROR_TRUST_EXPIRED
+          : BTP_ERROR_TRUST_NOT_ALLOWED;
+      return this.sendBtpsError(resCtx.socket, wireError, resCtx.reqId);
     }
 
     // Execute before onArtifact middleware
@@ -944,11 +955,32 @@ export class BtpsServer {
       const isTrusted = isTrustActive(trustRecord);
       return {
         isTrusted,
-        error: isTrusted
-          ? undefined
-          : new BTPErrorException(new BTPErrorException(BTP_ERROR_TRUST_ALREADY_ACTIVE)),
+        error: isTrusted ? undefined : this.getTrustRefusalError(trustRecord),
       };
     }
+  }
+
+  /**
+   * EBA-124: determines the precise, server-side-only reason a non-trust
+   * artifact is refused - never-trusted, expired, or revoked.
+   *
+   * Option B (decided 2026-10-06): only the expired case gets its own wire
+   * code (BTP_ERROR_TRUST_EXPIRED); revoked and never-trusted both collapse
+   * onto BTP_ERROR_TRUST_NOT_ALLOWED on the wire (see executeRequestPipeline).
+   * This method's result is what reqCtx.error carries internally - the exact
+   * reason - regardless of what later goes out on the wire.
+   */
+  private getTrustRefusalError(trustRecord?: BTPTrustRecord): BTPErrorException {
+    if (!trustRecord) {
+      return new BTPErrorException(BTP_ERROR_TRUST_NON_EXISTENT);
+    }
+    if (trustRecord.status === 'revoked') {
+      return new BTPErrorException(BTP_ERROR_TRUST_REVOKED);
+    }
+    if (trustRecord.expiresAt && new Date(trustRecord.expiresAt).getTime() < Date.now()) {
+      return new BTPErrorException(BTP_ERROR_TRUST_EXPIRED);
+    }
+    return new BTPErrorException(BTP_ERROR_TRUST_NOT_ALLOWED);
   }
 
   /**
