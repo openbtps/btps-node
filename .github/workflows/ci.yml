@@ -1,23 +1,45 @@
-# EBA-156: reproducible @btps/sdk resolution for examples/btps-nest-app.
+# btps-node CI. Added by EBA-156, extended by EBA-152.
 #
-# example-app  - acceptance criteria 2 and 3. The example depends on the SDK
-#                through `portal:../..` and the SDK's `main` points at ./dist,
-#                so the root package is built *before* the example is
-#                installed and tested. Both installs are --immutable, on a
-#                fresh checkout with no hand-built artifacts. Before the
-#                build it runs this ticket's own checks (tests/eba-156,
-#                scoped), so criterion 1's portal-checksum gate is enforced
-#                on every PR rather than only when someone runs it locally.
-# pack-smoke   - acceptance criterion 4. Proves the artifact a consumer would
+# example-app  - EBA-156 criteria 2 and 3; EBA-152 criteria 1-4. The example
+#                depends on the SDK through `portal:../..` and the SDK's
+#                `main` points at ./dist, so the root package is built
+#                *before* the example is installed. Both installs are
+#                --immutable, on a fresh checkout with no hand-built
+#                artifacts. Then the example itself is built (`nest build`),
+#                its jest specs run, and the @btps/sdk smoke test
+#                (examples/btps-nest-app/smoke/sdk-subpaths.mjs) imports
+#                every SDK subpath the app uses and every compiled app module
+#                that uses one. The smoke test is plain Node ESM, not jest:
+#                ts-jest compiles to CommonJS and the SDK's exports map has
+#                only an "import" condition, so a jest spec cannot prove the
+#                app loads the SDK at runtime. Before the root build it runs
+#                EBA-156's own checks (tests/eba-156, scoped), so its
+#                portal-checksum gate is enforced on every PR.
+# pack-smoke   - EBA-156 criterion 4. Proves the artifact a consumer would
 #                receive: `yarn pack` at the root, install the tarball in an
 #                empty project outside the checkout (not --immutable: it has
 #                no lockfile), check that @btps/sdk resolved to a real copy
 #                inside that project rather than a portal:/symlink back into
 #                the repo, then import it.
+# ci/test      - EBA-152: the root `yarn test` (vitest run, whole suite).
+#                Root vitest also collects examples/btps-nest-app/src/*.spec.ts,
+#                and database.module.spec.ts imports @nestjs/testing from the
+#                example's node_modules, so the example is installed first.
+# ci/vectors   - EBA-152: `yarn verify:btps-vectors`, which runs with
+#                --known-failing test/vectors/known-failing.json (the root
+#                package.json script). It bundles the SDK from src with
+#                esbuild, so it needs no build.
 #
-# The full root `yarn test` and verify:btps-vectors belong to EBA-152, which
-# builds on this file; the scoped tests/eba-156 step is not a substitute for
-# it. btps-node's only integration branch is master (DR-INF-11).
+# ci/test and ci/vectors are named exactly as EBA-133 and the EBA-107 check
+# catalogue (page 8978471) expect; a required-status-check rule matches on
+# that name, so renaming either job breaks the rule. example-app stays the
+# first job: tests/eba-156/ci-workflow.test.mjs finds "the example job" as
+# the first one that works in examples/btps-nest-app.
+#
+# This workflow runs on pull_request from forks with contents: read and no
+# secrets. Any step needing a secret or write access belongs in a separate
+# workflow, not this one. btps-node's only integration branch is master
+# (DR-INF-11).
 #
 # Pins: actions by commit SHA (release tag in the comment), resolved with
 # `gh api repos/<action>/commits/<tag>` on 2026-10-07. Corepack is pinned to
@@ -42,7 +64,7 @@ concurrency:
 
 jobs:
   example-app:
-    name: btps-nest-app (root build, then install --immutable and test)
+    name: btps-nest-app (root build, then install --immutable, build, test, SDK smoke)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -61,9 +83,15 @@ jobs:
       - name: Install example dependencies
         working-directory: examples/btps-nest-app
         run: yarn install --immutable
+      - name: Build example (nest build)
+        working-directory: examples/btps-nest-app
+        run: yarn build
       - name: Test example
         working-directory: examples/btps-nest-app
         run: yarn test
+      - name: "@btps/sdk smoke: import every subpath the app uses, and its compiled modules"
+        working-directory: examples/btps-nest-app
+        run: yarn test:sdk-smoke
 
   pack-smoke:
     name: pack-smoke (yarn pack, install tarball, import @btps/sdk)
@@ -104,3 +132,38 @@ jobs:
             await import('@btps/sdk');
             console.log('import @btps/sdk OK from ' + resolved);
           "
+
+  test:
+    name: ci/test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Enable Yarn via Corepack
+        run: npm install -g corepack@0.34.7 && corepack enable
+      - name: Install root dependencies
+        run: yarn install --immutable
+      - name: Install example dependencies (root vitest collects its specs)
+        working-directory: examples/btps-nest-app
+        run: yarn install --immutable
+      - name: yarn test
+        run: yarn test
+
+  vectors:
+    name: ci/vectors
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Enable Yarn via Corepack
+        run: npm install -g corepack@0.34.7 && corepack enable
+      - name: Install root dependencies
+        run: yarn install --immutable
+      - name: yarn verify:btps-vectors (with --known-failing)
+        run: yarn verify:btps-vectors
