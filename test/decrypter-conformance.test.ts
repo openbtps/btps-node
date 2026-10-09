@@ -6,11 +6,10 @@
  */
 
 /*
- * EBA-233 (Item 8a) — AC2, AC4 and AC6 (decrypter half).
+ * EBA-233 (Item 8a) — AC2, AC4, AC5 and AC6 (decrypter half).
  *
- * src/decrypter-interface.ts, src/pem-decrypter.ts and src/kms-decrypter.ts
- * do not exist yet, so every test here fails at collection time. That is
- * the expected state of a test-writer's handover.
+ * These tests are the executable form of the acceptance criteria, written
+ * from the ticket before any implementation existed.
  *
  * Shape assumed, for the same reason given in signer-conformance.test.ts
  * (naming follows the existing BTPEncryption fields: encryptedKey, iv,
@@ -243,6 +242,53 @@ describe.each(implementations)('AC2: $name conformance', ({ name, makeDecrypter 
   });
 });
 
+describe('AC5: KMS failure fails closed, with no partial/fallback plaintext', () => {
+  const validTag = new Uint8Array(16);
+
+  it('rejects with a typed retryable error when KMS throttles', async () => {
+    const client: KmsDecryptClient = {
+      async decrypt() {
+        throw Object.assign(new Error('ThrottlingException'), { name: 'ThrottlingException' });
+      },
+    };
+    const decrypter = new KmsDecrypter({ client, keyId: 'test-encryption-key' });
+
+    await expect(
+      decrypter.decrypt({
+        encryptedKey: new Uint8Array(8),
+        iv: new Uint8Array(12),
+        ciphertext: new Uint8Array(8),
+        authTag: validTag,
+      }),
+    ).rejects.toMatchObject({ retryable: true });
+  });
+
+  it('rejects with a typed retryable error when KMS is unavailable, and never produces partial/fallback plaintext', async () => {
+    const client: KmsDecryptClient = {
+      async decrypt() {
+        throw Object.assign(new Error('KMSInternalException'), { name: 'KMSInternalException' });
+      },
+    };
+    const decrypter = new KmsDecrypter({ client, keyId: 'test-encryption-key' });
+
+    let plaintext: Uint8Array | undefined;
+    let caught: unknown;
+    try {
+      plaintext = await decrypter.decrypt({
+        encryptedKey: new Uint8Array(8),
+        iv: new Uint8Array(12),
+        ciphertext: new Uint8Array(8),
+        authTag: validTag,
+      });
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(plaintext).toBeUndefined();
+    expect(caught).toMatchObject({ retryable: true });
+  });
+});
+
 describe('AC6: KmsDecrypter exposes no private key material (T-27)', () => {
   it('the KmsDecrypter constructor options do not accept a private key', () => {
     type KmsDecrypterOptions = ConstructorParameters<typeof KmsDecrypter>[0];
@@ -258,6 +304,45 @@ describe('AC6: KmsDecrypter exposes no private key material (T-27)', () => {
     >();
     expectTypeOf<Parameters<Decrypter['decrypt']>[0]>().not.toHaveProperty('privateKey');
     expectTypeOf<Parameters<Decrypter['decrypt']>[0]>().not.toHaveProperty('privateKeyPem');
+  });
+
+  // The expectTypeOf assertions above only fail a build under `vitest
+  // typecheck` — the project's actual `test` script is `vitest run`, which
+  // never type-checks test files, so a regression there would report green.
+  // This test forces a real tsc pass over this file (same approach as the
+  // AC4 tsc subprocess test below), so the assertions are enforced by
+  // `yarn test`.
+  it('this file type-checks under tsc (so the expectTypeOf assertions above are actually enforced)', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'eba-233-decrypter-ac6-'));
+    const tsconfigPath = join(tmpDir, 'tsconfig.json');
+    const repoRoot = join(__dirname, '..');
+    writeFileSync(
+      tsconfigPath,
+      JSON.stringify({
+        compilerOptions: {
+          module: 'nodenext',
+          moduleResolution: 'nodenext',
+          skipLibCheck: true,
+          allowSyntheticDefaultImports: true,
+          resolveJsonModule: true,
+          target: 'ES2022',
+          noEmit: true,
+          baseUrl: join(repoRoot, 'src'),
+          paths: { '@core/*': ['core/*'] },
+          esModuleInterop: true,
+          forceConsistentCasingInFileNames: true,
+          strict: true,
+          isolatedModules: true,
+        },
+        files: [join(__dirname, 'decrypter-conformance.test.ts')],
+      }),
+    );
+
+    const tscBin = join(process.cwd(), 'node_modules', '.bin', 'tsc');
+    const result = spawnSync(tscBin, ['-p', tsconfigPath], { encoding: 'utf8' });
+
+    expect(result.stdout + result.stderr).toBe('');
+    expect(result.status).toBe(0);
   });
 });
 
@@ -280,5 +365,31 @@ describe('AC4: src/decrypter-interface.ts is runtime-agnostic', () => {
     );
 
     expect(forbidden).toEqual([]);
+  });
+
+  it('type-checks under tsc with lib es2022+dom and no @types/node', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'eba-233-decrypter-interface-'));
+    const tsconfigPath = join(tmpDir, 'tsconfig.json');
+    writeFileSync(
+      tsconfigPath,
+      JSON.stringify({
+        compilerOptions: {
+          noEmit: true,
+          strict: true,
+          target: 'es2022',
+          lib: ['es2022', 'dom'],
+          module: 'esnext',
+          moduleResolution: 'bundler',
+          types: [],
+        },
+        files: [SRC_PATH],
+      }),
+    );
+
+    const tscBin = join(process.cwd(), 'node_modules', '.bin', 'tsc');
+    const result = spawnSync(tscBin, ['-p', tsconfigPath], { encoding: 'utf8' });
+
+    expect(result.stdout + result.stderr).toBe('');
+    expect(result.status).toBe(0);
   });
 });

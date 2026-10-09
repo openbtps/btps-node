@@ -8,11 +8,8 @@
 /*
  * EBA-233 (Item 8a) — AC1, AC3, AC4, AC5, AC6.
  *
- * None of src/signer-interface.ts, src/kms-signer.ts or src/pem-signer.ts
- * exist yet, so every test below fails at collection time (the import
- * cannot resolve). That is correct for a test-writer's handover: these
- * tests are the executable form of the acceptance criteria, not proof the
- * feature works.
+ * These tests are the executable form of the acceptance criteria, written
+ * from the ticket before any implementation existed.
  *
  * The ticket does not prescribe the exact shape of `Signer`, `PemSigner` or
  * `KmsSigner` — only the three things AC1 names (sign, getPublicKey,
@@ -265,5 +262,44 @@ describe('AC6: KmsSigner exposes no private key material (T-27)', () => {
     // Signer.sign takes only the bytes to sign; getPublicKey takes nothing.
     expectTypeOf<Signer['sign']>().parameters.toEqualTypeOf<[Uint8Array]>();
     expectTypeOf<Signer['getPublicKey']>().parameters.toEqualTypeOf<[]>();
+  });
+
+  // The two expectTypeOf assertions above only fail a build under `vitest
+  // typecheck` — the project's actual `test` script is `vitest run`, which
+  // never type-checks test files, so a regression there would report green.
+  // This test forces a real tsc pass over this file (same approach as the
+  // AC4 tsc subprocess test above), so the assertions are enforced by
+  // `yarn test`.
+  it('this file type-checks under tsc (so the expectTypeOf assertions above are actually enforced)', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'eba-233-signer-ac6-'));
+    const tsconfigPath = join(tmpDir, 'tsconfig.json');
+    const repoRoot = join(__dirname, '..');
+    writeFileSync(
+      tsconfigPath,
+      JSON.stringify({
+        compilerOptions: {
+          module: 'nodenext',
+          moduleResolution: 'nodenext',
+          skipLibCheck: true,
+          allowSyntheticDefaultImports: true,
+          resolveJsonModule: true,
+          target: 'ES2022',
+          noEmit: true,
+          baseUrl: join(repoRoot, 'src'),
+          paths: { '@core/*': ['core/*'] },
+          esModuleInterop: true,
+          forceConsistentCasingInFileNames: true,
+          strict: true,
+          isolatedModules: true,
+        },
+        files: [join(__dirname, 'signer-conformance.test.ts')],
+      }),
+    );
+
+    const tscBin = join(process.cwd(), 'node_modules', '.bin', 'tsc');
+    const result = spawnSync(tscBin, ['-p', tsconfigPath], { encoding: 'utf8' });
+
+    expect(result.stdout + result.stderr).toBe('');
+    expect(result.status).toBe(0);
   });
 });
