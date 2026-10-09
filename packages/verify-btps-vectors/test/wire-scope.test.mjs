@@ -1,7 +1,9 @@
 // EBA-150 is declared test-only, changing nothing on the wire: its file
-// scope is packages/verify-btps-vectors/ (iOS and Android harness
-// additions) plus this ticket's own tests, and its outcome is a harness
-// that runs EBA-110's test/vectors/ unchanged. Both are guard rails a diff
+// scope is packages/verify-btps-vectors/ plus this ticket's own tests (the
+// ticket was re-scoped to Hermes-in-container only on 2026-10-08; the
+// iOS/Android/KMS/device-keystore work this comment used to describe is
+// EBA-168's, not this ticket's), and its outcome is a harness that runs
+// EBA-110's test/vectors/ unchanged. Both are guard rails a diff
 // can drift past without anyone noticing — e.g. a driver that "just needs"
 // one adapter tweak in src/core, or a vector edited to make a new platform
 // pass more easily. This pins both down the same way EBA-156's
