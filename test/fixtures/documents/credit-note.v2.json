@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 2,
+  "type": "credit_note",
+  "id": "cn_3001",
+  "issuedAt": "2026-10-02T00:00:00.000Z",
+  "relatesToInvoice": {
+    "from": "biller$example.com",
+    "id": "inv_2001",
+    "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf"
+  },
+  "lineItems": [
+    {
+      "description": "Partial credit: consulting services",
+      "quantity": "1",
+      "unitPrice": { "amount": 20000, "currency": "AUD" },
+      "lineTotal": { "amount": 20000, "currency": "AUD" },
+      "taxAmount": { "amount": 2000, "currency": "AUD" },
+      "taxCategory": "GST10"
+    }
+  ],
+  "total": { "amount": 20000, "currency": "AUD" },
+  "taxTotals": [
+    { "taxCategory": "GST10", "amount": { "amount": 2000, "currency": "AUD" } }
+  ]
+}

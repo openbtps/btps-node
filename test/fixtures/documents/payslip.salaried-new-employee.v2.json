@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 2,
+  "type": "payslip",
+  "id": "pay_5002",
+  "issuedAt": "2026-10-04T00:00:00.000Z",
+  "employee": { "name": "Priya Nair", "payBasis": "salaried" },
+  "payRate": {
+    "amount": { "amount": 9500000, "currency": "AUD" },
+    "unit": "annual",
+    "asAt": "2026-10-01T00:00:00.000Z"
+  },
+  "earnings": [
+    {
+      "category": "ordinary",
+      "rate": "3653.85",
+      "quantity": "1",
+      "amount": { "amount": 365385, "currency": "AUD" }
+    }
+  ],
+  "deductions": [],
+  "contributions": [
+    {
+      "amount": { "amount": 42019, "currency": "AUD" }
+    }
+  ],
+  "gross": { "amount": 365385, "currency": "AUD" },
+  "net": { "amount": 365385, "currency": "AUD" }
+}

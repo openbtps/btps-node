@@ -71,6 +71,7 @@ const sidebars: SidebarsConfig = {
           items: [
             'protocol/specifications/overview',
             'protocol/specifications/artifacts',
+            'protocol/specifications/document-model-v2',
             'protocol/specifications/transporter-artifact',
             'protocol/specifications/agent-artifact',
             'protocol/specifications/identity-lookup-artifact',

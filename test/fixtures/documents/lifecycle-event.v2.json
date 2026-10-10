@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 2,
+  "type": "lifecycle_event",
+  "id": "evt_4001",
+  "document": {
+    "from": "biller$example.com",
+    "id": "inv_2001",
+    "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf"
+  },
+  "eventType": "paid",
+  "occurredAt": "2026-10-03T00:00:00.000Z",
+  "amount": { "amount": 170000, "currency": "AUD" }
+}
