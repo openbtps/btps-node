@@ -91,6 +91,7 @@ import {
   rotateSigningKey,
   rotateEncryptionKey,
   type KeyPair,
+  type KeyPairMaterial,
 } from '../src/key-pair-management.js';
 
 const VECTOR_DIR = join(__dirname, 'vectors/key-separation');
@@ -189,7 +190,7 @@ describe('AC: a shared private key is rejected even when each slot is tagged cor
         signingKey: distinctKeysVector.signingKey,
         encryptionKey: sameKeyReTagged,
       }),
-    ).toThrow();
+    ).toThrow(/must be distinct RSA key pairs/);
   });
 
   it('rotating one slot onto the other slot\'s existing key is refused for the same reason', () => {
@@ -203,7 +204,7 @@ describe('AC: a shared private key is rejected even when each slot is tagged cor
       algorithm: 'RSASSA_PKCS1_V1_5_SHA_256',
     };
 
-    expect(() => rotateSigningKey(original, encryptionKeyAsSigningMaterial)).toThrow();
+    expect(() => rotateSigningKey(original, encryptionKeyAsSigningMaterial)).toThrow(/must be distinct RSA key pairs/);
   });
 });
 
@@ -230,7 +231,7 @@ describe('Review finding: a declared publicKey must correspond to the privateKey
         signingKey: distinctKeysVector.signingKey,
         encryptionKey: encryptionKeyWithReusedPrivateKey,
       }),
-    ).toThrow();
+    ).toThrow(/EncryptionKey material is inconsistent: the declared publicKey does not correspond/);
   });
 
   it('rotateEncryptionKey refuses the same substitution against the untouched signing key', () => {
@@ -243,7 +244,7 @@ describe('Review finding: a declared publicKey must correspond to the privateKey
       privateKey: distinctKeysVector.signingKey.privateKey,
     };
 
-    expect(() => rotateEncryptionKey(original, encryptionKeyWithReusedPrivateKey)).toThrow();
+    expect(() => rotateEncryptionKey(original, encryptionKeyWithReusedPrivateKey)).toThrow(/EncryptionKey material is inconsistent: the declared publicKey does not correspond/);
   });
 
   it('createKeyPair refuses a signing slot whose privateKey is actually the encryption key\'s private key, even though its declared publicKey differs', () => {
@@ -257,7 +258,7 @@ describe('Review finding: a declared publicKey must correspond to the privateKey
         signingKey: signingKeyWithReusedPrivateKey,
         encryptionKey: distinctKeysVector.encryptionKey,
       }),
-    ).toThrow();
+    ).toThrow(/SigningKey material is inconsistent: the declared publicKey does not correspond/);
   });
 });
 
@@ -290,9 +291,30 @@ describe('AC: both keys present in all test vectors', () => {
   });
 });
 
+describe('Review finding: a declared fingerprint must be the declared publicKey\'s own', () => {
+  it('SigningKey refuses material whose fingerprint belongs to another key', () => {
+    expect(
+      () => new SigningKey({ ...distinctKeysVector.signingKey, fingerprint: distinctKeysVector.encryptionKey.fingerprint }),
+    ).toThrow(/SigningKey material is inconsistent: the declared fingerprint is not the fingerprint of the declared publicKey/);
+  });
+
+  it('EncryptionKey refuses material whose fingerprint belongs to another key', () => {
+    expect(
+      () => new EncryptionKey({ ...distinctKeysVector.encryptionKey, fingerprint: distinctKeysVector.signingKey.fingerprint }),
+    ).toThrow(/EncryptionKey material is inconsistent: the declared fingerprint is not the fingerprint of the declared publicKey/);
+  });
+
+  it('both accept material with no fingerprint, and with the right one', () => {
+    const { fingerprint: _signingFingerprint, ...signingWithout } = distinctKeysVector.signingKey;
+    expect(() => new SigningKey(signingWithout)).not.toThrow();
+    expect(() => new SigningKey(distinctKeysVector.signingKey)).not.toThrow();
+    expect(() => new EncryptionKey(distinctKeysVector.encryptionKey)).not.toThrow();
+  });
+});
+
 describe('AC: a decrypt attempted with the signing key is rejected', () => {
   it('EncryptionKey refuses to be constructed from signing-use key material', () => {
-    expect(() => new EncryptionKey(distinctKeysVector.signingKey as unknown as EncryptionKeyMaterial)).toThrow();
+    expect(() => new EncryptionKey(distinctKeysVector.signingKey as unknown as EncryptionKeyMaterial)).toThrow(/EncryptionKey requires key material with keyUse: 'encryption', got 'signing'/);
   });
 
   it('createKeyPair refuses an encryption slot filled with signing-use key material', () => {
@@ -301,13 +323,13 @@ describe('AC: a decrypt attempted with the signing key is rejected', () => {
         signingKey: distinctKeysVector.signingKey,
         encryptionKey: distinctKeysVector.signingKey as unknown as EncryptionKeyMaterial,
       }),
-    ).toThrow();
+    ).toThrow(/EncryptionKey requires key material with keyUse: 'encryption', got 'signing'/);
   });
 });
 
 describe('AC: a sign operation with the encryption key is rejected', () => {
   it('SigningKey refuses to be constructed from encryption-use key material', () => {
-    expect(() => new SigningKey(distinctKeysVector.encryptionKey as unknown as SigningKeyMaterial)).toThrow();
+    expect(() => new SigningKey(distinctKeysVector.encryptionKey as unknown as SigningKeyMaterial)).toThrow(/SigningKey requires key material with keyUse: 'signing', got 'encryption'/);
   });
 
   it('createKeyPair refuses a signing slot filled with encryption-use key material', () => {
@@ -316,7 +338,7 @@ describe('AC: a sign operation with the encryption key is rejected', () => {
         signingKey: distinctKeysVector.encryptionKey as unknown as SigningKeyMaterial,
         encryptionKey: distinctKeysVector.encryptionKey,
       }),
-    ).toThrow();
+    ).toThrow(/SigningKey requires key material with keyUse: 'signing', got 'encryption'/);
   });
 });
 
@@ -329,6 +351,12 @@ describe('AC: key confusion is impossible at the type level', () => {
   it('KeyPair.signingKey only accepts a SigningKey, KeyPair.encryptionKey only an EncryptionKey', () => {
     expectTypeOf<KeyPair['signingKey']>().toEqualTypeOf<SigningKey>();
     expectTypeOf<KeyPair['encryptionKey']>().toEqualTypeOf<EncryptionKey>();
+    // The input surface: a KeyPair is built from material, and nothing
+    // pinned which material type each slot takes.
+    expectTypeOf<KeyPairMaterial['signingKey']>().toEqualTypeOf<SigningKeyMaterial>();
+    expectTypeOf<KeyPairMaterial['encryptionKey']>().toEqualTypeOf<EncryptionKeyMaterial>();
+    expectTypeOf<KeyPairMaterial['signingKey']>().not.toExtend<EncryptionKeyMaterial>();
+    expectTypeOf<KeyPairMaterial['encryptionKey']>().not.toExtend<SigningKeyMaterial>();
   });
 
   it('SigningKey has no decrypt method and EncryptionKey has no sign method', () => {

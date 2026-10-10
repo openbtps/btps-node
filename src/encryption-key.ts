@@ -57,6 +57,13 @@ export class EncryptionKey {
       );
     }
     assertPublicKeyMatchesPrivateKey(material.publicKey, material.privateKey);
+    // A fingerprint is this key's identifier. One that was supplied and never
+    // checked would be carried on trust, so it is derived here and compared.
+    if (material.fingerprint !== undefined && material.fingerprint !== fingerprintFromPem(material.publicKey)) {
+      throw new Error(
+        'EncryptionKey material is inconsistent: the declared fingerprint is not the fingerprint of the declared publicKey',
+      );
+    }
     this.publicKeyPem = material.publicKey;
     this.decrypter = new PemDecrypter({ privateKey: material.privateKey });
   }
