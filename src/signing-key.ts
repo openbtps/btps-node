@@ -48,6 +48,7 @@ export class SigningKey {
         `SigningKey requires key material with keyUse: 'signing', got '${material.keyUse}'`,
       );
     }
+    assertPublicKeyMatchesPrivateKey(material.publicKey, material.privateKey);
     this.publicKeyPem = material.publicKey;
     this.signer = new PemSigner({
       publicKey: material.publicKey,
@@ -88,4 +89,29 @@ function fingerprintFromPem(publicKeyPem: string): string {
     .createPublicKey({ key: publicKeyPem, format: 'pem', type: 'spki' })
     .export({ format: 'der', type: 'spki' });
   return crypto.createHash('sha256').update(der).digest('base64');
+}
+
+/**
+ * Review finding (EBA-121): confirms `publicKeyPem` is the key that
+ * actually derives from `privateKeyPem`, not just an unrelated PEM placed
+ * alongside it in the same material. Without this, a slot's privateKey
+ * could be swapped for another slot's privateKey while its declared
+ * publicKey is left as-is — assertDistinctKeyMaterial in
+ * key-pair-management.ts compares only declared-publicKey fingerprints, so
+ * the swap would read as "distinct" there while PemSigner actually signs
+ * with whichever private key was really supplied. Compared in
+ * DER-encoded SPKI form, not PEM text, so formatting differences alone
+ * cannot cause a false mismatch. Mirrors the identical helper in
+ * encryption-key.ts — neither file imports the other's copy, matching the
+ * existing convention there. */
+function assertPublicKeyMatchesPrivateKey(publicKeyPem: string, privateKeyPem: string): void {
+  const declaredDer = crypto
+    .createPublicKey({ key: publicKeyPem, format: 'pem', type: 'spki' })
+    .export({ format: 'der', type: 'spki' });
+  const derivedDer = crypto.createPublicKey(privateKeyPem).export({ format: 'der', type: 'spki' });
+  if (!declaredDer.equals(derivedDer)) {
+    throw new Error(
+      'SigningKey material is inconsistent: the declared publicKey does not correspond to the supplied privateKey',
+    );
+  }
 }

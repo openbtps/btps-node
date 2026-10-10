@@ -207,6 +207,60 @@ describe('AC: a shared private key is rejected even when each slot is tagged cor
   });
 });
 
+describe('Review finding: a declared publicKey must correspond to the privateKey actually used', () => {
+  // assertDistinctKeyMaterial (src/key-pair-management.ts) compares only
+  // the two slots' *declared* publicKey fingerprints. It never checks that
+  // a slot's declared publicKey is the one that actually derives from the
+  // privateKey PemSigner/PemDecrypter use for the real sign/decrypt
+  // operation. So supplying the signing key's privateKey for the
+  // encryption slot, but leaving the encryption slot's declared publicKey
+  // untouched (a different, unrelated-looking key), passes the
+  // distinctness check — the two declared fingerprints differ — while the
+  // encryption slot's decrypt is, in reality, backed by the exact same RSA
+  // private key the signing slot signs with. That is the key confusion
+  // this ticket exists to prevent, slipping past under a mismatched label.
+  it('createKeyPair refuses an encryption slot whose privateKey is actually the signing key\'s private key, even though its declared publicKey differs', () => {
+    const encryptionKeyWithReusedPrivateKey: EncryptionKeyMaterial = {
+      ...distinctKeysVector.encryptionKey,
+      privateKey: distinctKeysVector.signingKey.privateKey,
+    };
+
+    expect(() =>
+      createKeyPair({
+        signingKey: distinctKeysVector.signingKey,
+        encryptionKey: encryptionKeyWithReusedPrivateKey,
+      }),
+    ).toThrow();
+  });
+
+  it('rotateEncryptionKey refuses the same substitution against the untouched signing key', () => {
+    const original = createKeyPair({
+      signingKey: distinctKeysVector.signingKey,
+      encryptionKey: distinctKeysVector.encryptionKey,
+    });
+    const encryptionKeyWithReusedPrivateKey: EncryptionKeyMaterial = {
+      ...distinctKeysVector.encryptionKey,
+      privateKey: distinctKeysVector.signingKey.privateKey,
+    };
+
+    expect(() => rotateEncryptionKey(original, encryptionKeyWithReusedPrivateKey)).toThrow();
+  });
+
+  it('createKeyPair refuses a signing slot whose privateKey is actually the encryption key\'s private key, even though its declared publicKey differs', () => {
+    const signingKeyWithReusedPrivateKey: SigningKeyMaterial = {
+      ...distinctKeysVector.signingKey,
+      privateKey: distinctKeysVector.encryptionKey.privateKey,
+    };
+
+    expect(() =>
+      createKeyPair({
+        signingKey: signingKeyWithReusedPrivateKey,
+        encryptionKey: distinctKeysVector.encryptionKey,
+      }),
+    ).toThrow();
+  });
+});
+
 describe('AC: both keys present in all test vectors', () => {
   const files = readdirSync(VECTOR_DIR).filter((f) => f.endsWith('.vector.json'));
 
