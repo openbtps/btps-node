@@ -29,6 +29,7 @@ test
 !/test/vectors/
 !/test/signer-conformance.test.ts
 !/test/decrypter-conformance.test.ts
+!/test/key-separation.test.ts
 !/test/vectors.json
 !/packages/verify-btps-vectors/test/
 coverage

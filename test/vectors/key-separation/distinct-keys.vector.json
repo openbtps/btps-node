@@ -1,0 +1,34 @@
+{
+  "item": 9,
+  "tickets": [
+    "EBA-121"
+  ],
+  "description": "A signing key pair and an encryption key pair for the same identity, generated as two separate RSA-2048 key pairs. Used to prove that a sign/verify roundtrip on the signing pair and an OAEP-wrap/decrypt roundtrip on the encryption pair both pass, and that using either private key for the other pair's operation fails.",
+  "provenance": "TEST-ONLY RSA-2048 key generated locally for EBA-121 (Item 9) key-separation vectors. Never use it for anything else.",
+  "signingKey": {
+    "keyUse": "signing",
+    "algorithm": "RSASSA_PKCS1_V1_5_SHA_256",
+    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAp3T5WYSHJ1XNCWohVi+j\n1yPcKbmI+TVxOrAekokvbUq54MXgMnZpN3XcEKtkU6j8i5/6YkzmSWaUGV1dIZnV\nKrKuCvfvQ9vLafdu2vvI9WkikS/fIrhEuDbjJ9Kut4MOrHzTUsi5N5/5MxrYw38K\n1GylHenzlHKSOCgVLznj2J+gjk+5FgcFCVwV7QYQ+ik6HoKHsjP5QCNCSCKMKH5q\nM+cExokOmrx/mnyz8ci0+p34e5jvh9h+W2LPCTm9W5hI3eNaVdEoBcB/ns6WIMEW\n9cyVS5wus1mOeVkH3LMziSn34PqXsN3If2E74yeOpmUdGDdMzrKR5lN0Lq1yKj1o\nfwIDAQAB\n-----END PUBLIC KEY-----\n",
+    "privateKey": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCndPlZhIcnVc0J\naiFWL6PXI9wpuYj5NXE6sB6SiS9tSrngxeAydmk3ddwQq2RTqPyLn/piTOZJZpQZ\nXV0hmdUqsq4K9+9D28tp927a+8j1aSKRL98iuES4NuMn0q63gw6sfNNSyLk3n/kz\nGtjDfwrUbKUd6fOUcpI4KBUvOePYn6COT7kWBwUJXBXtBhD6KToegoeyM/lAI0JI\nIowofmoz5wTGiQ6avH+afLPxyLT6nfh7mO+H2H5bYs8JOb1bmEjd41pV0SgFwH+e\nzpYgwRb1zJVLnC6zWY55WQfcszOJKffg+pew3ch/YTvjJ46mZR0YN0zOspHmU3Qu\nrXIqPWh/AgMBAAECggEAHteKB2VD2UhRw76i1jNfC0RlC+BKrI+dw6/laZrPu+Lr\n+kynntO1TEwuVHmkuE3i+bpkzM8aCQHWHBfYi9Q/8SXIrWd9z3M/c0xpw/ZkzGJp\nRfFZuRTUP1OIofCJUm5WeQliiJhEmMyjgrianOMctQQvoyNQRBKYALTNNg4E+4Qa\nHGbcai6DIAUcO8V6jdNRpkew4SBaSvOFKGfcYFR2nXn04XAOwkN+CwKRoo0oEIrz\n4TlI3ENjINMSgESrSXbKTKQ3l6SSsKSHYy4EWTVcNqt10dyE8yzOoKFbJTu+WkP7\nxW4WxKjKv2gY5LkPlH2GfY+a0VUz3IZp70uRlboI5QKBgQDqZbaHhdaUvgqZbrWD\nUMLhA13CsJ/Z3j42OguDrA1NOtLl5KLg9ZIA+mnJFuuyjskwxLEH6fhUu42ruSfj\nKzXTK5B2otRu3OIYd75oyeKOkka2s5E//93I+fZ+EHJbPgNOEniCeLdjCEJyrmSF\ng9/jA/EHb87YM8Q3xTZP4xb14wKBgQC24+SwomtvUWO93HoYKK0UaKo43NyCe/77\nqYn6frGBCXtmS2HPeLp2rrzDs3j3JQEWObfFDlnUK3zhqh5Prrvm6QVQRQbq6Scw\nz7eRAUbpx1PZU8viA6A2VwkghAzvSJwFY0ed54NbL3r+wxAUoP8XuB7bbHviIIrL\nKdw9DDVltQKBgGlu/Q6ythXL8eqYMM9zeWVLZVZYql6OqD8uFtXQg1800X6VPGqi\nK12DRigsxjJYJclpABSGOqyqfIw8yeNWIWzuUJn8nj+L3auR2TU7ckwdIe+2j+RQ\nzEtFnImSDk5ac5QfnNNbR2olYfZB2XdxHTj5IebtdQYtKtrHO6nthPtvAoGAbO1U\nkqNZ64YFKtp62ZK4azRfVditeQXS+x6h8FCu9dSo62cwTTpxjChMgx6MiF5AxHUB\n79q5Q7XW/iytOvYuMbxNjt5d3WGaFudQRIwHKUuvs/vFrcpNDLBP3k7nyUhsrITR\n7ckqog+oaL3TAQZWiFEAB94X9rk9EP3Qj4eK8hUCgYEAlQ2cR9RW2gc2VlvMR2Ma\nqcCD0mwFO2ghiU/Q3KTngavqlmZm3tFLSGr/3kNE8Uz+mu3DhcLCeVst4cIKbAii\n2DXX9RaKG3LCpOj4mPki/P0grDLVYLNJMWJyHx5FAs+TrBPq1ip9Q+VRcNO1U5bj\nM09bwf0cfvmtj9fW2O0mHLU=\n-----END PRIVATE KEY-----\n",
+    "fingerprint": "o0NP+ngWD3dEEi8u/EeDTx8xgrfiRLFWpXYjKUCTCug="
+  },
+  "encryptionKey": {
+    "keyUse": "encryption",
+    "algorithm": "RSAES_OAEP_SHA_256",
+    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArZqCrJLjlVm+7GB+2MSQ\naDDls32jDoUMsLTBoel45yep0kjweWSy3Ez3oGtRF7Cp2K5pF2QXekGchNsugJgV\ncbsrYQTZTVfzijW1R0nchUQ3pgHIDX56vs3UGtss/smwqW+wmcjwSder1ivrxRYe\nl1mSBAlo0hv8sRzhKLyECoEj/nVCAtGhP08YdnmQgMbXvlWecb3qlw1xYpcluoe/\n/W70TXmnjjPCzI/B/2AzlpCFOfwRkGozhVdzPqmAqee59+wufUiszVGMwE7rWVvS\nExmCpdRE9jcXIlvHYsoqTF4iJvgNYu43E/qgDHEkerC9ZCqSG59WajxWDFn6/oBD\nJwIDAQAB\n-----END PUBLIC KEY-----\n",
+    "privateKey": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCtmoKskuOVWb7s\nYH7YxJBoMOWzfaMOhQywtMGh6XjnJ6nSSPB5ZLLcTPega1EXsKnYrmkXZBd6QZyE\n2y6AmBVxuythBNlNV/OKNbVHSdyFRDemAcgNfnq+zdQa2yz+ybCpb7CZyPBJ16vW\nK+vFFh6XWZIECWjSG/yxHOEovIQKgSP+dUIC0aE/Txh2eZCAxte+VZ5xveqXDXFi\nlyW6h7/9bvRNeaeOM8LMj8H/YDOWkIU5/BGQajOFV3M+qYCp57n37C59SKzNUYzA\nTutZW9ITGYKl1ET2NxciW8diyipMXiIm+A1i7jcT+qAMcSR6sL1kKpIbn1ZqPFYM\nWfr+gEMnAgMBAAECggEAC1iJnslmKf4jY2PLwSiuPr5SB4DitbxjVRnTJ9z647Hs\nwDYNJVnmnfhCciUMDTjPY5PD1t1Z8smz9t4znqrnMozRgSCQf89g4Xuwx80fe5mM\nQNi6oDXPxDBD4vzHvDUmoG7mGKmQbrsI23v5B43yXODj5p340EviSsRWQNPP62G5\nWUPpDX78dAsQ2MMD25MQyhjqWHQ0AplbZfgNHk52yBB2CdEAaA1+ufeAULroMnDm\nzhefw/FZ9bfui1iXwWHKiGl8Z9lREE0+OJ0y/r1Clmm858EgG7FMNxANVsUxIEYF\nIUCxKGifSLR9SQKlsVsH1n8nQBPldJRh2+ifd8OmIQKBgQDfhf5TgRNTSqckxosq\nGedBB8zejtEZKGh/8l5KZZTh3/re9pbzoD6ZI9lPtUjZIBxqUA7jKW3BKFqvqVUR\nXC4I1fObJLzCDtPefoCxAm68X81iWDdIami3brGbVcG4QFOj1GmkQqA87SxL/sY5\nvTPQKzEpghPvkxFp1V0X3m3TYQKBgQDG07xvDih1AL+G/3ZEdS7CvjPFiE13bBJ9\nWQZbWGaBUnvbbTyaEPfbBoGdI8vFIRuQEjHsiHMfph78YxDj0IbX+vNlg1Z1fY28\nusrf0sMMN3d6u+KLtqBOudCeifAn2JdYNBrQJErZApbxb03ayqxw+K7zo2M+uiE0\nOAjtlOSrhwKBgDZzcNIsxmVq8S6vQyV9a+1Wlhy9U8i6JELO6xNajZs8seNw1LMC\nnV0283BMbDOgc+ueFxJVfEwqpXTXXka9WuWCITbxCx6G+CviSz1Tp2AyQlkrvkPg\n0COnTpLVoDxfR0DItPdz148gA8N7jBRyt9WFQBOpgWvCOuK6PFRdNgnhAoGBAIg3\n4E2lwYoHrTBsLTbRoevCK+4VaB19aV1/dJ94fSH0xO6cdHyJS4Y/euWR9LVl7WBT\nVujawyTXxzrbFGNAJmIqiD7wMHfmQQkgYIXf+8mO5sirmJZn1ISbQZaconBqL6Y6\nbHRVqQHsiEV5IDnZyTLM7e/17LS5CK6iBVvgOppZAoGBAMcoMC7Zq8ag64sV5CJZ\nnYG6D6gB7BqNySwDkv+eLv0LZ1Sk2ke35m/8QeF4VhVeBaz/fduCCVqQGRxkj2m+\nCAW500hOy9QoUkCdwHg2A93og0aDVHL6Oq/vEPZvg1qMV8tBykCBCEZ+KVPIihrq\nAoxx8E/NiMAdNaQB58DkHXQc\n-----END PRIVATE KEY-----\n",
+    "fingerprint": "li7zrcJ7MBL4+ZtuNvfLZIff33xwc9XYrhA0FERltAY="
+  },
+  "payload": {
+    "to": "bob$receiver.example",
+    "from": "alice$saas.example",
+    "id": "artifact-key-separation-1",
+    "issuedAt": "2026-01-02T00:00:00.000Z",
+    "document": {
+      "payslipId": "PS-9",
+      "netCents": 123456,
+      "currency": "AUD"
+    }
+  },
+  "plaintext": "key-separation roundtrip plaintext"
+}
