@@ -56,15 +56,13 @@ function allRunLines() {
 }
 
 describe('CI: the btps-server Docker image (examples/btps-nest-app) is built', () => {
-  // PENDING — EBA-166 acceptance criterion "CI builds the image" is NOT met.
-  // Reason: the step belongs in .github/workflows/ci.yml, which is outside
-  // EBA-166's declared file scope (Dockerfile, docker-compose.yml, own tests),
-  // so this run could not write it. Skipped rather than left red so it does not
-  // break the `yarn test` gate (ci/test) for unrelated work.
-  // Un-skip in the same change that adds the docker build step — either EBA-166
-  // once its scope includes ci.yml, or the ticket the criterion is moved to.
-  // Until then EBA-166 is not Done.
-  it.skip('a workflow step runs `docker build` or `docker compose build` against examples/btps-nest-app', () => {
+  // EBA-166 acceptance criterion "CI builds the image" (the docker-image job
+  // in .github/workflows/ci.yml). Without that step, the breakage this ticket
+  // fixes (build context "." could not reach the portal:../..-linked
+  // @btps/sdk at the repository root) would never be exercised by CI and
+  // could come back without anyone noticing. This checks the workflow's
+  // shape only. The evidence that the image builds is that job going green.
+  it('a workflow step runs `docker build` or `docker compose build` against examples/btps-nest-app', () => {
     const lines = allRunLines();
     expect(lines.length, 'expected at least one line inside a job body').toBeGreaterThan(0);
 
