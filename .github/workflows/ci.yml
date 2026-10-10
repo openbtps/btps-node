@@ -21,6 +21,14 @@
 #                no lockfile), check that @btps/sdk resolved to a real copy
 #                inside that project rather than a portal:/symlink back into
 #                the repo, then import it.
+# docker-image - EBA-166 criterion 4. Builds the btps-server image through
+#                examples/btps-nest-app/docker-compose.yml (build context =
+#                the repository root, which is where the portal:../..-linked
+#                @btps/sdk lives) on a fresh checkout. The Dockerfile itself
+#                fails the build if the app's SDK smoke test fails or if
+#                @btps/sdk cannot be imported in the production stage, so a
+#                green run covers criteria 1 and 2 too. It only builds the
+#                image: nothing is pushed and no container is started.
 # ci/test      - EBA-152: the root `yarn test` (vitest run, whole suite).
 #                Root vitest also collects examples/btps-nest-app/src/*.spec.ts,
 #                and database.module.spec.ts imports @nestjs/testing from the
@@ -151,6 +159,22 @@ jobs:
         run: yarn install --immutable
       - name: yarn test
         run: yarn test
+
+  docker-image:
+    name: btps-server Docker image (docker compose build, fresh checkout)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # .env.docker is gitignored (.env*), so a fresh checkout has none, and
+      # Compose refuses to load a project whose env_file is missing, even to
+      # build. The image does not read it (env_file is a runtime setting), so
+      # an empty one is enough here. If a real one exists, it is left alone.
+      - name: Provide an empty .env.docker (runtime-only; gitignored)
+        working-directory: examples/btps-nest-app
+        run: test -f .env.docker || touch .env.docker
+      - name: docker compose build btps-server
+        run: docker compose -f examples/btps-nest-app/docker-compose.yml build btps-server
 
   vectors:
     name: ci/vectors
