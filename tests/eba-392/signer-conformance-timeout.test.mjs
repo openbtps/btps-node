@@ -12,10 +12,18 @@
 // Same convention as tests/eba-152, tests/eba-156, tests/eba-166: static,
 // regex-based source inspection, no new parser dependency.
 //
-// Out of scope here: AC2 ("no timeout failures observed over 10
-// consecutive CI runs") is not convertible into a unit test — it is an
-// observation over real CI run history after merge, not a property of the
-// code at a point in time. See handover notes for this ticket.
+// What this does NOT test, stated plainly:
+//
+// - AC1 ("the tsc type-check completes in under 5000 ms on CI runs") is not
+//   asserted here and is not met by this change. This change raises the
+//   timeout; it does not make tsc faster. The ticket's description ("the
+//   timeout is too tight") and AC1 point in different directions, and that
+//   conflict is raised on EBA-392 for the ticket's author to resolve. A
+//   wall-clock assertion of < 5000 ms would itself be the timing flake this
+//   ticket exists to remove. Measured locally on 2026-10-10 (10 cores): the
+//   AC6 tsc run checks 368 files; a cold run took 6.74 s, warm runs ~3.1 s.
+// - AC2 ("no timeout failures over 10 consecutive CI runs") is an
+//   observation over CI history after merge, not a property of the code.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
