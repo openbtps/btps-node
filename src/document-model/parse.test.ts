@@ -10,7 +10,7 @@ import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { createHash } from 'crypto';
 import { parseDocumentV2 } from './parse.js';
-import { jcs } from './jcs.js';
+import { sortedKeyJson } from './sortedKeyJson.js';
 
 const FIXTURES_DIR = join(__dirname, '../../test/fixtures/documents');
 
@@ -61,7 +61,7 @@ describe('EBA-119: parseDocumentV2', () => {
       const result = parseDocumentV2(raw);
       expect(result.success).toBe(true);
       if (!result.success) return;
-      expect(jcs(result.data)).toBe(jcs(raw));
+      expect(sortedKeyJson(result.data)).toBe(sortedKeyJson(raw));
     });
   }
 

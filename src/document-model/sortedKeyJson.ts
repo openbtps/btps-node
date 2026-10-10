@@ -6,7 +6,11 @@
  */
 
 /**
- * A minimal, recursive-key-sort canonical form, used only by this ticket's
+ * A minimal, recursive-key-sort form of a JSON value, used only by this
+ * module's own tests. Deliberately not named after JCS and not exported
+ * from the package: it is not RFC 8785 and must never be signed over.
+ *
+ * Used by this ticket's
  * own tests to assert "JCS(input) === JCS(parsed)" (EBA-103 §2 "Tests": "a
  * status change leaving the original sha256 unchanged"; EBA-119 review,
  * round 1 — `JSON.stringify`/`toEqual` on two outputs of the same parse
@@ -21,16 +25,16 @@
  * ticket's declared scope does not touch. Object key order and recursive
  * structure are all this helper's callers need.
  */
-export function jcs(value: unknown): string {
+export function sortedKeyJson(value: unknown): string {
   if (value === null || typeof value !== 'object') {
     return JSON.stringify(value);
   }
   if (Array.isArray(value)) {
-    return `[${value.map((item) => jcs(item)).join(',')}]`;
+    return `[${value.map((item) => sortedKeyJson(item)).join(',')}]`;
   }
   const keys = Object.keys(value as Record<string, unknown>).sort();
   const members = keys.map(
-    (key) => `${JSON.stringify(key)}:${jcs((value as Record<string, unknown>)[key])}`,
+    (key) => `${JSON.stringify(key)}:${sortedKeyJson((value as Record<string, unknown>)[key])}`,
   );
   return `{${members.join(',')}}`;
 }
