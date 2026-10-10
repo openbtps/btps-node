@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import { loadVectorSet } from './vectors.mjs';
 import { createNodeRuntime } from './runtimes/node.mjs';
 import { createWebRuntime } from './runtimes/web.mjs';
+import { createHermesRuntime } from './runtimes/hermes.mjs';
 import { vectorChecks } from './checks/vectors.mjs';
 import { interopChecks } from './checks/interop.mjs';
 import { oracleChecks } from './checks/oracle.mjs';
@@ -32,11 +33,31 @@ import { loadSdk } from './sdk-loader.mjs';
  * @param {object} options
  * @param {string} options.vectorsDir
  * @param {string | null} options.sdkRoot null to skip the SDK checks
+ * @param {import('./runtimes/hermes.mjs').LocateResult} [options.hermes]
+ *   a result from locateHermes(); the hermes runtime joins the check gate
+ *   only when `hermes.available` is true. Omit it entirely to keep today's
+ *   behaviour (node + web only) — every existing caller does.
  * @returns {Promise<import('./check.mjs').Check[]>}
  */
-export async function buildChecks({ vectorsDir, sdkRoot }) {
+export async function buildChecks({ vectorsDir, sdkRoot, hermes }) {
   const set = loadVectorSet(vectorsDir);
+  // EBA-150's ios.mjs and android.mjs drivers are deliberately NOT wired in
+  // here. Each is web.mjs's WebCrypto driver renamed, so wiring it in would
+  // make vectors/ios/*, vectors/android/* and interop/*-><->ios|android
+  // green on plain Node while naming a platform that never ran — the exact
+  // failure principal-architect's review of PR #4 caught (EBA-150 round 1).
+  // Adding a runtime here is a claim that it ran there; a driver may only
+  // join this list once it runs in a real Expo/RN target (iOS Simulator,
+  // Android emulator, or EAS) or an equivalent on-device signal. See the
+  // README's "Adding a runtime" section and Limitations, and
+  // mobile-runtimes.test.mjs, which guards against this regressing.
+  //
+  // hermes is different: a located hermes binary really executes the
+  // generated script (see runtimes/hermes.mjs and hermes-runtime.test.mjs's
+  // "not a Node stand-in" check), so joining this list when `hermes
+  // .available` is a true claim rather than a repeat of that mistake.
   const runtimes = [createNodeRuntime(), createWebRuntime()];
+  if (hermes?.available) runtimes.push(createHermesRuntime(hermes));
   const checks = [
     ...runtimes.flatMap((runtime) => vectorChecks(runtime, set)),
     ...interopChecks(runtimes, set),

@@ -11,6 +11,15 @@ const PORTABLE_ENTRIES = [
   'src/runtimes/web.mjs',
   'src/checks/vectors.mjs',
   'src/checks/interop.mjs',
+  // EBA-150: the iOS and Android drivers run inside the Expo app, so they
+  // must clear the same bar as the web driver they stand next to.
+  'src/runtimes/ios.mjs',
+  'src/runtimes/android.mjs',
+  // EBA-150: hermes-crypto-core.mjs is read as text and run as a plain
+  // script inside a spawned Hermes process (src/runtimes/hermes.mjs) — it
+  // has no module loader to resolve an import with, and bare Hermes has
+  // neither node:crypto nor WebCrypto to import even if it did.
+  'src/hermes-crypto-core.mjs',
 ];
 const BUILTINS = new Set(builtinModules.flatMap((m) => [m, `node:${m}`]));
 const IMPORT =

@@ -27,6 +27,7 @@ import {
   readKnownFailing,
   runChecks,
 } from '../src/runner.mjs';
+import { locateHermes } from '../src/runtimes/hermes.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -49,6 +50,21 @@ async function main() {
     return 2;
   }
 
+  // EBA-150 AC 1: this never substitutes another engine under Hermes's
+  // name, and never stays silent about why Hermes did or did not run. In
+  // --json mode the report goes into the JSON payload below instead of
+  // stderr, so a machine reader gets it as structured data and this CLI's
+  // own test (--json emits machine-readable results) can still treat
+  // stdout as one parseable JSON document.
+  const hermes = await locateHermes();
+  if (!values.json) {
+    console.error(
+      hermes.available
+        ? `verify-btps-vectors: hermes ${hermes.version} (${hermes.arch}) found at ${hermes.binaryPath}`
+        : `verify-btps-vectors: hermes not available — ${hermes.reason}`,
+    );
+  }
+
   let checks;
   let knownFailing = null;
   try {
@@ -58,6 +74,7 @@ async function main() {
     checks = await buildChecks({
       vectorsDir: path.resolve(values.vectors),
       sdkRoot: values['no-sdk'] ? null : path.resolve(values['sdk-root']),
+      hermes,
     });
   } catch (error) {
     console.error(`verify-btps-vectors: could not start: ${error.message}`);
@@ -67,7 +84,7 @@ async function main() {
   const results = await runChecks(checks);
   const verdict = evaluate(results, knownFailing);
   if (values.json) {
-    console.log(JSON.stringify({ ok: verdict.ok, results, ...verdict }, null, 2));
+    console.log(JSON.stringify({ ok: verdict.ok, hermes, results, ...verdict }, null, 2));
   } else {
     console.log(formatReport(results, verdict, knownFailing));
   }

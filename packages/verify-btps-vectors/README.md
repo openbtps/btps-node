@@ -22,13 +22,16 @@ Options: `--vectors <dir>`, `--sdk-root <dir>`, `--no-sdk`,
 
 Requirements: Node 20 or later, with `esbuild` resolvable (it is a
 devDependency of the repository root). It has been run on Node 24.21.0 only.
+Hermes (EBA-150, see below) is optional: `locateHermes()` looks for a real
+`hermes` binary and the run reports whether it found one, but proceeds either
+way.
 
 ## What it checks
 
 | Suite                 | Runs on            | What it shows                                                                                                                                                                                                                                                                                                        |
 | --------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vectors/<runtime>/…` | node, web          | JCS (RFC 8785) vectors; managed and self-held signatures verify over the canonical bytes and **not** over the raw key order; re-signing reproduces the vector bytes; the KMS-style OAEP wrap unwraps; an MGF1-SHA-1 wrap is refused; the signing and encryption keys are distinct and cannot stand in for each other |
-| `interop/<a>-><b>/…`  | node→web, web→node | a signature or wrap made by one runtime is accepted by the other, and signatures are byte-identical to the vector                                                                                                                                                                                                    |
+| `vectors/<runtime>/…` | node, web, hermes (when available) | JCS (RFC 8785) vectors; managed and self-held signatures verify over the canonical bytes and **not** over the raw key order; re-signing reproduces the vector bytes; the KMS-style OAEP wrap unwraps; an MGF1-SHA-1 wrap is refused; the signing and encryption keys are distinct and cannot stand in for each other |
+| `interop/<a>-><b>/…`  | every ordered pair of node, web, hermes (when available) | a signature or wrap made by one runtime is accepted by the other, and signatures are byte-identical to the vector                                                                                                                                                                                                    |
 | `oracle/oaep/…`       | node               | the reference OAEP (raw RSA) confirms the positive wrap decodes only under MGF1-SHA-256, and that the negative vector really is an MGF1-SHA-1 wrap                                                                                                                                                                   |
 | `sdk/kms/…`           | node, SDK          | the SDK's fingerprint, `encryptRSA` and `decryptRSA` match the KMS profile. Passes on 367cd09                                                                                                                                                                                                                        |
 | `sdk/item-5/…`        | node, SDK          | BTPS 1.1 item 5, JCS signing (EBA-115). **Fails on 367cd09**                                                                                                                                                                                                                                                         |
@@ -78,22 +81,90 @@ network.
 ## Adding a runtime
 
 A runtime is a driver implementing the five functions in
-[`src/runtimes/types.mjs`](src/runtimes/types.mjs). The vector checks and
+[`src/runtimes/types.mjs`](src/runtimes/types.mjs). Once a driver is
+registered in `buildChecks()` (`src/runner.mjs`), the vector checks and
 interop pairs pick it up without new vectors. The web driver, the vector
 checks and the interop checks import nothing from Node — a test enforces
 that — so a browser or React Native harness can import
 `checks/vectors.mjs` and `runtimes/web.mjs` as they are.
 
+[`src/runtimes/ios.mjs`](src/runtimes/ios.mjs) and
+[`src/runtimes/android.mjs`](src/runtimes/android.mjs) (EBA-150) are a
+driver written against that contract for Expo: each re-exports the web
+driver under its own platform name, because the WebCrypto surface is what
+an Expo app calls through on either platform. They carry the same
+portability rule as `web.mjs` — no Node built-in, no third-party import —
+enforced by the same test. **They are deliberately not registered in
+`buildChecks()`.** Wiring an unrun driver in would make `vectors/ios/*`,
+`vectors/android/*` and `interop/*-><->ios|android` pass on plain Node
+while naming a platform nothing ran on — principal-architect's review of
+EBA-150's PR #4 round 1 caught exactly this, and
+`mobile-runtimes.test.mjs` now guards against it recurring. A driver may
+join `buildChecks()` only once it actually runs in a real Expo/RN target
+(iOS Simulator, Android emulator, or EAS) or an equivalent on-device
+signal — see Limitations below.
+
+[`src/runtimes/hermes.mjs`](src/runtimes/hermes.mjs) (EBA-150, the Hermes
+stage) is a different case from ios.mjs/android.mjs: `locateHermes()`
+decides, each run, whether a real `hermes` binary at the ebill-sass app's
+pinned version and architecture actually runs here. Only when it reports
+`available: true` does `createHermesRuntime()` join `buildChecks()`'s
+runtime list — and even then, signing, verifying and OAEP wrap/unwrap
+execute for real inside the spawned Hermes process (via
+[`src/hermes-crypto-core.mjs`](src/hermes-crypto-core.mjs), a pure-ECMAScript
+implementation of the BTPS 1.1 crypto profile that has neither node:crypto
+nor WebCrypto to lean on, since bare Hermes has neither). So, unlike
+ios.mjs/android.mjs, wiring this driver in is a true claim rather than the
+mistake `mobile-runtimes.test.mjs` guards against — see
+`hermes-runtime.test.mjs`'s "not a Node stand-in" check.
+
 ## Limitations — read before relying on a green run
 
-- **"web" here is WebCrypto as implemented by Node**, not a browser. Node's
-  WebCrypto and `node:crypto` share OpenSSL, so node↔web interop is weaker
-  evidence of independence than a real browser would give. No browser,
-  iOS or Android harness exists yet.
-- **No vector was produced by AWS KMS or a device keystore.** The managed
-  vector is signed by node:crypto with the algorithm KMS uses
-  (RSASSA_PKCS1_V1_5_SHA_256), and the self-held one by WebCrypto. A vector
-  signed by a real KMS key is still owed.
+- **iOS and Android are not part of this package's check gate.**
+  `ios.mjs` and `android.mjs` (EBA-150) exist as a driver written against
+  the `RuntimeDriver` contract, and `test/mobile-runtimes.test.mjs`
+  exercises them directly to prove the driver object itself is correct —
+  but neither is registered in `buildChecks()`, so no `verify:btps-vectors`
+  run reports a `vectors/ios/*`, `vectors/android/*` or
+  `interop/*-><->ios|android` check, and ARCH-05's "green on Node, web,
+  iOS and Android" line is **not** satisfied by this package today. There
+  is no Xcode, Android SDK, simulator or Expo runtime in this sandbox, so
+  both drivers can currently only be exercised under plain Node — the same
+  WebCrypto implementation "web" already runs on, sharing OpenSSL with
+  `node:crypto`, which would be weak evidence of platform independence
+  even if it were wired in. Binding these operations to the real Keychain
+  or Keystore (BTPS 1.1 item 8's Signer/Decrypter interfaces, ARCH-05
+  DEC-012) is separate work this ticket does not do. Running the Expo app
+  on an actual iOS/Android target (or an EAS/simulator/emulator run) is a
+  prerequisite this sandbox cannot provide, and re-scoping or providing
+  that runner is a decision for Bhupendra Tamang / infra, not this
+  package.
+- **No managed-custody (KMS) or self-held (device keystore) signing has
+  been exercised.** The managed vector is signed by node:crypto with the
+  algorithm KMS uses (RSASSA_PKCS1_V1_5_SHA_256), and the self-held one by
+  WebCrypto — neither calls a KMS signer, a Keychain, or a Keystore. A
+  vector produced by a real KMS key or a real device keystore is still
+  owed. KMS and device-keystore checks, and the iOS/Android device run
+  itself, are EBA-168's scope (the follow-on under EBA-109), not this
+  ticket's — EBA-150 was re-scoped to Hermes-in-container only on
+  2026-10-08 (see EBA-150's comments).
+- **No hermes binary exists in this sandbox as of this change**, so the
+  `vectors/hermes/*` and `interop/*hermes*` checks above do not appear in a
+  run here; `locateHermes()` reports why (checked `HERMES_CLI_PATH` and
+  PATH; this container has no C/C++ toolchain — no cmake, make, ninja, gcc,
+  g++, clang or clang++ — to build one from source either). The pinned
+  engine is `facebook/hermes.git` tag `hermes-v250829098.0.17` (commit
+  `3477757eb2475555cf8d8df24bfb1deb0613880d`), read directly from the
+  published `react-native@0.86.3` npm tarball's
+  `sdks/.hermesv1version` on 2026-10-09 — not from the ebill-sass mobile
+  repository itself, which is not checked out here, and resting on the
+  unconfirmed assumption that app has not set `RCT_HERMES_V1_ENABLED=0`
+  (Hermes V1 is the react-native-wide default since 0.84, which 0.86.3
+  postdates). `src/hermes-crypto-core.mjs`'s own correctness, independent of
+  whether a real Hermes binary is available, is checked directly under
+  Node in `test/hermes-crypto-core.test.mjs` against the same golden
+  vectors — but its execution *inside the real engine* remains unverified
+  here; see that file and `hermes-runtime.test.mjs`'s header.
 - **Item 6 call shape is a guess at the 1.1 API.** The adapter
   `produceItem6Artifact` in [`src/checks/sdk.mjs`](src/checks/sdk.mjs) uses
   the 367cd09 call shape. EBA-116 may change it, and then the adapter must
