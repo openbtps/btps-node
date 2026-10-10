@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { reconcilePayslip } from './payslipReconciliation.js';
+import { moneyEquals } from './money.js';
 import { DocumentV2Schema } from '../schema/index.js';
 import type { PayslipV2 } from '../schema/payslip.js';
 
@@ -25,13 +26,17 @@ function loadPayslip(name: string): PayslipV2 {
 
 /*
  * The six approved §6 cases (page 8945684, EBA-119 comments 10696/10703),
- * spread across the four payslip fixtures:
+ * spread across the four original payslip fixtures, plus a seventh added
+ * on review (EBA-119 round 1): the combined-mismatch fixture had gross and
+ * net both wrong, so it could not show the per-field check working in
+ * isolation.
  *  1. hourly: ordinary, au:penalty and au:casual_loading earnings[] lines.
  *  2. salaried-new-employee: payRate {amount, unit: annual, asAt}.
  *  3. hourly: a deduction paid to a named fund (payee {name, accountRef}).
- *  4. hourly (fund) and salaried-new-employee (no fund): super with and without one.
+ *  4. hourly (fund) and salaried-new-employee (no fund): contributions with and without one.
  *  5. unknown-extensions: an unknown category and an unknown extensions block.
- *  6. reconciliation-mismatch: gross/net that doesn't reconcile — a warning, not a rejection.
+ *  6. reconciliation-mismatch: gross AND net that don't reconcile — a warning, not a rejection.
+ *  7. net-mismatch: gross reconciles, net alone doesn't — isolates the net check.
  */
 describe('EBA-119: payslip reconciliation — the six approved §6 cases', () => {
   it('case 1: hourly employee with ordinary, au:penalty and au:casual_loading lines reconciles cleanly', () => {
@@ -66,13 +71,13 @@ describe('EBA-119: payslip reconciliation — the six approved §6 cases', () =>
     });
   });
 
-  it('case 4: super with a fund, and super without one for a new employee', () => {
+  it('case 4: a contribution with a fund, and one without for a new employee', () => {
     const withFund = loadPayslip('payslip.hourly.v2.json');
-    expect(withFund.super[0].fund?.name).toBe('AustralianSuper');
+    expect(withFund.contributions[0].fund?.name).toBe('AustralianSuper');
 
     const withoutFund = loadPayslip('payslip.salaried-new-employee.v2.json');
-    expect(withoutFund.super).toHaveLength(1);
-    expect(withoutFund.super[0].fund).toBeUndefined();
+    expect(withoutFund.contributions).toHaveLength(1);
+    expect(withoutFund.contributions[0].fund).toBeUndefined();
   });
 
   it('case 5: an unknown category and an unknown extensions block are carried and still reconcile', () => {
@@ -95,6 +100,16 @@ describe('EBA-119: payslip reconciliation — the six approved §6 cases', () =>
     // It is a warning, never an exception: DocumentV2Schema already accepted
     // this fixture (see src/schema/index.test.ts), and reconcilePayslip
     // above returned a result rather than throwing.
+  });
+
+  it('case 7: gross reconciles but net alone does not — an isolated net mismatch', () => {
+    const payslip = loadPayslip('payslip.net-mismatch.v2.json');
+    const result = reconcilePayslip(payslip);
+    expect(result.ok).toBe(false);
+    expect(moneyEquals(result.computedGross, result.declaredGross)).toBe(true);
+    expect(moneyEquals(result.computedNet, result.declaredNet)).toBe(false);
+    expect(result.warnings.some((w) => w.includes('net does not reconcile'))).toBe(true);
+    expect(result.warnings.some((w) => w.includes('gross does not reconcile'))).toBe(false);
   });
 
   it('never recomputes amount from rate * quantity: changing rate/quantity alone does not change the result', () => {

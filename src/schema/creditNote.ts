@@ -7,28 +7,25 @@
 
 import { z } from 'zod';
 import { MoneySchema } from './money.js';
-import { IssuedDocumentV2BaseSchema, ExtensionsSchema } from './base.js';
-import { InvoiceLineItemV2Schema } from './invoice.js';
+import { IssuedDocumentV2BaseSchema, ExtensionsSchema, DocumentReferenceV2Schema } from './base.js';
+import { InvoiceLineItemV2Schema, InvoiceTaxTotalV2Schema } from './invoice.js';
 
 /**
  * EBA-103 §2 describes the reference to the original artifact as a tuple
- * (from, id, sha256). This ticket's fixture
- * (test/fixtures/documents/credit-note.v2.json) carries only the invoice id
- * as `relatesToInvoiceId`, so that is the required field here; the richer
- * tuple is modelled as optional for a sender that wants to carry it. The
+ * (from, id, sha256) — `relatesToInvoice` below (renamed from the bare-string
+ * `relatesToInvoiceId` on review, EBA-119 round 1, so `from` exists and the
  * design's own invariant — "a credit note cannot reference a document from
- * another sender" — is a cross-document check against the sender captured
- * in the envelope, not something this document's own schema can verify in
- * isolation; it is not implemented here.
+ * another sender" — has something to check against. That check itself is
+ * EBA-215's, across documents and the envelope's sender; it is not
+ * implemented here.
  */
 export const CreditNoteV2Schema = IssuedDocumentV2BaseSchema.extend({
   type: z.literal('credit_note'),
-  relatesToInvoiceId: z.string().min(1),
-  relatesToInvoiceSha256: z.string().optional(),
+  relatesToInvoice: DocumentReferenceV2Schema,
   reason: z.string().optional(),
   lineItems: z.array(InvoiceLineItemV2Schema).min(1),
   total: MoneySchema,
-  taxTotal: MoneySchema,
+  taxTotals: z.array(InvoiceTaxTotalV2Schema).min(1),
   extensions: ExtensionsSchema.optional(),
 });
 

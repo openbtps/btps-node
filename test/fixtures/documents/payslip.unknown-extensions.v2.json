@@ -19,7 +19,7 @@
     }
   ],
   "deductions": [],
-  "super": [
+  "contributions": [
     {
       "fund": { "name": "HostPlus", "memberNumber": "HP-112233" },
       "amount": { "amount": 13386, "currency": "AUD" }

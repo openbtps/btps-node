@@ -7,20 +7,17 @@
 
 import { z } from 'zod';
 import { MoneySchema } from './money.js';
-import { DocumentV2BaseSchema } from './base.js';
+import { DocumentV2BaseSchema, DocumentReferenceV2Schema } from './base.js';
 
 /**
- * EBA-103 §2 lists eventType as paid | partially_paid | refunded | disputed
- * (plus a proposed dispute_resolved). This ticket's fixture
- * (test/fixtures/documents/lifecycle-event.v2.json) — written directly from
- * the acceptance criterion "a status change never alters the original
- * artifact's bytes" — uses a generic "status_change" shape with
- * previousStatus/newStatus instead. Both are kept here: the design's
- * specific types for when a party asserts a concrete payment/dispute fact,
- * and "status_change" for the generic case this ticket's fixture and test
- * exercise. Reconciling this into one shape, if it needs to be one, is a
- * design question for whoever picks up the next lifecycle-event ticket —
- * not decided here.
+ * EBA-103 §2 (page 7897249): eventType is paid | partially_paid | refunded |
+ * disputed — payment and dispute status as separate signed events (founder,
+ * addendum item 7) — plus dispute_resolved, which the page itself marks
+ * [proposal] (section 10: not yet a founder decision). A generic
+ * "status_change" type with previousStatus/newStatus was removed on review
+ * (EBA-119 round 1): §1 says status never lives inside the signed document,
+ * and the ratified eventTypes already say what happened without carrying a
+ * before/after status pair.
  */
 export const LifecycleEventTypeSchema = z.enum([
   'paid',
@@ -28,18 +25,14 @@ export const LifecycleEventTypeSchema = z.enum([
   'refunded',
   'disputed',
   'dispute_resolved',
-  'status_change',
 ]);
 
 export const LifecycleEventV2Schema = DocumentV2BaseSchema.extend({
   type: z.literal('lifecycle_event'),
-  /** References the document artifact this event is about. */
-  documentId: z.string().min(1),
-  documentSha256: z.string().optional(),
+  /** References the document artifact this event is about (§2: from, id, sha256). */
+  document: DocumentReferenceV2Schema,
   eventType: LifecycleEventTypeSchema,
   occurredAt: z.string().datetime(),
-  previousStatus: z.string().optional(),
-  newStatus: z.string().optional(),
   amount: MoneySchema.optional(),
 });
 

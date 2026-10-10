@@ -29,16 +29,21 @@
  * shipped (src/document-model/index.ts, src/schema/index.ts).
  *
  * Scope note on the last AC ("vectors pass on Node, web and the third
- * runtime available in CI"): the only cross-runtime harness in this repo is
- * packages/verify-btps-vectors, which today drives exactly two runtimes
- * (node.mjs, web.mjs — see its src/runtimes/) and is *not* part of this
- * ticket's declared file scope (src/document-model/, src/schema/,
- * test/fixtures/documents/). There is no third runtime driver anywhere in
- * this checkout to run these vectors against. This file can and does prove
+ * runtime available in CI"): on review (EBA-119, principal-architect round
+ * 1), the declared file scope grew to include
+ * packages/verify-btps-vectors/src/checks/ and test/vectors/, specifically
+ * so this AC could be shown by an actual signature check rather than a
+ * schema parse. That check now lives in
+ * packages/verify-btps-vectors/src/checks/documentModel.mjs and runs in
+ * packages/verify-btps-vectors/test/documentModel.test.mjs: every fixture
+ * in test/fixtures/documents/ is JCS-canonicalised, signed and verified on
+ * both of this repo's runtime drivers (node.mjs, web.mjs), and that test
+ * file is collected by the same root `yarn test` this file is. The third
+ * runtime (Hermes) is EBA-150's, which already owns it, per this ticket's
+ * acceptance criteria and the review ruling. This file still proves
  * portability statically (no runtime-specific imports in the new source),
- * the same technique test/signer-conformance.test.ts AC4 uses, but it
- * cannot prove the vectors actually execute on a third CI runtime that does
- * not exist yet. That gap is real, not papered over here.
+ * the same technique test/signer-conformance.test.ts AC4 uses, as a second,
+ * cheaper check — not the only one any more.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -122,32 +127,55 @@ describe('AC: schema vectors per type (invoice, payslip, credit note, lifecycle 
 });
 
 describe('AC: tax-total computed and verified correctly', () => {
-  it('verifyTaxTotal over the invoice line items confirms taxTotal and total', () => {
-    const { taxTotal, total } = invoice as {
-      taxTotal: { amount: number; currency: string };
+  it('verifyTaxTotal over the invoice line items confirms total and taxTotals[] per rate (two rates)', () => {
+    const { taxTotals, total } = invoice as {
+      taxTotals: Array<{ taxCategory: string; amount: { amount: number; currency: string } }>;
       total: { amount: number; currency: string };
     };
     const check = verifyTaxTotal(invoice as Parameters<typeof verifyTaxTotal>[0]);
     expect(check.ok).toBe(true);
-    expect(check.computedTaxTotal).toEqual(taxTotal);
     expect(check.computedTotal).toEqual(total);
+    expect(check.byCategory.length).toBe(taxTotals.length);
+    for (const declared of taxTotals) {
+      const entry = check.byCategory.find((c) => c.taxCategory === declared.taxCategory);
+      expect(entry?.computedAmount).toEqual(declared.amount);
+      expect(entry?.ok).toBe(true);
+    }
   });
 
-  it('verifyTaxTotal over the credit note line items confirms taxTotal and total', () => {
-    const { taxTotal, total } = creditNote as {
-      taxTotal: { amount: number; currency: string };
+  it('verifyTaxTotal over the credit note line items confirms total and taxTotals[] per rate', () => {
+    const { taxTotals, total } = creditNote as {
+      taxTotals: Array<{ taxCategory: string; amount: { amount: number; currency: string } }>;
       total: { amount: number; currency: string };
     };
     const check = verifyTaxTotal(creditNote as Parameters<typeof verifyTaxTotal>[0]);
     expect(check.ok).toBe(true);
-    expect(check.computedTaxTotal).toEqual(taxTotal);
     expect(check.computedTotal).toEqual(total);
+    expect(check.byCategory.find((c) => c.taxCategory === taxTotals[0].taxCategory)?.computedAmount).toEqual(
+      taxTotals[0].amount,
+    );
   });
 
   it('reports ok: false, not a throw, for a declared total that disagrees with the line items', () => {
     const tampered = { ...(invoice as Record<string, unknown>), total: { amount: 1, currency: 'AUD' } };
     const check = verifyTaxTotal(tampered as Parameters<typeof verifyTaxTotal>[0]);
     expect(check.ok).toBe(false);
+  });
+
+  it('isolates a tax-only mismatch from a total-only one: the total can be correct while one rate disagrees', () => {
+    const typedInvoice = invoice as {
+      taxTotals: Array<{ taxCategory: string; amount: { amount: number; currency: string } }>;
+    };
+    const tampered = {
+      ...(invoice as Record<string, unknown>),
+      taxTotals: typedInvoice.taxTotals.map((t) =>
+        t.taxCategory === 'GST10' ? { ...t, amount: { amount: 1, currency: 'AUD' } } : t,
+      ),
+    };
+    const check = verifyTaxTotal(tampered as Parameters<typeof verifyTaxTotal>[0]);
+    expect(check.ok).toBe(false);
+    expect(check.computedTotal).toEqual(check.declaredTotal); // total itself is untouched and correct
+    expect(check.byCategory.find((c) => c.taxCategory === 'GST10')?.ok).toBe(false);
   });
 });
 
@@ -184,11 +212,11 @@ describe('AC: payslip fixture coverage', () => {
     expect(deductions[0].payee?.accountRef).toBe('ASU-00231');
   });
 
-  it('super with a fund validates, and super without one (new employee, first 14 days) also validates', () => {
-    const hourly = payslipHourly as { super: Array<{ fund?: unknown }> };
-    const salaried = payslipSalariedNewEmployee as { super: Array<{ fund?: unknown }> };
-    expect(hourly.super[0].fund).toBeDefined();
-    expect(salaried.super[0].fund).toBeUndefined();
+  it('a super contribution with a fund validates, and one without (new employee, first 14 days) also validates', () => {
+    const hourly = payslipHourly as { contributions: Array<{ fund?: unknown }> };
+    const salaried = payslipSalariedNewEmployee as { contributions: Array<{ fund?: unknown }> };
+    expect(hourly.contributions[0].fund).toBeDefined();
+    expect(salaried.contributions[0].fund).toBeUndefined();
     expect(PayslipV2Schema.safeParse(payslipHourly).success).toBe(true);
     expect(PayslipV2Schema.safeParse(payslipSalariedNewEmployee).success).toBe(true);
   });
@@ -312,13 +340,13 @@ describe("AC: a status change never alters the original artifact's bytes", () =>
     const before = JSON.stringify(parsed.data);
 
     // Recording a status change is a separate, independent document — a
-    // LifecycleEvent referencing the invoice by id — never a write into the
-    // invoice artifact itself (src/document-model/parse.ts,
+    // LifecycleEvent referencing the invoice by (from, id, sha256) — never a
+    // write into the invoice artifact itself (src/document-model/parse.ts,
     // src/document-model/immutability.ts).
     const lifecycleEventResult = parseDocumentV2(JSON.parse(loadFixtureRaw('lifecycle-event.v2.json').toString('utf8')));
     expect(lifecycleEventResult.success).toBe(true);
     if (lifecycleEventResult.success) {
-      expect((lifecycleEventResult.data as { documentId: string }).documentId).toBe(
+      expect((lifecycleEventResult.data as { document: { id: string } }).document.id).toBe(
         (parsed.data as { id: string }).id,
       );
     }
@@ -333,13 +361,21 @@ describe("AC: a status change never alters the original artifact's bytes", () =>
     }).toThrow(TypeError);
   });
 
-  it('the lifecycle event fixture is a separate document, valid under LifecycleEventV2Schema', () => {
+  it('the lifecycle event fixture is a separate document, valid under LifecycleEventV2Schema, and references the invoice by (from, id, sha256) — not a status pair', () => {
     const check = LifecycleEventV2Schema.safeParse(lifecycleEvent);
     expect(check.success).toBe(true);
-    const event = lifecycleEvent as { documentId: string; newStatus: string; previousStatus: string };
-    expect(event.documentId).toBe('inv_2001');
-    expect(event.newStatus).toBe('paid');
-    expect(event.previousStatus).toBe('unpaid');
+    const event = lifecycleEvent as {
+      document: { from: string; id: string; sha256: string };
+      eventType: string;
+    };
+    expect(event.document.id).toBe('inv_2001');
+    expect(event.document.from).toBeTruthy();
+    expect(event.document.sha256).toBeTruthy();
+    expect(event.eventType).toBe('paid');
+    // status never lives inside the signed document (EBA-103 §1): there is
+    // no previousStatus/newStatus pair, generic or otherwise.
+    expect('previousStatus' in event).toBe(false);
+    expect('newStatus' in event).toBe(false);
   });
 });
 

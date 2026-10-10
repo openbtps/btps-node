@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
   "type": "payslip",
-  "id": "pay_5004",
+  "id": "pay_5005",
   "issuedAt": "2026-10-04T00:00:00.000Z",
-  "employee": { "name": "Alex Kim", "payBasis": "hourly" },
+  "employee": { "name": "Nguyen Vo", "payBasis": "hourly" },
   "earnings": [
     {
       "category": "ordinary",
@@ -19,6 +19,6 @@
     }
   ],
   "contributions": [],
-  "gross": { "amount": 105000, "currency": "AUD" },
+  "gross": { "amount": 100000, "currency": "AUD" },
   "net": { "amount": 70000, "currency": "AUD" }
 }

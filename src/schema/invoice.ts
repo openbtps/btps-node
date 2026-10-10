@@ -32,36 +32,48 @@ export const InvoiceAttachmentV2Schema = z.object({
   sha256: z.string(),
 });
 
+/**
+ * Field names are the ratified EBA-103 §2 ones: `unitPrice` and `lineTotal`
+ * (not `unitAmount`/`amount` — renamed on review, EBA-119 round 1, ahead of
+ * the ~10-16 schema freeze). `taxCategory` is required: it is the rate key
+ * `taxTotals` below groups by, so a line cannot contribute tax that no
+ * total can be checked against.
+ */
 export const InvoiceLineItemV2Schema = z.object({
   description: z.string(),
   quantity: DecimalStringSchema,
-  unitAmount: MoneySchema,
-  amount: MoneySchema,
+  unitPrice: MoneySchema,
+  lineTotal: MoneySchema,
   taxAmount: MoneySchema,
-  taxCategory: z.string().optional(),
+  taxCategory: z.string().min(1),
 });
 
 export type InvoiceLineItemV2 = z.infer<typeof InvoiceLineItemV2Schema>;
+
+/**
+ * One rate's worth of tax across the invoice — EBA-103 §2: "taxTotals per
+ * rate", with the invariant "taxTotals equal the sum of line taxes per
+ * rate". `taxCategory` is the rate key and matches the line items' own
+ * `taxCategory` (e.g. "GST10", "GST0"); verified per rate by
+ * src/document-model/taxTotal.ts.
+ */
+export const InvoiceTaxTotalV2Schema = z.object({
+  taxCategory: z.string().min(1),
+  amount: MoneySchema,
+});
+
+export type InvoiceTaxTotalV2 = z.infer<typeof InvoiceTaxTotalV2Schema>;
 
 export const InvoiceV2Schema = IssuedDocumentV2BaseSchema.extend({
   type: z.literal('invoice'),
   invoiceNumber: z.string().optional(),
   issueDate: z.string().datetime().optional(),
   supplyDate: z.string().datetime().optional(),
-  /**
-   * Present in the given fixture as the status as issued. EBA-103 §2 moves
-   * *changing* status out to separate signed LifecycleEvents so the
-   * artifact's bytes never change after issuance — it does not forbid a
-   * fixed value recorded at issuance. This field, once signed, is never
-   * updated in place; current status is computed from this plus any
-   * LifecycleEvents (see src/document-model).
-   */
-  status: z.enum(['paid', 'unpaid', 'partial', 'refunded', 'disputed']).optional(),
   seller: InvoicePartyV2Schema.optional(),
   buyer: InvoicePartyV2Schema.optional(),
   lineItems: z.array(InvoiceLineItemV2Schema).min(1),
   total: MoneySchema,
-  taxTotal: MoneySchema,
+  taxTotals: z.array(InvoiceTaxTotalV2Schema).min(1),
   gstInclusive: z.boolean().optional(),
   paymentTerms: z.string().optional(),
   dueDate: z.string().datetime().optional(),

@@ -31,7 +31,7 @@
       "payee": { "name": "Australian Services Union", "accountRef": "ASU-00231" }
     }
   ],
-  "super": [
+  "contributions": [
     {
       "fund": { "name": "AustralianSuper", "memberNumber": "AS-998877" },
       "amount": { "amount": 19286, "currency": "AUD" }

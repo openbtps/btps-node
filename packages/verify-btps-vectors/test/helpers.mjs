@@ -8,6 +8,8 @@ import { canonicalize, canonicalizeValue } from '../src/jcs.mjs';
 export const PACKAGE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const REPO_ROOT = path.resolve(PACKAGE_DIR, '../..');
 export const VECTORS_DIR = path.join(REPO_ROOT, 'test/vectors');
+/** EBA-119's own document-model fixtures (src/schema/, src/document-model/). */
+export const DOCUMENT_FIXTURES_DIR = path.join(REPO_ROOT, 'test/fixtures/documents');
 export const BIN = path.join(PACKAGE_DIR, 'bin/verify-btps-vectors.mjs');
 export const KNOWN_FAILING = path.join(VECTORS_DIR, 'known-failing.json');
 

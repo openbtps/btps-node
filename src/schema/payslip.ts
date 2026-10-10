@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { MoneySchema, DecimalStringSchema } from './money.js';
-import { DocumentV2BaseSchema, CategoryCodeSchema, ExtensionsSchema } from './base.js';
+import { IssuedDocumentV2BaseSchema, CategoryCodeSchema, ExtensionsSchema } from './base.js';
 import { InvoiceAttachmentV2Schema } from './invoice.js';
 
 /**
@@ -93,7 +93,7 @@ export const PayslipEmployerV2Schema = z.object({
   taxIds: z.array(z.string()).optional(),
 });
 
-export const PayslipV2Schema = DocumentV2BaseSchema.extend({
+export const PayslipV2Schema = IssuedDocumentV2BaseSchema.extend({
   type: z.literal('payslip'),
   /** ISO 3166-1 alpha-2, e.g. "AU". Optional: see file header. */
   jurisdiction: z.string().length(2).optional(),
@@ -110,7 +110,8 @@ export const PayslipV2Schema = DocumentV2BaseSchema.extend({
   earnings: z.array(PayslipEarningV2Schema),
   deductions: z.array(PayslipDeductionV2Schema),
   taxWithheld: MoneySchema.optional(),
-  super: z.array(PayslipContributionV2Schema),
+  /** Ratified field name is `contributions[]`, not `super` (EBA-119 review, round 1). */
+  contributions: z.array(PayslipContributionV2Schema),
   gross: MoneySchema,
   net: MoneySchema,
   yearToDate: z.record(z.string(), MoneySchema).optional(),

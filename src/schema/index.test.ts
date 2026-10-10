@@ -29,6 +29,7 @@ describe('EBA-119: document model v2 schema vectors', () => {
         'invoice.v2.json',
         'lifecycle-event.v2.json',
         'payslip.hourly.v2.json',
+        'payslip.net-mismatch.v2.json',
         'payslip.reconciliation-mismatch.v2.json',
         'payslip.salaried-new-employee.v2.json',
         'payslip.unknown-extensions.v2.json',
@@ -90,8 +91,8 @@ describe('EBA-119: document model v2 schema vectors', () => {
     const result = DocumentV2Schema.safeParse(raw);
     expect(result.success).toBe(true);
     if (result.success && result.data.type === 'payslip') {
-      expect(result.data.super).toHaveLength(1);
-      expect(result.data.super[0].fund).toBeUndefined();
+      expect(result.data.contributions).toHaveLength(1);
+      expect(result.data.contributions[0].fund).toBeUndefined();
     }
   });
 
@@ -100,7 +101,7 @@ describe('EBA-119: document model v2 schema vectors', () => {
     const result = DocumentV2Schema.safeParse(raw);
     expect(result.success).toBe(true);
     if (result.success && result.data.type === 'payslip') {
-      expect(result.data.super[0].fund?.name).toBe('AustralianSuper');
+      expect(result.data.contributions[0].fund?.name).toBe('AustralianSuper');
     }
   });
 

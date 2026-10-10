@@ -51,3 +51,21 @@ export const CategoryCodeSchema = z
  * "unknown extensions block, carried byte-for-byte").
  */
 export const ExtensionsSchema = z.record(z.string(), z.unknown());
+
+/**
+ * A reference to another signed document artifact — EBA-103 §2 (page
+ * 7897249): a credit note "references the original artifact (from, id,
+ * sha256)", and a lifecycle event "references the document artifact" the
+ * same way. `from` is carried even though the invariant it exists for —
+ * "a credit note cannot reference a document from another sender" — is a
+ * cross-document check against the envelope's sender, owned by EBA-215,
+ * not implemented here (EBA-119 review, round 1): the schema has to carry
+ * `from` before that check can exist at all.
+ */
+export const DocumentReferenceV2Schema = z.object({
+  from: z.string().min(1),
+  id: z.string().min(1),
+  sha256: z.string().min(1),
+});
+
+export type DocumentReferenceV2 = z.infer<typeof DocumentReferenceV2Schema>;
