@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 2,
+  "type": "invoice",
+  "id": "inv_2001",
+  "issuedAt": "2026-10-01T00:00:00.000Z",
+  "status": "unpaid",
+  "lineItems": [
+    {
+      "description": "Consulting services",
+      "quantity": "10",
+      "unitAmount": { "amount": 15000, "currency": "AUD" },
+      "amount": { "amount": 150000, "currency": "AUD" },
+      "taxAmount": { "amount": 15000, "currency": "AUD" }
+    },
+    {
+      "description": "Travel expenses",
+      "quantity": "1",
+      "unitAmount": { "amount": 20000, "currency": "AUD" },
+      "amount": { "amount": 20000, "currency": "AUD" },
+      "taxAmount": { "amount": 2000, "currency": "AUD" }
+    }
+  ],
+  "total": { "amount": 170000, "currency": "AUD" },
+  "taxTotal": { "amount": 17000, "currency": "AUD" }
+}

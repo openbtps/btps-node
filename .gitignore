@@ -30,5 +30,7 @@ test
 !/test/signer-conformance.test.ts
 !/test/decrypter-conformance.test.ts
 !/test/vectors.json
+!/test/document-model-v2.test.ts
+!/test/fixtures/
 !/packages/verify-btps-vectors/test/
 coverage

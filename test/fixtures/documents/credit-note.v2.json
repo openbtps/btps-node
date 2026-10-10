@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 2,
+  "type": "credit_note",
+  "id": "cn_3001",
+  "issuedAt": "2026-10-02T00:00:00.000Z",
+  "relatesToInvoiceId": "inv_2001",
+  "lineItems": [
+    {
+      "description": "Partial refund: travel expenses",
+      "quantity": "1",
+      "unitAmount": { "amount": 20000, "currency": "AUD" },
+      "amount": { "amount": 20000, "currency": "AUD" },
+      "taxAmount": { "amount": 2000, "currency": "AUD" }
+    }
+  ],
+  "total": { "amount": 20000, "currency": "AUD" },
+  "taxTotal": { "amount": 2000, "currency": "AUD" }
+}

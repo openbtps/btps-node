@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "type": "payslip",
+  "id": "pay_5004",
+  "issuedAt": "2026-10-04T00:00:00.000Z",
+  "employee": { "name": "Alex Kim", "payBasis": "hourly" },
+  "earnings": [
+    {
+      "category": "ordinary",
+      "rate": "25.00",
+      "quantity": "40",
+      "amount": { "amount": 100000, "currency": "AUD" }
+    }
+  ],
+  "deductions": [
+    {
+      "category": "tax_withholding",
+      "amount": { "amount": 20000, "currency": "AUD" }
+    }
+  ],
+  "super": [],
+  "gross": { "amount": 105000, "currency": "AUD" },
+  "net": { "amount": 70000, "currency": "AUD" }
+}

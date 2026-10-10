@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 2,
+  "type": "lifecycle_event",
+  "id": "evt_4001",
+  "documentId": "inv_2001",
+  "eventType": "status_change",
+  "occurredAt": "2026-10-03T00:00:00.000Z",
+  "previousStatus": "unpaid",
+  "newStatus": "paid"
+}

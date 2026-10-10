@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 2,
+  "type": "payslip",
+  "id": "pay_5001",
+  "issuedAt": "2026-10-04T00:00:00.000Z",
+  "employee": { "name": "Jordan Lee", "payBasis": "hourly" },
+  "earnings": [
+    {
+      "category": "ordinary",
+      "rate": "32.50",
+      "quantity": "38",
+      "amount": { "amount": 123501, "currency": "AUD" }
+    },
+    {
+      "category": "au:penalty",
+      "rate": "48.75",
+      "quantity": "4",
+      "amount": { "amount": 19500, "currency": "AUD" }
+    },
+    {
+      "category": "au:casual_loading",
+      "rate": "6.50",
+      "quantity": "38",
+      "amount": { "amount": 24700, "currency": "AUD" }
+    }
+  ],
+  "deductions": [
+    {
+      "category": "union_fees",
+      "amount": { "amount": 1500, "currency": "AUD" },
+      "payee": { "name": "Australian Services Union", "accountRef": "ASU-00231" }
+    }
+  ],
+  "super": [
+    {
+      "fund": { "name": "AustralianSuper", "memberNumber": "AS-998877" },
+      "amount": { "amount": 19286, "currency": "AUD" }
+    }
+  ],
+  "gross": { "amount": 167701, "currency": "AUD" },
+  "net": { "amount": 166201, "currency": "AUD" }
+}
