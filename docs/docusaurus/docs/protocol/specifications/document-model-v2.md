@@ -48,53 +48,57 @@ states.
 ## Invoice
 
 `InvoiceV2Schema` (`src/schema/invoice.ts`). Required: `id`, `issuedAt`,
-`lineItems` (at least one), `total`, `taxTotal`. Each line item has
-`description`, `quantity` (decimal string), `unitAmount`, `amount`, and
-`taxAmount` (all `Money` except `quantity`).
+`lineItems` (at least one), `total`, `taxTotals` (at least one, one entry
+per tax rate). Each line item has `description`, `quantity` (decimal
+string), `unitPrice`, `lineTotal`, `taxAmount` (all `Money` except
+`quantity`), and `taxCategory` — a string rate key (e.g. `"GST10"`,
+`"GST0"`) matched against `taxTotals[].taxCategory`.
 
-`invoiceNumber`, `issueDate`, `supplyDate`, `status`, `seller`, `buyer`,
+`invoiceNumber`, `issueDate`, `supplyDate`, `seller`, `buyer`,
 `gstInclusive`, `paymentTerms`, `dueDate`, `attachments`, and `extensions`
 are optional — richer fields from the design that this ticket's fixtures
 don't yet exercise.
 
 `verifyTaxTotal(doc)` (`src/document-model/taxTotal.ts`) recomputes `total`
-and `taxTotal` from `lineItems` and compares them against the declared
-values:
+from `lineItems`, and recomputes each tax rate's total by grouping line
+items by `taxCategory`, then compares both against the declared values:
 
 ```ts
 const check = verifyTaxTotal(invoice);
-// check.ok, check.computedTotal, check.computedTaxTotal,
-// check.declaredTotal, check.declaredTaxTotal
+// check.ok, check.computedTotal, check.declaredTotal,
+// check.byCategory: { taxCategory, computedAmount, declaredAmount, ok }[]
 ```
 
-It never throws — a disagreement is reported as `ok: false`, and it is up
-to the caller (e.g. a send flow) to decide whether that blocks anything.
+The total check and the per-category checks are independent — `check.ok`
+is true only when the total and every category in `byCategory` agree. It
+never throws — a disagreement is reported as `ok: false`, and it is up to
+the caller (e.g. a send flow) to decide whether that blocks anything.
 
 ## Credit note
 
 `CreditNoteV2Schema` (`src/schema/creditNote.ts`) reuses the invoice line
-item shape. Required: `id`, `issuedAt`, `relatesToInvoiceId`, `lineItems`
-(at least one), `total`, `taxTotal`. `relatesToInvoiceSha256`, `reason`, and
+item shape. Required: `id`, `issuedAt`, `relatesToInvoice`, `lineItems`
+(at least one), `total`, `taxTotals` (at least one). `reason` and
 `extensions` are optional. `verifyTaxTotal` works on a credit note the same
 way it works on an invoice.
 
-A credit note only carries the invoice `id` it relates to — it does not by
-itself prove that invoice came from the same sender. That cross-document
-check is not implemented in this layer.
+`relatesToInvoice` is `{ from, id, sha256 }` — the same `(from, id, sha256)`
+reference shape a lifecycle event uses to point at a document. `from` is
+carried so that the invariant "a credit note cannot reference a document
+from another sender" has something to check against, but that cross-document
+check itself is not implemented in this layer.
 
 ## Payslip
 
-`PayslipV2Schema` (`src/schema/payslip.ts`). Required: `id`, `employee`,
-`earnings`, `deductions`, `super`, `gross`, `net`. `jurisdiction`,
-`employer`, `payPeriod`, `payDate`, `payRate`, `taxWithheld`,
-`yearToDate`, `attachments`, and `extensions` are optional.
+`PayslipV2Schema` (`src/schema/payslip.ts`). Required: `id`, `issuedAt`,
+`employee`, `earnings`, `deductions`, `contributions`, `gross`, `net`.
+`jurisdiction`, `employer`, `payPeriod`, `payDate`, `payRate`,
+`taxWithheld`, `yearToDate`, `attachments`, and `extensions` are optional.
 
-Unlike invoice and credit note, `PayslipV2Schema` does not declare an
-`issuedAt` field — it extends `DocumentV2BaseSchema`, not
-`IssuedDocumentV2BaseSchema`. The fixtures in `test/fixtures/documents/`
-each carry a top-level `issuedAt`, but `parseDocumentV2` silently drops it
-for a payslip (Zod strips keys an object schema doesn't declare); it is not
-present on the parsed, frozen result.
+Like invoice and credit note, `PayslipV2Schema` extends
+`IssuedDocumentV2BaseSchema`, so `issuedAt` is required and present on the
+parsed, frozen result. (The lifecycle event type is the one document in
+this model without `issuedAt` — see below.)
 
 **Earnings and deductions use open, namespaced categories**, not a closed
 enum — e.g. `"ordinary"`, `"au:penalty"`, `"au:casual_loading"`. A category
@@ -114,12 +118,12 @@ given, never stripped.
 ```
 
 A deduction paid to a named fund or account carries `payee: { name,
-accountRef }`. A super contribution carries `amount` and an optional `fund:
-{ name, memberNumber, accountRef }` — optional because a new employee's
-contribution in their first 14 days can exist with no fund assigned yet. A
-salaried employee's rate is `payRate: { amount, unit, asAt }`, e.g. `{
-amount: { amount: 9500000, currency: "AUD" }, unit: "annual", asAt:
-"2026-10-01T00:00:00.000Z" }`.
+accountRef }`. A `contributions[]` entry (superannuation) carries `amount`
+and an optional `fund: { name, memberNumber, accountRef }` — optional
+because a new employee's contribution in their first 14 days can exist
+with no fund assigned yet. A salaried employee's rate is `payRate: {
+amount, unit, asAt }`, e.g. `{ amount: { amount: 9500000, currency: "AUD"
+}, unit: "annual", asAt: "2026-10-01T00:00:00.000Z" }`.
 
 ### Reconciliation is a warning, not a rejection
 
@@ -142,25 +146,37 @@ throwing. Like `verifyTaxTotal`, this function never reads `rate` or
 ## Lifecycle event
 
 `LifecycleEventV2Schema` (`src/schema/lifecycleEvent.ts`). Required: `id`,
-`documentId`, `eventType`, `occurredAt`. `documentSha256`,
-`previousStatus`, `newStatus`, and `amount` are optional. `eventType` is one
-of `paid`, `partially_paid`, `refunded`, `disputed`, `dispute_resolved`, or
-the generic `status_change`.
+`document`, `eventType`, `occurredAt`. `amount` is optional. `eventType` is
+one of `paid`, `partially_paid`, `refunded`, `disputed`, or
+`dispute_resolved` (the last is still marked `[proposal]` in the design,
+not yet a founder decision).
+
+Unlike invoice, credit note, and payslip, `LifecycleEventV2Schema` extends
+`DocumentV2BaseSchema`, not `IssuedDocumentV2BaseSchema` — it has no
+`issuedAt`. It is signed by the party asserting the event, at the time the
+event occurred (`occurredAt`), not at a separate issuance time.
 
 A lifecycle event is **its own, separate signed document** — a status
-change is recorded by issuing a new `lifecycle_event` document that
-references the original artifact by `documentId` (and optionally
-`documentSha256`), never by writing into the original artifact:
+change is recorded by issuing a new `lifecycle_event` document whose
+`document` field — `{ from, id, sha256 }`, the same reference shape a
+credit note uses — references the original artifact, never by writing
+into the original artifact. There is no generic `status_change` event type
+and no `previousStatus`/`newStatus` pair: the design's own rule is that
+status never lives inside the signed document, and the enumerated
+`eventType`s already say what happened without one.
 
 ```json
 {
   "type": "lifecycle_event",
   "id": "evt_4001",
-  "documentId": "inv_2001",
-  "eventType": "status_change",
+  "document": {
+    "from": "biller$example.com",
+    "id": "inv_2001",
+    "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf"
+  },
+  "eventType": "paid",
   "occurredAt": "2026-10-03T00:00:00.000Z",
-  "previousStatus": "unpaid",
-  "newStatus": "paid"
+  "amount": { "amount": 170000, "currency": "AUD" }
 }
 ```
 
