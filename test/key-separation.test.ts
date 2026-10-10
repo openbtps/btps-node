@@ -171,6 +171,42 @@ describe('AC: vectors with distinct signing and encryption keys pass', () => {
   });
 });
 
+describe('AC: a shared private key is rejected even when each slot is tagged correctly', () => {
+  it('createKeyPair refuses the same RSA key pair placed in both slots, merely re-tagged', () => {
+    // Same publicKey/privateKey as the signing vector, re-tagged as the
+    // encryption slot's material. Each slot's own keyUse check passes
+    // (SigningKey sees 'signing', EncryptionKey sees 'encryption'), so this
+    // must be refused by a check that the two slots' key material is
+    // actually distinct, not by the keyUse guard.
+    const sameKeyReTagged: EncryptionKeyMaterial = {
+      ...distinctKeysVector.signingKey,
+      keyUse: 'encryption',
+      algorithm: 'RSAES_OAEP_SHA_256',
+    };
+
+    expect(() =>
+      createKeyPair({
+        signingKey: distinctKeysVector.signingKey,
+        encryptionKey: sameKeyReTagged,
+      }),
+    ).toThrow();
+  });
+
+  it('rotating one slot onto the other slot\'s existing key is refused for the same reason', () => {
+    const original = createKeyPair({
+      signingKey: distinctKeysVector.signingKey,
+      encryptionKey: distinctKeysVector.encryptionKey,
+    });
+    const encryptionKeyAsSigningMaterial: SigningKeyMaterial = {
+      ...distinctKeysVector.encryptionKey,
+      keyUse: 'signing',
+      algorithm: 'RSASSA_PKCS1_V1_5_SHA_256',
+    };
+
+    expect(() => rotateSigningKey(original, encryptionKeyAsSigningMaterial)).toThrow();
+  });
+});
+
 describe('AC: both keys present in all test vectors', () => {
   const files = readdirSync(VECTOR_DIR).filter((f) => f.endsWith('.vector.json'));
 

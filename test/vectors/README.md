@@ -21,6 +21,7 @@ algorithm is the one that mode uses.
 | `selectors.vector.json`               | item 6: the sender rotated btps1 to btps2 and the receiver is on btps1                                                                                                                                                                                           |
 | `sdk-defects.vector.json`             | item 10: GCM tags of 16, 12 and 4 bytes, and identities with extra `$`                                                                                                                                                                                           |
 | `known-failing.json`                  | the item checks that fail on 367cd09, and which ticket owns each fix                                                                                                                                                                                             |
+| `key-separation/`                     | item 9 (EBA-121): `distinct-keys.vector.json` and `rotation.vector.json`. The one entry here that is a **subdirectory** rather than a flat file — `packages/verify-btps-vectors/test/runner.test.mjs`'s `copyVectors` copies this directory recursively to cover it |
 
 The signing keys and the encryption key are distinct, and a check enforces it.
 

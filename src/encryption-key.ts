@@ -74,6 +74,19 @@ export class EncryptionKey {
       fingerprint: fingerprintFromPem(this.publicKeyPem),
     };
   }
+
+  /**
+   * Synchronous fingerprint of this key's own public key.
+   *
+   * Used only by key-pair-management.ts to check that a signing key and an
+   * encryption key placed in the same KeyPair are not the same RSA key pair
+   * re-tagged — keyUse alone is self-declared and does not catch that. Not
+   * part of the Decrypter-shaped public API, which stays async via
+   * getPublicKey().
+   */
+  get fingerprint(): string {
+    return fingerprintFromPem(this.publicKeyPem);
+  }
 }
 
 /** SHA-256 digest of the DER-encoded SPKI public key, base64-encoded.

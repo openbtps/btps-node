@@ -29,34 +29,58 @@ export interface KeyPairMaterial {
   encryptionKey: EncryptionKeyMaterial;
 }
 
+/**
+ * Refuses a KeyPair whose signing and encryption sides are the same RSA key
+ * pair, merely tagged differently. keyUse is self-declared on the material
+ * each class trusts at construction, so the same private key tagged
+ * 'signing' in one slot and 'encryption' in the other passes both classes'
+ * own checks and would otherwise sign and decrypt with one key — the exact
+ * key confusion this ticket exists to prevent. Compared by fingerprint of
+ * the public key (SHA-256 of the DER-encoded SPKI form), not by comparing
+ * PEM text, so formatting differences in an otherwise-identical key cannot
+ * slip past this check.
+ */
+function assertDistinctKeyMaterial(signingKey: SigningKey, encryptionKey: EncryptionKey): void {
+  if (signingKey.fingerprint === encryptionKey.fingerprint) {
+    throw new Error(
+      'signingKey and encryptionKey must be distinct RSA key pairs: the same key material was supplied for both slots',
+    );
+  }
+}
+
 /** Builds a KeyPair from raw material. Each side is constructed through its
  * own class, so a signing-use key in the encryption slot (or vice versa)
  * throws from SigningKey's/EncryptionKey's own keyUse check rather than
- * being accepted here and failing later. */
+ * being accepted here and failing later. The two constructed keys are then
+ * checked against each other for actual distinctness (see
+ * assertDistinctKeyMaterial) — the keyUse check alone cannot catch the same
+ * key pair correctly tagged in both slots. */
 export function createKeyPair(material: KeyPairMaterial): KeyPair {
-  return {
-    signingKey: new SigningKey(material.signingKey),
-    encryptionKey: new EncryptionKey(material.encryptionKey),
-  };
+  const signingKey = new SigningKey(material.signingKey);
+  const encryptionKey = new EncryptionKey(material.encryptionKey);
+  assertDistinctKeyMaterial(signingKey, encryptionKey);
+  return { signingKey, encryptionKey };
 }
 
 /** Replaces `pair`'s signing key with one built from `newSigningKey`,
- * leaving the existing encryption key untouched. */
+ * leaving the existing encryption key untouched. Refuses the rotation if
+ * `newSigningKey` turns out to be the same RSA key pair as the untouched
+ * encryption key. */
 export function rotateSigningKey(pair: KeyPair, newSigningKey: SigningKeyMaterial): KeyPair {
-  return {
-    signingKey: new SigningKey(newSigningKey),
-    encryptionKey: pair.encryptionKey,
-  };
+  const signingKey = new SigningKey(newSigningKey);
+  assertDistinctKeyMaterial(signingKey, pair.encryptionKey);
+  return { signingKey, encryptionKey: pair.encryptionKey };
 }
 
 /** Replaces `pair`'s encryption key with one built from `newEncryptionKey`,
- * leaving the existing signing key untouched. */
+ * leaving the existing signing key untouched. Refuses the rotation if
+ * `newEncryptionKey` turns out to be the same RSA key pair as the untouched
+ * signing key. */
 export function rotateEncryptionKey(
   pair: KeyPair,
   newEncryptionKey: EncryptionKeyMaterial,
 ): KeyPair {
-  return {
-    signingKey: pair.signingKey,
-    encryptionKey: new EncryptionKey(newEncryptionKey),
-  };
+  const encryptionKey = new EncryptionKey(newEncryptionKey);
+  assertDistinctKeyMaterial(pair.signingKey, encryptionKey);
+  return { signingKey: pair.signingKey, encryptionKey };
 }
