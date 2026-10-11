@@ -46,6 +46,16 @@ import { PemSigner } from '../src/pem-signer.js';
 import { KmsSigner, type KmsSignClient } from '../src/kms-signer.js';
 import { verifySignature } from '@core/crypto/index.js';
 
+// EBA-392: the two tests below that spawn a real `tsc` take ~1–2.5 s on an
+// idle 10-core machine, but one CI run took 5467 ms under parallel-suite
+// contention and failed against vitest's default 5000 ms per-test timeout.
+// They get a 30000 ms timeout each (the literal on each `it(...)` call),
+// set per test rather than globally so a genuinely hung test anywhere else
+// still fails at 5 s. The tsc child is killed a little earlier than that,
+// so a hung compiler surfaces as a failed spawn (result.error) rather than a
+// bare test timeout. Keep TSC_SPAWN_TIMEOUT_MS below the per-test value.
+const TSC_SPAWN_TIMEOUT_MS = 25000;
+
 interface SigningVector {
   algorithm: string;
   publicKeyPem: string;
@@ -203,11 +213,15 @@ describe('AC4: src/signer-interface.ts is runtime-agnostic', () => {
     );
 
     const tscBin = join(process.cwd(), 'node_modules', '.bin', 'tsc');
-    const result = spawnSync(tscBin, ['-p', tsconfigPath], { encoding: 'utf8' });
+    const result = spawnSync(tscBin, ['-p', tsconfigPath], {
+      encoding: 'utf8',
+      timeout: TSC_SPAWN_TIMEOUT_MS,
+    });
 
+    expect(result.error).toBeUndefined();
     expect(result.stdout + result.stderr).toBe('');
     expect(result.status).toBe(0);
-  });
+  }, 30000);
 });
 
 describe('AC5: KMS failure fails closed, with no PEM fallback', () => {
@@ -297,9 +311,13 @@ describe('AC6: KmsSigner exposes no private key material (T-27)', () => {
     );
 
     const tscBin = join(process.cwd(), 'node_modules', '.bin', 'tsc');
-    const result = spawnSync(tscBin, ['-p', tsconfigPath], { encoding: 'utf8' });
+    const result = spawnSync(tscBin, ['-p', tsconfigPath], {
+      encoding: 'utf8',
+      timeout: TSC_SPAWN_TIMEOUT_MS,
+    });
 
+    expect(result.error).toBeUndefined();
     expect(result.stdout + result.stderr).toBe('');
     expect(result.status).toBe(0);
-  });
+  }, 30000);
 });
