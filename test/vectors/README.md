@@ -22,7 +22,13 @@ algorithm is the one that mode uses.
 | `sdk-defects.vector.json`             | item 10: GCM tags of 16, 12 and 4 bytes, and identities with extra `$`                                                                                                                                                                                           |
 | `known-failing.json`                  | the item checks that fail on 367cd09, and which ticket owns each fix                                                                                                                                                                                             |
 
-The signing keys and the encryption key are distinct, and a check enforces it.
+The signing keys and the encryption key in these vectors are distinct, and a
+check enforces it. They are keys in different roles: the signature vectors
+stand for a delegator or device key, which only signs, and the wrap vector
+stands for a receiver's key, which is only encrypted to. This is not a rule
+that one identity holds two keys. BTPS keeps one key per identity; item 9 of
+the 1.1 addendum (separate signing and encryption keys, EBA-121) was withdrawn
+by founder decision on 2026-10-11.
 
 The item 6 vectors cover EBA-116 (6a, separate selectors) and EBA-117 (6b,
 the encryption-key lookup rule). **EBA-118 (6c, a DoH client that checks the
@@ -33,8 +39,9 @@ a vector can pin. EBA-118 brings its own tests.
 ## Changing vectors
 
 Vectors are frozen once other code is tested against them. The item 6b
-vectors (EBA-117) and the item 9 key-use vectors (EBA-121, founder decision
-R-30) are frozen by ~2026-10-16. `generate-vectors.mjs` writes only the
+vectors (EBA-117) are frozen by ~2026-10-16. There are no item 9 key-use
+vectors: item 9 was withdrawn on 2026-10-11, and with it that part of founder
+decision R-30. `generate-vectors.mjs` writes only the
 files that are missing. `--force` regenerates every key and random byte; if
 you use it, say so on every ticket whose tests read these files.
 
