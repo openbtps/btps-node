@@ -46,6 +46,10 @@ yarn dev
 
 ### File Structure
 
+Where code goes and what things are called is set out in full in
+[AGENTS.md](AGENTS.md), and checked by `test/conventions.test.ts`. Where
+this page and that one differ, AGENTS.md describes the code as it is.
+
 ```
 src/
 ├── client/          # Client SDK
