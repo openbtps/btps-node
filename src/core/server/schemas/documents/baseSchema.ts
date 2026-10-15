@@ -17,7 +17,8 @@ const statusRefused = () => z.undefined({ invalid_type_error: STATUS_NOT_IN_DOCU
 /*
  * Every v2 object is strict: a field the model does not name is refused,
  * not silently dropped, so what is validated is exactly what was signed.
- * `extensions` is the one open place. Every string and array is capped
+ * The open places are `extensions`, an invoice's `metadata` and its
+ * `template.data`, each bounded in size. Every string and array is capped
  * (BTP_DOC_LIMITS).
  */
 
@@ -30,6 +31,9 @@ export const capped = {
   /** A `sha256`, written as BTP_DOC_SHA256 says. */
   hash: () => z.string().regex(BTP_DOC_SHA256.pattern, `must be ${BTP_DOC_SHA256.description}`),
   taxIds: () => z.array(capped.code()).max(BTP_DOC_LIMITS.TAX_IDS_MAX),
+  // Length first, so the format check never runs on unbounded input.
+  email: () => z.string().max(BTP_DOC_LIMITS.EMAIL_MAX_LENGTH).pipe(z.string().email()),
+  url: () => z.string().max(BTP_DOC_LIMITS.URL_MAX_LENGTH).pipe(z.string().url()),
 };
 
 /**
@@ -54,6 +58,8 @@ export const BtpIssuedDocV2BaseSchema = BtpDocV2BaseSchema.extend({
   issuedAt: z.string().datetime(),
 }).strict();
 
+const NAMESPACE_PART = '[a-zA-Z0-9_]+';
+
 /**
  * An open, namespaced code such as "ordinary" or "au:penalty". Never a
  * closed enum: an unknown code still validates, so a new jurisdiction or a
@@ -63,7 +69,31 @@ export const BtpCategoryCodeSchema = z
   .string()
   .min(1)
   .max(BTP_DOC_LIMITS.CODE_MAX_LENGTH)
-  .regex(/^[a-zA-Z0-9_]+(:[a-zA-Z0-9_]+)?$/, 'must be a bare or namespaced category code');
+  .regex(
+    new RegExp(`^${NAMESPACE_PART}(:${NAMESPACE_PART})?$`),
+    'must be a bare or namespaced category code',
+  );
+
+/**
+ * The key of an identifier, such as "au:abn" or "gb:vat": the category
+ * pattern, with the namespace required, since an identifier means nothing
+ * without the country or scheme that issued it. Open: an unknown scheme
+ * still validates.
+ */
+export const BtpIdentifierKeySchema = z
+  .string()
+  .max(BTP_DOC_LIMITS.CODE_MAX_LENGTH)
+  .regex(
+    new RegExp(`^${NAMESPACE_PART}:${NAMESPACE_PART}$`),
+    'must be a namespaced identifier key, e.g. "au:abn"',
+  );
+
+/** Company and tax ids for any country, by namespaced key: `{ "au:abn": "51824753556" }`. */
+export const BtpDocIdentifiersSchema = z
+  .record(BtpIdentifierKeySchema, capped.code().min(1))
+  .refine((ids) => Object.keys(ids).length <= BTP_DOC_LIMITS.IDENTIFIERS_MAX, {
+    message: `identifiers may have at most ${BTP_DOC_LIMITS.IDENTIFIERS_MAX} entries`,
+  });
 
 const jsonLength = (value: unknown): number => {
   try {
@@ -74,31 +104,39 @@ const jsonLength = (value: unknown): number => {
 };
 
 /**
- * A free-form, namespaced extension bag. Values are carried exactly as
- * given, never stripped and never rejected for being unknown; only its size
- * is bounded.
+ * An open object, carried exactly as given and never read by the protocol:
+ * only its size is bounded (EXTENSIONS_MAX_KEYS, EXTENSIONS_MAX_LENGTH).
  */
-export const BtpDocExtensionsSchema = z
-  .record(z.string().max(BTP_DOC_LIMITS.CODE_MAX_LENGTH), z.unknown())
-  .superRefine((value, ctx) => {
-    if (Object.keys(value).length > BTP_DOC_LIMITS.EXTENSIONS_MAX_KEYS) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `extensions may have at most ${BTP_DOC_LIMITS.EXTENSIONS_MAX_KEYS} keys`,
-      });
-    }
-    if (jsonLength(value) > BTP_DOC_LIMITS.EXTENSIONS_MAX_LENGTH) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `extensions may be at most ${BTP_DOC_LIMITS.EXTENSIONS_MAX_LENGTH} characters as JSON`,
-      });
-    }
-  });
+const openObject = (label: string) =>
+  z
+    .record(z.string().max(BTP_DOC_LIMITS.CODE_MAX_LENGTH), z.unknown())
+    .superRefine((value, ctx) => {
+      if (Object.keys(value).length > BTP_DOC_LIMITS.EXTENSIONS_MAX_KEYS) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${label} may have at most ${BTP_DOC_LIMITS.EXTENSIONS_MAX_KEYS} keys`,
+        });
+      }
+      if (jsonLength(value) > BTP_DOC_LIMITS.EXTENSIONS_MAX_LENGTH) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${label} may be at most ${BTP_DOC_LIMITS.EXTENSIONS_MAX_LENGTH} characters as JSON`,
+        });
+      }
+    });
+
+/** A free-form, namespaced extension bag on a credit note or payslip. */
+export const BtpDocExtensionsSchema = openObject('extensions');
+
+/** An invoice's `metadata`: the provider's own data, which the protocol never reads. */
+export const BtpDocMetadataSchema = openObject('metadata');
+
+/** The data an invoice's `template` is filled with. */
+export const BtpDocTemplateDataSchema = openObject('template.data');
 
 /**
- * A reference to another signed document: `{ from, id, sha256 }`. `from` is
- * what the ownership check compares with the envelope's sender
- * (`validateBtpDocOwnership` in ../helpers.ts).
+ * A reference to another signed document: `{ from, id, sha256 }`. An
+ * event's `document` is one; a document's `references` add a `type`.
  */
 export const BtpDocReferenceSchema = z
   .object({
@@ -108,3 +146,22 @@ export const BtpDocReferenceSchema = z
     sha256: capped.hash(),
   })
   .strict();
+
+/**
+ * What a reference says about the document it names: `correction_of`,
+ * `credits`, `instalment_of`, `follows` (BTP_DOC_REFERENCE_TYPES), or a
+ * platform's own under a prefix. The category pattern, so it stays open.
+ */
+export const BtpDocReferenceTypeSchema = BtpCategoryCodeSchema;
+
+/**
+ * One of a document's `references`. `from` must be the envelope's sender,
+ * which the server checks (`validateBtpDocOwnership` in ../helpers.ts).
+ */
+export const BtpDocTypedReferenceSchema = BtpDocReferenceSchema.extend({
+  type: BtpDocReferenceTypeSchema,
+}).strict();
+
+export const BtpDocReferencesSchema = z
+  .array(BtpDocTypedReferenceSchema)
+  .max(BTP_DOC_LIMITS.REFERENCES_MAX);

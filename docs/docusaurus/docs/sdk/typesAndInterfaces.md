@@ -670,53 +670,52 @@ interface MiddlewareModule {
 
 ### BTPAttachment
 
-File attachment for documents.
+A file carried inside a document. From `@btps/sdk/documents`; see
+[Attachments](../protocol/specifications/document-model-v2.md#attachments).
 
 ```ts
 interface BTPAttachment {
-  content: string; // base64
-  type: 'application/pdf' | 'image/jpeg' | 'image/png';
-  filename?: string;
+  content: string; // the file's bytes, standard base64
+  name: string;
+  mediaType: 'application/pdf' | 'image/jpeg' | 'image/png';
+  size: number; // decoded bytes, at most 10 MiB
+  sha256: string; // lowercase hex, 64 characters
 }
 ```
 
-### BTPInvoiceDoc
+### BTPInvoiceV2Doc
 
-Invoice document structure.
+The BTPS 1.1 invoice: the 1.0 invoice with money in integer minor units,
+no status, and the additions listed on the
+[document model page](../protocol/specifications/document-model-v2.md#invoice).
+From `@btps/sdk/documents`.
 
 ```ts
-interface BTPInvoiceDoc {
-  title: string;
-  id: string;
+interface BTPInvoiceV2Doc {
+  schemaVersion: 2;
+  type: 'invoice';
+  id: string; // the invoice number, unique per sender
   issuedAt: string; // ISO format
-  status: 'paid' | 'unpaid' | 'partial' | 'refunded' | 'disputed';
+  title: string;
   dueAt?: string; // ISO format
-  paidAt?: string; // ISO format
-  refundedAt?: string; // ISO format
-  disputedAt?: string; // ISO format
-  totalAmount: {
-    value: number;
-    currency: CurrencyCode;
-  };
+  totalAmount: { amount: number; currency: CurrencyCode }; // integer minor units
   lineItems: {
     columns: string[];
-    rows: Array<Record<string, string | number>>;
+    rows: Array<Record<string, string | number>>; // integers only; money in minor units
   };
   issuer?: {
     name: string;
     email?: string;
     phone?: string;
+    address?: string;
+    identifiers?: Record<string, string>; // namespaced keys, e.g. "au:abn"
   };
-  paymentLink?: {
-    linkText: string;
-    url: string;
-  };
+  paymentLink?: { linkText: string; url: string };
   description?: string;
-  attachment?: BTPAttachment;
-  template?: {
-    name: string;
-    data: Record<string, unknown>;
-  };
+  attachments?: BTPAttachment[];
+  references?: Array<{ type: string; from: string; id: string; sha256: string }>;
+  template?: { name: string; data: Record<string, unknown> };
+  metadata?: Record<string, unknown>; // the provider's own; never read by the protocol
 }
 ```
 
@@ -1360,7 +1359,7 @@ interface BTPAgentQuery {
 Generic document type.
 
 ```ts
-type BTPDocType = BTPInvoiceDoc | BTPTrustReqDoc | BTPTrustResDoc;
+type BTPDocType = BTPDocV2 | BTPTrustReqDoc | BTPTrustResDoc; // BTPDocV2: invoice, credit note or payslip
 ```
 
 ### BTPStringQueryFilter

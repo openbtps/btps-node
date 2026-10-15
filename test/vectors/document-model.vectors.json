@@ -1,12 +1,12 @@
 {
   "item": 7,
   "tickets": ["EBA-119", "EBA-402"],
-  "description": "BTPS 1.1 item 7, document model v2. Each case names a document in documents/ (or gives one inline), optionally changed by `set` (top-level fields replaced), `unset` (top-level fields removed) and `setPath` (each entry sets the value at `path`, an array of keys and indexes: `value` as given, or `repeat` written `times` times followed by `then`, for a file too large to write out). schema: the SDK's parseBtpDocV2 accepts or refuses it. ownership: a credit note or a corrected invoice may only name a document from the envelope's own sender. attachments: the SDK's verifyAttachments accepts or refuses each attachment's file, and names the field at fault (content, size or sha256). taxTotal and payslip: the SDK's verifyTaxTotal and reconcilePayslip agree with the stated results, and report a disagreement rather than throw. Every document in documents/ is also checked to be unchanged by parsing, and signed and verified over its JCS form on every runtime.",
+  "description": "BTPS 1.1 item 7, document model v2. Each case names a document in documents/ (or gives one inline), optionally changed by `set` (top-level fields replaced), `unset` (top-level fields removed) and `setPath` (each entry sets the value at `path`, an array of keys and indexes: `value` as given, or `repeat` written `times` times followed by `then`, for a file too large to write out). schema: the SDK's parseBtpDocV2 accepts or refuses it. ownership: every entry in a document's references (a credit note's credits, a corrected invoice's correction_of, any other) may only name a document from the envelope's own sender. attachments: the SDK's verifyAttachments accepts or refuses each attachment's file, and names the field at fault (content, size or sha256). taxTotal (credit notes only: an invoice's line items are a table the protocol does not add up) and payslip: the SDK's verifyTaxTotal and reconcilePayslip agree with the stated results, and report a disagreement rather than throw. Every document in documents/ is also checked to be unchanged by parsing, and signed and verified over its JCS form on every runtime.",
   "documentsDir": "documents",
   "keyVector": "kms-signature.vector.json",
   "schema": [
     { "name": "invoice", "document": "invoice.v2.json", "expect": "accept" },
-    { "name": "invoice-replaces", "document": "invoice.replaces.v2.json", "expect": "accept" },
+    { "name": "invoice-correction-of", "document": "invoice.correction.v2.json", "expect": "accept" },
     { "name": "credit-note", "document": "credit-note.v2.json", "expect": "accept" },
     { "name": "payslip-hourly", "document": "payslip.hourly.v2.json", "expect": "accept" },
     {
@@ -43,9 +43,69 @@
       "expect": "reject"
     },
     {
-      "name": "invoice-float-money-refused",
+      "name": "invoice-with-refundedAt-refused",
       "document": "invoice.v2.json",
-      "set": { "total": { "amount": 1700.5, "currency": "AUD" } },
+      "set": { "refundedAt": "2026-10-03T00:00:00.000Z" },
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-with-disputedAt-refused",
+      "document": "invoice.v2.json",
+      "set": { "disputedAt": "2026-10-03T00:00:00.000Z" },
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-float-totalAmount-refused",
+      "document": "invoice.v2.json",
+      "set": { "totalAmount": { "amount": 1850.5, "currency": "AUD" } },
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-1.0-totalAmount-value-refused",
+      "document": "invoice.v2.json",
+      "set": { "totalAmount": { "value": 1850, "currency": "AUD" } },
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-float-line-item-cell-refused",
+      "document": "invoice.v2.json",
+      "setPath": [{ "path": ["lineItems", "rows", 0, "Tax"], "value": 1500.5 }],
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-line-item-cell-object-refused",
+      "document": "invoice.v2.json",
+      "setPath": [{ "path": ["lineItems", "rows", 0, "Tax"], "value": { "amount": 1500 } }],
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-metadata-over-cap-refused",
+      "document": "invoice.v2.json",
+      "setPath": [{ "path": ["metadata", "biller:customerRef"], "repeat": "x", "times": 16384 }],
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-identifier-key-not-namespaced-refused",
+      "document": "invoice.v2.json",
+      "setPath": [{ "path": ["issuer", "identifiers", "abn"], "value": "51824753556" }],
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-1.0-attachment-field-refused",
+      "document": "invoice.v2.json",
+      "set": { "attachment": { "content": "QUJD", "type": "application/pdf" } },
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-pr9-taxTotals-refused",
+      "document": "invoice.v2.json",
+      "set": { "taxTotals": [{ "taxCategory": "GST10", "amount": { "amount": 15000, "currency": "AUD" } }] },
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-pr9-extensions-refused",
+      "document": "invoice.v2.json",
+      "set": { "extensions": { "au:x": 1 } },
       "expect": "reject"
     },
     {
@@ -73,8 +133,84 @@
       "expect": "reject"
     },
     {
+      "name": "reference-platform-type-accepted",
+      "document": "invoice.correction.v2.json",
+      "setPath": [{ "path": ["references", 0, "type"], "value": "acme:supersedes" }],
+      "expect": "accept"
+    },
+    {
+      "name": "reference-bad-type-code-refused",
+      "document": "invoice.correction.v2.json",
+      "setPath": [{ "path": ["references", 0, "type"], "value": "Correction Of" }],
+      "expect": "reject"
+    },
+    {
+      "name": "reference-without-type-refused",
+      "document": "invoice.correction.v2.json",
+      "setPath": [{ "path": ["references", 0, "type"], "delete": true }],
+      "expect": "reject"
+    },
+    {
+      "name": "references-over-cap-refused",
+      "document": "invoice.correction.v2.json",
+      "set": {
+        "references": [
+          { "type": "follows", "from": "biller$example.com", "id": "inv_1", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_2", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_3", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_4", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_5", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_6", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_7", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_8", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_9", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_10", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_11", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_12", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_13", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_14", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_15", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_16", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_17", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_18", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_19", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_20", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" },
+          { "type": "follows", "from": "biller$example.com", "id": "inv_21", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" }
+        ]
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "credit-note-without-credits-reference-refused",
+      "document": "credit-note.v2.json",
+      "setPath": [{ "path": ["references", 0, "type"], "value": "follows" }],
+      "expect": "reject"
+    },
+    {
+      "name": "credit-note-without-references-refused",
+      "document": "credit-note.v2.json",
+      "unset": ["references"],
+      "expect": "reject"
+    },
+    {
+      "name": "credit-note-former-relatesToInvoice-refused",
+      "document": "credit-note.v2.json",
+      "set": {
+        "relatesToInvoice": { "from": "biller$example.com", "id": "inv_2001", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" }
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-former-replaces-refused",
+      "document": "invoice.v2.json",
+      "set": {
+        "replaces": { "from": "biller$example.com", "id": "inv_2000", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" }
+      },
+      "expect": "reject"
+    },
+    {
       "name": "invoice-with-png-attachment",
-      "document": "invoice.replaces.v2.json",
+      "document": "invoice.correction.v2.json",
       "expect": "accept"
     },
     {
@@ -119,9 +255,9 @@
     },
     {
       "name": "reference-sha256-upper-case-refused",
-      "document": "invoice.replaces.v2.json",
+      "document": "invoice.correction.v2.json",
       "setPath": [
-        { "path": ["replaces", "sha256"], "value": "AE5B9964E2B837793076D01DF1613B13F2997D266CBA209A1BD058CD8A2C35BF" }
+        { "path": ["references", 0, "sha256"], "value": "AE5B9964E2B837793076D01DF1613B13F2997D266CBA209A1BD058CD8A2C35BF" }
       ],
       "expect": "reject"
     },
@@ -129,7 +265,7 @@
       "name": "reference-sha256-base64-refused",
       "document": "credit-note.v2.json",
       "setPath": [
-        { "path": ["relatesToInvoice", "sha256"], "value": "rluZZOK4N3kwdtAd8WE7E/KZfSZsuiCaG9BYzYosNb8=" }
+        { "path": ["references", 0, "sha256"], "value": "rluZZOK4N3kwdtAd8WE7E/KZfSZsuiCaG9BYzYosNb8=" }
       ],
       "expect": "reject"
     },
@@ -174,15 +310,27 @@
       "expect": "reject"
     },
     {
-      "name": "invoice-replaces-own-sender",
-      "document": "invoice.replaces.v2.json",
+      "name": "invoice-correction-own-sender",
+      "document": "invoice.correction.v2.json",
       "from": "biller$example.com",
       "expect": "accept"
     },
     {
-      "name": "invoice-replaces-other-sender-refused",
-      "document": "invoice.replaces.v2.json",
+      "name": "invoice-correction-other-sender-refused",
+      "document": "invoice.correction.v2.json",
       "from": "mallory$example.com",
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-second-reference-other-sender-refused",
+      "document": "invoice.correction.v2.json",
+      "setPath": [
+        {
+          "path": ["references", 1],
+          "value": { "type": "follows", "from": "mallory$example.com", "id": "inv_1999", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" }
+        }
+      ],
+      "from": "biller$example.com",
       "expect": "reject"
     }
   ],
@@ -194,7 +342,7 @@
     },
     {
       "name": "invoice-pdf-and-png",
-      "document": "invoice.replaces.v2.json",
+      "document": "invoice.correction.v2.json",
       "expect": "accept"
     },
     {
@@ -244,7 +392,7 @@
     },
     {
       "name": "second-attachment-at-fault",
-      "document": "invoice.replaces.v2.json",
+      "document": "invoice.correction.v2.json",
       "setPath": [
         { "path": ["attachments", 1, "size"], "value": 68 }
       ],
@@ -252,15 +400,6 @@
     }
   ],
   "taxTotal": [
-    {
-      "name": "invoice-two-rates",
-      "document": "invoice.v2.json",
-      "expect": {
-        "ok": true,
-        "computedTotal": { "amount": 170000, "currency": "AUD" },
-        "byCategory": { "GST10": 15000, "GST0": 0 }
-      }
-    },
     {
       "name": "credit-note-one-rate",
       "document": "credit-note.v2.json",
@@ -271,28 +410,23 @@
       }
     },
     {
-      "name": "invoice-total-disagrees",
-      "document": "invoice.v2.json",
+      "name": "credit-note-total-disagrees",
+      "document": "credit-note.v2.json",
       "set": { "total": { "amount": 999, "currency": "AUD" } },
       "expect": {
         "ok": false,
-        "computedTotal": { "amount": 170000, "currency": "AUD" },
-        "byCategory": { "GST10": 15000, "GST0": 0 }
+        "computedTotal": { "amount": 20000, "currency": "AUD" },
+        "byCategory": { "GST10": 2000 }
       }
     },
     {
-      "name": "invoice-one-rate-disagrees",
-      "document": "invoice.v2.json",
-      "set": {
-        "taxTotals": [
-          { "taxCategory": "GST10", "amount": { "amount": 999, "currency": "AUD" } },
-          { "taxCategory": "GST0", "amount": { "amount": 0, "currency": "AUD" } }
-        ]
-      },
+      "name": "credit-note-rate-disagrees",
+      "document": "credit-note.v2.json",
+      "set": { "taxTotals": [{ "taxCategory": "GST10", "amount": { "amount": 999, "currency": "AUD" } }] },
       "expect": {
         "ok": false,
-        "computedTotal": { "amount": 170000, "currency": "AUD" },
-        "byCategory": { "GST10": 15000, "GST0": 0 }
+        "computedTotal": { "amount": 20000, "currency": "AUD" },
+        "byCategory": { "GST10": 2000 }
       }
     }
   ],

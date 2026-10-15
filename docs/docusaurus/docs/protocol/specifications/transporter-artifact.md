@@ -181,18 +181,21 @@ A business document in [document model v2](./document-model-v2.md): an
   "id": "inv_2001",
   "issuedAt": "2026-10-01T00:00:00.000Z",
   "title": "Consulting, September 2026",
-  "lineItems": [
-    {
-      "description": "Consulting services",
-      "quantity": "10",
-      "unitPrice": { "amount": 15000, "currency": "AUD" },
-      "lineTotal": { "amount": 150000, "currency": "AUD" },
-      "taxAmount": { "amount": 15000, "currency": "AUD" },
-      "taxCategory": "GST10"
-    }
-  ],
-  "total": { "amount": 150000, "currency": "AUD" },
-  "taxTotals": [{ "taxCategory": "GST10", "amount": { "amount": 15000, "currency": "AUD" } }]
+  "totalAmount": { "amount": 165000, "currency": "AUD" },
+  "lineItems": {
+    "columns": ["Description", "Quantity", "Unit price", "Tax code", "Tax", "Amount"],
+    "rows": [
+      {
+        "Description": "Consulting services",
+        "Quantity": 10,
+        "Unit price": 15000,
+        "Tax code": "GST",
+        "Tax": 15000,
+        "Amount": 165000
+      }
+    ]
+  },
+  "issuer": { "name": "Biller Pty Ltd", "identifiers": { "au:abn": "51824753556" } }
 }
 ```
 
@@ -203,10 +206,11 @@ A business document in [document model v2](./document-model-v2.md): an
   discriminated by `type`. Every field and size is checked as the
   [document model](./document-model-v2.md) states, and a field the model does
   not name is refused.
-- **Ownership:** a credit note's `relatesToInvoice.from`, and an invoice's
-  `replaces.from`, must equal the artifact's `from`. A sender can only refer
-  to its own documents. Whether the named document exists is the receiving
-  platform's check.
+- **Ownership:** every entry in a document's `references` (a credit note's
+  `credits`, a corrected invoice's `correction_of`, any other) must have
+  `from` equal to the artifact's `from`. A sender can only refer to its own
+  documents. Whether the named document exists is the receiving platform's
+  check.
 - **Attachments:** an attachment carries its file inside the document, as in
   1.0. Each `content` must be base64 that decodes to exactly `size` bytes
   whose SHA-256 is `sha256` (`verifyAttachments`); otherwise the artifact is
@@ -222,9 +226,11 @@ or refunded is derived from lifecycle events, which travel as their own
 artifacts (`BTPS_EVENT`, below).
 
 :::warning BTPS 1.1 refuses the 1.0 invoice
-The 1.0 `BTPS_DOC` invoice (`totalAmount.value` as a float, `status` inside
-the document, `lineItems` as columns and rows) is no longer accepted: an
-unencrypted `BTPS_DOC` in that shape fails validation. `BtpInvoiceDocSchema`
+The 1.0 `BTPS_DOC` invoice (no `schemaVersion` or `type`, `totalAmount.value`
+as a float, `status` inside the document, a single `attachment`) is no longer
+accepted: an unencrypted `BTPS_DOC` in that shape fails validation. The 1.1
+invoice keeps 1.0's fields otherwise, including the line-item table; see
+[what changed from 1.0](./document-model-v2.md#what-changed-from-10). `BtpInvoiceDocSchema`
 and `BTPInvoiceDoc` are removed from the SDK.
 :::
 

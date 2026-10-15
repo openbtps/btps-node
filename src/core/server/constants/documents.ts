@@ -17,39 +17,49 @@ export const SCHEMA_VERSION_V2 = 2 as const;
 export const BTP_DOC_LIMITS = {
   /** A document id, and the id in a reference. */
   ID_MAX_LENGTH: 128,
-  /** The identity in a reference (`relatesToInvoice.from`, `replaces.from`). */
+  /** The identity in a reference (`references[].from`). */
   IDENTITY_MAX_LENGTH: 256,
   /** An invoice title. */
   TITLE_MAX_LENGTH: 200,
-  /** A name: party, employee, employer, payee, fund, attachment. */
+  /** A name: invoice issuer, employee, employer, payee, fund, attachment, a line-item column, a payment link's text, a template. */
   NAME_MAX_LENGTH: 200,
-  /** A short code or reference: invoice number, category, tax category, tax id, unit, account and member numbers, employee id. */
+  /** A short code or reference: category, tax category, tax id, identifier and its key, unit, account and member numbers, employee id, phone. */
   CODE_MAX_LENGTH: 64,
+  /** An email address (RFC 5321's limit). */
+  EMAIL_MAX_LENGTH: 254,
+  /** A URL: an invoice's payment link. */
+  URL_MAX_LENGTH: 2048,
   /** A decimal string: quantity, rate. */
   DECIMAL_MAX_LENGTH: 32,
   /** A postal address. */
   ADDRESS_MAX_LENGTH: 500,
-  /** Free text: a description, a credit note's reason, payment terms. */
+  /** Free text: a description, a credit note's reason, a string cell in an invoice's line items. */
   TEXT_MAX_LENGTH: 2000,
-  /** Line items on an invoice or credit note. */
+  /** Line items: an invoice's rows, a credit note's lines. */
   LINE_ITEMS_MAX: 500,
-  /** Tax totals (one per rate) on an invoice or credit note. */
+  /** Columns in an invoice's line items, and cells in one row. */
+  LINE_ITEM_COLUMNS_MAX: 50,
+  /** Tax totals (one per rate) on a credit note. */
   TAX_TOTALS_MAX: 50,
   /** Each of a payslip's earnings, deductions and contributions. */
   PAYSLIP_LINES_MAX: 200,
-  /** Tax ids on one party. */
+  /** Tax ids on a payslip's employer. */
   TAX_IDS_MAX: 10,
+  /** Entries in an invoice issuer's `identifiers`. */
+  IDENTIFIERS_MAX: 10,
   /** Entries in a payslip's `yearToDate`. */
   YEAR_TO_DATE_MAX: 100,
+  /** Entries in a document's `references`. */
+  REFERENCES_MAX: 20,
   /** Attachments on one document. */
   ATTACHMENTS_MAX: 10,
   /** One attachment's file, in decoded bytes (10 MiB): its `size`. */
   ATTACHMENT_MAX_BYTES: 10 * 1024 * 1024,
   /** One attachment's `content`, in base64 characters: the length of 10 MiB encoded. */
   ATTACHMENT_CONTENT_MAX_LENGTH: 4 * Math.ceil((10 * 1024 * 1024) / 3),
-  /** Top-level keys in `extensions`. */
+  /** Top-level keys in an open object: `extensions`, an invoice's `metadata` and `template.data`. */
   EXTENSIONS_MAX_KEYS: 50,
-  /** The JSON form of `extensions`, in characters (16 KiB). */
+  /** The JSON form of an open object (as for EXTENSIONS_MAX_KEYS), in characters (16 KiB). */
   EXTENSIONS_MAX_LENGTH: 16 * 1024,
   /** A lifecycle event's `note`: short free text (release plan section 2.3). */
   EVENT_NOTE_MAX_LENGTH: 500,
@@ -103,8 +113,8 @@ export type BTPDocSha256Encoding = 'hex' | 'base64';
 
 /**
  * How every v2 `sha256` is written: an attachment's, and a reference's
- * (`relatesToInvoice`, `replaces`). Lowercase hex, 64 characters, pending the
- * founder's confirmation (2026-10-16). This is the one place to change it:
+ * (`references`, an event's `document`). Lowercase hex, 64 characters, as
+ * the founder confirmed (2026-10-16). This is the one place to change it:
  * the schemas take `pattern`, and the attachment check encodes the digest
  * it computes with `encoding`.
  */
@@ -117,3 +127,19 @@ export const BTP_DOC_SHA256: {
   pattern: /^[0-9a-f]{64}$/,
   description: 'a SHA-256 in lowercase hex, 64 characters',
 };
+
+/**
+ * The reference types the protocol names. A reference's `type` is open and
+ * namespaced, like a payslip category: these bare codes are the protocol's,
+ * and a platform adds its own under a prefix (`"acme:supersedes"`).
+ */
+export const BTP_DOC_REFERENCE_TYPES = {
+  /** A corrected invoice, e.g. after an accepted dispute, names the one it corrects. */
+  CORRECTION_OF: 'correction_of',
+  /** A credit note names the invoice it credits. Required on a credit note. */
+  CREDITS: 'credits',
+  /** One payment of several names the invoice it is an instalment of. */
+  INSTALMENT_OF: 'instalment_of',
+  /** The next document in a series names the one it follows. */
+  FOLLOWS: 'follows',
+} as const;
