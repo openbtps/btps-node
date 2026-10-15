@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "type": "lifecycle_event",
+  "id": "aec6b697-52b5-409e-a576-12773f7a40b9",
+  "occurredAt": "2026-10-21T10:00:00.000Z",
+  "document": {
+    "from": "billing$acme.example",
+    "id": "inv_2001",
+    "sha256": "1c838c4117d0cf6f3fe99de6144bf9c27692ff390d4bdf9900c0710751c8d416"
+  },
+  "eventType": "response",
+  "inReplyTo": "be9c1ff9-9626-40f3-af44-39f2210d364c",
+  "decision": "accepted"
+}

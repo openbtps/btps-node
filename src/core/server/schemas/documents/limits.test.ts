@@ -7,7 +7,9 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
+import type { ZodTypeAny } from 'zod';
 import { BtpDocV2Schema } from './documentSchema.js';
+import { BtpEventDocSchema } from './eventSchema.js';
 import { BTP_DOC_LIMITS } from '../../constants/documents.js';
 
 type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -16,6 +18,8 @@ type Limit = keyof typeof BTP_DOC_LIMITS;
 const DOCUMENTS = new URL('../../../../../test/vectors/documents/', import.meta.url);
 const load = (name: string): Doc => JSON.parse(readFileSync(new URL(name, DOCUMENTS), 'utf8'));
 const invoice = () => load('invoice.replaces.v2.json');
+const event = (): Doc =>
+  JSON.parse(readFileSync(new URL('../events/disputed.json', DOCUMENTS), 'utf8'));
 const payslip = () => load('payslip.hourly.v2.json');
 const many = <T>(n: number, item: T): T[] => Array.from({ length: n }, () => item);
 const keys = (n: number, value: unknown) =>
@@ -25,7 +29,11 @@ const keys = (n: number, value: unknown) =>
  * For each cap: a document built with the value at size `n`. The cap is
  * enforced when the document validates at the cap and is refused one over.
  */
-const CASES: Record<Limit, Array<{ where: string; build: (n: number) => Doc }>> = {
+// `schema` defaults to BtpDocV2Schema; an event's caps are checked against BtpEventDocSchema.
+const CASES: Record<
+  Limit,
+  Array<{ where: string; build: (n: number) => Doc; schema?: ZodTypeAny }>
+> = {
   ID_MAX_LENGTH: [
     { where: 'document id', build: (n) => ({ ...invoice(), id: 'i'.repeat(n) }) },
     {
@@ -185,6 +193,13 @@ const CASES: Record<Limit, Array<{ where: string; build: (n: number) => Doc }>> 
       build: (n) => ({ ...payslip(), extensions: { k: 'x'.repeat(n - 8) } }),
     },
   ],
+  EVENT_NOTE_MAX_LENGTH: [
+    {
+      where: 'event note',
+      build: (n) => ({ ...event(), note: 'n'.repeat(n) }),
+      schema: BtpEventDocSchema,
+    },
+  ],
 };
 
 describe('document model v2: size caps (BTP_DOC_LIMITS)', () => {
@@ -194,11 +209,11 @@ describe('document model v2: size caps (BTP_DOC_LIMITS)', () => {
 
   for (const [limit, cases] of Object.entries(CASES) as Array<[Limit, (typeof CASES)[Limit]]>) {
     const cap = BTP_DOC_LIMITS[limit];
-    for (const { where, build } of cases) {
+    for (const { where, build, schema = BtpDocV2Schema } of cases) {
       it(`${limit} (${cap}): ${where} is accepted at the cap and refused over it`, () => {
-        const atCap = BtpDocV2Schema.safeParse(build(cap));
+        const atCap = schema.safeParse(build(cap));
         if (!atCap.success) throw new Error(JSON.stringify(atCap.error.issues.slice(0, 3)));
-        expect(BtpDocV2Schema.safeParse(build(cap + 1)).success).toBe(false);
+        expect(schema.safeParse(build(cap + 1)).success).toBe(false);
       });
     }
   }

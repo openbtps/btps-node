@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import { identitySchema } from './shared.js';
 import { BtpDocV2Schema } from './documents/documentSchema.js';
+import { BtpEventDocSchema } from './documents/eventSchema.js';
 
 // Schema for BTPStringQueryFilter
 export const BtpStringQueryFilterSchema = z.object({
@@ -69,4 +70,10 @@ export const BtpAgentQueryDocSchema = z.object({
 });
 
 // A BTPS_DOC is a v2 document; the 1.0 invoice is refused (release plan section 6).
-export const BtpDocSchema = z.union([BtpTrustReqDocSchema, BtpTrustResDocSchema, BtpDocV2Schema]);
+// A BTPS_EVENT is a lifecycle event (release plan section 2).
+export const BtpDocSchema = z.union([
+  BtpTrustReqDocSchema,
+  BtpTrustResDocSchema,
+  BtpDocV2Schema,
+  BtpEventDocSchema,
+]);

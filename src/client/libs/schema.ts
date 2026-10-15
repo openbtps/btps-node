@@ -22,6 +22,7 @@ import {
   BtpTrustResDocSchema,
 } from '@core/server/schemas/btpsDocsSchema.js';
 import { BtpDocV2Schema } from '@core/server/schemas/documents/documentSchema.js';
+import { BtpEventDocSchema } from '@core/server/schemas/documents/eventSchema.js';
 
 // Use the server's document schema directly
 export const BtpsAgentOptionsSchema = BtpCryptoOptionsSchema.optional();
@@ -31,6 +32,7 @@ export const BtpsAgentCommandDocumentSchema = z
     BtpTrustReqDocSchema,
     BtpTrustResDocSchema,
     BtpDocV2Schema,
+    BtpEventDocSchema,
     BtpAuthReqDocSchema,
     BtpAgentQuerySchema,
     BtpAgentMutationSchema,

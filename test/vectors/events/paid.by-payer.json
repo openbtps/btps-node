@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 2,
+  "type": "lifecycle_event",
+  "id": "be9c1ff9-9626-40f3-af44-39f2210d364c",
+  "occurredAt": "2026-10-20T09:00:00.000Z",
+  "document": {
+    "from": "billing$acme.example",
+    "id": "inv_2001",
+    "sha256": "1c838c4117d0cf6f3fe99de6144bf9c27692ff390d4bdf9900c0710751c8d416"
+  },
+  "eventType": "paid",
+  "note": "Paid by bank transfer, reference 88213"
+}

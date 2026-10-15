@@ -10,6 +10,7 @@ import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
 import {
   AGENT_ACTIONS,
   AGENT_ACTIONS_REQUIRING_DOCUMENT,
+  BTP_EVENT_TYPES,
   TRANSPORTER_ACTIONS,
 } from './constants/index.js';
 import { CURRENCY_CODES } from './constants/currency.js';
@@ -26,6 +27,7 @@ import type {
 import type { BtpCreditNoteDocSchema } from './schemas/documents/creditNoteSchema.js';
 import type { BtpPayslipDocSchema } from './schemas/documents/payslipSchema.js';
 import type { BtpDocV2Schema } from './schemas/documents/documentSchema.js';
+import type { BtpEventDocSchema } from './schemas/documents/eventSchema.js';
 
 // Document model v2 types are inferred from their schemas, so the two cannot drift.
 export type BTPMoney = z.infer<typeof BtpMoneySchema>;
@@ -36,6 +38,9 @@ export type BTPInvoiceV2Doc = z.infer<typeof BtpInvoiceV2DocSchema>;
 export type BTPCreditNoteDoc = z.infer<typeof BtpCreditNoteDocSchema>;
 export type BTPPayslipDoc = z.infer<typeof BtpPayslipDocSchema>;
 export type BTPDocV2 = z.infer<typeof BtpDocV2Schema>;
+/** A lifecycle event: the content of a `BTPS_EVENT` (item A, EBA-440). */
+export type BTPEventDoc = z.infer<typeof BtpEventDocSchema>;
+export type BTPEventType = (typeof BTP_EVENT_TYPES)[number];
 
 export type BTPArtifactType = (typeof TRANSPORTER_ACTIONS)[number];
 export type CurrencyCode = (typeof CURRENCY_CODES)[number];
@@ -44,9 +49,10 @@ export type AgentActionRequiringDocument = (typeof AGENT_ACTIONS_REQUIRING_DOCUM
 
 /**
  * A document an artifact carries in the clear. A `BTPS_DOC` is a v2 document
- * (invoice, credit note or payslip); BTPS 1.1 refuses the 1.0 invoice.
+ * (invoice, credit note or payslip); BTPS 1.1 refuses the 1.0 invoice. A
+ * `BTPS_EVENT` is a lifecycle event.
  */
-export type BTPDocType = BTPDocV2 | BTPTrustReqDoc | BTPTrustResDoc;
+export type BTPDocType = BTPDocV2 | BTPEventDoc | BTPTrustReqDoc | BTPTrustResDoc;
 
 export type BTPAttestation = {
   signedBy: string;

@@ -9,8 +9,12 @@ import { BtpSignatureSchema, BtpEncryptionSchema, BtpDelegationSchema } from '..
 import { identitySchema } from '../shared.js';
 import { TRANSPORTER_ACTIONS } from '../../constants/index.js';
 import { z } from 'zod';
-import { processBtpDocSchema, validateBtpDocOwnership } from '../helpers.js';
-import type { BTPDocV2 } from '../../types.js';
+import {
+  processBtpDocSchema,
+  validateBtpDocOwnership,
+  validateBtpEventEnvelope,
+} from '../helpers.js';
+import type { BTPDocV2, BTPEventDoc } from '../../types.js';
 
 export const SELECTOR_REPLACED =
   'selector is not part of BTPS 1.1: use signatureSelector (the sender key that signed) and encryptionSelector (the receiver key encrypted to)';
@@ -85,6 +89,18 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
         // The envelope rule beside the document schema: a reference to
         // another document must name the sender's own (release plan section 3).
         const violation = validateBtpDocOwnership(parsed.data as BTPDocV2, data.from);
+        if (violation) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: violation.message,
+            path: ['document', ...violation.path],
+          });
+        }
+      } else if (data.type === 'BTPS_EVENT') {
+        // One id end to end, and only a document between these two parties
+        // (release plan sections 2.4 and 2.7). An encrypted event is opaque
+        // here: the receiving platform applies the same rule after decrypting.
+        const violation = validateBtpEventEnvelope(parsed.data as BTPEventDoc, data);
         if (violation) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,

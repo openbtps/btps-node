@@ -22,6 +22,8 @@ const TRASH_ACTIONS = ['trash.fetch', 'trash.delete'] as const;
 const SYSTEM_ACTIONS = ['system.ping'] as const;
 export const AUTH_ACTIONS = ['auth.request', 'auth.refresh'] as const;
 const ARTIFACT_ACTIONS = ['artifact.send'] as const;
+// A lifecycle event, sent as a BTPS_EVENT transporter artifact (item A, EBA-440).
+const EVENT_ACTIONS = ['event.send'] as const;
 
 export const AGENT_ACTIONS = [
   ...TRUST_ACTIONS,
@@ -32,10 +34,11 @@ export const AGENT_ACTIONS = [
   ...SYSTEM_ACTIONS,
   ...AUTH_ACTIONS,
   ...ARTIFACT_ACTIONS,
+  ...EVENT_ACTIONS,
   ...TRASH_ACTIONS,
 ] as const;
 
-export const TRANSPORTER_ACTIONS = ['TRUST_REQ', 'TRUST_RES', 'BTPS_DOC'] as const;
+export const TRANSPORTER_ACTIONS = ['TRUST_REQ', 'TRUST_RES', 'BTPS_DOC', 'BTPS_EVENT'] as const;
 
 export const IMMEDIATE_ACTIONS = [
   ...SYSTEM_ACTIONS,
@@ -53,6 +56,7 @@ export const AGENT_ACTIONS_REQUIRING_DOCUMENT = [
   'trust.update',
   'trust.delete',
   ...ARTIFACT_ACTIONS,
+  ...EVENT_ACTIONS,
   ...AUTH_ACTIONS,
   'inbox.seen',
   'inbox.delete',

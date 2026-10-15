@@ -43,10 +43,25 @@ export {
   BtpPayslipDocSchema,
 } from './payslipSchema.js';
 export { BtpDocV2Schema } from './documentSchema.js';
-export { parseBtpDocV2, validateBtpDocOwnership } from '../helpers.js';
+export { BtpEventDocSchema, BtpEventAmountSchema, BtpEventIdSchema } from './eventSchema.js';
+export {
+  parseBtpDocV2,
+  validateBtpDocOwnership,
+  parseBtpEventDoc,
+  validateBtpEventEnvelope,
+  validateBtpEventReply,
+} from '../helpers.js';
 
 export { CURRENCY_CODES } from '../../constants/currency.js';
-export { SCHEMA_VERSION_V2, BTP_DOC_LIMITS } from '../../constants/documents.js';
+export {
+  SCHEMA_VERSION_V2,
+  BTP_DOC_LIMITS,
+  BTP_EVENT_TYPES,
+  BTP_EVENT_TYPES_STARTING_A_CHAIN,
+  BTP_EVENT_TYPES_REPLYING,
+  BTP_EVENT_DISPUTE_REASONS,
+  BTP_EVENT_DECISIONS,
+} from '../../constants/documents.js';
 
 export * from '@core/utils/money.js';
 export * from '@core/utils/documentChecks.js';
@@ -61,5 +76,7 @@ export type {
   BTPCreditNoteDoc,
   BTPPayslipDoc,
   BTPDocV2,
+  BTPEventDoc,
+  BTPEventType,
   CurrencyCode,
 } from '../../types.js';
