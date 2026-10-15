@@ -24,6 +24,7 @@ export * from './types.js';
 export * from './money.js';
 export * from './documentChecks.js';
 export * from './freeze.js';
+export * from './timestampWindow.js';
 
 export const parseIdentity = (identity: string): ParsedIdentity | null => {
   const [accountName, domainName] = identity.split('$');

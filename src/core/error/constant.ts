@@ -187,6 +187,27 @@ export const BTP_ERROR_MONEY_OUT_OF_RANGE: BTPError = {
   message: 'Money amount is outside the safe integer range',
 };
 
+/**
+ * Replay protection (item F, EBA-114): the artifact's `issuedAt` is more than
+ * ISSUED_AT_WINDOW_MS from the server's clock (too old or too far ahead), or
+ * cannot be read. Resending the same artifact cannot succeed: sign a new one,
+ * with a new id, and check the sender's clock.
+ */
+export const BTP_ERROR_ISSUED_AT_WINDOW: BTPError = {
+  code: 'BTP_ERROR_ISSUED_AT_WINDOW',
+  message: 'Artifact issuedAt is outside the accepted window',
+};
+
+/**
+ * Replay protection (item F, EBA-114): this server already accepted an
+ * artifact with the same `(from, id)`. After a timed-out send this means the
+ * first copy arrived. Any new artifact must be signed with a new id.
+ */
+export const BTP_ERROR_ALREADY_RECEIVED: BTPError = {
+  code: 'BTP_ERROR_ALREADY_RECEIVED',
+  message: 'Artifact already received',
+};
+
 export const BTP_ERROR_DOC_SCHEMA: BTPError = {
   code: 'BTP_ERROR_DOC_SCHEMA',
   message: 'Document does not match the document model',
