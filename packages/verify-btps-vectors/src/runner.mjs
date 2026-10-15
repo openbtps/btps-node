@@ -19,6 +19,7 @@ import { oracleChecks } from './checks/oracle.mjs';
 import { sdkChecks } from './checks/sdk.mjs';
 import { documentRuntimeChecks, documentSdkChecks } from './checks/documents.mjs';
 import { eventRuntimeChecks, eventSdkChecks } from './checks/events.mjs';
+import { replaySdkChecks } from './checks/replay.mjs';
 import { loadSdk } from './sdk-loader.mjs';
 
 /**
@@ -48,7 +49,12 @@ export async function buildChecks({ vectorsDir, sdkRoot }) {
   ];
   if (sdkRoot) {
     const sdk = await loadSdk(sdkRoot);
-    checks.push(...sdkChecks(sdk, set), ...documentSdkChecks(sdk, set), ...eventSdkChecks(sdk, set));
+    checks.push(
+      ...sdkChecks(sdk, set),
+      ...documentSdkChecks(sdk, set),
+      ...eventSdkChecks(sdk, set),
+      ...replaySdkChecks(sdk, set),
+    );
   }
 
   const seen = new Set();

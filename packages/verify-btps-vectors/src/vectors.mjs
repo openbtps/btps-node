@@ -21,6 +21,7 @@ export const VECTOR_FILES = Object.freeze({
   sdkDefects: 'sdk-defects.vector.json',
   documentModel: 'document-model.vectors.json',
   eventModel: 'event.vectors.json',
+  replay: 'replay.vectors.json',
 });
 
 export class VectorLoadError extends Error {
@@ -148,6 +149,35 @@ function loadEventModel(dir, set) {
   }
 }
 
+/** Item F: the window cases and the delivery sequences. */
+function loadReplay(set) {
+  const file = VECTOR_FILES.replay;
+  const model = set.replay;
+  requireFields(file, model, ['windowMs', 'now', 'window', 'deliveries']);
+  for (const group of ['window', 'deliveries']) {
+    if (!Array.isArray(model[group]) || model[group].length === 0) {
+      throw new VectorLoadError(file, `expected a non-empty "${group}" array`);
+    }
+  }
+  for (const c of model.window) {
+    requireFields(file, c, ['name', 'issuedAt', 'expect']);
+    if (c.expect === 'refuse') requireFields(file, c, ['reason']);
+  }
+  const outcomes = ['accept', 'refuse-window', 'refuse-duplicate'];
+  for (const d of model.deliveries) {
+    requireFields(file, d, ['name', 'steps']);
+    if (!Array.isArray(d.steps) || d.steps.length === 0) {
+      throw new VectorLoadError(file, `deliveries/${d.name}: expected a non-empty "steps" array`);
+    }
+    for (const step of d.steps) {
+      requireFields(file, step, ['from', 'id', 'issuedAt', 'receivedAt', 'expect']);
+      if (!outcomes.includes(step.expect)) {
+        throw new VectorLoadError(file, `deliveries/${d.name}: unknown expect "${step.expect}"`);
+      }
+    }
+  }
+}
+
 /**
  * @param {string} dir the test/vectors directory
  * @returns {Record<keyof typeof VECTOR_FILES, any>}
@@ -241,6 +271,7 @@ export function loadVectorSet(dir) {
   requireFields(VECTOR_FILES.sdkDefects, set.sdkDefects, ['gcmTag', 'identities']);
   loadDocumentModel(dir, set);
   loadEventModel(dir, set);
+  loadReplay(set);
 
   // The only shared key is the encryption key, referenced by name. Resolve it
   // once so checks never read files themselves.

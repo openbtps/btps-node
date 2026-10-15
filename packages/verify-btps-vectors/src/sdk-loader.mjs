@@ -51,6 +51,7 @@ const fakeDnsPlugin = {
  * @typedef {object} LoadedSdk
  * @property {Record<string, any>} crypto exports of src/core/crypto/index.ts
  * @property {Record<string, any>} utils  exports of src/core/utils/index.ts
+ * @property {Record<string, any>} storage exports of src/core/storage/index.ts (@btps/sdk/storage)
  * @property {Record<string, any> | null} documents exports of
  *   src/core/server/schemas/documents/index.ts (@btps/sdk/documents), or
  *   null on a tree without document model v2
@@ -84,6 +85,7 @@ export async function loadSdk(sdkRoot) {
         contents: [
           "export * as crypto from './src/core/crypto/index.ts';",
           "export * as utils from './src/core/utils/index.ts';",
+          "export * as storage from './src/core/storage/index.ts';",
           hasDocuments
             ? `export * as documents from './${DOCUMENTS_ENTRY}';`
             : 'export const documents = null;',
@@ -111,6 +113,7 @@ export async function loadSdk(sdkRoot) {
     return {
       crypto: mod.crypto,
       utils: mod.utils,
+      storage: mod.storage,
       documents: mod.documents,
       setTxtRecords: mod.__setTxtRecords,
       root,
