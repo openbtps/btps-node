@@ -30,3 +30,11 @@ export interface StorageStoreOptions {
   connection: unknown; // could be file path, MongoClient, Sequelize, etc.
   entityName?: string; // e.g. 'trustedSenders', 'trust_rejections'
 }
+
+/** One accepted `(from, id)` pair in a replay store (item F, EBA-114). */
+export interface BTPReplayEntry {
+  key: string; // computeReplayKey(from, id)
+  from: string; // the sender identity, or agent id, lower-cased
+  id: string; // the artifact id, as sent
+  expiresAt: string; // ISO date-time: issuedAt plus the window; the entry may go after it
+}
