@@ -414,10 +414,10 @@ const canDelegate = isDelegationAllowed(artifact);
 ```ts
 signEncrypt<T>(
   to: string | undefined,
-  sender: ParsedIdentity & { pemFiles: PemKeys },
+  sender: ParsedIdentity & { pemFiles: PemKeys; selector: string },
   payload: {
     document: T;
-    selector?: string;
+    encryptionSelector?: string;
     [key: string]: unknown;
   },
   options?: BTPCryptoOptions
@@ -425,16 +425,16 @@ signEncrypt<T>(
 ```
 
 **Description:**
-Signs and (optionally) encrypts a BTPS document for secure transmission. Handles key lookup, encryption, and signature in one step. Now supports key rotation through selector-based public key resolution.
+Signs and (optionally) encrypts a BTPS document for secure transmission. The artifact names the two keys apart (BTPS 1.1): `signatureSelector` is the sender's key that signed it, and `encryptionSelector` the receiver's key it was encrypted to, so each side rotates its key on its own.
 
 **Arguments:**
 
 - `to` (`string | undefined`, required): Recipient BTPS identity. If undefined, no encryption is performed.
-- `sender` (`ParsedIdentity & { pemFiles: PemKeys }`, required): Sender identity and PEM key pair.
+- `sender` (`ParsedIdentity & { pemFiles: PemKeys; selector: string }`, required): Sender identity, its PEM key pair, and the selector that key is published at. The selector becomes the artifact's `signatureSelector`.
 - `payload` (object, required): Document and metadata to send.
   - `document` (`T`, required): The document payload.
-  - `selector` (`string`, optional): The selector to use for public key resolution (e.g., 'btps1', 'btps2'). Required for encryption when `to` is provided.
-  - `[key: string]` (`unknown`): Additional metadata fields.
+  - `encryptionSelector` (`string`, optional): The receiver's selector to encrypt to (e.g. from its `_btps.host` record). Required for encryption when `to` is provided; it is on the artifact only when the document is encrypted.
+  - `[key: string]` (`unknown`): Additional metadata fields. The 1.0 field `selector` is refused with `BTP_ERROR_VALIDATION`.
 - `options` (`BTPCryptoOptions`, optional): Signature and encryption options.
 
 **Returns:**
@@ -447,19 +447,25 @@ Signs and (optionally) encrypts a BTPS document for secure transmission. Handles
 import { signEncrypt } from '@btps/sdk/crypto';
 const { payload, error } = await signEncrypt(
   'pay$client.com',
-  { accountName: 'billing', domainName: 'vendorcorp.com', pemFiles: { publicKey, privateKey } },
+  {
+    accountName: 'billing',
+    domainName: 'vendorcorp.com',
+    selector: 'btps2', // the sender key in pemFiles
+    pemFiles: { publicKey, privateKey },
+  },
   {
     type: 'BTPS_DOC',
     document: {
       /* ... */
     },
-    selector: 'btps1', // Specify selector for key rotation support
+    encryptionSelector: 'btps1', // the receiver key to encrypt to
   },
   {
     signature: { algorithmHash: 'sha256' },
     encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
   },
 );
+// payload.signatureSelector === 'btps2', payload.encryptionSelector === 'btps1'
 ```
 
 ---
@@ -470,7 +476,7 @@ const { payload, error } = await signEncrypt(
 decryptVerify<T>(
   senderPubPem: string,
   encryptedPayload: VerifyEncryptedPayload<T>,
-  receiverPrivatePem?: string
+  receiverKeys?: BTPDecryptionKeys
 ): Promise<BTPCryptoResponse<T>>
 ```
 
@@ -479,9 +485,9 @@ Verifies the signature and (optionally) decrypts a received BTPS artifact. Ensur
 
 **Arguments:**
 
-- `senderPubPem` (`string`, required): Sender's public key (PEM).
+- `senderPubPem` (`string`, required): Sender's public key (PEM) at the artifact's `signatureSelector`; `resolveSignatureKey(artifact)` resolves it.
 - `encryptedPayload` (`VerifyEncryptedPayload<T>`, required): The received artifact.
-- `receiverPrivatePem` (`string`, optional): Receiver's private key for decryption.
+- `receiverKeys` (`string | (encryptionSelector: string) => string | undefined | Promise<string | undefined>`, optional): The receiver's private key, or a lookup asked for the key at the artifact's `encryptionSelector`. With a lookup, a receiver that rotated keeps decrypting documents encrypted to its old key; an encrypted artifact with no `encryptionSelector` is refused (`BTP_ERROR_VALIDATION`), and a selector the lookup has no key for gives `BTP_ERROR_DECRYPTION_UNINTENDED`.
 
 **Returns:**
 
@@ -490,11 +496,12 @@ Verifies the signature and (optionally) decrypts a received BTPS artifact. Ensur
 **Example:**
 
 ```js
-import { decryptVerify } from '@btps/sdk/crypto';
+import { decryptVerify, resolveSignatureKey } from '@btps/sdk/crypto';
+const receiverKeys = { btps1: oldPrivateKeyPem, btps2: currentPrivateKeyPem };
 const { payload, error } = await decryptVerify(
-  senderPublicKeyPem,
-  encryptedPayload,
-  receiverPrivateKeyPem,
+  await resolveSignatureKey(artifact),
+  artifact,
+  (encryptionSelector) => receiverKeys[encryptionSelector],
 );
 ```
 

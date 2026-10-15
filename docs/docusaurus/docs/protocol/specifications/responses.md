@@ -42,7 +42,7 @@ BTPS server responses (`BTPServerResponse`) are designed to provide consistent, 
     "authTag": "base64-encoded-authentication-tag"
   },
   "signedBy": "billing$vendorcorp.com",
-  "selector": "btps1"
+  "signatureSelector": "btps1"
 }
 ```
 
@@ -61,7 +61,7 @@ BTPS server responses (`BTPServerResponse`) are designed to provide consistent, 
 - **signature**: Digital signature for response authenticity
 - **encryption**: Encryption details for sensitive responses
 - **signedBy**: Identity that signed the response
-- **selector**: DNS selector for key management
+- **signatureSelector**: selector of the `signedBy` identity's key that signed the response (BTPS 1.1; 1.0 called it `selector`, which a 1.1 client refuses)
 
 ## Status Structure
 
@@ -246,7 +246,7 @@ Responses can be digitally signed for authenticity:
     "fingerprint": "sha256-base64-fingerprint"
   },
   "signedBy": "billing$vendorcorp.com",
-  "selector": "btps1"
+  "signatureSelector": "btps1"
 }
 ```
 
@@ -254,7 +254,7 @@ Responses can be digitally signed for authenticity:
 
 - **signature**: Digital signature for response authenticity
 - **signedBy**: Identity that signed the response
-- **selector**: DNS selector for key management
+- **signatureSelector**: selector of the `signedBy` identity's key. Named as on a transporter artifact; 1.0 called it `selector`
 
 **Canonical form (BTPS 1.1).** The signature is over the UTF-8 encoding of the [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) (JCS) canonical form of the response with `signature` removed. A client refuses a response with a duplicate member name.
 
@@ -307,7 +307,7 @@ Responses can be encrypted for confidentiality:
     "fingerprint": "sha256-base64-fingerprint"
   },
   "signedBy": "vendorcorp.com",
-  "selector": "btps1"
+  "signatureSelector": "btps1"
 }
 ```
 
@@ -375,7 +375,7 @@ Responses can be encrypted for confidentiality:
     "fingerprint": "sha256-base64-fingerprint"
   },
   "signedBy": "ebilladdress.com",
-  "selector": "btps1"
+  "signatureSelector": "btps1"
 }
 ```
 

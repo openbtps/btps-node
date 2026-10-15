@@ -202,7 +202,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       });
 
@@ -228,7 +228,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       });
 
@@ -276,7 +276,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -318,7 +318,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: {
           algorithmHash: 'sha256' as const,
           value: 'test-sig1',
@@ -341,7 +341,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: {
           algorithmHash: 'sha256' as const,
           value: 'test-sig2',
@@ -401,7 +401,7 @@ describe('BtpsClient', () => {
             } as BTPTrustReqDoc,
             version: BTP_PROTOCOL_VERSION,
             encryption: null,
-            selector: 'btps1',
+            signatureSelector: 'btps1',
             signature: {
               algorithmHash: 'sha256' as const,
               value: 'test-sig',
@@ -441,7 +441,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -468,7 +468,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -495,7 +495,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -529,7 +529,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -564,7 +564,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -589,7 +589,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -626,7 +626,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -673,7 +673,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -706,7 +706,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -739,7 +739,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -774,7 +774,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -807,7 +807,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -902,7 +902,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -929,7 +929,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -961,7 +961,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 
@@ -986,7 +986,7 @@ describe('BtpsClient', () => {
         } as BTPTrustReqDoc,
         version: BTP_PROTOCOL_VERSION,
         encryption: null,
-        selector: 'btps1',
+        signatureSelector: 'btps1',
         signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
       };
 

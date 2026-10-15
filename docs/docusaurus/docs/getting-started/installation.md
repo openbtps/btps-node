@@ -73,7 +73,7 @@ const trustRequest = {
   },
   from: 'billing$yourdomain.com',
   to: 'pay$client.com',
-  selector: 'btps1',
+  encryptionSelector: 'btps1', // the receiver's selector, to encrypt to
 };
 
 // Sign the artifact before sending
@@ -82,6 +82,7 @@ const { payload: signedArtifact, error } = await signEncrypt(
   {
     accountName: 'billing',
     domainName: 'yourdomain.com',
+    selector: 'btps1', // the selector your key is published at
     pemFiles: {
       publicKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
       privateKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',

@@ -110,14 +110,17 @@ export class BtpsDelegator {
     if (!this.isInitialized || !this.publicKey)
       throw new BTPErrorException({ message: 'Delegator not initialized' });
 
-    let selector = this.selector;
+    // Each signature names its own signer's key: the delegation the
+    // delegator's (this identity, or the one acted for), the attestation
+    // this identity's.
+    let delegatorSelector = this.selector;
     if (onBehalfOf) {
       const dnsHostAndSelector = await getHostAndSelector(onBehalfOf.identity);
       if (!dnsHostAndSelector)
         throw new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
           cause: 'Delegator identity verification failed',
         });
-      selector = dnsHostAndSelector.selector;
+      delegatorSelector = dnsHostAndSelector.selector;
     }
     const delegation = await this.createDelegation({
       artifact,
@@ -128,7 +131,7 @@ export class BtpsDelegator {
       },
       agentId,
       agentPubKey,
-      selector,
+      selector: delegatorSelector,
     });
 
     if (onBehalfOf) {
@@ -140,7 +143,7 @@ export class BtpsDelegator {
           privateKey: this.privateKey,
           publicKey: this.publicKey,
         },
-        selector,
+        selector: this.selector,
       });
       delegation.attestation = attestation;
     }

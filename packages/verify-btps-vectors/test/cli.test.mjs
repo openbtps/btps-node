@@ -21,9 +21,10 @@ describe('verify-btps-vectors CLI', () => {
     const { code, out } = run();
     expect(code).toBe(1);
     expect(out).toMatch(
-      /FAIL  sdk\/item-6\/artifact-names-signature-selector \[item 6: EBA-116, EBA-117\]/,
+      /FAIL  sdk\/item-10\/gcm-tag\/truncated-4-byte-tag-rejected \[item 10: EBA-122\]/,
     );
-    expect(out).toMatch(/FAIL  sdk\/item-10\/gcm-tag\/truncated-4-byte-tag-rejected/);
+    // Item 6 passes since EBA-116.
+    expect(out).toMatch(/PASS  sdk\/item-6\/artifact-names-signature-selector/);
   });
 
   it('exits 1 when the known-failing list is missing an entry', () => {

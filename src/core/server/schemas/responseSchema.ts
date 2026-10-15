@@ -79,7 +79,11 @@ export const BtpServerResponseSchema = z
     signature: BtpSignatureSchema.optional(),
     encryption: BtpEncryptionSchema.optional(),
     signedBy: identitySchema.optional(),
-    selector: z.string().optional(),
+    signatureSelector: z.string().min(1).optional(),
+    selector: z.undefined({
+      invalid_type_error:
+        'selector is not part of BTPS 1.1: a signed response names its key with signatureSelector',
+    }),
   })
   .superRefine((data, ctx) => {
     if (data.signature) {
@@ -91,12 +95,12 @@ export const BtpServerResponseSchema = z
           message: 'signedBy is required when signature is present',
         });
       }
-      // If signature is present, selector is required
-      if (!data.selector) {
+      // If signature is present, signatureSelector is required
+      if (!data.signatureSelector) {
         ctx.addIssue({
-          path: ['selector'],
+          path: ['signatureSelector'],
           code: z.ZodIssueCode.custom,
-          message: 'selector is required when signature is present',
+          message: 'signatureSelector is required when signature is present',
         });
       }
     }

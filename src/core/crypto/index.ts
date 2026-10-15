@@ -32,6 +32,7 @@ export * from './decryptVerify.js';
 export * from './jcs.js';
 export * from './signEncrypt.js';
 export * from './keygen.js';
+export * from './keySelection.js';
 export * from './types.js';
 
 export const encryptBtpPayload = (

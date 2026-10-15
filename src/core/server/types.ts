@@ -134,7 +134,15 @@ export interface BTPTransporterArtifact extends BTPGenericArtifact<BTPDocType | 
   from: string;
   encryption: BTPEncryption | null;
   delegation?: BTPDelegation;
-  selector: string;
+  /**
+   * Selector of the `from` identity's key that signed the artifact. Required
+   * unless the artifact is delegated: a delegated artifact is signed by the
+   * agent key in `delegation`, and the delegator's key is at
+   * `delegation.selector`.
+   */
+  signatureSelector?: string;
+  /** Selector of the `to` identity's key the document was encrypted to. Present only when `encryption` is. */
+  encryptionSelector?: string;
 }
 
 export type BTPArtifact =
@@ -201,5 +209,6 @@ export type BTPServerResponse<T = BTPServerResDocs> = {
   signature?: BTPSignature;
   encryption?: BTPEncryption;
   signedBy?: string;
-  selector?: string;
+  /** Selector of the `signedBy` identity's key that signed the response. */
+  signatureSelector?: string;
 };

@@ -158,7 +158,8 @@ All BTPS messages follow a standardized envelope structure:
     "encryptedKey": "base64-encoded-encrypted-key",
     "iv": "base64-encoded-initialization-vector"
   },
-  "selector": "btps1",
+  "signatureSelector": "btps2",
+  "encryptionSelector": "btps1",
   "delegation": {
     // only used for delegated artifacts
     "agentId": "agentId",

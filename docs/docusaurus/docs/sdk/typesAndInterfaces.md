@@ -1195,7 +1195,8 @@ interface BTPTransporterArtifact {
   signature: BTPSignature;
   encryption: BTPEncryption | null;
   delegation?: BTPDelegation;
-  selector: string; // Selector used for public key resolution (e.g., 'btps1', 'btps2')
+  signatureSelector?: string; // The sender key that signed it; required unless delegated
+  encryptionSelector?: string; // The receiver key it was encrypted to; only when encrypted
 }
 ```
 
@@ -1215,7 +1216,7 @@ interface BTPServerResponse<T = BTPServerResDocs> {
   signature?: BTPSignature;
   encryption?: BTPEncryption;
   signedBy?: string;
-  selector?: string; // Selector used for public key resolution (e.g., 'btps1', 'btps2')
+  signatureSelector?: string; // The signedBy identity's key that signed the response
 }
 ```
 

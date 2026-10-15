@@ -115,7 +115,7 @@ describe('BtpsTransporter', () => {
         phone: '+1234567890',
       },
       encryption: null,
-      selector: 'btps1',
+      signatureSelector: 'btps1',
       signature: {
         algorithmHash: 'sha256',
         value: 'test-signature',

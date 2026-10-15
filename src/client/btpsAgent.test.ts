@@ -904,6 +904,66 @@ describe('BtpsAgent', () => {
       );
     });
 
+    // EBA-116: the receiver's selector is the encryption key, never the signing key.
+    const signedTransportArtifact = () =>
+      mockCrypto.signBtpPayload.mock.calls
+        .map(([payload]) => payload as Record<string, unknown>)
+        .find((payload) => payload.type === 'TRUST_REQ');
+
+    it('names the receiver key it encrypted to as encryptionSelector, and no signing key', async () => {
+      vi.spyOn(agent, 'send').mockResolvedValue({ response: undefined, error: undefined });
+      vi.spyOn(agent, 'resolveIdentity').mockResolvedValue({
+        response: {
+          hostname: 'localhost',
+          port: 3443,
+          selector: 'rcv7',
+          version: '1.0.0',
+          publicKey: 'PUBLIC_KEY',
+          keyType: 'rsa',
+        },
+        error: undefined,
+      });
+
+      await agent.command(
+        'trust.request',
+        'bob$company.com',
+        {
+          id: 'doc-1',
+          name: 'Test Company',
+          email: 'test@company.com',
+          reason: 'Business partnership',
+          phone: '+1234567890',
+        },
+        {
+          signature: { algorithmHash: 'sha256' },
+          encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+        },
+      );
+
+      const artifact = signedTransportArtifact();
+      expect(artifact).toMatchObject({ encryptionSelector: 'rcv7' });
+      expect(artifact).not.toHaveProperty('selector');
+      // Signed by the device key, published at no selector: verified through delegation.
+      expect(artifact).not.toHaveProperty('signatureSelector');
+    });
+
+    it('carries no encryptionSelector when it does not encrypt', async () => {
+      vi.spyOn(agent, 'send').mockResolvedValue({ response: undefined, error: undefined });
+
+      await agent.command('trust.request', 'bob$company.com', {
+        id: 'doc-1',
+        name: 'Test Company',
+        email: 'test@company.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      });
+
+      const artifact = signedTransportArtifact();
+      expect(artifact).toMatchObject({ encryption: null });
+      expect(artifact).not.toHaveProperty('encryptionSelector');
+      expect(artifact).not.toHaveProperty('selector');
+    });
+
     it('should handle missing document for transport artifact', async () => {
       // Mock the send method to return validation error
       vi.spyOn(agent, 'send').mockResolvedValue({

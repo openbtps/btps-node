@@ -36,7 +36,8 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
     "type": "standardEncrypt",
     "authTag": "base64-encoded-authentication-tag"
   },
-  "selector": "btps1",
+  "signatureSelector": "btps2",
+  "encryptionSelector": "btps1",
   "delegation": {
     "agentId": "agentId",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
@@ -72,12 +73,29 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
 - **to**: Recipient's BTPS identity address
 - **document**: The actual document content
 - **signature**: Cryptographic signature for authenticity
-- **selector**: DNS selector for key management
+- **signatureSelector**: selector of the `from` identity's key that signed the artifact. Required unless the artifact carries a `delegation`
 
 **Optional Fields:**
 
 - **encryption**: Encryption details (null for unencrypted messages)
+- **encryptionSelector**: selector of the `to` identity's key the document was encrypted to. Required when `encryption` is present, and not allowed when it is null
 - **delegation**: Delegation information for agent-based operations
+
+## Selectors (BTPS 1.1)
+
+An artifact names the two keys it uses apart, so that the sender and the receiver each rotate their keys on their own:
+
+| Field                | Whose key             | Used for                                                                                                                  |
+| -------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `signatureSelector`  | the sender's (`from`) | verifying the signature: the verifier resolves `<signatureSelector>._btps.identity.<account>.<domain>` for `from`         |
+| `encryptionSelector` | the receiver's (`to`) | decrypting: the receiver opens the document with its private key at this selector, which may no longer be its current one |
+
+- **Signature verification** uses the key at `signatureSelector`, never the receiver's selector.
+- **Decryption** uses the receiver's key at `encryptionSelector`. A receiver that rotates keeps the old private key for as long as it may still receive documents encrypted to it.
+- **Delegated artifacts.** An artifact a device (agent) signs is signed by the agent key carried in `delegation.agentPubKey`, which is published at no selector, so it carries no `signatureSelector`. The delegator's key is at `delegation.selector`, and an attestor's at `delegation.attestation.selector`: each names its own signer's key.
+- **No 1.0 fallback.** BTPS 1.0 used one `selector` field for both: the sender set it to the receiver's selector, and the verifier read it as the sender's. A 1.1 implementation refuses an artifact that carries `selector`, with a validation error naming its replacements.
+
+The selectors are signed with the rest of the artifact (see Digital Signatures, canonical form, below), so changing either one breaks the signature.
 
 ## Supported Document Types
 
@@ -246,7 +264,7 @@ Transporter artifacts support optional encryption using AES-256-GCM:
 
 Before processing any transporter artifact, the receiving server must:
 
-1. Verify the sender's digital signature
+1. Verify the sender's digital signature with the sender's key at `signatureSelector` (or, for a delegated artifact, through its delegation)
 2. Check if a trust relationship exists
 3. Validate the trust relationship status
 4. Verify the sender's public key matches the trust record
@@ -259,7 +277,8 @@ Transporter artifacts can include delegation information for agent-based operati
 - **agentPubKey**: Agent's public key
 - **signedBy**: Main identity that signed the delegation
 - **signature**: Digital signature of the delegation
-- **attestation**: Optional attestation from a higher authority
+- **selector**: Selector of the `signedBy` identity's key
+- **attestation**: Optional attestation from a higher authority, with its own `signedBy` and `selector` naming the attestor's key
 
 ## Error Handling
 

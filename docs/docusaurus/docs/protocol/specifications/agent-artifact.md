@@ -332,7 +332,7 @@ Used to send transporter artifacts to other organizations.
     "type": "standardEncrypt",
     "authTag": "base64-encoded-authentication-tag"
   },
-  "selector": "btps1"
+  "encryptionSelector": "btps1"
 }
 ```
 
@@ -345,12 +345,14 @@ Used to send transporter artifacts to other organizations.
 - **from**: Sender identity
 - **to**: Recipient identity
 - **document**: Document content
-- **signature**: Digital signature
-- **selector**: DNS selector
+- **signature**: Digital signature, by the device (agent) key
 
 **Optional Fields:**
 
 - **encryption**: Encryption details
+- **encryptionSelector**: selector of the receiver's key the document was encrypted to; present only when encrypted
+
+The device's key is published at no selector, so the artifact carries no `signatureSelector`: the identity's server delegates it before delivery, and the receiver verifies it through the delegation. See [Transporter Artifact, Selectors](./transporter-artifact.md#selectors-btps-11).
 
 ## Security Features
 

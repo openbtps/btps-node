@@ -48,7 +48,11 @@ import type {
 import { BTP_PROTOCOL_VERSION } from '@core/server/constants/index.js';
 import { randomUUID } from 'crypto';
 import isEmpty from 'lodash/isEmpty.js';
-import { BTPCryptoResponse, VerifyEncryptedPayload } from '@core/crypto/types.js';
+import {
+  BTPCryptoResponse,
+  BTPDecryptionKeys,
+  VerifyEncryptedPayload,
+} from '@core/crypto/types.js';
 import { decryptVerify } from '@core/crypto/decryptVerify.js';
 import { parseJson } from '@core/crypto/jcs.js';
 import { validate } from '@core/utils/validation.js';
@@ -584,7 +588,7 @@ export class BtpsClient {
   protected async verifyServerMessage(
     msg: BTPServerResponse,
   ): Promise<{ isValid: true; error: undefined } | { isValid: false; error: BTPErrorException }> {
-    const { signature, signedBy, selector } = msg;
+    const { signature, signedBy, signatureSelector } = msg;
     /* If the message is not signed, no need to decrypt and verify as it is system message */
     if (!msg.signature) {
       return {
@@ -593,20 +597,20 @@ export class BtpsClient {
       };
     }
 
-    if (signature && signedBy && selector) {
+    if (signature && signedBy && signatureSelector) {
       let senderPubPem: string | undefined;
       let error: BTPErrorException | undefined;
       try {
-        senderPubPem = await resolvePublicKey(signedBy, selector);
+        senderPubPem = await resolvePublicKey(signedBy, signatureSelector);
         if (!senderPubPem) {
           error = new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
-            cause: `Failed to resolve public key for identity: ${signedBy} and selector: ${selector}`,
+            cause: `Failed to resolve public key for identity: ${signedBy} and signatureSelector: ${signatureSelector}`,
             meta: msg,
           });
         }
       } catch (err) {
         error = transformToBTPErrorException(err, {
-          cause: `Failed to resolve public key for identity: ${signedBy} and selector: ${selector}`,
+          cause: `Failed to resolve public key for identity: ${signedBy} and signatureSelector: ${signatureSelector}`,
           meta: { msg },
         });
       }
@@ -726,9 +730,9 @@ export class BtpsClient {
   decryptVerifyArtifact = async <T = Record<string, unknown>>(
     artifact: VerifyEncryptedPayload<T>,
     senderPubPem: string,
-    receiverPrivatePem?: string,
+    receiverKeys?: BTPDecryptionKeys,
   ): Promise<BTPCryptoResponse<T>> => {
-    return await decryptVerify(senderPubPem, artifact, receiverPrivatePem);
+    return await decryptVerify(senderPubPem, artifact, receiverKeys);
   };
 
   /**
@@ -829,7 +833,7 @@ export class BtpsClient {
         try {
           tempSocket?.on('data', async (data) => {
             const msg = parseJson<BTPServerResponse>(data.toString());
-            const { signature, signedBy, selector, type, status } = msg;
+            const { signature, signedBy, signatureSelector, type, status } = msg;
 
             if (type === 'btps_error' || !status.ok) {
               resolve(
@@ -843,8 +847,8 @@ export class BtpsClient {
               return;
             }
 
-            /* resolving the identity from the server must be signed and have signedBy and selector */
-            if (!signature || !signedBy || !selector) {
+            /* resolving the identity from the server must be signed and have signedBy and signatureSelector */
+            if (!signature || !signedBy || !signatureSelector) {
               resolve(
                 this.buildClientErrorResponse(
                   new BTPErrorException(BTP_ERROR_VALIDATION, {
@@ -857,12 +861,12 @@ export class BtpsClient {
             }
 
             /* If the message is signed, decrypt and verify the message */
-            const hostPubPem = await resolvePublicKey(signedBy, selector);
+            const hostPubPem = await resolvePublicKey(signedBy, signatureSelector);
             if (!hostPubPem) {
               resolve(
                 this.buildClientErrorResponse(
                   new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
-                    cause: `SignedBy is present but public key is not found for identity: ${signedBy} and selector: ${selector}`,
+                    cause: `SignedBy is present but public key is not found for identity: ${signedBy} and signatureSelector: ${signatureSelector}`,
                     meta: msg,
                   }),
                 ),

@@ -5,7 +5,8 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 import { decryptBtpPayload, verifySignature } from './index.js';
-import { BTPCryptoResponse, VerifyEncryptedPayload } from './types.js';
+import { BTPCryptoResponse, BTPDecryptionKeys, VerifyEncryptedPayload } from './types.js';
+import { selectDecryptionKey } from './keySelection.js';
 import { BTPErrorException } from '@core/error/index.js';
 import isEmpty from 'lodash/isEmpty.js';
 
@@ -14,10 +15,17 @@ const genDecryptError = (error: BTPErrorException) => ({
   error,
 });
 
+/**
+ * Verifies a signed payload with the sender's key and decrypts its document.
+ *
+ * `senderPubPem` is the sender's key at the payload's `signatureSelector`
+ * (see `resolveSignatureKey`). `receiverKeys` is the receiver's private key,
+ * or a lookup that is asked for the key at the payload's `encryptionSelector`.
+ */
 export const decryptVerify = async <T = unknown>(
   senderPubPem: string,
   encryptedPayload: VerifyEncryptedPayload<T>,
-  receiverPrivatePem?: string,
+  receiverKeys?: BTPDecryptionKeys,
 ): Promise<BTPCryptoResponse<T>> => {
   const { signature, delegation, ...restEncryptedPayload } = encryptedPayload;
 
@@ -35,9 +43,20 @@ export const decryptVerify = async <T = unknown>(
 
   const needsDecryption =
     !isEmpty(encryption) &&
-    !isEmpty(receiverPrivatePem) &&
+    (typeof receiverKeys === 'function' || !isEmpty(receiverKeys)) &&
     !isEmpty(document) &&
     typeof document === 'string';
+
+  let receiverPrivatePem: string | undefined;
+  if (needsDecryption) {
+    const selected = await selectDecryptionKey(
+      restEncryptedPayload.encryptionSelector,
+      receiverKeys!,
+    );
+    if (selected.error) return genDecryptError(selected.error);
+    receiverPrivatePem = selected.privateKeyPem;
+  }
+
   const { data: decryptedData, error: decryptionErrors } = needsDecryption
     ? decryptBtpPayload(document, encryption, receiverPrivatePem!)
     : { data: document, error: undefined };

@@ -165,7 +165,7 @@ export class BtpsAgent extends BtpsClient {
         }),
       );
     }
-    // Get the selector for the to identity
+    // The receiver's host, and when encrypting, its key and that key's selector
     const receiverDnsTxt = options?.encryption
       ? (await this.resolveIdentity(to, this.options.to, this.keyPair.privateKey)).response
       : await this.resolveBtpsHostDnsTxt(to);
@@ -213,6 +213,9 @@ export class BtpsAgent extends BtpsClient {
       actionType as keyof typeof mappedTransporterAction
     ] as BTPArtifactType;
 
+    // Signed by this device's key, which is published at no selector: the
+    // artifact carries no signatureSelector, and is verified through the
+    // delegation its identity's server adds (BtpsDelegator).
     const transporterArtifact: Omit<BTPTransporterArtifact, 'signature'> = {
       id: randomUUID(),
       issuedAt: new Date().toISOString(),
@@ -221,8 +224,8 @@ export class BtpsAgent extends BtpsClient {
       document: encryptedDocument as BTPDocType | string,
       from: this.options.to,
       to: to,
-      selector: receiverDnsTxt.selector,
       encryption: encryption,
+      ...(encryption ? { encryptionSelector: receiverDnsTxt.selector } : {}),
     };
 
     try {

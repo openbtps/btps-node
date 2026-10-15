@@ -39,6 +39,7 @@ import {
   getFingerprintFromPem,
   parseJson,
   PemKeys,
+  resolveSignatureKey,
   signBtpPayload,
   verifySignature,
 } from '@core/crypto/index.js';
@@ -452,7 +453,7 @@ export class BtpsServer {
     const data: BTPServerResponse = {
       ...this.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }, res.reqId),
       type: 'btps_response',
-      selector: hostSelector,
+      signatureSelector: hostSelector,
       document: restRecord,
       signedBy: this.serverIdentity.identity,
     };
@@ -919,10 +920,23 @@ export class BtpsServer {
     }
 
     const { signature, ...signedMsg } = artifact;
-    const publicKey = await resolvePublicKey(artifact.from, artifact.selector);
+    if (!artifact.signatureSelector) {
+      return {
+        isValid: false,
+        error: new BTPErrorException(BTP_ERROR_VALIDATION, {
+          cause: 'signatureSelector is required: it names the sender key that signed the artifact',
+        }),
+      };
+    }
+    const publicKey = await resolveSignatureKey(artifact);
 
     if (!publicKey) {
-      return { isValid: false, error: new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY) };
+      return {
+        isValid: false,
+        error: new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
+          cause: `No key published for ${artifact.from} at signatureSelector ${artifact.signatureSelector}`,
+        }),
+      };
     }
 
     return verifySignature(signedMsg, signature, publicKey);

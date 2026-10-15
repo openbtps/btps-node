@@ -133,7 +133,6 @@ const baseArtifact = () => ({
   from: 'alice$saas.example',
   to: 'bob$receiver.example',
   type: 'BTPS_DOC' as const,
-  selector: 'btps1',
   document: {
     title: 'Invoice ☕ — März',
     id: 'INV-1',
@@ -176,7 +175,7 @@ describe('EBA-115: canonical signing end to end', () => {
   const signedArtifact = async (): Promise<BTPTransporterArtifact> => {
     const { payload, error } = await signEncrypt(
       undefined,
-      { accountName: 'alice', domainName: 'saas.example', pemFiles: keys.alice },
+      { accountName: 'alice', domainName: 'saas.example', selector: 'btps1', pemFiles: keys.alice },
       baseArtifact(),
     );
     expect(error).toBeUndefined();
@@ -219,7 +218,7 @@ describe('EBA-115: canonical signing end to end', () => {
 
     const agentSigned = await signEncrypt(
       undefined,
-      { accountName: 'alice', domainName: 'saas.example', pemFiles: keys.agent },
+      { accountName: 'alice', domainName: 'saas.example', selector: 'btps1', pemFiles: keys.agent },
       baseArtifact(),
     );
     const delegated = await delegator.delegateArtifact(
@@ -246,7 +245,7 @@ describe('EBA-115: canonical signing end to end', () => {
 
     const agentSigned = await signEncrypt(
       undefined,
-      { accountName: 'alice', domainName: 'saas.example', pemFiles: keys.agent },
+      { accountName: 'alice', domainName: 'saas.example', selector: 'btps1', pemFiles: keys.agent },
       baseArtifact(),
     );
     const delegated = await delegator.delegateArtifact(
@@ -294,7 +293,12 @@ describe('EBA-115: canonical signing end to end', () => {
       await delegator.init();
       const agentSigned = await signEncrypt(
         undefined,
-        { accountName: 'alice', domainName: 'saas.example', pemFiles: keys.agent },
+        {
+          accountName: 'alice',
+          domainName: 'saas.example',
+          selector: 'btps1',
+          pemFiles: keys.agent,
+        },
         baseArtifact(),
       );
       const delegated = await delegator.delegateArtifact(
@@ -347,7 +351,7 @@ describe('EBA-115: canonical signing end to end', () => {
     const unsigned = {
       ...server.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }, 'req-1'),
       type: 'btps_response' as const,
-      selector: 'btps1',
+      signatureSelector: 'btps1',
       signedBy: 'server$receiver.example',
       ...extra,
     } as unknown as BTPServerResponse;

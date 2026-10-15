@@ -1905,7 +1905,7 @@ export default function () {
         signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
         encryption: null,
         document: 'document',
-        selector: 'selector',
+        signatureSelector: 'selector',
       });
 
       const trustRecord = (overrides: Partial<BTPTrustRecord>): BTPTrustRecord => ({
@@ -2376,7 +2376,7 @@ export default function () {
           value: 'old_signature_value',
           fingerprint: 'old_fingerprint',
         },
-        selector: oldSelector,
+        signatureSelector: oldSelector,
         issuedAt: '2025-01-01T00:00:00.000Z',
         id: 'artifact-old-123',
       };
@@ -2392,7 +2392,7 @@ export default function () {
           value: 'new_signature_value',
           fingerprint: 'new_fingerprint',
         },
-        selector: newSelector,
+        signatureSelector: newSelector,
         issuedAt: '2025-01-02T00:00:00.000Z',
         id: 'artifact-new-456',
       };
@@ -2414,8 +2414,8 @@ export default function () {
       );
 
       // Test 4: Verify that artifacts have correct selectors
-      expect(artifactWithOldSelector.selector).toBe(oldSelector);
-      expect(artifactWithNewSelector.selector).toBe(newSelector);
+      expect(artifactWithOldSelector.signatureSelector).toBe(oldSelector);
+      expect(artifactWithNewSelector.signatureSelector).toBe(newSelector);
 
       // Test 5: Verify that resolvePublicKey was called with correct selectors
       expect(mockResolvePublicKey).toHaveBeenCalledWith(aliceIdentity, oldSelector);
@@ -2470,7 +2470,6 @@ export default function () {
           value: 'agent_signature',
           fingerprint: 'agent_fingerprint',
         },
-        selector: oldSelector,
         delegation: {
           agentId: 'agent-123',
           agentPubKey: '-----BEGIN PUBLIC KEY-----\nAGENT_PUBLIC_KEY\n-----END PUBLIC KEY-----',
@@ -2499,7 +2498,6 @@ export default function () {
           value: 'agent_signature',
           fingerprint: 'agent_fingerprint',
         },
-        selector: newSelector,
         delegation: {
           agentId: 'agent-123',
           agentPubKey: '-----BEGIN PUBLIC KEY-----\nAGENT_PUBLIC_KEY\n-----END PUBLIC KEY-----',

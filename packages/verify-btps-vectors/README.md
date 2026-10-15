@@ -12,7 +12,7 @@ yarn verify:btps-vectors
 node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs \
   --known-failing test/vectors/known-failing.json
 
-# Strict form: every check must pass. Red until EBA-116 and EBA-122 land.
+# Strict form: every check must pass. Red until EBA-122 lands.
 node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs
 ```
 
@@ -25,15 +25,15 @@ devDependency of the repository root). It has been run on Node 24.21.0 only.
 
 ## What it checks
 
-| Suite                 | Runs on            | What it shows                                                                                                                                                                                                                                                                                                                                                       |
-| --------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vectors/<runtime>/…` | node, web          | JCS (RFC 8785) vectors; managed and self-held signatures verify over the canonical bytes and **not** over the raw key order; re-signing reproduces the vector bytes; the KMS-style OAEP wrap unwraps; an MGF1-SHA-1 wrap is refused; the signing and encryption keys are distinct and cannot stand in for each other                                                |
-| `interop/<a>-><b>/…`  | node→web, web→node | a signature or wrap made by one runtime is accepted by the other, and signatures are byte-identical to the vector                                                                                                                                                                                                                                                   |
-| `oracle/oaep/…`       | node               | the reference OAEP (raw RSA) confirms the positive wrap decodes only under MGF1-SHA-256, and that the negative vector really is an MGF1-SHA-1 wrap                                                                                                                                                                                                                  |
-| `sdk/kms/…`           | node, SDK          | the SDK's fingerprint, `encryptRSA` and `decryptRSA` match the KMS profile. Passes on 367cd09                                                                                                                                                                                                                                                                       |
-| `sdk/item-5/…`        | node, SDK          | BTPS 1.1 item 5, JCS signing (EBA-115), including `jcs-signature.vectors.json`: each payload verifies in every key order and re-signs to the vector bytes; duplicate names are refused. **Fails on 367cd09; passes since EBA-115**                                                                                                                                  |
-| `sdk/item-6/…`        | node, SDK          | item 6, separate `signatureSelector` and `encryptionSelector` (EBA-116): a sender that rotated is verified at its `signatureSelector`, and a receiver that rotated decrypts with its key at `encryptionSelector`. **Fails on 367cd09 and 1ff93d1.** `document-decrypts-with-receiver-key-at-encryption-selector` is an untagged regression guard: it passes on both |
-| `sdk/item-10/…`       | node, SDK          | item 10, the defects that can be expressed as data: short GCM tags, identities with more than one `$` (EBA-122). **Fails on 367cd09**                                                                                                                                                                                                                               |
+| Suite                 | Runs on            | What it shows                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vectors/<runtime>/…` | node, web          | JCS (RFC 8785) vectors; managed and self-held signatures verify over the canonical bytes and **not** over the raw key order; re-signing reproduces the vector bytes; the KMS-style OAEP wrap unwraps; an MGF1-SHA-1 wrap is refused; the signing and encryption keys are distinct and cannot stand in for each other                                                   |
+| `interop/<a>-><b>/…`  | node→web, web→node | a signature or wrap made by one runtime is accepted by the other, and signatures are byte-identical to the vector                                                                                                                                                                                                                                                      |
+| `oracle/oaep/…`       | node               | the reference OAEP (raw RSA) confirms the positive wrap decodes only under MGF1-SHA-256, and that the negative vector really is an MGF1-SHA-1 wrap                                                                                                                                                                                                                     |
+| `sdk/kms/…`           | node, SDK          | the SDK's fingerprint, `encryptRSA` and `decryptRSA` match the KMS profile. Passes on 367cd09                                                                                                                                                                                                                                                                          |
+| `sdk/item-5/…`        | node, SDK          | BTPS 1.1 item 5, JCS signing (EBA-115), including `jcs-signature.vectors.json`: each payload verifies in every key order and re-signs to the vector bytes; duplicate names are refused. **Fails on 367cd09; passes since EBA-115**                                                                                                                                     |
+| `sdk/item-6/…`        | node, SDK          | item 6, separate `signatureSelector` and `encryptionSelector` (EBA-116): a sender that rotated is verified at its `signatureSelector`, and a receiver that rotated decrypts with its key at `encryptionSelector`. **Fails on 367cd09 and 1ff93d1; passes since EBA-116.** `document-decrypts-with-receiver-key-at-encryption-selector` is an untagged regression guard |
+| `sdk/item-10/…`       | node, SDK          | item 10, the defects that can be expressed as data: short GCM tags, identities with more than one `$` (EBA-122). **Fails on 367cd09**                                                                                                                                                                                                                                  |
 
 ### The known-failing list
 
@@ -94,10 +94,12 @@ that — so a browser or React Native harness can import
   vector is signed by node:crypto with the algorithm KMS uses
   (RSASSA_PKCS1_V1_5_SHA_256), and the self-held one by WebCrypto. A vector
   signed by a real KMS key is still owed.
-- **Item 6 call shape is a guess at the 1.1 API.** The adapter
-  `produceItem6Artifact` in [`src/checks/sdk.mjs`](src/checks/sdk.mjs) uses
-  the 367cd09 call shape. EBA-116 may change it, and then the adapter must
-  change in the same PR.
+- **Item 6 call shape is the 1.1 API.** The adapter `produceItem6Artifact`
+  in [`src/checks/sdk.mjs`](src/checks/sdk.mjs) passes `sender.selector` and
+  `payload.encryptionSelector`, as EBA-116 settled them. A 1.0 tree
+  (367cd09, 1ff93d1) ignores `encryptionSelector`, so run against one, every
+  item-6 check fails, the regression guard included; to see the 1.0
+  behaviour, use the adapter from before EBA-116.
 - **Item 10 covers two of its seven defects.** Schema failures, crossed
   responses, the line-length limit and error codes are server behaviour, and
   EBA-122 tests them itself.

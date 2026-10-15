@@ -168,7 +168,7 @@ describe('BtpServerResponseSchema', () => {
         authTag: 'auth-tag-value',
       },
       signedBy: 'alice$example.com',
-      selector: 'btps1',
+      signatureSelector: 'btps1',
     };
 
     const result = validate(BtpServerResponseSchema, validResponseWithCrypto);

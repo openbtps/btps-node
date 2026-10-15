@@ -40,6 +40,15 @@ export type PemKeys = {
   privateKey: string;
 };
 
+/**
+ * The receiver's private key for decryption: one PEM the caller has already
+ * chosen, or a lookup by the artifact's `encryptionSelector`, so that keys
+ * kept after a rotation still decrypt what was encrypted to them.
+ */
+export type BTPDecryptionKeys =
+  | string
+  | ((encryptionSelector: string) => string | undefined | Promise<string | undefined>);
+
 export type BTPCryptoOptions = {
   signature: {
     algorithmHash: SignatureAlgorithmHash;

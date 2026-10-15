@@ -11,6 +11,9 @@ import { TRANSPORTER_ACTIONS } from '../../constants/index.js';
 import { z } from 'zod';
 import { processBtpDocSchema } from '../helpers.js';
 
+export const SELECTOR_REPLACED =
+  'selector is not part of BTPS 1.1: use signatureSelector (the sender key that signed) and encryptionSelector (the receiver key encrypted to)';
+
 // Base schema for transporter artifacts
 export const BtpTransporterArtifactBaseSchema = z.object({
   version: z.string(),
@@ -23,12 +26,40 @@ export const BtpTransporterArtifactBaseSchema = z.object({
   encryption: BtpEncryptionSchema.nullable(),
   document: z.unknown(),
   delegation: BtpDelegationSchema.optional(),
-  selector: z.string(),
+  signatureSelector: z.string().min(1).optional(),
+  encryptionSelector: z.string().min(1).optional(),
+  // BTPS 1.0's one `selector` meant the receiver's key to the sender and the
+  // sender's key to the verifier. 1.1 refuses it rather than guess (plan §6).
+  selector: z.undefined({
+    invalid_type_error: SELECTOR_REPLACED,
+  }),
 });
 
 // Schema for transporter artifacts with document validation
 export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.superRefine(
   (data, ctx) => {
+    if (!data.delegation && !data.signatureSelector) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'signatureSelector is required: it names the sender key that signed the artifact',
+        path: ['signatureSelector'],
+      });
+    }
+    if (data.encryption && !data.encryptionSelector) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'encryptionSelector is required when encrypted: it names the receiver key the document was encrypted to',
+        path: ['encryptionSelector'],
+      });
+    }
+    if (!data.encryption && data.encryptionSelector) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'encryptionSelector is only allowed when the document is encrypted',
+        path: ['encryptionSelector'],
+      });
+    }
     if (data.encryption) {
       // If encrypted, document must be a string
       if (typeof data.document !== 'string') {
