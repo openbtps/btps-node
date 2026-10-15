@@ -9,7 +9,7 @@
  * BTPS 1.1 item A (EBA-440): lifecycle events as BTPS_EVENT, through the
  * server. Real keys, end to end through parse, signature and trust; only DNS
  * key lookup is faked. Release plan page 10518529, sections 2.4 (trust) and
- * 2.7 (ids). Replay ((from, id) seen once) is EBA-114 and not tested here.
+ * 2.7 (ids). Replay ((from, id) seen once, EBA-114) is tested in replay.test.ts.
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach, type Mock } from 'vitest';

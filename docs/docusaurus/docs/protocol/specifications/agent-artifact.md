@@ -406,6 +406,19 @@ Before processing any agent artifact, the server must:
 3. Check if the agent has permission for the requested action
 4. Verify the agent's public key matches the stored record
 
+## Replay Protection (BTPS 1.1)
+
+An agent artifact gets the same two checks as a transporter artifact (see
+[Replay Protection](./transporter-artifact.md#replay-protection-btps-11)):
+
+- its `issuedAt` must be within ±5 minutes of the server's clock
+  (`BTP_ERROR_ISSUED_AT_WINDOW`);
+- its `(agentId, id)` is refused once accepted (`BTP_ERROR_ALREADY_RECEIVED`),
+  remembered only after the agent's signature and trust are verified.
+
+`BtpsAgent` signs every command as a new artifact with a new id, so
+repeating a command is never refused as a duplicate.
+
 ## Error Handling
 
 ### Common Error Scenarios

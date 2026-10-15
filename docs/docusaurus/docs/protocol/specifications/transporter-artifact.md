@@ -272,6 +272,131 @@ BTPS 1.1. The full rules are on [Lifecycle Events](./lifecycle-events.md).
 - **Trust:** accepted over either direction of the pair's trust; see
   [Trust Verification](#trust-verification).
 
+## Replay Protection (BTPS 1.1)
+
+A receiving server refuses an artifact it has already accepted, and one
+signed too long ago or too far ahead to tell. Both checks are part of the
+protocol, not options (BTPS 1.1 item F, addendum item 4).
+
+### The `issuedAt` window
+
+- The server refuses an artifact whose `issuedAt` is more than **±5 minutes**
+  from its own clock (`ISSUED_AT_WINDOW_MS`, `@btps/sdk/server`). Both edges
+  are inclusive: 5:00 old or 5:00 ahead is accepted, 5:00.001 is refused.
+- `issuedAt` is a UTC date-time ending in `Z`. One that cannot be read (no
+  `Z`, an offset, a day the calendar does not have) is refused.
+- A server may configure a **tighter** window (`issuedAtWindowMs`), never a
+  wider one: the maximum, `MAX_ISSUED_AT_WINDOW_MS`, is the same 5 minutes.
+  So an artifact one server refuses as too old, every server refuses.
+- The window is checked before the signature, so a stale replay costs the
+  server no key lookup.
+- Refusal: `BTP_ERROR_ISSUED_AT_WINDOW`, message `Artifact issuedAt is
+  outside the accepted window`. Resending the same artifact cannot succeed;
+  sign a new one, and check the sender's clock.
+
+### `(from, id)` seen once
+
+- The server refuses an artifact whose `(from, id)` it has already accepted
+  while that artifact's `issuedAt` is inside the window. `from` is compared
+  case-insensitively, as trust ids are; `id` exactly as sent.
+- The pair is **per sending identity**, which is narrower than per sending
+  domain: two identities on one domain, or two parties, may use the same id
+  without colliding. An id only has to be unique for its sender.
+- The pair is remembered only once the artifact's **signature and trust**
+  have been verified, so a sender that cannot sign as `from` cannot spend
+  `from`'s ids. It is checked before the application sees the artifact
+  (`onArtifact`), and remembered atomically just before it is handed over,
+  so of two copies arriving together one is refused.
+- An entry is held until `issuedAt` plus the window. After that the window
+  refuses the artifact on its own, so a copy arriving later is refused by
+  the window, not the store.
+- If the application fails while taking the artifact, the server forgets
+  the pair, so the same artifact can be resent.
+- Refusal: `BTP_ERROR_ALREADY_RECEIVED`, message `Artifact already
+  received`.
+
+**Lifecycle events.** A `BTPS_EVENT`'s artifact id is its event id (see
+[Lifecycle Events](./lifecycle-events.md)), so a reused event id is refused
+by this same check, even on a different event.
+
+### Which artifacts
+
+| Artifact | Window | `(from, id)` |
+| --- | --- | --- |
+| Transporter (`TRUST_REQ`, `TRUST_RES`, `BTPS_DOC`, `BTPS_EVENT`) | yes | yes, keyed by `from` |
+| Agent | yes | yes, keyed by `agentId` |
+| Control (`QUIT`, `PING`) | no | no |
+| Identity lookup | no | no |
+
+Control and identity-lookup artifacts are unsigned, so their `issuedAt` and
+`id` prove nothing about who sent them, and they change no state: a replayed
+`PING` or lookup only gets a fresh answer, and a lookup's answer is signed by
+the server with its own `issuedAt`.
+
+### Retrying a send
+
+- **After "already received":** the artifact arrived before. To send
+  something new, sign a **new artifact with a new id**; for an event, that is
+  a new event with a new id.
+- **After a timeout:** resending the **same signed artifact, unchanged**, is
+  safe while its `issuedAt` is inside the window. If the first copy arrived,
+  the resend is refused with "already received", which tells the sender it
+  was delivered; if not, the resend is accepted. `BtpsClient.send` keeps the
+  `id` and `issuedAt` it is given, so passing the same artifact again is
+  exactly this.
+- **Once the window has passed,** the same artifact is refused by the
+  window, and the sender cannot tell whether the first copy arrived. A newly
+  signed artifact may then reach the receiver twice under two ids; the
+  receiving platform's own duplicate check on the document is the second
+  line.
+- `BtpsAgent` signs a new artifact, with a new id, on every command, so
+  repeating a command is never a duplicate.
+
+### The replay store
+
+The server remembers pairs in an `AbstractReplayStore` (`@btps/sdk/storage`),
+given as `replayStore` in `BtpsServerOptions`. With none given it uses an
+`InMemoryReplayStore`, which:
+
+- **does not survive a restart:** an artifact accepted just before a restart
+  can be accepted again while its `issuedAt` is in the window;
+- **is not shared between server instances:** behind a load balancer, one
+  instance does not see what another accepted;
+- holds at most `maxEntries` (default 100,000) and lets an entry go once its
+  window has passed. When full of unexpired entries it refuses new artifacts
+  (`BTP_ERROR_RATE_LIMITER`) rather than forget a pair early.
+
+A platform with more than one instance, or that must refuse a replay across
+a restart, implements `AbstractReplayStore` over shared storage:
+
+```ts
+import { AbstractReplayStore, type BTPReplayEntry } from '@btps/sdk/storage';
+
+class PostgresReplayStore extends AbstractReplayStore {
+  // key is computeReplayKey(from, id): SHA-256 hex over the normalised pair.
+  protected async hasKey(key: string) {
+    const { rowCount } = await db.query(
+      'SELECT 1 FROM btps_replay WHERE key = $1 AND expires_at >= now()', [key]);
+    return rowCount > 0;
+  }
+  // Must be atomic: of two concurrent adds of one key, exactly one returns true.
+  protected async add(e: BTPReplayEntry) {
+    await db.query('DELETE FROM btps_replay WHERE key = $1 AND expires_at < now()', [e.key]);
+    const { rowCount } = await db.query(
+      `INSERT INTO btps_replay (key, sender, artifact_id, expires_at)
+       VALUES ($1, $2, $3, $4) ON CONFLICT (key) DO NOTHING`,
+      [e.key, e.from, e.id, e.expiresAt]);
+    return rowCount === 1;
+  }
+  protected async deleteKey(key: string) {
+    await db.query('DELETE FROM btps_replay WHERE key = $1', [key]);
+  }
+}
+```
+
+With Redis, `add` is `SET key 1 NX PXAT <expiresAt>`, and expired entries go
+on their own. Rows past `expires_at` may be deleted at any time.
+
 ## Security Features
 
 ### Digital Signatures
@@ -335,6 +460,8 @@ Transporter artifacts can include delegation information for agent-based operati
 - **400 Bad Request**: Invalid message format or missing required fields
 - **500 Internal Server Error**: Server processing error
 - **429 Too Many Requests**: Rate limiting exceeded
+- **`BTP_ERROR_ISSUED_AT_WINDOW`**: `issuedAt` is outside ±5 minutes of the receiver's clock, or unreadable; see [Replay Protection](#replay-protection-btps-11)
+- **`BTP_ERROR_ALREADY_RECEIVED`**: this `(from, id)` was accepted before; see [Retrying a send](#retrying-a-send)
 
 ### Retry Logic
 
@@ -345,19 +472,25 @@ Failed deliveries should implement exponential backoff retry logic:
 3. Maximum retry attempts: 5
 4. Final failure notification after all retries exhausted
 
+A retry is a new artifact, signed with a new `id` and a fresh `issuedAt`,
+except for resending the same artifact after a timeout, inside its window;
+see [Retrying a send](#retrying-a-send).
+
 ## Implementation Guidelines
 
 ### Server Requirements
 
 - Must validate all incoming transporter artifacts
 - Must verify sender trust before processing
+- Must refuse an artifact outside the `issuedAt` window, and one whose `(from, id)` it has accepted before (see [Replay Protection](#replay-protection-btps-11))
 - Must implement proper error handling and logging
 - Must support retry mechanisms for failed deliveries
 - Must maintain audit trails for all transactions
 
 ### Client Requirements
 
-- Must generate unique artifact IDs
+- Must generate unique artifact IDs: unique for the sending identity, and new for every newly signed artifact
+- Must stamp `issuedAt` (UTC, ending in `Z`) when signing, from a clock kept within the window of the receivers'
 - Must sign all outgoing artifacts
 - Must handle trust establishment before sending documents
 - Must implement proper retry logic for failed deliveries

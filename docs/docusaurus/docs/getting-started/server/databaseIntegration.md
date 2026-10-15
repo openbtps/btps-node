@@ -22,6 +22,8 @@ interface BtpsServerOptions {
   };
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
+  replayStore?: AbstractReplayStore; // default InMemoryReplayStore: per instance, lost on restart
+  issuedAtWindowMs?: number; // tighter than ±5 minutes only
   port?: number;
   onError?: (err: BTPErrorException) => void;
   options?: TlsOptions;
@@ -31,6 +33,8 @@ interface BtpsServerOptions {
 ```
 
 The `trustStore` parameter is **required** and must implement the `AbstractTrustStore` interface. The `identityStore` parameter is **optional** and must implement the `AbstractIdentityStore` interface.
+
+The `replayStore` parameter is optional, but replay protection is not: without one, the server keeps accepted `(from, id)` pairs in memory, which a restart forgets and other instances cannot see. If you run more than one server instance, or must refuse a replay across a restart, pass an `AbstractReplayStore` over your database; see [The replay store](/docs/protocol/specifications/transporter-artifact#the-replay-store).
 
 For complete storage API documentation, see [Storage Classes](/docs/sdk/class-api-references#abstractstoragestore).
 

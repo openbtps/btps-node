@@ -26,6 +26,8 @@ interface BtpsServerOptions {
   serverIdentity: BtpsServerIdentity;
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
+  replayStore?: AbstractReplayStore;
+  issuedAtWindowMs?: number;
   port?: number;
   onError?: (err: BTPErrorException) => void;
   tlsOptions: BtpsTlsOptions;
@@ -39,6 +41,8 @@ interface BtpsServerOptions {
 - `serverIdentity`: Required server identity: the identity, and the `Signer` that signs the server's responses (or a PEM key pair, wrapped in a `PemSigner`, for tests and the interim only)
 - `trustStore`: Required trust store instance for managing trust records
 - `identityStore`: Optional identity store instance for managing identity records
+- `replayStore`: Optional store for the `(from, id)` of every accepted artifact ([replay protection](../protocol/specifications/transporter-artifact.md#replay-protection-btps-11)). Default: an `InMemoryReplayStore`, which **does not survive a restart and is not shared between server instances**; a platform running more than one instance passes its own `AbstractReplayStore` over shared storage. Replay protection itself cannot be turned off
+- `issuedAtWindowMs`: Optional `issuedAt` window in milliseconds, either way. Default and maximum: `ISSUED_AT_WINDOW_MS` = `MAX_ISSUED_AT_WINDOW_MS` = 300000 (±5 minutes). It may be tighter, never wider; a value that is not a whole number from 1 to the maximum makes the constructor throw `BTP_ERROR_VALIDATION`
 - `port`: Optional port number (default: 3443)
 - `onError`: Optional error handler function
 - `tlsOptions`: Required TLS cert and key options. Use self signed cert for local development. Make sure to set rejectUnauthorized false when connecting using BtpsClient for local development
