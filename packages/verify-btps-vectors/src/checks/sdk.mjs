@@ -28,7 +28,7 @@ const pemToTxtBase64 = (pem) =>
  * check does not dictate EBA-116's API. If EBA-116 changes how a caller
  * asks for encryption, update this function and say so on EBA-116.
  */
-async function produceItem6Artifact(sdk, vector) {
+async function produceItem6Artifact(sdk, vector, receiverSelector = vector.receiver.hostSelector) {
   const [senderAccount, senderDomain] = vector.sender.identity.split('$');
   const sender = {
     accountName: senderAccount,
@@ -42,7 +42,7 @@ async function produceItem6Artifact(sdk, vector) {
   return sdk.crypto.signEncrypt(
     vector.receiver.identity,
     sender,
-    { ...vector.artifact, selector: vector.receiver.hostSelector },
+    { ...vector.artifact, selector: receiverSelector },
     {
       signature: { algorithmHash: 'sha256' },
       encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
@@ -50,12 +50,16 @@ async function produceItem6Artifact(sdk, vector) {
   );
 }
 
-/** The DNS zone the item 6 vector describes, in the TXT format 367cd09 reads. */
-function item6Zone(vector, receiverPublicKeyPem) {
+/**
+ * The DNS zone the item 6 vector describes, in the TXT format 367cd09 reads.
+ * `hostSelectors` overrides a party's current host selector, by identity.
+ */
+function item6Zone(vector, receiverPublicKeyPem, hostSelectors = {}) {
   const zone = {};
   for (const party of [vector.sender, vector.receiver]) {
     const [account, domain] = party.identity.split('$');
-    zone[`_btps.host.${domain}`] = [`v=1.1;u=btps.${domain}:3443;s=${party.hostSelector}`];
+    const hostSelector = hostSelectors[party.identity] ?? party.hostSelector;
+    zone[`_btps.host.${domain}`] = [`v=1.1;u=btps.${domain}:3443;s=${hostSelector}`];
     for (const [selector, key] of Object.entries(party.keys)) {
       const pem = key.publicKeyPem ?? receiverPublicKeyPem;
       zone[`${selector}._btps.identity.${account}.${domain}`] = [
@@ -315,21 +319,88 @@ export function sdkChecks(sdk, set) {
       const { isValid } = sdkCrypto.verifySignature(signed, signature, senderKey);
       ensure(isValid === true, `signature does not verify with the sender key at ${selector}`);
     }),
-    item6Check('document-decrypts-with-receiver-key-at-encryption-selector', async () => {
-      const artifact = await item6Artifact();
-      ensure(artifact.encryption, 'the document was not encrypted');
-      const { data, error } = sdkCrypto.decryptBtpPayload(
-        artifact.document,
-        artifact.encryption,
-        set.oaepWrap.privateKeyPem,
-      );
-      ensure(!error, `decryption failed: ${error?.message}`);
-      ensure(
-        JSON.stringify(data) === JSON.stringify(item6.artifact.document),
-        'decrypted a different document',
-      );
-    }),
+    // Untagged regression guard: it passes on 367cd09 too, because there the
+    // one `selector` is the receiver's. It must keep passing once the
+    // selectors are separate.
+    {
+      id: 'sdk/item-6/document-decrypts-with-receiver-key-at-encryption-selector',
+      async run() {
+        const artifact = await item6Artifact();
+        ensure(artifact.encryption, 'the document was not encrypted');
+        const { data, error } = sdkCrypto.decryptBtpPayload(
+          artifact.document,
+          artifact.encryption,
+          set.oaepWrap.privateKeyPem,
+        );
+        ensure(!error, `decryption failed: ${error?.message}`);
+        ensure(
+          JSON.stringify(data) === JSON.stringify(item6.artifact.document),
+          'decrypted a different document',
+        );
+      },
+    },
   );
+
+  // --- Item 6, the receiver rotates: decrypt with the key at encryptionSelector
+  const rotation = set.selectorsReceiverRotation;
+  checks.push({
+    id: 'sdk/item-6/receiver-rotated-decrypts-with-key-at-encryption-selector',
+    item: 6,
+    tickets: rotation.tickets,
+    async run() {
+      const { receiver, sender } = rotation;
+      const atEncryption = receiver.hostSelectorAtEncryption;
+      sdk.setTxtRecords(
+        item6Zone(rotation, set.oaepWrap.publicKeyPem, { [receiver.identity]: atEncryption }),
+      );
+      const { payload: artifact, error } = await produceItem6Artifact(sdk, rotation, atEncryption);
+      if (error || !artifact)
+        throw new Error(`signEncrypt failed: ${error?.message ?? 'no payload'}`);
+      ensure(artifact.encryption, 'the document was not encrypted');
+
+      // After the artifact was sent, the receiver rotates and keeps its old key.
+      sdk.setTxtRecords(item6Zone(rotation, set.oaepWrap.publicKeyPem));
+      const receiverKeys = {
+        [atEncryption]: set.oaepWrap.privateKeyPem,
+        [receiver.hostSelector]: receiver.keys[receiver.hostSelector].privateKeyPem,
+      };
+      let withCurrentKey;
+      try {
+        withCurrentKey = sdkCrypto.decryptBtpPayload(
+          artifact.document,
+          artifact.encryption,
+          receiverKeys[receiver.hostSelector],
+        );
+      } catch (caught) {
+        withCurrentKey = { error: caught };
+      }
+      ensure(
+        withCurrentKey.error,
+        'the vector proves nothing: the receiver key it rotated to opens the document',
+      );
+
+      ensure(
+        artifact.encryptionSelector === rotation.expect.encryptionSelector,
+        `the artifact does not name the receiver key it was encrypted to: encryptionSelector is ${JSON.stringify(artifact.encryptionSelector)}, expected "${rotation.expect.encryptionSelector}" (selector=${JSON.stringify(artifact.selector)})`,
+      );
+      ensure(
+        artifact.signatureSelector === rotation.expect.signatureSelector,
+        `signatureSelector is ${JSON.stringify(artifact.signatureSelector)}, expected "${rotation.expect.signatureSelector}"`,
+      );
+      const senderKey = await utils.resolvePublicKey(sender.identity, artifact.signatureSelector);
+      ensure(senderKey, `no sender key published at ${artifact.signatureSelector}`);
+      const { payload, error: openError } = await sdkCrypto.decryptVerify(
+        senderKey,
+        artifact,
+        (encryptionSelector) => receiverKeys[encryptionSelector],
+      );
+      ensure(!openError, `decryptVerify failed: ${openError?.message}`);
+      ensure(
+        JSON.stringify(payload?.document) === JSON.stringify(rotation.artifact.document),
+        'the receiver did not decrypt the document with its key at encryptionSelector',
+      );
+    },
+  });
 
   // --- Item 10: SDK defects expressible as data (EBA-122) -----------------
   const defects = set.sdkDefects;

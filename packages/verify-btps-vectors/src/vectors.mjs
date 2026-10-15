@@ -17,6 +17,7 @@ export const VECTOR_FILES = Object.freeze({
   oaepWrap: 'oaep-wrap.vector.json',
   oaepMgf1Sha1: 'oaep-mgf1-sha1.negative.vector.json',
   selectors: 'selectors.vector.json',
+  selectorsReceiverRotation: 'selectors-receiver-rotation.vector.json',
   sdkDefects: 'sdk-defects.vector.json',
 });
 
@@ -113,6 +114,16 @@ export function loadVectorSet(dir) {
     'artifact',
     'expect',
   ]);
+  requireFields(VECTOR_FILES.selectorsReceiverRotation, set.selectorsReceiverRotation, [
+    'sender',
+    'receiver',
+    'artifact',
+    'expect',
+  ]);
+  requireFields(VECTOR_FILES.selectorsReceiverRotation, set.selectorsReceiverRotation.receiver, [
+    'hostSelectorAtEncryption',
+    'hostSelector',
+  ]);
   requireFields(VECTOR_FILES.sdkDefects, set.sdkDefects, ['gcmTag', 'identities']);
 
   // The only shared key is the encryption key, referenced by name. Resolve it
@@ -120,6 +131,12 @@ export function loadVectorSet(dir) {
   for (const [key, ref] of [
     ['oaepMgf1Sha1', set.oaepMgf1Sha1.keyVector],
     ['selectors', set.selectors.receiver.keys?.btps1?.keyVector],
+    [
+      'selectorsReceiverRotation',
+      set.selectorsReceiverRotation.receiver.keys?.[
+        set.selectorsReceiverRotation.receiver.hostSelectorAtEncryption
+      ]?.keyVector,
+    ],
     ['sdkDefects', set.sdkDefects.gcmTag.receiverKeyVector],
   ]) {
     if (ref !== VECTOR_FILES.oaepWrap) {

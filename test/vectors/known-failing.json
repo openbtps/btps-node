@@ -5,6 +5,7 @@
     "sdk/item-6/artifact-names-signature-selector": "EBA-116",
     "sdk/item-6/artifact-names-encryption-selector": "EBA-116",
     "sdk/item-6/signature-verifies-with-sender-key-at-signature-selector": "EBA-116",
+    "sdk/item-6/receiver-rotated-decrypts-with-key-at-encryption-selector": "EBA-116",
     "sdk/item-10/gcm-tag/truncated-4-byte-tag-rejected": "EBA-122",
     "sdk/item-10/gcm-tag/truncated-12-byte-tag-rejected": "EBA-122",
     "sdk/item-10/identity/reject/alice$saas.example$evil.example": "EBA-122"

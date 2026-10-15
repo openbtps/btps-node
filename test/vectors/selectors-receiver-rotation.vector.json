@@ -1,0 +1,50 @@
+{
+  "item": 6,
+  "tickets": [
+    "EBA-116"
+  ],
+  "description": "The other half of item 6: the receiver rotates, the sender does not. The document was encrypted to the receiver key at btps2; the receiver has since rotated to btps3 and keeps btps2 to decrypt what was already sent. The receiver must decrypt with the key at the artifact's encryptionSelector (btps2), not its current one (btps3). The sender signs with btps1 throughout, so each selector differs from the other and from its party's current one. On 1ff93d1 the artifact does not name the key it was encrypted to, so a receiver that rotated cannot choose its key.",
+  "provenance": "TEST-ONLY key generated locally for the BTPS golden vectors (EBA-110). Never use it for anything else. The receiver key at btps2 is the one in oaep-wrap.vector.json.",
+  "sender": {
+    "identity": "carol$sender.example",
+    "hostSelector": "btps1",
+    "keys": {
+      "btps1": {
+        "status": "current",
+        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkb5xbFfCEjc7sf0O+P3y\nz3iiQfYJukg4M5VYQ8ljTka63BAnfywbGl6mO2HRatXUxCfRkEL7my9j1oRdUlqq\nTR6yKFHfY+36PpAk0BaZFv9pTdKqwCy2OSDDP6dJhO9YJMtzCmp57sLLkrQkyY5o\n1c78f2PYgpS+N1dUFqEi7gGO/uAA8veMq04z3tqdhtjK6j6ioD4SssB4rpxepyoU\nzeq85HqeGj7T+KDPzx/sPMaDHjYWUJrHZGVv5SE+iQvOMPMgA7qYPBYIKrCwkhac\nsaZnu8mMSZbgr1UZRhnGonxg0+UvWnOhK8Rmph51qYRh8SJ7P0hgkt9mIrvQwEAO\nvQIDAQAB\n-----END PUBLIC KEY-----\n",
+        "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCRvnFsV8ISNzux\n/Q74/fLPeKJB9gm6SDgzlVhDyWNORrrcECd/LBsaXqY7YdFq1dTEJ9GQQvubL2PW\nhF1SWqpNHrIoUd9j7fo+kCTQFpkW/2lN0qrALLY5IMM/p0mE71gky3MKannuwsuS\ntCTJjmjVzvx/Y9iClL43V1QWoSLuAY7+4ADy94yrTjPe2p2G2MrqPqKgPhKywHiu\nnF6nKhTN6rzkep4aPtP4oM/PH+w8xoMeNhZQmsdkZW/lIT6JC84w8yADupg8Fggq\nsLCSFpyxpme7yYxJluCvVRlGGcaifGDT5S9ac6ErxGamHnWphGHxIns/SGCS32Yi\nu9DAQA69AgMBAAECggEABhULiLj02WvCqv/jkxKOAoiHRPdumn6PEeAGqfWKlmav\nP6XQ8Ca4DtaqW0oOwkWgNntu7HVPKL/Gi9pERr6P4t4IE1SvXO0+h0PetWxsASCx\nlVTYWWLETAgI/ewOTmTqqcZvy5x78DHi6wFnk53E1D9qHCrfizuH4KldUgBxg7su\nzCpFjWuY34jUZpeAwp5sAcHLxyPJ9irYywM33HsmTJijyz8JRmzr21Z7DWt3QeZm\nBJywvXeLRbRE7a6PQaXoiL5v0qZOeFq9GAdS1qcanV3kEHlNYdZgO32Pu5pYxjIj\n+HS8oCEM1lbRyrtWWGrYqhHVQ8fd8acmhBtlIIJU4QKBgQDCdBL/Yzpqvb+8uCTc\n0Zesg3cN0rm1Br13F3HcqlVRGe6po8QQro9SZoDGMetELD/B10kz5gTSBxMt0v6c\n15TziHyZEMp7sHp6jAJRvjfPc4R1JY+/It6JLg23j+zxwR363waEecBsGaMEygwV\nyjLs92ev4R73+GpL4TDuvVpmNQKBgQC/35jlgobo6Y84ZhZRB7NBBGxFD3P55Zg1\n7UdBVlAm2c4siS0wtkR+RT8rmcmbTO55G/1TSPTNF7mI7oVjDe1WJqP242NS3a0z\nsMz9k/Im9mL11CfX5wAItH+Fi6wwF0qKB+X19WqTYnj7IJNxlgKjCQijt4nv/voA\nNfG6nTP3aQKBgQCp91Nzr4QsMNcbWcm+yeTNgcvaZUq1lMKfCfsYajpQvV4DIYYL\nHslfuQDuPEvsNtEz2b2+g1vLSSvWbgrnhPhJNg/Sqv6RxtwHqcGNObsGtW4eB0ry\nQsRJG9wZitANMEPIOJE10kYDNxVq5kBR+38v6cDT1u5+yMAAu0FOLGyL0QKBgBNv\n5D5DxcTsfBy7gsE8pXUNrKYmVZpYHt4/pjtBMidtYwxx7QkFPdUI0Mhq8Nhxp6rP\nIg+A0YPBRoNPnmWVcJiMm4mUKWiomjYlT+7UQPCffxDmKA8gEInRNyXhK1VH1r46\n5JnQ/bXmgNj3yNf12ViIvr5PBoMwckT5Mf60lCIZAoGBAJyB9PJ4b1EiOk+2W1pu\nX89mYxENkSCGIgYWhoxcufHUlFG8LofIDPXdBKzxDSRPG2XbfCT46P4WDE5CSKEi\naIpZ5aheE7BGzPwcy9Ac17yQSOQVAq2Uxtrae08fJCwsjITIC66HclhjIIYa20Jj\nMhRqXk18vuCNWl17wc4pv4u1\n-----END PRIVATE KEY-----\n",
+        "fingerprint": "odQrO5I+JqXhDVJqQDmtfAwCVrebVJhbExRv7F7qKCg="
+      }
+    }
+  },
+  "receiver": {
+    "identity": "bob$receiver.example",
+    "hostSelectorAtEncryption": "btps2",
+    "hostSelector": "btps3",
+    "keys": {
+      "btps2": {
+        "status": "rotated-out, kept for decryption",
+        "keyVector": "oaep-wrap.vector.json",
+        "fingerprint": "ZYMPJtlXDCcBOcXNJoYRi+nshJFxc/MwGxzlQKC165Q="
+      },
+      "btps3": {
+        "status": "current",
+        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7oQY53WKNJ9AYgApPJFk\ntL61q24sZchHpEeShnBNAWSl/Jq9+PGkecrvBTtus3ABnY9XP/IeoCW3S79y0RYd\nIcmSnbrSrg2rhi+KDxRK/MEciLEzjBycVdjsY0SQs6IhMTU2ZTptFfSChvV5EOtm\n7rLbMcZ21G9KhNUX/NCD9413UCx5W9iM0zFm81JH6qDueQzxkiU6v4rXosCUrXpY\nrMkqKRE0rwJ2f6EivsCiBqrCd7bHsUXH+/+cn2Q5FyVP1keCDi7qiHOo75rMTaoK\nVUykq1z/nAxYFdBJ9GxdqF8pFB6n/977+MgmeQpz5NZwG0lf9/YGAHoadAWgG/IV\nxQIDAQAB\n-----END PUBLIC KEY-----\n",
+        "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDuhBjndYo0n0Bi\nACk8kWS0vrWrbixlyEekR5KGcE0BZKX8mr348aR5yu8FO26zcAGdj1c/8h6gJbdL\nv3LRFh0hyZKdutKuDauGL4oPFEr8wRyIsTOMHJxV2OxjRJCzoiExNTZlOm0V9IKG\n9XkQ62bustsxxnbUb0qE1Rf80IP3jXdQLHlb2IzTMWbzUkfqoO55DPGSJTq/itei\nwJStelisySopETSvAnZ/oSK+wKIGqsJ3tsexRcf7/5yfZDkXJU/WR4IOLuqIc6jv\nmsxNqgpVTKSrXP+cDFgV0En0bF2oXykUHqf/3vv4yCZ5CnPk1nAbSV/39gYAehp0\nBaAb8hXFAgMBAAECggEAHM7IoUARkrx/TrbdRCr9YlU8ZPm4FA0GFiHs4R70Ngxd\nfe6ErmolJu6rQtMEUljfYRPcgmUwbMBRbK0xZW6J0zhg5HsZkhslkd3xC1Q0oGWE\nmD/qzWvxN+8s0eqInaGh56sZKE3PuhyfnURNvIzqED96+P6TAKJ2eiewr4DRx5bL\nTYAs3xYwfKg8HqdyZqPYMB6Qp9arKjUyVNoM/FfWzz+wCJk864/2ptw+MkU6pDUu\nQFVnu5/37MFhb55HTA77ILmDfkooNYzS8cxlbF0Eb0D+Mf4LoaJusCGVTPMtId1y\njlPnMkfGo9KtqaaPF2yOFrwCD1o+vYuGctys23PduwKBgQD/+4VMMdccw5PNim2Z\nnEJOoKX9L48m1U8BkHpB90PvJ9dehBgH4WpHQluGGDjNf/M3xAvwDtspESu5xEOk\nljDzGb0YNaH/ccD2HDzNAj4dmyMMPXY4D3cG6pLAYYAVJuUvC8qD6vwmwy4QhMK/\nyk0FkPbnl9Lz3Z5c44CIzcpeNwKBgQDuiEVdBWzfykB6k1sMpM+RHWk1q3UjQ9tY\nAJJMfUwHEZDf7fWmMAeovH20495tfOgzed4qktJCAj/R8Pu2oSAdSrGSdQfM3/mX\nbahwwbqmle0R2zl5FSTGJX2wbmj5QFaAIMvijTKfRsweYn49ZPM4qQLeNSUnZDIs\nc43Q8SZN4wKBgFB0RyL5jziVJ8E0PtpGyHhZ+ZGn/wAfjuNY+3P8OTfTd9dXAQ6J\nBJQ9APMWbdP44QKn9XCP2sX/hZSvYOs74Uqmzk3rnWzh3dn8agetKsS3W76fGqbo\nBWsBEvqwKkd7oBC3TgFEO9gbBEFg2Kza8nZLZ67GgyDuiLV9M4rL00zlAoGAF5IH\nqKV8mLCXpoUhHiK7EA/j8ZW7wXxXFF8aFczb0mb99eLBv2ZHm3jkwxcxR4hsOYn1\nViej9znZrJkvhmBtl/dljJ9b4fbP5xLC7kF2fDeccYNELp7UP3A8904xuU+OPKMB\nAqYJNov8Z5Q7/T0Ye6TXz7VYsofIHXRdsyPhMRkCgYEA0MNEtgUfFTAL+nEh/sK/\nuvMdqp5GhbJ1DeRzKIuSS5wCCNWRPYT8dCPt35nJMWmxGLUxToMhqW7QUd5v5N8W\njReDYAColTBT0b/2ETmIcQOqYuYTz/WN3Wj480G3Hxil6liu/iQzROu8xsQucs/P\ngB4RJLL3pYIr1T/MrknhiHw=\n-----END PRIVATE KEY-----\n",
+        "fingerprint": "whNpjlSs3U5qrH6o8kJ3r+PskCdTuknTjutQr9EPELY="
+      }
+    }
+  },
+  "artifact": {
+    "type": "BTPS_DOC",
+    "document": {
+      "invoiceId": "INV-6R",
+      "amountCents": 4200,
+      "currency": "AUD"
+    }
+  },
+  "expect": {
+    "signatureSelector": "btps1",
+    "encryptionSelector": "btps2"
+  }
+}

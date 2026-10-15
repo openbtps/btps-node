@@ -94,6 +94,25 @@ export function createFixedSdkFake() {
         return { data: undefined, error };
       }
     },
+    async decryptVerify(senderPem, artifact, receiverKeys) {
+      const { signature, ...signed } = artifact;
+      const verified = sdkCrypto.verifySignature(signed, signature, senderPem);
+      if (!verified.isValid) return { payload: undefined, error: verified.error };
+      if (!artifact.encryption) return { payload: artifact, error: undefined };
+      const pem =
+        typeof receiverKeys === 'function'
+          ? await receiverKeys(artifact.encryptionSelector)
+          : receiverKeys;
+      if (!pem) return { payload: undefined, error: new Error('no key at encryptionSelector') };
+      const { data, error } = sdkCrypto.decryptBtpPayload(
+        artifact.document,
+        artifact.encryption,
+        pem,
+      );
+      return error
+        ? { payload: undefined, error }
+        : { payload: { ...artifact, document: data }, error: undefined };
+    },
     async signEncrypt(to, sender, payload) {
       const { selector: encryptionSelector, document, ...rest } = payload;
       const receiverPem = await resolvePublicKey(to, encryptionSelector);

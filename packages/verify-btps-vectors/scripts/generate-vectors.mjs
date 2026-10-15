@@ -215,6 +215,51 @@ function selectors() {
   };
 }
 
+function selectorsReceiverRotation() {
+  const sender = newKeyPair();
+  const receiverCurrent = newKeyPair();
+  const receiverAtEncryption = readVector('oaep-wrap.vector.json');
+  return {
+    item: 6,
+    tickets: ['EBA-116'],
+    description:
+      "The other half of item 6: the receiver rotates, the sender does not. The document was encrypted to the receiver key at btps2; the receiver has since rotated to btps3 and keeps btps2 to decrypt what was already sent. The receiver must decrypt with the key at the artifact's encryptionSelector (btps2), not its current one (btps3). The sender signs with btps1 throughout, so each selector differs from the other and from its party's current one. On 1ff93d1 the artifact does not name the key it was encrypted to, so a receiver that rotated cannot choose its key.",
+    provenance: `${TEST_ONLY} The receiver key at btps2 is the one in oaep-wrap.vector.json.`,
+    sender: {
+      identity: 'carol$sender.example',
+      hostSelector: 'btps1',
+      keys: {
+        btps1: { status: 'current', ...sender, fingerprint: fingerprint(sender.publicKeyPem) },
+      },
+    },
+    receiver: {
+      identity: 'bob$receiver.example',
+      hostSelectorAtEncryption: 'btps2',
+      hostSelector: 'btps3',
+      keys: {
+        btps2: {
+          status: 'rotated-out, kept for decryption',
+          keyVector: 'oaep-wrap.vector.json',
+          fingerprint: fingerprint(receiverAtEncryption.publicKeyPem),
+        },
+        btps3: {
+          status: 'current',
+          ...receiverCurrent,
+          fingerprint: fingerprint(receiverCurrent.publicKeyPem),
+        },
+      },
+    },
+    artifact: {
+      type: 'BTPS_DOC',
+      document: { invoiceId: 'INV-6R', amountCents: 4200, currency: 'AUD' },
+    },
+    expect: {
+      signatureSelector: 'btps1',
+      encryptionSelector: 'btps2',
+    },
+  };
+}
+
 function sdkDefects() {
   const receiver = readVector('oaep-wrap.vector.json');
   const aesKey = crypto.randomBytes(32);
@@ -278,5 +323,6 @@ function sdkDefects() {
 write('self-held-signature.vector.json', await selfHeldSignature());
 write('oaep-mgf1-sha1.negative.vector.json', mgf1Sha1Negative());
 write('selectors.vector.json', selectors());
+write('selectors-receiver-rotation.vector.json', selectorsReceiverRotation());
 write('sdk-defects.vector.json', sdkDefects());
 write('jcs-signature.vectors.json', jcsSignature());
