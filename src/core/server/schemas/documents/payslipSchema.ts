@@ -6,13 +6,15 @@
  */
 
 import { z } from 'zod';
+import { BTP_DOC_LIMITS } from '../../constants/documents.js';
 import { BtpMoneySchema, BtpDecimalStringSchema } from './moneySchema.js';
 import {
   BtpIssuedDocV2BaseSchema,
   BtpCategoryCodeSchema,
   BtpDocExtensionsSchema,
+  capped,
 } from './baseSchema.js';
-import { BtpInvoiceAttachmentV2Schema } from './invoiceSchema.js';
+import { BtpDocAttachmentsSchema } from './invoiceSchema.js';
 
 /*
  * A payslip carries every field an employer may need; it does not decide
@@ -23,8 +25,8 @@ import { BtpInvoiceAttachmentV2Schema } from './invoiceSchema.js';
 
 export const BtpPayslipPayeeSchema = z
   .object({
-    name: z.string(),
-    accountRef: z.string().optional(),
+    name: capped.name(),
+    accountRef: capped.code().optional(),
   })
   .strict();
 
@@ -32,7 +34,7 @@ export const BtpPayslipPayeeSchema = z
 export const BtpPayslipPayRateSchema = z
   .object({
     amount: BtpMoneySchema,
-    unit: z.string().min(1),
+    unit: capped.code().min(1),
     asAt: z.string().datetime(),
   })
   .strict();
@@ -41,9 +43,9 @@ export const BtpPayslipPayRateSchema = z
 export const BtpPayslipEarningSchema = z
   .object({
     category: BtpCategoryCodeSchema,
-    description: z.string().optional(),
+    description: capped.text().optional(),
     rate: BtpDecimalStringSchema.optional(),
-    rateUnit: z.string().optional(),
+    rateUnit: capped.code().optional(),
     quantity: BtpDecimalStringSchema.optional(),
     amount: BtpMoneySchema,
   })
@@ -52,7 +54,7 @@ export const BtpPayslipEarningSchema = z
 export const BtpPayslipDeductionSchema = z
   .object({
     category: BtpCategoryCodeSchema,
-    description: z.string().optional(),
+    description: capped.text().optional(),
     amount: BtpMoneySchema,
     payee: BtpPayslipPayeeSchema.optional(),
   })
@@ -60,9 +62,9 @@ export const BtpPayslipDeductionSchema = z
 
 export const BtpPayslipSuperFundSchema = z
   .object({
-    name: z.string().optional(),
-    memberNumber: z.string().optional(),
-    accountRef: z.string().optional(),
+    name: capped.name().optional(),
+    memberNumber: capped.code().optional(),
+    accountRef: capped.code().optional(),
   })
   .strict();
 
@@ -77,19 +79,22 @@ export const BtpPayslipContributionSchema = z
 
 export const BtpPayslipEmployeeSchema = z
   .object({
-    name: z.string(),
-    employeeId: z.string().optional(),
+    name: capped.name(),
+    employeeId: capped.code().optional(),
     payBasis: z.enum(['hourly', 'salaried']).optional(),
   })
   .strict();
 
 export const BtpPayslipEmployerSchema = z
   .object({
-    name: z.string(),
-    address: z.string().optional(),
-    taxIds: z.array(z.string()).optional(),
+    name: capped.name(),
+    address: capped.address().optional(),
+    taxIds: capped.taxIds().optional(),
   })
   .strict();
+
+const payslipLines = <T extends z.ZodTypeAny>(line: T) =>
+  z.array(line).max(BTP_DOC_LIMITS.PAYSLIP_LINES_MAX);
 
 export const BtpPayslipDocSchema = BtpIssuedDocV2BaseSchema.extend({
   type: z.literal('payslip'),
@@ -106,13 +111,18 @@ export const BtpPayslipDocSchema = BtpIssuedDocV2BaseSchema.extend({
     .optional(),
   payDate: z.string().datetime().optional(),
   payRate: BtpPayslipPayRateSchema.optional(),
-  earnings: z.array(BtpPayslipEarningSchema),
-  deductions: z.array(BtpPayslipDeductionSchema),
+  earnings: payslipLines(BtpPayslipEarningSchema),
+  deductions: payslipLines(BtpPayslipDeductionSchema),
   taxWithheld: BtpMoneySchema.optional(),
-  contributions: z.array(BtpPayslipContributionSchema),
+  contributions: payslipLines(BtpPayslipContributionSchema),
   gross: BtpMoneySchema,
   net: BtpMoneySchema,
-  yearToDate: z.record(z.string(), BtpMoneySchema).optional(),
-  attachments: z.array(BtpInvoiceAttachmentV2Schema).optional(),
+  yearToDate: z
+    .record(capped.code(), BtpMoneySchema)
+    .refine((ytd) => Object.keys(ytd).length <= BTP_DOC_LIMITS.YEAR_TO_DATE_MAX, {
+      message: `yearToDate may have at most ${BTP_DOC_LIMITS.YEAR_TO_DATE_MAX} entries`,
+    })
+    .optional(),
+  attachments: BtpDocAttachmentsSchema.optional(),
   extensions: BtpDocExtensionsSchema.optional(),
 }).strict();

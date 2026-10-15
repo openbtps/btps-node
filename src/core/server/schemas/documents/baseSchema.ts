@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { SCHEMA_VERSION_V2 } from '../../constants/documents.js';
+import { BTP_DOC_LIMITS, SCHEMA_VERSION_V2 } from '../../constants/documents.js';
 import { identitySchema } from '../shared.js';
 
 export const STATUS_NOT_IN_DOCUMENT =
@@ -17,8 +17,19 @@ const statusRefused = () => z.undefined({ invalid_type_error: STATUS_NOT_IN_DOCU
 /*
  * Every v2 object is strict: a field the model does not name is refused,
  * not silently dropped, so what is validated is exactly what was signed.
- * `extensions` is the one open place.
+ * `extensions` is the one open place. Every string and array is capped
+ * (BTP_DOC_LIMITS).
  */
+
+/** Builders for capped strings, shared by the document schemas. */
+export const capped = {
+  name: () => z.string().max(BTP_DOC_LIMITS.NAME_MAX_LENGTH),
+  code: () => z.string().max(BTP_DOC_LIMITS.CODE_MAX_LENGTH),
+  address: () => z.string().max(BTP_DOC_LIMITS.ADDRESS_MAX_LENGTH),
+  text: () => z.string().max(BTP_DOC_LIMITS.TEXT_MAX_LENGTH),
+  hash: () => z.string().min(1).max(BTP_DOC_LIMITS.HASH_MAX_LENGTH),
+  taxIds: () => z.array(capped.code()).max(BTP_DOC_LIMITS.TAX_IDS_MAX),
+};
 
 /**
  * Fields every v2 document carries. This is the document only: the
@@ -30,7 +41,7 @@ const statusRefused = () => z.undefined({ invalid_type_error: STATUS_NOT_IN_DOCU
 export const BtpDocV2BaseSchema = z
   .object({
     schemaVersion: z.literal(SCHEMA_VERSION_V2),
-    id: z.string().min(1),
+    id: z.string().min(1).max(BTP_DOC_LIMITS.ID_MAX_LENGTH),
     status: statusRefused(),
     paidAt: statusRefused(),
     refundedAt: statusRefused(),
@@ -50,13 +61,38 @@ export const BtpIssuedDocV2BaseSchema = BtpDocV2BaseSchema.extend({
 export const BtpCategoryCodeSchema = z
   .string()
   .min(1)
+  .max(BTP_DOC_LIMITS.CODE_MAX_LENGTH)
   .regex(/^[a-zA-Z0-9_]+(:[a-zA-Z0-9_]+)?$/, 'must be a bare or namespaced category code');
+
+const jsonLength = (value: unknown): number => {
+  try {
+    return JSON.stringify(value)?.length ?? Infinity;
+  } catch {
+    return Infinity;
+  }
+};
 
 /**
  * A free-form, namespaced extension bag. Values are carried exactly as
- * given, never stripped and never rejected for being unknown.
+ * given, never stripped and never rejected for being unknown; only its size
+ * is bounded.
  */
-export const BtpDocExtensionsSchema = z.record(z.string(), z.unknown());
+export const BtpDocExtensionsSchema = z
+  .record(z.string().max(BTP_DOC_LIMITS.CODE_MAX_LENGTH), z.unknown())
+  .superRefine((value, ctx) => {
+    if (Object.keys(value).length > BTP_DOC_LIMITS.EXTENSIONS_MAX_KEYS) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `extensions may have at most ${BTP_DOC_LIMITS.EXTENSIONS_MAX_KEYS} keys`,
+      });
+    }
+    if (jsonLength(value) > BTP_DOC_LIMITS.EXTENSIONS_MAX_LENGTH) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `extensions may be at most ${BTP_DOC_LIMITS.EXTENSIONS_MAX_LENGTH} characters as JSON`,
+      });
+    }
+  });
 
 /**
  * A reference to another signed document: `{ from, id, sha256 }`. `from` is
@@ -65,8 +101,9 @@ export const BtpDocExtensionsSchema = z.record(z.string(), z.unknown());
  */
 export const BtpDocReferenceSchema = z
   .object({
-    from: identitySchema,
-    id: z.string().min(1),
-    sha256: z.string().min(1),
+    // Length first: identitySchema's pattern backtracks on long input.
+    from: z.string().max(BTP_DOC_LIMITS.IDENTITY_MAX_LENGTH).pipe(identitySchema),
+    id: z.string().min(1).max(BTP_DOC_LIMITS.ID_MAX_LENGTH),
+    sha256: capped.hash(),
   })
   .strict();

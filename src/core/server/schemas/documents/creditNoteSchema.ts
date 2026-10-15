@@ -11,8 +11,9 @@ import {
   BtpIssuedDocV2BaseSchema,
   BtpDocExtensionsSchema,
   BtpDocReferenceSchema,
+  capped,
 } from './baseSchema.js';
-import { BtpInvoiceLineItemSchema, BtpInvoiceTaxTotalSchema } from './invoiceSchema.js';
+import { BtpInvoiceLineItemsSchema, BtpInvoiceTaxTotalsSchema } from './invoiceSchema.js';
 
 /**
  * A credit note names the invoice it corrects by `{ from, id, sha256 }`.
@@ -22,9 +23,9 @@ import { BtpInvoiceLineItemSchema, BtpInvoiceTaxTotalSchema } from './invoiceSch
 export const BtpCreditNoteDocSchema = BtpIssuedDocV2BaseSchema.extend({
   type: z.literal('credit_note'),
   relatesToInvoice: BtpDocReferenceSchema,
-  reason: z.string().optional(),
-  lineItems: z.array(BtpInvoiceLineItemSchema).min(1),
+  reason: capped.text().optional(),
+  lineItems: BtpInvoiceLineItemsSchema,
   total: BtpMoneySchema,
-  taxTotals: z.array(BtpInvoiceTaxTotalSchema).min(1),
+  taxTotals: BtpInvoiceTaxTotalsSchema,
   extensions: BtpDocExtensionsSchema.optional(),
 }).strict();

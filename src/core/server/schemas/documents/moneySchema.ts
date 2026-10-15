@@ -7,6 +7,7 @@
 
 import { z } from 'zod';
 import { CURRENCY_CODES } from '../../constants/currency.js';
+import { BTP_DOC_LIMITS } from '../../constants/documents.js';
 
 /**
  * Money in document model v2: an integer amount in the currency's minor unit
@@ -28,4 +29,5 @@ export const BtpMoneySchema = z
  */
 export const BtpDecimalStringSchema = z
   .string()
+  .max(BTP_DOC_LIMITS.DECIMAL_MAX_LENGTH)
   .regex(/^-?\d+(\.\d+)?$/, 'must be a decimal string, e.g. "32.50" or "38"');
