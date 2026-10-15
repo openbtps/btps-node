@@ -21,6 +21,48 @@ import {
   BtpTrustResDocSchema,
 } from './btpsDocsSchema.js';
 import { BTPEncryption } from '@core/crypto/types.js';
+import { BTPErrorException, BTP_ERROR_DOC_SCHEMA } from '@core/error/index.js';
+import { freezeDocument } from '@core/utils/freeze.js';
+import { BtpDocV2Schema } from './documents/documentSchema.js';
+import type { BTPDocV2 } from '../types.js';
+
+// A JSON-shaped copy, so that freezing the parsed document never freezes
+// anything the caller still holds (zod passes `unknown` values through by reference).
+const cloneJsonValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(cloneJsonValue);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, cloneJsonValue(v)]),
+    );
+  }
+  return value;
+};
+
+/**
+ * Validates an unknown value as a v2 document, discriminated by `type`.
+ * Never changes `raw`. On success the document is a deep-frozen copy; on
+ * failure the error is `BTP_ERROR_DOC_SCHEMA`, with each issue's path and
+ * message in `meta.issues`.
+ */
+export const parseBtpDocV2 = (
+  raw: unknown,
+): { data: Readonly<BTPDocV2>; error?: undefined } | { data?: undefined; error: BTPErrorException } => {
+  const result = BtpDocV2Schema.safeParse(raw);
+  if (!result.success) {
+    return {
+      error: new BTPErrorException(BTP_ERROR_DOC_SCHEMA, {
+        meta: {
+          issues: result.error.issues.map((issue) => ({
+            path: issue.path.join('.'),
+            message: issue.message,
+          })),
+        },
+      }),
+    };
+  }
+  return { data: freezeDocument(cloneJsonValue(result.data) as BTPDocV2) };
+};
+
 export const processBtpDocSchema = (bptArtifactType: BTPArtifactType) => {
   switch (bptArtifactType) {
     case 'TRUST_RES':

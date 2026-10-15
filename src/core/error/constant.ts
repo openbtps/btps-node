@@ -171,3 +171,23 @@ export const BTP_ERROR_CONNECTION_ENDED: BTPError = {
   code: 'BTP_ERROR_CONNECTION_ENDED',
   message: 'Connection ended',
 };
+
+export const BTP_ERROR_MONEY_NOT_INTEGER: BTPError = {
+  code: 'BTP_ERROR_MONEY_NOT_INTEGER',
+  message: 'Money amount must be an integer in minor units',
+};
+
+export const BTP_ERROR_MONEY_CURRENCY_MISMATCH: BTPError = {
+  code: 'BTP_ERROR_MONEY_CURRENCY_MISMATCH',
+  message: 'Money amounts are in different currencies',
+};
+
+export const BTP_ERROR_MONEY_OUT_OF_RANGE: BTPError = {
+  code: 'BTP_ERROR_MONEY_OUT_OF_RANGE',
+  message: 'Money amount is outside the safe integer range',
+};
+
+export const BTP_ERROR_DOC_SCHEMA: BTPError = {
+  code: 'BTP_ERROR_DOC_SCHEMA',
+  message: 'Document does not match the document model',
+};

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 2,
+  "type": "payslip",
+  "id": "pay_5003",
+  "issuedAt": "2026-10-04T00:00:00.000Z",
+  "employee": { "name": "Sam Rowe", "payBasis": "hourly" },
+  "earnings": [
+    {
+      "category": "ordinary",
+      "rate": "30.00",
+      "quantity": "38",
+      "amount": { "amount": 114000, "currency": "AUD" }
+    },
+    {
+      "category": "au:future_allowance_code_not_yet_known",
+      "rate": "12.00",
+      "quantity": "2",
+      "amount": { "amount": 2400, "currency": "AUD" }
+    }
+  ],
+  "deductions": [],
+  "contributions": [
+    {
+      "fund": { "name": "HostPlus", "memberNumber": "HP-112233" },
+      "amount": { "amount": 13386, "currency": "AUD" }
+    }
+  ],
+  "gross": { "amount": 116400, "currency": "AUD" },
+  "net": { "amount": 116400, "currency": "AUD" },
+  "extensions": {
+    "au:stateCustomField": {
+      "payrollTaxGroupId": "QLD-ptg-0042",
+      "nested": { "keepAsIs": true }
+    }
+  }
+}
