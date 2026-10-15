@@ -15,6 +15,7 @@ import {
   validateBtpEventEnvelope,
 } from '../helpers.js';
 import type { BTPDocV2, BTPEventDoc } from '../../types.js';
+import { verifyAttachments } from '@core/utils/documentChecks.js';
 
 export const SELECTOR_REPLACED =
   'selector is not part of BTPS 1.1: use signatureSelector (the sender key that signed) and encryptionSelector (the receiver key encrypted to)';
@@ -94,6 +95,14 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
             code: z.ZodIssueCode.custom,
             message: violation.message,
             path: ['document', ...violation.path],
+          });
+        }
+        // Each attachment's file must be what the document says it is.
+        for (const problem of verifyAttachments(parsed.data as BTPDocV2).problems) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: problem.message,
+            path: ['document', 'attachments', problem.index, problem.field],
           });
         }
       } else if (data.type === 'BTPS_EVENT') {

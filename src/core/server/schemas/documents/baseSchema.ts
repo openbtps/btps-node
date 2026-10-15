@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { BTP_DOC_LIMITS, SCHEMA_VERSION_V2 } from '../../constants/documents.js';
+import { BTP_DOC_LIMITS, BTP_DOC_SHA256, SCHEMA_VERSION_V2 } from '../../constants/documents.js';
 import { identitySchema } from '../shared.js';
 
 export const STATUS_NOT_IN_DOCUMENT =
@@ -27,7 +27,8 @@ export const capped = {
   code: () => z.string().max(BTP_DOC_LIMITS.CODE_MAX_LENGTH),
   address: () => z.string().max(BTP_DOC_LIMITS.ADDRESS_MAX_LENGTH),
   text: () => z.string().max(BTP_DOC_LIMITS.TEXT_MAX_LENGTH),
-  hash: () => z.string().min(1).max(BTP_DOC_LIMITS.HASH_MAX_LENGTH),
+  /** A `sha256`, written as BTP_DOC_SHA256 says. */
+  hash: () => z.string().regex(BTP_DOC_SHA256.pattern, `must be ${BTP_DOC_SHA256.description}`),
   taxIds: () => z.array(capped.code()).max(BTP_DOC_LIMITS.TAX_IDS_MAX),
 };
 

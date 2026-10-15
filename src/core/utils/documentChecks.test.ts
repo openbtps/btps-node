@@ -7,7 +7,15 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { verifyTaxTotal, reconcilePayslip } from './documentChecks.js';
+import { createHash } from 'node:crypto';
+import {
+  verifyTaxTotal,
+  reconcilePayslip,
+  verifyAttachments,
+  formatSha256,
+} from './documentChecks.js';
+import { sha256 } from './bytes.js';
+import { BTP_DOC_SHA256 } from '@core/server/constants/documents.js';
 import { moneyEquals } from './money.js';
 import { parseBtpDocV2 } from '@core/server/schemas/helpers.js';
 import type {
@@ -169,5 +177,61 @@ describe('reconcilePayslip (EBA-119)', () => {
       earnings: doc.earnings.map((line) => ({ ...line, rate: '999.99', quantity: '999' })),
     };
     expect(reconcilePayslip(tampered)).toEqual(before);
+  });
+});
+
+describe('verifyAttachments: each attachment carries its file (BTPS 1.0 shape, 2026-10-16)', () => {
+  const withAttachments = () => load<BTPInvoiceV2Doc>('invoice.replaces.v2.json', 'invoice');
+  // A parsed document is frozen; a changed copy is checked as the server would after the schema.
+  const changed = (change: (attachments: Array<Record<string, unknown>>) => void) => {
+    const doc = structuredClone(withAttachments()) as BTPInvoiceV2Doc;
+    change(doc.attachments as unknown as Array<Record<string, unknown>>);
+    return doc;
+  };
+
+  it('accepts real PDF and PNG files whose size and sha256 match', () => {
+    expect(verifyAttachments(withAttachments())).toEqual({ ok: true, problems: [] });
+    expect(verifyAttachments(invoice()).ok).toBe(true);
+    expect(verifyAttachments(payslip('payslip.hourly.v2.json')).ok).toBe(true);
+  });
+
+  it('passes a document with no attachments', () => {
+    expect(verifyAttachments(creditNote())).toEqual({ ok: true, problems: [] });
+  });
+
+  it('writes the hash it computes as BTP_DOC_SHA256 says: lowercase hex, 64 characters', () => {
+    const bytes = new TextEncoder().encode('abc');
+    expect(formatSha256(sha256(bytes))).toBe(createHash('sha256').update(bytes).digest('hex'));
+    expect(formatSha256(sha256(bytes))).toMatch(BTP_DOC_SHA256.pattern);
+  });
+
+  it('refuses a size that is not the decoded length', () => {
+    const doc = changed((a) => (a[0]!.size = (a[0]!.size as number) + 1));
+    expect(verifyAttachments(doc).problems).toEqual([
+      { index: 0, field: 'size', message: 'content decodes to 590 bytes, but size is 591' },
+    ]);
+  });
+
+  it('refuses a sha256 that is not the hash of the decoded bytes', () => {
+    const doc = changed((a) => (a[0]!.sha256 = a[1]!.sha256));
+    expect(verifyAttachments(doc).problems).toEqual([
+      { index: 0, field: 'sha256', message: 'sha256 is not the hash of the decoded content' },
+    ]);
+  });
+
+  it('refuses content that is not canonical base64', () => {
+    const doc = changed((a) => {
+      a[0]!.content = 'QR==';
+      a[0]!.size = 1;
+      a[0]!.sha256 = createHash('sha256').update('A').digest('hex');
+    });
+    expect(verifyAttachments(doc).problems).toEqual([
+      { index: 0, field: 'content', message: 'content is not valid base64' },
+    ]);
+  });
+
+  it('names the attachment at fault', () => {
+    const doc = changed((a) => (a[1]!.size = 68));
+    expect(verifyAttachments(doc).problems.map((p) => [p.index, p.field])).toEqual([[1, 'size']]);
   });
 });

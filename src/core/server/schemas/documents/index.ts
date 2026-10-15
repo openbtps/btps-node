@@ -61,6 +61,9 @@ export {
   BTP_EVENT_TYPES_REPLYING,
   BTP_EVENT_DISPUTE_REASONS,
   BTP_EVENT_DECISIONS,
+  BTP_DOC_SHA256,
+  BTP_DOC_ATTACHMENT_MEDIA_TYPES,
+  type BTPDocSha256Encoding,
 } from '../../constants/documents.js';
 
 export * from '@core/utils/money.js';

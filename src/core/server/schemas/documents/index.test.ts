@@ -34,12 +34,16 @@ describe('@btps/sdk/documents (EBA-441, schemas only)', () => {
       'validateBtpDocOwnership',
       'verifyTaxTotal',
       'reconcilePayslip',
+      'verifyAttachments',
+      'formatSha256',
       'addMoney',
       'sumMoney',
       'freezeDocument',
       'CURRENCY_CODES',
       'BTP_DOC_LIMITS',
       'SCHEMA_VERSION_V2',
+      'BTP_DOC_SHA256',
+      'BTP_DOC_ATTACHMENT_MEDIA_TYPES',
     ]) {
       expect(documents, name).toHaveProperty(name);
     }
