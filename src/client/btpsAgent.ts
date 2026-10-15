@@ -24,6 +24,7 @@ import type {
   BTPAgentArtifact,
   BTPArtifactType,
   BTPDocType,
+  BTPEventDoc,
   BTPTransporterArtifact,
   BTPIdentityResDoc,
   AgentAction,
@@ -49,6 +50,7 @@ const mappedTransporterAction = {
   'trust.update': 'TRUST_RES',
   'trust.delete': 'TRUST_RES',
   'artifact.send': 'BTPS_DOC',
+  'event.send': 'BTPS_EVENT',
 };
 
 export class BtpsAgent extends BtpsClient {
@@ -217,7 +219,8 @@ export class BtpsAgent extends BtpsClient {
     // artifact carries no signatureSelector, and is verified through the
     // delegation its identity's server adds (BtpsDelegator).
     const transporterArtifact: Omit<BTPTransporterArtifact, 'signature'> = {
-      id: randomUUID(),
+      // An event's id is its artifact's id: one id end to end (release plan section 2.7).
+      id: artifactType === 'BTPS_EVENT' ? (document as BTPEventDoc).id : randomUUID(),
       issuedAt: new Date().toISOString(),
       version: this.getProtocolVersion(),
       type: artifactType,

@@ -725,6 +725,60 @@ describe('BtpsAgent', () => {
         expect.any(Object),
       );
     });
+
+    // Item A (EBA-440): a lifecycle event goes out as a BTPS_EVENT whose id is the event's.
+    describe('event.send', () => {
+      const event: BTPDocType = {
+        schemaVersion: 2,
+        type: 'lifecycle_event',
+        id: 'be9c1ff9-9626-40f3-af44-39f2210d364c',
+        occurredAt: '2026-10-20T09:00:00.000Z',
+        document: { from: 'bob$company.com', id: 'INV-001', sha256: 'ab'.repeat(32) },
+        eventType: 'paid',
+      };
+
+      it('builds a BTPS_EVENT transporter artifact whose id is the event id', async () => {
+        const send = vi.spyOn(agent, 'send').mockResolvedValue({ response: undefined });
+
+        await agent.command('event.send', 'bob$company.com', event);
+
+        expect(mockCrypto.signBtpPayload).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'BTPS_EVENT',
+            id: event.id,
+            from: 'test$example.com',
+            to: 'bob$company.com',
+            document: event,
+            encryption: null,
+          }),
+          expect.any(Object),
+        );
+        const sent = send.mock.calls[0]![0] as { action: string; document: { type: string } };
+        expect(sent.action).toBe('event.send');
+        expect(sent.document.type).toBe('BTPS_EVENT');
+      });
+
+      it('refuses event.send without an event, or with a document that is not one', async () => {
+        const send = vi.spyOn(agent, 'send');
+
+        const missing = await agent.command('event.send', 'bob$company.com');
+        expect(missing.error?.code).toBe(BTP_ERROR_VALIDATION.code);
+
+        const invoice = await agent.command('event.send', 'bob$company.com', {
+          ...event,
+          type: 'invoice',
+        } as unknown as BTPDocType);
+        expect(invoice.error?.code).toBe(BTP_ERROR_VALIDATION.code);
+
+        const reply = await agent.command('event.send', 'bob$company.com', {
+          ...event,
+          inReplyTo: 'aec6b697-52b5-409e-a576-12773f7a40b9',
+        } as unknown as BTPDocType);
+        expect(reply.error?.code).toBe(BTP_ERROR_VALIDATION.code);
+
+        expect(send).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('destroy method', () => {

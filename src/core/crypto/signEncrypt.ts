@@ -87,9 +87,15 @@ export const signEncrypt = async <T = unknown>(
     }
   }
 
+  // A BTPS_EVENT's id is its event's id (release plan section 2.7).
+  const eventId =
+    restPayload.type === 'BTPS_EVENT' && typeof document === 'object' && document !== null
+      ? (document as { id?: unknown }).id
+      : undefined;
+
   const docToSign: Record<string, unknown> = {
     ...restPayload,
-    id: restPayload?.id ?? randomUUID(),
+    id: restPayload?.id ?? (typeof eventId === 'string' ? eventId : randomUUID()),
     issuedAt: restPayload?.issuedAt ?? new Date().toISOString(),
     document: encryption ? (encryptedDoc as string) : (document as T),
     encryption: encryption,
