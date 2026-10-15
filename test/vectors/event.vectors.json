@@ -1,0 +1,596 @@
+{
+  "item": "A",
+  "tickets": ["EBA-440"],
+  "description": "BTPS 1.1 item A, lifecycle events carried as BTPS_EVENT (release plan page 10518529, section 2). Each case names an event in events/ (or a document as documents/<name>), optionally changed by `set` (top-level fields replaced) and `unset` (top-level fields removed). schema: the SDK's parseBtpEventDoc accepts or refuses it. envelope: validateBtpEventEnvelope against a BTPS_EVENT from `from` to `to` whose id is the event's id (or `artifactId`): one id end to end, and only a document between the two parties. chains: each step parses and passes its envelope; a step that starts a chain has no inReplyTo; every reply passes validateBtpEventReply against the step its inReplyTo names (the receiving platform's check, section 2.7). A chain expected to be refused fails at its last step. Every event is also checked to be unchanged by parsing, and signed and verified over its JCS form on every runtime. Document sha256 values are illustrative: the protocol never recomputes them.",
+  "eventsDir": "events",
+  "keyVector": "kms-signature.vector.json",
+  "parties": {
+    "biller": "billing$acme.example",
+    "payer": "finance$client.example",
+    "thirdParty": "carol$other.example"
+  },
+  "schema": [
+    {
+      "name": "paid-by-payer",
+      "event": "paid.by-payer.json",
+      "expect": "accept"
+    },
+    {
+      "name": "paid-by-biller",
+      "event": "paid.by-biller.json",
+      "expect": "accept"
+    },
+    {
+      "name": "partially-paid",
+      "event": "partially-paid.json",
+      "expect": "accept"
+    },
+    {
+      "name": "disputed",
+      "event": "disputed.json",
+      "expect": "accept"
+    },
+    {
+      "name": "refund-requested",
+      "event": "refund-requested.json",
+      "expect": "accept"
+    },
+    {
+      "name": "refund",
+      "event": "refund.json",
+      "expect": "accept"
+    },
+    {
+      "name": "response-accepts-paid",
+      "event": "response.accepts-paid.json",
+      "expect": "accept"
+    },
+    {
+      "name": "response-accepts-partial",
+      "event": "response.accepts-partial.json",
+      "expect": "accept"
+    },
+    {
+      "name": "response-rejects-dispute",
+      "event": "response.rejects-dispute.json",
+      "expect": "accept"
+    },
+    {
+      "name": "response-acknowledges-refund",
+      "event": "response.acknowledges-refund.json",
+      "expect": "accept"
+    },
+    {
+      "name": "disputed-namespaced-reason",
+      "event": "disputed.json",
+      "set": {
+        "reason": "au:late_delivery"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "disputed-not-as-agreed",
+      "event": "disputed.json",
+      "set": {
+        "reason": "not_as_agreed"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "disputed-rejected",
+      "event": "disputed.json",
+      "set": {
+        "reason": "rejected"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "paid-without-note",
+      "event": "paid.by-payer.json",
+      "unset": ["note"],
+      "expect": "accept"
+    },
+    {
+      "name": "paid-with-inReplyTo",
+      "event": "paid.by-payer.json",
+      "set": {
+        "inReplyTo": "aec6b697-52b5-409e-a576-12773f7a40b9"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "partially-paid-with-inReplyTo",
+      "event": "partially-paid.json",
+      "set": {
+        "inReplyTo": "aec6b697-52b5-409e-a576-12773f7a40b9"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "disputed-with-inReplyTo",
+      "event": "disputed.json",
+      "set": {
+        "inReplyTo": "aec6b697-52b5-409e-a576-12773f7a40b9"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "refund-requested-with-inReplyTo",
+      "event": "refund-requested.json",
+      "set": {
+        "inReplyTo": "aec6b697-52b5-409e-a576-12773f7a40b9"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "partially-paid-without-amount",
+      "event": "partially-paid.json",
+      "unset": ["amount"],
+      "expect": "reject"
+    },
+    {
+      "name": "partially-paid-zero-amount",
+      "event": "partially-paid.json",
+      "set": {
+        "amount": {
+          "amount": 0,
+          "currency": "AUD"
+        }
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "partially-paid-negative-amount",
+      "event": "partially-paid.json",
+      "set": {
+        "amount": {
+          "amount": -100,
+          "currency": "AUD"
+        }
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "partially-paid-float-amount",
+      "event": "partially-paid.json",
+      "set": {
+        "amount": {
+          "amount": 500.5,
+          "currency": "AUD"
+        }
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "refund-without-amount",
+      "event": "refund.json",
+      "unset": ["amount"],
+      "expect": "reject"
+    },
+    {
+      "name": "refund-without-inReplyTo",
+      "event": "refund.json",
+      "unset": ["inReplyTo"],
+      "expect": "reject"
+    },
+    {
+      "name": "refund-requested-with-amount",
+      "event": "refund-requested.json",
+      "set": {
+        "amount": {
+          "amount": 15000,
+          "currency": "AUD"
+        }
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "paid-with-amount",
+      "event": "paid.by-payer.json",
+      "set": {
+        "amount": {
+          "amount": 170000,
+          "currency": "AUD"
+        }
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "disputed-without-reason",
+      "event": "disputed.json",
+      "unset": ["reason"],
+      "expect": "reject"
+    },
+    {
+      "name": "disputed-reason-not-a-code",
+      "event": "disputed.json",
+      "set": {
+        "reason": "the amount is wrong"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "reason-on-paid",
+      "event": "paid.by-payer.json",
+      "set": {
+        "reason": "rejected"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "response-without-decision",
+      "event": "response.accepts-paid.json",
+      "unset": ["decision"],
+      "expect": "reject"
+    },
+    {
+      "name": "response-without-inReplyTo",
+      "event": "response.accepts-paid.json",
+      "unset": ["inReplyTo"],
+      "expect": "reject"
+    },
+    {
+      "name": "response-unknown-decision",
+      "event": "response.accepts-paid.json",
+      "set": {
+        "decision": "maybe"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "decision-on-paid",
+      "event": "paid.by-payer.json",
+      "set": {
+        "decision": "accepted"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "remainingDueDate-on-rejected-response",
+      "event": "response.rejects-dispute.json",
+      "set": {
+        "remainingDueDate": "2026-11-30T00:00:00.000Z"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "remainingDueDate-on-partially-paid",
+      "event": "partially-paid.json",
+      "set": {
+        "remainingDueDate": "2026-11-30T00:00:00.000Z"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "id-not-a-uuid",
+      "event": "paid.by-payer.json",
+      "set": {
+        "id": "evt_2001"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "inReplyTo-not-a-uuid",
+      "event": "response.accepts-paid.json",
+      "set": {
+        "inReplyTo": "evt_2001"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "replaced-event-type-refunded",
+      "event": "paid.by-payer.json",
+      "set": {
+        "eventType": "refunded"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "replaced-event-type-dispute-resolved",
+      "event": "paid.by-payer.json",
+      "set": {
+        "eventType": "dispute_resolved"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "replaced-event-type-status-change",
+      "event": "paid.by-payer.json",
+      "set": {
+        "eventType": "status_change"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "status-field",
+      "event": "paid.by-payer.json",
+      "set": {
+        "status": "paid"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "unnamed-field",
+      "event": "paid.by-payer.json",
+      "set": {
+        "paidVia": "bank"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "schema-version-1",
+      "event": "paid.by-payer.json",
+      "set": {
+        "schemaVersion": 1
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "not-a-lifecycle-event",
+      "event": "paid.by-payer.json",
+      "set": {
+        "type": "invoice"
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "document-reference-without-sha256",
+      "event": "paid.by-payer.json",
+      "set": {
+        "document": {
+          "from": "billing$acme.example",
+          "id": "inv_2001"
+        }
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "an-invoice-is-not-an-event",
+      "event": "documents/invoice.v2.json",
+      "expect": "reject"
+    }
+  ],
+  "envelope": [
+    {
+      "name": "payer-writes-back-about-the-billers-invoice",
+      "event": "paid.by-payer.json",
+      "from": "finance$client.example",
+      "to": "billing$acme.example",
+      "expect": "accept"
+    },
+    {
+      "name": "biller-answers-about-its-own-invoice",
+      "event": "response.accepts-paid.json",
+      "from": "billing$acme.example",
+      "to": "finance$client.example",
+      "expect": "accept"
+    },
+    {
+      "name": "biller-records-paid-on-its-own-invoice",
+      "event": "paid.by-biller.json",
+      "from": "billing$acme.example",
+      "to": "finance$client.example",
+      "expect": "accept"
+    },
+    {
+      "name": "document-from-someone-else",
+      "event": "paid.by-payer.json",
+      "from": "finance$client.example",
+      "to": "billing$acme.example",
+      "set": {
+        "document": {
+          "from": "carol$other.example",
+          "id": "inv_2001",
+          "sha256": "1c838c4117d0cf6f3fe99de6144bf9c27692ff390d4bdf9900c0710751c8d416"
+        }
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "third-party-sends-about-a-document-between-others",
+      "event": "paid.by-payer.json",
+      "from": "carol$other.example",
+      "to": "finance$client.example",
+      "expect": "reject"
+    },
+    {
+      "name": "id-differs-from-the-artifact-id",
+      "event": "paid.by-payer.json",
+      "from": "finance$client.example",
+      "to": "billing$acme.example",
+      "artifactId": "00000000-0000-4000-8000-000000000000",
+      "expect": "reject"
+    }
+  ],
+  "chains": [
+    {
+      "name": "paid-then-accepted",
+      "expect": "accept",
+      "steps": [
+        {
+          "event": "paid.by-payer.json",
+          "from": "finance$client.example",
+          "to": "billing$acme.example"
+        },
+        {
+          "event": "response.accepts-paid.json",
+          "from": "billing$acme.example",
+          "to": "finance$client.example"
+        }
+      ]
+    },
+    {
+      "name": "partially-paid-then-accepted-with-a-due-date",
+      "expect": "accept",
+      "steps": [
+        {
+          "event": "partially-paid.json",
+          "from": "finance$client.example",
+          "to": "billing$acme.example"
+        },
+        {
+          "event": "response.accepts-partial.json",
+          "from": "billing$acme.example",
+          "to": "finance$client.example"
+        }
+      ]
+    },
+    {
+      "name": "disputed-then-rejected",
+      "expect": "accept",
+      "steps": [
+        {
+          "event": "disputed.json",
+          "from": "finance$client.example",
+          "to": "billing$acme.example"
+        },
+        {
+          "event": "response.rejects-dispute.json",
+          "from": "billing$acme.example",
+          "to": "finance$client.example"
+        }
+      ]
+    },
+    {
+      "name": "paid-recorded-by-the-biller-is-final",
+      "expect": "accept",
+      "steps": [
+        {
+          "event": "paid.by-biller.json",
+          "from": "billing$acme.example",
+          "to": "finance$client.example"
+        }
+      ]
+    },
+    {
+      "name": "refund-requested-refunded-acknowledged",
+      "expect": "accept",
+      "steps": [
+        {
+          "event": "refund-requested.json",
+          "from": "finance$client.example",
+          "to": "billing$acme.example"
+        },
+        {
+          "event": "refund.json",
+          "from": "billing$acme.example",
+          "to": "finance$client.example"
+        },
+        {
+          "event": "response.acknowledges-refund.json",
+          "from": "finance$client.example",
+          "to": "billing$acme.example"
+        }
+      ]
+    },
+    {
+      "name": "reply-from-the-same-party",
+      "expect": "reject",
+      "steps": [
+        {
+          "event": "paid.by-payer.json",
+          "from": "finance$client.example",
+          "to": "billing$acme.example"
+        },
+        {
+          "event": "response.accepts-paid.json",
+          "from": "finance$client.example",
+          "to": "billing$acme.example"
+        }
+      ]
+    },
+    {
+      "name": "reply-naming-an-unknown-event",
+      "expect": "reject",
+      "steps": [
+        {
+          "event": "disputed.json",
+          "from": "finance$client.example",
+          "to": "billing$acme.example"
+        },
+        {
+          "event": "response.accepts-paid.json",
+          "from": "billing$acme.example",
+          "to": "finance$client.example"
+        }
+      ]
+    },
+    {
+      "name": "reply-from-another-pair",
+      "expect": "reject",
+      "steps": [
+        {
+          "event": "paid.by-payer.json",
+          "from": "finance$client.example",
+          "to": "billing$acme.example"
+        },
+        {
+          "event": "response.accepts-paid.json",
+          "from": "carol$other.example",
+          "to": "finance$client.example"
+        }
+      ]
+    },
+    {
+      "name": "reply-about-another-document",
+      "expect": "reject",
+      "steps": [
+        {
+          "event": "paid.by-payer.json",
+          "from": "finance$client.example",
+          "to": "billing$acme.example"
+        },
+        {
+          "event": "response.accepts-paid.json",
+          "from": "billing$acme.example",
+          "to": "finance$client.example",
+          "set": {
+            "document": {
+              "from": "billing$acme.example",
+              "id": "inv_2002",
+              "sha256": "1c838c4117d0cf6f3fe99de6144bf9c27692ff390d4bdf9900c0710751c8d416"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "response-to-a-paid-recorded-by-the-biller",
+      "expect": "reject",
+      "steps": [
+        {
+          "event": "paid.by-biller.json",
+          "from": "billing$acme.example",
+          "to": "finance$client.example"
+        },
+        {
+          "event": "response.accepts-paid.json",
+          "from": "finance$client.example",
+          "to": "billing$acme.example",
+          "set": {
+            "inReplyTo": "c2a1eee3-2e41-4851-bfec-a4f97ded497f"
+          }
+        }
+      ]
+    },
+    {
+      "name": "refund-answering-a-paid",
+      "expect": "reject",
+      "steps": [
+        {
+          "event": "paid.by-payer.json",
+          "from": "finance$client.example",
+          "to": "billing$acme.example"
+        },
+        {
+          "event": "refund.json",
+          "from": "billing$acme.example",
+          "to": "finance$client.example",
+          "set": {
+            "inReplyTo": "be9c1ff9-9626-40f3-af44-39f2210d364c"
+          }
+        }
+      ]
+    }
+  ]
+}

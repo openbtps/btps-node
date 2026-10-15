@@ -20,6 +20,7 @@ export const VECTOR_FILES = Object.freeze({
   selectorsReceiverRotation: 'selectors-receiver-rotation.vector.json',
   sdkDefects: 'sdk-defects.vector.json',
   documentModel: 'document-model.vectors.json',
+  eventModel: 'event.vectors.json',
 });
 
 export class VectorLoadError extends Error {
@@ -74,6 +75,67 @@ function loadDocumentModel(dir, set) {
       if (typeof c.document === 'string' && !(c.document in set.documents)) {
         throw new VectorLoadError(file, `${group}/${c.name}: ${model.documentsDir}/${c.document} not found`);
       }
+    }
+  }
+}
+
+/**
+ * Item A: reads every event in the model's events directory into
+ * `set.events` (file name -> parsed JSON), and checks that every case names
+ * one that exists (or a document, as `documents/<name>`), so a deleted
+ * event is a load error.
+ */
+function loadEventModel(dir, set) {
+  const file = VECTOR_FILES.eventModel;
+  const model = set.eventModel;
+  requireFields(file, model, ['eventsDir', 'keyVector', 'schema', 'envelope', 'chains']);
+  if (model.keyVector !== VECTOR_FILES.managedSignature) {
+    throw new VectorLoadError(
+      file,
+      `references key vector "${model.keyVector}"; only ${VECTOR_FILES.managedSignature} is supported`,
+    );
+  }
+  const eventsDir = path.join(dir, model.eventsDir);
+  if (!fs.existsSync(eventsDir)) {
+    throw new VectorLoadError(file, `events directory ${model.eventsDir} not found in ${dir}`);
+  }
+  set.events = {};
+  for (const name of fs.readdirSync(eventsDir).filter((n) => n.endsWith('.json')).sort()) {
+    try {
+      set.events[name] = JSON.parse(fs.readFileSync(path.join(eventsDir, name), 'utf8'));
+    } catch (error) {
+      throw new VectorLoadError(file, `${model.eventsDir}/${name} is not valid JSON (${error.message})`);
+    }
+  }
+  if (Object.keys(set.events).length === 0) {
+    throw new VectorLoadError(file, `no events in ${model.eventsDir}`);
+  }
+  const exists = (name) =>
+    name.startsWith('documents/') ? name.slice('documents/'.length) in set.documents : name in set.events;
+  const named = (group, label, c) => {
+    if (typeof c.event === 'string' && !exists(c.event)) {
+      throw new VectorLoadError(file, `${group}/${label}: ${c.event} not found`);
+    }
+  };
+  for (const group of ['schema', 'envelope', 'chains']) {
+    if (!Array.isArray(model[group]) || model[group].length === 0) {
+      throw new VectorLoadError(file, `expected a non-empty "${group}" array`);
+    }
+  }
+  for (const group of ['schema', 'envelope']) {
+    for (const c of model[group]) {
+      requireFields(file, c, ['name', 'event', 'expect']);
+      named(group, c.name, c);
+    }
+  }
+  for (const chain of model.chains) {
+    requireFields(file, chain, ['name', 'steps', 'expect']);
+    if (!Array.isArray(chain.steps) || chain.steps.length === 0) {
+      throw new VectorLoadError(file, `chains/${chain.name}: expected a non-empty "steps" array`);
+    }
+    for (const step of chain.steps) {
+      requireFields(file, step, ['event', 'from', 'to']);
+      named('chains', chain.name, step);
     }
   }
 }
@@ -170,6 +232,7 @@ export function loadVectorSet(dir) {
   ]);
   requireFields(VECTOR_FILES.sdkDefects, set.sdkDefects, ['gcmTag', 'identities']);
   loadDocumentModel(dir, set);
+  loadEventModel(dir, set);
 
   // The only shared key is the encryption key, referenced by name. Resolve it
   // once so checks never read files themselves.

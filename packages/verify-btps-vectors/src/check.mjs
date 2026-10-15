@@ -4,7 +4,8 @@
  *
  * @typedef {object} Check
  * @property {string} id      e.g. "vectors/web/jcs/key-order-is-insignificant"
- * @property {number} [item]  the BTPS 1.1 addendum item it proves, if any
+ * @property {number | string} [item]  the BTPS 1.1 addendum item it proves (a number), or the
+ *   release plan item (a letter, e.g. "A" for lifecycle events), if any
  * @property {string[]} [tickets] the tickets that own the fix
  * @property {() => Promise<void> | void} run throws CheckFailure (or anything) to fail
  */

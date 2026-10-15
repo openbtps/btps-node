@@ -18,12 +18,13 @@ import { interopChecks } from './checks/interop.mjs';
 import { oracleChecks } from './checks/oracle.mjs';
 import { sdkChecks } from './checks/sdk.mjs';
 import { documentRuntimeChecks, documentSdkChecks } from './checks/documents.mjs';
+import { eventRuntimeChecks, eventSdkChecks } from './checks/events.mjs';
 import { loadSdk } from './sdk-loader.mjs';
 
 /**
  * @typedef {object} CheckResult
  * @property {string} id
- * @property {number} [item]
+ * @property {number | string} [item]
  * @property {string[]} [tickets]
  * @property {boolean} passed
  * @property {string} [message]
@@ -41,12 +42,13 @@ export async function buildChecks({ vectorsDir, sdkRoot }) {
   const checks = [
     ...runtimes.flatMap((runtime) => vectorChecks(runtime, set)),
     ...runtimes.flatMap((runtime) => documentRuntimeChecks(runtime, set)),
+    ...runtimes.flatMap((runtime) => eventRuntimeChecks(runtime, set)),
     ...interopChecks(runtimes, set),
     ...oracleChecks(set),
   ];
   if (sdkRoot) {
     const sdk = await loadSdk(sdkRoot);
-    checks.push(...sdkChecks(sdk, set), ...documentSdkChecks(sdk, set));
+    checks.push(...sdkChecks(sdk, set), ...documentSdkChecks(sdk, set), ...eventSdkChecks(sdk, set));
   }
 
   const seen = new Set();
