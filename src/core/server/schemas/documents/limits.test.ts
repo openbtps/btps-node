@@ -15,8 +15,9 @@ type Limit = keyof typeof BTP_DOC_LIMITS;
 
 const DOCUMENTS = new URL('../../../../../test/vectors/documents/', import.meta.url);
 const load = (name: string): Doc => JSON.parse(readFileSync(new URL(name, DOCUMENTS), 'utf8'));
-const invoice = () => load('invoice.replaces.v2.json');
+const invoice = () => load('invoice.correction.v2.json');
 const payslip = () => load('payslip.hourly.v2.json');
+const creditNote = () => load('credit-note.v2.json');
 const many = <T>(n: number, item: T): T[] => Array.from({ length: n }, () => item);
 const keys = (n: number, value: unknown) =>
   Object.fromEntries(Array.from({ length: n }, (_, i) => [`k${i}`, value]));
@@ -30,7 +31,7 @@ const CASES: Record<Limit, Array<{ where: string; build: (n: number) => Doc }>> 
     { where: 'document id', build: (n) => ({ ...invoice(), id: 'i'.repeat(n) }) },
     {
       where: 'reference id',
-      build: (n) => ({ ...invoice(), replaces: { ...invoice().replaces, id: 'i'.repeat(n) } }),
+      build: (n) => ({ ...invoice(), references: [{ ...invoice().references[0], id: 'i'.repeat(n) }] }),
     },
   ],
   IDENTITY_MAX_LENGTH: [
@@ -39,15 +40,23 @@ const CASES: Record<Limit, Array<{ where: string; build: (n: number) => Doc }>> 
       build: (n) => {
         const domain = '$example.com';
         const from = 'a'.repeat(n - domain.length) + domain;
-        return { ...invoice(), replaces: { ...invoice().replaces, from } };
+        return { ...invoice(), references: [{ ...invoice().references[0], from }] };
       },
     },
   ],
   TITLE_MAX_LENGTH: [{ where: 'title', build: (n) => ({ ...invoice(), title: 't'.repeat(n) }) }],
   NAME_MAX_LENGTH: [
     {
-      where: 'seller name',
-      build: (n) => ({ ...invoice(), seller: { name: 'n'.repeat(n) } }),
+      where: 'issuer name',
+      build: (n) => ({ ...invoice(), issuer: { name: 'n'.repeat(n) } }),
+    },
+    {
+      where: 'line-item column',
+      build: (n) => {
+        const doc = invoice();
+        doc.lineItems.columns[0] = 'c'.repeat(n);
+        return doc;
+      },
     },
     {
       where: 'employee name',
@@ -55,14 +64,28 @@ const CASES: Record<Limit, Array<{ where: string; build: (n: number) => Doc }>> 
     },
   ],
   CODE_MAX_LENGTH: [
-    { where: 'invoice number', build: (n) => ({ ...invoice(), invoiceNumber: 'c'.repeat(n) }) },
     {
-      where: 'tax category',
+      where: 'issuer identifier',
+      build: (n) => ({ ...invoice(), issuer: { name: 'S', identifiers: { 'au:abn': 'c'.repeat(n) } } }),
+    },
+    {
+      where: 'issuer identifier key',
+      build: (n) => ({
+        ...invoice(),
+        issuer: { name: 'S', identifiers: { [`au:${'k'.repeat(n - 3)}`]: '1' } },
+      }),
+    },
+    {
+      where: 'credit note tax category',
       build: (n) => {
-        const doc = invoice();
+        const doc = creditNote();
         doc.lineItems[0].taxCategory = 'c'.repeat(n);
         return doc;
       },
+    },
+    {
+      where: 'reference type',
+      build: (n) => ({ ...invoice(), references: [{ ...invoice().references[0], type: 'c'.repeat(n) }] }),
     },
     {
       where: 'earning category',
@@ -75,9 +98,9 @@ const CASES: Record<Limit, Array<{ where: string; build: (n: number) => Doc }>> 
   ],
   DECIMAL_MAX_LENGTH: [
     {
-      where: 'quantity',
+      where: 'credit note quantity',
       build: (n) => {
-        const doc = invoice();
+        const doc = creditNote();
         doc.lineItems[0].quantity = '1'.repeat(n);
         return doc;
       },
@@ -85,31 +108,83 @@ const CASES: Record<Limit, Array<{ where: string; build: (n: number) => Doc }>> 
   ],
   ADDRESS_MAX_LENGTH: [
     {
-      where: 'seller address',
-      build: (n) => ({ ...invoice(), seller: { name: 'S', address: 'a'.repeat(n) } }),
+      where: 'issuer address',
+      build: (n) => ({ ...invoice(), issuer: { name: 'S', address: 'a'.repeat(n) } }),
+    },
+  ],
+  EMAIL_MAX_LENGTH: [
+    {
+      where: 'issuer email',
+      build: (n) => {
+        const domain = '@example.com';
+        return { ...invoice(), issuer: { name: 'S', email: 'a'.repeat(n - domain.length) + domain } };
+      },
+    },
+  ],
+  URL_MAX_LENGTH: [
+    {
+      where: 'payment link url',
+      build: (n) => {
+        const base = 'https://pay.example.com/';
+        return { ...invoice(), paymentLink: { linkText: 'Pay', url: base + 'p'.repeat(n - base.length) } };
+      },
     },
   ],
   TEXT_MAX_LENGTH: [
     {
-      where: 'line description',
+      where: 'invoice line-item text cell',
       build: (n) => {
         const doc = invoice();
+        doc.lineItems.rows[0].Description = 'd'.repeat(n);
+        return doc;
+      },
+    },
+    { where: 'invoice description', build: (n) => ({ ...invoice(), description: 'd'.repeat(n) }) },
+    {
+      where: 'credit note line description',
+      build: (n) => {
+        const doc = creditNote();
         doc.lineItems[0].description = 'd'.repeat(n);
         return doc;
       },
     },
-    { where: 'payment terms', build: (n) => ({ ...invoice(), paymentTerms: 'p'.repeat(n) }) },
   ],
   LINE_ITEMS_MAX: [
     {
-      where: 'line items',
-      build: (n) => ({ ...invoice(), lineItems: many(n, invoice().lineItems[0]) }),
+      where: 'invoice line-item rows',
+      build: (n) => {
+        const doc = invoice();
+        doc.lineItems.rows = many(n, doc.lineItems.rows[0]);
+        return doc;
+      },
+    },
+    {
+      where: 'credit note line items',
+      build: (n) => ({ ...creditNote(), lineItems: many(n, creditNote().lineItems[0]) }),
+    },
+  ],
+  LINE_ITEM_COLUMNS_MAX: [
+    {
+      where: 'invoice line-item columns',
+      build: (n) => {
+        const doc = invoice();
+        doc.lineItems.columns = many(n, 'Column');
+        return doc;
+      },
+    },
+    {
+      where: 'cells in an invoice line-item row',
+      build: (n) => {
+        const doc = invoice();
+        doc.lineItems.rows = [keys(n, 1)];
+        return doc;
+      },
     },
   ],
   TAX_TOTALS_MAX: [
     {
-      where: 'tax totals',
-      build: (n) => ({ ...invoice(), taxTotals: many(n, invoice().taxTotals[0]) }),
+      where: 'credit note tax totals',
+      build: (n) => ({ ...creditNote(), taxTotals: many(n, creditNote().taxTotals[0]) }),
     },
   ],
   PAYSLIP_LINES_MAX: [
@@ -125,14 +200,36 @@ const CASES: Record<Limit, Array<{ where: string; build: (n: number) => Doc }>> 
   ],
   TAX_IDS_MAX: [
     {
-      where: 'seller tax ids',
-      build: (n) => ({ ...invoice(), seller: { name: 'S', taxIds: many(n, 'ABN 1') } }),
+      where: 'payslip employer tax ids',
+      build: (n) => ({ ...payslip(), employer: { name: 'S', taxIds: many(n, 'ABN 1') } }),
+    },
+  ],
+  IDENTIFIERS_MAX: [
+    {
+      where: 'issuer identifiers',
+      build: (n) => ({
+        ...invoice(),
+        issuer: {
+          name: 'S',
+          identifiers: Object.fromEntries(Array.from({ length: n }, (_, i) => [`x:id${i}`, '1'])),
+        },
+      }),
     },
   ],
   YEAR_TO_DATE_MAX: [
     {
       where: 'year to date',
       build: (n) => ({ ...payslip(), yearToDate: keys(n, { amount: 1, currency: 'AUD' }) }),
+    },
+  ],
+  REFERENCES_MAX: [
+    {
+      where: 'invoice references',
+      build: (n) => ({ ...invoice(), references: many(n, invoice().references[0]) }),
+    },
+    {
+      where: 'credit note references',
+      build: (n) => ({ ...creditNote(), references: many(n, creditNote().references[0]) }),
     },
   ],
   ATTACHMENTS_MAX: [
@@ -165,12 +262,25 @@ const CASES: Record<Limit, Array<{ where: string; build: (n: number) => Doc }>> 
   ],
   EXTENSIONS_MAX_KEYS: [
     { where: 'extension keys', build: (n) => ({ ...payslip(), extensions: keys(n, true) }) },
+    { where: 'invoice metadata keys', build: (n) => ({ ...invoice(), metadata: keys(n, true) }) },
+    {
+      where: 'invoice template data keys',
+      build: (n) => ({ ...invoice(), template: { name: 'T', data: keys(n, true) } }),
+    },
   ],
   EXTENSIONS_MAX_LENGTH: [
     {
       where: 'extensions as JSON',
       // {"k":"..."} is 8 characters around the value.
       build: (n) => ({ ...payslip(), extensions: { k: 'x'.repeat(n - 8) } }),
+    },
+    {
+      where: 'invoice metadata as JSON',
+      build: (n) => ({ ...invoice(), metadata: { k: 'x'.repeat(n - 8) } }),
+    },
+    {
+      where: 'invoice template data as JSON',
+      build: (n) => ({ ...invoice(), template: { name: 'T', data: { k: 'x'.repeat(n - 8) } } }),
     },
   ],
 };

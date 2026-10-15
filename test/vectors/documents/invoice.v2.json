@@ -4,29 +4,38 @@
   "id": "inv_2001",
   "issuedAt": "2026-10-01T00:00:00.000Z",
   "title": "Consulting, September 2026",
-  "lineItems": [
-    {
-      "description": "Consulting services",
-      "quantity": "10",
-      "unitPrice": { "amount": 15000, "currency": "AUD" },
-      "lineTotal": { "amount": 150000, "currency": "AUD" },
-      "taxAmount": { "amount": 15000, "currency": "AUD" },
-      "taxCategory": "GST10"
-    },
-    {
-      "description": "Export services (GST-free)",
-      "quantity": "1",
-      "unitPrice": { "amount": 20000, "currency": "AUD" },
-      "lineTotal": { "amount": 20000, "currency": "AUD" },
-      "taxAmount": { "amount": 0, "currency": "AUD" },
-      "taxCategory": "GST0"
-    }
-  ],
-  "total": { "amount": 170000, "currency": "AUD" },
-  "taxTotals": [
-    { "taxCategory": "GST10", "amount": { "amount": 15000, "currency": "AUD" } },
-    { "taxCategory": "GST0", "amount": { "amount": 0, "currency": "AUD" } }
-  ],
+  "dueAt": "2026-10-31T00:00:00.000Z",
+  "totalAmount": { "amount": 185000, "currency": "AUD" },
+  "lineItems": {
+    "columns": ["Description", "Quantity", "Unit price", "Tax code", "Tax", "Amount"],
+    "rows": [
+      {
+        "Description": "Consulting services",
+        "Quantity": 10,
+        "Unit price": 15000,
+        "Tax code": "GST",
+        "Tax": 15000,
+        "Amount": 165000
+      },
+      {
+        "Description": "Export services (GST-free)",
+        "Quantity": 1,
+        "Unit price": 20000,
+        "Tax code": "GST-free",
+        "Tax": 0,
+        "Amount": 20000
+      }
+    ]
+  },
+  "issuer": {
+    "name": "Biller Pty Ltd",
+    "email": "accounts@biller.example.com",
+    "phone": "+61 2 5550 1234",
+    "address": "Level 3, 1 Example Street, Sydney NSW 2000, Australia",
+    "identifiers": { "au:abn": "51824753556" }
+  },
+  "paymentLink": { "linkText": "Pay now", "url": "https://pay.biller.example.com/inv_2001" },
+  "description": "Monthly consulting retainer. Money cells are in cents (AUD).",
   "attachments": [
     {
       "content": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCAyMDAgMTAwXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0NiA+PgpzdHJlYW0KQlQgL0YxIDEyIFRmIDIwIDUwIFRkIChJbnZvaWNlIGludl8yMDAxKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNDEgMDAwMDAgbiAKMDAwMDAwMDMzNyAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjQwNwolJUVPRgo=",
@@ -35,5 +44,10 @@
       "size": 590,
       "sha256": "7bf68534d8c33c225c762f85b3ab3ee995abb366231e52d43e12111730e009cf"
     }
-  ]
+  ],
+  "template": { "name": "biller-classic", "data": { "accentColour": "#0b5fff", "showLogo": true } },
+  "metadata": {
+    "biller:customerRef": "CUST-0042",
+    "biller:ledger": { "account": "4-1000", "period": "2026-09" }
+  }
 }

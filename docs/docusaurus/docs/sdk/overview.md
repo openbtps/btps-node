@@ -48,7 +48,8 @@ import { JsonTrustStore } from '@btps/sdk/trust';
 import { BTPErrorException } from '@btps/sdk/error';
 
 // Import types (TypeScript)
-import type { BTPArtifact, BTPInvoiceDoc } from '@btps/sdk';
+import type { BTPArtifact } from '@btps/sdk';
+import type { BTPInvoiceV2Doc } from '@btps/sdk/documents';
 ```
 
 ---

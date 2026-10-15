@@ -17,7 +17,7 @@ import { BtpDocV2Schema } from './documentSchema.js';
 import { STATUS_NOT_IN_DOCUMENT } from './baseSchema.js';
 import { parseBtpDocV2 } from '../helpers.js';
 import { canonicalizeValue } from '@core/crypto/jcs.js';
-import { BTP_DOC_LIMITS } from '../../constants/documents.js';
+import { BTP_DOC_LIMITS, BTP_DOC_REFERENCE_TYPES } from '../../constants/documents.js';
 
 const DOCUMENTS = new URL('../../../../../test/vectors/documents/', import.meta.url);
 const REPO_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
@@ -48,7 +48,7 @@ describe('document model v2: an attachment carries its file (BTPS 1.0 shape, 202
 
   it('accepts content, name, mediaType, size and sha256 on an invoice and a payslip', () => {
     expect(accepted(load('invoice.v2.json'))).toBe(true);
-    expect(accepted(load('invoice.replaces.v2.json'))).toBe(true);
+    expect(accepted(load('invoice.correction.v2.json'))).toBe(true);
     expect(accepted(load('payslip.hourly.v2.json'))).toBe(true);
   });
 
@@ -81,12 +81,11 @@ describe('document model v2: an attachment carries its file (BTPS 1.0 shape, 202
     const asBase64 = Buffer.from(hex, 'hex').toString('base64');
     for (const sha256 of [hex.toUpperCase(), asBase64, hex.slice(1), `${hex}0`, `sha256:${hex}`]) {
       expect(accepted(invoiceWith((a) => (a.sha256 = sha256))), sha256).toBe(false);
-      const replaces = load('invoice.replaces.v2.json') as { replaces: Record<string, unknown> };
-      replaces.replaces.sha256 = sha256;
-      expect(accepted(replaces), `replaces ${sha256}`).toBe(false);
-      const credit = load('credit-note.v2.json') as { relatesToInvoice: Record<string, unknown> };
-      credit.relatesToInvoice.sha256 = sha256;
-      expect(accepted(credit), `relatesToInvoice ${sha256}`).toBe(false);
+      for (const name of ['invoice.correction.v2.json', 'credit-note.v2.json']) {
+        const doc = load(name) as { references: Array<Record<string, unknown>> };
+        doc.references[0]!.sha256 = sha256;
+        expect(accepted(doc), `${name} references ${sha256}`).toBe(false);
+      }
     }
   });
 
@@ -102,7 +101,7 @@ describe('document model v2: schema vectors per type (EBA-119)', () => {
   it('has the expected vectors, and no lifecycle event (that is BTPS_EVENT)', () => {
     expect(fixtureNames).toEqual([
       'credit-note.v2.json',
-      'invoice.replaces.v2.json',
+      'invoice.correction.v2.json',
       'invoice.v2.json',
       'payslip.hourly.v2.json',
       'payslip.net-mismatch.v2.json',
@@ -145,9 +144,9 @@ describe('document model v2: schema vectors per type (EBA-119)', () => {
     );
   });
 
-  it('refuses an invoice missing its total, and a payslip missing its gross', () => {
+  it('refuses an invoice missing its totalAmount, and a payslip missing its gross', () => {
     const invoice = load('invoice.v2.json');
-    delete invoice.total;
+    delete invoice.totalAmount;
     expect(BtpDocV2Schema.safeParse(invoice).success).toBe(false);
     const payslip = load('payslip.hourly.v2.json');
     delete payslip.gross;
@@ -158,13 +157,13 @@ describe('document model v2: schema vectors per type (EBA-119)', () => {
     expect(
       BtpDocV2Schema.safeParse({
         ...load('invoice.v2.json'),
-        total: { amount: 170000.5, currency: 'AUD' },
+        totalAmount: { amount: 185000.5, currency: 'AUD' },
       }).success,
     ).toBe(false);
     expect(
       BtpDocV2Schema.safeParse({
         ...load('invoice.v2.json'),
-        total: { amount: 170000, currency: 'XXX' },
+        totalAmount: { amount: 185000, currency: 'XXX' },
       }).success,
     ).toBe(false);
   });
@@ -195,7 +194,121 @@ describe('document model v2: status lives only in events (release plan 2.5)', ()
   });
 });
 
-describe('document model v2: invoice title and replaces (release plan section 3)', () => {
+describe('the 1.1 invoice: the 1.0 invoice with the changes of 2026-10-16', () => {
+  type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const invoice = (): Doc => load('invoice.v2.json');
+  const accepted = (doc: unknown) => BtpInvoiceV2DocSchema.safeParse(doc).success;
+  const withCell = (value: unknown) => {
+    const doc = invoice();
+    doc.lineItems.rows[0].Tax = value;
+    return doc;
+  };
+
+  it('carries totalAmount as integer minor units, and refuses 1.0\'s float value', () => {
+    expect(BtpInvoiceV2DocSchema.parse(invoice()).totalAmount).toEqual({
+      amount: 185000,
+      currency: 'AUD',
+    });
+    expect(accepted({ ...invoice(), totalAmount: { value: 1850, currency: 'AUD' } })).toBe(false);
+    expect(accepted({ ...invoice(), totalAmount: { amount: 1850.5, currency: 'AUD' } })).toBe(false);
+  });
+
+  it('keeps lineItems as the 1.0 table, with tax as columns', () => {
+    const parsed = BtpInvoiceV2DocSchema.parse(invoice());
+    expect(parsed.lineItems.columns).toContain('Tax code');
+    expect(parsed.lineItems.rows[0]).toMatchObject({ 'Tax code': 'GST', Tax: 15000 });
+  });
+
+  it('accepts string and integer cells, and refuses a float or any other value', () => {
+    for (const cell of ['GST', '', 0, -1500, 15000]) {
+      expect(accepted(withCell(cell)), JSON.stringify(cell)).toBe(true);
+    }
+    for (const cell of [1500.5, 0.1, Number.MAX_SAFE_INTEGER + 1, true, null, { amount: 1 }, [1]]) {
+      expect(accepted(withCell(cell)), JSON.stringify(cell)).toBe(false);
+    }
+  });
+
+  it('carries the issuer with address and namespaced identifiers', () => {
+    expect(BtpInvoiceV2DocSchema.parse(invoice()).issuer).toMatchObject({
+      name: 'Biller Pty Ltd',
+      address: expect.any(String),
+      identifiers: { 'au:abn': '51824753556' },
+    });
+  });
+
+  it('refuses an identifier key without a namespace, or with more than one', () => {
+    for (const key of ['abn', 'au:abn:extra', ':abn', 'au:', 'au abn']) {
+      const doc = invoice();
+      doc.issuer.identifiers = { [key]: '51824753556' };
+      expect(accepted(doc), key).toBe(false);
+    }
+    const doc = invoice();
+    doc.issuer.identifiers = { 'gb:vat': 'GB123456789', 'eu:vat': 'DE123456789' };
+    expect(accepted(doc)).toBe(true);
+  });
+
+  it('refuses an issuer email that is not an email address', () => {
+    const doc = invoice();
+    doc.issuer.email = 'not an email';
+    expect(accepted(doc)).toBe(false);
+  });
+
+  it('carries metadata exactly as given, and refuses it over its caps', () => {
+    const raw = invoice();
+    expect(BtpInvoiceV2DocSchema.parse(raw).metadata).toEqual(raw.metadata);
+    const tooMany = Object.fromEntries(
+      Array.from({ length: BTP_DOC_LIMITS.EXTENSIONS_MAX_KEYS + 1 }, (_, i) => [`k${i}`, i]),
+    );
+    expect(accepted({ ...invoice(), metadata: tooMany })).toBe(false);
+    const tooLong = { k: 'x'.repeat(BTP_DOC_LIMITS.EXTENSIONS_MAX_LENGTH) };
+    expect(accepted({ ...invoice(), metadata: tooLong })).toBe(false);
+  });
+
+  it('carries attachments as a list, and refuses 1.0\'s single attachment', () => {
+    expect(load('invoice.correction.v2.json').attachments).toHaveLength(2);
+    expect(
+      accepted({ ...invoice(), attachment: { content: 'QUJD', type: 'application/pdf' } }),
+    ).toBe(false);
+  });
+
+  it('keeps 1.0\'s dueAt, paymentLink, description and template', () => {
+    const parsed = BtpInvoiceV2DocSchema.parse(invoice());
+    expect(parsed.dueAt).toBe('2026-10-31T00:00:00.000Z');
+    expect(parsed.paymentLink?.url).toMatch(/^https:/);
+    expect(parsed.description).toBeTruthy();
+    expect(parsed.template).toEqual({
+      name: 'biller-classic',
+      data: { accentColour: '#0b5fff', showLogo: true },
+    });
+    expect(accepted({ ...invoice(), paymentLink: { linkText: 'Pay', url: 'not a url' } })).toBe(
+      false,
+    );
+  });
+
+  it("refuses PR #9's invoice fields, which the founder removed", () => {
+    const removed: Record<string, unknown> = {
+      invoiceNumber: 'INV-1',
+      issueDate: '2026-10-01T00:00:00.000Z',
+      supplyDate: '2026-10-01T00:00:00.000Z',
+      seller: { name: 'S' },
+      buyer: { name: 'B' },
+      total: { amount: 1, currency: 'AUD' },
+      taxTotals: [{ taxCategory: 'GST10', amount: { amount: 1, currency: 'AUD' } }],
+      gstInclusive: false,
+      paymentTerms: '30 days',
+      dueDate: '2026-10-31T00:00:00.000Z',
+      extensions: { 'au:x': 1 },
+    };
+    for (const [field, value] of Object.entries(removed)) {
+      expect(accepted({ ...invoice(), [field]: value }), field).toBe(false);
+    }
+    const structured = invoice();
+    structured.lineItems = [{ description: 'x', taxCategory: 'GST10' }];
+    expect(accepted(structured)).toBe(false);
+  });
+});
+
+describe('document model v2: invoice title', () => {
   it('requires a non-empty title', () => {
     const invoice = load('invoice.v2.json');
     delete invoice.title;
@@ -204,27 +317,95 @@ describe('document model v2: invoice title and replaces (release plan section 3)
       false,
     );
   });
+});
 
-  it('accepts a corrected invoice that names the one it replaces', () => {
-    const parsed = BtpInvoiceV2DocSchema.parse(load('invoice.replaces.v2.json'));
-    expect(parsed.replaces).toEqual({
-      from: 'biller$example.com',
-      id: 'inv_2001',
-      sha256: 'ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf',
+describe('document model v2: references (2026-10-16)', () => {
+  type Ref = Record<string, unknown>;
+  const withReferences = (name: string, change: (references: Ref[]) => Ref[] | void) => {
+    const doc = load(name) as { references: Ref[] };
+    doc.references = change(doc.references) ?? doc.references;
+    return doc;
+  };
+  const accepted = (doc: unknown) => BtpDocV2Schema.safeParse(doc).success;
+
+  it('names the protocol\'s reference types', () => {
+    expect(BTP_DOC_REFERENCE_TYPES).toEqual({
+      CORRECTION_OF: 'correction_of',
+      CREDITS: 'credits',
+      INSTALMENT_OF: 'instalment_of',
+      FOLLOWS: 'follows',
     });
   });
 
-  it('refuses a replaces reference that is incomplete or not from an identity', () => {
-    const base = load('invoice.replaces.v2.json');
-    const replaces = base.replaces as Record<string, string>;
-    expect(
-      BtpInvoiceV2DocSchema.safeParse({ ...base, replaces: { from: replaces.from, id: replaces.id } })
-        .success,
-    ).toBe(false);
-    expect(
-      BtpInvoiceV2DocSchema.safeParse({ ...base, replaces: { ...replaces, from: 'not-an-identity' } })
-        .success,
-    ).toBe(false);
+  it('accepts a corrected invoice that names the one it corrects', () => {
+    const parsed = BtpInvoiceV2DocSchema.parse(load('invoice.correction.v2.json'));
+    expect(parsed.references).toEqual([
+      {
+        type: 'correction_of',
+        from: 'biller$example.com',
+        id: 'inv_2001',
+        sha256: 'ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf',
+      },
+    ]);
+  });
+
+  it('accepts every protocol type, and a platform\'s own under a prefix', () => {
+    for (const type of [...Object.values(BTP_DOC_REFERENCE_TYPES), 'acme:supersedes']) {
+      const doc = withReferences('invoice.correction.v2.json', (r) => [{ ...r[0], type }]);
+      expect(accepted(doc), type).toBe(true);
+    }
+  });
+
+  it('refuses a type that is not a bare or namespaced code', () => {
+    for (const type of ['', 'Correction Of', 'a:b:c', ':credits', 'credits:', 'x'.repeat(65)]) {
+      const doc = withReferences('invoice.correction.v2.json', (r) => [{ ...r[0], type }]);
+      expect(accepted(doc), JSON.stringify(type)).toBe(false);
+    }
+  });
+
+  it('refuses a reference that is incomplete, has no type, or is not from an identity', () => {
+    const cases: Array<(r: Ref) => Ref> = [
+      ({ sha256: _sha256, ...rest }) => rest,
+      ({ type: _type, ...rest }) => rest,
+      (r) => ({ ...r, from: 'not-an-identity' }),
+      (r) => ({ ...r, note: 'x' }),
+    ];
+    for (const change of cases) {
+      expect(accepted(withReferences('invoice.correction.v2.json', (r) => [change(r[0]!)]))).toBe(
+        false,
+      );
+    }
+  });
+
+  it(`refuses more than ${BTP_DOC_LIMITS.REFERENCES_MAX} references`, () => {
+    const many = (n: number) =>
+      withReferences('invoice.correction.v2.json', (r) => Array.from({ length: n }, () => r[0]!));
+    expect(accepted(many(BTP_DOC_LIMITS.REFERENCES_MAX))).toBe(true);
+    expect(accepted(many(BTP_DOC_LIMITS.REFERENCES_MAX + 1))).toBe(false);
+  });
+
+  it('requires a credit note to name the invoice it credits', () => {
+    expect(accepted(load('credit-note.v2.json'))).toBe(true);
+    const missing = load('credit-note.v2.json');
+    delete missing.references;
+    expect(accepted(missing)).toBe(false);
+    expect(accepted(withReferences('credit-note.v2.json', () => []))).toBe(false);
+    const noCredits = withReferences('credit-note.v2.json', (r) => [{ ...r[0], type: 'follows' }]);
+    const result = BtpCreditNoteDocSchema.safeParse(noCredits);
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toMatch(/"credits" reference/);
+  });
+
+  it('refuses the credit note\'s former relatesToInvoice', () => {
+    const doc = load('credit-note.v2.json');
+    doc.relatesToInvoice = (doc.references as Ref[])[0];
+    expect(accepted(doc)).toBe(false);
+  });
+
+  it("refuses PR #16's former invoice field replaces", () => {
+    const doc = load('invoice.correction.v2.json');
+    doc.replaces = (doc.references as Ref[])[0];
+    expect(accepted(doc)).toBe(false);
   });
 });
 
@@ -295,10 +476,10 @@ describe('document model v2: a document is never mutated by parsing (EBA-119)', 
     const { data } = parseBtpDocV2(load('invoice.v2.json'));
     expect(data).toBeDefined();
     expect(() => {
-      (data as unknown as { total: unknown }).total = { amount: 0, currency: 'AUD' };
+      (data as unknown as { totalAmount: unknown }).totalAmount = { amount: 0, currency: 'AUD' };
     }).toThrow(TypeError);
     expect(() => {
-      (data as unknown as { lineItems: unknown[] }).lineItems.push({});
+      (data as unknown as { lineItems: { rows: unknown[] } }).lineItems.rows.push({});
     }).toThrow(TypeError);
   });
 

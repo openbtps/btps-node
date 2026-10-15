@@ -44,6 +44,11 @@ describe('@btps/sdk/documents (EBA-441, schemas only)', () => {
       'SCHEMA_VERSION_V2',
       'BTP_DOC_SHA256',
       'BTP_DOC_ATTACHMENT_MEDIA_TYPES',
+      'BTP_DOC_REFERENCE_TYPES',
+      'BtpDocReferencesSchema',
+      'BtpInvoiceLineItemsV2Schema',
+      'BtpInvoiceIssuerV2Schema',
+      'BtpDocMetadataSchema',
     ]) {
       expect(documents, name).toHaveProperty(name);
     }
