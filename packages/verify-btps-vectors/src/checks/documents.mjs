@@ -8,8 +8,9 @@
  *   signature for an arbitrary invoice, so there is nothing to pin.
  * - documentSdkChecks: the SDK's own document model, loaded from the tree
  *   under test (`sdk.documents`, @btps/sdk/documents): schema vectors per
- *   type, the ownership rule, the tax-total and payslip checks, and that
- *   parsing never changes a document.
+ *   type, the ownership rule, the attachment check (each file is the
+ *   size and sha256 the document states), the tax-total and payslip checks,
+ *   and that parsing never changes a document.
  */
 
 import { canonicalizeValue } from '../jcs.mjs';
@@ -18,12 +19,24 @@ import { ensure } from '../check.mjs';
 
 const ITEM = 7;
 
-/** The document a case names, changed by its `set` and `unset`. A fresh copy every time. */
+/**
+ * The document a case names, changed by its `set`, `unset` and `setPath`. A
+ * fresh copy every time. A `setPath` entry sets `value` at `path`, deletes
+ * it (`delete`), or writes `repeat` `times` times followed by `then`, so a
+ * file over the size cap need not be written out in the vector.
+ */
 function caseDocument(set, c) {
   const base = typeof c.document === 'string' ? set.documents[c.document] : c.document;
   const doc = structuredClone(base);
   for (const [key, value] of Object.entries(c.set ?? {})) doc[key] = structuredClone(value);
   for (const key of c.unset ?? []) delete doc[key];
+  for (const entry of c.setPath ?? []) {
+    const parent = entry.path.slice(0, -1).reduce((node, key) => node[key], doc);
+    const key = entry.path[entry.path.length - 1];
+    if (entry.delete) delete parent[key];
+    else if (entry.repeat !== undefined) parent[key] = entry.repeat.repeat(entry.times) + (entry.then ?? '');
+    else parent[key] = structuredClone(entry.value);
+  }
   return doc;
 }
 
@@ -101,6 +114,26 @@ export function documentSdkChecks(sdk, set) {
           ensure(!violation, `refused from ${c.from}: ${violation?.message}`);
         } else {
           ensure(violation, `accepted from ${c.from}; expected refusal`);
+        }
+      }),
+    );
+  }
+
+  for (const c of model.attachments) {
+    checks.push(
+      check(`attachments/${c.name}`, (documents) => {
+        ensure(documents.verifyAttachments, 'the SDK has no verifyAttachments');
+        const result = documents.verifyAttachments(parsed(documents, caseDocument(set, c), c.name));
+        const found = result.problems.map((p) => `attachments.${p.index}.${p.field}: ${p.message}`);
+        if (c.expect === 'accept') {
+          ensure(result.ok && found.length === 0, `refused: ${found.join('; ')}`);
+        } else {
+          ensure(!result.ok, 'accepted; expected refusal');
+          const index = c.expect.index ?? 0;
+          ensure(
+            result.problems.some((p) => p.index === index && p.field === c.expect.reject),
+            `expected a problem in attachments.${index}.${c.expect.reject}, got: ${found.join('; ')}`,
+          );
         }
       }),
     );

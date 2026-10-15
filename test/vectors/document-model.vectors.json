@@ -1,7 +1,7 @@
 {
   "item": 7,
   "tickets": ["EBA-119", "EBA-402"],
-  "description": "BTPS 1.1 item 7, document model v2. Each case names a document in documents/ (or gives one inline), optionally changed by `set` (top-level fields replaced) and `unset` (top-level fields removed). schema: the SDK's parseBtpDocV2 accepts or refuses it. ownership: a credit note or a corrected invoice may only name a document from the envelope's own sender. taxTotal and payslip: the SDK's verifyTaxTotal and reconcilePayslip agree with the stated results, and report a disagreement rather than throw. Every document in documents/ is also checked to be unchanged by parsing, and signed and verified over its JCS form on every runtime.",
+  "description": "BTPS 1.1 item 7, document model v2. Each case names a document in documents/ (or gives one inline), optionally changed by `set` (top-level fields replaced), `unset` (top-level fields removed) and `setPath` (each entry sets the value at `path`, an array of keys and indexes: `value` as given, or `repeat` written `times` times followed by `then`, for a file too large to write out). schema: the SDK's parseBtpDocV2 accepts or refuses it. ownership: a credit note or a corrected invoice may only name a document from the envelope's own sender. attachments: the SDK's verifyAttachments accepts or refuses each attachment's file, and names the field at fault (content, size or sha256). taxTotal and payslip: the SDK's verifyTaxTotal and reconcilePayslip agree with the stated results, and report a disagreement rather than throw. Every document in documents/ is also checked to be unchanged by parsing, and signed and verified over its JCS form on every runtime.",
   "documentsDir": "documents",
   "keyVector": "kms-signature.vector.json",
   "schema": [
@@ -71,6 +71,93 @@
         "lineItems": { "columns": ["Description", "Amount"], "rows": [{ "Description": "x", "Amount": 99 }] }
       },
       "expect": "reject"
+    },
+    {
+      "name": "invoice-with-png-attachment",
+      "document": "invoice.replaces.v2.json",
+      "expect": "accept"
+    },
+    {
+      "name": "attachment-without-content-refused",
+      "document": "invoice.v2.json",
+      "setPath": [
+        { "path": ["attachments", 0, "content"], "delete": true }
+      ],
+      "expect": "reject"
+    },
+    {
+      "name": "attachment-content-not-base64-refused",
+      "document": "invoice.v2.json",
+      "setPath": [
+        { "path": ["attachments", 0, "content"], "value": "not base64!" }
+      ],
+      "expect": "reject"
+    },
+    {
+      "name": "attachment-content-url-safe-base64-refused",
+      "document": "invoice.v2.json",
+      "setPath": [
+        { "path": ["attachments", 0, "content"], "value": "_-8A" }
+      ],
+      "expect": "reject"
+    },
+    {
+      "name": "attachment-sha256-upper-case-refused",
+      "document": "invoice.v2.json",
+      "setPath": [
+        { "path": ["attachments", 0, "sha256"], "value": "7BF68534D8C33C225C762F85B3AB3EE995ABB366231E52D43E12111730E009CF" }
+      ],
+      "expect": "reject"
+    },
+    {
+      "name": "attachment-sha256-base64-refused",
+      "document": "invoice.v2.json",
+      "setPath": [
+        { "path": ["attachments", 0, "sha256"], "value": "e/aFNNjDPCJcdi+Fs6s+6ZWrs2YjHlLUPhIRFzDgCc8=" }
+      ],
+      "expect": "reject"
+    },
+    {
+      "name": "reference-sha256-upper-case-refused",
+      "document": "invoice.replaces.v2.json",
+      "setPath": [
+        { "path": ["replaces", "sha256"], "value": "AE5B9964E2B837793076D01DF1613B13F2997D266CBA209A1BD058CD8A2C35BF" }
+      ],
+      "expect": "reject"
+    },
+    {
+      "name": "reference-sha256-base64-refused",
+      "document": "credit-note.v2.json",
+      "setPath": [
+        { "path": ["relatesToInvoice", "sha256"], "value": "rluZZOK4N3kwdtAd8WE7E/KZfSZsuiCaG9BYzYosNb8=" }
+      ],
+      "expect": "reject"
+    },
+    {
+      "name": "attachment-media-type-not-pdf-jpeg-png-refused",
+      "document": "invoice.v2.json",
+      "setPath": [
+        { "path": ["attachments", 0, "mediaType"], "value": "text/html" }
+      ],
+      "expect": "reject"
+    },
+    {
+      "name": "attachment-over-10-mib-refused",
+      "document": "invoice.v2.json",
+      "setPath": [
+        { "path": ["attachments", 0, "content"], "repeat": "AAAA", "times": 3495253, "then": "AAA=" },
+        { "path": ["attachments", 0, "size"], "value": 10485761 },
+        { "path": ["attachments", 0, "sha256"], "value": "0c2725e0d4ae4ae669bdd6c88b253997198efb67d962d217c52e6cbfd318fe0c" }
+      ],
+      "expect": "reject"
+    },
+    {
+      "name": "attachment-content-over-base64-cap-refused",
+      "document": "invoice.v2.json",
+      "setPath": [
+        { "path": ["attachments", 0, "content"], "repeat": "AAAA", "times": 3495255, "then": "" }
+      ],
+      "expect": "reject"
     }
   ],
   "ownership": [
@@ -97,6 +184,71 @@
       "document": "invoice.replaces.v2.json",
       "from": "mallory$example.com",
       "expect": "reject"
+    }
+  ],
+  "attachments": [
+    {
+      "name": "invoice-pdf",
+      "document": "invoice.v2.json",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-pdf-and-png",
+      "document": "invoice.replaces.v2.json",
+      "expect": "accept"
+    },
+    {
+      "name": "payslip-pdf",
+      "document": "payslip.hourly.v2.json",
+      "expect": "accept"
+    },
+    {
+      "name": "no-attachments",
+      "document": "credit-note.v2.json",
+      "expect": "accept"
+    },
+    {
+      "name": "size-mismatch-refused",
+      "document": "invoice.v2.json",
+      "setPath": [
+        { "path": ["attachments", 0, "size"], "value": 591 }
+      ],
+      "expect": { "reject": "size" }
+    },
+    {
+      "name": "hash-mismatch-refused",
+      "document": "invoice.v2.json",
+      "setPath": [
+        { "path": ["attachments", 0, "sha256"], "value": "9853e99cb7e9817f7ee8b6fb9ade7c8e023d2520647034a098f7f85ed81e9cb0" }
+      ],
+      "expect": { "reject": "sha256" }
+    },
+    {
+      "name": "content-swapped-for-another-file-refused",
+      "document": "invoice.v2.json",
+      "setPath": [
+        { "path": ["attachments", 0, "content"], "value": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mP4//8/AAX+Av4zEpUUAAAAAElFTkSuQmCC" },
+        { "path": ["attachments", 0, "size"], "value": 69 }
+      ],
+      "expect": { "reject": "sha256" }
+    },
+    {
+      "name": "non-canonical-base64-refused",
+      "document": "invoice.v2.json",
+      "setPath": [
+        { "path": ["attachments", 0, "content"], "value": "QR==" },
+        { "path": ["attachments", 0, "size"], "value": 1 },
+        { "path": ["attachments", 0, "sha256"], "value": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd" }
+      ],
+      "expect": { "reject": "content" }
+    },
+    {
+      "name": "second-attachment-at-fault",
+      "document": "invoice.replaces.v2.json",
+      "setPath": [
+        { "path": ["attachments", 1, "size"], "value": 68 }
+      ],
+      "expect": { "reject": "size", "index": 1 }
     }
   ],
   "taxTotal": [
