@@ -39,7 +39,7 @@ const messages = (result: ReturnType<typeof BtpTransporterArtifactSchema.safePar
 describe('BTPS_DOC carries a v2 document (EBA-402)', () => {
   for (const name of [
     'invoice.v2.json',
-    'invoice.replaces.v2.json',
+    'invoice.correction.v2.json',
     'credit-note.v2.json',
     'payslip.hourly.v2.json',
   ]) {
@@ -88,38 +88,44 @@ describe('BTPS_DOC carries a v2 document (EBA-402)', () => {
   });
 });
 
-describe('ownership: a reference names the sender’s own document (release plan section 3)', () => {
-  it('accepts a credit note relating to an invoice from its own sender', () => {
+describe('ownership: every reference names the sender’s own document (2026-10-16)', () => {
+  const OWN_DOCUMENT = 'a document may only reference a document from its own sender';
+
+  it('accepts a credit note crediting an invoice from its own sender', () => {
     expect(messages(BtpTransporterArtifactSchema.safeParse(artifact(load('credit-note.v2.json'))))).toEqual(
       [],
     );
   });
 
-  it('refuses a credit note relating to an invoice from another sender', () => {
+  it('refuses a credit note crediting an invoice from another sender', () => {
     const result = BtpTransporterArtifactSchema.safeParse(
       artifact(load('credit-note.v2.json'), { from: 'mallory$example.com' }),
     );
-    expect(messages(result)).toEqual([
-      'document.relatesToInvoice.from: a credit note may only relate to an invoice from its own sender',
-    ]);
+    expect(messages(result)).toEqual([`document.references.0.from: ${OWN_DOCUMENT}`]);
   });
 
-  it('accepts an invoice replacing one from its own sender', () => {
+  it('accepts an invoice correcting one from its own sender', () => {
     expect(
-      messages(BtpTransporterArtifactSchema.safeParse(artifact(load('invoice.replaces.v2.json')))),
+      messages(BtpTransporterArtifactSchema.safeParse(artifact(load('invoice.correction.v2.json')))),
     ).toEqual([]);
   });
 
-  it('refuses an invoice replacing one from another sender', () => {
+  it('refuses an invoice correcting one from another sender', () => {
     const result = BtpTransporterArtifactSchema.safeParse(
-      artifact(load('invoice.replaces.v2.json'), { from: 'mallory$example.com' }),
+      artifact(load('invoice.correction.v2.json'), { from: 'mallory$example.com' }),
     );
-    expect(messages(result)).toEqual([
-      'document.replaces.from: an invoice may only replace an invoice from its own sender',
+    expect(messages(result)).toEqual([`document.references.0.from: ${OWN_DOCUMENT}`]);
+  });
+
+  it('names the reference at fault when only a later one is from another sender', () => {
+    const doc = load('invoice.correction.v2.json') as { references: Array<Record<string, unknown>> };
+    doc.references.push({ ...doc.references[0], type: 'follows', from: 'mallory$example.com' });
+    expect(messages(BtpTransporterArtifactSchema.safeParse(artifact(doc)))).toEqual([
+      `document.references.1.from: ${OWN_DOCUMENT}`,
     ]);
   });
 
-  it('has nothing to check on an invoice that replaces nothing, or a payslip', () => {
+  it('has nothing to check on an invoice with no references, or a payslip', () => {
     for (const name of ['invoice.v2.json', 'payslip.hourly.v2.json']) {
       expect(validateBtpDocOwnership(load(name) as BTPDocV2, 'anyone$example.com')).toBeUndefined();
     }
@@ -128,13 +134,13 @@ describe('ownership: a reference names the sender’s own document (release plan
 
 describe('the server refuses a BTPS_DOC whose attachment is not the file it states (2026-10-16)', () => {
   const withAttachment = (change: (attachment: Record<string, unknown>) => void) => {
-    const doc = load('invoice.replaces.v2.json') as { attachments: Array<Record<string, unknown>> };
+    const doc = load('invoice.correction.v2.json') as { attachments: Array<Record<string, unknown>> };
     change(doc.attachments[0]!);
     return doc;
   };
 
   it('accepts real files whose size and sha256 match', () => {
-    for (const name of ['invoice.v2.json', 'invoice.replaces.v2.json', 'payslip.hourly.v2.json']) {
+    for (const name of ['invoice.v2.json', 'invoice.correction.v2.json', 'payslip.hourly.v2.json']) {
       expect(messages(BtpTransporterArtifactSchema.safeParse(artifact(load(name)))), name).toEqual([]);
     }
   });
@@ -154,7 +160,7 @@ describe('the server refuses a BTPS_DOC whose attachment is not the file it stat
   });
 
   it('refuses the same through the server schema', () => {
-    expect(BtpArtifactServerSchema.safeParse(artifact(load('invoice.replaces.v2.json'))).success).toBe(
+    expect(BtpArtifactServerSchema.safeParse(artifact(load('invoice.correction.v2.json'))).success).toBe(
       true,
     );
     const doc = withAttachment((a) => (a.sha256 = '0'.repeat(64)));
@@ -162,7 +168,7 @@ describe('the server refuses a BTPS_DOC whose attachment is not the file it stat
   });
 
   it('holds a document an agent sends (artifact.send) to the same check', () => {
-    expect(validateAgentDocument('artifact.send', null, load('invoice.replaces.v2.json'))).toBe(true);
+    expect(validateAgentDocument('artifact.send', null, load('invoice.correction.v2.json'))).toBe(true);
     const doc = withAttachment((a) => (a.sha256 = '0'.repeat(64)));
     expect(validateAgentDocument('artifact.send', null, doc)).toBe(false);
   });

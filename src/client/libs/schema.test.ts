@@ -29,18 +29,11 @@ const v2Invoice = () => ({
   title: 'Test Invoice',
   id: 'INV-001',
   issuedAt: new Date().toISOString(),
-  lineItems: [
-    {
-      description: 'Service A',
-      quantity: '1',
-      unitPrice: { amount: 10000, currency: 'USD' },
-      lineTotal: { amount: 10000, currency: 'USD' },
-      taxAmount: { amount: 0, currency: 'USD' },
-      taxCategory: 'exempt',
-    },
-  ],
-  total: { amount: 10000, currency: 'USD' },
-  taxTotals: [{ taxCategory: 'exempt', amount: { amount: 0, currency: 'USD' } }],
+  lineItems: {
+    columns: ['Description', 'Amount'],
+    rows: [{ Description: 'Service A', Amount: 10000 }],
+  },
+  totalAmount: { amount: 10000, currency: 'USD' },
 });
 
 // The BTPS 1.0 invoice, which 1.1 refuses (release plan section 6).

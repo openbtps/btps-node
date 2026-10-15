@@ -701,18 +701,11 @@ describe('BtpsAgent', () => {
         title: 'Invoice #INV-001',
         id: 'INV-001',
         issuedAt: '2023-12-31T00:00:00.000Z',
-        lineItems: [
-          {
-            description: 'Item 1',
-            quantity: '1',
-            unitPrice: { amount: 10050, currency: 'USD' },
-            lineTotal: { amount: 10050, currency: 'USD' },
-            taxAmount: { amount: 0, currency: 'USD' },
-            taxCategory: 'exempt',
-          },
-        ],
-        total: { amount: 10050, currency: 'USD' },
-        taxTotals: [{ taxCategory: 'exempt', amount: { amount: 0, currency: 'USD' } }],
+        lineItems: {
+          columns: ['Description', 'Amount'],
+          rows: [{ Description: 'Item 1', Amount: 10050 }],
+        },
+        totalAmount: { amount: 10050, currency: 'USD' },
       };
 
       await agent.command('artifact.send', 'bob$company.com', document);

@@ -16,21 +16,36 @@ export {
   BtpDocV2BaseSchema,
   BtpIssuedDocV2BaseSchema,
   BtpCategoryCodeSchema,
+  BtpIdentifierKeySchema,
+  BtpDocIdentifiersSchema,
   BtpDocExtensionsSchema,
+  BtpDocMetadataSchema,
+  BtpDocTemplateDataSchema,
   BtpDocReferenceSchema,
+  BtpDocReferenceTypeSchema,
+  BtpDocTypedReferenceSchema,
+  BtpDocReferencesSchema,
   STATUS_NOT_IN_DOCUMENT,
 } from './baseSchema.js';
 export {
-  BtpInvoicePartySchema,
   BtpInvoiceAttachmentV2Schema,
   BtpDocAttachmentsSchema,
-  BtpInvoiceLineItemSchema,
-  BtpInvoiceLineItemsSchema,
-  BtpInvoiceTaxTotalSchema,
-  BtpInvoiceTaxTotalsSchema,
+  BtpInvoiceLineItemCellSchema,
+  BtpInvoiceLineItemRowSchema,
+  BtpInvoiceLineItemsV2Schema,
+  BtpInvoiceIssuerV2Schema,
+  BtpInvoicePaymentLinkSchema,
+  BtpInvoiceTemplateSchema,
   BtpInvoiceV2DocSchema,
 } from './invoiceSchema.js';
-export { BtpCreditNoteDocSchema } from './creditNoteSchema.js';
+export {
+  BtpCreditNoteLineItemSchema,
+  BtpCreditNoteLineItemsSchema,
+  BtpCreditNoteTaxTotalSchema,
+  BtpCreditNoteTaxTotalsSchema,
+  BtpCreditNoteReferencesSchema,
+  BtpCreditNoteDocSchema,
+} from './creditNoteSchema.js';
 export {
   BtpPayslipPayeeSchema,
   BtpPayslipPayRateSchema,
@@ -63,6 +78,7 @@ export {
   BTP_EVENT_DECISIONS,
   BTP_DOC_SHA256,
   BTP_DOC_ATTACHMENT_MEDIA_TYPES,
+  BTP_DOC_REFERENCE_TYPES,
   type BTPDocSha256Encoding,
 } from '../../constants/documents.js';
 
@@ -73,9 +89,13 @@ export { freezeDocument } from '@core/utils/freeze.js';
 export type {
   BTPMoney,
   BTPDocReference,
-  BTPInvoiceLineItem,
-  BTPInvoiceTaxTotal,
+  BTPDocTypedReference,
+  BTPAttachment,
+  BTPInvoiceLineItems,
+  BTPInvoiceIssuer,
   BTPInvoiceV2Doc,
+  BTPCreditNoteLineItem,
+  BTPCreditNoteTaxTotal,
   BTPCreditNoteDoc,
   BTPPayslipDoc,
   BTPDocV2,

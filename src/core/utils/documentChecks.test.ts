@@ -45,53 +45,53 @@ function byCategory(check: ReturnType<typeof verifyTaxTotal>, taxCategory: strin
   return entry;
 }
 
-describe('verifyTaxTotal (EBA-119)', () => {
-  it('confirms the invoice: total and tax per rate equal the line items (two rates)', () => {
-    const check = verifyTaxTotal(invoice());
-    expect(check.ok).toBe(true);
-    expect(check.computedTotal).toEqual({ amount: 170000, currency: 'AUD' });
-    expect(byCategory(check, 'GST10')).toMatchObject({
-      computedAmount: { amount: 15000, currency: 'AUD' },
-      declaredAmount: { amount: 15000, currency: 'AUD' },
-      ok: true,
-    });
-    expect(byCategory(check, 'GST0')).toMatchObject({
-      computedAmount: { amount: 0, currency: 'AUD' },
-      declaredAmount: { amount: 0, currency: 'AUD' },
-      ok: true,
-    });
-  });
-
-  it('confirms the credit note the same way (one rate)', () => {
+describe('verifyTaxTotal (EBA-119): credit notes only', () => {
+  it('confirms the credit note: total and tax per rate equal the line items', () => {
     const check = verifyTaxTotal(creditNote());
     expect(check.ok).toBe(true);
     expect(check.computedTotal).toEqual({ amount: 20000, currency: 'AUD' });
-    expect(byCategory(check, 'GST10').computedAmount).toEqual({ amount: 2000, currency: 'AUD' });
+    expect(byCategory(check, 'GST10')).toMatchObject({
+      computedAmount: { amount: 2000, currency: 'AUD' },
+      declaredAmount: { amount: 2000, currency: 'AUD' },
+      ok: true,
+    });
   });
 
   it('reports ok: false, and does not throw, when the declared total disagrees', () => {
-    const tampered: BTPInvoiceV2Doc = { ...invoice(), total: { amount: 999, currency: 'AUD' } };
+    const tampered: BTPCreditNoteDoc = { ...creditNote(), total: { amount: 999, currency: 'AUD' } };
     const check = verifyTaxTotal(tampered);
     expect(check.ok).toBe(false);
     expect(check.declaredTotal).toEqual({ amount: 999, currency: 'AUD' });
-    expect(check.computedTotal).toEqual({ amount: 170000, currency: 'AUD' });
+    expect(check.computedTotal).toEqual({ amount: 20000, currency: 'AUD' });
     // The per-rate check is independent of the total.
     expect(check.byCategory.every((c) => c.ok)).toBe(true);
   });
 
   it("isolates one rate's mismatch while the total is correct", () => {
-    const original = invoice();
-    const tampered: BTPInvoiceV2Doc = {
+    const original = creditNote();
+    const tampered: BTPCreditNoteDoc = {
       ...original,
-      taxTotals: original.taxTotals.map((t) =>
-        t.taxCategory === 'GST10' ? { ...t, amount: { amount: 999, currency: 'AUD' } } : t,
-      ),
+      lineItems: [
+        ...original.lineItems,
+        {
+          description: 'GST-free line',
+          quantity: '1',
+          unitPrice: { amount: 0, currency: 'AUD' },
+          lineTotal: { amount: 0, currency: 'AUD' },
+          taxAmount: { amount: 0, currency: 'AUD' },
+          taxCategory: 'GST0',
+        },
+      ],
+      taxTotals: [
+        { taxCategory: 'GST10', amount: { amount: 999, currency: 'AUD' } },
+        { taxCategory: 'GST0', amount: { amount: 0, currency: 'AUD' } },
+      ],
     };
     const check = verifyTaxTotal(tampered);
     expect(check.computedTotal).toEqual(tampered.total);
     expect(check.ok).toBe(false);
     expect(byCategory(check, 'GST10')).toMatchObject({
-      computedAmount: { amount: 15000, currency: 'AUD' },
+      computedAmount: { amount: 2000, currency: 'AUD' },
       declaredAmount: { amount: 999, currency: 'AUD' },
       ok: false,
     });
@@ -181,7 +181,7 @@ describe('reconcilePayslip (EBA-119)', () => {
 });
 
 describe('verifyAttachments: each attachment carries its file (BTPS 1.0 shape, 2026-10-16)', () => {
-  const withAttachments = () => load<BTPInvoiceV2Doc>('invoice.replaces.v2.json', 'invoice');
+  const withAttachments = () => load<BTPInvoiceV2Doc>('invoice.correction.v2.json', 'invoice');
   // A parsed document is frozen; a changed copy is checked as the server would after the schema.
   const changed = (change: (attachments: Array<Record<string, unknown>>) => void) => {
     const doc = structuredClone(withAttachments()) as BTPInvoiceV2Doc;

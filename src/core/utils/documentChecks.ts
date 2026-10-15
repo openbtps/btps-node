@@ -7,9 +7,8 @@
 
 import type {
   BTPCreditNoteDoc,
+  BTPCreditNoteLineItem,
   BTPDocV2,
-  BTPInvoiceLineItem,
-  BTPInvoiceV2Doc,
   BTPMoney,
   BTPPayslipDoc,
 } from '@core/server/types.js';
@@ -41,17 +40,20 @@ export interface BTPTaxTotalCheck {
 }
 
 /**
- * Recomputes the total and the tax per rate (`taxCategory`) from the line
- * items, and compares them with the declared `total` and `taxTotals`.
+ * Recomputes a credit note's total and its tax per rate (`taxCategory`) from
+ * the line items, and compares them with the declared `total` and
+ * `taxTotals`. Credit notes only: the invoice carries its line items as a
+ * table whose columns the issuer chooses, so there is nothing for the
+ * protocol to add up.
  */
-export function verifyTaxTotal(doc: BTPInvoiceV2Doc | BTPCreditNoteDoc): BTPTaxTotalCheck {
+export function verifyTaxTotal(doc: BTPCreditNoteDoc): BTPTaxTotalCheck {
   const currency = doc.total.currency;
   const computedTotal = sumMoney(
     doc.lineItems.map((line) => line.lineTotal),
     currency,
   );
 
-  const linesByCategory = new Map<string, BTPInvoiceLineItem[]>();
+  const linesByCategory = new Map<string, BTPCreditNoteLineItem[]>();
   for (const line of doc.lineItems) {
     const lines = linesByCategory.get(line.taxCategory) ?? [];
     lines.push(line);

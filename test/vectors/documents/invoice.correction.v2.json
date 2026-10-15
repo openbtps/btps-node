@@ -4,28 +4,29 @@
   "id": "inv_2002",
   "issuedAt": "2026-10-05T00:00:00.000Z",
   "title": "Consulting, September 2026 (corrected)",
-  "invoiceNumber": "INV-2002",
-  "seller": { "name": "Biller Pty Ltd", "taxIds": ["ABN 51 824 753 556"] },
-  "buyer": { "name": "Payer Co" },
-  "replaces": {
-    "from": "biller$example.com",
-    "id": "inv_2001",
-    "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf"
+  "dueAt": "2026-11-04T00:00:00.000Z",
+  "totalAmount": { "amount": 132000, "currency": "AUD" },
+  "lineItems": {
+    "columns": ["Description", "Quantity", "Unit price", "Tax code", "Tax", "Amount"],
+    "rows": [
+      {
+        "Description": "Consulting services",
+        "Quantity": 8,
+        "Unit price": 15000,
+        "Tax code": "GST",
+        "Tax": 12000,
+        "Amount": 132000
+      }
+    ]
   },
-  "lineItems": [
-    {
-      "description": "Consulting services",
-      "quantity": "8",
-      "unitPrice": { "amount": 15000, "currency": "AUD" },
-      "lineTotal": { "amount": 120000, "currency": "AUD" },
-      "taxAmount": { "amount": 12000, "currency": "AUD" },
-      "taxCategory": "GST10"
-    }
-  ],
-  "total": { "amount": 120000, "currency": "AUD" },
-  "taxTotals": [{ "taxCategory": "GST10", "amount": { "amount": 12000, "currency": "AUD" } }],
-  "gstInclusive": false,
-  "dueDate": "2026-11-04T00:00:00.000Z",
+  "issuer": {
+    "name": "Biller Pty Ltd",
+    "email": "accounts@biller.example.com",
+    "phone": "+61 2 5550 1234",
+    "address": "Level 3, 1 Example Street, Sydney NSW 2000, Australia",
+    "identifiers": { "au:abn": "51824753556" }
+  },
+  "description": "Replaces inv_2001 after the hours were disputed.",
   "attachments": [
     {
       "content": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCAyMDAgMTAwXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0NiA+PgpzdHJlYW0KQlQgL0YxIDEyIFRmIDIwIDUwIFRkIChJbnZvaWNlIElOVi0yMDAyKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNDEgMDAwMDAgbiAKMDAwMDAwMDMzNyAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjQwNwolJUVPRgo=",
@@ -41,5 +42,14 @@
       "size": 69,
       "sha256": "9853e99cb7e9817f7ee8b6fb9ade7c8e023d2520647034a098f7f85ed81e9cb0"
     }
-  ]
+  ],
+  "references": [
+    {
+      "type": "correction_of",
+      "from": "biller$example.com",
+      "id": "inv_2001",
+      "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf"
+    }
+  ],
+  "metadata": { "biller:customerRef": "CUST-0042", "biller:disputeRef": "DSP-17" }
 }
