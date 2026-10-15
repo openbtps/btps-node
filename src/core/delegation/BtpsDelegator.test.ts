@@ -72,10 +72,10 @@ describe('BtpsDelegator', () => {
       selector: 'btps1',
     });
     mockResolvePublicKey.mockResolvedValue(saasKeys.publicKey);
-    mockSignBtpPayload.mockImplementation((payload, keys) => ({
+    mockSignBtpPayload.mockImplementation(async (payload, keys) => ({
       algorithmHash: 'sha256',
       value: 'signed-' + JSON.stringify(payload),
-      fingerprint: keys.publicKey,
+      fingerprint: (keys as PemKeys).publicKey,
     }));
   });
 

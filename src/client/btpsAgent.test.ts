@@ -107,7 +107,7 @@ describe('BtpsAgent', () => {
       return identity.includes('$') && identity.split('$').length === 2;
     });
 
-    mockCrypto.signBtpPayload.mockReturnValue({
+    mockCrypto.signBtpPayload.mockResolvedValue({
       algorithmHash: 'sha256' as const,
       value: 'test-signature',
       fingerprint: 'test-fingerprint',
@@ -1201,7 +1201,7 @@ describe('BtpsAgent', () => {
       };
 
       // Mock signBtpPayload to throw an error for transport artifact
-      mockCrypto.signBtpPayload.mockImplementation((payload) => {
+      mockCrypto.signBtpPayload.mockImplementation(async (payload) => {
         if ((payload as { type?: string }).type === 'TRUST_REQ') {
           throw new Error('Transport signing failed');
         }

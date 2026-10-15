@@ -18,6 +18,7 @@ import {
 } from '@core/server/types.js';
 import { BTPError } from '@core/error/types.js';
 import { BTPErrorException } from '@core/error/index.js';
+import type { Signer } from '../signer-interface.js';
 import { BTPIdentityRecord } from '@core/storage/types.js';
 import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 
@@ -26,12 +27,18 @@ export interface BtpsTlsOptions extends TlsOptions {
   key: string;
 }
 
+/**
+ * The server's own identity. It signs its responses through `signer` (a
+ * `Signer`, e.g. `KmsSigner`), or through the PEM pair `publicKey` and
+ * `privateKey`, which is for tests and the interim only.
+ */
+export type BtpsServerIdentity = { identity: string } & (
+  | { signer: Signer; publicKey?: string; privateKey?: undefined }
+  | { publicKey: string; privateKey: string; signer?: undefined }
+);
+
 export interface BtpsServerOptions {
-  serverIdentity: {
-    identity: string;
-    publicKey: string;
-    privateKey: string;
-  };
+  serverIdentity: BtpsServerIdentity;
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tlsOptions: BtpsTlsOptions;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;

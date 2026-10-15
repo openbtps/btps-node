@@ -34,8 +34,9 @@ import type {
   BTPCryptoArtifact,
   BTPCryptoOptions,
   BTPCryptoResponse,
+  BTPDecryptionKey,
   BTPEncryption,
-  PemKeys,
+  BTPSigningKey,
 } from '@core/crypto/types.js';
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
 import { validate } from '@core/utils/validation.js';
@@ -55,7 +56,10 @@ const mappedTransporterAction = {
 
 export class BtpsAgent extends BtpsClient {
   private agentId: string;
-  private readonly keyPair: PemKeys;
+  /** The device key: the agent's Signer, or its PEM pair (tests and the interim only). */
+  private readonly signingKey: BTPSigningKey;
+  /** What opens a response encrypted to the device, when it has one. */
+  private readonly decryptionKey?: BTPDecryptionKey;
 
   constructor(agentOptions: BTPAgentOptions) {
     const { agent, btpIdentity, ...restOptions } = agentOptions;
@@ -64,22 +68,23 @@ export class BtpsAgent extends BtpsClient {
       ...restOptions,
     });
 
-    this.keyPair = {
-      publicKey: agent.identityCert,
-      privateKey: agent.identityKey,
-    };
-
     this.agentId = agent.id;
 
+    const hasPemPair = !!agent.identityKey && !!agent.identityCert;
     if (
       !agent.id ||
-      !agent.identityKey ||
-      !agent.identityCert ||
+      (!agent.signer && !hasPemPair) ||
       !btpIdentity ||
       !isValidIdentity(btpIdentity)
     ) {
       throw new BTPErrorException({ message: 'Invalid agent or btpIdentity' });
     }
+
+    this.signingKey = agent.signer ?? {
+      publicKey: agent.identityCert!,
+      privateKey: agent.identityKey!,
+    };
+    this.decryptionKey = agent.decrypter ?? agent.identityKey;
   }
 
   protected async getAgentArtifact(
@@ -138,10 +143,7 @@ export class BtpsAgent extends BtpsClient {
     agentArtifact.version = this.getProtocolVersion();
 
     try {
-      const signature = signBtpPayload(agentArtifact, {
-        publicKey: this.keyPair.publicKey,
-        privateKey: this.keyPair.privateKey,
-      });
+      const signature = await signBtpPayload(agentArtifact, this.signingKey);
       agentArtifact.signature = signature;
 
       return {
@@ -169,7 +171,7 @@ export class BtpsAgent extends BtpsClient {
     }
     // The receiver's host, and when encrypting, its key and that key's selector
     const receiverDnsTxt = options?.encryption
-      ? (await this.resolveIdentity(to, this.options.to, this.keyPair.privateKey)).response
+      ? (await this.resolveIdentity(to, this.options.to, this.decryptionKey)).response
       : await this.resolveBtpsHostDnsTxt(to);
 
     if (!receiverDnsTxt) {
@@ -232,10 +234,7 @@ export class BtpsAgent extends BtpsClient {
     };
 
     try {
-      const signature = signBtpPayload(transporterArtifact, {
-        publicKey: this.keyPair.publicKey,
-        privateKey: this.keyPair.privateKey,
-      });
+      const signature = await signBtpPayload(transporterArtifact, this.signingKey);
 
       return {
         payload: {

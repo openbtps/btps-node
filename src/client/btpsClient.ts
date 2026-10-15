@@ -725,6 +725,8 @@ export class BtpsClient {
    * Decrypt and verify the artifact
    * @param artifact - The artifact to decrypt and verify
    * @param senderPubPem - The public key of the sender
+   * @param receiverKeys - A Decrypter, a private key PEM (tests and the interim
+   * only), or a lookup by the artifact's encryptionSelector
    * @returns The decrypted and verified artifact
    */
   decryptVerifyArtifact = async <T = Record<string, unknown>>(
@@ -739,13 +741,14 @@ export class BtpsClient {
    * Resolve the identity
    * @param identity - The identity to resolve
    * @param from - The from identity
-   * @param receiverPrivatePem - The private key of the receiver
+   * @param receiverKeys - What opens an encrypted response: a Decrypter, or a
+   * private key PEM (tests and the interim only)
    * @returns The resolved identity
    */
   async resolveIdentity(
     identity: string,
     from: string,
-    receiverPrivatePem?: string,
+    receiverKeys?: BTPDecryptionKeys,
   ): Promise<
     | {
         response: BTPIdentityResDoc & {
@@ -879,7 +882,7 @@ export class BtpsClient {
               encryption: msg?.encryption ?? null,
             } as VerifyEncryptedPayload<BTPServerResponse>;
             const { payload: decryptedPayload, error: decryptError } =
-              await this.decryptVerifyArtifact(encryptedPayload, hostPubPem, receiverPrivatePem);
+              await this.decryptVerifyArtifact(encryptedPayload, hostPubPem, receiverKeys);
 
             if (decryptError) {
               resolve(this.buildClientErrorResponse(decryptError));

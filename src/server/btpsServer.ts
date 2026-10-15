@@ -37,9 +37,9 @@ import {
   BTP_ERROR_INVALID_ACTION,
 } from '@core/error/constant.js';
 import {
+  type BTPSigningKey,
   getFingerprintFromPem,
   parseJson,
-  PemKeys,
   resolveSignatureKey,
   signBtpPayload,
   verifySignature,
@@ -459,13 +459,8 @@ export class BtpsServer {
       signedBy: this.serverIdentity.identity,
     };
 
-    const serverPemKeys: PemKeys = {
-      publicKey: this.serverIdentity.publicKey,
-      privateKey: this.serverIdentity.privateKey,
-    };
-
     try {
-      const signature = signBtpPayload(data, serverPemKeys);
+      const signature = await signBtpPayload(data, this.serverSigningKey());
       this.sendBtpsResponse(
         res.socket,
         {
@@ -1357,6 +1352,13 @@ export class BtpsServer {
     } else {
       this.emitter.on('transporterArtifact', handler as (artifact: BTPTransporterArtifact) => void);
     }
+  }
+
+  /** The server's own signing key: its Signer, or its PEM pair (tests and the interim only). */
+  private serverSigningKey(): BTPSigningKey {
+    const { signer, publicKey, privateKey } = this.serverIdentity;
+    if (signer) return signer;
+    return { publicKey: publicKey!, privateKey: privateKey! };
   }
 
   public getServerIdentity(): BtpsServerOptions['serverIdentity'] {

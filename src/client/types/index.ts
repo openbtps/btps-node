@@ -6,6 +6,8 @@
  */
 
 import type { BTPCryptoOptions } from '@core/crypto/types.js';
+import type { Signer } from '../../signer-interface.js';
+import type { Decrypter } from '../../decrypter-interface.js';
 import type { BTPErrorException } from '@core/error/index.js';
 import type { BtpsClient } from 'client/btpsClient.js';
 import type {
@@ -37,11 +39,25 @@ export interface BTPClientOptions {
   maxQueue?: number;
 }
 
-export type BTPAgent = {
-  id: string;
-  identityKey: string;
-  identityCert: string;
-};
+/**
+ * A device agent. It signs through `signer` (and opens what is encrypted to
+ * it through `decrypter`), or through the PEM pair `identityKey` and
+ * `identityCert`, which is for tests and the interim only.
+ */
+export type BTPAgent = { id: string } & (
+  | {
+      signer: Signer;
+      decrypter?: Decrypter;
+      identityKey?: undefined;
+      identityCert?: undefined;
+    }
+  | {
+      identityKey: string;
+      identityCert: string;
+      signer?: undefined;
+      decrypter?: undefined;
+    }
+);
 
 export interface BTPAgentOptions extends Omit<BTPClientOptions, 'to'> {
   agent: BTPAgent;

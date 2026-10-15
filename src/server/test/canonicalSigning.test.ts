@@ -355,7 +355,7 @@ describe('EBA-115: canonical signing end to end', () => {
     expect(verifySignature(signed, signature!, keys.server.publicKey).isValid).toBe(true);
   });
 
-  const signedResponse = (extra: Record<string, unknown>) => {
+  const signedResponse = async (extra: Record<string, unknown>) => {
     const unsigned = {
       ...server.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }, 'req-1'),
       type: 'btps_response' as const,
@@ -363,14 +363,14 @@ describe('EBA-115: canonical signing end to end', () => {
       signedBy: 'server$receiver.example',
       ...extra,
     } as unknown as BTPServerResponse;
-    return { ...unsigned, signature: signBtpPayload(unsigned, keys.server) };
+    return { ...unsigned, signature: await signBtpPayload(unsigned, keys.server) };
   };
 
   it('the client verifies a signed server response whatever its key order', async () => {
     const client = new BtpsClient({ to: 'server$receiver.example' });
     // `encryption: null` is signed here because the client adds it before
     // verifying; see the expected failure below.
-    const response = signedResponse({ encryption: null });
+    const response = await signedResponse({ encryption: null });
 
     expect(await client['verifyServerMessage'](overTheWire(response))).toMatchObject({
       isValid: true,
@@ -389,7 +389,7 @@ describe('EBA-115: canonical signing end to end', () => {
     'the client verifies a server response signed without an encryption member (expected failure: pre-existing client defect)',
     async () => {
       const client = new BtpsClient({ to: 'server$receiver.example' });
-      expect(await client['verifyServerMessage'](signedResponse({}))).toMatchObject({
+      expect(await client['verifyServerMessage'](await signedResponse({}))).toMatchObject({
         isValid: true,
       });
     },
