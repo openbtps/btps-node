@@ -7,10 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { checkIssuedAtWindow, parseIssuedAt, resolveIssuedAtWindow } from './timestampWindow.js';
-import {
-  ISSUED_AT_WINDOW_MS,
-  MAX_ISSUED_AT_WINDOW_MS,
-} from '@core/server/constants/replay.js';
+import { ISSUED_AT_WINDOW_MS, MAX_ISSUED_AT_WINDOW_MS } from '@core/server/constants/replay.js';
 import { BTPErrorException } from '@core/error/index.js';
 
 const NOW = Date.parse('2026-10-16T12:00:00.000Z');

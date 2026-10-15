@@ -12,10 +12,7 @@
 
 import { BTP_ERROR_VALIDATION } from '@core/error/constant.js';
 import { BTPErrorException } from '@core/error/index.js';
-import {
-  ISSUED_AT_WINDOW_MS,
-  MAX_ISSUED_AT_WINDOW_MS,
-} from '@core/server/constants/replay.js';
+import { ISSUED_AT_WINDOW_MS, MAX_ISSUED_AT_WINDOW_MS } from '@core/server/constants/replay.js';
 
 export type BTPIssuedAtCheck =
   | {

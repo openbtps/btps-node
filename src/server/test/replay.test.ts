@@ -198,7 +198,9 @@ describe('item F: replay and duplicate protection through the server', () => {
   let trustStore: MapTrustStore;
   let handled: ProcessedArtifact[];
 
-  const makeServer = (options: { replayStore?: AbstractReplayStore; issuedAtWindowMs?: number } = {}) => {
+  const makeServer = (
+    options: { replayStore?: AbstractReplayStore; issuedAtWindowMs?: number } = {},
+  ) => {
     const server = new BtpsServer({
       trustStore,
       serverIdentity: { identity: 'server$acme.example', ...genKeys() },
@@ -301,7 +303,10 @@ describe('item F: replay and duplicate protection through the server', () => {
   describe('replay.vectors.json, through the server', () => {
     it.each(vectors.window.map((c) => [c.name, c] as const))('window/%s', async (_, c) => {
       const server = makeServer({ issuedAtWindowMs: c.windowMs });
-      const response = await deliver(server, await signedEvent(PAYER, crypto.randomUUID(), c.issuedAt));
+      const response = await deliver(
+        server,
+        await signedEvent(PAYER, crypto.randomUUID(), c.issuedAt),
+      );
       if (c.expect === 'accept') {
         expect(outcome(response)).toBe('accept');
       } else if (c.reason === 'unreadable') {
@@ -357,12 +362,14 @@ describe('item F: replay and duplicate protection through the server', () => {
   });
 
   describe('only a verified, trusted artifact spends its id', () => {
-    it('a forged signature under the sender\'s name does not block the real artifact', async () => {
+    it("a forged signature under the sender's name does not block the real artifact", async () => {
       const server = makeServer();
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
       const forged = await signedEvent(PAYER, id, now, { signer: OTHER });
-      expect((await deliver(server, forged)).status.message).toBe(BTP_ERROR_SIG_VERIFICATION.message);
+      expect((await deliver(server, forged)).status.message).toBe(
+        BTP_ERROR_SIG_VERIFICATION.message,
+      );
       expect(outcome(await deliver(server, await signedEvent(PAYER, id, now)))).toBe('accept');
     });
 
@@ -418,7 +425,10 @@ describe('item F: replay and duplicate protection through the server', () => {
     };
 
     beforeEach(() => {
-      const base64 = keys[AGENT]!.publicKey.replace(/-----(BEGIN|END) PUBLIC KEY-----/g, '').replace(/\s+/g, '');
+      const base64 = keys[AGENT]!.publicKey.replace(
+        /-----(BEGIN|END) PUBLIC KEY-----/g,
+        '',
+      ).replace(/\s+/g, '');
       trustStore.trust(AGENT, BILLER, base64);
     });
 
@@ -460,7 +470,9 @@ describe('item F: replay and duplicate protection through the server', () => {
       const server = makeServer({ issuedAtWindowMs: 60_000 });
       const twoMinutesAgo = new Date(Date.now() - 120_000).toISOString();
       expect(
-        outcome(await deliver(server, await signedEvent(PAYER, crypto.randomUUID(), twoMinutesAgo))),
+        outcome(
+          await deliver(server, await signedEvent(PAYER, crypto.randomUUID(), twoMinutesAgo)),
+        ),
       ).toBe('refuse-window');
     });
 
@@ -477,12 +489,14 @@ describe('item F: replay and duplicate protection through the server', () => {
       const artifact = await signedEvent(PAYER, crypto.randomUUID(), new Date().toISOString());
       const client = new BtpsClient({ to: BILLER });
       const written: unknown[] = [];
-      vi.spyOn(client as unknown as { dispatch: () => void }, 'dispatch').mockImplementation(
-        async (job: { artifact: unknown; resolve: (v: unknown) => void }) => {
-          written.push(structuredClone(job.artifact));
-          job.resolve({ response: undefined, error: undefined });
-        },
-      );
+      type Job = { artifact: unknown; resolve: (v: unknown) => void };
+      vi.spyOn(
+        client as unknown as { dispatch: (job: Job) => Promise<void> },
+        'dispatch',
+      ).mockImplementation(async (job: Job) => {
+        written.push(structuredClone(job.artifact));
+        job.resolve({ response: undefined, error: undefined });
+      });
       await client.send(artifact);
       setClock(new Date(Date.now() + 60_000).toISOString()); // the retry, a minute later
       await client.send(artifact);
