@@ -26,6 +26,7 @@ import {
   validateBtpDocOwnership,
   verifyTaxTotal,
   reconcilePayslip,
+  verifyAttachments,
   BTP_DOC_LIMITS,
   CURRENCY_CODES,
   type BTPDocV2,
@@ -42,6 +43,7 @@ import {
 | No status | `status`, `paidAt`, `refundedAt` and `disputedAt` are refused by name. A document is signed and never changes; its status is derived from accepted lifecycle events |
 | Strict | A field the model does not name is refused, not silently dropped, so what is validated is exactly what was signed. `extensions` is the one open place |
 | Size caps | Every string, array and attachment is bounded (see [Size caps](#size-caps)) |
+| `sha256` | Lowercase hex, 64 characters, wherever it appears (see [How a `sha256` is written](#how-a-sha256-is-written)) |
 
 ## Money: integer minor units, never a float
 
@@ -85,7 +87,7 @@ issuer states.
 | `seller`, `buyer` | no | `{ name, address?, taxIds? }` |
 | `gstInclusive` | no | Boolean |
 | `paymentTerms` | no | Free text |
-| `attachments` | no, up to 10 | `{ name, mediaType, size, sha256 }`: a description and hash of each file, `size` in bytes |
+| `attachments` | no, up to 10 | `{ content, name, mediaType, size, sha256 }`: each file itself, in base64, with its size and hash (see [Attachments](#attachments)) |
 | `extensions` | no | See [Extensions](#extensions) |
 
 ### Tax totals are verified, and a mismatch is a warning
@@ -119,8 +121,8 @@ invoice's line item and tax total shapes. Optional: `reason`, `extensions`.
 `employee` (`{ name, employeeId?, payBasis? }`), `earnings`, `deductions`,
 `contributions` (up to 200 each), `gross`, `net`. Optional: `jurisdiction`
 (ISO 3166-1 alpha-2), `employer`, `payPeriod`, `payDate`, `payRate`,
-`taxWithheld`, `yearToDate` (up to 100 entries), `attachments`,
-`extensions`.
+`taxWithheld`, `yearToDate` (up to 100 entries), `attachments` (as on an
+invoice, see [Attachments](#attachments)), `extensions`.
 
 **Categories are open and namespaced** (`"ordinary"`, `"au:penalty"`,
 `"au:casual_loading"`). A category the SDK has never seen still validates,
@@ -145,6 +147,54 @@ const result = reconcilePayslip(payslip);
 
 A payslip that does not reconcile still validates; the disagreement is in
 `result.warnings`.
+
+## Attachments
+
+**The file travels inside the document, as in BTPS 1.0.** An invoice or a
+payslip carries the PDF or image itself; there is no separate download.
+1.0's `attachment: { content, type, filename? }` becomes a list, with the
+size and hash stated beside the bytes:
+
+| Field | Meaning |
+| --- | --- |
+| `content` | The file's bytes in standard base64 with padding (RFC 4648, section 4). Required |
+| `name` | The file name, up to 200 characters |
+| `mediaType` | `application/pdf`, `image/jpeg` or `image/png`, as in 1.0 |
+| `size` | The decoded length in bytes, 1 to 10 MiB |
+| `sha256` | The SHA-256 of the decoded bytes |
+
+A document carries up to 10 attachments (`ATTACHMENTS_MAX`). Each file is at
+most 10 MiB decoded (`ATTACHMENT_MAX_BYTES`), and its `content` at most the
+base64 length of 10 MiB (`ATTACHMENT_CONTENT_MAX_LENGTH`).
+
+**The schema checks the shape; `verifyAttachments` checks the file.** The
+schema refuses a missing `content`, characters outside the base64 alphabet,
+a media type other than the three, and anything over a cap.
+`verifyAttachments(doc)` decodes each `content` and checks that it is
+canonical base64, that it is exactly `size` bytes, and that its SHA-256 is
+`sha256`:
+
+```ts
+const check = verifyAttachments(invoice);
+// check.ok, check.problems: { index, field: 'content' | 'size' | 'sha256', message }[]
+```
+
+Unlike the tax-total and payslip checks, a problem here is a refusal: the
+server runs `verifyAttachments` on every unencrypted `BTPS_DOC`, and on the
+document of an agent's `artifact.send`, and refuses the artifact with the
+problem at `document.attachments.<index>.<field>`. For an encrypted
+`BTPS_DOC`, the receiving platform runs it after decrypting. It is plain
+JavaScript (no Node built-in, no WebCrypto), so it runs the same on Node, web
+and React Native.
+
+### How a `sha256` is written
+
+Every `sha256` in a v2 document, an attachment's and a reference's
+(`relatesToInvoice`, `replaces`), is **lowercase hex, 64 characters**:
+`9853e99cb7e9817f7ee8b6fb9ade7c8e023d2520647034a098f7f85ed81e9cb0`. Upper
+case, base64 and a prefix such as `sha256:` are refused. The format is
+`BTP_DOC_SHA256` in `src/core/server/constants/documents.ts`, the one place
+to change it.
 
 ## Extensions
 
@@ -182,27 +232,27 @@ A status change is never a write into a document; it is a separate event.
 ## Size caps
 
 All caps are in `BTP_DOC_LIMITS` (`src/core/server/constants/documents.ts`).
-Lengths are in characters (UTF-16 code units).
+Lengths are in characters (UTF-16 code units). A `sha256` is not capped by
+length: it has one exact form (see [How a `sha256` is written](#how-a-sha256-is-written)).
 
 | Cap | Value | Applies to |
 | --- | --- | --- |
 | `ID_MAX_LENGTH` | 128 | a document id; a reference's `id` |
 | `IDENTITY_MAX_LENGTH` | 256 | a reference's `from` |
-| `HASH_MAX_LENGTH` | 128 | a reference's or an attachment's `sha256` |
 | `TITLE_MAX_LENGTH` | 200 | an invoice's `title` |
 | `NAME_MAX_LENGTH` | 200 | names: seller, buyer, employer, employee, payee, fund, attachment |
 | `CODE_MAX_LENGTH` | 64 | invoice number, categories, tax categories, tax ids, units, account and member numbers, employee id, `yearToDate` and `extensions` keys |
 | `DECIMAL_MAX_LENGTH` | 32 | `quantity`, `rate` |
 | `ADDRESS_MAX_LENGTH` | 500 | addresses |
 | `TEXT_MAX_LENGTH` | 2000 | descriptions, a credit note's `reason`, `paymentTerms` |
-| `MEDIA_TYPE_MAX_LENGTH` | 128 | an attachment's `mediaType` |
 | `LINE_ITEMS_MAX` | 500 | `lineItems` |
 | `TAX_TOTALS_MAX` | 50 | `taxTotals` |
 | `PAYSLIP_LINES_MAX` | 200 | each of `earnings`, `deductions`, `contributions` |
 | `TAX_IDS_MAX` | 10 | a party's `taxIds` |
 | `YEAR_TO_DATE_MAX` | 100 | `yearToDate` entries |
 | `ATTACHMENTS_MAX` | 10 | `attachments` |
-| `ATTACHMENT_MAX_BYTES` | 10 MiB | an attachment's declared `size` |
+| `ATTACHMENT_MAX_BYTES` | 10 MiB | an attachment's file, decoded: its `size` |
+| `ATTACHMENT_CONTENT_MAX_LENGTH` | 13,981,016 | an attachment's `content`: the base64 length of 10 MiB |
 | `EXTENSIONS_MAX_KEYS` | 50 | top-level keys in `extensions` |
 | `EXTENSIONS_MAX_LENGTH` | 16 KiB | `extensions` as JSON |
 

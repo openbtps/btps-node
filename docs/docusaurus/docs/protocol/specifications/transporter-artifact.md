@@ -207,9 +207,14 @@ A business document in [document model v2](./document-model-v2.md): an
   `replaces.from`, must equal the artifact's `from`. A sender can only refer
   to its own documents. Whether the named document exists is the receiving
   platform's check.
+- **Attachments:** an attachment carries its file inside the document, as in
+  1.0. Each `content` must be base64 that decodes to exactly `size` bytes
+  whose SHA-256 is `sha256` (`verifyAttachments`); otherwise the artifact is
+  refused. See [Attachments](./document-model-v2.md#attachments).
 - **Encrypted:** the document is an opaque string to the server, as before.
   The receiving platform validates it after decrypting, with the same
-  schemas (`@btps/sdk/documents`: `parseBtpDocV2`, `validateBtpDocOwnership`).
+  schemas and checks (`@btps/sdk/documents`: `parseBtpDocV2`,
+  `validateBtpDocOwnership`, `verifyAttachments`).
 
 **Status is never in the document.** `status`, `paidAt`, `refundedAt` and
 `disputedAt` are refused. Whether an invoice is paid, partly paid, disputed
