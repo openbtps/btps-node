@@ -6,14 +6,8 @@
  */
 
 import { z } from 'zod';
-import { CURRENCY_CODES } from '../constants/currency.js';
 import { identitySchema } from './shared.js';
-
-export const BtpAttachmentSchema = z.object({
-  content: z.string(), // base64
-  type: z.enum(['application/pdf', 'image/jpeg', 'image/png']),
-  filename: z.string().optional(),
-});
+import { BtpDocV2Schema } from './documents/documentSchema.js';
 
 // Schema for BTPStringQueryFilter
 export const BtpStringQueryFilterSchema = z.object({
@@ -51,46 +45,6 @@ export const BtpTrustResDocSchema = z.object({
   privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']).optional(),
 });
 
-export const BtpInvoiceDocSchema = z.object({
-  title: z.string(),
-  id: z.string(),
-  issuedAt: z.string().datetime(),
-  status: z.enum(['paid', 'unpaid', 'partial', 'refunded', 'disputed']),
-  dueAt: z.string().datetime().optional(),
-  paidAt: z.string().datetime().optional(),
-  refundedAt: z.string().datetime().optional(),
-  disputedAt: z.string().datetime().optional(),
-  totalAmount: z.object({
-    value: z.number(),
-    currency: z.enum(CURRENCY_CODES),
-  }),
-  lineItems: z.object({
-    columns: z.array(z.string()),
-    rows: z.array(z.record(z.union([z.string(), z.number()]))),
-  }),
-  issuer: z
-    .object({
-      name: z.string(),
-      email: z.string().email().optional(),
-      phone: z.string().optional(),
-    })
-    .optional(),
-  paymentLink: z
-    .object({
-      linkText: z.string(),
-      url: z.string().url(),
-    })
-    .optional(),
-  description: z.string().optional(),
-  attachment: BtpAttachmentSchema.optional(),
-  template: z
-    .object({
-      name: z.string(),
-      data: z.record(z.unknown()),
-    })
-    .optional(),
-});
-
 // Schema for BTPAuthReqDoc (used in agent artifacts)
 export const BtpAuthReqDocSchema = z.object({
   identity: identitySchema,
@@ -114,8 +68,5 @@ export const BtpAgentQueryDocSchema = z.object({
   to: BtpStringQueryFilterSchema.optional(),
 });
 
-export const BtpDocSchema = z.union([
-  BtpTrustReqDocSchema,
-  BtpTrustResDocSchema,
-  BtpInvoiceDocSchema,
-]);
+// A BTPS_DOC is a v2 document; the 1.0 invoice is refused (release plan section 6).
+export const BtpDocSchema = z.union([BtpTrustReqDocSchema, BtpTrustResDocSchema, BtpDocV2Schema]);

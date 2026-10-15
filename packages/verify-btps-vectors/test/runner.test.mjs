@@ -8,8 +8,7 @@ import { VECTORS_DIR } from './helpers.mjs';
 
 function copyVectors(mutate) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'btps-vectors-'));
-  for (const file of fs.readdirSync(VECTORS_DIR))
-    fs.copyFileSync(path.join(VECTORS_DIR, file), path.join(dir, file));
+  fs.cpSync(VECTORS_DIR, dir, { recursive: true });
   mutate?.(dir);
   return dir;
 }

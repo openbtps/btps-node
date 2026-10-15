@@ -16,7 +16,6 @@ import {
 import { BTPArtifactType, AgentAction, AgentActionRequiringDocument } from '../types.js';
 import {
   BtpAuthReqDocSchema,
-  BtpInvoiceDocSchema,
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
 } from './btpsDocsSchema.js';
@@ -63,6 +62,35 @@ export const parseBtpDocV2 = (
   return { data: freezeDocument(cloneJsonValue(result.data) as BTPDocV2) };
 };
 
+/**
+ * The ownership (structural) rule between a v2 document and the envelope
+ * that carries it: a credit note's `relatesToInvoice.from`, and an invoice's
+ * `replaces.from`, must be the artifact's own sender. Kept out of the
+ * document schemas so they stay pure; the server applies it where it
+ * validates a `BTPS_DOC` against its envelope. Whether the named document
+ * exists is the receiving platform's check, not the protocol's.
+ *
+ * Returns the first violation, or undefined when there is none.
+ */
+export const validateBtpDocOwnership = (
+  document: BTPDocV2,
+  from: string,
+): { path: (string | number)[]; message: string } | undefined => {
+  if (document.type === 'credit_note' && document.relatesToInvoice.from !== from) {
+    return {
+      path: ['relatesToInvoice', 'from'],
+      message: 'a credit note may only relate to an invoice from its own sender',
+    };
+  }
+  if (document.type === 'invoice' && document.replaces && document.replaces.from !== from) {
+    return {
+      path: ['replaces', 'from'],
+      message: 'an invoice may only replace an invoice from its own sender',
+    };
+  }
+  return undefined;
+};
+
 export const processBtpDocSchema = (bptArtifactType: BTPArtifactType) => {
   switch (bptArtifactType) {
     case 'TRUST_RES':
@@ -70,7 +98,7 @@ export const processBtpDocSchema = (bptArtifactType: BTPArtifactType) => {
     case 'TRUST_REQ':
       return BtpTrustReqDocSchema;
     case 'BTPS_DOC':
-      return BtpInvoiceDocSchema;
+      return BtpDocV2Schema;
     default:
       return null;
   }
@@ -83,7 +111,7 @@ export const processBtpDocSchemaForAgent = (actionType: string) => {
     'trust.respond': BtpTrustResDocSchema,
     'trust.update': BtpAgentMutationSchema,
     'trust.delete': BtpIdsPayloadSchema,
-    'artifact.send': BtpInvoiceDocSchema,
+    'artifact.send': BtpDocV2Schema,
     'auth.request': BtpAuthReqDocSchema,
     'auth.refresh': BtpAuthReqDocSchema,
     'inbox.fetch': BtpAgentQuerySchema,

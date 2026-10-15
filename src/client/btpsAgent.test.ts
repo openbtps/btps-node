@@ -696,24 +696,23 @@ describe('BtpsAgent', () => {
 
     it('should map artifact.send to BTPS_DOC', async () => {
       const document: BTPDocType = {
+        schemaVersion: 2,
+        type: 'invoice',
         title: 'Invoice #INV-001',
         id: 'INV-001',
         issuedAt: '2023-12-31T00:00:00.000Z',
-        status: 'unpaid',
-        totalAmount: {
-          value: 100.5,
-          currency: 'USD',
-        },
-        lineItems: {
-          columns: ['description', 'quantity', 'unitPrice'],
-          rows: [
-            {
-              description: 'Item 1',
-              quantity: 1,
-              unitPrice: 100.5,
-            },
-          ],
-        },
+        lineItems: [
+          {
+            description: 'Item 1',
+            quantity: '1',
+            unitPrice: { amount: 10050, currency: 'USD' },
+            lineTotal: { amount: 10050, currency: 'USD' },
+            taxAmount: { amount: 0, currency: 'USD' },
+            taxCategory: 'exempt',
+          },
+        ],
+        total: { amount: 10050, currency: 'USD' },
+        taxTotals: [{ taxCategory: 'exempt', amount: { amount: 0, currency: 'USD' } }],
       };
 
       await agent.command('artifact.send', 'bob$company.com', document);

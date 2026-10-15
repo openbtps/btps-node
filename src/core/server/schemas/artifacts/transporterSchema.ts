@@ -9,7 +9,8 @@ import { BtpSignatureSchema, BtpEncryptionSchema, BtpDelegationSchema } from '..
 import { identitySchema } from '../shared.js';
 import { TRANSPORTER_ACTIONS } from '../../constants/index.js';
 import { z } from 'zod';
-import { processBtpDocSchema } from '../helpers.js';
+import { processBtpDocSchema, validateBtpDocOwnership } from '../helpers.js';
+import type { BTPDocV2 } from '../../types.js';
 
 export const SELECTOR_REPLACED =
   'selector is not part of BTPS 1.1: use signatureSelector (the sender key that signed) and encryptionSelector (the receiver key encrypted to)';
@@ -73,12 +74,24 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
       // If not encrypted, document must match the schema for the type
       const schema = processBtpDocSchema(data.type);
       if (!schema) return false;
-      if (!schema.safeParse(data.document).success) {
+      const parsed = schema.safeParse(data.document);
+      if (!parsed.success) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: 'Document type does not match the artifact type',
           path: ['document'],
         });
+      } else if (data.type === 'BTPS_DOC') {
+        // The envelope rule beside the document schema: a reference to
+        // another document must name the sender's own (release plan section 3).
+        const violation = validateBtpDocOwnership(parsed.data as BTPDocV2, data.from);
+        if (violation) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: violation.message,
+            path: ['document', ...violation.path],
+          });
+        }
       }
     }
   },

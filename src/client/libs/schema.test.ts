@@ -23,6 +23,39 @@ import {
 } from '../../core/server/schemas/schema.js';
 import { identitySchema } from '../../core/server/schemas/shared.js';
 
+const v2Invoice = () => ({
+  schemaVersion: 2,
+  type: 'invoice',
+  title: 'Test Invoice',
+  id: 'INV-001',
+  issuedAt: new Date().toISOString(),
+  lineItems: [
+    {
+      description: 'Service A',
+      quantity: '1',
+      unitPrice: { amount: 10000, currency: 'USD' },
+      lineTotal: { amount: 10000, currency: 'USD' },
+      taxAmount: { amount: 0, currency: 'USD' },
+      taxCategory: 'exempt',
+    },
+  ],
+  total: { amount: 10000, currency: 'USD' },
+  taxTotals: [{ taxCategory: 'exempt', amount: { amount: 0, currency: 'USD' } }],
+});
+
+// The BTPS 1.0 invoice, which 1.1 refuses (release plan section 6).
+const v1Invoice = () => ({
+  title: 'Test Invoice',
+  id: 'INV-001',
+  issuedAt: new Date().toISOString(),
+  status: 'unpaid',
+  totalAmount: { value: 100.0, currency: 'USD' },
+  lineItems: {
+    columns: ['Item', 'Quantity', 'Price'],
+    rows: [{ Item: 'Service A', Quantity: 1, Price: 100.0 }],
+  },
+});
+
 describe('BtpsAgent Schema Validation', () => {
   describe('BtpsAgentCommandSchema', () => {
     it('should validate valid command parameters', () => {
@@ -84,25 +117,24 @@ describe('BtpsAgent Schema Validation', () => {
       const commandWithDoc = {
         actionType: 'artifact.send',
         to: 'alice$example.com',
-        document: {
-          title: 'Test Invoice',
-          id: 'INV-001',
-          issuedAt: new Date().toISOString(),
-          status: 'unpaid',
-          totalAmount: {
-            value: 100.0,
-            currency: 'USD',
-          },
-          lineItems: {
-            columns: ['Item', 'Quantity', 'Price'],
-            rows: [{ Item: 'Service A', Quantity: 1, Price: 100.0 }],
-          },
-        },
+        document: v2Invoice(),
         options: undefined,
       };
 
-      const result = BtpsAgentCommandSchema.safeParse(commandWithDoc);
-      expect(result.success).toBe(true);
+      expect(BtpsAgentCommandSchema.safeParse(commandWithDoc).success).toBe(true);
+      expect(BtpsAgentCommandCallSchema.safeParse(commandWithDoc).success).toBe(true);
+    });
+
+    it('should refuse artifact.send with a BTPS 1.0 invoice', () => {
+      const commandWithDoc = {
+        actionType: 'artifact.send',
+        to: 'alice$example.com',
+        document: v1Invoice(),
+        options: undefined,
+      };
+
+      expect(BtpsAgentCommandSchema.safeParse(commandWithDoc).success).toBe(false);
+      expect(BtpsAgentCommandCallSchema.safeParse(commandWithDoc).success).toBe(false);
     });
 
     it('should fail with invalid action type', () => {
@@ -430,23 +462,12 @@ describe('BtpsAgent Schema Validation', () => {
     });
 
     it('should validate invoice document', () => {
-      const doc = {
-        title: 'Test Invoice',
-        id: 'INV-001',
-        issuedAt: new Date().toISOString(),
-        status: 'unpaid',
-        totalAmount: {
-          value: 100.0,
-          currency: 'USD',
-        },
-        lineItems: {
-          columns: ['Item', 'Quantity', 'Price'],
-          rows: [{ Item: 'Service A', Quantity: 1, Price: 100.0 }],
-        },
-      };
-
-      const result = BtpsAgentCommandDocumentSchema.safeParse(doc);
+      const result = BtpsAgentCommandDocumentSchema.safeParse(v2Invoice());
       expect(result.success).toBe(true);
+    });
+
+    it('should refuse a BTPS 1.0 invoice document', () => {
+      expect(BtpsAgentCommandDocumentSchema.safeParse(v1Invoice()).success).toBe(false);
     });
 
     it('should validate agent create document', () => {
@@ -468,20 +489,7 @@ describe('BtpsAgent Schema Validation', () => {
     it('should validate agent create document with BTPS_DOC type', () => {
       const doc = {
         type: 'BTPS_DOC',
-        document: {
-          title: 'Test Invoice',
-          id: 'INV-001',
-          issuedAt: new Date().toISOString(),
-          status: 'unpaid',
-          totalAmount: {
-            value: 100.0,
-            currency: 'USD',
-          },
-          lineItems: {
-            columns: ['Item', 'Quantity', 'Price'],
-            rows: [{ Item: 'Service A', Quantity: 1, Price: 100.0 }],
-          },
-        },
+        document: v2Invoice(),
       };
 
       const result = BtpsAgentCommandDocumentSchema.safeParse(doc);

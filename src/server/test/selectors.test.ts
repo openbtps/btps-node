@@ -84,12 +84,23 @@ class EmptyTrustStore extends AbstractTrustStore<BTPTrustRecord> {
 }
 
 const invoice = {
+  schemaVersion: 2,
+  type: 'invoice',
   title: 'Invoice 116',
   id: 'INV-116',
   issuedAt: '2026-01-01T00:00:00.000Z',
-  status: 'unpaid',
-  totalAmount: { value: 99, currency: 'AUD' },
-  lineItems: { columns: ['Description', 'Amount'], rows: [{ Description: 'Item', Amount: 99 }] },
+  lineItems: [
+    {
+      description: 'Item',
+      quantity: '1',
+      unitPrice: { amount: 99, currency: 'AUD' },
+      lineTotal: { amount: 99, currency: 'AUD' },
+      taxAmount: { amount: 0, currency: 'AUD' },
+      taxCategory: 'GST0',
+    },
+  ],
+  total: { amount: 99, currency: 'AUD' },
+  taxTotals: [{ taxCategory: 'GST0', amount: { amount: 0, currency: 'AUD' } }],
 };
 
 /** alice, on her current selector, sends to bob, encrypted to his current selector. */

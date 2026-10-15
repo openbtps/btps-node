@@ -7,7 +7,6 @@
 
 import { BTPSignature, BTPEncryption } from '@core/crypto/types.js';
 import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
-import { BTPInvoiceDoc } from '../../server/types.js';
 import {
   AGENT_ACTIONS,
   AGENT_ACTIONS_REQUIRING_DOCUMENT,
@@ -43,7 +42,11 @@ export type CurrencyCode = (typeof CURRENCY_CODES)[number];
 export type AgentAction = (typeof AGENT_ACTIONS)[number];
 export type AgentActionRequiringDocument = (typeof AGENT_ACTIONS_REQUIRING_DOCUMENT)[number];
 
-export type BTPDocType = BTPInvoiceDoc | BTPTrustReqDoc | BTPTrustResDoc;
+/**
+ * A document an artifact carries in the clear. A `BTPS_DOC` is a v2 document
+ * (invoice, credit note or payslip); BTPS 1.1 refuses the 1.0 invoice.
+ */
+export type BTPDocType = BTPDocV2 | BTPTrustReqDoc | BTPTrustResDoc;
 
 export type BTPAttestation = {
   signedBy: string;

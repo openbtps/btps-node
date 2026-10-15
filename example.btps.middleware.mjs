@@ -74,13 +74,13 @@ export default function createMiddleware(dependencies) {
         name: 'invoice-validator',
         enabled: true,
         options: {
-          maxInvoiceAmount: 10000,
+          maxInvoiceAmount: 1000000, // minor units: 10,000.00
         },
       },
       handler: async (req, res, next, context) => {
-        if (req.artifact?.type === 'BTPS_DOC' && req.artifact.document?.totalAmount) {
+        if (req.artifact?.type === 'BTPS_DOC' && req.artifact.document?.type === 'invoice') {
           const { maxInvoiceAmount } = context.config;
-          const amount = req.artifact.document.totalAmount.value;
+          const amount = req.artifact.document.total.amount;
 
           if (amount > maxInvoiceAmount) {
             console.log(

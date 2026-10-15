@@ -134,15 +134,23 @@ const baseArtifact = () => ({
   to: 'bob$receiver.example',
   type: 'BTPS_DOC' as const,
   document: {
+    schemaVersion: 2,
+    type: 'invoice',
     title: 'Invoice ☕ — März',
     id: 'INV-1',
     issuedAt: '2026-01-01T00:00:00.000Z',
-    status: 'unpaid',
-    totalAmount: { value: 1250, currency: 'AUD' },
-    lineItems: {
-      columns: ['Description', 'Amount'],
-      rows: [{ Description: 'Ünïcödé 😀', Amount: 1250 }],
-    },
+    lineItems: [
+      {
+        description: 'Ünïcödé 😀',
+        quantity: '1',
+        unitPrice: { amount: 1250, currency: 'AUD' },
+        lineTotal: { amount: 1250, currency: 'AUD' },
+        taxAmount: { amount: 0, currency: 'AUD' },
+        taxCategory: 'GST0',
+      },
+    ],
+    total: { amount: 1250, currency: 'AUD' },
+    taxTotals: [{ taxCategory: 'GST0', amount: { amount: 0, currency: 'AUD' } }],
   },
 });
 
@@ -194,7 +202,7 @@ describe('EBA-115: canonical signing end to end', () => {
   it('the server does not verify an artifact changed after signing', async () => {
     const artifact = await signedArtifact();
     const tampered = overTheWire(artifact);
-    (tampered.document as { totalAmount: { value: number } }).totalAmount.value = 1;
+    (tampered.document as { total: { amount: number } }).total.amount = 1;
     expect(await serverVerifies(tampered)).toMatchObject({ isValid: false });
   });
 
