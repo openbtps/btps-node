@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { BtpTransporterArtifactSchema } from './transporterSchema.js';
 import { BtpArtifactServerSchema } from './artifacts.js';
-import { validateBtpDocOwnership } from '../helpers.js';
+import { validateAgentDocument, validateBtpDocOwnership } from '../helpers.js';
 import type { BTPDocV2 } from '../../types.js';
 
 const DOCUMENTS = new URL('../../../../../test/vectors/documents/', import.meta.url);
@@ -123,5 +123,47 @@ describe('ownership: a reference names the sender’s own document (release plan
     for (const name of ['invoice.v2.json', 'payslip.hourly.v2.json']) {
       expect(validateBtpDocOwnership(load(name) as BTPDocV2, 'anyone$example.com')).toBeUndefined();
     }
+  });
+});
+
+describe('the server refuses a BTPS_DOC whose attachment is not the file it states (2026-10-16)', () => {
+  const withAttachment = (change: (attachment: Record<string, unknown>) => void) => {
+    const doc = load('invoice.replaces.v2.json') as { attachments: Array<Record<string, unknown>> };
+    change(doc.attachments[0]!);
+    return doc;
+  };
+
+  it('accepts real files whose size and sha256 match', () => {
+    for (const name of ['invoice.v2.json', 'invoice.replaces.v2.json', 'payslip.hourly.v2.json']) {
+      expect(messages(BtpTransporterArtifactSchema.safeParse(artifact(load(name)))), name).toEqual([]);
+    }
+  });
+
+  it('refuses a size that is not the decoded length', () => {
+    const doc = withAttachment((a) => (a.size = 589));
+    expect(messages(BtpTransporterArtifactSchema.safeParse(artifact(doc)))).toEqual([
+      'document.attachments.0.size: content decodes to 590 bytes, but size is 589',
+    ]);
+  });
+
+  it('refuses a sha256 that is not the hash of the file', () => {
+    const doc = withAttachment((a) => (a.sha256 = '0'.repeat(64)));
+    expect(messages(BtpTransporterArtifactSchema.safeParse(artifact(doc)))).toEqual([
+      'document.attachments.0.sha256: sha256 is not the hash of the decoded content',
+    ]);
+  });
+
+  it('refuses the same through the server schema', () => {
+    expect(BtpArtifactServerSchema.safeParse(artifact(load('invoice.replaces.v2.json'))).success).toBe(
+      true,
+    );
+    const doc = withAttachment((a) => (a.sha256 = '0'.repeat(64)));
+    expect(BtpArtifactServerSchema.safeParse(artifact(doc)).success).toBe(false);
+  });
+
+  it('holds a document an agent sends (artifact.send) to the same check', () => {
+    expect(validateAgentDocument('artifact.send', null, load('invoice.replaces.v2.json'))).toBe(true);
+    const doc = withAttachment((a) => (a.sha256 = '0'.repeat(64)));
+    expect(validateAgentDocument('artifact.send', null, doc)).toBe(false);
   });
 });

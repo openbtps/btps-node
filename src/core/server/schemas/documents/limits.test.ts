@@ -43,20 +43,6 @@ const CASES: Record<Limit, Array<{ where: string; build: (n: number) => Doc }>> 
       },
     },
   ],
-  HASH_MAX_LENGTH: [
-    {
-      where: 'reference sha256',
-      build: (n) => ({ ...invoice(), replaces: { ...invoice().replaces, sha256: 'f'.repeat(n) } }),
-    },
-    {
-      where: 'attachment sha256',
-      build: (n) => {
-        const doc = invoice();
-        doc.attachments[0].sha256 = 'f'.repeat(n);
-        return doc;
-      },
-    },
-  ],
   TITLE_MAX_LENGTH: [{ where: 'title', build: (n) => ({ ...invoice(), title: 't'.repeat(n) }) }],
   NAME_MAX_LENGTH: [
     {
@@ -114,16 +100,6 @@ const CASES: Record<Limit, Array<{ where: string; build: (n: number) => Doc }>> 
     },
     { where: 'payment terms', build: (n) => ({ ...invoice(), paymentTerms: 'p'.repeat(n) }) },
   ],
-  MEDIA_TYPE_MAX_LENGTH: [
-    {
-      where: 'attachment media type',
-      build: (n) => {
-        const doc = invoice();
-        doc.attachments[0].mediaType = 'm'.repeat(n);
-        return doc;
-      },
-    },
-  ],
   LINE_ITEMS_MAX: [
     {
       where: 'line items',
@@ -171,6 +147,18 @@ const CASES: Record<Limit, Array<{ where: string; build: (n: number) => Doc }>> 
       build: (n) => {
         const doc = invoice();
         doc.attachments[0].size = n;
+        return doc;
+      },
+    },
+  ],
+  ATTACHMENT_CONTENT_MAX_LENGTH: [
+    {
+      // The schema checks the content's length and alphabet; whether it is
+      // the stated file is verifyAttachments.
+      where: 'attachment content',
+      build: (n) => {
+        const doc = invoice();
+        doc.attachments[0].content = 'A'.repeat(n);
         return doc;
       },
     },

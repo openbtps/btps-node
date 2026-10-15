@@ -17,6 +17,7 @@ import { BtpDocV2Schema } from './documentSchema.js';
 import { STATUS_NOT_IN_DOCUMENT } from './baseSchema.js';
 import { parseBtpDocV2 } from '../helpers.js';
 import { canonicalizeValue } from '@core/crypto/jcs.js';
+import { BTP_DOC_LIMITS } from '../../constants/documents.js';
 
 const DOCUMENTS = new URL('../../../../../test/vectors/documents/', import.meta.url);
 const REPO_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
@@ -32,9 +33,70 @@ const MODEL_SOURCES = [
   'src/core/server/schemas/documents/**/*.ts',
   'src/core/utils/money.ts',
   'src/core/utils/documentChecks.ts',
+  'src/core/utils/bytes.ts',
   'src/core/utils/freeze.ts',
   '!**/*.test.ts',
 ];
+
+describe('document model v2: an attachment carries its file (BTPS 1.0 shape, 2026-10-16)', () => {
+  const invoiceWith = (change: (attachment: Record<string, unknown>) => void) => {
+    const doc = load('invoice.v2.json') as { attachments: Array<Record<string, unknown>> };
+    change(doc.attachments[0]!);
+    return doc;
+  };
+  const accepted = (doc: unknown) => BtpDocV2Schema.safeParse(doc).success;
+
+  it('accepts content, name, mediaType, size and sha256 on an invoice and a payslip', () => {
+    expect(accepted(load('invoice.v2.json'))).toBe(true);
+    expect(accepted(load('invoice.replaces.v2.json'))).toBe(true);
+    expect(accepted(load('payslip.hourly.v2.json'))).toBe(true);
+  });
+
+  it('refuses an attachment without its file: the shape PR #9 had', () => {
+    expect(accepted(invoiceWith((a) => delete a.content))).toBe(false);
+  });
+
+  it('refuses content that is not base64', () => {
+    for (const content of ['', 'not base64!', 'QUJD\nREVG', 'QQ', '_-8A']) {
+      expect(accepted(invoiceWith((a) => (a.content = content))), JSON.stringify(content)).toBe(false);
+    }
+  });
+
+  it('refuses content longer than 10 MiB in base64', () => {
+    const over = 'A'.repeat(BTP_DOC_LIMITS.ATTACHMENT_CONTENT_MAX_LENGTH + 4);
+    expect(accepted(invoiceWith((a) => (a.content = over)))).toBe(false);
+  });
+
+  it('allows only PDF, JPEG and PNG, as in BTPS 1.0', () => {
+    for (const mediaType of ['application/pdf', 'image/jpeg', 'image/png']) {
+      expect(accepted(invoiceWith((a) => (a.mediaType = mediaType))), mediaType).toBe(true);
+    }
+    for (const mediaType of ['text/html', 'image/svg+xml', 'APPLICATION/PDF']) {
+      expect(accepted(invoiceWith((a) => (a.mediaType = mediaType))), mediaType).toBe(false);
+    }
+  });
+
+  it('writes every sha256 in lowercase hex, 64 characters: attachments and references', () => {
+    const hex = 'ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf';
+    const asBase64 = Buffer.from(hex, 'hex').toString('base64');
+    for (const sha256 of [hex.toUpperCase(), asBase64, hex.slice(1), `${hex}0`, `sha256:${hex}`]) {
+      expect(accepted(invoiceWith((a) => (a.sha256 = sha256))), sha256).toBe(false);
+      const replaces = load('invoice.replaces.v2.json') as { replaces: Record<string, unknown> };
+      replaces.replaces.sha256 = sha256;
+      expect(accepted(replaces), `replaces ${sha256}`).toBe(false);
+      const credit = load('credit-note.v2.json') as { relatesToInvoice: Record<string, unknown> };
+      credit.relatesToInvoice.sha256 = sha256;
+      expect(accepted(credit), `relatesToInvoice ${sha256}`).toBe(false);
+    }
+  });
+
+  it('refuses a size of zero or over 10 MiB', () => {
+    expect(accepted(invoiceWith((a) => (a.size = 0)))).toBe(false);
+    expect(accepted(invoiceWith((a) => (a.size = BTP_DOC_LIMITS.ATTACHMENT_MAX_BYTES + 1)))).toBe(
+      false,
+    );
+  });
+});
 
 describe('document model v2: schema vectors per type (EBA-119)', () => {
   it('has the expected vectors, and no lifecycle event (that is BTPS_EVENT)', () => {

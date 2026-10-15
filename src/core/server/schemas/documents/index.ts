@@ -46,7 +46,13 @@ export { BtpDocV2Schema } from './documentSchema.js';
 export { parseBtpDocV2, validateBtpDocOwnership } from '../helpers.js';
 
 export { CURRENCY_CODES } from '../../constants/currency.js';
-export { SCHEMA_VERSION_V2, BTP_DOC_LIMITS } from '../../constants/documents.js';
+export {
+  SCHEMA_VERSION_V2,
+  BTP_DOC_LIMITS,
+  BTP_DOC_SHA256,
+  BTP_DOC_ATTACHMENT_MEDIA_TYPES,
+  type BTPDocSha256Encoding,
+} from '../../constants/documents.js';
 
 export * from '@core/utils/money.js';
 export * from '@core/utils/documentChecks.js';
