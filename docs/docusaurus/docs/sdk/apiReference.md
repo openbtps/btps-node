@@ -409,12 +409,56 @@ const canDelegate = isDelegationAllowed(artifact);
 
 ## Cryptography (`@btps/sdk/crypto`)
 
+### Signer and Decrypter
+
+The SDK signs through a `Signer` and decrypts through a `Decrypter` (BTPS 1.1). Every signing path takes one (`signBtpPayload`, `signEncrypt`, `BtpsAgent`, `BtpsDelegator` and the server's own responses), and so does every decryption path (`decryptBtpPayload`, `decryptVerify`, and the client's `resolveIdentity` and `decryptVerifyArtifact`).
+
+```ts
+interface Signer {
+  readonly algorithm: 'RSASSA_PKCS1_V1_5_SHA_256';
+  sign(data: Uint8Array): Promise<Uint8Array>;
+  getPublicKey(): Promise<{ publicKey: string; fingerprint: string }>;
+}
+
+interface Decrypter {
+  readonly algorithm: 'aes-256-gcm';
+  decrypt(request: DecryptRequest): Promise<Uint8Array>;
+}
+```
+
+| Class | Holds the key | Use it for |
+| --- | --- | --- |
+| `KmsSigner`, `KmsDecrypter` | in KMS. The key never leaves it: the SDK only sends KMS the bytes to sign, or the wrapped content key to unwrap | production |
+| `PemSigner`, `PemDecrypter` | as a PEM string in the process | **tests and the interim only** |
+
+Where an API used to take a PEM key it still does, and wraps it in a `PemSigner` or `PemDecrypter`. Pass a `Signer` or `Decrypter` instead for managed custody.
+
+```js
+import { KmsSigner, KmsDecrypter, signEncrypt, decryptVerify } from '@btps/sdk/crypto';
+
+// `kms` is your adapter over your KMS client, e.g. @aws-sdk/client-kms:
+// sign({ keyId, message }) => { signature }, getPublicKey({ keyId }) => { publicKeyPem },
+// decrypt({ keyId, encryptedKey }) => { plaintextKey }.
+const signer = new KmsSigner({ client: kms, keyId: 'alias/btps-sign' });
+const decrypter = new KmsDecrypter({ client: kms, keyId: 'alias/btps-decrypt' });
+
+await signEncrypt(to, { accountName, domainName, selector: 'btps1', signer }, payload, options);
+await decryptVerify(senderPubPem, artifact, decrypter);
+```
+
+- A KMS failure reaches the caller as a `BTPErrorException` whose `meta.retryable` says whether retrying can help.
+- Every decryption path refuses an AES-GCM tag that is not exactly 16 bytes (`BTP_ERROR_VALIDATION`), before any key is used.
+- A `Decrypter` passes additional authenticated data through to the tag check unchanged.
+- `toSigner(key)` and `toDecrypter(key)` turn a PEM key, or a `Signer` / `Decrypter`, into a `Signer` / `Decrypter`; `isSigner` and `isDecrypter` tell them apart.
+
+---
+
 ### signEncrypt
 
 ```ts
 signEncrypt<T>(
   to: string | undefined,
-  sender: ParsedIdentity & { pemFiles: PemKeys; selector: string },
+  sender: ParsedIdentity & ({ signer: Signer } | { pemFiles: PemKeys }) & { selector: string },
   payload: {
     document: T;
     encryptionSelector?: string;
@@ -430,7 +474,7 @@ Signs and (optionally) encrypts a BTPS document for secure transmission. The art
 **Arguments:**
 
 - `to` (`string | undefined`, required): Recipient BTPS identity. If undefined, no encryption is performed.
-- `sender` (`ParsedIdentity & { pemFiles: PemKeys; selector: string }`, required): Sender identity, its PEM key pair, and the selector that key is published at. The selector becomes the artifact's `signatureSelector`.
+- `sender` (`ParsedIdentity & ({ signer: Signer } | { pemFiles: PemKeys }) & { selector: string }`, required): Sender identity, what signs for it, and the selector its key is published at. The selector becomes the artifact's `signatureSelector`. `signer` is a `Signer` such as `KmsSigner`; `pemFiles` is a PEM key pair, wrapped in a `PemSigner`, for tests and the interim only.
 - `payload` (object, required): Document and metadata to send.
   - `document` (`T`, required): The document payload.
   - `encryptionSelector` (`string`, optional): The receiver's selector to encrypt to (e.g. from its `_btps.host` record). Required for encryption when `to` is provided; it is on the artifact only when the document is encrypted.
@@ -450,8 +494,8 @@ const { payload, error } = await signEncrypt(
   {
     accountName: 'billing',
     domainName: 'vendorcorp.com',
-    selector: 'btps2', // the sender key in pemFiles
-    pemFiles: { publicKey, privateKey },
+    selector: 'btps2', // where the signer's public key is published
+    signer, // e.g. new KmsSigner({ client, keyId }); or pemFiles: { publicKey, privateKey } in tests
   },
   {
     type: 'BTPS_DOC',
@@ -487,7 +531,7 @@ Verifies the signature and (optionally) decrypts a received BTPS artifact. Ensur
 
 - `senderPubPem` (`string`, required): Sender's public key (PEM) at the artifact's `signatureSelector`; `resolveSignatureKey(artifact)` resolves it.
 - `encryptedPayload` (`VerifyEncryptedPayload<T>`, required): The received artifact.
-- `receiverKeys` (`string | (encryptionSelector: string) => string | undefined | Promise<string | undefined>`, optional): The receiver's private key, or a lookup asked for the key at the artifact's `encryptionSelector`. With a lookup, a receiver that rotated keeps decrypting documents encrypted to its old key; an encrypted artifact with no `encryptionSelector` is refused (`BTP_ERROR_VALIDATION`), and a selector the lookup has no key for gives `BTP_ERROR_DECRYPTION_UNINTENDED`.
+- `receiverKeys` (`BTPDecryptionKeys`, optional): The receiver's `Decrypter` (or private key PEM, for tests and the interim), or a lookup asked for the `Decrypter` or PEM at the artifact's `encryptionSelector`. With a lookup, a receiver that rotated keeps decrypting documents encrypted to its old key; an encrypted artifact with no `encryptionSelector` is refused (`BTP_ERROR_VALIDATION`), and a selector the lookup has no key for gives `BTP_ERROR_DECRYPTION_UNINTENDED`.
 
 **Returns:**
 
@@ -497,7 +541,7 @@ Verifies the signature and (optionally) decrypts a received BTPS artifact. Ensur
 
 ```js
 import { decryptVerify, resolveSignatureKey } from '@btps/sdk/crypto';
-const receiverKeys = { btps1: oldPrivateKeyPem, btps2: currentPrivateKeyPem };
+const receiverKeys = { btps1: oldKeyDecrypter, btps2: currentKeyDecrypter }; // e.g. KmsDecrypter
 const { payload, error } = await decryptVerify(
   await resolveSignatureKey(artifact),
   artifact,
@@ -604,28 +648,28 @@ const encrypted = encryptBtpPayload({ foo: 'bar' }, receiverPublicKeyPem, {
 decryptBtpPayload<T = unknown>(
   payload: unknown = '',
   encryption: BTPEncryption,
-  receiverPrivPem: string
-): { data?: T; error?: BTPErrorException }
+  receiverKey: Decrypter | string
+): Promise<{ data?: T; error?: BTPErrorException }>
 ```
 
 **Description:**
-Decrypts an AES-256-GCM encrypted payload using the receiver's private key and the provided encryption metadata.
+Decrypts an AES-256-GCM encrypted payload through the receiver's `Decrypter`, using the provided encryption metadata. A tag that is not exactly 16 bytes is refused with `BTP_ERROR_VALIDATION` before any key is used. Async since BTPS 1.1.
 
 **Arguments:**
 
 - `payload` (`unknown`, required): The encrypted data to decrypt (base64 string or object, defaults to empty string).
 - `encryption` (`BTPEncryption`, required): Encryption metadata (algorithm, key, iv, type).
-- `receiverPrivPem` (`string`, required): Receiver's private key (PEM).
+- `receiverKey` (`Decrypter | string`, required): The receiver's `Decrypter`, or its private key PEM, wrapped in a `PemDecrypter` (tests and the interim only).
 
 **Returns:**
 
-- `object`: `{ data, error }` with decrypted payload (if successful) and error (if any).
+- `Promise<object>`: `{ data, error }` with decrypted payload (if successful) and error (if any).
 
 **Example:**
 
 ```js
 import { decryptBtpPayload } from '@btps/sdk/crypto';
-const { data, error } = decryptBtpPayload(encryptedData, encryptionMeta, receiverPrivateKeyPem);
+const { data, error } = await decryptBtpPayload(encryptedData, encryptionMeta, decrypter);
 ```
 
 ---
@@ -717,26 +761,26 @@ const fingerprint = getFingerprintFromPem(publicKeyPem);
 ### signBtpPayload
 
 ```ts
-signBtpPayload(payload: unknown = '', senderPemFiles: PemKeys): BTPSignature
+signBtpPayload(payload: unknown = '', signingKey: Signer | PemKeys): Promise<BTPSignature>
 ```
 
 **Description:**
-Signs a payload using the sender's private key and returns a signature object (algorithmHash, value, fingerprint).
+Signs the RFC 8785 (JCS) form of a payload through a `Signer` and returns a signature object (algorithmHash, value, fingerprint). The fingerprint is of the public key the signer reports. Async since BTPS 1.1.
 
 **Arguments:**
 
 - `payload` (`unknown`, required): The data to sign (object or string, defaults to empty string).
-- `senderPemFiles` (`PemKeys`, required): Sender's PEM key pair.
+- `signingKey` (`Signer | PemKeys`, required): The sender's `Signer`, or its PEM key pair, wrapped in a `PemSigner` (tests and the interim only).
 
 **Returns:**
 
-- `BTPSignature`: Signature object with algorithmHash, value, and fingerprint.
+- `Promise<BTPSignature>`: Signature object with algorithmHash, value, and fingerprint.
 
 **Example:**
 
 ```js
 import { signBtpPayload } from '@btps/sdk/crypto';
-const signature = signBtpPayload({ foo: 'bar' }, { publicKey, privateKey });
+const signature = await signBtpPayload({ foo: 'bar' }, signer); // a Signer, e.g. KmsSigner
 ```
 
 ---

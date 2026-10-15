@@ -14,7 +14,7 @@ BTPS ensures that only the intended recipient can decrypt and verify the authent
 3. **Signature Verification:** BTPS server verifies the sender's digital signature using the sender's public key (from DNS or .well-known).
 4. **Forward to Receiver:** BTPS server forwards the verified artifact to the receiver's inbox endpoint.
 5. **Receiver Processing:** Receiver obtains the BTPS Artifact from their inbox endpoint.
-6. **Key Decryption:** If the artifact is encrypted, receiver decrypts the AES key using their private RSA key.
+6. **Key Decryption:** If the artifact is encrypted, the receiver's `Decrypter` unwraps the AES key with the receiver's private RSA key (in KMS, for `KmsDecrypter`).
 7. **Payload Decryption:** If encrypted, receiver decrypts the payload using the AES key and IV. If not encrypted, the payload is used as-is.
 8. **Document Extraction:** The decrypted (or plain) payload is parsed into the original document.
 9. **Business Logic Validation:** Receiver performs additional validation specific to their SaaS platform or business requirements.
@@ -29,6 +29,43 @@ BTPS ensures that only the intended recipient can decrypt and verify the authent
   4. If the artifact's `encryption` field is present, decrypt the AES key and then the payload.
   5. If the artifact is unencrypted (`encryption` is null), use the payload as-is after signature verification.
   6. Return the verified and decrypted (or plain) document for further processing.
+
+## Where the Private Key Lives: the `Decrypter` (BTPS 1.1)
+
+The SDK never needs the receiver's private key itself. It decrypts through a `Decrypter`, which unwraps the AES key and opens the document:
+
+```ts
+interface Decrypter {
+  readonly algorithm: 'aes-256-gcm';
+  decrypt(request: {
+    encryptedKey: Uint8Array; // the RSA-OAEP-wrapped AES-256 key
+    iv: Uint8Array;
+    ciphertext: Uint8Array;
+    authTag: Uint8Array; // exactly 16 bytes
+    additionalData?: Uint8Array;
+  }): Promise<Uint8Array>;
+}
+```
+
+- **`KmsDecrypter`** is for production. The private key stays in KMS: KMS unwraps the AES key, and the AES-256-GCM step runs locally.
+- **`PemDecrypter`** holds a PEM key in the process. It is for tests and the interim only.
+
+Every decryption path in the SDK takes a `Decrypter`: `decryptBtpPayload`, `decryptVerify`, and the client's `resolveIdentity` and `decryptVerifyArtifact`. A private key PEM is still accepted and wrapped in a `PemDecrypter`. All of them are exported from `@btps/sdk/crypto`.
+
+```js
+import { KmsDecrypter, decryptVerify, resolveSignatureKey } from '@btps/sdk/crypto';
+
+const decrypter = new KmsDecrypter({ client: kms, keyId: 'alias/btps-decrypt' });
+const { payload, error } = await decryptVerify(
+  await resolveSignatureKey(artifact),
+  artifact,
+  decrypter, // or (encryptionSelector) => the Decrypter for that key
+);
+```
+
+**The tag:** an AES-GCM authentication tag that is not exactly 16 bytes is refused on every decryption path with `BTP_ERROR_VALIDATION`, before any key is used. A shorter tag is a weaker guarantee, not a shorter form of the same one.
+
+**Additional data:** a `Decrypter` passes `additionalData` to the tag check unchanged.
 
 ## BTPS Server Role
 

@@ -12,12 +12,38 @@ BTPS uses digital signatures to ensure the authenticity and integrity of every m
 
 What is hashed and signed is the UTF-8 encoding of the [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) JSON Canonicalization Scheme (JCS) form of the artifact with its `signature` field removed: object keys sorted by UTF-16 code units, no insignificant whitespace, minimal string escaping, and ECMAScript number formatting. Any implementation (Node, a browser, Swift, Kotlin, a KMS client) produces the same bytes for the same artifact, whatever order it holds the keys in. Input with a duplicate member name, a lone UTF-16 surrogate, or a number outside an IEEE-754 double is refused. The SDK exposes this as `canonicalize` from `@btps/sdk/crypto`.
 
+## Where the Private Key Lives: the `Signer` (BTPS 1.1)
+
+The SDK never needs the private key itself. It signs through a `Signer`, which is handed the canonical bytes and returns the signature:
+
+```ts
+interface Signer {
+  readonly algorithm: 'RSASSA_PKCS1_V1_5_SHA_256';
+  sign(data: Uint8Array): Promise<Uint8Array>;
+  getPublicKey(): Promise<{ publicKey: string; fingerprint: string }>;
+}
+```
+
+- **`KmsSigner`** is for production. The key is created in KMS and never leaves it: the SDK sends KMS the bytes to sign and gets the signature back.
+- **`PemSigner`** holds a PEM key in the process. It is for tests and the interim only.
+
+Every signing path in the SDK takes a `Signer`: `signBtpPayload`, `signEncrypt` (`sender.signer`), `BtpsAgent` (`agent.signer`), `BtpsDelegator` (`signer`, and `onBehalfOf.signer`) and `BtpsServer` (`serverIdentity.signer`). Where a path used to take PEM keys it still does, and wraps them in a `PemSigner`. All of them are exported from `@btps/sdk/crypto`.
+
+```js
+import { KmsSigner, signBtpPayload } from '@btps/sdk/crypto';
+
+const signer = new KmsSigner({ client: kms, keyId: 'alias/btps-sign' });
+const signature = await signBtpPayload(artifactWithoutSignature, signer);
+```
+
+`client` is your adapter over your KMS SDK, with `sign({ keyId, message })` returning `{ signature }` and `getPublicKey({ keyId })` returning `{ publicKeyPem }`. A KMS failure reaches the caller as a `BTPErrorException` whose `meta.retryable` says whether a retry can help.
+
 ## Signature Workflow
 
 ### Signing (Sender Side)
 1. **Payload Preparation:** The sender prepares the artifact (including metadata and payload).
 2. **Hashing:** The sender computes a SHA-256 hash of the artifact.
-3. **Signature Generation:** The sender signs the hash using their private key (RSA or Ed25519 planned).
+3. **Signature Generation:** The sender's `Signer` signs it with the private key (RSASSA-PKCS1-v1_5 with SHA-256), wherever that key is held.
 4. **Fingerprint Calculation:** The sender's public key fingerprint is computed (SHA-256 of the public key DER).
 5. **Signature Attachment:** The signature and fingerprint are attached to the artifact as the `signature` field.
 

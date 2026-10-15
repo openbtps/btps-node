@@ -32,12 +32,14 @@ new BtpsServer(options: BtpsServerOptions)
 
 ```js
 import { BtpsServer, JsonTrustStore } from '@btps/sdk';
+import { KmsSigner } from '@btps/sdk/crypto';
 const trustStore = new JsonTrustStore({ connection: './trust.json' });
 const server = new BtpsServer({
   serverIdentity: {
     identity: 'server$example.com',
-    publicKey: '-----BEGIN PUBLIC KEY-----...',
-    privateKey: '-----BEGIN PRIVATE KEY-----...',
+    // Signs the server's own responses. A Signer such as KmsSigner keeps the
+    // key in KMS; a PEM pair (publicKey + privateKey) is for tests and the interim.
+    signer: new KmsSigner({ client: kms, keyId: 'alias/btps-server' }),
   },
   tlsOptions: {
     cert: '-----BEGIN PUBLIC KEY-----...',
@@ -343,13 +345,16 @@ new BtpsAgent(options: BTPAgentOptions)
 
 **Example:**
 
+The device key signs through `agent.signer` (a `Signer`), and what is encrypted to the device opens through `agent.decrypter` (a `Decrypter`). The PEM pair `identityKey` and `identityCert` still works, wrapped in a `PemSigner`, for tests and the interim only.
+
 ```js
-import { BtpsAgent } from '@btps/sdk';
+import { BtpsAgent } from '@btps/sdk/client';
 const agent = new BtpsAgent({
   agent: {
     id: 'agent_123',
-    identityKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',
-    identityCert: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
+    signer: deviceSigner, // a Signer over the device's key store
+    decrypter: deviceDecrypter, // optional
+    // or, for tests and the interim: identityKey (PKCS#8 PEM) and identityCert (SPKI PEM)
   },
   btpIdentity: 'billing$yourdomain.com',
   maxRetries: 5,
@@ -415,7 +420,7 @@ A connection management and message delivery service that handles direct message
 **Import:**
 
 ```js
-import { BtpsTransporter } from '@btps/sdk';
+import { BtpsTransporter } from '@btps/sdk/client';
 ```
 
 ### constructor
@@ -429,7 +434,7 @@ new BtpsTransporter(options: BTPTransporterOptions)
 **Example:**
 
 ```js
-import { BtpsTransporter } from '@btps/sdk';
+import { BtpsTransporter } from '@btps/sdk/client';
 const transporter = new BtpsTransporter({
   maxConnections: 50,
   connectionTTLSeconds: 300,
@@ -970,10 +975,13 @@ new BtpsDelegator(options: BtpsDelegatorOptions)
 import { BtpsDelegator } from '@btps/sdk/delegation';
 const delegator = new BtpsDelegator({
   identity: 'alice$saas.com',
-  privateKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',
+  signer: new KmsSigner({ client: kms, keyId: 'alias/btps-delegator' }),
+  // or, for tests and the interim: privateKey: '-----BEGIN PRIVATE KEY-----...'
   autoInit: true,
 });
 ```
+
+The delegator signs delegations and attestations through `signer`. `init()` checks that the signer holds the key published for `identity` by signing a test message and verifying it with that key.
 
 ### init
 
@@ -1030,10 +1038,7 @@ const delegatedArtifact = await delegator.delegateArtifact(
   },
   {
     identity: 'alice$enterprise.com',
-    keyPair: {
-      privateKey: userPrivateKey,
-      publicKey: userPublicKey,
-    },
+    signer: aliceSigner, // the user's own Signer; keyPair: { publicKey, privateKey } for tests and the interim
   },
 );
 ```
