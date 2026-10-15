@@ -15,6 +15,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const FAKE_DNS_NAMESPACE = 'verify-btps-vectors-dns';
+const DOCUMENTS_ENTRY = 'src/core/server/schemas/documents/index.ts';
 
 const fakeDnsModule = `
 let records = new Map();
@@ -50,6 +51,9 @@ const fakeDnsPlugin = {
  * @typedef {object} LoadedSdk
  * @property {Record<string, any>} crypto exports of src/core/crypto/index.ts
  * @property {Record<string, any>} utils  exports of src/core/utils/index.ts
+ * @property {Record<string, any> | null} documents exports of
+ *   src/core/server/schemas/documents/index.ts (@btps/sdk/documents), or
+ *   null on a tree without document model v2
  * @property {(records: Record<string, string[]>) => void} setTxtRecords replace the fake DNS zone
  * @property {string} root the SDK source tree that was loaded
  */
@@ -67,6 +71,10 @@ export async function loadSdk(sdkRoot) {
     }
   }
 
+  // Document model v2 (item 7) is absent from trees before EBA-119/EBA-402;
+  // its checks then fail rather than the whole run.
+  const hasDocuments = fs.existsSync(path.join(root, DOCUMENTS_ENTRY));
+
   const { build } = await import('esbuild');
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-btps-vectors-sdk-'));
   const outfile = path.join(outDir, 'sdk.mjs');
@@ -76,6 +84,9 @@ export async function loadSdk(sdkRoot) {
         contents: [
           "export * as crypto from './src/core/crypto/index.ts';",
           "export * as utils from './src/core/utils/index.ts';",
+          hasDocuments
+            ? `export * as documents from './${DOCUMENTS_ENTRY}';`
+            : 'export const documents = null;',
           "export { __setTxtRecords } from 'verify-btps-vectors:dns';",
         ].join('\n'),
         resolveDir: root,
@@ -97,7 +108,13 @@ export async function loadSdk(sdkRoot) {
       plugins: [fakeDnsPlugin],
     });
     const mod = await import(pathToFileURL(outfile).href);
-    return { crypto: mod.crypto, utils: mod.utils, setTxtRecords: mod.__setTxtRecords, root };
+    return {
+      crypto: mod.crypto,
+      utils: mod.utils,
+      documents: mod.documents,
+      setTxtRecords: mod.__setTxtRecords,
+      root,
+    };
   } finally {
     fs.rmSync(outDir, { recursive: true, force: true });
   }

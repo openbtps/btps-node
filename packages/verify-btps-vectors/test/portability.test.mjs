@@ -11,6 +11,7 @@ const PORTABLE_ENTRIES = [
   'src/runtimes/web.mjs',
   'src/checks/vectors.mjs',
   'src/checks/interop.mjs',
+  'src/checks/documents.mjs',
 ];
 const BUILTINS = new Set(builtinModules.flatMap((m) => [m, `node:${m}`]));
 const IMPORT =

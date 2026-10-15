@@ -19,6 +19,7 @@ export const VECTOR_FILES = Object.freeze({
   selectors: 'selectors.vector.json',
   selectorsReceiverRotation: 'selectors-receiver-rotation.vector.json',
   sdkDefects: 'sdk-defects.vector.json',
+  documentModel: 'document-model.vectors.json',
 });
 
 export class VectorLoadError extends Error {
@@ -31,6 +32,49 @@ export class VectorLoadError extends Error {
 function requireFields(file, object, fields) {
   for (const field of fields) {
     if (object?.[field] === undefined) throw new VectorLoadError(file, `missing "${field}"`);
+  }
+}
+
+/**
+ * Item 7: reads every document in the model's documents directory into
+ * `set.documents` (file name -> parsed JSON), and checks that every case
+ * names one that exists, so a deleted document is a load error.
+ */
+function loadDocumentModel(dir, set) {
+  const file = VECTOR_FILES.documentModel;
+  const model = set.documentModel;
+  requireFields(file, model, ['documentsDir', 'keyVector', 'schema', 'ownership', 'taxTotal', 'payslip']);
+  if (model.keyVector !== VECTOR_FILES.managedSignature) {
+    throw new VectorLoadError(
+      file,
+      `references key vector "${model.keyVector}"; only ${VECTOR_FILES.managedSignature} is supported`,
+    );
+  }
+  const documentsDir = path.join(dir, model.documentsDir);
+  if (!fs.existsSync(documentsDir)) {
+    throw new VectorLoadError(file, `documents directory ${model.documentsDir} not found in ${dir}`);
+  }
+  set.documents = {};
+  for (const name of fs.readdirSync(documentsDir).filter((n) => n.endsWith('.json')).sort()) {
+    try {
+      set.documents[name] = JSON.parse(fs.readFileSync(path.join(documentsDir, name), 'utf8'));
+    } catch (error) {
+      throw new VectorLoadError(file, `${model.documentsDir}/${name} is not valid JSON (${error.message})`);
+    }
+  }
+  if (Object.keys(set.documents).length === 0) {
+    throw new VectorLoadError(file, `no documents in ${model.documentsDir}`);
+  }
+  for (const group of ['schema', 'ownership', 'taxTotal', 'payslip']) {
+    if (!Array.isArray(model[group]) || model[group].length === 0) {
+      throw new VectorLoadError(file, `expected a non-empty "${group}" array`);
+    }
+    for (const c of model[group]) {
+      requireFields(file, c, ['name', 'document', 'expect']);
+      if (typeof c.document === 'string' && !(c.document in set.documents)) {
+        throw new VectorLoadError(file, `${group}/${c.name}: ${model.documentsDir}/${c.document} not found`);
+      }
+    }
   }
 }
 
@@ -125,6 +169,7 @@ export function loadVectorSet(dir) {
     'hostSelector',
   ]);
   requireFields(VECTOR_FILES.sdkDefects, set.sdkDefects, ['gcmTag', 'identities']);
+  loadDocumentModel(dir, set);
 
   // The only shared key is the encryption key, referenced by name. Resolve it
   // once so checks never read files themselves.

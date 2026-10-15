@@ -17,6 +17,7 @@ import { vectorChecks } from './checks/vectors.mjs';
 import { interopChecks } from './checks/interop.mjs';
 import { oracleChecks } from './checks/oracle.mjs';
 import { sdkChecks } from './checks/sdk.mjs';
+import { documentRuntimeChecks, documentSdkChecks } from './checks/documents.mjs';
 import { loadSdk } from './sdk-loader.mjs';
 
 /**
@@ -39,10 +40,14 @@ export async function buildChecks({ vectorsDir, sdkRoot }) {
   const runtimes = [createNodeRuntime(), createWebRuntime()];
   const checks = [
     ...runtimes.flatMap((runtime) => vectorChecks(runtime, set)),
+    ...runtimes.flatMap((runtime) => documentRuntimeChecks(runtime, set)),
     ...interopChecks(runtimes, set),
     ...oracleChecks(set),
   ];
-  if (sdkRoot) checks.push(...sdkChecks(await loadSdk(sdkRoot), set));
+  if (sdkRoot) {
+    const sdk = await loadSdk(sdkRoot);
+    checks.push(...sdkChecks(sdk, set), ...documentSdkChecks(sdk, set));
+  }
 
   const seen = new Set();
   for (const { id } of checks) {

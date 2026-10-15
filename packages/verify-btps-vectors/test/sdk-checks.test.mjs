@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { sdkChecks } from '../src/checks/sdk.mjs';
+import { documentSdkChecks } from '../src/checks/documents.mjs';
 import { runChecks } from '../src/runner.mjs';
 import { loadSdk } from '../src/sdk-loader.mjs';
 import { loadVectorSet } from '../src/vectors.mjs';
@@ -22,14 +23,15 @@ describe('SDK checks', () => {
 
   it('on this tree, the SDK fails exactly the checks in test/vectors/known-failing.json', async () => {
     const known = JSON.parse(fs.readFileSync(KNOWN_FAILING, 'utf8'));
-    const results = await runChecks(sdkChecks(await loadSdk(REPO_ROOT), set));
+    const sdk = await loadSdk(REPO_ROOT);
+    const results = await runChecks([...sdkChecks(sdk, set), ...documentSdkChecks(sdk, set)]);
     expect(failing(results)).toEqual(Object.keys(known.checks).sort());
   });
 
   it('every known-failing entry names an item check and an owning ticket', () => {
     const known = JSON.parse(fs.readFileSync(KNOWN_FAILING, 'utf8'));
     for (const [id, ticket] of Object.entries(known.checks)) {
-      expect(id).toMatch(/^sdk\/item-(5|6|10)\//);
+      expect(id).toMatch(/^sdk\/item-(5|6|7|10)\//);
       expect(ticket).toMatch(/^EBA-\d+$/);
     }
   });

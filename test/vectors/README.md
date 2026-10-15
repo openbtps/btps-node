@@ -22,6 +22,8 @@ algorithm is the one that mode uses.
 | `selectors.vector.json`                   | item 6: the sender rotated btps1 to btps2 and the receiver is on btps1                                                                                                                                                                                                       |
 | `selectors-receiver-rotation.vector.json` | item 6: the receiver rotated btps2 to btps3 after the document was encrypted to btps2, and keeps btps2 to decrypt; the sender signs with btps1                                                                                                                               |
 | `sdk-defects.vector.json`                 | item 10: GCM tags of 16, 12 and 4 bytes, and identities with extra `$`                                                                                                                                                                                                       |
+| `document-model.vectors.json`             | item 7 (EBA-119, EBA-402): schema cases per type (accepted, and refused: a status field, no title, float money, an unnamed field, a lifecycle event, the 1.0 invoice), the ownership rule, tax totals and payslip reconciliation, over the documents below                                                                                                    |
+| `documents/*.v2.json`                     | item 7: v2 documents (invoice, corrected invoice, credit note, payslips), from PR #9 with the invoice's `title` added. Each is also checked to be unchanged by parsing and to sign over its JCS form. No lifecycle event: that is `BTPS_EVENT`                                                                                                            |
 | `known-failing.json`                      | the item checks that fail on 367cd09, and which ticket owns each fix                                                                                                                                                                                                         |
 
 The signing keys and the encryption key in these vectors are distinct, and a
@@ -52,4 +54,5 @@ you use it, say so on every ticket whose tests read these files.
 Open question, not decided here: what a canonicaliser does with an integer
 above 2^53 − 1. RFC 8785 serialises it as the nearest double, which for
 money means a silently different amount. Item 7 (EBA-119) owns the money
-representation.
+representation, and settles it for documents: v2 money is an integer within
+±(2^53 − 1), and `BtpMoneySchema` refuses anything larger.

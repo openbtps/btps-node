@@ -1,0 +1,169 @@
+{
+  "item": 7,
+  "tickets": ["EBA-119", "EBA-402"],
+  "description": "BTPS 1.1 item 7, document model v2. Each case names a document in documents/ (or gives one inline), optionally changed by `set` (top-level fields replaced) and `unset` (top-level fields removed). schema: the SDK's parseBtpDocV2 accepts or refuses it. ownership: a credit note or a corrected invoice may only name a document from the envelope's own sender. taxTotal and payslip: the SDK's verifyTaxTotal and reconcilePayslip agree with the stated results, and report a disagreement rather than throw. Every document in documents/ is also checked to be unchanged by parsing, and signed and verified over its JCS form on every runtime.",
+  "documentsDir": "documents",
+  "keyVector": "kms-signature.vector.json",
+  "schema": [
+    { "name": "invoice", "document": "invoice.v2.json", "expect": "accept" },
+    { "name": "invoice-replaces", "document": "invoice.replaces.v2.json", "expect": "accept" },
+    { "name": "credit-note", "document": "credit-note.v2.json", "expect": "accept" },
+    { "name": "payslip-hourly", "document": "payslip.hourly.v2.json", "expect": "accept" },
+    {
+      "name": "payslip-salaried-new-employee",
+      "document": "payslip.salaried-new-employee.v2.json",
+      "expect": "accept"
+    },
+    {
+      "name": "payslip-unknown-category-and-extensions",
+      "document": "payslip.unknown-extensions.v2.json",
+      "expect": "accept"
+    },
+    {
+      "name": "payslip-not-reconciling-is-still-valid",
+      "document": "payslip.reconciliation-mismatch.v2.json",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-with-status-refused",
+      "document": "invoice.v2.json",
+      "set": { "status": "paid" },
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-with-paidAt-refused",
+      "document": "invoice.v2.json",
+      "set": { "paidAt": "2026-10-03T00:00:00.000Z" },
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-without-title-refused",
+      "document": "invoice.v2.json",
+      "unset": ["title"],
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-float-money-refused",
+      "document": "invoice.v2.json",
+      "set": { "total": { "amount": 1700.5, "currency": "AUD" } },
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-unknown-field-refused",
+      "document": "invoice.v2.json",
+      "set": { "note": "not in the model" },
+      "expect": "reject"
+    },
+    {
+      "name": "lifecycle-event-is-not-a-document",
+      "document": "invoice.v2.json",
+      "set": { "type": "lifecycle_event" },
+      "expect": "reject"
+    },
+    {
+      "name": "btps-1.0-invoice-refused",
+      "document": {
+        "title": "Invoice",
+        "id": "INV-1",
+        "issuedAt": "2026-01-01T00:00:00.000Z",
+        "status": "unpaid",
+        "totalAmount": { "value": 99, "currency": "AUD" },
+        "lineItems": { "columns": ["Description", "Amount"], "rows": [{ "Description": "x", "Amount": 99 }] }
+      },
+      "expect": "reject"
+    }
+  ],
+  "ownership": [
+    {
+      "name": "credit-note-own-sender",
+      "document": "credit-note.v2.json",
+      "from": "biller$example.com",
+      "expect": "accept"
+    },
+    {
+      "name": "credit-note-other-sender-refused",
+      "document": "credit-note.v2.json",
+      "from": "mallory$example.com",
+      "expect": "reject"
+    },
+    {
+      "name": "invoice-replaces-own-sender",
+      "document": "invoice.replaces.v2.json",
+      "from": "biller$example.com",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-replaces-other-sender-refused",
+      "document": "invoice.replaces.v2.json",
+      "from": "mallory$example.com",
+      "expect": "reject"
+    }
+  ],
+  "taxTotal": [
+    {
+      "name": "invoice-two-rates",
+      "document": "invoice.v2.json",
+      "expect": {
+        "ok": true,
+        "computedTotal": { "amount": 170000, "currency": "AUD" },
+        "byCategory": { "GST10": 15000, "GST0": 0 }
+      }
+    },
+    {
+      "name": "credit-note-one-rate",
+      "document": "credit-note.v2.json",
+      "expect": {
+        "ok": true,
+        "computedTotal": { "amount": 20000, "currency": "AUD" },
+        "byCategory": { "GST10": 2000 }
+      }
+    },
+    {
+      "name": "invoice-total-disagrees",
+      "document": "invoice.v2.json",
+      "set": { "total": { "amount": 999, "currency": "AUD" } },
+      "expect": {
+        "ok": false,
+        "computedTotal": { "amount": 170000, "currency": "AUD" },
+        "byCategory": { "GST10": 15000, "GST0": 0 }
+      }
+    },
+    {
+      "name": "invoice-one-rate-disagrees",
+      "document": "invoice.v2.json",
+      "set": {
+        "taxTotals": [
+          { "taxCategory": "GST10", "amount": { "amount": 999, "currency": "AUD" } },
+          { "taxCategory": "GST0", "amount": { "amount": 0, "currency": "AUD" } }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "computedTotal": { "amount": 170000, "currency": "AUD" },
+        "byCategory": { "GST10": 15000, "GST0": 0 }
+      }
+    }
+  ],
+  "payslip": [
+    {
+      "name": "hourly-reconciles",
+      "document": "payslip.hourly.v2.json",
+      "expect": {
+        "ok": true,
+        "computedGross": { "amount": 167701, "currency": "AUD" },
+        "computedNet": { "amount": 166201, "currency": "AUD" },
+        "warnings": 0
+      }
+    },
+    {
+      "name": "gross-and-net-disagree",
+      "document": "payslip.reconciliation-mismatch.v2.json",
+      "expect": { "ok": false, "warnings": 2 }
+    },
+    {
+      "name": "net-alone-disagrees",
+      "document": "payslip.net-mismatch.v2.json",
+      "expect": { "ok": false, "warnings": 1 }
+    }
+  ]
+}
