@@ -11,6 +11,7 @@ import {
   BTPTrustRecord,
   computeTrustId,
   validateTrustResponse,
+  resolveEventTrust,
 } from '@core/trust/index.js';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
@@ -959,6 +960,17 @@ export class BtpsServer {
         this.trustStore,
       );
       return { isTrusted: isValid, error };
+    }
+
+    if (artifact.type === 'BTPS_EVENT') {
+      // An event is accepted over the normal record or the flipped one (item A,
+      // release plan section 2.4); every other type needs the normal record.
+      const { isTrusted, record } = await resolveEventTrust(
+        artifact.from,
+        artifact.to,
+        this.trustStore,
+      );
+      return { isTrusted, error: isTrusted ? undefined : this.getTrustRefusalError(record) };
     }
 
     const computedTrustId = computeTrustId(artifact.from, artifact.to);

@@ -15,6 +15,7 @@ import {
 import { BTPTrustRecord } from './types.js';
 import isEmpty from 'lodash/isEmpty.js';
 import { AbstractTrustStore } from './storage/AbstractTrustStore.js';
+import { isValidIdentity } from '@core/utils/index.js';
 export { default as JsonTrustStore } from './storage/JsonTrustStore.js';
 export { AbstractTrustStore } from './storage/AbstractTrustStore.js';
 export * from './types.js';
@@ -76,6 +77,55 @@ export function computeTrustId(senderId: string, receiverId: string): string {
   const input = `${senderId}:${receiverId}`.toLowerCase(); // Ensure consistent direction-sensitive format
   const hash = createHash('sha256').update(input).digest('hex');
   return hash;
+}
+
+/** True when a trust record is between exactly these two identities, in either direction. */
+const isRecordBetween = (record: BTPTrustRecord, a: string, b: string): boolean => {
+  const sender = record.senderId?.toLowerCase();
+  const receiver = record.receiverId?.toLowerCase();
+  const [x, y] = [a.toLowerCase(), b.toLowerCase()];
+  // An agent's record is `agentId -> identity`: an agent id is not an identity.
+  if (!isValidIdentity(record.senderId) || !isValidIdentity(record.receiverId)) return false;
+  return (sender === x && receiver === y) || (sender === y && receiver === x);
+};
+
+/**
+ * Trust for a `BTPS_EVENT` (BTPS 1.1 item A, release plan section 2.4).
+ *
+ * Once A has accepted B's trust request, so B may send documents to A, B's
+ * server accepts events from A over that same trust. So an event from
+ * `senderId` to `receiverId` is trusted when either record is active:
+ * - the normal one, `computeTrustId(senderId, receiverId)`;
+ * - the flipped one, `computeTrustId(receiverId, senderId)`: the receiver's
+ *   own trust to the sender.
+ *
+ * Only for events: a `BTPS_DOC` and the trust types still need the normal
+ * record. Only records between two identities count, never an agent's.
+ *
+ * Returns the active record that granted it, or, when neither is active, the
+ * record that explains the refusal (the normal one first).
+ */
+export async function resolveEventTrust(
+  senderId: string,
+  receiverId: string,
+  trustStore: AbstractTrustStore<BTPTrustRecord>,
+): Promise<{ isTrusted: boolean; record?: BTPTrustRecord; flipped?: boolean }> {
+  if (!isValidIdentity(senderId) || !isValidIdentity(receiverId)) return { isTrusted: false };
+
+  const counts = (record?: BTPTrustRecord): record is BTPTrustRecord =>
+    !!record && isRecordBetween(record, senderId, receiverId);
+
+  const normal = await trustStore.getById(computeTrustId(senderId, receiverId));
+  if (counts(normal) && isTrustActive(normal)) return { isTrusted: true, record: normal };
+
+  const flipped = await trustStore.getById(computeTrustId(receiverId, senderId));
+  if (counts(flipped) && isTrustActive(flipped)) {
+    return { isTrusted: true, record: flipped, flipped: true };
+  }
+
+  if (counts(normal)) return { isTrusted: false, record: normal };
+  if (counts(flipped)) return { isTrusted: false, record: flipped, flipped: true };
+  return { isTrusted: false };
 }
 
 /**
