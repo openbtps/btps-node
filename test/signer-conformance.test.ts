@@ -44,7 +44,7 @@ import crypto from 'crypto';
 import type { Signer } from '../src/signer-interface.js';
 import { PemSigner } from '../src/pem-signer.js';
 import { KmsSigner, type KmsSignClient } from '../src/kms-signer.js';
-import { canonicalize, verifySignature } from '@core/crypto/index.js';
+import { canonicalize, signBtpPayload, signEncrypt, verifySignature } from '@core/crypto/index.js';
 
 // EBA-392: the two tests below that spawn a real `tsc` take ~1–2.5 s on an
 // idle 10-core machine, but one CI run took 5467 ms under parallel-suite
@@ -321,4 +321,45 @@ describe('AC6: KmsSigner exposes no private key material (T-27)', () => {
     expect(result.stdout + result.stderr).toBe('');
     expect(result.status).toBe(0);
   }, 30000);
+});
+
+// EBA-441 (item I): the same implementations, through the SDK's own signing
+// paths rather than called directly.
+describe.each(implementations)('EBA-441: $name through the SDK core', ({ name, makeSigner }) => {
+  const pemKeys = {
+    publicKey: vectors.signing.publicKeyPem,
+    privateKey: vectors.signing.privateKeyPem,
+  };
+
+  it(`signBtpPayload signs the JCS bytes through ${name}, the same signature a PEM key pair gives`, async () => {
+    const signature = await signBtpPayload(vectors.signing.payload, makeSigner());
+
+    expect(
+      verifySignature(vectors.signing.payload, signature, vectors.signing.publicKeyPem),
+    ).toEqual({
+      isValid: true,
+      error: undefined,
+    });
+    // RSASSA-PKCS1-v1_5 is deterministic: the same key over the same bytes.
+    expect(signature).toEqual(await signBtpPayload(vectors.signing.payload, pemKeys));
+  });
+
+  it(`signEncrypt signs an artifact through ${name} as sender.signer`, async () => {
+    const { payload, error } = await signEncrypt(
+      undefined,
+      { accountName: 'alice', domainName: 'saas.example', selector: 'btps1', signer: makeSigner() },
+      {
+        version: '1.1.0',
+        type: 'BTPS_DOC',
+        from: 'alice$saas.example',
+        document: vectors.signing.payload,
+      },
+    );
+    expect(error).toBeUndefined();
+    const { signature, ...signed } = payload as unknown as {
+      signature: Parameters<typeof verifySignature>[1];
+    };
+    expect(signed).toMatchObject({ signatureSelector: 'btps1' });
+    expect(verifySignature(signed, signature, vectors.signing.publicKeyPem).isValid).toBe(true);
+  });
 });

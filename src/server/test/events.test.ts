@@ -18,7 +18,12 @@ import tls, { type TLSSocket } from 'tls';
 import { readFileSync } from 'node:fs';
 import { EventEmitter } from 'events';
 import { BtpsServer } from '../btpsServer.js';
-import { decryptVerify, resolveSignatureKey, signEncrypt } from '../../core/crypto/index.js';
+import {
+  decryptVerify,
+  PemDecrypter,
+  resolveSignatureKey,
+  signEncrypt,
+} from '../../core/crypto/index.js';
 import { AbstractTrustStore } from '../../core/trust/storage/AbstractTrustStore.js';
 import { computeTrustId, resolveEventTrust } from '../../core/trust/index.js';
 import { parseBtpEventDoc, validateBtpEventEnvelope } from '../../core/server/schemas/helpers.js';
@@ -354,5 +359,24 @@ describe('item A: BTPS_EVENT through the server', () => {
     const parsed = parseBtpEventDoc(payload?.document);
     expect(parsed.error).toBeUndefined();
     expect(validateBtpEventEnvelope(parsed.data!, artifact)).toBeUndefined();
+  });
+
+  it('an encrypted event opens through a PemDecrypter (EBA-441)', async () => {
+    store.trust(BILLER, PAYER);
+    const event = load('partially-paid.json');
+    const artifact = await send(PAYER, BILLER, event, { encrypted: true });
+    expect((await deliver(artifact)).status.ok).toBe(true);
+
+    const decrypter = new PemDecrypter({ privateKey: keys[BILLER]!.privateKey });
+    const decrypt = vi.spyOn(decrypter, 'decrypt');
+    const { payload, error } = await decryptVerify(
+      (await resolveSignatureKey(artifact))!,
+      artifact as unknown as Parameters<typeof decryptVerify>[1],
+      decrypter,
+    );
+    expect(error).toBeUndefined();
+    expect(decrypt).toHaveBeenCalledTimes(1);
+    expect(payload?.document).toEqual(event);
+    expect(parseBtpEventDoc(payload?.document).error).toBeUndefined();
   });
 });

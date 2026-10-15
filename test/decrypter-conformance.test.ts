@@ -44,6 +44,13 @@ import crypto from 'crypto';
 import type { Decrypter } from '../src/decrypter-interface.js';
 import { PemDecrypter } from '../src/pem-decrypter.js';
 import { KmsDecrypter, type KmsDecryptClient } from '../src/kms-decrypter.js';
+import {
+  decryptBtpPayload,
+  decryptVerify,
+  encryptBtpPayload,
+  signBtpPayload,
+  type BTPEncryption,
+} from '@core/crypto/index.js';
 
 interface EncryptionVector {
   algorithm: string;
@@ -391,5 +398,66 @@ describe('AC4: src/decrypter-interface.ts is runtime-agnostic', () => {
 
     expect(result.stdout + result.stderr).toBe('');
     expect(result.status).toBe(0);
+  });
+});
+
+// EBA-441 (item I): the same implementations, through the SDK's own
+// decryption paths rather than called directly.
+describe.each(implementations)('EBA-441: $name through the SDK core', ({ name, makeDecrypter }) => {
+  const forOaepWrap = (): Decrypter =>
+    name === 'PemDecrypter'
+      ? new PemDecrypter({ privateKey: oaepWrapVector.privateKeyPem })
+      : new KmsDecrypter({
+          client: fakeKmsDecryptClient(oaepWrapVector.privateKeyPem),
+          keyId: 'test-encryption-key',
+        });
+
+  it(`decryptBtpPayload opens what encryptBtpPayload sealed, through ${name}`, async () => {
+    const document = { plaintext: vectors.encryption.plaintext };
+    const { data, encryption } = encryptBtpPayload(document, vectors.encryption.publicKeyPem);
+    const result = await decryptBtpPayload(data, encryption, makeDecrypter());
+    expect(result).toEqual({ data: document, error: undefined });
+  });
+
+  it.each(sdkDefects.gcmTag.cases.map((c) => [c.name, c] as const))(
+    `decryptBtpPayload through ${name}: sdk-defects.vector.json case %s`,
+    async (_caseName, defectCase) => {
+      const result = await decryptBtpPayload(
+        sdkDefects.gcmTag.data,
+        defectCase.encryption as BTPEncryption,
+        forOaepWrap(),
+      );
+      if (defectCase.expect === 'accept') {
+        expect(result.error).toBeUndefined();
+        expect(JSON.stringify(result.data)).toBe(sdkDefects.gcmTag.plaintext);
+      } else {
+        expect(result.data).toBeUndefined();
+        expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+      }
+    },
+  );
+
+  it(`decryptVerify verifies, then opens through ${name}`, async () => {
+    const sender = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    const document = { plaintext: vectors.encryption.plaintext };
+    const { data, encryption } = encryptBtpPayload(document, vectors.encryption.publicKeyPem);
+    const unsigned = {
+      from: 'alice$saas.example',
+      to: 'bob$receiver.example',
+      document: data,
+      encryption,
+      encryptionSelector: 'btps1',
+    };
+    const artifact = { ...unsigned, signature: await signBtpPayload(unsigned, sender) };
+
+    for (const receiverKeys of [makeDecrypter(), () => makeDecrypter()]) {
+      const { payload, error } = await decryptVerify(sender.publicKey, artifact, receiverKeys);
+      expect(error).toBeUndefined();
+      expect(payload?.document).toEqual(document);
+    }
   });
 });
