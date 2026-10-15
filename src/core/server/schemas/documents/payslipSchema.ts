@@ -21,59 +21,75 @@ import { BtpInvoiceAttachmentV2Schema } from './invoiceSchema.js';
  * (EBA-103 section 2, amended 2026-10-08, option A).
  */
 
-export const BtpPayslipPayeeSchema = z.object({
-  name: z.string(),
-  accountRef: z.string().optional(),
-});
+export const BtpPayslipPayeeSchema = z
+  .object({
+    name: z.string(),
+    accountRef: z.string().optional(),
+  })
+  .strict();
 
 /** A salaried rate: the amount, its basis (e.g. "annual") and the date it applies from. */
-export const BtpPayslipPayRateSchema = z.object({
-  amount: BtpMoneySchema,
-  unit: z.string().min(1),
-  asAt: z.string().datetime(),
-});
+export const BtpPayslipPayRateSchema = z
+  .object({
+    amount: BtpMoneySchema,
+    unit: z.string().min(1),
+    asAt: z.string().datetime(),
+  })
+  .strict();
 
 /** `rate` and `quantity` are for display; `amount` is never recomputed from them. */
-export const BtpPayslipEarningSchema = z.object({
-  category: BtpCategoryCodeSchema,
-  description: z.string().optional(),
-  rate: BtpDecimalStringSchema.optional(),
-  rateUnit: z.string().optional(),
-  quantity: BtpDecimalStringSchema.optional(),
-  amount: BtpMoneySchema,
-});
+export const BtpPayslipEarningSchema = z
+  .object({
+    category: BtpCategoryCodeSchema,
+    description: z.string().optional(),
+    rate: BtpDecimalStringSchema.optional(),
+    rateUnit: z.string().optional(),
+    quantity: BtpDecimalStringSchema.optional(),
+    amount: BtpMoneySchema,
+  })
+  .strict();
 
-export const BtpPayslipDeductionSchema = z.object({
-  category: BtpCategoryCodeSchema,
-  description: z.string().optional(),
-  amount: BtpMoneySchema,
-  payee: BtpPayslipPayeeSchema.optional(),
-});
+export const BtpPayslipDeductionSchema = z
+  .object({
+    category: BtpCategoryCodeSchema,
+    description: z.string().optional(),
+    amount: BtpMoneySchema,
+    payee: BtpPayslipPayeeSchema.optional(),
+  })
+  .strict();
 
-export const BtpPayslipSuperFundSchema = z.object({
-  name: z.string().optional(),
-  memberNumber: z.string().optional(),
-  accountRef: z.string().optional(),
-});
+export const BtpPayslipSuperFundSchema = z
+  .object({
+    name: z.string().optional(),
+    memberNumber: z.string().optional(),
+    accountRef: z.string().optional(),
+  })
+  .strict();
 
 /** `fund` is optional: a new employee's first contribution can precede a fund. */
-export const BtpPayslipContributionSchema = z.object({
-  category: BtpCategoryCodeSchema.optional(),
-  amount: BtpMoneySchema,
-  fund: BtpPayslipSuperFundSchema.optional(),
-});
+export const BtpPayslipContributionSchema = z
+  .object({
+    category: BtpCategoryCodeSchema.optional(),
+    amount: BtpMoneySchema,
+    fund: BtpPayslipSuperFundSchema.optional(),
+  })
+  .strict();
 
-export const BtpPayslipEmployeeSchema = z.object({
-  name: z.string(),
-  employeeId: z.string().optional(),
-  payBasis: z.enum(['hourly', 'salaried']).optional(),
-});
+export const BtpPayslipEmployeeSchema = z
+  .object({
+    name: z.string(),
+    employeeId: z.string().optional(),
+    payBasis: z.enum(['hourly', 'salaried']).optional(),
+  })
+  .strict();
 
-export const BtpPayslipEmployerSchema = z.object({
-  name: z.string(),
-  address: z.string().optional(),
-  taxIds: z.array(z.string()).optional(),
-});
+export const BtpPayslipEmployerSchema = z
+  .object({
+    name: z.string(),
+    address: z.string().optional(),
+    taxIds: z.array(z.string()).optional(),
+  })
+  .strict();
 
 export const BtpPayslipDocSchema = BtpIssuedDocV2BaseSchema.extend({
   type: z.literal('payslip'),
@@ -86,6 +102,7 @@ export const BtpPayslipDocSchema = BtpIssuedDocV2BaseSchema.extend({
       start: z.string().datetime(),
       end: z.string().datetime(),
     })
+    .strict()
     .optional(),
   payDate: z.string().datetime().optional(),
   payRate: BtpPayslipPayRateSchema.optional(),
@@ -98,4 +115,4 @@ export const BtpPayslipDocSchema = BtpIssuedDocV2BaseSchema.extend({
   yearToDate: z.record(z.string(), BtpMoneySchema).optional(),
   attachments: z.array(BtpInvoiceAttachmentV2Schema).optional(),
   extensions: BtpDocExtensionsSchema.optional(),
-});
+}).strict();

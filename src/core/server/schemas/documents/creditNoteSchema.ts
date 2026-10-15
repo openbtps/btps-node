@@ -27,4 +27,4 @@ export const BtpCreditNoteDocSchema = BtpIssuedDocV2BaseSchema.extend({
   total: BtpMoneySchema,
   taxTotals: z.array(BtpInvoiceTaxTotalSchema).min(1),
   extensions: BtpDocExtensionsSchema.optional(),
-});
+}).strict();

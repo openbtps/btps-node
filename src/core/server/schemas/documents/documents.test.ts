@@ -14,6 +14,7 @@ import { BtpInvoiceV2DocSchema } from './invoiceSchema.js';
 import { BtpCreditNoteDocSchema } from './creditNoteSchema.js';
 import { BtpPayslipDocSchema, BtpPayslipPayeeSchema } from './payslipSchema.js';
 import { BtpDocV2Schema } from './documentSchema.js';
+import { STATUS_NOT_IN_DOCUMENT } from './baseSchema.js';
 import { parseBtpDocV2 } from '../helpers.js';
 import { canonicalizeValue } from '@core/crypto/jcs.js';
 
@@ -39,6 +40,7 @@ describe('document model v2: schema vectors per type (EBA-119)', () => {
   it('has the expected vectors, and no lifecycle event (that is BTPS_EVENT)', () => {
     expect(fixtureNames).toEqual([
       'credit-note.v2.json',
+      'invoice.replaces.v2.json',
       'invoice.v2.json',
       'payslip.hourly.v2.json',
       'payslip.net-mismatch.v2.json',
@@ -102,6 +104,64 @@ describe('document model v2: schema vectors per type (EBA-119)', () => {
         ...load('invoice.v2.json'),
         total: { amount: 170000, currency: 'XXX' },
       }).success,
+    ).toBe(false);
+  });
+});
+
+describe('document model v2: status lives only in events (release plan 2.5)', () => {
+  const STATUS_FIELDS = {
+    status: 'paid',
+    paidAt: '2026-10-03T00:00:00.000Z',
+    refundedAt: '2026-10-03T00:00:00.000Z',
+    disputedAt: '2026-10-03T00:00:00.000Z',
+  };
+
+  for (const name of ['invoice.v2.json', 'credit-note.v2.json', 'payslip.hourly.v2.json']) {
+    for (const [field, value] of Object.entries(STATUS_FIELDS)) {
+      it(`${name}: refuses ${field}, saying status comes from events`, () => {
+        const result = BtpDocV2Schema.safeParse({ ...load(name), [field]: value });
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((i) => i.message)).toContain(STATUS_NOT_IN_DOCUMENT);
+      });
+    }
+  }
+
+  it('refuses a field the model does not name, rather than dropping it unvalidated', () => {
+    const result = BtpDocV2Schema.safeParse({ ...load('invoice.v2.json'), note: 'x' });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.code).toBe('unrecognized_keys');
+  });
+});
+
+describe('document model v2: invoice title and replaces (release plan section 3)', () => {
+  it('requires a non-empty title', () => {
+    const invoice = load('invoice.v2.json');
+    delete invoice.title;
+    expect(BtpInvoiceV2DocSchema.safeParse(invoice).success).toBe(false);
+    expect(BtpInvoiceV2DocSchema.safeParse({ ...load('invoice.v2.json'), title: '' }).success).toBe(
+      false,
+    );
+  });
+
+  it('accepts a corrected invoice that names the one it replaces', () => {
+    const parsed = BtpInvoiceV2DocSchema.parse(load('invoice.replaces.v2.json'));
+    expect(parsed.replaces).toEqual({
+      from: 'biller$example.com',
+      id: 'inv_2001',
+      sha256: 'ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf',
+    });
+  });
+
+  it('refuses a replaces reference that is incomplete or not from an identity', () => {
+    const base = load('invoice.replaces.v2.json');
+    const replaces = base.replaces as Record<string, string>;
+    expect(
+      BtpInvoiceV2DocSchema.safeParse({ ...base, replaces: { from: replaces.from, id: replaces.id } })
+        .success,
+    ).toBe(false);
+    expect(
+      BtpInvoiceV2DocSchema.safeParse({ ...base, replaces: { ...replaces, from: 'not-an-identity' } })
+        .success,
     ).toBe(false);
   });
 });

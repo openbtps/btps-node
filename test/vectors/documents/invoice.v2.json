@@ -3,6 +3,7 @@
   "type": "invoice",
   "id": "inv_2001",
   "issuedAt": "2026-10-01T00:00:00.000Z",
+  "title": "Consulting, September 2026",
   "lineItems": [
     {
       "description": "Consulting services",

@@ -7,20 +7,40 @@
 
 import { z } from 'zod';
 import { SCHEMA_VERSION_V2 } from '../../constants/documents.js';
+import { identitySchema } from '../shared.js';
+
+export const STATUS_NOT_IN_DOCUMENT =
+  'status is not part of a v2 document: it is derived from lifecycle events (BTPS_EVENT)';
+
+const statusRefused = () => z.undefined({ invalid_type_error: STATUS_NOT_IN_DOCUMENT });
+
+/*
+ * Every v2 object is strict: a field the model does not name is refused,
+ * not silently dropped, so what is validated is exactly what was signed.
+ * `extensions` is the one open place.
+ */
 
 /**
  * Fields every v2 document carries. This is the document only: the
  * transporter artifact around it (id, issuedAt, type, from, to, selectors)
- * is a separate layer.
+ * is a separate layer. A document never carries a status: `status`,
+ * `paidAt`, `refundedAt` and `disputedAt` are refused by name (release
+ * plan section 2.5).
  */
-export const BtpDocV2BaseSchema = z.object({
-  schemaVersion: z.literal(SCHEMA_VERSION_V2),
-  id: z.string().min(1),
-});
+export const BtpDocV2BaseSchema = z
+  .object({
+    schemaVersion: z.literal(SCHEMA_VERSION_V2),
+    id: z.string().min(1),
+    status: statusRefused(),
+    paidAt: statusRefused(),
+    refundedAt: statusRefused(),
+    disputedAt: statusRefused(),
+  })
+  .strict();
 
 export const BtpIssuedDocV2BaseSchema = BtpDocV2BaseSchema.extend({
   issuedAt: z.string().datetime(),
-});
+}).strict();
 
 /**
  * An open, namespaced code such as "ordinary" or "au:penalty". Never a
@@ -43,8 +63,10 @@ export const BtpDocExtensionsSchema = z.record(z.string(), z.unknown());
  * what the ownership check compares with the envelope's sender
  * (`validateBtpDocOwnership` in ../helpers.ts).
  */
-export const BtpDocReferenceSchema = z.object({
-  from: z.string().min(1),
-  id: z.string().min(1),
-  sha256: z.string().min(1),
-});
+export const BtpDocReferenceSchema = z
+  .object({
+    from: identitySchema,
+    id: z.string().min(1),
+    sha256: z.string().min(1),
+  })
+  .strict();

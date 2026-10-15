@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 2,
+  "type": "invoice",
+  "id": "inv_2002",
+  "issuedAt": "2026-10-05T00:00:00.000Z",
+  "title": "Consulting, September 2026 (corrected)",
+  "invoiceNumber": "INV-2002",
+  "seller": { "name": "Biller Pty Ltd", "taxIds": ["ABN 51 824 753 556"] },
+  "buyer": { "name": "Payer Co" },
+  "replaces": {
+    "from": "biller$example.com",
+    "id": "inv_2001",
+    "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf"
+  },
+  "lineItems": [
+    {
+      "description": "Consulting services",
+      "quantity": "8",
+      "unitPrice": { "amount": 15000, "currency": "AUD" },
+      "lineTotal": { "amount": 120000, "currency": "AUD" },
+      "taxAmount": { "amount": 12000, "currency": "AUD" },
+      "taxCategory": "GST10"
+    }
+  ],
+  "total": { "amount": 120000, "currency": "AUD" },
+  "taxTotals": [{ "taxCategory": "GST10", "amount": { "amount": 12000, "currency": "AUD" } }],
+  "gstInclusive": false,
+  "dueDate": "2026-11-04T00:00:00.000Z",
+  "attachments": [
+    {
+      "name": "INV-2002.pdf",
+      "mediaType": "application/pdf",
+      "size": 48213,
+      "sha256": "9f2c1a4b7e0d3c5a8b6f1e2d4c7a9b0e3f5d8c1a2b4e6f7a9c0d1e3f5a7b9c2d"
+    }
+  ]
+}

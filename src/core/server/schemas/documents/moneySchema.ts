@@ -14,10 +14,12 @@ import { CURRENCY_CODES } from '../../constants/currency.js';
  * Never a float. `.safe()` also refuses amounts beyond
  * Number.MAX_SAFE_INTEGER, which JSON and RFC 8785 cannot carry exactly.
  */
-export const BtpMoneySchema = z.object({
-  amount: z.number().int().safe(),
-  currency: z.enum(CURRENCY_CODES),
-});
+export const BtpMoneySchema = z
+  .object({
+    amount: z.number().int().safe(),
+    currency: z.enum(CURRENCY_CODES),
+  })
+  .strict();
 
 /**
  * A rate or quantity carried as a decimal string ("32.50", "38"). It is for
