@@ -16,17 +16,9 @@ import {
   decryptRSA,
   getFingerprintFromPem,
 } from './index.js';
+import { canonicalize } from './jcs.js';
 import { PemKeys } from './types.js';
-
-/*
- * Expected failures (`it.fails`). Each such test reproduces a defect on
- * baseline 367cd09 and its name says which ticket's fix makes it pass. vitest
- * reports an `it.fails` test as passing while its assertion fails, and as
- * FAILING once the defect is fixed, so the fix ticket must change `it.fails`
- * to `it` in the same change. This is the same ratchet as
- * test/vectors/known-failing.json gives `verify:btps-vectors`.
- */
-const XFAIL_EBA_115 = 'expected failure until EBA-115 lands';
+import { BTPErrorException } from '@core/error/index.js';
 
 interface KmsSignatureVector {
   algorithm: string;
@@ -95,29 +87,82 @@ function genRsaKeyPair(): PemKeys {
 }
 
 describe('EBA-115: JCS canonicalization of signed payloads', () => {
-  it.fails(
-    `signs identically regardless of the JS object key insertion order (${XFAIL_EBA_115})`,
-    () => {
-      const keys = genRsaKeyPair();
-      const a = signBtpPayload({ to: 'bob$example.com', from: 'alice$example.com', id: '1' }, keys);
-      const b = signBtpPayload({ id: '1', from: 'alice$example.com', to: 'bob$example.com' }, keys);
+  it(`signs identically regardless of the JS object key insertion order`, () => {
+    const keys = genRsaKeyPair();
+    const a = signBtpPayload({ to: 'bob$example.com', from: 'alice$example.com', id: '1' }, keys);
+    const b = signBtpPayload({ id: '1', from: 'alice$example.com', to: 'bob$example.com' }, keys);
 
-      // RSASSA-PKCS1-v1_5 is deterministic: equal signatures prove the signed bytes
-      // (i.e. the canonicalized payload) were identical despite differing key order.
-      expect(a.value).toBe(b.value);
-    },
-  );
+    // RSASSA-PKCS1-v1_5 is deterministic: equal signatures prove the signed bytes
+    // (i.e. the canonicalized payload) were identical despite differing key order.
+    expect(a.value).toBe(b.value);
+  });
 
-  it.fails(
-    `verifies a payload signed with a different, but logically identical, key order (${XFAIL_EBA_115})`,
-    () => {
-      const keys = genRsaKeyPair();
-      const signed = signBtpPayload({ b: 2, a: 1 }, keys);
+  it(`verifies a payload signed with a different, but logically identical, key order`, () => {
+    const keys = genRsaKeyPair();
+    const signed = signBtpPayload({ b: 2, a: 1 }, keys);
 
-      const { isValid } = verifySignature({ a: 1, b: 2 }, signed, keys.publicKey);
-      expect(isValid).toBe(true);
-    },
-  );
+    const { isValid } = verifySignature({ a: 1, b: 2 }, signed, keys.publicKey);
+    expect(isValid).toBe(true);
+  });
+
+  it('verifies whatever order the keys are in, at every depth, as an object or as JSON text', () => {
+    const keys = genRsaKeyPair();
+    const signed = signBtpPayload(
+      {
+        to: 'bob$example.com',
+        from: 'alice$example.com',
+        document: { memo: 'café ☕ 😀', lines: [{ n: 2, a: 'x' }], totals: { tax: 10, net: 100 } },
+      },
+      keys,
+    );
+    const reordered = {
+      document: { totals: { net: 100, tax: 10 }, lines: [{ a: 'x', n: 2 }], memo: 'café ☕ 😀' },
+      from: 'alice$example.com',
+      to: 'bob$example.com',
+    };
+
+    expect(verifySignature(reordered, signed, keys.publicKey).isValid).toBe(true);
+    expect(
+      verifySignature(JSON.stringify(reordered, null, 2), signed, keys.publicKey).isValid,
+    ).toBe(true);
+  });
+
+  it('signs the JCS bytes: the signature verifies over canonicalize(payload) with plain node:crypto', () => {
+    const keys = genRsaKeyPair();
+    const payload = { to: 'bob$example.com', amountCents: 1.0, from: 'alice$example.com' };
+    const signed = signBtpPayload(payload, keys);
+
+    const isValid = crypto.verify(
+      'sha256',
+      Buffer.from(canonicalize(JSON.stringify(payload)), 'utf8'),
+      keys.publicKey,
+      Buffer.from(signed.value, 'base64'),
+    );
+    expect(isValid).toBe(true);
+  });
+
+  it('refuses a payload with duplicate member names, even when its raw bytes were signed', () => {
+    const keys = genRsaKeyPair();
+    const duplicated = '{"id":"dup-1","document":{"amountCents":100,"amountCents":100000}}';
+    const rawSignature = {
+      algorithmHash: 'sha256' as const,
+      value: crypto
+        .sign('sha256', Buffer.from(duplicated, 'utf8'), keys.privateKey)
+        .toString('base64'),
+      fingerprint: getFingerprintFromPem(keys.publicKey, 'sha256'),
+    };
+
+    const { isValid, error } = verifySignature(duplicated, rawSignature, keys.publicKey);
+    expect(isValid).toBe(false);
+    expect(error?.code).toBe('BTP_ERROR_CANONICAL_JSON');
+    expect(() => signBtpPayload(duplicated, keys)).toThrow(BTPErrorException);
+  });
+
+  it('does not verify a payload that differs from the signed one', () => {
+    const keys = genRsaKeyPair();
+    const signed = signBtpPayload({ a: 1, b: { c: 'x' } }, keys);
+    expect(verifySignature({ a: 1, b: { c: 'y' } }, signed, keys.publicKey).isValid).toBe(false);
+  });
 });
 
 // The web side signs and verifies the RFC 8785 canonical bytes, as a BTPS 1.1
@@ -126,97 +171,86 @@ describe('EBA-115: JCS canonicalization of signed payloads', () => {
 // is EBA-115's fix. (Round 1 had the web side sign JSON.stringify output in a
 // non-canonical order, which no SDK fix could ever make pass.)
 describe('EBA-122: Node and web (WebCrypto) verify each other’s signatures', () => {
-  it.fails(
-    `a signature produced by Node verifies under WebCrypto, even when the payload was rebuilt with different key order (${XFAIL_EBA_115})`,
-    async () => {
-      const keys = genRsaKeyPair();
-      const nodePayload = { to: 'bob$example.com', from: 'alice$example.com', amountCents: 500 };
-      const signature = signBtpPayload(nodePayload, keys);
+  it(`a signature produced by Node verifies under WebCrypto, even when the payload was rebuilt with different key order`, async () => {
+    const keys = genRsaKeyPair();
+    const nodePayload = { to: 'bob$example.com', from: 'alice$example.com', amountCents: 500 };
+    const signature = signBtpPayload(nodePayload, keys);
 
-      const webPayload = { from: 'alice$example.com', amountCents: 500, to: 'bob$example.com' };
-      const spkiDer = crypto
-        .createPublicKey(keys.publicKey)
-        .export({ format: 'der', type: 'spki' });
-      const webCryptoKey = await crypto.webcrypto.subtle.importKey(
-        'spki',
-        spkiDer,
-        { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-        false,
-        ['verify'],
-      );
+    const webPayload = { from: 'alice$example.com', amountCents: 500, to: 'bob$example.com' };
+    const spkiDer = crypto.createPublicKey(keys.publicKey).export({ format: 'der', type: 'spki' });
+    const webCryptoKey = await crypto.webcrypto.subtle.importKey(
+      'spki',
+      spkiDer,
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['verify'],
+    );
 
-      const isValid = await crypto.webcrypto.subtle.verify(
-        'RSASSA-PKCS1-v1_5',
-        webCryptoKey,
-        Buffer.from(signature.value, 'base64'),
-        Buffer.from(await referenceCanonicalize(webPayload), 'utf8'),
-      );
+    const isValid = await crypto.webcrypto.subtle.verify(
+      'RSASSA-PKCS1-v1_5',
+      webCryptoKey,
+      Buffer.from(signature.value, 'base64'),
+      Buffer.from(await referenceCanonicalize(webPayload), 'utf8'),
+    );
 
-      expect(isValid).toBe(true);
-    },
-  );
+    expect(isValid).toBe(true);
+  });
 
-  it.fails(
-    `a signature produced by WebCrypto verifies under Node’s verifySignature (${XFAIL_EBA_115})`,
-    async () => {
-      const keys = genRsaKeyPair();
-      const pkcs8Der = crypto
-        .createPrivateKey(keys.privateKey)
-        .export({ format: 'der', type: 'pkcs8' });
-      const webCryptoPrivateKey = await crypto.webcrypto.subtle.importKey(
-        'pkcs8',
-        pkcs8Der,
-        { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-        false,
-        ['sign'],
-      );
+  it(`a signature produced by WebCrypto verifies under Node’s verifySignature`, async () => {
+    const keys = genRsaKeyPair();
+    const pkcs8Der = crypto
+      .createPrivateKey(keys.privateKey)
+      .export({ format: 'der', type: 'pkcs8' });
+    const webCryptoPrivateKey = await crypto.webcrypto.subtle.importKey(
+      'pkcs8',
+      pkcs8Der,
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    );
 
-      const webPayload = { to: 'bob$example.com', from: 'alice$example.com', amountCents: 500 };
-      const signatureBytes = await crypto.webcrypto.subtle.sign(
-        'RSASSA-PKCS1-v1_5',
-        webCryptoPrivateKey,
-        Buffer.from(await referenceCanonicalize(webPayload), 'utf8'),
-      );
+    const webPayload = { to: 'bob$example.com', from: 'alice$example.com', amountCents: 500 };
+    const signatureBytes = await crypto.webcrypto.subtle.sign(
+      'RSASSA-PKCS1-v1_5',
+      webCryptoPrivateKey,
+      Buffer.from(await referenceCanonicalize(webPayload), 'utf8'),
+    );
 
-      const nodePayload = { from: 'alice$example.com', to: 'bob$example.com', amountCents: 500 };
-      const { isValid } = verifySignature(
-        nodePayload,
-        {
-          algorithmHash: 'sha256',
-          value: Buffer.from(signatureBytes).toString('base64'),
-          fingerprint: getFingerprintFromPem(keys.publicKey, 'sha256'),
-        },
-        keys.publicKey,
-      );
+    const nodePayload = { from: 'alice$example.com', to: 'bob$example.com', amountCents: 500 };
+    const { isValid } = verifySignature(
+      nodePayload,
+      {
+        algorithmHash: 'sha256',
+        value: Buffer.from(signatureBytes).toString('base64'),
+        fingerprint: getFingerprintFromPem(keys.publicKey, 'sha256'),
+      },
+      keys.publicKey,
+    );
 
-      expect(isValid).toBe(true);
-    },
-  );
+    expect(isValid).toBe(true);
+  });
 });
 
 describe('EBA-116/117/118: interop with a KMS RSASSA_PKCS1_V1_5_SHA_256 signature', () => {
   // The vector's signature is over canonicalPayload; payloadRaw is the same
   // object in a different key order, so verifying it needs EBA-115's canonical
   // verification.
-  it.fails(
-    `verifies a precomputed KMS-style signature against the logically equivalent (differently ordered) payload (${XFAIL_EBA_115})`,
-    () => {
-      const payload: Record<string, unknown> = JSON.parse(kmsVector.payloadRaw);
+  it(`verifies a precomputed KMS-style signature against the logically equivalent (differently ordered) payload`, () => {
+    const payload: Record<string, unknown> = JSON.parse(kmsVector.payloadRaw);
 
-      const { isValid, error } = verifySignature(
-        payload,
-        {
-          algorithmHash: 'sha256',
-          value: kmsVector.signatureBase64,
-          fingerprint: kmsVector.fingerprint,
-        },
-        kmsVector.publicKeyPem,
-      );
+    const { isValid, error } = verifySignature(
+      payload,
+      {
+        algorithmHash: 'sha256',
+        value: kmsVector.signatureBase64,
+        fingerprint: kmsVector.fingerprint,
+      },
+      kmsVector.publicKeyPem,
+    );
 
-      expect(error).toBeUndefined();
-      expect(isValid).toBe(true);
-    },
-  );
+    expect(error).toBeUndefined();
+    expect(isValid).toBe(true);
+  });
 });
 
 // node:crypto has no MGF1 option: publicEncrypt/privateDecrypt use the oaepHash

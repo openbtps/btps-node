@@ -69,6 +69,11 @@
     "expectError": true
   },
   {
+    "name": "duplicate-keys-inside-an-array-element-are-rejected",
+    "inputs": ["{\"lines\":[{\"amountCents\":1},{\"amountCents\":1,\"amountCents\":2}]}"],
+    "expectError": true
+  },
+  {
     "name": "duplicate-keys-after-unescaping-are-rejected",
     "inputs": ["{\"amountCents\":1,\"amount\\u0043ents\":2}"],
     "expectError": true

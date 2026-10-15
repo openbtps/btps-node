@@ -1,0 +1,51 @@
+{
+  "description": "BTPS 1.1 item 5: signatures are over the RFC 8785 (JCS) form of the payload. Every input of an accept case must verify against signatureBase64, and signing any of them must reproduce it. A reject case carries duplicate member names and a signature over its raw bytes; it must be refused.",
+  "keyVector": "kms-signature.vector.json",
+  "algorithm": "RSASSA_PKCS1_V1_5_SHA_256",
+  "cases": [
+    {
+      "name": "key-order-varied",
+      "inputs": [
+        "{\"version\":\"1.1.0\",\"to\":\"bob$receiver.example\",\"issuedAt\":\"2026-01-03T00:00:00.000Z\",\"id\":\"art-jcs-1\",\"from\":\"alice$saas.example\",\"type\":\"BTPS_DOC\",\"document\":{\"invoiceId\":\"INV-7\",\"amountCents\":9900,\"currency\":\"AUD\"}}",
+        "{\"document\":{\"currency\":\"AUD\",\"amountCents\":9900,\"invoiceId\":\"INV-7\"},\"type\":\"BTPS_DOC\",\"from\":\"alice$saas.example\",\"id\":\"art-jcs-1\",\"issuedAt\":\"2026-01-03T00:00:00.000Z\",\"to\":\"bob$receiver.example\",\"version\":\"1.1.0\"}",
+        "{\"from\":\"alice$saas.example\",\"id\":\"art-jcs-1\",\"to\":\"bob$receiver.example\",\"type\":\"BTPS_DOC\",\"version\":\"1.1.0\",\"issuedAt\":\"2026-01-03T00:00:00.000Z\",\"document\":{\"amountCents\":9900,\"invoiceId\":\"INV-7\",\"currency\":\"AUD\"}}"
+      ],
+      "canonicalPayload": "{\"document\":{\"amountCents\":9900,\"currency\":\"AUD\",\"invoiceId\":\"INV-7\"},\"from\":\"alice$saas.example\",\"id\":\"art-jcs-1\",\"issuedAt\":\"2026-01-03T00:00:00.000Z\",\"to\":\"bob$receiver.example\",\"type\":\"BTPS_DOC\",\"version\":\"1.1.0\"}",
+      "signatureBase64": "plo1IcbbrWt1JIq4MgxncdBC30aXPQL2QR7MTDS1u4MdvKjJ779tVnvoJrxA9jlbhLh+ZiAHZA0QJFMrRmKDIYpbQGyLMO9hHtvIuvXCzqB2tW5bSmLOpgjfRE5HmBXhd8pGFuQnGreIKm/XdajOTDtTE76CTNtkoyvascrj7tJqkMYKhQU7WhLOfv3SyCDsjPrMj+W6zikFnBd6ysENZE+8iFK/8tXwFezIPp8xR08T8w4gerCp6Su5EcnRhRSrTlj0RL0IymGna7dVt/Z0s7wWJiCDbyweSuujddggxb46xZDrMRyiOqGZj3naMSCATWA7++Ls7IbwOsgCtHVEBA=="
+    },
+    {
+      "name": "unicode",
+      "inputs": [
+        "{\"to\":\"bob$receiver.example\",\"from\":\"alice$saas.example\",\"document\":{\"memo\":\"Caf\\u00e9 \\u2615 \\u65e5\\u672c\\u8a9e \\ud83d\\ude00 e\\u0301\",\"payee\":\"Jos\\u00e9 M\\u00fcller\",\"\\u00fcberweisung\":true,\"\\u20ac\":1}}",
+        "{\"document\":{\"€\":1,\"überweisung\":true,\"payee\":\"José Müller\",\"memo\":\"Café ☕ 日本語 😀 é\"},\"from\":\"alice$saas.example\",\"to\":\"bob$receiver.example\"}"
+      ],
+      "canonicalPayload": "{\"document\":{\"memo\":\"Café ☕ 日本語 😀 é\",\"payee\":\"José Müller\",\"überweisung\":true,\"€\":1},\"from\":\"alice$saas.example\",\"to\":\"bob$receiver.example\"}",
+      "signatureBase64": "TWBU/1n4jJ8J0bg/mlrYN1QS9YxapuWu0fysl9Q4Mjz4qL4PVD7QbUK7glPLwe4RM7eyQjr9WZEmEvHHl1bXWR9336k1Vdwz4ARSFWgIe8vSL5+Ea1xGqwhVlgPk9cxSw+N+5PA7CMTVE9GHOMV3xt72eMP2iVs5M2yChISTWpSMLZyTcndPQS/gc7MwrL+yi/BcB924ffhjiYbQSl+qpZdoW59g5w8TJWFTITp+U+FaDC1ETxzhf8SFCVh3fpfZoO1jiCFkxUIXDRikoAdCxbppMPQwJiWaLDYhT2mteQ74NaRWZ2YETgLsQR7v7Rk/tjr+nn4EVHAqgkdkh+pR+g=="
+    },
+    {
+      "name": "nested-objects",
+      "inputs": [
+        "{\"id\":\"art-jcs-3\",\"document\":{\"seller\":{\"name\":\"Acme\",\"address\":{\"postcode\":\"2000\",\"city\":\"Sydney\"}},\"lines\":[{\"qty\":2,\"item\":{\"sku\":\"B\",\"price\":{\"cents\":500,\"currency\":\"AUD\"}}},{\"qty\":1,\"item\":{\"sku\":\"A\",\"price\":{\"currency\":\"AUD\",\"cents\":250}}}],\"totals\":{\"tax\":{\"gst\":125,\"rate\":\"10\"},\"net\":1250}}}",
+        "{\"document\":{\"totals\":{\"net\":1250,\"tax\":{\"rate\":\"10\",\"gst\":125}},\"lines\":[{\"item\":{\"price\":{\"currency\":\"AUD\",\"cents\":500},\"sku\":\"B\"},\"qty\":2},{\"item\":{\"price\":{\"cents\":250,\"currency\":\"AUD\"},\"sku\":\"A\"},\"qty\":1}],\"seller\":{\"address\":{\"city\":\"Sydney\",\"postcode\":\"2000\"},\"name\":\"Acme\"}},\"id\":\"art-jcs-3\"}"
+      ],
+      "canonicalPayload": "{\"document\":{\"lines\":[{\"item\":{\"price\":{\"cents\":500,\"currency\":\"AUD\"},\"sku\":\"B\"},\"qty\":2},{\"item\":{\"price\":{\"cents\":250,\"currency\":\"AUD\"},\"sku\":\"A\"},\"qty\":1}],\"seller\":{\"address\":{\"city\":\"Sydney\",\"postcode\":\"2000\"},\"name\":\"Acme\"},\"totals\":{\"net\":1250,\"tax\":{\"gst\":125,\"rate\":\"10\"}}},\"id\":\"art-jcs-3\"}",
+      "signatureBase64": "iqvQB2BTuuuFdKb6eooNArM/QfIwRWCE8QipTQJADBYGkgt0gBE+6NSvFWdaY2jkLLVSptMaybSgnNsvLPS+1SlAWw71Mmb7Sl+S4xXWpm8yP5oAKmjxTWcuximlFpCv54ylxynhY3vlWYiBmUKmXXnkmLIrPvCo8VgXyHT5a8YAaDgECwU6QOz+CSuy/17HACmsX8mRsYzQWj+gQyQPvWyn8r0Z1yPRdTI9CZ86pK+ilPkp1uX36Ahi5aUsR2FUVpyiunCqhgy4Qf4fkKyWADcYJi1F4XkR7dQpgkz0KiMk7yCzfbo+iApWoORegU6vshE1qYgp+Ar2zklUcsF1uw=="
+    },
+    {
+      "name": "duplicate-keys-rejected",
+      "inputs": [
+        "{\"id\":\"art-jcs-4\",\"to\":\"bob$receiver.example\",\"to\":\"mallory$receiver.example\",\"document\":{\"amountCents\":100}}"
+      ],
+      "expect": "reject",
+      "signatureBase64": "NNI6jzDfoSUSMjxDYKTrgDGqmzNV1kl6Mav0W1ZTbgMmR+507X37XjuMoMdevL7S/aXN0od8I8Wu3wAioekwq6c1BFENwQeo4qd3d2QWepmvABMVENYEPxTJoCBEHM5PWuDLWt8T1OEWZ/U5bzJgMbZ4Z1XNgsYBqaMU+xbsnKQNIZg8osiSltgn9/gxd1rnJG6VN3jhgdHBdF9nQf/pwYaB6oWxcXcPvSS+ZzPEi3xRIdI2lKFWwCwA32Mgq4Du/8/YWcGv9wL6oyJ06V9yIdeTlwrmF2AHuB4T/RZ9BA+1lx6JhyDeJJjjlBkih0gt7MmZqblWoluHC9j1AGjMLw=="
+    },
+    {
+      "name": "nested-duplicate-keys-rejected",
+      "inputs": [
+        "{\"id\":\"art-jcs-5\",\"to\":\"bob$receiver.example\",\"document\":{\"lines\":[{\"amountCents\":100,\"amountCents\":100000}]}}"
+      ],
+      "expect": "reject",
+      "signatureBase64": "jNg+xM7QLsnU0omxJhZJ56cRDEtibbhI75nwNmJx0DzUszad1Nom9bSvGRQCZ93/tY2Qhykg4mJ50VYLhb6dEM5CkEoWf5YahOpHGJ/1JxnNuza1UIZ8ZNPuU8ZKcIOK3Aje05Zim8Y7dHaWHx8egAFHRiqyriQ+qqxjf1ez3EyrWuNT9GUDvUdD69Vyvx80v/4TyB0YgpyrSf5IrNTtm/tWKV5KeQPwmuIVrRk2X2k9Z5fhfEqu6SMGWwTbRH5vL+JTSUEkGmnDLYwGc1sEbQHSJcbGmEjMcSUFXfM6z1YdTRRz3B1SWQCwlLUlVgIAWDu3Qs3RV9WLyOnPhQWvqQ=="
+    }
+  ]
+}

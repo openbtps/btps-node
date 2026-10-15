@@ -229,6 +229,8 @@ Generic BTPS documents, most commonly invoices.
 
 All transporter artifacts must be digitally signed using SHA-256 with RSA, The signature covers the entire message envelope excluding the signature field itself.
 
+**Canonical form (BTPS 1.1).** The signed bytes are the UTF-8 encoding of the [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) (JCS) canonical form of the envelope with `signature` removed, not the sender's own serialisation, so a signature verifies whatever order the receiver sees the keys in. The same applies to the delegation and attestation signatures. An artifact with a duplicate member name, at any depth, is refused before its signature is checked. 1.0 signatures (over the sender's `JSON.stringify` output) are not accepted.
+
 ### Encryption
 
 Transporter artifacts support optional encryption using AES-256-GCM:

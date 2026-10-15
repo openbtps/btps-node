@@ -21,7 +21,7 @@ describe('verify-btps-vectors CLI', () => {
     const { code, out } = run();
     expect(code).toBe(1);
     expect(out).toMatch(
-      /FAIL  sdk\/item-5\/managed\/verifySignature-accepts-reordered-payload \[item 5: EBA-115\]/,
+      /FAIL  sdk\/item-6\/artifact-names-signature-selector \[item 6: EBA-116, EBA-117\]/,
     );
     expect(out).toMatch(/FAIL  sdk\/item-10\/gcm-tag\/truncated-4-byte-tag-rejected/);
   });

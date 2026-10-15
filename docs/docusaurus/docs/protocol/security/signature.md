@@ -8,6 +8,10 @@ slug: signature-verification
 
 BTPS uses digital signatures to ensure the authenticity and integrity of every message artifact exchanged between parties. This process is critical for preventing tampering and impersonation.
 
+## Canonical Form (BTPS 1.1)
+
+What is hashed and signed is the UTF-8 encoding of the [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) JSON Canonicalization Scheme (JCS) form of the artifact with its `signature` field removed: object keys sorted by UTF-16 code units, no insignificant whitespace, minimal string escaping, and ECMAScript number formatting. Any implementation (Node, a browser, Swift, Kotlin, a KMS client) produces the same bytes for the same artifact, whatever order it holds the keys in. Input with a duplicate member name, a lone UTF-16 surrogate, or a number outside an IEEE-754 double is refused. The SDK exposes this as `canonicalize` from `@btps/sdk/crypto`.
+
 ## Signature Workflow
 
 ### Signing (Sender Side)

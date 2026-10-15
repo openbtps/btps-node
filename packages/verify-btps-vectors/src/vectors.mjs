@@ -11,6 +11,7 @@ import path from 'node:path';
 
 export const VECTOR_FILES = Object.freeze({
   jcs: 'jcs.vectors.json',
+  jcsSignature: 'jcs-signature.vectors.json',
   managedSignature: 'kms-signature.vector.json',
   selfHeldSignature: 'self-held-signature.vector.json',
   oaepWrap: 'oaep-wrap.vector.json',
@@ -60,6 +61,26 @@ export function loadVectorSet(dir) {
       throw new VectorLoadError(
         VECTOR_FILES.jcs,
         `${vector.name}: needs expectedCanonical or expectError`,
+      );
+    }
+  }
+
+  requireFields(VECTOR_FILES.jcsSignature, set.jcsSignature, ['keyVector', 'cases']);
+  if (set.jcsSignature.keyVector !== VECTOR_FILES.managedSignature) {
+    throw new VectorLoadError(
+      VECTOR_FILES.jcsSignature,
+      `references key vector "${set.jcsSignature.keyVector}"; only ${VECTOR_FILES.managedSignature} is supported`,
+    );
+  }
+  if (!Array.isArray(set.jcsSignature.cases) || set.jcsSignature.cases.length === 0) {
+    throw new VectorLoadError(VECTOR_FILES.jcsSignature, 'expected a non-empty "cases" array');
+  }
+  for (const c of set.jcsSignature.cases) {
+    requireFields(VECTOR_FILES.jcsSignature, c, ['name', 'inputs', 'signatureBase64']);
+    if (c.expect !== 'reject' && typeof c.canonicalPayload !== 'string') {
+      throw new VectorLoadError(
+        VECTOR_FILES.jcsSignature,
+        `${c.name}: needs canonicalPayload or expect: "reject"`,
       );
     }
   }

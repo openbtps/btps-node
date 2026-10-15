@@ -48,6 +48,54 @@ export function vectorChecks(runtime, set) {
     });
   }
 
+  const jcsKey = set.managedSignature;
+  for (const c of set.jcsSignature.cases) {
+    const signature = fromBase64(c.signatureBase64);
+    if (c.expect === 'reject') {
+      checks.push({
+        id: id(`jcs-signature/${c.name}`),
+        item: 5,
+        async run() {
+          for (const input of c.inputs) {
+            ensure(
+              await runtime.verifyPkcs1Sha256(jcsKey.publicKeyPem, utf8(input), signature),
+              'the signature does not cover the raw input, so this vector cannot show a refusal means anything',
+            );
+            let accepted = false;
+            try {
+              canonicalize(input);
+              accepted = true;
+            } catch {
+              // refused, as expected
+            }
+            ensure(
+              !accepted,
+              `canonicalised ${JSON.stringify(input)}; duplicate names must be refused`,
+            );
+          }
+        },
+      });
+      continue;
+    }
+    checks.push({
+      id: id(`jcs-signature/${c.name}`),
+      item: 5,
+      async run() {
+        ensure(
+          await runtime.verifyPkcs1Sha256(jcsKey.publicKeyPem, utf8(c.canonicalPayload), signature),
+          'signature did not verify over canonicalPayload',
+        );
+        for (const input of c.inputs) {
+          ensure(
+            canonicalize(input) === c.canonicalPayload,
+            `${JSON.stringify(input)} does not canonicalise to canonicalPayload`,
+          );
+          ensure(input !== c.canonicalPayload, 'an input is already canonical');
+        }
+      },
+    });
+  }
+
   for (const vector of [set.managedSignature, set.selfHeldSignature]) {
     const name = (check) => id(`signature/${vector.custody}/${check}`);
     const canonical = utf8(vector.canonicalPayload);

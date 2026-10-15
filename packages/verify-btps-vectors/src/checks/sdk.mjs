@@ -208,6 +208,65 @@ export function sdkChecks(sdk, set) {
     },
   });
 
+  const jcsKey = set.managedSignature;
+  for (const c of set.jcsSignature.cases) {
+    const signature = {
+      algorithmHash: 'sha256',
+      value: c.signatureBase64,
+      fingerprint: jcsKey.fingerprint,
+    };
+    const verify = (payload) => {
+      try {
+        return sdkCrypto.verifySignature(payload, signature, jcsKey.publicKeyPem);
+      } catch (error) {
+        return { isValid: false, error }; // throwing is a rejection
+      }
+    };
+    if (c.expect === 'reject') {
+      checks.push({
+        id: `sdk/item-5/jcs-signature/${c.name}`,
+        item: 5,
+        tickets: ['EBA-115'],
+        run() {
+          for (const input of c.inputs) {
+            ensure(
+              verify(input).isValid !== true,
+              `a payload with duplicate member names verified as signed: ${input}`,
+            );
+          }
+        },
+      });
+      continue;
+    }
+    checks.push({
+      id: `sdk/item-5/jcs-signature/${c.name}`,
+      item: 5,
+      tickets: ['EBA-115'],
+      run() {
+        c.inputs.forEach((input, i) => {
+          for (const [form, payload] of [
+            ['JSON text', input],
+            ['object', JSON.parse(input)],
+          ]) {
+            const { isValid, error } = verify(payload);
+            ensure(
+              isValid === true,
+              `input ${i} as ${form} did not verify (${error?.message ?? 'no error'})`,
+            );
+          }
+          const signed = sdkCrypto.signBtpPayload(JSON.parse(input), {
+            publicKey: jcsKey.publicKeyPem,
+            privateKey: jcsKey.privateKeyPem,
+          });
+          ensure(
+            signed.value === c.signatureBase64,
+            `signing input ${i} did not reproduce the signature over the JCS form`,
+          );
+        });
+      },
+    });
+  }
+
   // --- Item 6: separate signature and encryption selectors (EBA-116/117) --
   const item6 = set.selectors;
   let artifactPromise;

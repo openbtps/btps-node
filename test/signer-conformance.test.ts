@@ -44,7 +44,7 @@ import crypto from 'crypto';
 import type { Signer } from '../src/signer-interface.js';
 import { PemSigner } from '../src/pem-signer.js';
 import { KmsSigner, type KmsSignClient } from '../src/kms-signer.js';
-import { verifySignature } from '@core/crypto/index.js';
+import { canonicalize, verifySignature } from '@core/crypto/index.js';
 
 // EBA-392: the two tests below that spawn a real `tsc` take ~1–2.5 s on an
 // idle 10-core machine, but one CI run took 5467 ms under parallel-suite
@@ -135,7 +135,7 @@ describe.each(implementations)('AC1: $name conformance', ({ name, makeSigner, pu
   });
 });
 
-describe('AC3: wire-format proof — a KMS signature and a PEM signature over the same input both verify through the unchanged 1.0 verify path', () => {
+describe('AC3: wire-format proof — a KMS signature and a PEM signature over the same input both verify through the SDK verify path', () => {
   it('signBtpPayload-equivalent output from both Signer implementations verifies via @core/crypto verifySignature', async () => {
     const pemSigner = new PemSigner({
       publicKey: vectors.signing.publicKeyPem,
@@ -147,7 +147,8 @@ describe('AC3: wire-format proof — a KMS signature and a PEM signature over th
     });
 
     const payload = vectors.signing.payload;
-    const data = new TextEncoder().encode(JSON.stringify(payload));
+    // BTPS 1.1 (EBA-115) signs the RFC 8785 canonical form, not JSON.stringify output.
+    const data = new TextEncoder().encode(canonicalize(JSON.stringify(payload)));
     const fingerprint = crypto
       .createHash('sha256')
       .update(crypto.createPublicKey(vectors.signing.publicKeyPem).export({ format: 'der', type: 'spki' }))

@@ -256,6 +256,8 @@ Responses can be digitally signed for authenticity:
 - **signedBy**: Identity that signed the response
 - **selector**: DNS selector for key management
 
+**Canonical form (BTPS 1.1).** The signature is over the UTF-8 encoding of the [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) (JCS) canonical form of the response with `signature` removed. A client refuses a response with a duplicate member name.
+
 ### Encryption
 
 Responses can be encrypted for confidentiality:

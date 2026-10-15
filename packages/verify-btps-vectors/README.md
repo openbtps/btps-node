@@ -12,7 +12,7 @@ yarn verify:btps-vectors
 node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs \
   --known-failing test/vectors/known-failing.json
 
-# Strict form: every check must pass. Red until EBA-115, EBA-116 and EBA-122 land.
+# Strict form: every check must pass. Red until EBA-116 and EBA-122 land.
 node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs
 ```
 
@@ -31,7 +31,7 @@ devDependency of the repository root). It has been run on Node 24.21.0 only.
 | `interop/<a>-><b>/…`  | node→web, web→node | a signature or wrap made by one runtime is accepted by the other, and signatures are byte-identical to the vector                                                                                                                                                                                                    |
 | `oracle/oaep/…`       | node               | the reference OAEP (raw RSA) confirms the positive wrap decodes only under MGF1-SHA-256, and that the negative vector really is an MGF1-SHA-1 wrap                                                                                                                                                                   |
 | `sdk/kms/…`           | node, SDK          | the SDK's fingerprint, `encryptRSA` and `decryptRSA` match the KMS profile. Passes on 367cd09                                                                                                                                                                                                                        |
-| `sdk/item-5/…`        | node, SDK          | BTPS 1.1 item 5, JCS signing (EBA-115). **Fails on 367cd09**                                                                                                                                                                                                                                                         |
+| `sdk/item-5/…`        | node, SDK          | BTPS 1.1 item 5, JCS signing (EBA-115), including `jcs-signature.vectors.json`: each payload verifies in every key order and re-signs to the vector bytes; duplicate names are refused. **Fails on 367cd09; passes since EBA-115**                                                                                   |
 | `sdk/item-6/…`        | node, SDK          | item 6, separate `signatureSelector` and `encryptionSelector` (EBA-116). **Fails on 367cd09**                                                                                                                                                                                                                        |
 | `sdk/item-10/…`       | node, SDK          | item 10, the defects that can be expressed as data: short GCM tags, identities with more than one `$` (EBA-122). **Fails on 367cd09**                                                                                                                                                                                |
 
@@ -102,7 +102,9 @@ that — so a browser or React Native harness can import
   responses, the line-length limit and error codes are server behaviour, and
   EBA-122 tests them itself.
 - **Item 5 duplicate-name rejection is tested through `verifySignature`
-  with a string payload**, because the SDK's wire parsing (JSON.parse) has
-  already dropped duplicates by the time an object reaches it.
+  with a string payload.** Since EBA-115 the SDK also refuses duplicates
+  where it reads the wire (`parseJson` in the server and client), which
+  `yarn test` covers rather than this harness.
 - The reference JCS in [`src/jcs.mjs`](src/jcs.mjs) is the harness's oracle.
-  It is not the SDK implementation, which belongs to EBA-115.
+  It is not the SDK implementation, which is `src/core/crypto/jcs.ts`
+  (EBA-115); the two must agree on every vector.

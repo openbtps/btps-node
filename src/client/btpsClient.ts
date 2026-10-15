@@ -50,6 +50,7 @@ import { randomUUID } from 'crypto';
 import isEmpty from 'lodash/isEmpty.js';
 import { BTPCryptoResponse, VerifyEncryptedPayload } from '@core/crypto/types.js';
 import { decryptVerify } from '@core/crypto/decryptVerify.js';
+import { parseJson } from '@core/crypto/jcs.js';
 import { validate } from '@core/utils/validation.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 export class BtpsClient {
@@ -215,7 +216,7 @@ export class BtpsClient {
     if (!line.trim()) return;
 
     try {
-      const msg: BTPServerResponse = JSON.parse(line);
+      const msg = parseJson<BTPServerResponse>(line);
       this.states.shouldRetry = false;
       const { isValid: validSignature, error } = await this.verifyServerMessage(msg);
       if (msg?.reqId && this.queue.has(msg.reqId)) {
@@ -827,7 +828,7 @@ export class BtpsClient {
         }
         try {
           tempSocket?.on('data', async (data) => {
-            const msg: BTPServerResponse = JSON.parse(data.toString());
+            const msg = parseJson<BTPServerResponse>(data.toString());
             const { signature, signedBy, selector, type, status } = msg;
 
             if (type === 'btps_error' || !status.ok) {

@@ -37,6 +37,7 @@ import {
 } from '@core/error/constant.js';
 import {
   getFingerprintFromPem,
+  parseJson,
   PemKeys,
   signBtpPayload,
   verifySignature,
@@ -1070,7 +1071,9 @@ export class BtpsServer {
     error?: 'JSON' | 'VALIDATION';
   } {
     try {
-      const data = JSON.parse(line);
+      // Strict parse: an artifact with a duplicate member name is refused (JCS, item 5).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- typed as JSON.parse was
+      const data = parseJson<any>(line);
 
       let type: 'agent' | 'transporter' | 'identityLookup' | 'control' | undefined;
       if (isBtpsControlArtifact(data)) {

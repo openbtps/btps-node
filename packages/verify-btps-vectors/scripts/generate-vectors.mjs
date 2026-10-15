@@ -109,6 +109,64 @@ function mgf1Sha1Negative() {
   };
 }
 
+/**
+ * Item 5 (EBA-115): whole signed payloads, each given in several key orders
+ * and spellings, signed once over the JCS form with the managed signing key.
+ * RSASSA-PKCS1-v1_5 is deterministic, so any conforming signer reproduces
+ * signatureBase64 from any of the inputs. The reject cases are signed over
+ * their raw bytes, so a verifier that does not refuse duplicate names would
+ * accept them.
+ */
+function jcsSignature() {
+  const key = readVector('kms-signature.vector.json');
+  const sign = (text) =>
+    crypto.sign('sha256', Buffer.from(text, 'utf8'), key.privateKeyPem).toString('base64');
+  const accept = (name, inputs) => {
+    const canonicalPayload = canonicalize(inputs[0]);
+    for (const input of inputs) {
+      if (canonicalize(input) !== canonicalPayload) throw new Error(`${name}: inputs differ`);
+      if (input === canonicalPayload) throw new Error(`${name}: an input is already canonical`);
+    }
+    return { name, inputs, canonicalPayload, signatureBase64: sign(canonicalPayload) };
+  };
+  const reject = (name, input) => ({
+    name,
+    inputs: [input],
+    expect: 'reject',
+    signatureBase64: sign(input),
+  });
+
+  return {
+    description:
+      'BTPS 1.1 item 5: signatures are over the RFC 8785 (JCS) form of the payload. Every input of an accept case must verify against signatureBase64, and signing any of them must reproduce it. A reject case carries duplicate member names and a signature over its raw bytes; it must be refused.',
+    keyVector: 'kms-signature.vector.json',
+    algorithm: 'RSASSA_PKCS1_V1_5_SHA_256',
+    cases: [
+      accept('key-order-varied', [
+        '{"version":"1.1.0","to":"bob$receiver.example","issuedAt":"2026-01-03T00:00:00.000Z","id":"art-jcs-1","from":"alice$saas.example","type":"BTPS_DOC","document":{"invoiceId":"INV-7","amountCents":9900,"currency":"AUD"}}',
+        '{"document":{"currency":"AUD","amountCents":9900,"invoiceId":"INV-7"},"type":"BTPS_DOC","from":"alice$saas.example","id":"art-jcs-1","issuedAt":"2026-01-03T00:00:00.000Z","to":"bob$receiver.example","version":"1.1.0"}',
+        '{"from":"alice$saas.example","id":"art-jcs-1","to":"bob$receiver.example","type":"BTPS_DOC","version":"1.1.0","issuedAt":"2026-01-03T00:00:00.000Z","document":{"amountCents":9900,"invoiceId":"INV-7","currency":"AUD"}}',
+      ]),
+      accept('unicode', [
+        '{"to":"bob$receiver.example","from":"alice$saas.example","document":{"memo":"Caf\\u00e9 \\u2615 \\u65e5\\u672c\\u8a9e \\ud83d\\ude00 e\\u0301","payee":"Jos\\u00e9 M\\u00fcller","\\u00fcberweisung":true,"\\u20ac":1}}',
+        '{"document":{"€":1,"überweisung":true,"payee":"José Müller","memo":"Café ☕ 日本語 😀 e\u0301"},"from":"alice$saas.example","to":"bob$receiver.example"}',
+      ]),
+      accept('nested-objects', [
+        '{"id":"art-jcs-3","document":{"seller":{"name":"Acme","address":{"postcode":"2000","city":"Sydney"}},"lines":[{"qty":2,"item":{"sku":"B","price":{"cents":500,"currency":"AUD"}}},{"qty":1,"item":{"sku":"A","price":{"currency":"AUD","cents":250}}}],"totals":{"tax":{"gst":125,"rate":"10"},"net":1250}}}',
+        '{"document":{"totals":{"net":1250,"tax":{"rate":"10","gst":125}},"lines":[{"item":{"price":{"currency":"AUD","cents":500},"sku":"B"},"qty":2},{"item":{"price":{"cents":250,"currency":"AUD"},"sku":"A"},"qty":1}],"seller":{"address":{"city":"Sydney","postcode":"2000"},"name":"Acme"}},"id":"art-jcs-3"}',
+      ]),
+      reject(
+        'duplicate-keys-rejected',
+        '{"id":"art-jcs-4","to":"bob$receiver.example","to":"mallory$receiver.example","document":{"amountCents":100}}',
+      ),
+      reject(
+        'nested-duplicate-keys-rejected',
+        '{"id":"art-jcs-5","to":"bob$receiver.example","document":{"lines":[{"amountCents":100,"amountCents":100000}]}}',
+      ),
+    ],
+  };
+}
+
 function selectors() {
   const senderOld = newKeyPair();
   const senderCurrent = newKeyPair();
@@ -221,3 +279,4 @@ write('self-held-signature.vector.json', await selfHeldSignature());
 write('oaep-mgf1-sha1.negative.vector.json', mgf1Sha1Negative());
 write('selectors.vector.json', selectors());
 write('sdk-defects.vector.json', sdkDefects());
+write('jcs-signature.vectors.json', jcsSignature());
