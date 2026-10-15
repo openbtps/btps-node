@@ -108,6 +108,11 @@ Agent artifacts (`BTPAgentArtifact`) are designed for client-to-server communica
 
 **`artifact.send`** - Used to send artifacts to other organizations.
 
+**`event.send`** - Used to send a lifecycle event (BTPS 1.1). The agent
+builds a `BTPS_EVENT` transporter artifact whose `id` is the event's `id`.
+The document is required, and is validated as a lifecycle event before it
+is sent. See [Lifecycle Events](./lifecycle-events.md).
+
 ## Supported Document Types
 
 ### 1. Authentication Request Document (`auth.request`)
@@ -353,6 +358,25 @@ Used to send transporter artifacts to other organizations.
 - **encryptionSelector**: selector of the receiver's key the document was encrypted to; present only when encrypted
 
 The device's key is published at no selector, so the artifact carries no `signatureSelector`: the identity's server delegates it before delivery, and the receiver verifies it through the delegation. See [Transporter Artifact, Selectors](./transporter-artifact.md#selectors-btps-11).
+
+### 10. Lifecycle Event Document (`event.send`)
+
+The command's document is a lifecycle event; the agent sends it inside a
+`BTPS_EVENT` transporter artifact, built as for `artifact.send`, whose `id`
+is the event's `id`:
+
+```ts
+await agent.command('event.send', 'billing$acme.example', {
+  schemaVersion: 2,
+  type: 'lifecycle_event',
+  id: crypto.randomUUID(),
+  occurredAt: new Date().toISOString(),
+  document: { from: 'billing$acme.example', id: 'inv_2001', sha256: '…' },
+  eventType: 'paid',
+});
+```
+
+The fields and rules are on [Lifecycle Events](./lifecycle-events.md).
 
 ## Security Features
 

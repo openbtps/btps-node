@@ -73,6 +73,7 @@ const sidebars: SidebarsConfig = {
             'protocol/specifications/artifacts',
             'protocol/specifications/transporter-artifact',
             'protocol/specifications/document-model-v2',
+            'protocol/specifications/lifecycle-events',
             'protocol/specifications/agent-artifact',
             'protocol/specifications/identity-lookup-artifact',
             'protocol/specifications/control-artifact',

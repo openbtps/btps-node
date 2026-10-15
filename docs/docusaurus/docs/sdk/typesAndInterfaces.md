@@ -1489,7 +1489,8 @@ type AgentAction =
   | 'system.ping'
   | 'auth.request'
   | 'auth.refresh'
-  | 'artifact.send';
+  | 'artifact.send'
+  | 'event.send';
 ```
 
 ### AgentActionRequiringDocument
@@ -1503,6 +1504,7 @@ type AgentActionRequiringDocument =
   | 'trust.update'
   | 'trust.delete'
   | 'artifact.send'
+  | 'event.send'
   | 'auth.request'
   | 'auth.refresh'
   | 'inbox.seen'
@@ -1520,8 +1522,11 @@ type AgentActionRequiringDocument =
 Artifact type identifiers.
 
 ```ts
-type BTPArtifactType = 'TRUST_REQ' | 'TRUST_RES' | 'BTPS_DOC';
+type BTPArtifactType = 'TRUST_REQ' | 'TRUST_RES' | 'BTPS_DOC' | 'BTPS_EVENT';
 ```
+
+`BTPS_EVENT` carries a lifecycle event (`BTPEventDoc`), BTPS 1.1. See
+[Lifecycle Events](../protocol/specifications/lifecycle-events.md).
 
 ### CurrencyCode
 

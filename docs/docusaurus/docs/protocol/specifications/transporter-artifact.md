@@ -68,7 +68,7 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
 - **version**: Protocol version (currently "1.0")
 - **id**: Unique message identifier (UUID v4 recommended)
 - **issuedAt**: ISO 8601 timestamp of message creation
-- **type**: Artifact type (TRUST_REQ, TRUST_RES, BTPS_DOC)
+- **type**: Artifact type (TRUST_REQ, TRUST_RES, BTPS_DOC, BTPS_EVENT)
 - **from**: Sender's BTPS identity address
 - **to**: Recipient's BTPS identity address
 - **document**: The actual document content
@@ -214,7 +214,7 @@ A business document in [document model v2](./document-model-v2.md): an
 **Status is never in the document.** `status`, `paidAt`, `refundedAt` and
 `disputedAt` are refused. Whether an invoice is paid, partly paid, disputed
 or refunded is derived from lifecycle events, which travel as their own
-artifacts.
+artifacts (`BTPS_EVENT`, below).
 
 :::warning BTPS 1.1 refuses the 1.0 invoice
 The 1.0 `BTPS_DOC` invoice (`totalAmount.value` as a float, `status` inside
@@ -222,6 +222,44 @@ the document, `lineItems` as columns and rows) is no longer accepted: an
 unencrypted `BTPS_DOC` in that shape fails validation. `BtpInvoiceDocSchema`
 and `BTPInvoiceDoc` are removed from the SDK.
 :::
+
+### 4. Lifecycle Event (`BTPS_EVENT`)
+
+A lifecycle event about an invoice or credit note: `paid`, `partially_paid`,
+`disputed`, `refund_requested`, `refund`, or a `response` to one of them.
+BTPS 1.1. The full rules are on [Lifecycle Events](./lifecycle-events.md).
+
+```json
+{
+  "schemaVersion": 2,
+  "type": "lifecycle_event",
+  "id": "be9c1ff9-9626-40f3-af44-39f2210d364c",
+  "occurredAt": "2026-10-20T09:00:00.000Z",
+  "document": {
+    "from": "billing$acme.example",
+    "id": "inv_2001",
+    "sha256": "1c838c4117d0cf6f3fe99de6144bf9c27692ff390d4bdf9900c0710751c8d416"
+  },
+  "eventType": "paid"
+}
+```
+
+**How the server validates it** (`processBtpDocSchema('BTPS_EVENT')`, in
+`BtpTransporterArtifactSchema`):
+
+- **Unencrypted:** the document must be a lifecycle event
+  (`BtpEventDocSchema`), and:
+  - its `id` must equal the artifact's `id`;
+  - its `document.from` must be the artifact's `to` (the payer writing back
+    about the biller's invoice) or its `from` (the biller answering about
+    its own).
+- **Encrypted:** the document is an opaque string, as for `BTPS_DOC`. The
+  receiving platform applies the same rules after decrypting
+  (`@btps/sdk/documents`: `parseBtpEventDoc`, `validateBtpEventEnvelope`).
+- **Not interchangeable with `BTPS_DOC`:** a `BTPS_DOC` carrying an event is
+  refused, and so is a `BTPS_EVENT` carrying a document.
+- **Trust:** accepted over either direction of the pair's trust; see
+  [Trust Verification](#trust-verification).
 
 ## Security Features
 
@@ -250,6 +288,21 @@ Before processing any transporter artifact, the receiving server must:
 2. Check if a trust relationship exists
 3. Validate the trust relationship status
 4. Verify the sender's public key matches the trust record
+
+**`BTPS_EVENT` (BTPS 1.1).** Trust is directional, keyed
+`computeTrustId(from, to)`. For an event only, the server accepts it when
+**either** record is active:
+
+- the normal record, `computeTrustId(from, to)`; or
+- the flipped record, `computeTrustId(to, from)`: the receiver's own trust
+  to the sender.
+
+So once a payer has accepted a biller's trust request, the biller's server
+accepts events from the payer, and only events: the payer still needs its
+own trust to send documents. Only a record between two identities that
+names exactly this pair counts; a device (agent) record never does. A
+`BTPS_DOC` and the trust types are unchanged. In the SDK this is
+`resolveEventTrust` (`@btps/sdk/trust`).
 
 ## Delegation Support
 

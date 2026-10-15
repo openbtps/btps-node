@@ -37,7 +37,7 @@ import {
 | Rule | What it means |
 | --- | --- |
 | `schemaVersion: 2` | Required. Anything else is refused |
-| `type` | `invoice`, `credit_note` or `payslip`. A lifecycle event is not a document: it travels as its own artifact (`BTPS_EVENT`) |
+| `type` | `invoice`, `credit_note` or `payslip`. A lifecycle event is not a document: it travels as its own artifact (`BTPS_EVENT`, see [Lifecycle Events](./lifecycle-events.md)) |
 | `id` | Required, 1 to 128 characters |
 | No status | `status`, `paidAt`, `refundedAt` and `disputedAt` are refused by name. A document is signed and never changes; its status is derived from accepted lifecycle events |
 | Strict | A field the model does not name is refused, not silently dropped, so what is validated is exactly what was signed. `extensions` is the one open place |

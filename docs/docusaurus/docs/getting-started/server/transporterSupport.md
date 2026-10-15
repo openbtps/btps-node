@@ -494,6 +494,7 @@ console.log('Inbox result:', inboxResult); // Should return inbox items
 ### Agent Commands Handled
 
 - **`artifact.send`** (respondNow: false): Queue document for delivery
+- **`event.send`** (respondNow: false): Queue a lifecycle event (`BTPS_EVENT`) for delivery. The transporter artifact's `id` is the event's `id`; see [Lifecycle Events](../../protocol/specifications/lifecycle-events.md)
 - **`trust.request`** (respondNow: false): Queue trust request for delivery
 - **`trust.respond`** (respondNow: false): Queue trust response for delivery
 - **`inbox.fetch`** (respondNow: true): Fetch inbox immediately
