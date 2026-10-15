@@ -206,6 +206,15 @@ describe('item A: the lifecycle event (BtpEventDocSchema)', () => {
       expect(refuses({ ...paid(), document: { ...document, from: 'not-an-identity' } })).toBe(true);
       expect(refuses({ ...paid(), document: { ...document, extra: 1 } })).toBe(true);
     });
+
+    it('writes the document sha256 as every v2 sha256: lowercase hex, 64 characters', () => {
+      const { document } = paid();
+      const hex = 'a'.repeat(64);
+      expect(refuses({ ...paid(), document: { ...document, sha256: hex } })).toBe(false);
+      for (const sha256 of [hex.toUpperCase(), Buffer.from(hex, 'hex').toString('base64')]) {
+        expect(refuses({ ...paid(), document: { ...document, sha256 } }), sha256).toBe(true);
+      }
+    });
   });
 
   it('parseBtpEventDoc returns a frozen copy, and BTP_ERROR_DOC_SCHEMA with issues on refusal', () => {

@@ -25,6 +25,7 @@ import { freezeDocument } from '@core/utils/freeze.js';
 import { BtpDocV2Schema } from './documents/documentSchema.js';
 import { BtpEventDocSchema } from './documents/eventSchema.js';
 import type { BTPDocV2, BTPEventDoc } from '../types.js';
+import { verifyAttachments } from '@core/utils/documentChecks.js';
 
 // A JSON-shaped copy, so that freezing the parsed document never freezes
 // anything the caller still holds (zod passes `unknown` values through by reference).
@@ -271,6 +272,13 @@ export const validateAgentDocument = (
     if (expectedSchema) {
       const documentValidation = expectedSchema.safeParse(document);
       if (!documentValidation.success) {
+        return false;
+      }
+      // A document an agent sends is held to the same attachment check as a BTPS_DOC.
+      if (
+        action === 'artifact.send' &&
+        !verifyAttachments(documentValidation.data as BTPDocV2).ok
+      ) {
         return false;
       }
     }

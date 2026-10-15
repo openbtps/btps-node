@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { BTP_DOC_LIMITS } from '../../constants/documents.js';
+import { BTP_DOC_ATTACHMENT_MEDIA_TYPES, BTP_DOC_LIMITS } from '../../constants/documents.js';
 import { BtpMoneySchema, BtpDecimalStringSchema } from './moneySchema.js';
 import {
   BtpIssuedDocV2BaseSchema,
@@ -23,12 +23,28 @@ export const BtpInvoicePartySchema = z
   })
   .strict();
 
-/** An attachment's description and hash. Its declared `size` is capped per attachment. */
+/** Standard base64 with padding: the alphabet, then at most two `=`. */
+const BASE64_CHARACTERS = /^[A-Za-z0-9+/]*={0,2}$/;
+
+/**
+ * An attachment carries its file, as in BTPS 1.0: `content` is the file's
+ * bytes in base64, `size` their decoded length and `sha256` their hash. The
+ * schema checks the shape and the caps; that `content` decodes to exactly
+ * `size` bytes with that `sha256` is `verifyAttachments` (documentChecks),
+ * which the server runs on every unencrypted `BTPS_DOC`.
+ */
 export const BtpInvoiceAttachmentV2Schema = z
   .object({
+    content: z
+      .string()
+      .min(1)
+      .max(BTP_DOC_LIMITS.ATTACHMENT_CONTENT_MAX_LENGTH)
+      .refine((value) => value.length % 4 === 0 && BASE64_CHARACTERS.test(value), {
+        message: 'must be base64',
+      }),
     name: capped.name(),
-    mediaType: z.string().max(BTP_DOC_LIMITS.MEDIA_TYPE_MAX_LENGTH),
-    size: z.number().int().nonnegative().max(BTP_DOC_LIMITS.ATTACHMENT_MAX_BYTES),
+    mediaType: z.enum(BTP_DOC_ATTACHMENT_MEDIA_TYPES),
+    size: z.number().int().positive().max(BTP_DOC_LIMITS.ATTACHMENT_MAX_BYTES),
     sha256: capped.hash(),
   })
   .strict();

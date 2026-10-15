@@ -44,7 +44,15 @@ function requireFields(file, object, fields) {
 function loadDocumentModel(dir, set) {
   const file = VECTOR_FILES.documentModel;
   const model = set.documentModel;
-  requireFields(file, model, ['documentsDir', 'keyVector', 'schema', 'ownership', 'taxTotal', 'payslip']);
+  requireFields(file, model, [
+    'documentsDir',
+    'keyVector',
+    'schema',
+    'ownership',
+    'attachments',
+    'taxTotal',
+    'payslip',
+  ]);
   if (model.keyVector !== VECTOR_FILES.managedSignature) {
     throw new VectorLoadError(
       file,
@@ -66,7 +74,7 @@ function loadDocumentModel(dir, set) {
   if (Object.keys(set.documents).length === 0) {
     throw new VectorLoadError(file, `no documents in ${model.documentsDir}`);
   }
-  for (const group of ['schema', 'ownership', 'taxTotal', 'payslip']) {
+  for (const group of ['schema', 'ownership', 'attachments', 'taxTotal', 'payslip']) {
     if (!Array.isArray(model[group]) || model[group].length === 0) {
       throw new VectorLoadError(file, `expected a non-empty "${group}" array`);
     }

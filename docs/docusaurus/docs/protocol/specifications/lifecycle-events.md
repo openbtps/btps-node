@@ -289,4 +289,6 @@ to the event's `id`.
   answering a `paid`).
 
 The `sha256` values in the vectors are illustrative: the protocol never
-recomputes them.
+recomputes them. Its form is checked: like every `sha256` in a v2 document,
+it is lowercase hex, 64 characters (see
+[How a `sha256` is written](./document-model-v2.md#how-a-sha256-is-written)).
