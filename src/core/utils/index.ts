@@ -21,6 +21,9 @@ import { createHash } from 'crypto';
 import { transformToBTPErrorException } from '@core/error/index.js';
 
 export * from './types.js';
+export * from './money.js';
+export * from './documentChecks.js';
+export * from './freeze.js';
 
 export const parseIdentity = (identity: string): ParsedIdentity | null => {
   const [accountName, domainName] = identity.split('$');

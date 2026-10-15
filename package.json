@@ -40,6 +40,9 @@
     },
     "./storage": {
       "import": "./dist/core/storage/index.js"
+    },
+    "./documents": {
+      "import": "./dist/core/server/schemas/documents/index.js"
     }
   },
   "files": [
