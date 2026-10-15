@@ -35,6 +35,8 @@ import {
   BTP_ERROR_IDENTITY_NOT_FOUND,
   BTP_ERROR_UNKNOWN,
   BTP_ERROR_INVALID_ACTION,
+  BTP_ERROR_ISSUED_AT_WINDOW,
+  BTP_ERROR_ALREADY_RECEIVED,
 } from '@core/error/constant.js';
 import {
   type BTPSigningKey,
@@ -54,6 +56,8 @@ import {
   isBtpsControlArtifact,
   isBtpsAgentArtifact,
   isValidIdentity,
+  checkIssuedAtWindow,
+  resolveIssuedAtWindow,
 } from '@core/utils/index.js';
 import { BTPError } from '@core/error/types.js';
 import type {
@@ -88,6 +92,8 @@ import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifact
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
 import type { BTPIdentityRecord } from '@core/storage/types.js';
 import type { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
+import type { AbstractReplayStore } from '@core/storage/AbstractReplayStore.js';
+import { InMemoryReplayStore } from '@core/storage/InMemoryReplayStore.js';
 
 /**
  * BTPS Secure Server over TLS (btps://)
@@ -99,11 +105,14 @@ export class BtpsServer {
   private readonly onError?: (err: BTPErrorException) => void;
   private readonly identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   private readonly trustStore: AbstractTrustStore<BTPTrustRecord>;
+  private readonly replayStore: AbstractReplayStore;
+  private readonly issuedAtWindowMs: number;
   private readonly middlewareManager: MiddlewareManager;
   private readonly connectionTimeoutMs: number;
   private readonly dependencies: {
     trustStore: AbstractTrustStore<BTPTrustRecord>;
     identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
+    replayStore: AbstractReplayStore;
   };
 
   private readonly port: number;
@@ -122,11 +131,16 @@ export class BtpsServer {
     this.tlsOptions = options.tlsOptions;
     this.trustStore = options.trustStore;
     this.identityStore = options.identityStore;
+    // Replay protection is not optional (item F): with no store given, an
+    // in-memory one, which forgets on restart and is not shared.
+    this.replayStore = options.replayStore ?? new InMemoryReplayStore();
+    this.issuedAtWindowMs = resolveIssuedAtWindow(options.issuedAtWindowMs);
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 30000;
     this.middlewareManager = new MiddlewareManager(options.middlewarePath);
     this.dependencies = {
       trustStore: this.trustStore,
       identityStore: this.identityStore,
+      replayStore: this.replayStore,
     };
 
     // TLS server creation with certs
@@ -501,8 +515,17 @@ export class BtpsServer {
     );
     if (beforeSigVerResponseSent) return; // Response already sent, stop processing
 
-    // Core signature verification (non-negotiable)
     const { data } = reqCtx;
+
+    // Core issuedAt window (non-negotiable, item F). Before the signature, so
+    // a stale replay costs no key lookup.
+    const windowError = this.checkIssuedAt(data);
+    if (windowError) {
+      reqCtx.error = windowError;
+      return this.sendBtpsError(resCtx.socket, BTP_ERROR_ISSUED_AT_WINDOW, resCtx.reqId);
+    }
+
+    // Core signature verification (non-negotiable)
     const { isValid, error: verificationError } = await this.verifySignature(data);
     reqCtx.isValid = isValid;
     if (verificationError) reqCtx.error = verificationError;
@@ -553,6 +576,14 @@ export class BtpsServer {
       return this.sendBtpsError(resCtx.socket, wireError, resCtx.reqId);
     }
 
+    // Core duplicate check (non-negotiable, item F): only now that the
+    // signature and trust hold, so an unverified sender cannot spend
+    // someone else's ids.
+    const { from: replayFrom, id: replayId } = this.replayPair(data);
+    if (await this.replayStore.seen(replayFrom, replayId)) {
+      return this.refuseDuplicate(reqCtx, resCtx, replayFrom, replayId);
+    }
+
     // Execute before onArtifact middleware
     const beforeOnArtifactResponseSent = await this.executeMiddleware(
       this.middlewareManager.getMiddleware('before', 'onArtifact'),
@@ -561,8 +592,22 @@ export class BtpsServer {
     );
     if (beforeOnArtifactResponseSent) return; // Response already sent, stop processing
 
+    // Remembered atomically just before the application gets it: of two
+    // copies racing through the steps above, one is refused here.
+    const expiresAt = new Date(Date.parse(data.artifact.issuedAt) + this.issuedAtWindowMs);
+    if (!(await this.replayStore.remember(replayFrom, replayId, expiresAt))) {
+      return this.refuseDuplicate(reqCtx, resCtx, replayFrom, replayId);
+    }
+
     // Core message processing (non-negotiable)
-    const isResponseSent = await this.processMessage(data, resCtx, reqCtx);
+    let isResponseSent: boolean;
+    try {
+      isResponseSent = await this.processMessage(data, resCtx, reqCtx);
+    } catch (err) {
+      // The application never took it: let the sender resend the same artifact.
+      await this.replayStore.forget(replayFrom, replayId);
+      throw err;
+    }
     if (isResponseSent) return; // Response already sent, stop processing
 
     // Execute after onArtifact middleware (if any)
@@ -578,6 +623,45 @@ export class BtpsServer {
       ...this.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }, resCtx.reqId),
       type: 'btps_response',
     });
+  }
+
+  /**
+   * The issuedAt window (item F), for transporter and agent artifacts alike.
+   * Control and identity-lookup artifacts never reach the pipeline: they are
+   * unsigned, so their issuedAt proves nothing, and they change no state.
+   */
+  private checkIssuedAt(data: ProcessedArtifact): BTPErrorException | undefined {
+    const { issuedAt } = data.artifact;
+    const result = checkIssuedAtWindow(issuedAt, Date.now(), this.issuedAtWindowMs);
+    if (result.ok) return undefined;
+    return new BTPErrorException(BTP_ERROR_ISSUED_AT_WINDOW, {
+      cause: `issuedAt is ${result.reason.replace(/_/g, ' ')}`,
+      meta: {
+        issuedAt,
+        reason: result.reason,
+        skewMs: result.skewMs,
+        windowMs: this.issuedAtWindowMs,
+      },
+    });
+  }
+
+  /** The pair replay protection keys on: the sender (an agent's id for an agent artifact) and the artifact id. */
+  private replayPair(data: ProcessedArtifact): { from: string; id: string } {
+    if (data.type === 'agent') return { from: data.artifact.agentId, id: data.artifact.id };
+    return { from: data.artifact.from, id: data.artifact.id };
+  }
+
+  private refuseDuplicate(
+    reqCtx: BTPRequestCtx,
+    resCtx: BTPResponseCtx,
+    from: string,
+    id: string,
+  ): Promise<void> {
+    reqCtx.error = new BTPErrorException(BTP_ERROR_ALREADY_RECEIVED, {
+      cause: `(from, id) already accepted`,
+      meta: { from, id },
+    });
+    return this.sendBtpsError(resCtx.socket, BTP_ERROR_ALREADY_RECEIVED, resCtx.reqId);
   }
 
   private isResponseSent(resCtx: BTPResponseCtx): boolean {
@@ -1368,6 +1452,7 @@ export class BtpsServer {
   public getDependencies(): {
     trustStore: AbstractTrustStore<BTPTrustRecord>;
     identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
+    replayStore: AbstractReplayStore;
   } {
     return this.dependencies;
   }

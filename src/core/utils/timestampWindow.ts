@@ -30,8 +30,9 @@ export type BTPIssuedAtCheck =
       skewMs?: number;
     };
 
-// An RFC 3339 date-time with a time zone: what `new Date().toISOString()` writes.
-const ISO_DATE_TIME = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+// A UTC date-time ending in Z, as the artifact schemas require and
+// `new Date().toISOString()` writes. An offset is not accepted on the wire.
+const ISO_DATE_TIME = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?Z$/;
 
 /** Milliseconds since the epoch, or undefined when `value` is not a readable date-time. */
 export const parseIssuedAt = (value: unknown): number | undefined => {

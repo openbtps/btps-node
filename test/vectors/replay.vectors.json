@@ -1,0 +1,80 @@
+{
+  "item": "F",
+  "tickets": ["EBA-114"],
+  "description": "BTPS 1.1 item F, replay and duplicate protection (addendum item 4; release plan page 10518529, sections 2.7 and 4). window: an artifact whose issuedAt is the given value, received when the server's clock reads `now`, is accepted or refused with `reason`, under `windowMs` (ISSUED_AT_WINDOW_MS when absent). deliveries: each step is an artifact `(from, id)` signed at `issuedAt` and received at `receivedAt`, in order, by one server with one replay store; `expect` is accept, refuse-window (the window refuses it, whatever the store holds) or refuse-duplicate (inside the window, and its (from, id) was accepted before). A step with the same from, id and issuedAt as an earlier one is the same artifact sent again.",
+  "windowMs": 300000,
+  "now": "2026-10-16T12:00:00.000Z",
+  "window": [
+    { "name": "now", "issuedAt": "2026-10-16T12:00:00.000Z", "expect": "accept" },
+    { "name": "exactly-5-00-old", "issuedAt": "2026-10-16T11:55:00.000Z", "expect": "accept" },
+    { "name": "exactly-5-00-ahead", "issuedAt": "2026-10-16T12:05:00.000Z", "expect": "accept" },
+    { "name": "1ms-past-5-00-old", "issuedAt": "2026-10-16T11:54:59.999Z", "expect": "refuse", "reason": "too_old" },
+    { "name": "1ms-past-5-00-ahead", "issuedAt": "2026-10-16T12:05:00.001Z", "expect": "refuse", "reason": "too_far_ahead" },
+    { "name": "10-minutes-old", "issuedAt": "2026-10-16T11:50:00.000Z", "expect": "refuse", "reason": "too_old" },
+    { "name": "offset-instead-of-z", "issuedAt": "2026-10-16T14:00:00.000+02:00", "expect": "refuse", "reason": "unreadable" },
+    { "name": "no-time-zone", "issuedAt": "2026-10-16T12:00:00.000", "expect": "refuse", "reason": "unreadable" },
+    { "name": "day-not-in-calendar", "issuedAt": "2026-02-30T12:00:00.000Z", "expect": "refuse", "reason": "unreadable" },
+    { "name": "tighter-window-edge", "windowMs": 60000, "issuedAt": "2026-10-16T11:59:00.000Z", "expect": "accept" },
+    { "name": "tighter-window-1ms-past", "windowMs": 60000, "issuedAt": "2026-10-16T11:58:59.999Z", "expect": "refuse", "reason": "too_old" }
+  ],
+  "deliveries": [
+    {
+      "name": "same-artifact-twice",
+      "steps": [
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e01", "issuedAt": "2026-10-16T12:00:00.000Z", "receivedAt": "2026-10-16T12:00:00.000Z", "expect": "accept" },
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e01", "issuedAt": "2026-10-16T12:00:00.000Z", "receivedAt": "2026-10-16T12:00:01.000Z", "expect": "refuse-duplicate" }
+      ]
+    },
+    {
+      "name": "resent-after-timeout-inside-window",
+      "steps": [
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e02", "issuedAt": "2026-10-16T12:00:00.000Z", "receivedAt": "2026-10-16T12:00:00.000Z", "expect": "accept" },
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e02", "issuedAt": "2026-10-16T12:00:00.000Z", "receivedAt": "2026-10-16T12:04:59.999Z", "expect": "refuse-duplicate" }
+      ]
+    },
+    {
+      "name": "same-id-from-another-sender",
+      "steps": [
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e03", "issuedAt": "2026-10-16T12:00:00.000Z", "receivedAt": "2026-10-16T12:00:00.000Z", "expect": "accept" },
+        { "from": "finance$client.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e03", "issuedAt": "2026-10-16T12:00:00.000Z", "receivedAt": "2026-10-16T12:00:01.000Z", "expect": "accept" }
+      ]
+    },
+    {
+      "name": "duplicate-at-the-window-edge",
+      "steps": [
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e04", "issuedAt": "2026-10-16T12:00:00.000Z", "receivedAt": "2026-10-16T12:00:00.000Z", "expect": "accept" },
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e04", "issuedAt": "2026-10-16T12:00:00.000Z", "receivedAt": "2026-10-16T12:05:00.000Z", "expect": "refuse-duplicate" }
+      ]
+    },
+    {
+      "name": "duplicate-after-the-window",
+      "steps": [
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e05", "issuedAt": "2026-10-16T12:00:00.000Z", "receivedAt": "2026-10-16T12:00:00.000Z", "expect": "accept" },
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e05", "issuedAt": "2026-10-16T12:00:00.000Z", "receivedAt": "2026-10-16T12:05:00.001Z", "expect": "refuse-window" }
+      ]
+    },
+    {
+      "name": "issued-ahead-held-until-issuedAt-plus-window",
+      "steps": [
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e06", "issuedAt": "2026-10-16T12:05:00.000Z", "receivedAt": "2026-10-16T12:00:00.000Z", "expect": "accept" },
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e06", "issuedAt": "2026-10-16T12:05:00.000Z", "receivedAt": "2026-10-16T12:09:59.999Z", "expect": "refuse-duplicate" },
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e06", "issuedAt": "2026-10-16T12:05:00.000Z", "receivedAt": "2026-10-16T12:10:00.001Z", "expect": "refuse-window" }
+      ]
+    },
+    {
+      "name": "id-reused-with-a-new-issuedAt",
+      "steps": [
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e07", "issuedAt": "2026-10-16T12:00:00.000Z", "receivedAt": "2026-10-16T12:00:00.000Z", "expect": "accept" },
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e07", "issuedAt": "2026-10-16T12:01:00.000Z", "receivedAt": "2026-10-16T12:01:00.000Z", "expect": "refuse-duplicate" }
+      ]
+    },
+    {
+      "name": "a-new-id-after-a-duplicate",
+      "steps": [
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e08", "issuedAt": "2026-10-16T12:00:00.000Z", "receivedAt": "2026-10-16T12:00:00.000Z", "expect": "accept" },
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e08", "issuedAt": "2026-10-16T12:00:00.000Z", "receivedAt": "2026-10-16T12:00:01.000Z", "expect": "refuse-duplicate" },
+        { "from": "billing$acme.example", "id": "3f1c2b8e-6d0a-4c51-9b0e-1a2b3c4d5e09", "issuedAt": "2026-10-16T12:00:01.000Z", "receivedAt": "2026-10-16T12:00:01.000Z", "expect": "accept" }
+      ]
+    }
+  ]
+}

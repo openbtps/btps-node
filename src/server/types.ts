@@ -21,6 +21,7 @@ import { BTPErrorException } from '@core/error/index.js';
 import type { Signer } from '../signer-interface.js';
 import { BTPIdentityRecord } from '@core/storage/types.js';
 import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
+import type { AbstractReplayStore } from '@core/storage/AbstractReplayStore.js';
 
 export interface BtpsTlsOptions extends TlsOptions {
   cert: string;
@@ -42,6 +43,19 @@ export interface BtpsServerOptions {
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tlsOptions: BtpsTlsOptions;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
+  /**
+   * Where accepted `(from, id)` pairs are remembered (replay protection, item
+   * F). Defaults to an `InMemoryReplayStore`, which does not survive a
+   * restart and is not shared between server instances: a platform running
+   * more than one instance passes a shared store.
+   */
+  replayStore?: AbstractReplayStore;
+  /**
+   * How far an artifact's `issuedAt` may be from this server's clock, either
+   * way, in milliseconds. Defaults to ISSUED_AT_WINDOW_MS (5 minutes); may be
+   * tighter, never wider than MAX_ISSUED_AT_WINDOW_MS (also 5 minutes).
+   */
+  issuedAtWindowMs?: number;
   port?: number;
   onError?: (err: BTPErrorException) => void;
 
@@ -68,6 +82,7 @@ export interface MiddlewareContext {
   dependencies: {
     trustStore: AbstractTrustStore<BTPTrustRecord>;
     identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
+    replayStore?: AbstractReplayStore;
     // Add other dependencies as needed
   };
   config: Record<string, unknown>;

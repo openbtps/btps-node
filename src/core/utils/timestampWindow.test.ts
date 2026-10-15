@@ -54,8 +54,11 @@ describe('item F: the issuedAt window', () => {
     expect(checkIssuedAtWindow(value, NOW)).toEqual({ ok: false, reason: 'unreadable' });
   });
 
-  it('reads an offset time zone', () => {
-    expect(parseIssuedAt('2026-10-16T14:00:00+02:00')).toBe(NOW);
+  it('reads UTC with or without fractional seconds, and nothing else', () => {
+    expect(parseIssuedAt('2026-10-16T12:00:00Z')).toBe(NOW);
+    expect(parseIssuedAt('2026-10-16T12:00:00.000Z')).toBe(NOW);
+    // The artifact schemas require Z; an offset is not read here either.
+    expect(parseIssuedAt('2026-10-16T14:00:00+02:00')).toBeUndefined();
   });
 
   it('uses a tighter window when given one', () => {
