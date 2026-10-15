@@ -91,3 +91,26 @@ describe('package exports (EBA-441)', () => {
     expectTypeOf<KmsDecrypterOptions['client']>().toEqualTypeOf<KmsDecryptClient>();
   });
 });
+
+describe('package exports (EBA-114, replay protection)', () => {
+  it.each([
+    ['./storage', 'AbstractReplayStore'],
+    ['./storage', 'InMemoryReplayStore'],
+    ['./storage', 'computeReplayKey'],
+    ['.', 'checkIssuedAtWindow'],
+    ['.', 'resolveIssuedAtWindow'],
+  ])('@btps/sdk%s exports %s', async (subpath, name) => {
+    const mod = await importSubpath(subpath);
+    expect(mod[name], `${name} from ${subpath}`).toBeTypeOf('function');
+  });
+
+  it.each([
+    ['./server', 'ISSUED_AT_WINDOW_MS'],
+    ['./server', 'MAX_ISSUED_AT_WINDOW_MS'],
+    ['./error', 'BTP_ERROR_ISSUED_AT_WINDOW'],
+    ['./error', 'BTP_ERROR_ALREADY_RECEIVED'],
+  ])('@btps/sdk%s exports %s', async (subpath, name) => {
+    const mod = await importSubpath(subpath);
+    expect(mod[name], `${name} from ${subpath}`).toBeDefined();
+  });
+});
