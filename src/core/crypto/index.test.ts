@@ -87,27 +87,33 @@ function genRsaKeyPair(): PemKeys {
 }
 
 describe('EBA-115: JCS canonicalization of signed payloads', () => {
-  it(`signs identically regardless of the JS object key insertion order`, () => {
+  it(`signs identically regardless of the JS object key insertion order`, async () => {
     const keys = genRsaKeyPair();
-    const a = signBtpPayload({ to: 'bob$example.com', from: 'alice$example.com', id: '1' }, keys);
-    const b = signBtpPayload({ id: '1', from: 'alice$example.com', to: 'bob$example.com' }, keys);
+    const a = await signBtpPayload(
+      { to: 'bob$example.com', from: 'alice$example.com', id: '1' },
+      keys,
+    );
+    const b = await signBtpPayload(
+      { id: '1', from: 'alice$example.com', to: 'bob$example.com' },
+      keys,
+    );
 
     // RSASSA-PKCS1-v1_5 is deterministic: equal signatures prove the signed bytes
     // (i.e. the canonicalized payload) were identical despite differing key order.
     expect(a.value).toBe(b.value);
   });
 
-  it(`verifies a payload signed with a different, but logically identical, key order`, () => {
+  it(`verifies a payload signed with a different, but logically identical, key order`, async () => {
     const keys = genRsaKeyPair();
-    const signed = signBtpPayload({ b: 2, a: 1 }, keys);
+    const signed = await signBtpPayload({ b: 2, a: 1 }, keys);
 
     const { isValid } = verifySignature({ a: 1, b: 2 }, signed, keys.publicKey);
     expect(isValid).toBe(true);
   });
 
-  it('verifies whatever order the keys are in, at every depth, as an object or as JSON text', () => {
+  it('verifies whatever order the keys are in, at every depth, as an object or as JSON text', async () => {
     const keys = genRsaKeyPair();
-    const signed = signBtpPayload(
+    const signed = await signBtpPayload(
       {
         to: 'bob$example.com',
         from: 'alice$example.com',
@@ -127,10 +133,10 @@ describe('EBA-115: JCS canonicalization of signed payloads', () => {
     ).toBe(true);
   });
 
-  it('signs the JCS bytes: the signature verifies over canonicalize(payload) with plain node:crypto', () => {
+  it('signs the JCS bytes: the signature verifies over canonicalize(payload) with plain node:crypto', async () => {
     const keys = genRsaKeyPair();
     const payload = { to: 'bob$example.com', amountCents: 1.0, from: 'alice$example.com' };
-    const signed = signBtpPayload(payload, keys);
+    const signed = await signBtpPayload(payload, keys);
 
     const isValid = crypto.verify(
       'sha256',
@@ -141,7 +147,7 @@ describe('EBA-115: JCS canonicalization of signed payloads', () => {
     expect(isValid).toBe(true);
   });
 
-  it('refuses a payload with duplicate member names, even when its raw bytes were signed', () => {
+  it('refuses a payload with duplicate member names, even when its raw bytes were signed', async () => {
     const keys = genRsaKeyPair();
     const duplicated = '{"id":"dup-1","document":{"amountCents":100,"amountCents":100000}}';
     const rawSignature = {
@@ -155,12 +161,12 @@ describe('EBA-115: JCS canonicalization of signed payloads', () => {
     const { isValid, error } = verifySignature(duplicated, rawSignature, keys.publicKey);
     expect(isValid).toBe(false);
     expect(error?.code).toBe('BTP_ERROR_CANONICAL_JSON');
-    expect(() => signBtpPayload(duplicated, keys)).toThrow(BTPErrorException);
+    await expect(signBtpPayload(duplicated, keys)).rejects.toThrow(BTPErrorException);
   });
 
-  it('does not verify a payload that differs from the signed one', () => {
+  it('does not verify a payload that differs from the signed one', async () => {
     const keys = genRsaKeyPair();
-    const signed = signBtpPayload({ a: 1, b: { c: 'x' } }, keys);
+    const signed = await signBtpPayload({ a: 1, b: { c: 'x' } }, keys);
     expect(verifySignature({ a: 1, b: { c: 'y' } }, signed, keys.publicKey).isValid).toBe(false);
   });
 });
@@ -174,7 +180,7 @@ describe('EBA-122: Node and web (WebCrypto) verify each other’s signatures', (
   it(`a signature produced by Node verifies under WebCrypto, even when the payload was rebuilt with different key order`, async () => {
     const keys = genRsaKeyPair();
     const nodePayload = { to: 'bob$example.com', from: 'alice$example.com', amountCents: 500 };
-    const signature = signBtpPayload(nodePayload, keys);
+    const signature = await signBtpPayload(nodePayload, keys);
 
     const webPayload = { from: 'alice$example.com', amountCents: 500, to: 'bob$example.com' };
     const spkiDer = crypto.createPublicKey(keys.publicKey).export({ format: 'der', type: 'spki' });

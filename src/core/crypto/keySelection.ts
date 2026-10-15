@@ -8,7 +8,9 @@
 import { BTP_ERROR_DECRYPTION_UNINTENDED, BTP_ERROR_VALIDATION } from '@core/error/constant.js';
 import { BTPErrorException } from '@core/error/index.js';
 import { resolvePublicKey } from '@core/utils/index.js';
-import type { BTPDecryptionKeys } from './types.js';
+import type { BTPDecryptionKey, BTPDecryptionKeys } from './types.js';
+import type { Decrypter } from '../../decrypter-interface.js';
+import { toDecrypter } from './custody.js';
 
 /**
  * Which key an artifact operation uses (BTPS 1.1, item 6). A transporter
@@ -31,17 +33,20 @@ export const resolveSignatureKey = async (artifact: {
 };
 
 /**
- * Picks the receiver's private key for the artifact's `encryptionSelector`.
+ * Picks the receiver's key for the artifact's `encryptionSelector`.
  *
- * Given one PEM, the caller has chosen the key and it is returned as it is.
- * Given a lookup, the key is the one held at `encryptionSelector`, so a
- * receiver that rotated keeps decrypting what was encrypted to its old key.
+ * Given one key (a `Decrypter` or a PEM), the caller has chosen it and it is
+ * returned as a `Decrypter`. Given a lookup, the key is the one held at
+ * `encryptionSelector`, so a receiver that rotated keeps decrypting what was
+ * encrypted to its old key.
  */
 export const selectDecryptionKey = async (
   encryptionSelector: unknown,
   keys: BTPDecryptionKeys,
-): Promise<{ privateKeyPem: string; error?: undefined } | { error: BTPErrorException }> => {
-  if (typeof keys === 'string') return { privateKeyPem: keys };
+): Promise<
+  { decrypter: Decrypter; error?: undefined } | { error: BTPErrorException; decrypter?: undefined }
+> => {
+  if (typeof keys !== 'function') return asDecrypter(keys);
 
   if (typeof encryptionSelector !== 'string' || !encryptionSelector) {
     return {
@@ -51,8 +56,8 @@ export const selectDecryptionKey = async (
       }),
     };
   }
-  const privateKeyPem = await keys(encryptionSelector);
-  if (!privateKeyPem) {
+  const key = await keys(encryptionSelector);
+  if (!key) {
     return {
       error: new BTPErrorException(BTP_ERROR_DECRYPTION_UNINTENDED, {
         cause: `No private key is held for encryptionSelector ${encryptionSelector}`,
@@ -60,5 +65,17 @@ export const selectDecryptionKey = async (
       }),
     };
   }
-  return { privateKeyPem };
+  return asDecrypter(key);
+};
+
+const asDecrypter = (
+  key: BTPDecryptionKey,
+):
+  | { decrypter: Decrypter; error?: undefined }
+  | { error: BTPErrorException; decrypter?: undefined } => {
+  try {
+    return { decrypter: toDecrypter(key) };
+  } catch (error) {
+    return { error: error as BTPErrorException };
+  }
 };

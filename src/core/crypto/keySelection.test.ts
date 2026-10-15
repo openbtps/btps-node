@@ -15,6 +15,7 @@ import crypto from 'crypto';
 import { resolveSignatureKey, selectDecryptionKey } from './keySelection.js';
 import { decryptBtpPayload, decryptVerify, signEncrypt } from './index.js';
 import type { PemKeys } from './types.js';
+import { PemDecrypter } from '../../pem-decrypter.js';
 import { BTP_ERROR_DECRYPTION_UNINTENDED, BTP_ERROR_VALIDATION } from '../error/constant.js';
 import * as utils from '../utils/index.js';
 
@@ -93,16 +94,36 @@ describe('key selection (EBA-116)', () => {
     expect(await resolveSignatureKey({ from: 'alice$saas.example' })).toBeUndefined();
   });
 
-  it('selectDecryptionKey hands back a PEM the caller already chose', async () => {
-    expect(await selectDecryptionKey(undefined, 'pem')).toEqual({ privateKeyPem: 'pem' });
+  it('selectDecryptionKey wraps a PEM the caller already chose in a PemDecrypter', async () => {
+    const selected = await selectDecryptionKey(undefined, 'pem');
+    expect(selected.error).toBeUndefined();
+    expect(selected.decrypter).toBeInstanceOf(PemDecrypter);
+  });
+
+  it('selectDecryptionKey hands back a Decrypter the caller already chose, as it is', async () => {
+    const decrypter = new PemDecrypter({ privateKey: bob.btps1!.privateKey });
+    expect(await selectDecryptionKey(undefined, decrypter)).toEqual({ decrypter });
   });
 
   it('selectDecryptionKey asks the lookup for the key at encryptionSelector', async () => {
     const lookup = vi.fn((selector: string) => bob[selector]?.privateKey);
-    expect(await selectDecryptionKey('btps1', lookup)).toEqual({
-      privateKeyPem: bob.btps1!.privateKey,
-    });
+    const selected = await selectDecryptionKey('btps1', lookup);
+    expect(selected.decrypter).toBeInstanceOf(PemDecrypter);
     expect(lookup).toHaveBeenCalledWith('btps1');
+  });
+
+  it('a lookup may hand back a Decrypter for the key at encryptionSelector', async () => {
+    const artifact = await send('btps1', 'btps1');
+    const decrypters: Record<string, PemDecrypter> = {
+      btps1: new PemDecrypter({ privateKey: bob.btps1!.privateKey }),
+    };
+    const { payload, error } = await decryptVerify(
+      alice.btps1!.publicKey,
+      artifact,
+      (selector) => decrypters[selector],
+    );
+    expect(error).toBeUndefined();
+    expect(payload?.document).toEqual(document);
   });
 
   it('selectDecryptionKey refuses an encrypted artifact that names no encryptionSelector', async () => {
@@ -148,7 +169,9 @@ describe('key selection (EBA-116)', () => {
     const artifact = await send('btps1', 'btps1');
     const current = bob.btps2!.privateKey;
 
-    expect(decryptBtpPayload(artifact.document, artifact.encryption, current).error).toBeDefined();
+    expect(
+      (await decryptBtpPayload(artifact.document, artifact.encryption, current)).error,
+    ).toBeDefined();
 
     const kept: Record<string, string> = { btps1: bob.btps1!.privateKey, btps2: current };
     const { payload, error } = await decryptVerify(

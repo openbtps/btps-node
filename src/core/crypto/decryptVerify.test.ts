@@ -11,6 +11,7 @@ import * as cryptoIndex from './index';
 import { BTPErrorException } from '../error/index.js';
 import { VerifyEncryptedPayload } from './types';
 import { BTPTrustReqDoc } from '../trust/types.js';
+import { PemDecrypter } from '../../pem-decrypter.js';
 
 vi.mock('./index', () => ({
   decryptBtpPayload: vi.fn(),
@@ -62,7 +63,7 @@ describe('decryptVerify', () => {
     };
 
     mockCrypto.verifySignature.mockReturnValue({ isValid: true });
-    mockCrypto.decryptBtpPayload.mockReturnValue({
+    mockCrypto.decryptBtpPayload.mockResolvedValue({
       data: { name: 'test', email: 'test@test.com', phone: '1234567890', reason: 'test' },
     });
 
@@ -93,7 +94,7 @@ describe('decryptVerify', () => {
     expect(mockCrypto.decryptBtpPayload).toHaveBeenCalledWith(
       'encrypted-string-data',
       encryptedStringPayload.encryption,
-      privateKey,
+      expect.any(PemDecrypter),
     );
   });
 
@@ -135,7 +136,7 @@ describe('decryptVerify', () => {
 
     mockCrypto.verifySignature.mockReturnValue({ isValid: true });
     const decryptionError = new BTPErrorException({ message: 'Decryption failed' });
-    mockCrypto.decryptBtpPayload.mockReturnValue({ data: undefined, error: decryptionError });
+    mockCrypto.decryptBtpPayload.mockResolvedValue({ data: undefined, error: decryptionError });
 
     const result = await decryptVerify(senderPubPem, encryptedStringPayload, privateKey);
 
@@ -150,7 +151,7 @@ describe('decryptVerify', () => {
     };
 
     mockCrypto.verifySignature.mockReturnValue({ isValid: true });
-    mockCrypto.decryptBtpPayload.mockReturnValue({ data: { decrypted: 'data' } });
+    mockCrypto.decryptBtpPayload.mockResolvedValue({ data: { decrypted: 'data' } });
 
     const result = await decryptVerify(senderPubPem, encryptedStringPayload, privateKey);
 
@@ -162,7 +163,7 @@ describe('decryptVerify', () => {
     expect(mockCrypto.decryptBtpPayload).toHaveBeenCalledWith(
       'encrypted-string-data',
       encryptedStringPayload.encryption,
-      privateKey,
+      expect.any(PemDecrypter),
     );
   });
 
@@ -183,7 +184,7 @@ describe('decryptVerify', () => {
     };
 
     mockCrypto.verifySignature.mockReturnValue({ isValid: true });
-    mockCrypto.decryptBtpPayload.mockReturnValue({ data: encryptedPayload.document });
+    mockCrypto.decryptBtpPayload.mockResolvedValue({ data: encryptedPayload.document });
 
     const result = await decryptVerify(senderPubPem, payloadWithDelegation, privateKey);
 

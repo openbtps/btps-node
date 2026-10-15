@@ -14,6 +14,8 @@ import {
   BTPServerResponse,
   BTPTransporterArtifact,
 } from '@core/server/types.js';
+import type { Signer } from '../../signer-interface.js';
+import type { Decrypter } from '../../decrypter-interface.js';
 
 export type EncryptionMode = 'none' | 'standardEncrypt' | '2faEncrypt';
 
@@ -41,13 +43,33 @@ export type PemKeys = {
 };
 
 /**
- * The receiver's private key for decryption: one PEM the caller has already
- * chosen, or a lookup by the artifact's `encryptionSelector`, so that keys
- * kept after a rotation still decrypt what was encrypted to them.
+ * What signs: a `Signer` (KMS, or any custody that keeps its key), or a PEM
+ * key pair, which is wrapped in a `PemSigner`. PEM is for tests and the
+ * interim only.
+ */
+export type BTPSigningKey = Signer | PemKeys;
+
+/** The sender's signing key: a `Signer`, or a PEM key pair (tests and the interim only). */
+export type BTPSenderKey =
+  | { signer: Signer; pemFiles?: undefined }
+  | { pemFiles: PemKeys; signer?: undefined };
+
+/**
+ * What decrypts: a `Decrypter`, or a private key PEM, which is wrapped in a
+ * `PemDecrypter`. PEM is for tests and the interim only.
+ */
+export type BTPDecryptionKey = Decrypter | string;
+
+/**
+ * The receiver's key for decryption: one the caller has already chosen, or a
+ * lookup by the artifact's `encryptionSelector`, so that keys kept after a
+ * rotation still decrypt what was encrypted to them.
  */
 export type BTPDecryptionKeys =
-  | string
-  | ((encryptionSelector: string) => string | undefined | Promise<string | undefined>);
+  | BTPDecryptionKey
+  | ((
+      encryptionSelector: string,
+    ) => BTPDecryptionKey | undefined | Promise<BTPDecryptionKey | undefined>);
 
 export type BTPCryptoOptions = {
   signature: {

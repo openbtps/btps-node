@@ -14,11 +14,11 @@ import {
 import { signBtpPayload, encryptBtpPayload } from './index.js';
 import {
   BTPCryptoResponse,
-  PemKeys,
   BTPCryptoOptions,
   BTPSignature,
   BTPEncryption,
   BTPCryptoArtifact,
+  BTPSenderKey,
 } from './types.js';
 import { parseIdentity, resolvePublicKey } from '@core/utils/index.js';
 import { ParsedIdentity } from '@core/utils/types.js';
@@ -35,13 +35,17 @@ const genEncryptError = (error: BTPErrorException) => ({
  * `payload.encryptionSelector` are given, encrypts its document to the
  * receiver's key at that selector.
  *
+ * The sender signs through `sender.signer` (a `Signer`, e.g. `KmsSigner`), or
+ * `sender.pemFiles`, a PEM key pair wrapped in a `PemSigner` (tests and the
+ * interim only). One of the two is required.
+ *
  * The signed artifact names both keys apart: `signatureSelector` is
- * `sender.selector`, the sender key in `sender.pemFiles`; `encryptionSelector`
- * is the receiver key, and is present only when the document is encrypted.
+ * `sender.selector`, the sender's signing key; `encryptionSelector` is the
+ * receiver key, and is present only when the document is encrypted.
  */
 export const signEncrypt = async <T = unknown>(
   to: string | undefined,
-  sender: ParsedIdentity & { pemFiles: PemKeys; selector: string },
+  sender: ParsedIdentity & BTPSenderKey & { selector: string },
   payload: {
     document: T;
     encryptionSelector?: string;
@@ -58,6 +62,13 @@ export const signEncrypt = async <T = unknown>(
       new BTPErrorException(BTP_ERROR_VALIDATION, {
         cause:
           'selector is not part of BTPS 1.1: pass encryptionSelector for the receiver key, and sender.selector for the signing key',
+      }),
+    );
+  }
+  if (!sender.signer && !sender.pemFiles) {
+    return genEncryptError(
+      new BTPErrorException(BTP_ERROR_VALIDATION, {
+        cause: 'sender.signer (or sender.pemFiles, for tests and the interim) is required to sign',
       }),
     );
   }
@@ -105,7 +116,7 @@ export const signEncrypt = async <T = unknown>(
 
   let signature: BTPSignature;
   try {
-    signature = signBtpPayload(docToSign, sender.pemFiles);
+    signature = await signBtpPayload(docToSign, sender.signer ?? sender.pemFiles!);
   } catch (error) {
     return genEncryptError(error as BTPErrorException);
   }

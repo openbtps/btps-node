@@ -171,8 +171,9 @@ export function sdkChecks(sdk, set) {
         id: `sdk/item-5/${v.custody}/signBtpPayload-signs-canonical-bytes`,
         item: 5,
         tickets: ['EBA-115'],
-        run() {
-          const signed = sdkCrypto.signBtpPayload(JSON.parse(v.payloadRaw), {
+        // `await`: signBtpPayload is async from item I (EBA-441) and sync before it.
+        async run() {
+          const signed = await sdkCrypto.signBtpPayload(JSON.parse(v.payloadRaw), {
             publicKey: v.publicKeyPem,
             privateKey: v.privateKeyPem,
           });
@@ -245,8 +246,8 @@ export function sdkChecks(sdk, set) {
       id: `sdk/item-5/jcs-signature/${c.name}`,
       item: 5,
       tickets: ['EBA-115'],
-      run() {
-        c.inputs.forEach((input, i) => {
+      async run() {
+        for (const [i, input] of c.inputs.entries()) {
           for (const [form, payload] of [
             ['JSON text', input],
             ['object', JSON.parse(input)],
@@ -257,7 +258,7 @@ export function sdkChecks(sdk, set) {
               `input ${i} as ${form} did not verify (${error?.message ?? 'no error'})`,
             );
           }
-          const signed = sdkCrypto.signBtpPayload(JSON.parse(input), {
+          const signed = await sdkCrypto.signBtpPayload(JSON.parse(input), {
             publicKey: jcsKey.publicKeyPem,
             privateKey: jcsKey.privateKeyPem,
           });
@@ -265,7 +266,7 @@ export function sdkChecks(sdk, set) {
             signed.value === c.signatureBase64,
             `signing input ${i} did not reproduce the signature over the JCS form`,
           );
-        });
+        }
       },
     });
   }
@@ -326,7 +327,7 @@ export function sdkChecks(sdk, set) {
       async run() {
         const artifact = await item6Artifact();
         ensure(artifact.encryption, 'the document was not encrypted');
-        const { data, error } = sdkCrypto.decryptBtpPayload(
+        const { data, error } = await sdkCrypto.decryptBtpPayload(
           artifact.document,
           artifact.encryption,
           set.oaepWrap.privateKeyPem,
@@ -365,7 +366,7 @@ export function sdkChecks(sdk, set) {
       };
       let withCurrentKey;
       try {
-        withCurrentKey = sdkCrypto.decryptBtpPayload(
+        withCurrentKey = await sdkCrypto.decryptBtpPayload(
           artifact.document,
           artifact.encryption,
           receiverKeys[receiver.hostSelector],
@@ -408,10 +409,10 @@ export function sdkChecks(sdk, set) {
       id: `sdk/item-10/gcm-tag/${c.name}`,
       item: 10,
       tickets: defects.tickets,
-      run() {
+      async run() {
         let result;
         try {
-          result = sdkCrypto.decryptBtpPayload(
+          result = await sdkCrypto.decryptBtpPayload(
             defects.gcmTag.data,
             c.encryption,
             set.oaepWrap.privateKeyPem,

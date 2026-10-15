@@ -77,7 +77,7 @@ describe('signEncrypt', () => {
         authTag: 'auth-tag',
       },
     });
-    mockCrypto.signBtpPayload.mockReturnValue({
+    mockCrypto.signBtpPayload.mockResolvedValue({
       algorithmHash: 'sha256',
       fingerprint: 'fingerprint',
       value: 'signature-value',

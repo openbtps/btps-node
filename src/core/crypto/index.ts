@@ -9,10 +9,11 @@ import crypto, { constants, createHash, randomBytes } from 'crypto';
 import { performance } from 'perf_hooks';
 import {
   BTPCryptoOptions,
+  BTPDecryptionKey,
   BTPEncryption,
   BTPSignature,
+  BTPSigningKey,
   EncryptionAlgorithmType,
-  PemKeys,
   SignatureAlgorithmHash,
 } from './types.js';
 
@@ -23,17 +24,59 @@ import {
   BTP_ERROR_SIG_VERIFICATION,
   BTP_ERROR_UNKNOWN,
   BTP_ERROR_CANONICAL_JSON,
+  BTP_ERROR_VALIDATION,
 } from '@core/error/constant.js';
 
 import { BTPErrorException } from '@core/error/index.js';
 import { canonicalize, canonicalizeValue } from './jcs.js';
+import { isSigner, toDecrypter, toSigner } from './custody.js';
 
+export * from './custody.js';
 export * from './decryptVerify.js';
 export * from './jcs.js';
 export * from './signEncrypt.js';
 export * from './keygen.js';
 export * from './keySelection.js';
 export * from './types.js';
+
+// Signer and Decrypter (BTPS 1.1, item I): the interfaces the SDK signs and
+// decrypts through, and their PEM and KMS implementations.
+export type { Signer, SignerAlgorithm, SignerPublicKey } from '../../signer-interface.js';
+export type { Decrypter, DecrypterAlgorithm, DecryptRequest } from '../../decrypter-interface.js';
+export { PemSigner, type PemSignerOptions } from '../../pem-signer.js';
+export {
+  KmsSigner,
+  KmsSignerError,
+  type KmsSignClient,
+  type KmsSignerOptions,
+} from '../../kms-signer.js';
+export { PemDecrypter, type PemDecrypterOptions } from '../../pem-decrypter.js';
+export {
+  KmsDecrypter,
+  KmsDecrypterError,
+  type KmsDecryptClient,
+  type KmsDecrypterOptions,
+} from '../../kms-decrypter.js';
+
+/** An AES-256-GCM tag is 16 bytes; anything shorter is refused (fix list 2, T-26). */
+const GCM_TAG_BYTES = 16;
+
+/** Why a call through a Signer or Decrypter failed, as a BTPErrorException.
+ * A KMS failure keeps its `retryable` flag in `meta`. */
+const custodyError = (err: unknown): BTPErrorException => {
+  if (err instanceof BTPErrorException) return err;
+  if (err instanceof Error) {
+    const retryable = (err as { retryable?: unknown }).retryable;
+    return new BTPErrorException(
+      { message: err.message, code: err.name },
+      {
+        cause: err,
+        ...(typeof retryable === 'boolean' ? { meta: { retryable } } : {}),
+      },
+    );
+  }
+  return new BTPErrorException(BTP_ERROR_UNKNOWN, { cause: err });
+};
 
 export const encryptBtpPayload = (
   payload: unknown = '',
@@ -67,11 +110,18 @@ export const encryptBtpPayload = (
   };
 };
 
-export const decryptBtpPayload = <T = unknown>(
+/**
+ * Decrypts a document through a `Decrypter`. A private key PEM is wrapped in
+ * a `PemDecrypter`; PEM is for tests and the interim only.
+ *
+ * An auth tag that is not exactly 16 bytes is refused before any key is
+ * used (fix list 2, T-26).
+ */
+export const decryptBtpPayload = async <T = unknown>(
   payload: unknown = '',
   encryption: BTPEncryption,
-  receiverPrivPem: string,
-): { data?: T; error?: BTPErrorException } => {
+  receiverKey: BTPDecryptionKey,
+): Promise<{ data?: T; error?: BTPErrorException }> => {
   if (encryption.algorithm !== 'aes-256-gcm') {
     return {
       data: undefined,
@@ -79,49 +129,42 @@ export const decryptBtpPayload = <T = unknown>(
     };
   }
 
+  const authTag = Buffer.from(encryption.authTag ?? '', 'base64');
+  if (authTag.length !== GCM_TAG_BYTES) {
+    return {
+      data: undefined,
+      error: new BTPErrorException(BTP_ERROR_VALIDATION, {
+        cause: `An AES-256-GCM auth tag must be ${GCM_TAG_BYTES} bytes; this one is ${authTag.length}`,
+        meta: { authTagBytes: authTag.length },
+      }),
+    };
+  }
+
   try {
-    const decryptedKey = decryptRSA(
-      receiverPrivPem,
-      Buffer.from(encryption.encryptedKey, 'base64'),
-    );
-
-    const decipher = crypto.createDecipheriv(
-      encryption.algorithm,
-      decryptedKey,
-      Buffer.from(encryption.iv, 'base64'),
-    );
-    decipher.setAuthTag(Buffer.from(encryption.authTag, 'base64'));
-
+    const decrypter = toDecrypter(receiverKey);
     const stringifiedPayload = typeof payload !== 'string' ? JSON.stringify(payload) : payload;
 
-    let decryptedPayload = decipher.update(stringifiedPayload, 'base64', 'utf8');
-    decryptedPayload += decipher.final('utf8');
+    const plaintext = await decrypter.decrypt({
+      encryptedKey: Buffer.from(encryption.encryptedKey, 'base64'),
+      iv: Buffer.from(encryption.iv, 'base64'),
+      ciphertext: Buffer.from(stringifiedPayload, 'base64'),
+      authTag,
+    });
 
     return {
-      data: JSON.parse(decryptedPayload),
+      data: JSON.parse(Buffer.from(plaintext).toString('utf8')),
       error: undefined,
     };
   } catch (err: unknown) {
-    const errorRes = {
-      data: undefined,
-      error: new BTPErrorException(BTP_ERROR_UNKNOWN),
-    };
     if (
       typeof err === 'object' &&
       err !== null &&
       'code' in err &&
       (err as NodeJS.ErrnoException).code === 'ERR_OSSL_RSA_OAEP_DECODING_ERROR'
     ) {
-      errorRes.error = new BTPErrorException(BTP_ERROR_DECRYPTION_UNINTENDED);
-      return errorRes;
+      return { data: undefined, error: new BTPErrorException(BTP_ERROR_DECRYPTION_UNINTENDED) };
     }
-
-    const error =
-      err instanceof Error
-        ? new BTPErrorException({ message: err.message, code: err.name })
-        : new BTPErrorException(BTP_ERROR_UNKNOWN);
-    errorRes.error = error;
-    return errorRes;
+    return { data: undefined, error: custodyError(err) };
   }
 };
 
@@ -188,18 +231,48 @@ const signedBytes = (payload: unknown): Buffer =>
     'utf8',
   );
 
-export const signBtpPayload = (payload: unknown = '', senderPemFiles: PemKeys): BTPSignature => {
+/**
+ * Signs the JCS bytes of a payload through a `Signer`. A PEM key pair is
+ * wrapped in a `PemSigner`; PEM is for tests and the interim only.
+ *
+ * The fingerprint is computed here from the public key the signer reports,
+ * as it is for verification.
+ *
+ * @throws {BTPErrorException} BTP_ERROR_CANONICAL_JSON, BTP_ERROR_VALIDATION,
+ * BTP_ERROR_SIG_MISMATCH, or the signer's own failure (a KMS failure keeps
+ * `retryable` in `meta`)
+ */
+export const signBtpPayload = async (
+  payload: unknown = '',
+  signingKey: BTPSigningKey,
+): Promise<BTPSignature> => {
   const canonicalPayload = signedBytes(payload);
-  const { publicKey, privateKey } = senderPemFiles;
+  const signer = toSigner(signingKey);
   const algorithmHash: SignatureAlgorithmHash = 'sha256';
 
-  const signature = crypto.sign('sha256', canonicalPayload, privateKey);
-  const senderFingerprint = getFingerprintFromPem(publicKey, 'sha256');
+  if (signer.algorithm !== 'RSASSA_PKCS1_V1_5_SHA_256') {
+    throw new BTPErrorException(BTP_ERROR_VALIDATION, {
+      cause: `Unsupported signer algorithm: ${String(signer.algorithm)}`,
+    });
+  }
+
+  let signature: Uint8Array;
+  let publicKey: string;
+  try {
+    [signature, publicKey] = await Promise.all([
+      signer.sign(new Uint8Array(canonicalPayload)),
+      isSigner(signingKey)
+        ? signer.getPublicKey().then((key) => key.publicKey)
+        : Promise.resolve(signingKey.publicKey),
+    ]);
+  } catch (err) {
+    throw custodyError(err);
+  }
 
   return {
     algorithmHash,
-    value: signature.toString('base64'),
-    fingerprint: senderFingerprint,
+    value: Buffer.from(signature).toString('base64'),
+    fingerprint: getFingerprintFromPem(publicKey, 'sha256'),
   };
 };
 
