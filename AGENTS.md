@@ -47,9 +47,9 @@ protocol until it is wired in there and added to `BTPDocType`.
 
 | Thing | Rule | Example |
 |---|---|---|
-| A zod schema | `Btp` (or `Btps` for the agent's own) + what it is + `Schema` | `BtpAttachmentSchema`, `BtpsAgentCommandSchema` |
-| A document's schema | `Btp` + name + `DocSchema` | `BtpInvoiceDocSchema`, `BtpTrustReqDocSchema` |
-| A type or interface | `BTP` in capitals + name | `BTPInvoiceDoc`, `BTPTransporterArtifact` |
+| A zod schema | `Btp` (or `Btps` for the agent's own) + what it is + `Schema` | `BtpMoneySchema`, `BtpsAgentCommandSchema` |
+| A document's schema | `Btp` + name + `DocSchema` | `BtpInvoiceV2DocSchema`, `BtpTrustReqDocSchema` |
+| A type or interface | `BTP` in capitals + name | `BTPInvoiceV2Doc`, `BTPTransporterArtifact` |
 | A class | `Btps` + name | `BtpsServer`, `BtpsClient`, `BtpsDelegator` |
 | An error constant | `BTP_ERROR_` + name, in `core/error/constant.ts` | `BTP_ERROR_IDENTITY` |
 | Another constant | upper snake case | `CURRENCY_CODES`, `TRANSPORTER_ACTIONS` |
@@ -69,7 +69,7 @@ a caller: a sender decides whether to retry from the error it is given.
 Something a user of the SDK needs must be reachable from `src/index.ts` or
 from one of the package's export paths in `package.json` (`.`, `./server`,
 `./server/core`, `./client`, `./crypto`, `./trust`, `./authentication`,
-`./delegation`, `./error`, `./storage`). Code that is built and cannot be
+`./delegation`, `./error`, `./storage`, `./documents`). Code that is built and cannot be
 imported is unfinished. Prefer an existing path to a new one.
 
 ## Tests

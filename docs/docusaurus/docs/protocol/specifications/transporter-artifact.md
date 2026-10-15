@@ -171,75 +171,57 @@ Used to accept, reject, or block trust requests.
 
 ### 3. BTPS Document (`BTPS_DOC`)
 
-Generic BTPS documents, most commonly invoices.
+A business document in [document model v2](./document-model-v2.md): an
+**invoice**, a **credit note** or a **payslip**, told apart by its `type`.
 
 ```json
 {
-  "title": "Invoice #INV-2025-001",
-  "id": "INV-2025-001",
-  "issuedAt": "2025-01-15T10:30:00Z",
-  "status": "unpaid",
-  "dueAt": "2025-02-15T10:30:00Z",
-  "totalAmount": {
-    "value": 1500.0,
-    "currency": "USD"
-  },
-  "lineItems": {
-    "columns": ["Description", "Quantity", "Unit Price", "Amount"],
-    "rows": [
-      {
-        "Description": "Web Development Services",
-        "Quantity": "1",
-        "Unit Price": "1500.00",
-        "Amount": "1500.00"
-      }
-    ]
-  },
-  "issuer": {
-    "name": "Acme Corporation",
-    "email": "billing@acme.com",
-    "phone": "+1-555-0123"
-  },
-  "paymentLink": {
-    "linkText": "Pay Invoice",
-    "url": "https://pay.acme.com/inv/INV-2025-001"
-  },
-  "description": "Monthly web development services for January 2025",
-  "attachment": {
-    "content": "base64-encoded-pdf-content",
-    "type": "application/pdf",
-    "filename": "invoice-INV-2025-001.pdf"
-  },
-  "template": {
-    "name": "standard-invoice",
-    "data": {
-      "logoUrl": "https://acme.com/logo.png",
-      "footerText": "Thank you for your business"
+  "schemaVersion": 2,
+  "type": "invoice",
+  "id": "inv_2001",
+  "issuedAt": "2026-10-01T00:00:00.000Z",
+  "title": "Consulting, September 2026",
+  "lineItems": [
+    {
+      "description": "Consulting services",
+      "quantity": "10",
+      "unitPrice": { "amount": 15000, "currency": "AUD" },
+      "lineTotal": { "amount": 150000, "currency": "AUD" },
+      "taxAmount": { "amount": 15000, "currency": "AUD" },
+      "taxCategory": "GST10"
     }
-  }
+  ],
+  "total": { "amount": 150000, "currency": "AUD" },
+  "taxTotals": [{ "taxCategory": "GST10", "amount": { "amount": 15000, "currency": "AUD" } }]
 }
 ```
 
-**Required Fields:**
+**How the server validates it** (`processBtpDocSchema('BTPS_DOC')`, in
+`BtpTransporterArtifactSchema`):
 
-- **title**: Document title
-- **id**: Unique document identifier
-- **issuedAt**: ISO timestamp of document creation
-- **status**: Document status (paid, unpaid, partial, refunded, disputed)
-- **totalAmount**: Total amount with currency
-- **lineItems**: Document line items with columns and rows
+- **Unencrypted:** the document must be a v2 document (`BtpDocV2Schema`),
+  discriminated by `type`. Every field and size is checked as the
+  [document model](./document-model-v2.md) states, and a field the model does
+  not name is refused.
+- **Ownership:** a credit note's `relatesToInvoice.from`, and an invoice's
+  `replaces.from`, must equal the artifact's `from`. A sender can only refer
+  to its own documents. Whether the named document exists is the receiving
+  platform's check.
+- **Encrypted:** the document is an opaque string to the server, as before.
+  The receiving platform validates it after decrypting, with the same
+  schemas (`@btps/sdk/documents`: `parseBtpDocV2`, `validateBtpDocOwnership`).
 
-**Optional Fields:**
+**Status is never in the document.** `status`, `paidAt`, `refundedAt` and
+`disputedAt` are refused. Whether an invoice is paid, partly paid, disputed
+or refunded is derived from lifecycle events, which travel as their own
+artifacts.
 
-- **dueAt**: Payment due date (ISO format)
-- **paidAt**: Payment date (ISO format)
-- **refundedAt**: Refund date (ISO format)
-- **disputedAt**: Dispute date (ISO format)
-- **issuer**: Document issuer information
-- **paymentLink**: Payment link information
-- **description**: Document description
-- **attachment**: Document attachment
-- **template**: Document template and data
+:::warning BTPS 1.1 refuses the 1.0 invoice
+The 1.0 `BTPS_DOC` invoice (`totalAmount.value` as a float, `status` inside
+the document, `lineItems` as columns and rows) is no longer accepted: an
+unencrypted `BTPS_DOC` in that shape fails validation. `BtpInvoiceDocSchema`
+and `BTPInvoiceDoc` are removed from the SDK.
+:::
 
 ## Security Features
 
