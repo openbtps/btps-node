@@ -277,57 +277,25 @@ export class BtpsServer {
    */
   private handleConnection(socket: TLSSocket) {
     const ipAddress = socket.remoteAddress ?? 'unknown';
-    const now = Date.now();
-    const startTime = new Date(now).toISOString();
+    const startTime = new Date().toISOString();
     const stream = socket.pipe(split2());
     const context: BTPContext = {
       socket,
       remoteAddress: ipAddress,
       startTime,
     };
-    let responseSent: boolean = false;
-    let fromIdentity: string | undefined = undefined;
-    let toIdentity: string | undefined = undefined;
+    // For what belongs to no one line: the socket's own timeout and errors.
+    const connection = this.createLineContext(context);
 
-    const identityRef = {
-      update: (to: string, from: string) => {
-        toIdentity = to;
-        fromIdentity = from;
-      },
-      get: () => ({ to: toIdentity, from: fromIdentity }),
-    };
-
-    const reqCtx: BTPRequestCtx<'before', 'parsing'> = { ...context, getIdentity: identityRef.get };
-    const resCtx: BTPResponseCtx<'before', 'parsing'> = {
-      ...context,
-      sendRes: (response) => {
-        if (!responseSent) {
-          responseSent = true;
-        }
-        /* always try to send the response with the reqId */
-        response.reqId = resCtx?.reqId as string | undefined;
-        this.sendBtpsResponse(socket, response);
-      },
-      sendError: (error, action) => {
-        if (!responseSent) {
-          responseSent = true;
-        }
-        /* always try to send the error with the reqId */
-        const reqId = resCtx?.reqId as string | undefined;
-        this.sendBtpsError(socket, error, reqId, action);
-      },
-      get responseSent() {
-        return responseSent;
-      },
-    };
-
-    // Data event handler
+    // Lines from one connection are handled concurrently, each with a
+    // request and response context of its own (fix list 4, addendum item
+    // 10): its reqId, its responseSent and its identity. One shared context,
+    // overwritten by each line, crossed the responses of interleaved requests.
     stream.on('data', async (line: string) => {
       if (!line.trim()) return;
 
-      const parseReq: BTPRequestCtx<'before', 'parsing'> = reqCtx;
+      const { req: parseReq, res: parseRes, identityRef } = this.createLineContext(context);
       parseReq.rawPacket = line;
-      const parseRes = resCtx;
 
       try {
         // Execute before parsing middleware
@@ -380,7 +348,8 @@ export class BtpsServer {
 
         if (parseError || !data) {
           const errorToSend = parseError ?? BTP_ERROR_INVALID_JSON;
-          return this.sendBtpsError(socket, errorToSend);
+          // Answered with the artifact's id whenever it could be read.
+          return this.sendBtpsError(socket, errorToSend, parseRes.reqId);
         }
 
         if (data.type === 'control') {
@@ -420,22 +389,22 @@ export class BtpsServer {
         cause: `Connection timeout after ${this.connectionTimeoutMs}ms`,
         meta: { remoteAddress: socket.remoteAddress, timeoutMs: this.connectionTimeoutMs },
       });
-      const errorReq = reqCtx as BTPRequestCtx<'before', 'onError'>;
+      const errorReq = connection.req as BTPRequestCtx<'before', 'onError'>;
       errorReq.error = timeoutError;
       this.handleOnSocketError(timeoutError, {
         req: errorReq,
-        res: resCtx,
+        res: connection.res,
       });
     });
 
     // Shared error handler for both socket and stream
     const handleError = (err: unknown) => {
       const error = transformToBTPErrorException(err);
-      const errorReq = reqCtx as BTPRequestCtx<'before', 'onError'>;
+      const errorReq = connection.req as BTPRequestCtx<'before', 'onError'>;
       errorReq.error = error;
       this.handleOnSocketError(error, {
         req: errorReq,
-        res: resCtx,
+        res: connection.res,
       });
     };
 
@@ -447,6 +416,45 @@ export class BtpsServer {
       socket.off('error', handleError);
       if (typeof stream.off === 'function') stream.off('error', handleError);
     });
+  }
+
+  /**
+   * A request and response context for one line of a connection (fix list
+   * 4): what middleware sees for a line, the reqId its answer carries, and
+   * whether it has been answered, are that line's own.
+   */
+  private createLineContext(context: BTPContext) {
+    let responseSent = false;
+    let fromIdentity: string | undefined = undefined;
+    let toIdentity: string | undefined = undefined;
+
+    const identityRef = {
+      update: (to: string, from: string) => {
+        toIdentity = to;
+        fromIdentity = from;
+      },
+      get: () => ({ to: toIdentity, from: fromIdentity }),
+    };
+
+    const req: BTPRequestCtx<'before', 'parsing'> = { ...context, getIdentity: identityRef.get };
+    const res: BTPResponseCtx<'before', 'parsing'> = {
+      ...context,
+      sendRes: (response) => {
+        responseSent = true;
+        /* always try to send the response with the reqId */
+        response.reqId = res.reqId as string | undefined;
+        this.sendBtpsResponse(context.socket, response);
+      },
+      sendError: (error, action) => {
+        responseSent = true;
+        /* always try to send the error with the reqId */
+        this.sendBtpsError(context.socket, error, res.reqId as string | undefined, action);
+      },
+      get responseSent() {
+        return responseSent;
+      },
+    };
+    return { req, res, identityRef };
   }
 
   private async handleControl(

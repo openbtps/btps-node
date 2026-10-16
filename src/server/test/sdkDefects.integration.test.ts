@@ -18,6 +18,7 @@ import crypto from 'crypto';
 import { execFileSync } from 'child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'fs';
 import net from 'net';
+import tls from 'tls';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -29,7 +30,7 @@ import { AbstractTrustStore } from '../../core/trust/storage/AbstractTrustStore.
 import type { BTPTrustRecord } from '../../core/trust/types.js';
 import type { PemKeys } from '../../core/crypto/types.js';
 import type { BTPAgentArtifact, BTPTransporterArtifact } from '../../core/server/types.js';
-import type { BtpsServerOptions } from '../types.js';
+import type { ArtifactResCtx, BtpsServerOptions } from '../types.js';
 
 const BILLER = 'billing$acme.example';
 const PAYER = 'finance$client.example';
@@ -132,7 +133,13 @@ type Started = {
 };
 
 /** A real BtpsServer for the biller's and the payer's domain, listening on 127.0.0.1. */
-const startServer = async (options: Partial<BtpsServerOptions> = {}): Promise<Started> => {
+const startServer = async (
+  options: Partial<BtpsServerOptions> = {},
+  onAgent?: (
+    artifact: BTPAgentArtifact & { respondNow: boolean },
+    resCtx: ArtifactResCtx,
+  ) => Promise<void>,
+): Promise<Started> => {
   const port = await freePort();
   const trustStore = new MapTrustStore();
   const tokenStore = new InMemoryTokenStore();
@@ -148,8 +155,9 @@ const startServer = async (options: Partial<BtpsServerOptions> = {}): Promise<St
     ...options,
   });
   const handled: Started['handled'] = [];
-  server.onIncomingArtifact('Agent', (artifact) => {
+  server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
     handled.push(artifact);
+    await onAgent?.(artifact, resCtx);
   });
   vi.spyOn(console, 'log').mockImplementation(() => {});
   await server.start();
@@ -240,5 +248,133 @@ describe('item 10: a device agent sends through its own server', () => {
       from: BILLER,
       to: PAYER,
     });
+  });
+});
+
+/** Writes `lines` on one TLS connection and resolves with the first `count` answer lines. */
+const exchange = (port: number, lines: unknown[], count: number) =>
+  new Promise<Record<string, unknown>[]>((resolve, reject) => {
+    const answers: Record<string, unknown>[] = [];
+    let buffered = '';
+    const socket = tls.connect({ host: '127.0.0.1', port, ca: tlsCert }, () => {
+      socket.write(lines.map((l) => JSON.stringify(l) + '\n').join(''));
+    });
+    const timer = setTimeout(() => {
+      socket.destroy();
+      reject(new Error(`only ${answers.length} of ${count} answers`));
+    }, 4000);
+    socket.on('data', (chunk) => {
+      buffered += chunk.toString();
+      let newline;
+      while ((newline = buffered.indexOf('\n')) !== -1) {
+        answers.push(JSON.parse(buffered.slice(0, newline)));
+        buffered = buffered.slice(newline + 1);
+      }
+      if (answers.length >= count) {
+        clearTimeout(timer);
+        socket.destroy();
+        resolve(answers);
+      }
+    });
+    socket.on('error', reject);
+  });
+
+describe('fix list 4: interleaved requests on one connection', () => {
+  let started: Started | undefined;
+  let agents: BtpsAgent[] = [];
+
+  afterEach(() => {
+    agents.forEach((a) => a.destroy());
+    agents = [];
+    started?.server.stop();
+    started = undefined;
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * The application answers an inbox.fetch (an immediate action) itself,
+   * with the request's own `limit`, after `limit * 100` ms: so a request
+   * with a higher limit is slower, and its answer can only be its own.
+   */
+  const answerWithLimit = async (
+    artifact: BTPAgentArtifact & { respondNow: boolean },
+    resCtx: ArtifactResCtx,
+  ) => {
+    const { limit } = artifact.document as { limit: number };
+    await new Promise((r) => setTimeout(r, limit * 100));
+    resCtx.sendRes({
+      ...started!.server.prepareBtpsResponse({ ok: true, code: 200, message: 'fetched' }),
+      type: 'btps_response',
+      document: `limit:${limit}`,
+    });
+  };
+
+  // Reproduced 2026-10-04 (two probes against a local server): two requests
+  // on one connection were both answered as the second, and three requests
+  // ran the handler five times. One context per socket was overwritten by
+  // each line, and responseSent stayed true after the first answer.
+  it('a slow and a fast request written together each get their own answer, once', async () => {
+    started = await startServer({}, answerWithLimit);
+    const agent = await registerDevice(started, BILLER);
+    agents.push(agent);
+    const build = async (limit: number) =>
+      (
+        await agent['getAgentArtifact']({
+          actionType: 'inbox.fetch',
+          to: BILLER,
+          document: { limit } as never,
+        })
+      ).payload as unknown as BTPAgentArtifact;
+    const slow = await build(3);
+    const fast = await build(1);
+
+    const answers = await exchange(started.port, [slow, fast], 2);
+
+    // The fast one is answered first, each with its own id and its own data.
+    expect(answers.map((a) => [a.reqId, a.document])).toEqual([
+      [fast.id, 'limit:1'],
+      [slow.id, 'limit:3'],
+    ]);
+    expect(answers.every((a) => (a.status as { ok: boolean }).ok)).toBe(true);
+    // One handler call each.
+    expect(started.handled.map((a) => a.id).sort()).toEqual([slow.id, fast.id].sort());
+  });
+
+  it('through BtpsAgent: concurrent commands share one connection, each sent once', async () => {
+    started = await startServer({}, answerWithLimit);
+    const agent = await registerDevice(started, BILLER);
+    agents.push(agent);
+    const lines = vi.spyOn(
+      started.server as unknown as { _parseAndValidateArtifact: () => unknown },
+      '_parseAndValidateArtifact',
+    );
+    // Connected first, so the three below are all written at once.
+    expect((await agent.command('inbox.fetch', BILLER, { limit: 0 } as never)).error).toBe(
+      undefined,
+    );
+
+    const results = await Promise.all(
+      [3, 1, 2].map((limit) => agent.command('inbox.fetch', BILLER, { limit } as never)),
+    );
+
+    expect(results.map((r) => r.error)).toEqual([undefined, undefined, undefined]);
+    expect(results.map((r) => r.response?.document)).toEqual(['limit:3', 'limit:1', 'limit:2']);
+    // Four requests, four lines written, four handler calls. BtpsClient
+    // used to resend the first queued job after every answer, which was one
+    // already written: the server refused the copy as a duplicate, and that
+    // refusal could reach the sender before the real answer.
+    expect(lines).toHaveBeenCalledTimes(4);
+    expect(started.handled).toHaveLength(4);
+  });
+
+  it('an answer to a line that fails validation carries that line’s id', async () => {
+    started = await startServer();
+    const answers = await exchange(
+      started.port,
+      // An agent artifact by its shape, refused by the schema: `to` is no identity.
+      [{ id: 'not-an-artifact-1', action: 'inbox.fetch', agentId: 'x', to: 'bad', signature: {} }],
+      1,
+    );
+    expect(answers[0]).toMatchObject({ type: 'btps_error', reqId: 'not-an-artifact-1' });
   });
 });

@@ -78,6 +78,8 @@ export class BtpsClient {
       artifact: BTPArtifact;
       resolve: (v: BTPClientResponse) => void;
       timeout: NodeJS.Timeout;
+      /** On the wire (or in the backpressure queue): it waits for its answer, and is never sent again. */
+      written?: boolean;
     }
   >();
 
@@ -246,14 +248,18 @@ export class BtpsClient {
     }
   }
 
+  /**
+   * Sends every queued job not yet written: those queued while the client
+   * was connecting. A job already written is only waiting for its answer.
+   * It used to resend the first job in the queue after every answer, which
+   * was usually one already on the wire, so the server ran it twice (fix
+   * list 4: three requests, five handler calls).
+   */
   protected pumpNextQueue() {
     if (this.queue.size && this.states.isConnected) {
-      const firstJob = this.queue.values().next().value;
-      if (firstJob) {
-        this.sendArtifact(firstJob.artifact, {
-          resolve: firstJob.resolve,
-          timeout: firstJob.timeout,
-        });
+      for (const job of this.queue.values()) {
+        if (job.written) continue;
+        this.sendArtifact(job.artifact, { resolve: job.resolve, timeout: job.timeout });
       }
     } else {
       this.unrefSocketIfNoQueue();
@@ -502,6 +508,11 @@ export class BtpsClient {
       return;
     }
 
+    // Each job is written once, whichever of dispatch and pumpNextQueue gets
+    // to it first: a second copy would run twice, or be refused as a duplicate.
+    const job = this.queue.get(artifact.id);
+    if (job?.written) return;
+    if (job) job.written = true;
     const serialized = JSON.stringify(artifact) + '\n';
     if (!this.socket?.write(serialized)) {
       this.backpressureQueue.push(serialized);
@@ -563,7 +574,11 @@ export class BtpsClient {
 
     // Keep process alive while there are pending requests
     socket?.ref();
-    if (socket) this.sendArtifact(artifact, { resolve, timeout });
+    if (socket) {
+      this.sendArtifact(artifact, { resolve, timeout });
+      // And whatever was queued while this connection was being made.
+      this.pumpNextQueue();
+    }
   }
 
   /**

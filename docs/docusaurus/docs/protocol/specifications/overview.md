@@ -274,10 +274,15 @@ These are used for notifying the agent or client related to delivery failure. No
 - Must implement trust store for relationship management
 - Must validate all incoming message signatures
 - Must verify sender trust before processing
+- Must handle each line of a connection on its own (BTPS 1.1): a sender may
+  write several requests on one connection without waiting, each is processed
+  once, and each answer carries the `id` of the request it answers as `reqId`
+  (whenever that id could be read). Answers may come in any order.
 
 ### Client Requirements
 
 - Must generate unique message IDs
+- Must match each answer to its request by `reqId`, not by order, and write each request once
 - Must sign all outgoing messages
 - may encrypt sensitive documents
 - Must handle trust establishment before sending invoices
