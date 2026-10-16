@@ -703,7 +703,7 @@ describe('BtpsAgent', () => {
         issuedAt: '2023-12-31T00:00:00.000Z',
         lineItems: {
           columns: ['Description', 'Amount'],
-          rows: [{ Description: 'Item 1', Amount: 10050 }],
+          rows: [{ Description: 'Consulting', Amount: 10050 }],
         },
         totalAmount: { amount: 10050, currency: 'USD' },
       };
@@ -719,7 +719,7 @@ describe('BtpsAgent', () => {
       );
     });
 
-    // Item A (EBA-440): a lifecycle event goes out as a BTPS_EVENT whose id is the event's.
+    // A lifecycle event goes out as a BTPS_EVENT whose id is the event's.
     describe('event.send', () => {
       const event: BTPDocType = {
         schemaVersion: 2,
@@ -950,7 +950,7 @@ describe('BtpsAgent', () => {
       );
     });
 
-    // EBA-116: the receiver's selector is the encryption key, never the signing key.
+    // Separate selectors: the receiver's selector is the encryption key, never the signing key.
     const signedTransportArtifact = () =>
       mockCrypto.signBtpPayload.mock.calls
         .map(([payload]) => payload as Record<string, unknown>)

@@ -50,7 +50,7 @@ export type BTPCreditNoteTaxTotal = z.infer<typeof BtpCreditNoteTaxTotalSchema>;
 export type BTPCreditNoteDoc = z.infer<typeof BtpCreditNoteDocSchema>;
 export type BTPPayslipDoc = z.infer<typeof BtpPayslipDocSchema>;
 export type BTPDocV2 = z.infer<typeof BtpDocV2Schema>;
-/** A lifecycle event: the content of a `BTPS_EVENT` (item A, EBA-440). */
+/** A lifecycle event: the content of a `BTPS_EVENT`. */
 export type BTPEventDoc = z.infer<typeof BtpEventDocSchema>;
 export type BTPEventType = (typeof BTP_EVENT_TYPES)[number];
 

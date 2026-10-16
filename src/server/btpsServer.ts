@@ -133,7 +133,7 @@ export class BtpsServer {
     this.tlsOptions = options.tlsOptions;
     this.trustStore = options.trustStore;
     this.identityStore = options.identityStore;
-    // Replay protection is not optional (item F): with no store given, an
+    // Replay protection is not optional: with no store given, an
     // in-memory one, which forgets on restart and is not shared.
     this.replayStore = options.replayStore ?? new InMemoryReplayStore();
     this.issuedAtWindowMs = resolveIssuedAtWindow(options.issuedAtWindowMs);
@@ -519,7 +519,7 @@ export class BtpsServer {
 
     const { data } = reqCtx;
 
-    // Core issuedAt window (non-negotiable, item F). Before the signature, so
+    // Core issuedAt window (non-negotiable). Before the signature, so
     // a stale replay costs no key lookup.
     const windowError = this.checkIssuedAt(data);
     if (windowError) {
@@ -586,7 +586,7 @@ export class BtpsServer {
       return this.sendBtpsError(resCtx.socket, wireError, resCtx.reqId);
     }
 
-    // Core duplicate check (non-negotiable, item F): only now that the
+    // Core duplicate check (non-negotiable): only now that the
     // signature and trust hold, so an unverified sender cannot spend
     // someone else's ids.
     const { from: replayFrom, id: replayId } = this.replayPair(data);
@@ -636,7 +636,7 @@ export class BtpsServer {
   }
 
   /**
-   * The issuedAt window (item F), for transporter and agent artifacts alike.
+   * The issuedAt window, for transporter and agent artifacts alike.
    * Control and identity-lookup artifacts never reach the pipeline: they are
    * unsigned, so their issuedAt proves nothing, and they change no state.
    */
@@ -1049,8 +1049,8 @@ export class BtpsServer {
     }
 
     if (artifact.type === 'BTPS_EVENT') {
-      // An event is accepted over the normal record or the flipped one (item A,
-      // release plan section 2.4); every other type needs the normal record.
+      // An event is accepted over the normal record or the flipped one;
+      // every other type needs the normal record.
       const { isTrusted, record } = await resolveEventTrust(
         artifact.from,
         artifact.to,
@@ -1183,59 +1183,37 @@ export class BtpsServer {
     error?: 'JSON' | 'VALIDATION';
   } {
     try {
-      // Strict parse: an artifact with a duplicate member name is refused (JCS, item 5).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- typed as JSON.parse was
-      const data = parseJson<any>(line);
+      // Strict parse: an artifact with a duplicate member name is refused (JCS).
+      const data = parseJson<unknown>(line);
 
-      let type: 'agent' | 'transporter' | 'identityLookup' | 'control' | undefined;
+      // IMPORTANT: the artifact is always the original data, for signature
+      // verification. Zod may coerce, strip, or reorder fields, which would
+      // break it; the schema below only decides whether the line is valid.
+      let parsed: PreProcessedArtifact;
       if (isBtpsControlArtifact(data)) {
-        type = 'control';
+        parsed = { artifact: data, type: 'control' };
       } else if (isBtpsTransportArtifact(data)) {
-        type = 'transporter';
+        parsed = { artifact: data, type: 'transporter' };
       } else if (isBtpsIdentityRequest(data)) {
-        type = 'identityLookup';
+        parsed = { artifact: data, type: 'identityLookup' };
       } else if (isBtpsAgentArtifact(data)) {
-        type = 'agent';
+        // respondNow stays false until the artifact passes the schema.
+        parsed = { artifact: data, type: 'agent', respondNow: false };
+      } else {
+        // Valid JSON, but no artifact: there is no { type, artifact } to give.
+        return { error: 'VALIDATION' };
       }
 
-      if (!type) {
-        return { error: 'VALIDATION', data };
+      if (!validate(BtpArtifactServerSchema, data).success) {
+        return { error: 'VALIDATION', data: parsed };
       }
 
-      const validationResult = validate(BtpArtifactServerSchema, data);
-
-      if (!validationResult.success) {
+      if (parsed.type === 'agent') {
         return {
-          error: 'VALIDATION',
-          data:
-            type === 'agent'
-              ? { artifact: data, type, respondNow: false } // Default value for agent artifacts
-              : { artifact: data, type },
+          data: { ...parsed, respondNow: this.isImmediateAction(parsed.artifact.action) },
         };
       }
-
-      // IMPORTANT: For signature verification, always use the original data.
-      // Zod may coerce, strip, or reorder fields, which will break signature verification.
-      // Use validationResult.data only for type-safe business logic, not for cryptographic checks.
-
-      switch (type) {
-        case 'transporter':
-          return { data: { artifact: data as BTPTransporterArtifact, type } };
-        case 'identityLookup':
-          return { data: { artifact: data as BTPIdentityLookupRequest, type } };
-        case 'agent':
-          return {
-            data: {
-              artifact: data as BTPAgentArtifact,
-              type,
-              respondNow: this.isImmediateAction((data as BTPAgentArtifact).action),
-            },
-          };
-        case 'control':
-          return { data: { artifact: data as BTPControlArtifact, type } };
-        default:
-          return { error: 'VALIDATION', data: undefined };
-      }
+      return { data: parsed };
     } catch {
       return { error: 'JSON' };
     }

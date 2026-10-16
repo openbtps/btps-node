@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import { freezeDocument } from './freeze.js';
 
-describe('freezeDocument (EBA-119)', () => {
+describe('freezeDocument', () => {
   it('freezes the top level and nested objects and arrays', () => {
     const doc = freezeDocument({
       id: 'doc_1',

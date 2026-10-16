@@ -11,20 +11,26 @@ import type { ZodTypeAny } from 'zod';
 import { BtpDocV2Schema } from './documentSchema.js';
 import { BtpEventDocSchema } from './eventSchema.js';
 import { BTP_DOC_LIMITS } from '../../constants/documents.js';
+import type { BTPCreditNoteDoc, BTPEventDoc, BTPInvoiceV2Doc, BTPPayslipDoc } from '../../types.js';
 
-type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 type Limit = keyof typeof BTP_DOC_LIMITS;
 
 const DOCUMENTS = new URL('../../../../../test/vectors/documents/', import.meta.url);
-const load = (name: string): Doc => JSON.parse(readFileSync(new URL(name, DOCUMENTS), 'utf8'));
-const invoice = () => load('invoice.correction.v2.json');
-const event = (): Doc =>
-  JSON.parse(readFileSync(new URL('../events/disputed.json', DOCUMENTS), 'utf8'));
-const payslip = () => load('payslip.hourly.v2.json');
-const creditNote = () => load('credit-note.v2.json');
+/** A fixture as the document type it is; each case changes one field of it. */
+const load = <T>(name: string): T => JSON.parse(readFileSync(new URL(name, DOCUMENTS), 'utf8'));
+const invoice = () => load<BTPInvoiceV2Doc>('invoice.correction.v2.json');
+const event = () => load<BTPEventDoc>('../events/disputed.json');
+const payslip = () => load<BTPPayslipDoc>('payslip.hourly.v2.json');
+const creditNote = () => load<BTPCreditNoteDoc>('credit-note.v2.json');
 const many = <T>(n: number, item: T): T[] => Array.from({ length: n }, () => item);
-const keys = (n: number, value: unknown) =>
+const keys = <V>(n: number, value: V): Record<string, V> =>
   Object.fromEntries(Array.from({ length: n }, (_, i) => [`k${i}`, value]));
+/** The first of a fixture's items, which every fixture used here has. */
+const first = <T>(items: T[] | undefined): T => {
+  const item = items?.[0];
+  if (item === undefined) throw new Error('the fixture has no item to copy');
+  return item;
+};
 
 /**
  * For each cap: a document built with the value at size `n`. The cap is
@@ -33,13 +39,13 @@ const keys = (n: number, value: unknown) =>
 // `schema` defaults to BtpDocV2Schema; an event's caps are checked against BtpEventDocSchema.
 const CASES: Record<
   Limit,
-  Array<{ where: string; build: (n: number) => Doc; schema?: ZodTypeAny }>
+  Array<{ where: string; build: (n: number) => unknown; schema?: ZodTypeAny }>
 > = {
   ID_MAX_LENGTH: [
     { where: 'document id', build: (n) => ({ ...invoice(), id: 'i'.repeat(n) }) },
     {
       where: 'reference id',
-      build: (n) => ({ ...invoice(), references: [{ ...invoice().references[0], id: 'i'.repeat(n) }] }),
+      build: (n) => ({ ...invoice(), references: [{ ...first(invoice().references), id: 'i'.repeat(n) }] }),
     },
   ],
   IDENTITY_MAX_LENGTH: [
@@ -48,7 +54,7 @@ const CASES: Record<
       build: (n) => {
         const domain = '$example.com';
         const from = 'a'.repeat(n - domain.length) + domain;
-        return { ...invoice(), references: [{ ...invoice().references[0], from }] };
+        return { ...invoice(), references: [{ ...first(invoice().references), from }] };
       },
     },
   ],
@@ -93,13 +99,13 @@ const CASES: Record<
     },
     {
       where: 'reference type',
-      build: (n) => ({ ...invoice(), references: [{ ...invoice().references[0], type: 'c'.repeat(n) }] }),
+      build: (n) => ({ ...invoice(), references: [{ ...first(invoice().references), type: 'c'.repeat(n) }] }),
     },
     {
       where: 'earning category',
       build: (n) => {
         const doc = payslip();
-        doc.earnings[0].category = 'c'.repeat(n);
+        first(doc.earnings).category = 'c'.repeat(n);
         return doc;
       },
     },
@@ -143,7 +149,7 @@ const CASES: Record<
       where: 'invoice line-item text cell',
       build: (n) => {
         const doc = invoice();
-        doc.lineItems.rows[0].Description = 'd'.repeat(n);
+        first(doc.lineItems.rows).Description = 'd'.repeat(n);
         return doc;
       },
     },
@@ -162,7 +168,7 @@ const CASES: Record<
       where: 'invoice line-item rows',
       build: (n) => {
         const doc = invoice();
-        doc.lineItems.rows = many(n, doc.lineItems.rows[0]);
+        doc.lineItems.rows = many(n, first(doc.lineItems.rows));
         return doc;
       },
     },
@@ -196,14 +202,14 @@ const CASES: Record<
     },
   ],
   PAYSLIP_LINES_MAX: [
-    { where: 'earnings', build: (n) => ({ ...payslip(), earnings: many(n, payslip().earnings[0]) }) },
+    { where: 'earnings', build: (n) => ({ ...payslip(), earnings: many(n, first(payslip().earnings)) }) },
     {
       where: 'deductions',
-      build: (n) => ({ ...payslip(), deductions: many(n, payslip().deductions[0]) }),
+      build: (n) => ({ ...payslip(), deductions: many(n, first(payslip().deductions)) }),
     },
     {
       where: 'contributions',
-      build: (n) => ({ ...payslip(), contributions: many(n, payslip().contributions[0]) }),
+      build: (n) => ({ ...payslip(), contributions: many(n, first(payslip().contributions)) }),
     },
   ],
   TAX_IDS_MAX: [
@@ -233,17 +239,17 @@ const CASES: Record<
   REFERENCES_MAX: [
     {
       where: 'invoice references',
-      build: (n) => ({ ...invoice(), references: many(n, invoice().references[0]) }),
+      build: (n) => ({ ...invoice(), references: many(n, first(invoice().references)) }),
     },
     {
       where: 'credit note references',
-      build: (n) => ({ ...creditNote(), references: many(n, creditNote().references[0]) }),
+      build: (n) => ({ ...creditNote(), references: many(n, first(creditNote().references)) }),
     },
   ],
   ATTACHMENTS_MAX: [
     {
       where: 'attachments',
-      build: (n) => ({ ...invoice(), attachments: many(n, invoice().attachments[0]) }),
+      build: (n) => ({ ...invoice(), attachments: many(n, first(invoice().attachments)) }),
     },
   ],
   ATTACHMENT_MAX_BYTES: [
@@ -251,7 +257,7 @@ const CASES: Record<
       where: 'attachment size',
       build: (n) => {
         const doc = invoice();
-        doc.attachments[0].size = n;
+        first(doc.attachments).size = n;
         return doc;
       },
     },
@@ -263,7 +269,7 @@ const CASES: Record<
       where: 'attachment content',
       build: (n) => {
         const doc = invoice();
-        doc.attachments[0].content = 'A'.repeat(n);
+        first(doc.attachments).content = 'A'.repeat(n);
         return doc;
       },
     },

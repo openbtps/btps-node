@@ -13,7 +13,7 @@ import { BTPErrorException } from '@core/error/index.js';
 const NOW = Date.parse('2026-10-16T12:00:00.000Z');
 const at = (offsetMs: number) => new Date(NOW + offsetMs).toISOString();
 
-describe('item F: the issuedAt window', () => {
+describe('replay protection: the issuedAt window', () => {
   it('is ±5 minutes, and a server may not widen it', () => {
     expect(ISSUED_AT_WINDOW_MS).toBe(300_000);
     expect(MAX_ISSUED_AT_WINDOW_MS).toBe(ISSUED_AT_WINDOW_MS);
@@ -34,7 +34,7 @@ describe('item F: the issuedAt window', () => {
   it.each([
     ['5:00.001 old', -300_001, 'too_old'],
     ['5:00.001 ahead', 300_001, 'too_far_ahead'],
-    ['10 minutes old (EBA-114)', -600_000, 'too_old'],
+    ['10 minutes old', -600_000, 'too_old'],
   ])('refuses %s', (_, offset, reason) => {
     expect(checkIssuedAtWindow(at(offset), NOW)).toEqual({ ok: false, reason, skewMs: offset });
   });
