@@ -6,6 +6,8 @@
  */
 
 import type { BTPCryptoOptions } from '@core/crypto/types.js';
+import type { Signer } from '@core/crypto/signer-interface.js';
+import type { Decrypter } from '@core/crypto/decrypter-interface.js';
 import type { BTPErrorException } from '@core/error/index.js';
 import type { BtpsClient } from 'client/btpsClient.js';
 import type {
@@ -37,11 +39,18 @@ export interface BTPClientOptions {
   maxQueue?: number;
 }
 
-export type BTPAgent = {
-  id: string;
-  identityKey: string;
-  identityCert: string;
-};
+/** An agent and its device key: a PEM key pair, or a Signer (and Decrypter) holding it elsewhere, such as the device's own keystore. */
+export type BTPAgent =
+  | {
+      id: string;
+      identityKey: string;
+      identityCert: string;
+    }
+  | {
+      id: string;
+      signer: Signer;
+      decrypter?: Decrypter;
+    };
 
 export interface BTPAgentOptions extends Omit<BTPClientOptions, 'to'> {
   agent: BTPAgent;

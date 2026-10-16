@@ -51,12 +51,16 @@ const delegator = new BtpsDelegator({
 ### **BtpsDelegatorOptions**
 
 ```typescript
-interface BtpsDelegatorOptions {
+type BtpsDelegatorOptions = {
   identity: string; // BTPS identity (e.g., 'alice$saas.com')
-  privateKey: PemKeys['privateKey']; // PEM-encoded private key
   autoInit?: boolean; // Optional: disable auto-initialization for testing
-}
+} & (
+  | { privateKey: PemKeys['privateKey'] } // PEM-encoded private key
+  | { signer: Signer } // or a Signer holding the key elsewhere, such as a KMS
+);
 ```
+
+With a `signer`, `init` checks that the Signer's key matches the one published for the identity, by signing a test message and verifying it. See [Keys Held Elsewhere](../security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter).
 
 ## 🔧 Core Methods
 
@@ -94,7 +98,7 @@ async delegateArtifact(
   artifact: BTPTransporterArtifact,
   onBehalfOf?: {
     identity: string;
-    keyPair: PemKeys;
+    keyPair: PemKeys | Signer;
   }
 ): Promise<BTPTransporterArtifact & { delegation: BTPDelegation }>
 ```
@@ -106,7 +110,7 @@ async delegateArtifact(
 - `artifact`: `BTPTransporterArtifact` - The artifact to delegate
 - `onBehalfOf`: `object` - Optional context for custom domain delegations
   - `identity`: `string` - The identity being delegated on behalf of
-  - `keyPair`: `PemKeys` - The key pair of the identity being delegated
+  - `keyPair`: `PemKeys | Signer` - The key pair of the identity being delegated, or a Signer holding its key elsewhere
 
 **Returns:** `Promise<BTPTransporterArtifact & { delegation: BTPDelegation }>` - The artifact with delegation
 

@@ -12,6 +12,8 @@ import { AbstractTrustStore } from '../trust/storage/AbstractTrustStore.js';
 import { BTPTrustRecord } from '../trust/types.js';
 import { BTPErrorException } from '../error/index.js';
 import { getBTPKeyPair } from '../crypto/keygen.js';
+import { PemSigner } from '../crypto/pem-signer.js';
+import { BtpsAgent } from '../../client/btpsAgent.js';
 
 // Mock trust store
 class MockTrustStore extends AbstractTrustStore<BTPTrustRecord> {
@@ -606,6 +608,30 @@ describe('BtpsAuthentication', () => {
         expect(refreshValidation.agentId).toBe(agentResult.agentId);
         expect(refreshValidation.userIdentity).toBe(userIdentity);
       }
+    });
+  });
+
+  describe('authenticate, with the device key held elsewhere (a Signer)', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("signs through the Signer and registers the Signer's public key", async () => {
+      const keys = getBTPKeyPair();
+      const signer = new PemSigner(keys);
+      const command = vi.spyOn(BtpsAgent.prototype, 'command').mockResolvedValue({
+        response: undefined,
+        error: new BTPErrorException({ message: 'stop here' }),
+      });
+
+      await BtpsAuthentication.authenticate('alice$example.com', 'AUTH-TOKEN', signer);
+
+      expect(command).toHaveBeenCalledWith(
+        'auth.request',
+        'alice$example.com',
+        expect.objectContaining({ publicKey: keys.publicKey, authToken: 'AUTH-TOKEN' }),
+      );
+      expect(command.mock.contexts[0]).toMatchObject({ signingKey: signer });
     });
   });
 });

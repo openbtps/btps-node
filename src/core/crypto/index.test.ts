@@ -17,9 +17,16 @@ import {
   getFingerprintFromPem,
   encryptBtpPayload,
   decryptBtpPayload,
+  signBtpPayloadWithSigner,
+  decryptBtpPayloadWithDecrypter,
+  PemSigner,
+  PemDecrypter,
+  type Signer,
+  type SignerPublicKey,
+  type Decrypter,
 } from './index.js';
 import { PemKeys } from './types.js';
-import { BTP_ERROR_CANONICAL_JSON } from '../error/constant.js';
+import { BTP_ERROR_CANONICAL_JSON, BTP_ERROR_DECRYPTION_UNINTENDED } from '../error/constant.js';
 
 interface KmsSignatureVector {
   algorithm: string;
@@ -304,5 +311,94 @@ describe('decryptBtpPayload reads the decrypted document strictly', () => {
       expect(result.data).toBeUndefined();
       expect(result.error?.code).toBe(BTP_ERROR_CANONICAL_JSON.code);
     }
+  });
+});
+
+describe('a key held elsewhere: Signer and Decrypter', () => {
+  const keys = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  const payload = { to: 'bob$example.com', from: 'alice$example.com', id: '1' };
+
+  // A key holder written by a platform: its methods live on the prototype only.
+  class RemoteSigner implements Signer {
+    readonly algorithm = 'RSASSA_PKCS1_V1_5_SHA_256' as const;
+    async sign(data: Uint8Array): Promise<Uint8Array> {
+      return crypto.sign('sha256', Buffer.from(data), keys.privateKey);
+    }
+    async getPublicKey(): Promise<SignerPublicKey> {
+      return { publicKey: keys.publicKey, fingerprint: getFingerprintFromPem(keys.publicKey) };
+    }
+  }
+
+  it('signs exactly as signBtpPayload does with the same key', async () => {
+    const withSigner = await signBtpPayloadWithSigner(payload, new PemSigner(keys));
+    expect(withSigner).toEqual(signBtpPayload(payload, keys));
+    expect(await signBtpPayloadWithSigner(payload, new RemoteSigner())).toEqual(withSigner);
+    expect(verifySignature(payload, withSigner, keys.publicKey).isValid).toBe(true);
+  });
+
+  it('decrypts exactly as decryptBtpPayload does with the same key', async () => {
+    const { data, encryption } = encryptBtpPayload(
+      { amount: 100, currency: 'AUD' },
+      keys.publicKey,
+    );
+
+    const result = await decryptBtpPayloadWithDecrypter(
+      data,
+      encryption,
+      new PemDecrypter({ privateKey: keys.privateKey }),
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.data).toEqual(decryptBtpPayload(data, encryption, keys.privateKey).data);
+  });
+
+  it('refuses a decrypted document with a duplicate member name', async () => {
+    const { data, encryption } = encryptBtpPayload('{"amount":100,"amount":1}', keys.publicKey);
+
+    const result = await decryptBtpPayloadWithDecrypter(
+      data,
+      encryption,
+      new PemDecrypter({ privateKey: keys.privateKey }),
+    );
+
+    expect(result.data).toBeUndefined();
+    expect(result.error?.code).toBe(BTP_ERROR_CANONICAL_JSON.code);
+  });
+
+  it('reports an artifact encrypted to another key as not intended for this receiver', async () => {
+    const other = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    const { data, encryption } = encryptBtpPayload({ amount: 100 }, other.publicKey);
+
+    const result = await decryptBtpPayloadWithDecrypter(
+      data,
+      encryption,
+      new PemDecrypter({ privateKey: keys.privateKey }),
+    );
+
+    expect(result.data).toBeUndefined();
+    expect(result.error?.code).toBe(BTP_ERROR_DECRYPTION_UNINTENDED.code);
+  });
+
+  it('returns the error of a key holder that fails, without a document', async () => {
+    const failing: Decrypter = {
+      algorithm: 'aes-256-gcm',
+      decrypt: async () => {
+        throw new Error('key holder unavailable');
+      },
+    };
+    const { data, encryption } = encryptBtpPayload({ amount: 100 }, keys.publicKey);
+
+    const result = await decryptBtpPayloadWithDecrypter(data, encryption, failing);
+
+    expect(result.data).toBeUndefined();
+    expect(result.error?.message).toBe('key holder unavailable');
   });
 });

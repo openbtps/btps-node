@@ -414,7 +414,7 @@ const canDelegate = isDelegationAllowed(artifact);
 ```ts
 signEncrypt<T>(
   to: string | undefined,
-  sender: ParsedIdentity & { pemFiles: PemKeys },
+  sender: ParsedIdentity & ({ pemFiles: PemKeys } | { signer: Signer }),
   payload: {
     document: T;
     selector?: string;
@@ -430,7 +430,7 @@ Signs and (optionally) encrypts a BTPS document for secure transmission. Handles
 **Arguments:**
 
 - `to` (`string | undefined`, required): Recipient BTPS identity. If undefined, no encryption is performed.
-- `sender` (`ParsedIdentity & { pemFiles: PemKeys }`, required): Sender identity and PEM key pair.
+- `sender` (`ParsedIdentity & ({ pemFiles: PemKeys } | { signer: Signer })`, required): Sender identity, with its PEM key pair or a [Signer](./typesAndInterfaces.md#signer) holding its key elsewhere.
 - `payload` (object, required): Document and metadata to send.
   - `document` (`T`, required): The document payload.
   - `selector` (`string`, optional): The sender's own selector, the one its signing key is published at (e.g., 'btps2' after a rotation). The receiver uses it to find the key that verifies the signature. The receiver's key for encryption is found at the selector the receiver's own host record names.
@@ -470,7 +470,7 @@ const { payload, error } = await signEncrypt(
 decryptVerify<T>(
   senderPubPem: string,
   encryptedPayload: VerifyEncryptedPayload<T>,
-  receiverPrivatePem?: string
+  receiverKey?: BTPDecryptionKey
 ): Promise<BTPCryptoResponse<T>>
 ```
 
@@ -483,7 +483,7 @@ When it decrypts a `BTPS_EVENT`, it also checks the event as the server checks a
 
 - `senderPubPem` (`string`, required): Sender's public key (PEM).
 - `encryptedPayload` (`VerifyEncryptedPayload<T>`, required): The received artifact.
-- `receiverPrivatePem` (`string`, optional): Receiver's private key for decryption.
+- `receiverKey` (`string | Decrypter`, optional): Receiver's private key (PEM) for decryption, or a [Decrypter](./typesAndInterfaces.md#decrypter) holding it elsewhere.
 
 **Returns:**
 
@@ -625,6 +625,32 @@ const { data, error } = decryptBtpPayload(encryptedData, encryptionMeta, receive
 
 ---
 
+### decryptBtpPayloadWithDecrypter
+
+```ts
+decryptBtpPayloadWithDecrypter<T = unknown>(
+  payload: unknown = '',
+  encryption: BTPEncryption,
+  decrypter: Decrypter
+): Promise<{ data?: T; error?: BTPErrorException }>
+```
+
+**Description:**
+Decrypts like `decryptBtpPayload`, through a [Decrypter](./typesAndInterfaces.md#decrypter) that holds the receiver's private key elsewhere (a KMS, a device) instead of a PEM key. A failure inside the Decrypter is returned as the error. See [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter).
+
+**Example:**
+
+```js
+import { decryptBtpPayloadWithDecrypter } from '@btps/sdk/crypto';
+const { data, error } = await decryptBtpPayloadWithDecrypter(
+  encryptedData,
+  encryptionMeta,
+  decrypter,
+);
+```
+
+---
+
 ### encryptRSA
 
 ```ts
@@ -732,6 +758,24 @@ Signs a payload using the sender's private key and returns a signature object (a
 ```js
 import { signBtpPayload } from '@btps/sdk/crypto';
 const signature = signBtpPayload({ foo: 'bar' }, { publicKey, privateKey });
+```
+
+---
+
+### signBtpPayloadWithSigner
+
+```ts
+signBtpPayloadWithSigner(payload: unknown = '', signer: Signer): Promise<BTPSignature>
+```
+
+**Description:**
+Signs like `signBtpPayload`, through a [Signer](./typesAndInterfaces.md#signer) that holds the sender's private key elsewhere (a KMS, a device) instead of a PEM key pair. With the same key, the signature is identical to `signBtpPayload`'s. See [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter).
+
+**Example:**
+
+```js
+import { signBtpPayloadWithSigner } from '@btps/sdk/crypto';
+const signature = await signBtpPayloadWithSigner({ foo: 'bar' }, signer);
 ```
 
 ---

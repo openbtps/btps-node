@@ -11,9 +11,11 @@ import * as cryptoIndex from './index';
 import { BTPErrorException } from '../error/index.js';
 import { VerifyEncryptedPayload } from './types';
 import { BTPTrustReqDoc } from '../trust/types.js';
+import type { Decrypter } from './decrypter-interface.js';
 
 vi.mock('./index', () => ({
   decryptBtpPayload: vi.fn(),
+  decryptBtpPayloadWithDecrypter: vi.fn(),
   verifySignature: vi.fn(),
 }));
 
@@ -278,6 +280,36 @@ describe('decryptVerify', () => {
       ...emptyEncryptionPayload,
       document: emptyEncryptionPayload.document,
     });
+    expect(mockCrypto.decryptBtpPayload).not.toHaveBeenCalled();
+  });
+
+  it('decrypts through a Decrypter, even one whose methods are all on its prototype', async () => {
+    class RemoteDecrypter implements Decrypter {
+      get algorithm(): 'aes-256-gcm' {
+        return 'aes-256-gcm';
+      }
+      async decrypt(): Promise<Uint8Array> {
+        return new Uint8Array();
+      }
+    }
+    // No own properties at all, which lodash's isEmpty would call empty.
+    const decrypter = new RemoteDecrypter();
+    const encryptedStringPayload: VerifyEncryptedPayload<string> = {
+      ...encryptedPayload,
+      document: 'encrypted-string-data',
+    };
+    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+    mockCrypto.decryptBtpPayloadWithDecrypter.mockResolvedValue({ data: { decrypted: 'data' } });
+
+    const result = await decryptVerify(senderPubPem, encryptedStringPayload, decrypter);
+
+    expect(result.error).toBeUndefined();
+    expect(result.payload?.document).toEqual({ decrypted: 'data' });
+    expect(mockCrypto.decryptBtpPayloadWithDecrypter).toHaveBeenCalledWith(
+      'encrypted-string-data',
+      encryptedStringPayload.encryption,
+      decrypter,
+    );
     expect(mockCrypto.decryptBtpPayload).not.toHaveBeenCalled();
   });
 });

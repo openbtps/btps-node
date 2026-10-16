@@ -39,8 +39,8 @@ import {
 import {
   assertStrictJson,
   getFingerprintFromPem,
-  PemKeys,
   signBtpPayload,
+  signBtpPayloadWithSigner,
   verifySignature,
 } from '@core/crypto/index.js';
 import {
@@ -458,13 +458,14 @@ export class BtpsServer {
       signedBy: this.serverIdentity.identity,
     };
 
-    const serverPemKeys: PemKeys = {
-      publicKey: this.serverIdentity.publicKey,
-      privateKey: this.serverIdentity.privateKey,
-    };
-
     try {
-      const signature = signBtpPayload(data, serverPemKeys);
+      const signature =
+        'signer' in this.serverIdentity
+          ? await signBtpPayloadWithSigner(data, this.serverIdentity.signer)
+          : signBtpPayload(data, {
+              publicKey: this.serverIdentity.publicKey,
+              privateKey: this.serverIdentity.privateKey,
+            });
       this.sendBtpsResponse(
         res.socket,
         {

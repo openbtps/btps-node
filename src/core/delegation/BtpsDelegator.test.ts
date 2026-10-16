@@ -12,6 +12,8 @@ import type { BTPTransporterArtifact } from '../server/types.js';
 import * as utils from '../utils/index.js';
 import * as crypto from '../crypto/index.js';
 import { BTPErrorException } from '../error/index.js';
+import { PemSigner } from '../crypto/pem-signer.js';
+import { generateKeyPairSync } from 'crypto';
 
 vi.mock('../utils/index.js');
 vi.mock('../crypto/index.js');
@@ -222,6 +224,80 @@ describe('BtpsDelegator', () => {
       });
       expect(attestation.signature.fingerprint).toBe(saasKeys.publicKey);
       expect(attestation.signedBy).toBe('saas$platform.com');
+    });
+  });
+
+  describe('With its key held elsewhere (a Signer)', () => {
+    const generate = () =>
+      generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      });
+    const saas = generate();
+    const signer = new PemSigner(saas);
+    const signature = { algorithmHash: 'sha256' as const, value: 'sig', fingerprint: 'fp' };
+
+    beforeEach(() => {
+      mockResolvePublicKey.mockResolvedValue(saas.publicKey);
+      vi.mocked(crypto.signBtpPayloadWithSigner).mockResolvedValue(signature);
+    });
+
+    it('initializes when the Signer holds the key published for its identity', async () => {
+      const delegator = new BtpsDelegator({
+        identity: 'saas$platform.com',
+        signer,
+        autoInit: false,
+      });
+      await expect(delegator.init()).resolves.toBeUndefined();
+    });
+
+    it('refuses a Signer that holds a different key', async () => {
+      const delegator = new BtpsDelegator({
+        identity: 'saas$platform.com',
+        signer: new PemSigner(generate()),
+        autoInit: false,
+      });
+      await expect(delegator.init()).rejects.toThrow(BTPErrorException);
+    });
+
+    it('signs the delegation through the Signer, never with a PEM key', async () => {
+      const delegator = new BtpsDelegator({
+        identity: 'saas$platform.com',
+        signer,
+        autoInit: false,
+      });
+      await delegator.init();
+
+      const result = await delegator.delegateArtifact(agentId, agentPubKey, artifact);
+
+      expect(result.delegation.signature).toEqual(signature);
+      expect(crypto.signBtpPayloadWithSigner).toHaveBeenCalledWith(
+        expect.objectContaining({ delegation: expect.objectContaining({ agentId }) }),
+        signer,
+      );
+      expect(mockSignBtpPayload).not.toHaveBeenCalled();
+    });
+
+    it("signs for a user with the user's Signer, and attests with the SaaS PEM key", async () => {
+      const delegator = await createMockedDelegator(
+        { identity: 'saas$platform.com', privateKey: saasKeys.privateKey },
+        true,
+      );
+      const userSigner = new PemSigner(generate());
+
+      const result = await delegator.delegateArtifact(agentId, agentPubKey, artifact, {
+        identity: 'user456$customdomain.com',
+        keyPair: userSigner,
+      });
+
+      expect(result.delegation.signature).toEqual(signature);
+      expect(crypto.signBtpPayloadWithSigner).toHaveBeenCalledWith(expect.anything(), userSigner);
+      expect(mockSignBtpPayload).toHaveBeenCalledWith(
+        expect.objectContaining({ attestation: expect.anything() }),
+        { privateKey: saasKeys.privateKey, publicKey: saas.publicKey },
+      );
+      expect(result.delegation.attestation?.signedBy).toBe('saas$platform.com');
     });
   });
 

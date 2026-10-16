@@ -14,6 +14,7 @@ import { BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '../error/constant.
 import { PemKeys } from './types';
 import { ParsedIdentity } from '../utils/types.js';
 import { BTPTrustReqDoc } from '../trust/types.js';
+import type { Signer } from './signer-interface.js';
 
 vi.mock('crypto', () => ({
   randomUUID: () => 'mock-uuid',
@@ -22,6 +23,7 @@ vi.mock('crypto', () => ({
 vi.mock('./index', () => ({
   encryptBtpPayload: vi.fn(),
   signBtpPayload: vi.fn(),
+  signBtpPayloadWithSigner: vi.fn(),
 }));
 
 vi.mock('../utils/index.js', () => ({
@@ -180,6 +182,30 @@ describe('signEncrypt', () => {
 
     expect(result.payload).toBeUndefined();
     expect(result.error).toBe(signingError);
+  });
+
+  it('signs through a Signer when the sender holds its key elsewhere', async () => {
+    const signer: Signer = {
+      algorithm: 'RSASSA_PKCS1_V1_5_SHA_256',
+      sign: vi.fn(),
+      getPublicKey: vi.fn(),
+    };
+    const signature = { algorithmHash: 'sha256' as const, value: 'sig', fingerprint: 'fp' };
+    mockCrypto.signBtpPayloadWithSigner.mockResolvedValue(signature);
+
+    const result = await signEncrypt(
+      undefined,
+      { accountName: 'sender', domainName: 'example.com', signer },
+      payload,
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.payload?.signature).toEqual(signature);
+    expect(mockCrypto.signBtpPayloadWithSigner).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'TRUST_REQ' }),
+      signer,
+    );
+    expect(mockCrypto.signBtpPayload).not.toHaveBeenCalled();
   });
 });
 

@@ -18,11 +18,9 @@ Configuration options for the BTPS server.
 
 ```ts
 interface BtpsServerOptions {
-  serverIdentity: {
-    identity: string;
-    publicKey: string;
-    privateKey: string;
-  };
+  serverIdentity:
+    | { identity: string; publicKey: string; privateKey: string }
+    | { identity: string; signer: Signer };
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   port?: number;
@@ -35,7 +33,7 @@ interface BtpsServerOptions {
 
 **Properties:**
 
-- `serverIdentity`: Required server identity configuration with identity, public key, and private key
+- `serverIdentity`: Required server identity: its identity, with its PEM public and private key, or with a `signer` holding the key elsewhere, such as a KMS (see [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter))
 - `trustStore`: Required trust store instance for managing trust records
 - `identityStore`: Optional identity store instance for managing identity records
 - `port`: Optional port number (default: 3443)
@@ -86,18 +84,16 @@ Configuration options for BTPS agent connections.
 
 ```ts
 interface BTPAgentOptions extends Omit<BTPClientOptions, 'to'> {
-  agent: {
-    id: string;
-    identityKey: string;
-    identityCert: string;
-  };
+  agent:
+    | { id: string; identityKey: string; identityCert: string }
+    | { id: string; signer: Signer; decrypter?: Decrypter };
   btpIdentity: string;
 }
 ```
 
 **Properties:**
 
-- `agent`: Required agent configuration with ID, identity key, and certificate
+- `agent`: Required agent configuration: its ID, with its PEM identity key and certificate, or with a `signer` (and optionally a `decrypter`) holding the device key elsewhere, such as the device's own keystore
 - `btpIdentity`: Required BTPS identity for the agent
 - All properties from `BTPClientOptions` except `to`
 
@@ -453,17 +449,17 @@ interface AuthAgentOptions {
 Configuration options for BTPS delegator.
 
 ```ts
-interface BtpsDelegatorOptions {
+type BtpsDelegatorOptions = {
   identity: string;
-  privateKey: string;
   autoInit?: boolean;
-}
+} & ({ privateKey: string } | { signer: Signer });
 ```
 
 **Properties:**
 
 - `identity`: Required delegator identity
-- `privateKey`: Required delegator private key in PEM format
+- `privateKey`: The delegator private key in PEM format, or
+- `signer`: A [Signer](#signer) holding the delegator key elsewhere, such as a KMS
 - `autoInit`: Optional flag to disable auto-initialization (default: true)
 
 ---
@@ -1051,6 +1047,46 @@ interface PemKeys {
 }
 ```
 
+### Signer
+
+Signs for an identity while its private key stays elsewhere: a KMS, an HSM or the user's device. `PemSigner` is the built-in implementation for a PEM key pair (`new PemSigner({ publicKey, privateKey })`). See [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter).
+
+```ts
+interface Signer {
+  readonly algorithm: 'RSASSA_PKCS1_V1_5_SHA_256';
+  sign(data: Uint8Array): Promise<Uint8Array>; // the raw signature over data
+  getPublicKey(): Promise<{ publicKey: string; fingerprint: string }>; // SPKI PEM
+}
+```
+
+### Decrypter
+
+Decrypts a document for an identity while its private key stays elsewhere. `PemDecrypter` is the built-in implementation for a PEM private key (`new PemDecrypter({ privateKey })`). An implementation must refuse an `authTag` that is not exactly 16 bytes.
+
+```ts
+interface Decrypter {
+  readonly algorithm: 'aes-256-gcm';
+  decrypt(request: DecryptRequest): Promise<Uint8Array>; // the plaintext
+}
+
+interface DecryptRequest {
+  encryptedKey: Uint8Array; // the RSA-OAEP-wrapped AES-256 key
+  iv: Uint8Array;
+  ciphertext: Uint8Array;
+  authTag: Uint8Array; // exactly 16 bytes
+  additionalData?: Uint8Array;
+}
+```
+
+### BTPSigningKey and BTPDecryptionKey
+
+A key as the SDK takes it: a PEM key, or a key held elsewhere.
+
+```ts
+type BTPSigningKey = PemKeys | Signer;
+type BTPDecryptionKey = string | Decrypter; // a PEM private key, or a Decrypter
+```
+
 ### ParsedIdentity
 
 Parsed BTPS identity components.
@@ -1071,11 +1107,10 @@ type ParsedIdentity = {
 Configuration options for the delegator.
 
 ```ts
-interface BtpsDelegatorOptions {
+type BtpsDelegatorOptions = {
   identity: string;
-  privateKey: PemKeys['privateKey'];
   autoInit?: boolean;
-}
+} & ({ privateKey: PemKeys['privateKey'] } | { signer: Signer });
 ```
 
 ### OnBehalfOfOptions
@@ -1085,7 +1120,7 @@ Options for custom domain delegations.
 ```ts
 interface OnBehalfOfOptions {
   identity: string;
-  keyPair: PemKeys;
+  keyPair: BTPSigningKey; // the user's PEM key pair, or a Signer holding the user's key
 }
 ```
 

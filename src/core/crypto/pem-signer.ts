@@ -6,9 +6,8 @@
  */
 
 /*
- * EBA-233 (Item 8a). PEM-backed Signer: test vectors, and the T-06 interim
- * until the end date Bhupendra accepts. Never used with real keys in
- * production — see KmsSigner for managed custody.
+ * A Signer over a PEM key pair. The private key lives in this process, as it
+ * does when a PEM key is given to the SDK directly.
  */
 
 import crypto from 'crypto';

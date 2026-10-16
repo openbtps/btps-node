@@ -21,6 +21,7 @@ import { BTPError } from '@core/error/types.js';
 import { BTPErrorException } from '@core/error/index.js';
 import { BTPIdentityRecord } from '@core/storage/types.js';
 import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
+import type { Signer } from '@core/crypto/signer-interface.js';
 
 export interface BtpsTlsOptions extends TlsOptions {
   cert: string;
@@ -28,11 +29,17 @@ export interface BtpsTlsOptions extends TlsOptions {
 }
 
 export interface BtpsServerOptions {
-  serverIdentity: {
-    identity: string;
-    publicKey: string;
-    privateKey: string;
-  };
+  /** The server's own key, as a PEM key pair or a Signer holding it elsewhere (a KMS). */
+  serverIdentity:
+    | {
+        identity: string;
+        publicKey: string;
+        privateKey: string;
+      }
+    | {
+        identity: string;
+        signer: Signer;
+      };
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tlsOptions: BtpsTlsOptions;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;

@@ -6,13 +6,14 @@
  */
 
 /*
- * EBA-233 (Item 8a). PEM-backed Decrypter: test vectors, and the T-06
- * interim until the end date Bhupendra accepts. Never used with real keys
- * in production — see KmsDecrypter for managed custody.
+ * A Decrypter over a PEM private key. The key lives in this process, as it
+ * does when a PEM key is given to the SDK directly.
  */
 
 import crypto from 'crypto';
 import type { Decrypter, DecrypterAlgorithm, DecryptRequest } from './decrypter-interface.js';
+import { BTPErrorException } from '@core/error/index.js';
+import { BTP_ERROR_UNSUPPORTED_ENCRYPT } from '@core/error/constant.js';
 
 export interface PemDecrypterOptions {
   /** PKCS#8 PEM. Held only by this instance — never exposed on Decrypter. */
@@ -21,7 +22,7 @@ export interface PemDecrypterOptions {
 
 const ALGORITHM: DecrypterAlgorithm = 'aes-256-gcm';
 
-/** T-26: every Decrypter must enforce exactly 16-byte AES-GCM tags. */
+/** Every Decrypter must enforce exactly 16-byte AES-GCM tags. */
 const AUTH_TAG_LENGTH = 16;
 
 export class PemDecrypter implements Decrypter {
@@ -49,19 +50,20 @@ export class PemDecrypter implements Decrypter {
   }
 }
 
-/** T-26: reject any tag that isn't exactly 16 bytes before it ever reaches
+/** Rejects any tag that isn't exactly 16 bytes before it ever reaches
  * the AEAD check — a short tag is a materially weaker guarantee, not a
  * smaller version of the same one. */
 export function assertFullLengthAuthTag(authTag: Uint8Array): void {
   if (authTag.length !== AUTH_TAG_LENGTH) {
-    throw new Error(
-      `Invalid AES-GCM auth tag length: expected ${AUTH_TAG_LENGTH} bytes, got ${authTag.length}`,
-    );
+    throw new BTPErrorException(BTP_ERROR_UNSUPPORTED_ENCRYPT, {
+      cause: `AES-GCM auth tag must be ${AUTH_TAG_LENGTH} bytes, got ${authTag.length}`,
+    });
   }
 }
 
-/** Shared by PemDecrypter and KmsDecrypter's local AES-GCM step. Also
- * pins authTagLength at the cipher level (T-26), so Node itself refuses a
+/** The local AES-GCM step, once the AES key is unwrapped. A Decrypter whose
+ * key holder only unwraps the AES key (as a KMS does) can finish with this.
+ * It also pins authTagLength at the cipher level, so Node itself refuses a
  * tag shorter than 16 bytes rather than relying on the pre-check alone. */
 export function decryptAesGcm(aesKey: Buffer, request: DecryptRequest): Uint8Array {
   const decipher = crypto.createDecipheriv('aes-256-gcm', aesKey, Buffer.from(request.iv), {
