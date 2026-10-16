@@ -17,8 +17,15 @@ node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs
 ```
 
 Options: `--vectors <dir>`, `--sdk-root <dir>`, `--no-sdk`,
-`--known-failing <file>`, `--json`. Exit codes: `0` OK, `1` checks failed,
-`2` the run could not start.
+`--known-failing <file>`, `--no-hermes`, `--json`. Exit codes: `0` OK, `1`
+checks failed, `2` the run could not start.
+
+To run the same on Hermes, the engine React Native ships, in a container
+(see [Hermes](#hermes)):
+
+```sh
+yarn verify:btps-vectors:hermes   # = packages/verify-btps-vectors/hermes/run.sh
+```
 
 Requirements: Node 20 or later, with `esbuild` resolvable (it is a
 devDependency of the repository root). It has been run on Node 24.21.0 only.
@@ -28,10 +35,12 @@ devDependency of the repository root). It has been run on Node 24.21.0 only.
 | Suite                 | Runs on            | What it shows                                                                                                                                                                                                                                                                                                                                                          |
 | --------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `manifest/…`          | node               | EBA-123: the set is the published one. `test/vectors/manifest.json` names version 1.1.0, and every vector file is present, listed, and has the SHA-256 the manifest gives it. `scripts/vectors-manifest.mjs` checks the same and then runs the harness; `--write` rewrites the manifest for a new set version |
-| `vectors/<runtime>/…` | node, web          | JCS (RFC 8785) vectors; managed and self-held signatures verify over the canonical bytes and **not** over the raw key order; re-signing reproduces the vector bytes; the KMS-style OAEP wrap unwraps; an MGF1-SHA-1 wrap is refused; the signing and encryption keys are distinct and cannot stand in for each other                                                   |
-| `vectors/<runtime>/documents/…` | node, web | item 7: every document in `test/vectors/documents/` signs and verifies over its JCS form. Not pinned signatures: there is no one signature for an arbitrary invoice |
-| `vectors/<runtime>/events/…` | node, web | item A: every event in `test/vectors/events/` signs and verifies over its JCS form |
-| `interop/<a>-><b>/…`  | node→web, web→node | a signature or wrap made by one runtime is accepted by the other, and signatures are byte-identical to the vector                                                                                                                                                                                                                                                      |
+| `vectors/<runtime>/…` | node, web, hermes  | JCS (RFC 8785) vectors; managed and self-held signatures verify over the canonical bytes and **not** over the raw key order; re-signing reproduces the vector bytes; the KMS-style OAEP wrap unwraps; an MGF1-SHA-1 wrap is refused; the signing and encryption keys are distinct and cannot stand in for each other                                                   |
+| `vectors/<runtime>/selectors…/…` | node, web, hermes | item 6: every key in the two selector vectors has its stated fingerprint; only the sender key at `signatureSelector` verifies, and only the receiver key at `encryptionSelector` unwraps |
+| `vectors/<runtime>/sha256/…` | node, web, hermes | the runtime recomputes the lowercase hex SHA-256 of every file `manifest.json` lists |
+| `vectors/<runtime>/documents/…` | node, web, hermes | item 7: every document in `test/vectors/documents/` signs and verifies over its JCS form, and each attachment hashes to its lowercase hex `sha256`. Not pinned signatures: there is no one signature for an arbitrary invoice |
+| `vectors/<runtime>/events/…` | node, web, hermes | item A: every event in `test/vectors/events/` signs and verifies over its JCS form |
+| `interop/<a>-><b>/…`  | every ordered pair | a signature or wrap made by one runtime is accepted by the other, and signatures are byte-identical to the vector                                                                                                                                                                                                                                                      |
 | `oracle/oaep/…`       | node               | the reference OAEP (raw RSA) confirms the positive wrap decodes only under MGF1-SHA-256, and that the negative vector really is an MGF1-SHA-1 wrap                                                                                                                                                                                                                     |
 | `sdk/kms/…`           | node, SDK          | the SDK's fingerprint, `encryptRSA` and `decryptRSA` match the KMS profile. Passes on 367cd09                                                                                                                                                                                                                                                                          |
 | `sdk/item-5/…`        | node, SDK          | BTPS 1.1 item 5, JCS signing (EBA-115), including `jcs-signature.vectors.json`: each payload verifies in every key order and re-signs to the vector bytes; duplicate names are refused. **Fails on 367cd09; passes since EBA-115**                                                                                                                                     |
@@ -92,12 +101,59 @@ checks and the interop checks import nothing from Node — a test enforces
 that — so a browser or React Native harness can import
 `checks/vectors.mjs` and `runtimes/web.mjs` as they are.
 
+Two driver functions are optional: `sha256Hex` (adds the digest checks) and
+`canonicalize` (the runtime's own JCS; without it the checks canonicalise
+with the oracle, `src/jcs.mjs`).
+
+## Hermes
+
+EBA-150. The `hermes` driver ([`src/runtimes/hermes.mjs`](src/runtimes/hermes.mjs))
+runs every operation in a real `hermes` process: Hermes **250829098.0.17**,
+the engine `react-native@0.86.3` (Expo SDK 57) ships, built by
+[`hermes/Dockerfile`](hermes/Dockerfile) from facebook/hermes tag
+`hermes-v250829098.0.17` (commit `3477757eb2475555cf8d8df24bfb1deb0613880d`;
+the build refuses any other). facebook/hermes publishes no Hermes V1 CLI
+binary: its releases stop at v0.13.0, and the `hermes-compiler` npm package
+holds only `hermesc`.
+
+```sh
+packages/verify-btps-vectors/hermes/run.sh            # every check, Hermes included
+packages/verify-btps-vectors/hermes/run.sh --no-sdk   # options pass through
+```
+
+It builds the image `btps-hm-hermes:250829098.0.17` on first use (Hermes from
+source, a few minutes), then runs `verify-btps-vectors` in it. Outside the
+container the CLI looks for the binary on `HERMES_CLI_PATH` or `PATH`, uses it
+only if `hermes -version` reports 250829098.0.17, and otherwise says on stderr
+why Hermes was not run.
+
+- **Crypto** runs through [`src/hermes-crypto-core.mjs`](src/hermes-crypto-core.mjs):
+  SHA-256, RSASSA-PKCS1-v1_5, RSA-OAEP with MGF1-SHA-256, and the DER an RSA
+  key needs, in plain ECMAScript, because bare Hermes has no `node:crypto` and
+  no WebCrypto. Test keys only: not constant-time, and the OAEP seed is
+  `Math.random()`.
+- **Canonical JSON** runs the SDK's own `src/core/crypto/jcs.ts`, bundled by
+  esbuild into a plain script. The crypto core takes the canonical bytes, as
+  KMS does, rather than carrying a second canonicaliser: what is proven on
+  Hermes is the JCS a React Native app would ship, and there is no copy to
+  drift from it. Each document and event's Hermes canonical form must also
+  equal the oracle's.
+
+**Not run on Hermes**, by design: `sdk/…` (the SDK's behaviour, bundled for
+Node, including its AES-256-GCM paths: the Hermes profile has no AES, and the
+item 10 GCM-tag vectors decrypt through the SDK), `oracle/…` (the Node
+reference OAEP) and `manifest/…` (file presence, a Node check; the digests
+themselves are recomputed in Hermes).
+
 ## Limitations — read before relying on a green run
 
 - **"web" here is WebCrypto as implemented by Node**, not a browser. Node's
   WebCrypto and `node:crypto` share OpenSSL, so node↔web interop is weaker
   evidence of independence than a real browser would give. No browser,
   iOS or Android harness exists yet.
+- **Hermes is the bare engine on Linux** (proven on aarch64), not a React
+  Native app on a device: no JSI, no native modules, no keystore. It proves the engine runs
+  the profile and the SDK's JCS; a device run is EBA-168.
 - **No vector was produced by AWS KMS or a device keystore.** The managed
   vector is signed by node:crypto with the algorithm KMS uses
   (RSASSA_PKCS1_V1_5_SHA_256), and the self-held one by WebCrypto. A vector
