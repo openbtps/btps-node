@@ -56,7 +56,7 @@ Agent artifacts (`BTPAgentArtifact`) are designed for client-to-server communica
 
 ### Authentication Actions
 
-**`auth.request`** - Used for initial agent authentication and session establishment.
+**`auth.request`** - Used for initial agent authentication and session establishment. Requires a one-time registration token issued to the identity's owner (BTPS 1.1; see below).
 
 **`auth.refresh`** - Used to refresh authentication tokens and extend sessions.
 
@@ -135,12 +135,58 @@ Used for initial agent authentication.
 **Required Fields:**
 
 - **identity**: BTPS identity address
-- **authToken**: Generated user token for authentication
+- **authToken**: The registration token the identity's owner was issued
 - **publicKey**: Agent's public key in PEM format
 
 **Optional Fields:**
 
 - **agentInfo**: Additional agent information (device type, app version, platform, etc.)
+
+#### Registration is bound to the identity (BTPS 1.1)
+
+A device registers only with a **registration token** issued to the owner of
+the identity it registers for (BTPS 1.1, item E). The identity's platform
+issues the token to its signed-in owner (`BtpsAuthentication.generateAuthToken`
+and `storeAuthToken`: 12 characters, valid 15 minutes) and the owner enters it
+on the device.
+
+The server answers every `auth.request` itself; the application's agent
+handlers never see one. It accepts the request only when all of these hold,
+in this order:
+
+| Check                                                                   | Refused with                               |
+| ----------------------------------------------------------------------- | ------------------------------------------ |
+| The artifact is signed by the key in `document.publicKey`               | `BTP_ERROR_SIG_VERIFICATION`               |
+| The server has a token store                                            | `BTP_ERROR_REGISTRATION_UNAVAILABLE`       |
+| `document.authToken` is not empty                                       | `BTP_ERROR_REGISTRATION_TOKEN_MISSING`     |
+| `document.identity` is the artifact's `to`                              | `BTP_ERROR_REGISTRATION_IDENTITY_MISMATCH` |
+| A token with this value was issued to that identity and has not expired | `BTP_ERROR_REGISTRATION_TOKEN_INVALID`     |
+| The token has not been used                                             | `BTP_ERROR_REGISTRATION_TOKEN_USED`        |
+
+The token is **consumed** by the check, atomically: it registers one
+device, once. A second use, by the same device or another, is refused, and
+of two devices racing with one token exactly one is registered. A token
+issued to another identity is refused as invalid, because a token is only
+ever looked up under the identity named. A refusal before the token check
+(the signature, the window, a mismatch) does not spend the token; one
+after it does, and the owner issues a new token.
+
+On success the server binds the device to the token's identity: it creates
+the agent's trust record (`agentId → identity`, holding `publicKey`) under an
+agent id **it generates** (`btps_ag_<uuid>`). The `agentId` in the request is
+ignored. It answers with an authentication response document:
+
+```json
+{
+  "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+  "refreshToken": "…",
+  "expiresAt": "2026-10-23T00:00:00.000Z",
+  "decryptBy": "john$vendorcorp.com"
+}
+```
+
+A server with no token store refuses every `auth.request`; it never falls
+back to accepting one.
 
 ### 2. Authentication Refresh Document (`auth.refresh`)
 
@@ -470,6 +516,16 @@ Before processing any agent artifact, the server must:
 2. Validate the agent's authentication status
 3. Check if the agent has permission for the requested action
 4. Verify the agent's public key matches the stored record
+
+**Only an agent's own record (BTPS 1.1).** Every agent artifact other than
+`auth.request` is verified with the key in the agent's trust record,
+`computeTrustId(agentId, to)`, and trusted by that record. The trust store
+also holds records between two identities under the same kind of id, so the
+server refuses an `agentId` that is an identity (it contains `$`; an agent id
+never does), and a record under that id that is not `agentId → to`. Without
+this, a correspondent the receiver trusts could sign an agent artifact with
+its own key, name itself as the agent, and act as the receiver's device. A
+refused agent artifact is answered `BTP_ERROR_SIG_VERIFICATION`.
 
 ## Replay Protection (BTPS 1.1)
 
