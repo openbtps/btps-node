@@ -19,6 +19,7 @@ import { validateAgentDocument } from '@core/server/schemas/helpers.js';
 import {
   BtpAuthReqDocSchema,
   BtpInvoiceDocSchema,
+  BtpLifecycleEventSchema,
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
 } from '@core/server/schemas/btpsDocsSchema.js';
@@ -31,6 +32,7 @@ export const BtpsAgentCommandDocumentSchema = z
     BtpTrustReqDocSchema,
     BtpTrustResDocSchema,
     BtpInvoiceDocSchema,
+    BtpLifecycleEventSchema,
     BtpAuthReqDocSchema,
     BtpAgentQuerySchema,
     BtpAgentMutationSchema,

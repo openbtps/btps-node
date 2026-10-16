@@ -67,7 +67,7 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
 - **version**: Protocol version (currently "1.0")
 - **id**: Unique message identifier (UUID v4 recommended)
 - **issuedAt**: ISO 8601 timestamp of message creation
-- **type**: Artifact type (TRUST_REQ, TRUST_RES, BTPS_DOC)
+- **type**: Artifact type (TRUST_REQ, TRUST_RES, BTPS_DOC, BTPS_EVENT)
 - **from**: Sender's BTPS identity address
 - **to**: Recipient's BTPS identity address
 - **document**: The actual document content
@@ -300,6 +300,78 @@ A document can point to other signed documents, for example a corrected invoice 
 - **sha256**: SHA-256 of the referenced document's signed transporter artifact in its RFC 8785 canonical form, written as 64 lowercase hex characters, so the link names one exact version of that document
 
 Whether the referenced document exists is for the receiving platform to check; the protocol carries the link.
+
+### 4. Lifecycle Event (`BTPS_EVENT`)
+
+Lifecycle events record what happens to an invoice after it is sent: paid, partly paid, disputed, refunded. An invoice carries no status of its own; each side works out its status from the events both parties have **accepted**.
+
+The receiver of the invoice (the payer) proposes and the sender (the biller) answers. "Accepted" and "rejected" are always about payment: a received invoice is never deleted or changed by an event.
+
+| Proposed by         | Event                                                | Answer                                                                       | Status once accepted                                                  |
+| ------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Payer               | `paid`                                               | Biller `response`: accepted or rejected                                      | Paid                                                                  |
+| Payer               | `partially_paid`, with `amount`                      | Biller `response`: accepted (optionally with `remainingDueDate`) or rejected | Partly paid: the rest due by `remainingDueDate`                       |
+| Payer               | `disputed`, with `reason`                            | Biller `response`: accepted or rejected                                      | Disputed. The biller then sends a corrected invoice (`correction_of`) |
+| Biller              | `paid` (recorded by the biller, e.g. a cash payment) | None: final                                                                  | Paid                                                                  |
+| Payer, after paying | `refund_requested`                                   | Biller `refund` with the amount, or a rejecting `response`                   | —                                                                     |
+| Biller              | `refund`, with `amount`                              | Payer `response`: accepted or rejected                                       | Refunded (in full or in part)                                         |
+
+Several partial payments are allowed; the remaining amount keeps going down. The money itself moves outside BTPS.
+
+```json
+{
+  "type": "lifecycle_event",
+  "id": "0b6f4b5e-5d0a-4c4e-8f43-2a7d3a1f9e01",
+  "occurredAt": "2025-02-03T08:15:00Z",
+  "document": {
+    "from": "billing$acme.com",
+    "id": "INV-2025-001",
+    "sha256": "lowercase-hex-sha256"
+  },
+  "eventType": "partially_paid",
+  "amount": {
+    "amount": 50000,
+    "currency": "USD"
+  },
+  "message": "First instalment, paid by bank transfer"
+}
+```
+
+**Required Fields:**
+
+- **type**: `lifecycle_event`
+- **id**: A random UUID. It is also the `id` of the `BTPS_EVENT` artifact that carries the event, so one id identifies it end to end
+- **occurredAt**: When it happened, as the sender states it (ISO format)
+- **document**: The invoice the event is about, `{ from, id, sha256 }`, as for a reference (see References). It must be an invoice between the same two parties: `document.from` is the artifact's `from` or `to`
+- **eventType**: `paid`, `partially_paid`, `disputed`, `refund_requested`, `refund` or `response`
+
+**Fields by Event Type:**
+
+| Event type         | Also required           | Optional                      |
+| ------------------ | ----------------------- | ----------------------------- |
+| `paid`             | —                       | `message`                     |
+| `partially_paid`   | `amount`                | `message`                     |
+| `disputed`         | `reason`                | `message`                     |
+| `refund_requested` | —                       | `message`                     |
+| `refund`           | `amount`, `inReplyTo`   | `message`                     |
+| `response`         | `decision`, `inReplyTo` | `remainingDueDate`, `message` |
+
+- **amount**: Money in minor units, with its currency (see Money Amounts), more than zero
+- **reason**: Why the payer disputes the invoice: `rejected`, `amount_wrong` or `not_as_agreed`, or a platform's own code under a prefix (such as `acme:late_delivery`)
+- **decision**: `accepted` or `rejected`
+- **inReplyTo**: The `id` of the event this one answers
+- **remainingDueDate**: Only on an accepted `response` to a `partially_paid`: the agreed date for the rest (ISO format)
+- **message**: Free text for the other party
+
+**Replies and Tracing:**
+
+Every reply carries `inReplyTo`, and only a reply may: the proposals (`paid`, `partially_paid`, `disputed`, `refund_requested`) start a chain, and each schema refuses `inReplyTo` on them. Every event names its invoice (`document`) and every reply names what it answers, so either party can rebuild the whole exchange from the two identities and the ids.
+
+Whether an `inReplyTo` names an event the two parties actually exchanged, and whether a change of status is allowed (for example a refund before the invoice is paid), are for the receiving platform to check against the events it holds.
+
+**Signing and Encryption:**
+
+An event is signed like every artifact. It is encrypted when the trust's `privacyType` says so, like a `BTPS_DOC`, because it carries amounts, reasons and messages that are as private as the invoice. Only the artifact envelope (`from`, `to`, `type`, `id`, `issuedAt`) stays readable for routing and the trust check.
 
 ## Security Features
 

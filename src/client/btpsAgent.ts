@@ -37,6 +37,7 @@ import type {
   PemKeys,
 } from '@core/crypto/types.js';
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
+import { BtpLifecycleEventSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import { validate } from '@core/utils/validation.js';
 import { AGENT_ACTIONS_REQUIRING_DOCUMENT } from '@core/server/constants/index.js';
 import { encryptBtpPayload, signBtpPayload } from '@core/crypto/index.js';
@@ -49,6 +50,7 @@ const mappedTransporterAction = {
   'trust.update': 'TRUST_RES',
   'trust.delete': 'TRUST_RES',
   'artifact.send': 'BTPS_DOC',
+  'event.send': 'BTPS_EVENT',
 };
 
 export class BtpsAgent extends BtpsClient {
@@ -213,8 +215,12 @@ export class BtpsAgent extends BtpsClient {
       actionType as keyof typeof mappedTransporterAction
     ] as BTPArtifactType;
 
+    // An event travels in an artifact with the event's own id.
+    const event =
+      artifactType === 'BTPS_EVENT' ? BtpLifecycleEventSchema.safeParse(document) : undefined;
+
     const transporterArtifact: Omit<BTPTransporterArtifact, 'signature'> = {
-      id: randomUUID(),
+      id: event?.success ? event.data.id : randomUUID(),
       issuedAt: new Date().toISOString(),
       version: this.getProtocolVersion(),
       type: artifactType,
