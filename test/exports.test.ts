@@ -163,3 +163,19 @@ describe('package exports (EBA-113, device registration)', () => {
     expect(mod[name], `${name} from ${subpath}`).toBeDefined();
   });
 });
+
+describe('package exports (EBA-442 and EBA-186, identity lookup)', () => {
+  it.each([
+    ['./crypto', 'verifyIdentityLookupResponse'],
+    ['.', 'parseBtpsTxtRecord'],
+    ['.', 'getDnsIdentityParts'],
+  ])('@btps/sdk%s exports %s', async (subpath, name) => {
+    const mod = await importSubpath(subpath);
+    expect(mod[name], `${name} from ${subpath}`).toBeTypeOf('function');
+  });
+
+  it('@btps/sdk/error exports BTP_ERROR_SERVER_SELECTOR', async () => {
+    const mod = await importSubpath('./error');
+    expect(mod.BTP_ERROR_SERVER_SELECTOR).toBeDefined();
+  });
+});
