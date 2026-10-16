@@ -393,8 +393,6 @@ export function sdkChecks(sdk, set) {
   for (const c of defects.gcmTag.cases) {
     checks.push({
       id: `sdk/defects/gcm-tag/${c.name}`,
-      item: 10,
-      tickets: defects.tickets,
       async run() {
         let result;
         try {
