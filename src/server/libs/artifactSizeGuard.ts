@@ -38,32 +38,45 @@ export const resolveMaxArtifactSizeKb = (configured: number | undefined): number
 };
 
 /**
- * Passes a connection's bytes through unchanged, and fails as soon as one
- * line (one artifact) passes `maxKb`, counted in bytes before anything is
- * decoded or parsed. So a peer cannot make the server hold more than the
- * limit for any one artifact.
+ * Passes a connection's bytes through unchanged until one line (one
+ * artifact) passes `maxKb`, counted in bytes before anything is decoded or
+ * parsed. Then it calls `onTooLarge` once and drops everything the
+ * connection sends from that chunk on. So a peer cannot make the server hold
+ * more than the limit for any one artifact, and the server can still answer
+ * and close gently while the peer finishes sending.
  */
-export const artifactSizeGuard = (maxKb: number): Transform => {
+export const artifactSizeGuard = (
+  maxKb: number,
+  onTooLarge: (error: BTPErrorException) => void,
+): Transform => {
   const maxBytes = Math.floor(maxKb * 1024);
-  const tooLarge = () =>
-    new BTPErrorException({
-      code: BTP_ERROR_ARTIFACT_TOO_LARGE.code,
-      message: `${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: ${maxKb} KB`,
-    });
   let lineBytes = 0;
+  let discarding = false;
+
+  const refuse = (callback: () => void) => {
+    discarding = true;
+    onTooLarge(
+      new BTPErrorException({
+        code: BTP_ERROR_ARTIFACT_TOO_LARGE.code,
+        message: `${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: ${maxKb} KB`,
+      }),
+    );
+    callback();
+  };
 
   return new Transform({
     transform(chunk: Buffer, _encoding, callback) {
+      if (discarding) return callback();
       let start = 0;
       let newline = chunk.indexOf(0x0a, start);
       while (newline !== -1) {
-        if (lineBytes + newline - start > maxBytes) return callback(tooLarge());
+        if (lineBytes + newline - start > maxBytes) return refuse(callback);
         lineBytes = 0;
         start = newline + 1;
         newline = chunk.indexOf(0x0a, start);
       }
       lineBytes += chunk.length - start;
-      if (lineBytes > maxBytes) return callback(tooLarge());
+      if (lineBytes > maxBytes) return refuse(callback);
       callback(null, chunk);
     },
   });

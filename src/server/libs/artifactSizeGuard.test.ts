@@ -52,14 +52,15 @@ describe('resolveMaxArtifactSizeKb', () => {
 
 describe('artifactSizeGuard', () => {
   // Writes the chunks through a guard with a 1 KB limit; resolves with what
-  // passed through, or the error it failed with.
+  // passed through and every refusal it reported.
   const run = (chunks: Buffer[]) =>
-    new Promise<{ passed: Buffer; error?: unknown }>((resolve) => {
-      const guard = artifactSizeGuard(1);
+    new Promise<{ passed: Buffer; refused: BTPErrorException[] }>((resolve, reject) => {
+      const refused: BTPErrorException[] = [];
+      const guard = artifactSizeGuard(1, (error) => refused.push(error));
       const passed: Buffer[] = [];
       guard.on('data', (chunk: Buffer) => passed.push(chunk));
-      guard.on('error', (error) => resolve({ passed: Buffer.concat(passed), error }));
-      guard.on('end', () => resolve({ passed: Buffer.concat(passed) }));
+      guard.on('error', reject);
+      guard.on('end', () => resolve({ passed: Buffer.concat(passed), refused }));
       for (const chunk of chunks) guard.write(chunk);
       guard.end();
     });
@@ -68,35 +69,49 @@ describe('artifactSizeGuard', () => {
 
   it('passes lines up to the limit through unchanged, across chunks', async () => {
     const chunks = [bytes(600), bytes(424), newline, bytes(1024), newline];
-    const { passed, error } = await run(chunks);
-    expect(error).toBeUndefined();
+    const { passed, refused } = await run(chunks);
+    expect(refused).toEqual([]);
     expect(passed).toEqual(Buffer.concat(chunks));
   });
 
   it('counts each line on its own, so many lines may together pass the limit', async () => {
-    const { error } = await run([Buffer.concat([bytes(900), newline, bytes(900), newline])]);
-    expect(error).toBeUndefined();
+    const { refused } = await run([Buffer.concat([bytes(900), newline, bytes(900), newline])]);
+    expect(refused).toEqual([]);
   });
 
   it('refuses a line over the limit that arrives across chunks, before it ends', async () => {
-    const { error } = await run([bytes(600), bytes(600)]);
-    expect(error).toBeInstanceOf(BTPErrorException);
-    expect(error).toMatchObject({
+    const { refused } = await run([bytes(600), bytes(600)]);
+    expect(refused).toHaveLength(1);
+    expect(refused[0]).toBeInstanceOf(BTPErrorException);
+    expect(refused[0]).toMatchObject({
       code: BTP_ERROR_ARTIFACT_TOO_LARGE.code,
       message: `${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 1 KB`,
     });
   });
 
   it('refuses a line over the limit that arrives whole inside one chunk', async () => {
-    const { error } = await run([
+    const { refused } = await run([
       Buffer.concat([bytes(10), newline, bytes(1025), newline, bytes(10)]),
     ]);
-    expect(error).toMatchObject({ code: BTP_ERROR_ARTIFACT_TOO_LARGE.code });
+    expect(refused[0]).toMatchObject({ code: BTP_ERROR_ARTIFACT_TOO_LARGE.code });
   });
 
   it('counts bytes, not characters', async () => {
     // 342 three-byte characters: 342 characters, 1026 bytes.
-    const { error } = await run([Buffer.from('€'.repeat(342)), newline]);
-    expect(error).toMatchObject({ code: BTP_ERROR_ARTIFACT_TOO_LARGE.code });
+    const { refused } = await run([Buffer.from('€'.repeat(342)), newline]);
+    expect(refused[0]).toMatchObject({ code: BTP_ERROR_ARTIFACT_TOO_LARGE.code });
+  });
+
+  it('reports once, then drops everything after, without failing the stream', async () => {
+    const before = Buffer.concat([bytes(100), newline]);
+    const { passed, refused } = await run([
+      before,
+      bytes(600),
+      bytes(600),
+      bytes(5000),
+      Buffer.concat([newline, bytes(10), newline]),
+    ]);
+    expect(refused).toHaveLength(1);
+    expect(passed).toEqual(Buffer.concat([before, bytes(600)]));
   });
 });

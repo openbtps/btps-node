@@ -43,6 +43,7 @@ import {
   BTP_ERROR_ARTIFACT_TOO_LARGE,
 } from '../../core/error/index.js';
 import { PassThrough } from 'stream';
+import net from 'net';
 
 const TEST_FILE = path.join(__dirname, 'test-trust-store.json');
 
@@ -2625,12 +2626,14 @@ export default function () {
         maxArtifactSizeKb,
       });
 
-    it('refuses an artifact over its limit with the limit in the message, then closes', async () => {
+    it('refuses an artifact over its limit with the limit in the message, then ends gently', async () => {
       const { input, socket } = connect(makeServer(2048));
 
       input.write(Buffer.alloc(2048 * 1024 + 1, 'a'));
-      await vi.waitFor(() => expect(socket.destroy).toHaveBeenCalled());
+      await vi.waitFor(() => expect(socket.end).toHaveBeenCalled());
 
+      expect(socket.destroy).not.toHaveBeenCalled();
+      expect(socket.write).toHaveBeenCalledTimes(1);
       const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
       expect(written.type).toBe('btps_error');
       expect(written.status.ok).toBe(false);
@@ -2642,11 +2645,66 @@ export default function () {
       const { input, socket } = connect(makeServer(100));
 
       input.write(Buffer.alloc(1024 * 1024 + 1, 'a'));
-      await vi.waitFor(() => expect(socket.destroy).toHaveBeenCalled());
+      await vi.waitFor(() => expect(socket.end).toHaveBeenCalled());
 
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('below the 1024 KB minimum'));
       const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
       expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 1024 KB`);
+    });
+
+    it('delivers the refusal over a real connection to a sender that is still sending', async () => {
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        maxArtifactSizeKb: 1024,
+        connectionTimeoutMs: 2000,
+      });
+      // TCP, not TLS: losing an answer to a reset happens at the TCP level.
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+
+      try {
+        const answer = await new Promise<string>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const end = received.indexOf('\n');
+            if (end !== -1) resolve(received.slice(0, end));
+          });
+          client.on('error', reject);
+          client.on('close', () => reject(new Error(`closed without an answer: ${received}`)));
+          // Like a sender across a network, it reads the answer some time after
+          // it arrives: a connection reset in between would discard it unread.
+          client.pause();
+          setTimeout(() => client.resume(), 300);
+          // A sender that does not know the limit keeps sending well past it.
+          const chunk = Buffer.alloc(64 * 1024, 'a');
+          let sent = 0;
+          const pump = () => {
+            while (sent < 4 * 1024 * 1024) {
+              sent += chunk.length;
+              if (!client.write(chunk)) {
+                client.once('drain', pump);
+                return;
+              }
+            }
+            client.end();
+          };
+          pump();
+        });
+
+        const written: BTPServerResponse = JSON.parse(answer);
+        expect(written.type).toBe('btps_error');
+        expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 1024 KB`);
+      } finally {
+        tcp.close();
+      }
     });
   });
 
