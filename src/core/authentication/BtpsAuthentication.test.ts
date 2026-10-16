@@ -632,6 +632,63 @@ describe('BtpsAuthentication', () => {
     });
   });
 
+  describe('EBA-445: smaller defects', () => {
+    /** A store with a database's latency on get and remove; consume stays atomic, as the contract asks. */
+    class SlowTokenStore extends InMemoryTokenStore {
+      override async get(agentId: string, token: string) {
+        await new Promise((r) => setTimeout(r, 20));
+        return super.get(agentId, token);
+      }
+      override async remove(agentId: string, token: string) {
+        await new Promise((r) => setTimeout(r, 20));
+        return super.remove(agentId, token);
+      }
+    }
+
+    // Read: validateAndReissueRefreshToken did get, then remove; two refreshes
+    // with one token could both pass the get.
+    it('of two concurrent refreshes with one token, exactly one succeeds', async () => {
+      const slow = new SlowTokenStore();
+      const slowAuth = new BtpsAuthentication({ trustStore, tokenStore: slow });
+      const decryptBy = 'admin$saas.com';
+      const { agentId, refreshToken } = await slowAuth.createAgent(
+        { userIdentity: 'alice$saas.com', publicKey: mockKeyPair.publicKey, decidedBy: 'admin' },
+        decryptBy,
+      );
+      const options = { decryptBy, decidedBy: 'admin' };
+      const results = await Promise.all([
+        slowAuth.validateAndReissueRefreshToken(agentId, refreshToken, options),
+        slowAuth.validateAndReissueRefreshToken(agentId, refreshToken, options),
+      ]);
+      const succeeded = results.filter((r) => r.data);
+      expect(succeeded).toHaveLength(1);
+      const refused = results.find((r) => !r.data);
+      expect(refused?.error?.code).toBe('BTP_ERROR_AUTHENTICATION_INVALID');
+    });
+
+    it('cleanup() cleans the token store once', async () => {
+      const spy = vi.spyOn(tokenStore, 'cleanup');
+      await auth.cleanup();
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('validateRefreshToken refuses an unknown token with BTP_ERROR_AUTHENTICATION_INVALID', async () => {
+      const result = await auth.validateRefreshToken('btps_ag_x', 'NO_SUCH_TOKEN');
+      expect(result.isValid).toBe(false);
+      expect(result.isValid === false && result.error).toMatchObject({
+        code: 'BTP_ERROR_AUTHENTICATION_INVALID',
+      });
+    });
+
+    it('validateAuthToken answers a store failure with BTP_ERROR_AUTHENTICATION_INVALID', async () => {
+      vi.spyOn(tokenStore, 'consume').mockRejectedValue(new Error('store down'));
+      const result = await auth.validateAuthToken('alice$saas.com', 'TOKEN');
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBeInstanceOf(BTPErrorException);
+      expect(result.error).toMatchObject({ code: 'BTP_ERROR_AUTHENTICATION_INVALID' });
+    });
+  });
+
   describe('item D (EBA-112): refreshSession and rotateKey sign with the current key', () => {
     const agentId = 'btps_ag_client-test';
     const identity = 'alice$saas.com';

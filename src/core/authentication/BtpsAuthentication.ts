@@ -267,10 +267,10 @@ export class BtpsAuthentication {
     } catch (error) {
       return {
         isValid: false,
-        error:
-          error instanceof Error
-            ? error
-            : new BTPErrorException({ message: 'Token validation failed' }),
+        error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
+          cause: error,
+          meta: { userIdentity },
+        }),
       };
     }
   }
@@ -293,18 +293,27 @@ export class BtpsAuthentication {
     data?: BTPAuthResDoc;
     error?: BTPErrorException;
   }> {
-    const validationResult = await this.validateRefreshToken(agentId, refreshToken);
-
-    if (!validationResult.isValid) {
+    // Taken atomically (EBA-445): of two refreshes racing with one token,
+    // exactly one gets it. A get-then-remove let both succeed.
+    let taken: Awaited<ReturnType<TokenStore['consume']>>;
+    try {
+      taken = await this.tokenStore.consume(agentId, refreshToken);
+    } catch (error) {
+      return { data: undefined, error: transformToBTPErrorException(error) };
+    }
+    if (taken.status !== 'consumed') {
       return {
         data: undefined,
         error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
-          cause: 'Invalid or expired refresh token',
-          meta: { agentId, refreshToken },
+          cause:
+            taken.status === 'used'
+              ? 'Refresh token already used'
+              : 'Invalid or expired refresh token',
+          meta: { agentId },
         }),
       };
     }
-    const { userIdentity } = validationResult;
+    const { userIdentity } = taken.record;
     const computedId = computeTrustId(agentId, userIdentity);
     const trustRecord = await this.trustStore.getById(computedId);
 
@@ -360,9 +369,7 @@ export class BtpsAuthentication {
       };
     }
 
-    // delete the old refresh token
-    await this.tokenStore.remove(agentId, refreshToken);
-    // generate a new refresh token
+    // The old refresh token was consumed above. Generate a new one.
     const newRefreshToken = BtpsAuthentication.generateRefreshToken();
     await this.tokenStore.store(
       newRefreshToken,
@@ -537,7 +544,10 @@ export class BtpsAuthentication {
       if (!storedToken) {
         return {
           isValid: false,
-          error: new BTPErrorException({ message: 'Invalid or expired refresh token' }),
+          error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
+            cause: 'Invalid or expired refresh token',
+            meta: { agentId },
+          }),
         };
       }
 
@@ -558,7 +568,6 @@ export class BtpsAuthentication {
    * Clean up expired tokens and sessions
    */
   async cleanup(): Promise<void> {
-    await this.tokenStore.cleanup();
     await this.tokenStore.cleanup();
   }
 }
