@@ -69,6 +69,14 @@ table, by code.
 
 Every `BTPErrorException` has `retryable`, from this table by its code.
 
+**An error with no `reqId` (BTPS 1.1, fix list 14).** A server that answers
+before it has parsed the line, such as the rate limit by network address,
+cannot name the request: its `btps_error` has no `reqId`. When exactly one
+`send()` is pending on that connection, and it was written, the client hands
+it that error. Otherwise the answer is emitted as a `message` event and no
+`send()` takes it. Only an error is handed over this way: a `btps_response`
+without the request's own `reqId` is never read as delivered.
+
 ## Versions
 
 A 1.0 server sent every string-coded error as status 500 with no `code`. 1.0

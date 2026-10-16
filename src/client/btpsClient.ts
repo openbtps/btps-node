@@ -32,6 +32,7 @@ import {
   BTP_ERROR_CONNECTION_CLOSED,
   BTP_ERROR_CONNECTION_ENDED,
   BTP_ERROR_IDENTITY,
+  BTP_ERROR_LINE_TOO_LONG,
   BTP_ERROR_RESOLVE_DNS,
   BTP_ERROR_SIG_VERIFICATION,
   BTP_ERROR_SOCKET_TIMEOUT,
@@ -48,7 +49,7 @@ import type {
   BTPIdentityResDoc,
   BTPServerResponse,
 } from '@core/server/types.js';
-import { BTP_PROTOCOL_VERSION } from '@core/server/constants/index.js';
+import { BTP_MAX_LINE_LENGTH, BTP_PROTOCOL_VERSION } from '@core/server/constants/index.js';
 import { randomUUID } from 'crypto';
 import isEmpty from 'lodash/isEmpty.js';
 import {
@@ -111,7 +112,7 @@ export class BtpsClient {
 
     if (this.states.isConnecting) {
       const error = new BTPErrorException(BTP_ERROR_ALREADY_CONNECTING);
-      this.emitter.emit('error', {
+      this.emitError({
         error,
         ...this.getRetryInfo(error),
       });
@@ -158,19 +159,60 @@ export class BtpsClient {
       this.attachListeners(sock, this.options.to);
       if (this.options.connectionTimeoutMs) {
         sock.setTimeout(this.options.connectionTimeoutMs, () => {
-          sock.destroy(
-            new BTPErrorException(BTP_ERROR_SOCKET_TIMEOUT, {
-              cause: 'connection timeout',
-            }),
-          );
+          const error = new BTPErrorException(BTP_ERROR_SOCKET_TIMEOUT, {
+            cause: 'connection timeout',
+          });
+          // Every pending send gets its answer (fix list 12): destroy()
+          // used to clear the queue without resolving, so a send whose own
+          // timer was longer than the connection's waited forever.
+          this.cleanupQueue(error);
+          sock.destroy(error);
           this.destroy();
         });
       }
     });
   }
 
+  /**
+   * Emits `error` only to a listener (fix list 12): an EventEmitter with no
+   * `error` listener throws, inside the SDK. Without one, it is logged.
+   */
+  protected emitError(info: { error: Error } & BTPSRetryInfo) {
+    if (this.emitter.listenerCount('error') === 0) {
+      console.error('[BtpsClient]::Unhandled error:', info);
+      return;
+    }
+    this.emitter.emit('error', info);
+  }
+
   protected attachListeners(socket: TLSSocket, receiverId: string) {
-    socket.pipe(split2()).on('data', (line: string) => this.onData(line));
+    // An answer is never buffered past BTP_MAX_LINE_LENGTH, as on the server
+    // (fix list 10): a longer one fails every pending send and closes the
+    // connection.
+    const lines = socket.pipe(split2({ maxLength: BTP_MAX_LINE_LENGTH }));
+    let refusedOverlong = false;
+    const refuseOverlong = () => {
+      if (refusedOverlong) return;
+      refusedOverlong = true;
+      socket.unpipe(lines);
+      lines.removeAllListeners('data');
+      const error = new BTPErrorException(BTP_ERROR_LINE_TOO_LONG, {
+        cause: `An answer from ${receiverId}'s server is longer than ${BTP_MAX_LINE_LENGTH} characters`,
+      });
+      this.states.shouldRetry = false;
+      this.emitError({ error, ...this.getRetryInfo(error) });
+      this.cleanupQueue(error);
+      socket.destroy();
+    };
+    // split2 checks only the part of a line still waiting for its end, so a
+    // line completed in the same chunk is checked here.
+    lines.on('data', (line: string) =>
+      line.length > BTP_MAX_LINE_LENGTH ? refuseOverlong() : this.onData(line),
+    );
+    lines.on('error', (err: unknown) => {
+      if ((lines as { overflow?: boolean }).overflow) return refuseOverlong();
+      onSocketError(err);
+    });
 
     socket.on('drain', () => {
       void this.flushBackpressure();
@@ -182,12 +224,7 @@ export class BtpsClient {
       const errorInfo = { ...info, error };
       this.states.isConnecting = false;
       this.states.isConnected = false;
-      if (this.emitter.listenerCount('error') === 0) {
-        // No error handler registered: log instead of emitting
-        console.error('[BtpsClient]::Unhandled error:', errorInfo);
-      } else {
-        this.emitter.emit('error', errorInfo);
-      }
+      this.emitError(errorInfo);
 
       if (info.willRetry) {
         this.retryConnect(receiverId);
@@ -248,14 +285,34 @@ export class BtpsClient {
               : undefined,
         });
         this.pumpNextQueue();
+      } else if (!msg?.reqId && msg?.type === 'btps_error' && this.soleWrittenJob()) {
+        // Fix list 14: an error answer with no reqId (written before the
+        // server parsed the line, e.g. a 429 by network address) can only be
+        // about the one send on the wire. It is handed back as an error only:
+        // nothing is read as delivered without its own id.
+        const [id, job] = this.soleWrittenJob()!;
+        this.queue.delete(id);
+        clearTimeout(job.timeout);
+        job.resolve({
+          response: validSignature ? msg : undefined,
+          error: validSignature ? this.wireErrorToException(msg) : error,
+        });
+        this.pumpNextQueue();
       } else {
         this.emitter.emit('message', { response: msg, validSignature, error });
       }
     } catch (e) {
       const err = new SyntaxError(`Invalid JSON: ${e}`);
       this.states.shouldRetry = false;
-      this.emitter.emit('error', { error: err, ...this.getRetryInfo(err) });
+      this.emitError({ error: err, ...this.getRetryInfo(err) });
     }
+  }
+
+  /** The pending send, when exactly one is pending and it is on the wire (fix list 14). */
+  protected soleWrittenJob() {
+    if (this.queue.size !== 1) return undefined;
+    const [entry] = this.queue.entries();
+    return entry && entry[1].written ? entry : undefined;
   }
 
   /**
@@ -476,7 +533,7 @@ export class BtpsClient {
     if (resolve) {
       resolve({ response: undefined, error });
     } else {
-      this.emitter.emit('error', { error, ...this.getRetryInfo(error) });
+      this.emitError({ error, ...this.getRetryInfo(error) });
     }
     if (timeout) clearTimeout(timeout);
     if (this.queue.has(artifactId)) this.queue.delete(artifactId);
@@ -1006,6 +1063,7 @@ export class BtpsClient {
     this.backpressureQueue = [];
     this.removeAllListeners();
     this.socket?.destroy();
-    this.cleanupQueue();
+    // A send still pending is answered, never left waiting (fix list 12).
+    this.cleanupQueue(new BTPErrorException(BTP_ERROR_CLIENT_DESTROYED));
   }
 }
