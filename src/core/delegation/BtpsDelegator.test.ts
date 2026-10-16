@@ -79,6 +79,64 @@ describe('BtpsDelegator', () => {
     }));
   });
 
+  // EBA-445 (fix list 12). Read: the constructor started init()'s DNS lookup
+  // and awaited nothing, so a failure was an unhandled rejection.
+  describe('auto-init is awaited, never started by the constructor', () => {
+    const autoDelegator = () => {
+      const d = new BtpsDelegator({
+        identity: 'saas$platform.com',
+        privateKey: saasKeys.privateKey,
+      });
+      d['isKeyPairMatching'] = vi.fn().mockReturnValue(true);
+      return d;
+    };
+
+    it('does no DNS lookup in the constructor', () => {
+      autoDelegator();
+      expect(mockGetHostAndSelector).not.toHaveBeenCalled();
+      expect(mockResolvePublicKey).not.toHaveBeenCalled();
+    });
+
+    it('initializes on the first delegateArtifact, once', async () => {
+      const delegator = autoDelegator();
+      const [first, second] = await Promise.all([
+        delegator.delegateArtifact(agentId, agentPubKey, artifact),
+        delegator.delegateArtifact(agentId, agentPubKey, artifact),
+      ]);
+      expect(first.delegation.signedBy).toBe('saas$platform.com');
+      expect(second.delegation.signedBy).toBe('saas$platform.com');
+      expect(mockResolvePublicKey).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects the delegateArtifact call when init fails, and tries again on the next', async () => {
+      mockResolvePublicKey.mockResolvedValueOnce(undefined);
+      const delegator = autoDelegator();
+      await expect(delegator.delegateArtifact(agentId, agentPubKey, artifact)).rejects.toThrow(
+        BTPErrorException,
+      );
+      await expect(
+        delegator.delegateArtifact(agentId, agentPubKey, artifact),
+      ).resolves.toHaveProperty('delegation');
+    });
+
+    it('with autoInit false, delegateArtifact refuses until init() was awaited', async () => {
+      const delegator = new BtpsDelegator({
+        identity: 'saas$platform.com',
+        privateKey: saasKeys.privateKey,
+        autoInit: false,
+      });
+      delegator['isKeyPairMatching'] = vi.fn().mockReturnValue(true);
+      await expect(delegator.delegateArtifact(agentId, agentPubKey, artifact)).rejects.toThrow(
+        BTPErrorException,
+      );
+      expect(mockResolvePublicKey).not.toHaveBeenCalled();
+      await delegator.init();
+      await expect(
+        delegator.delegateArtifact(agentId, agentPubKey, artifact),
+      ).resolves.toHaveProperty('delegation');
+    });
+  });
+
   describe('Initialization', () => {
     it('should initialize and verify key pair', async () => {
       const delegator = await createMockedDelegator(

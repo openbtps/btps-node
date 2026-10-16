@@ -26,7 +26,12 @@ import {
  */
 export type BtpsDelegatorOptions = {
   identity: string;
-  autoInit?: boolean; // Optional: disable auto-initialization for testing
+  /**
+   * Default true: the first `delegateArtifact` awaits `init()`. False: the
+   * caller awaits `init()` itself, and `delegateArtifact` throws until it
+   * has. The constructor never does I/O either way (EBA-445).
+   */
+  autoInit?: boolean;
 } & (
   | { signer: Signer; privateKey?: undefined }
   | { privateKey: PemKeys['privateKey']; signer?: undefined }
@@ -59,18 +64,32 @@ export class BtpsDelegator {
     }
     this.signer = options.signer;
     this.privateKey = options.privateKey;
-    if (options.autoInit !== false) {
-      this.init();
-    }
+    // No I/O here (fix list 12): the constructor used to start init()'s DNS
+    // lookup and await nothing, so a failure was an unhandled rejection.
+    // With autoInit (the default), the first delegateArtifact awaits init().
+    this.autoInit = options.autoInit !== false;
   }
 
+  private readonly autoInit: boolean;
+  /** The one init() in flight, or done; cleared on failure so the next call retries. */
+  private initializing?: Promise<void>;
+
   /**
-   * Initialize the delegator
-   * This method is called automatically when the delegator is created
-   * It verifies the delegator identity and sets the public key
+   * Initialize the delegator: verifies the delegator identity against its
+   * published key and sets the public key. Awaited by the first
+   * `delegateArtifact` unless `autoInit` is false; may be called first, to
+   * fail at start-up rather than on the first artifact.
    * @throws BTPErrorException if the delegator identity verification fails
    */
-  async init() {
+  init(): Promise<void> {
+    this.initializing ??= this.verifyAndSetKey().catch((err: unknown) => {
+      this.initializing = undefined;
+      throw err;
+    });
+    return this.initializing;
+  }
+
+  private async verifyAndSetKey(): Promise<void> {
     const { publicKey, isValid } = await this.verifyDelegatorIdentity();
     if (!publicKey || !isValid)
       throw new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
@@ -150,6 +169,7 @@ export class BtpsDelegator {
       keyPair?: PemKeys;
     },
   ): Promise<BTPTransporterArtifact & { delegation: BTPDelegation }> {
+    if (this.autoInit && !this.isInitialized) await this.init();
     if (!this.isInitialized || !this.publicKey || !this.signingKey)
       throw new BTPErrorException({ message: 'Delegator not initialized' });
 
