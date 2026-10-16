@@ -262,8 +262,9 @@ try {
 2. **Key Management**: Protect private keys and use secure key generation
 3. **Session Management**: Implement proper session cleanup and validation
 4. **Network Security**: Use TLS for all BTPS communications
-5. **Token Rotation**: Consider implementing refresh token rotation for enhanced security
-6. **Encryption**: All sensitive data is encrypted in transit and at rest
+5. **Token Rotation**: A refresh token is single-use: `validateAndReissueRefreshToken` removes it and issues the next one
+6. **Device Key Rotation** (self-held devices): an `auth.refresh` is always signed by the current key. To change it, call `rotateKey`; the server refuses a refresh signed by any other key (`BTP_ERROR_REFRESH_NOT_CURRENT_KEY`) and a new key without a valid proof (`BTP_ERROR_KEY_ROTATION_PROOF`) before your handler runs. A managed identity has no device key and rotates by publishing a new selector
+7. **Encryption**: All sensitive data is encrypted in transit and at rest
 
 ## Integration with BTPS Server
 
@@ -327,7 +328,10 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
 - `BtpsAuthentication.generateRefreshToken(size?: number): string`
 - `BtpsAuthentication.generateAuthToken(userIdentity: string, length?: number, alphabet?: string): string`
 - `BtpsAuthentication.authenticate(identity: string, authToken: string, keyPair: PemKeys, agentInfo?: Record<string, string | string[]>, agentOptions?: AuthAgentOptions): Promise<AuthRequestResult>`
-- `BtpsAuthentication.refreshSession(agentId: string, identity: string, refreshToken: string, keyPair: PemKeys, agentInfo?: Record<string, string | string[]>, agentOptions?: AuthAgentOptions): Promise<AuthRequestResult>`
+- `BtpsAuthentication.refreshSession(agentId: string, identity: string, refreshToken: string, keyPair: BTPSigningKey, agentInfo?: Record<string, string | string[]>, agentOptions?: AuthAgentOptions): Promise<AuthRequestResult>`: keeps the key; `keyPair` must be the key the server holds
+- `BtpsAuthentication.rotateKey(agentId: string, identity: string, refreshToken: string, currentKey: BTPSigningKey, newKey: BTPSigningKey, agentInfo?: Record<string, string | string[]>, agentOptions?: AuthAgentOptions): Promise<AuthRequestResult>`: refreshes and rotates the device key (self-held custody). Signed by `currentKey`, with `newKey`'s `keyProof`
+- `verifyAgentRefresh({ artifact, currentPublicKey, nowMs, windowMs? })`: the server's check of an `auth.refresh` (item D, EBA-112): signed by the current key, and a new key only with a valid `keyProof`
+- `signKeyProof({ agentId, identity, newKey, issuedAt? })`: the new key's signature over the JCS form of `{ agentId, identity, newPublicKey, issuedAt }`
 
 ### Instance Methods
 

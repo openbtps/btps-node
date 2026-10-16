@@ -144,21 +144,86 @@ Used for initial agent authentication.
 
 ### 2. Authentication Refresh Document (`auth.refresh`)
 
-Used to refresh authentication tokens.
+Used to refresh authentication tokens, and to rotate the device key.
+
+**An `auth.refresh` artifact is always signed by the agent's current key**:
+the key in its trust record on the server (BTPS 1.1, item D). A refresh
+signed by any other key is refused with `BTP_ERROR_REFRESH_NOT_CURRENT_KEY`,
+even when it carries a valid refresh token: a stolen refresh token alone
+cannot replace a device's key.
+
+**Without rotation**, `publicKey` is the current key:
 
 ```json
 {
   "identity": "john$vendorcorp.com",
   "authToken": "refresh-token",
-  "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----"
+  "publicKey": "-----BEGIN PUBLIC KEY-----\n(the current key)\n-----END PUBLIC KEY-----"
+}
+```
+
+**With rotation**, `publicKey` is the new key, and `keyProof` proves the
+device holds it. The artifact is still signed by the current key.
+
+```json
+{
+  "identity": "john$vendorcorp.com",
+  "authToken": "refresh-token",
+  "publicKey": "-----BEGIN PUBLIC KEY-----\n(the new key)\n-----END PUBLIC KEY-----",
+  "keyProof": {
+    "issuedAt": "2026-10-16T00:00:00.000Z",
+    "signature": {
+      "algorithmHash": "sha256",
+      "value": "base64 signature by the new key",
+      "fingerprint": "fingerprint of the new key"
+    }
+  }
+}
+```
+
+`keyProof.signature` is the new key's RSASSA-PKCS1-v1_5/SHA-256 signature
+over the JCS (RFC 8785) form of exactly these four fields:
+
+```json
+{
+  "agentId": "<the artifact's agentId>",
+  "identity": "<the artifact's to, which document.identity must equal>",
+  "newPublicKey": "<document.publicKey>",
+  "issuedAt": "<keyProof.issuedAt>"
 }
 ```
 
 **Required Fields:**
 
 - **identity**: BTPS identity address
-- **authToken**: Refresh token for authentication renewal
-- **publicKey**: Agent's public key in PEM format
+- **authToken**: Refresh token for authentication renewal. It is single-use: the server issues a new one and removes this one
+- **publicKey**: The key the agent holds after the refresh, in PEM (SPKI) format: the current key, or the new key when rotating
+
+**Optional Fields:**
+
+- **agentInfo**: Additional agent information
+- **keyProof**: Required when `publicKey` is a new key, and refused when it is not
+
+**The server checks, in order** (after the `issuedAt` window and before trust):
+
+| Check                                                                                                                                                                                               | Refused with                                    |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| The agent has a trust record                                                                                                                                                                        | `BTP_ERROR_SIG_VERIFICATION` (no key on record) |
+| The artifact is signed by the key in that record                                                                                                                                                    | `BTP_ERROR_REFRESH_NOT_CURRENT_KEY`             |
+| `publicKey` is the current key and there is no `keyProof`; or                                                                                                                                       | `BTP_ERROR_KEY_ROTATION_PROOF`                  |
+| `publicKey` is a new key, `document.identity` is the artifact's `to`, `keyProof.issuedAt` is within the `issuedAt` window, and `keyProof.signature` is the new key's signature over the four fields | `BTP_ERROR_KEY_ROTATION_PROOF`                  |
+
+Only then does the application's `auth.refresh` handler run, which checks
+the refresh token and, through
+`BtpsAuthentication.validateAndReissueRefreshToken`, stores the new key and
+moves the old fingerprint into the record's `keyHistory`. The artifact
+itself is also refused a second time by replay protection, keyed by
+`(agentId, id)`.
+
+**Custody.** Rotation through `auth.refresh` is for self-held keys: a native
+device that holds its own key. A managed identity has no device key; its key
+is held by the platform (KMS) and rotates by publishing a new key under a new
+selector, so `auth.refresh` does not apply to it.
 
 ### 3. Trust Request Document (`trust.request`)
 

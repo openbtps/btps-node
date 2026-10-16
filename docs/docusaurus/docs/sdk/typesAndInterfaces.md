@@ -1300,14 +1300,27 @@ interface BTPAttestation {
 
 ### BTPAuthReqDoc
 
-Authentication request document.
+Authentication request document, for `auth.request` and `auth.refresh`.
 
 ```ts
 interface BTPAuthReqDoc {
   identity: string;
   authToken: string;
-  publicKey: string;
+  publicKey: string; // auth.refresh: the key held after the refresh (current, or new when rotating)
   agentInfo?: Record<string, string | string[]>;
+  keyProof?: BTPKeyProof; // auth.refresh only; required when publicKey is a new key
+}
+```
+
+### BTPKeyProof
+
+The new key's proof of possession on a key-rotating `auth.refresh`: its
+signature over the JCS form of `{ agentId, identity, newPublicKey, issuedAt }`.
+
+```ts
+interface BTPKeyProof {
+  issuedAt: string;
+  signature: BTPSignature;
 }
 ```
 

@@ -247,6 +247,11 @@ const refreshResult = await agent.command('auth.refresh', null, {
 });
 ```
 
+An `auth.refresh` must be signed by the device's current key, the one the
+server holds. To rotate the key, use `BtpsAuthentication.rotateKey`, which
+signs with the current key and adds the new key's `keyProof`; see the
+`auth.refresh` section of the agent artifact specification.
+
 ## Key Integration Points
 
 ### Authentication Features

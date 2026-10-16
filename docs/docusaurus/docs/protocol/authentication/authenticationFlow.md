@@ -335,6 +335,37 @@ async createAgent(options: CreateAgentOptions): Promise<BTPAuthResDoc> {
 }
 ```
 
+The artifact is signed by the device's **current** key, the one the server
+holds. A refresh signed by any other key is refused
+(`BTP_ERROR_REFRESH_NOT_CURRENT_KEY`).
+
+#### **Key rotation (self-held devices)**
+
+To change its key, the device sends the same refresh, still signed by the
+current key, with `publicKey` set to the new key and a `keyProof`: the new
+key's signature over the JCS form of `{ agentId, identity, newPublicKey,
+issuedAt }`.
+
+```typescript
+const result = await BtpsAuthentication.rotateKey(
+  agentId,
+  'alice$saas.com',
+  refreshToken,
+  currentKey, // a Signer, or a PEM pair: signs the artifact
+  newKey, // a Signer, or a PEM pair: signs the keyProof
+);
+// From now on, sign with newKey only.
+```
+
+The server verifies the artifact with the current key and the proof with the
+new key before the application's handler runs; a rotation with no proof, or
+a bad one, is refused (`BTP_ERROR_KEY_ROTATION_PROOF`). The handler then
+calls `validateAndReissueRefreshToken` with the new `publicKey`, which stores
+it and moves the old fingerprint into `keyHistory`.
+
+A managed identity has no device key: its key is held by the platform and
+rotates by publishing a new selector, never through `auth.refresh`.
+
 #### **Step 2: Refresh Token Validation**
 
 **Location**: BtpsAuthentication Service
@@ -428,7 +459,7 @@ async validateAndReissueRefreshToken(
 
 2. **Refresh Token Characteristics**:
    - Long-lived (7-90 days)
-   - Rotated on each refresh
+   - Rotated on each refresh, and single-use: a replayed refresh token is refused
    - Bound to specific agent
    - Stored securely with expiry
 
