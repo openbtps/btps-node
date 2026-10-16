@@ -188,7 +188,7 @@ about an invoice between A and B.
   decrypts (below).
 
 Enforcing `privacyType` itself (refusing an unencrypted event on an
-encrypted trust) is fix-list item 8, EBA-444, and is not in this change.
+encrypted trust) is a separate change (#25), not this one.
 
 ## What the receiving platform checks
 
@@ -280,7 +280,7 @@ to the event's `id`.
 ## Golden vectors
 
 `test/vectors/event.vectors.json`, over the events in `test/vectors/events/`
-(`yarn verify:btps-vectors`, checks `sdk/item-A/…`):
+(`yarn verify:btps-vectors`, checks `sdk/events/…`):
 
 - schema cases for every event type, accepted and refused per the tables above;
 - the envelope: the id equals the artifact id, and only a document between

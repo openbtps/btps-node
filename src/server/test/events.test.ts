@@ -142,7 +142,7 @@ const send = async (
   return payload as unknown as BTPTransporterArtifact;
 };
 
-describe('item A: BTPS_EVENT through the server', () => {
+describe('lifecycle events: BTPS_EVENT through the server', () => {
   let server: BtpsServer;
   let store: MapTrustStore;
 
@@ -199,7 +199,7 @@ describe('item A: BTPS_EVENT through the server', () => {
     return JSON.parse((socket.write as Mock).mock.calls[0][0] as string) as BTPServerResponse;
   };
 
-  describe('trust (section 2.4)', () => {
+  describe('trust', () => {
     it('accepts an event over the flipped trust: the payer writes back to the biller', async () => {
       // The payer accepted the biller's trust request: the biller's server holds B -> A.
       store.trust(BILLER, PAYER);
@@ -287,7 +287,7 @@ describe('item A: BTPS_EVENT through the server', () => {
     });
   });
 
-  describe('the envelope (sections 2.4 and 2.7)', () => {
+  describe('the envelope', () => {
     it('refuses an event about a document from someone else', async () => {
       store.trust(BILLER, PAYER);
       const event = load('paid.by-payer.json');
@@ -361,7 +361,7 @@ describe('item A: BTPS_EVENT through the server', () => {
     expect(validateBtpEventEnvelope(parsed.data!, artifact)).toBeUndefined();
   });
 
-  it('an encrypted event opens through a PemDecrypter (EBA-441)', async () => {
+  it('an encrypted event opens through a PemDecrypter', async () => {
     store.trust(BILLER, PAYER);
     const event = load('partially-paid.json');
     const artifact = await send(PAYER, BILLER, event, { encrypted: true });

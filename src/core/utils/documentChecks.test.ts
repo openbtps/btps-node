@@ -45,7 +45,7 @@ function byCategory(check: ReturnType<typeof verifyTaxTotal>, taxCategory: strin
   return entry;
 }
 
-describe('verifyTaxTotal (EBA-119): credit notes only', () => {
+describe('verifyTaxTotal: credit notes only', () => {
   it('confirms the credit note: total and tax per rate equal the line items', () => {
     const check = verifyTaxTotal(creditNote());
     expect(check.ok).toBe(true);
@@ -100,11 +100,10 @@ describe('verifyTaxTotal (EBA-119): credit notes only', () => {
 });
 
 /*
- * The six approved payslip cases (page 8945684, EBA-119 comments
- * 10696/10703) across the payslip vectors, plus a seventh that isolates the
+ * The six approved payslip cases across the payslip vectors, plus a seventh that isolates the
  * net check.
  */
-describe('reconcilePayslip (EBA-119)', () => {
+describe('reconcilePayslip', () => {
   it('case 1: hourly, with ordinary, au:penalty and au:casual_loading lines, reconciles', () => {
     const doc = payslip('payslip.hourly.v2.json');
     expect(doc.earnings.map((line) => line.category)).toEqual([
