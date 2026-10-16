@@ -22,6 +22,7 @@ import type { Signer } from '../signer-interface.js';
 import { BTPIdentityRecord } from '@core/storage/types.js';
 import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 import type { AbstractReplayStore } from '@core/storage/AbstractReplayStore.js';
+import type { TokenConfig, TokenStore } from '@core/authentication/types.js';
 
 export interface BtpsTlsOptions extends TlsOptions {
   cert: string;
@@ -56,6 +57,21 @@ export interface BtpsServerOptions {
    * tighter, never wider than MAX_ISSUED_AT_WINDOW_MS (also 5 minutes).
    */
   issuedAtWindowMs?: number;
+  /**
+   * Where registration tokens are kept (item E): the same store the
+   * platform's `BtpsAuthentication` issues them into with `storeAuthToken`.
+   * The server answers every `auth.request` itself: it consumes the token,
+   * once, and binds the device to the identity the token was issued to.
+   * Without a token store, every `auth.request` is refused with
+   * `BTP_ERROR_REGISTRATION_UNAVAILABLE`.
+   */
+  tokenStore?: TokenStore;
+  /**
+   * Token settings for the agents the server registers; `refreshTokenExpiryMs`
+   * sets how long a new device's trust record and first refresh token last.
+   * Defaults as `BtpsAuthentication`'s.
+   */
+  tokenConfig?: TokenConfig;
   port?: number;
   onError?: (err: BTPErrorException) => void;
 

@@ -39,6 +39,7 @@ import {
   BTP_ERROR_ALREADY_RECEIVED,
   BTP_ERROR_REFRESH_NOT_CURRENT_KEY,
   BTP_ERROR_KEY_ROTATION_PROOF,
+  BTP_ERROR_REGISTRATION_TOKEN_INVALID,
 } from '@core/error/constant.js';
 import {
   type BTPSigningKey,
@@ -48,7 +49,6 @@ import {
   verifySignature,
 } from '@core/crypto/index.js';
 import {
-  base64ToPem,
   isDelegationAllowed,
   computeId,
   isBtpsIdentityRequest,
@@ -96,6 +96,13 @@ import type { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.
 import type { AbstractReplayStore } from '@core/storage/AbstractReplayStore.js';
 import { InMemoryReplayStore } from '@core/storage/InMemoryReplayStore.js';
 import { verifyAgentRefresh } from '@core/authentication/keyRotation.js';
+import {
+  consumeRegistrationToken,
+  resolveAgentKey,
+  REGISTRATION_ERRORS,
+} from '@core/authentication/registration.js';
+import { BtpsAuthentication } from '@core/authentication/BtpsAuthentication.js';
+import type { BTPsTokenDocument, TokenStore } from '@core/authentication/types.js';
 
 /**
  * BTPS Secure Server over TLS (btps://)
@@ -109,6 +116,10 @@ export class BtpsServer {
   private readonly trustStore: AbstractTrustStore<BTPTrustRecord>;
   private readonly replayStore: AbstractReplayStore;
   private readonly issuedAtWindowMs: number;
+  private readonly tokenStore?: TokenStore;
+  private readonly authentication?: BtpsAuthentication;
+  /** Registration tokens consumed in the trust step, until the device is bound (item E). */
+  private readonly registrations = new WeakMap<BTPAgentArtifact, BTPsTokenDocument>();
   private readonly middlewareManager: MiddlewareManager;
   private readonly connectionTimeoutMs: number;
   private readonly dependencies: {
@@ -137,6 +148,16 @@ export class BtpsServer {
     // in-memory one, which forgets on restart and is not shared.
     this.replayStore = options.replayStore ?? new InMemoryReplayStore();
     this.issuedAtWindowMs = resolveIssuedAtWindow(options.issuedAtWindowMs);
+    // Device registration (item E): only with a token store; without one,
+    // every auth.request is refused.
+    this.tokenStore = options.tokenStore;
+    if (this.tokenStore) {
+      this.authentication = new BtpsAuthentication({
+        trustStore: this.trustStore,
+        tokenStore: this.tokenStore,
+        tokenConfig: options.tokenConfig,
+      });
+    }
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 30000;
     this.middlewareManager = new MiddlewareManager(options.middlewarePath);
     this.dependencies = {
@@ -579,10 +600,14 @@ export class BtpsServer {
       // wire only distinguishes expired from everything else, so an
       // un-upgraded 1.0 peer still just sees "not allowed" for a revoked or
       // never-trusted sender.
+      // A refused registration says why (item E): no store, no token, a bad,
+      // used or another identity's token.
+      const registrationRefusal = REGISTRATION_ERRORS.find((e) => e.code === reqCtx.error?.code);
       const wireError =
-        reqCtx.error?.code === BTP_ERROR_TRUST_EXPIRED.code
+        registrationRefusal ??
+        (reqCtx.error?.code === BTP_ERROR_TRUST_EXPIRED.code
           ? BTP_ERROR_TRUST_EXPIRED
-          : BTP_ERROR_TRUST_NOT_ALLOWED;
+          : BTP_ERROR_TRUST_NOT_ALLOWED);
       return this.sendBtpsError(resCtx.socket, wireError, resCtx.reqId);
     }
 
@@ -776,15 +801,10 @@ export class BtpsServer {
       return authDoc?.publicKey || null;
     }
 
-    // For existing agents, get public key from trust store
-    const computedTrustId = computeTrustId(artifact.agentId, artifact.to);
-    const trustRecord = await this.trustStore.getById(computedTrustId);
-
-    if (!trustRecord) {
-      return null; // Trust record not found
-    }
-
-    return base64ToPem(trustRecord.publicKeyBase64);
+    // Every other agent: the key in its own agent record, never in a record
+    // between two identities (fix-list item 5).
+    const resolved = await resolveAgentKey(this.trustStore, artifact);
+    return resolved.ok ? resolved.publicKeyPem : null;
   }
 
   /**
@@ -793,25 +813,74 @@ export class BtpsServer {
   private async verifyAgentTrust(
     artifact: BTPAgentArtifact,
   ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
-    /* For onboarding agents, we don't need to verify trust */
-    const isOnboardingAgent = artifact.action === 'auth.request';
-    if (isOnboardingAgent) {
-      return { isTrusted: true, error: undefined };
-    }
+    // An onboarding agent is trusted only on a registration token issued to
+    // the identity it registers for, consumed here, once (item E).
+    if (artifact.action === 'auth.request') return this.verifyRegistration(artifact);
 
     const { agentId, to } = artifact;
-    const computedTrustId = computeTrustId(agentId, to);
-    const trustRecord = await this.trustStore.getById(computedTrustId);
-    if (!trustRecord) {
+    const resolved = await resolveAgentKey(this.trustStore, artifact);
+    if (!resolved.ok) {
       return {
         isTrusted: false,
         error: new BTPErrorException(BTP_ERROR_TRUST_NOT_ALLOWED, {
-          cause: `Agent ${agentId} not trusted`,
-          meta: { agentId, to, computedTrustId },
+          cause: `Agent ${agentId} not trusted (${resolved.reason})`,
+          meta: { agentId, to, computedTrustId: computeTrustId(agentId, to) },
         }),
       };
     }
-    return { isTrusted: isTrustActive(trustRecord), error: undefined };
+    return { isTrusted: isTrustActive(resolved.record), error: undefined };
+  }
+
+  /**
+   * Item E (EBA-113): an `auth.request` is trusted only on a registration
+   * token issued to the identity it names, which must be the artifact's
+   * `to`. The token is consumed here, atomically, and kept until
+   * `registerAgent` binds the device.
+   */
+  private async verifyRegistration(
+    artifact: BTPAgentArtifact,
+  ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
+    const document = (artifact.document ?? {}) as Partial<BTPAuthReqDoc>;
+    const result = await consumeRegistrationToken(this.tokenStore, {
+      identity: document.identity ?? '',
+      to: artifact.to,
+      authToken: document.authToken ?? '',
+    });
+    if (!result.ok) return { isTrusted: false, error: result.error };
+    this.registrations.set(artifact, result.token);
+    return { isTrusted: true, error: undefined };
+  }
+
+  /**
+   * Item E (EBA-113): binds the device to the identity its registration
+   * token was issued to, under an agent id the server generates, and
+   * answers the device. The application's Agent handlers never see an
+   * `auth.request`.
+   */
+  private async registerAgent(artifact: BTPAgentArtifact, resCtx: BTPResponseCtx): Promise<void> {
+    const token = this.registrations.get(artifact);
+    this.registrations.delete(artifact);
+    if (!token || !this.authentication) {
+      return this.sendBtpsError(resCtx.socket, BTP_ERROR_REGISTRATION_TOKEN_INVALID, resCtx.reqId);
+    }
+    const document = artifact.document as BTPAuthReqDoc;
+    const authResponse = await this.authentication.createAgent(
+      {
+        userIdentity: token.userIdentity,
+        publicKey: document.publicKey,
+        agentInfo: document.agentInfo,
+        decidedBy: token.userIdentity,
+      },
+      token.decryptBy,
+    );
+    this.sendBtpsResponse(resCtx.socket, {
+      ...this.prepareBtpsResponse(
+        { ok: true, message: 'Authentication successful', code: 200 },
+        resCtx.reqId,
+      ),
+      type: 'btps_response',
+      document: authResponse,
+    });
   }
 
   /**
@@ -1157,6 +1226,11 @@ export class BtpsServer {
     reqCtx: BTPRequestCtx,
   ): Promise<boolean> {
     const { artifact, type } = data;
+
+    if (type === 'agent' && artifact.action === 'auth.request') {
+      await this.registerAgent(artifact, resCtx);
+      return true;
+    }
 
     if (type === 'agent') {
       const { respondNow } = data;

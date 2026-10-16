@@ -1176,7 +1176,7 @@ export default function () {
           encryption: null,
           id: 'test-id',
           agentId: 'test-agent',
-          action: 'auth.request',
+          action: 'inbox.fetch',
           to: 'test-to',
           signature: {
             algorithmHash: 'sha256',
@@ -1555,8 +1555,8 @@ export default function () {
         // Mock trust store to return a trust record
         const mockTrustRecord = {
           id: 'test-trust-id',
-          from: 'test-agent',
-          to: 'test-to',
+          senderId: 'test-agent',
+          receiverId: 'test-to',
           publicKeyBase64: 'VEVTVF9LRVlfQkFTRTY0',
           publicKeyFingerprint: 'test-fingerprint',
           status: 'active',
@@ -1617,8 +1617,8 @@ export default function () {
       it('should return the trusted key, not the new one, for refreshing agents with a different key (item D)', async () => {
         const mockTrustRecord = {
           id: 'test-trust-id',
-          from: 'test-agent',
-          to: 'test-to',
+          senderId: 'test-agent',
+          receiverId: 'test-to',
           publicKeyBase64: 'VEVTVF9LRVlfQkFTRTY0',
           publicKeyFingerprint: 'old-fingerprint',
           status: 'active',
@@ -1739,7 +1739,7 @@ export default function () {
     });
 
     describe('verifyAgentTrust', () => {
-      it('should return trusted for onboarding agents', async () => {
+      it('refuses onboarding agents when the server has no token store (item E)', async () => {
         const artifact: BTPAgentArtifact = {
           version: '1.0.0',
           id: 'test-id',
@@ -1757,15 +1757,15 @@ export default function () {
         };
 
         const result = await server['verifyAgentTrust'](artifact);
-        expect(result.isTrusted).toBe(true);
-        expect(result.error).toBeUndefined();
+        expect(result.isTrusted).toBe(false);
+        expect(result.error?.code).toBe('BTP_ERROR_REGISTRATION_UNAVAILABLE');
       });
 
       it('should return trusted for existing agents with active trust record', async () => {
         const mockTrustRecord = {
           id: 'test-trust-id',
-          from: 'test-agent',
-          to: 'test-to',
+          senderId: 'test-agent',
+          receiverId: 'test-to',
           publicKeyBase64: 'VEVTVF9LRVlfQkFTRTY0',
           publicKeyFingerprint: 'test-fingerprint',
           status: 'active',
