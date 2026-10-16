@@ -114,3 +114,27 @@ describe('package exports (EBA-114, replay protection)', () => {
     expect(mod[name], `${name} from ${subpath}`).toBeDefined();
   });
 });
+
+describe('package exports (EBA-112, key-rotating refresh)', () => {
+  it.each([
+    ['./authentication', 'verifyAgentRefresh'],
+    ['./authentication', 'signKeyProof'],
+    ['./authentication', 'keyProofPayload'],
+  ])('@btps/sdk%s exports %s', async (subpath, name) => {
+    const mod = await importSubpath(subpath);
+    expect(mod[name], `${name} from ${subpath}`).toBeTypeOf('function');
+  });
+
+  it.each([
+    ['./error', 'BTP_ERROR_REFRESH_NOT_CURRENT_KEY'],
+    ['./error', 'BTP_ERROR_KEY_ROTATION_PROOF'],
+  ])('@btps/sdk%s exports %s', async (subpath, name) => {
+    const mod = await importSubpath(subpath);
+    expect(mod[name], `${name} from ${subpath}`).toBeDefined();
+  });
+
+  it('BtpsAuthentication has rotateKey', async () => {
+    const mod = await importSubpath('./authentication');
+    expect(mod.BtpsAuthentication.rotateKey).toBeTypeOf('function');
+  });
+});
