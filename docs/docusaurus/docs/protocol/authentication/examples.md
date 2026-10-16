@@ -7,6 +7,20 @@ sidebar_label: Examples
 
 This document provides comprehensive examples of BTPS Authentication implementation for both server-side and client-side scenarios.
 
+:::note BTPS 1.1: the server registers devices itself
+
+From BTPS 1.1 the server answers every `auth.request` itself: give it the
+token store your `BtpsAuthentication` issues tokens into (`tokenStore` in
+`BtpsServerOptions`). It consumes the registration token once and binds the
+device to the token's identity under an agent id it generates; without a
+token store it refuses every `auth.request`. An `auth.request` never reaches
+an `onIncomingArtifact('Agent', …)` handler, so the `auth.request` handlers
+below are 1.0 code and do nothing on 1.1. See
+[Authentication Flow](./authenticationFlow.md) and the
+[agent artifact specification](../specifications/agent-artifact.md#registration-is-bound-to-the-identity-btps-11).
+
+:::
+
 ## 🏗️ Server-Side Examples
 
 ### **1. Basic Authentication Setup**

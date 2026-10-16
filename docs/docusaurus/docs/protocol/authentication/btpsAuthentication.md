@@ -321,30 +321,34 @@ await auth.storeAuthToken(authToken, 'alice$saas.com', 'alice$saas.com', {
 
 ### **validateAuthToken**
 
-Validates a temporary authentication token.
+Validates a registration token issued to `userIdentity`, and consumes it:
+a token is valid once (BTPS 1.1). The server core already does this for every
+`auth.request` when it is given a `tokenStore`; call this only to check a
+token outside the server.
 
 ```typescript
 async validateAuthToken(
-  agentId: string,
+  userIdentity: string,
   token: string
 ): Promise<AuthValidationResult>
 ```
 
 **Parameters:**
 
-- `agentId`: `string` - Agent identifier
-- `token`: `string` - Authentication token to validate
+- `userIdentity`: `string` - The identity the token was issued to
+- `token`: `string` - Registration token to validate
 
-**Returns:** `Promise<AuthValidationResult>` - Validation result
+**Returns:** `Promise<AuthValidationResult>` - Validation result. `error` is
+one of `BTP_ERROR_REGISTRATION_TOKEN_MISSING`, `_INVALID` (unknown, expired or
+another identity's) or `_USED`.
 
 **Example:**
 
 ```typescript
-const validation = await auth.validateAuthToken(agentId, 'YDVKSEU4CEEW');
+const validation = await auth.validateAuthToken('alice$saas.com', 'YDVKSEU4CEEW');
 
 if (validation.isValid) {
   console.log('Valid token for user:', validation.userIdentity);
-  console.log('Token metadata:', validation.metadata);
 } else {
   console.error('Invalid token:', validation.error);
 }

@@ -28,6 +28,8 @@ interface BtpsServerOptions {
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   replayStore?: AbstractReplayStore;
   issuedAtWindowMs?: number;
+  tokenStore?: TokenStore;
+  tokenConfig?: TokenConfig;
   port?: number;
   onError?: (err: BTPErrorException) => void;
   tlsOptions: BtpsTlsOptions;
@@ -43,6 +45,8 @@ interface BtpsServerOptions {
 - `identityStore`: Optional identity store instance for managing identity records
 - `replayStore`: Optional store for the `(from, id)` of every accepted artifact ([replay protection](../protocol/specifications/transporter-artifact.md#replay-protection-btps-11)). Default: an `InMemoryReplayStore`, which **does not survive a restart and is not shared between server instances**; a platform running more than one instance passes its own `AbstractReplayStore` over shared storage. Replay protection itself cannot be turned off
 - `issuedAtWindowMs`: Optional `issuedAt` window in milliseconds, either way. Default and maximum: `ISSUED_AT_WINDOW_MS` = `MAX_ISSUED_AT_WINDOW_MS` = 300000 (±5 minutes). It may be tighter, never wider; a value that is not a whole number from 1 to the maximum makes the constructor throw `BTP_ERROR_VALIDATION`
+- `tokenStore`: Optional store of registration tokens, the one the platform's `BtpsAuthentication` issues them into with `storeAuthToken` ([device registration](../protocol/specifications/agent-artifact.md#registration-is-bound-to-the-identity-btps-11)). The server answers every `auth.request` itself: it consumes the token, once, and binds the device to the token's identity under an agent id it generates. **Without a token store, every `auth.request` is refused** with `BTP_ERROR_REGISTRATION_UNAVAILABLE`
+- `tokenConfig`: Optional token settings for the devices the server registers; `refreshTokenExpiryMs` sets how long a new device's trust record and first refresh token last (default 7 days)
 - `port`: Optional port number (default: 3443)
 - `onError`: Optional error handler function
 - `tlsOptions`: Required TLS cert and key options. Use self signed cert for local development. Make sure to set rejectUnauthorized false when connecting using BtpsClient for local development
@@ -888,9 +892,23 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
   ): Promise<void>;
   get(agentId: string, token: string): Promise<T | undefined>;
   remove(agentId: string, token: string): Promise<void>;
+  // Take a token once, atomically (BTPS 1.1)
+  consume(agentId: string, token: string): Promise<BTPTokenConsumeResult<T>>;
   cleanup(): Promise<void>;
 }
+
+type BTPTokenConsumeResult<T> =
+  | { status: 'consumed'; record: T }
+  | { status: 'used' } // consumed before, and not yet past its expiry
+  | { status: 'invalid' }; // unknown or expired
 ```
+
+`consume` must be atomic: of any number of calls racing for one unexpired
+token, exactly one gets `consumed`. The server relies on it to register a
+device once per registration token. `InMemoryTokenStore` does this in
+process; a shared store uses an atomic take, such as Redis `GETDEL`. A store
+that cannot remember consumed tokens may answer `invalid` instead of `used`:
+the request is refused either way.
 
 ### AuthSessionStore
 

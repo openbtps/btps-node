@@ -31,6 +31,18 @@ The `BtpsAuthentication` class provides a unified interface for handling BTPS au
 - ✅ Configurable token generation settings
 - ✅ Automatic cleanup of expired tokens/sessions
 
+## Device registration (BTPS 1.1, item E)
+
+A device registers with a one-time registration token issued to the owner of
+the identity (`generateAuthToken`, `storeAuthToken`). Give the server the same
+token store (`tokenStore` in `BtpsServerOptions`): it answers every
+`auth.request` itself, consuming the token once with
+`consumeRegistrationToken` (`TokenStore.consume`, atomic) and binding the
+device to the token's identity with `createAgent`, under an agent id it
+generates. Without a token store it refuses every `auth.request`. Every
+other agent artifact is verified with `resolveAgentKey`: the key in the
+agent's own trust record, never in a record between two identities.
+
 ## Installation
 
 The authentication module is part of the BTPS SDK core package:

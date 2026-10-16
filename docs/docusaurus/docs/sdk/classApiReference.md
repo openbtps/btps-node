@@ -719,7 +719,7 @@ console.log('Agent created:', authResponse.agentId);
 await auth.validateAuthToken(userIdentity, token);
 ```
 
-Validates an authentication token and returns the associated user identity.
+Validates a registration token issued to `userIdentity` and consumes it, atomically: a token is valid once (BTPS 1.1). Returns the user identity. A server given a `tokenStore` already does this for every `auth.request`.
 
 - **userIdentity**: `string` – User identity to validate token for
 - **token**: `string` – Authentication token to validate

@@ -24,6 +24,8 @@ interface BtpsServerOptions {
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   replayStore?: AbstractReplayStore; // default InMemoryReplayStore: per instance, lost on restart
   issuedAtWindowMs?: number; // tighter than ±5 minutes only
+  tokenStore?: TokenStore; // registration tokens; without one, every auth.request is refused
+  tokenConfig?: TokenConfig;
   port?: number;
   onError?: (err: BTPErrorException) => void;
   options?: TlsOptions;

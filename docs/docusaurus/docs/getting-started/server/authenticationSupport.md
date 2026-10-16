@@ -39,6 +39,10 @@ const trustStore = new JsonTrustStore({
   entityName: 'trusted_senders',
 });
 
+// One token store, shared: the platform issues registration tokens into it,
+// and the server consumes them (BTPS 1.1, item E).
+const tokenStore = new InMemoryTokenStore();
+
 const server = new BtpsServer({
   serverIdentity: {
     identity: 'admin$yourdomain.com',
@@ -46,13 +50,14 @@ const server = new BtpsServer({
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
   trustStore,
+  tokenStore, // without it, every auth.request is refused
   port: 3443,
 });
 
 // Create authentication instance
 const auth = new BtpsAuthentication({
   trustStore,
-  tokenStore: new InMemoryTokenStore(),
+  tokenStore,
   tokenConfig: {
     authTokenLength: 12,
     authTokenExpiryMs: 15 * 60 * 1000, // 15 minutes
@@ -70,9 +75,8 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
     const { action } = artifact;
 
     switch (action) {
-      case 'auth.request':
-        // Handle device registration requests
-        return handleAuthRequest(artifact, resCtx, auth, server);
+      // auth.request never arrives here: the server registers the device
+      // itself (see Step 4).
 
       case 'auth.refresh':
         // Handle session refresh requests
@@ -96,47 +100,6 @@ server.onIncomingArtifact('Transporter', async (artifact, resCtx) => {
 ### Step 3: Implement Authentication Handlers
 
 ```typescript
-// Handle device registration requests
-async function handleAuthRequest(artifact, resCtx, auth, server) {
-  const { document, to, id: reqId } = artifact;
-
-  if (!document) {
-    return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-  }
-
-  const { authToken, publicKey, identity, agentInfo } = document;
-
-  // Validate the auth token
-  const { isValid } = await auth.validateAuthToken(to, authToken);
-  if (!isValid) {
-    return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-  }
-
-  // Create agent and trust record
-  const authResponseDoc = await auth.createAgent(
-    {
-      userIdentity: identity,
-      publicKey,
-      agentInfo,
-      decidedBy: identity,
-    },
-    identity, // decryptBy parameter
-  );
-
-  return resCtx.sendRes({
-    ...server.prepareBtpsResponse(
-      {
-        ok: true,
-        message: 'Authentication successful',
-        code: 200,
-      },
-      reqId,
-    ),
-    type: 'btps_response',
-    document: authResponseDoc,
-  });
-}
-
 // Handle session refresh requests
 async function handleAuthRefresh(artifact, resCtx, auth, server) {
   const { document: refreshAuthDoc, agentId, id: refreshReqId } = artifact;
@@ -176,30 +139,45 @@ async function handleAuthRefresh(artifact, resCtx, auth, server) {
 }
 ```
 
-### Step 4: Token Generation for Users
+### Step 4: Device registration
+
+A device registers with a one-time **registration token** that your platform
+issues to the signed-in owner of the identity (BTPS 1.1, item E). Issue it
+into the token store the server was given:
 
 ```typescript
-// Generate authentication tokens for device registration
+// Only for the authenticated owner of userIdentity.
 async function generateDeviceToken(userIdentity: string) {
   const authToken = BtpsAuthentication.generateAuthToken(userIdentity);
-  const agentId = BtpsAuthentication.generateAgentId();
-
+  // Stored under userIdentity; the third argument is the identity the
+  // device's documents are encrypted to (decryptBy).
   await auth.storeAuthToken(authToken, userIdentity, userIdentity, {
-    requestedBy: 'user',
     purpose: 'device_registration',
-    timestamp: new Date().toISOString(),
   });
-
-  // Get the stored token to retrieve the actual expiry
-  const storedToken = await auth.tokenStore.get(agentId, authToken);
-
-  return {
-    authToken,
-    agentId,
-    expiresIn: storedToken?.expiresAt, // Use actual stored expiry
-  };
+  return { authToken }; // valid 15 minutes, once
 }
+```
 
+The owner enters the token on the device, which calls
+`BtpsAuthentication.authenticate(identity, authToken, keyPair)`. The server
+then, with no handler of yours:
+
+1. verifies the request is signed by the key it enrols;
+2. checks `document.identity` is the artifact's `to`;
+3. consumes the token, atomically, under that identity: an expired, unknown
+   or already used token, or another identity's, is refused;
+4. creates the agent's trust record under an agent id it generates, bound to
+   exactly the token's identity, and answers with the agent id and a
+   refresh token.
+
+The refusals carry `BTP_ERROR_REGISTRATION_TOKEN_MISSING`,
+`BTP_ERROR_REGISTRATION_TOKEN_INVALID`, `BTP_ERROR_REGISTRATION_TOKEN_USED`,
+`BTP_ERROR_REGISTRATION_IDENTITY_MISMATCH`, or, from a server given no
+`tokenStore`, `BTP_ERROR_REGISTRATION_UNAVAILABLE`. A token store you write
+yourself must implement `consume` atomically (for example with Redis
+`GETDEL`). See [the agent artifact specification](/docs/protocol/specifications/agent-artifact).
+
+```typescript
 // Static methods for token generation
 const authToken = BtpsAuthentication.generateAuthToken('user$domain.com');
 const agentId = BtpsAuthentication.generateAgentId();
@@ -256,7 +234,7 @@ signs with the current key and adds the new key's `keyProof`; see the
 
 ### Authentication Features
 
-- **Device Registration**: Validate auth tokens and create agents
+- **Device Registration**: The server consumes a one-time registration token and binds the device to its identity
 - **Session Management**: Handle refresh tokens for long-term access
 - **Trust Integration**: Store trust records in the trust store
 - **Token Management**: Generate and validate authentication tokens
@@ -294,7 +272,7 @@ const refreshResult = await BtpsAuthentication.refreshSession(
 
 1. **Token Generation**: SaaS portal generates auth tokens for users
 2. **Device Registration**: Client sends auth.request with token
-3. **Token Validation**: Server validates token and creates agent
+3. **Token Validation**: Server consumes the token, once, and binds the device to the token's identity
 4. **Trust Record**: Store agent information in trust store
 5. **Session Refresh**: Handle ongoing session management
 

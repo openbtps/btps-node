@@ -64,9 +64,9 @@ sequenceDiagram
 // Generate authentication token
 const userIdentity = 'alice$saas.com';
 const authToken = BtpsAuthentication.generateAuthToken(userIdentity);
-const agentId = BtpsAuthentication.generateAgentId();
 
-// Store token for validation
+// Store token for validation: under userIdentity, for this user only.
+// The server generates the agent id when the device registers.
 await auth.storeAuthToken(authToken, userIdentity, 'alice$saas.com', {
   requestedBy: 'user',
   purpose: 'device_registration',
@@ -134,145 +134,60 @@ const keyPair = await generateKeyPair();
 }
 ```
 
-#### **Step 3: BTPS Server Processing**
+#### **Step 3: BTPS Server Processing (BTPS 1.1)**
 
-**Location**: BTPS Server Framework
+**Location**: BTPS Server Framework. The server core answers every
+`auth.request` itself; no application handler is involved, and none sees it.
 
 **Server Actions**:
 
 1. **Artifact Validation**: Validate incoming message structure
-2. **Signature Verification**: Verify device signature
-3. **Event Emission**: Emit `agentArtifact` event for external handlers
-4. **External Processing**: SaaS authentication service processes request
+2. **Signature Verification**: The artifact is signed by the key in
+   `document.publicKey`, the key it enrols
+3. **Registration Token**: The token is consumed, once (Step 4)
+4. **Device Binding**: The device is bound to the token's identity (Step 5)
 
-**Server Event Handler**:
-
-```typescript
-server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
-  if (artifact.action === 'auth.request') {
-    const { document, to, id: reqId } = artifact;
-    const { authToken, publicKey, identity, agentInfo } = document;
-
-    // Validate auth token
-    const { isValid } = await auth.validateAuthToken(to, authToken);
-    if (!isValid) {
-      return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-    }
-
-    // Create agent and trust record
-    const authResponseDoc = await auth.createAgent({
-      decidedBy: identity,
-      publicKey,
-      userIdentity: identity,
-      agentInfo,
-    });
-
-    // Send success response
-    return resCtx.sendRes({
-      ...server.prepareBtpsResponse(
-        {
-          ok: true,
-          message: 'Authentication successful',
-          code: 200,
-        },
-        reqId,
-      ),
-      type: 'btps_response',
-      document: authResponseDoc,
-    });
-  }
-});
-```
-
-#### **Step 4: Token Validation**
-
-**Location**: BtpsAuthentication Service
-
-**Validation Process**:
-
-1. **Token Retrieval**: Retrieve stored token from token store
-2. **Expiry Check**: Verify token hasn't expired
-3. **User Verification**: Confirm token belongs to requesting user
-4. **Cleanup**: Remove used token from store
-
-**Validation Code**:
+**Server Setup**: the server is given the token store the platform issues
+tokens into. Without one, it refuses every `auth.request`
+(`BTP_ERROR_REGISTRATION_UNAVAILABLE`) and never falls back to accepting.
 
 ```typescript
-async validateAuthToken(agentId: string, token: string): Promise<AuthValidationResult> {
-  try {
-    // Retrieve token from storage
-    const storedToken = await this.tokenStore.get(agentId, token);
-
-    if (!storedToken) {
-      return { isValid: false, error: new Error('Token not found') };
-    }
-
-    // Check expiry
-    const now = new Date();
-    const expiresAt = new Date(storedToken.expiresAt);
-
-    if (now > expiresAt) {
-      await this.tokenStore.remove(agentId, token);
-      return { isValid: false, error: new Error('Token expired') };
-    }
-
-    // Remove used token
-    await this.tokenStore.remove(agentId, token);
-
-    return {
-      isValid: true,
-      userIdentity: storedToken.userIdentity,
-      metadata: storedToken.metadata,
-    };
-  } catch (error) {
-    return { isValid: false, error };
-  }
-}
+const tokenStore = new InMemoryTokenStore(); // or your own TokenStore
+const server = new BtpsServer({ serverIdentity, trustStore, tokenStore, tlsOptions });
+const auth = new BtpsAuthentication({ trustStore, tokenStore }); // issues tokens (Step 1)
 ```
+
+#### **Step 4: Registration Token**
+
+**Location**: `consumeRegistrationToken` (`@btps/sdk/authentication`), called by the server
+
+**Validation Process**, refused at the first that fails:
+
+1. **Token present**: `document.authToken` is not empty, else `BTP_ERROR_REGISTRATION_TOKEN_MISSING`
+2. **One identity**: `document.identity` is the artifact's `to`, else `BTP_ERROR_REGISTRATION_IDENTITY_MISMATCH`
+3. **Taken once**: `TokenStore.consume(identity, authToken)` removes the token atomically:
+   - unknown, expired, or issued to another identity (it is looked up only under the identity named): `BTP_ERROR_REGISTRATION_TOKEN_INVALID`
+   - already used, by this device or another: `BTP_ERROR_REGISTRATION_TOKEN_USED`
+   - of two devices racing with one token, exactly one gets it
+
+A refusal at the signature, the `issuedAt` window or the identity check does
+not spend the token.
 
 #### **Step 5: Agent Creation**
 
-**Location**: BtpsAuthentication Service
+**Location**: `BtpsAuthentication.createAgent`, called by the server
 
 **Creation Process**:
 
-1. **Trust Record Creation**: Create agent trust record
-2. **Refresh Token Generation**: Generate long-term refresh token
-3. **Response Preparation**: Prepare authentication response
+1. **Agent Id**: generated by the server (`btps_ag_<uuid>`); the request's `agentId` is ignored
+2. **Trust Record Creation**: agent trust record `agentId → identity` (the token's identity), holding the device key
+3. **Refresh Token Generation**: Generate long-term refresh token
+4. **Response Preparation**: Prepare authentication response; `decryptBy` is the one the token was issued with
 
-**Agent Creation Code**:
-
-```typescript
-async createAgent(options: CreateAgentOptions): Promise<BTPAuthResDoc> {
-  const agentId = BtpsAuthentication.generateAgentId();
-  const refreshToken = BtpsAuthentication.generateRefreshToken();
-  const expiresAt = new Date(Date.now() + this.tokenConfig.refreshTokenExpiryMs);
-
-  // Create trust record
-  const trustRecord = {
-    senderId: agentId,
-    receiverId: options.userIdentity,
-    status: 'accepted',
-    decidedBy: options.decidedBy,
-    decidedAt: new Date().toISOString(),
-    expiresAt: expiresAt.toISOString(),
-    publicKeyBase64: options.publicKey,
-    metadata: {
-      agentInfo: options.agentInfo,
-      privacyType: options.privacyType || 'encrypted',
-    },
-  };
-
-  await this.trustStore.create(trustRecord);
-
-  return {
-    agentId,
-    refreshToken,
-    expiresAt: expiresAt.toISOString(),
-    trustId: trustRecord.senderId,
-  };
-}
-```
+From then on, every artifact from the device is verified with the key in that
+record, and only that record: an `agentId` that is an identity, or a record
+that is not `agentId → to`, is refused (see the agent artifact
+specification).
 
 #### **Step 6: Authentication Response**
 
