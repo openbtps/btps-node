@@ -21,7 +21,8 @@
   "scripts": {
     "verify:btps-vectors": "node bin/verify-btps-vectors.mjs --known-failing ../../test/vectors/known-failing.json",
     "verify:btps-vectors:strict": "node bin/verify-btps-vectors.mjs",
-    "generate-vectors": "node scripts/generate-vectors.mjs"
+    "generate-vectors": "node scripts/generate-vectors.mjs",
+    "vectors-manifest": "node scripts/vectors-manifest.mjs"
   },
   "peerDependencies": {
     "esbuild": ">=0.25"

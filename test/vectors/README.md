@@ -5,6 +5,20 @@ built in EBA-110). Every runtime must reproduce them exactly: Node, web, and
 later iOS and Android. The runner is
 [`packages/verify-btps-vectors`](../../packages/verify-btps-vectors/).
 
+**Published as vector set 1.1.0** (EBA-123). [`manifest.json`](./manifest.json)
+gives the set's version and the SHA-256 of every vector file (this README and
+`known-failing.json` are not vectors and are not listed).
+`yarn verify:btps-vectors` fails if a file differs from its hash, is missing,
+or is not listed. To check the set alone, or to run it against another
+implementation, see the specification page
+[Golden Vectors](../../docs/docusaurus/docs/protocol/specifications/golden-vectors.md).
+
+```sh
+node packages/verify-btps-vectors/scripts/vectors-manifest.mjs           # hashes, then the whole harness
+node packages/verify-btps-vectors/scripts/vectors-manifest.mjs --no-sdk  # hashes and the runtime checks only
+node packages/verify-btps-vectors/scripts/vectors-manifest.mjs --write   # a new set version only: rewrites the manifest
+```
+
 **All keys here are TEST-ONLY keys generated locally**, RSA-2048 except the 3072-bit and 4096-bit keys in `identity-lookup.vectors.json`, which exist to carry base64 padding. They are
 committed on purpose, so secret scanners will flag the PEMs, and they must
 never be used for anything else. No vector was produced by AWS KMS or a
@@ -50,7 +64,10 @@ a vector can pin. EBA-118 brings its own tests.
 
 ## Changing vectors
 
-Vectors are frozen once other code is tested against them. The item 6b
+Vectors are frozen once other code is tested against them, and set 1.1.0 is
+frozen by its manifest: changing any vector means a new set version, a
+manifest rewritten with `vectors-manifest.mjs --write`, and a changelog entry.
+The item 6b
 vectors (EBA-117) are frozen by ~2026-10-16. There are no item 9 key-use
 vectors: item 9 was withdrawn on 2026-10-11, and with it that part of founder
 decision R-30. `generate-vectors.mjs` writes only the

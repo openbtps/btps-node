@@ -23,6 +23,7 @@ import { replaySdkChecks } from './checks/replay.mjs';
 import { refreshSdkChecks } from './checks/refresh.mjs';
 import { registrationSdkChecks } from './checks/registration.mjs';
 import { identityLookupSdkChecks } from './checks/identityLookup.mjs';
+import { manifestChecks } from './checks/manifest.mjs';
 import { loadSdk } from './sdk-loader.mjs';
 
 /**
@@ -44,6 +45,7 @@ export async function buildChecks({ vectorsDir, sdkRoot }) {
   const set = loadVectorSet(vectorsDir);
   const runtimes = [createNodeRuntime(), createWebRuntime()];
   const checks = [
+    ...manifestChecks(vectorsDir),
     ...runtimes.flatMap((runtime) => vectorChecks(runtime, set)),
     ...runtimes.flatMap((runtime) => documentRuntimeChecks(runtime, set)),
     ...runtimes.flatMap((runtime) => eventRuntimeChecks(runtime, set)),
