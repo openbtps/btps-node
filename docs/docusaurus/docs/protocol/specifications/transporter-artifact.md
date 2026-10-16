@@ -215,7 +215,7 @@ Generic BTPS documents, most commonly invoices. An invoice is `"type": "invoice"
 - **title**: Document title
 - **id**: The invoice number, unique per sender
 - **issuedAt**: ISO timestamp of document creation
-- **totalAmount**: Total amount in integer minor units of its currency (`150000` USD is 1,500.00), with the currency
+- **totalAmount**: Total amount in integer minor units of its currency (`150000` USD is 1,500.00), with the currency. Minor units are those of ISO 4217: the currency fixes how many decimal places the amount has (2 for USD, 0 for JPY, 3 for KWD). BTPS carries the whole number and the code and never converts; turning it into a decimal for display is the platform's job, using ISO 4217's minor units (not `Intl.NumberFormat`'s display digits, which differ for some currencies, such as IDR and HUF)
 - **lineItems**: Document line items with columns and rows. A money cell is an integer in minor units; a decimal such as a quantity is written as text
 
 **Optional Fields:**

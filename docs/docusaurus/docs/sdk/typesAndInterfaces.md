@@ -705,7 +705,7 @@ interface BTPInvoiceDoc {
   issuedAt: string; // ISO format
   dueAt?: string; // ISO format
   totalAmount: {
-    amount: number; // integer minor units: 12345 is 123.45
+    amount: number; // integer ISO 4217 minor units: 12345 USD is 123.45, 12345 JPY is ¥12,345
     currency: CurrencyCode;
   };
   lineItems: {
