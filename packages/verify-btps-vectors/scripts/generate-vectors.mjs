@@ -809,7 +809,7 @@ function registration() {
 }
 
 /**
- * Item J (EBA-442) and fix-list item 9 (EBA-186): host identity lookup.
+ * Host identity lookup, and keys whose base64 carries padding.
  * TXT records as a resolver returns them (strings of at most 255
  * characters), with 2048-bit (unpadded), 3072-bit and 4096-bit (padded)
  * keys; DNS-first outcomes over a fake zone; and a host's signed lookup
@@ -1024,10 +1024,8 @@ function identityLookup() {
   ];
 
   return {
-    item: 'J',
-    tickets: ['EBA-442', 'EBA-186'],
     description:
-      "BTPS 1.1 item J, host identity lookup repaired (fix list 1), and fix-list item 9 (padded keys in DNS). parse: each TXT record, as the strings a resolver returns, read into its tags; a value keeps every '=' after the first. dns: the address's own identity record, looked up first over a fake zone in which every other name has no record (ENOTFOUND): a key, absent (the client then asks the host), or an error. lookup: answers a host sends to `request`, checked with the zone's keys: accepted with the key record, or refused with the error code. The server-side defects (the double hash, the response schema, the socket) are behaviour, tested over real TLS in src/server/test/identityLookup.integration.test.ts.",
+      "BTPS 1.1 host identity lookup, repaired, and keys whose base64 carries padding in DNS. parse: each TXT record, as the strings a resolver returns, read into its tags; a value keeps every '=' after the first. dns: the address's own identity record, looked up first over a fake zone in which every other name has no record (ENOTFOUND): a key, absent (the client then asks the host), or an error. lookup: answers a host sends to `request`, checked with the zone's keys: accepted with the key record, or refused with the error code. The server-side defects (the double hash, the response schema, the socket) are behaviour, tested over real TLS in src/server/test/identityLookup.integration.test.ts.",
     provenance: `${TEST_ONLY} The 3072-bit and 4096-bit keys are test-only too, and exist to carry base64 padding.`,
     keys: Object.fromEntries(
       Object.entries(keys).map(([name, key]) => [

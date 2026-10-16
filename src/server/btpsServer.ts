@@ -485,7 +485,7 @@ export class BtpsServer {
     const { identity, identitySelector } = artifact;
     const { selector } = this.serverIdentity;
 
-    // The store is asked by identity: it hashes it itself (fix list 1, defect 1).
+    // The store is asked by identity: it hashes it itself.
     // Without a selector of its own the server cannot say which key signed.
     const identityRecord = selector
       ? await this.identityStore?.getPublicKeyRecord(identity, identitySelector)

@@ -37,7 +37,7 @@ export interface BtpsTlsOptions extends TlsOptions {
  * `selector` names where that key is published:
  * `<selector>._btps.identity.<account>.<domain>`. A signed response carries
  * it as `signatureSelector`. Required when the server has an
- * `identityStore`, since identity lookup answers are signed (EBA-442).
+ * `identityStore`, since identity lookup answers are signed.
  */
 export type BtpsServerIdentity = { identity: string; selector?: string } & (
   | { signer: Signer; publicKey?: string; privateKey?: undefined }

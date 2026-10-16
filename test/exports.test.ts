@@ -164,7 +164,7 @@ describe('package exports (device registration)', () => {
   });
 });
 
-describe('package exports (EBA-442 and EBA-186, identity lookup)', () => {
+describe('package exports (identity lookup)', () => {
   it.each([
     ['./crypto', 'verifyIdentityLookupResponse'],
     ['.', 'parseBtpsTxtRecord'],

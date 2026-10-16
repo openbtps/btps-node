@@ -62,8 +62,7 @@ export function base64ToPem(base64: string): string {
 
 /**
  * Reads a BTPS TXT record's `tag=value` pairs, separated by `;`. Each pair
- * is split on its first `=` only: a base64 value keeps its padding (fix
- * list 9, EBA-186).
+ * is split on its first `=` only: a base64 value keeps its padding.
  */
 export const parseBtpsTxtRecord = (record: string): Record<string, string> => {
   const tags: Record<string, string> = {};
@@ -136,7 +135,7 @@ export const getDnsIdentityParts = async (
   try {
     txtRecords = await resolveTxt(dnsName);
   } catch (error: unknown) {
-    // No record is an answer, not a failure: the caller may ask the host (fix list 1).
+    // No record is an answer, not a failure: the caller may ask the host.
     if (isNoDnsRecord(error)) return undefined;
     throw transformToBTPErrorException(error);
   }

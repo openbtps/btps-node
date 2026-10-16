@@ -285,7 +285,7 @@ export const BTP_ERROR_DOC_SCHEMA: BTPError = {
 };
 
 /**
- * Identity lookup (fix list 1, EBA-442): a server given an identity store
+ * Identity lookup: a server given an identity store
  * answers lookups signed with its own key, so it must name the selector that
  * key is published at, `serverIdentity.selector`. Thrown when the server is
  * constructed without one.

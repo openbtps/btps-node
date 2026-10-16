@@ -367,7 +367,7 @@ describe('separate signatureSelector and encryptionSelector', () => {
     );
 
     expect(sent).toHaveLength(1);
-    // The server's own selector, not the request's hostSelector (EBA-442).
+    // The server's own selector, not the request's hostSelector.
     expect(sent[0]).toMatchObject({ signatureSelector: 'srv1' });
     expect(sent[0]).not.toHaveProperty('selector');
   });

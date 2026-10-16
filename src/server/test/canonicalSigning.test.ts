@@ -373,8 +373,8 @@ describe('canonical signing end to end', () => {
     expect(await client['verifyServerMessage'](tampered)).toMatchObject({ isValid: false });
   });
 
-  // Was an expected failure (fix list 1, defect 5): verifyServerMessage
-  // verified `{ ...msg, encryption: msg.encryption ?? null }`. Fixed in EBA-442.
+  // Was an expected failure: verifyServerMessage verified
+  // `{ ...msg, encryption: msg.encryption ?? null }`. Fixed in #22.
   it('the client verifies a server response signed without an encryption member', async () => {
     const client = new BtpsClient({ to: 'server$receiver.example' });
     expect(await client['verifyServerMessage'](await signedResponse({}))).toMatchObject({

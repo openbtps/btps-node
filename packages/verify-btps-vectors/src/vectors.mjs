@@ -289,7 +289,7 @@ function loadRegistration(set) {
   }
 }
 
-/** Item J: TXT parsing, DNS-first outcomes, and host lookup answers. */
+/** Host identity lookup: TXT parsing, DNS-first outcomes, and host lookup answers. */
 function loadIdentityLookup(set) {
   const file = VECTOR_FILES.identityLookup;
   const model = set.identityLookup;
