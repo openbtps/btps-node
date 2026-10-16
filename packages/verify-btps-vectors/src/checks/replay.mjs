@@ -1,5 +1,5 @@
 /**
- * Item F, replay and duplicate protection (EBA-114): replay.vectors.json
+ * Replay and duplicate protection: replay.vectors.json
  * against the SDK's parts, loaded from the tree under test.
  *
  * - window: `checkIssuedAtWindow` (@btps/sdk) accepts or refuses each
@@ -12,7 +12,6 @@
 
 import { ensure } from '../check.mjs';
 
-const ITEM = 'F';
 
 /**
  * @param {import('../sdk-loader.mjs').LoadedSdk} sdk
@@ -22,9 +21,7 @@ const ITEM = 'F';
 export function replaySdkChecks(sdk, set) {
   const model = set.replay;
   const check = (name, run) => ({
-    id: `sdk/item-F/${name}`,
-    item: ITEM,
-    tickets: model.tickets,
+    id: `sdk/replay/${name}`,
     run() {
       ensure(
         typeof sdk.utils?.checkIssuedAtWindow === 'function',

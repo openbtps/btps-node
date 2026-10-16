@@ -1,8 +1,6 @@
 {
-  "item": 6,
-  "tickets": ["EBA-116", "EBA-117"],
   "description": "The sender rotated its signing key from btps1 to btps2 and kept the old key published; the receiver still encrypts on btps1. An artifact must name the sender key it was signed with (signatureSelector) apart from the receiver key it was encrypted to (encryptionSelector). On 367cd09 one `selector` field carries the receiver selector, so a verifier looks up the wrong sender key.",
-  "provenance": "TEST-ONLY key generated locally for the BTPS golden vectors (EBA-110). Never use it for anything else. The receiver encryption key is the one in oaep-wrap.vector.json.",
+  "provenance": "TEST-ONLY key generated locally for the BTPS golden vectors. Never use it for anything else. The receiver encryption key is the one in oaep-wrap.vector.json.",
   "sender": {
     "identity": "alice$saas.example",
     "hostSelector": "btps2",

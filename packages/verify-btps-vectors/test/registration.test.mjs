@@ -11,7 +11,7 @@ import { REPO_ROOT, VECTORS_DIR } from './helpers.mjs';
 const set = loadVectorSet(VECTORS_DIR);
 const failing = (results) => results.filter((r) => !r.passed).map((r) => `${r.id}: ${r.message}`);
 
-describe('item E: registration vectors (EBA-113)', () => {
+describe('registration vectors', () => {
   it('covers the acceptance cases', () => {
     const names = set.registration.sequences.map((s) => s.name);
     expect(names).toEqual(
@@ -32,16 +32,16 @@ describe('item E: registration vectors (EBA-113)', () => {
     expect([...reasons].sort()).toEqual(['no-record', 'not-an-agent', 'signature']);
   });
 
-  it('the SDK on this tree passes every item E check', async () => {
+  it('the SDK on this tree passes every sdk/registration check', async () => {
     const checks = registrationSdkChecks(await loadSdk(REPO_ROOT), set);
     expect(checks.length).toBe(
       set.registration.sequences.length + 1 + set.registration.forged.cases.length,
     );
-    expect(checks.every((c) => c.item === 'E' && c.id.startsWith('sdk/item-E/'))).toBe(true);
+    expect(checks.every((c) => c.id.startsWith('sdk/registration/'))).toBe(true);
     expect(failing(await runChecks(checks))).toEqual([]);
   });
 
-  it('every item E check fails on an SDK without the registration check', async () => {
+  it('every sdk/registration check fails on an SDK without the registration check', async () => {
     const results = await runChecks(registrationSdkChecks({ authentication: null }, set));
     expect(results.every((r) => !r.passed)).toBe(true);
   });

@@ -6,7 +6,7 @@
  */
 
 /*
- * BTPS 1.1 item F (EBA-114, addendum item 4): replay and duplicate
+ * BTPS 1.1 replay and duplicate
  * protection through the server. Real keys, real signatures and the real
  * pipeline (parse, window, signature, trust, duplicate check); only DNS key
  * lookup is faked. The cases in test/vectors/replay.vectors.json run here
@@ -163,7 +163,7 @@ const peerOf = (from: string) => (from === BILLER ? PAYER : BILLER);
 /**
  * A BTPS_EVENT from `from` with id `id`, signed at `issuedAt`. The event is
  * the biller's own paid record, or the payer's proposal, so it is valid
- * between the two parties; its id is the artifact id (section 2.7).
+ * between the two parties; its id is the artifact id.
  */
 const signedEvent = async (
   from: string,
@@ -194,7 +194,7 @@ const fakeSocket = () =>
     end: vi.fn(),
   }) as unknown as TLSSocket;
 
-describe('item F: replay and duplicate protection through the server', () => {
+describe('replay and duplicate protection through the server', () => {
   let trustStore: MapTrustStore;
   let handled: ProcessedArtifact[];
 
@@ -269,7 +269,7 @@ describe('item F: replay and duplicate protection through the server', () => {
     vi.restoreAllMocks();
   });
 
-  describe('EBA-114 acceptance', () => {
+  describe('replay protection cases', () => {
     it('the same artifact delivered twice: the second is refused, and the application sees it once', async () => {
       const server = makeServer();
       const artifact = await signedEvent(PAYER, crypto.randomUUID(), new Date().toISOString());
@@ -339,7 +339,7 @@ describe('item F: replay and duplicate protection through the server', () => {
     });
   });
 
-  describe('lifecycle events (section 2.7)', () => {
+  describe('lifecycle events', () => {
     it('a reused event id is refused, even on a different event', async () => {
       const server = makeServer();
       const id = crypto.randomUUID();

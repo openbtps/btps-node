@@ -654,7 +654,7 @@ export class BtpsClient {
         };
       }
 
-      // Verified as received: adding `encryption: null` changed the signed bytes (defect 5).
+      // Verified as received: adding `encryption: null` changed the signed bytes.
       const { error: decryptError } = await this.decryptVerifyArtifact(
         msg as VerifyEncryptedPayload<BTPServerResponse>,
         senderPubPem!,
@@ -824,7 +824,7 @@ export class BtpsClient {
       /* DNS first: the address's own identity record */
       dnsIdentityParts = await getDnsIdentityParts(identity, selector);
     } catch (error) {
-      // A resolver failure is not an absent record: the host is not asked (EBA-442).
+      // A resolver failure is not an absent record: the host is not asked.
       return await this.buildClientErrorResponse(transformToBTPErrorException(error));
     }
     if (dnsIdentityParts && typeof dnsIdentityParts === 'object') {

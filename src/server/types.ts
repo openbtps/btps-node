@@ -37,7 +37,7 @@ export interface BtpsTlsOptions extends TlsOptions {
  * `selector` names where that key is published:
  * `<selector>._btps.identity.<account>.<domain>`. A signed response carries
  * it as `signatureSelector`. Required when the server has an
- * `identityStore`, since identity lookup answers are signed (EBA-442).
+ * `identityStore`, since identity lookup answers are signed.
  */
 export type BtpsServerIdentity = { identity: string; selector?: string } & (
   | { signer: Signer; publicKey?: string; privateKey?: undefined }
@@ -63,7 +63,7 @@ export interface BtpsServerOptions {
    */
   issuedAtWindowMs?: number;
   /**
-   * Where registration tokens are kept (item E): the same store the
+   * Where registration tokens are kept: the same store the
    * platform's `BtpsAuthentication` issues them into with `storeAuthToken`.
    * The server answers every `auth.request` itself: it consumes the token,
    * once, and binds the device to the identity the token was issued to.
@@ -83,7 +83,7 @@ export interface BtpsServerOptions {
   connectionTimeoutMs?: number;
   middlewarePath?: string; // Path to btps.middleware.mjs file
   /**
-   * The longest line read, in characters (fix list 10). Defaults to
+   * The longest line read, in characters. Defaults to
    * BTP_MAX_LINE_LENGTH, sized to the document caps. A server may set it
    * lower, and then refuses artifacts near the caps; a longer line is
    * answered BTP_ERROR_LINE_TOO_LONG and the connection closed.

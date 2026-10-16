@@ -1614,7 +1614,7 @@ export default function () {
         expect(result).toBe(null);
       });
 
-      it('should return the trusted key, not the new one, for refreshing agents with a different key (item D)', async () => {
+      it('should return the trusted key, not the new one, for refreshing agents with a different key', async () => {
         const mockTrustRecord = {
           id: 'test-trust-id',
           senderId: 'test-agent',
@@ -1650,7 +1650,8 @@ export default function () {
           document: newAuthDoc,
         };
 
-        // The 1.0 defect (T-24) returned the request's own key here.
+        // The 1.0 defect returned the request's own key here, so a refresh was
+        // accepted under the key it carried instead of the agent's current key.
         const result = await server['getAgentPublicKey'](artifact);
         expect(result).toBe(
           '-----BEGIN PUBLIC KEY-----\nVEVTVF9LRVlfQkFTRTY0\n-----END PUBLIC KEY-----',
@@ -1739,7 +1740,7 @@ export default function () {
     });
 
     describe('verifyAgentTrust', () => {
-      it('refuses onboarding agents when the server has no token store (item E)', async () => {
+      it('refuses onboarding agents when the server has no token store', async () => {
         const artifact: BTPAgentArtifact = {
           version: '1.0.0',
           id: 'test-id',
