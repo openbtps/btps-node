@@ -7,7 +7,9 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resolveTxt } from 'dns/promises';
+import { createPublicKey, generateKeyPairSync } from 'crypto';
 import {
+  parseBtpsTxtRecord,
   parseIdentity,
   isValidIdentity,
   pemToBase64,
@@ -97,6 +99,61 @@ describe('utils/index', () => {
     it('should throw an error on DNS resolution failure', async () => {
       mockDns.mockRejectedValue(new Error('DNS error'));
       await expect(getDnsIdentityParts('test$example.com', 'btps1')).rejects.toThrow('DNS error');
+    });
+
+    // Fix list 1 (EBA-442): a resolver reports an absent record by rejecting
+    // with ENOTFOUND or ENODATA. That is "no record", which sends the client
+    // to the address's host; any other failure is still an error.
+    it.each(['ENOTFOUND', 'ENODATA'])('returns undefined when the record is absent (%s)', async (code) => {
+      mockDns.mockRejectedValue(Object.assign(new Error(`queryTxt ${code}`), { code }));
+      await expect(getDnsIdentityParts('test$example.com', 'btps1')).resolves.toBeUndefined();
+      await expect(resolvePublicKey('test$example.com', 'btps1')).resolves.toBeUndefined();
+    });
+
+    it('still throws when DNS fails for another reason', async () => {
+      mockDns.mockRejectedValue(Object.assign(new Error('queryTxt ESERVFAIL'), { code: 'ESERVFAIL' }));
+      await expect(getDnsIdentityParts('test$example.com', 'btps1')).rejects.toBeDefined();
+    });
+
+    it('throws, rather than building a key from nothing, when a record has no p= tag', async () => {
+      mockDns.mockResolvedValue([['v=1.0.0; k=rsa']]);
+      await expect(getDnsIdentityParts('test$example.com', 'btps1')).rejects.toMatchObject({
+        code: 'BTP_ERROR_RESOLVE_PUBKEY',
+      });
+    });
+  });
+
+  // Fix list 9 (EBA-186): the tag parser split each `tag=value` on every "="
+  // and kept only pairs of exactly two parts, so a `p=` value that ends in
+  // base64 padding was dropped. RSA-2048 keys encode without padding;
+  // 3072-bit and 4096-bit keys do not.
+  describe('parseBtpsTxtRecord and padded keys', () => {
+    it('splits each tag on its first "=" only', () => {
+      expect(parseBtpsTxtRecord('v=1.0.0; k=rsa; p=QUJD==; ;x=a=b')).toEqual({
+        v: '1.0.0',
+        k: 'rsa',
+        p: 'QUJD==',
+        x: 'a=b',
+      });
+    });
+
+    it.each([2048, 3072, 4096])('resolves a %i-bit public key', async (bits) => {
+      const { publicKey } = generateKeyPairSync('rsa', {
+        modulusLength: bits,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      });
+      const base64 = pemToBase64(publicKey);
+      expect(base64.endsWith('='), 'fixture: only 2048-bit keys are unpadded').toBe(bits !== 2048);
+      // A resolver hands back a long record as strings of at most 255 characters.
+      mockDns.mockResolvedValue([`v=1.0.0; k=rsa; p=${base64}`.match(/.{1,255}/g)!]);
+
+      const resolved = await resolvePublicKey('finance$big.test', 'btps1');
+
+      expect(resolved).toBeDefined();
+      expect(createPublicKey(resolved!).export({ type: 'spki', format: 'der' })).toEqual(
+        createPublicKey(publicKey).export({ type: 'spki', format: 'der' }),
+      );
     });
   });
 
