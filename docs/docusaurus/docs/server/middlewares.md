@@ -8,34 +8,89 @@ sidebar_label: Middleware System
 
 The BTPS Server SDK features a powerful, phase-based middleware system that lets you intercept, validate, transform, and control every step of the request lifecycle. Middleware is the primary way to add custom business logic, security, logging, and multi-tenant routing.
 
-## Default Middleware: Quick Start
+## Default Middleware and Rate Limiting
 
-For rapid prototyping or small/medium deployments, the SDK provides a **default middleware set** that covers essential features out of the box:
+Every `BtpsServer` runs a **default middleware set**, before your middleware
+file's, whether or not you give a file (BTPS 1.1, EBA-187):
 
-- **IP-based rate limiting** (before parsing)
-- **Identity-based rate limiting** (after parsing)
-- **Signature and trust verification metrics**
-- **Message processing metrics**
-- **Error logging**
+| Phase / step | Default | Keyed by |
+| --- | --- | --- |
+| before `parsing` | Rate limit by network address: 50 a second | `req.remoteAddress` |
+| after `parsing` | Parse metrics only: nothing is limited here | — |
+| after `signatureVerification` | Signature metrics, then rate limit by identity: 30 a second | the **verified** sender: `from`, or an agent artifact's `agentId` |
+| after `trustVerification` | Trust metrics | — |
+| after `onArtifact` | Received-artifact metrics | — |
+| before `onError` | Error logging | — |
 
-This default middleware is defined in [`defaultMiddleware.ts`](../../../../src/server/libs/defaultMiddleware.ts) and can be used as-is or as a starting point for your own configuration.
+Over a limit, the server answers `BTP_ERROR_RATE_LIMITER` (429, retryable).
+It is defined in [`defaultMiddleware.ts`](../../../../src/server/libs/defaultMiddleware.ts)
+and exported from `@btps/sdk/server/core` as `createDefaultMiddleware`.
 
-**How to use:**
-- If you do not specify a custom middleware file, the server will not use this default middleware as its purely for inspection and implementation guide. However one can include this default middleware into the btps.middleware.mjs of the running server root folder
-- To customize, you can import and extend it in your own middleware file:
+### Why identity is limited after signature verification
+
+At `after parsing`, `from` is only a claim: anyone can write any address in
+it. A limit keyed there let an attacker spend a victim's allowance by forging
+`from: victim`, and the victim's real artifacts were then refused. The
+identity limit runs only once the signature has verified, keyed by the
+sender the signature proved. An artifact that fails verification is never
+counted against the identity it names; it was already counted against its
+network address before parsing.
+
+An `auth.request` (device registration) is not counted by identity: its key
+comes from its own document, so its signature proves nothing about its
+`agentId`. It is limited by address, and by the registration token the
+server requires.
+
+### Bounded tables
+
+The default limiter, `BtpsSimpleRateLimiter`, keeps one table of keys for
+addresses and one for identities, each holding at most
+`BTP_RATE_LIMIT_MAX_KEYS` (100,000) keys, about 10 MB when full. When a table
+is full, keys that have aged out of the one-second window are swept (at most
+once a second); if it is still full, a key it does not hold is refused with
+429 rather than the table growing. Keys it already holds are served as
+usual. Set another bound with `maxKeys`.
+
+### Changing or turning off the defaults
+
+The defaults change only through the server's `defaultMiddleware` option,
+never by accident:
 
 ```js
-import { createDefaultMiddleware } from './src/server/libs/defaultMiddleware.js';
+import { BtpsServer } from '@btps/sdk/server';
+import { createDefaultMiddleware, BtpsSimpleRateLimiter } from '@btps/sdk/server/core';
 
-export default [
-  ...createDefaultMiddleware(),
-  // Add your custom middleware here
-];
+// Other limits:
+new BtpsServer({
+  ...options,
+  defaultMiddleware: createDefaultMiddleware({
+    rateLimiter: new BtpsSimpleRateLimiter({ ipAddress: 200, fromIdentity: 60, maxKeys: 500_000 }),
+  }),
+});
+
+// Counters in a shared store, for several server instances: any RateLimiter.
+new BtpsServer({ ...options, defaultMiddleware: createDefaultMiddleware({ rateLimiter: myRedisLimiter }) });
+
+// Your own set instead of the defaults:
+new BtpsServer({ ...options, defaultMiddleware: [/* middleware definitions */] });
+
+// None. The server then limits nothing unless your own middleware does.
+new BtpsServer({ ...options, defaultMiddleware: false });
 ```
 
-See [`example.btps.middleware.mjs`](../../../../example.btps.middleware.mjs) for a real-world example of extending and customizing the default middleware.
+A `RateLimiter` implements `isAllowed(key, 'ipAddress' | 'fromIdentity')`.
+If you write your own identity limit, run it at `after signatureVerification`
+and key it with `verifiedSender(req)` from `@btps/sdk/server/core`, which is
+`undefined` when the signature proved no sender.
 
-> **Note:** The default middleware is suitable for quick setup, development, and small-scale production. For large-scale or SaaS deployments, you should implement custom middleware that uses external services (e.g., Redis for distributed rate limiting, Prometheus for metrics) instead of in-memory state.
+A middleware file written before 1.1 that still includes
+`...createDefaultMiddleware()` keeps working: an entry named as a default
+that already runs (`default-ip-rate-limiter`, `default-identity-rate-limiter`
+and the rest) is skipped with a warning, so the defaults run once.
+
+See [`example.btps.middleware.mjs`](../../../../example.btps.middleware.mjs) for a middleware file that adds to the defaults.
+
+> **Note:** The default limiter keeps its counters in memory, per server process. For several instances behind one address, pass a `RateLimiter` backed by a shared store (e.g. Redis), as above.
 
 ## Middleware Phases & Steps
 
@@ -172,7 +227,8 @@ Each handler receives:
 
 ## Loading & Ordering Middleware
 
-- Middleware is loaded from the file specified by `middlewarePath` (default: `btps.middleware.mjs` in the root).
+- The default middleware is loaded first (see above), then the file specified by `middlewarePath` (default: `btps.middleware.mjs` in the root). A missing file is not an error.
+- Within a phase/step, the defaults run before the file's middleware.
 - Middleware is executed in the order listed for each phase/step.
 - Use the `priority` field to control execution order (lower numbers run first).
 

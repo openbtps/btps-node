@@ -3,27 +3,21 @@
  *
  * This file demonstrates how to configure custom middleware for the BtpsServer.
  * The middleware can be used for rate limiting, metrics, logging, custom validation, etc.
+ *
+ * The server's default middleware (createDefaultMiddleware) always runs before
+ * this file's, so it is not included here (EBA-187):
+ * 1. rate limiting by network address (before parsing);
+ * 2. rate limiting by verified identity (after signature verification);
+ * 3. metrics and error logging.
+ * To change the limits, or to keep counters in a shared store such as Redis
+ * for a large or multi-instance server, pass the server's `defaultMiddleware`
+ * option, e.g. `createDefaultMiddleware({ rateLimiter })`; `false` turns the
+ * defaults off. A file that still includes them gets them once.
  */
-import { createDefaultMiddleware } from './src/server/libs/defaultMiddleware.js';
 
 export default function createMiddleware(dependencies) {
   const { trustStore: _trustStore } = dependencies;
-  console.log('sample middleware: ', createDefaultMiddleware()); // inspect default middleware
   return [
-    /* Sample default middleware used as a starting point for your own middleware.
-     * Default middleware can able to handle for small to medium size BTPS server.
-     * For large scale BTPS server or Sass enterprises, you should implement your own middleware which does not store any state in memory but use external services like Redis, etc.
-     *
-     * Default middleware:
-     * 1. IP-based rate limiting (before parsing)
-     * 2. Request logging (before signature verification)
-     * 3. Trust verification logging (after trust verification)
-     * 4. Custom invoice validation (before message processing)
-     * 5. Message processing metrics (before message processing)
-     * 6. Error handling middleware
-     */
-    ...createDefaultMiddleware(),
-
     // Signature failure tracking (after signature verification)
     {
       phase: 'after',

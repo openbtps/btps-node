@@ -10,6 +10,8 @@ import fs from 'fs/promises';
 import { existsSync, unlinkSync } from 'fs';
 import path from 'path';
 import { MiddlewareManager } from '../libs/middlewareManager.js';
+import { createDefaultMiddleware, DEFAULT_MIDDLEWARE_NAMES } from '../libs/defaultMiddleware.js';
+import { BtpsSimpleRateLimiter } from '../libs/btpsSimpleRateLimiter.js';
 import JsonTrustStore from '../../core/trust/storage/JsonTrustStore.js';
 
 const TEST_FILE = path.join(__dirname, 'test-trust-store.json');
@@ -91,7 +93,8 @@ describe('MiddlewareManager', () => {
 
   beforeEach(async () => {
     middlewareFile = getUniqueMiddlewareFile();
-    middlewareManager = new MiddlewareManager(middlewareFile);
+    // These tests are about the file: without the defaults (EBA-187), tested below.
+    middlewareManager = new MiddlewareManager(middlewareFile, false);
     // Ensure no leftover middleware file before each test
     if (existsSync(TEST_FILE)) await fs.unlink(TEST_FILE);
   });
@@ -268,6 +271,82 @@ export default function () {
       expect(middleware.length).toBe(2);
       expect(middleware[0].config?.name).toBe('stop-flow-test');
       expect(middleware[1].config?.name).toBe('should-not-run');
+    });
+  });
+
+  // EBA-187 (fix list 11): the defaults are always loaded, before the file,
+  // unless the server option turns them off or replaces them.
+  describe('default middleware', () => {
+    const trustStore = () => new JsonTrustStore({ connection: TEST_FILE, entityName: 'trusted' });
+    const names = (mws: { config?: { name?: string } }[]) => mws.map((mw) => mw.config?.name);
+    const defaultNames = Object.values(DEFAULT_MIDDLEWARE_NAMES);
+
+    it('loads the defaults when there is no middleware file', async () => {
+      const manager = new MiddlewareManager('/no-such-dir/btps.middleware.mjs');
+      await manager.loadMiddleware({ trustStore: trustStore() });
+      expect(new Set(names(manager.getAllMiddleware()))).toEqual(new Set(defaultNames));
+    });
+
+    it('loads the defaults before the file, and both', async () => {
+      await fs.writeFile(middlewareFile, simpleMiddleware, 'utf8');
+      const manager = new MiddlewareManager(middlewareFile);
+      await manager.loadMiddleware({ trustStore: trustStore() });
+      expect(names(manager.getMiddleware('before', 'parsing'))).toEqual([
+        DEFAULT_MIDDLEWARE_NAMES.ipRateLimiter,
+        'test-middleware',
+      ]);
+    });
+
+    it('runs the identity limiter after signature verification, never at parsing', async () => {
+      const manager = new MiddlewareManager('/no-such-dir/btps.middleware.mjs');
+      await manager.loadMiddleware({ trustStore: trustStore() });
+      expect(names(manager.getMiddleware('after', 'signatureVerification'))).toContain(
+        DEFAULT_MIDDLEWARE_NAMES.identityRateLimiter,
+      );
+      for (const phase of ['before', 'after'] as const) {
+        expect(names(manager.getMiddleware(phase, 'parsing'))).not.toContain(
+          DEFAULT_MIDDLEWARE_NAMES.identityRateLimiter,
+        );
+      }
+    });
+
+    it('runs the defaults once when the file includes them too', async () => {
+      const withDefaults = `
+import { createDefaultMiddleware } from '${path.join(process.cwd(), 'src/server/libs/defaultMiddleware.ts')}';
+export default function () {
+  return [...createDefaultMiddleware(), {
+    phase: 'before', step: 'parsing', priority: 1,
+    config: { name: 'platform-own', enabled: true },
+    handler: async (req, res, next) => { await next(); }
+  }];
+}
+`;
+      await fs.writeFile(middlewareFile, withDefaults, 'utf8');
+      const manager = new MiddlewareManager(middlewareFile);
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      await manager.loadMiddleware({ trustStore: trustStore() });
+      const loaded = names(manager.getAllMiddleware());
+      for (const name of defaultNames) {
+        expect(loaded.filter((n) => n === name)).toHaveLength(1);
+      }
+      expect(loaded).toContain('platform-own');
+      expect(warn).toHaveBeenCalled();
+    });
+
+    it('loads none when the server option is false', async () => {
+      const manager = new MiddlewareManager('/no-such-dir/btps.middleware.mjs', false);
+      await manager.loadMiddleware({ trustStore: trustStore() });
+      expect(manager.getAllMiddleware()).toEqual([]);
+    });
+
+    it('loads the given array instead when the server option replaces them', async () => {
+      const replacement = createDefaultMiddleware({
+        rateLimiter: new BtpsSimpleRateLimiter({ ipAddress: 500, fromIdentity: 100 }),
+      }).filter((mw) => mw.config?.name !== DEFAULT_MIDDLEWARE_NAMES.errorLogger);
+      const manager = new MiddlewareManager('/no-such-dir/btps.middleware.mjs', replacement);
+      await manager.loadMiddleware({ trustStore: trustStore() });
+      expect(names(manager.getAllMiddleware())).not.toContain(DEFAULT_MIDDLEWARE_NAMES.errorLogger);
+      expect(manager.getAllMiddleware()).toHaveLength(defaultNames.length - 1);
     });
   });
 });

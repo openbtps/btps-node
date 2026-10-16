@@ -18,6 +18,7 @@ import {
 import isEmpty from 'lodash/isEmpty.js';
 import { BTPErrorException } from '@core/error/index.js';
 import { BTPServerResponse } from '@core/server/types.js';
+import { createDefaultMiddleware } from './defaultMiddleware.js';
 
 export class MiddlewareManager {
   private middleware: MiddlewareDefinition[] = [];
@@ -27,21 +28,59 @@ export class MiddlewareManager {
     onResponseSent?: (response: BTPServerResponse) => Promise<void> | void;
   } = {};
 
-  constructor(private middlewarePath?: string) {
+  /**
+   * @param middlewarePath - The platform's middleware file; defaults to
+   *   `btps.middleware.mjs` in the working directory. A missing file is no error.
+   * @param defaultMiddleware - What runs before the file's middleware
+   *   (EBA-187): `undefined` for createDefaultMiddleware(), an array to
+   *   replace it, `false` for none.
+   */
+  constructor(
+    private middlewarePath?: string,
+    private readonly defaultMiddleware?: MiddlewareDefinitionArray | false,
+  ) {
     if (isEmpty(middlewarePath)) {
       this.middlewarePath = `${process.cwd()}/btps.middleware.mjs`;
     }
   }
 
   /**
-   * Loads and validates middleware from the specified path
+   * Loads the default middleware, then the platform's file. Each runs in its
+   * own priority order, defaults first within a phase and step; an entry in
+   * the file named as a loaded default is skipped, so a file that includes
+   * the defaults itself does not run them twice.
    */
   async loadMiddleware(dependencies: MiddlewareContext['dependencies']): Promise<void> {
-    if (!this.middlewarePath) return;
+    const defaults =
+      this.defaultMiddleware === false
+        ? []
+        : this.validateAndSortMiddleware(this.defaultMiddleware ?? createDefaultMiddleware());
+
+    const fromFile = await this.loadMiddlewareFile(dependencies);
+    const defaultNames = new Set(defaults.map((mw) => mw.config?.name).filter(Boolean));
+    const kept = fromFile.filter((mw) => {
+      const duplicate = !!mw.config?.name && defaultNames.has(mw.config.name);
+      if (duplicate) {
+        console.warn(
+          `[MiddlewareManager] Skipping "${mw.config?.name}" from the middleware file: the default middleware already runs it`,
+        );
+      }
+      return !duplicate;
+    });
+    this.middleware = [...defaults, ...kept];
+  }
+
+  /**
+   * Loads and validates middleware from the specified path, and its lifecycle hooks
+   */
+  private async loadMiddlewareFile(
+    dependencies: MiddlewareContext['dependencies'],
+  ): Promise<MiddlewareDefinition[]> {
+    if (!this.middlewarePath) return [];
 
     const resolvedPath = resolve(this.middlewarePath);
 
-    if (!existsSync(resolvedPath)) return;
+    if (!existsSync(resolvedPath)) return [];
 
     try {
       // Dynamic import of the middleware file
@@ -54,9 +93,10 @@ export class MiddlewareManager {
 
       const result = createMiddleware(dependencies);
 
+      let loaded: MiddlewareDefinition[];
       if (this.isMiddlewareModule(result)) {
         // New format with lifecycle hooks
-        this.middleware = this.validateAndSortMiddleware(result.middleware);
+        loaded = this.validateAndSortMiddleware(result.middleware);
         this.lifecycleHooks = {
           onServerStart: result.onServerStart,
           onServerStop: result.onServerStop,
@@ -64,14 +104,15 @@ export class MiddlewareManager {
         };
       } else if (Array.isArray(result)) {
         // Legacy format - just array of middleware
-        this.middleware = this.validateAndSortMiddleware(result);
+        loaded = this.validateAndSortMiddleware(result);
       } else {
         throw new BTPErrorException({
           message: 'Middleware function must return an array or MiddlewareModule',
         });
       }
 
-      console.log(`[MiddlewareManager] Loaded ${this.middleware.length} middleware`);
+      console.log(`[MiddlewareManager] Loaded ${loaded.length} middleware`);
+      return loaded;
     } catch (error) {
       console.error('[MiddlewareManager] Failed to load middleware:', error);
       throw new BTPErrorException({

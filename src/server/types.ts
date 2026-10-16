@@ -83,6 +83,18 @@ export interface BtpsServerOptions {
   connectionTimeoutMs?: number;
   middlewarePath?: string; // Path to btps.middleware.mjs file
   /**
+   * The middleware that runs before the middleware file's (EBA-187): rate
+   * limiting by network address before parsing and by verified identity
+   * after signature verification, and metrics. Always loaded unless this
+   * says otherwise:
+   * - omitted: `createDefaultMiddleware()`;
+   * - an array: runs instead, e.g. `createDefaultMiddleware({ rateLimiter })`
+   *   with other limits or a shared store;
+   * - `false`: none. The platform then limits nothing unless its own
+   *   middleware does.
+   */
+  defaultMiddleware?: MiddlewareDefinitionArray | false;
+  /**
    * The longest line read, in characters (fix list 10). Defaults to
    * BTP_MAX_LINE_LENGTH, sized to the document caps. A server may set it
    * lower, and then refuses artifacts near the caps; a longer line is

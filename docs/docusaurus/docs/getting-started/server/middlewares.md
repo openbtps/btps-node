@@ -17,15 +17,11 @@ Create a `btps.middleware.mjs` file in your project root:
 
 ```javascript
 // btps.middleware.mjs
-import { createDefaultMiddleware } from '@btps/sdk/server/core';
-
 export default function createMiddleware(dependencies) {
   return {
     middleware: [
-      // Include default middleware for essential functionality
-      ...createDefaultMiddleware(),
-
-      // Add your custom middleware here
+      // The default middleware (rate limiting, metrics) already runs before
+      // this file's: add your custom middleware here.
     ],
 
     // Lifecycle hooks
@@ -78,12 +74,20 @@ console.log('🚀 BTPS Server with middleware running');
 
 ## Default Middleware Features
 
-The `createDefaultMiddleware()` function provides essential functionality:
+Every server runs `createDefaultMiddleware()` before your file's middleware,
+with or without a file (BTPS 1.1):
 
-- **Rate limiting** (IP and identity-based)
+- **Rate limiting** by network address before parsing, and by the verified
+  sender's identity after signature verification
 - **Request logging and metrics**
 - **Error handling**
 - **Signature and trust verification tracking**
+
+To change the limits or turn the defaults off, use the server's
+`defaultMiddleware` option; see
+[Middleware System](../../server/middlewares.md#default-middleware-and-rate-limiting).
+A file that still spreads `...createDefaultMiddleware()` keeps working: the
+defaults run once.
 
 ## Middleware Phases and Steps
 

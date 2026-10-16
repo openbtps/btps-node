@@ -177,7 +177,10 @@ export class BtpsServer {
     }
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 30000;
     this.maxLineLength = options.maxLineLength ?? BTP_MAX_LINE_LENGTH;
-    this.middlewareManager = new MiddlewareManager(options.middlewarePath);
+    this.middlewareManager = new MiddlewareManager(
+      options.middlewarePath,
+      options.defaultMiddleware,
+    );
     this.dependencies = {
       trustStore: this.trustStore,
       identityStore: this.identityStore,

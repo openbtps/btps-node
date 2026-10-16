@@ -9,6 +9,8 @@ export interface IRateLimitOptions {
   ipAddress?: number;
   fromIdentity?: number;
   cleanupIntervalSec?: number;
+  /** The most keys each table holds; a new key beyond it is refused. Defaults to BTP_RATE_LIMIT_MAX_KEYS. */
+  maxKeys?: number;
 }
 
 export interface IMetricsTracker {

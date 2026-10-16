@@ -45,6 +45,12 @@ The `BtpsServer` class accepts the following options:
 | `onError`        | `function`   | Optional error handler callback                                  |
 | `options`        | `object`     | TLS options (certs, keys, etc.)                                  |
 
+`defaultMiddleware` (array or `false`, optional) is the middleware that runs
+before the file's. Omitted, it is `createDefaultMiddleware()`: rate limiting
+by network address and by verified identity, and metrics. An array replaces
+it; `false` turns it off. See
+[Middleware System](./middlewares.md#default-middleware-and-rate-limiting).
+
 **Example:**
 
 ```js
