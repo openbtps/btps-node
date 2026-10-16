@@ -877,6 +877,8 @@ export default function () {
       Object.defineProperty(socket, 'destroyed', { value: false, writable: true });
       socket.destroy = vi.fn();
       socket.pipe = vi.fn(() => new EventEmitter()) as unknown as TLSSocket['pipe'];
+      socket.unpipe = vi.fn();
+      socket.resume = vi.fn();
 
       // Mock setTimeout to capture the timeout callback
       let timeoutCallback: (() => void) | undefined;
@@ -891,15 +893,18 @@ export default function () {
       // Verify setTimeout was called
       expect(socket.setTimeout).toHaveBeenCalled();
 
-      // Simulate timeout by calling the captured callback
+      // Simulate timeout by calling the captured callback: the connection
+      // stops reading and closes gently rather than being torn down at once
       if (timeoutCallback) {
         await timeoutCallback();
-        expect(socket.destroy).toHaveBeenCalled();
+        expect(socket.unpipe).toHaveBeenCalled();
+        expect(socket.resume).toHaveBeenCalled();
+        expect(socket.destroy).not.toHaveBeenCalled();
       }
 
-      // Simulate error
+      // Simulate error: a broken socket is still torn down at once
       socket.emit('error', new Error('socket error'));
-      expect(socket.destroy).toHaveBeenCalled();
+      await vi.waitFor(() => expect(socket.destroy).toHaveBeenCalled());
     });
 
     it('handles invalid JSON and validation errors', async () => {
@@ -2614,6 +2619,8 @@ export default function () {
         write: vi.fn(),
         end: vi.fn(),
         destroy: vi.fn(),
+        unpipe: vi.fn(),
+        resume: vi.fn(),
       }) as unknown as TLSSocket;
       server['handleConnection'](socket);
       return { input, socket };
@@ -2702,6 +2709,68 @@ export default function () {
         const written: BTPServerResponse = JSON.parse(answer);
         expect(written.type).toBe('btps_error');
         expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 1024 KB`);
+      } finally {
+        tcp.close();
+      }
+    });
+  });
+
+  describe('closing gently after an unexpected error', () => {
+    it('delivers the error to a sender that is still sending its next artifact', async () => {
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        maxArtifactSizeKb: 10240,
+        connectionTimeoutMs: 2000,
+      });
+      btps['_parseAndValidateArtifact'] = vi.fn(() => {
+        throw new Error('unexpected failure');
+      });
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      // TCP, not TLS: losing an answer to a reset happens at the TCP level.
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+
+      try {
+        const answer = await new Promise<string>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const end = received.indexOf('\n');
+            if (end !== -1) resolve(received.slice(0, end));
+          });
+          client.on('error', reject);
+          client.on('close', () => reject(new Error(`closed without an answer: ${received}`)));
+          // Like a sender across a network, it reads the answer some time after
+          // it arrives: a connection reset in between would discard it unread.
+          client.pause();
+          setTimeout(() => client.resume(), 300);
+          // One artifact, then straight on to sending the next, before any answer.
+          client.write('{}\n');
+          const chunk = Buffer.alloc(64 * 1024, 'a');
+          let sent = 0;
+          const pump = () => {
+            while (sent < 4 * 1024 * 1024) {
+              sent += chunk.length;
+              if (!client.write(chunk)) {
+                client.once('drain', pump);
+                return;
+              }
+            }
+            client.end();
+          };
+          pump();
+        });
+
+        const written: BTPServerResponse = JSON.parse(answer);
+        expect(written.type).toBe('btps_error');
+        expect(written.status.message).toBe('unexpected failure');
       } finally {
         tcp.close();
       }
