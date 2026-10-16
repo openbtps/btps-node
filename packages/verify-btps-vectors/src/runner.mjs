@@ -24,8 +24,6 @@ import { loadSdk } from './sdk-loader.mjs';
 /**
  * @typedef {object} CheckResult
  * @property {string} id
- * @property {number | string} [item]
- * @property {string[]} [tickets]
  * @property {boolean} passed
  * @property {string} [message]
  */
@@ -67,7 +65,7 @@ export async function buildChecks({ vectorsDir, sdkRoot }) {
 export async function runChecks(checks) {
   const results = [];
   for (const check of checks) {
-    const base = { id: check.id, item: check.item, tickets: check.tickets };
+    const base = { id: check.id };
     try {
       await check.run();
       results.push({ ...base, passed: true });
@@ -85,7 +83,7 @@ export async function runChecks(checks) {
 export function readKnownFailing(file) {
   const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
   if (!parsed || typeof parsed.checks !== 'object' || Array.isArray(parsed.checks)) {
-    throw new Error(`${file}: expected { "checks": { "<check id>": "<owning ticket>" } }`);
+    throw new Error(`${file}: expected { "checks": { "<check id>": "<what fixes it>" } }`);
   }
   return parsed;
 }
@@ -131,8 +129,8 @@ export function formatReport(results, verdict, knownFailing) {
   const lines = [];
   for (const r of results) {
     const tag = r.passed ? 'PASS' : listed.has(r.id) ? 'XFAIL' : 'FAIL';
-    const owner = r.tickets?.length ? ` [item ${r.item}: ${r.tickets.join(', ')}]` : '';
-    lines.push(`${tag.padEnd(5)} ${r.id}${owner}`);
+    const note = !r.passed && listed.has(r.id) ? ` [${knownFailing?.checks[r.id]}]` : '';
+    lines.push(`${tag.padEnd(5)} ${r.id}${note}`);
     if (!r.passed) lines.push(`      ${r.message}`);
   }
   const passed = results.filter((r) => r.passed).length;

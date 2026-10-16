@@ -19,8 +19,7 @@ import { BtpDocAttachmentsSchema } from './invoiceSchema.js';
 /*
  * A payslip carries every field an employer may need; it does not decide
  * which are legally required. Categories and extensions are open and
- * namespaced, so an unknown one is carried and signed, never refused
- * (EBA-103 section 2, amended 2026-10-08, option A).
+ * namespaced, so an unknown one is carried and signed, never refused.
  */
 
 export const BtpPayslipPayeeSchema = z

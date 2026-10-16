@@ -37,7 +37,7 @@ function requireFields(file, object, fields) {
 }
 
 /**
- * Item 7: reads every document in the model's documents directory into
+ * Document model v2: reads every document in the model's documents directory into
  * `set.documents` (file name -> parsed JSON), and checks that every case
  * names one that exists, so a deleted document is a load error.
  */
@@ -88,7 +88,7 @@ function loadDocumentModel(dir, set) {
 }
 
 /**
- * Item A: reads every event in the model's events directory into
+ * Lifecycle events: reads every event in the model's events directory into
  * `set.events` (file name -> parsed JSON), and checks that every case names
  * one that exists (or a document, as `documents/<name>`), so a deleted
  * event is a load error.
@@ -150,7 +150,7 @@ function loadEventModel(dir, set) {
 
 /**
  * @param {string} dir the test/vectors directory
- * @returns {Record<keyof typeof VECTOR_FILES, any>}
+ * @returns {Record<keyof typeof VECTOR_FILES, unknown>}
  * @throws {VectorLoadError}
  */
 export function loadVectorSet(dir) {

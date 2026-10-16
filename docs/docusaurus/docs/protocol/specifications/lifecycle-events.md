@@ -124,7 +124,7 @@ An example of each type is in the golden vectors,
   (`event.send`) and `signEncrypt` set the artifact id from the event.
 - **The signature proves who sent it;** an id never has to.
 - **A reused id is refused** once replay protection lands: it refuses any
-  `(from, id)` it has seen before. That is EBA-114 (addendum item 4), not
+  `(from, id)` it has seen before. That is replay protection (#19), not
   yet in the SDK: until then a platform must refuse a repeated `(from, id)`
   itself.
 
@@ -186,7 +186,7 @@ about an invoice between A and B.
   decrypts (below).
 
 Enforcing `privacyType` itself (refusing an unencrypted event on an
-encrypted trust) is fix-list item 8, EBA-444, and is not in this change.
+encrypted trust) is a separate change (#25), not this one.
 
 ## What the receiving platform checks
 
@@ -207,7 +207,7 @@ checks belong to the receiving platform:
 4. **The change of state is allowed:** for example, no `refund` before Paid,
    no `remainingDueDate` unless the answered event is a `partially_paid`, a
    refund within what was paid. The protocol cannot check this.
-5. **Replay**, until EBA-114 lands: a repeated `(from, id)` is refused.
+5. **Replay**, until replay protection lands (#19): a repeated `(from, id)` is refused.
 
 **Where:** a `before onArtifact` middleware. The existing middleware context
 is enough, so the SDK adds no hook: `req.data.artifact` is the verified,
@@ -276,7 +276,7 @@ to the event's `id`.
 ## Golden vectors
 
 `test/vectors/event.vectors.json`, over the events in `test/vectors/events/`
-(`yarn verify:btps-vectors`, checks `sdk/item-A/…`):
+(`yarn verify:btps-vectors`, checks `sdk/events/…`):
 
 - schema cases for every event type, accepted and refused per the tables above;
 - the envelope: the id equals the artifact id, and only a document between

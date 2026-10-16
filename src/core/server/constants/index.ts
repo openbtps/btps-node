@@ -22,7 +22,7 @@ const TRASH_ACTIONS = ['trash.fetch', 'trash.delete'] as const;
 const SYSTEM_ACTIONS = ['system.ping'] as const;
 export const AUTH_ACTIONS = ['auth.request', 'auth.refresh'] as const;
 const ARTIFACT_ACTIONS = ['artifact.send'] as const;
-// A lifecycle event, sent as a BTPS_EVENT transporter artifact (item A, EBA-440).
+// A lifecycle event, sent as a BTPS_EVENT transporter artifact.
 const EVENT_ACTIONS = ['event.send'] as const;
 
 export const AGENT_ACTIONS = [

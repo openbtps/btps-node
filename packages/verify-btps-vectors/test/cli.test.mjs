@@ -17,7 +17,7 @@ describe('verify-btps-vectors CLI', () => {
     expect(code).toBe(0);
   });
 
-  it('in strict mode exits 1 and names each failing check and its ticket', () => {
+  it('in strict mode exits 1 and names each failing check', () => {
     const { code, out } = run();
     expect(code).toBe(1);
     expect(out).toMatch(
