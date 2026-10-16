@@ -11,6 +11,7 @@ import type {
   BtpsServerOptions,
 } from '@btps/sdk/server';
 import { BtpsAuthService } from './services/btpsAuth.service.js';
+import { RedisTokenStoreService } from '../database/redis/redis-token-store.service.js';
 import { BtpsAuthentication } from '@btps/sdk/authentication';
 
 @Injectable()
@@ -23,6 +24,7 @@ export class BtpsService implements OnModuleInit, OnModuleDestroy {
     private readonly trustStore: MongoTrustStoreService,
     private readonly identityStore: MongoIdentityStoreService,
     private readonly authService: BtpsAuthService,
+    private readonly tokenStore: RedisTokenStoreService,
   ) {}
 
   private async cleanupServer() {
@@ -38,6 +40,9 @@ export class BtpsService implements OnModuleInit, OnModuleDestroy {
 
     this.server = new BtpsServer({
       ...this.serverConfig,
+      // The server answers auth.request itself, on a registration token
+      // from this store (BTPS 1.1 item E).
+      tokenStore: this.tokenStore,
       onError: error => console.error('BTPS Server Error:', error),
     });
 
@@ -83,8 +88,6 @@ export class BtpsService implements OnModuleInit, OnModuleDestroy {
     }
 
     switch (artifact.action) {
-      case 'auth.request':
-        return this.authService.handleAuthRequest(artifact, resCtx);
       case 'auth.refresh':
         return this.authService.handleAuthRefresh(artifact, resCtx);
       default:

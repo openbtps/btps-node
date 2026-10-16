@@ -4,6 +4,7 @@ import { Redis } from 'ioredis';
 import {
   InMemoryTokenStore,
   BTPsTokenDocument,
+  type BTPTokenConsumeResult,
 } from '@btps/sdk/authentication';
 
 @Injectable()
@@ -177,6 +178,32 @@ export class RedisTokenStoreService
     } catch (error) {
       console.error('Error removing token from Redis:', error);
     }
+  }
+
+  /**
+   * Take a token once (BTPS 1.1 item E). GETDEL is atomic in Redis (6.2+):
+   * of two devices racing with one registration token, one gets it. A
+   * marker remembers the token until it would have expired, to answer
+   * `used` rather than `invalid`.
+   */
+  async consume(
+    agentId: string,
+    token: string,
+  ): Promise<BTPTokenConsumeResult<BTPsTokenDocument>> {
+    const primaryKey = this.agentKey(agentId, token);
+    const usedKey = `${this.base}:used:${agentId}:${token}`;
+    const serialized = await this.redis.getdel(primaryKey);
+    if (!serialized) {
+      return (await this.redis.exists(usedKey))
+        ? { status: 'used' }
+        : { status: 'invalid' };
+    }
+    const doc: BTPsTokenDocument = JSON.parse(serialized);
+    await this.redis.unlink(this.userKey(doc.userIdentity, agentId, token));
+    const remainingMs = new Date(doc.expiresAt).getTime() - Date.now();
+    if (remainingMs <= 0) return { status: 'invalid' };
+    await this.redis.set(usedKey, '1', 'PX', remainingMs);
+    return { status: 'consumed', record: doc };
   }
 
   async onModuleDestroy() {

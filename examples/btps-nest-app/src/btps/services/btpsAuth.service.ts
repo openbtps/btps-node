@@ -62,51 +62,6 @@ export class BtpsAuthService {
     console.log('✅ BTPS auth initialized successfully');
   }
 
-  async handleAuthRequest(
-    artifact: BTPAgentArtifact & { respondNow?: boolean },
-    resCtx: ArtifactResCtx,
-  ) {
-    if (!this.auth || !this.serverIdentity) {
-      return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-    }
-
-    const { document, to, id: reqId } = artifact;
-
-    if (!document) {
-      return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-    }
-
-    const { authToken, publicKey, identity, agentInfo } =
-      document as BTPAuthReqDoc;
-
-    const { isValid } = await this.auth.validateAuthToken(to, authToken);
-
-    if (!isValid) {
-      return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-    }
-    const serverIdentity = this.serverIdentity?.identity;
-    const authResponseDoc = await this.auth.createAgent(
-      {
-        userIdentity: identity,
-        publicKey,
-        agentInfo,
-        decidedBy: serverIdentity,
-      },
-      serverIdentity,
-    );
-
-    const response: BTPServerResponse = {
-      ...this.server!.prepareBtpsResponse(
-        { ok: true, message: 'Authentication successful', code: 200 },
-        reqId,
-      ),
-      type: 'btps_response',
-      document: authResponseDoc,
-    };
-
-    return resCtx.sendRes(response);
-  }
-
   async handleAuthRefresh(
     artifact: BTPAgentArtifact & { respondNow?: boolean },
     resCtx: ArtifactResCtx,

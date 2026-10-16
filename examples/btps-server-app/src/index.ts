@@ -54,6 +54,8 @@ const BTPsServer = BtpsServerSingletonFactory.create({
     requestCert: false,
   },
   connectionTimeoutMs: 5000,
+  // Registration tokens issued with Auth.storeAuthToken (item E).
+  tokenStore: memoryTokenStore,
   serverIdentity: {
     identity: 'hr$ebilladdress.com',
     publicKey: readFileSync(process.cwd() + '/keys/hr/hr-public.pem').toString('utf8'),
@@ -68,39 +70,8 @@ BTPsServer.onIncomingArtifact('Agent', async (artifact, resCtx) => {
     const { action } = artifact;
 
     switch (action) {
-      case 'auth.request':
-        const { document, to, id: reqId } = artifact;
-        if (!document) {
-          return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-        }
-        const { authToken, publicKey, identity, agentInfo } = document as BTPAuthReqDoc;
-        const { isValid } = await Auth.validateAuthToken(to, authToken);
-        if (!isValid) {
-          return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-        }
-
-        const authResponseDoc = await Auth.createAgent(
-          {
-            decidedBy: 'finance$ebilladdress.com',
-            publicKey,
-            userIdentity: identity,
-            agentInfo,
-          },
-          'hr$ebilladdress.com',
-        );
-
-        return resCtx.sendRes({
-          ...BTPsServer.prepareBtpsResponse(
-            {
-              ok: true,
-              message: 'Authentication successful',
-              code: 200,
-            },
-            reqId,
-          ),
-          type: 'btps_response',
-          document: authResponseDoc,
-        });
+      // auth.request never reaches this handler: the server answers it
+      // itself, on a registration token from memoryTokenStore (item E).
       case 'auth.refresh':
         const { document: refreshAuthDoc, agentId, id: refreshReqId } = artifact;
         if (!refreshAuthDoc) {
