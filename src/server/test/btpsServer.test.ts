@@ -10,6 +10,7 @@ import { BtpsServer } from '../btpsServer.js';
 import { BtpsClient } from '../../client/btpsClient.js';
 import { AbstractTrustStore } from '../../core/trust/storage/AbstractTrustStore.js';
 import { BTPTrustRecord } from '../../core/trust/types.js';
+import { computeTrustId } from '../../core/trust/index.js';
 import { EventEmitter } from 'events';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { BTP_PROTOCOL_VERSION } from '../../core/server/constants/index.js';
@@ -1956,6 +1957,151 @@ export default function () {
         await server['awaitableEmitIfNeeded']('agentArtifact', true, mockReq, mockRes, artifact);
 
         expect(mockListener).toHaveBeenCalledWith(artifact, mockRes);
+      });
+    });
+
+    describe('trust for lifecycle events', () => {
+      // A asked to send to B and B accepted: the store holds A -> B.
+      const biller = 'billing$acme.com';
+      const payer = 'pay$client.com';
+      const outsider = 'someone$else.com';
+
+      const record = (
+        senderId: string,
+        receiverId: string,
+        status: BTPTrustRecord['status'] = 'accepted',
+      ): BTPTrustRecord => ({
+        id: computeTrustId(senderId, receiverId),
+        senderId,
+        receiverId,
+        status,
+        createdAt: new Date().toISOString(),
+        decidedBy: receiverId,
+        decidedAt: new Date().toISOString(),
+        publicKeyBase64: 'key',
+        publicKeyFingerprint: 'fp',
+        keyHistory: [],
+        privacyType: 'encrypted',
+      });
+      const storeHolding = (...records: BTPTrustRecord[]) => {
+        const byId = new Map(records.map((r) => [r.id, r]));
+        trustStore.getById = vi.fn(async (id: string) => byId.get(id));
+      };
+      const artifact = (type: 'BTPS_EVENT' | 'BTPS_DOC', from: string, to: string) => ({
+        artifact: {
+          version: '1.0.0',
+          id: 'artifact-id',
+          type,
+          from,
+          to,
+          issuedAt: new Date().toISOString(),
+          signature: { algorithmHash: 'sha256' as const, value: 'v', fingerprint: 'f' },
+          encryption: null,
+          document: 'document',
+          selector: 'btps1',
+        },
+        type: 'transporter' as const,
+      });
+
+      it("accepts the payer's event over the biller's own trust to the payer", async () => {
+        storeHolding(record(biller, payer));
+        const result = await server['verifyTrust'](artifact('BTPS_EVENT', payer, biller));
+        expect(result.isTrusted).toBe(true);
+      });
+
+      it("refuses the payer's invoice over that trust: an invoice needs a trust of its own", async () => {
+        storeHolding(record(biller, payer));
+        const result = await server['verifyTrust'](artifact('BTPS_DOC', payer, biller));
+        expect(result.isTrusted).toBe(false);
+      });
+
+      it('refuses an event from a third party with no trust either way', async () => {
+        storeHolding(record(biller, payer));
+        const result = await server['verifyTrust'](artifact('BTPS_EVENT', outsider, biller));
+        expect(result.isTrusted).toBe(false);
+      });
+
+      it("refuses the payer's event once the biller's trust is revoked", async () => {
+        storeHolding(record(biller, payer, 'revoked'));
+        const result = await server['verifyTrust'](artifact('BTPS_EVENT', payer, biller));
+        expect(result.isTrusted).toBe(false);
+      });
+
+      it("accepts the biller's event over its own trust, as before", async () => {
+        storeHolding(record(biller, payer));
+        const result = await server['verifyTrust'](artifact('BTPS_EVENT', biller, payer));
+        expect(result.isTrusted).toBe(true);
+      });
+
+      describe('through the whole pipeline, an event over either trust must still relate to an invoice', () => {
+        const socket = () =>
+          ({
+            destroyed: false,
+            writableEnded: false,
+            writable: true,
+            write: vi.fn(),
+            end: vi.fn(),
+          }) as unknown as TLSSocket;
+        const run = async (sock: TLSSocket) => {
+          const data = {
+            type: 'transporter' as const,
+            artifact: { ...artifact('BTPS_EVENT', payer, biller).artifact, relatesTo: 'doc-1' },
+          };
+          const reqCtx = {
+            socket: sock,
+            startTime: new Date().toISOString(),
+            remoteAddress: '127.0.0.1',
+            data,
+          } as unknown as BTPRequestCtx<'before', 'signatureVerification'>;
+          const resCtx = {
+            socket: sock,
+            startTime: new Date().toISOString(),
+            remoteAddress: '127.0.0.1',
+            reqId: 'test-req-id',
+            data,
+            responseSent: false,
+            sendRes: () => {},
+            sendError: () => {},
+          } as unknown as BTPResponseCtx<'before', 'signatureVerification'>;
+          await server['executeRequestPipeline'](reqCtx, resCtx);
+          return reqCtx;
+        };
+
+        beforeEach(async () => {
+          const utils = await import('../../core/utils/index.js');
+          vi.spyOn(utils, 'resolvePublicKey').mockResolvedValue(
+            '-----BEGIN PUBLIC KEY-----\nTEST\n-----END PUBLIC KEY-----',
+          );
+          const crypto = await import('../../core/crypto/index.js');
+          vi.spyOn(crypto, 'verifySignature').mockReturnValue({ isValid: true });
+        });
+
+        it("refuses the payer's event over the biller's trust when relatesTo is not a known invoice", async () => {
+          storeHolding(record(biller, payer));
+          const isKnown = vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(false);
+          const sock = socket();
+
+          const reqCtx = await run(sock);
+
+          expect(isKnown).toHaveBeenCalledWith({ artifactId: 'doc-1', from: payer, to: biller });
+          expect(reqCtx.isTrusted).toBe(false);
+          expect(reqCtx.error?.code).toBe(BTP_ERROR_EVENT_UNRELATED.code);
+          const written = JSON.parse(
+            (sock.write as Mock).mock.calls[0][0] as string,
+          ) as BTPServerResponse;
+          expect(written.type).toBe('btps_error');
+          expect(written.status.message).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.message);
+        });
+
+        it("accepts the payer's event over the biller's trust when relatesTo is a known invoice", async () => {
+          storeHolding(record(biller, payer));
+          vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(true);
+
+          const reqCtx = await run(socket());
+
+          expect(reqCtx.isTrusted).toBe(true);
+          expect(reqCtx.error).toBeUndefined();
+        });
       });
     });
 

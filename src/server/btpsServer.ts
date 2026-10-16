@@ -980,6 +980,14 @@ export class BtpsServer {
     const computedTrustId = computeTrustId(artifact.from, artifact.to);
     const trustRecord = await this.trustStore.getById(computedTrustId);
 
+    // An event may also come back over the receiver's own trust to the sender:
+    // accepting someone's trust request lets them answer about what was sent
+    // to them. This applies to events only; anything else needs its own trust.
+    if (artifact.type === 'BTPS_EVENT' && !isTrustActive(trustRecord)) {
+      const ownTrust = await this.trustStore.getById(computeTrustId(artifact.to, artifact.from));
+      if (isTrustActive(ownTrust)) return { isTrusted: true, error: undefined };
+    }
+
     if (artifact.type === 'TRUST_REQ') {
       const { isValid, error } = validateTrustRequest(trustRecord);
       return { isTrusted: isValid, error };
