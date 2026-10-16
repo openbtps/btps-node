@@ -15,9 +15,11 @@ const failing = (results) =>
     .sort();
 
 describe('SDK checks', () => {
-  it('every item check can pass: a fake SDK with items 5, 6 and 10 fixed passes them all', async () => {
+  it('every regression check can pass: a fake SDK with the 1.1 fixes passes them all', async () => {
     const results = await runChecks(sdkChecks(createFixedSdkFake(), set));
-    expect(results.filter((r) => r.item).length).toBeGreaterThanOrEqual(11);
+    expect(
+      results.filter((r) => /^sdk\/(jcs|selectors|defects)\//.test(r.id)).length,
+    ).toBeGreaterThanOrEqual(11);
     expect(failing(results)).toEqual([]);
   });
 
@@ -28,11 +30,11 @@ describe('SDK checks', () => {
     expect(failing(results)).toEqual(Object.keys(known.checks).sort());
   });
 
-  it('every known-failing entry names an item check and an owning ticket', () => {
+  it('every known-failing entry names an SDK check and what fixes it', () => {
     const known = JSON.parse(fs.readFileSync(KNOWN_FAILING, 'utf8'));
-    for (const [id, ticket] of Object.entries(known.checks)) {
-      expect(id).toMatch(/^sdk\/item-(5|6|7|10)\//);
-      expect(ticket).toMatch(/^EBA-\d+$/);
+    for (const [id, note] of Object.entries(known.checks)) {
+      expect(id).toMatch(/^sdk\/(jcs|selectors|documents|defects)\//);
+      expect(typeof note === 'string' && note.trim().length > 0).toBe(true);
     }
   });
 

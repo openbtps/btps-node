@@ -1,5 +1,5 @@
 {
-  "description": "BTPS 1.1 item 5: signatures are over the RFC 8785 (JCS) form of the payload. Every input of an accept case must verify against signatureBase64, and signing any of them must reproduce it. A reject case carries duplicate member names and a signature over its raw bytes; it must be refused.",
+  "description": "BTPS 1.1 canonical signing: signatures are over the RFC 8785 (JCS) form of the payload. Every input of an accept case must verify against signatureBase64, and signing any of them must reproduce it. A reject case carries duplicate member names and a signature over its raw bytes; it must be refused.",
   "keyVector": "kms-signature.vector.json",
   "algorithm": "RSASSA_PKCS1_V1_5_SHA_256",
   "cases": [

@@ -6,7 +6,7 @@
  */
 
 /*
- * EBA-116 (BTPS 1.1 item 6): the sender's key is found at signatureSelector,
+ * Separate selectors: the sender's key is found at signatureSelector,
  * the receiver's at encryptionSelector. Real keys; only DNS lookup is faked.
  */
 
@@ -76,7 +76,7 @@ const send = async (signWith: 'btps1' | 'btps2', encryptTo: 'btps1' | 'btps2') =
   };
 };
 
-describe('key selection (EBA-116)', () => {
+describe('key selection', () => {
   beforeEach(() => {
     vi.mocked(utils.resolvePublicKey).mockImplementation(
       async (identity: string, selector: string) => published[identity]?.[selector]?.publicKey,
