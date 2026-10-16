@@ -63,7 +63,7 @@ export const BTP_ERROR_TRUST_REVOKED: BTPError = {
 };
 
 /**
- * EBA-444 (fix list 8): a `BTPS_DOC` or `BTPS_EVENT` whose encryption does
+ * A `BTPS_DOC` or `BTPS_EVENT` whose encryption does
  * not match the trust's agreed `privacyType`: unencrypted on an `encrypted`
  * trust, or encrypted on an `unencrypted` one. Sent with its own code: the
  * sender agreed the privacy type, so telling it costs nothing, and only a

@@ -101,7 +101,7 @@ class MapTrustStore extends AbstractTrustStore<BTPTrustRecord> {
       publicKeyBase64: 'key',
       publicKeyFingerprint: 'fp',
       keyHistory: [],
-      // These tests are about direction; privacy is enforced (EBA-444) and tested in privacy.test.ts.
+      // These tests are about direction; privacy is enforced and tested in privacy.test.ts.
       privacyType: 'mixed',
       ...overrides,
     });

@@ -187,7 +187,7 @@ about an invoice between A and B.
   `BTPS_DOC`. The receiving platform applies the same checks after it
   decrypts (below).
 
-The server enforces `privacyType` (fix-list item 8, EBA-444): an
+The server enforces `privacyType`: an
 unencrypted event on an `encrypted` trust, or an encrypted one on an
 `unencrypted` trust, is refused with `BTP_ERROR_TRUST_PRIVACY`. The record
 that admitted the event governs: for an event admitted over the flipped

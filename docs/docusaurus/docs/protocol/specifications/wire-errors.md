@@ -47,7 +47,7 @@ The table lives in one place in the SDK, `BTP_WIRE_ERRORS` in
   that it was blocked. The precise reason stays on the server, in the request
   context's `error`. The table enforces this for middleware too: a middleware
   that answers with `BTP_ERROR_TRUST_REVOKED` sends `BTP_ERROR_TRUST_NOT_ALLOWED`.
-- **A privacy refusal is told apart (EBA-444).** When a trust is active but
+- **A privacy refusal is told apart.** When a trust is active but
   the artifact's form breaks its agreed `privacyType`, the server sends
   `BTP_ERROR_TRUST_PRIVACY`. The sender agreed the privacy type, so this tells
   it nothing new, and only a resend in the other form can succeed.

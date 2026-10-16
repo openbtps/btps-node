@@ -5,7 +5,7 @@
  * The middleware can be used for rate limiting, metrics, logging, custom validation, etc.
  *
  * The server's default middleware (createDefaultMiddleware) always runs before
- * this file's, so it is not included here (EBA-187):
+ * this file's, so it is not included here:
  * 1. rate limiting by network address (before parsing);
  * 2. rate limiting by verified identity (after signature verification);
  * 3. metrics and error logging.

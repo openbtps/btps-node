@@ -31,8 +31,8 @@ export class MiddlewareManager {
   /**
    * @param middlewarePath - The platform's middleware file; defaults to
    *   `btps.middleware.mjs` in the working directory. A missing file is no error.
-   * @param defaultMiddleware - What runs before the file's middleware
-   *   (EBA-187): `undefined` for createDefaultMiddleware(), an array to
+   * @param defaultMiddleware - What runs before the file's middleware:
+   *   `undefined` for createDefaultMiddleware(), an array to
    *   replace it, `false` for none.
    */
   constructor(

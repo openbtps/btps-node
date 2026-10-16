@@ -657,7 +657,7 @@ export class BtpsServer {
       // never-trusted sender.
       // A refused registration says why: no store, no token, a bad,
       // used or another identity's token.
-      // A privacy refusal says so (EBA-444): only the other form can succeed.
+      // A privacy refusal says so: only the other form can succeed.
       const toldApart = [...REGISTRATION_ERRORS, BTP_ERROR_TRUST_PRIVACY].find(
         (e) => e.code === reqCtx.error?.code,
       );
@@ -1191,7 +1191,7 @@ export class BtpsServer {
       );
       if (!isTrusted) return { isTrusted, error: this.getTrustRefusalError(record) };
       // The record that granted it governs its privacy: the flipped one when
-      // the event came over the flipped trust (EBA-444).
+      // the event came over the flipped trust.
       return this.checkPrivacy(artifact, record);
     }
 
@@ -1209,7 +1209,7 @@ export class BtpsServer {
   }
 
   /**
-   * EBA-444 (fix list 8): an active trust admits a `BTPS_DOC` or
+   * An active trust admits a `BTPS_DOC` or
    * `BTPS_EVENT` only in the form its `privacyType` agreed. Not applied to
    * TRUST_REQ and TRUST_RES, which negotiate the agreement.
    */

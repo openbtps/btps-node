@@ -83,7 +83,7 @@ export interface BtpsServerOptions {
   connectionTimeoutMs?: number;
   middlewarePath?: string; // Path to btps.middleware.mjs file
   /**
-   * The middleware that runs before the middleware file's (EBA-187): rate
+   * The middleware that runs before the middleware file's: rate
    * limiting by network address before parsing and by verified identity
    * after signature verification, and metrics. Always loaded unless this
    * says otherwise:
@@ -95,7 +95,7 @@ export interface BtpsServerOptions {
    */
   defaultMiddleware?: MiddlewareDefinitionArray | false;
   /**
-   * The longest line read, in characters (fix list 10). Defaults to
+   * The longest line read, in characters. Defaults to
    * BTP_MAX_LINE_LENGTH, sized to the document caps. A server may set it
    * lower, and then refuses artifacts near the caps; a longer line is
    * answered BTP_ERROR_LINE_TOO_LONG and the connection closed.

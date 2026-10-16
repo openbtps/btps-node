@@ -36,7 +36,7 @@ export const isTrustActive = (trust?: BTPTrustRecord): boolean => {
 
 /**
  * Whether a trust's agreed `privacyType` allows an artifact that is, or is
- * not, encrypted (EBA-444, fix list 8):
+ * not, encrypted:
  * - `encrypted`: only encrypted;
  * - `unencrypted`: only unencrypted;
  * - `mixed`: either;

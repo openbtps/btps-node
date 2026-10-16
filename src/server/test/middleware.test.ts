@@ -93,7 +93,7 @@ describe('MiddlewareManager', () => {
 
   beforeEach(async () => {
     middlewareFile = getUniqueMiddlewareFile();
-    // These tests are about the file: without the defaults (EBA-187), tested below.
+    // These tests are about the file: without the default middleware, tested below.
     middlewareManager = new MiddlewareManager(middlewareFile, false);
     // Ensure no leftover middleware file before each test
     if (existsSync(TEST_FILE)) await fs.unlink(TEST_FILE);
@@ -274,8 +274,8 @@ export default function () {
     });
   });
 
-  // EBA-187 (fix list 11): the defaults are always loaded, before the file,
-  // unless the server option turns them off or replaces them.
+  // The default middleware is always loaded, before the file,
+  // unless the server option turns it off or replaces it.
   describe('default middleware', () => {
     const trustStore = () => new JsonTrustStore({ connection: TEST_FILE, entityName: 'trusted' });
     const names = (mws: { config?: { name?: string } }[]) => mws.map((mw) => mw.config?.name);

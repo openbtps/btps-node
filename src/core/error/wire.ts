@@ -62,7 +62,7 @@ export const BTP_WIRE_ERRORS: readonly BTPWireErrorRule[] = Object.freeze([
   rule(E.BTP_ERROR_TRUST_REVOKED, 403, false, E.BTP_ERROR_TRUST_NOT_ALLOWED),
   rule(E.BTP_ERROR_TRUST_BLOCKED, 403, false, E.BTP_ERROR_TRUST_NOT_ALLOWED),
   rule(E.BTP_ERROR_TRUST_ALREADY_ACTIVE, 403, false, E.BTP_ERROR_TRUST_NOT_ALLOWED),
-  // 403: trusted, but not in this form (EBA-444): told apart, the sender agreed it
+  // 403: trusted, but not in this form: told apart, the sender agreed it
   rule(E.BTP_ERROR_TRUST_PRIVACY, 403, false),
   // 403: protocol violations
   rule(E.BTP_ERROR_ISSUED_AT_WINDOW, 403, false),

@@ -641,7 +641,7 @@ export default function () {
           entityName: 'trusted_sender',
         }),
         middlewarePath: middlewareFile,
-        // Only the file's middleware: the defaults (EBA-187) are tested in rateLimit.test.ts.
+        // Only the file's middleware: the default middleware is tested in rateLimit.test.ts.
         defaultMiddleware: false,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
         tlsOptions: {
@@ -760,7 +760,7 @@ export default function () {
           entityName: 'trusted_sender',
         }),
         middlewarePath: middlewareFile,
-        // Only the file's middleware: the defaults (EBA-187) are tested in rateLimit.test.ts.
+        // Only the file's middleware: the default middleware is tested in rateLimit.test.ts.
         defaultMiddleware: false,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
         tlsOptions: {
