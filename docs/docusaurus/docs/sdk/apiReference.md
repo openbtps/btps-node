@@ -1112,7 +1112,7 @@ Error constant for trust requests not allowed at this time.
 
 This is also the response a sender receives for a **revoked** trust record: on the wire, revoked and never-trusted produce an identical response body (the same `code`, `message` and `status.code` 403), so a sender who was removed cannot tell their refusal apart from one who was never trusted. The server's own context keeps the precise reason (see `BTP_ERROR_TRUST_REVOKED` below).
 
-Since BTPS 1.1 (EBA-188) every error response carries its stable `code` and the status class of that code; see [Wire Errors](../protocol/specifications/wire-errors.md) for the table, which also says which codes are retryable.
+Since BTPS 1.1 every error response carries its stable `code` and the status class of that code; see [Wire Errors](../protocol/specifications/wire-errors.md) for the table, which also says which codes are retryable.
 
 ---
 

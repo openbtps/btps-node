@@ -264,7 +264,7 @@ export type BTPServerResponse<T = BTPServerResDocs> = {
   id: string;
   issuedAt: string;
   type: 'btps_error' | 'btps_response';
-  /** On a `btps_error`, the stable error code a sender decides retry by (EBA-188). */
+  /** On a `btps_error`, the stable error code a sender decides retry by. */
   code?: string;
   reqId?: string;
   document?: T;

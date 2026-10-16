@@ -306,7 +306,7 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
     // Validate the auth token
     const validation = await auth.validateAuthToken(agentId, authRequest.authToken);
     if (!validation.isValid) {
-      // A constant from @btps/sdk/error: it goes out with its own code and status (EBA-188).
+      // A constant from @btps/sdk/error: it goes out with its own code and status.
       resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
       return;
     }

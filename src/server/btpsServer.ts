@@ -1402,7 +1402,7 @@ export class BtpsServer {
 
   /**
    * Sends a BTPS error response to the client: the error's stable code,
-   * status class and fixed message from the wire error table (EBA-188). The
+   * status class and fixed message from the wire error table. The
    * error's own message never reaches the socket, and a code the table does
    * not know goes out as BTP_ERROR_UNKNOWN.
    */

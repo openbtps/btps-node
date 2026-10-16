@@ -180,7 +180,7 @@ describe('package exports (identity lookup)', () => {
   });
 });
 
-describe('package exports (EBA-188, wire error codes)', () => {
+describe('package exports (wire error codes)', () => {
   it.each([
     ['./error', 'toWireError'],
     ['./error', 'isRetryableError'],

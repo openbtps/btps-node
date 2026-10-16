@@ -43,8 +43,7 @@ export const BTP_ERROR_TRUST_NOT_ALLOWED: BTPError = {
 };
 
 /**
- * EBA-124 (option B, decided 2026-10-06): the one trust refusal a sender can
- * tell apart on the wire. It goes out with its own `code`; every other
+ * The one trust refusal a sender can tell apart on the wire. It goes out with its own `code`; every other
  * refusal goes out as BTP_ERROR_TRUST_NOT_ALLOWED (see BTP_WIRE_ERRORS).
  */
 export const BTP_ERROR_TRUST_EXPIRED: BTPError = {

@@ -240,7 +240,7 @@ export class BtpsClient {
         resolve({
           response: validSignature ? msg : undefined,
           // An error answer is returned as an error too, so a sender decides
-          // retry by its code and `retryable` (EBA-188).
+          // retry by its code and `retryable`.
           error: !validSignature
             ? error
             : msg.type === 'btps_error'
@@ -597,13 +597,13 @@ export class BtpsClient {
    * @returns True if the error is non-retryable, false otherwise
    */
   protected isNonRetryableError(err: unknown): boolean {
-    // By code, from the wire error table (EBA-188); never by message text.
+    // By code, from the wire error table; never by message text.
     if (err instanceof BTPErrorException) return !err.retryable;
     return !isRetryableError((err as { code?: string | number } | undefined)?.code);
   }
 
   /**
-   * The error a `btps_error` answer is handed back with (EBA-188): its stable
+   * The error a `btps_error` answer is handed back with: its stable
    * code, the server's status, and whether the same artifact may be sent again.
    */
   protected wireErrorToException(msg: BTPServerResponse): BTPErrorException {
