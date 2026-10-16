@@ -286,3 +286,19 @@ export interface BTPInvoiceDoc {
   };
   metadata?: Record<string, unknown>; // the sending platform's own data
 }
+
+/** A credit note: the invoice's shape, crediting a positive amount, naming the invoice it credits. */
+export interface BTPCreditNoteDoc {
+  type: 'credit_note';
+  title: string;
+  id: string; // the credit note number, unique per sender
+  issuedAt: string; // ISO format
+  totalAmount: BTPInvoiceDoc['totalAmount']; // more than zero
+  lineItems: BTPInvoiceDoc['lineItems'];
+  issuer?: BTPInvoiceDoc['issuer'];
+  description?: string;
+  attachments?: BTPAttachment[];
+  references: BTPDocReference[]; // at least one of type 'credits'
+  reason?: string; // why it was credited
+  metadata?: Record<string, unknown>;
+}

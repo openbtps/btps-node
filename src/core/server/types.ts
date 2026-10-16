@@ -7,7 +7,7 @@
 
 import { BTPSignature, BTPEncryption } from '@core/crypto/types.js';
 import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
-import { BTPInvoiceDoc } from '../../server/types.js';
+import { BTPCreditNoteDoc, BTPInvoiceDoc } from '../../server/types.js';
 import {
   AGENT_ACTIONS,
   AGENT_ACTIONS_REQUIRING_DOCUMENT,
@@ -22,7 +22,7 @@ export type CurrencyCode = (typeof CURRENCY_CODES)[number];
 export type AgentAction = (typeof AGENT_ACTIONS)[number];
 export type AgentActionRequiringDocument = (typeof AGENT_ACTIONS_REQUIRING_DOCUMENT)[number];
 
-export type BTPDocType = BTPInvoiceDoc | BTPTrustReqDoc | BTPTrustResDoc;
+export type BTPDocType = BTPInvoiceDoc | BTPCreditNoteDoc | BTPTrustReqDoc | BTPTrustResDoc;
 
 export type BTPAttestation = {
   signedBy: string;

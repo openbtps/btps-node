@@ -16,7 +16,7 @@ import {
 import { BTPArtifactType, AgentAction, AgentActionRequiringDocument } from '../types.js';
 import {
   BtpAuthReqDocSchema,
-  BtpInvoiceDocSchema,
+  BtpDocumentSchema,
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
 } from './btpsDocsSchema.js';
@@ -28,7 +28,7 @@ export const processBtpDocSchema = (bptArtifactType: BTPArtifactType) => {
     case 'TRUST_REQ':
       return BtpTrustReqDocSchema;
     case 'BTPS_DOC':
-      return BtpInvoiceDocSchema;
+      return BtpDocumentSchema;
     default:
       return null;
   }
@@ -41,7 +41,7 @@ export const processBtpDocSchemaForAgent = (actionType: string) => {
     'trust.respond': BtpTrustResDocSchema,
     'trust.update': BtpAgentMutationSchema,
     'trust.delete': BtpIdsPayloadSchema,
-    'artifact.send': BtpInvoiceDocSchema,
+    'artifact.send': BtpDocumentSchema,
     'auth.request': BtpAuthReqDocSchema,
     'auth.refresh': BtpAuthReqDocSchema,
     'inbox.fetch': BtpAgentQuerySchema,

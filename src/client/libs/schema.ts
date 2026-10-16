@@ -18,6 +18,7 @@ import { identitySchema } from '@core/server/schemas/shared.js';
 import { validateAgentDocument } from '@core/server/schemas/helpers.js';
 import {
   BtpAuthReqDocSchema,
+  BtpCreditNoteDocSchema,
   BtpInvoiceDocSchema,
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
@@ -31,6 +32,7 @@ export const BtpsAgentCommandDocumentSchema = z
     BtpTrustReqDocSchema,
     BtpTrustResDocSchema,
     BtpInvoiceDocSchema,
+    BtpCreditNoteDocSchema,
     BtpAuthReqDocSchema,
     BtpAgentQuerySchema,
     BtpAgentMutationSchema,

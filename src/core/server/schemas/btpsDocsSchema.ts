@@ -126,6 +126,36 @@ export const BtpInvoiceDocSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 }).strict();
 
+/**
+ * A credit note: the invoice's shape, crediting a positive amount (its
+ * `type`, not a sign, says it is a credit). It names the invoice it credits
+ * with a `credits` reference, and may say why in `reason`.
+ */
+export const BtpCreditNoteDocSchema = z.object({
+  type: z.literal('credit_note'),
+  title: z.string(),
+  id: z.string(), // the credit note number, unique per sender
+  issuedAt: z.string().datetime(),
+  totalAmount: BtpMoneySchema.extend({ amount: z.number().int().safe().positive() }),
+  lineItems: BtpInvoiceDocSchema.shape.lineItems,
+  issuer: BtpInvoiceDocSchema.shape.issuer,
+  description: z.string().optional(),
+  attachments: z.array(BtpAttachmentSchema).optional(),
+  references: z
+    .array(BtpDocReferenceSchema)
+    .refine((references) => references.some((reference) => reference.type === 'credits'), {
+      message: 'a credit note must name the invoice it credits with a "credits" reference',
+    }),
+  reason: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+}).strict();
+
+/** The document a `BTPS_DOC` carries, told apart by `type`. */
+export const BtpDocumentSchema = z.discriminatedUnion('type', [
+  BtpInvoiceDocSchema,
+  BtpCreditNoteDocSchema,
+]);
+
 // Schema for BTPAuthReqDoc (used in agent artifacts)
 export const BtpAuthReqDocSchema = z.object({
   identity: identitySchema,
@@ -153,4 +183,5 @@ export const BtpDocSchema = z.union([
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
   BtpInvoiceDocSchema,
+  BtpCreditNoteDocSchema,
 ]);

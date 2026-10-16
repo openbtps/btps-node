@@ -22,7 +22,10 @@ import {
   BtpsAgentActionTypeSchema,
 } from '../../core/server/schemas/schema.js';
 import { identitySchema } from '../../core/server/schemas/shared.js';
-import { BtpInvoiceDocSchema } from '../../core/server/schemas/btpsDocsSchema.js';
+import {
+  BtpCreditNoteDocSchema,
+  BtpInvoiceDocSchema,
+} from '../../core/server/schemas/btpsDocsSchema.js';
 
 describe('BtpsAgent Schema Validation', () => {
   describe('BtpsAgentCommandSchema', () => {
@@ -500,6 +503,59 @@ describe('BtpsAgent Schema Validation', () => {
           attachments: [{ ...invoice.attachments[0], sha256: 'A'.repeat(64) }],
         }).success,
       ).toBe(false);
+    });
+
+    describe('credit note', () => {
+      const sha256 = 'b'.repeat(64);
+      const creditNote = {
+        type: 'credit_note',
+        title: 'Credit for INV-001',
+        id: 'CN-001',
+        issuedAt: new Date().toISOString(),
+        totalAmount: { amount: 2500, currency: 'AUD' },
+        lineItems: { columns: ['Item', 'Amount'], rows: [{ Item: 'Returned part', Amount: 2500 }] },
+        references: [{ type: 'credits', from: 'billing$acme.com', id: 'INV-001', sha256 }],
+        reason: 'Part returned',
+      };
+      const asBtpsDoc = (document: unknown) =>
+        BtpTransporterArtifactSchema.safeParse({
+          version: '1.0.0',
+          issuedAt: new Date().toISOString(),
+          id: 'artifact-1',
+          type: 'BTPS_DOC',
+          from: 'billing$acme.com',
+          to: 'pay$client.com',
+          signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
+          encryption: null,
+          selector: 'btps1',
+          document,
+        }).success;
+
+      it('is carried by a BTPS_DOC, as an invoice is', () => {
+        expect(BtpCreditNoteDocSchema.safeParse(creditNote).success).toBe(true);
+        expect(asBtpsDoc(creditNote)).toBe(true);
+      });
+
+      it('must name the invoice it credits with a credits reference', () => {
+        const { references, ...withoutReferences } = creditNote;
+        expect(asBtpsDoc(withoutReferences)).toBe(false);
+        expect(
+          asBtpsDoc({ ...creditNote, references: [{ ...references[0], type: 'correction_of' }] }),
+        ).toBe(false);
+      });
+
+      it('credits a positive amount', () => {
+        expect(asBtpsDoc({ ...creditNote, totalAmount: { amount: 0, currency: 'AUD' } })).toBe(
+          false,
+        );
+        expect(asBtpsDoc({ ...creditNote, totalAmount: { amount: -2500, currency: 'AUD' } })).toBe(
+          false,
+        );
+      });
+
+      it('refuses a field the credit note does not name', () => {
+        expect(asBtpsDoc({ ...creditNote, dueAt: new Date().toISOString() })).toBe(false);
+      });
     });
 
     it('should validate agent create document', () => {
