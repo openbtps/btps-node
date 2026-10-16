@@ -54,15 +54,19 @@ export class BtpsConfigService {
     const privateKey = this.configService.get<string>(
       'BTPS_IDENTITY_PRIVATE_KEY',
     );
+    // Where the server's key is published: <selector>._btps.identity.<account>.<domain>.
+    // Identity lookup answers are signed with it, and name it as signatureSelector.
+    const selector = this.configService.get<string>('BTPS_SERVER_SELECTOR');
 
-    if (!serverIdentity || !publicKey || !privateKey) {
+    if (!serverIdentity || !selector || !publicKey || !privateKey) {
       throw new Error(
-        'Missing required BTPS configuration: BTPS_SERVER_IDENTITY, BTPS_PUBLIC_KEY, or BTPS_PRIVATE_KEY',
+        'Missing required BTPS configuration: BTPS_SERVER_IDENTITY, BTPS_SERVER_SELECTOR, BTPS_IDENTITY_PUBLIC_KEY, or BTPS_IDENTITY_PRIVATE_KEY',
       );
     }
 
     return {
       identity: serverIdentity,
+      selector,
       publicKey: Buffer.from(publicKey, 'base64').toString('utf8'),
       privateKey: Buffer.from(privateKey, 'base64').toString('utf8'),
     };
