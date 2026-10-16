@@ -231,7 +231,7 @@ const client = new BtpsClient({
 const artifact = await client.send({
   to: 'bob$example.com',
   type: 'BTPS_DOC',
-  selector: 'btps2', // Specify new selector
+  signatureSelector: 'btps2', // the new signing key
   document: {
     title: 'Invoice #123',
     // ... document content
@@ -245,7 +245,7 @@ const artifact = await client.send({
 // Verification automatically resolves the correct public key
 // based on the selector in the artifact
 const isValid = await verifyArtifact(artifact);
-// Uses selector from artifact.selector to resolve public key
+// Uses artifact.signatureSelector to resolve the sender's public key
 ```
 
 ## Best Practices
@@ -416,7 +416,7 @@ class KeyRotationManager {
     return await this.client.send({
       to: recipient,
       type: 'BTPS_DOC',
-      selector,
+      signatureSelector: selector,
       document,
     });
   }

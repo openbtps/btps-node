@@ -82,7 +82,7 @@ describe('BtpArtifactServerSchema', () => {
         expiresAt: '2024-12-31T23:59:59.000Z',
         privacyType: 'unencrypted',
       },
-      selector: 'default',
+      signatureSelector: 'default',
     };
 
     const result = BtpArtifactServerSchema.safeParse(validTransporter);

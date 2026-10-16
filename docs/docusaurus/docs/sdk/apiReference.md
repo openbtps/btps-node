@@ -414,10 +414,10 @@ const canDelegate = isDelegationAllowed(artifact);
 ```ts
 signEncrypt<T>(
   to: string | undefined,
-  sender: ParsedIdentity & { pemFiles: PemKeys },
+  sender: ParsedIdentity & { pemFiles: PemKeys; selector: string },
   payload: {
     document: T;
-    selector?: string;
+    encryptionSelector?: string;
     [key: string]: unknown;
   },
   options?: BTPCryptoOptions
@@ -425,15 +425,15 @@ signEncrypt<T>(
 ```
 
 **Description:**
-Signs and (optionally) encrypts a BTPS document for secure transmission. Handles key lookup, encryption, and signature in one step. Now supports key rotation through selector-based public key resolution.
+Signs and (optionally) encrypts a BTPS document for secure transmission. Handles key lookup, encryption, and signature in one step. The artifact names the sender's signing key (`signatureSelector`) and, when encrypted, the receiver's key (`encryptionSelector`), so each side can rotate its key independently.
 
 **Arguments:**
 
 - `to` (`string | undefined`, required): Recipient BTPS identity. If undefined, no encryption is performed.
-- `sender` (`ParsedIdentity & { pemFiles: PemKeys }`, required): Sender identity and PEM key pair.
+- `sender` (`ParsedIdentity & { pemFiles: PemKeys; selector: string }`, required): Sender identity, PEM key pair, and the selector its public key is published at. It becomes the artifact's `signatureSelector`.
 - `payload` (object, required): Document and metadata to send.
   - `document` (`T`, required): The document payload.
-  - `selector` (`string`, optional): The selector to use for public key resolution (e.g., 'btps1', 'btps2'). Required for encryption when `to` is provided.
+  - `encryptionSelector` (`string`, optional): The receiver's selector to resolve the encryption key at (e.g., 'btps1'). Required for encryption when `to` is provided. The 1.0 `selector` field is refused.
   - `[key: string]` (`unknown`): Additional metadata fields.
 - `options` (`BTPCryptoOptions`, optional): Signature and encryption options.
 
@@ -447,13 +447,18 @@ Signs and (optionally) encrypts a BTPS document for secure transmission. Handles
 import { signEncrypt } from '@btps/sdk/crypto';
 const { payload, error } = await signEncrypt(
   'pay$client.com',
-  { accountName: 'billing', domainName: 'vendorcorp.com', pemFiles: { publicKey, privateKey } },
+  {
+    accountName: 'billing',
+    domainName: 'vendorcorp.com',
+    selector: 'btps2', // your signing key
+    pemFiles: { publicKey, privateKey },
+  },
   {
     type: 'BTPS_DOC',
     document: {
       /* ... */
     },
-    selector: 'btps1', // Specify selector for key rotation support
+    encryptionSelector: 'btps1', // the receiver's key to encrypt to
   },
   {
     signature: { algorithmHash: 'sha256' },

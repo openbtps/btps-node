@@ -888,11 +888,56 @@ describe('BtpsAgent Schema Validation', () => {
             expiresAt: '2024-12-31T23:59:59.000Z',
             privacyType: 'unencrypted',
           },
-          selector: 'default',
+          signatureSelector: 'default',
         };
 
         const result = BtpTransporterArtifactSchema.safeParse(validTransporter);
         expect(result.success).toBe(true);
+      });
+
+      it('refuses a transporter artifact that names no signatureSelector', () => {
+        const legacy = {
+          version: '1.0.0',
+          issuedAt: '2025-01-01T00:00:00.000Z',
+          id: 'trust-req-123',
+          type: 'TRUST_REQ',
+          from: 'alice$example.com',
+          to: 'bob$example.com',
+          signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
+          encryption: null,
+          document: { id: 'r', name: 'n', email: 'e@example.com', reason: 'r', phone: '1' },
+          selector: 'btps1',
+        };
+
+        const result = BtpTransporterArtifactSchema.safeParse(legacy);
+        expect(result.success).toBe(false);
+      });
+
+      it('refuses an encrypted transporter artifact that names no encryptionSelector', () => {
+        const encrypted = {
+          version: '1.0.0',
+          issuedAt: '2025-01-01T00:00:00.000Z',
+          id: 'doc-1',
+          type: 'BTPS_DOC',
+          from: 'alice$example.com',
+          to: 'bob$example.com',
+          signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
+          encryption: {
+            algorithm: 'aes-256-gcm',
+            encryptedKey: 'key',
+            iv: 'iv',
+            type: 'standardEncrypt',
+            authTag: 'tag',
+          },
+          document: 'ciphertext',
+          signatureSelector: 'btps2',
+        };
+
+        expect(BtpTransporterArtifactSchema.safeParse(encrypted).success).toBe(false);
+        expect(
+          BtpTransporterArtifactSchema.safeParse({ ...encrypted, encryptionSelector: 'btps1' })
+            .success,
+        ).toBe(true);
       });
     });
   });

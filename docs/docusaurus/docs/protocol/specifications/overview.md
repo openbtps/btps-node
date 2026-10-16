@@ -158,7 +158,7 @@ All BTPS messages follow a standardized envelope structure:
     "encryptedKey": "base64-encoded-encrypted-key",
     "iv": "base64-encoded-initialization-vector"
   },
-  "selector": "btps1",
+  "encryptionSelector": "btps1",
   "delegation": {
     // only used for delegated artifacts
     "agentId": "agentId",
@@ -197,6 +197,8 @@ All BTPS messages follow a standardized envelope structure:
 - `document`: The actual document content
 - `signature`: Cryptographic signature for authenticity
 - `encryption`: Encryption details (null for unencrypted messages)
+- `signatureSelector`: Selector of the sender key that signed it (absent on a delegated artifact)
+- `encryptionSelector`: Selector of the receiver key the document was encrypted to (present exactly when encrypted)
 - `delegation`: Artifacts that was delegated for agents
 
 ---

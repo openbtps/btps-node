@@ -21,12 +21,9 @@ const pemToTxtBase64 = (pem) =>
   pem.replace(/-----(BEGIN|END) PUBLIC KEY-----/g, '').replace(/\s+/g, '');
 
 /**
- * ADAPTER — item 6 call shape. On 367cd09 the caller passes one `selector`
- * (the receiver's) in the payload, and `sender` has no selector at all.
- * The sender's selector is offered two ways a 1.1 SDK might read it — on
- * the sender object and in the sender domain's _btps.host record — so the
- * check does not dictate EBA-116's API. If EBA-116 changes how a caller
- * asks for encryption, update this function and say so on EBA-116.
+ * ADAPTER: the signEncrypt call shape for separate selectors. The caller
+ * names the receiver key to encrypt to as `encryptionSelector` in the
+ * payload, and the sender's signing key as `sender.selector`.
  */
 async function produceItem6Artifact(sdk, vector) {
   const [senderAccount, senderDomain] = vector.sender.identity.split('$');
@@ -42,7 +39,7 @@ async function produceItem6Artifact(sdk, vector) {
   return sdk.crypto.signEncrypt(
     vector.receiver.identity,
     sender,
-    { ...vector.artifact, selector: vector.receiver.hostSelector },
+    { ...vector.artifact, encryptionSelector: vector.receiver.hostSelector },
     {
       signature: { algorithmHash: 'sha256' },
       encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },

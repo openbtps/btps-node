@@ -221,8 +221,9 @@ export class BtpsAgent extends BtpsClient {
       document: encryptedDocument as BTPDocType | string,
       from: this.options.to,
       to: to,
-      selector: receiverDnsTxt.selector,
       encryption: encryption,
+      // No signatureSelector: the device signs it, through the delegation its server adds.
+      ...(encryption ? { encryptionSelector: receiverDnsTxt.selector } : {}),
     };
 
     try {

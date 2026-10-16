@@ -95,7 +95,7 @@ export function createFixedSdkFake() {
       }
     },
     async signEncrypt(to, sender, payload) {
-      const { selector: encryptionSelector, document, ...rest } = payload;
+      const { encryptionSelector, document, ...rest } = payload;
       const receiverPem = await resolvePublicKey(to, encryptionSelector);
       const aesKey = crypto.randomBytes(32);
       const iv = crypto.randomBytes(12);

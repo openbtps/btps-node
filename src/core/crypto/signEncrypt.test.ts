@@ -33,8 +33,8 @@ const mockCrypto = vi.mocked(cryptoIndex);
 const mockUtils = vi.mocked(utils);
 
 describe('signEncrypt', () => {
-  let sender: ParsedIdentity & { pemFiles: PemKeys };
-  let payload: { document: BTPTrustReqDoc; type: 'TRUST_REQ'; selector: string };
+  let sender: ParsedIdentity & { pemFiles: PemKeys; selector: string };
+  let payload: { document: BTPTrustReqDoc; type: 'TRUST_REQ'; encryptionSelector: string };
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -42,6 +42,7 @@ describe('signEncrypt', () => {
     sender = {
       accountName: 'sender',
       domainName: 'example.com',
+      selector: 'btps2',
       pemFiles: {
         privateKey: 'private-key',
         publicKey: 'public-key',
@@ -57,7 +58,7 @@ describe('signEncrypt', () => {
         id: 'mock-uuid',
       },
       type: 'TRUST_REQ',
-      selector: 'btps1',
+      encryptionSelector: 'btps1',
     };
 
     mockUtils.parseIdentity.mockReturnValue({ accountName: 'receiver', domainName: 'example.com' });
@@ -88,8 +89,30 @@ describe('signEncrypt', () => {
     expect(result.error).toBeUndefined();
     expect(result.payload?.id).toBe('mock-uuid');
     expect(result.payload?.document).toBe('encrypted-doc');
+    expect(result.payload?.signatureSelector).toBe('btps2');
+    expect(result.payload?.encryptionSelector).toBe('btps1');
+    expect(mockUtils.resolvePublicKey).toHaveBeenCalledWith('receiver$example.com', 'btps1');
     expect(mockCrypto.encryptBtpPayload).toHaveBeenCalled();
     expect(mockCrypto.signBtpPayload).toHaveBeenCalled();
+  });
+
+  it('names no encryptionSelector when the document is not encrypted', async () => {
+    const result = await signEncrypt('receiver$example.com', sender, payload);
+
+    expect(result.payload?.signatureSelector).toBe('btps2');
+    expect(result.payload).not.toHaveProperty('encryptionSelector');
+  });
+
+  it('refuses the 1.0 selector field instead of reading it as encryptionSelector', async () => {
+    const { encryptionSelector, ...rest } = payload;
+    const result = await signEncrypt('receiver$example.com', sender, {
+      ...rest,
+      selector: encryptionSelector,
+    });
+
+    expect(result.payload).toBeUndefined();
+    expect(result.error).toBeInstanceOf(BTPErrorException);
+    expect(mockCrypto.signBtpPayload).not.toHaveBeenCalled();
   });
 
   it('should handle payloads that do not require encryption', async () => {
@@ -190,6 +213,7 @@ describe('Key Rotation Integration Tests', () => {
     const sender = {
       accountName: 'alice',
       domainName: 'example.com',
+      selector: oldSelector,
       pemFiles: {
         privateKey: '-----BEGIN PRIVATE KEY-----\nOLD_ALICE_PRIVATE_KEY\n-----END PRIVATE KEY-----',
         publicKey: '-----BEGIN PUBLIC KEY-----\nOLD_ALICE_PUBLIC_KEY\n-----END PUBLIC KEY-----',
@@ -206,16 +230,16 @@ describe('Key Rotation Integration Tests', () => {
       value: 'old_signature_value',
     });
 
-    // Sign and encrypt with old selector
-    const result = await signEncrypt(to, sender, { document, selector: oldSelector });
+    // Sign with old selector; Bob's key is at his own btps1
+    const result = await signEncrypt(to, sender, { document, encryptionSelector: 'btps1' });
 
     expect(result.error).toBeUndefined();
     expect(result.payload).toBeDefined();
     expect(result.payload.signature).toBeDefined();
-    expect(result.payload.selector).toBe(oldSelector);
+    expect(result.payload.signatureSelector).toBe(oldSelector);
 
-    // Verify that resolvePublicKey was called with old selector
-    expect(mockResolvePublicKey).toHaveBeenCalledWith(to, oldSelector);
+    // The receiver key is resolved at the receiver's selector
+    expect(mockResolvePublicKey).toHaveBeenCalledWith(to, 'btps1');
   });
 
   it('should sign artifact with new selector and verify with new public key after rotation', async () => {
@@ -251,6 +275,7 @@ describe('Key Rotation Integration Tests', () => {
     const sender = {
       accountName: 'alice',
       domainName: 'example.com',
+      selector: newSelector,
       pemFiles: {
         privateKey: '-----BEGIN PRIVATE KEY-----\nNEW_ALICE_PRIVATE_KEY\n-----END PRIVATE KEY-----',
         publicKey: '-----BEGIN PUBLIC KEY-----\nNEW_ALICE_PUBLIC_KEY\n-----END PUBLIC KEY-----',
@@ -267,16 +292,16 @@ describe('Key Rotation Integration Tests', () => {
       value: 'new_signature_value',
     });
 
-    // Sign and encrypt with new selector
-    const result = await signEncrypt(to, sender, { document, selector: newSelector });
+    // Sign with new selector; Bob's key is at his own btps1
+    const result = await signEncrypt(to, sender, { document, encryptionSelector: 'btps1' });
 
     expect(result.error).toBeUndefined();
     expect(result.payload).toBeDefined();
     expect(result.payload.signature).toBeDefined();
-    expect(result.payload.selector).toBe(newSelector);
+    expect(result.payload.signatureSelector).toBe(newSelector);
 
-    // Verify that resolvePublicKey was called with new selector
-    expect(mockResolvePublicKey).toHaveBeenCalledWith(to, newSelector);
+    // The receiver key is resolved at the receiver's selector
+    expect(mockResolvePublicKey).toHaveBeenCalledWith(to, 'btps1');
   });
 
   it('should handle verification of artifact signed with old selector after rotation', async () => {

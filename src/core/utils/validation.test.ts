@@ -75,7 +75,8 @@ describe('BtpArtifactServerSchema superRefine', () => {
         type: 'standardEncrypt',
         authTag: 'authTag',
       },
-      selector: 'btps1',
+      signatureSelector: 'btps1',
+      encryptionSelector: 'btps1',
     };
     const result = BtpArtifactServerSchema.safeParse(data);
     expect(result.success).toBe(true);
@@ -93,7 +94,8 @@ describe('BtpArtifactServerSchema superRefine', () => {
         type: 'standardEncrypt',
         authTag: 'authTag',
       },
-      selector: 'btps1',
+      signatureSelector: 'btps1',
+      encryptionSelector: 'btps1',
     };
     const result = BtpArtifactServerSchema.safeParse(data);
     expect(result.success).toBe(false);
@@ -115,7 +117,7 @@ describe('BtpArtifactServerSchema superRefine', () => {
         phone: '123',
       },
       encryption: null,
-      selector: 'btps1',
+      signatureSelector: 'btps1',
     };
     const result = BtpArtifactServerSchema.safeParse(data);
     expect(result.success).toBe(true);
@@ -127,7 +129,7 @@ describe('BtpArtifactServerSchema superRefine', () => {
       type: 'TRUST_REQ',
       document: { foo: 'bar' },
       encryption: null,
-      selector: 'btps1',
+      signatureSelector: 'btps1',
     };
     const result = BtpArtifactServerSchema.safeParse(data);
     expect(result.success).toBe(false);
@@ -143,7 +145,7 @@ describe('BtpArtifactServerSchema superRefine', () => {
       type: 'unknown_type',
       document: {},
       encryption: null,
-      selector: 'btps1',
+      signatureSelector: 'btps1',
     };
     // Intentionally passing an invalid type to check runtime validation
     const result = BtpArtifactServerSchema.safeParse(data);

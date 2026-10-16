@@ -36,7 +36,7 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
     "type": "standardEncrypt",
     "authTag": "base64-encoded-authentication-tag"
   },
-  "selector": "btps1",
+  "encryptionSelector": "btps1",
   "delegation": {
     "agentId": "agentId",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
@@ -72,12 +72,15 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
 - **to**: Recipient's BTPS identity address
 - **document**: The actual document content
 - **signature**: Cryptographic signature for authenticity
-- **selector**: DNS selector for key management
+- **signatureSelector**: Selector of the `from` identity's key that signed the artifact. Required unless the artifact carries a `delegation`, which names its own signing key.
 
 **Optional Fields:**
 
 - **encryption**: Encryption details (null for unencrypted messages)
+- **encryptionSelector**: Selector of the `to` identity's key the document was encrypted to. Present exactly when `encryption` is.
 - **delegation**: Delegation information for agent-based operations
+
+The two selectors are separate so each side can rotate its own key: a sender that moved to a new signing key still encrypts to the receiver's current key, and the receiver knows which of its keys opens the document. An artifact with the single 1.0 `selector` field and no `signatureSelector` is refused.
 
 ## Supported Document Types
 

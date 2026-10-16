@@ -919,7 +919,9 @@ export class BtpsServer {
     }
 
     const { signature, ...signedMsg } = artifact;
-    const publicKey = await resolvePublicKey(artifact.from, artifact.selector);
+    const publicKey = artifact.signatureSelector
+      ? await resolvePublicKey(artifact.from, artifact.signatureSelector)
+      : undefined;
 
     if (!publicKey) {
       return { isValid: false, error: new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY) };

@@ -123,12 +123,18 @@ const { publicKey, privateKey } = await keygen('ed25519');
 import { signEncrypt } from '@btps/sdk/crypto';
 const { payload, error } = await signEncrypt(
   'pay$client.com',
-  { accountName: 'billing', domainName: 'vendorcorp.com', pemFiles: { publicKey, privateKey } },
+  {
+    accountName: 'billing',
+    domainName: 'vendorcorp.com',
+    selector: 'btps1', // your signing key
+    pemFiles: { publicKey, privateKey },
+  },
   {
     type: 'BTPS_DOC',
     document: {
       /* ... */
     },
+    encryptionSelector: 'btps1', // the receiver's key to encrypt to
   },
   {
     signature: { algorithm: 'sha256' },

@@ -6,7 +6,11 @@
  */
 
 import { randomUUID } from 'crypto';
-import { BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '@core/error/constant.js';
+import {
+  BTP_ERROR_IDENTITY,
+  BTP_ERROR_RESOLVE_PUBKEY,
+  BTP_ERROR_VALIDATION,
+} from '@core/error/constant.js';
 import { signBtpPayload, encryptBtpPayload } from './index.js';
 import {
   BTPCryptoResponse,
@@ -26,24 +30,41 @@ const genEncryptError = (error: BTPErrorException) => ({
   error,
 });
 
+/**
+ * Signs a transporter artifact with the sender's key and, when `to` and
+ * `payload.encryptionSelector` are given, encrypts its document to the
+ * receiver's key at that selector. The artifact names both keys:
+ * `signatureSelector` (`sender.selector`) and, when encrypted,
+ * `encryptionSelector`.
+ */
 export const signEncrypt = async <T = unknown>(
   to: string | undefined,
-  sender: ParsedIdentity & { pemFiles: PemKeys },
+  sender: ParsedIdentity & { pemFiles: PemKeys; selector: string },
   payload: {
     document: T;
-    selector?: string;
+    encryptionSelector?: string;
     [key: string]: unknown;
   },
   options?: BTPCryptoOptions,
 ): Promise<BTPCryptoResponse<T>> => {
-  const { document, ...restPayload } = payload;
+  const { document, encryptionSelector, ...restPayload } = payload;
   let encryption: BTPEncryption | null = null;
   let encryptedDoc: string | T = document;
 
-  if (to && payload.selector) {
+  // The single 1.0 `selector` is refused rather than reinterpreted: read as
+  // before it would now leave the document unencrypted.
+  if ('selector' in restPayload) {
+    return genEncryptError(
+      new BTPErrorException(BTP_ERROR_VALIDATION, {
+        cause: 'selector is replaced by encryptionSelector (receiver key) and sender.selector',
+      }),
+    );
+  }
+
+  if (to && encryptionSelector) {
     const parsedReceiver = parseIdentity(to);
     if (!parsedReceiver) return genEncryptError(new BTPErrorException(BTP_ERROR_IDENTITY));
-    const receiverPubPem = await resolvePublicKey(to, payload.selector);
+    const receiverPubPem = await resolvePublicKey(to, encryptionSelector);
     if (!receiverPubPem) return genEncryptError(new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY));
 
     try {
@@ -64,6 +85,8 @@ export const signEncrypt = async <T = unknown>(
     issuedAt: restPayload?.issuedAt ?? new Date().toISOString(),
     document: encryption ? (encryptedDoc as string) : (document as T),
     encryption: encryption,
+    signatureSelector: sender.selector,
+    ...(encryption ? { encryptionSelector } : {}),
   };
 
   let signature: BTPSignature;

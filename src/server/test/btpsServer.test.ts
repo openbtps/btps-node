@@ -1000,7 +1000,7 @@ export default function () {
           signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
           encryption: null,
           document: 'document',
-          selector: 'selector',
+          signatureSelector: 'selector',
         },
         type: 'transporter',
       });
@@ -1037,7 +1037,7 @@ export default function () {
           signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
           encryption: null,
           document: 'document',
-          selector: 'selector',
+          signatureSelector: 'selector',
         },
         type: 'transporter',
       });
@@ -1055,7 +1055,7 @@ export default function () {
           signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
           encryption: null,
           document: 'document',
-          selector: 'selector',
+          signatureSelector: 'selector',
         },
         type: 'transporter',
       });
@@ -1913,10 +1913,10 @@ export default function () {
         signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
         encryption: null,
         document: 'document',
-        selector: 'selector',
+        signatureSelector: 'selector',
       });
 
-      const trustRecord = (overrides: Partial<BTPTrustRecord>): BTPTrustRecord => ({
+      const trustRecord =(overrides: Partial<BTPTrustRecord>): BTPTrustRecord => ({
         id: 'trust-id',
         senderId: 'sender$domain.com',
         receiverId: 'receiver$domain.com',
