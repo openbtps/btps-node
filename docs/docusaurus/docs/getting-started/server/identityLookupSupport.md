@@ -50,7 +50,7 @@ Identity lookup support allows SaaS platforms to:
 To enable identity lookup support, you need to:
 
 1. **Implement an Identity Store**: Extend `AbstractIdentityStore`
-2. **Configure the Server**: Add the identity store to your `BtpsServer`
+2. **Configure the Server**: Add the identity store to your `BtpsServer`, and set `serverIdentity.selector` to the selector your server's key is published at. A server with an identity store and no selector refuses to start (`BTP_ERROR_SERVER_SELECTOR`)
 3. **Handle Lookup Requests**: The server automatically handles identity lookup requests
 
 ```typescript
@@ -75,6 +75,9 @@ const trustStore = new JsonTrustStore({
 const server = new BtpsServer({
   serverIdentity: {
     identity: 'admin$yourdomain.com',
+    // Where this key is published: host1._btps.identity.admin.yourdomain.com.
+    // Required with an identity store: lookup answers are signed with this key.
+    selector: 'host1',
     publicKey: readFileSync('./keys/public.pem', 'utf8'),
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
@@ -113,10 +116,10 @@ class CustomIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
 
   // Identity-specific methods
   async getPublicKeyRecord(
-    identity: string,
-    selector?: string,
-  ): Promise<BTPIdentityRecord | undefined> {
-    // Return public key record for specific identity and selector
+    identity: string, // the address itself, e.g. "alice$saas.com", not its computed id
+    selector?: string, // without one: the identity's currentSelector
+  ): Promise<IdentityPubKeyRecord | undefined> {
+    // Return the key record for this identity and selector
   }
 
   async storePublicKeyRecord(
@@ -158,7 +161,8 @@ type IdentityPubKeyRecord = {
 
 ### Request Flow
 
-When a client needs to send an encrypted document to a SaaS-managed user:
+A client looks for the user's own DNS record first, and asks your server
+only when there is none:
 
 ```mermaid
 sequenceDiagram
@@ -166,21 +170,17 @@ sequenceDiagram
     participant DNS as DNS Server
     participant S as SaaS Server
     participant IS as Identity Store
-    participant U as User
 
-    C->>DNS: 1. Query DNS for saas.com<br/>_btps1._btps.identity.saas.com
-    DNS-->>C: 2. Return SaaS public key & endpoint
-
-    C->>S: 3. Identity Lookup Request<br/>{identity: "alice$saas.com"}
-    S->>IS: 4. Query identity store for alice
-    IS-->>S: 5. Return alice's public key record
-    S->>S: 6. Sign response with SaaS private key
-    S-->>C: 7. Identity Response<br/>{document: alice's public key,<br/>signedBy: "admin$saas.com"}
-
-    C->>C: 8. Verify SaaS signature using DNS public key
-    C->>C: 9. Encrypt document using alice's public key
-    C->>S: 10. Send encrypted document
-    S->>U: 11. Deliver to alice
+    C->>DNS: 1. _btps.host.saas.com, then<br/>btps1._btps.identity.alice.saas.com
+    DNS-->>C: 2. Host and selector; no record for alice (ENOTFOUND)
+    C->>S: 3. Identity Lookup Request<br/>{identity: "alice$saas.com", id}
+    S->>IS: 4. getPublicKeyRecord("alice$saas.com")
+    IS-->>S: 5. alice's key record
+    S-->>C: 6. Response signed by admin$saas.com<br/>at signatureSelector "host1"
+    C->>DNS: 7. host1._btps.identity.admin.saas.com
+    DNS-->>C: 8. The server's public key
+    C->>C: 9. Verify: same domain, reqId, signature as received
+    C->>C: 10. Encrypt to alice's key
 ```
 
 ### Response Structure
@@ -203,10 +203,10 @@ The server responds to identity lookup requests with this structure:
     "selector": "btps1",
     "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
     "keyType": "rsa",
-    "version": "1.0.0.0"
+    "version": "1.1.0"
   },
   "signedBy": "admin$saas.com",
-  "selector": "btps1",
+  "signatureSelector": "host1",
   "signature": {
     "algorithmHash": "sha256",
     "value": "base64-encoded-signature",
@@ -222,9 +222,10 @@ The server responds to identity lookup requests with this structure:
 ### Trust Chain Verification
 
 1. **DNS-Based Trust**: The SaaS platform identity (e.g., `admin$saas.com`) must have DNS records published
-2. **Signature Verification**: Identity lookup responses are signed by the SaaS platform
+2. **Signature Verification**: Identity lookup responses are signed by the SaaS platform, at its own `signatureSelector`, and verified as received
 3. **Key Validation**: Public keys are verified against the signing identity's DNS record
-4. **Delegation Support**: SaaS-managed users can delegate to platform-managed keys
+4. **Same Domain**: The signing identity is of the looked-up address's own domain; an answer signed by any other domain is refused
+5. **Delegation Support**: SaaS-managed users can delegate to platform-managed keys
 
 ### Delegation for SaaS-Managed Senders
 
@@ -411,6 +412,7 @@ const trustStore = new JsonTrustStore({
 const server = new BtpsServer({
   serverIdentity: {
     identity: process.env.SERVER_IDENTITY || 'admin$yourdomain.com',
+    selector: process.env.SERVER_SELECTOR || 'host1',
     publicKey: readFileSync(process.env.SERVER_PUBLIC_KEY_PATH || './keys/public.pem', 'utf8'),
     privateKey: readFileSync(process.env.SERVER_PRIVATE_KEY_PATH || './keys/private.pem', 'utf8'),
   },
@@ -542,46 +544,24 @@ SERVER_PRIVATE_KEY_PATH=./keys/private.pem
 
 ### Test Identity Lookup Request
 
+`resolveIdentity` runs the whole lookup a sender runs: the user's own DNS
+record first, then your server, and checks your server's signed answer. For
+it to reach your server, `_btps.host.saas.com` must name it, the user must
+have no identity record of their own in DNS, and your server's key must be
+published at `<selector>._btps.identity.admin.saas.com`.
+
 ```typescript
-import { BtpsClient } from '@btps/sdk';
+import { BtpsClient } from '@btps/sdk/client';
 
-const client = new BtpsClient({
-  to: 'admin$saas.com',
-  maxRetries: 3,
-  retryDelayMs: 1000,
-  connectionTimeoutMs: 5000,
-  host: 'localhost',
-  port: 3443,
-  btpMtsOptions: { rejectUnauthorized: false },
-});
+const client = new BtpsClient({ to: 'alice$saas.com', connectionTimeoutMs: 5000 });
 
-async function testIdentityLookup() {
-  try {
-    const identityLookupRequest = {
-      version: '1.0.0.0',
-      id: 'test_lookup_123',
-      issuedAt: new Date().toISOString(),
-      identity: 'alice$saas.com',
-      from: 'test$example.com',
-      hostSelector: 'btps1',
-      identitySelector: 'btps1',
-    };
-
-    const result = await client.send(identityLookupRequest, 5000);
-
-    if (result.error) {
-      console.error('Identity lookup failed:', result.error);
-    } else {
-      console.log('Identity lookup successful:', result.payload);
-    }
-  } catch (error) {
-    console.error('Test failed:', error);
-  } finally {
-    client.destroy();
-  }
+const { response, error } = await client.resolveIdentity('alice$saas.com', 'test$example.com');
+if (error) {
+  console.error('Identity lookup failed:', error.code, error.cause);
+} else {
+  console.log('Key for alice$saas.com at selector', response.selector, response.publicKey);
 }
-
-testIdentityLookup();
+client.destroy();
 ```
 
 ---

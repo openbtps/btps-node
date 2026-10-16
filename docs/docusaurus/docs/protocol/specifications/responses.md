@@ -195,23 +195,27 @@ Response to query requests (inbox, outbox, etc.):
 
 ### 3. Identity Response Document (`BTPIdentityResDoc`)
 
-Response to identity lookup requests:
+Response to identity lookup requests ([Identity Lookup Artifact](./identity-lookup-artifact.md)):
 
 ```json
 {
   "selector": "john1",
-  "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
   "keyType": "rsa",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
 ```
 
 **Required Fields:**
 
-- **selector**: DNS selector for the identity
-- **publicKey**: Base64-encoded public key (SPKI format)
+- **selector**: selector of the identity's key
+- **publicKey**: the public key, PEM (SPKI)
 - **keyType**: Key type (currently "rsa")
-- **version**: Protocol version
+- **version**: the key record's version
+
+A response carrying it is always signed, by an identity of the looked-up
+address's own domain, at that identity's `signatureSelector`; the client
+verifies it as received and refuses it otherwise.
 
 ### 4. String Response
 
@@ -363,19 +367,20 @@ Responses can be encrypted for confidentiality:
   "id": "btps_response_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
   "type": "btps_response",
+  "reqId": "btps_lookup_1234567890abcdef",
   "document": {
     "selector": "john1",
-    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
     "keyType": "rsa",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "signature": {
     "algorithmHash": "sha256",
     "value": "base64-encoded-signature",
     "fingerprint": "sha256-base64-fingerprint"
   },
-  "signedBy": "ebilladdress.com",
-  "signatureSelector": "btps1"
+  "signedBy": "admin$ebilladdress.com",
+  "signatureSelector": "host1"
 }
 ```
 

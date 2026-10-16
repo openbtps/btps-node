@@ -46,32 +46,40 @@ Solution: Identity Record system for centralized key management
 
 ## Identity Record Flow
 
-### Basic Flow (Custom Domain Sender to SaaS Receiver)
+### Key Lookup: DNS First, Then the Host
+
+Every client finds an address's key the same way. DNS comes first; the host
+is asked only when the address has no identity record of its own.
 
 ```mermaid
 sequenceDiagram
-    participant SA as Sender A<br/>(sender$custom.com)
-    participant DNS as DNS Server
-    participant SS as SaaS Server<br/>(saas.com)
+    participant SA as Sender<br/>(billing$vendor.com)
+    participant DNS as DNS
+    participant SS as Host of saas.com
     participant IS as Identity Store
-    participant RB as Receiver B<br/>(alice$saas.com)
 
-    Note over SA,RB: Custom Domain Sender to SaaS Receiver Flow
-
-    SA->>DNS: 1. Query DNS for saas.com<br/>_btps1._btps.identity.saas.com
-    DNS-->>SA: 2. Return SaaS public key & endpoint
-
-    SA->>SS: 3. Identity Lookup Request<br/>{identity: "alice$saas.com"}
-    SS->>IS: 4. Query identity store for alice
-    IS-->>SS: 5. Return alice's public key record
-    SS->>SS: 6. Sign response with SaaS private key
-    SS-->>SA: 7. Identity Response<br/>{document: alice's public key,<br/>signedBy: "admin$saas.com"}
-
-    SA->>SA: 8. Verify SaaS signature using DNS public key
-    SA->>SA: 9. Encrypt document using alice's public key
-    SA->>SS: 10. Send encrypted document
-    SS->>RB: 11. Deliver to alice
+    SA->>DNS: 1. _btps.host.saas.com
+    DNS-->>SA: 2. u=btps.saas.com:3443; s=btps1
+    SA->>DNS: 3. btps1._btps.identity.alice.saas.com
+    alt alice has her own record
+        DNS-->>SA: 4a. v=…; k=rsa; p=… (alice's key; the host is never asked)
+    else no record (ENOTFOUND / ENODATA)
+        DNS-->>SA: 4b. no such record
+        SA->>SS: 5. Identity lookup request {identity: "alice$saas.com", id}
+        SS->>IS: 6. getPublicKeyRecord("alice$saas.com")
+        IS-->>SS: 7. alice's key record
+        SS-->>SA: 8. Signed response {document: key record, reqId: id,<br/>signedBy: "admin$saas.com", signatureSelector: "host1"}
+        SA->>DNS: 9. host1._btps.identity.admin.saas.com
+        DNS-->>SA: 10. the host's key
+        SA->>SA: 11. Check: same domain, reqId, signature as received
+    end
+    SA->>SA: 12. Encrypt to alice's key
 ```
+
+A DNS failure other than "no such record" (a timeout, `SERVFAIL`) is an
+error, and the host is not asked. The rules a client applies to the host's
+answer, and the request and response shapes, are specified in
+[Identity Lookup Artifact](./specifications/identity-lookup-artifact.md).
 
 ### Delegation Flow (SaaS Sender to Custom Domain Receiver)
 
@@ -141,162 +149,47 @@ flowchart TD
 
 ## Identity Record Structure
 
-### Identity Lookup Request
-
-```json
-{
-  "version": "1.0.0.0",
-  "id": "identity_lookup_123456",
-  "issuedAt": "2025-01-15T10:30:00Z",
-  "identity": "alice$saas.com",
-  "from": "sender$domain.com",
-  "hostSelector": "btps1",
-  "identitySelector": "btps1"
-}
-```
-
-**Fields:**
-
-- `version`: BTPS protocol version
-- `id`: Unique request identifier
-- `issuedAt`: Request timestamp (ISO format)
-- `identity`: Target identity to lookup
-- `from`: Requesting identity
-- `hostSelector`: DNS selector for host resolution
-- `identitySelector`: Optional selector for identity key rotation
-
-### Identity Response Document
-
-```json
-{
-  "version": "1.0.0.0",
-  "status": {
-    "ok": true,
-    "code": 200,
-    "message": "success"
-  },
-  "id": "identity_resp_789012",
-  "issuedAt": "2025-01-15T10:30:15Z",
-  "type": "btps_response",
-  "reqId": "identity_lookup_123456",
-  "document": {
-    "selector": "btps1",
-    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
-    "keyType": "rsa",
-    "version": "1.0.0.0"
-  },
-  "signedBy": "admin$saas.com",
-  "selector": "btps1",
-  "signature": {
-    "algorithmHash": "sha256",
-    "value": "base64-encoded-signature",
-    "fingerprint": "sha256-base64-fingerprint"
-  }
-}
-```
-
-**Response Fields:**
-
-- `document`: Identity public key information
-- `signedBy`: SaaS platform identity that signed the response
-- `selector`: Key selector for rotation management
-- `signature`: Cryptographic signature by SaaS platform
+The request (`BTPIdentityLookupRequest`), the response and its document
+(`BTPIdentityResDoc`) are specified in
+[Identity Lookup Artifact](./specifications/identity-lookup-artifact.md). In
+short, the host answers with the address's key record (`selector`,
+`publicKey` as PEM, `keyType`, `version`), signed by the host's own
+identity (`signedBy`) at the host's own selector (`signatureSelector`).
 
 ---
 
 ## Implementation Details
 
-### Server-Side Implementation
+### Server Side
 
-The `BtpsServer` handles identity lookup requests through the `handleIdentityLookup` method:
-
-```typescript
-private async handleIdentityLookup(
-  artifact: BTPIdentityLookupRequest,
-  context: { req: BTPRequestCtx; res: BTPResponseCtx }
-) {
-  const { identity, hostSelector, identitySelector } = artifact;
-
-  // Compute identity ID
-  const computedId = computeId(identity);
-
-  // Lookup identity record from store
-  const identityRecord = await this.identityStore?.getPublicKeyRecord(
-    computedId,
-    identitySelector
-  );
-
-  if (!identityRecord) {
-    return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND, res.reqId);
-  }
-
-  // Prepare response document
-  const { createdAt, ...restRecord } = identityRecord;
-  const data: BTPServerResponse = {
-    ...this.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }, res.reqId),
-    type: 'btps_response',
-    selector: hostSelector,
-    document: restRecord,
-    signedBy: this.serverIdentity.identity,
-  };
-
-  // Sign response with server private key
-  const signature = signBtpPayload(data, serverPemKeys);
-
-  this.sendBtpsResponse(res.socket, { ...data, signature }, 'end');
-}
-```
-
-### Client-Side Implementation
-
-The `BtpsAgent` resolves identity information during encryption:
+`BtpsServer` answers identity lookups when it is given an `identityStore`.
+It then needs the selector its own key is published at, since its answers
+are signed:
 
 ```typescript
-protected async buildTransportArtifact(commandParams: BtpsAgentCommandParams) {
-  const { document, actionType, to, options } = commandParams;
-
-  // Get receiver DNS information
-  const receiverDnsTxt = options?.encryption
-    ? (await this.resolveIdentity(to, this.options.to, this.keyPair.privateKey)).response
-    : await this.resolveBtpsHostDnsTxt(to);
-
-  if (!receiverDnsTxt) {
-    return await this.buildClientErrorResponse(
-      new BTPErrorException(BTP_ERROR_RESOLVE_DNS, {
-        cause: `Could not resolve identity or host and selector for: ${to}`,
-      })
-    );
-  }
-
-  // Encrypt document if required
-  if (options?.encryption) {
-    const { publicKey } = receiverDnsTxt;
-    const { data, encryption: encryptionInfo } = encryptBtpPayload(
-      document,
-      publicKey,
-      options.encryption
-    );
-    encryptedDocument = data;
-    encryption = encryptionInfo;
-  }
-
-  // Create and sign transporter artifact
-  const transporterArtifact = {
-    id: randomUUID(),
-    issuedAt: new Date().toISOString(),
-    version: this.getProtocolVersion(),
-    type: artifactType,
-    document: encryptedDocument,
-    from: this.options.to,
-    to: to,
-    selector: receiverDnsTxt.selector,
-    encryption: encryption,
-  };
-
-  const signature = signBtpPayload(transporterArtifact, this.keyPair);
-  return { payload: { ...transporterArtifact, signature }, error: undefined };
-}
+const server = new BtpsServer({
+  serverIdentity: {
+    identity: 'admin$saas.com',
+    selector: 'host1', // host1._btps.identity.admin.saas.com
+    signer, // or publicKey and privateKey, for tests
+  },
+  identityStore,
+  trustStore,
+  tlsOptions,
+});
 ```
+
+Without `serverIdentity.selector`, a server with an identity store refuses
+to start (`BTP_ERROR_SERVER_SELECTOR`). The server asks the store by the
+address itself, `getPublicKeyRecord(identity, identitySelector)`; a store
+that keys its records by `computeId(identity)` computes it there.
+
+### Client Side
+
+`BtpsClient.resolveIdentity(identity, from)` does the whole lookup: DNS
+first, then the host, then `verifyIdentityLookupResponse` on the answer.
+`BtpsAgent` calls it when it encrypts a document, and encrypts to the key it
+returns, naming that key's selector as `encryptionSelector`.
 
 ---
 
@@ -305,9 +198,10 @@ protected async buildTransportArtifact(commandParams: BtpsAgentCommandParams) {
 ### Trust Chain Verification
 
 1. **DNS-Based Trust**: SaaS platform identity (e.g., `admin$saas.com`) must have DNS records published
-2. **Signature Verification**: Identity lookup responses are signed by the SaaS platform
+2. **Signature Verification**: Identity lookup responses are signed by the SaaS platform, at its own `signatureSelector`, and verified as received
 3. **Key Validation**: Public keys are verified against the signing identity's DNS record
-4. **Delegation Support**: SaaS-managed users can delegate to platform-managed keys
+4. **Same Domain**: The signing identity is of the looked-up address's own domain; an answer signed by any other domain is refused
+5. **Delegation Support**: SaaS-managed users can delegate to platform-managed keys
 
 ### Delegation for SaaS-Managed Senders
 

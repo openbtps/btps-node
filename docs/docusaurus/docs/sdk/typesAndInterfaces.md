@@ -17,7 +17,7 @@ This reference documents all types and interfaces used throughout the BTPS SDK. 
 Configuration options for the BTPS server.
 
 ```ts
-type BtpsServerIdentity = { identity: string } & (
+type BtpsServerIdentity = { identity: string; selector?: string } & (
   | { signer: Signer; publicKey?: string } // e.g. KmsSigner
   | { publicKey: string; privateKey: string } // PEM: tests and the interim only
 );
@@ -40,9 +40,9 @@ interface BtpsServerOptions {
 
 **Properties:**
 
-- `serverIdentity`: Required server identity: the identity, and the `Signer` that signs the server's responses (or a PEM key pair, wrapped in a `PemSigner`, for tests and the interim only)
+- `serverIdentity`: Required server identity: the identity, the `Signer` that signs the server's responses (or a PEM key pair, wrapped in a `PemSigner`, for tests and the interim only), and `selector`, where that key is published (required with an `identityStore`)
 - `trustStore`: Required trust store instance for managing trust records
-- `identityStore`: Optional identity store instance for managing identity records
+- `identityStore`: Optional identity store. With one, the server answers [identity lookups](../protocol/specifications/identity-lookup-artifact.md), signed with its own key, and then **`serverIdentity.selector` is required**: the selector that key is published at (`<selector>._btps.identity.<account>.<domain>`), sent as the answer's `signatureSelector`. Without it the constructor throws `BTP_ERROR_SERVER_SELECTOR`
 - `replayStore`: Optional store for the `(from, id)` of every accepted artifact ([replay protection](../protocol/specifications/transporter-artifact.md#replay-protection-btps-11)). Default: an `InMemoryReplayStore`, which **does not survive a restart and is not shared between server instances**; a platform running more than one instance passes its own `AbstractReplayStore` over shared storage. Replay protection itself cannot be turned off
 - `issuedAtWindowMs`: Optional `issuedAt` window in milliseconds, either way. Default and maximum: `ISSUED_AT_WINDOW_MS` = `MAX_ISSUED_AT_WINDOW_MS` = 300000 (±5 minutes). It may be tighter, never wider; a value that is not a whole number from 1 to the maximum makes the constructor throw `BTP_ERROR_VALIDATION`
 - `tokenStore`: Optional store of registration tokens, the one the platform's `BtpsAuthentication` issues them into with `storeAuthToken` ([device registration](../protocol/specifications/agent-artifact.md#registration-is-bound-to-the-identity-btps-11)). The server answers every `auth.request` itself: it consumes the token, once, and binds the device to the token's identity under an agent id it generates. **Without a token store, every `auth.request` is refused** with `BTP_ERROR_REGISTRATION_UNAVAILABLE`
