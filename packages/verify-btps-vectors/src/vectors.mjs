@@ -149,7 +149,7 @@ function loadEventModel(dir, set) {
   }
 }
 
-/** Item F: the window cases and the delivery sequences. */
+/** Replay protection: the window cases and the delivery sequences. */
 function loadReplay(set) {
   const file = VECTOR_FILES.replay;
   const model = set.replay;

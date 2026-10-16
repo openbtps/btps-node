@@ -131,7 +131,7 @@ export class BtpsServer {
     this.tlsOptions = options.tlsOptions;
     this.trustStore = options.trustStore;
     this.identityStore = options.identityStore;
-    // Replay protection is not optional (item F): with no store given, an
+    // Replay protection is not optional: with no store given, an
     // in-memory one, which forgets on restart and is not shared.
     this.replayStore = options.replayStore ?? new InMemoryReplayStore();
     this.issuedAtWindowMs = resolveIssuedAtWindow(options.issuedAtWindowMs);
@@ -517,7 +517,7 @@ export class BtpsServer {
 
     const { data } = reqCtx;
 
-    // Core issuedAt window (non-negotiable, item F). Before the signature, so
+    // Core issuedAt window (non-negotiable). Before the signature, so
     // a stale replay costs no key lookup.
     const windowError = this.checkIssuedAt(data);
     if (windowError) {
@@ -576,7 +576,7 @@ export class BtpsServer {
       return this.sendBtpsError(resCtx.socket, wireError, resCtx.reqId);
     }
 
-    // Core duplicate check (non-negotiable, item F): only now that the
+    // Core duplicate check (non-negotiable): only now that the
     // signature and trust hold, so an unverified sender cannot spend
     // someone else's ids.
     const { from: replayFrom, id: replayId } = this.replayPair(data);
@@ -626,7 +626,7 @@ export class BtpsServer {
   }
 
   /**
-   * The issuedAt window (item F), for transporter and agent artifacts alike.
+   * The issuedAt window, for transporter and agent artifacts alike.
    * Control and identity-lookup artifacts never reach the pipeline: they are
    * unsigned, so their issuedAt proves nothing, and they change no state.
    */

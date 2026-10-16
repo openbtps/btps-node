@@ -92,7 +92,7 @@ describe('package exports (crypto and client)', () => {
   });
 });
 
-describe('package exports (EBA-114, replay protection)', () => {
+describe('package exports (replay protection)', () => {
   it.each([
     ['./storage', 'AbstractReplayStore'],
     ['./storage', 'InMemoryReplayStore'],

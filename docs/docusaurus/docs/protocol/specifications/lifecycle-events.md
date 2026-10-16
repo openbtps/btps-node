@@ -125,7 +125,7 @@ An example of each type is in the golden vectors,
 - **The signature proves who sent it;** an id never has to.
 - **A reused id is refused:** the server refuses any `(from, id)` it has
   already accepted inside the `issuedAt` window, even on a different event
-  (EBA-114, addendum item 4; see
+  (see
   [Replay Protection](./transporter-artifact.md#replay-protection-btps-11)).
   Past the window the server's store may have let the pair go, so a platform
   that keeps events still refuses an event id it already holds for the pair.
@@ -210,7 +210,7 @@ checks belong to the receiving platform:
    no `remainingDueDate` unless the answered event is a `partially_paid`, a
    refund within what was paid. The protocol cannot check this.
 5. **An event id already held** for the pair is refused. The server refuses
-   a repeated `(from, id)` inside the window (EBA-114); past it, only the
+   a repeated `(from, id)` inside the window; past it, only the
    platform's own store of events can.
 
 **Where:** a `before onArtifact` middleware. The existing middleware context
