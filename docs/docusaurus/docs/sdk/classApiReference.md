@@ -394,14 +394,14 @@ const trustRes = await agent.command('trust.request', 'vendor$domain.com', {
 
 // Send artifact
 const sendRes = await agent.command('artifact.send', 'client$domain.com', {
+  type: 'invoice',
   title: 'Invoice #123',
   id: 'inv_123',
   issuedAt: new Date().toISOString(),
-  status: 'unpaid',
-  totalAmount: { value: 100.0, currency: 'USD' },
+  totalAmount: { amount: 10000, currency: 'USD' }, // minor units: 100.00
   lineItems: {
     columns: ['Description', 'Amount'],
-    rows: [{ Description: 'Service', Amount: 100.0 }],
+    rows: [{ Description: 'Service', Amount: 10000 }],
   },
 });
 ```

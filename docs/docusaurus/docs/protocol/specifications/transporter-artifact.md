@@ -153,17 +153,17 @@ Used to accept, reject, or block trust requests.
 
 ### 3. BTPS Document (`BTPS_DOC`)
 
-Generic BTPS documents, most commonly invoices.
+Generic BTPS documents, most commonly invoices. An invoice is `"type": "invoice"`.
 
 ```json
 {
+  "type": "invoice",
   "title": "Invoice #INV-2025-001",
   "id": "INV-2025-001",
   "issuedAt": "2025-01-15T10:30:00Z",
-  "status": "unpaid",
   "dueAt": "2025-02-15T10:30:00Z",
   "totalAmount": {
-    "value": 1500.0,
+    "amount": 150000,
     "currency": "USD"
   },
   "lineItems": {
@@ -172,56 +172,64 @@ Generic BTPS documents, most commonly invoices.
       {
         "Description": "Web Development Services",
         "Quantity": "1",
-        "Unit Price": "1500.00",
-        "Amount": "1500.00"
+        "Unit Price": 150000,
+        "Amount": 150000
       }
     ]
   },
   "issuer": {
     "name": "Acme Corporation",
     "email": "billing@acme.com",
-    "phone": "+1-555-0123"
+    "phone": "+1-555-0123",
+    "address": "1 Main Street, Springfield",
+    "identifiers": { "us:ein": "12-3456789" }
   },
   "paymentLink": {
     "linkText": "Pay Invoice",
     "url": "https://pay.acme.com/inv/INV-2025-001"
   },
   "description": "Monthly web development services for January 2025",
-  "attachment": {
-    "content": "base64-encoded-pdf-content",
-    "type": "application/pdf",
-    "filename": "invoice-INV-2025-001.pdf"
-  },
+  "attachments": [
+    {
+      "content": "base64-encoded-pdf-content",
+      "type": "application/pdf",
+      "filename": "invoice-INV-2025-001.pdf",
+      "size": 48213,
+      "sha256": "lowercase-hex-sha256-of-the-file"
+    }
+  ],
   "template": {
     "name": "standard-invoice",
     "data": {
       "logoUrl": "https://acme.com/logo.png",
       "footerText": "Thank you for your business"
     }
-  }
+  },
+  "metadata": { "acme:orderId": "PO-7731" }
 }
 ```
 
 **Required Fields:**
 
+- **type**: `invoice`
 - **title**: Document title
-- **id**: Unique document identifier
+- **id**: The invoice number, unique per sender
 - **issuedAt**: ISO timestamp of document creation
-- **status**: Document status (paid, unpaid, partial, refunded, disputed)
-- **totalAmount**: Total amount with currency
-- **lineItems**: Document line items with columns and rows
+- **totalAmount**: Total amount in integer minor units of its currency (`150000` USD is 1,500.00), with the currency
+- **lineItems**: Document line items with columns and rows. A money cell is an integer in minor units; a decimal such as a quantity is written as text
 
 **Optional Fields:**
 
 - **dueAt**: Payment due date (ISO format)
-- **paidAt**: Payment date (ISO format)
-- **refundedAt**: Refund date (ISO format)
-- **disputedAt**: Dispute date (ISO format)
-- **issuer**: Document issuer information
+- **issuer**: Document issuer information, with an optional `address` and `identifiers` (company and tax ids by namespaced key, e.g. `au:abn`)
 - **paymentLink**: Payment link information
 - **description**: Document description
-- **attachment**: Document attachment
+- **attachments**: Files carried with the document. `size` (bytes) and `sha256` (lowercase hex) are what the sender states; the protocol does not check the files
+- **references**: Links to other signed documents, each `{ type, from, id, sha256 }`. `type` is `correction_of`, `credits`, `instalment_of`, `follows`, or a platform's own code under a prefix
 - **template**: Document template and data
+- **metadata**: The sending platform's own data; carried and signed, never read by the protocol
+
+A document carries no status: whether an invoice is paid, partly paid, disputed or refunded comes from the lifecycle events exchanged about it. The schema is strict, so a field it does not name (such as 1.0's `status`) is refused.
 
 ## Security Features
 

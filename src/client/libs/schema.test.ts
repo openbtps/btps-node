@@ -22,6 +22,7 @@ import {
   BtpsAgentActionTypeSchema,
 } from '../../core/server/schemas/schema.js';
 import { identitySchema } from '../../core/server/schemas/shared.js';
+import { BtpInvoiceDocSchema } from '../../core/server/schemas/btpsDocsSchema.js';
 
 describe('BtpsAgent Schema Validation', () => {
   describe('BtpsAgentCommandSchema', () => {
@@ -85,17 +86,17 @@ describe('BtpsAgent Schema Validation', () => {
         actionType: 'artifact.send',
         to: 'alice$example.com',
         document: {
+          type: 'invoice',
           title: 'Test Invoice',
           id: 'INV-001',
           issuedAt: new Date().toISOString(),
-          status: 'unpaid',
           totalAmount: {
-            value: 100.0,
+            amount: 10000,
             currency: 'USD',
           },
           lineItems: {
             columns: ['Item', 'Quantity', 'Price'],
-            rows: [{ Item: 'Service A', Quantity: 1, Price: 100.0 }],
+            rows: [{ Item: 'Service A', Quantity: 1, Price: 10000 }],
           },
         },
         options: undefined,
@@ -431,22 +432,74 @@ describe('BtpsAgent Schema Validation', () => {
 
     it('should validate invoice document', () => {
       const doc = {
+        type: 'invoice',
         title: 'Test Invoice',
         id: 'INV-001',
         issuedAt: new Date().toISOString(),
-        status: 'unpaid',
         totalAmount: {
-          value: 100.0,
+          amount: 10000,
           currency: 'USD',
         },
         lineItems: {
           columns: ['Item', 'Quantity', 'Price'],
-          rows: [{ Item: 'Service A', Quantity: 1, Price: 100.0 }],
+          rows: [{ Item: 'Service A', Quantity: 1, Price: 10000 }],
         },
       };
 
       const result = BtpsAgentCommandDocumentSchema.safeParse(doc);
       expect(result.success).toBe(true);
+    });
+
+    it('refuses a 1.0 invoice: a status field, or money as a decimal', () => {
+      const invoice = {
+        type: 'invoice',
+        title: 'Test Invoice',
+        id: 'INV-001',
+        issuedAt: new Date().toISOString(),
+        totalAmount: { amount: 10000, currency: 'USD' },
+        lineItems: { columns: ['Item', 'Price'], rows: [{ Item: 'Service A', Price: 10000 }] },
+      };
+
+      expect(BtpInvoiceDocSchema.safeParse(invoice).success).toBe(true);
+      expect(BtpInvoiceDocSchema.safeParse({ ...invoice, status: 'unpaid' }).success).toBe(false);
+      expect(
+        BtpInvoiceDocSchema.safeParse({
+          ...invoice,
+          totalAmount: { amount: 100.5, currency: 'USD' },
+        }).success,
+      ).toBe(false);
+      expect(
+        BtpInvoiceDocSchema.safeParse({
+          ...invoice,
+          lineItems: { columns: ['Price'], rows: [{ Price: 100.5 }] },
+        }).success,
+      ).toBe(false);
+    });
+
+    it('carries attachments, references, issuer identifiers and metadata', () => {
+      const sha256 = 'a'.repeat(64);
+      const invoice = {
+        type: 'invoice',
+        title: 'Corrected invoice',
+        id: 'INV-002',
+        issuedAt: new Date().toISOString(),
+        totalAmount: { amount: 10000, currency: 'AUD' },
+        lineItems: { columns: ['Item'], rows: [{ Item: 'Service A' }] },
+        issuer: { name: 'Acme', address: '1 Main St', identifiers: { 'au:abn': '51824753556' } },
+        attachments: [
+          { content: 'JVBERi0=', type: 'application/pdf', filename: 'inv.pdf', size: 5, sha256 },
+        ],
+        references: [{ type: 'correction_of', from: 'billing$acme.com', id: 'INV-001', sha256 }],
+        metadata: { 'acme:order': 'PO-7' },
+      };
+
+      expect(BtpInvoiceDocSchema.safeParse(invoice).success).toBe(true);
+      expect(
+        BtpInvoiceDocSchema.safeParse({
+          ...invoice,
+          attachments: [{ ...invoice.attachments[0], sha256: 'A'.repeat(64) }],
+        }).success,
+      ).toBe(false);
     });
 
     it('should validate agent create document', () => {
@@ -469,17 +522,17 @@ describe('BtpsAgent Schema Validation', () => {
       const doc = {
         type: 'BTPS_DOC',
         document: {
+          type: 'invoice',
           title: 'Test Invoice',
           id: 'INV-001',
           issuedAt: new Date().toISOString(),
-          status: 'unpaid',
           totalAmount: {
-            value: 100.0,
+            amount: 10000,
             currency: 'USD',
           },
           lineItems: {
             columns: ['Item', 'Quantity', 'Price'],
-            rows: [{ Item: 'Service A', Quantity: 1, Price: 100.0 }],
+            rows: [{ Item: 'Service A', Quantity: 1, Price: 10000 }],
           },
         },
       };

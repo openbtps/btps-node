@@ -675,46 +675,62 @@ interface BTPAttachment {
   content: string; // base64
   type: 'application/pdf' | 'image/jpeg' | 'image/png';
   filename?: string;
+  size: number; // bytes, as the sender states
+  sha256: string; // lowercase hex, as the sender states
+}
+```
+
+### BTPDocReference
+
+A link to another signed document.
+
+```ts
+interface BTPDocReference {
+  type: string; // correction_of | credits | instalment_of | follows | a prefixed code
+  from: string;
+  id: string;
+  sha256: string; // lowercase hex
 }
 ```
 
 ### BTPInvoiceDoc
 
-Invoice document structure.
+Invoice document structure. It carries no status: that comes from lifecycle events.
 
 ```ts
 interface BTPInvoiceDoc {
+  type: 'invoice';
   title: string;
-  id: string;
+  id: string; // the invoice number, unique per sender
   issuedAt: string; // ISO format
-  status: 'paid' | 'unpaid' | 'partial' | 'refunded' | 'disputed';
   dueAt?: string; // ISO format
-  paidAt?: string; // ISO format
-  refundedAt?: string; // ISO format
-  disputedAt?: string; // ISO format
   totalAmount: {
-    value: number;
+    amount: number; // integer minor units: 12345 is 123.45
     currency: CurrencyCode;
   };
   lineItems: {
     columns: string[];
-    rows: Array<Record<string, string | number>>;
+    rows: Array<Record<string, string | number>>; // money cells in integer minor units
   };
   issuer?: {
     name: string;
     email?: string;
     phone?: string;
+    address?: string;
+    identifiers?: Record<string, string>; // e.g. { 'au:abn': '51824753556' }
   };
   paymentLink?: {
     linkText: string;
     url: string;
   };
   description?: string;
-  attachment?: BTPAttachment;
+  attachments?: BTPAttachment[];
+  references?: BTPDocReference[];
   template?: {
     name: string;
     data: Record<string, unknown>;
   };
+  metadata?: Record<string, unknown>;
 }
 ```
 

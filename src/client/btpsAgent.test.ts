@@ -696,12 +696,12 @@ describe('BtpsAgent', () => {
 
     it('should map artifact.send to BTPS_DOC', async () => {
       const document: BTPDocType = {
+        type: 'invoice',
         title: 'Invoice #INV-001',
         id: 'INV-001',
         issuedAt: '2023-12-31T00:00:00.000Z',
-        status: 'unpaid',
         totalAmount: {
-          value: 100.5,
+          amount: 10050,
           currency: 'USD',
         },
         lineItems: {
@@ -710,7 +710,7 @@ describe('BtpsAgent', () => {
             {
               description: 'Item 1',
               quantity: 1,
-              unitPrice: 100.5,
+              unitPrice: 10050,
             },
           ],
         },
