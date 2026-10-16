@@ -78,6 +78,7 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
 
 - **encryption**: Encryption details (null for unencrypted messages)
 - **delegation**: Delegation information for agent-based operations
+- **relatesTo**: Required on a `BTPS_EVENT` and refused on every other type: the `id` of the `BTPS_DOC` artifact that delivered the invoice the event is about (see Lifecycle Event)
 
 ## Supported Document Types
 
@@ -372,6 +373,30 @@ Whether an `inReplyTo` names an event the two parties actually exchanged, and wh
 **Signing and Encryption:**
 
 An event is signed like every artifact. It is encrypted when the trust's `privacyType` says so, like a `BTPS_DOC`, because it carries amounts, reasons and messages that are as private as the invoice. Only the artifact envelope (`from`, `to`, `type`, `id`, `issuedAt`) stays readable for routing and the trust check.
+
+**The Invoice It Relates To:**
+
+An event must be about an invoice its two parties actually exchanged. A stolen signing key should not be enough to send a stream of events about invoices that never existed. The server checks this without decrypting anything, so the check holds even when only the receiver holds its key.
+
+So every `BTPS_EVENT` carries `relatesTo` in its envelope, outside the encrypted document: the `id` of the `BTPS_DOC` artifact that delivered the invoice. Like the rest of the envelope it is signed and stays readable. The receiving server asks its trust store whether an artifact with that id passed between `from` and `to`, in either direction, and refuses the event when the store does not know it. The sender sees the same refusal as for a missing trust (`BTP_ERROR_TRUST_NOT_ALLOWED`); the receiving server's own context keeps the precise reason, `BTP_ERROR_EVENT_UNRELATED`.
+
+```json
+{
+  "version": "1.0",
+  "id": "0b6f4b5e-5d0a-4c4e-8f43-2a7d3a1f9e01",
+  "issuedAt": "2025-02-03T08:15:00Z",
+  "type": "BTPS_EVENT",
+  "from": "pay$client.com",
+  "to": "billing$acme.com",
+  "relatesTo": "3f2a1c9e-7b4d-4e8a-9c61-5d0f2b8a7e14",
+  "document": "encrypted-lifecycle-event",
+  "encryption": { "...": "..." },
+  "signature": { "...": "..." },
+  "selector": "btps1"
+}
+```
+
+Answering that question is required of every trust store (`isKnownArtifact`, see [AbstractTrustStore](/docs/sdk/class-api-references#abstracttruststore)), because only the platform knows which artifacts it delivered. A server whose store answers `false` accepts no events.
 
 ## Security Features
 

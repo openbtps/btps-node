@@ -1024,6 +1024,7 @@ describe('lifecycle events (BTPS_EVENT)', () => {
       signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
       encryption: null,
       selector: 'btps1',
+      relatesTo: 'doc-1',
       document,
     }).success;
   const amount = { amount: 50000, currency: 'AUD' };
@@ -1093,11 +1094,43 @@ describe('lifecycle events (BTPS_EVENT)', () => {
         signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
         encryption: null,
         selector: 'btps1',
+        relatesTo: 'doc-1',
         document: paid,
       }).success,
     ).toBe(false);
     expect(
       carried(event({ eventType: 'paid', document: { ...invoice, from: 'someone$else.com' } })),
+    ).toBe(false);
+  });
+
+  it('requires relatesTo on a BTPS_EVENT, encrypted or not, and refuses it elsewhere', () => {
+    const envelope = {
+      version: '1.0.0',
+      issuedAt: new Date().toISOString(),
+      id: proposalId,
+      from: payer,
+      to: biller,
+      signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
+      selector: 'btps1',
+    };
+    const encryption = {
+      algorithm: 'aes-256-gcm',
+      encryptedKey: 'key',
+      iv: 'iv',
+      type: 'standardEncrypt',
+      authTag: 'tag',
+    };
+    const paid = event({ eventType: 'paid' });
+    const parse = (fields: Record<string, unknown>) =>
+      BtpTransporterArtifactSchema.safeParse({ ...envelope, ...fields }).success;
+
+    expect(parse({ type: 'BTPS_EVENT', encryption: null, document: paid })).toBe(false);
+    expect(parse({ type: 'BTPS_EVENT', encryption, document: 'ciphertext' })).toBe(false);
+    expect(
+      parse({ type: 'BTPS_EVENT', encryption, document: 'ciphertext', relatesTo: 'doc-1' }),
+    ).toBe(true);
+    expect(
+      parse({ type: 'TRUST_REQ', encryption, document: 'ciphertext', relatesTo: 'doc-1' }),
     ).toBe(false);
   });
 

@@ -108,7 +108,7 @@ Agent artifacts (`BTPAgentArtifact`) are designed for client-to-server communica
 
 **`artifact.send`** - Used to send artifacts to other organizations.
 
-**`event.send`** - Used to send a lifecycle event (paid, partially paid, disputed, refund requested, refund, response) about an invoice, carried as a `BTPS_EVENT`.
+**`event.send`** - Used to send a lifecycle event (paid, partially paid, disputed, refund requested, refund, response) about an invoice, carried as a `BTPS_EVENT`. The command's options must give `relatesTo`, the `id` of the `BTPS_DOC` artifact that delivered the invoice.
 
 ## Supported Document Types
 

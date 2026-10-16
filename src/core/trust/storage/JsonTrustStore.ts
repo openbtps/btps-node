@@ -60,6 +60,15 @@ class JsonTrustStore
     const all = [...this.recordMap.values()] as BTPTrustRecord[];
     return receiverId ? all.filter((r) => r.receiverId === receiverId) : all;
   }
+
+  /**
+   * This store keeps trust records only, not artifacts, so it knows of none
+   * and a server using it as is accepts no `BTPS_EVENT`. To accept events,
+   * extend it and answer from wherever the platform keeps delivered artifacts.
+   */
+  async isKnownArtifact(): Promise<boolean> {
+    return false;
+  }
 }
 
 export default JsonTrustStore;

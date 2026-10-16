@@ -36,6 +36,9 @@ class DummyTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   async getAll(): Promise<BTPTrustRecord[]> {
     return [];
   }
+  async isKnownArtifact(): Promise<boolean> {
+    return false;
+  }
 }
 
 describe('BtpsServerRegistry', () => {

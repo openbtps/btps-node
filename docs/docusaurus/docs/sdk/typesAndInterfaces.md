@@ -248,6 +248,18 @@ type BtpsAgentDoc = BTPDocType | BTPAuthReqDoc | BTPAgentMutation | BTPIdsPayloa
 - `BTPIdsPayload`: ID payload documents
 - `BTPAgentQuery`: Agent query documents
 
+### BtpsAgentCommandOptions
+
+Options for `BtpsAgent.command`: the [BTPCryptoOptions](#btpcryptooptions), plus `relatesTo` for events.
+
+```ts
+type BtpsAgentCommandOptions = BTPCryptoOptions & {
+  relatesTo?: string;
+};
+```
+
+- `relatesTo`: Required on `event.send` and refused on every other action: the `id` of the `BTPS_DOC` artifact that delivered the invoice the event is about. It is set on the `BTPS_EVENT` envelope, outside the encrypted document, so the receiving server can check it without decrypting
+
 ### BTPConnection
 
 Represents a BTPS client connection managed by the transporter.
@@ -1232,6 +1244,7 @@ interface BTPTransporterArtifact {
   encryption: BTPEncryption | null;
   delegation?: BTPDelegation;
   selector: string; // Selector used for public key resolution (e.g., 'btps1', 'btps2')
+  relatesTo?: string; // BTPS_EVENT only, and required there: the id of the BTPS_DOC artifact that delivered the invoice
 }
 ```
 

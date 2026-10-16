@@ -33,6 +33,7 @@ import {
   BTP_ERROR_TRUST_EXPIRED,
   BTP_ERROR_TRUST_REVOKED,
   BTP_ERROR_TRUST_BLOCKED,
+  BTP_ERROR_EVENT_UNRELATED,
 } from '../../core/error/index.js';
 
 const TEST_FILE = path.join(__dirname, 'test-trust-store.json');
@@ -59,6 +60,9 @@ class DummyTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   }
   async getAll(): Promise<BTPTrustRecord[]> {
     return [];
+  }
+  async isKnownArtifact(): Promise<boolean> {
+    return false;
   }
 }
 
@@ -1828,6 +1832,61 @@ export default function () {
         expect(result.isTrusted).toBe(false);
         expect(result.error).toBeInstanceOf(BTPErrorException);
         expect(result.error?.message).toContain('BTPS trust request is not allowed');
+      });
+    });
+
+    describe('verifyEventRelation', () => {
+      const transporter = (
+        type: BTPTransporterArtifact['type'],
+        relatesTo?: string,
+      ): ProcessedArtifact => ({
+        type: 'transporter',
+        artifact: {
+          version: '1.0.0',
+          id: 'event-id',
+          issuedAt: new Date().toISOString(),
+          type,
+          from: 'billing$payer.com',
+          to: 'billing$issuer.com',
+          selector: 'btps1',
+          signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
+          encryption: null,
+          document: 'encrypted',
+          ...(relatesTo !== undefined && { relatesTo }),
+        },
+      });
+
+      it('passes an artifact that is not an event without asking the store', async () => {
+        const spy = vi.spyOn(trustStore, 'isKnownArtifact');
+        const result = await server['verifyEventRelation'](transporter('BTPS_DOC'));
+        expect(result.isTrusted).toBe(true);
+        expect(spy).not.toHaveBeenCalled();
+      });
+
+      it('accepts an event whose relatesTo the store knows between the two parties', async () => {
+        const spy = vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(true);
+        const result = await server['verifyEventRelation'](transporter('BTPS_EVENT', 'doc-1'));
+        expect(result).toEqual({ isTrusted: true, error: undefined });
+        expect(spy).toHaveBeenCalledWith({
+          artifactId: 'doc-1',
+          from: 'billing$payer.com',
+          to: 'billing$issuer.com',
+        });
+      });
+
+      it('refuses an event whose relatesTo the store does not know', async () => {
+        vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(false);
+        const result = await server['verifyEventRelation'](transporter('BTPS_EVENT', 'doc-1'));
+        expect(result.isTrusted).toBe(false);
+        expect(result.error?.code).toBe(BTP_ERROR_EVENT_UNRELATED.code);
+      });
+
+      it('refuses an event without relatesTo without asking the store', async () => {
+        const spy = vi.spyOn(trustStore, 'isKnownArtifact');
+        const result = await server['verifyEventRelation'](transporter('BTPS_EVENT'));
+        expect(result.isTrusted).toBe(false);
+        expect(result.error?.code).toBe(BTP_ERROR_EVENT_UNRELATED.code);
+        expect(spy).not.toHaveBeenCalled();
       });
     });
 

@@ -140,6 +140,8 @@ export interface BTPTransporterArtifact extends BTPGenericArtifact<BTPDocType | 
   encryption: BTPEncryption | null;
   delegation?: BTPDelegation;
   selector: string;
+  /** On a BTPS_EVENT only: the id of the BTPS_DOC artifact that delivered the invoice it is about. */
+  relatesTo?: string;
 }
 
 export type BTPArtifact =

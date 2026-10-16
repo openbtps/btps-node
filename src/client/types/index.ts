@@ -60,11 +60,16 @@ export type BtpsAgentDoc =
   | BTPIdsPayload
   | BTPAgentQuery;
 
+export type BtpsAgentCommandOptions = BTPCryptoOptions & {
+  /** Required on `event.send`, refused elsewhere: the id of the `BTPS_DOC` artifact that delivered the invoice. */
+  relatesTo?: string;
+};
+
 export type BtpsAgentCommandParams = {
   actionType: AgentAction;
   to: string;
   document?: BtpsAgentDoc;
-  options?: BTPCryptoOptions;
+  options?: BtpsAgentCommandOptions;
 };
 
 export interface ConnectionStates {

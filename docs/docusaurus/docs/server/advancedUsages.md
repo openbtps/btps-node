@@ -168,6 +168,20 @@ class MongoTrustStore extends AbstractTrustStore {
       ? await this.client.db().collection(this.entityName).find({ receiverId }).toArray()
       : await this.client.db().collection(this.entityName).find({}).toArray();
   }
+  async isKnownArtifact({ artifactId, from, to }) {
+    // 'artifacts' is wherever the platform records the artifacts it sends and receives
+    const found = await this.client
+      .db()
+      .collection('artifacts')
+      .findOne({
+        id: artifactId,
+        $or: [
+          { from, to },
+          { from: to, to: from },
+        ],
+      });
+    return found !== null;
+  }
 }
 
 // Usage:
@@ -249,6 +263,18 @@ class DynamoTrustStore extends AbstractTrustStore {
     });
     return Items ? Items.map((item) => AWS.DynamoDB.Converter.unmarshall(item)) : [];
   }
+  async isKnownArtifact({ artifactId, from, to }) {
+    // 'artifacts' is wherever the platform records the artifacts it sends and receives
+    const result = await this.client.send(
+      new GetItemCommand({ TableName: 'artifacts', Key: { id: { S: artifactId } } }),
+    );
+    if (!result.Item) return false;
+    const artifact = AWS.DynamoDB.Converter.unmarshall(result.Item);
+    return (
+      (artifact.from === from && artifact.to === to) ||
+      (artifact.from === to && artifact.to === from)
+    );
+  }
 }
 
 // Usage:
@@ -303,6 +329,14 @@ class SqlTrustStore extends AbstractTrustStore {
       ]);
     }
     return await this.db.query(`SELECT * FROM ${this.entityName}`);
+  }
+  async isKnownArtifact({ artifactId, from, to }) {
+    // 'artifacts' is wherever the platform records the artifacts it sends and receives
+    const [rows] = await this.db.query(
+      'SELECT 1 FROM artifacts WHERE id = ? AND ((`from` = ? AND `to` = ?) OR (`from` = ? AND `to` = ?))',
+      [artifactId, from, to, to, from],
+    );
+    return rows.length > 0;
   }
 }
 
@@ -360,6 +394,15 @@ class PostgresTrustStore extends AbstractTrustStore {
         ])
       : await this.pool.query(`SELECT * FROM ${this.entityName}`);
     return rows;
+  }
+  async isKnownArtifact({ artifactId, from, to }) {
+    // 'artifacts' is wherever the platform records the artifacts it sends and receives
+    const { rows } = await this.pool.query(
+      `SELECT 1 FROM artifacts
+       WHERE id = $1 AND ((sender = $2 AND receiver = $3) OR (sender = $3 AND receiver = $2))`,
+      [artifactId, from, to],
+    );
+    return rows.length > 0;
   }
 }
 
