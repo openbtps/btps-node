@@ -210,7 +210,7 @@ BTPS supports three privacy levels for document exchange:
 - Balance between security and performance
 - **Use case**: Mixed document types with varying sensitivity
 
-### How the server enforces it (BTPS 1.1, EBA-444)
+### How the server enforces it (BTPS 1.1)
 
 A BTPS 1.1 server reads `privacyType` from the trust record and refuses a
 `BTPS_DOC` or `BTPS_EVENT` that breaks it, after the trust check and before

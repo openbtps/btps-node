@@ -31,7 +31,7 @@ The `BtpsAuthentication` class provides a unified interface for handling BTPS au
 - ✅ Configurable token generation settings
 - ✅ Automatic cleanup of expired tokens/sessions
 
-## Device registration (BTPS 1.1, item E)
+## Device registration (BTPS 1.1)
 
 A device registers with a one-time registration token issued to the owner of
 the identity (`generateAuthToken`, `storeAuthToken`). Give the server the same
@@ -306,7 +306,7 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
     // Validate the auth token
     const validation = await auth.validateAuthToken(agentId, authRequest.authToken);
     if (!validation.isValid) {
-      // A constant from @btps/sdk/error: it goes out with its own code and status (EBA-188).
+      // A constant from @btps/sdk/error: it goes out with its own code and status.
       resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
       return;
     }
@@ -344,7 +344,7 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
 - `BtpsAuthentication.authenticate(identity: string, authToken: string, keyPair: PemKeys, agentInfo?: Record<string, string | string[]>, agentOptions?: AuthAgentOptions): Promise<AuthRequestResult>`
 - `BtpsAuthentication.refreshSession(agentId: string, identity: string, refreshToken: string, keyPair: BTPSigningKey, agentInfo?: Record<string, string | string[]>, agentOptions?: AuthAgentOptions): Promise<AuthRequestResult>`: keeps the key; `keyPair` must be the key the server holds
 - `BtpsAuthentication.rotateKey(agentId: string, identity: string, refreshToken: string, currentKey: BTPSigningKey, newKey: BTPSigningKey, agentInfo?: Record<string, string | string[]>, agentOptions?: AuthAgentOptions): Promise<AuthRequestResult>`: refreshes and rotates the device key (self-held custody). Signed by `currentKey`, with `newKey`'s `keyProof`
-- `verifyAgentRefresh({ artifact, currentPublicKey, nowMs, windowMs? })`: the server's check of an `auth.refresh` (item D, EBA-112): signed by the current key, and a new key only with a valid `keyProof`
+- `verifyAgentRefresh({ artifact, currentPublicKey, nowMs, windowMs? })`: the server's check of an `auth.refresh`: signed by the current key, and a new key only with a valid `keyProof`
 - `signKeyProof({ agentId, identity, newKey, issuedAt? })`: the new key's signature over the JCS form of `{ agentId, identity, newPublicKey, issuedAt }`
 
 ### Instance Methods

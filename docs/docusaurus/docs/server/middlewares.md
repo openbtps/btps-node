@@ -11,7 +11,7 @@ The BTPS Server SDK features a powerful, phase-based middleware system that lets
 ## Default Middleware and Rate Limiting
 
 Every `BtpsServer` runs a **default middleware set**, before your middleware
-file's, whether or not you give a file (BTPS 1.1, EBA-187):
+file's, whether or not you give a file (BTPS 1.1):
 
 | Phase / step | Default | Keyed by |
 | --- | --- | --- |
@@ -68,7 +68,7 @@ new BtpsServer({
   }),
 });
 
-// Counters in a shared store, for several server instances: any RateLimiter.
+// Counters in a shared store, for several server instances: your own RateLimiter.
 new BtpsServer({ ...options, defaultMiddleware: createDefaultMiddleware({ rateLimiter: myRedisLimiter }) });
 
 // Your own set instead of the defaults:
@@ -225,7 +225,7 @@ Each handler receives:
 
 **Short-circuit:** Call `res.sendError()` or `res.sendRes()` to stop processing and return a result.
 
-### `next()` and stopping (BTPS 1.1, EBA-445)
+### `next()` and stopping (BTPS 1.1)
 
 When a handler's promise settles, the server looks at what it did:
 
@@ -242,8 +242,8 @@ without `next()` and leave the answer to the server.
 
 ## Loading & Ordering Middleware
 
-- The default middleware is loaded first (see above), then the file specified by `middlewarePath` (default: `btps.middleware.mjs` in the working directory). With no `middlewarePath`, a missing default file is not an error. A `middlewarePath` given explicitly must exist: if it does not, the server fails to start with `BTP_ERROR_MIDDLEWARE` (EBA-445).
-- Every definition is checked when it is loaded: a valid `phase` and `step`, a `handler` function declared with at least three parameters (`req, res, next`), and a non-negative whole `priority`. One that fails stops the server from starting with `BTP_ERROR_MIDDLEWARE`; it is never skipped with only a warning (EBA-445).
+- The default middleware is loaded first (see above), then the file specified by `middlewarePath` (default: `btps.middleware.mjs` in the working directory). With no `middlewarePath`, a missing default file is not an error. A `middlewarePath` given explicitly must exist: if it does not, the server fails to start with `BTP_ERROR_MIDDLEWARE`.
+- Every definition is checked when it is loaded: a valid `phase` and `step`, a `handler` function declared with at least three parameters (`req, res, next`), and a non-negative whole `priority`. One that fails stops the server from starting with `BTP_ERROR_MIDDLEWARE`; it is never skipped with only a warning.
 - Within a phase/step, the defaults run before the file's middleware.
 - Middleware is executed in the order listed for each phase/step.
 - Use the `priority` field to control execution order (lower numbers run first).

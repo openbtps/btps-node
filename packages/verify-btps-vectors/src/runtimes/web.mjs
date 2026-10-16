@@ -7,7 +7,7 @@
  * polyfill, React Native) runs, so the same vectors can be run there. A
  * test in this package fails if a `node:` import appears here.
  *
- * Profile (BTPS 1.1 addendum, page 8323117; EBA-110):
+ * Profile (BTPS 1.1):
  *   - signatures: RSASSA-PKCS1-v1_5 with SHA-256, the AWS KMS
  *     RSASSA_PKCS1_V1_5_SHA_256 signing algorithm;
  *   - key wrap:   RSA-OAEP with SHA-256 and MGF1-SHA-256, the AWS KMS

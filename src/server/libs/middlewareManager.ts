@@ -29,15 +29,15 @@ export class MiddlewareManager {
     onResponseSent?: (response: BTPServerResponse) => Promise<void> | void;
   } = {};
 
-  /** Whether the path was given (EBA-445): a given file must exist; the default one need not. */
+  /** Whether the path was given: a given file must exist; the default one need not. */
   private readonly pathGiven: boolean;
 
   /**
    * @param middlewarePath - The platform's middleware file; defaults to
    *   `btps.middleware.mjs` in the working directory. A missing default file
-   *   is no error; a path given that does not exist is (EBA-445).
-   * @param defaultMiddleware - What runs before the file's middleware
-   *   (EBA-187): `undefined` for createDefaultMiddleware(), an array to
+   *   is no error; a path given that does not exist is.
+   * @param defaultMiddleware - What runs before the file's middleware:
+   *   `undefined` for createDefaultMiddleware(), an array to
    *   replace it, `false` for none.
    */
   constructor(
@@ -88,7 +88,7 @@ export class MiddlewareManager {
 
     if (!existsSync(resolvedPath)) {
       if (!this.pathGiven) return [];
-      // A file named and not there is a mistake, never "no middleware" (EBA-445).
+      // A file named and not there is a mistake, never "no middleware".
       throw new BTPErrorException(BTP_ERROR_MIDDLEWARE, {
         cause: `The middleware file ${resolvedPath} does not exist`,
         meta: { middlewarePath: this.middlewarePath },
@@ -139,7 +139,7 @@ export class MiddlewareManager {
 
   /**
    * Validates middleware definitions and sorts them by priority. An invalid
-   * definition fails the load (EBA-445): skipping it with a warning left a
+   * definition fails the load: skipping it with a warning left a
    * server running without, say, its rate limiter.
    */
   private validateAndSortMiddleware(middleware: MiddlewareDefinitionArray): MiddlewareDefinition[] {

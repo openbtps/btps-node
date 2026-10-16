@@ -6,7 +6,8 @@
  */
 
 /*
- * EBA-445: the client side of fix lists 12 and 14, over real TLS sockets on
+ * The client's connection fixes (pending sends always answered, an error
+ * answer with no reqId, timeout minimums), over real TLS sockets on
  * 127.0.0.1 against a scripted server that writes exactly the lines a test
  * gives it. Nothing else is faked, except BTP_MAX_LINE_LENGTH, lowered for
  * this file so an over-long answer is cheap to write.
@@ -162,8 +163,8 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-describe('fix list 14: an error answer with no reqId', () => {
-  // Ran 2026-10-14 (EBA-411 load test): a sender over the address limit saw
+describe('an error answer with no reqId', () => {
+  // Ran 2026-10-14 (a load test): a sender over the address limit saw
   // only the connection close, never the 429.
   it('reaches the one pending send on the connection, as an error', async () => {
     const port = await start((socket) => socket.write(rateLimitedNoReqId()));
@@ -223,7 +224,7 @@ describe('fix list 14: an error answer with no reqId', () => {
   });
 });
 
-describe('fix list 12: the client', () => {
+describe('the client answers every pending send', () => {
   // Read 2026-10-13: the connection timeout cleared the queue without
   // resolving, so a send whose own timer was longer waited forever. Since
   // EBA-443 that timeout is the connect timeout; see the test below.

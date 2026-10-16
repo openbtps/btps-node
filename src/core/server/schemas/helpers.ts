@@ -80,7 +80,7 @@ export const parseBtpEventDoc = (raw: unknown): BTPParseResult<BTPEventDoc> =>
 
 /**
  * The structural rules between a lifecycle event and the `BTPS_EVENT` that
- * carries it (release plan sections 2.4 and 2.7):
+ * carries it:
  * - the event's `id` is the artifact's `id`: one id end to end;
  * - `document.from` is the envelope's `to` (the payer writing back about the
  *   biller's invoice) or its `from` (the biller answering about its own):
@@ -118,8 +118,7 @@ const sameReference = (a: BTPEventDoc['document'], b: BTPEventDoc['document']) =
   a.from === b.from && a.id === b.id && a.sha256 === b.sha256;
 
 /**
- * The reply-chain rule a receiving platform applies (release plan section
- * 2.7), once it has looked up, within the same pair, the event a reply's
+ * The reply-chain rule a receiving platform applies, once it has looked up, within the same pair, the event a reply's
  * `inReplyTo` names. The protocol cannot apply it: only the platform holds
  * the events already exchanged. The reply and the answered event are each
  * given with the envelope that carried them.

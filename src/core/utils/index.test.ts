@@ -101,7 +101,7 @@ describe('utils/index', () => {
       await expect(getDnsIdentityParts('test$example.com', 'btps1')).rejects.toThrow('DNS error');
     });
 
-    // Fix list 1 (EBA-442): a resolver reports an absent record by rejecting
+    // Host identity lookup: a resolver reports an absent record by rejecting
     // with ENOTFOUND or ENODATA. That is "no record", which sends the client
     // to the address's host; any other failure is still an error.
     it.each(['ENOTFOUND', 'ENODATA'])(
@@ -128,7 +128,7 @@ describe('utils/index', () => {
     });
   });
 
-  // Fix list 9 (EBA-186): the tag parser split each `tag=value` on every "="
+  // Padded keys in DNS: the tag parser split each `tag=value` on every "="
   // and kept only pairs of exactly two parts, so a `p=` value that ends in
   // base64 padding was dropped. RSA-2048 keys encode without padding;
   // 3072-bit and 4096-bit keys do not.

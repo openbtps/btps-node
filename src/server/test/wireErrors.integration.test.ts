@@ -6,7 +6,7 @@
  */
 
 /*
- * Fix list 6 (EBA-188): stable error codes on the wire, over real TLS sockets
+ * Stable error codes on the wire, over real TLS sockets
  * on 127.0.0.1 with real keys, a real BtpsServer and a real BtpsClient. Only
  * DNS is faked.
  *
@@ -15,7 +15,7 @@
  * reached it as `queryTxt ESERVFAIL <the server's internal name>`.
  *
  * Interop: these tests are 1.1 to 1.1. A 1.0 peer is not a concern: a 1.1
- * server refuses 1.0 artifacts (release plan, section 6).
+ * server refuses 1.0 artifacts.
  */
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -290,7 +290,7 @@ const sendThroughClient = async (started: Started, artifact: BTPTransporterArtif
   }
 };
 
-describe('EBA-188: a refusal carries its status class and stable code', () => {
+describe('a refusal carries its status class and stable code', () => {
   let started: Started | undefined;
 
   afterEach(() => {
@@ -397,7 +397,7 @@ describe('EBA-188: a refusal carries its status class and stable code', () => {
 // The client never resends an artifact on an error answer: it hands the error
 // back with `retryable`, and the sender decides. Its connection retry
 // (getRetryInfo) follows the same code, not the message text.
-describe('EBA-188: the client decides retry by code, per class', () => {
+describe('the client decides retry by code, per class', () => {
   let started: Started | undefined;
 
   afterEach(() => {

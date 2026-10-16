@@ -28,7 +28,7 @@ export async function generateKeys(accountName: string) {
 
 export const getBTPKeyPair = (keyConfig?: BTPKeyConfig): BTPKeyPair => {
   const keySize = keyConfig?.keySize ?? BTP_MIN_RSA_KEY_BITS;
-  // A key the protocol would refuse is never made (fix list 12).
+  // A key the protocol would refuse is never made.
   if (keySize < BTP_MIN_RSA_KEY_BITS) {
     throw new BTPErrorException(BTP_ERROR_KEY_TOO_SMALL, {
       cause: `keySize ${keySize} is below ${BTP_MIN_RSA_KEY_BITS}`,

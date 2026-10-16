@@ -36,7 +36,7 @@ const v2Invoice = () => ({
   totalAmount: { amount: 10000, currency: 'USD' },
 });
 
-// The BTPS 1.0 invoice, which 1.1 refuses (release plan section 6).
+// The BTPS 1.0 invoice, which 1.1 refuses.
 const v1Invoice = () => ({
   title: 'Test Invoice',
   id: 'INV-001',

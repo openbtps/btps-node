@@ -6,7 +6,7 @@
  */
 
 /*
- * BTPS 1.1 item D (EBA-112): test/vectors/refresh.vectors.json against
+ * Key-rotating refresh: test/vectors/refresh.vectors.json against
  * verifyAgentRefresh, and signKeyProof round trips. The same cases run
  * through the server in src/server/test/refresh.test.ts.
  */
@@ -70,7 +70,7 @@ const genKeys = (): PemKeys => {
   return { publicKey, privateKey };
 };
 
-describe('item D: refresh.vectors.json, self-held custody', () => {
+describe('refresh.vectors.json, self-held custody', () => {
   it.each(vectors.selfHeld.cases.map((c) => [c.name, c] as const))('%s', (_, c) => {
     const result = run(c);
     if (c.expect === 'accept') {
@@ -89,7 +89,7 @@ describe('item D: refresh.vectors.json, self-held custody', () => {
     }
   });
 
-  it('covers the EBA-112 acceptance cases', () => {
+  it('covers the key-rotating refresh cases', () => {
     const names = vectors.selfHeld.cases.map((c) => c.name);
     expect(names).toContain('rotation-signed-only-by-new-key-refused');
     expect(names).toContain('rotation-signed-by-current-key-with-countersigned-new-key-accepted');
@@ -98,7 +98,7 @@ describe('item D: refresh.vectors.json, self-held custody', () => {
   });
 });
 
-describe('item D: refresh.vectors.json, managed custody', () => {
+describe('refresh.vectors.json, managed custody', () => {
   it('says the refresh path does not apply', () => {
     expect(vectors.managed.description).toMatch(/Not applicable/);
     expect(vectors.managed.keyVector).toBe('kms-signature.vector.json');
@@ -114,7 +114,7 @@ describe('item D: refresh.vectors.json, managed custody', () => {
   });
 });
 
-describe('item D: signKeyProof', () => {
+describe('signKeyProof', () => {
   const agentId = 'btps_ag_sign-test';
   const identity = 'alice$saas.example';
 

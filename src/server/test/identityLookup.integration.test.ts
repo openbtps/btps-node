@@ -6,8 +6,9 @@
  */
 
 /*
- * Identity lookup (fix list 1, EBA-442; fix list 9, EBA-186), over real TLS
- * sockets on 127.0.0.1 with real keys. Only DNS is faked.
+ * Host identity lookup, and padded keys in DNS TXT records, over real TLS
+ * sockets on 127.0.0.1 with real keys. Only DNS is faked. The five lookup
+ * defects this file proves fixed are numbered in the comments below.
  *
  * Key lookup is DNS first: the address's own record at
  * `<selector>._btps.identity.<account>.<domain>`. When there is none, the
@@ -650,7 +651,7 @@ describe('identity lookup end to end: BtpsClient and BtpsServer over TLS', () =>
     expect(connections).not.toHaveBeenCalled();
   });
 
-  // Fix list 9 (EBA-186): the TXT parser split each tag on every "=", so a
+  // Padded keys in DNS: the TXT parser split each tag on every "=", so a
   // base64 key with padding never parsed. RSA-2048 keys encode without
   // padding; 3072-bit and 4096-bit keys do not.
   describe.each([3072, 4096])('%i-bit keys', (bits) => {
