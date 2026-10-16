@@ -16,8 +16,11 @@ import {
   generateUserToken,
   getFingerprintFromPem,
   DEFAULT_ALPHABET,
+  signBtpPayload,
+  signBtpPayloadWithSigner,
   type BTPSigningKey,
 } from '@core/crypto/index.js';
+import { keyProofPayload } from './keyProof.js';
 import type {
   ServerAuthConfig,
   AuthRequestResponse,
@@ -105,11 +108,14 @@ export class BtpsAuthentication {
    */
   private static async _fetchAuthSession(
     agentId: string,
-    payload: Omit<BTPAuthReqDoc, 'publicKey'> & { keyPair: BTPSigningKey },
+    payload: Omit<BTPAuthReqDoc, 'publicKey' | 'keyProof'> & {
+      keyPair: BTPSigningKey;
+      newKey?: BTPSigningKey;
+    },
     type: 'refresh' | 'auth' = 'auth',
     agentOptions?: AuthAgentOptions,
   ): Promise<AuthRequestResponse> {
-    const { keyPair, identity, authToken, agentInfo } = payload;
+    const { keyPair, newKey, identity, authToken, agentInfo } = payload;
     const commandAction = type === 'refresh' ? 'auth.refresh' : 'auth.request';
 
     try {
@@ -129,13 +135,26 @@ export class BtpsAuthentication {
 
       const agent = new BtpsAgent(options);
 
-      // Prepare authentication request
+      // Prepare authentication request. Moving to a new key names that key, and
+      // proves it with the new key's signature; the agent signs with the current one.
+      const announcedKey = newKey ?? keyPair;
+      const publicKey =
+        'sign' in announcedKey
+          ? (await announcedKey.getPublicKey()).publicKey
+          : announcedKey.publicKey;
       const authRequest: BTPAuthReqDoc = {
         identity,
         authToken,
-        publicKey: 'sign' in keyPair ? (await keyPair.getPublicKey()).publicKey : keyPair.publicKey,
+        publicKey,
         agentInfo,
       };
+      if (newKey) {
+        const proofPayload = keyProofPayload(agentId, identity, publicKey);
+        authRequest.keyProof =
+          'sign' in newKey
+            ? await signBtpPayloadWithSigner(proofPayload, newKey)
+            : signBtpPayload(proofPayload, newKey);
+      }
 
       // Send authentication request
       const { response, error } = await agent.command(commandAction, identity, authRequest);
@@ -464,6 +483,39 @@ export class BtpsAuthentication {
     return await this._fetchAuthSession(
       agentId,
       { keyPair, identity, authToken: refreshToken, agentInfo },
+      'refresh',
+      agentOptions,
+    );
+  }
+
+  /**
+   * Refresh an authentication session and move the device to a new key (client-side).
+   * The refresh is signed by the current key and carries a proof signed by the new
+   * key, so the server accepts the new key only from the device that holds both.
+   * After it succeeds, the device signs with the new key.
+   * @param currentKey - The key the server holds for this device today
+   * @param newKey - The key to move to: a PEM key pair, or a Signer holding it
+   * @returns renewed authentication session or error
+   */
+  static async rotateKey(
+    agentId: string,
+    identity: string,
+    refreshToken: string,
+    currentKey: BTPSigningKey,
+    newKey: BTPSigningKey,
+    agentInfo?: Record<string, string | string[]>,
+    agentOptions?: AuthAgentOptions,
+  ): Promise<AuthRequestResponse> {
+    if (!isValidIdentity(identity)) {
+      return {
+        success: false,
+        error: new BTPErrorException(BTP_ERROR_IDENTITY),
+      };
+    }
+
+    return await this._fetchAuthSession(
+      agentId,
+      { keyPair: currentKey, newKey, identity, authToken: refreshToken, agentInfo },
       'refresh',
       agentOptions,
     );

@@ -1399,6 +1399,22 @@ Error constant for socket timeouts.
 
 ---
 
+### BTP_ERROR_KEY_ROTATION_PROOF
+
+```ts
+const BTP_ERROR_KEY_ROTATION_PROOF: BTPError;
+```
+
+**Description:**
+Error constant for an `auth.refresh` that names a new device key without a `keyProof` signed by that key, or with one that does not verify. The refresh is refused before the platform's handler runs (see `BtpsAuthentication.rotateKey`).
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_KEY_ROTATION_PROOF'`
+- `message`: `'A new device key needs a proof signed by that key'`
+
+---
+
 ### BTP_ERROR_ARTIFACT_TIME_WINDOW
 
 ```ts

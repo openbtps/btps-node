@@ -51,6 +51,8 @@ export interface BTPAuthReqDoc {
   authToken: string; // generated via generateUserToken
   publicKey: string; // device publicKey
   agentInfo?: Record<string, string | string[]>;
+  /** On an auth.refresh that moves the device to a new key: that key's signature over keyProofPayload. */
+  keyProof?: BTPSignature;
 }
 
 export interface BTPAuthResDoc {

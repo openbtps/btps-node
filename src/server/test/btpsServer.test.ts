@@ -18,7 +18,13 @@ import JsonTrustStore from '../../core/trust/storage/JsonTrustStore.js';
 import { AbstractIdentityStore } from '../../core/storage/AbstractIdentityStore.js';
 import type { BTPIdentityRecord, IdentityPubKeyRecord } from '../../core/storage/types.js';
 import { PemSigner } from '../../core/crypto/pem-signer.js';
-import { verifySignature } from '../../core/crypto/index.js';
+import {
+  getFingerprintFromPem,
+  signBtpPayload,
+  verifySignature,
+} from '../../core/crypto/index.js';
+import { pemToBase64 } from '../../core/utils/index.js';
+import { keyProofPayload } from '../../core/authentication/keyProof.js';
 import { generateKeyPairSync } from 'crypto';
 import path from 'path';
 import fs from 'fs/promises';
@@ -42,6 +48,7 @@ import {
   BTP_ERROR_EVENT_UNRELATED,
   BTP_ERROR_ARTIFACT_TOO_LARGE,
   BTP_ERROR_ARTIFACT_TIME_WINDOW,
+  BTP_ERROR_KEY_ROTATION_PROOF,
 } from '../../core/error/index.js';
 import { PassThrough } from 'stream';
 import net from 'net';
@@ -1663,7 +1670,7 @@ export default function () {
         expect(result).toBe(null);
       });
 
-      it('should return new public key for refreshing agents with different fingerprint', async () => {
+      it('returns the stored key for a refresh that names a new key: the current key must sign it', async () => {
         const mockTrustRecord = {
           id: 'test-trust-id',
           from: 'test-agent',
@@ -1704,7 +1711,89 @@ export default function () {
         vi.spyOn(crypto, 'getFingerprintFromPem').mockReturnValue('new-fingerprint');
 
         const result = await server['getAgentPublicKey'](artifact);
-        expect(result).toBe('-----BEGIN PUBLIC KEY-----\nNEW_KEY\n-----END PUBLIC KEY-----');
+        expect(result).not.toContain('NEW_KEY');
+        expect(result).toContain('-----BEGIN PUBLIC KEY-----');
+      });
+    });
+
+    describe('auth.refresh and the device key', () => {
+      const keyPair = () =>
+        generateKeyPairSync('rsa', {
+          modulusLength: 2048,
+          publicKeyEncoding: { type: 'spki', format: 'pem' },
+          privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+        });
+      const current = keyPair();
+      const identity = 'alice$example.com';
+
+      // An auth.refresh naming `publicKey`, signed by `signedBy`.
+      const refresh = (
+        signedBy: { publicKey: string; privateKey: string },
+        publicKey: string,
+        keyProof?: BTPAuthReqDoc['keyProof'],
+      ): BTPAgentArtifact => {
+        const unsigned = {
+          version: '1.0.0',
+          id: 'refresh-1',
+          agentId: 'agent-1',
+          action: 'auth.refresh' as const,
+          to: identity,
+          issuedAt: new Date().toISOString(),
+          encryption: null,
+          document: { identity, authToken: 'refresh-token', publicKey, ...(keyProof && { keyProof }) },
+        };
+        return { ...unsigned, signature: signBtpPayload(unsigned, signedBy) };
+      };
+      const proof = (newKey: { publicKey: string; privateKey: string }, publicKey: string) =>
+        signBtpPayload(keyProofPayload('agent-1', identity, publicKey), newKey);
+
+      beforeEach(() => {
+        trustStore.getById = vi.fn().mockResolvedValue({
+          id: 'trust-id',
+          senderId: 'agent-1',
+          receiverId: identity,
+          status: 'accepted',
+          createdAt: new Date().toISOString(),
+          decidedBy: identity,
+          decidedAt: new Date().toISOString(),
+          publicKeyBase64: pemToBase64(current.publicKey),
+          publicKeyFingerprint: getFingerprintFromPem(current.publicKey),
+          keyHistory: [],
+          privacyType: 'unencrypted',
+        });
+      });
+
+      it('accepts a refresh with the same key, signed by it', async () => {
+        const result = await server['verifyAgentSignature'](refresh(current, current.publicKey));
+        expect(result.isValid).toBe(true);
+      });
+
+      it("refuses a refresh that moves to a new key signed only by that new key: a stolen token is not enough", async () => {
+        const attacker = keyPair();
+        const result = await server['verifyAgentSignature'](
+          refresh(attacker, attacker.publicKey, proof(attacker, attacker.publicKey)),
+        );
+        expect(result.isValid).toBe(false);
+      });
+
+      it('accepts a move to a new key signed by the current key with a proof from the new key', async () => {
+        const next = keyPair();
+        const result = await server['verifyAgentSignature'](
+          refresh(current, next.publicKey, proof(next, next.publicKey)),
+        );
+        expect(result).toEqual({ isValid: true, error: undefined });
+      });
+
+      it('refuses a move to a new key without a proof, or with a proof the new key did not sign', async () => {
+        const next = keyPair();
+        const other = keyPair();
+        for (const keyProof of [undefined, proof(other, next.publicKey)]) {
+          const result = await server['verifyAgentSignature'](
+            refresh(current, next.publicKey, keyProof),
+          );
+          expect(result.isValid).toBe(false);
+          expect(result.error?.code).toBe(BTP_ERROR_KEY_ROTATION_PROOF.code);
+        }
       });
     });
 
