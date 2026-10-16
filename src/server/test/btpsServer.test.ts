@@ -1197,7 +1197,8 @@ export default function () {
       const processMessageResult = await server['processMessage'](testData, mockRes, mockReq);
 
       console.log('🔍 processMessage returned:', processMessageResult);
-      expect(processMessageResult).toBe(true); // processMessage returns true, socket destruction is handled separately
+      // processMessage reports the response sent; socket destruction is handled separately
+      expect(processMessageResult).toEqual({ responseSent: true, confirmedStored: false });
       expect(socketDestroyed).toBe(false); // Socket is not destroyed in this test
       expect(mockSocket.write).toHaveBeenCalled(); // Should have written the response
       // Note: mockSocket.end is not called in this test scenario

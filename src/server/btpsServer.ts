@@ -44,6 +44,8 @@ import {
   BTP_ERROR_SERVER_SELECTOR,
   BTP_ERROR_LINE_TOO_LONG,
   BTP_ERROR_TRUST_PRIVACY,
+  BTP_ERROR_INVALID_OPTION,
+  BTP_ERROR_TRUST_REQUEST_NOT_STORED,
 } from '@core/error/constant.js';
 import {
   type BTPSigningKey,
@@ -143,7 +145,7 @@ export class BtpsServer {
   private readonly port: number;
   private server: tls.Server;
   private emitter = new EventEmitter();
-  private handlerFn: ((data: ProcessedArtifact) => Promise<void>) | null = null;
+  private handlerFn: ((data: ProcessedArtifact) => Promise<void | boolean>) | null = null;
 
   /**
    * Creates a new BtpsServer instance
@@ -694,15 +696,15 @@ export class BtpsServer {
     }
 
     // Core message processing (non-negotiable)
-    let isResponseSent: boolean;
+    let processed: { responseSent: boolean; confirmedStored: boolean };
     try {
-      isResponseSent = await this.processMessage(data, resCtx, reqCtx);
+      processed = await this.processMessage(data, resCtx, reqCtx);
     } catch (err) {
       // The application never took it: let the sender resend the same artifact.
       await this.replayStore.forget(replayFrom, replayId);
       throw err;
     }
-    if (isResponseSent) return; // Response already sent, stop processing
+    if (processed.responseSent) return; // Response already sent, stop processing
 
     // Execute after onArtifact middleware (if any)
     const afterOnArtifactResponseSent = await this.executeMiddleware(
@@ -711,6 +713,24 @@ export class BtpsServer {
       resCtx,
     );
     if (afterOnArtifactResponseSent) return; // Response already sent, stop processing
+
+    // Fix list 3: a trust request is answered success only once something
+    // stored it. Otherwise the sender may send the same request again.
+    if (
+      data.type === 'transporter' &&
+      data.artifact.type === 'TRUST_REQ' &&
+      !processed.confirmedStored &&
+      !(await this.isTrustRequestOnRecord(data.artifact))
+    ) {
+      await this.replayStore.forget(replayFrom, replayId);
+      reqCtx.error = new BTPErrorException(BTP_ERROR_TRUST_REQUEST_NOT_STORED, {
+        cause:
+          'Neither the forwardTo handler returned true nor the trust store holds a pending record for the pair',
+        meta: { from: data.artifact.from, to: data.artifact.to, id: data.artifact.id },
+      });
+      this.onError?.(reqCtx.error);
+      return this.sendBtpsError(resCtx.socket, BTP_ERROR_TRUST_REQUEST_NOT_STORED, resCtx.reqId);
+    }
 
     // Send success response
     this.sendBtpsResponse(resCtx.socket, {
@@ -1311,18 +1331,34 @@ export class BtpsServer {
   }
 
   /**
+   * Fix list 3: whether the trust store holds a pending request from the
+   * artifact's sender to its receiver, the record the platform keeps for
+   * the receiver to decide on.
+   */
+  private async isTrustRequestOnRecord(artifact: BTPTransporterArtifact): Promise<boolean> {
+    const record = await this.trustStore.getById(computeTrustId(artifact.from, artifact.to));
+    return (
+      record?.status === 'pending' &&
+      record.senderId?.toLowerCase() === artifact.from.toLowerCase() &&
+      record.receiverId?.toLowerCase() === artifact.to.toLowerCase()
+    );
+  }
+
+  /**
    * Core message processing (non-negotiable)
+   * @returns whether a response was sent, and whether the `forwardTo`
+   * handler confirmed it stored the artifact (returned `true`)
    */
   private async processMessage(
     data: ProcessedArtifact,
     resCtx: BTPResponseCtx,
     reqCtx: BTPRequestCtx,
-  ): Promise<boolean> {
+  ): Promise<{ responseSent: boolean; confirmedStored: boolean }> {
     const { artifact, type } = data;
 
     if (type === 'agent' && artifact.action === 'auth.request') {
       await this.registerAgent(artifact, resCtx);
-      return true;
+      return { responseSent: true, confirmedStored: false };
     }
 
     if (type === 'agent') {
@@ -1332,12 +1368,12 @@ export class BtpsServer {
         respondNow,
       });
 
-      if (this.isResponseSent(resCtx)) return true;
+      if (this.isResponseSent(resCtx)) return { responseSent: true, confirmedStored: false };
     } else {
       this.emitter.emit('transporterArtifact', artifact);
     }
-    await this._forwardArtifact(data);
-    return false;
+    const confirmedStored = await this._forwardArtifact(data);
+    return { responseSent: false, confirmedStored };
   }
 
   /**
@@ -1417,11 +1453,11 @@ export class BtpsServer {
 
   /**
    * Optionally forwards message to a handler function or HTTP webhook.
+   * @returns true only when the handler returned `true`: it stored the artifact
    */
-  private async _forwardArtifact(data: ProcessedArtifact): Promise<void> {
-    if (this.handlerFn) {
-      await this.handlerFn(data);
-    }
+  private async _forwardArtifact(data: ProcessedArtifact): Promise<boolean> {
+    if (!this.handlerFn) return false;
+    return (await this.handlerFn(data)) === true;
   }
 
   /**
@@ -1571,9 +1607,15 @@ export class BtpsServer {
   }
 
   /**
-   * Forwards messages to a handler function
+   * Forwards messages to a handler function, awaited before the answer.
+   *
+   * A `TRUST_REQ` is answered success only once something stored it (fix
+   * list 3): the handler returns `true` to confirm it did, or the trust store
+   * holds a pending record for the pair afterwards. Otherwise the sender is
+   * answered BTP_ERROR_TRUST_REQUEST_NOT_STORED. For other artifacts the
+   * return value is not read.
    */
-  public forwardTo(handler: (msg: ProcessedArtifact) => Promise<void>) {
+  public forwardTo(handler: (msg: ProcessedArtifact) => Promise<void | boolean>) {
     this.handlerFn = handler;
   }
 

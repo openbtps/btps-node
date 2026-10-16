@@ -138,6 +138,14 @@ Used to establish trust relationships between organizations.
 - **expiresAt**: Trust expiration date (ISO format)
 - **privacyType**: Privacy level (unencrypted, encrypted, mixed)
 
+**Answered only once stored (BTPS 1.1, fix list 3).** A receiving server
+answers a `TRUST_REQ` with success only when the request was kept for the
+receiver to decide on. In the SDK, that is when the platform's `forwardTo`
+handler returns `true`, or the trust store holds a `pending` record from
+`from` to `to` once the handlers have run. Otherwise the answer is
+`BTP_ERROR_TRUST_REQUEST_NOT_STORED` (500, retryable), the request is not
+remembered as received, and the sender may send the same artifact again.
+
 ### 2. Trust Response Document (`TRUST_RES`)
 
 Used to accept, reject, or block trust requests.
@@ -415,6 +423,16 @@ Transporter artifacts support optional encryption using AES-256-GCM:
 - **IV**: Random initialization vector
 - **Auth Tag**: GCM authentication tag for integrity
 - **Content**: Base64 encoded encrypted payload
+
+**Opening it is the receiving platform's (BTPS 1.1, fix list 3).** A
+receiving server checks an encrypted artifact's envelope, signature, trust
+and privacy type, but it does not decrypt the document: the key that opens it
+belongs to the receiving platform, which may hold it elsewhere (a KMS, a
+worker). So **"accepted" means "received", not "readable"**: a success
+answer says the artifact was verified and handed to the platform, not that
+its content decrypts or matches the document model. Content that turns out
+unreadable is the platform's to handle after the fact; the protocol has no
+refusal for it once success was answered.
 
 ### Trust Verification
 

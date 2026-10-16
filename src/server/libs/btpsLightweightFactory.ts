@@ -17,7 +17,7 @@ import type {
 interface BtpsServerInstance {
   start(): Promise<void>;
   stop(): void;
-  forwardTo(handler: (msg: ProcessedArtifact) => Promise<void>): void;
+  forwardTo(handler: (msg: ProcessedArtifact) => Promise<void | boolean>): void;
   onIncomingArtifact(
     type: 'Agent' | 'Transporter',
     handler:
