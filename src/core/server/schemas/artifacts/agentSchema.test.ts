@@ -6,7 +6,7 @@
  */
 
 /*
- * BTPS 1.1 addendum item 10 (EBA-122). Reproduced 2026-10-04: agent
+ * Agent artifacts and the server schema. Reproduced 2026-10-04: agent
  * artifacts built by BtpsAgent for `artifact.send`, `trust.request` and
  * `sentbox.fetch` failed the server's own schema (BtpArtifactServerSchema),
  * and so did `event.send` and `trust.respond`. The first four carry the
@@ -78,7 +78,7 @@ const issues = (artifact: unknown) => {
   return result.success ? [] : result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
 };
 
-describe('item 10: what BtpsAgent builds passes the server schema', () => {
+describe('what BtpsAgent builds passes the server schema', () => {
   it.each(Object.keys(documents))('%s', async (action) => {
     const artifact = await build(action as AgentAction, documents[action]);
     expect(issues(artifact)).toEqual([]);
@@ -92,7 +92,7 @@ describe('item 10: what BtpsAgent builds passes the server schema', () => {
   });
 });
 
-describe('item 10: the carried transporter artifact is held to every transporter rule', () => {
+describe('the carried transporter artifact is held to every transporter rule', () => {
   it('refuses a transporter artifact of another type than the action’s', async () => {
     const artifact = await build('artifact.send', documents['artifact.send']);
     const trustRequest = await build('trust.request', documents['trust.request']);

@@ -76,7 +76,7 @@ import { validate } from '@core/utils/validation.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 
 /**
- * A timeout option (EBA-443): from its minimum up to Node's longest timer.
+ * A timeout option: from its minimum up to Node's longest timer.
  * Anything else is refused, never raised.
  */
 const checkTimeout = (name: string, value: unknown, min: number): number => {
@@ -95,9 +95,9 @@ const checkTimeout = (name: string, value: unknown, min: number): number => {
 };
 
 export class BtpsClient {
-  /** Connecting (TCP and TLS), in ms (EBA-443). */
+  /** Connecting (TCP and TLS), in ms. */
   protected connectTimeoutMs: number;
-  /** The wait for a reply once an artifact is written, in ms (EBA-443). */
+  /** The wait for a reply once an artifact is written, in ms. */
   protected replyTimeoutMs: number;
   protected socket?: TLSSocket;
   protected emitter: EventEmitter = new EventEmitter();
@@ -118,7 +118,7 @@ export class BtpsClient {
       artifact: BTPArtifact;
       resolve: (v: BTPClientResponse) => void;
       timeout: NodeJS.Timeout;
-      /** The reply wait, restarted when the artifact is written (EBA-443). */
+      /** The reply wait, restarted when the artifact is written. */
       timeoutMs: number;
       /** On the wire (or in the backpressure queue): it waits for its answer, and is never sent again. */
       written?: boolean;
@@ -249,7 +249,7 @@ export class BtpsClient {
         }),
       );
 
-      // Connecting only (EBA-443): once connected, each send has its reply wait.
+      // Connecting only: once connected, each send has its reply wait.
       connectTimer = setTimeout(() => {
         const error = new BTPErrorException(BTP_ERROR_SOCKET_TIMEOUT, {
           cause: `no connection to ${hostname}:${port} in ${this.connectTimeoutMs}ms`,
@@ -260,7 +260,7 @@ export class BtpsClient {
         this.reconnecting = false;
         // Settled first, so the caller answers its own send with this error.
         settle({ socket: undefined, error });
-        // Every pending send gets its answer (fix list 12).
+        // Every pending send gets its answer.
         this.cleanupQueue(error);
         sock.destroy();
       }, this.connectTimeoutMs);
@@ -268,7 +268,7 @@ export class BtpsClient {
   }
 
   /**
-   * Emits `error` only to a listener (fix list 12): an EventEmitter with no
+   * Emits `error` only to a listener: an EventEmitter with no
    * `error` listener throws, inside the SDK. Without one, it is logged.
    */
   protected emitError(info: { error: Error } & BTPSRetryInfo) {
@@ -280,8 +280,8 @@ export class BtpsClient {
   }
 
   protected attachListeners(socket: TLSSocket, receiverId: string) {
-    // An answer is never buffered past BTP_MAX_LINE_LENGTH, as on the server
-    // (fix list 10): a longer one fails every pending send and closes the
+    // An answer is never buffered past BTP_MAX_LINE_LENGTH, as on the
+    // server: a longer one fails every pending send and closes the
     // connection.
     const lines = socket.pipe(split2({ maxLength: BTP_MAX_LINE_LENGTH }));
     let refusedOverlong = false;
@@ -388,7 +388,7 @@ export class BtpsClient {
         resolve({
           response: validSignature ? msg : undefined,
           // An error answer is returned as an error too, so a sender decides
-          // retry by its code and `retryable` (EBA-188).
+          // retry by its code and `retryable`.
           error: !validSignature
             ? error
             : msg.type === 'btps_error'
@@ -397,7 +397,7 @@ export class BtpsClient {
         });
         this.pumpNextQueue();
       } else if (!msg?.reqId && msg?.type === 'btps_error' && this.soleWrittenJob()) {
-        // Fix list 14: an error answer with no reqId (written before the
+        // An error answer with no reqId (written before the
         // server parsed the line, e.g. a 429 by network address) can only be
         // about the one send on the wire. It is handed back as an error only:
         // nothing is read as delivered without its own id.
@@ -419,7 +419,7 @@ export class BtpsClient {
     }
   }
 
-  /** The pending send, when exactly one is pending and it is on the wire (fix list 14). */
+  /** The pending send, when exactly one is pending and it is on the wire. */
   protected soleWrittenJob() {
     if (this.queue.size !== 1) return undefined;
     const [entry] = this.queue.entries();
@@ -617,7 +617,7 @@ export class BtpsClient {
     this.options.maxQueue = maxQueue ?? this.options.maxQueue;
   }
 
-  /** The waits in use, in ms (EBA-443). */
+  /** The waits in use, in ms. */
   getTimeouts(): { connectTimeoutMs: number; replyTimeoutMs: number } {
     return { connectTimeoutMs: this.connectTimeoutMs, replyTimeoutMs: this.replyTimeoutMs };
   }
@@ -747,7 +747,7 @@ export class BtpsClient {
     if (job?.written) return;
     if (job) {
       job.written = true;
-      // The reply wait starts once the artifact is written (EBA-443), so
+      // The reply wait starts once the artifact is written, so
       // connecting never eats into it.
       clearTimeout(job.timeout);
       job.timeout = this.replyTimer(artifact.id, job.resolve, job.timeoutMs);
@@ -843,13 +843,13 @@ export class BtpsClient {
    * @returns True if the error is non-retryable, false otherwise
    */
   protected isNonRetryableError(err: unknown): boolean {
-    // By code, from the wire error table (EBA-188); never by message text.
+    // By code, from the wire error table; never by message text.
     if (err instanceof BTPErrorException) return !err.retryable;
     return !isRetryableError((err as { code?: string | number } | undefined)?.code);
   }
 
   /**
-   * The error a `btps_error` answer is handed back with (EBA-188): its stable
+   * The error a `btps_error` answer is handed back with: its stable
    * code, the server's status, and whether the same artifact may be sent again.
    */
   protected wireErrorToException(msg: BTPServerResponse): BTPErrorException {
@@ -900,7 +900,7 @@ export class BtpsClient {
         };
       }
 
-      // Verified as received: adding `encryption: null` changed the signed bytes (defect 5).
+      // Verified as received: adding `encryption: null` changed the signed bytes.
       const { error: decryptError } = await this.decryptVerifyArtifact(
         msg as VerifyEncryptedPayload<BTPServerResponse>,
         senderPubPem!,
@@ -1078,7 +1078,7 @@ export class BtpsClient {
       /* DNS first: the address's own identity record */
       dnsIdentityParts = await getDnsIdentityParts(identity, selector);
     } catch (error) {
-      // A resolver failure is not an absent record: the host is not asked (EBA-442).
+      // A resolver failure is not an absent record: the host is not asked.
       return await this.buildClientErrorResponse(transformToBTPErrorException(error));
     }
     if (dnsIdentityParts && typeof dnsIdentityParts === 'object') {
@@ -1128,7 +1128,7 @@ export class BtpsClient {
         id: randomUUID(),
         issuedAt: new Date().toISOString(),
       };
-      // One limit over connecting and the answer (EBA-443).
+      // One limit over connecting and the answer.
       const timeoutMs = Math.min(this.connectTimeoutMs + this.replyTimeoutMs, BTP_MAX_TIMER_MS);
       let settled = false;
       let answered = false;
@@ -1261,7 +1261,7 @@ export class BtpsClient {
     this.backpressureQueue = [];
     this.removeAllListeners();
     this.socket?.destroy();
-    // A send still pending is answered, never left waiting (fix list 12).
+    // A send still pending is answered, never left waiting.
     this.cleanupQueue(new BTPErrorException(BTP_ERROR_CLIENT_DESTROYED));
   }
 }

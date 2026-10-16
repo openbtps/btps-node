@@ -8,8 +8,8 @@
 import { z } from 'zod';
 import { isValidIdentity } from '@core/utils/identity.js';
 
-// An identity, by the same strict rules as parseIdentity (BTPS 1.1, addendum
-// item 10): exactly one `$`, no `:`, length capped before anything is read.
+// An identity, by the same strict rules as parseIdentity (BTPS 1.1):
+// exactly one `$`, no `:`, length capped before anything is read.
 export const identitySchema = z
   .string()
   .refine(isValidIdentity, 'From field must match pattern: {username}${domain}');

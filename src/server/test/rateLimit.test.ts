@@ -6,7 +6,7 @@
  */
 
 /*
- * EBA-187 (fix list 11): rate limiting by network address before parsing,
+ * Rate limiting by network address before parsing,
  * and by identity only after signature verification, keyed by the verified
  * sender; the defaults always loaded; bounded tables.
  *
@@ -125,7 +125,7 @@ const artifactLine = async (from: string, signer: string = from): Promise<string
   return JSON.stringify(payload);
 };
 
-describe('EBA-187: rate limiting through the server', () => {
+describe('rate limiting through the server', () => {
   let server: BtpsServer;
   let store: MapTrustStore;
 

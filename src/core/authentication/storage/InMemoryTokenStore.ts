@@ -93,7 +93,7 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
   }
 
   /**
-   * Take a token, once (item E). The check and the delete run with no await
+   * Take a token, once. The check and the delete run with no await
    * between them, so of concurrent calls exactly one gets `consumed`. A
    * consumed token is remembered until it would have expired, to answer
    * `used` rather than `invalid`.

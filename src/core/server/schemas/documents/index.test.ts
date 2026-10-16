@@ -13,7 +13,7 @@ import * as documents from './index.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 
-describe('@btps/sdk/documents (EBA-441, schemas only)', () => {
+describe('@btps/sdk/documents (schemas only)', () => {
   it('is an export path of the package, built from this index', () => {
     const pkg = JSON.parse(readFileSync(`${REPO_ROOT}package.json`, 'utf8'));
     const target: string = pkg.exports['./documents'].import;

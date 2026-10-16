@@ -301,7 +301,7 @@ export class BtpsTransporter {
       connection = await this.registerConnection(to, clientOptions);
     }
 
-    // The reply wait given here, or else the connection's own (EBA-443).
+    // The reply wait given here, or else the connection's own.
     return connection.client.send(artifact, clientOptions?.replyTimeoutMs);
   }
 

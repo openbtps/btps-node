@@ -19,7 +19,7 @@ const codeOf = (fn: () => unknown): string | number | undefined => {
   return undefined;
 };
 
-describe('money helpers (EBA-119)', () => {
+describe('money helpers', () => {
   it('adds two amounts in the same currency as plain integers', () => {
     expect(
       addMoney({ amount: 150000, currency: 'AUD' }, { amount: 20000, currency: 'AUD' }),

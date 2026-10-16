@@ -47,7 +47,7 @@ export const BtpTrustResDocSchema = z.object({
 });
 
 // Schema for BTPKeyProof: the new key's signature on a key-rotating
-// auth.refresh (item D, EBA-112). The signature shape is BtpSignatureSchema's,
+// auth.refresh. The signature shape is BtpSignatureSchema's,
 // written out here because schema.ts imports this file.
 export const BtpKeyProofSchema = z.object({
   issuedAt: z.string().datetime(),
@@ -82,8 +82,8 @@ export const BtpAgentQueryDocSchema = z.object({
   to: BtpStringQueryFilterSchema.optional(),
 });
 
-// A BTPS_DOC is a v2 document; the 1.0 invoice is refused (release plan section 6).
-// A BTPS_EVENT is a lifecycle event (release plan section 2).
+// A BTPS_DOC is a v2 document; the 1.0 invoice is refused.
+// A BTPS_EVENT is a lifecycle event.
 export const BtpDocSchema = z.union([
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,

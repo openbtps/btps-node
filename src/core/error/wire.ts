@@ -16,12 +16,12 @@ const rule = (
 ): BTPWireErrorRule => ({ error, status, retryable, ...(sentAs ? { sentAs } : {}) });
 
 /**
- * The wire error table (EBA-188, fix list 6): the status class every error
+ * The wire error table: the status class every error
  * constant goes out with, and whether a sender may retry it. `sendBtpsError`
  * sends nothing that is not in it: an unlisted code goes out as
  * BTP_ERROR_UNKNOWN. A row with `sentAs` keeps its precise reason on the
- * server and sends that constant instead (EBA-124, option B: of the trust
- * refusals only an expired trust is told apart).
+ * server and sends that constant instead (of the trust refusals only an
+ * expired trust is told apart).
  *
  * Retry: 429, 500 and 503 are retryable; no 4xx is. Each 4xx needs something
  * other than time to change (a new artifact, a new trust, a new key), and a
@@ -56,14 +56,14 @@ export const BTP_WIRE_ERRORS: readonly BTPWireErrorRule[] = Object.freeze([
   rule(E.BTP_ERROR_RESOLVE_DNS, 401, false),
   rule(E.BTP_ERROR_RESOLVE_PUBKEY, 401, false),
   rule(E.BTP_ERROR_KEY_TOO_SMALL, 401, false),
-  // 403: trust refusal; only an expired trust is told apart (option B)
+  // 403: trust refusal; only an expired trust is told apart
   rule(E.BTP_ERROR_TRUST_NOT_ALLOWED, 403, false),
   rule(E.BTP_ERROR_TRUST_EXPIRED, 403, false),
   rule(E.BTP_ERROR_TRUST_NON_EXISTENT, 403, false, E.BTP_ERROR_TRUST_NOT_ALLOWED),
   rule(E.BTP_ERROR_TRUST_REVOKED, 403, false, E.BTP_ERROR_TRUST_NOT_ALLOWED),
   rule(E.BTP_ERROR_TRUST_BLOCKED, 403, false, E.BTP_ERROR_TRUST_NOT_ALLOWED),
   rule(E.BTP_ERROR_TRUST_ALREADY_ACTIVE, 403, false, E.BTP_ERROR_TRUST_NOT_ALLOWED),
-  // 403: trusted, but not in this form (EBA-444): told apart, the sender agreed it
+  // 403: trusted, but not in this form: told apart, the sender agreed it
   rule(E.BTP_ERROR_TRUST_PRIVACY, 403, false),
   // 403: protocol violations
   rule(E.BTP_ERROR_ISSUED_AT_WINDOW, 403, false),
@@ -127,7 +127,7 @@ export const isRetryableError = (code?: string | number, status?: number): boole
 };
 
 /**
- * What goes on the wire for an error (EBA-188): its stable code, status and
+ * What goes on the wire for an error: its stable code, status and
  * fixed message from the wire error table, never the error's own message. A
  * code not in the table is sent as BTP_ERROR_UNKNOWN.
  */

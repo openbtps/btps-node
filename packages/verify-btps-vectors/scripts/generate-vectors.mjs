@@ -6,7 +6,7 @@
  * against these exact bytes. So this script only writes files that do not
  * exist yet, and refuses to overwrite one unless given --force. Regenerating
  * changes every key and every randomised byte (OAEP seeds, GCM IVs), and
- * whoever does that owes a note on every ticket whose tests read the vectors.
+ * whoever does that must say so in every change whose tests read the vectors.
  *
  * Every key it creates is a TEST-ONLY RSA-2048 key, generated locally, and is
  * labelled so in the file. None of them was produced by AWS KMS or a device
@@ -32,7 +32,7 @@ const VECTORS_DIR = path.resolve(
 const force = process.argv.includes('--force');
 
 const TEST_ONLY =
-  'TEST-ONLY key generated locally for the BTPS golden vectors (EBA-110). Never use it for anything else.';
+  'TEST-ONLY key generated locally for the BTPS golden vectors. Never use it for anything else.';
 
 function newKeyPair(modulusLength = 2048) {
   const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
@@ -110,7 +110,7 @@ function mgf1Sha1Negative() {
 }
 
 /**
- * Item 5 (EBA-115): whole signed payloads, each given in several key orders
+ * Canonical signing: whole signed payloads, each given in several key orders
  * and spellings, signed once over the JCS form with the managed signing key.
  * RSASSA-PKCS1-v1_5 is deterministic, so any conforming signer reproduces
  * signatureBase64 from any of the inputs. The reject cases are signed over
@@ -138,7 +138,7 @@ function jcsSignature() {
 
   return {
     description:
-      'BTPS 1.1 item 5: signatures are over the RFC 8785 (JCS) form of the payload. Every input of an accept case must verify against signatureBase64, and signing any of them must reproduce it. A reject case carries duplicate member names and a signature over its raw bytes; it must be refused.',
+      'BTPS 1.1 canonical signing: signatures are over the RFC 8785 (JCS) form of the payload. Every input of an accept case must verify against signatureBase64, and signing any of them must reproduce it. A reject case carries duplicate member names and a signature over its raw bytes; it must be refused.',
     keyVector: 'kms-signature.vector.json',
     algorithm: 'RSASSA_PKCS1_V1_5_SHA_256',
     cases: [
@@ -172,8 +172,6 @@ function selectors() {
   const senderCurrent = newKeyPair();
   const receiver = readVector('oaep-wrap.vector.json');
   return {
-    item: 6,
-    tickets: ['EBA-116', 'EBA-117'],
     description:
       'The sender rotated its signing key from btps1 to btps2 and kept the old key published; the receiver still encrypts on btps1. An artifact must name the sender key it was signed with (signatureSelector) apart from the receiver key it was encrypted to (encryptionSelector). On 367cd09 one `selector` field carries the receiver selector, so a verifier looks up the wrong sender key.',
     provenance: `${TEST_ONLY} The receiver encryption key is the one in oaep-wrap.vector.json.`,
@@ -220,10 +218,8 @@ function selectorsReceiverRotation() {
   const receiverCurrent = newKeyPair();
   const receiverAtEncryption = readVector('oaep-wrap.vector.json');
   return {
-    item: 6,
-    tickets: ['EBA-116'],
     description:
-      "The other half of item 6: the receiver rotates, the sender does not. The document was encrypted to the receiver key at btps2; the receiver has since rotated to btps3 and keeps btps2 to decrypt what was already sent. The receiver must decrypt with the key at the artifact's encryptionSelector (btps2), not its current one (btps3). The sender signs with btps1 throughout, so each selector differs from the other and from its party's current one. On 1ff93d1 the artifact does not name the key it was encrypted to, so a receiver that rotated cannot choose its key.",
+      "The other half of separate signature and encryption selectors: the receiver rotates, the sender does not. The document was encrypted to the receiver key at btps2; the receiver has since rotated to btps3 and keeps btps2 to decrypt what was already sent. The receiver must decrypt with the key at the artifact's encryptionSelector (btps2), not its current one (btps3). The sender signs with btps1 throughout, so each selector differs from the other and from its party's current one. On 1ff93d1 the artifact does not name the key it was encrypted to, so a receiver that rotated cannot choose its key.",
     provenance: `${TEST_ONLY} The receiver key at btps2 is the one in oaep-wrap.vector.json.`,
     sender: {
       identity: 'carol$sender.example',
@@ -287,10 +283,8 @@ function sdkDefects() {
   });
 
   return {
-    item: 10,
-    tickets: ['EBA-122'],
     description:
-      'BTPS 1.1 item 10 defects that can be expressed as data. The other item-10 defects (server schema, crossed responses, line length, error codes) are server-path behaviour and are tested by EBA-122 itself.',
+      'BTPS 1.1 SDK defects that can be expressed as data. The other defects of that set (server schema, crossed responses, line length, error codes) are server-path behaviour and are tested in src/server/test.',
     provenance: `${TEST_ONLY} The receiver key is the one in oaep-wrap.vector.json.`,
     gcmTag: {
       receiverKeyVector: 'oaep-wrap.vector.json',
@@ -321,7 +315,7 @@ function sdkDefects() {
 }
 
 /**
- * Item D (EBA-112): auth.refresh artifacts, each signed in full, checked
+ * Key-rotating refresh: auth.refresh artifacts, each signed in full, checked
  * against the agent's current key. Self-held custody only: a managed
  * identity has no device key, and its one case shows the refresh path does
  * not apply to it.
@@ -390,10 +384,8 @@ function refresh() {
   const PROOF = 'BTP_ERROR_KEY_ROTATION_PROOF';
 
   return {
-    item: 'D',
-    tickets: ['EBA-112'],
     description:
-      "BTPS 1.1 item D, a key-rotating refresh is signed by the current key (addendum item 2, threat T-24). Each case is an auth.refresh artifact, signed over its JCS form, checked when the server holds `currentKey` for the agent (null: it holds none) and its clock reads `now`, with `windowMs`. Without rotation, document.publicKey is the current key. With rotation, document.publicKey is the new key, the artifact is still signed by the current key, and document.keyProof is the new key's signature over the JCS form of { agentId, identity, newPublicKey, issuedAt }. `reason` names why a case is refused, and `error` the error code on the wire. tokens: a refresh token is single-use; each step refreshes with a token issued earlier (issued-0 at enrolment, issued-n by the n-th accepted refresh).",
+      "BTPS 1.1 key-rotating refresh: a refresh is signed by the agent's current key, never accepted under the key the request itself carries. Each case is an auth.refresh artifact, signed over its JCS form, checked when the server holds `currentKey` for the agent (null: it holds none) and its clock reads `now`, with `windowMs`. Without rotation, document.publicKey is the current key. With rotation, document.publicKey is the new key, the artifact is still signed by the current key, and document.keyProof is the new key's signature over the JCS form of { agentId, identity, newPublicKey, issuedAt }. `reason` names why a case is refused, and `error` the error code on the wire. tokens: a refresh token is single-use; each step refreshes with a token issued earlier (issued-0 at enrolment, issued-n by the n-th accepted refresh).",
     provenance: `${TEST_ONLY} The managed identity key is the one in kms-signature.vector.json.`,
     now,
     windowMs: 300000,
@@ -515,7 +507,7 @@ function refresh() {
       custody: 'managed',
       keyVector: 'kms-signature.vector.json',
       description:
-        'Not applicable. A managed identity has no interactive device key: its key is held by the platform (KMS) and published under a selector, and it rotates by publishing a new selector (item H, selectors.vector.json), never through auth.refresh. The server holds no agent key for it, so a refresh signed by the managed key itself is refused.',
+        'Not applicable. A managed identity has no interactive device key: its key is held by the platform (KMS) and published under a selector, and it rotates by publishing a new selector (see selectors.vector.json), never through auth.refresh. The server holds no agent key for it, so a refresh signed by the managed key itself is refused.',
       cases: [
         refuse(
           'managed-key-refresh-not-applicable',
@@ -534,9 +526,9 @@ function refresh() {
 }
 
 /**
- * Item E (EBA-113): auth.request artifacts, each signed in full by the
+ * Device registration: auth.request artifacts, each signed in full by the
  * device key it enrols, run in sequences against a token store; and forged
- * agent artifacts for every other agent action (fix-list item 5).
+ * agent artifacts for every other agent action.
  */
 function registration() {
   const now = '2026-10-16T00:00:00.000Z';
@@ -739,7 +731,7 @@ function registration() {
     'event.send',
     'trash.fetch',
     'trash.delete',
-    // Added by EBA-122, when AGENT_ACTIONS gained the sentbox actions; last,
+    // Added when AGENT_ACTIONS gained the sentbox actions; last,
     // so the ids above are unchanged.
     'sentbox.fetch',
     'sentbox.delete',
@@ -796,10 +788,8 @@ function registration() {
   ]);
 
   return {
-    item: 'E',
-    tickets: ['EBA-113'],
     description:
-      "BTPS 1.1 item E, device registration bound to the identity (addendum item 3, threat T-25), and fix-list item 5 (a forged agent message). sequences: each starts from an empty token store (none when tokenStore is false) holding the tokens in `issue`, each issued `issuedMsBeforeUse` before the steps run and valid for `tokenExpiryMs`; each step is an auth.request signed over its JCS form, accepted (the device is bound to the token's identity under an agent id the server generates) or refused with `reason` and the error code `error`. In the lifecycle sequence the device is then used, refreshed with a key rotation, and its old key refused. concurrent: both requests race for one token; exactly one is accepted. forged: the store holds one enrolled device (`enrolled`) and one trust between two identities (`correspondentTrust`); each case is an agent artifact for an action other than auth.request, accepted only when it is the enrolled device's, signed by its key, to its identity.",
+      "BTPS 1.1 device registration, bound to the identity its registration token was issued for, and forged agent messages. sequences: each starts from an empty token store (none when tokenStore is false) holding the tokens in `issue`, each issued `issuedMsBeforeUse` before the steps run and valid for `tokenExpiryMs`; each step is an auth.request signed over its JCS form, accepted (the device is bound to the token's identity under an agent id the server generates) or refused with `reason` and the error code `error`. In the lifecycle sequence the device is then used, refreshed with a key rotation, and its old key refused. concurrent: both requests race for one token; exactly one is accepted. forged: the store holds one enrolled device (`enrolled`) and one trust between two identities (`correspondentTrust`); each case is an agent artifact for an action other than auth.request, accepted only when it is the enrolled device's, signed by its key, to its identity.",
     provenance: `${TEST_ONLY}`,
     now,
     tokenExpiryMs,
@@ -823,7 +813,7 @@ function registration() {
 }
 
 /**
- * Item J (EBA-442) and fix-list item 9 (EBA-186): host identity lookup.
+ * Host identity lookup, and keys whose base64 carries padding.
  * TXT records as a resolver returns them (strings of at most 255
  * characters), with 2048-bit (unpadded), 3072-bit and 4096-bit (padded)
  * keys; DNS-first outcomes over a fake zone; and a host's signed lookup
@@ -1038,10 +1028,8 @@ function identityLookup() {
   ];
 
   return {
-    item: 'J',
-    tickets: ['EBA-442', 'EBA-186'],
     description:
-      "BTPS 1.1 item J, host identity lookup repaired (fix list 1), and fix-list item 9 (padded keys in DNS). parse: each TXT record, as the strings a resolver returns, read into its tags; a value keeps every '=' after the first. dns: the address's own identity record, looked up first over a fake zone in which every other name has no record (ENOTFOUND): a key, absent (the client then asks the host), or an error. lookup: answers a host sends to `request`, checked with the zone's keys: accepted with the key record, or refused with the error code. The server-side defects (the double hash, the response schema, the socket) are behaviour, tested over real TLS in src/server/test/identityLookup.integration.test.ts.",
+      "BTPS 1.1 host identity lookup, repaired, and keys whose base64 carries padding in DNS. parse: each TXT record, as the strings a resolver returns, read into its tags; a value keeps every '=' after the first. dns: the address's own identity record, looked up first over a fake zone in which every other name has no record (ENOTFOUND): a key, absent (the client then asks the host), or an error. lookup: answers a host sends to `request`, checked with the zone's keys: accepted with the key record, or refused with the error code. The server-side defects (the double hash, the response schema, the socket) are behaviour, tested over real TLS in src/server/test/identityLookup.integration.test.ts.",
     provenance: `${TEST_ONLY} The 3072-bit and 4096-bit keys are test-only too, and exist to carry base64 padding.`,
     keys: Object.fromEntries(
       Object.entries(keys).map(([name, key]) => [

@@ -609,7 +609,7 @@ describe('BtpsAuthentication', () => {
     });
   });
 
-  describe('item D (EBA-112): a refresh token is single-use', () => {
+  describe('key-rotating refresh: a refresh token is single-use', () => {
     it('reissuing with a token already spent is refused', async () => {
       const userIdentity = 'alice$saas.com';
       const decryptBy = 'admin$saas.com';
@@ -632,7 +632,7 @@ describe('BtpsAuthentication', () => {
     });
   });
 
-  describe('EBA-445: smaller defects', () => {
+  describe('smaller defects', () => {
     /** A store with a database's latency on get and remove; consume stays atomic, as the contract asks. */
     class SlowTokenStore extends InMemoryTokenStore {
       override async get(agentId: string, token: string) {
@@ -689,7 +689,7 @@ describe('BtpsAuthentication', () => {
     });
   });
 
-  describe('item D (EBA-112): refreshSession and rotateKey sign with the current key', () => {
+  describe('key-rotating refresh: refreshSession and rotateKey sign with the current key', () => {
     const agentId = 'btps_ag_client-test';
     const identity = 'alice$saas.com';
     let sent: BTPAgentArtifact[];

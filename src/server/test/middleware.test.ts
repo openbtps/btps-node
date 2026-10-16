@@ -94,7 +94,7 @@ describe('MiddlewareManager', () => {
 
   beforeEach(async () => {
     middlewareFile = getUniqueMiddlewareFile();
-    // These tests are about the file: without the defaults (EBA-187), tested below.
+    // These tests are about the file: without the default middleware, tested below.
     middlewareManager = new MiddlewareManager(middlewareFile, false);
     // Ensure no leftover middleware file before each test
     if (existsSync(TEST_FILE)) await fs.unlink(TEST_FILE);
@@ -119,7 +119,7 @@ describe('MiddlewareManager', () => {
       expect(manager.getAllMiddleware().length).toBe(0);
     });
 
-    // EBA-445 (fix list 12): a path given and not there is a mistake, not "no middleware".
+    // A path given and not there is a mistake, not "no middleware".
     it('fails loudly when a middleware path given explicitly does not exist', async () => {
       const trustStore = new JsonTrustStore({
         connection: TEST_FILE,
@@ -130,7 +130,7 @@ describe('MiddlewareManager', () => {
       });
     });
 
-    // EBA-445 (fix list 12): it used to be dropped with only a warning.
+    // It used to be dropped with only a warning.
     it('fails loudly when a handler declares fewer than three parameters', async () => {
       await fs.writeFile(
         middlewareFile,
@@ -178,7 +178,7 @@ describe('MiddlewareManager', () => {
       expect(middleware.length).toBe(1);
       expect(middleware[0].config?.name).toBe('test-middleware');
     });
-    // EBA-445: an invalid definition fails the load; it is no longer skipped with a warning.
+    // An invalid definition fails the load; it is no longer skipped with a warning.
     it('fails on invalid middleware (missing handler)', async () => {
       await fs.writeFile(middlewareFile, invalidMiddlewareMissingHandler, 'utf8');
       const trustStore = new JsonTrustStore({
@@ -318,8 +318,8 @@ export default function () {
     });
   });
 
-  // EBA-187 (fix list 11): the defaults are always loaded, before the file,
-  // unless the server option turns them off or replaces them.
+  // The default middleware is always loaded, before the file,
+  // unless the server option turns it off or replaces it.
   describe('default middleware', () => {
     const trustStore = () => new JsonTrustStore({ connection: TEST_FILE, entityName: 'trusted' });
     const names = (mws: { config?: { name?: string } }[]) => mws.map((mw) => mw.config?.name);

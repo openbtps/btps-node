@@ -381,7 +381,7 @@ describe('BtpsTransporter', () => {
 
         expect(result.error).toBeUndefined();
         expect(result.response).toBeDefined();
-        // The client's own reply wait (EBA-443).
+        // The client's own reply wait.
         expect(mockClient.send).toHaveBeenCalledWith(mockArtifact, undefined);
       });
 
