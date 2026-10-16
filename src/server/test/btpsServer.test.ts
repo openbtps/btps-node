@@ -72,6 +72,28 @@ class DummyTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   }
 }
 
+// Holds one identity's public key record.
+class OneIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
+  private readonly record: IdentityPubKeyRecord;
+  constructor(record: IdentityPubKeyRecord) {
+    super({ connection: null });
+    this.record = record;
+  }
+  async getPublicKeyRecord() {
+    return this.record;
+  }
+  async getById() {
+    return undefined;
+  }
+  async create(): Promise<BTPIdentityRecord> {
+    throw new Error('not implemented');
+  }
+  async update(): Promise<BTPIdentityRecord> {
+    throw new Error('not implemented');
+  }
+  async delete() {}
+}
+
 describe('BtpsServer', () => {
   let server: BtpsServer;
   let trustStore: DummyTrustStore;
@@ -2532,27 +2554,6 @@ export default function () {
   });
 
   describe('a server key held elsewhere (a Signer)', () => {
-    class OneIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
-      private readonly record: IdentityPubKeyRecord;
-      constructor(record: IdentityPubKeyRecord) {
-        super({ connection: null });
-        this.record = record;
-      }
-      async getPublicKeyRecord() {
-        return this.record;
-      }
-      async getById() {
-        return undefined;
-      }
-      async create(): Promise<BTPIdentityRecord> {
-        throw new Error('not implemented');
-      }
-      async update(): Promise<BTPIdentityRecord> {
-        throw new Error('not implemented');
-      }
-      async delete() {}
-    }
-
     it('signs an identity lookup answer through the Signer, verifiable with the server key', async () => {
       const keys = generateKeyPairSync('rsa', {
         modulusLength: 2048,
@@ -2593,6 +2594,65 @@ export default function () {
       const response: BTPServerResponse = sent.mock.calls[0]?.[1];
       const { signature, ...signed } = response;
       expect(signed.signedBy).toBe('host$example.com');
+      expect(signature && verifySignature(signed, signature, keys.publicKey).isValid).toBe(true);
+    });
+  });
+
+  describe('identity lookup', () => {
+    it("writes the signed answer to the socket, where the server's response check passes it", async () => {
+      const keys = generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      });
+      const errors: BTPErrorException[] = [];
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', ...keys },
+        trustStore: new DummyTrustStore(),
+        identityStore: new OneIdentityStore({
+          selector: 'btps1',
+          publicKey: 'identity-public-key',
+          keyType: 'rsa',
+          version: '1.0.0',
+          createdAt: new Date().toISOString(),
+        }),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        onError: (error) => errors.push(error),
+      });
+      const socket = {
+        destroyed: false,
+        writableEnded: false,
+        writable: true,
+        write: vi.fn(),
+        end: vi.fn(),
+        destroy: vi.fn(),
+      } as unknown as TLSSocket;
+
+      await server['handleIdentityLookup'](
+        {
+          version: '1.0.0',
+          id: 'lookup-1',
+          issuedAt: new Date().toISOString(),
+          identity: 'alice$example.com',
+          from: 'bob$other.com',
+          hostSelector: 'btps1',
+        },
+        {
+          req: { socket } as unknown as BTPRequestCtx,
+          res: { socket, reqId: 'req-1' } as unknown as BTPResponseCtx,
+        },
+      );
+
+      expect(errors).toEqual([]);
+      expect(socket.destroy).not.toHaveBeenCalled();
+      const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
+      expect(written.document).toEqual({
+        selector: 'btps1',
+        publicKey: 'identity-public-key',
+        keyType: 'rsa',
+        version: '1.0.0',
+      });
+      const { signature, ...signed } = written;
       expect(signature && verifySignature(signed, signature, keys.publicKey).isValid).toBe(true);
     });
   });

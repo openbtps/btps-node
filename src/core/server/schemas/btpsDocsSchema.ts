@@ -212,6 +212,14 @@ export const BtpAuthResDocSchema = z.object({
   decryptBy: identitySchema,
 });
 
+// Schema for BTPIdentityResDoc (the answer to an identity lookup)
+export const BtpIdentityResDocSchema = z.object({
+  selector: z.string(),
+  publicKey: z.string(),
+  keyType: z.literal('rsa'),
+  version: z.string(),
+});
+
 // Schema for BTPAgentQueryDoc
 export const BtpAgentQueryDocSchema = z.object({
   title: BtpStringQueryFilterSchema.optional(),
