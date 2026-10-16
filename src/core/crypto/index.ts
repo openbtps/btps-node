@@ -147,6 +147,16 @@ export const decryptBtpPayloadWithDecrypter = async <T = unknown>(
   }
 };
 
+/**
+ * What OpenSSL reports when the AES key was wrapped for another RSA key:
+ * usually an OAEP decoding error, but when the wrapped key is larger than
+ * this key's modulus (a few percent of key pairs), a data-too-large error.
+ */
+const WRONG_KEY_CODES = [
+  'ERR_OSSL_RSA_OAEP_DECODING_ERROR',
+  'ERR_OSSL_RSA_DATA_TOO_LARGE_FOR_MODULUS',
+];
+
 /** Why a decryption failed, as a BTPErrorException. */
 const decryptionError = (err: unknown): BTPErrorException => {
   if (err instanceof BTPErrorException) return err;
@@ -154,7 +164,8 @@ const decryptionError = (err: unknown): BTPErrorException => {
     typeof err === 'object' &&
     err !== null &&
     'code' in err &&
-    err.code === 'ERR_OSSL_RSA_OAEP_DECODING_ERROR'
+    typeof err.code === 'string' &&
+    WRONG_KEY_CODES.includes(err.code)
   ) {
     return new BTPErrorException(BTP_ERROR_DECRYPTION_UNINTENDED);
   }

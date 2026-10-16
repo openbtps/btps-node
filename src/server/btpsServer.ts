@@ -83,6 +83,7 @@ import type {
 import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { validate } from '@core/utils/validation.js';
 import { MiddlewareManager } from './libs/middlewareManager.js';
+import { artifactSizeGuard, resolveMaxArtifactSizeKb } from './libs/artifactSizeGuard.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
 import type { BTPIdentityRecord } from '@core/storage/types.js';
@@ -100,6 +101,7 @@ export class BtpsServer {
   private readonly trustStore: AbstractTrustStore<BTPTrustRecord>;
   private readonly middlewareManager: MiddlewareManager;
   private readonly connectionTimeoutMs: number;
+  private readonly maxArtifactSizeKb: number;
   private readonly dependencies: {
     trustStore: AbstractTrustStore<BTPTrustRecord>;
     identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
@@ -122,6 +124,7 @@ export class BtpsServer {
     this.trustStore = options.trustStore;
     this.identityStore = options.identityStore;
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 30000;
+    this.maxArtifactSizeKb = resolveMaxArtifactSizeKb(options.maxArtifactSizeKb);
     this.middlewareManager = new MiddlewareManager(options.middlewarePath);
     this.dependencies = {
       trustStore: this.trustStore,
@@ -232,7 +235,18 @@ export class BtpsServer {
     const ipAddress = socket.remoteAddress ?? 'unknown';
     const now = Date.now();
     const startTime = new Date(now).toISOString();
-    const stream = socket.pipe(split2());
+    // An artifact over the limit: stop reading lines, answer, and end the
+    // connection gently while the guard drops whatever else the peer sends,
+    // so the answer reaches a peer that is still sending.
+    const sizeGuard = artifactSizeGuard(this.maxArtifactSizeKb, (error) => {
+      sizeGuard.unpipe(stream);
+      stream.destroy();
+      const errorReq = reqCtx as BTPRequestCtx<'before', 'onError'>;
+      errorReq.error = error;
+      this.handleOnSocketError(error, { req: errorReq, res: resCtx }, 'end');
+    });
+    socket.pipe(sizeGuard);
+    const stream = sizeGuard.pipe(split2());
     const context: BTPContext = {
       socket,
       remoteAddress: ipAddress,
@@ -393,11 +407,13 @@ export class BtpsServer {
     };
 
     socket.on('error', handleError);
+    sizeGuard.on('error', handleError);
     stream.on('error', handleError);
 
     // Cleanup to avoid memory leaks and max listener warnings
     socket.on('close', () => {
       socket.off('error', handleError);
+      sizeGuard.off('error', handleError);
       if (typeof stream.off === 'function') stream.off('error', handleError);
     });
   }
@@ -1189,6 +1205,7 @@ export class BtpsServer {
    *
    * @param error The encountered error
    * @param socket The TLS socket associated with the connection
+   * @param action 'destroy' (the default) tears the socket down at once; 'end' sends the error and closes gently
    */
   private async handleOnSocketError(
     error: BTPErrorException,
@@ -1196,6 +1213,7 @@ export class BtpsServer {
       req: BTPRequestCtx;
       res: BTPResponseCtx;
     },
+    action: BtpsErrorAction = 'destroy',
   ) {
     const { req, res } = context;
 
@@ -1207,8 +1225,8 @@ export class BtpsServer {
     );
 
     this.onError?.(error);
-    this.sendBtpsError(req.socket, error, res.reqId, 'destroy');
-    if (!req.socket.destroyed) {
+    this.sendBtpsError(req.socket, error, res.reqId, action);
+    if (action === 'destroy' && !req.socket.destroyed) {
       req.socket.destroy(); // Immediate teardown to prevent further resource usage
     }
 

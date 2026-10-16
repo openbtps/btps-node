@@ -387,6 +387,26 @@ describe('a key held elsewhere: Signer and Decrypter', () => {
     expect(result.error?.code).toBe(BTP_ERROR_DECRYPTION_UNINTENDED.code);
   });
 
+  it('reports either error OpenSSL gives for another key as not intended for this receiver', async () => {
+    const { data, encryption } = encryptBtpPayload({ amount: 100 }, keys.publicKey);
+
+    for (const code of [
+      'ERR_OSSL_RSA_OAEP_DECODING_ERROR',
+      'ERR_OSSL_RSA_DATA_TOO_LARGE_FOR_MODULUS',
+    ]) {
+      const wrongKey: Decrypter = {
+        algorithm: 'aes-256-gcm',
+        decrypt: async () => {
+          throw Object.assign(new Error('openssl'), { code });
+        },
+      };
+
+      const result = await decryptBtpPayloadWithDecrypter(data, encryption, wrongKey);
+
+      expect(result.error?.code).toBe(BTP_ERROR_DECRYPTION_UNINTENDED.code);
+    }
+  });
+
   it('returns the error of a key holder that fails, without a document', async () => {
     const failing: Decrypter = {
       algorithm: 'aes-256-gcm',

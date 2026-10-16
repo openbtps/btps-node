@@ -1399,6 +1399,22 @@ Error constant for socket timeouts.
 
 ---
 
+### BTP_ERROR_ARTIFACT_TOO_LARGE
+
+```ts
+const BTP_ERROR_ARTIFACT_TOO_LARGE: BTPError;
+```
+
+**Description:**
+Error constant for an artifact larger than the receiving server's limit (`maxArtifactSizeKb`, see [BtpsServerOptions](./typesAndInterfaces.md#btpsserveroptions)). The server refuses it before reading it in full, sends this error with its limit appended to the message, and closes the connection. A sender that sees it can split its files across further documents that reference the first.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_ARTIFACT_TOO_LARGE'`
+- `message`: `'Artifact exceeds the size limit of this server'`, sent as for example `'Artifact exceeds the size limit of this server: 5120 KB'`
+
+---
+
 ### BTP_ERROR_AUTHENTICATION_INVALID
 
 ```ts

@@ -259,6 +259,7 @@ These are used for notifying the agent or client related to delivery failure. No
 - Must implement trust store for relationship management
 - Must validate all incoming message signatures
 - Must verify sender trust before processing
+- Must refuse an artifact larger than its own limit before reading any more of it, answer with the limit in the error message, and close the connection gently: send the answer, then end the connection while ignoring whatever else the sender is still sending. Tearing the connection down at once would reset it, and a sender still sending could lose the answer unread. Each server chooses its limit (`maxArtifactSizeKb` in the SDK): 5120 KB (5 MB) by default, at least 1024 KB (1 MB), with no maximum. 1 KB is 1024 bytes, and the size is the artifact's line in bytes
 
 ### Client Requirements
 
@@ -273,5 +274,6 @@ These are used for notifying the agent or client related to delivery failure. No
 - Invalid signatures: Reject with 401 Unauthorized
 - Untrusted sender: Reject with 403 Forbidden
 - Invalid message format: Reject with 400 Bad Request
+- Artifact over the server's size limit: Reject with the limit in the message (`BTP_ERROR_ARTIFACT_TOO_LARGE`, for example `Artifact exceeds the size limit of this server: 5120 KB`) and close the connection
 - Server errors: Return 500 Internal Server Error
 - Rate limiting: Return 429 Too Many Requests
