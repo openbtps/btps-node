@@ -12,6 +12,10 @@ import { AbstractTrustStore } from '../trust/storage/AbstractTrustStore.js';
 import { BTPTrustRecord } from '../trust/types.js';
 import { BTPErrorException } from '../error/index.js';
 import { getBTPKeyPair } from '../crypto/keygen.js';
+import { BtpsClient } from '../../client/btpsClient.js';
+import { PemSigner, getFingerprintFromPem } from '../crypto/index.js';
+import { verifyAgentRefresh } from './keyRotation.js';
+import type { BTPAgentArtifact, BTPAuthReqDoc } from '../server/types.js';
 
 // Mock trust store
 class MockTrustStore extends AbstractTrustStore<BTPTrustRecord> {
@@ -602,6 +606,111 @@ describe('BtpsAuthentication', () => {
         expect(refreshValidation.agentId).toBe(agentResult.agentId);
         expect(refreshValidation.userIdentity).toBe(userIdentity);
       }
+    });
+  });
+
+  describe('item D (EBA-112): a refresh token is single-use', () => {
+    it('reissuing with a token already spent is refused', async () => {
+      const userIdentity = 'alice$saas.com';
+      const decryptBy = 'admin$saas.com';
+      const { agentId, refreshToken } = await auth.createAgent(
+        { userIdentity, publicKey: mockKeyPair.publicKey, decidedBy: 'admin' },
+        decryptBy,
+      );
+      const options = { publicKey: mockKeyPair.publicKey, decryptBy, decidedBy: 'admin' };
+      const first = await auth.validateAndReissueRefreshToken(agentId, refreshToken, options);
+      expect(first.data?.refreshToken).toBeDefined();
+      const replayed = await auth.validateAndReissueRefreshToken(agentId, refreshToken, options);
+      expect(replayed.data).toBeUndefined();
+      expect(replayed.error?.code).toBe('BTP_ERROR_AUTHENTICATION_INVALID');
+      const next = await auth.validateAndReissueRefreshToken(
+        agentId,
+        first.data!.refreshToken,
+        options,
+      );
+      expect(next.data).toBeDefined();
+    });
+  });
+
+  describe('item D (EBA-112): refreshSession and rotateKey sign with the current key', () => {
+    const agentId = 'btps_ag_client-test';
+    const identity = 'alice$saas.com';
+    let sent: BTPAgentArtifact[];
+
+    beforeEach(() => {
+      sent = [];
+      vi.spyOn(BtpsClient.prototype, 'send').mockImplementation(async (artifact) => {
+        sent.push(artifact as BTPAgentArtifact);
+        return {
+          response: {
+            version: '1.1.0',
+            id: 'r',
+            issuedAt: new Date().toISOString(),
+            type: 'btps_response',
+            status: { ok: true, code: 200 },
+            document: {
+              agentId,
+              refreshToken: 'next',
+              expiresAt: new Date().toISOString(),
+              decryptBy: identity,
+            },
+          },
+          error: undefined,
+        } as never;
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    const check = (currentPublicKey: string) =>
+      verifyAgentRefresh({ artifact: sent[0]!, currentPublicKey, nowMs: Date.now() });
+
+    it('refreshSession keeps the key: publicKey is the signing key, no keyProof', async () => {
+      const result = await BtpsAuthentication.refreshSession(agentId, identity, 'tok', mockKeyPair);
+      expect(result.success).toBe(true);
+      const doc = sent[0]!.document as BTPAuthReqDoc;
+      expect(doc.publicKey).toBe(mockKeyPair.publicKey);
+      expect(doc.keyProof).toBeUndefined();
+      expect(check(mockKeyPair.publicKey)).toEqual({ ok: true, rotation: false });
+    });
+
+    it('rotateKey signs with the current key and countersigns the new one', async () => {
+      const current = getBTPKeyPair();
+      const next = getBTPKeyPair();
+      const result = await BtpsAuthentication.rotateKey(agentId, identity, 'tok', current, next);
+      expect(result.success).toBe(true);
+      const doc = sent[0]!.document as BTPAuthReqDoc;
+      expect(doc.publicKey).toBe(next.publicKey);
+      expect(doc.keyProof).toBeDefined();
+      expect(sent[0]!.signature.fingerprint).toBe(getFingerprintFromPem(current.publicKey));
+      expect(check(current.publicKey)).toMatchObject({ ok: true, rotation: true });
+    });
+
+    it('rotateKey takes Signers as well as PEM pairs', async () => {
+      const current = getBTPKeyPair();
+      const next = getBTPKeyPair();
+      await BtpsAuthentication.rotateKey(
+        agentId,
+        identity,
+        'tok',
+        new PemSigner(current),
+        new PemSigner(next),
+      );
+      expect(check(current.publicKey)).toMatchObject({ ok: true, rotation: true });
+    });
+
+    it('rotateKey refuses an invalid identity before sending', async () => {
+      const result = await BtpsAuthentication.rotateKey(
+        agentId,
+        'not-an-identity',
+        'tok',
+        getBTPKeyPair(),
+        getBTPKeyPair(),
+      );
+      expect(result.success).toBe(false);
+      expect(sent).toHaveLength(0);
     });
   });
 });

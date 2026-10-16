@@ -15,9 +15,12 @@ import { computeTrustId } from '@core/trust/index.js';
 import {
   generateUserToken,
   getFingerprintFromPem,
+  isSigner,
   DEFAULT_ALPHABET,
+  type BTPSigningKey,
   type PemKeys,
 } from '@core/crypto/index.js';
+import { signKeyProof } from './keyRotation.js';
 import type {
   ServerAuthConfig,
   AuthRequestResponse,
@@ -105,34 +108,44 @@ export class BtpsAuthentication {
    */
   private static async _fetchAuthSession(
     agentId: string,
-    payload: Omit<BTPAuthReqDoc, 'publicKey'> & { keyPair: PemKeys },
+    payload: Omit<BTPAuthReqDoc, 'publicKey' | 'keyProof'> & {
+      keyPair: BTPSigningKey;
+      newKey?: BTPSigningKey;
+    },
     type: 'refresh' | 'auth' = 'auth',
     agentOptions?: AuthAgentOptions,
   ): Promise<AuthRequestResponse> {
-    const { keyPair, identity, authToken, agentInfo } = payload;
+    const { keyPair, newKey, identity, authToken, agentInfo } = payload;
     const commandAction = type === 'refresh' ? 'auth.refresh' : 'auth.request';
 
     try {
-      // Create BtpsAgent for communication
+      // The artifact is always signed by the key the server holds (item D).
       const options: BTPAgentOptions = {
         ...agentOptions,
-        agent: {
-          id: agentId,
-          identityKey: keyPair.privateKey,
-          identityCert: keyPair.publicKey,
-        },
+        agent: isSigner(keyPair)
+          ? { id: agentId, signer: keyPair }
+          : { id: agentId, identityKey: keyPair.privateKey, identityCert: keyPair.publicKey },
         btpIdentity: identity,
       };
 
       const agent = new BtpsAgent(options);
 
       // Prepare authentication request
+      const currentPublicKey = isSigner(keyPair)
+        ? (await keyPair.getPublicKey()).publicKey
+        : keyPair.publicKey;
       const authRequest: BTPAuthReqDoc = {
         identity,
         authToken,
-        publicKey: keyPair.publicKey,
+        publicKey: currentPublicKey,
         agentInfo,
       };
+      if (newKey) {
+        // A rotation names the new key and proves the device holds it.
+        const { publicKey, keyProof } = await signKeyProof({ agentId, identity, newKey });
+        authRequest.publicKey = publicKey;
+        authRequest.keyProof = keyProof;
+      }
 
       // Send authentication request
       const { response, error } = await agent.command(commandAction, identity, authRequest);
@@ -436,7 +449,8 @@ export class BtpsAuthentication {
   }
 
   /**
-   * Refresh an authentication session (client-side)
+   * Refresh an authentication session (client-side), keeping the device key.
+   * `keyPair` must be the key the server holds; to change it, use `rotateKey`.
    * @param refreshToken - The refresh token to use
    * @param agentInfo - Optional agent information
    * @param agentOptions - Optional agent options
@@ -446,7 +460,7 @@ export class BtpsAuthentication {
     agentId: string,
     identity: string,
     refreshToken: string,
-    keyPair: PemKeys,
+    keyPair: BTPSigningKey,
     agentInfo?: Record<string, string | string[]>,
     agentOptions?: AuthAgentOptions,
   ): Promise<AuthRequestResponse> {
@@ -461,6 +475,42 @@ export class BtpsAuthentication {
     return await this._fetchAuthSession(
       agentId,
       { keyPair, identity, authToken: refreshToken, agentInfo },
+      'refresh',
+      agentOptions,
+    );
+  }
+
+  /**
+   * Refresh an authentication session and rotate the device key to `newKey`
+   * (client-side, self-held custody; item D, EBA-112).
+   *
+   * The request is signed by `currentKey`, the key the server holds, and
+   * carries `newKey`'s public key with `newKey`'s signature over
+   * `{ agentId, identity, newPublicKey, issuedAt }`. After it succeeds, sign
+   * with `newKey` only. A managed identity has no device key and never calls
+   * this: its key rotates by publishing a new selector.
+   *
+   * @returns renewed authentication session or error
+   */
+  static async rotateKey(
+    agentId: string,
+    identity: string,
+    refreshToken: string,
+    currentKey: BTPSigningKey,
+    newKey: BTPSigningKey,
+    agentInfo?: Record<string, string | string[]>,
+    agentOptions?: AuthAgentOptions,
+  ): Promise<AuthRequestResponse> {
+    if (!isValidIdentity(identity)) {
+      return {
+        success: false,
+        error: new BTPErrorException(BTP_ERROR_IDENTITY),
+      };
+    }
+
+    return await this._fetchAuthSession(
+      agentId,
+      { keyPair: currentKey, newKey, identity, authToken: refreshToken, agentInfo },
       'refresh',
       agentOptions,
     );
