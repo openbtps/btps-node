@@ -2032,6 +2032,77 @@ export default function () {
         const result = await server['verifyTrust'](artifact('BTPS_EVENT', biller, payer));
         expect(result.isTrusted).toBe(true);
       });
+
+      describe('through the whole pipeline, an event over either trust must still relate to an invoice', () => {
+        const socket = () =>
+          ({
+            destroyed: false,
+            writableEnded: false,
+            writable: true,
+            write: vi.fn(),
+            end: vi.fn(),
+          }) as unknown as TLSSocket;
+        const run = async (sock: TLSSocket) => {
+          const data = {
+            type: 'transporter' as const,
+            artifact: { ...artifact('BTPS_EVENT', payer, biller).artifact, relatesTo: 'doc-1' },
+          };
+          const reqCtx = {
+            socket: sock,
+            startTime: new Date().toISOString(),
+            remoteAddress: '127.0.0.1',
+            data,
+          } as unknown as BTPRequestCtx<'before', 'signatureVerification'>;
+          const resCtx = {
+            socket: sock,
+            startTime: new Date().toISOString(),
+            remoteAddress: '127.0.0.1',
+            reqId: 'test-req-id',
+            data,
+            responseSent: false,
+            sendRes: () => {},
+            sendError: () => {},
+          } as unknown as BTPResponseCtx<'before', 'signatureVerification'>;
+          await server['executeRequestPipeline'](reqCtx, resCtx);
+          return reqCtx;
+        };
+
+        beforeEach(async () => {
+          const utils = await import('../../core/utils/index.js');
+          vi.spyOn(utils, 'resolvePublicKey').mockResolvedValue(
+            '-----BEGIN PUBLIC KEY-----\nTEST\n-----END PUBLIC KEY-----',
+          );
+          const crypto = await import('../../core/crypto/index.js');
+          vi.spyOn(crypto, 'verifySignature').mockReturnValue({ isValid: true });
+        });
+
+        it("refuses the payer's event over the biller's trust when relatesTo is not a known invoice", async () => {
+          storeHolding(record(biller, payer));
+          const isKnown = vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(false);
+          const sock = socket();
+
+          const reqCtx = await run(sock);
+
+          expect(isKnown).toHaveBeenCalledWith({ artifactId: 'doc-1', from: payer, to: biller });
+          expect(reqCtx.isTrusted).toBe(false);
+          expect(reqCtx.error?.code).toBe(BTP_ERROR_EVENT_UNRELATED.code);
+          const written = JSON.parse(
+            (sock.write as Mock).mock.calls[0][0] as string,
+          ) as BTPServerResponse;
+          expect(written.type).toBe('btps_error');
+          expect(written.status.message).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.message);
+        });
+
+        it("accepts the payer's event over the biller's trust when relatesTo is a known invoice", async () => {
+          storeHolding(record(biller, payer));
+          vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(true);
+
+          const reqCtx = await run(socket());
+
+          expect(reqCtx.isTrusted).toBe(true);
+          expect(reqCtx.error).toBeUndefined();
+        });
+      });
     });
 
     describe('trust-refusal error codes (EBA-124)', () => {
