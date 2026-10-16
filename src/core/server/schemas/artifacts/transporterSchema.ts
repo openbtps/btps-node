@@ -35,7 +35,7 @@ export const BtpTransporterArtifactBaseSchema = z.object({
   signatureSelector: z.string().min(1).optional(),
   encryptionSelector: z.string().min(1).optional(),
   // BTPS 1.0's one `selector` meant the receiver's key to the sender and the
-  // sender's key to the verifier. 1.1 refuses it rather than guess (plan §6).
+  // sender's key to the verifier. 1.1 refuses it rather than guess.
   selector: z.undefined({
     invalid_type_error: SELECTOR_REPLACED,
   }),
@@ -88,7 +88,7 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
         });
       } else if (data.type === 'BTPS_DOC') {
         // The envelope rule beside the document schema: a reference to
-        // another document must name the sender's own (release plan section 3).
+        // another document must name the sender's own.
         const violation = validateBtpDocOwnership(parsed.data as BTPDocV2, data.from);
         if (violation) {
           ctx.addIssue({
@@ -106,8 +106,8 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
           });
         }
       } else if (data.type === 'BTPS_EVENT') {
-        // One id end to end, and only a document between these two parties
-        // (release plan sections 2.4 and 2.7). An encrypted event is opaque
+        // One id end to end, and only a document between these two parties.
+        // An encrypted event is opaque
         // here: the receiving platform applies the same rule after decrypting.
         const violation = validateBtpEventEnvelope(parsed.data as BTPEventDoc, data);
         if (violation) {

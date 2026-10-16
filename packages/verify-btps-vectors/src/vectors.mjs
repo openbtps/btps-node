@@ -41,7 +41,7 @@ function requireFields(file, object, fields) {
 }
 
 /**
- * Item 7: reads every document in the model's documents directory into
+ * Document model v2: reads every document in the model's documents directory into
  * `set.documents` (file name -> parsed JSON), and checks that every case
  * names one that exists, so a deleted document is a load error.
  */
@@ -104,7 +104,7 @@ function loadDocumentModel(dir, set) {
 }
 
 /**
- * Item A: reads every event in the model's events directory into
+ * Lifecycle events: reads every event in the model's events directory into
  * `set.events` (file name -> parsed JSON), and checks that every case names
  * one that exists (or a document, as `documents/<name>`), so a deleted
  * event is a load error.
@@ -172,7 +172,7 @@ function loadEventModel(dir, set) {
   }
 }
 
-/** Item F: the window cases and the delivery sequences. */
+/** Replay protection: the window cases and the delivery sequences. */
 function loadReplay(set) {
   const file = VECTOR_FILES.replay;
   const model = set.replay;
@@ -201,7 +201,7 @@ function loadReplay(set) {
   }
 }
 
-/** Item D: refresh cases per custody mode, and the refresh-token sequence. */
+/** Key-rotating refresh: refresh cases per custody mode, and the refresh-token sequence. */
 function loadRefresh(set) {
   const file = VECTOR_FILES.refresh;
   const model = set.refresh;
@@ -237,7 +237,7 @@ function loadRefresh(set) {
   }
 }
 
-/** Item E: registration sequences, a concurrent pair, and forged agent artifacts. */
+/** Device registration: registration sequences, a concurrent pair, and forged agent artifacts. */
 function loadRegistration(set) {
   const file = VECTOR_FILES.registration;
   const model = set.registration;
@@ -328,7 +328,7 @@ function loadIdentityLookup(set) {
 
 /**
  * @param {string} dir the test/vectors directory
- * @returns {Record<keyof typeof VECTOR_FILES, any>}
+ * @returns {Record<keyof typeof VECTOR_FILES, unknown>}
  * @throws {VectorLoadError}
  */
 export function loadVectorSet(dir) {

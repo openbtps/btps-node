@@ -6,7 +6,7 @@
  */
 
 /*
- * EBA-441 (item I, fix list 7): each name a user needs imports from its
+ * Each name a user needs imports from its
  * package subpath. The subpath is resolved through package.json's own
  * `exports` map, from the built file it names back to the source file it is
  * built from, so this runs without a build.
@@ -67,7 +67,7 @@ const expected: Record<string, string[]> = {
   './client': ['BtpsClient', 'BtpsAgent', 'BtpsTransporter'],
 };
 
-describe('package exports (EBA-441)', () => {
+describe('package exports (crypto and client)', () => {
   for (const [subpath, names] of Object.entries(expected)) {
     it.each(names)(`@btps/sdk${subpath.slice(1)} exports %s`, async (name) => {
       const mod = await importSubpath(subpath);
@@ -92,7 +92,7 @@ describe('package exports (EBA-441)', () => {
   });
 });
 
-describe('package exports (EBA-114, replay protection)', () => {
+describe('package exports (replay protection)', () => {
   it.each([
     ['./storage', 'AbstractReplayStore'],
     ['./storage', 'InMemoryReplayStore'],
@@ -115,7 +115,7 @@ describe('package exports (EBA-114, replay protection)', () => {
   });
 });
 
-describe('package exports (EBA-112, key-rotating refresh)', () => {
+describe('package exports (key-rotating refresh)', () => {
   it.each([
     ['./authentication', 'verifyAgentRefresh'],
     ['./authentication', 'signKeyProof'],
@@ -141,7 +141,7 @@ describe('package exports (EBA-112, key-rotating refresh)', () => {
   });
 });
 
-describe('package exports (EBA-113, device registration)', () => {
+describe('package exports (device registration)', () => {
   it.each([
     ['./authentication', 'consumeRegistrationToken'],
     ['./authentication', 'resolveAgentKey'],

@@ -145,7 +145,7 @@ Used for initial agent authentication.
 #### Registration is bound to the identity (BTPS 1.1)
 
 A device registers only with a **registration token** issued to the owner of
-the identity it registers for (BTPS 1.1, item E). The identity's platform
+the identity it registers for (BTPS 1.1). The identity's platform
 issues the token to its signed-in owner (`BtpsAuthentication.generateAuthToken`
 and `storeAuthToken`: 12 characters, valid 15 minutes) and the owner enters it
 on the device.
@@ -193,7 +193,7 @@ back to accepting one.
 Used to refresh authentication tokens, and to rotate the device key.
 
 **An `auth.refresh` artifact is always signed by the agent's current key**:
-the key in its trust record on the server (BTPS 1.1, item D). A refresh
+the key in its trust record on the server (BTPS 1.1). A refresh
 signed by any other key is refused with `BTP_ERROR_REFRESH_NOT_CURRENT_KEY`,
 even when it carries a valid refresh token: a stolen refresh token alone
 cannot replace a device's key.

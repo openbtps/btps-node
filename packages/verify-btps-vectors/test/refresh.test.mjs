@@ -11,7 +11,7 @@ import { REPO_ROOT, VECTORS_DIR } from './helpers.mjs';
 const set = loadVectorSet(VECTORS_DIR);
 const failing = (results) => results.filter((r) => !r.passed).map((r) => `${r.id}: ${r.message}`);
 
-describe('item D: refresh vectors (EBA-112)', () => {
+describe('refresh vectors', () => {
   it('covers the acceptance cases for self-held custody, and managed as not applicable', () => {
     const names = set.refresh.selfHeld.cases.map((c) => c.name);
     expect(names).toEqual(
@@ -28,16 +28,16 @@ describe('item D: refresh vectors (EBA-112)', () => {
     expect(set.refresh.managed.cases.every((c) => c.expect === 'refuse')).toBe(true);
   });
 
-  it('the SDK on this tree passes every item D check', async () => {
+  it('the SDK on this tree passes every sdk/refresh check', async () => {
     const checks = refreshSdkChecks(await loadSdk(REPO_ROOT), set);
     expect(checks.length).toBe(
       set.refresh.selfHeld.cases.length + set.refresh.managed.cases.length + 1,
     );
-    expect(checks.every((c) => c.item === 'D' && c.id.startsWith('sdk/item-D/'))).toBe(true);
+    expect(checks.every((c) => c.id.startsWith('sdk/refresh/'))).toBe(true);
     expect(failing(await runChecks(checks))).toEqual([]);
   });
 
-  it('every item D check fails on an SDK without the refresh check', async () => {
+  it('every sdk/refresh check fails on an SDK without the refresh check', async () => {
     const results = await runChecks(refreshSdkChecks({ authentication: null }, set));
     expect(results.every((r) => !r.passed)).toBe(true);
   });

@@ -13,7 +13,7 @@ import type { Decrypter } from '../../decrypter-interface.js';
 import { toDecrypter } from './custody.js';
 
 /**
- * Which key an artifact operation uses (BTPS 1.1, item 6). A transporter
+ * Which key an artifact operation uses (BTPS 1.1). A transporter
  * artifact names two keys apart, so each side rotates its own key on its own:
  *
  * - `signatureSelector`: the `from` identity's key that signed it;

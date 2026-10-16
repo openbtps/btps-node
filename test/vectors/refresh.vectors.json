@@ -1,8 +1,6 @@
 {
-  "item": "D",
-  "tickets": ["EBA-112"],
-  "description": "BTPS 1.1 item D, a key-rotating refresh is signed by the current key (addendum item 2, threat T-24). Each case is an auth.refresh artifact, signed over its JCS form, checked when the server holds `currentKey` for the agent (null: it holds none) and its clock reads `now`, with `windowMs`. Without rotation, document.publicKey is the current key. With rotation, document.publicKey is the new key, the artifact is still signed by the current key, and document.keyProof is the new key's signature over the JCS form of { agentId, identity, newPublicKey, issuedAt }. `reason` names why a case is refused, and `error` the error code on the wire. tokens: a refresh token is single-use; each step refreshes with a token issued earlier (issued-0 at enrolment, issued-n by the n-th accepted refresh).",
-  "provenance": "TEST-ONLY key generated locally for the BTPS golden vectors (EBA-110). Never use it for anything else. The managed identity key is the one in kms-signature.vector.json.",
+  "description": "BTPS 1.1 key-rotating refresh: a refresh is signed by the agent's current key, never accepted under the key the request itself carries. Each case is an auth.refresh artifact, signed over its JCS form, checked when the server holds `currentKey` for the agent (null: it holds none) and its clock reads `now`, with `windowMs`. Without rotation, document.publicKey is the current key. With rotation, document.publicKey is the new key, the artifact is still signed by the current key, and document.keyProof is the new key's signature over the JCS form of { agentId, identity, newPublicKey, issuedAt }. `reason` names why a case is refused, and `error` the error code on the wire. tokens: a refresh token is single-use; each step refreshes with a token issued earlier (issued-0 at enrolment, issued-n by the n-th accepted refresh).",
+  "provenance": "TEST-ONLY key generated locally for the BTPS golden vectors. Never use it for anything else. The managed identity key is the one in kms-signature.vector.json.",
   "now": "2026-10-16T00:00:00.000Z",
   "windowMs": 300000,
   "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
@@ -454,7 +452,7 @@
   "managed": {
     "custody": "managed",
     "keyVector": "kms-signature.vector.json",
-    "description": "Not applicable. A managed identity has no interactive device key: its key is held by the platform (KMS) and published under a selector, and it rotates by publishing a new selector (item H, selectors.vector.json), never through auth.refresh. The server holds no agent key for it, so a refresh signed by the managed key itself is refused.",
+    "description": "Not applicable. A managed identity has no interactive device key: its key is held by the platform (KMS) and published under a selector, and it rotates by publishing a new selector (see selectors.vector.json), never through auth.refresh. The server holds no agent key for it, so a refresh signed by the managed key itself is refused.",
     "cases": [
       {
         "name": "managed-key-refresh-not-applicable",

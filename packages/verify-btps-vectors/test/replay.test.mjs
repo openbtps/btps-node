@@ -11,7 +11,7 @@ import { REPO_ROOT, VECTORS_DIR } from './helpers.mjs';
 const set = loadVectorSet(VECTORS_DIR);
 const failing = (results) => results.filter((r) => !r.passed).map((r) => `${r.id}: ${r.message}`);
 
-describe('item F: replay vectors (EBA-114)', () => {
+describe('replay vectors', () => {
   it('covers both window edges, just outside both, a duplicate, another sender and a late duplicate', () => {
     const names = set.replay.window.map((c) => c.name);
     expect(names).toEqual(
@@ -33,14 +33,14 @@ describe('item F: replay vectors (EBA-114)', () => {
     );
   });
 
-  it('the SDK on this tree passes every item F check', async () => {
+  it('the SDK on this tree passes every sdk/replay check', async () => {
     const checks = replaySdkChecks(await loadSdk(REPO_ROOT), set);
     expect(checks.length).toBe(set.replay.window.length + set.replay.deliveries.length);
-    expect(checks.every((c) => c.item === 'F' && c.id.startsWith('sdk/item-F/'))).toBe(true);
+    expect(checks.every((c) => c.id.startsWith('sdk/replay/'))).toBe(true);
     expect(failing(await runChecks(checks))).toEqual([]);
   });
 
-  it('every item F check fails on an SDK without replay protection', async () => {
+  it('every sdk/replay check fails on an SDK without replay protection', async () => {
     const results = await runChecks(replaySdkChecks({ utils: {}, storage: {} }, set));
     expect(results.every((r) => !r.passed)).toBe(true);
   });
