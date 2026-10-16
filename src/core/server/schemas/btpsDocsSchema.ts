@@ -84,71 +84,75 @@ export const BtpTrustResDocSchema = z.object({
  * optional issuer address and identifiers, references and metadata. Strict:
  * a field it does not name, such as 1.0's `status`, is refused.
  */
-export const BtpInvoiceDocSchema = z.object({
-  type: z.literal('invoice'),
-  title: z.string(),
-  id: z.string(), // the invoice number, unique per sender
-  issuedAt: z.string().datetime(),
-  dueAt: z.string().datetime().optional(),
-  totalAmount: BtpMoneySchema,
-  lineItems: z.object({
-    columns: z.array(z.string()),
-    // A money cell is integer minor units; a decimal (e.g. a quantity) is written as text.
-    rows: z.array(z.record(z.union([z.string(), z.number().int().safe()]))),
-  }),
-  issuer: z
-    .object({
-      name: z.string(),
-      email: z.string().email().optional(),
-      phone: z.string().optional(),
-      address: z.string().optional(),
-      // Company and tax ids by namespaced key, for any country: { "au:abn": "51824753556" }.
-      identifiers: z.record(z.string().regex(/^[a-z0-9_]+:[a-z0-9_]+$/), z.string()).optional(),
-    })
-    .optional(),
-  paymentLink: z
-    .object({
-      linkText: z.string(),
-      url: z.string().url(),
-    })
-    .optional(),
-  description: z.string().optional(),
-  attachments: z.array(BtpAttachmentSchema).optional(),
-  // Links to other documents, e.g. the invoice a corrected one replaces (`correction_of`).
-  references: z.array(BtpDocReferenceSchema).optional(),
-  template: z
-    .object({
-      name: z.string(),
-      data: z.record(z.unknown()),
-    })
-    .optional(),
-  // The sending platform's own data: carried and signed, never read by the protocol.
-  metadata: z.record(z.unknown()).optional(),
-}).strict();
+export const BtpInvoiceDocSchema = z
+  .object({
+    type: z.literal('invoice'),
+    title: z.string(),
+    id: z.string(), // the invoice number, unique per sender
+    issuedAt: z.string().datetime(),
+    dueAt: z.string().datetime().optional(),
+    totalAmount: BtpMoneySchema,
+    lineItems: z.object({
+      columns: z.array(z.string()),
+      // A money cell is integer minor units; a decimal (e.g. a quantity) is written as text.
+      rows: z.array(z.record(z.union([z.string(), z.number().int().safe()]))),
+    }),
+    issuer: z
+      .object({
+        name: z.string(),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
+        address: z.string().optional(),
+        // Company and tax ids by namespaced key, for any country: { "au:abn": "51824753556" }.
+        identifiers: z.record(z.string().regex(/^[a-z0-9_]+:[a-z0-9_]+$/), z.string()).optional(),
+      })
+      .optional(),
+    paymentLink: z
+      .object({
+        linkText: z.string(),
+        url: z.string().url(),
+      })
+      .optional(),
+    description: z.string().optional(),
+    attachments: z.array(BtpAttachmentSchema).optional(),
+    // Links to other documents, e.g. the invoice a corrected one replaces (`correction_of`).
+    references: z.array(BtpDocReferenceSchema).optional(),
+    template: z
+      .object({
+        name: z.string(),
+        data: z.record(z.unknown()),
+      })
+      .optional(),
+    // The sending platform's own data: carried and signed, never read by the protocol.
+    metadata: z.record(z.unknown()).optional(),
+  })
+  .strict();
 
 /**
  * A credit note: the invoice's shape, crediting a positive amount (its
  * `type`, not a sign, says it is a credit). It names the invoice it credits
  * with a `credits` reference, and may say why in `reason`.
  */
-export const BtpCreditNoteDocSchema = z.object({
-  type: z.literal('credit_note'),
-  title: z.string(),
-  id: z.string(), // the credit note number, unique per sender
-  issuedAt: z.string().datetime(),
-  totalAmount: BtpMoneySchema.extend({ amount: z.number().int().safe().positive() }),
-  lineItems: BtpInvoiceDocSchema.shape.lineItems,
-  issuer: BtpInvoiceDocSchema.shape.issuer,
-  description: z.string().optional(),
-  attachments: z.array(BtpAttachmentSchema).optional(),
-  references: z
-    .array(BtpDocReferenceSchema)
-    .refine((references) => references.some((reference) => reference.type === 'credits'), {
-      message: 'a credit note must name the invoice it credits with a "credits" reference',
-    }),
-  reason: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
-}).strict();
+export const BtpCreditNoteDocSchema = z
+  .object({
+    type: z.literal('credit_note'),
+    title: z.string(),
+    id: z.string(), // the credit note number, unique per sender
+    issuedAt: z.string().datetime(),
+    totalAmount: BtpMoneySchema.extend({ amount: z.number().int().safe().positive() }),
+    lineItems: BtpInvoiceDocSchema.shape.lineItems,
+    issuer: BtpInvoiceDocSchema.shape.issuer,
+    description: z.string().optional(),
+    attachments: z.array(BtpAttachmentSchema).optional(),
+    references: z
+      .array(BtpDocReferenceSchema)
+      .refine((references) => references.some((reference) => reference.type === 'credits'), {
+        message: 'a credit note must name the invoice it credits with a "credits" reference',
+      }),
+    reason: z.string().optional(),
+    metadata: z.record(z.unknown()).optional(),
+  })
+  .strict();
 
 /** The document a `BTPS_DOC` carries, told apart by `type`. */
 export const BtpDocumentSchema = z.discriminatedUnion('type', [
