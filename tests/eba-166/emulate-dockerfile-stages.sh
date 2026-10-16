@@ -5,7 +5,7 @@
 # HEAD (a fresh-clone stand-in), copying the same paths each COPY names.
 #
 # THIS IS NOT AN IMAGE BUILD. It uses the host's node and yarn, not the
-# node:20.11.1 base images; it does not exercise Docker's COPY semantics,
+# node:24.22.0 base images; it does not exercise Docker's COPY semantics,
 # build context or .dockerignore. It shows that the dependency resolution the
 # Dockerfile relies on (portal:../.. against a packed SDK, symlink
 # replacement, production focus, runtime import) works from tracked files.

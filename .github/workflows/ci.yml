@@ -51,10 +51,9 @@
 #
 # Pins: actions by commit SHA (release tag in the comment), resolved with
 # `gh api repos/<action>/commits/<tag>` on 2026-10-07. Corepack is pinned to
-# 0.34.7, the newest release whose engines include Node 20 (.nvmrc is
-# 20.11.1; 0.35.0+ require Node >=22.22.2). The Corepack bundled with Node
-# 20.11.1 carries npm signing keys rotated in early 2025 and can refuse to
-# fetch Yarn, so it is replaced before `corepack enable`.
+# 0.34.7, whose engines include the Node in .nvmrc (24.22.0), and installed
+# before `corepack enable`, so every job fetches Yarn with the same Corepack
+# whatever version the Node release bundles.
 name: CI
 
 on:

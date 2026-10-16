@@ -11,7 +11,7 @@ Before setting up your BTPS server, you'll need to ensure your development envir
 
 ### Node.js Version
 
-BTPS requires **Node.js 16 or higher** with ES module support.
+BTPS requires **Node.js 24 or higher** with ES module support.
 
 ```bash
 # Check your Node.js version
@@ -19,8 +19,8 @@ node --version
 
 # If you need to install or update Node.js, use nvm
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-nvm install 20.11.1
-nvm use 20.11.1
+nvm install 24
+nvm use 24
 ```
 
 ### Package Manager
@@ -226,7 +226,7 @@ With these prerequisites in place, you're ready to:
 
 ```bash
 # Error: SyntaxError: Unexpected token 'export'
-# Solution: Update to Node.js 20.11.1+
+# Solution: Update to Node.js 24 or later
 ```
 
 **DNS Resolution Fails**

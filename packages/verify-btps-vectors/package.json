@@ -16,7 +16,7 @@
     "./checks/interop": "./src/checks/interop.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "scripts": {
     "verify:btps-vectors": "node bin/verify-btps-vectors.mjs --known-failing ../../test/vectors/known-failing.json",
