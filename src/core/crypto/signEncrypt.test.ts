@@ -25,6 +25,7 @@ vi.mock('./index', () => ({
 }));
 
 vi.mock('../utils/index.js', () => ({
+  getHostAndSelector: vi.fn(),
   parseIdentity: vi.fn(),
   resolvePublicKey: vi.fn(),
 }));
@@ -61,6 +62,11 @@ describe('signEncrypt', () => {
     };
 
     mockUtils.parseIdentity.mockReturnValue({ accountName: 'receiver', domainName: 'example.com' });
+    mockUtils.getHostAndSelector.mockResolvedValue({
+      version: '1.0.0',
+      host: 'btps://btps.example.com:3443',
+      selector: 'receiver-key-1',
+    });
     mockUtils.resolvePublicKey.mockResolvedValue('receiver-public-key');
     mockCrypto.encryptBtpPayload.mockReturnValue({
       data: 'encrypted-doc',
@@ -92,6 +98,22 @@ describe('signEncrypt', () => {
     expect(mockCrypto.signBtpPayload).toHaveBeenCalled();
   });
 
+  it("names the sender's selector, and encrypts to the receiver's key at its host record's selector", async () => {
+    const result = await signEncrypt('receiver$example.com', sender, payload, {
+      signature: { algorithmHash: 'sha256' },
+      encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+    });
+
+    expect(result.payload?.selector).toBe('btps1');
+    expect(mockUtils.getHostAndSelector).toHaveBeenCalledWith('receiver$example.com');
+    expect(mockUtils.resolvePublicKey).toHaveBeenCalledWith('receiver$example.com', 'receiver-key-1');
+    expect(mockCrypto.encryptBtpPayload).toHaveBeenCalledWith(
+      payload.document,
+      'receiver-public-key',
+      { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+    );
+  });
+
   it('should handle payloads that do not require encryption', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await signEncrypt('receiver$example.com', sender, payload as any);
@@ -113,7 +135,10 @@ describe('signEncrypt', () => {
 
   it('should return an error if receiver identity is invalid', async () => {
     mockUtils.parseIdentity.mockReturnValue(null);
-    const result = await signEncrypt('receiver$example.com', sender, payload);
+    const result = await signEncrypt('receiver$example.com', sender, payload, {
+      signature: { algorithmHash: 'sha256' },
+      encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+    });
 
     expect(result.payload).toBeUndefined();
     expect(result.error).toBeInstanceOf(BTPErrorException);
@@ -122,7 +147,10 @@ describe('signEncrypt', () => {
 
   it('should return an error if receiver public key cannot be resolved', async () => {
     mockUtils.resolvePublicKey.mockResolvedValue(undefined);
-    const result = await signEncrypt('receiver$example.com', sender, payload);
+    const result = await signEncrypt('receiver$example.com', sender, payload, {
+      signature: { algorithmHash: 'sha256' },
+      encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+    });
 
     expect(result.payload).toBeUndefined();
     expect(result.error).toBeInstanceOf(BTPErrorException);
@@ -213,9 +241,6 @@ describe('Key Rotation Integration Tests', () => {
     expect(result.payload).toBeDefined();
     expect(result.payload.signature).toBeDefined();
     expect(result.payload.selector).toBe(oldSelector);
-
-    // Verify that resolvePublicKey was called with old selector
-    expect(mockResolvePublicKey).toHaveBeenCalledWith(to, oldSelector);
   });
 
   it('should sign artifact with new selector and verify with new public key after rotation', async () => {
@@ -274,9 +299,6 @@ describe('Key Rotation Integration Tests', () => {
     expect(result.payload).toBeDefined();
     expect(result.payload.signature).toBeDefined();
     expect(result.payload.selector).toBe(newSelector);
-
-    // Verify that resolvePublicKey was called with new selector
-    expect(mockResolvePublicKey).toHaveBeenCalledWith(to, newSelector);
   });
 
   it('should handle verification of artifact signed with old selector after rotation', async () => {

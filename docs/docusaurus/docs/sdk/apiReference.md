@@ -433,7 +433,7 @@ Signs and (optionally) encrypts a BTPS document for secure transmission. Handles
 - `sender` (`ParsedIdentity & { pemFiles: PemKeys }`, required): Sender identity and PEM key pair.
 - `payload` (object, required): Document and metadata to send.
   - `document` (`T`, required): The document payload.
-  - `selector` (`string`, optional): The selector to use for public key resolution (e.g., 'btps1', 'btps2'). Required for encryption when `to` is provided.
+  - `selector` (`string`, optional): The sender's own selector, the one its signing key is published at (e.g., 'btps2' after a rotation). The receiver uses it to find the key that verifies the signature. The receiver's key for encryption is found at the selector the receiver's own host record names.
   - `[key: string]` (`unknown`): Additional metadata fields.
 - `options` (`BTPCryptoOptions`, optional): Signature and encryption options.
 

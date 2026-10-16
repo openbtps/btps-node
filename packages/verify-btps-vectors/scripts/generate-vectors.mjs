@@ -117,7 +117,7 @@ function selectors() {
     item: 6,
     tickets: ['EBA-116', 'EBA-117'],
     description:
-      'The sender rotated its signing key from btps1 to btps2 and kept the old key published; the receiver still encrypts on btps1. An artifact must name the sender key it was signed with (signatureSelector) apart from the receiver key it was encrypted to (encryptionSelector). On 367cd09 one `selector` field carries the receiver selector, so a verifier looks up the wrong sender key.',
+      "The sender rotated its signing key from btps1 to btps2 and kept the old key published; the receiver's current key is at btps1. The artifact's selector must name the sender's signing key (btps2), which the verifier looks up; the document is encrypted to the receiver's key at the selector its host record names. In 1.0, signEncrypt put the receiver's selector in the artifact, so the verifier looked up the sender's rotated-out key.",
     provenance: `${TEST_ONLY} The receiver encryption key is the one in oaep-wrap.vector.json.`,
     sender: {
       identity: 'alice$saas.example',
@@ -151,8 +151,7 @@ function selectors() {
       document: { invoiceId: 'INV-6', amountCents: 9900, currency: 'AUD' },
     },
     expect: {
-      signatureSelector: 'btps2',
-      encryptionSelector: 'btps1',
+      selector: 'btps2',
     },
   };
 }

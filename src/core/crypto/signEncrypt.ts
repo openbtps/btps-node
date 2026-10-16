@@ -16,7 +16,7 @@ import {
   BTPEncryption,
   BTPCryptoArtifact,
 } from './types.js';
-import { parseIdentity, resolvePublicKey } from '@core/utils/index.js';
+import { getHostAndSelector, parseIdentity, resolvePublicKey } from '@core/utils/index.js';
 import { ParsedIdentity } from '@core/utils/types.js';
 import { BTPErrorException } from '@core/error/index.js';
 import isEmpty from 'lodash/isEmpty.js';
@@ -26,6 +26,15 @@ const genEncryptError = (error: BTPErrorException) => ({
   error,
 });
 
+/**
+ * Signs an artifact with the sender's key and, when `to` and encryption
+ * options are given, encrypts its document to the receiver's current key.
+ *
+ * `payload.selector` is the sender's own selector: the one its signing key
+ * is published at, which the receiver uses to verify the signature. The
+ * receiver's key is found at the selector the receiver's own host record
+ * names.
+ */
 export const signEncrypt = async <T = unknown>(
   to: string | undefined,
   sender: ParsedIdentity & { pemFiles: PemKeys },
@@ -40,10 +49,13 @@ export const signEncrypt = async <T = unknown>(
   let encryption: BTPEncryption | null = null;
   let encryptedDoc: string | T = document;
 
-  if (to && payload.selector) {
+  if (to && !isEmpty(options?.encryption)) {
     const parsedReceiver = parseIdentity(to);
     if (!parsedReceiver) return genEncryptError(new BTPErrorException(BTP_ERROR_IDENTITY));
-    const receiverPubPem = await resolvePublicKey(to, payload.selector);
+    const receiverHost = await getHostAndSelector(to);
+    const receiverPubPem = receiverHost
+      ? await resolvePublicKey(to, receiverHost.selector)
+      : undefined;
     if (!receiverPubPem) return genEncryptError(new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY));
 
     try {
