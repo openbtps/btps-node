@@ -24,6 +24,7 @@ export const VECTOR_FILES = Object.freeze({
   replay: 'replay.vectors.json',
   refresh: 'refresh.vectors.json',
   registration: 'registration.vectors.json',
+  identityLookup: 'identity-lookup.vectors.json',
 });
 
 export class VectorLoadError extends Error {
@@ -288,6 +289,43 @@ function loadRegistration(set) {
   }
 }
 
+/** Item J: TXT parsing, DNS-first outcomes, and host lookup answers. */
+function loadIdentityLookup(set) {
+  const file = VECTOR_FILES.identityLookup;
+  const model = set.identityLookup;
+  requireFields(file, model, ['keys', 'parse', 'dns', 'lookup']);
+  requireFields(file, model.lookup, ['request', 'zone', 'cases']);
+  const nonEmpty = (group, list) => {
+    if (!Array.isArray(list) || list.length === 0) {
+      throw new VectorLoadError(file, `expected a non-empty "${group}" array`);
+    }
+  };
+  const knownKey = (where, key) => {
+    if (!(key in model.keys)) throw new VectorLoadError(file, `${where}: unknown key "${key}"`);
+  };
+  nonEmpty('parse', model.parse);
+  nonEmpty('dns', model.dns);
+  nonEmpty('lookup.cases', model.lookup.cases);
+  for (const c of model.parse) {
+    requireFields(file, c, ['name', 'record', 'expect']);
+    if (c.key !== undefined) knownKey(c.name, c.key);
+  }
+  for (const c of model.dns) {
+    requireFields(file, c, ['name', 'zone', 'identity', 'selector', 'expect']);
+    if (c.expect === 'key') knownKey(c.name, c.key);
+    else if (c.expect === 'error') requireFields(file, c, ['error']);
+    else if (c.expect !== 'absent') {
+      throw new VectorLoadError(file, `${c.name}: unknown expect "${c.expect}"`);
+    }
+  }
+  for (const c of model.lookup.cases) {
+    requireFields(file, c, ['name', 'response', 'expect']);
+    if (c.expect === 'accept') knownKey(c.name, c.key);
+    else if (c.expect === 'reject') requireFields(file, c, ['reason', 'error']);
+    else throw new VectorLoadError(file, `${c.name}: unknown expect "${c.expect}"`);
+  }
+}
+
 /**
  * @param {string} dir the test/vectors directory
  * @returns {Record<keyof typeof VECTOR_FILES, any>}
@@ -384,6 +422,7 @@ export function loadVectorSet(dir) {
   loadReplay(set);
   loadRefresh(set);
   loadRegistration(set);
+  loadIdentityLookup(set);
 
   // The only shared key is the encryption key, referenced by name. Resolve it
   // once so checks never read files themselves.

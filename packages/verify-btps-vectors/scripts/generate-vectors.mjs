@@ -34,9 +34,9 @@ const force = process.argv.includes('--force');
 const TEST_ONLY =
   'TEST-ONLY key generated locally for the BTPS golden vectors (EBA-110). Never use it for anything else.';
 
-function newKeyPair() {
+function newKeyPair(modulusLength = 2048) {
   const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
-    modulusLength: 2048,
+    modulusLength,
     publicKeyEncoding: { type: 'spki', format: 'pem' },
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
   });
@@ -818,6 +818,239 @@ function registration() {
   };
 }
 
+/**
+ * Item J (EBA-442) and fix-list item 9 (EBA-186): host identity lookup.
+ * TXT records as a resolver returns them (strings of at most 255
+ * characters), with 2048-bit (unpadded), 3072-bit and 4096-bit (padded)
+ * keys; DNS-first outcomes over a fake zone; and a host's signed lookup
+ * answers, accepted or refused by the client.
+ */
+function identityLookup() {
+  const version = '1.1.0';
+  const domain = 'saas.example';
+  const hostIdentity = `admin$${domain}`;
+  const identity = `alice$${domain}`;
+  const hostSelector = 'host1';
+  const keys = {
+    host: newKeyPair(),
+    host3072: newKeyPair(3072),
+    alice: newKeyPair(),
+    alice3072: newKeyPair(3072),
+    alice4096: newKeyPair(4096),
+    other: newKeyPair(),
+  };
+  const base64 = (pem) =>
+    pem
+      .replace(/-----(BEGIN|END) PUBLIC KEY-----/g, '')
+      .replace(/\s+/g, '')
+      .trim();
+  const txt = (record) => record.match(/.{1,255}/g);
+  const keyRecord = (key) => txt(`v=${version}; k=rsa; p=${base64(keys[key].publicKeyPem)}`);
+  const identityName = (who, selector) => {
+    const [account, dom] = who.split('$');
+    return `${selector}._btps.identity.${account}.${dom}`;
+  };
+  const sign = (payload, key) => ({
+    algorithmHash: 'sha256',
+    value: crypto
+      .sign('sha256', Buffer.from(canonicalizeValue(payload), 'utf8'), keys[key].privateKeyPem)
+      .toString('base64'),
+    fingerprint: fingerprint(keys[key].publicKeyPem),
+  });
+
+  const parse = [
+    ['2048-bit-unpadded', 'alice'],
+    ['3072-bit-padded', 'alice3072'],
+    ['4096-bit-padded', 'alice4096'],
+  ].map(([name, key]) => ({
+    name,
+    record: keyRecord(key),
+    expect: { v: version, k: 'rsa', p: base64(keys[key].publicKeyPem) },
+    key,
+  }));
+  parse.push({
+    name: 'tag-value-containing-equals',
+    record: ['v=1.1.0; x=a=b==; ;k=rsa'],
+    expect: { v: '1.1.0', x: 'a=b==', k: 'rsa' },
+  });
+
+  const dns = [
+    {
+      name: 'own-record-is-used',
+      zone: { [identityName(identity, 'btps1')]: keyRecord('alice') },
+      identity,
+      selector: 'btps1',
+      expect: 'key',
+      key: 'alice',
+    },
+    {
+      name: 'own-4096-bit-record-is-used',
+      zone: { [identityName(identity, 'btps1')]: keyRecord('alice4096') },
+      identity,
+      selector: 'btps1',
+      expect: 'key',
+      key: 'alice4096',
+    },
+    {
+      name: 'no-record-ask-the-host',
+      zone: {},
+      identity,
+      selector: 'btps1',
+      expect: 'absent',
+    },
+    {
+      name: 'record-without-a-key-refused',
+      zone: { [identityName(identity, 'btps1')]: [`v=${version}; k=rsa`] },
+      identity,
+      selector: 'btps1',
+      expect: 'error',
+      error: 'BTP_ERROR_RESOLVE_PUBKEY',
+    },
+  ];
+
+  const request = { identity, id: '00000000-0000-4000-8000-00000000a001' };
+  const zone = {
+    [identityName(hostIdentity, hostSelector)]: keyRecord('host'),
+    [identityName(hostIdentity, 'host3072')]: keyRecord('host3072'),
+    [identityName('admin$evil.example', hostSelector)]: keyRecord('other'),
+  };
+  const recordOf = (key) => ({
+    selector: 'btps1',
+    publicKey: keys[key].publicKeyPem,
+    keyType: 'rsa',
+    version,
+  });
+  const answer = ({ key = 'alice', signer = 'host', signedOver, ...overrides } = {}) => {
+    const unsigned = {
+      version,
+      status: { ok: true, code: 200, message: 'success' },
+      id: '00000000-0000-4000-8000-00000000b001',
+      issuedAt: '2026-10-16T00:00:00.000Z',
+      type: 'btps_response',
+      reqId: request.id,
+      signedBy: hostIdentity,
+      signatureSelector: hostSelector,
+      document: recordOf(key),
+      ...overrides,
+    };
+    return { ...unsigned, signature: sign(signedOver ? signedOver(unsigned) : unsigned, signer) };
+  };
+  const reordered = (object) => Object.fromEntries(Object.entries(object).reverse());
+  const tampered = answer();
+  tampered.document = recordOf('other');
+  const unsigned = answer();
+  delete unsigned.signature;
+
+  const cases = [
+    { name: 'signed-answer-accepted', response: answer(), expect: 'accept', key: 'alice' },
+    {
+      name: 'signed-answer-in-another-key-order-accepted',
+      response: reordered(answer()),
+      expect: 'accept',
+      key: 'alice',
+    },
+    {
+      name: '4096-bit-key-from-a-3072-bit-host-accepted',
+      response: answer({ key: 'alice4096', signer: 'host3072', signatureSelector: 'host3072' }),
+      expect: 'accept',
+      key: 'alice4096',
+    },
+    {
+      name: 'signed-with-encryption-null-added-refused',
+      response: answer({ signedOver: (u) => ({ ...u, encryption: null }) }),
+      expect: 'reject',
+      reason:
+        'the 1.0 client verified with encryption: null added; the bytes received are what count',
+      error: 'BTP_ERROR_SIG_VERIFICATION',
+    },
+    {
+      name: 'document-changed-after-signing-refused',
+      response: tampered,
+      expect: 'reject',
+      reason: 'the key record is not what the host signed',
+      error: 'BTP_ERROR_SIG_VERIFICATION',
+    },
+    {
+      name: 'signed-by-another-key-refused',
+      response: answer({ signer: 'other' }),
+      expect: 'reject',
+      reason: 'not the key the host publishes at signatureSelector',
+      error: 'BTP_ERROR_SIG_MISMATCH',
+    },
+    {
+      name: 'signed-outside-the-address-domain-refused',
+      response: answer({ signer: 'other', signedBy: 'admin$evil.example' }),
+      expect: 'reject',
+      reason: "a domain vouches only for its own addresses, even when the signer's key verifies",
+      error: 'BTP_ERROR_SIG_VERIFICATION',
+    },
+    {
+      name: 'answer-to-another-request-refused',
+      response: answer({ reqId: '00000000-0000-4000-8000-00000000a002' }),
+      expect: 'reject',
+      reason: 'reqId is not the request id',
+      error: 'BTP_ERROR_VALIDATION',
+    },
+    {
+      name: 'unsigned-answer-refused',
+      response: unsigned,
+      expect: 'reject',
+      reason: 'a lookup answer must be signed',
+      error: 'BTP_ERROR_SIG_VERIFICATION',
+    },
+    {
+      name: 'document-not-a-key-record-refused',
+      response: answer({ document: 'ok' }),
+      expect: 'reject',
+      reason: 'the signed document is not a key record',
+      error: 'BTP_ERROR_VALIDATION',
+    },
+    {
+      name: '1.0-selector-field-refused',
+      response: (() => {
+        const { signatureSelector, ...rest } = answer();
+        const legacy = { ...rest, selector: signatureSelector };
+        delete legacy.signature;
+        return { ...legacy, signature: sign(legacy, 'host') };
+      })(),
+      expect: 'reject',
+      reason: '1.1 names the signing key with signatureSelector; 1.0 called it selector',
+      error: 'BTP_ERROR_VALIDATION',
+    },
+    {
+      name: 'error-answer-refused',
+      response: {
+        version,
+        status: { ok: false, code: 500, message: 'Identity not found' },
+        id: '00000000-0000-4000-8000-00000000b002',
+        issuedAt: '2026-10-16T00:00:00.000Z',
+        type: 'btps_error',
+        reqId: request.id,
+      },
+      expect: 'reject',
+      reason: 'the host does not have the address',
+      error: 'BTP_ERROR_IDENTITY_NOT_FOUND',
+    },
+  ];
+
+  return {
+    item: 'J',
+    tickets: ['EBA-442', 'EBA-186'],
+    description:
+      "BTPS 1.1 item J, host identity lookup repaired (fix list 1), and fix-list item 9 (padded keys in DNS). parse: each TXT record, as the strings a resolver returns, read into its tags; a value keeps every '=' after the first. dns: the address's own identity record, looked up first over a fake zone in which every other name has no record (ENOTFOUND): a key, absent (the client then asks the host), or an error. lookup: answers a host sends to `request`, checked with the zone's keys: accepted with the key record, or refused with the error code. The server-side defects (the double hash, the response schema, the socket) are behaviour, tested over real TLS in src/server/test/identityLookup.integration.test.ts.",
+    provenance: `${TEST_ONLY} The 3072-bit and 4096-bit keys are test-only too, and exist to carry base64 padding.`,
+    keys: Object.fromEntries(
+      Object.entries(keys).map(([name, key]) => [
+        name,
+        { ...key, fingerprint: fingerprint(key.publicKeyPem) },
+      ]),
+    ),
+    parse,
+    dns,
+    lookup: { request, zone, cases },
+  };
+}
+
 write('self-held-signature.vector.json', await selfHeldSignature());
 write('oaep-mgf1-sha1.negative.vector.json', mgf1Sha1Negative());
 write('selectors.vector.json', selectors());
@@ -826,3 +1059,4 @@ write('sdk-defects.vector.json', sdkDefects());
 write('jcs-signature.vectors.json', jcsSignature());
 write('refresh.vectors.json', refresh());
 write('registration.vectors.json', registration());
+write('identity-lookup.vectors.json', identityLookup());
