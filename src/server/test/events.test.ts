@@ -361,7 +361,7 @@ describe('lifecycle events: BTPS_EVENT through the server', () => {
     expect(validateBtpEventEnvelope(parsed.data!, artifact)).toBeUndefined();
   });
 
-  it('an encrypted event opens through a PemDecrypter (EBA-441)', async () => {
+  it('an encrypted event opens through a PemDecrypter', async () => {
     store.trust(BILLER, PAYER);
     const event = load('partially-paid.json');
     const artifact = await send(PAYER, BILLER, event, { encrypted: true });

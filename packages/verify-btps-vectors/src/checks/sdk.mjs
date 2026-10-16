@@ -165,10 +165,9 @@ export function sdkChecks(sdk, set) {
         },
       },
       {
-        id: `sdk/item-5/${v.custody}/signBtpPayload-signs-canonical-bytes`,
-        item: 5,
-        tickets: ['EBA-115'],
-        // `await`: signBtpPayload is async from item I (EBA-441) and sync before it.
+        id: `sdk/jcs/${v.custody}/signBtpPayload-signs-canonical-bytes`,
+        // `await`: signBtpPayload is async in 1.1, where it signs through a Signer,
+        // and sync before it.
         async run() {
           const signed = await sdkCrypto.signBtpPayload(JSON.parse(v.payloadRaw), {
             publicKey: v.publicKeyPem,
@@ -236,9 +235,7 @@ export function sdkChecks(sdk, set) {
       continue;
     }
     checks.push({
-      id: `sdk/item-5/jcs-signature/${c.name}`,
-      item: 5,
-      tickets: ['EBA-115'],
+      id: `sdk/jcs/jcs-signature/${c.name}`,
       async run() {
         for (const [i, input] of c.inputs.entries()) {
           for (const [form, payload] of [
@@ -395,7 +392,7 @@ export function sdkChecks(sdk, set) {
   const defects = set.sdkDefects;
   for (const c of defects.gcmTag.cases) {
     checks.push({
-      id: `sdk/item-10/gcm-tag/${c.name}`,
+      id: `sdk/defects/gcm-tag/${c.name}`,
       item: 10,
       tickets: defects.tickets,
       async run() {

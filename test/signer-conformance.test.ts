@@ -323,9 +323,9 @@ describe('AC6: KmsSigner exposes no private key material (T-27)', () => {
   }, 30000);
 });
 
-// EBA-441 (item I): the same implementations, through the SDK's own signing
+// The same implementations, through the SDK's own signing
 // paths rather than called directly.
-describe.each(implementations)('EBA-441: $name through the SDK core', ({ name, makeSigner }) => {
+describe.each(implementations)('$name through the SDK core', ({ name, makeSigner }) => {
   const pemKeys = {
     publicKey: vectors.signing.publicKeyPem,
     privateKey: vectors.signing.privateKeyPem,
