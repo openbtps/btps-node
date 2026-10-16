@@ -193,7 +193,7 @@ back to accepting one.
 Used to refresh authentication tokens, and to rotate the device key.
 
 **An `auth.refresh` artifact is always signed by the agent's current key**:
-the key in its trust record on the server (BTPS 1.1, item D). A refresh
+the key in its trust record on the server (BTPS 1.1). A refresh
 signed by any other key is refused with `BTP_ERROR_REFRESH_NOT_CURRENT_KEY`,
 even when it carries a valid refresh token: a stolen refresh token alone
 cannot replace a device's key.

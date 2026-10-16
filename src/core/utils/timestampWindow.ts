@@ -6,7 +6,7 @@
  */
 
 /*
- * The `issuedAt` window (BTPS 1.1 item F, EBA-114). Pure: the caller passes
+ * The `issuedAt` window (BTPS 1.1 replay protection). Pure: the caller passes
  * the clock, so a server, a test and a golden vector all ask the same question.
  */
 

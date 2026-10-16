@@ -1,5 +1,5 @@
 /**
- * Item D, a key-rotating refresh is signed by the current key (EBA-112):
+ * Key-rotating refresh, signed by the agent's current key:
  * refresh.vectors.json against the SDK's parts, loaded from the tree under
  * test (@btps/sdk/authentication).
  *
@@ -15,7 +15,6 @@
 
 import { ensure } from '../check.mjs';
 
-const ITEM = 'D';
 
 /** The few trust store calls BtpsAuthentication makes, over a Map. */
 function mapTrustStore() {
@@ -45,9 +44,7 @@ function mapTrustStore() {
 export function refreshSdkChecks(sdk, set) {
   const model = set.refresh;
   const check = (name, run) => ({
-    id: `sdk/item-D/${name}`,
-    item: ITEM,
-    tickets: model.tickets,
+    id: `sdk/refresh/${name}`,
     run() {
       ensure(
         typeof sdk.authentication?.verifyAgentRefresh === 'function',

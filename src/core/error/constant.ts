@@ -188,7 +188,7 @@ export const BTP_ERROR_MONEY_OUT_OF_RANGE: BTPError = {
 };
 
 /**
- * Replay protection (item F, EBA-114): the artifact's `issuedAt` is more than
+ * Replay protection: the artifact's `issuedAt` is more than
  * ISSUED_AT_WINDOW_MS from the server's clock (too old or too far ahead), or
  * cannot be read. Resending the same artifact cannot succeed: sign a new one,
  * with a new id, and check the sender's clock.
@@ -199,7 +199,7 @@ export const BTP_ERROR_ISSUED_AT_WINDOW: BTPError = {
 };
 
 /**
- * Replay protection (item F, EBA-114): this server already accepted an
+ * Replay protection: this server already accepted an
  * artifact with the same `(from, id)`. After a timed-out send this means the
  * first copy arrived. Any new artifact must be signed with a new id.
  */
@@ -209,7 +209,7 @@ export const BTP_ERROR_ALREADY_RECEIVED: BTPError = {
 };
 
 /**
- * Key-rotating refresh (item D, EBA-112, threat T-24): an `auth.refresh` was
+ * Key-rotating refresh: an `auth.refresh` was
  * not signed by the agent's current trusted key. A refresh, rotating or not,
  * is signed by the key the server already holds; a new key alone proves
  * nothing, because a stolen refresh token is enough to make one.
@@ -220,7 +220,7 @@ export const BTP_ERROR_REFRESH_NOT_CURRENT_KEY: BTPError = {
 };
 
 /**
- * Key-rotating refresh (item D, EBA-112): an `auth.refresh` carries a new
+ * Key-rotating refresh: an `auth.refresh` carries a new
  * public key without a valid proof of possession of it (`keyProof`: a
  * signature by the new key over the JCS form of
  * `{ agentId, identity, newPublicKey, issuedAt }`).

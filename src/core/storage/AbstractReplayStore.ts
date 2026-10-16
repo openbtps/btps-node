@@ -21,8 +21,8 @@ export function computeReplayKey(from: string, id: string): string {
 
 /**
  * Where a server remembers the `(from, id)` of every artifact it accepted,
- * until the artifact's `issuedAt` has left the window (BTPS 1.1 item F,
- * EBA-114). After that the window refuses the artifact on its own, so the
+ * until the artifact's `issuedAt` has left the window (BTPS 1.1 replay
+ * protection). After that the window refuses the artifact on its own, so the
  * entry may go.
  *
  * The SDK ships `InMemoryReplayStore`. It does not survive a restart and is
