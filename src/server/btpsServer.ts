@@ -36,6 +36,7 @@ import {
   BTP_ERROR_INVALID_ACTION,
 } from '@core/error/constant.js';
 import {
+  assertStrictJson,
   getFingerprintFromPem,
   PemKeys,
   signBtpPayload,
@@ -1070,6 +1071,8 @@ export class BtpsServer {
     error?: 'JSON' | 'VALIDATION';
   } {
     try {
+      // A line that names a member twice is refused as invalid JSON (RFC 8785).
+      assertStrictJson(line);
       const data = JSON.parse(line);
 
       let type: 'agent' | 'transporter' | 'identityLookup' | 'control' | undefined;

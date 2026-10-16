@@ -18,16 +18,6 @@ import {
 } from './index.js';
 import { PemKeys } from './types.js';
 
-/*
- * Expected failures (`it.fails`). Each such test reproduces a defect on
- * baseline 367cd09 and its name says which ticket's fix makes it pass. vitest
- * reports an `it.fails` test as passing while its assertion fails, and as
- * FAILING once the defect is fixed, so the fix ticket must change `it.fails`
- * to `it` in the same change. This is the same ratchet as
- * test/vectors/known-failing.json gives `verify:btps-vectors`.
- */
-const XFAIL_EBA_115 = 'expected failure until EBA-115 lands';
-
 interface KmsSignatureVector {
   algorithm: string;
   publicKeyPem: string;
@@ -95,8 +85,8 @@ function genRsaKeyPair(): PemKeys {
 }
 
 describe('EBA-115: JCS canonicalization of signed payloads', () => {
-  it.fails(
-    `signs identically regardless of the JS object key insertion order (${XFAIL_EBA_115})`,
+  it(
+    'signs identically regardless of the JS object key insertion order',
     () => {
       const keys = genRsaKeyPair();
       const a = signBtpPayload({ to: 'bob$example.com', from: 'alice$example.com', id: '1' }, keys);
@@ -108,8 +98,8 @@ describe('EBA-115: JCS canonicalization of signed payloads', () => {
     },
   );
 
-  it.fails(
-    `verifies a payload signed with a different, but logically identical, key order (${XFAIL_EBA_115})`,
+  it(
+    'verifies a payload signed with a different, but logically identical, key order',
     () => {
       const keys = genRsaKeyPair();
       const signed = signBtpPayload({ b: 2, a: 1 }, keys);
@@ -126,8 +116,8 @@ describe('EBA-115: JCS canonicalization of signed payloads', () => {
 // is EBA-115's fix. (Round 1 had the web side sign JSON.stringify output in a
 // non-canonical order, which no SDK fix could ever make pass.)
 describe('EBA-122: Node and web (WebCrypto) verify each other’s signatures', () => {
-  it.fails(
-    `a signature produced by Node verifies under WebCrypto, even when the payload was rebuilt with different key order (${XFAIL_EBA_115})`,
+  it(
+    'a signature produced by Node verifies under WebCrypto, even when the payload was rebuilt with different key order',
     async () => {
       const keys = genRsaKeyPair();
       const nodePayload = { to: 'bob$example.com', from: 'alice$example.com', amountCents: 500 };
@@ -156,8 +146,8 @@ describe('EBA-122: Node and web (WebCrypto) verify each other’s signatures', (
     },
   );
 
-  it.fails(
-    `a signature produced by WebCrypto verifies under Node’s verifySignature (${XFAIL_EBA_115})`,
+  it(
+    'a signature produced by WebCrypto verifies under Node’s verifySignature',
     async () => {
       const keys = genRsaKeyPair();
       const pkcs8Der = crypto
@@ -198,8 +188,8 @@ describe('EBA-116/117/118: interop with a KMS RSASSA_PKCS1_V1_5_SHA_256 signatur
   // The vector's signature is over canonicalPayload; payloadRaw is the same
   // object in a different key order, so verifying it needs EBA-115's canonical
   // verification.
-  it.fails(
-    `verifies a precomputed KMS-style signature against the logically equivalent (differently ordered) payload (${XFAIL_EBA_115})`,
+  it(
+    'verifies a precomputed KMS-style signature against the logically equivalent (differently ordered) payload',
     () => {
       const payload: Record<string, unknown> = JSON.parse(kmsVector.payloadRaw);
 

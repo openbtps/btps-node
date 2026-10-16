@@ -450,6 +450,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@btps/sdk@portal:../..::locator=btps-nest-app%40workspace%3A."
   dependencies:
+    "@humanwhocodes/momoa": "npm:^3.3.13"
+    canonicalize: "npm:^5.1.0"
     lodash: "npm:^4.17.21"
     proper-lockfile: "npm:^4.1.2"
     split2: "npm:^4.2.0"
@@ -530,6 +532,13 @@ __metadata:
   version: 1.0.1
   resolution: "@humanwhocodes/module-importer@npm:1.0.1"
   checksum: 10c0/909b69c3b86d482c26b3359db16e46a32e0fb30bd306a3c176b8313b9e7313dba0f37f519de6aa8b0a1921349e505f259d19475e123182416a506d7f87e7f529
+  languageName: node
+  linkType: hard
+
+"@humanwhocodes/momoa@npm:^3.3.13":
+  version: 3.3.13
+  resolution: "@humanwhocodes/momoa@npm:3.3.13"
+  checksum: 10c0/94c063fbd25be062a172c06ae04ed151dbf504c144452cf884c760326977fc1b8ce82fe1c99160b96871351356edf13df888d9b7ab19005b9305ee6b26d371f0
   languageName: node
   linkType: hard
 
@@ -2411,6 +2420,15 @@ __metadata:
   version: 1.0.30001735
   resolution: "caniuse-lite@npm:1.0.30001735"
   checksum: 10c0/1cb74221f16f8835c903770c1cf88fb73a07298b8398396a2b97570136e8f691053ee5840eb589fe34b4ede14ab828c9421d893a67e43c26ef91ab052813cb8c
+  languageName: node
+  linkType: hard
+
+"canonicalize@npm:^5.1.0":
+  version: 5.1.0
+  resolution: "canonicalize@npm:5.1.0"
+  bin:
+    canonicalize: bin/canonicalize.js
+  checksum: 10c0/ff9212420e3563b35c129ac03c1b159678ab82520e29876b5fbbf8a26e44e2d874abed276930376294cbfcd8ed4efed5c2fbd55daeb1f109991bb8cc441b3770
   languageName: node
   linkType: hard
 

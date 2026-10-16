@@ -112,6 +112,11 @@ export const BTP_ERROR_SIG_VERIFICATION: BTPError = {
   message: ' Signature verification failed',
 };
 
+export const BTP_ERROR_CANONICAL_JSON: BTPError = {
+  code: 'BTP_ERROR_CANONICAL_JSON',
+  message: 'Payload cannot be canonicalized (RFC 8785)',
+};
+
 export const BTP_ERROR_DELEGATION_SIG_VERIFICATION: BTPError = {
   code: 'BTP_ERROR_DELEGATION_SIG_VERIFICATION',
   message: 'Delegation signature verification failed',

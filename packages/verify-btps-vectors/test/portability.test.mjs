@@ -1,9 +1,12 @@
 // The web driver and the vector checks must run in a browser unchanged, so
-// nothing they import (transitively) may be a Node built-in.
+// nothing they import (transitively) may be a Node built-in. The only
+// third-party imports allowed are the JCS libraries, and the bundle test
+// below shows they need nothing from Node either.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { builtinModules } from 'node:module';
+import { build } from 'esbuild';
 import { describe, expect, it } from 'vitest';
 import { PACKAGE_DIR } from './helpers.mjs';
 
@@ -12,6 +15,7 @@ const PORTABLE_ENTRIES = [
   'src/checks/vectors.mjs',
   'src/checks/interop.mjs',
 ];
+const PORTABLE_PACKAGES = new Set(['canonicalize', '@humanwhocodes/momoa']);
 const BUILTINS = new Set(builtinModules.flatMap((m) => [m, `node:${m}`]));
 const IMPORT =
   /(?:^|\n)\s*(?:import|export)\s[^'"]*?from\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g;
@@ -35,6 +39,7 @@ function closure(entry) {
     seen.add(file);
     for (const specifier of importsOf(file)) {
       if (specifier.startsWith('.')) stack.push(path.resolve(path.dirname(file), specifier));
+      else if (PORTABLE_PACKAGES.has(specifier)) continue;
       else if (BUILTINS.has(specifier) || specifier.startsWith('node:'))
         offending.push(`${path.relative(PACKAGE_DIR, file)} → ${specifier}`);
       else offending.push(`${path.relative(PACKAGE_DIR, file)} → ${specifier} (third-party)`);
@@ -49,6 +54,21 @@ describe('portability of the web driver and vector checks', () => {
       const { files, offending } = closure(entry);
       expect(files.size).toBeGreaterThan(0);
       expect(offending).toEqual([]);
+    });
+  }
+
+  for (const entry of PORTABLE_ENTRIES) {
+    it(`${entry} bundles for a browser, libraries included`, async () => {
+      // esbuild fails a browser bundle that reaches a Node built-in.
+      const result = await build({
+        entryPoints: [path.join(PACKAGE_DIR, entry)],
+        bundle: true,
+        platform: 'browser',
+        format: 'esm',
+        write: false,
+        logLevel: 'silent',
+      });
+      expect(result.errors).toEqual([]);
     });
   }
 

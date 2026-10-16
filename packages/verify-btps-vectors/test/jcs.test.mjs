@@ -26,7 +26,7 @@ describe('reference JCS (RFC 8785)', () => {
 
   it('treats "__proto__" as an ordinary member and does not touch Object.prototype', () => {
     const parsed = parseStrict('{"__proto__":{"polluted":true},"a":1}');
-    expect(Object.getPrototypeOf(parsed)).toBeNull();
+    expect(Object.hasOwn(parsed, '__proto__')).toBe(true);
     expect({}.polluted).toBeUndefined();
     expect(canonicalize('{"a":1,"__proto__":2}')).toBe('{"__proto__":2,"a":1}');
   });
@@ -57,11 +57,15 @@ describe('reference JCS (RFC 8785)', () => {
     expect(canonicalizeValue(value)).toBe(canonicalize(JSON.stringify(value)));
   });
 
+  it('drops undefined members, as JSON.stringify does on the wire', () => {
+    expect(canonicalizeValue({ b: undefined, a: 1 })).toBe('{"a":1}');
+  });
+
   it('refuses values JSON cannot carry', () => {
-    expect(() => canonicalizeValue({ a: undefined })).toThrow(JcsError);
+    expect(() => canonicalizeValue(undefined)).toThrow(JcsError);
     expect(() => canonicalizeValue({ a: Number.NaN })).toThrow(JcsError);
     expect(() => canonicalizeValue({ a: Infinity })).toThrow(JcsError);
     expect(() => canonicalizeValue({ a: 1n })).toThrow(JcsError);
-    expect(() => canonicalizeValue({ a: '\udc00' })).toThrow(/lone low surrogate/);
+    expect(() => canonicalizeValue({ a: '\udc00' })).toThrow(/lone surrogate/i);
   });
 });
