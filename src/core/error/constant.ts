@@ -231,7 +231,7 @@ export const BTP_ERROR_KEY_ROTATION_PROOF: BTPError = {
 };
 
 /**
- * Device registration (item E, EBA-113, threat T-25): this server has no
+ * Device registration: this server has no
  * token store, so it cannot check a registration token and refuses every
  * `auth.request`. It never falls back to accepting one.
  */
@@ -241,7 +241,7 @@ export const BTP_ERROR_REGISTRATION_UNAVAILABLE: BTPError = {
 };
 
 /**
- * Device registration (item E, EBA-113): an `auth.request` carries no
+ * Device registration: an `auth.request` carries no
  * registration token (`document.authToken` is empty).
  */
 export const BTP_ERROR_REGISTRATION_TOKEN_MISSING: BTPError = {
@@ -250,7 +250,7 @@ export const BTP_ERROR_REGISTRATION_TOKEN_MISSING: BTPError = {
 };
 
 /**
- * Device registration (item E, EBA-113): no unexpired registration token with
+ * Device registration: no unexpired registration token with
  * this value was issued to the identity named. A token issued to another
  * identity is refused the same way: tokens are looked up by identity.
  */
@@ -260,7 +260,7 @@ export const BTP_ERROR_REGISTRATION_TOKEN_INVALID: BTPError = {
 };
 
 /**
- * Device registration (item E, EBA-113): the registration token was already
+ * Device registration: the registration token was already
  * used. A token registers one device, once; ask the identity's owner for a
  * new one.
  */
@@ -270,7 +270,7 @@ export const BTP_ERROR_REGISTRATION_TOKEN_USED: BTPError = {
 };
 
 /**
- * Device registration (item E, EBA-113): the `auth.request` names two
+ * Device registration: the `auth.request` names two
  * identities (`document.identity` is not the artifact's `to`), or the token
  * found was issued to another identity than the one named.
  */

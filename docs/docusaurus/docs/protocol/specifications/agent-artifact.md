@@ -145,7 +145,7 @@ Used for initial agent authentication.
 #### Registration is bound to the identity (BTPS 1.1)
 
 A device registers only with a **registration token** issued to the owner of
-the identity it registers for (BTPS 1.1, item E). The identity's platform
+the identity it registers for (BTPS 1.1). The identity's platform
 issues the token to its signed-in owner (`BtpsAuthentication.generateAuthToken`
 and `storeAuthToken`: 12 characters, valid 15 minutes) and the owner enters it
 on the device.

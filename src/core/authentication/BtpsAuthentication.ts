@@ -248,7 +248,7 @@ export class BtpsAuthentication {
 
   /**
    * Validate an authentication token (server-side), consuming it: a token is
-   * valid once (item E). The server core already does this for every
+   * valid once. The server core already does this for every
    * `auth.request` when it is given a token store; this is for a platform
    * that checks a token outside the server.
    * @param userIdentity - The identity the token was issued to

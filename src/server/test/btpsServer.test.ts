@@ -1740,7 +1740,7 @@ export default function () {
     });
 
     describe('verifyAgentTrust', () => {
-      it('refuses onboarding agents when the server has no token store (item E)', async () => {
+      it('refuses onboarding agents when the server has no token store', async () => {
         const artifact: BTPAgentArtifact = {
           version: '1.0.0',
           id: 'test-id',

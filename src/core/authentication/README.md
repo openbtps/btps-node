@@ -31,7 +31,7 @@ The `BtpsAuthentication` class provides a unified interface for handling BTPS au
 - ✅ Configurable token generation settings
 - ✅ Automatic cleanup of expired tokens/sessions
 
-## Device registration (BTPS 1.1, item E)
+## Device registration (BTPS 1.1)
 
 A device registers with a one-time registration token issued to the owner of
 the identity (`generateAuthToken`, `storeAuthToken`). Give the server the same

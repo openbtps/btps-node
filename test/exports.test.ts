@@ -141,7 +141,7 @@ describe('package exports (key-rotating refresh)', () => {
   });
 });
 
-describe('package exports (EBA-113, device registration)', () => {
+describe('package exports (device registration)', () => {
   it.each([
     ['./authentication', 'consumeRegistrationToken'],
     ['./authentication', 'resolveAgentKey'],

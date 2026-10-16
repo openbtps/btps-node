@@ -526,9 +526,9 @@ function refresh() {
 }
 
 /**
- * Item E (EBA-113): auth.request artifacts, each signed in full by the
+ * Device registration: auth.request artifacts, each signed in full by the
  * device key it enrols, run in sequences against a token store; and forged
- * agent artifacts for every other agent action (fix-list item 5).
+ * agent artifacts for every other agent action.
  */
 function registration() {
   const now = '2026-10-16T00:00:00.000Z';
@@ -784,10 +784,8 @@ function registration() {
   ]);
 
   return {
-    item: 'E',
-    tickets: ['EBA-113'],
     description:
-      "BTPS 1.1 item E, device registration bound to the identity (addendum item 3, threat T-25), and fix-list item 5 (a forged agent message). sequences: each starts from an empty token store (none when tokenStore is false) holding the tokens in `issue`, each issued `issuedMsBeforeUse` before the steps run and valid for `tokenExpiryMs`; each step is an auth.request signed over its JCS form, accepted (the device is bound to the token's identity under an agent id the server generates) or refused with `reason` and the error code `error`. In the lifecycle sequence the device is then used, refreshed with a key rotation, and its old key refused. concurrent: both requests race for one token; exactly one is accepted. forged: the store holds one enrolled device (`enrolled`) and one trust between two identities (`correspondentTrust`); each case is an agent artifact for an action other than auth.request, accepted only when it is the enrolled device's, signed by its key, to its identity.",
+      "BTPS 1.1 device registration, bound to the identity its registration token was issued for, and forged agent messages. sequences: each starts from an empty token store (none when tokenStore is false) holding the tokens in `issue`, each issued `issuedMsBeforeUse` before the steps run and valid for `tokenExpiryMs`; each step is an auth.request signed over its JCS form, accepted (the device is bound to the token's identity under an agent id the server generates) or refused with `reason` and the error code `error`. In the lifecycle sequence the device is then used, refreshed with a key rotation, and its old key refused. concurrent: both requests race for one token; exactly one is accepted. forged: the store holds one enrolled device (`enrolled`) and one trust between two identities (`correspondentTrust`); each case is an agent artifact for an action other than auth.request, accepted only when it is the enrolled device's, signed by its key, to its identity.",
     provenance: `${TEST_ONLY}`,
     now,
     tokenExpiryMs,

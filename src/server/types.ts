@@ -58,7 +58,7 @@ export interface BtpsServerOptions {
    */
   issuedAtWindowMs?: number;
   /**
-   * Where registration tokens are kept (item E): the same store the
+   * Where registration tokens are kept: the same store the
    * platform's `BtpsAuthentication` issues them into with `storeAuthToken`.
    * The server answers every `auth.request` itself: it consumes the token,
    * once, and binds the device to the identity the token was issued to.

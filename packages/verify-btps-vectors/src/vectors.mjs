@@ -236,7 +236,7 @@ function loadRefresh(set) {
   }
 }
 
-/** Item E: registration sequences, a concurrent pair, and forged agent artifacts. */
+/** Device registration: registration sequences, a concurrent pair, and forged agent artifacts. */
 function loadRegistration(set) {
   const file = VECTOR_FILES.registration;
   const model = set.registration;

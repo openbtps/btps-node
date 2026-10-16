@@ -6,9 +6,9 @@
  */
 
 /*
- * BTPS 1.1 item E (EBA-113, addendum item 3, threat T-25): a device is
+ * BTPS 1.1 device registration bound to the identity: a device is
  * registered only on a one-time registration token issued to the identity's
- * owner, and is bound to exactly that identity. Also fix-list item 5: a
+ * owner, and is bound to exactly that identity. Also: a
  * forged agent artifact is refused for every action. Real keys, real
  * signatures, the real pipeline (parse, window, signature, trust, duplicate
  * check) and a real BtpsAuthentication beside it. The cases in
@@ -197,7 +197,7 @@ const registrationRequest = (
     agentInfo: { deviceName: 'test' },
   });
 
-describe('item E: device registration bound to the identity, through the server', () => {
+describe('device registration bound to the identity, through the server', () => {
   let trustStore: MapTrustStore;
   let tokenStore: InMemoryTokenStore;
   /** The platform's own BtpsAuthentication: it issues tokens and refreshes sessions. */
@@ -275,7 +275,7 @@ describe('item E: device registration bound to the identity, through the server'
     vi.restoreAllMocks();
   });
 
-  describe('EBA-113 acceptance', () => {
+  describe('device registration cases', () => {
     it('the full lifecycle: issue, register, use, refresh with rotation, and reuse refused', async () => {
       const server = makeServer();
       const device = genKeys();
@@ -302,7 +302,7 @@ describe('item E: device registration bound to the identity, through the server'
       expect(used.status.ok).toBe(true);
       expect(handled.map((a) => a.action)).toEqual(['inbox.fetch']);
 
-      // Refresh, rotating the key (item D).
+      // Refresh, rotating the key.
       const next = genKeys();
       const { publicKey, keyProof } = await signKeyProof({
         agentId,
@@ -446,7 +446,7 @@ describe('item E: device registration bound to the identity, through the server'
     });
   });
 
-  describe('fix-list item 5: a forged agent artifact is refused for every action', () => {
+  describe('a forged agent artifact is refused for every action', () => {
     it('a correspondent cannot act as the receiver’s device (the case open after PR #20)', async () => {
       const server = makeServer();
       const carol = genKeys();
