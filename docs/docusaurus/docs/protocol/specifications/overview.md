@@ -278,6 +278,13 @@ These are used for notifying the agent or client related to delivery failure. No
   write several requests on one connection without waiting, each is processed
   once, and each answer carries the `id` of the request it answers as `reqId`
   (whenever that id could be read). Answers may come in any order.
+- Must bound the length of a line (BTPS 1.1). A line longer than the bound is
+  answered `BTP_ERROR_LINE_TOO_LONG` and the connection is closed; nothing more
+  is read from it. The SDK's bound, `BTP_MAX_LINE_LENGTH`, is 187,877,184
+  characters: an encrypted artifact at the document caps (10 attachments of
+  10 MiB in base64, plus 1 MiB for the rest of the document, encrypted and
+  base64-encoded again, plus 64 KiB of envelope). A server may set a lower one,
+  and then refuses artifacts near the caps.
 
 ### Client Requirements
 

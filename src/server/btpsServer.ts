@@ -41,6 +41,7 @@ import {
   BTP_ERROR_KEY_ROTATION_PROOF,
   BTP_ERROR_REGISTRATION_TOKEN_INVALID,
   BTP_ERROR_SERVER_SELECTOR,
+  BTP_ERROR_LINE_TOO_LONG,
 } from '@core/error/constant.js';
 import {
   type BTPSigningKey,
@@ -73,7 +74,11 @@ import type {
   BTPTransporterArtifact,
 } from '@core/server/types.js';
 import { BTPErrorException, transformToBTPErrorException } from '@core/error/index.js';
-import { BTP_PROTOCOL_VERSION, IMMEDIATE_ACTIONS } from '../core/server/constants/index.js';
+import {
+  BTP_MAX_LINE_LENGTH,
+  BTP_PROTOCOL_VERSION,
+  IMMEDIATE_ACTIONS,
+} from '../core/server/constants/index.js';
 import type {
   BtpsServerOptions,
   BTPRequestCtx,
@@ -126,6 +131,7 @@ export class BtpsServer {
   private readonly registrations = new WeakMap<BTPAgentArtifact, BTPsTokenDocument>();
   private readonly middlewareManager: MiddlewareManager;
   private readonly connectionTimeoutMs: number;
+  private readonly maxLineLength: number;
   private readonly dependencies: {
     trustStore: AbstractTrustStore<BTPTrustRecord>;
     identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
@@ -168,6 +174,7 @@ export class BtpsServer {
       });
     }
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 30000;
+    this.maxLineLength = options.maxLineLength ?? BTP_MAX_LINE_LENGTH;
     this.middlewareManager = new MiddlewareManager(options.middlewarePath);
     this.dependencies = {
       trustStore: this.trustStore,
@@ -278,7 +285,8 @@ export class BtpsServer {
   private handleConnection(socket: TLSSocket) {
     const ipAddress = socket.remoteAddress ?? 'unknown';
     const startTime = new Date().toISOString();
-    const stream = socket.pipe(split2());
+    // A line is never buffered past maxLineLength (fix list 10).
+    const stream = socket.pipe(split2({ maxLength: this.maxLineLength }));
     const context: BTPContext = {
       socket,
       remoteAddress: ipAddress,
@@ -287,11 +295,31 @@ export class BtpsServer {
     // For what belongs to no one line: the socket's own timeout and errors.
     const connection = this.createLineContext(context);
 
+    // An over-long line closes the connection: answered, then nothing more is
+    // read from it; whatever still arrives is discarded, never buffered.
+    let refusedOverlong = false;
+    const refuseOverlong = () => {
+      if (refusedOverlong) return;
+      refusedOverlong = true;
+      this.onError?.(
+        new BTPErrorException(BTP_ERROR_LINE_TOO_LONG, {
+          meta: { remoteAddress: ipAddress, maxLineLength: this.maxLineLength },
+        }),
+      );
+      socket.unpipe(stream);
+      stream.removeAllListeners('data');
+      socket.resume();
+      this.sendBtpsError(socket, BTP_ERROR_LINE_TOO_LONG, undefined, 'end');
+    };
+
     // Lines from one connection are handled concurrently, each with a
     // request and response context of its own (fix list 4, addendum item
     // 10): its reqId, its responseSent and its identity. One shared context,
     // overwritten by each line, crossed the responses of interleaved requests.
     stream.on('data', async (line: string) => {
+      // split2 checks only the part of a line still waiting for its end, so
+      // a line completed in the same chunk is checked here.
+      if (line.length > this.maxLineLength) return refuseOverlong();
       if (!line.trim()) return;
 
       const { req: parseReq, res: parseRes, identityRef } = this.createLineContext(context);
@@ -408,13 +436,17 @@ export class BtpsServer {
       });
     };
 
+    // split2 errors with its overflow flag set once a line passes maxLength.
+    const handleStreamError = (err: unknown) =>
+      (stream as { overflow?: boolean }).overflow ? refuseOverlong() : handleError(err);
+
     socket.on('error', handleError);
-    stream.on('error', handleError);
+    stream.on('error', handleStreamError);
 
     // Cleanup to avoid memory leaks and max listener warnings
     socket.on('close', () => {
       socket.off('error', handleError);
-      if (typeof stream.off === 'function') stream.off('error', handleError);
+      if (typeof stream.off === 'function') stream.off('error', handleStreamError);
     });
   }
 

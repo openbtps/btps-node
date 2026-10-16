@@ -19,6 +19,7 @@ import { execFileSync } from 'child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'fs';
 import net from 'net';
 import tls from 'tls';
+import { EventEmitter } from 'events';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -31,6 +32,8 @@ import type { BTPTrustRecord } from '../../core/trust/types.js';
 import type { PemKeys } from '../../core/crypto/types.js';
 import type { BTPAgentArtifact, BTPTransporterArtifact } from '../../core/server/types.js';
 import type { ArtifactResCtx, BtpsServerOptions } from '../types.js';
+import { BTP_MAX_LINE_LENGTH } from '../../core/server/constants/index.js';
+import { BTP_ERROR_INVALID_JSON, BTP_ERROR_LINE_TOO_LONG } from '../../core/error/constant.js';
 
 const BILLER = 'billing$acme.example';
 const PAYER = 'finance$client.example';
@@ -376,5 +379,136 @@ describe('fix list 4: interleaved requests on one connection', () => {
       1,
     );
     expect(answers[0]).toMatchObject({ type: 'btps_error', reqId: 'not-an-artifact-1' });
+  });
+});
+
+/**
+ * Writes `payload` in chunks on one TLS connection, and resolves with every
+ * answer line once the server closes the connection (or after 4 s, with
+ * `closed: false`).
+ */
+const sendRaw = (port: number, payload: string, chunk = 16 * 1024, waitMs = 4000) =>
+  new Promise<{ answers: Record<string, unknown>[]; closed: boolean }>((resolve) => {
+    let buffered = '';
+    let settled = false;
+    const done = (closed: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      socket.destroy();
+      const answers = buffered
+        .split('\n')
+        .filter(Boolean)
+        .map((l) => JSON.parse(l) as Record<string, unknown>);
+      resolve({ answers, closed });
+    };
+    const socket = tls.connect({ host: '127.0.0.1', port, ca: tlsCert }, async () => {
+      for (let i = 0; i < payload.length && !settled; i += chunk) {
+        if (!socket.write(payload.slice(i, i + chunk))) {
+          await new Promise((r) => socket.once('drain', r));
+        }
+      }
+    });
+    const timer = setTimeout(() => done(false), waitMs);
+    socket.on('data', (data) => (buffered += data.toString()));
+    socket.on('end', () => done(true));
+    socket.on('close', () => done(true));
+    socket.on('error', () => done(true));
+  });
+
+describe('fix list 10: an over-long line closes the connection', () => {
+  const LIMIT = 64 * 1024;
+  let started: Started | undefined;
+
+  afterEach(() => {
+    started?.server.stop();
+    started = undefined;
+    vi.restoreAllMocks();
+  });
+
+  it('BTP_MAX_LINE_LENGTH is sized to an encrypted artifact at the document caps', () => {
+    // 10 attachments of 10 MiB in base64, plus 1 MiB for the rest of the
+    // document; encrypted, that in base64 again; plus 64 KiB of envelope.
+    const attachments = 10 * 4 * Math.ceil((10 * 1024 * 1024) / 3);
+    expect(attachments).toBe(139_810_160);
+    expect(BTP_MAX_LINE_LENGTH).toBe(4 * Math.ceil((attachments + 1024 * 1024) / 3) + 64 * 1024);
+    expect(BTP_MAX_LINE_LENGTH).toBe(187_877_184);
+  });
+
+  // Read, not run, on 9a4d4ba: socket.pipe(split2()) with no maximum, so a
+  // sender could make the server buffer an unbounded line.
+  it('a line that never ends is refused once past the limit, and the connection closed', async () => {
+    const onError = vi.fn();
+    started = await startServer({ maxLineLength: LIMIT, onError });
+
+    const { answers, closed } = await sendRaw(started.port, 'a'.repeat(4 * LIMIT));
+
+    expect(closed).toBe(true);
+    expect(answers).toHaveLength(1);
+    expect(answers[0]).toMatchObject({
+      type: 'btps_error',
+      status: { ok: false, message: BTP_ERROR_LINE_TOO_LONG.message },
+    });
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ code: BTP_ERROR_LINE_TOO_LONG.code }),
+    );
+  });
+
+  it('a complete line over the limit is refused the same way', async () => {
+    started = await startServer({ maxLineLength: LIMIT });
+    const { answers, closed } = await sendRaw(started.port, `${'b'.repeat(LIMIT + 1)}\n`);
+    expect(closed).toBe(true);
+    expect(answers.map((a) => (a.status as { message: string }).message)).toEqual([
+      BTP_ERROR_LINE_TOO_LONG.message,
+    ]);
+  });
+
+  it('a line that arrives whole in one chunk is checked too', () => {
+    // split2 measures only the part of a line still waiting for its end.
+    const server = new BtpsServer({
+      serverIdentity: { identity: 'server$acme.example', ...genKeys() },
+      trustStore: new MapTrustStore(),
+      tlsOptions: { cert: tlsCert, key: tlsKey },
+      maxLineLength: 10,
+    });
+    const stream = new EventEmitter();
+    const socket = Object.assign(new EventEmitter(), {
+      remoteAddress: '127.0.0.1',
+      destroyed: false,
+      writableEnded: false,
+      writable: true,
+      pipe: () => stream,
+      unpipe: vi.fn(),
+      resume: vi.fn(),
+      setTimeout: vi.fn(),
+      write: vi.fn(),
+      end: vi.fn(),
+      destroy: vi.fn(),
+    });
+    server['handleConnection'](socket as never);
+
+    stream.emit('data', 'x'.repeat(11));
+
+    expect(socket.write).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(socket.write.mock.calls[0]![0] as string)).toMatchObject({
+      status: { message: BTP_ERROR_LINE_TOO_LONG.message },
+    });
+    expect(socket.end).toHaveBeenCalled();
+    expect(stream.listenerCount('data')).toBe(0);
+  });
+
+  it('a line within the limit is read as usual, and the connection stays open', async () => {
+    started = await startServer({ maxLineLength: LIMIT });
+    // Not JSON: answered as such, which only a line that was read can be.
+    const { answers, closed } = await sendRaw(
+      started.port,
+      `${'c'.repeat(LIMIT - 1)}\n`,
+      16 * 1024,
+      1000,
+    );
+    expect(answers.map((a) => (a.status as { message: string }).message)).toEqual([
+      BTP_ERROR_INVALID_JSON.message,
+    ]);
+    expect(closed).toBe(false);
   });
 });

@@ -294,3 +294,13 @@ export const BTP_ERROR_SERVER_SELECTOR: BTPError = {
   code: 'BTP_ERROR_SERVER_SELECTOR',
   message: 'A server that answers identity lookups needs serverIdentity.selector',
 };
+
+/**
+ * Fix list 10 (EBA-122): a line longer than the server reads
+ * (BTP_MAX_LINE_LENGTH, or the server's own lower `maxLineLength`). The
+ * server answers this and closes the connection.
+ */
+export const BTP_ERROR_LINE_TOO_LONG: BTPError = {
+  code: 'BTP_ERROR_LINE_TOO_LONG',
+  message: 'Line exceeds the maximum length',
+};
