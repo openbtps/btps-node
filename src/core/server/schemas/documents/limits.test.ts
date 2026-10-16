@@ -56,7 +56,7 @@ const CASES: Record<
         // takes the rest, so the identity stays valid by its character rules.
         const domain = ['b'.repeat(63), 'c'.repeat(63), 'd'.repeat(63), 'e'.repeat(61)].join('.');
         const from = 'a'.repeat(n - domain.length - 1) + '$' + domain;
-        return { ...invoice(), references: [{ ...invoice().references[0], from }] };
+        return { ...invoice(), references: [{ ...first(invoice().references), from }] };
       },
     },
   ],

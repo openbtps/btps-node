@@ -349,7 +349,7 @@ describe('the core signs through a Signer and decrypts through a Decrypter', () 
       ).toMatchObject({ isValid: true });
     });
 
-    // Addendum item 10, fixed by EBA-122: the delegation was signed without
+    // Fixed in #23: the delegation was signed without
     // its attestation but verified with it in place. Both sides now build
     // the message in core/delegation/signedMessages.ts.
     it('an attested delegation verifies at the server end to end', async () => {

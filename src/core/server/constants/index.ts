@@ -32,7 +32,7 @@ export const AGENT_ACTIONS = [
   ...INBOX_ACTIONS,
   ...OUTBOX_ACTIONS,
   // Listed with the immediate actions but missing here, so every sentbox
-  // action was refused by the schema (addendum item 10, EBA-122).
+  // action was refused by the schema (fixed in 1.1).
   ...SENTBOX_ACTIONS,
   ...DRAFT_ACTIONS,
   ...SYSTEM_ACTIONS,
@@ -47,7 +47,7 @@ export const TRANSPORTER_ACTIONS = ['TRUST_REQ', 'TRUST_RES', 'BTPS_DOC', 'BTPS_
 /**
  * The agent actions whose document is a transporter artifact, built and
  * signed by the device, which its identity's server sends on; and the
- * artifact's type for each (addendum item 10, EBA-122).
+ * artifact's type for each.
  */
 export const AGENT_TRANSPORTER_ACTIONS = {
   'trust.request': 'TRUST_REQ',

@@ -285,7 +285,7 @@ export class BtpsServer {
   private handleConnection(socket: TLSSocket) {
     const ipAddress = socket.remoteAddress ?? 'unknown';
     const startTime = new Date().toISOString();
-    // A line is never buffered past maxLineLength (fix list 10).
+    // A line is never buffered past maxLineLength.
     const stream = socket.pipe(split2({ maxLength: this.maxLineLength }));
     const context: BTPContext = {
       socket,
@@ -313,8 +313,7 @@ export class BtpsServer {
     };
 
     // Lines from one connection are handled concurrently, each with a
-    // request and response context of its own (fix list 4, addendum item
-    // 10): its reqId, its responseSent and its identity. One shared context,
+    // request and response context of its own: its reqId, its responseSent and its identity. One shared context,
     // overwritten by each line, crossed the responses of interleaved requests.
     stream.on('data', async (line: string) => {
       // split2 checks only the part of a line still waiting for its end, so
@@ -451,8 +450,8 @@ export class BtpsServer {
   }
 
   /**
-   * A request and response context for one line of a connection (fix list
-   * 4): what middleware sees for a line, the reqId its answer carries, and
+   * A request and response context for one line of a connection: what
+   * middleware sees for a line, the reqId its answer carries, and
    * whether it has been answered, are that line's own.
    */
   private createLineContext(context: BTPContext) {
@@ -1078,7 +1077,7 @@ export class BtpsServer {
     }
 
     /* The delegator signed the artifact and the delegation before any
-     * attestation was added: verify that same message (addendum item 10). */
+     * attestation was added: verify that same message. */
     const { isValid: isValidDelegation } = verifySignature(
       delegationSignedMessage(restArtifact, delegation),
       delegation.signature,

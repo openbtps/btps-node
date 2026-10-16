@@ -97,7 +97,7 @@ const refineTransporterArtifact = (
     });
   } else if (data.type === 'BTPS_DOC') {
     // The envelope rule beside the document schema: a reference to
-    // another document must name the sender's own (release plan section 3).
+    // another document must name the sender's own.
     const violation = validateBtpDocOwnership(parsed.data as BTPDocV2, data.from);
     if (violation) {
       ctx.addIssue({
@@ -115,8 +115,8 @@ const refineTransporterArtifact = (
       });
     }
   } else if (data.type === 'BTPS_EVENT') {
-    // One id end to end, and only a document between these two parties
-    // (release plan sections 2.4 and 2.7). An encrypted event is opaque
+    // One id end to end, and only a document between these two parties.
+    // An encrypted event is opaque
     // here: the receiving platform applies the same rule after decrypting.
     const violation = validateBtpEventEnvelope(parsed.data as BTPEventDoc, data);
     if (violation) {
@@ -137,7 +137,7 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
 /**
  * A transporter artifact as a device's agent hands it to its own identity's
  * server, inside `artifact.send`, `event.send`, `trust.request` or
- * `trust.respond` (addendum item 10). Every rule of
+ * `trust.respond`. Every rule of
  * BtpTransporterArtifactSchema holds but one: it does not yet name the key
  * that signed it. The device signs it with its own key, which is published
  * nowhere; the identity's server adds the delegation (BtpsDelegator) before

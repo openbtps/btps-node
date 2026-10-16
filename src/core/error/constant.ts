@@ -296,7 +296,7 @@ export const BTP_ERROR_SERVER_SELECTOR: BTPError = {
 };
 
 /**
- * Fix list 10 (EBA-122): a line longer than the server reads
+ * A line longer than the server reads
  * (BTP_MAX_LINE_LENGTH, or the server's own lower `maxLineLength`). The
  * server answers this and closes the connection.
  */

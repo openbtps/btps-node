@@ -280,8 +280,8 @@ describe('canonical signing end to end', () => {
     ).toBe(true);
   });
 
-  // Addendum item 10 ("an attested delegation never verifies on the server
-  // path"), fixed by EBA-122: the delegation is signed before the attestation
+  // An attested delegation used to never verify on the server path (fixed
+  // in #23): the delegation is signed before the attestation
   // is added, and verifyDelegation now checks it without the attestation.
   it('the server accepts an attested delegation', async () => {
     const delegator = new BtpsDelegator({

@@ -731,7 +731,7 @@ function registration() {
     'event.send',
     'trash.fetch',
     'trash.delete',
-    // Added by EBA-122, when AGENT_ACTIONS gained the sentbox actions; last,
+    // Added when AGENT_ACTIONS gained the sentbox actions; last,
     // so the ids above are unchanged.
     'sentbox.fetch',
     'sentbox.delete',

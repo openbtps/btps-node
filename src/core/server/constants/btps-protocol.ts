@@ -21,7 +21,7 @@ const DOCUMENT_REST_ALLOWANCE = 1024 * 1024;
 const ENVELOPE_ALLOWANCE = 64 * 1024;
 
 /**
- * The longest line a server reads, in characters (fix list 10, EBA-122):
+ * The longest line a server reads, in characters:
  * one artifact as large as the document caps allow, encrypted.
  * - attachments: 10 (ATTACHMENTS_MAX) × 13,981,016 (ATTACHMENT_CONTENT_MAX_LENGTH,
  *   10 MiB in base64) = 139,810,160;
