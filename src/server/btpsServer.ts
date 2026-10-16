@@ -963,8 +963,8 @@ export class BtpsServer {
     }
 
     if (artifact.type === 'BTPS_EVENT') {
-      // An event is accepted over the normal record or the flipped one (item A,
-      // release plan section 2.4); every other type needs the normal record.
+      // An event is accepted over the normal record or the flipped one;
+      // every other type needs the normal record.
       const { isTrusted, record } = await resolveEventTrust(
         artifact.from,
         artifact.to,

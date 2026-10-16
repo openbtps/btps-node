@@ -16,12 +16,12 @@ import type { BTPCreditNoteDoc, BTPEventDoc, BTPInvoiceV2Doc, BTPPayslipDoc } fr
 type Limit = keyof typeof BTP_DOC_LIMITS;
 
 const DOCUMENTS = new URL('../../../../../test/vectors/documents/', import.meta.url);
-const load = (name: string): Doc => JSON.parse(readFileSync(new URL(name, DOCUMENTS), 'utf8'));
-const invoice = () => load('invoice.correction.v2.json');
-const event = (): Doc =>
-  JSON.parse(readFileSync(new URL('../events/disputed.json', DOCUMENTS), 'utf8'));
-const payslip = () => load('payslip.hourly.v2.json');
-const creditNote = () => load('credit-note.v2.json');
+/** A fixture as the document type it is; each case changes one field of it. */
+const load = <T>(name: string): T => JSON.parse(readFileSync(new URL(name, DOCUMENTS), 'utf8'));
+const invoice = () => load<BTPInvoiceV2Doc>('invoice.correction.v2.json');
+const event = () => load<BTPEventDoc>('../events/disputed.json');
+const payslip = () => load<BTPPayslipDoc>('payslip.hourly.v2.json');
+const creditNote = () => load<BTPCreditNoteDoc>('credit-note.v2.json');
 const many = <T>(n: number, item: T): T[] => Array.from({ length: n }, () => item);
 const keys = <V>(n: number, value: V): Record<string, V> =>
   Object.fromEntries(Array.from({ length: n }, (_, i) => [`k${i}`, value]));
@@ -39,7 +39,7 @@ const first = <T>(items: T[] | undefined): T => {
 // `schema` defaults to BtpDocV2Schema; an event's caps are checked against BtpEventDocSchema.
 const CASES: Record<
   Limit,
-  Array<{ where: string; build: (n: number) => Doc; schema?: ZodTypeAny }>
+  Array<{ where: string; build: (n: number) => unknown; schema?: ZodTypeAny }>
 > = {
   ID_MAX_LENGTH: [
     { where: 'document id', build: (n) => ({ ...invoice(), id: 'i'.repeat(n) }) },

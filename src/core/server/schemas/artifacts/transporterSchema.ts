@@ -106,8 +106,8 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
           });
         }
       } else if (data.type === 'BTPS_EVENT') {
-        // One id end to end, and only a document between these two parties
-        // (release plan sections 2.4 and 2.7). An encrypted event is opaque
+        // One id end to end, and only a document between these two parties.
+        // An encrypted event is opaque
         // here: the receiving platform applies the same rule after decrypting.
         const violation = validateBtpEventEnvelope(parsed.data as BTPEventDoc, data);
         if (violation) {

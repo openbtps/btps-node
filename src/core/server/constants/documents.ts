@@ -61,13 +61,13 @@ export const BTP_DOC_LIMITS = {
   EXTENSIONS_MAX_KEYS: 50,
   /** The JSON form of an open object (as for EXTENSIONS_MAX_KEYS), in characters (16 KiB). */
   EXTENSIONS_MAX_LENGTH: 16 * 1024,
-  /** A lifecycle event's `note`: short free text (release plan section 2.3). */
+  /** A lifecycle event's `note`: short free text. */
   EVENT_NOTE_MAX_LENGTH: 500,
 } as const;
 
 /**
- * Lifecycle events, carried as `BTPS_EVENT` (BTPS 1.1 item A, EBA-440;
- * release plan section 2). The payer proposes, the biller answers.
+ * Lifecycle events, carried as `BTPS_EVENT` (BTPS 1.1; see the lifecycle
+ * events specification). The payer proposes, the biller answers.
  */
 export const BTP_EVENT_TYPES = [
   'paid',
@@ -80,7 +80,7 @@ export const BTP_EVENT_TYPES = [
 
 /**
  * Events that start a chain and never carry `inReplyTo`: the payer's
- * proposals, and `paid` recorded by the biller, which is final (section 2.7).
+ * proposals, and `paid` recorded by the biller, which is final (Lifecycle Events, "Ids and the reply chain").
  */
 export const BTP_EVENT_TYPES_STARTING_A_CHAIN = [
   'paid',
@@ -89,7 +89,7 @@ export const BTP_EVENT_TYPES_STARTING_A_CHAIN = [
   'refund_requested',
 ] as const;
 
-/** Events that answer another and must carry its id in `inReplyTo` (section 2.7). */
+/** Events that answer another and must carry its id in `inReplyTo`. */
 export const BTP_EVENT_TYPES_REPLYING = ['refund', 'response'] as const;
 
 /**
@@ -99,7 +99,7 @@ export const BTP_EVENT_TYPES_REPLYING = ['refund', 'response'] as const;
  */
 export const BTP_EVENT_DISPUTE_REASONS = ['rejected', 'amount_wrong', 'not_as_agreed'] as const;
 
-/** A `response`'s answer. There is no reason on a rejection (section 2.1). */
+/** A `response`'s answer. There is no reason on a rejection. */
 export const BTP_EVENT_DECISIONS = ['accepted', 'rejected'] as const;
 
 /** The files an attachment may carry, as in BTPS 1.0. */

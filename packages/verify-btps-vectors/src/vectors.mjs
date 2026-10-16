@@ -88,7 +88,7 @@ function loadDocumentModel(dir, set) {
 }
 
 /**
- * Item A: reads every event in the model's events directory into
+ * Lifecycle events: reads every event in the model's events directory into
  * `set.events` (file name -> parsed JSON), and checks that every case names
  * one that exists (or a document, as `documents/<name>`), so a deleted
  * event is a load error.

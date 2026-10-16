@@ -69,8 +69,8 @@ export const BtpAgentQueryDocSchema = z.object({
   to: BtpStringQueryFilterSchema.optional(),
 });
 
-// A BTPS_DOC is a v2 document; the 1.0 invoice is refused (release plan section 6).
-// A BTPS_EVENT is a lifecycle event (release plan section 2).
+// A BTPS_DOC is a v2 document; the 1.0 invoice is refused.
+// A BTPS_EVENT is a lifecycle event.
 export const BtpDocSchema = z.union([
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,

@@ -13,7 +13,7 @@ import { REPO_ROOT, VECTORS_DIR } from './helpers.mjs';
 const set = loadVectorSet(VECTORS_DIR);
 const failing = (results) => results.filter((r) => !r.passed).map((r) => `${r.id}: ${r.message}`);
 
-describe('item A: lifecycle event vectors (EBA-440)', () => {
+describe('lifecycle event vectors', () => {
   it('loads at least one event of every type', () => {
     const types = new Set(Object.values(set.events).map((e) => e.eventType));
     expect([...types].sort()).toEqual(
@@ -29,14 +29,14 @@ describe('item A: lifecycle event vectors (EBA-440)', () => {
     expect(failing(await runChecks(checks))).toEqual([]);
   });
 
-  it('the SDK on this tree passes every item A check', async () => {
+  it('the SDK on this tree passes every sdk/events check', async () => {
     const checks = eventSdkChecks(await loadSdk(REPO_ROOT), set);
     expect(checks.length).toBeGreaterThan(50);
-    expect(checks.every((c) => c.item === 'A' && c.id.startsWith('sdk/item-A/'))).toBe(true);
+    expect(checks.every((c) => c.id.startsWith('sdk/events/'))).toBe(true);
     expect(failing(await runChecks(checks))).toEqual([]);
   });
 
-  it('every item A check fails on an SDK without lifecycle events', async () => {
+  it('every sdk/events check fails on an SDK without lifecycle events', async () => {
     const results = await runChecks(eventSdkChecks({ documents: {} }, set));
     expect(results.every((r) => !r.passed)).toBe(true);
   });

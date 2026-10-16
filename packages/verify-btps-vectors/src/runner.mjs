@@ -24,8 +24,6 @@ import { loadSdk } from './sdk-loader.mjs';
 /**
  * @typedef {object} CheckResult
  * @property {string} id
- * @property {number | string} [item]
- * @property {string[]} [tickets]
  * @property {boolean} passed
  * @property {string} [message]
  */

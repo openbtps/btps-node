@@ -719,7 +719,7 @@ describe('BtpsAgent', () => {
       );
     });
 
-    // Item A (EBA-440): a lifecycle event goes out as a BTPS_EVENT whose id is the event's.
+    // A lifecycle event goes out as a BTPS_EVENT whose id is the event's.
     describe('event.send', () => {
       const event: BTPDocType = {
         schemaVersion: 2,
