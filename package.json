@@ -95,6 +95,8 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@humanwhocodes/momoa": "^3.3.13",
+    "canonicalize": "^5.1.0",
     "lodash": "^4.17.21",
     "proper-lockfile": "^4.1.2",
     "split2": "^4.2.0",
