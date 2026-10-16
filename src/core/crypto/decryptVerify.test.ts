@@ -166,6 +166,62 @@ describe('decryptVerify', () => {
     );
   });
 
+  describe('a decrypted BTPS_EVENT', () => {
+    const eventId = '0b6f4b5e-5d0a-4c4e-8f43-2a7d3a1f9e01';
+    const event = {
+      type: 'lifecycle_event',
+      id: eventId,
+      occurredAt: '2025-02-03T08:15:00Z',
+      document: { from: 'receiver$example.com', id: 'INV-001', sha256: 'd'.repeat(64) },
+      eventType: 'paid',
+    };
+    const carried = (): VerifyEncryptedPayload<string> => ({
+      ...encryptedPayload,
+      id: eventId,
+      type: 'BTPS_EVENT',
+      relatesTo: 'doc-1',
+      document: 'encrypted-event',
+    });
+    const opened = async (decrypted: unknown, payload = carried()) => {
+      mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+      mockCrypto.decryptBtpPayload.mockReturnValue({ data: decrypted });
+      return decryptVerify(senderPubPem, payload, privateKey);
+    };
+
+    it('is returned when it is a valid event matching its envelope', async () => {
+      const result = await opened(event);
+      expect(result.error).toBeUndefined();
+      expect(result.payload?.document).toEqual(event);
+    });
+
+    it('is refused when it is not a lifecycle event', async () => {
+      const result = await opened({ decrypted: 'data' });
+      expect(result.payload).toBeUndefined();
+      expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+    });
+
+    it('is refused when its id is not the id of the artifact carrying it', async () => {
+      const result = await opened({ ...event, id: '1c7e5c6f-6e1b-4d5f-9a54-3b8e4b2a0f12' });
+      expect(result.payload).toBeUndefined();
+      expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+    });
+
+    it('is refused when it is about an invoice outside its two parties', async () => {
+      const result = await opened({
+        ...event,
+        document: { ...event.document, from: 'someone$else.com' },
+      });
+      expect(result.payload).toBeUndefined();
+      expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+    });
+
+    it('leaves other decrypted artifact types unchecked, as before', async () => {
+      const result = await opened({ decrypted: 'data' }, { ...carried(), type: 'BTPS_DOC' });
+      expect(result.error).toBeUndefined();
+      expect(result.payload?.document).toEqual({ decrypted: 'data' });
+    });
+  });
+
   it('should handle payloads with delegation', async () => {
     const payloadWithDelegation: VerifyEncryptedPayload<BTPTrustReqDoc> = {
       ...encryptedPayload,

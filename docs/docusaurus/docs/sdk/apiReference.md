@@ -477,6 +477,8 @@ decryptVerify<T>(
 **Description:**
 Verifies the signature and (optionally) decrypts a received BTPS artifact. Ensures authenticity and privacy.
 
+When it decrypts a `BTPS_EVENT`, it also checks the event as the server checks an unencrypted one: a valid lifecycle event, carried under its own `id`, about an invoice between the artifact's `from` and `to`. If not, it returns a `BTP_ERROR_VALIDATION` error and no payload.
+
 **Arguments:**
 
 - `senderPubPem` (`string`, required): Sender's public key (PEM).
