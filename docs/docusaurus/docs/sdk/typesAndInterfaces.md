@@ -668,53 +668,69 @@ interface MiddlewareModule {
 
 ### BTPAttachment
 
-File attachment for documents.
+File attachment for documents. `size` and `sha256` are computed by the sender from the decoded file bytes; a receiving platform can use them to confirm a file it stored separately is unchanged. The protocol does not check them (see the Transporter Artifact specification, Attachments).
 
 ```ts
 interface BTPAttachment {
   content: string; // base64
   type: 'application/pdf' | 'image/jpeg' | 'image/png';
   filename?: string;
+  size: number; // bytes of the decoded file
+  sha256: string; // SHA-256 of the decoded file, 64 lowercase hex characters
+}
+```
+
+### BTPDocReference
+
+A link to another signed document, such as a corrected invoice naming the invoice it corrects (see the Transporter Artifact specification, References).
+
+```ts
+interface BTPDocReference {
+  type: string; // correction_of | credits | instalment_of | follows | a prefixed code
+  from: string;
+  id: string;
+  sha256: string; // lowercase hex
 }
 ```
 
 ### BTPInvoiceDoc
 
-Invoice document structure.
+Invoice document structure. It carries no status: that comes from lifecycle events. Every amount is a whole number in the ISO 4217 minor units of `totalAmount.currency` (`4997` AUD is 49.97); BTPS never converts amounts (see the Transporter Artifact specification, Money Amounts).
 
 ```ts
 interface BTPInvoiceDoc {
+  type: 'invoice';
   title: string;
-  id: string;
+  id: string; // the invoice number, unique per sender
   issuedAt: string; // ISO format
-  status: 'paid' | 'unpaid' | 'partial' | 'refunded' | 'disputed';
   dueAt?: string; // ISO format
-  paidAt?: string; // ISO format
-  refundedAt?: string; // ISO format
-  disputedAt?: string; // ISO format
   totalAmount: {
-    value: number;
+    amount: number; // integer ISO 4217 minor units: 12345 USD is 123.45, 12345 JPY is ¥12,345
     currency: CurrencyCode;
   };
   lineItems: {
     columns: string[];
-    rows: Array<Record<string, string | number>>;
+    rows: Array<Record<string, string | number>>; // money cells in integer minor units
   };
   issuer?: {
     name: string;
     email?: string;
     phone?: string;
+    address?: string;
+    identifiers?: Record<string, string>; // e.g. { 'au:abn': '51824753556' }
   };
   paymentLink?: {
     linkText: string;
     url: string;
   };
   description?: string;
-  attachment?: BTPAttachment;
+  attachments?: BTPAttachment[];
+  references?: BTPDocReference[];
   template?: {
     name: string;
     data: Record<string, unknown>;
   };
+  metadata?: Record<string, unknown>;
 }
 ```
 

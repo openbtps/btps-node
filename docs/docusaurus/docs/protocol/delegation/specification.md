@@ -133,7 +133,7 @@ A delegated artifact is a standard BTPS artifact with an additional `delegation`
     "title": "Monthly Service Invoice",
     "id": "INV-2025-001",
     "totalAmount": {
-      "value": 1500.0,
+      "amount": 150000,
       "currency": "USD"
     }
   },

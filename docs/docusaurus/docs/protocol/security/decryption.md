@@ -67,7 +67,7 @@ sequenceDiagram
     "title": "Monthly Service Invoice",
     "id": "INV-2025-001",
     "totalAmount": {
-      "value": 1500.00,
+      "amount": 150000,
       "currency": "USD"
     },
     "lineItems": {...}

@@ -240,38 +240,49 @@ export interface BTPAttachment {
   content: string; // base64
   type: 'application/pdf' | 'image/jpeg' | 'image/png';
   filename?: string;
+  size: number; // bytes, as the sender states
+  sha256: string; // lowercase hex, as the sender states
+}
+
+/** A link to another signed document: `correction_of`, `credits`, `instalment_of`, `follows`, or a prefixed code. */
+export interface BTPDocReference {
+  type: string;
+  from: string;
+  id: string;
+  sha256: string; // lowercase hex
 }
 
 export interface BTPInvoiceDoc {
+  type: 'invoice';
   title: string;
-  id: string; // unique per sender
+  id: string; // the invoice number, unique per sender
   issuedAt: string; // ISO format
-  status: 'paid' | 'unpaid' | 'partial' | 'refunded' | 'disputed';
   dueAt?: string; // ISO format
-  paidAt?: string; // ISO format
-  refundedAt?: string; // ISO format
-  disputedAt?: string; // ISO format
   totalAmount: {
-    value: number;
+    amount: number; // integer minor units: 12345 is 123.45
     currency: CurrencyCode; // e.g. 'AUD', 'USD', etc.
   };
   lineItems: {
     columns: string[]; // must include at minimum: ['Description', 'Amount']
-    rows: Array<Record<string, string | number>>;
+    rows: Array<Record<string, string | number>>; // money cells in integer minor units
   };
   issuer?: {
     name: string;
     email?: string;
     phone?: string;
+    address?: string;
+    identifiers?: Record<string, string>; // namespaced, e.g. { 'au:abn': '51824753556' }
   };
   paymentLink?: {
     linkText: string;
     url: string; // should be HTTPS
   };
   description?: string;
-  attachment?: BTPAttachment;
+  attachments?: BTPAttachment[];
+  references?: BTPDocReference[];
   template?: {
     name: string;
     data: Record<string, unknown>;
   };
+  metadata?: Record<string, unknown>; // the sending platform's own data
 }

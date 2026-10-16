@@ -9,10 +9,37 @@ import { z } from 'zod';
 import { CURRENCY_CODES } from '../constants/currency.js';
 import { identitySchema } from './shared.js';
 
+/** A SHA-256, written in lowercase hex. */
+const sha256Hex = z.string().regex(/^[0-9a-f]{64}$/, 'must be a SHA-256 in lowercase hex');
+
+/**
+ * A file carried in a document. `size` (bytes) and `sha256` are what the
+ * sender states about `content`; the protocol does not check the file.
+ */
 export const BtpAttachmentSchema = z.object({
   content: z.string(), // base64
   type: z.enum(['application/pdf', 'image/jpeg', 'image/png']),
   filename: z.string().optional(),
+  size: z.number().int().nonnegative(),
+  sha256: sha256Hex,
+});
+
+/** Money in integer minor units of its currency: `{ amount: 12345, currency: 'AUD' }` is AUD 123.45. */
+const BtpMoneySchema = z.object({
+  amount: z.number().int().safe(),
+  currency: z.enum(CURRENCY_CODES),
+});
+
+/**
+ * A link to another signed document. `type` is `correction_of`, `credits`,
+ * `instalment_of` or `follows`, or a platform's own code under a prefix
+ * (`acme:supersedes`).
+ */
+export const BtpDocReferenceSchema = z.object({
+  type: z.string().regex(/^[a-z0-9_]+(:[a-z0-9_]+)?$/, 'must be a bare or prefixed code'),
+  from: identitySchema,
+  id: z.string().min(1),
+  sha256: sha256Hex,
 });
 
 // Schema for BTPStringQueryFilter
@@ -51,28 +78,32 @@ export const BtpTrustResDocSchema = z.object({
   privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']).optional(),
 });
 
+/**
+ * The 1.1 invoice: the 1.0 invoice with money in integer minor units, no
+ * status (a status comes from lifecycle events), several attachments, and
+ * optional issuer address and identifiers, references and metadata. Strict:
+ * a field it does not name, such as 1.0's `status`, is refused.
+ */
 export const BtpInvoiceDocSchema = z.object({
+  type: z.literal('invoice'),
   title: z.string(),
-  id: z.string(),
+  id: z.string(), // the invoice number, unique per sender
   issuedAt: z.string().datetime(),
-  status: z.enum(['paid', 'unpaid', 'partial', 'refunded', 'disputed']),
   dueAt: z.string().datetime().optional(),
-  paidAt: z.string().datetime().optional(),
-  refundedAt: z.string().datetime().optional(),
-  disputedAt: z.string().datetime().optional(),
-  totalAmount: z.object({
-    value: z.number(),
-    currency: z.enum(CURRENCY_CODES),
-  }),
+  totalAmount: BtpMoneySchema,
   lineItems: z.object({
     columns: z.array(z.string()),
-    rows: z.array(z.record(z.union([z.string(), z.number()]))),
+    // A money cell is integer minor units; a decimal (e.g. a quantity) is written as text.
+    rows: z.array(z.record(z.union([z.string(), z.number().int().safe()]))),
   }),
   issuer: z
     .object({
       name: z.string(),
       email: z.string().email().optional(),
       phone: z.string().optional(),
+      address: z.string().optional(),
+      // Company and tax ids by namespaced key, for any country: { "au:abn": "51824753556" }.
+      identifiers: z.record(z.string().regex(/^[a-z0-9_]+:[a-z0-9_]+$/), z.string()).optional(),
     })
     .optional(),
   paymentLink: z
@@ -82,14 +113,18 @@ export const BtpInvoiceDocSchema = z.object({
     })
     .optional(),
   description: z.string().optional(),
-  attachment: BtpAttachmentSchema.optional(),
+  attachments: z.array(BtpAttachmentSchema).optional(),
+  // Links to other documents, e.g. the invoice a corrected one replaces (`correction_of`).
+  references: z.array(BtpDocReferenceSchema).optional(),
   template: z
     .object({
       name: z.string(),
       data: z.record(z.unknown()),
     })
     .optional(),
-});
+  // The sending platform's own data: carried and signed, never read by the protocol.
+  metadata: z.record(z.unknown()).optional(),
+}).strict();
 
 // Schema for BTPAuthReqDoc (used in agent artifacts)
 export const BtpAuthReqDocSchema = z.object({
