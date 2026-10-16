@@ -668,21 +668,21 @@ interface MiddlewareModule {
 
 ### BTPAttachment
 
-File attachment for documents.
+File attachment for documents. `size` and `sha256` are computed by the sender from the decoded file bytes; a receiving platform can use them to confirm a file it stored separately is unchanged. The protocol does not check them (see the Transporter Artifact specification, Attachments).
 
 ```ts
 interface BTPAttachment {
   content: string; // base64
   type: 'application/pdf' | 'image/jpeg' | 'image/png';
   filename?: string;
-  size: number; // bytes, as the sender states
-  sha256: string; // lowercase hex, as the sender states
+  size: number; // bytes of the decoded file
+  sha256: string; // SHA-256 of the decoded file, 64 lowercase hex characters
 }
 ```
 
 ### BTPDocReference
 
-A link to another signed document.
+A link to another signed document, such as a corrected invoice naming the invoice it corrects (see the Transporter Artifact specification, References).
 
 ```ts
 interface BTPDocReference {
@@ -695,7 +695,7 @@ interface BTPDocReference {
 
 ### BTPInvoiceDoc
 
-Invoice document structure. It carries no status: that comes from lifecycle events.
+Invoice document structure. It carries no status: that comes from lifecycle events. Every amount is a whole number in the ISO 4217 minor units of `totalAmount.currency` (`4997` AUD is 49.97); BTPS never converts amounts (see the Transporter Artifact specification, Money Amounts).
 
 ```ts
 interface BTPInvoiceDoc {

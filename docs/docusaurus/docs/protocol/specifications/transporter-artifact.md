@@ -215,8 +215,8 @@ Generic BTPS documents, most commonly invoices. An invoice is `"type": "invoice"
 - **title**: Document title
 - **id**: The invoice number, unique per sender
 - **issuedAt**: ISO timestamp of document creation
-- **totalAmount**: Total amount in integer minor units of its currency (`150000` USD is 1,500.00), with the currency. Minor units are those of ISO 4217: the currency fixes how many decimal places the amount has (2 for USD, 0 for JPY, 3 for KWD). BTPS carries the whole number and the code and never converts; turning it into a decimal for display is the platform's job, using ISO 4217's minor units (not `Intl.NumberFormat`'s display digits, which differ for some currencies, such as IDR and HUF)
-- **lineItems**: Document line items with columns and rows. A money cell is an integer in minor units; a decimal such as a quantity is written as text
+- **totalAmount**: Total amount in minor units, with its currency (see Money Amounts)
+- **lineItems**: Document line items with columns and rows
 
 **Optional Fields:**
 
@@ -224,12 +224,82 @@ Generic BTPS documents, most commonly invoices. An invoice is `"type": "invoice"
 - **issuer**: Document issuer information, with an optional `address` and `identifiers` (company and tax ids by namespaced key, e.g. `au:abn`)
 - **paymentLink**: Payment link information
 - **description**: Document description
-- **attachments**: Files carried with the document. `size` (bytes) and `sha256` (lowercase hex) are what the sender states; the protocol does not check the files
-- **references**: Links to other signed documents, each `{ type, from, id, sha256 }`. `type` is `correction_of`, `credits`, `instalment_of`, `follows`, or a platform's own code under a prefix
+- **attachments**: Files carried with the document (see Attachments)
+- **references**: Links to other signed documents (see References)
 - **template**: Document template and data
 - **metadata**: The sending platform's own data; carried and signed, never read by the protocol
 
 A document carries no status: whether an invoice is paid, partly paid, disputed or refunded comes from the lifecycle events exchanged about it. The schema is strict, so a field it does not name (such as 1.0's `status`) is refused.
+
+**Money Amounts:**
+
+Every amount is a whole number in the **minor units** of its currency, as defined by ISO 4217, never a decimal. The currency fixes how many decimal places the number has:
+
+| Currency      | Minor unit digits | `amount: 4997` means |
+| ------------- | ----------------- | -------------------- |
+| USD, AUD, EUR | 2                 | 49.97                |
+| JPY           | 0                 | 4,997                |
+| KWD, BHD      | 3                 | 4.997                |
+
+So `{ "amount": 4997, "currency": "AUD" }` can only mean AUD 49.97. Whole numbers are used because decimal numbers are stored inexactly by computers (`0.1 + 0.2` is `0.30000000000000004`), which makes totals drift by a cent and lets two implementations disagree about an amount they both signed. This is how banks and payment systems carry money.
+
+- **totalAmount** is minor units.
+- **lineItems** cells are text or whole numbers. A money cell (unit price, tax, line total) is minor units in the invoice's currency. A value that needs more decimals than the currency has, such as a quantity or a unit rate of `0.2843`, is written as text.
+- **BTPS never converts amounts.** It carries the whole number and the currency code. Showing `4997` as `49.97` is the platform's job, using ISO 4217's minor unit digits for the currency. `Intl.NumberFormat`'s display digits are not ISO 4217's and differ for some currencies (for example IDR and HUF), so they must not be used to convert.
+
+**Attachments:**
+
+Each attachment carries the file itself, plus two facts the sender states about it:
+
+```json
+{
+  "content": "base64-encoded-file",
+  "type": "application/pdf",
+  "filename": "invoice-INV-2025-001.pdf",
+  "size": 48213,
+  "sha256": "lowercase-hex-sha256-of-the-file"
+}
+```
+
+- **content**: The file, base64 encoded
+- **type**: `application/pdf`, `image/jpeg` or `image/png`
+- **filename**: Optional file name
+- **size**: Size of the file in bytes (of the decoded `content`)
+- **sha256**: SHA-256 hash of the file (of the decoded `content`), written as 64 lowercase hex characters
+
+The sender computes `size` and `sha256` from the file's bytes:
+
+```js
+import { createHash } from 'crypto';
+
+const bytes = Buffer.from(attachment.content, 'base64');
+attachment.size = bytes.length;
+attachment.sha256 = createHash('sha256').update(bytes).digest('hex');
+```
+
+`size` and `sha256` let a receiving platform that stores the file apart from the document (for example in object storage) confirm later that it is still exactly the file that arrived, recognise the same file sent twice, and show the file's size before it is downloaded. They are not what protects the file in transit: the artifact's signature already covers the whole document, attachments included. The protocol does not check them; a platform may.
+
+**References:**
+
+A document can point to other signed documents, for example a corrected invoice to the invoice it replaces:
+
+```json
+"references": [
+  {
+    "type": "correction_of",
+    "from": "billing$acme.com",
+    "id": "INV-2025-001",
+    "sha256": "lowercase-hex-sha256"
+  }
+]
+```
+
+- **type**: What the link means: `correction_of` (a corrected invoice names the one it corrects), `credits` (a credit note names the invoice it credits), `instalment_of` (one payment of several names its invoice), `follows` (the next document in a series), or a platform's own code under a prefix, such as `acme:supersedes`
+- **from**: The identity that sent the referenced document
+- **id**: The referenced document's `id`
+- **sha256**: SHA-256 of the referenced document's signed transporter artifact in its RFC 8785 canonical form, written as 64 lowercase hex characters, so the link names one exact version of that document
+
+Whether the referenced document exists is for the receiving platform to check; the protocol carries the link.
 
 ## Security Features
 
