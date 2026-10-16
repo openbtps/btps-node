@@ -144,8 +144,10 @@ await server.start();
 ### Step 2: Inbox Management Handlers
 
 ```typescript
+import type { ArtifactResCtx, BTPAgentArtifact } from '@btps/sdk/server';
+
 // Handle inbox.fetch command
-async function handleInboxFetch(artifact: any, resCtx: any) {
+async function handleInboxFetch(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) {
   const { agentId, document: query } = artifact;
 
   try {
@@ -203,7 +205,7 @@ interface QueryResponse {
 }
 
 // Handle inbox.delete command
-async function handleInboxDelete(artifact: any, resCtx: any) {
+async function handleInboxDelete(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) {
   const { agentId, document } = artifact;
 
   try {
@@ -236,7 +238,7 @@ async function handleInboxDelete(artifact: any, resCtx: any) {
 }
 
 // Handle inbox.seen command
-async function handleInboxSeen(artifact: any, resCtx: any) {
+async function handleInboxSeen(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) {
   const { agentId, document } = artifact;
 
   try {
@@ -273,7 +275,7 @@ async function handleInboxSeen(artifact: any, resCtx: any) {
 
 ```typescript
 // Handle outbox.fetch command
-async function handleOutboxFetch(artifact: any, resCtx: any) {
+async function handleOutboxFetch(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) {
   const { agentId, document: query } = artifact;
 
   try {
@@ -316,7 +318,7 @@ async function handleOutboxFetch(artifact: any, resCtx: any) {
 }
 
 // Handle outbox.cancel command
-async function handleOutboxCancel(artifact: any, resCtx: any) {
+async function handleOutboxCancel(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) {
   const { agentId, document } = artifact;
 
   try {
@@ -353,7 +355,7 @@ async function handleOutboxCancel(artifact: any, resCtx: any) {
 
 ```typescript
 // Handle draft.create command
-async function handleDraftCreate(artifact: any, resCtx: any) {
+async function handleDraftCreate(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) {
   const { agentId, document } = artifact;
 
   try {
@@ -392,7 +394,7 @@ async function handleDraftCreate(artifact: any, resCtx: any) {
 }
 
 // Handle draft.fetch command
-async function handleDraftFetch(artifact: any, resCtx: any) {
+async function handleDraftFetch(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) {
   const { agentId, document: query } = artifact;
 
   try {
@@ -439,7 +441,7 @@ async function handleDraftFetch(artifact: any, resCtx: any) {
 
 ```typescript
 // Handle trash.fetch command
-async function handleTrashFetch(artifact: any, resCtx: any) {
+async function handleTrashFetch(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) {
   const { agentId, document: query } = artifact;
 
   try {
@@ -482,7 +484,7 @@ async function handleTrashFetch(artifact: any, resCtx: any) {
 }
 
 // Handle trash.delete command
-async function handleTrashDelete(artifact: any, resCtx: any) {
+async function handleTrashDelete(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) {
   const { agentId, document } = artifact;
 
   try {
@@ -725,7 +727,13 @@ const FAILURE_REASONS = {
 // Example storage function for inbox items
 async function fetchInboxItems(agentId: string, query: BTPAgentQuery) {
   // Build database query based on parameters
-  const dbQuery: any = { agentId };
+  type InboxFilter = {
+    agentId: string;
+    createdAt?: { $gte?: Date; $lte?: Date };
+    title?: { $regex: string; $options: string };
+    from?: string;
+  };
+  const dbQuery: InboxFilter = { agentId };
 
   // Date range filtering
   if (query.since || query.until) {

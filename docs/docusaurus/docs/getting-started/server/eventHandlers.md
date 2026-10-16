@@ -110,9 +110,15 @@ Create the handler functions for different artifact types:
 
 ```typescript
 // src/handlers.ts
+import type {
+  ArtifactResCtx,
+  BTPAgentArtifact,
+  BTPTransporterArtifact,
+  BtpsServer,
+} from '@btps/sdk/server';
 
 // Handle system ping (health check)
-async function handlePing(artifact: any, resCtx: any, server: any) {
+async function handlePing(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx, server: BtpsServer) {
   return resCtx.sendRes({
     ...server.prepareBtpsResponse(
       {
@@ -131,7 +137,11 @@ async function handlePing(artifact: any, resCtx: any, server: any) {
 }
 
 // Handle inbox fetch requests
-async function handleInboxFetch(artifact: any, resCtx: any, server: any) {
+async function handleInboxFetch(
+  artifact: BTPAgentArtifact,
+  resCtx: ArtifactResCtx,
+  server: BtpsServer,
+) {
   const { document } = artifact;
 
   // Extract query parameters
@@ -188,7 +198,7 @@ async function handleInboxFetch(artifact: any, resCtx: any, server: any) {
 }
 
 // Handle trust requests (asynchronous)
-async function handleTrustResponse(artifact: any) {
+async function handleTrustResponse(artifact: BTPTransporterArtifact) {
   const { from, to, document } = artifact;
 
   console.log(`🤝 Trust request from ${from} to ${to}`);
@@ -201,7 +211,7 @@ async function handleTrustResponse(artifact: any) {
 }
 
 // Handle trust requests (asynchronous)
-async function handleTrustRequest(artifact: any) {
+async function handleTrustRequest(artifact: BTPTransporterArtifact) {
   const { from, to, document } = artifact;
 
   console.log(`🤝 Trust request from ${from} to ${to}`);
@@ -214,11 +224,14 @@ async function handleTrustRequest(artifact: any) {
 }
 
 // Handle documents (asynchronous)
-async function handleDocument(artifact: any) {
+async function handleDocument(artifact: BTPTransporterArtifact) {
   const { from, to, document } = artifact;
 
   console.log(`📄 Document from ${from} to ${to}`);
-  console.log('Document type:', document.type);
+  // An encrypted document is a string until you decrypt it.
+  if (typeof document !== 'string' && 'type' in document) {
+    console.log('Document type:', document.type);
+  }
 
   // Store document in your database
   // Send notification to btpsTransporter if its from the agent so it can deliver to the recipient

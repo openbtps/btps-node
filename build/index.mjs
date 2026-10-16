@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 import esbuild from 'esbuild';
 import ora from 'ora';
 import aliasPlugin from 'esbuild-plugin-alias';

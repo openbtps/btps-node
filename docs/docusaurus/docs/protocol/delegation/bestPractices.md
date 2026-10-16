@@ -490,7 +490,11 @@ enum DelegationErrorType {
 }
 
 class DelegationError extends Error {
-  constructor(type: DelegationErrorType, message: string, context?: any) {
+  readonly type: DelegationErrorType;
+  readonly context?: Record<string, unknown>;
+  readonly timestamp: string;
+
+  constructor(type: DelegationErrorType, message: string, context?: Record<string, unknown>) {
     super(message);
     this.type = type;
     this.context = context;

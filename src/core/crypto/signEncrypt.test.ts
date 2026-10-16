@@ -143,8 +143,7 @@ describe('signEncrypt', () => {
   });
 
   it('should handle payloads that do not require encryption', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await signEncrypt('receiver$example.com', sender, payload as any);
+    const result = await signEncrypt('receiver$example.com', sender, payload);
 
     expect(result.error).toBeUndefined();
     expect(result.payload?.document).toEqual(payload.document);

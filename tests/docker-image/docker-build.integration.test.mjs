@@ -39,7 +39,6 @@ const hasDocker = (() => {
 const integration = describe.skipIf(!INTEGRATION || !hasDocker);
 
 if (INTEGRATION && !hasDocker) {
-  // eslint-disable-next-line no-console
   console.warn('BTPS_INTEGRATION=1 but no Docker daemon is reachable; skipping tests/docker-image/docker-build.integration.test.mjs');
 }
 

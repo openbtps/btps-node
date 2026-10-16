@@ -111,6 +111,7 @@ server.start();
 
 ```typescript
 import { BtpsAuthentication } from '@btps/sdk/authentication';
+import type { ArtifactResCtx, BTPAgentArtifact } from '@btps/sdk/server';
 import { RedisTokenStore } from './storage/RedisTokenStore';
 import { DatabaseTrustStore } from './storage/DatabaseTrustStore';
 
@@ -141,7 +142,7 @@ class ProductionAuthService {
     this.logger = new AuthLogger();
   }
 
-  async generateDeviceToken(userIdentity: string, metadata: any) {
+  async generateDeviceToken(userIdentity: string, metadata: Record<string, unknown>) {
     try {
       const authToken = BtpsAuthentication.generateAuthToken(userIdentity);
       const agentId = BtpsAuthentication.generateAgentId();
@@ -175,7 +176,7 @@ class ProductionAuthService {
   // Count registrations from server-side middleware or the trust store
   // instead.
 
-  async handleAuthRefresh(artifact: any, resCtx: any) {
+  async handleAuthRefresh(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) {
     const { document: refreshAuthDoc, agentId, id: refreshReqId } = artifact;
 
     try {
@@ -252,9 +253,10 @@ setInterval(
 
 ```typescript
 import { TokenStore, BTPsTokenDocument } from '@btps/sdk/authentication';
+import { Pool } from 'pg';
 
 class PostgreSQLTokenStore implements TokenStore {
-  constructor(private pool: any) {}
+  constructor(private pool: Pool) {}
 
   async store(
     token: string,
@@ -464,6 +466,14 @@ if (result.success) {
 ### **2. Advanced Session Management**
 
 ```typescript
+/** What the app keeps in the device's secure storage. */
+type StoredCredentials = {
+  agentId: string;
+  refreshToken: string;
+  userIdentity: string;
+  expiresAt: string;
+};
+
 class BTPSSessionManager {
   private refreshTimer: NodeJS.Timeout | null = null;
   private keyPair: PemKeys | null = null;
@@ -569,7 +579,7 @@ class BTPSSessionManager {
       }
 
       if (credentialsData) {
-        const credentials = JSON.parse(credentialsData);
+        const credentials: StoredCredentials = JSON.parse(credentialsData);
         this.agentId = credentials.agentId;
         this.refreshToken = credentials.refreshToken;
         this.userIdentity = credentials.userIdentity;
@@ -588,7 +598,7 @@ class BTPSSessionManager {
     return null;
   }
 
-  private async storeCredentials(credentials: any) {
+  private async storeCredentials(credentials: StoredCredentials) {
     try {
       if (platform === 'ios') {
         await Keychain.setItem('btps_credentials', JSON.stringify(credentials), {

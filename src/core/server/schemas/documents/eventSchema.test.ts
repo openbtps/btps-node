@@ -35,30 +35,44 @@ import {
 } from '../../constants/index.js';
 import type { BTPEventDoc } from '../../types.js';
 
-type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+/**
+ * A lifecycle event vector as JSON: the fields every event has, typed; the
+ * rest open, since the tests add, drop and change fields to see them refused.
+ */
+type EventJson = Record<string, unknown> & {
+  eventType: string;
+  id: string;
+  inReplyTo?: string;
+  document: { from: string; id: string; sha256: string };
+};
 
 const EVENTS = new URL('../../../../../test/vectors/events/', import.meta.url);
 const DOCUMENTS = new URL('../../../../../test/vectors/documents/', import.meta.url);
-const load = (name: string, dir = EVENTS): Doc =>
+const readJson = (name: string, dir: URL): unknown =>
   JSON.parse(readFileSync(new URL(name, dir), 'utf8'));
+const load = (name: string): EventJson => JSON.parse(readFileSync(new URL(name, EVENTS), 'utf8'));
 
 const BILLER = 'billing$acme.example';
 const PAYER = 'finance$client.example';
 const OTHER = 'carol$other.example';
 const SOME_ID = 'aec6b697-52b5-409e-a576-12773f7a40b9';
 
-const accepts = (doc: Doc) => {
+const accepts = (doc: unknown) => {
   const result = BtpEventDocSchema.safeParse(doc);
   if (!result.success) throw new Error(JSON.stringify(result.error.issues));
   return true;
 };
-const refuses = (doc: Doc) => BtpEventDocSchema.safeParse(doc).success === false;
+const refuses = (doc: unknown) => BtpEventDocSchema.safeParse(doc).success === false;
 
 /** An unencrypted BTPS_EVENT around `document`, as the server's envelope schema sees it. */
-const envelope = (document: unknown, overrides: Doc = {}) => ({
+const idOf = (document: unknown) =>
+  typeof document === 'object' && document !== null && 'id' in document
+    ? document.id
+    : 'not-an-event';
+const envelope = (document: unknown, overrides: Record<string, unknown> = {}) => ({
   version: '1.1.0',
   issuedAt: '2026-10-20T09:00:01.000Z',
-  id: (document as Doc)?.id ?? 'not-an-event',
+  id: idOf(document),
   type: 'BTPS_EVENT',
   from: PAYER,
   to: BILLER,
@@ -262,7 +276,7 @@ describe('lifecycle events: the envelope rules (validateBtpEventEnvelope)', () =
 });
 
 describe('lifecycle events: the reply chain (validateBtpEventReply, the platform’s check)', () => {
-  const sent = (name: string, from: string, to: string, set: Doc = {}) => ({
+  const sent = (name: string, from: string, to: string, set: Record<string, unknown> = {}) => ({
     event: { ...load(name), ...set } as BTPEventDoc,
     from,
     to,
@@ -372,7 +386,7 @@ describe('lifecycle events: BTPS_EVENT on the wire (transporter schema)', () => 
     expect(
       BtpTransporterArtifactSchema.safeParse(envelope(event, { type: 'BTPS_DOC' })).success,
     ).toBe(false);
-    const invoice = load('invoice.v2.json', DOCUMENTS);
+    const invoice = readJson('invoice.v2.json', DOCUMENTS);
     expect(
       BtpTransporterArtifactSchema.safeParse(
         envelope(invoice, { type: 'BTPS_EVENT', from: BILLER, to: PAYER }),

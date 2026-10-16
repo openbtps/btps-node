@@ -10,8 +10,7 @@ import { BtpsServerRegistry, BtpsServerSingletonFactory } from '../libs/btpsFact
 import { BtpsServer } from '../btpsServer.js';
 import { AbstractTrustStore } from '../../core/trust/storage/AbstractTrustStore.js';
 import { BTPTrustRecord } from '../../core/trust/types.js';
-import { EventEmitter } from 'events';
-import tls, { TlsOptions, TLSSocket } from 'tls';
+import tls from 'tls';
 
 // Dummy TrustStore for server construction
 class DummyTrustStore extends AbstractTrustStore<BTPTrustRecord> {
@@ -51,16 +50,13 @@ describe('BtpsServerRegistry', () => {
     closeSpy = vi.fn();
 
     // Mock the TLS server creation
-    vi.spyOn(tls, 'createServer').mockImplementation(
-      (opts: TlsOptions, handler?: (socket: TLSSocket) => void) => {
-        // Minimal mock of a TLS server
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- needed for test mock
-        const fakeServer: any = new EventEmitter();
-        fakeServer.listen = listenSpy;
-        fakeServer.close = closeSpy;
-        return fakeServer;
-      },
-    );
+    vi.spyOn(tls, 'createServer').mockImplementation(() => {
+      // A real, never-listening TLS server whose listen and close are spies.
+      const fakeServer = new tls.Server();
+      vi.spyOn(fakeServer, 'listen').mockImplementation(listenSpy);
+      vi.spyOn(fakeServer, 'close').mockImplementation(closeSpy);
+      return fakeServer;
+    });
 
     serverA = new BtpsServer({ trustStore });
     serverB = new BtpsServer({ trustStore });

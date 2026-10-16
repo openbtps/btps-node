@@ -51,13 +51,13 @@ const fakeDnsPlugin = {
 
 /**
  * @typedef {object} LoadedSdk
- * @property {Record<string, any>} crypto exports of src/core/crypto/index.ts
- * @property {Record<string, any>} utils  exports of src/core/utils/index.ts
- * @property {Record<string, any>} storage exports of src/core/storage/index.ts (@btps/sdk/storage)
- * @property {Record<string, any> | null} documents exports of
+ * @property {Record<string, unknown>} crypto exports of src/core/crypto/index.ts
+ * @property {Record<string, unknown>} utils  exports of src/core/utils/index.ts
+ * @property {Record<string, unknown>} storage exports of src/core/storage/index.ts (@btps/sdk/storage)
+ * @property {Record<string, unknown> | null} documents exports of
  *   src/core/server/schemas/documents/index.ts (@btps/sdk/documents), or
  *   null on a tree without document model v2
- * @property {Record<string, any> | null} authentication exports of
+ * @property {Record<string, unknown> | null} authentication exports of
  *   src/core/authentication/index.ts (@btps/sdk/authentication), or null on a
  *   tree without keyRotation.ts (key-rotating refresh)
  * @property {(records: Record<string, string[]>) => void} setTxtRecords replace the fake DNS zone

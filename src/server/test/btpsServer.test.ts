@@ -20,6 +20,7 @@ import type { BTPRequestCtx, BTPResponseCtx, ProcessedArtifact, BtpsTlsOptions }
 import {
   BTPAgentArtifact,
   BTPAttestation,
+  BTPControlArtifact,
   BTPDelegation,
   BTPServerResponse,
   BTPStatus,
@@ -269,13 +270,9 @@ describe('BtpsServer', () => {
 
       it('handles initialization errors gracefully', async () => {
         // Mock middleware manager to throw an error
-        const mockMiddlewareManager = {
-          loadMiddleware: vi.fn().mockRejectedValue(new Error('Middleware error')),
-          onServerStart: vi.fn(),
-        };
-
-        // @ts-expect-error - test override
-        server.middlewareManager = mockMiddlewareManager;
+        vi.spyOn(server['middlewareManager'], 'loadMiddleware').mockRejectedValue(
+          new Error('Middleware error'),
+        );
 
         await expect(server.start()).rejects.toThrow('Middleware error');
       });
@@ -829,8 +826,7 @@ export default function () {
       await server.start();
 
       // Mock middleware manager to avoid async issues
-      // @ts-expect-error - test override
-      server.middlewareManager.getMiddleware = vi.fn().mockReturnValue([]);
+      vi.spyOn(server['middlewareManager'], 'getMiddleware').mockReturnValue([]);
 
       // Simulate a socket with proper pipe method
       const socket = new EventEmitter() as TLSSocket;
@@ -846,8 +842,7 @@ export default function () {
         return socket;
       });
 
-      // @ts-expect-error - test access to private method
-      server.handleConnection(socket);
+      server['handleConnection'](socket);
 
       // Verify setTimeout was called
       expect(socket.setTimeout).toHaveBeenCalled();
@@ -870,8 +865,7 @@ export default function () {
       socket.destroy = vi.fn();
       socket.pipe = vi.fn(() => new EventEmitter()) as unknown as TLSSocket['pipe'];
       socket.setTimeout = vi.fn();
-      // @ts-expect-error - test access to private method
-      server.handleConnection(socket);
+      server['handleConnection'](socket);
       // Simulate data event with invalid JSON
       const stream = new EventEmitter();
       (socket.pipe as unknown as () => EventEmitter) = () => stream;
@@ -888,8 +882,7 @@ export default function () {
       socket.destroy = vi.fn();
       socket.pipe = vi.fn(() => new EventEmitter()) as unknown as TLSSocket['pipe'];
       socket.setTimeout = vi.fn();
-      // @ts-expect-error - test access to private method
-      server.handleConnection(socket);
+      server['handleConnection'](socket);
       const stream = new EventEmitter();
       (socket.pipe as unknown as () => EventEmitter) = () => stream;
       const handleError = vi.fn();
@@ -903,27 +896,19 @@ export default function () {
     it('covers verifyAgentSignature and verifyAgentTrust error paths', async () => {
       // Patch trustStore to return undefined
       trustStore.getById = vi.fn().mockResolvedValue(undefined);
-      // @ts-expect-error - test access to private method
-      const result = await server.verifyAgentSignature({
+      const agentArtifact: BTPAgentArtifact = {
+        version: '1.0.0',
         id: 'id',
         action: 'trust.request',
-        document: {},
+        to: 'to$domain.com',
         agentId: 'agent',
         issuedAt: new Date().toISOString(),
         signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
         encryption: null,
-      });
+      };
+      const result = await server['verifyAgentSignature'](agentArtifact);
       expect(result.isValid).toBe(false);
-      // @ts-expect-error - test access to private method
-      const trust = await server.verifyAgentTrust({
-        id: 'id',
-        action: 'trust.request',
-        document: {},
-        agentId: 'agent',
-        issuedAt: new Date().toISOString(),
-        signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
-        encryption: null,
-      });
+      const trust = await server['verifyAgentTrust'](agentArtifact);
       expect(trust.isTrusted).toBe(false);
     });
 
@@ -938,8 +923,7 @@ export default function () {
         signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
         selector: 'selector',
       };
-      // @ts-expect-error - test access to private method
-      const result = await server.verifyAttestation({
+      const result = await server['verifyAttestation']({
         agentId: 'agent',
         agentPubKey: 'pub',
         signedBy: 'attestor$domain.com',
@@ -964,8 +948,8 @@ export default function () {
         issuedAt: new Date().toISOString(),
         selector: 'selector',
       };
-      // @ts-expect-error - test access to private method
-      const result = await server.verifyDelegation({
+      const result = await server['verifyDelegation']({
+        version: '1.0.0',
         id: 'id',
         type: 'TRUST_REQ',
         from: 'from$domain.com',
@@ -984,8 +968,7 @@ export default function () {
       const utils = await import('../../core/utils/index.js');
       vi.spyOn(utils, 'resolvePublicKey').mockResolvedValue(undefined);
 
-      // @ts-expect-error - test access to private method
-      const result = await server.verifySignature({
+      const result = await server['verifySignature']({
         artifact: {
           version: '1.0.0',
           id: 'id',
@@ -996,7 +979,7 @@ export default function () {
           signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
           encryption: null,
           document: 'document',
-          selector: 'selector',
+          signatureSelector: 'selector',
         },
         type: 'transporter',
       });
@@ -1021,8 +1004,7 @@ export default function () {
       vi.spyOn(trust, 'validateTrustRequest').mockReturnValue({ isValid: true });
       vi.spyOn(trust, 'isTrustActive').mockReturnValue(true);
 
-      // @ts-expect-error - test access to private method
-      const res1 = await server.verifyTrust({
+      const res1 = await server['verifyTrust']({
         artifact: {
           version: '1.0.0',
           id: 'id',
@@ -1033,14 +1015,13 @@ export default function () {
           signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
           encryption: null,
           document: 'document',
-          selector: 'selector',
+          signatureSelector: 'selector',
         },
         type: 'transporter',
       });
       expect(res1.isTrusted).toBe(true);
 
-      // @ts-expect-error - test access to private method
-      const res2 = await server.verifyTrust({
+      const res2 = await server['verifyTrust']({
         artifact: {
           version: '1.0.0',
           id: 'id',
@@ -1051,7 +1032,7 @@ export default function () {
           signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
           encryption: null,
           document: 'document',
-          selector: 'selector',
+          signatureSelector: 'selector',
         },
         type: 'transporter',
       });
@@ -1060,8 +1041,7 @@ export default function () {
 
     it('covers _parseAndValidateArtifact branches', () => {
       // Valid transporter
-      // @ts-expect-error - test access to private method
-      const valid = server._parseAndValidateArtifact(
+      const valid = server['_parseAndValidateArtifact'](
         JSON.stringify({
           id: 'id',
           type: 'TRUST_REQ',
@@ -1075,20 +1055,16 @@ export default function () {
       );
       expect(valid.data).toBeDefined();
       // Invalid JSON
-      // @ts-expect-error - test access to private method
-      const invalid = server._parseAndValidateArtifact('not-json');
+      const invalid = server['_parseAndValidateArtifact']('not-json');
       expect(invalid.error).toBe('JSON');
       // Invalid schema
-      // @ts-expect-error - test access to private method
-      const invalid2 = server._parseAndValidateArtifact(JSON.stringify({ foo: 'bar' }));
+      const invalid2 = server['_parseAndValidateArtifact'](JSON.stringify({ foo: 'bar' }));
       expect(invalid2.error).toBe('VALIDATION');
     });
 
     it('covers isImmediateAction', () => {
-      // @ts-expect-error - test access to private method
-      expect(server.isImmediateAction('system.ping')).toBe(true);
-      // @ts-expect-error - test access to private method
-      expect(server.isImmediateAction('not-immediate')).toBe(false);
+      expect(server['isImmediateAction']('system.ping')).toBe(true);
+      expect(server['isImmediateAction']('not-immediate')).toBe(false);
     });
 
     it('demonstrates flow stopping in processMessage when event handlers send response', async () => {
@@ -1830,13 +1806,7 @@ export default function () {
 
     describe('awaitableEmitIfNeeded', () => {
       it('should emit event without awaiting when shouldAwait is false', async () => {
-        const mockEmitter = {
-          emit: vi.fn(),
-          listeners: vi.fn().mockReturnValue([]),
-        };
-
-        // @ts-expect-error - test override
-        server.emitter = mockEmitter;
+        const emit = vi.spyOn(server['emitter'], 'emit');
 
         const artifact: BTPAgentArtifact & { respondNow: boolean } = {
           version: '1.0.0',
@@ -1859,18 +1829,12 @@ export default function () {
 
         await server['awaitableEmitIfNeeded']('agentArtifact', false, mockReq, mockRes, artifact);
 
-        expect(mockEmitter.emit).toHaveBeenCalledWith('agentArtifact', artifact, mockRes);
+        expect(emit).toHaveBeenCalledWith('agentArtifact', artifact, mockRes);
       });
 
       it('should await listeners when shouldAwait is true', async () => {
         const mockListener = vi.fn().mockResolvedValue(undefined);
-        const mockEmitter = {
-          emit: vi.fn(),
-          listeners: vi.fn().mockReturnValue([mockListener]),
-        };
-
-        // @ts-expect-error - test override
-        server.emitter = mockEmitter;
+        server['emitter'].on('agentArtifact', mockListener);
 
         const artifact: BTPAgentArtifact & { respondNow: boolean } = {
           version: '1.0.0',
@@ -1994,7 +1958,7 @@ export default function () {
           expect(new Set(codes).size).toBe(3);
         });
 
-        // Round 1 finding: the expiry check ran for any non-revoked status,
+        // The expiry check ran for any non-revoked status,
         // so a blocked/rejected/pending record past its expiresAt was
         // mislabelled EXPIRED. "Expired" only applies to a trust that was
         // accepted and has since lapsed.
@@ -2146,7 +2110,7 @@ export default function () {
           expect((socket.write as Mock).mock.calls[0][0]).not.toContain('REVOKED');
         });
 
-        // Round 1 finding: a blocked/rejected/pending record with a past
+        // A blocked/rejected/pending record with a past
         // expiresAt was mislabelled EXPIRED internally, which leaked
         // BTP_ERROR_TRUST_EXPIRED onto the wire for records the wire codes never
         // meant to distinguish. All three must still read not-allowed on
@@ -2231,7 +2195,7 @@ export default function () {
           expect(expiredWritten.status.code).toBe(notAllowedWritten.status.code);
         });
 
-        // Round 1 finding: the test above only compares two server-side
+        // The test above only compares two server-side
         // sendBtpsError outputs - it never runs the payload through a peer.
         // This repo's client *is* the 1.0 SDK (package.json version 1.0.0),
         // so feed the exact raw wire payload the server wrote into the
@@ -2252,11 +2216,15 @@ export default function () {
 
           const resolve = vi.fn();
           const timeout = setTimeout(() => {}, 10_000);
-          // @ts-expect-error - test access to private member
-          client.queue.set('req-expired', { artifact: {}, resolve, timeout });
+          const ping: BTPControlArtifact = {
+            version: BTP_PROTOCOL_VERSION,
+            id: 'req-expired',
+            issuedAt: new Date().toISOString(),
+            action: 'PING',
+          };
+          client['queue'].set('req-expired', { artifact: ping, resolve, timeout, timeoutMs: 10_000 });
 
-          // @ts-expect-error - test access to private method
-          await client.onData(rawWireLine);
+          await client['onData'](rawWireLine);
 
           expect(resolve).toHaveBeenCalledTimes(1);
           const clientResult = resolve.mock.calls[0][0] as {
@@ -2288,16 +2256,13 @@ export default function () {
           const client = new BtpsClient({ to: 'sender$domain.com' });
           const errorListener = vi.fn();
           const messageListener = vi.fn();
-          // @ts-expect-error - test access to private member
-          client.emitter.on('error', errorListener);
-          // @ts-expect-error - test access to private member
-          client.emitter.on('message', messageListener);
+          client['emitter'].on('error', errorListener);
+          client['emitter'].on('message', messageListener);
 
           // No queue entry for 'req-unmatched' - this is the "unknown
           // message" path (btpsClient.ts onData, the else branch ~:231).
           await expect(
-            // @ts-expect-error - test access to private method
-            client.onData(rawWireLine),
+            client['onData'](rawWireLine),
           ).resolves.not.toThrow();
 
           expect(errorListener).not.toHaveBeenCalled();
@@ -2309,8 +2274,7 @@ export default function () {
           // onData marks shouldRetry false for any well-formed message,
           // whether or not it was queued - this refusal is not a transient
           // connection fault to be retried.
-          // @ts-expect-error - test access to private member
-          expect(client.states.shouldRetry).toBe(false);
+          expect(client['states'].shouldRetry).toBe(false);
         });
       });
     });

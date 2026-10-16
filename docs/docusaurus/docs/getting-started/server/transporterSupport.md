@@ -118,8 +118,10 @@ await server.start();
 ### Step 3: Implement Asynchronous Handlers
 
 ```typescript
+import type { ArtifactResCtx, BTPAgentArtifact } from '@btps/sdk/server';
+
 // Handle artifact.send command from agent (asynchronous)
-async function handleArtifactSend(artifact: any, resCtx: any) {
+async function handleArtifactSend(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) {
   const { document, to, id: reqId, agentId } = artifact;
 
   try {
@@ -150,7 +152,7 @@ async function handleArtifactSend(artifact: any, resCtx: any) {
 }
 
 // Handle trust.request command from agent (asynchronous)
-async function handleTrustRequest(artifact: any, resCtx: any) {
+async function handleTrustRequest(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) {
   const { document, to, id: reqId, agentId } = artifact;
 
   try {
@@ -181,7 +183,7 @@ async function handleTrustRequest(artifact: any, resCtx: any) {
 }
 
 // Handle trust.respond command from agent (asynchronous)
-async function handleTrustRespond(artifact: any, resCtx: any) {
+async function handleTrustRespond(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) {
   const { document, to, id: reqId, agentId } = artifact;
 
   try {
@@ -212,7 +214,7 @@ async function handleTrustRespond(artifact: any, resCtx: any) {
 }
 
 // Handle immediate requests (respondNow: true)
-async function handleImmediateRequest(artifact: any, resCtx: any) {
+async function handleImmediateRequest(artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) {
   switch (artifact.action) {
     case 'inbox.fetch':
       // Handle inbox fetch immediately
@@ -252,6 +254,7 @@ See [BtpsTransporter.transport()](/docs/sdk/class-api-references#transport) for 
 ```typescript
 // src/transporter-processor.ts
 import { createTransporter } from './index';
+import type { OutboxItem } from './database';
 
 // Process outbox items asynchronously
 async function processOutbox() {
@@ -273,7 +276,7 @@ async function processOutbox() {
   }
 }
 
-async function processOutboxItem(item: any) {
+async function processOutboxItem(item: OutboxItem) {
   try {
     // Create transporter instance for this user
     const transporter = createTransporter(item.agentId);
@@ -349,17 +352,22 @@ processOutbox().catch(console.error);
 
 ```typescript
 // src/database.ts
+import type { BTPAgentArtifact } from '@btps/sdk/server';
 
-// Add item to outbox
-async function addToOutbox(item: {
+/** A queued agent request, as the outbox stores it. */
+export type OutboxItem = {
   id: string;
   agentId: string;
   type: string;
   to: string;
-  document: any;
+  document: BTPAgentArtifact['document'];
   action: string;
   createdAt: string;
-}) {
+  retryCount?: number;
+};
+
+// Add item to outbox
+async function addToOutbox(item: OutboxItem) {
   // Implement your database storage logic
   // Example with MongoDB:
   await db.collection('outbox').insertOne({
@@ -381,7 +389,9 @@ async function getPendingOutboxItems() {
 }
 
 // Move to sent inbox
-async function moveToSentInbox(item: any) {
+async function moveToSentInbox(
+  item: OutboxItem & { deliveredAt: string; deliveryId: string; status: string },
+) {
   // Example with MongoDB:
   await db.collection('sent_inbox').insertOne(item);
 }
@@ -389,7 +399,7 @@ async function moveToSentInbox(item: any) {
 // Add to inbox (for failure documents)
 async function addToInbox(item: {
   agentId: string;
-  document: any;
+  document: unknown;
   type: string;
   createdAt: string;
 }) {
@@ -404,7 +414,10 @@ async function removeFromOutbox(id: string) {
 }
 
 // Update outbox item
-async function updateOutboxItem(id: string, updates: any) {
+async function updateOutboxItem(
+  id: string,
+  updates: Partial<OutboxItem> & { lastError?: string; lastRetryAt?: string },
+) {
   // Example with MongoDB:
   await db.collection('outbox').updateOne({ id }, { $set: updates });
 }

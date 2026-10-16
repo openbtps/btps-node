@@ -18,12 +18,15 @@ import { STATUS_NOT_IN_DOCUMENT } from './baseSchema.js';
 import { parseBtpDocV2 } from '../helpers.js';
 import { canonicalizeValue } from '@core/crypto/jcs.js';
 import { BTP_DOC_LIMITS, BTP_DOC_REFERENCE_TYPES } from '../../constants/documents.js';
+import type { BTPCreditNoteDoc, BTPInvoiceV2Doc } from '../../types.js';
 
 const DOCUMENTS = new URL('../../../../../test/vectors/documents/', import.meta.url);
 const REPO_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 
 const readBytes = (name: string): string => readFileSync(new URL(name, DOCUMENTS), 'utf8');
 const load = (name: string): Record<string, unknown> => JSON.parse(readBytes(name));
+/** A fixture as the document type it is, for tests that change one field of it. */
+const loadAs = <T>(name: string): T => JSON.parse(readBytes(name));
 const fixtureNames = readdirSync(DOCUMENTS)
   .filter((name) => name.endsWith('.json'))
   .sort();
@@ -195,13 +198,16 @@ describe('document model v2: status lives only in events', () => {
 });
 
 describe('the 1.1 invoice: the 1.0 invoice with the changes of 2026-10-16', () => {
-  type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-  const invoice = (): Doc => load('invoice.v2.json');
+  const invoice = () => loadAs<BTPInvoiceV2Doc>('invoice.v2.json');
   const accepted = (doc: unknown) => BtpInvoiceV2DocSchema.safeParse(doc).success;
   const withCell = (value: unknown) => {
     const doc = invoice();
-    doc.lineItems.rows[0].Tax = value;
-    return doc;
+    const [first, ...rest] = doc.lineItems.rows;
+    return { ...doc, lineItems: { ...doc.lineItems, rows: [{ ...first, Tax: value }, ...rest] } };
+  };
+  const withIssuer = (issuer: Record<string, unknown>) => {
+    const doc = invoice();
+    return { ...doc, issuer: { ...doc.issuer, ...issuer } };
   };
 
   it('carries totalAmount as integer minor units, and refuses 1.0\'s float value', () => {
@@ -238,19 +244,14 @@ describe('the 1.1 invoice: the 1.0 invoice with the changes of 2026-10-16', () =
 
   it('refuses an identifier key without a namespace, or with more than one', () => {
     for (const key of ['abn', 'au:abn:extra', ':abn', 'au:', 'au abn']) {
-      const doc = invoice();
-      doc.issuer.identifiers = { [key]: '51824753556' };
-      expect(accepted(doc), key).toBe(false);
+      expect(accepted(withIssuer({ identifiers: { [key]: '51824753556' } })), key).toBe(false);
     }
-    const doc = invoice();
-    doc.issuer.identifiers = { 'gb:vat': 'GB123456789', 'eu:vat': 'DE123456789' };
-    expect(accepted(doc)).toBe(true);
+    const identifiers = { 'gb:vat': 'GB123456789', 'eu:vat': 'DE123456789' };
+    expect(accepted(withIssuer({ identifiers }))).toBe(true);
   });
 
   it('refuses an issuer email that is not an email address', () => {
-    const doc = invoice();
-    doc.issuer.email = 'not an email';
-    expect(accepted(doc)).toBe(false);
+    expect(accepted(withIssuer({ email: 'not an email' }))).toBe(false);
   });
 
   it('carries metadata exactly as given, and refuses it over its caps', () => {
@@ -302,15 +303,13 @@ describe('the 1.1 invoice: the 1.0 invoice with the changes of 2026-10-16', () =
     for (const [field, value] of Object.entries(removed)) {
       expect(accepted({ ...invoice(), [field]: value }), field).toBe(false);
     }
-    const structured = invoice();
-    structured.lineItems = [{ description: 'x', taxCategory: 'GST10' }];
+    const structured = { ...invoice(), lineItems: [{ description: 'x', taxCategory: 'GST10' }] };
     expect(accepted(structured)).toBe(false);
   });
 });
 
 describe('the 1.1 credit note: the 1.1 invoice shape (2026-10-16, #31)', () => {
-  type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-  const creditNote = (): Doc => load('credit-note.v2.json');
+  const creditNote = () => loadAs<BTPCreditNoteDoc>('credit-note.v2.json');
   const accepted = (doc: unknown) => BtpCreditNoteDocSchema.safeParse(doc).success;
 
   it("carries the invoice's table, issuer and a credits reference, with tax in the columns", () => {
@@ -332,7 +331,7 @@ describe('the 1.1 credit note: the 1.1 invoice shape (2026-10-16, #31)', () => {
   });
 
   it('accepts attachments, metadata and a description, as on the invoice', () => {
-    const invoice = load('invoice.v2.json') as Doc;
+    const invoice = loadAs<BTPInvoiceV2Doc>('invoice.v2.json');
     const doc = {
       ...creditNote(),
       attachments: invoice.attachments,
@@ -367,9 +366,8 @@ describe('the 1.1 credit note: the 1.1 invoice shape (2026-10-16, #31)', () => {
   });
 
   it('requires a non-empty title', () => {
-    const doc = creditNote();
-    delete doc.title;
-    expect(accepted(doc)).toBe(false);
+    const { title: _title, ...untitled } = creditNote();
+    expect(accepted(untitled)).toBe(false);
     expect(accepted({ ...creditNote(), title: '' })).toBe(false);
   });
 
@@ -396,17 +394,19 @@ describe('the 1.1 credit note: the 1.1 invoice shape (2026-10-16, #31)', () => {
     for (const [field, value] of Object.entries(removed)) {
       expect(accepted({ ...creditNote(), [field]: value }), field).toBe(false);
     }
-    const structured = creditNote();
-    structured.lineItems = [
-      {
-        description: 'Partial credit',
-        quantity: '1',
-        unitPrice: { amount: 20000, currency: 'AUD' },
-        lineTotal: { amount: 20000, currency: 'AUD' },
-        taxAmount: { amount: 2000, currency: 'AUD' },
-        taxCategory: 'GST10',
-      },
-    ];
+    const structured = {
+      ...creditNote(),
+      lineItems: [
+        {
+          description: 'Partial credit',
+          quantity: '1',
+          unitPrice: { amount: 20000, currency: 'AUD' },
+          lineTotal: { amount: 20000, currency: 'AUD' },
+          taxAmount: { amount: 2000, currency: 'AUD' },
+          taxCategory: 'GST10',
+        },
+      ],
+    };
     expect(accepted(structured)).toBe(false);
   });
 });
