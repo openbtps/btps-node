@@ -45,6 +45,11 @@ import type { Decrypter } from '../src/decrypter-interface.js';
 import { PemDecrypter } from '../src/pem-decrypter.js';
 import { KmsDecrypter, type KmsDecryptClient } from '../src/kms-decrypter.js';
 
+// The two tests that spawn a real `tsc` can pass 5 s under a parallel CI
+// run, so they get 30 s each, as in signer-conformance.test.ts. The tsc
+// child is killed first, so a hung compiler fails the spawn, not the test.
+const TSC_SPAWN_TIMEOUT_MS = 25000;
+
 interface EncryptionVector {
   algorithm: string;
   publicKeyPem: string;
@@ -339,11 +344,15 @@ describe('AC6: KmsDecrypter exposes no private key material (T-27)', () => {
     );
 
     const tscBin = join(process.cwd(), 'node_modules', '.bin', 'tsc');
-    const result = spawnSync(tscBin, ['-p', tsconfigPath], { encoding: 'utf8' });
+    const result = spawnSync(tscBin, ['-p', tsconfigPath], {
+      encoding: 'utf8',
+      timeout: TSC_SPAWN_TIMEOUT_MS,
+    });
 
+    expect(result.error).toBeUndefined();
     expect(result.stdout + result.stderr).toBe('');
     expect(result.status).toBe(0);
-  });
+  }, 30000);
 });
 
 describe('AC4: src/decrypter-interface.ts is runtime-agnostic', () => {
@@ -387,9 +396,13 @@ describe('AC4: src/decrypter-interface.ts is runtime-agnostic', () => {
     );
 
     const tscBin = join(process.cwd(), 'node_modules', '.bin', 'tsc');
-    const result = spawnSync(tscBin, ['-p', tsconfigPath], { encoding: 'utf8' });
+    const result = spawnSync(tscBin, ['-p', tsconfigPath], {
+      encoding: 'utf8',
+      timeout: TSC_SPAWN_TIMEOUT_MS,
+    });
 
+    expect(result.error).toBeUndefined();
     expect(result.stdout + result.stderr).toBe('');
     expect(result.status).toBe(0);
-  });
+  }, 30000);
 });
