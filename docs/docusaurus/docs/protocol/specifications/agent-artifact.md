@@ -108,6 +108,8 @@ Agent artifacts (`BTPAgentArtifact`) are designed for client-to-server communica
 
 **`artifact.send`** - Used to send artifacts to other organizations.
 
+**`event.send`** - Used to send a lifecycle event (paid, partially paid, disputed, refund requested, refund, response) about an invoice, carried as a `BTPS_EVENT`.
+
 ## Supported Document Types
 
 ### 1. Authentication Request Document (`auth.request`)
@@ -288,7 +290,7 @@ Used to create or update draft documents.
 
 **Required Fields:**
 
-- **type**: Document type (TRUST_REQ, TRUST_RES, BTPS_DOC)
+- **type**: Document type (TRUST_REQ, TRUST_RES, BTPS_DOC, BTPS_EVENT)
 - **document**: Document content matching the specified type
 
 ### 8. IDs Payload Document (`inbox.delete`, `sentbox.delete`, `draft.delete`, `trash.delete`)

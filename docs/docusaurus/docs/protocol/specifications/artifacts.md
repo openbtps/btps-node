@@ -67,7 +67,7 @@ The BTPS protocol defines several types of artifacts that serve different purpos
 - **Document Management**: `inbox.fetch`, `outbox.fetch`, `sentbox.fetch`, `draft.fetch`
 - **Authentication**: `auth.request`, `auth.refresh`
 - **System Operations**: `system.ping`
-- **Artifact Operations**: `artifact.send`
+- **Artifact Operations**: `artifact.send`, `event.send`
 
 **Security Features**:
 

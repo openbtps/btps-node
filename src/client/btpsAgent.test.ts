@@ -726,6 +726,23 @@ describe('BtpsAgent', () => {
         expect.any(Object),
       );
     });
+
+    it("should map event.send to BTPS_EVENT, carried under the event's own id", async () => {
+      const event: BTPDocType = {
+        type: 'lifecycle_event',
+        id: '7f1c1f0e-3b9a-4c2e-9a51-2f8f0b1d6c11',
+        occurredAt: '2024-01-05T00:00:00.000Z',
+        document: { from: 'bob$company.com', id: 'INV-001', sha256: 'c'.repeat(64) },
+        eventType: 'paid',
+      };
+
+      await agent.command('event.send', 'bob$company.com', event);
+
+      expect(mockCrypto.signBtpPayload).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'BTPS_EVENT', id: event.id }),
+        expect.any(Object),
+      );
+    });
   });
 
   describe('destroy method', () => {

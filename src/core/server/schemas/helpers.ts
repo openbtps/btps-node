@@ -13,10 +13,16 @@ import {
   BtpAgentQuerySchema,
   BtpAgentCreateSchema,
 } from './schema.js';
-import { BTPArtifactType, AgentAction, AgentActionRequiringDocument } from '../types.js';
+import {
+  BTPArtifactType,
+  AgentAction,
+  AgentActionRequiringDocument,
+  BTPLifecycleEvent,
+} from '../types.js';
 import {
   BtpAuthReqDocSchema,
   BtpInvoiceDocSchema,
+  BtpLifecycleEventSchema,
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
 } from './btpsDocsSchema.js';
@@ -29,9 +35,28 @@ export const processBtpDocSchema = (bptArtifactType: BTPArtifactType) => {
       return BtpTrustReqDocSchema;
     case 'BTPS_DOC':
       return BtpInvoiceDocSchema;
+    case 'BTPS_EVENT':
+      return BtpLifecycleEventSchema;
     default:
       return null;
   }
+};
+
+/**
+ * The rules between a lifecycle event and the `BTPS_EVENT` that carries it:
+ * the event's `id` is the artifact's `id`, and the invoice it is about was
+ * sent between the same two parties (`document.from` is the artifact's
+ * `from` or `to`). Returns what is wrong, or undefined.
+ */
+export const lifecycleEventEnvelopeProblem = (
+  event: BTPLifecycleEvent,
+  envelope: { id: string; from: string; to: string },
+): string | undefined => {
+  if (event.id !== envelope.id) return "an event's id must be the id of the artifact carrying it";
+  if (event.document.from !== envelope.from && event.document.from !== envelope.to) {
+    return 'an event may only be about an invoice between its own sender and receiver';
+  }
+  return undefined;
 };
 
 // Helper function to process document schema based on action type
@@ -42,6 +67,7 @@ export const processBtpDocSchemaForAgent = (actionType: string) => {
     'trust.update': BtpAgentMutationSchema,
     'trust.delete': BtpIdsPayloadSchema,
     'artifact.send': BtpInvoiceDocSchema,
+    'event.send': BtpLifecycleEventSchema,
     'auth.request': BtpAuthReqDocSchema,
     'auth.refresh': BtpAuthReqDocSchema,
     'inbox.fetch': BtpAgentQuerySchema,

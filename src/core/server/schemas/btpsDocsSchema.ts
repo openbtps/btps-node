@@ -84,47 +84,117 @@ export const BtpTrustResDocSchema = z.object({
  * optional issuer address and identifiers, references and metadata. Strict:
  * a field it does not name, such as 1.0's `status`, is refused.
  */
-export const BtpInvoiceDocSchema = z.object({
-  type: z.literal('invoice'),
-  title: z.string(),
-  id: z.string(), // the invoice number, unique per sender
-  issuedAt: z.string().datetime(),
-  dueAt: z.string().datetime().optional(),
-  totalAmount: BtpMoneySchema,
-  lineItems: z.object({
-    columns: z.array(z.string()),
-    // A money cell is integer minor units; a decimal (e.g. a quantity) is written as text.
-    rows: z.array(z.record(z.union([z.string(), z.number().int().safe()]))),
-  }),
-  issuer: z
-    .object({
-      name: z.string(),
-      email: z.string().email().optional(),
-      phone: z.string().optional(),
-      address: z.string().optional(),
-      // Company and tax ids by namespaced key, for any country: { "au:abn": "51824753556" }.
-      identifiers: z.record(z.string().regex(/^[a-z0-9_]+:[a-z0-9_]+$/), z.string()).optional(),
-    })
-    .optional(),
-  paymentLink: z
-    .object({
-      linkText: z.string(),
-      url: z.string().url(),
-    })
-    .optional(),
-  description: z.string().optional(),
-  attachments: z.array(BtpAttachmentSchema).optional(),
-  // Links to other documents, e.g. the invoice a corrected one replaces (`correction_of`).
-  references: z.array(BtpDocReferenceSchema).optional(),
-  template: z
-    .object({
-      name: z.string(),
-      data: z.record(z.unknown()),
-    })
-    .optional(),
-  // The sending platform's own data: carried and signed, never read by the protocol.
-  metadata: z.record(z.unknown()).optional(),
-}).strict();
+export const BtpInvoiceDocSchema = z
+  .object({
+    type: z.literal('invoice'),
+    title: z.string(),
+    id: z.string(), // the invoice number, unique per sender
+    issuedAt: z.string().datetime(),
+    dueAt: z.string().datetime().optional(),
+    totalAmount: BtpMoneySchema,
+    lineItems: z.object({
+      columns: z.array(z.string()),
+      // A money cell is integer minor units; a decimal (e.g. a quantity) is written as text.
+      rows: z.array(z.record(z.union([z.string(), z.number().int().safe()]))),
+    }),
+    issuer: z
+      .object({
+        name: z.string(),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
+        address: z.string().optional(),
+        // Company and tax ids by namespaced key, for any country: { "au:abn": "51824753556" }.
+        identifiers: z.record(z.string().regex(/^[a-z0-9_]+:[a-z0-9_]+$/), z.string()).optional(),
+      })
+      .optional(),
+    paymentLink: z
+      .object({
+        linkText: z.string(),
+        url: z.string().url(),
+      })
+      .optional(),
+    description: z.string().optional(),
+    attachments: z.array(BtpAttachmentSchema).optional(),
+    // Links to other documents, e.g. the invoice a corrected one replaces (`correction_of`).
+    references: z.array(BtpDocReferenceSchema).optional(),
+    template: z
+      .object({
+        name: z.string(),
+        data: z.record(z.unknown()),
+      })
+      .optional(),
+    // The sending platform's own data: carried and signed, never read by the protocol.
+    metadata: z.record(z.unknown()).optional(),
+  })
+  .strict();
+
+/*
+ * A lifecycle event: what a `BTPS_EVENT` carries. The payer proposes (paid,
+ * partially paid, disputed, refund requested); the biller answers with a
+ * `response` or a `refund`; an invoice's status comes from accepted events.
+ * Each event type is its own strict object, so `inReplyTo` is allowed only
+ * on the replies, `refund` and `response`, where it is required.
+ */
+const lifecycleEventFields = {
+  type: z.literal('lifecycle_event'),
+  id: z.string().uuid(), // the id of the BTPS_EVENT that carries it
+  occurredAt: z.string().datetime(),
+  // The invoice the event is about.
+  document: BtpDocReferenceSchema.omit({ type: true }),
+  // Free text for the other party.
+  message: z.string().optional(),
+};
+
+/** An amount an event states: money in minor units, more than zero. */
+const BtpEventAmountSchema = BtpMoneySchema.extend({
+  amount: z.number().int().safe().positive(),
+});
+
+export const BtpLifecycleEventSchema = z
+  .discriminatedUnion('eventType', [
+    z.object({ ...lifecycleEventFields, eventType: z.literal('paid') }).strict(),
+    z
+      .object({
+        ...lifecycleEventFields,
+        eventType: z.literal('partially_paid'),
+        amount: BtpEventAmountSchema,
+      })
+      .strict(),
+    z
+      .object({
+        ...lifecycleEventFields,
+        eventType: z.literal('disputed'),
+        // `rejected`, `amount_wrong`, `not_as_agreed`, or a platform's own code under a prefix.
+        reason: z.string().regex(/^[a-z0-9_]+(:[a-z0-9_]+)?$/, 'must be a bare or prefixed code'),
+      })
+      .strict(),
+    z.object({ ...lifecycleEventFields, eventType: z.literal('refund_requested') }).strict(),
+    z
+      .object({
+        ...lifecycleEventFields,
+        eventType: z.literal('refund'),
+        amount: BtpEventAmountSchema,
+        inReplyTo: z.string().uuid(), // the refund_requested it answers
+      })
+      .strict(),
+    z
+      .object({
+        ...lifecycleEventFields,
+        eventType: z.literal('response'),
+        decision: z.enum(['accepted', 'rejected']),
+        inReplyTo: z.string().uuid(), // the event it answers
+        // On an accepted partially_paid: the agreed due date for the rest.
+        remainingDueDate: z.string().datetime().optional(),
+      })
+      .strict(),
+  ])
+  .refine(
+    (event) =>
+      event.eventType !== 'response' ||
+      event.remainingDueDate === undefined ||
+      event.decision === 'accepted',
+    { message: 'remainingDueDate is only on an accepted response', path: ['remainingDueDate'] },
+  );
 
 // Schema for BTPAuthReqDoc (used in agent artifacts)
 export const BtpAuthReqDocSchema = z.object({
@@ -153,4 +223,5 @@ export const BtpDocSchema = z.union([
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
   BtpInvoiceDocSchema,
+  BtpLifecycleEventSchema,
 ]);

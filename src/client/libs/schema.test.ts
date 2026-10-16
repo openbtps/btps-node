@@ -997,3 +997,120 @@ describe('BtpsAgent Schema Validation', () => {
     });
   });
 });
+
+describe('lifecycle events (BTPS_EVENT)', () => {
+  const biller = 'billing$acme.com';
+  const payer = 'pay$client.com';
+  const invoice = { from: biller, id: 'INV-001', sha256: 'd'.repeat(64) };
+  const proposalId = '0b6f4b5e-5d0a-4c4e-8f43-2a7d3a1f9e01';
+  const replyId = '1c7e5c6f-6e1b-4d5f-9a54-3b8e4b2a0f12';
+
+  const event = (fields: Record<string, unknown>) => ({
+    type: 'lifecycle_event',
+    id: proposalId,
+    occurredAt: new Date().toISOString(),
+    document: invoice,
+    ...fields,
+  });
+  // The event in a BTPS_EVENT, from `from` to `to`, under the artifact id `id`.
+  const carried = (document: Record<string, unknown>, from = payer, to = biller) =>
+    BtpTransporterArtifactSchema.safeParse({
+      version: '1.0.0',
+      issuedAt: new Date().toISOString(),
+      id: document.id,
+      type: 'BTPS_EVENT',
+      from,
+      to,
+      signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
+      encryption: null,
+      selector: 'btps1',
+      document,
+    }).success;
+  const amount = { amount: 50000, currency: 'AUD' };
+
+  it('carries each event type', () => {
+    expect(carried(event({ eventType: 'paid' }))).toBe(true);
+    expect(carried(event({ eventType: 'partially_paid', amount }))).toBe(true);
+    expect(carried(event({ eventType: 'disputed', reason: 'amount_wrong' }))).toBe(true);
+    expect(carried(event({ eventType: 'disputed', reason: 'acme:late_delivery' }))).toBe(true);
+    expect(carried(event({ eventType: 'refund_requested' }))).toBe(true);
+    const reply = { id: replyId, inReplyTo: proposalId };
+    expect(carried(event({ ...reply, eventType: 'refund', amount }), biller, payer)).toBe(true);
+    expect(
+      carried(
+        event({
+          ...reply,
+          eventType: 'response',
+          decision: 'accepted',
+          remainingDueDate: new Date().toISOString(),
+          message: 'Balance due by the end of the month',
+        }),
+        biller,
+        payer,
+      ),
+    ).toBe(true);
+  });
+
+  it('requires inReplyTo on a reply and refuses it on a proposal', () => {
+    expect(carried(event({ eventType: 'paid', inReplyTo: replyId }))).toBe(false);
+    expect(carried(event({ id: replyId, eventType: 'response', decision: 'accepted' }))).toBe(
+      false,
+    );
+    expect(carried(event({ id: replyId, eventType: 'refund', amount }))).toBe(false);
+  });
+
+  it('states amounts as positive whole minor units', () => {
+    expect(
+      carried(event({ eventType: 'partially_paid', amount: { amount: 0, currency: 'AUD' } })),
+    ).toBe(false);
+    expect(
+      carried(event({ eventType: 'partially_paid', amount: { amount: 500.5, currency: 'AUD' } })),
+    ).toBe(false);
+    expect(carried(event({ eventType: 'partially_paid' }))).toBe(false);
+  });
+
+  it('allows remainingDueDate only on an accepted response', () => {
+    const rejected = event({
+      id: replyId,
+      inReplyTo: proposalId,
+      eventType: 'response',
+      decision: 'rejected',
+      remainingDueDate: new Date().toISOString(),
+    });
+    expect(carried(rejected, biller, payer)).toBe(false);
+  });
+
+  it('is carried under its own id, about an invoice between the two parties', () => {
+    const paid = event({ eventType: 'paid' });
+    expect(
+      BtpTransporterArtifactSchema.safeParse({
+        version: '1.0.0',
+        issuedAt: new Date().toISOString(),
+        id: replyId,
+        type: 'BTPS_EVENT',
+        from: payer,
+        to: biller,
+        signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
+        encryption: null,
+        selector: 'btps1',
+        document: paid,
+      }).success,
+    ).toBe(false);
+    expect(
+      carried(event({ eventType: 'paid', document: { ...invoice, from: 'someone$else.com' } })),
+    ).toBe(false);
+  });
+
+  it('refuses an invoice sent as BTPS_EVENT', () => {
+    expect(
+      carried({
+        type: 'invoice',
+        id: proposalId,
+        title: 'INV-001',
+        issuedAt: new Date().toISOString(),
+        totalAmount: amount,
+        lineItems: { columns: [], rows: [] },
+      }),
+    ).toBe(false);
+  });
+});

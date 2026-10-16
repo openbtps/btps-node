@@ -734,6 +734,26 @@ interface BTPInvoiceDoc {
 }
 ```
 
+### BTPLifecycleEvent
+
+A lifecycle event: what a `BTPS_EVENT` carries. Its `id` is the carrying artifact's `id`; replies name the event they answer in `inReplyTo` (see the Transporter Artifact specification, Lifecycle Event). Shown here as one interface; the SDK types it as a union by `eventType`, so each event type has exactly its own fields.
+
+```ts
+interface BTPLifecycleEvent {
+  type: 'lifecycle_event';
+  id: string; // a random UUID, the carrying artifact's id
+  occurredAt: string; // ISO format
+  document: { from: string; id: string; sha256: string }; // the invoice it is about
+  eventType: 'paid' | 'partially_paid' | 'disputed' | 'refund_requested' | 'refund' | 'response';
+  amount?: { amount: number; currency: CurrencyCode }; // partially_paid, refund: minor units, more than zero
+  reason?: string; // disputed: rejected | amount_wrong | not_as_agreed | a prefixed code
+  decision?: 'accepted' | 'rejected'; // response
+  inReplyTo?: string; // refund, response: the id of the event answered
+  remainingDueDate?: string; // an accepted response to a partially_paid
+  message?: string; // free text for the other party
+}
+```
+
 ---
 
 ## Client Types
@@ -1341,7 +1361,7 @@ interface BTPAgentQuery {
 Generic document type.
 
 ```ts
-type BTPDocType = BTPInvoiceDoc | BTPTrustReqDoc | BTPTrustResDoc;
+type BTPDocType = BTPInvoiceDoc | BTPLifecycleEvent | BTPTrustReqDoc | BTPTrustResDoc;
 ```
 
 ### BTPStringQueryFilter
@@ -1504,7 +1524,8 @@ type AgentAction =
   | 'system.ping'
   | 'auth.request'
   | 'auth.refresh'
-  | 'artifact.send';
+  | 'artifact.send'
+  | 'event.send';
 ```
 
 ### AgentActionRequiringDocument
@@ -1518,6 +1539,7 @@ type AgentActionRequiringDocument =
   | 'trust.update'
   | 'trust.delete'
   | 'artifact.send'
+  | 'event.send'
   | 'auth.request'
   | 'auth.refresh'
   | 'inbox.seen'
@@ -1535,7 +1557,7 @@ type AgentActionRequiringDocument =
 Artifact type identifiers.
 
 ```ts
-type BTPArtifactType = 'TRUST_REQ' | 'TRUST_RES' | 'BTPS_DOC';
+type BTPArtifactType = 'TRUST_REQ' | 'TRUST_RES' | 'BTPS_DOC' | 'BTPS_EVENT';
 ```
 
 ### CurrencyCode
