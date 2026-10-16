@@ -104,14 +104,19 @@ describe('utils/index', () => {
     // Fix list 1 (EBA-442): a resolver reports an absent record by rejecting
     // with ENOTFOUND or ENODATA. That is "no record", which sends the client
     // to the address's host; any other failure is still an error.
-    it.each(['ENOTFOUND', 'ENODATA'])('returns undefined when the record is absent (%s)', async (code) => {
-      mockDns.mockRejectedValue(Object.assign(new Error(`queryTxt ${code}`), { code }));
-      await expect(getDnsIdentityParts('test$example.com', 'btps1')).resolves.toBeUndefined();
-      await expect(resolvePublicKey('test$example.com', 'btps1')).resolves.toBeUndefined();
-    });
+    it.each(['ENOTFOUND', 'ENODATA'])(
+      'returns undefined when the record is absent (%s)',
+      async (code) => {
+        mockDns.mockRejectedValue(Object.assign(new Error(`queryTxt ${code}`), { code }));
+        await expect(getDnsIdentityParts('test$example.com', 'btps1')).resolves.toBeUndefined();
+        await expect(resolvePublicKey('test$example.com', 'btps1')).resolves.toBeUndefined();
+      },
+    );
 
     it('still throws when DNS fails for another reason', async () => {
-      mockDns.mockRejectedValue(Object.assign(new Error('queryTxt ESERVFAIL'), { code: 'ESERVFAIL' }));
+      mockDns.mockRejectedValue(
+        Object.assign(new Error('queryTxt ESERVFAIL'), { code: 'ESERVFAIL' }),
+      );
       await expect(getDnsIdentityParts('test$example.com', 'btps1')).rejects.toBeDefined();
     });
 

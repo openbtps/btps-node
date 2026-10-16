@@ -606,7 +606,11 @@ describe('identity lookup end to end: BtpsClient and BtpsServer over TLS', () =>
     });
 
   const sender = () =>
-    new BtpsClient({ to: USER_IDENTITY, btpMtsOptions: { ca: tlsCert }, connectionTimeoutMs: 5000 });
+    new BtpsClient({
+      to: USER_IDENTITY,
+      btpMtsOptions: { ca: tlsCert },
+      connectionTimeoutMs: 5000,
+    });
 
   it('an address with no DNS record is found through its host, and the signed answer verifies', async () => {
     const store = await jsonStore([{ identity: USER_IDENTITY, keys: aliceKeys }]);
