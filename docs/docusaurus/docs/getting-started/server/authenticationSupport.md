@@ -40,7 +40,7 @@ const trustStore = new JsonTrustStore({
 });
 
 // One token store, shared: the platform issues registration tokens into it,
-// and the server consumes them (BTPS 1.1, item E).
+// and the server consumes them (BTPS 1.1 device registration).
 const tokenStore = new InMemoryTokenStore();
 
 const server = new BtpsServer({
@@ -142,7 +142,7 @@ async function handleAuthRefresh(artifact, resCtx, auth, server) {
 ### Step 4: Device registration
 
 A device registers with a one-time **registration token** that your platform
-issues to the signed-in owner of the identity (BTPS 1.1, item E). Issue it
+issues to the signed-in owner of the identity (BTPS 1.1). Issue it
 into the token store the server was given:
 
 ```typescript

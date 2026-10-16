@@ -190,7 +190,7 @@ field.
 ## Credit note
 
 `BtpCreditNoteDocSchema`, type `BTPCreditNoteDoc`. **The 1.1 credit note
-takes the 1.1 invoice's shape** (decided 2026-10-16, EBA-119): the same
+takes the 1.1 invoice's shape** (decided 2026-10-16, #31): the same
 line-item table, issuer, attachments and metadata, built from the same
 schemas, so the two cannot drift.
 
@@ -447,5 +447,5 @@ invoice (no `schemaVersion` or `type`, `totalAmount.value` as a float,
 `schemaVersion` and `type`, writing amounts in minor units, dropping the
 status fields and turning `attachment` into `attachments`; the line-item
 table and the other fields stay as they are. There is no independent BTPS provider yet, so the break costs
-nothing now (release plan, section 6). The golden vectors for this page are
+nothing now. The golden vectors for this page are
 `test/vectors/document-model.vectors.json` and `test/vectors/documents/`.

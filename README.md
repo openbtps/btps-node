@@ -31,7 +31,7 @@ Read:
 
 - the [changelog](CHANGELOG.md): every change, what breaks, and how to upgrade from 1.0;
 - the [specification](docs/docusaurus/docs/protocol/specifications/overview.md);
-- the [golden vectors](test/vectors/) (set 1.1.1, [manifest](test/vectors/manifest.json)), and [how to run them against your implementation](docs/docusaurus/docs/protocol/specifications/golden-vectors.md).
+- the [golden vectors](test/vectors/) (set 1.1.2, [manifest](test/vectors/manifest.json)), and [how to run them against your implementation](docs/docusaurus/docs/protocol/specifications/golden-vectors.md).
 
 ---
 
