@@ -90,6 +90,14 @@ export interface AuthValidationResult {
 }
 
 /**
+ * What `TokenStore.consume` found (item E, EBA-113).
+ */
+export type BTPTokenConsumeResult<T extends BTPsTokenDocument = BTPsTokenDocument> =
+  | { status: 'consumed'; record: T }
+  | { status: 'used' }
+  | { status: 'invalid' };
+
+/**
  * Refresh token store interface for storing and retrieving refresh tokens
  */
 export interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
@@ -106,6 +114,15 @@ export interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
   get(agentId: string, token: string): Promise<T | undefined>;
   /** Remove a refresh token */
   remove(agentId: string, token: string): Promise<void>;
+  /**
+   * Take a token, once (item E, EBA-113). Atomic: of any number of calls
+   * racing for the same unexpired token, exactly one gets `consumed`, and
+   * the token is gone for every later `get` and `consume`. A token that was
+   * consumed before answers `used` until it would have expired; an unknown
+   * or expired token answers `invalid`. A store that cannot remember
+   * consumed tokens may answer `invalid` for one: it is still refused.
+   */
+  consume(agentId: string, token: string): Promise<BTPTokenConsumeResult<T>>;
   /** Clean up expired tokens */
   cleanup(): Promise<void>;
 }

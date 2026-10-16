@@ -6,7 +6,7 @@
  */
 
 import { computeTrustId } from '@core/trust/index.js';
-import { TokenStore, BTPsTokenDocument } from '../types.js';
+import type { TokenStore, BTPsTokenDocument, BTPTokenConsumeResult } from '../types.js';
 
 /**
  * In-memory implementation of RefreshTokenStore for storing refresh tokens
@@ -16,6 +16,8 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
   implements TokenStore<T>
 {
   private tokens = new Map<string, T>();
+  /** Consumed tokens, by key, with the time each would have expired. */
+  private consumed = new Map<string, number>();
 
   /**
    * Store a refresh token in memory
@@ -91,6 +93,29 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
   }
 
   /**
+   * Take a token, once (item E). The check and the delete run with no await
+   * between them, so of concurrent calls exactly one gets `consumed`. A
+   * consumed token is remembered until it would have expired, to answer
+   * `used` rather than `invalid`.
+   */
+  async consume(agentId: string, token: string): Promise<BTPTokenConsumeResult<T>> {
+    const key = this.makeKey(agentId, token);
+    const now = Date.now();
+    const usedUntil = this.consumed.get(key);
+    if (usedUntil !== undefined) {
+      if (now <= usedUntil) return { status: 'used' };
+      this.consumed.delete(key);
+    }
+    const record = this.tokens.get(key);
+    if (!record) return { status: 'invalid' };
+    this.tokens.delete(key);
+    const expiresAt = Date.parse(record.expiresAt);
+    if (now > expiresAt) return { status: 'invalid' };
+    this.consumed.set(key, expiresAt);
+    return { status: 'consumed', record };
+  }
+
+  /**
    * Clean up expired tokens from storage
    */
   async cleanup(): Promise<void> {
@@ -108,6 +133,10 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
     for (const token of expiredTokens) {
       this.tokens.delete(token);
     }
+
+    for (const [key, usedUntil] of this.consumed.entries()) {
+      if (now.getTime() > usedUntil) this.consumed.delete(key);
+    }
   }
 
   /**
@@ -122,5 +151,6 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
    */
   clear(): void {
     this.tokens.clear();
+    this.consumed.clear();
   }
 }
