@@ -18,7 +18,11 @@ import {
   BTPS_DNS_IDENTITY_NAME_SPACE,
 } from '@core/server/constants/btps-protocol.js';
 import { createHash } from 'crypto';
-import { transformToBTPErrorException } from '@core/error/index.js';
+import {
+  BTP_ERROR_RESOLVE_PUBKEY,
+  BTPErrorException,
+  transformToBTPErrorException,
+} from '@core/error/index.js';
 
 export * from './types.js';
 export * from './money.js';
@@ -56,6 +60,28 @@ export function base64ToPem(base64: string): string {
   return ['-----BEGIN PUBLIC KEY-----', ...lines, '-----END PUBLIC KEY-----'].join('\n');
 }
 
+/**
+ * Reads a BTPS TXT record's `tag=value` pairs, separated by `;`. Each pair
+ * is split on its first `=` only: a base64 value keeps its padding (fix
+ * list 9, EBA-186).
+ */
+export const parseBtpsTxtRecord = (record: string): Record<string, string> => {
+  const tags: Record<string, string> = {};
+  for (const pair of record.split(';')) {
+    const at = pair.indexOf('=');
+    if (at <= 0) continue;
+    const tag = pair.slice(0, at).trim();
+    if (tag) tags[tag] = pair.slice(at + 1).trim();
+  }
+  return tags;
+};
+
+/** True when a resolver's error means the name has no record, as opposed to a failed lookup. */
+const isNoDnsRecord = (error: unknown): boolean => {
+  const code = (error as { code?: unknown } | null)?.code;
+  return code === 'ENOTFOUND' || code === 'ENODATA';
+};
+
 export const getHostAndSelector = async (
   identity: string,
 ): Promise<{ version: string; host: string; selector: string } | undefined> => {
@@ -72,18 +98,7 @@ export const getHostAndSelector = async (
       return undefined;
     }
 
-    const flat = txtRecords.map((r) => r.join('')).join('');
-    const parts = Object.fromEntries(
-      flat
-        .split(';')
-        .map((s) =>
-          s
-            .trim()
-            .split('=')
-            .map((p) => p.trim()),
-        )
-        .filter((pair) => pair.length === 2),
-    );
+    const parts = parseBtpsTxtRecord(txtRecords.map((r) => r.join('')).join(''));
 
     if (!parts['v'] || !parts['u'] || !parts['s']) return undefined;
 
@@ -117,42 +132,40 @@ export const getDnsIdentityParts = async (
 
   const dnsName = `${selector}.${BTPS_DNS_IDENTITY_NAME_SPACE}.${accountName}.${domainName}`;
 
+  let txtRecords: string[][];
   try {
-    const txtRecords = await resolveTxt(dnsName);
-    if (!txtRecords.length) {
-      return undefined;
-    }
-
-    const flat = txtRecords.map((r) => r.join('')).join('');
-
-    const parts = Object.fromEntries(
-      flat
-        .split(';')
-        .map((s) =>
-          s
-            .trim()
-            .split('=')
-            .map((p) => p.trim()),
-        )
-        .filter((pair) => pair.length === 2),
-    );
-
-    if (!type) {
-      return {
-        key: parts['k'],
-        version: parts['v'],
-        pem: base64ToPem(parts['p']),
-      };
-    }
-
-    if (type === 'pem') {
-      return base64ToPem(parts['p']);
-    }
-
-    return parts[typeMap[type]];
+    txtRecords = await resolveTxt(dnsName);
   } catch (error: unknown) {
+    // No record is an answer, not a failure: the caller may ask the host (fix list 1).
+    if (isNoDnsRecord(error)) return undefined;
     throw transformToBTPErrorException(error);
   }
+  if (!txtRecords.length) {
+    return undefined;
+  }
+
+  const parts = parseBtpsTxtRecord(txtRecords.map((r) => r.join('')).join(''));
+
+  if (type === 'key' || type === 'version') {
+    return parts[typeMap[type]];
+  }
+
+  if (!parts['p']) {
+    throw new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
+      cause: `The identity record at ${dnsName} has no p= tag`,
+      meta: { dnsName },
+    });
+  }
+
+  if (type === 'pem') {
+    return base64ToPem(parts['p']);
+  }
+
+  return {
+    key: parts['k'],
+    version: parts['v'],
+    pem: base64ToPem(parts['p']),
+  };
 };
 
 export const getBtpAddressParts = (input: string): URL | null => {
