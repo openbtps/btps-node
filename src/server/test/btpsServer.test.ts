@@ -428,6 +428,14 @@ describe('BtpsServer', () => {
       // We can't directly test the private _forwardArtifact method, but we can verify the method doesn't throw
       expect(handler).toBeDefined();
     });
+
+    it('refuses a line that names a member twice as invalid JSON', () => {
+      const line = '{"version":"1.0.0","id":"c-1","action":"PING"}';
+      const duplicated = '{"version":"1.0.0","id":"c-1","action":"PING","action":"QUIT"}';
+
+      expect(server['_parseAndValidateArtifact'](line).error).not.toBe('JSON');
+      expect(server['_parseAndValidateArtifact'](duplicated)).toEqual({ error: 'JSON' });
+    });
   });
 
   describe('Response Generation', () => {

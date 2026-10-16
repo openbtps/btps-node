@@ -25,8 +25,10 @@ import {
 } from '@core/error/constant.js';
 
 import { BTPErrorException } from '@core/error/index.js';
+import { canonicalize, canonicalizeValue } from './jcs.js';
 
 export * from './decryptVerify.js';
+export * from './jcs.js';
 export * from './signEncrypt.js';
 export * from './keygen.js';
 export * from './types.js';
@@ -170,12 +172,19 @@ export const getFingerprintFromPem = (pem: string, hashAlgorithm = 'sha256'): st
   return crypto.createHash(hashAlgorithm).update(der).digest('base64');
 };
 
+/** The bytes a signature covers: the RFC 8785 canonical form of the payload. */
+const signedBytes = (payload: unknown): Buffer =>
+  Buffer.from(
+    typeof payload === 'string' ? canonicalize(payload) : canonicalizeValue(payload),
+    'utf8',
+  );
+
 export const signBtpPayload = (payload: unknown = '', senderPemFiles: PemKeys): BTPSignature => {
-  const stringifiedPayload = typeof payload !== 'string' ? JSON.stringify(payload) : payload;
+  const canonicalPayload = signedBytes(payload);
   const { publicKey, privateKey } = senderPemFiles;
   const algorithmHash: SignatureAlgorithmHash = 'sha256';
 
-  const signature = crypto.sign('sha256', Buffer.from(stringifiedPayload, 'utf8'), privateKey);
+  const signature = crypto.sign('sha256', canonicalPayload, privateKey);
   const senderFingerprint = getFingerprintFromPem(publicKey, 'sha256');
 
   return {
@@ -190,7 +199,19 @@ export const verifySignature = (
   signature: BTPSignature,
   senderPubKey: string,
 ): { isValid: boolean; error?: BTPErrorException } => {
-  const stringifiedPayload = typeof payload !== 'string' ? JSON.stringify(payload) : payload;
+  let canonicalPayload: Buffer;
+  try {
+    canonicalPayload = signedBytes(payload);
+  } catch (error) {
+    // A payload with no canonical form (e.g. a duplicate member) never verifies.
+    return {
+      isValid: false,
+      error:
+        error instanceof BTPErrorException
+          ? error
+          : new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, { cause: error }),
+    };
+  }
 
   let senderFingerprint;
   try {
@@ -217,7 +238,7 @@ export const verifySignature = (
 
   const isValid = crypto.verify(
     signature.algorithmHash,
-    Buffer.from(stringifiedPayload, 'utf8'),
+    canonicalPayload,
     senderPubKey,
     Buffer.from(signature.value, 'base64'),
   );
