@@ -9,7 +9,7 @@ import { Transform } from 'stream';
 import { BTPErrorException } from '@core/error/index.js';
 import { BTP_ERROR_ARTIFACT_TOO_LARGE } from '@core/error/constant.js';
 
-/** The largest artifact a server accepts unless it sets `maxArtifactSizeKb`: 5 MB. */
+/** The largest artifact a server can accept unless it sets `maxArtifactSizeKb`: 5 MB. */
 export const DEFAULT_MAX_ARTIFACT_SIZE_KB = 5120;
 
 /** The smallest limit a server may set: 1 MB. */
