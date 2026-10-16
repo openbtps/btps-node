@@ -166,7 +166,7 @@ describe('separate signatureSelector and encryptionSelector', () => {
 
     const { payload, error } = await decryptVerify(
       (await resolveSignatureKey(artifact))!,
-      artifact,
+      { ...artifact },
       (selector) => dns['bob$receiver.example']![selector]?.privateKey,
     );
     expect(error).toBeUndefined();
