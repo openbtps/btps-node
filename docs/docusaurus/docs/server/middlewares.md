@@ -68,7 +68,7 @@ new BtpsServer({
   }),
 });
 
-// Counters in a shared store, for several server instances: any RateLimiter.
+// Counters in a shared store, for several server instances: your own RateLimiter.
 new BtpsServer({ ...options, defaultMiddleware: createDefaultMiddleware({ rateLimiter: myRedisLimiter }) });
 
 // Your own set instead of the defaults:

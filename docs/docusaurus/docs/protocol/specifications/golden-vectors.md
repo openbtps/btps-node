@@ -8,7 +8,7 @@ sidebar_label: Golden Vectors
 The golden vectors are the bytes every BTPS 1.1 implementation must agree
 on: canonical JSON, signatures, key wrapping, documents, lifecycle events,
 replay windows, device registration and refresh, and identity lookup. They are
-published with the release as **vector set 1.1.2**, in
+published with the release as **vector set 1.1.1**, in
 [`test/vectors/`](https://github.com/openbtps/btps-node/tree/master/test/vectors)
 of the btps-node repository, and the
 [1.1.0 changelog entry](https://github.com/openbtps/btps-node/blob/master/CHANGELOG.md)
@@ -22,7 +22,7 @@ not.
 
 | | |
 | --- | --- |
-| Version | `1.1.2`, in `test/vectors/manifest.json`. 1.1.1 is 1.1.0 with the credit note in the 1.1 invoice's shape (#31); 1.1.2 is 1.1.1 with plain-language descriptions and no internal planning labels, every key, signature and document unchanged |
+| Version | `1.1.1`, in `test/vectors/manifest.json`. 1.1.1 is 1.1.0 with the credit note in the 1.1 invoice's shape (#31) |
 | Protocol | BTPS 1.1 |
 | Integrity | `manifest.json` gives the lowercase hex SHA-256 of every vector file |
 | Keys | **Test-only** RSA keys generated locally, committed on purpose. Never use them for anything else |
@@ -142,9 +142,9 @@ and canonical JSON runs the SDK's own `src/core/crypto/jcs.ts`. The crypto
 takes the canonical bytes, as KMS does, so the JCS proven on Hermes is the
 SDK's, not a copy.
 
-What vector set 1.1.0 proved on Hermes, 79 checks, all passing. Sets 1.1.1
-and 1.1.2 were re-run on the same image on 2026-10-16: the same 79 checks,
-all passing, the credit note among the documents.
+What vector set 1.1.0 proved on Hermes, 79 checks, all passing. Set 1.1.1
+was re-run on the same image on 2026-10-16: the same 79 checks, all passing,
+the credit note among the documents.
 
 | Category | Checks | What Hermes did |
 | --- | --- | --- |

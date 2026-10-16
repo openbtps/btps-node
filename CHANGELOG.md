@@ -18,7 +18,7 @@ now; every party upgrades together.
   [Selectors](docs/docusaurus/docs/protocol/specifications/transporter-artifact.md#selectors-btps-11),
   [Timeouts](docs/docusaurus/docs/protocol/specifications/overview.md#timeouts-btps-11),
   [Algorithms](docs/docusaurus/docs/protocol/security/algorithm.md).
-- **Golden vectors:** set 1.1.2 in [`test/vectors/`](test/vectors/), pinned by
+- **Golden vectors:** set 1.1.1 in [`test/vectors/`](test/vectors/), pinned by
   [`test/vectors/manifest.json`](test/vectors/manifest.json); how to run them
   against another implementation is on
   [Golden Vectors](docs/docusaurus/docs/protocol/specifications/golden-vectors.md).
@@ -251,8 +251,4 @@ Each pull request below is stacked on the one before it and merges into
 - **Vectors:** published as set 1.1.0 with a SHA-256 manifest, checked by
   `yarn verify:btps-vectors`. Set 1.1.1 replaces it: the credit note vector
   takes the invoice's shape, with its refusals, and the `taxTotal` cases are
-  gone with `verifyTaxTotal`. Set 1.1.2 replaces 1.1.1 with metadata only:
-  the vector files describe what they cover in plain words and lose their
-  internal planning labels (`item`, `tickets`); every key, signature and
-  document is unchanged. The harness's check ids follow (`sdk/jcs/…`,
-  `sdk/selectors/…`, `sdk/documents/…` and so on).
+  gone with `verifyTaxTotal`.

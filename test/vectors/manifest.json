@@ -1,6 +1,6 @@
 {
   "name": "btps-golden-vectors",
-  "version": "1.1.2",
+  "version": "1.1.1",
   "protocol": "BTPS 1.1",
   "description": "The BTPS 1.1 golden vectors. Every file of the set, with the lowercase hex SHA-256 of its bytes. See docs/docusaurus/docs/protocol/specifications/golden-vectors.md.",
   "hashAlgorithm": "sha256",

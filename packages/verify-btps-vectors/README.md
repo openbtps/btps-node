@@ -34,7 +34,7 @@ devDependency of the repository root). It has been run on Node 24.21.0 only.
 
 | Suite                 | Runs on            | What it shows                                                                                                                                                                                                                                                                                                                                                          |
 | --------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `manifest/…`          | node               | the set is the published one. `test/vectors/manifest.json` names version 1.1.2, and every vector file is present, listed, and has the SHA-256 the manifest gives it. `scripts/vectors-manifest.mjs` checks the same and then runs the harness; `--write` rewrites the manifest for a new set version |
+| `manifest/…`          | node               | the set is the published one. `test/vectors/manifest.json` names version 1.1.1, and every vector file is present, listed, and has the SHA-256 the manifest gives it. `scripts/vectors-manifest.mjs` checks the same and then runs the harness; `--write` rewrites the manifest for a new set version                                                                   |
 | `vectors/<runtime>/…` | node, web, hermes  | JCS (RFC 8785) vectors; managed and self-held signatures verify over the canonical bytes and **not** over the raw key order; re-signing reproduces the vector bytes; the KMS-style OAEP wrap unwraps; an MGF1-SHA-1 wrap is refused; the signing and encryption keys are distinct and cannot stand in for each other                                                   |
 | `vectors/<runtime>/selectors…/…` | node, web, hermes | separate selectors: every key in the two selector vectors has its stated fingerprint; only the sender key at `signatureSelector` verifies, and only the receiver key at `encryptionSelector` unwraps |
 | `vectors/<runtime>/sha256/…` | node, web, hermes | the runtime recomputes the lowercase hex SHA-256 of every file `manifest.json` lists |
@@ -73,7 +73,7 @@ to the strict form.
 The harness's tests in `src/core/crypto/{index,jcs,identityKeys}.test.ts`
 reproduce the same defects as vitest tests. Each one that fails on 367cd09 is
 written as `it.fails`, and its name says which fix makes it pass:
-"(expected failure until separate keys land)". So `yarn test` stays green on
+"(expected failure until separate selectors land)". So `yarn test` stays green on
 master. When the fix lands, those tests turn red, and the fix must change
 `it.fails` to `it` in the same change, just as it removes its known-failing
 entries.
@@ -172,5 +172,9 @@ themselves are recomputed in Hermes).
   where it reads the wire (`parseJson` in the server and client), which
   `yarn test` covers rather than this harness.
 - The reference JCS in [`src/jcs.mjs`](src/jcs.mjs) is the harness's oracle.
-  It is not the SDK implementation, which is `src/core/crypto/jcs.ts`;
-  the two must agree on every vector.
+  It serialises with `json-canonicalize` and parses with
+  `@humanwhocodes/momoa`; the SDK, `src/core/crypto/jcs.ts`, serialises with
+  `canonicalize`. Two libraries by different authors must agree on every
+  vector, so the oracle is not the code under test checking itself. The
+  oracle refuses a member named `toJSON`, which `json-canonicalize` would
+  pass to `JSON.stringify` unsorted.

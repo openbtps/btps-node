@@ -24,6 +24,10 @@
     "generate-vectors": "node scripts/generate-vectors.mjs",
     "vectors-manifest": "node scripts/vectors-manifest.mjs"
   },
+  "dependencies": {
+    "@humanwhocodes/momoa": "^3.3.13",
+    "json-canonicalize": "^3.0.1"
+  },
   "peerDependencies": {
     "esbuild": ">=0.25"
   }

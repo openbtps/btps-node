@@ -158,6 +158,7 @@ describe('canonical signing end to end', () => {
       async (identity: string) => identities[identity]?.publicKey,
     );
     vi.mocked(utils.getHostAndSelector).mockResolvedValue({
+      version: '1.0.0',
       host: 'btps.saas.example:3443',
       selector: 'btps1',
     });

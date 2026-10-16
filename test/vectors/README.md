@@ -4,9 +4,8 @@ These are the vectors for BTPS 1.1. Every runtime must reproduce them
 exactly: Node, web, Hermes, and later iOS and Android. The runner is
 [`packages/verify-btps-vectors`](../../packages/verify-btps-vectors/).
 
-**Published as vector set 1.1.2** (1.1.1 is 1.1.0 with the credit note in
-the 1.1 invoice's shape; 1.1.2 is 1.1.1 with plain-language descriptions and
-no internal planning labels, every key, signature and document unchanged). [`manifest.json`](./manifest.json)
+**Published as vector set 1.1.1** (1.1.1 is 1.1.0 with the credit note in
+the 1.1 invoice's shape). [`manifest.json`](./manifest.json)
 gives the set's version and the SHA-256 of every vector file (this README and
 `known-failing.json` are not vectors and are not listed).
 `yarn verify:btps-vectors` fails if a file differs from its hash, is missing,
@@ -64,7 +63,7 @@ a vector can pin. That client will bring its own tests.
 
 ## Changing vectors
 
-Vectors are frozen once other code is tested against them, and set 1.1.2 is
+Vectors are frozen once other code is tested against them, and set 1.1.1 is
 frozen by its manifest: changing any vector means a new set version, a
 manifest rewritten with `vectors-manifest.mjs --write`, and a changelog entry.
 There are no
@@ -75,6 +74,6 @@ you use it, say so in every change whose tests read these files.
 
 Open question, not decided here: what a canonicaliser does with an integer
 above 2^53 − 1. RFC 8785 serialises it as the nearest double, which for
-money means a silently different amount. Document model v2 owns the money
+money means a silently different amount. The document model owns the money
 representation, and settles it for documents: v2 money is an integer within
 ±(2^53 − 1), and `BtpMoneySchema` refuses anything larger.

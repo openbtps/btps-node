@@ -1,5 +1,5 @@
 {
-  "description": "Checks that fail on the BTPS 1.1 baseline because the defect they prove is not fixed yet, each mapped to a short note on what fixes it. `verify-btps-vectors --known-failing test/vectors/known-failing.json` passes only while the failing set is exactly this list, so a fix must remove its own entries in the same change that makes them pass. Empty since 2026-10-16: every check passes. Kept, empty, because CI runs the vectors with --known-failing (tests/ci-pipeline); a new check that must fail first is listed here.",
+  "description": "Checks that fail on the BTPS 1.1 baseline because the defect they prove is not fixed yet, each mapped to a short note on what fixes it. `verify-btps-vectors --known-failing test/vectors/known-failing.json` passes only while the failing set is exactly this list, so a fix must remove its own entries in the same change that makes them pass. Empty since #23: every check passes. Kept, empty, because CI runs the vectors with --known-failing; a new check that must fail first is listed here.",
   "baseline": "367cd0966687b0f61fbb4aa703f26c5e37e89eca",
   "checks": {}
 }

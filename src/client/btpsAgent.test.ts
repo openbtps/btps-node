@@ -703,7 +703,7 @@ describe('BtpsAgent', () => {
         issuedAt: '2023-12-31T00:00:00.000Z',
         lineItems: {
           columns: ['Description', 'Amount'],
-          rows: [{ Description: 'Item 1', Amount: 10050 }],
+          rows: [{ Description: 'Consulting', Amount: 10050 }],
         },
         totalAmount: { amount: 10050, currency: 'USD' },
       };
