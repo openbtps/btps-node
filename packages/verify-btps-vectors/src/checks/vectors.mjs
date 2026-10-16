@@ -1,7 +1,7 @@
 /**
  * Vector checks, run once per runtime driver. They prove the vectors are
  * self-consistent and that the runtime implements the BTPS 1.1 crypto
- * profile: JCS (item 5), RSASSA-PKCS1-v1_5/SHA-256 signatures for both
+ * profile: JCS, RSASSA-PKCS1-v1_5/SHA-256 signatures for both
  * custody modes, RSA-OAEP/SHA-256 with MGF1-SHA-256 wrapping, and separate
  * signing and encryption keys, and the separate signature and encryption
  * selectors (item 6).
@@ -60,7 +60,6 @@ export function vectorChecks(runtime, set) {
     if (c.expect === 'reject') {
       checks.push({
         id: id(`jcs-signature/${c.name}`),
-        item: 5,
         async run() {
           for (const input of c.inputs) {
             ensure(
@@ -85,7 +84,6 @@ export function vectorChecks(runtime, set) {
     }
     checks.push({
       id: id(`jcs-signature/${c.name}`),
-      item: 5,
       async run() {
         ensure(
           await runtime.verifyPkcs1Sha256(jcsKey.publicKeyPem, utf8(c.canonicalPayload), signature),
@@ -140,7 +138,6 @@ export function vectorChecks(runtime, set) {
       },
       {
         id: name('signature-does-not-verify-over-raw-key-order'),
-        item: 5,
         async run() {
           ensure(
             !(await runtime.verifyPkcs1Sha256(

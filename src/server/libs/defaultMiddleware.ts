@@ -8,8 +8,7 @@
 /**
  * Default BTPS Server Middleware
  *
- * A BtpsServer always loads these, before its middleware file (EBA-187, fix
- * list 11), unless its `defaultMiddleware` option turns them off (`false`)
+ * A BtpsServer always loads these, before its middleware file, unless its `defaultMiddleware` option turns them off (`false`)
  * or replaces them (an array, e.g. `createDefaultMiddleware({ rateLimiter })`
  * with other limits). A middleware file that still includes them itself gets
  * them once: an entry named as a loaded default is skipped.

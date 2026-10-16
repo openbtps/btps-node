@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The published golden vector set's manifest (EBA-123).
+ * The published golden vector set's manifest.
  *
  *   node packages/verify-btps-vectors/scripts/vectors-manifest.mjs [--check] [--no-sdk] [--vectors <dir>]
  *   node packages/verify-btps-vectors/scripts/vectors-manifest.mjs --write

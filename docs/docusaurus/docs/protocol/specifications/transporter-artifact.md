@@ -138,7 +138,7 @@ Used to establish trust relationships between organizations.
 - **expiresAt**: Trust expiration date (ISO format)
 - **privacyType**: Privacy level (unencrypted, encrypted, mixed)
 
-**Answered only once stored (BTPS 1.1, fix list 3).** A receiving server
+**Answered only once stored (BTPS 1.1).** A receiving server
 answers a `TRUST_REQ` with success only when the request was kept for the
 receiver to decide on. In the SDK, that is when the platform's `forwardTo`
 handler returns `true`, or the trust store holds a `pending` record from
@@ -284,7 +284,7 @@ BTPS 1.1. The full rules are on [Lifecycle Events](./lifecycle-events.md).
 
 A receiving server refuses an artifact it has already accepted, and one
 signed too long ago or too far ahead to tell. Both checks are part of the
-protocol, not options (BTPS 1.1 item F, addendum item 4).
+protocol, not options (BTPS 1.1).
 
 ### The `issuedAt` window
 
@@ -424,7 +424,7 @@ Transporter artifacts support optional encryption using AES-256-GCM:
 - **Auth Tag**: GCM authentication tag for integrity
 - **Content**: Base64 encoded encrypted payload
 
-**Opening it is the receiving platform's (BTPS 1.1, fix list 3).** A
+**Opening it is the receiving platform's (BTPS 1.1).** A
 receiving server checks an encrypted artifact's envelope, signature, trust
 and privacy type, but it does not decrypt the document: the key that opens it
 belongs to the receiving platform, which may hold it elsewhere (a KMS, a

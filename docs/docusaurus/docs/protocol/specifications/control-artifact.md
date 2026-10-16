@@ -80,7 +80,7 @@ The `PING` action is used to test server connectivity and responsiveness.
 ```
 
 The answer carries the request's `id` as `reqId`, and the server **keeps the
-connection open** after it (BTPS 1.1, fix list 15): a health check that closed
+connection open** after it (BTPS 1.1): a health check that closed
 the connection could not be repeated on it. `QUIT` is what closes it.
 
 ### QUIT Action

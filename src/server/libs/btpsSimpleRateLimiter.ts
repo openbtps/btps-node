@@ -9,8 +9,7 @@ import { RateLimiter } from './abstractRateLimiter.js';
 import { CounterRecord, IRateLimitOptions } from './type.js';
 
 /**
- * The most keys one table of BtpsSimpleRateLimiter holds (EBA-187, fix list
- * 11): one table for network addresses, one for identities. When a table is
+ * The most keys one table of BtpsSimpleRateLimiter holds: one table for network addresses, one for identities. When a table is
  * full, a key it does not hold is refused, as over its limit, rather than
  * the table growing. About 100 bytes a key: some 10 MB a table when full.
  */

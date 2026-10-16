@@ -83,6 +83,7 @@
     "eslint-import-resolver-typescript": "^4.4.3",
     "eslint-plugin-import": "^2.29.0",
     "fast-glob": "^3.3.3",
+    "json-canonicalize": "^3.0.1",
     "nodemon": "^3.0.0",
     "ora": "^8.2.0",
     "prettier": "^3.0.0",

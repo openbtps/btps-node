@@ -19,7 +19,7 @@ import {
 
 /*
  * The 1.1 invoice is the 1.0 invoice (`BtpInvoiceDocSchema`) with the
- * founder's changes of 2026-10-16: `totalAmount` in integer minor units,
+ * changes settled on 2026-10-16: `totalAmount` in integer minor units,
  * floats refused in line-item cells, `issuer.address` and
  * `issuer.identifiers`, `attachments` for `attachment`, `references`,
  * `metadata`, and no status. Its table of line items stays as in 1.0.

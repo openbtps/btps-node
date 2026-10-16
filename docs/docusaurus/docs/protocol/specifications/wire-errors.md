@@ -8,7 +8,7 @@ sidebar_label: Wire Errors
 Every error a BTPS 1.1 server sends carries three things: a stable string
 `code`, a status class in `status.code`, and the fixed `status.message` of
 that code. A sender decides whether to retry from the `code`, never from the
-message text. BTPS 1.1, fix list 6 (EBA-188).
+message text. New in BTPS 1.1.
 
 ```json
 {
@@ -41,13 +41,13 @@ The table lives in one place in the SDK, `BTP_WIRE_ERRORS` in
   the artifact was delivered before: do not send it again.
 - **An unknown code** (a newer peer's) is decided by its status class the
   same way: 429 and 5xx retryable, 4xx not.
-- **Trust refusals (EBA-124, option B, 2026-10-06).** Only an expired trust is
+- **Trust refusals (#6, 2026-10-06).** Only an expired trust is
   told apart. Never trusted, revoked, blocked, pending, rejected and already
   active all go out as `BTP_ERROR_TRUST_NOT_ALLOWED`, so a sender cannot learn
   that it was blocked. The precise reason stays on the server, in the request
   context's `error`. The table enforces this for middleware too: a middleware
   that answers with `BTP_ERROR_TRUST_REVOKED` sends `BTP_ERROR_TRUST_NOT_ALLOWED`.
-- **A privacy refusal is told apart (EBA-444).** When a trust is active but
+- **A privacy refusal is told apart.** When a trust is active but
   the artifact's form breaks its agreed `privacyType`, the server sends
   `BTP_ERROR_TRUST_PRIVACY`. The sender agreed the privacy type, so this tells
   it nothing new, and only a resend in the other form can succeed.
@@ -69,7 +69,7 @@ table, by code.
 
 Every `BTPErrorException` has `retryable`, from this table by its code.
 
-**An error with no `reqId` (BTPS 1.1, fix list 14).** A server that answers
+**An error with no `reqId` (BTPS 1.1).** A server that answers
 before it has parsed the line, such as the rate limit by network address,
 cannot name the request: its `btps_error` has no `reqId`. When exactly one
 `send()` is pending on that connection, and it was written, the client hands
@@ -80,8 +80,7 @@ without the request's own `reqId` is never read as delivered.
 ## Versions
 
 A 1.0 server sent every string-coded error as status 500 with no `code`. 1.0
-interop is not a concern: a 1.1 server refuses 1.0 artifacts (release plan,
-section 6).
+interop is not a concern: a 1.1 server refuses 1.0 artifacts.
 
 ## The table
 
@@ -114,7 +113,7 @@ test fails when a constant is added without one.
 | `BTP_ERROR_IDENTITY_NOT_FOUND` | 401 | no | The host has no key for the address |
 | `BTP_ERROR_RESOLVE_DNS` | 401 | no | No BTPS DNS record for the address |
 | `BTP_ERROR_RESOLVE_PUBKEY` | 401 | no | No key published; the server's pipeline answers it as `BTP_ERROR_SIG_VERIFICATION` |
-| `BTP_ERROR_KEY_TOO_SMALL` | 401 | no | An RSA key shorter than 2048 bits, for encryption or a signature (EBA-445); the server's pipeline answers a signature by one as `BTP_ERROR_SIG_VERIFICATION` |
+| `BTP_ERROR_KEY_TOO_SMALL` | 401 | no | An RSA key shorter than 2048 bits, for encryption or a signature; the server's pipeline answers a signature by one as `BTP_ERROR_SIG_VERIFICATION` |
 | `BTP_ERROR_TRUST_NOT_ALLOWED` | 403 | no | No trust allows this sender (never trusted, revoked, blocked, pending, rejected, already active) |
 | `BTP_ERROR_TRUST_EXPIRED` | 403 | no | The trust was accepted and has expired; a new trust request may restore it |
 | `BTP_ERROR_TRUST_NON_EXISTENT` | 403 | no | Server side only: sent as `BTP_ERROR_TRUST_NOT_ALLOWED` |
@@ -133,7 +132,7 @@ test fails when a constant is added without one.
 | `BTP_ERROR_RATE_LIMITER` | 429 | yes | Too many requests: slow down and retry |
 | `BTP_ERROR_UNKNOWN` | 500 | yes | Unexpected failure on the server |
 | `BTP_ERROR_SERVER_SELECTOR` | 500 | yes | Server configuration: no `serverIdentity.selector` (raised at start-up) |
-| `BTP_ERROR_TRUST_REQUEST_NOT_STORED` | 500 | yes | A `TRUST_REQ` passed every check, but the receiver did not confirm it stored it (EBA-445). The same request may be sent again |
+| `BTP_ERROR_TRUST_REQUEST_NOT_STORED` | 500 | yes | A `TRUST_REQ` passed every check, but the receiver did not confirm it stored it. The same request may be sent again |
 | `BTP_ERROR_MIDDLEWARE` | 500 | yes | Server side only: middleware that cannot be loaded, raised at start-up. Never sent; would go out as `BTP_ERROR_UNKNOWN` |
 | `BTP_ERROR_INVALID_OPTION` | 500 | yes | Server or client configuration out of range, raised at construction. Never sent; would go out as `BTP_ERROR_UNKNOWN` |
 | `BTP_ERROR_SOCKET_TIMEOUT` | 503 | yes | The connection timed out |

@@ -41,7 +41,7 @@ export class BtpsService implements OnModuleInit, OnModuleDestroy {
     this.server = new BtpsServer({
       ...this.serverConfig,
       // The server answers auth.request itself, on a registration token
-      // from this store (BTPS 1.1 item E).
+      // from this store (BTPS 1.1 device registration).
       tokenStore: this.tokenStore,
       onError: error => console.error('BTPS Server Error:', error),
     });
