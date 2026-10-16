@@ -168,6 +168,47 @@ export default function createMiddleware(dependencies) {
 }
 ```
 
+## Ignoring Duplicate Artifacts
+
+Within the server's time window (`maxArtifactAgeSeconds`, 5 minutes by default) the same artifact can arrive more than once. A sender may retry under load, or someone holding a copy may send it again. The platform treats `(from, id)` as unique. It can do that where it stores artifacts, or earlier with a middleware right after signature verification, so a duplicate is answered at once and never reaches trust checks or the platform's handler:
+
+```javascript
+// btps.middleware.mjs
+export default function createMiddleware(dependencies) {
+  return {
+    middleware: [
+      {
+        phase: 'after',
+        step: 'signatureVerification',
+        priority: 10,
+        config: { name: 'ignore-duplicates', enabled: true },
+        handler: async (req, res, next) => {
+          const { type, artifact } = req.data;
+          // `artifacts` is wherever your platform records the artifacts it received
+          if (
+            req.isValid &&
+            type === 'transporter' &&
+            (await artifacts.has(artifact.from, artifact.id))
+          ) {
+            // Already received: answer success without processing it again
+            return res.sendRes({
+              ...dependencies.serverInstance.prepareBtpsResponse(
+                { ok: true, code: 200, message: 'Already received' },
+                artifact.id,
+              ),
+              type: 'btps_response',
+            });
+          }
+          await next();
+        },
+      },
+    ],
+  };
+}
+```
+
+Answering a duplicate with success, rather than an error, tells a sender that retried that its first attempt arrived. A platform may refuse duplicates instead with `res.sendError(...)`.
+
 ## Testing Your Middleware
 
 Start your server and check the console output:

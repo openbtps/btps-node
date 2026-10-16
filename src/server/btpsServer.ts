@@ -84,6 +84,10 @@ import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.
 import { validate } from '@core/utils/validation.js';
 import { MiddlewareManager } from './libs/middlewareManager.js';
 import { artifactSizeGuard, resolveMaxArtifactSizeKb } from './libs/artifactSizeGuard.js';
+import {
+  artifactTimeWindowError,
+  resolveMaxArtifactAgeSeconds,
+} from './libs/artifactTimeWindow.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
 import type { BTPIdentityRecord } from '@core/storage/types.js';
@@ -102,6 +106,7 @@ export class BtpsServer {
   private readonly middlewareManager: MiddlewareManager;
   private readonly connectionTimeoutMs: number;
   private readonly maxArtifactSizeKb: number;
+  private readonly maxArtifactAgeSeconds: number;
   private readonly dependencies: {
     trustStore: AbstractTrustStore<BTPTrustRecord>;
     identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
@@ -125,6 +130,7 @@ export class BtpsServer {
     this.identityStore = options.identityStore;
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 30000;
     this.maxArtifactSizeKb = resolveMaxArtifactSizeKb(options.maxArtifactSizeKb);
+    this.maxArtifactAgeSeconds = resolveMaxArtifactAgeSeconds(options.maxArtifactAgeSeconds);
     this.middlewareManager = new MiddlewareManager(options.middlewarePath);
     this.dependencies = {
       trustStore: this.trustStore,
@@ -550,6 +556,17 @@ export class BtpsServer {
 
     if (!isValid) {
       return this.sendBtpsError(resCtx.socket, BTP_ERROR_SIG_VERIFICATION, resCtx.reqId);
+    }
+
+    // A signed artifact counts only near the time it was signed: a copy sent
+    // again later still carries its original issuedAt, which it cannot change.
+    const timeWindowError = artifactTimeWindowError(
+      data.artifact.issuedAt,
+      this.maxArtifactAgeSeconds,
+    );
+    if (timeWindowError) {
+      reqCtx.error = timeWindowError;
+      return this.sendBtpsError(resCtx.socket, timeWindowError, resCtx.reqId);
     }
 
     // Execute before trust verification middleware

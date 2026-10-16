@@ -1399,6 +1399,22 @@ Error constant for socket timeouts.
 
 ---
 
+### BTP_ERROR_ARTIFACT_TIME_WINDOW
+
+```ts
+const BTP_ERROR_ARTIFACT_TIME_WINDOW: BTPError;
+```
+
+**Description:**
+Error constant for a signed artifact whose `issuedAt` is outside the receiving server's time window (`maxArtifactAgeSeconds`, see [BtpsServerOptions](./typesAndInterfaces.md#btpsserveroptions)). The server sends it with its window appended to the message and keeps the connection open. A genuine sender signs the artifact again, with a new `issuedAt`.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_ARTIFACT_TIME_WINDOW'`
+- `message`: `'Artifact was not issued within the time window of this server'`, sent as for example `'Artifact was not issued within the time window of this server: 300 seconds'`
+
+---
+
 ### BTP_ERROR_ARTIFACT_TOO_LARGE
 
 ```ts

@@ -259,6 +259,8 @@ These are used for notifying the agent or client related to delivery failure. No
 - Must implement trust store for relationship management
 - Must validate all incoming message signatures
 - Must verify sender trust before processing
+- Must refuse a signed artifact whose `issuedAt` is further from its own clock than its time window allows, either way, with the window in the error message. The signature covers `issuedAt`, so a copy of an artifact sent again later cannot be given a new time, and is refused once the window has passed; a genuine sender signs a new artifact. Each server chooses its window (`maxArtifactAgeSeconds` in the SDK): 300 seconds (5 minutes) by default, at least 60, with no maximum
+- Must treat `(from, id)` as unique: within the time window the same artifact can arrive more than once, sent again by a sender that retried under load or by someone holding a copy. The receiving platform keeps the first and ignores the rest, either where it stores artifacts or earlier, in a middleware right after signature verification (see [Ignoring Duplicate Artifacts](../../getting-started/server/middlewares.md#ignoring-duplicate-artifacts))
 - Must refuse an artifact larger than its own limit before reading any more of it, answer with the limit in the error message, and close the connection gently: send the answer, then end the connection while ignoring whatever else the sender is still sending. Tearing the connection down at once would reset it, and a sender still sending could lose the answer unread.
 - Must close the same gentle way after any other error that ends a connection while it still works (an unexpected failure, an idle timeout): stop reading artifacts, keep draining, send the error, then end. A sender may already be sending its next artifact. Only a connection that is already broken is torn down at once Each server chooses its limit (`maxArtifactSizeKb` in the SDK): 5120 KB (5 MB) by default, at least 1024 KB (1 MB), with no maximum. 1 KB is 1024 bytes, and the size is the artifact's line in bytes
 
@@ -275,6 +277,7 @@ These are used for notifying the agent or client related to delivery failure. No
 - Invalid signatures: Reject with 401 Unauthorized
 - Untrusted sender: Reject with 403 Forbidden
 - Invalid message format: Reject with 400 Bad Request
+- Artifact issued outside the server's time window: Reject with the window in the message (`BTP_ERROR_ARTIFACT_TIME_WINDOW`, for example `Artifact was not issued within the time window of this server: 300 seconds`), keeping the connection open
 - Artifact over the server's size limit: Reject with the limit in the message (`BTP_ERROR_ARTIFACT_TOO_LARGE`, for example `Artifact exceeds the size limit of this server: 5120 KB`) and close the connection
 - Server errors: Return 500 Internal Server Error
 - Rate limiting: Return 429 Too Many Requests

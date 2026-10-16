@@ -41,6 +41,7 @@ import {
   BTP_ERROR_TRUST_BLOCKED,
   BTP_ERROR_EVENT_UNRELATED,
   BTP_ERROR_ARTIFACT_TOO_LARGE,
+  BTP_ERROR_ARTIFACT_TIME_WINDOW,
 } from '../../core/error/index.js';
 import { PassThrough } from 'stream';
 import net from 'net';
@@ -2355,6 +2356,28 @@ export default function () {
           expect(written.type).toBe('btps_error');
           expect(written.status.ok).toBe(false);
           expect(written.status.message).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.message);
+        });
+
+        it('refuses a validly signed artifact issued outside the time window, before trust, and keeps the connection', async () => {
+          const getById = vi.fn().mockResolvedValue(trustRecord({}));
+          trustStore.getById = getById;
+          const socket = buildMockSocket();
+          const sixMinutesAgo = new Date(Date.now() - 6 * 60 * 1000).toISOString();
+          const { reqCtx, resCtx } = buildPipelineCtx(socket, {
+            ...transporterArtifact(),
+            issuedAt: sixMinutesAgo,
+          });
+
+          await server['executeRequestPipeline'](reqCtx, resCtx);
+
+          const written = writtenPayload(socket);
+          expect(written.type).toBe('btps_error');
+          expect(written.status.message).toBe(
+            `${BTP_ERROR_ARTIFACT_TIME_WINDOW.message}: 300 seconds`,
+          );
+          expect(reqCtx.error?.code).toBe(BTP_ERROR_ARTIFACT_TIME_WINDOW.code);
+          expect(getById).not.toHaveBeenCalled();
+          expect(socket.end).not.toHaveBeenCalled();
         });
 
         it('sends a distinguishable refusal message on the wire for an expired trust', async () => {

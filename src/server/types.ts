@@ -50,6 +50,8 @@ export interface BtpsServerOptions {
   middlewarePath?: string; // Path to btps.middleware.mjs file
   /** The largest artifact this server can accept, in KB (1 KB = 1024 bytes). Default 5120 (5 MB), minimum 1024 (1 MB). */
   maxArtifactSizeKb?: number;
+  /** How far an artifact's issuedAt may be from this server's clock, in seconds, either way. Default 300 (5 minutes), minimum 60. */
+  maxArtifactAgeSeconds?: number;
 }
 
 // Middleware Types

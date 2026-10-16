@@ -152,6 +152,11 @@ export const BTP_ERROR_UNKNOWN: BTPError = {
   message: 'Unknown error',
 };
 
+export const BTP_ERROR_ARTIFACT_TIME_WINDOW: BTPError = {
+  code: 'BTP_ERROR_ARTIFACT_TIME_WINDOW',
+  message: 'Artifact was not issued within the time window of this server',
+};
+
 export const BTP_ERROR_ARTIFACT_TOO_LARGE: BTPError = {
   code: 'BTP_ERROR_ARTIFACT_TOO_LARGE',
   message: 'Artifact exceeds the size limit of this server',
