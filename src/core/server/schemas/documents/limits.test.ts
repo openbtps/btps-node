@@ -112,7 +112,7 @@ const CASES: Record<
       where: 'earning quantity',
       build: (n) => {
         const doc = payslip();
-        doc.earnings[0].quantity = '1'.repeat(n);
+        first(doc.earnings).quantity = '1'.repeat(n);
         return doc;
       },
     },
@@ -155,7 +155,7 @@ const CASES: Record<
       where: 'credit note line-item text cell',
       build: (n) => {
         const doc = creditNote();
-        doc.lineItems.rows[0].Description = 'd'.repeat(n);
+        first(doc.lineItems.rows).Description = 'd'.repeat(n);
         return doc;
       },
     },
@@ -180,7 +180,7 @@ const CASES: Record<
       where: 'credit note line-item rows',
       build: (n) => {
         const doc = creditNote();
-        doc.lineItems.rows = many(n, doc.lineItems.rows[0]);
+        doc.lineItems.rows = many(n, first(doc.lineItems.rows));
         return doc;
       },
     },

@@ -190,7 +190,7 @@ field.
 ## Credit note
 
 `BtpCreditNoteDocSchema`, type `BTPCreditNoteDoc`. **The 1.1 credit note
-takes the 1.1 invoice's shape** (decided 2026-10-16, EBA-119): the same
+takes the 1.1 invoice's shape** (decided 2026-10-16, #31): the same
 line-item table, issuer, attachments and metadata, built from the same
 schemas, so the two cannot drift.
 

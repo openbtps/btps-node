@@ -14,7 +14,7 @@ import path from 'node:path';
 
 export const MANIFEST_FILE = 'manifest.json';
 /*
- * 1.1.1 (EBA-119, 2026-10-16): the credit note took the 1.1 invoice's shape,
+ * 1.1.1 (2026-10-16, #31): the credit note took the 1.1 invoice's shape,
  * so documents/credit-note.v2.json and document-model.vectors.json changed,
  * and the taxTotal group went with verifyTaxTotal.
  */

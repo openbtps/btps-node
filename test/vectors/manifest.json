@@ -5,7 +5,7 @@
   "description": "The BTPS 1.1 golden vectors. Every file of the set, with the lowercase hex SHA-256 of its bytes. See docs/docusaurus/docs/protocol/specifications/golden-vectors.md.",
   "hashAlgorithm": "sha256",
   "files": {
-    "document-model.vectors.json": "7fc9b653ab898b30a89c52fdbd213a90ca0bf9702d8f62b270ee71fa7c932783",
+    "document-model.vectors.json": "df5d127f96e4b64ca745ed450b6ba806427bdc1d25a4ef94f27101854464e740",
     "documents/credit-note.v2.json": "47026c22843b3eebf17e7a6d6e2456b22be4a64f8e0c193e65141a52e6ccbba7",
     "documents/invoice.correction.v2.json": "4e6b460e2d0cd8e400c2aed590bad21d18e5e3aa3684b4e55f9813b19df70703",
     "documents/invoice.v2.json": "df334d0bfdf677f0b649764762122522edad8826712e1eb71d2f5b80b3d8d2ae",

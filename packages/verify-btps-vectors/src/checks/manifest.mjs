@@ -1,5 +1,5 @@
 /**
- * The published set is the one its manifest names (EBA-123): the version is
+ * The published set is the one its manifest names: the version is
  * VECTOR_SET_VERSION, and every file is present, unchanged and listed. A vector edited
  * without a new manifest fails here, so the set cannot drift from what was
  * released.

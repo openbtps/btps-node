@@ -21,8 +21,8 @@ import {
 } from './invoiceSchema.js';
 
 /*
- * The 1.1 credit note takes the 1.1 invoice's shape (founder, 2026-10-16,
- * EBA-119): the same line-item table, issuer, attachments and metadata,
+ * The 1.1 credit note takes the 1.1 invoice's shape (2026-10-16, #31):
+ * the same line-item table, issuer, attachments and metadata,
  * with tax in the table's columns. PR #9's structured lines, `taxTotals`
  * and `verifyTaxTotal` are gone. It adds a required `credits` reference and
  * an optional `reason`.

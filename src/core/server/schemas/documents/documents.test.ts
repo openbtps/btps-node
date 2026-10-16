@@ -308,9 +308,8 @@ describe('the 1.1 invoice: the 1.0 invoice with the changes of 2026-10-16', () =
   });
 });
 
-describe('the 1.1 credit note: the 1.1 invoice shape (2026-10-16, EBA-119)', () => {
-  type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-  const creditNote = (): Doc => load('credit-note.v2.json');
+describe('the 1.1 credit note: the 1.1 invoice shape (2026-10-16, #31)', () => {
+  const creditNote = () => loadAs<BTPCreditNoteDoc>('credit-note.v2.json');
   const accepted = (doc: unknown) => BtpCreditNoteDocSchema.safeParse(doc).success;
 
   it("carries the invoice's table, issuer and a credits reference, with tax in the columns", () => {
@@ -332,7 +331,7 @@ describe('the 1.1 credit note: the 1.1 invoice shape (2026-10-16, EBA-119)', () 
   });
 
   it('accepts attachments, metadata and a description, as on the invoice', () => {
-    const invoice = load('invoice.v2.json') as Doc;
+    const invoice = loadAs<BTPInvoiceV2Doc>('invoice.v2.json');
     const doc = {
       ...creditNote(),
       attachments: invoice.attachments,
@@ -367,9 +366,8 @@ describe('the 1.1 credit note: the 1.1 invoice shape (2026-10-16, EBA-119)', () 
   });
 
   it('requires a non-empty title', () => {
-    const doc = creditNote();
-    delete doc.title;
-    expect(accepted(doc)).toBe(false);
+    const { title: _title, ...untitled } = creditNote();
+    expect(accepted(untitled)).toBe(false);
     expect(accepted({ ...creditNote(), title: '' })).toBe(false);
   });
 
@@ -396,17 +394,19 @@ describe('the 1.1 credit note: the 1.1 invoice shape (2026-10-16, EBA-119)', () 
     for (const [field, value] of Object.entries(removed)) {
       expect(accepted({ ...creditNote(), [field]: value }), field).toBe(false);
     }
-    const structured = creditNote();
-    structured.lineItems = [
-      {
-        description: 'Partial credit',
-        quantity: '1',
-        unitPrice: { amount: 20000, currency: 'AUD' },
-        lineTotal: { amount: 20000, currency: 'AUD' },
-        taxAmount: { amount: 2000, currency: 'AUD' },
-        taxCategory: 'GST10',
-      },
-    ];
+    const structured = {
+      ...creditNote(),
+      lineItems: [
+        {
+          description: 'Partial credit',
+          quantity: '1',
+          unitPrice: { amount: 20000, currency: 'AUD' },
+          lineTotal: { amount: 20000, currency: 'AUD' },
+          taxAmount: { amount: 2000, currency: 'AUD' },
+          taxCategory: 'GST10',
+        },
+      ],
+    };
     expect(accepted(structured)).toBe(false);
   });
 });

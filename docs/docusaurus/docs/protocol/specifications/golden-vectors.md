@@ -22,7 +22,7 @@ not.
 
 | | |
 | --- | --- |
-| Version | `1.1.1`, in `test/vectors/manifest.json`. 1.1.1 is 1.1.0 with the credit note in the 1.1 invoice's shape (EBA-119) |
+| Version | `1.1.1`, in `test/vectors/manifest.json`. 1.1.1 is 1.1.0 with the credit note in the 1.1 invoice's shape (#31) |
 | Protocol | BTPS 1.1 |
 | Integrity | `manifest.json` gives the lowercase hex SHA-256 of every vector file |
 | Keys | **Test-only** RSA keys generated locally, committed on purpose. Never use them for anything else |

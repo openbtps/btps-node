@@ -109,7 +109,7 @@ Each pull request below is stacked on the one before it and merges into
   Every string, list and attachment is capped; attachments are verified
   against their `size` and `sha256`; every `references` entry must come from
   the artifact's sender.
-- **Credit note (2026-10-16, EBA-119):** the credit note takes the 1.1
+- **Credit note (2026-10-16, #31):** the credit note takes the 1.1
   invoice's shape: `title`, `totalAmount` in integer minor units and greater
   than zero (the type says it is a credit, not the sign), the same
   `lineItems` table with tax in its columns, `issuer`, `attachments`,
