@@ -375,10 +375,14 @@ export class BtpsServer {
         errorReq.error = error;
 
         console.error('[BtpsServer] Error', error.toJSON());
-        return await this.handleOnSocketError(error, {
-          req: errorReq,
-          res: parseRes,
-        });
+        return await this.handleOnSocketError(
+          error,
+          {
+            req: errorReq,
+            res: parseRes,
+          },
+          'end',
+        );
       }
     });
 
@@ -389,10 +393,14 @@ export class BtpsServer {
       });
       const errorReq = reqCtx as BTPRequestCtx<'before', 'onError'>;
       errorReq.error = timeoutError;
-      this.handleOnSocketError(timeoutError, {
-        req: errorReq,
-        res: resCtx,
-      });
+      this.handleOnSocketError(
+        timeoutError,
+        {
+          req: errorReq,
+          res: resCtx,
+        },
+        'end',
+      );
     });
 
     // Shared error handler for both socket and stream
@@ -498,10 +506,14 @@ export class BtpsServer {
       });
       const errorReq = context.req as BTPRequestCtx<'before', 'onError'>;
       errorReq.error = newErr;
-      return this.handleOnSocketError(newErr, {
-        req: errorReq,
-        res: context.res,
-      });
+      return this.handleOnSocketError(
+        newErr,
+        {
+          req: errorReq,
+          res: context.res,
+        },
+        'end',
+      );
     }
   }
 
@@ -1082,10 +1094,14 @@ export class BtpsServer {
           await Promise.resolve(result);
         } catch (err) {
           const error = transformToBTPErrorException(err);
-          this.handleOnSocketError(error, {
-            req: { ...reqCtx, error },
-            res: resCtx,
-          });
+          this.handleOnSocketError(
+            error,
+            {
+              req: { ...reqCtx, error },
+              res: resCtx,
+            },
+            'end',
+          );
         }
       }),
     );
@@ -1216,6 +1232,13 @@ export class BtpsServer {
     action: BtpsErrorAction = 'destroy',
   ) {
     const { req, res } = context;
+    // Closing gently: read no more artifacts, but keep draining what the peer
+    // still sends. Unread data at close resets the connection, and a reset
+    // discards the answer before a peer that is still sending has read it.
+    if (action === 'end') {
+      req.socket.unpipe();
+      req.socket.resume();
+    }
 
     req.error = error;
     await this.executeMiddleware(
