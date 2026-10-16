@@ -218,10 +218,8 @@ function selectorsReceiverRotation() {
   const receiverCurrent = newKeyPair();
   const receiverAtEncryption = readVector('oaep-wrap.vector.json');
   return {
-    item: 6,
-    tickets: ['EBA-116'],
     description:
-      "The other half of item 6: the receiver rotates, the sender does not. The document was encrypted to the receiver key at btps2; the receiver has since rotated to btps3 and keeps btps2 to decrypt what was already sent. The receiver must decrypt with the key at the artifact's encryptionSelector (btps2), not its current one (btps3). The sender signs with btps1 throughout, so each selector differs from the other and from its party's current one. On 1ff93d1 the artifact does not name the key it was encrypted to, so a receiver that rotated cannot choose its key.",
+      "The other half of separate signature and encryption selectors: the receiver rotates, the sender does not. The document was encrypted to the receiver key at btps2; the receiver has since rotated to btps3 and keeps btps2 to decrypt what was already sent. The receiver must decrypt with the key at the artifact's encryptionSelector (btps2), not its current one (btps3). The sender signs with btps1 throughout, so each selector differs from the other and from its party's current one. On 1ff93d1 the artifact does not name the key it was encrypted to, so a receiver that rotated cannot choose its key.",
     provenance: `${TEST_ONLY} The receiver key at btps2 is the one in oaep-wrap.vector.json.`,
     sender: {
       identity: 'carol$sender.example',

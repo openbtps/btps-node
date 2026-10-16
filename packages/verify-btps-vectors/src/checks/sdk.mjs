@@ -20,13 +20,13 @@ const pemToTxtBase64 = (pem) =>
   pem.replace(/-----(BEGIN|END) PUBLIC KEY-----/g, '').replace(/\s+/g, '');
 
 /**
- * ADAPTER — item 6 call shape, as EBA-116 settled it: `sender.selector` is
+ * ADAPTER — the separate-selectors call shape: `sender.selector` is
  * the selector of the key in `sender.pemFiles` (it becomes the artifact's
  * signatureSelector), and `payload.encryptionSelector` is the receiver key
  * to encrypt to. On 367cd09 and 1ff93d1 the caller passed one `selector`
  * (the receiver's) in the payload instead; a 1.1 SDK refuses that.
  */
-async function produceItem6Artifact(sdk, vector, receiverSelector = vector.receiver.hostSelector) {
+async function produceSelectorsArtifact(sdk, vector, receiverSelector = vector.receiver.hostSelector) {
   const [senderAccount, senderDomain] = vector.sender.identity.split('$');
   const sender = {
     accountName: senderAccount,
@@ -49,10 +49,10 @@ async function produceItem6Artifact(sdk, vector, receiverSelector = vector.recei
 }
 
 /**
- * The DNS zone the item 6 vector describes, in the TXT format 367cd09 reads.
+ * The DNS zone a selectors vector describes, in the TXT format 367cd09 reads.
  * `hostSelectors` overrides a party's current host selector, by identity.
  */
-function item6Zone(vector, receiverPublicKeyPem, hostSelectors = {}) {
+function selectorsZone(vector, receiverPublicKeyPem, hostSelectors = {}) {
   const zone = {};
   for (const party of [vector.sender, vector.receiver]) {
     const [account, domain] = party.identity.split('$');
@@ -305,13 +305,13 @@ export function sdkChecks(sdk, set) {
       const { isValid } = sdkCrypto.verifySignature(signed, signature, senderKey);
       ensure(isValid === true, `signature does not verify with the sender key at ${selector}`);
     }),
-    // Untagged regression guard: it passes on 367cd09 too, because there the
+    // Regression guard: it passes on 367cd09 too, because there the
     // one `selector` is the receiver's. It must keep passing once the
     // selectors are separate.
     {
-      id: 'sdk/item-6/document-decrypts-with-receiver-key-at-encryption-selector',
+      id: 'sdk/selectors/document-decrypts-with-receiver-key-at-encryption-selector',
       async run() {
-        const artifact = await item6Artifact();
+        const artifact = await selectorsArtifact();
         ensure(artifact.encryption, 'the document was not encrypted');
         const { data, error } = sdkCrypto.decryptBtpPayload(
           artifact.document,
@@ -320,32 +320,30 @@ export function sdkChecks(sdk, set) {
         );
         ensure(!error, `decryption failed: ${error?.message}`);
         ensure(
-          JSON.stringify(data) === JSON.stringify(item6.artifact.document),
+          JSON.stringify(data) === JSON.stringify(selectors.artifact.document),
           'decrypted a different document',
         );
       },
     },
   );
 
-  // --- Item 6, the receiver rotates: decrypt with the key at encryptionSelector
+  // --- The receiver rotates: decrypt with the key at encryptionSelector
   const rotation = set.selectorsReceiverRotation;
   checks.push({
-    id: 'sdk/item-6/receiver-rotated-decrypts-with-key-at-encryption-selector',
-    item: 6,
-    tickets: rotation.tickets,
+    id: 'sdk/selectors/receiver-rotated-decrypts-with-key-at-encryption-selector',
     async run() {
       const { receiver, sender } = rotation;
       const atEncryption = receiver.hostSelectorAtEncryption;
       sdk.setTxtRecords(
-        item6Zone(rotation, set.oaepWrap.publicKeyPem, { [receiver.identity]: atEncryption }),
+        selectorsZone(rotation, set.oaepWrap.publicKeyPem, { [receiver.identity]: atEncryption }),
       );
-      const { payload: artifact, error } = await produceItem6Artifact(sdk, rotation, atEncryption);
+      const { payload: artifact, error } = await produceSelectorsArtifact(sdk, rotation, atEncryption);
       if (error || !artifact)
         throw new Error(`signEncrypt failed: ${error?.message ?? 'no payload'}`);
       ensure(artifact.encryption, 'the document was not encrypted');
 
       // After the artifact was sent, the receiver rotates and keeps its old key.
-      sdk.setTxtRecords(item6Zone(rotation, set.oaepWrap.publicKeyPem));
+      sdk.setTxtRecords(selectorsZone(rotation, set.oaepWrap.publicKeyPem));
       const receiverKeys = {
         [atEncryption]: set.oaepWrap.privateKeyPem,
         [receiver.hostSelector]: receiver.keys[receiver.hostSelector].privateKeyPem,
@@ -388,7 +386,7 @@ export function sdkChecks(sdk, set) {
     },
   });
 
-  // --- Item 10: SDK defects expressible as data (EBA-122) -----------------
+  // --- SDK defects expressible as data ------------------------------------
   const defects = set.sdkDefects;
   for (const c of defects.gcmTag.cases) {
     checks.push({
