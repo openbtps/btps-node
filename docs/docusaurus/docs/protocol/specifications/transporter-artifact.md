@@ -65,8 +65,8 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
 **Required Fields:**
 
 - **version**: Protocol version (currently "1.0")
-- **id**: Unique message identifier (UUID v4 recommended)
-- **issuedAt**: ISO 8601 timestamp of message creation
+- **id**: Unique message identifier (UUID v4 recommended). A receiving platform treats `(from, id)` as unique and ignores a second copy, which can arrive within the time window (see [Server Requirements](./overview.md#server-requirements))
+- **issuedAt**: ISO 8601 timestamp of message creation. The receiving server refuses the artifact when this is outside its time window, 5 minutes either way by default, so an artifact is sent soon after it is signed
 - **type**: Artifact type (TRUST_REQ, TRUST_RES, BTPS_DOC, BTPS_EVENT)
 - **from**: Sender's BTPS identity address
 - **to**: Recipient's BTPS identity address

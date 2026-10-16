@@ -88,6 +88,7 @@ const server = new BtpsServer({
   tlsOptions,
   connectionTimeoutMs: 30000,
   maxArtifactSizeKb: 5120, // the largest artifact that can be accepted, in KB (default 5 MB, minimum 1 MB)
+  maxArtifactAgeSeconds: 300, // how far issuedAt may be from this server's clock (default 5 minutes, minimum 60 seconds)
   onError: (error) => {
     console.error('Server Error:', error.message);
   },
