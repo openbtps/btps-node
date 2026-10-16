@@ -20,8 +20,8 @@ Options: `--vectors <dir>`, `--sdk-root <dir>`, `--no-sdk`,
 `--known-failing <file>`, `--json`. Exit codes: `0` OK, `1` checks failed,
 `2` the run could not start.
 
-Requirements: Node 20 or later, with `esbuild` resolvable (it is a
-devDependency of the repository root). It has been run on Node 24.21.0 only.
+Requirements: Node 24 or later, with `esbuild` resolvable (it is a
+devDependency of the repository root).
 
 ## What it checks
 

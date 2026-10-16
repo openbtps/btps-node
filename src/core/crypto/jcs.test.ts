@@ -8,28 +8,9 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-
-/*
- * Expected failures (`it.fails`) until EBA-115 adds src/core/crypto/jcs.ts.
- * On baseline 367cd09 that module does not exist, so every test fails when it
- * loads it. ./jcs.js is imported inside each test, not at the top of the file,
- * so this file still loads and runs. When EBA-115 lands every test here turns
- * red; that change must flip `it.fails` to `it` (and may restore a static
- * import). Same ratchet as test/vectors/known-failing.json.
- */
-const XFAIL = 'expected failure until EBA-115 lands';
-
-type Canonicalize = (jsonText: string) => string;
-
-async function loadCanonicalize(): Promise<Canonicalize> {
-  // A variable specifier keeps tsc from resolving a module that does not exist yet.
-  const specifier = './jcs.js';
-  const mod = await import(/* @vite-ignore */ specifier);
-  if (typeof mod.canonicalize !== 'function') {
-    throw new Error('src/core/crypto/jcs.ts does not export canonicalize');
-  }
-  return mod.canonicalize as Canonicalize;
-}
+import { assertStrictJson, canonicalize, canonicalizeValue } from './jcs.js';
+import { BTPErrorException } from '@core/error/index.js';
+import { BTP_ERROR_CANONICAL_JSON } from '@core/error/constant.js';
 
 interface JcsVector {
   name: string;
@@ -42,18 +23,27 @@ const vectors: JcsVector[] = JSON.parse(
   readFileSync(join(__dirname, '../../../test/vectors/jcs.vectors.json'), 'utf8'),
 );
 
-describe('EBA-115: canonicalize (JCS, RFC 8785)', () => {
+const expectCanonicalJsonError = (fn: () => unknown) => {
+  try {
+    fn();
+  } catch (error) {
+    expect(error).toBeInstanceOf(BTPErrorException);
+    expect(error).toMatchObject({ code: BTP_ERROR_CANONICAL_JSON.code });
+    return;
+  }
+  throw new Error('expected BTP_ERROR_CANONICAL_JSON');
+};
+
+describe('canonicalize (JCS, RFC 8785)', () => {
   for (const vector of vectors) {
     if (vector.expectError) {
-      it.fails(`${vector.name}: rejects the input (${XFAIL})`, async () => {
-        const canonicalize = await loadCanonicalize();
-        expect(() => canonicalize(vector.inputs[0])).toThrow();
+      it(`${vector.name}: rejects the input`, () => {
+        expectCanonicalJsonError(() => canonicalize(vector.inputs[0] ?? ''));
       });
       continue;
     }
 
-    it.fails(`${vector.name}: all inputs canonicalize to the same bytes (${XFAIL})`, async () => {
-      const canonicalize = await loadCanonicalize();
+    it(`${vector.name}: all inputs canonicalize to the same bytes`, () => {
       const outputs = vector.inputs.map((input) => canonicalize(input));
       for (const output of outputs) {
         expect(output).toBe(vector.expectedCanonical);
@@ -61,25 +51,67 @@ describe('EBA-115: canonicalize (JCS, RFC 8785)', () => {
     });
   }
 
-  it.fails(
-    `produces identical output for logically identical, differently-ordered objects (${XFAIL})`,
-    async () => {
-      const canonicalize = await loadCanonicalize();
-      const a = canonicalize('{"b":2,"a":1}');
-      const b = canonicalize('{"a":1,"b":2}');
-      expect(a).toBe(b);
-    },
-  );
-
-  it.fails(`rejects duplicate keys at any nesting depth (${XFAIL})`, async () => {
-    const canonicalize = await loadCanonicalize();
-    expect(() => canonicalize('{"outer":{"x":1,"x":2}}')).toThrow();
+  it('produces identical output for logically identical, differently-ordered objects', () => {
+    const a = canonicalize('{"b":2,"a":1}');
+    const b = canonicalize('{"a":1,"b":2}');
+    expect(a).toBe(b);
   });
 
-  it.fails(`is pure: canonicalizing the output again is a no-op (${XFAIL})`, async () => {
-    const canonicalize = await loadCanonicalize();
+  it('rejects duplicate keys at any nesting depth', () => {
+    expectCanonicalJsonError(() => canonicalize('{"outer":{"x":1,"x":2}}'));
+    expectCanonicalJsonError(() => canonicalize('[{"a":[{"x":1,"x":2}]}]'));
+  });
+
+  it('is pure: canonicalizing the output again is a no-op', () => {
     const once = canonicalize('{"b":{"y":2,"x":1},"a":1}');
     const twice = canonicalize(once);
     expect(twice).toBe(once);
+  });
+
+  it('matches the RFC 8785 section 3.2.4 example', () => {
+    const input =
+      '{"numbers":[333333333.33333329,1E30,4.50,2e-3,0.000000000000000000000000001],' +
+      '"string":"\\u20ac$\\u000F\\u000aA\'\\u0042\\u0022\\u005c\\\\\\"\\/",' +
+      '"literals":[null,true,false]}';
+    expect(canonicalize(input)).toBe(
+      '{"literals":[null,true,false],"numbers":[333333333.3333333,1e+30,4.5,0.002,1e-27],' +
+        '"string":"€$\\u000f\\nA\'B\\"\\\\\\\\\\"/"}',
+    );
+  });
+
+  it('rejects text that is not JSON', () => {
+    expectCanonicalJsonError(() => canonicalize('{"a":1'));
+    expectCanonicalJsonError(() => canonicalize(''));
+    expectCanonicalJsonError(() => canonicalize('"\u0001"'));
+    expectCanonicalJsonError(() => canonicalize('﻿{}'));
+  });
+});
+
+describe('canonicalizeValue', () => {
+  it('canonicalizes what JSON.stringify would send: undefined members dropped, toJSON applied', () => {
+    const value = { b: undefined, a: new Date(0), c: [undefined] };
+    expect(canonicalizeValue(value)).toBe('{"a":"1970-01-01T00:00:00.000Z","c":[null]}');
+  });
+
+  it('gives the same bytes as canonicalize on the JSON text of the value', () => {
+    const value = { z: { y: 2, x: 1 }, a: 'é', n: 100 };
+    expect(canonicalizeValue(value)).toBe(canonicalize(JSON.stringify(value)));
+  });
+
+  it('refuses a value with no JSON form, and numbers RFC 8785 cannot carry', () => {
+    expectCanonicalJsonError(() => canonicalizeValue(undefined));
+    expectCanonicalJsonError(() => canonicalizeValue({ n: 2n }));
+    expectCanonicalJsonError(() => canonicalizeValue('\ud800'));
+  });
+});
+
+describe('assertStrictJson', () => {
+  it('accepts JSON with distinct member names', () => {
+    expect(() => assertStrictJson('{"a":{"b":1},"c":[{"b":2}]}')).not.toThrow();
+  });
+
+  it('refuses a member named twice, including after unescaping', () => {
+    expectCanonicalJsonError(() => assertStrictJson('{"a":1,"a":2}'));
+    expectCanonicalJsonError(() => assertStrictJson('{"a":1,"\\u0061":2}'));
   });
 });

@@ -33,7 +33,7 @@ Update your `package.json` to use ES modules:
     "@btps/sdk": "^1.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^24.0.0",
     "nodemon": "^3.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"

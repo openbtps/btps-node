@@ -50,6 +50,7 @@ import { randomUUID } from 'crypto';
 import isEmpty from 'lodash/isEmpty.js';
 import { BTPCryptoResponse, VerifyEncryptedPayload } from '@core/crypto/types.js';
 import { decryptVerify } from '@core/crypto/decryptVerify.js';
+import { assertStrictJson } from '@core/crypto/jcs.js';
 import { validate } from '@core/utils/validation.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 export class BtpsClient {
@@ -215,6 +216,7 @@ export class BtpsClient {
     if (!line.trim()) return;
 
     try {
+      assertStrictJson(line);
       const msg: BTPServerResponse = JSON.parse(line);
       this.states.shouldRetry = false;
       const { isValid: validSignature, error } = await this.verifyServerMessage(msg);

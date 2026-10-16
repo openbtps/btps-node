@@ -1,5 +1,5 @@
 # ---------- Stage 1: Builder ----------
-FROM node:20.11.1-alpine AS builder
+FROM node:24.22.0-alpine AS builder
 
 WORKDIR /var/www
 
@@ -17,7 +17,7 @@ COPY .well-known/ ./.well-known/
 RUN yarn build
 
 # ---------- Stage 2: Production ----------
-FROM node:20.11.1-alpine AS production
+FROM node:24.22.0-alpine AS production
 
 WORKDIR /var/www
 
