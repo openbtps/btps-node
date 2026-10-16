@@ -153,7 +153,7 @@ Used to accept, reject, or block trust requests.
 
 ### 3. BTPS Document (`BTPS_DOC`)
 
-Generic BTPS documents, most commonly invoices. An invoice is `"type": "invoice"`.
+Generic BTPS documents, told apart by `type`: an invoice (`"type": "invoice"`) or a credit note (`"type": "credit_note"`, see Credit Note below).
 
 ```json
 {
@@ -300,6 +300,59 @@ A document can point to other signed documents, for example a corrected invoice 
 - **sha256**: SHA-256 of the referenced document's signed transporter artifact in its RFC 8785 canonical form, written as 64 lowercase hex characters, so the link names one exact version of that document
 
 Whether the referenced document exists is for the receiving platform to check; the protocol carries the link.
+
+**Credit Note:**
+
+A credit note gives money back against an invoice: a refund, a returned item, a correction in the payer's favour. It has the invoice's shape, so a platform shows and stores both the same way.
+
+```json
+{
+  "type": "credit_note",
+  "title": "Credit for INV-2025-001",
+  "id": "CN-2025-001",
+  "issuedAt": "2025-02-01T09:00:00Z",
+  "totalAmount": {
+    "amount": 25000,
+    "currency": "USD"
+  },
+  "lineItems": {
+    "columns": ["Description", "Amount"],
+    "rows": [{ "Description": "Returned licence", "Amount": 25000 }]
+  },
+  "issuer": {
+    "name": "Acme Corporation"
+  },
+  "references": [
+    {
+      "type": "credits",
+      "from": "billing$acme.com",
+      "id": "INV-2025-001",
+      "sha256": "lowercase-hex-sha256"
+    }
+  ],
+  "reason": "One licence returned within the trial period"
+}
+```
+
+**Required Fields:**
+
+- **type**: `credit_note`
+- **title**: Document title
+- **id**: The credit note number, unique per sender
+- **issuedAt**: ISO timestamp of document creation
+- **totalAmount**: The amount credited, in minor units, with its currency (see Money Amounts). It is always more than zero: the `type`, not a minus sign, says the money goes back
+- **lineItems**: Document line items with columns and rows, as on an invoice
+- **references**: At least one reference of type `credits`, naming the invoice it credits (see References)
+
+**Optional Fields:**
+
+- **issuer**: Document issuer information, as on an invoice
+- **description**: Document description
+- **attachments**: Files carried with the document (see Attachments)
+- **reason**: Why the amount was credited
+- **metadata**: The sending platform's own data; carried and signed, never read by the protocol
+
+A credit note has no `dueAt`, `paymentLink` or `template`. Like an invoice it carries no status, and its schema is strict.
 
 ## Security Features
 

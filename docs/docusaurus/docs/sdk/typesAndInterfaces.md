@@ -734,6 +734,27 @@ interface BTPInvoiceDoc {
 }
 ```
 
+### BTPCreditNoteDoc
+
+Credit note document structure: the invoice's shape, crediting a positive amount and naming the invoice it credits with a `credits` reference (see the Transporter Artifact specification, Credit Note).
+
+```ts
+interface BTPCreditNoteDoc {
+  type: 'credit_note';
+  title: string;
+  id: string; // the credit note number, unique per sender
+  issuedAt: string; // ISO format
+  totalAmount: BTPInvoiceDoc['totalAmount']; // more than zero
+  lineItems: BTPInvoiceDoc['lineItems'];
+  issuer?: BTPInvoiceDoc['issuer'];
+  description?: string;
+  attachments?: BTPAttachment[];
+  references: BTPDocReference[]; // at least one of type 'credits'
+  reason?: string; // why it was credited
+  metadata?: Record<string, unknown>;
+}
+```
+
 ---
 
 ## Client Types
@@ -1341,7 +1362,7 @@ interface BTPAgentQuery {
 Generic document type.
 
 ```ts
-type BTPDocType = BTPInvoiceDoc | BTPTrustReqDoc | BTPTrustResDoc;
+type BTPDocType = BTPInvoiceDoc | BTPCreditNoteDoc | BTPTrustReqDoc | BTPTrustResDoc;
 ```
 
 ### BTPStringQueryFilter
