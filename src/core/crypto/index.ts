@@ -25,7 +25,7 @@ import {
 } from '@core/error/constant.js';
 
 import { BTPErrorException } from '@core/error/index.js';
-import { canonicalize, canonicalizeValue } from './jcs.js';
+import { assertStrictJson, canonicalize, canonicalizeValue } from './jcs.js';
 
 export * from './decryptVerify.js';
 export * from './jcs.js';
@@ -94,12 +94,14 @@ export const decryptBtpPayload = <T = unknown>(
 
     let decryptedPayload = decipher.update(stringifiedPayload, 'base64', 'utf8');
     decryptedPayload += decipher.final('utf8');
+    assertStrictJson(decryptedPayload);
 
     return {
       data: JSON.parse(decryptedPayload),
       error: undefined,
     };
   } catch (err: unknown) {
+    if (err instanceof BTPErrorException) return { data: undefined, error: err };
     const errorRes = {
       data: undefined,
       error: new BTPErrorException(BTP_ERROR_UNKNOWN),
