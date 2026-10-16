@@ -13,6 +13,7 @@ import { MiddlewareManager } from '../libs/middlewareManager.js';
 import { createDefaultMiddleware, DEFAULT_MIDDLEWARE_NAMES } from '../libs/defaultMiddleware.js';
 import { BtpsSimpleRateLimiter } from '../libs/btpsSimpleRateLimiter.js';
 import JsonTrustStore from '../../core/trust/storage/JsonTrustStore.js';
+import { BTP_ERROR_MIDDLEWARE } from '../../core/error/constant.js';
 
 const TEST_FILE = path.join(__dirname, 'test-trust-store.json');
 
@@ -107,14 +108,64 @@ describe('MiddlewareManager', () => {
   });
 
   describe('loadMiddleware', () => {
-    it('should return empty if no middleware file exists', async () => {
+    it('should return empty if no path is given and the default file does not exist', async () => {
       const trustStore = new JsonTrustStore({
         connection: TEST_FILE,
         entityName: 'trusted_sender',
       });
-      await middlewareManager.loadMiddleware({ trustStore });
-      const middleware = middlewareManager.getAllMiddleware();
-      expect(middleware.length).toBe(0);
+      expect(existsSync(path.join(process.cwd(), 'btps.middleware.mjs'))).toBe(false);
+      const manager = new MiddlewareManager(undefined, false);
+      await manager.loadMiddleware({ trustStore });
+      expect(manager.getAllMiddleware().length).toBe(0);
+    });
+
+    // EBA-445 (fix list 12): a path given and not there is a mistake, not "no middleware".
+    it('fails loudly when a middleware path given explicitly does not exist', async () => {
+      const trustStore = new JsonTrustStore({
+        connection: TEST_FILE,
+        entityName: 'trusted_sender',
+      });
+      await expect(middlewareManager.loadMiddleware({ trustStore })).rejects.toMatchObject({
+        code: BTP_ERROR_MIDDLEWARE.code,
+      });
+    });
+
+    // EBA-445 (fix list 12): it used to be dropped with only a warning.
+    it('fails loudly when a handler declares fewer than three parameters', async () => {
+      await fs.writeFile(
+        middlewareFile,
+        `export default function () {
+  return [{
+    phase: 'before', step: 'parsing', priority: 1,
+    config: { name: 'two-params', enabled: true },
+    handler: async (req, res) => {}
+  }];
+}
+`,
+        'utf8',
+      );
+      const trustStore = new JsonTrustStore({
+        connection: TEST_FILE,
+        entityName: 'trusted_sender',
+      });
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      const warn = vi.spyOn(console, 'warn');
+      await expect(middlewareManager.loadMiddleware({ trustStore })).rejects.toMatchObject({
+        code: BTP_ERROR_MIDDLEWARE.code,
+      });
+      expect(warn).not.toHaveBeenCalled();
+      expect(middlewareManager.getAllMiddleware()).toEqual([]);
+    });
+
+    it('fails loudly when a default replacement has a handler with fewer than three parameters', async () => {
+      const manager = new MiddlewareManager(undefined, [
+        { phase: 'before', step: 'parsing', handler: async (_req: unknown, _res: unknown) => {} },
+      ] as never);
+      await expect(
+        manager.loadMiddleware({
+          trustStore: new JsonTrustStore({ connection: TEST_FILE, entityName: 'trusted' }),
+        }),
+      ).rejects.toMatchObject({ code: BTP_ERROR_MIDDLEWARE.code });
     });
     it('should load middleware from btps.middleware.mjs if it exists', async () => {
       await fs.writeFile(middlewareFile, simpleMiddleware, 'utf8');
@@ -127,37 +178,30 @@ describe('MiddlewareManager', () => {
       expect(middleware.length).toBe(1);
       expect(middleware[0].config?.name).toBe('test-middleware');
     });
-    it('should skip invalid middleware (missing handler)', async () => {
+    // EBA-445: an invalid definition fails the load; it is no longer skipped with a warning.
+    it('fails on invalid middleware (missing handler)', async () => {
       await fs.writeFile(middlewareFile, invalidMiddlewareMissingHandler, 'utf8');
       const trustStore = new JsonTrustStore({
         connection: TEST_FILE,
         entityName: 'trusted_sender',
       });
-      const warnSpy = vi.spyOn(console, 'warn');
-      await middlewareManager.loadMiddleware({ trustStore });
-      const middleware = middlewareManager.getAllMiddleware();
-      if (middleware.length !== 0) {
-        // Debug output
-        console.error('Loaded middleware (should be 0):', middleware);
-      }
-      expect(middleware.length).toBe(0);
-      expect(warnSpy).toHaveBeenCalled();
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      await expect(middlewareManager.loadMiddleware({ trustStore })).rejects.toMatchObject({
+        code: BTP_ERROR_MIDDLEWARE.code,
+      });
+      expect(middlewareManager.getAllMiddleware().length).toBe(0);
     });
-    it('should skip invalid middleware (wrong phase)', async () => {
+    it('fails on invalid middleware (wrong phase)', async () => {
       await fs.writeFile(middlewareFile, invalidMiddlewareWrongPhase, 'utf8');
       const trustStore = new JsonTrustStore({
         connection: TEST_FILE,
         entityName: 'trusted_sender',
       });
-      const warnSpy = vi.spyOn(console, 'warn');
-      await middlewareManager.loadMiddleware({ trustStore });
-      const middleware = middlewareManager.getAllMiddleware();
-      if (middleware.length !== 0) {
-        // Debug output
-        console.error('Loaded middleware (should be 0):', middleware);
-      }
-      expect(middleware.length).toBe(0);
-      expect(warnSpy).toHaveBeenCalled();
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      await expect(middlewareManager.loadMiddleware({ trustStore })).rejects.toMatchObject({
+        code: BTP_ERROR_MIDDLEWARE.code,
+      });
+      expect(middlewareManager.getAllMiddleware().length).toBe(0);
     });
     it('should sort middleware by priority', async () => {
       await fs.writeFile(middlewareFile, priorityMiddleware, 'utf8');
@@ -282,7 +326,7 @@ export default function () {
     const defaultNames = Object.values(DEFAULT_MIDDLEWARE_NAMES);
 
     it('loads the defaults when there is no middleware file', async () => {
-      const manager = new MiddlewareManager('/no-such-dir/btps.middleware.mjs');
+      const manager = new MiddlewareManager(undefined);
       await manager.loadMiddleware({ trustStore: trustStore() });
       expect(new Set(names(manager.getAllMiddleware()))).toEqual(new Set(defaultNames));
     });
@@ -298,7 +342,7 @@ export default function () {
     });
 
     it('runs the identity limiter after signature verification, never at parsing', async () => {
-      const manager = new MiddlewareManager('/no-such-dir/btps.middleware.mjs');
+      const manager = new MiddlewareManager(undefined);
       await manager.loadMiddleware({ trustStore: trustStore() });
       expect(names(manager.getMiddleware('after', 'signatureVerification'))).toContain(
         DEFAULT_MIDDLEWARE_NAMES.identityRateLimiter,
@@ -334,7 +378,7 @@ export default function () {
     });
 
     it('loads none when the server option is false', async () => {
-      const manager = new MiddlewareManager('/no-such-dir/btps.middleware.mjs', false);
+      const manager = new MiddlewareManager(undefined, false);
       await manager.loadMiddleware({ trustStore: trustStore() });
       expect(manager.getAllMiddleware()).toEqual([]);
     });
@@ -343,7 +387,7 @@ export default function () {
       const replacement = createDefaultMiddleware({
         rateLimiter: new BtpsSimpleRateLimiter({ ipAddress: 500, fromIdentity: 100 }),
       }).filter((mw) => mw.config?.name !== DEFAULT_MIDDLEWARE_NAMES.errorLogger);
-      const manager = new MiddlewareManager('/no-such-dir/btps.middleware.mjs', replacement);
+      const manager = new MiddlewareManager(undefined, replacement);
       await manager.loadMiddleware({ trustStore: trustStore() });
       expect(names(manager.getAllMiddleware())).not.toContain(DEFAULT_MIDDLEWARE_NAMES.errorLogger);
       expect(manager.getAllMiddleware()).toHaveLength(defaultNames.length - 1);

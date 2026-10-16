@@ -123,9 +123,9 @@ flowchart TD
   G --> H[before:trustVerification]
   H --> I[Verify Trust]
   I --> J[after:trustVerification]
-  J --> K[before:onMessage]
-  K --> L[Process Message]
-  L --> M[after:onMessage]
+  J --> K[before:onArtifact]
+  K --> L[Process Artifact]
+  L --> M[after:onArtifact]
   M --> N[Send Response]
 ```
 
@@ -223,11 +223,27 @@ Each handler receives:
 - `next`: Call to continue to the next middleware
 - `context`: (Optional) Additional context (dependencies, config, server instance)
 
-**Short-circuit:** Call `res.sendError()` or `res.sendResponse()` to stop processing and return a result.
+**Short-circuit:** Call `res.sendError()` or `res.sendRes()` to stop processing and return a result.
+
+### `next()` and stopping (BTPS 1.1, EBA-445)
+
+When a handler's promise settles, the server looks at what it did:
+
+| The handler | What happens next |
+| --- | --- |
+| answered (`res.sendRes` or `res.sendError`) | The request is done. No later middleware and no core step runs. |
+| called `next()`, at any point, and did not answer | The next handler of the same phase and step runs. |
+| neither | It **stopped the chain**: no later handler of the same phase and step runs. The server then carries on as it would after the last handler: its own checks (signature, trust, replay) still decide, and still answer any refusal. |
+
+So returning without `next()` is never a refusal. A middleware that refuses
+a request answers it with `res.sendError(...)`; one that only records
+something (as the default metrics handlers do on an error) may return
+without `next()` and leave the answer to the server.
 
 ## Loading & Ordering Middleware
 
-- The default middleware is loaded first (see above), then the file specified by `middlewarePath` (default: `btps.middleware.mjs` in the root). A missing file is not an error.
+- The default middleware is loaded first (see above), then the file specified by `middlewarePath` (default: `btps.middleware.mjs` in the working directory). With no `middlewarePath`, a missing default file is not an error. A `middlewarePath` given explicitly must exist: if it does not, the server fails to start with `BTP_ERROR_MIDDLEWARE` (EBA-445).
+- Every definition is checked when it is loaded: a valid `phase` and `step`, a `handler` function declared with at least three parameters (`req, res, next`), and a non-negative whole `priority`. One that fails stops the server from starting with `BTP_ERROR_MIDDLEWARE`; it is never skipped with only a warning (EBA-445).
 - Within a phase/step, the defaults run before the file's middleware.
 - Middleware is executed in the order listed for each phase/step.
 - Use the `priority` field to control execution order (lower numbers run first).

@@ -795,7 +795,17 @@ export class BtpsServer {
   }
 
   /**
-   * Executes a list of middleware functions
+   * Executes one step's middleware, in priority order.
+   *
+   * The rule (EBA-445), once a handler's promise settles:
+   * - it answered (`sendRes` / `sendError`): the request is done; nothing
+   *   after it runs, middleware or core;
+   * - else it called `next()`, at any point: the next handler runs;
+   * - else it stopped the chain: no later handler of this phase and step
+   *   runs. The core then carries on as it would after the last handler;
+   *   its own checks still decide, and answer any refusal. So returning
+   *   without `next()` is never a refusal: a middleware that refuses answers.
+   *
    * @returns true if a response was sent (flow should stop), false otherwise
    */
   private async executeMiddleware(
@@ -822,11 +832,22 @@ export class BtpsServer {
         context?: MiddlewareContext,
       ) => Promise<void> | void;
 
-      await typedHandler(req, res, () => Promise.resolve(), context);
+      let nextCalled = false;
+      await typedHandler(
+        req,
+        res,
+        () => {
+          nextCalled = true;
+          return Promise.resolve();
+        },
+        context,
+      );
 
       // Check if socket was destroyed after middleware execution
       // This indicates sendError or sendRes was called
       if (this.isResponseSent(res)) return true;
+
+      if (!nextCalled) break; // Stopped the chain: the core carries on.
     }
 
     return false; // No response was sent, continue with normal flow

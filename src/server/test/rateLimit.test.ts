@@ -155,7 +155,6 @@ describe('EBA-187: rate limiting through the server', () => {
       serverIdentity: { identity: 'server$client.example', ...genKeys() },
       tlsOptions: { key: 'unused', cert: 'unused' },
       // No middleware file: the defaults must load anyway.
-      middlewarePath: '/no-such-dir/btps.middleware.mjs',
     });
     await server['initialize']();
   });
@@ -249,7 +248,6 @@ describe('EBA-187: rate limiting through the server', () => {
       trustStore: store,
       serverIdentity: { identity: 'server$client.example', ...genKeys() },
       tlsOptions: { key: 'unused', cert: 'unused' },
-      middlewarePath: '/no-such-dir/btps.middleware.mjs',
       defaultMiddleware: false,
     });
     await bare['initialize']();

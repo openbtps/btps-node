@@ -17,6 +17,7 @@ import {
 } from '../types.js';
 import isEmpty from 'lodash/isEmpty.js';
 import { BTPErrorException } from '@core/error/index.js';
+import { BTP_ERROR_MIDDLEWARE } from '@core/error/constant.js';
 import { BTPServerResponse } from '@core/server/types.js';
 import { createDefaultMiddleware } from './defaultMiddleware.js';
 
@@ -28,9 +29,13 @@ export class MiddlewareManager {
     onResponseSent?: (response: BTPServerResponse) => Promise<void> | void;
   } = {};
 
+  /** Whether the path was given (EBA-445): a given file must exist; the default one need not. */
+  private readonly pathGiven: boolean;
+
   /**
    * @param middlewarePath - The platform's middleware file; defaults to
-   *   `btps.middleware.mjs` in the working directory. A missing file is no error.
+   *   `btps.middleware.mjs` in the working directory. A missing default file
+   *   is no error; a path given that does not exist is (EBA-445).
    * @param defaultMiddleware - What runs before the file's middleware
    *   (EBA-187): `undefined` for createDefaultMiddleware(), an array to
    *   replace it, `false` for none.
@@ -39,7 +44,8 @@ export class MiddlewareManager {
     private middlewarePath?: string,
     private readonly defaultMiddleware?: MiddlewareDefinitionArray | false,
   ) {
-    if (isEmpty(middlewarePath)) {
+    this.pathGiven = !isEmpty(middlewarePath);
+    if (!this.pathGiven) {
       this.middlewarePath = `${process.cwd()}/btps.middleware.mjs`;
     }
   }
@@ -80,7 +86,14 @@ export class MiddlewareManager {
 
     const resolvedPath = resolve(this.middlewarePath);
 
-    if (!existsSync(resolvedPath)) return [];
+    if (!existsSync(resolvedPath)) {
+      if (!this.pathGiven) return [];
+      // A file named and not there is a mistake, never "no middleware" (EBA-445).
+      throw new BTPErrorException(BTP_ERROR_MIDDLEWARE, {
+        cause: `The middleware file ${resolvedPath} does not exist`,
+        meta: { middlewarePath: this.middlewarePath },
+      });
+    }
 
     try {
       // Dynamic import of the middleware file
@@ -88,7 +101,9 @@ export class MiddlewareManager {
       const createMiddleware = middlewareModule.default;
 
       if (typeof createMiddleware !== 'function') {
-        throw new BTPErrorException({ message: 'Middleware file must export a default function' });
+        throw new BTPErrorException(BTP_ERROR_MIDDLEWARE, {
+          cause: 'Middleware file must export a default function',
+        });
       }
 
       const result = createMiddleware(dependencies);
@@ -106,8 +121,8 @@ export class MiddlewareManager {
         // Legacy format - just array of middleware
         loaded = this.validateAndSortMiddleware(result);
       } else {
-        throw new BTPErrorException({
-          message: 'Middleware function must return an array or MiddlewareModule',
+        throw new BTPErrorException(BTP_ERROR_MIDDLEWARE, {
+          cause: 'Middleware function must return an array or MiddlewareModule',
         });
       }
 
@@ -115,18 +130,21 @@ export class MiddlewareManager {
       return loaded;
     } catch (error) {
       console.error('[MiddlewareManager] Failed to load middleware:', error);
-      throw new BTPErrorException({
-        message: `Failed to load middleware from ${resolvedPath}: ${error}`,
+      throw new BTPErrorException(BTP_ERROR_MIDDLEWARE, {
+        cause: error,
+        meta: { middlewarePath: resolvedPath },
       });
     }
   }
 
   /**
-   * Validates middleware definitions and sorts them by priority
+   * Validates middleware definitions and sorts them by priority. An invalid
+   * definition fails the load (EBA-445): skipping it with a warning left a
+   * server running without, say, its rate limiter.
    */
   private validateAndSortMiddleware(middleware: MiddlewareDefinitionArray): MiddlewareDefinition[] {
     if (!Array.isArray(middleware)) {
-      throw new BTPErrorException({ message: 'Middleware must be an array' });
+      throw new BTPErrorException(BTP_ERROR_MIDDLEWARE, { cause: 'Middleware must be an array' });
     }
 
     const validMiddleware: MiddlewareDefinition[] = [];
@@ -134,13 +152,15 @@ export class MiddlewareManager {
     middleware.forEach((mw, index) => {
       try {
         this.validateMiddlewareDefinition(mw, index);
-
-        // Only include enabled middleware
-        if (mw.config?.enabled !== false) {
-          validMiddleware.push(mw);
-        }
       } catch (error) {
-        console.warn(`[MiddlewareManager] Skipping invalid middleware at index ${index}:`, error);
+        throw new BTPErrorException(BTP_ERROR_MIDDLEWARE, {
+          cause: error,
+          meta: { index, name: (mw as MiddlewareDefinition | undefined)?.config?.name },
+        });
+      }
+      // Only include enabled middleware
+      if (mw.config?.enabled !== false) {
+        validMiddleware.push(mw);
       }
     });
 
@@ -159,16 +179,15 @@ export class MiddlewareManager {
     mw: unknown,
     index: number,
   ): asserts mw is MiddlewareDefinition {
-    if (!mw || typeof mw !== 'object') {
-      throw new BTPErrorException({ message: 'Middleware must be an object' });
-    }
+    const invalid = (cause: string) =>
+      new BTPErrorException(BTP_ERROR_MIDDLEWARE, { cause, meta: { index } });
+
+    if (!mw || typeof mw !== 'object') throw invalid('Middleware must be an object');
 
     const middleware = mw as MiddlewareDefinition;
 
     if (!middleware.phase || !['before', 'after'].includes(middleware.phase)) {
-      throw new BTPErrorException({
-        message: 'Middleware must have a valid phase (before or after)',
-      });
+      throw invalid('Middleware must have a valid phase (before or after)');
     }
 
     if (
@@ -177,26 +196,17 @@ export class MiddlewareManager {
         middleware.step,
       )
     ) {
-      throw new BTPErrorException({ message: 'Middleware must have a valid step' });
+      throw invalid(`Middleware has no valid step: ${String(middleware.step)}`);
     }
 
     if (typeof middleware.handler !== 'function') {
-      throw new BTPErrorException({ message: 'Middleware must have a handler function' });
+      throw invalid('Middleware must have a handler function');
     }
 
-    // Validate that the handler signature matches the expected types for the phase and step
-    try {
-      // This is a runtime check to ensure the handler can be called with the expected parameters
-      // The actual type checking happens at compile time with the generic types
-      if (middleware.handler.length < 3) {
-        throw new BTPErrorException({
-          message: 'Middleware handler must accept at least 3 parameters (req, res, next)',
-        });
-      }
-    } catch (error) {
-      throw new BTPErrorException({
-        message: `Invalid middleware handler signature: ${error}`,
-      });
+    // The handler is called (req, res, next, context): one declared with
+    // fewer than three parameters cannot call next().
+    if (middleware.handler.length < 3) {
+      throw invalid('Middleware handler must accept at least 3 parameters (req, res, next)');
     }
 
     if (
@@ -205,9 +215,7 @@ export class MiddlewareManager {
         !Number.isInteger(middleware.priority) ||
         middleware.priority < 0)
     ) {
-      throw new BTPErrorException({
-        message: 'Middleware priority must be a non-negative integer',
-      });
+      throw invalid('Middleware priority must be a non-negative integer');
     }
   }
 

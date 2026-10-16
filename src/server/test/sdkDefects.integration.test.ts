@@ -157,8 +157,7 @@ const startServer = async (
     tlsOptions: { cert: tlsCert, key: tlsKey },
     port,
     connectionTimeoutMs: 5000,
-    // No middleware file: keeps the default rate limiter and console noise out.
-    middlewarePath: join(workDir, 'no-such-middleware.mjs'),
+    // No middleware path: no file is loaded, only the defaults.
     ...options,
   });
   const handled: Started['handled'] = [];

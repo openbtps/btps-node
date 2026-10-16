@@ -201,7 +201,6 @@ const startServer = async (
     tlsOptions: { cert: tlsCert, key: tlsKey },
     port,
     connectionTimeoutMs: options.connectionTimeoutMs ?? 5000,
-    middlewarePath: join(workDir, 'no-such-middleware.mjs'),
   });
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
