@@ -33,7 +33,11 @@ import type { PemKeys } from '../../core/crypto/types.js';
 import type { BTPAgentArtifact, BTPTransporterArtifact } from '../../core/server/types.js';
 import type { ArtifactResCtx, BtpsServerOptions } from '../types.js';
 import { BTP_MAX_LINE_LENGTH } from '../../core/server/constants/index.js';
-import { BTP_ERROR_INVALID_JSON, BTP_ERROR_LINE_TOO_LONG } from '../../core/error/constant.js';
+import {
+  BTP_ERROR_IDENTITY_NOT_FOUND,
+  BTP_ERROR_INVALID_JSON,
+  BTP_ERROR_LINE_TOO_LONG,
+} from '../../core/error/constant.js';
 
 const BILLER = 'billing$acme.example';
 const PAYER = 'finance$client.example';
@@ -510,5 +514,104 @@ describe('fix list 10: an over-long line closes the connection', () => {
       BTP_ERROR_INVALID_JSON.message,
     ]);
     expect(closed).toBe(false);
+  });
+});
+
+const control = (action: 'PING' | 'QUIT', id: string) => ({
+  version: '1.0.0',
+  id,
+  issuedAt: new Date().toISOString(),
+  action,
+});
+
+describe('fix list 15: PING and QUIT', () => {
+  let started: Started | undefined;
+
+  afterEach(() => {
+    started?.server.stop();
+    started = undefined;
+    vi.restoreAllMocks();
+  });
+
+  // Ran 2026-10-13: PING was answered 500 "Invalid action" and the connection ended.
+  it('answers PING ok, 200, "Server is operational", as a btps_response with its reqId', async () => {
+    started = await startServer();
+    const [answer] = await exchange(started.port, [control('PING', 'ping-1')], 1);
+    expect(answer).toMatchObject({
+      type: 'btps_response',
+      reqId: 'ping-1',
+      status: { ok: true, code: 200, message: 'Server is operational' },
+    });
+  });
+
+  it('keeps the connection open after PING: a second PING on it is answered too', async () => {
+    started = await startServer();
+    const answers = await exchange(
+      started.port,
+      [control('PING', 'ping-1'), control('PING', 'ping-2')],
+      2,
+    );
+    expect(answers.map((a) => a.reqId).sort()).toEqual(['ping-1', 'ping-2']);
+    expect(answers.every((a) => (a.status as { ok: boolean }).ok)).toBe(true);
+
+    const { answers: one, closed } = await sendRaw(
+      started.port,
+      `${JSON.stringify(control('PING', 'ping-3'))}\n`,
+      16 * 1024,
+      1000,
+    );
+    expect(one).toHaveLength(1);
+    expect(closed).toBe(false);
+  });
+
+  it('answers QUIT "bye" and closes the connection', async () => {
+    started = await startServer();
+    const { answers, closed } = await sendRaw(
+      started.port,
+      `${JSON.stringify(control('QUIT', 'quit-1'))}\n`,
+    );
+    expect(closed).toBe(true);
+    expect(answers).toEqual([
+      expect.objectContaining({
+        type: 'btps_response',
+        reqId: 'quit-1',
+        status: { ok: true, code: 200, message: 'bye' },
+      }),
+    ]);
+  });
+});
+
+describe('EBA-445: a host closes the connection after a "not found" lookup answer', () => {
+  let started: Started | undefined;
+
+  afterEach(() => {
+    started?.server.stop();
+    started = undefined;
+    vi.restoreAllMocks();
+  });
+
+  // Read: a found answer was sent with 'end', a not-found one left the connection open.
+  it('answers BTP_ERROR_IDENTITY_NOT_FOUND and ends the connection', async () => {
+    started = await startServer({
+      serverIdentity: { identity: 'server$acme.example', selector: 'btps1', ...genKeys() },
+      identityStore: { getPublicKeyRecord: async () => undefined } as never,
+    });
+    const request = {
+      version: '1.0.0',
+      id: 'lookup-1',
+      issuedAt: new Date().toISOString(),
+      identity: 'nobody$acme.example',
+      from: PAYER,
+      hostSelector: 'btps1',
+    };
+    const { answers, closed } = await sendRaw(started.port, `${JSON.stringify(request)}\n`);
+    expect(closed).toBe(true);
+    expect(answers).toEqual([
+      expect.objectContaining({
+        type: 'btps_error',
+        reqId: 'lookup-1',
+        code: BTP_ERROR_IDENTITY_NOT_FOUND.code,
+      }),
+    ]);
   });
 });

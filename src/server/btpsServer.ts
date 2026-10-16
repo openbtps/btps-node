@@ -506,6 +506,16 @@ export class BtpsServer {
     const { res } = context;
     const { action } = artifact;
     switch (action) {
+      // A health check (fix list 15): answered, and the connection stays
+      // open, so it can be asked again on the same connection.
+      case 'PING':
+        return this.sendBtpsResponse(res.socket, {
+          ...this.prepareBtpsResponse(
+            { ok: true, message: 'Server is operational', code: 200 },
+            res.reqId,
+          ),
+          type: 'btps_response',
+        });
       case 'QUIT':
         return this.sendBtpsResponse(
           res.socket,
@@ -541,8 +551,9 @@ export class BtpsServer {
     const identityRecord = selector
       ? await this.identityStore?.getPublicKeyRecord(identity, identitySelector)
       : undefined;
+    // Closed after either answer, found or not: a lookup is one question per connection.
     if (!identityRecord)
-      return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND, res.reqId);
+      return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND, res.reqId, 'end');
 
     // Only the key record's wire fields: the store's own (createdAt, any extra) stay home.
     const { selector: keySelector, publicKey, keyType, version } = identityRecord;
