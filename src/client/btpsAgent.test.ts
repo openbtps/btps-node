@@ -896,7 +896,7 @@ describe('BtpsAgent', () => {
       );
     });
 
-    // EBA-116: the receiver's selector is the encryption key, never the signing key.
+    // Separate selectors: the receiver's selector is the encryption key, never the signing key.
     const signedTransportArtifact = () =>
       mockCrypto.signBtpPayload.mock.calls
         .map(([payload]) => payload as Record<string, unknown>)

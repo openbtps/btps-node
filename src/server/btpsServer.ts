@@ -1085,59 +1085,37 @@ export class BtpsServer {
     error?: 'JSON' | 'VALIDATION';
   } {
     try {
-      // Strict parse: an artifact with a duplicate member name is refused (JCS, item 5).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- typed as JSON.parse was
-      const data = parseJson<any>(line);
+      // Strict parse: an artifact with a duplicate member name is refused (JCS).
+      const data = parseJson<unknown>(line);
 
-      let type: 'agent' | 'transporter' | 'identityLookup' | 'control' | undefined;
+      // IMPORTANT: the artifact is always the original data, for signature
+      // verification. Zod may coerce, strip, or reorder fields, which would
+      // break it; the schema below only decides whether the line is valid.
+      let parsed: PreProcessedArtifact;
       if (isBtpsControlArtifact(data)) {
-        type = 'control';
+        parsed = { artifact: data, type: 'control' };
       } else if (isBtpsTransportArtifact(data)) {
-        type = 'transporter';
+        parsed = { artifact: data, type: 'transporter' };
       } else if (isBtpsIdentityRequest(data)) {
-        type = 'identityLookup';
+        parsed = { artifact: data, type: 'identityLookup' };
       } else if (isBtpsAgentArtifact(data)) {
-        type = 'agent';
+        // respondNow stays false until the artifact passes the schema.
+        parsed = { artifact: data, type: 'agent', respondNow: false };
+      } else {
+        // Valid JSON, but no artifact: there is no { type, artifact } to give.
+        return { error: 'VALIDATION' };
       }
 
-      if (!type) {
-        return { error: 'VALIDATION', data };
+      if (!validate(BtpArtifactServerSchema, data).success) {
+        return { error: 'VALIDATION', data: parsed };
       }
 
-      const validationResult = validate(BtpArtifactServerSchema, data);
-
-      if (!validationResult.success) {
+      if (parsed.type === 'agent') {
         return {
-          error: 'VALIDATION',
-          data:
-            type === 'agent'
-              ? { artifact: data, type, respondNow: false } // Default value for agent artifacts
-              : { artifact: data, type },
+          data: { ...parsed, respondNow: this.isImmediateAction(parsed.artifact.action) },
         };
       }
-
-      // IMPORTANT: For signature verification, always use the original data.
-      // Zod may coerce, strip, or reorder fields, which will break signature verification.
-      // Use validationResult.data only for type-safe business logic, not for cryptographic checks.
-
-      switch (type) {
-        case 'transporter':
-          return { data: { artifact: data as BTPTransporterArtifact, type } };
-        case 'identityLookup':
-          return { data: { artifact: data as BTPIdentityLookupRequest, type } };
-        case 'agent':
-          return {
-            data: {
-              artifact: data as BTPAgentArtifact,
-              type,
-              respondNow: this.isImmediateAction((data as BTPAgentArtifact).action),
-            },
-          };
-        case 'control':
-          return { data: { artifact: data as BTPControlArtifact, type } };
-        default:
-          return { error: 'VALIDATION', data: undefined };
-      }
+      return { data: parsed };
     } catch {
       return { error: 'JSON' };
     }
