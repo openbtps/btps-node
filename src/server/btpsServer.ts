@@ -12,6 +12,7 @@ import {
   computeTrustId,
   validateTrustResponse,
   resolveEventTrust,
+  isPrivacyAllowed,
 } from '@core/trust/index.js';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
@@ -42,6 +43,7 @@ import {
   BTP_ERROR_REGISTRATION_TOKEN_INVALID,
   BTP_ERROR_SERVER_SELECTOR,
   BTP_ERROR_LINE_TOO_LONG,
+  BTP_ERROR_TRUST_PRIVACY,
 } from '@core/error/constant.js';
 import {
   type BTPSigningKey,
@@ -653,9 +655,12 @@ export class BtpsServer {
       // never-trusted sender.
       // A refused registration says why (item E): no store, no token, a bad,
       // used or another identity's token.
-      const registrationRefusal = REGISTRATION_ERRORS.find((e) => e.code === reqCtx.error?.code);
+      // A privacy refusal says so (EBA-444): only the other form can succeed.
+      const toldApart = [...REGISTRATION_ERRORS, BTP_ERROR_TRUST_PRIVACY].find(
+        (e) => e.code === reqCtx.error?.code,
+      );
       const wireError =
-        registrationRefusal ??
+        toldApart ??
         (reqCtx.error?.code === BTP_ERROR_TRUST_EXPIRED.code
           ? BTP_ERROR_TRUST_EXPIRED
           : BTP_ERROR_TRUST_NOT_ALLOWED);
@@ -1182,7 +1187,10 @@ export class BtpsServer {
         artifact.to,
         this.trustStore,
       );
-      return { isTrusted, error: isTrusted ? undefined : this.getTrustRefusalError(record) };
+      if (!isTrusted) return { isTrusted, error: this.getTrustRefusalError(record) };
+      // The record that granted it governs its privacy: the flipped one when
+      // the event came over the flipped trust (EBA-444).
+      return this.checkPrivacy(artifact, record);
     }
 
     const computedTrustId = computeTrustId(artifact.from, artifact.to);
@@ -1193,11 +1201,36 @@ export class BtpsServer {
       return { isTrusted: isValid, error };
     } else {
       const isTrusted = isTrustActive(trustRecord);
-      return {
-        isTrusted,
-        error: isTrusted ? undefined : this.getTrustRefusalError(trustRecord),
-      };
+      if (!isTrusted) return { isTrusted, error: this.getTrustRefusalError(trustRecord) };
+      return this.checkPrivacy(artifact, trustRecord);
     }
+  }
+
+  /**
+   * EBA-444 (fix list 8): an active trust admits a `BTPS_DOC` or
+   * `BTPS_EVENT` only in the form its `privacyType` agreed. Not applied to
+   * TRUST_REQ and TRUST_RES, which negotiate the agreement.
+   */
+  private checkPrivacy(
+    artifact: BTPTransporterArtifact,
+    record?: BTPTrustRecord,
+  ): { isTrusted: boolean; error?: BTPErrorException } {
+    const encrypted = artifact.encryption != null;
+    if (isPrivacyAllowed(record?.privacyType, encrypted)) {
+      return { isTrusted: true, error: undefined };
+    }
+    return {
+      isTrusted: false,
+      error: new BTPErrorException(BTP_ERROR_TRUST_PRIVACY, {
+        cause: `${encrypted ? 'An encrypted' : 'An unencrypted'} ${artifact.type} on a trust agreed as ${String(record?.privacyType)}`,
+        meta: {
+          type: artifact.type,
+          encrypted,
+          privacyType: record?.privacyType,
+          trustId: record?.id,
+        },
+      }),
+    };
   }
 
   /**

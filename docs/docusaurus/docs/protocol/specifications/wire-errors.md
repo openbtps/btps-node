@@ -47,6 +47,10 @@ The table lives in one place in the SDK, `BTP_WIRE_ERRORS` in
   that it was blocked. The precise reason stays on the server, in the request
   context's `error`. The table enforces this for middleware too: a middleware
   that answers with `BTP_ERROR_TRUST_REVOKED` sends `BTP_ERROR_TRUST_NOT_ALLOWED`.
+- **A privacy refusal is told apart (EBA-444).** When a trust is active but
+  the artifact's form breaks its agreed `privacyType`, the server sends
+  `BTP_ERROR_TRUST_PRIVACY`. The sender agreed the privacy type, so this tells
+  it nothing new, and only a resend in the other form can succeed.
 - **Middleware written for 1.0** that answers with a bare status, such as
   `sendError({ code: 400, message })`, is sent as that class's constant:
   400 `BTP_ERROR_VALIDATION`, 401 `BTP_ERROR_AUTHENTICATION_INVALID`, 403
@@ -108,6 +112,7 @@ test fails when a constant is added without one.
 | `BTP_ERROR_TRUST_REVOKED` | 403 | no | Server side only: sent as `BTP_ERROR_TRUST_NOT_ALLOWED` |
 | `BTP_ERROR_TRUST_BLOCKED` | 403 | no | Server side only: sent as `BTP_ERROR_TRUST_NOT_ALLOWED` |
 | `BTP_ERROR_TRUST_ALREADY_ACTIVE` | 403 | no | Server side only: sent as `BTP_ERROR_TRUST_NOT_ALLOWED` |
+| `BTP_ERROR_TRUST_PRIVACY` | 403 | no | The trust is active, but its `privacyType` does not allow this form: an unencrypted `BTPS_DOC` or `BTPS_EVENT` on an `encrypted` trust, or an encrypted one on an `unencrypted` trust. Resend it in the other form |
 | `BTP_ERROR_ISSUED_AT_WINDOW` | 403 | no | `issuedAt` is outside the accepted window |
 | `BTP_ERROR_ALREADY_RECEIVED` | 403 | no | The `(from, id)` was already accepted: it was delivered |
 | `BTP_ERROR_REGISTRATION_UNAVAILABLE` | 403 | no | The server does not register devices |

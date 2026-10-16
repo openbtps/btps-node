@@ -63,6 +63,18 @@ export const BTP_ERROR_TRUST_REVOKED: BTPError = {
   message: 'BTPS trust record has been revoked',
 };
 
+/**
+ * EBA-444 (fix list 8): a `BTPS_DOC` or `BTPS_EVENT` whose encryption does
+ * not match the trust's agreed `privacyType`: unencrypted on an `encrypted`
+ * trust, or encrypted on an `unencrypted` one. Sent with its own code: the
+ * sender agreed the privacy type, so telling it costs nothing, and only a
+ * resend in the other form can succeed.
+ */
+export const BTP_ERROR_TRUST_PRIVACY: BTPError = {
+  code: 'BTP_ERROR_TRUST_PRIVACY',
+  message: "The artifact's encryption does not match the trust's privacy type",
+};
+
 export const BTP_ERROR_TRUST_ALREADY_ACTIVE: BTPError = {
   code: 'BTP_ERROR_TRUST_ALREADY_ACTIVE',
   message: 'BTPS trust record already exist. Request invalid',

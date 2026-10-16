@@ -35,6 +35,33 @@ export const isTrustActive = (trust?: BTPTrustRecord): boolean => {
 };
 
 /**
+ * Whether a trust's agreed `privacyType` allows an artifact that is, or is
+ * not, encrypted (EBA-444, fix list 8):
+ * - `encrypted`: only encrypted;
+ * - `unencrypted`: only unencrypted;
+ * - `mixed`: either;
+ * - absent (undefined or null): either, as `mixed`. A record written before the field was
+ *   enforced has agreed nothing stricter.
+ *
+ * Any other value allows nothing: an unreadable agreement is not permission.
+ */
+export const isPrivacyAllowed = (
+  privacyType: BTPTrustRecord['privacyType'] | null | undefined,
+  encrypted: boolean,
+): boolean => {
+  switch (privacyType ?? 'mixed') {
+    case 'mixed':
+      return true;
+    case 'encrypted':
+      return encrypted;
+    case 'unencrypted':
+      return !encrypted;
+    default:
+      return false;
+  }
+};
+
+/**
  * Validates a trust request.
  * Used in for artifact type TRUST_REQ
  * only allow message to be sent if trust record is not active

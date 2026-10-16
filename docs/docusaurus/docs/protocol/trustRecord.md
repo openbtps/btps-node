@@ -206,10 +206,40 @@ BTPS supports three privacy levels for document exchange:
 
 ### `mixed`
 
-- Selective encryption based on document type
+- Either form is accepted; the sender chooses per artifact
 - Balance between security and performance
-- Documents marked as sensitive are encrypted
 - **Use case**: Mixed document types with varying sensitivity
+
+### How the server enforces it (BTPS 1.1, EBA-444)
+
+A BTPS 1.1 server reads `privacyType` from the trust record and refuses a
+`BTPS_DOC` or `BTPS_EVENT` that breaks it, after the trust check and before
+the application sees the artifact:
+
+| Trust `privacyType` | Unencrypted artifact (`encryption: null`) | Encrypted artifact |
+| ------------------- | ----------------------------------------- | ------------------ |
+| `encrypted`         | refused                                   | accepted           |
+| `unencrypted`       | accepted                                  | refused            |
+| `mixed`             | accepted                                  | accepted           |
+
+- **The refusal** is `BTP_ERROR_TRUST_PRIVACY`, status 403, not retryable:
+  only a resend in the other form can succeed. It is told apart on the wire,
+  unlike the other trust refusals, because the sender agreed the privacy type.
+  See [Wire Errors](./specifications/wire-errors.md).
+- **The record that governs** is the one that admitted the artifact:
+  - a `BTPS_DOC`: the normal record, `from → to`;
+  - a `BTPS_EVENT` admitted over the normal record: that record;
+  - a `BTPS_EVENT` admitted over the flipped record, `to → from` (the payer
+    writing back over the biller's trust; see
+    [Lifecycle Events](./specifications/lifecycle-events.md)): the flipped
+    record's `privacyType`.
+- **Not enforced on** `TRUST_REQ` and `TRUST_RES`, which negotiate the
+  agreement, nor on agent artifacts, which travel between a device and its
+  own identity's server. An agent's transporter artifact is checked by the
+  receiving server when it is delivered.
+- **A record with no `privacyType`** (one written before 1.1) is treated as
+  `mixed`. Any value other than the three above refuses every artifact: an
+  unreadable agreement is not permission.
 
 ---
 
@@ -253,7 +283,7 @@ BTPS supports three privacy levels for document exchange:
 6. **Document Exchange**
    - If accepted, sender can send documents
    - All documents verified against trust record
-   - Privacy level enforced based on agreed type
+   - Privacy level enforced based on agreed type (see "How the server enforces it" above)
 
 ---
 

@@ -177,7 +177,7 @@ about an invoice between A and B.
 ## Encryption
 
 - Every event is signed, like every artifact.
-- An event is encrypted when the trust's `privacyType` says so: it carries
+- An event is encrypted when the trust's `privacyType` says so (`mixed` leaves it to the sender): it carries
   amounts, due dates and dispute reasons, which are as private as the
   invoice. The envelope (`from`, `to`, `type`, `issuedAt`, `id`) stays
   readable, so routing and the trust check work.
@@ -187,8 +187,12 @@ about an invoice between A and B.
   `BTPS_DOC`. The receiving platform applies the same checks after it
   decrypts (below).
 
-Enforcing `privacyType` itself (refusing an unencrypted event on an
-encrypted trust) is fix-list item 8, EBA-444, and is not in this change.
+The server enforces `privacyType` (fix-list item 8, EBA-444): an
+unencrypted event on an `encrypted` trust, or an encrypted one on an
+`unencrypted` trust, is refused with `BTP_ERROR_TRUST_PRIVACY`. The record
+that admitted the event governs: for an event admitted over the flipped
+record (`to → from`), that record's `privacyType`. See
+[Trust Record](../trustRecord.md), "How the server enforces it".
 
 ## What the receiving platform checks
 
