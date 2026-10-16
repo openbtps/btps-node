@@ -48,7 +48,7 @@ import type {
 import { BTP_PROTOCOL_VERSION } from '@core/server/constants/index.js';
 import { randomUUID } from 'crypto';
 import isEmpty from 'lodash/isEmpty.js';
-import { BTPCryptoResponse, VerifyEncryptedPayload } from '@core/crypto/types.js';
+import { BTPCryptoResponse, BTPDecryptionKey, VerifyEncryptedPayload } from '@core/crypto/types.js';
 import { decryptVerify } from '@core/crypto/decryptVerify.js';
 import { assertStrictJson } from '@core/crypto/jcs.js';
 import { validate } from '@core/utils/validation.js';
@@ -727,22 +727,22 @@ export class BtpsClient {
   decryptVerifyArtifact = async <T = Record<string, unknown>>(
     artifact: VerifyEncryptedPayload<T>,
     senderPubPem: string,
-    receiverPrivatePem?: string,
+    receiverKey?: BTPDecryptionKey,
   ): Promise<BTPCryptoResponse<T>> => {
-    return await decryptVerify(senderPubPem, artifact, receiverPrivatePem);
+    return await decryptVerify(senderPubPem, artifact, receiverKey);
   };
 
   /**
    * Resolve the identity
    * @param identity - The identity to resolve
    * @param from - The from identity
-   * @param receiverPrivatePem - The private key of the receiver
+   * @param receiverKey - The receiver's private key, or a Decrypter holding it
    * @returns The resolved identity
    */
   async resolveIdentity(
     identity: string,
     from: string,
-    receiverPrivatePem?: string,
+    receiverKey?: BTPDecryptionKey,
   ): Promise<
     | {
         response: BTPIdentityResDoc & {
@@ -876,7 +876,7 @@ export class BtpsClient {
               encryption: msg?.encryption ?? null,
             } as VerifyEncryptedPayload<BTPServerResponse>;
             const { payload: decryptedPayload, error: decryptError } =
-              await this.decryptVerifyArtifact(encryptedPayload, hostPubPem, receiverPrivatePem);
+              await this.decryptVerifyArtifact(encryptedPayload, hostPubPem, receiverKey);
 
             if (decryptError) {
               resolve(this.buildClientErrorResponse(decryptError));

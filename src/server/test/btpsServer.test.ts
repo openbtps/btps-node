@@ -15,6 +15,11 @@ import { EventEmitter } from 'events';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { BTP_PROTOCOL_VERSION } from '../../core/server/constants/index.js';
 import JsonTrustStore from '../../core/trust/storage/JsonTrustStore.js';
+import { AbstractIdentityStore } from '../../core/storage/AbstractIdentityStore.js';
+import type { BTPIdentityRecord, IdentityPubKeyRecord } from '../../core/storage/types.js';
+import { PemSigner } from '../../core/crypto/pem-signer.js';
+import { verifySignature } from '../../core/crypto/index.js';
+import { generateKeyPairSync } from 'crypto';
 import path from 'path';
 import fs from 'fs/promises';
 import type { BTPRequestCtx, BTPResponseCtx, ProcessedArtifact, BtpsTlsOptions } from '../types.js';
@@ -2523,6 +2528,72 @@ export default function () {
           expect(client.states.shouldRetry).toBe(false);
         });
       });
+    });
+  });
+
+  describe('a server key held elsewhere (a Signer)', () => {
+    class OneIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
+      private readonly record: IdentityPubKeyRecord;
+      constructor(record: IdentityPubKeyRecord) {
+        super({ connection: null });
+        this.record = record;
+      }
+      async getPublicKeyRecord() {
+        return this.record;
+      }
+      async getById() {
+        return undefined;
+      }
+      async create(): Promise<BTPIdentityRecord> {
+        throw new Error('not implemented');
+      }
+      async update(): Promise<BTPIdentityRecord> {
+        throw new Error('not implemented');
+      }
+      async delete() {}
+    }
+
+    it('signs an identity lookup answer through the Signer, verifiable with the server key', async () => {
+      const keys = generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      });
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', signer: new PemSigner(keys) },
+        trustStore: new DummyTrustStore(),
+        identityStore: new OneIdentityStore({
+          selector: 'btps1',
+          publicKey: 'identity-public-key',
+          keyType: 'rsa',
+          version: '1.0.0',
+          createdAt: new Date().toISOString(),
+        }),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const sent = vi.fn();
+      server['sendBtpsResponse'] = sent;
+      const socket = {} as TLSSocket;
+
+      await server['handleIdentityLookup'](
+        {
+          version: '1.0.0',
+          id: 'lookup-1',
+          issuedAt: new Date().toISOString(),
+          identity: 'alice$example.com',
+          from: 'bob$other.com',
+          hostSelector: 'btps1',
+        },
+        {
+          req: { socket } as unknown as BTPRequestCtx,
+          res: { socket, reqId: 'req-1' } as unknown as BTPResponseCtx,
+        },
+      );
+
+      const response: BTPServerResponse = sent.mock.calls[0]?.[1];
+      const { signature, ...signed } = response;
+      expect(signed.signedBy).toBe('host$example.com');
+      expect(signature && verifySignature(signed, signature, keys.publicKey).isValid).toBe(true);
     });
   });
 

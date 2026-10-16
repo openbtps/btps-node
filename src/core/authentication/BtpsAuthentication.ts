@@ -16,7 +16,7 @@ import {
   generateUserToken,
   getFingerprintFromPem,
   DEFAULT_ALPHABET,
-  type PemKeys,
+  type BTPSigningKey,
 } from '@core/crypto/index.js';
 import type {
   ServerAuthConfig,
@@ -105,7 +105,7 @@ export class BtpsAuthentication {
    */
   private static async _fetchAuthSession(
     agentId: string,
-    payload: Omit<BTPAuthReqDoc, 'publicKey'> & { keyPair: PemKeys },
+    payload: Omit<BTPAuthReqDoc, 'publicKey'> & { keyPair: BTPSigningKey },
     type: 'refresh' | 'auth' = 'auth',
     agentOptions?: AuthAgentOptions,
   ): Promise<AuthRequestResponse> {
@@ -116,11 +116,14 @@ export class BtpsAuthentication {
       // Create BtpsAgent for communication
       const options: BTPAgentOptions = {
         ...agentOptions,
-        agent: {
-          id: agentId,
-          identityKey: keyPair.privateKey,
-          identityCert: keyPair.publicKey,
-        },
+        agent:
+          'sign' in keyPair
+            ? { id: agentId, signer: keyPair }
+            : {
+                id: agentId,
+                identityKey: keyPair.privateKey,
+                identityCert: keyPair.publicKey,
+              },
         btpIdentity: identity,
       };
 
@@ -130,7 +133,7 @@ export class BtpsAuthentication {
       const authRequest: BTPAuthReqDoc = {
         identity,
         authToken,
-        publicKey: keyPair.publicKey,
+        publicKey: 'sign' in keyPair ? (await keyPair.getPublicKey()).publicKey : keyPair.publicKey,
         agentInfo,
       };
 
@@ -408,14 +411,14 @@ export class BtpsAuthentication {
   /**
    * Authenticate using an auth token (client-side)
    * @param authToken - The authentication token from the server
-   * @param keyPair - Generated key pair for this device
+   * @param keyPair - Generated key pair for this device, or a Signer holding its key in the device's keystore
    * @param agentInfo - Optional agent information
    * @returns NewAuthentication result with session details
    */
   static async authenticate(
     identity: string,
     authToken: string,
-    keyPair: PemKeys,
+    keyPair: BTPSigningKey,
     agentInfo?: Record<string, string | string[]>,
     agentOptions?: AuthAgentOptions,
   ): Promise<AuthRequestResponse> {
@@ -446,7 +449,7 @@ export class BtpsAuthentication {
     agentId: string,
     identity: string,
     refreshToken: string,
-    keyPair: PemKeys,
+    keyPair: BTPSigningKey,
     agentInfo?: Record<string, string | string[]>,
     agentOptions?: AuthAgentOptions,
   ): Promise<AuthRequestResponse> {

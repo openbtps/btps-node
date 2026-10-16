@@ -104,8 +104,4 @@ These exist today and are listed in `test/conventions.test.ts` so the
 check passes. Do not add to the list to make a new file pass; move the
 file.
 
-- The signer and decrypter files at the top of `src/` (`signer-interface.ts`,
-  `pem-signer.ts`, `kms-signer.ts`, `decrypter-interface.ts`,
-  `pem-decrypter.ts`, `kms-decrypter.ts`).
 - `identitySchema` in `core/server/schemas/shared.ts`, which has no `Btp` prefix.
-- One plain `Error` in `src/pem-decrypter.ts`.

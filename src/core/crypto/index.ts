@@ -26,12 +26,18 @@ import {
 
 import { BTPErrorException } from '@core/error/index.js';
 import { assertStrictJson, canonicalize, canonicalizeValue } from './jcs.js';
+import type { Signer } from './signer-interface.js';
+import type { Decrypter } from './decrypter-interface.js';
 
 export * from './decryptVerify.js';
 export * from './jcs.js';
 export * from './signEncrypt.js';
 export * from './keygen.js';
 export * from './types.js';
+export * from './signer-interface.js';
+export * from './decrypter-interface.js';
+export * from './pem-signer.js';
+export * from './pem-decrypter.js';
 
 export const encryptBtpPayload = (
   payload: unknown = '',
@@ -101,28 +107,60 @@ export const decryptBtpPayload = <T = unknown>(
       error: undefined,
     };
   } catch (err: unknown) {
-    if (err instanceof BTPErrorException) return { data: undefined, error: err };
-    const errorRes = {
-      data: undefined,
-      error: new BTPErrorException(BTP_ERROR_UNKNOWN),
-    };
-    if (
-      typeof err === 'object' &&
-      err !== null &&
-      'code' in err &&
-      (err as NodeJS.ErrnoException).code === 'ERR_OSSL_RSA_OAEP_DECODING_ERROR'
-    ) {
-      errorRes.error = new BTPErrorException(BTP_ERROR_DECRYPTION_UNINTENDED);
-      return errorRes;
-    }
-
-    const error =
-      err instanceof Error
-        ? new BTPErrorException({ message: err.message, code: err.name })
-        : new BTPErrorException(BTP_ERROR_UNKNOWN);
-    errorRes.error = error;
-    return errorRes;
+    return { data: undefined, error: decryptionError(err) };
   }
+};
+
+/**
+ * Decrypts like `decryptBtpPayload`, through a Decrypter that holds the
+ * receiver's private key elsewhere (a KMS, a device) instead of a PEM key.
+ */
+export const decryptBtpPayloadWithDecrypter = async <T = unknown>(
+  payload: unknown = '',
+  encryption: BTPEncryption,
+  decrypter: Decrypter,
+): Promise<{ data?: T; error?: BTPErrorException }> => {
+  if (encryption.algorithm !== 'aes-256-gcm') {
+    return {
+      data: undefined,
+      error: new BTPErrorException(BTP_ERROR_UNSUPPORTED_ENCRYPT),
+    };
+  }
+
+  try {
+    const stringifiedPayload = typeof payload !== 'string' ? JSON.stringify(payload) : payload;
+    const plaintext = await decrypter.decrypt({
+      encryptedKey: Buffer.from(encryption.encryptedKey, 'base64'),
+      iv: Buffer.from(encryption.iv, 'base64'),
+      ciphertext: Buffer.from(stringifiedPayload, 'base64'),
+      authTag: Buffer.from(encryption.authTag, 'base64'),
+    });
+    const decryptedPayload = Buffer.from(plaintext).toString('utf8');
+    assertStrictJson(decryptedPayload);
+
+    return {
+      data: JSON.parse(decryptedPayload),
+      error: undefined,
+    };
+  } catch (err: unknown) {
+    return { data: undefined, error: decryptionError(err) };
+  }
+};
+
+/** Why a decryption failed, as a BTPErrorException. */
+const decryptionError = (err: unknown): BTPErrorException => {
+  if (err instanceof BTPErrorException) return err;
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    err.code === 'ERR_OSSL_RSA_OAEP_DECODING_ERROR'
+  ) {
+    return new BTPErrorException(BTP_ERROR_DECRYPTION_UNINTENDED);
+  }
+  return err instanceof Error
+    ? new BTPErrorException({ message: err.message, code: err.name })
+    : new BTPErrorException(BTP_ERROR_UNKNOWN);
 };
 
 /**
@@ -193,6 +231,24 @@ export const signBtpPayload = (payload: unknown = '', senderPemFiles: PemKeys): 
     algorithmHash,
     value: signature.toString('base64'),
     fingerprint: senderFingerprint,
+  };
+};
+
+/**
+ * Signs like `signBtpPayload`, through a Signer that holds the sender's
+ * private key elsewhere (a KMS, a device) instead of a PEM key pair.
+ */
+export const signBtpPayloadWithSigner = async (
+  payload: unknown = '',
+  signer: Signer,
+): Promise<BTPSignature> => {
+  const signature = await signer.sign(signedBytes(payload));
+  const { publicKey } = await signer.getPublicKey();
+
+  return {
+    algorithmHash: 'sha256',
+    value: Buffer.from(signature).toString('base64'),
+    fingerprint: getFingerprintFromPem(publicKey, 'sha256'),
   };
 };
 

@@ -356,6 +356,12 @@ const agent = new BtpsAgent({
   retryDelayMs: 1000,
   connectionTimeoutMs: 30000,
 });
+
+// Or with the device key held elsewhere: any Signer, such as one over the device's keystore
+const keystoreAgent = new BtpsAgent({
+  agent: { id: 'agent_123', signer: deviceSigner },
+  btpIdentity: 'billing$yourdomain.com',
+});
 ```
 
 ### command
@@ -987,6 +993,9 @@ const delegator = new BtpsDelegator({
   privateKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',
   autoInit: true,
 });
+
+// Or with the delegator key held elsewhere, such as a KMS
+const kmsDelegator = new BtpsDelegator({ identity: 'alice$saas.com', signer: kmsSigner });
 ```
 
 ### init

@@ -7,7 +7,8 @@
 
 import { randomUUID } from 'crypto';
 import { BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '@core/error/constant.js';
-import { signBtpPayload, encryptBtpPayload } from './index.js';
+import { signBtpPayload, signBtpPayloadWithSigner, encryptBtpPayload } from './index.js';
+import type { Signer } from './signer-interface.js';
 import {
   BTPCryptoResponse,
   PemKeys,
@@ -37,7 +38,7 @@ const genEncryptError = (error: BTPErrorException) => ({
  */
 export const signEncrypt = async <T = unknown>(
   to: string | undefined,
-  sender: ParsedIdentity & { pemFiles: PemKeys },
+  sender: ParsedIdentity & ({ pemFiles: PemKeys } | { signer: Signer }),
   payload: {
     document: T;
     selector?: string;
@@ -80,7 +81,10 @@ export const signEncrypt = async <T = unknown>(
 
   let signature: BTPSignature;
   try {
-    signature = signBtpPayload(docToSign, sender.pemFiles);
+    signature =
+      'signer' in sender
+        ? await signBtpPayloadWithSigner(docToSign, sender.signer)
+        : signBtpPayload(docToSign, sender.pemFiles);
   } catch (error) {
     return genEncryptError(error as BTPErrorException);
   }

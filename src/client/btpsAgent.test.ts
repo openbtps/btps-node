@@ -19,6 +19,7 @@ import * as crypto from '../core/crypto/index.js';
 import { BTPDocType, BTPServerResponse } from '../core/server/types.js';
 import { BTPAgentOptions } from './types/index.js';
 import { BTP_PROTOCOL_VERSION } from '../core/server/constants/index.js';
+import type { Signer } from '../core/crypto/signer-interface.js';
 
 // --- Mocks ---
 vi.mock('../core/utils/index');
@@ -187,6 +188,51 @@ describe('BtpsAgent', () => {
           btpIdentity: 'invalid-identity',
         });
       }).toThrow(BTPErrorException);
+    });
+  });
+
+  describe('with its key held elsewhere (a Signer)', () => {
+    const signer: Signer = {
+      algorithm: 'RSASSA_PKCS1_V1_5_SHA_256',
+      sign: vi.fn(),
+      getPublicKey: vi.fn(),
+    };
+    const signature = {
+      algorithmHash: 'sha256' as const,
+      value: 'signer-signature',
+      fingerprint: 'signer-fingerprint',
+    };
+
+    it('signs the agent and transporter artifacts through the Signer, never with a PEM key', async () => {
+      mockCrypto.signBtpPayloadWithSigner.mockResolvedValue(signature);
+      const signerAgent = new BtpsAgent({ ...mockOptions, agent: { id: 'agent-1', signer } });
+      vi.spyOn(signerAgent, 'resolveBtpsHostDnsTxt').mockResolvedValue({
+        hostname: 'localhost',
+        port: 3443,
+        selector: 'btps1',
+        version: '1.0.0',
+      });
+      const send = vi.spyOn(signerAgent, 'send').mockResolvedValue({
+        response: undefined,
+        error: undefined,
+      });
+
+      await signerAgent.command('trust.request', 'bob$company.com', {
+        id: 'doc-1',
+        name: 'Test Company',
+        email: 'test@company.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      });
+
+      expect(mockCrypto.signBtpPayloadWithSigner).toHaveBeenCalledTimes(2);
+      expect(mockCrypto.signBtpPayloadWithSigner).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'TRUST_REQ' }),
+        signer,
+      );
+      expect(mockCrypto.signBtpPayload).not.toHaveBeenCalled();
+      expect(send.mock.calls[0]?.[0]).toMatchObject({ agentId: 'agent-1', signature });
+      signerAgent.destroy();
     });
   });
 

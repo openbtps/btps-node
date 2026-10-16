@@ -33,14 +33,15 @@ import type {
 import type {
   BTPCryptoArtifact,
   BTPCryptoResponse,
+  BTPDecryptionKey,
   BTPEncryption,
-  PemKeys,
+  BTPSigningKey,
 } from '@core/crypto/types.js';
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
 import { BtpLifecycleEventSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import { validate } from '@core/utils/validation.js';
 import { AGENT_ACTIONS_REQUIRING_DOCUMENT } from '@core/server/constants/index.js';
-import { encryptBtpPayload, signBtpPayload } from '@core/crypto/index.js';
+import { encryptBtpPayload, signBtpPayload, signBtpPayloadWithSigner } from '@core/crypto/index.js';
 import { randomUUID } from 'crypto';
 import { isValidIdentity } from '@core/utils/index.js';
 
@@ -55,7 +56,8 @@ const mappedTransporterAction = {
 
 export class BtpsAgent extends BtpsClient {
   private agentId: string;
-  private readonly keyPair: PemKeys;
+  private readonly signingKey: BTPSigningKey;
+  private readonly decryptionKey?: BTPDecryptionKey;
 
   constructor(agentOptions: BTPAgentOptions) {
     const { agent, btpIdentity, ...restOptions } = agentOptions;
@@ -64,20 +66,22 @@ export class BtpsAgent extends BtpsClient {
       ...restOptions,
     });
 
-    this.keyPair = {
-      publicKey: agent.identityCert,
-      privateKey: agent.identityKey,
-    };
+    if ('signer' in agent) {
+      this.signingKey = agent.signer;
+      this.decryptionKey = agent.decrypter;
+    } else {
+      this.signingKey = {
+        publicKey: agent.identityCert,
+        privateKey: agent.identityKey,
+      };
+      this.decryptionKey = agent.identityKey;
+    }
 
     this.agentId = agent.id;
 
-    if (
-      !agent.id ||
-      !agent.identityKey ||
-      !agent.identityCert ||
-      !btpIdentity ||
-      !isValidIdentity(btpIdentity)
-    ) {
+    const hasKey =
+      'signer' in agent ? Boolean(agent.signer) : Boolean(agent.identityKey && agent.identityCert);
+    if (!agent.id || !hasKey || !btpIdentity || !isValidIdentity(btpIdentity)) {
       throw new BTPErrorException({ message: 'Invalid agent or btpIdentity' });
     }
   }
@@ -138,10 +142,10 @@ export class BtpsAgent extends BtpsClient {
     agentArtifact.version = this.getProtocolVersion();
 
     try {
-      const signature = signBtpPayload(agentArtifact, {
-        publicKey: this.keyPair.publicKey,
-        privateKey: this.keyPair.privateKey,
-      });
+      const signature =
+        'sign' in this.signingKey
+          ? await signBtpPayloadWithSigner(agentArtifact, this.signingKey)
+          : signBtpPayload(agentArtifact, this.signingKey);
       agentArtifact.signature = signature;
 
       return {
@@ -169,7 +173,7 @@ export class BtpsAgent extends BtpsClient {
     }
     // Get the selector for the to identity
     const receiverDnsTxt = options?.encryption
-      ? (await this.resolveIdentity(to, this.options.to, this.keyPair.privateKey)).response
+      ? (await this.resolveIdentity(to, this.options.to, this.decryptionKey)).response
       : await this.resolveBtpsHostDnsTxt(to);
 
     if (!receiverDnsTxt) {
@@ -233,10 +237,10 @@ export class BtpsAgent extends BtpsClient {
     };
 
     try {
-      const signature = signBtpPayload(transporterArtifact, {
-        publicKey: this.keyPair.publicKey,
-        privateKey: this.keyPair.privateKey,
-      });
+      const signature =
+        'sign' in this.signingKey
+          ? await signBtpPayloadWithSigner(transporterArtifact, this.signingKey)
+          : signBtpPayload(transporterArtifact, this.signingKey);
 
       return {
         payload: {
