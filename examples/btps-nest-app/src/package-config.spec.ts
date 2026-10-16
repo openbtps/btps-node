@@ -97,7 +97,7 @@ describe('examples/btps-nest-app dependency configuration (EBA-154)', () => {
     // rebuilt, c997031) with a portal: reference to the workspace root,
     // which has no tarball hash to go stale. Full coverage of that
     // resolution — package.json, yarn.lock, and the absence of
-    // package.tgz — lives in tests/eba-156/package-dependency.test.mjs;
+    // package.tgz — lives in tests/example-app-packaging/package-dependency.test.mjs;
     // this just keeps EBA-154's "is @btps/sdk declared at all" guard
     // pointed at the dependency's current, correct value.
     it('has a @btps/sdk dependency pointing at the workspace root via portal:', () => {

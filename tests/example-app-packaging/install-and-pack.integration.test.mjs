@@ -16,7 +16,7 @@
 // example app's dependencies and hit the registry, so a plain `yarn test`
 // skips them. Run them deliberately with:
 //
-//   BTPS_INTEGRATION=1 yarn vitest run tests/eba-156/install-and-pack.integration.test.mjs
+//   BTPS_INTEGRATION=1 yarn vitest run tests/example-app-packaging/install-and-pack.integration.test.mjs
 //
 // CI does not set the flag: .github/workflows/ci.yml runs the same steps
 // natively (example-app and pack-smoke jobs), on a fresh checkout.

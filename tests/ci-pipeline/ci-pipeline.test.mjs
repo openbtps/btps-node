@@ -5,11 +5,11 @@
 // examples/btps-nest-app itself (only the root SDK it depends on).
 // .github/workflows/ci.yml says as much:
 //   "The full root `yarn test` and verify:btps-vectors belong to EBA-152,
-//    which builds on this file; the scoped tests/eba-156 step is not a
+//    which builds on this file; the scoped tests/example-app-packaging step is not a
 //    substitute for it."
 //
 // These checks read the workflow file the same way
-// tests/eba-156/ci-workflow.test.mjs does: no YAML parser is a project
+// tests/example-app-packaging/ci-workflow.test.mjs does: no YAML parser is a project
 // dependency, so jobs and steps are isolated with small indentation-based
 // splitters instead of adding one just for this test.
 import fs from 'node:fs';
@@ -88,7 +88,7 @@ function stepWorkingDirectory(stepBody) {
 }
 
 describe('CI: the root test suite (`yarn test`) runs on every PR', () => {
-  // The scoped `yarn vitest run tests/eba-156` step (added by EBA-156) only
+  // The scoped `yarn vitest run tests/example-app-packaging` step (added by EBA-156) only
   // runs this ticket's directory, not the project's full vitest suite
   // (src/**/*.test.ts, test/vectors, etc). That scoped step is not a
   // substitute for the root `yarn test` script.

@@ -102,13 +102,13 @@ describe('CI: root build runs before the example app is installed/tested', () =>
 describe('CI: this ticket\'s own checks run on every PR', () => {
   // Without this, criterion 1's portal-checksum gate (portal-checksum.test.mjs)
   // only ran when someone remembered to run it locally.
-  it('a workflow step runs vitest over tests/eba-156', () => {
+  it('a workflow step runs vitest over tests/example-app-packaging', () => {
     const steps = allJobs()
       .flatMap((j) => j.body.split('\n'))
       .filter((l) => /^\s*run:/.test(l));
     expect(
-      steps.some((l) => /\b(yarn|npx)\s+vitest\s+run\b.*\btests\/eba-156\b/.test(l)),
-      'expected a `run:` step executing `vitest run tests/eba-156`',
+      steps.some((l) => /\b(yarn|npx)\s+vitest\s+run\b.*\btests\/example-app-packaging\b/.test(l)),
+      'expected a `run:` step executing `vitest run tests/example-app-packaging`',
     ).toBe(true);
   });
 });

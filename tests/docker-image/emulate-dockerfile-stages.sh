@@ -12,7 +12,7 @@
 # The acceptance signal is a real `docker build` (docker-build.integration
 # .test.mjs, or the CI step).
 #
-#   bash tests/eba-166/emulate-dockerfile-stages.sh <empty-workdir>
+#   bash tests/docker-image/emulate-dockerfile-stages.sh <empty-workdir>
 set -euo pipefail
 W=${1:?usage: $0 <empty-workdir>}; mkdir -p "$W"; W=$(cd "$W" && pwd)
 SRC=$(git rev-parse --show-toplevel)

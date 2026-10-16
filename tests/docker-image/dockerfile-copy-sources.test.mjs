@@ -22,7 +22,7 @@
 // docker binary) — only that nothing in the instruction list is doomed to
 // fail before that. No YAML parser is a project dependency, so
 // docker-compose.yml is read with a small indentation-based slicer, the same
-// approach tests/eba-156/ci-workflow.test.mjs uses for workflow YAML.
+// approach tests/example-app-packaging/ci-workflow.test.mjs uses for workflow YAML.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';

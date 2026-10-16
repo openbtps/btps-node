@@ -6,8 +6,8 @@
 // portal:../..-linked @btps/sdk at the repository root) would keep
 // regressing silently.
 //
-// Same approach as tests/eba-156/ci-workflow.test.mjs and
-// tests/eba-152/ci-pipeline.test.mjs: no YAML parser is a project
+// Same approach as tests/example-app-packaging/ci-workflow.test.mjs and
+// tests/ci-pipeline/ci-pipeline.test.mjs: no YAML parser is a project
 // dependency, so jobs/steps are isolated with small indentation-based
 // splitters rather than adding one just for this test.
 import fs from 'node:fs';

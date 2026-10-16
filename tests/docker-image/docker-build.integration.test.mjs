@@ -7,14 +7,14 @@
 // (dist/, node_modules/, a hand-built package.tgz) lying around that a real
 // fresh clone would not have and that could mask the bug. So this test
 // exports the current commit with `git archive` into a clean temp directory
-// and builds from there, the same way tests/eba-156/install-and-pack
+// and builds from there, the same way tests/example-app-packaging/install-and-pack
 // .integration.test.mjs avoids trusting the ambient checkout state.
 //
 // Opt-in only, same convention as that file: requires a Docker daemon (this
 // sandbox has none — `docker` is not even on PATH here), is slow, and is not
 // run by a plain `yarn test`. Run deliberately with:
 //
-//   BTPS_INTEGRATION=1 yarn vitest run tests/eba-166/docker-build.integration.test.mjs
+//   BTPS_INTEGRATION=1 yarn vitest run tests/docker-image/docker-build.integration.test.mjs
 //
 // CI does not need this flag: once this ticket is implemented, a workflow
 // step runs the equivalent `docker build`/`docker compose build` natively on
@@ -41,7 +41,7 @@ const integration = describe.skipIf(!INTEGRATION || !hasDocker);
 
 if (INTEGRATION && !hasDocker) {
   // eslint-disable-next-line no-console
-  console.warn('BTPS_INTEGRATION=1 but no Docker daemon is reachable; skipping tests/eba-166/docker-build.integration.test.mjs');
+  console.warn('BTPS_INTEGRATION=1 but no Docker daemon is reachable; skipping tests/docker-image/docker-build.integration.test.mjs');
 }
 
 function run(cmd, args, cwd) {

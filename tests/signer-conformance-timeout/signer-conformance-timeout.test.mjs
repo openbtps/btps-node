@@ -9,7 +9,7 @@
 // This check reads source rather than spawning tsc itself, so it can't
 // reintroduce the same kind of timing flake it exists to guard against.
 //
-// Same convention as tests/eba-152, tests/eba-156, tests/eba-166: static,
+// Same convention as tests/ci-pipeline, tests/example-app-packaging, tests/docker-image: static,
 // regex-based source inspection, no new parser dependency.
 //
 // What this does NOT test, stated plainly:
