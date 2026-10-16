@@ -159,7 +159,8 @@ export const verifyAgentRefresh = (input: {
   }
 
   const document = artifact.document as Partial<BTPAuthReqDoc> | undefined;
-  const publicKey = document?.publicKey;
+  if (!document) return refuse('no-public-key', { agentId, to });
+  const { publicKey } = document;
   if (typeof publicKey !== 'string' || publicKey.length === 0) {
     return refuse('no-public-key', { agentId, to });
   }

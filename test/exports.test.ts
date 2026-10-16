@@ -134,7 +134,9 @@ describe('package exports (EBA-112, key-rotating refresh)', () => {
   });
 
   it('BtpsAuthentication has rotateKey', async () => {
-    const mod = await importSubpath('./authentication');
+    const mod = (await importSubpath('./authentication')) as {
+      BtpsAuthentication: { rotateKey: unknown };
+    };
     expect(mod.BtpsAuthentication.rotateKey).toBeTypeOf('function');
   });
 });
