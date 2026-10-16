@@ -230,6 +230,55 @@ export const BTP_ERROR_KEY_ROTATION_PROOF: BTPError = {
   message: 'Key rotation requires a valid proof of the new key',
 };
 
+/**
+ * Device registration (item E, EBA-113, threat T-25): this server has no
+ * token store, so it cannot check a registration token and refuses every
+ * `auth.request`. It never falls back to accepting one.
+ */
+export const BTP_ERROR_REGISTRATION_UNAVAILABLE: BTPError = {
+  code: 'BTP_ERROR_REGISTRATION_UNAVAILABLE',
+  message: 'Device registration is not available on this server',
+};
+
+/**
+ * Device registration (item E, EBA-113): an `auth.request` carries no
+ * registration token (`document.authToken` is empty).
+ */
+export const BTP_ERROR_REGISTRATION_TOKEN_MISSING: BTPError = {
+  code: 'BTP_ERROR_REGISTRATION_TOKEN_MISSING',
+  message: 'Device registration requires a registration token',
+};
+
+/**
+ * Device registration (item E, EBA-113): no unexpired registration token with
+ * this value was issued to the identity named. A token issued to another
+ * identity is refused the same way: tokens are looked up by identity.
+ */
+export const BTP_ERROR_REGISTRATION_TOKEN_INVALID: BTPError = {
+  code: 'BTP_ERROR_REGISTRATION_TOKEN_INVALID',
+  message: 'Registration token is invalid or expired',
+};
+
+/**
+ * Device registration (item E, EBA-113): the registration token was already
+ * used. A token registers one device, once; ask the identity's owner for a
+ * new one.
+ */
+export const BTP_ERROR_REGISTRATION_TOKEN_USED: BTPError = {
+  code: 'BTP_ERROR_REGISTRATION_TOKEN_USED',
+  message: 'Registration token has already been used',
+};
+
+/**
+ * Device registration (item E, EBA-113): the `auth.request` names two
+ * identities (`document.identity` is not the artifact's `to`), or the token
+ * found was issued to another identity than the one named.
+ */
+export const BTP_ERROR_REGISTRATION_IDENTITY_MISMATCH: BTPError = {
+  code: 'BTP_ERROR_REGISTRATION_IDENTITY_MISMATCH',
+  message: 'Registration token is not for this identity',
+};
+
 export const BTP_ERROR_DOC_SCHEMA: BTPError = {
   code: 'BTP_ERROR_DOC_SCHEMA',
   message: 'Document does not match the document model',
