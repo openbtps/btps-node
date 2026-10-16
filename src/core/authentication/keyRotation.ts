@@ -6,9 +6,9 @@
  */
 
 /*
- * BTPS 1.1 item D (EBA-112, addendum item 2, threat T-24): a refresh is
- * signed by the agent's current key, and a refresh that rotates the key
- * also proves possession of the new one.
+ * BTPS 1.1 key-rotating refresh: a refresh is signed by the agent's
+ * current key, and a refresh that rotates the key also proves possession of
+ * the new one. In 1.0 a refresh was accepted under the request's own key.
  *
  * - Without rotation, `document.publicKey` is the current key and the
  *   artifact signature is checked against the key the server holds.
@@ -20,7 +20,7 @@
  * This applies to self-held custody only: a device that holds its own key
  * and refreshes through `auth.refresh`. A managed identity has no device
  * key; its key lives with the platform (KMS) and rotates by publishing a
- * new selector (item H), so no agent refresh is involved.
+ * new selector, so no agent refresh is involved.
  */
 
 import {

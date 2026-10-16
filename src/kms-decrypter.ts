@@ -6,15 +6,14 @@
  */
 
 /*
- * EBA-233 (Item 8a). KMS-backed Decrypter for managed custody (T-06): the
- * shard encryption key is decrypt-only, non-exportable, and is called only
+ * KMS-backed Decrypter for managed key custody: the shard encryption key is decrypt-only, non-exportable, and is called only
  * by the worker role. No per-user key exists in this mode.
  *
  * `client` is an injected, duck-typed facade for the same reasons given in
  * kms-signer.ts — it unwraps the AES content-encryption key via KMS
  * (RSAES_OAEP_SHA_256); the AES-256-GCM step itself runs locally, sharing
  * assertFullLengthAuthTag/decryptAesGcm with PemDecrypter so both
- * implementations enforce T-26 and T-28 identically.
+ * implementations enforce the 16-byte tag and recipient binding identically.
  */
 
 import type { Decrypter, DecrypterAlgorithm, DecryptRequest } from './decrypter-interface.js';
@@ -35,8 +34,8 @@ export interface KmsDecrypterOptions {
 const ALGORITHM: DecrypterAlgorithm = 'aes-256-gcm';
 
 /**
- * AC5 applies to every KMS-backed operation, not only signing: KMS error
- * names that mean "try again", per AWS KMS's own exception set.
+ * Retryable failures apply to every KMS-backed operation, not only
+ * signing: KMS error names that mean "try again", per AWS KMS's own exception set.
  */
 const RETRYABLE_KMS_ERROR_NAMES = new Set([
   'ThrottlingException',
@@ -71,7 +70,7 @@ export class KmsDecrypter implements Decrypter {
   }
 
   async decrypt(request: DecryptRequest): Promise<Uint8Array> {
-    // T-26: reject a short tag before ever calling out to KMS.
+    // Reject a short tag before ever calling out to KMS.
     assertFullLengthAuthTag(request.authTag);
 
     let plaintextKey: Uint8Array;
@@ -84,7 +83,8 @@ export class KmsDecrypter implements Decrypter {
       throw toKmsDecrypterError(err);
     }
 
-    // The AES-256-GCM step — including the T-26/T-28 enforcement — runs
+    // The AES-256-GCM step — including the tag length and recipient
+    // binding checks — runs
     // locally and identically to PemDecrypter; only the key-unwrap goes
     // through KMS.
     return decryptAesGcm(Buffer.from(plaintextKey), request);

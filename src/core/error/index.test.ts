@@ -125,10 +125,10 @@ describe('BTP_ERROR_SELECTOR_NOT_FOUND', () => {
   });
 });
 
-// EBA-124: trust-refusal error codes (never-trusted, expired, revoked).
-// Decision (option B, 2026-10-06): expired gets its own wire code; revoked
-// and never-trusted both collapse onto BTP_ERROR_TRUST_NOT_ALLOWED on the
-// wire, per documentation in the EBA-123 spec.
+// Trust-refusal error codes (never-trusted, expired, revoked). Decided
+// 2026-10-06: expired gets its own wire code; revoked and never-trusted both
+// collapse onto BTP_ERROR_TRUST_NOT_ALLOWED on the wire, as the wire errors
+// spec documents.
 describe('BTP_ERROR_TRUST_EXPIRED', () => {
   it('is a distinct, documented wire code for an expired trust', () => {
     expect(BTP_ERROR_TRUST_EXPIRED.code).toBe('BTP_ERROR_TRUST_EXPIRED');
@@ -146,7 +146,7 @@ describe('BTP_ERROR_TRUST_REVOKED', () => {
   });
 });
 
-// EBA-188 (fix list 6): the wire error table.
+// Stable error codes: the wire error table.
 describe('BTP_WIRE_ERRORS', () => {
   const constants = Object.entries(errorModule).filter(
     (entry): entry is [string, BTPError] =>
@@ -165,7 +165,7 @@ describe('BTP_WIRE_ERRORS', () => {
     expect(mismatched).toEqual([]);
   });
 
-  it('sends a trust refusal other than expired as not-allowed (EBA-124, option B)', () => {
+  it('sends a trust refusal other than expired as not-allowed', () => {
     for (const precise of [
       BTP_ERROR_TRUST_REVOKED,
       BTP_ERROR_TRUST_BLOCKED,
@@ -229,7 +229,7 @@ describe('BTP_WIRE_ERRORS', () => {
     );
   });
 
-  it('keeps a middleware or option error on the server: sent as BTP_ERROR_UNKNOWN (EBA-445)', () => {
+  it('keeps a middleware or option error on the server: sent as BTP_ERROR_UNKNOWN', () => {
     for (const hidden of [BTP_ERROR_MIDDLEWARE, BTP_ERROR_INVALID_OPTION]) {
       expect(toWireError(hidden)).toEqual({
         code: BTP_ERROR_UNKNOWN.code,
@@ -284,7 +284,7 @@ describe('BTP_WIRE_ERRORS', () => {
   });
 });
 
-describe('BTPErrorException.retryable (EBA-188)', () => {
+describe('BTPErrorException.retryable', () => {
   it('comes from the wire error table by code', () => {
     expect(new BTPErrorException(BTP_ERROR_RATE_LIMITER).retryable).toBe(true);
     expect(new BTPErrorException(BTP_ERROR_TRUST_EXPIRED).retryable).toBe(false);

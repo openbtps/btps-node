@@ -35,11 +35,10 @@ const creditNote = () => load<BTPCreditNoteDoc>('credit-note.v2.json', 'credit_n
 const payslip = (name: string) => load<BTPPayslipDoc>(name, 'payslip');
 
 /*
- * The six approved payslip cases (page 8945684, EBA-119 comments
- * 10696/10703) across the payslip vectors, plus a seventh that isolates the
+ * The six approved payslip cases across the payslip vectors, plus a seventh that isolates the
  * net check.
  */
-describe('reconcilePayslip (EBA-119)', () => {
+describe('reconcilePayslip', () => {
   it('case 1: hourly, with ordinary, au:penalty and au:casual_loading lines, reconciles', () => {
     const doc = payslip('payslip.hourly.v2.json');
     expect(doc.earnings.map((line) => line.category)).toEqual([

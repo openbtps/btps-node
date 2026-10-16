@@ -14,13 +14,13 @@ export const BTPS_DNS_HOST_NAME_SPACE = '_btps.host';
 export const BTPS_DNS_IDENTITY_NAME_SPACE = '_btps.identity';
 /**
  * The shortest RSA key the protocol accepts, in bits, for encryption and for
- * signatures alike (fix list 12, EBA-445). A shorter key is refused with
+ * signatures alike. A shorter key is refused with
  * BTP_ERROR_KEY_TOO_SMALL before it is used.
  */
 export const BTP_MIN_RSA_KEY_BITS = 2048;
 
 /**
- * How long a sender waits (fix list 13, EBA-443). Either may be set higher,
+ * How long a sender waits. Either may be set higher,
  * with no upper bound from the protocol; neither lower. A receiver answers
  * within BTP_REPLY_TIMEOUT_MIN_MS, or answers "try again".
  * - connecting to a receiver (TCP and TLS): minimum and default 5 s;
@@ -34,7 +34,7 @@ export const BTP_REPLY_TIMEOUT_DEFAULT_MS = 20_000;
 
 /**
  * The shortest idle timeout a server may close a connection on, and its
- * default (EBA-443): above the default reply wait plus the connecting wait,
+ * default: above the default reply wait plus the connecting wait,
  * so a receiver never closes on a sender that is still waiting by default.
  */
 export const BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS = 30_000;
@@ -50,7 +50,7 @@ const DOCUMENT_REST_ALLOWANCE = 1024 * 1024;
 const ENVELOPE_ALLOWANCE = 64 * 1024;
 
 /**
- * The longest line a server reads, in characters (fix list 10, EBA-122):
+ * The longest line a server reads, in characters:
  * one artifact as large as the document caps allow, encrypted.
  * - attachments: 10 (ATTACHMENTS_MAX) × 13,981,016 (ATTACHMENT_CONTENT_MAX_LENGTH,
  *   10 MiB in base64) = 139,810,160;

@@ -1,12 +1,12 @@
-// EBA-166: the btps-server Docker image (examples/btps-nest-app/Dockerfile,
-// built via examples/btps-nest-app/docker-compose.yml) cannot build on a
-// fresh clone. docker-compose.yml sets the build context to ".", and the
-// Dockerfile does `COPY package.tgz ./package.tgz` — but package.tgz is
-// *.tgz-gitignored (see .gitignore) and is not produced by any earlier step
-// in that build stage, so a fresh `git clone` has no such file inside the
-// build context. `docker build` fails at that COPY with "file not found"
-// before it ever reaches @btps/sdk, which examples/btps-nest-app now
-// resolves via `portal:../..` into the repository root (EBA-156) — a
+// The btps-server Docker image (examples/btps-nest-app/Dockerfile,
+// built via examples/btps-nest-app/docker-compose.yml) must build on a
+// fresh clone. Before #8, docker-compose.yml set the build context to ".", and the
+// Dockerfile did `COPY package.tgz ./package.tgz` — but package.tgz is
+// *.tgz-gitignored (see .gitignore) and was not produced by any earlier step
+// in that build stage, so a fresh `git clone` had no such file inside the
+// build context. `docker build` failed at that COPY with "file not found"
+// before it ever reached @btps/sdk, which examples/btps-nest-app now
+// resolves via `portal:../..` into the repository root (#3) — a
 // directory the "." build context cannot see at all.
 //
 // This check needs no Docker daemon: a COPY instruction that does not use
@@ -100,7 +100,7 @@ describe('examples/btps-nest-app Dockerfile: every COPY source must survive a fr
   });
 
   it('no COPY instruction (other than --from=<stage>) copies a file the build context will not have on a fresh clone', () => {
-    // Sanity-check this test still targets the real file this ticket is about.
+    // Sanity-check this test still targets the real Dockerfile.
     expect(resolvedDockerfile, 'expected docker-compose.yml to still point at examples/btps-nest-app/Dockerfile').toBe(
       DOCKERFILE,
     );

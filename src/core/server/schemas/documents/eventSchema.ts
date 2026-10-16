@@ -15,8 +15,8 @@ import { BtpMoneySchema } from './moneySchema.js';
 import { BtpCategoryCodeSchema, BtpDocReferenceSchema } from './baseSchema.js';
 
 /*
- * A lifecycle event: the content of an unencrypted `BTPS_EVENT` (BTPS 1.1
- * item A, EBA-440; release plan sections 2.3 and 2.7). It is not a document:
+ * A lifecycle event: the content of an unencrypted `BTPS_EVENT` (BTPS
+ * 1.1). It is not a document:
  * it names one (`document`), and a status is derived from the trail of
  * accepted events, never stored. Each `eventType` is its own strict object,
  * so a field the table does not allow on that type is refused.
@@ -33,7 +33,7 @@ export const BtpEventAmountSchema = BtpMoneySchema.refine((money) => money.amoun
   path: ['amount'],
 });
 
-/** An event id, and the id an `inReplyTo` names: a random UUID (section 2.7). */
+/** An event id, and the id an `inReplyTo` names: a random UUID. */
 export const BtpEventIdSchema = z.string().uuid('an event id must be a random UUID');
 
 const eventFields = {

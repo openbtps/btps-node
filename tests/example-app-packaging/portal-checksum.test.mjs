@@ -1,5 +1,4 @@
-// EBA-156 acceptance criterion 1: before relying on a `portal:` link (Option A)
-// to resolve @btps/sdk reproducibly, verify whether Yarn 4.9.2 writes a
+// Before relying on a `portal:` link to resolve @btps/sdk reproducibly, verify whether Yarn 4.9.2 writes a
 // `checksum:` field for portal: entries in the lockfile.
 //
 // Why this matters: a checksum is an integrity hash over fetched package
@@ -7,13 +6,12 @@
 // local directory — so if Yarn ever started hashing it, the hash would go
 // stale the moment a source file changed without a lockfile update, and
 // `yarn install --immutable` would then fail unpredictably on untouched
-// clones. That would make Option A exactly as unreproducible as the
-// gitignored package.tgz it's meant to replace.
+// clones. That would make the portal: link exactly as unreproducible as the
+// gitignored package.tgz it replaced.
 //
-// The ticket is explicit about what a positive finding means: "If they do,
-// Option A fails — stop, say so on EBA-156, and return to Bhupendra; do not
-// switch to Option B." This test is that gate, not just a sanity check — a
-// failure here means stop and escalate, not patch the code and re-run.
+// This test is a gate, not just a sanity check: a failure here means the
+// portal: approach no longer holds under this Yarn version, and the way the
+// example app depends on the SDK has to be reconsidered, not patched.
 //
 // No YAML/lockfile parser is a project dependency (see ci-workflow.test.mjs),
 // so this reads the lockfile as text, the same way.
@@ -26,9 +24,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const NEST_APP = path.join(ROOT, 'examples/btps-nest-app');
 
 const STOP_MESSAGE =
-  'EBA-156 criterion 1: portal: entries carry a checksum under this Yarn version. ' +
-  'Per the ticket, Option A fails — STOP, record this on EBA-156, and return to ' +
-  'Bhupendra. Do not switch to Option B.';
+  'portal: entries carry a checksum under this Yarn version, so the portal: link ' +
+  'to @btps/sdk is no longer reproducible. Stop and reconsider how the example ' +
+  'app depends on the SDK; do not patch around it.';
 
 function readPackageManager(pkgJsonPath) {
   const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
@@ -52,9 +50,9 @@ function entryBlock(lockfileText, headerPredicate) {
   return lines.slice(headerIndex, end).join('\n');
 }
 
-describe('EBA-156 criterion 1: Yarn 4.9.2 portal: checksum gate', () => {
+describe('Yarn 4.9.2 portal: checksum gate', () => {
   it('pins the Yarn version this finding is valid for', () => {
-    // If this ever changes, criterion 1 needs re-verification under the new
+    // If this ever changes, the finding needs re-verification under the new
     // version before anyone trusts the assertions below.
     expect(readPackageManager(path.join(ROOT, 'package.json'))).toBe('yarn@4.9.2');
     expect(readPackageManager(path.join(NEST_APP, 'package.json'))).toBe('yarn@4.9.2');

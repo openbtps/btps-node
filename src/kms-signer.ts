@@ -6,19 +6,19 @@
  */
 
 /*
- * EBA-233 (Item 8a). KMS-backed Signer for managed custody (T-06): the
- * shard delegator key d[i] is non-exportable and sign-only, and is called
- * only by the worker role. No per-user key exists in this mode.
+ * KMS-backed Signer for managed key custody: the shard delegator key d[i]
+ * is non-exportable and sign-only, and is called only by the worker role.
+ * No per-user key exists in this mode.
  *
  * `client` is an injected, duck-typed facade rather than a direct
  * `@aws-sdk/client-kms` import, so:
  *  - this file has no hard dependency on an AWS SDK version, and
- *  - the conformance suite (AC1, AC3, AC5, AC6) can exercise it without a
- *    network call. AC7 (a live run against the dev KMS key, blocked on
- *    EBA-135) is the real-KMS proof and is out of this file's scope.
+ *  - the conformance suite can exercise it without a network call. A live
+ *    run against a real KMS key is the real-KMS proof and is out of this
+ *    file's scope.
  *
- * This file is not held to AC4's runtime-agnostic constraint — that
- * applies only to signer-interface.ts and decrypter-interface.ts. This is
+ * This file is not held to the runtime-agnostic constraint — that applies
+ * only to signer-interface.ts and decrypter-interface.ts. This is
  * a server-side implementation and uses node:crypto, the same as
  * pem-signer.ts, only to fingerprint the public key KMS returns.
  */
@@ -39,7 +39,7 @@ export interface KmsSignerOptions {
 const ALGORITHM: SignerAlgorithm = 'RSASSA_PKCS1_V1_5_SHA_256';
 
 /**
- * AC5: KMS error names that mean "try again", per AWS KMS's own exception
+ * KMS error names that mean "try again", per AWS KMS's own exception
  * set. Everything else still fails closed, just not flagged retryable — an
  * unrecognised failure (e.g. a permissions error) is not something a retry
  * will fix.
@@ -51,7 +51,7 @@ const RETRYABLE_KMS_ERROR_NAMES = new Set([
   'DependencyTimeoutException',
 ]);
 
-/** AC5: thrown instead of ever falling back to PEM or returning an
+/** Thrown instead of ever falling back to PEM or returning an
  * unsigned result. `retryable` tells the caller whether retrying the same
  * call is worth attempting. */
 export class KmsSignerError extends Error {

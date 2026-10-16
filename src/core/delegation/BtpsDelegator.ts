@@ -29,7 +29,7 @@ export type BtpsDelegatorOptions = {
   /**
    * Default true: the first `delegateArtifact` awaits `init()`. False: the
    * caller awaits `init()` itself, and `delegateArtifact` throws until it
-   * has. The constructor never does I/O either way (EBA-445).
+   * has. The constructor never does I/O either way.
    */
   autoInit?: boolean;
 } & (
@@ -64,7 +64,7 @@ export class BtpsDelegator {
     }
     this.signer = options.signer;
     this.privateKey = options.privateKey;
-    // No I/O here (fix list 12): the constructor used to start init()'s DNS
+    // No I/O here: the constructor used to start init()'s DNS
     // lookup and await nothing, so a failure was an unhandled rejection.
     // With autoInit (the default), the first delegateArtifact awaits init().
     this.autoInit = options.autoInit !== false;

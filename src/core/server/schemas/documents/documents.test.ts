@@ -97,7 +97,7 @@ describe('document model v2: an attachment carries its file (BTPS 1.0 shape, 202
   });
 });
 
-describe('document model v2: schema vectors per type (EBA-119)', () => {
+describe('document model v2: schema vectors per type', () => {
   it('has the expected vectors, and no lifecycle event (that is BTPS_EVENT)', () => {
     expect(fixtureNames).toEqual([
       'credit-note.v2.json',
@@ -169,7 +169,7 @@ describe('document model v2: schema vectors per type (EBA-119)', () => {
   });
 });
 
-describe('document model v2: status lives only in events (release plan 2.5)', () => {
+describe('document model v2: status lives only in events', () => {
   const STATUS_FIELDS = {
     status: 'paid',
     paidAt: '2026-10-03T00:00:00.000Z',
@@ -285,7 +285,7 @@ describe('the 1.1 invoice: the 1.0 invoice with the changes of 2026-10-16', () =
     );
   });
 
-  it("refuses PR #9's invoice fields, which the founder removed", () => {
+  it("refuses PR #9's invoice fields, which 1.1 removed", () => {
     const removed: Record<string, unknown> = {
       invoiceNumber: 'INV-1',
       issueDate: '2026-10-01T00:00:00.000Z',
@@ -308,7 +308,7 @@ describe('the 1.1 invoice: the 1.0 invoice with the changes of 2026-10-16', () =
   });
 });
 
-describe('the 1.1 credit note: the 1.1 invoice shape (2026-10-16, EBA-119)', () => {
+describe('the 1.1 credit note: the 1.1 invoice shape (2026-10-16, #31)', () => {
   type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   const creditNote = (): Doc => load('credit-note.v2.json');
   const accepted = (doc: unknown) => BtpCreditNoteDocSchema.safeParse(doc).success;
@@ -512,7 +512,7 @@ describe('document model v2: references (2026-10-16)', () => {
   });
 });
 
-describe('document model v2: money is integer minor units plus ISO 4217 (EBA-119)', () => {
+describe('document model v2: money is integer minor units plus ISO 4217', () => {
   it('accepts a well-formed amount', () => {
     expect(BtpMoneySchema.safeParse({ amount: 170000, currency: 'AUD' }).success).toBe(true);
   });
@@ -527,7 +527,7 @@ describe('document model v2: money is integer minor units plus ISO 4217 (EBA-119
   });
 });
 
-describe('document model v2: payslip vectors (EBA-119)', () => {
+describe('document model v2: payslip vectors', () => {
   it('carries a deduction payee and contributions with and without a fund', () => {
     const hourly = BtpPayslipDocSchema.parse(load('payslip.hourly.v2.json'));
     expect(BtpPayslipPayeeSchema.safeParse(hourly.deductions[0]?.payee).success).toBe(true);
@@ -559,7 +559,7 @@ describe('document model v2: payslip vectors (EBA-119)', () => {
   });
 });
 
-describe('document model v2: a document is never mutated by parsing (EBA-119)', () => {
+describe('document model v2: a document is never mutated by parsing', () => {
   for (const name of fixtureNames) {
     it(`${name}: the input is unchanged and the parsed document drops nothing`, () => {
       const raw = load(name);
@@ -603,7 +603,7 @@ describe('document model v2: a document is never mutated by parsing (EBA-119)', 
   });
 });
 
-describe('document model v2: shipped source (EBA-119)', () => {
+describe('document model v2: shipped source', () => {
   const files = fg.sync(MODEL_SOURCES, { cwd: REPO_ROOT, absolute: true });
 
   it('found the model source', () => {

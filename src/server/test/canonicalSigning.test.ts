@@ -6,7 +6,7 @@
  */
 
 /*
- * EBA-115 (BTPS 1.1 item 5): signatures are over the RFC 8785 (JCS) form, end
+ * Canonical signing: signatures are over the RFC 8785 (JCS) form, end
  * to end, with real keys. Only DNS key lookup is faked.
  */
 
@@ -147,7 +147,7 @@ const baseArtifact = () => ({
   },
 });
 
-describe('EBA-115: canonical signing end to end', () => {
+describe('canonical signing end to end', () => {
   let server: BtpsServer;
 
   beforeEach(() => {
@@ -279,8 +279,8 @@ describe('EBA-115: canonical signing end to end', () => {
     ).toBe(true);
   });
 
-  // Addendum item 10 ("an attested delegation never verifies on the server
-  // path"), fixed by EBA-122: the delegation is signed before the attestation
+  // An attested delegation used to never verify on the server path (fixed
+  // in #23): the delegation is signed before the attestation
   // is added, and verifyDelegation now checks it without the attestation.
   it('the server accepts an attested delegation', async () => {
     const delegator = new BtpsDelegator({
@@ -311,7 +311,7 @@ describe('EBA-115: canonical signing end to end', () => {
   it('the server signs its own response over the JCS form', async () => {
     // Captured as handed to sendBtpsResponse, before its schema check: on
     // release/1.1 that check refuses the identity-lookup document (a separate
-    // defect, reported on EBA-115's pull request), and signing is what is
+    // defect, reported on #14), and signing is what is
     // under test here.
     const sent: BTPServerResponse[] = [];
     vi.spyOn(
@@ -368,8 +368,8 @@ describe('EBA-115: canonical signing end to end', () => {
     expect(await client['verifyServerMessage'](tampered)).toMatchObject({ isValid: false });
   });
 
-  // Was an expected failure (fix list 1, defect 5): verifyServerMessage
-  // verified `{ ...msg, encryption: msg.encryption ?? null }`. Fixed in EBA-442.
+  // Was an expected failure: verifyServerMessage verified
+  // `{ ...msg, encryption: msg.encryption ?? null }`. Fixed in #22.
   it('the client verifies a server response signed without an encryption member', async () => {
     const client = new BtpsClient({ to: 'server$receiver.example' });
     expect(await client['verifyServerMessage'](await signedResponse({}))).toMatchObject({

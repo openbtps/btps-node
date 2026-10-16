@@ -6,20 +6,21 @@
  */
 
 /*
- * EBA-233 (Item 8a). One interface, multiple implementations: PemDecrypter
- * (test/vectors and the T-06 PEM interim) and KmsDecrypter (managed
+ * One interface, multiple implementations: PemDecrypter (test/vectors,
+ * and the interim before managed key custody) and KmsDecrypter (managed
  * custody, backed by KMS). Deliberately free of any import, for the same
- * reason given in signer-interface.ts — AC4 checks it directly.
+ * reason given in signer-interface.ts — the decrypter conformance tests
+ * check it directly.
  *
- * T-26 (short AES-GCM tags accepted): `authTag` is carried as opaque bytes
- * here; every Decrypter implementation must reject anything but exactly 16
- * bytes rather than trusting the caller to have checked.
+ * Short AES-GCM tags: `authTag` is carried as opaque bytes here; every
+ * Decrypter implementation must reject anything but exactly 16 bytes
+ * rather than trusting the caller to have checked.
  *
- * T-28 (shared shard encryption key / recipient binding): `additionalData`
+ * Recipient binding (the shard encryption key is shared): `additionalData`
  * must be passed through to the AEAD tag check unchanged by every
  * implementation, not stripped or re-derived.
  *
- * T-27 (no API accepts a user's private key): enforced by this shape —
+ * No API accepts a user's private key: enforced by this shape —
  * nothing here takes key material as an argument.
  */
 
@@ -32,9 +33,9 @@ export interface DecryptRequest {
   /** AES-GCM initialization vector. */
   iv: Uint8Array;
   ciphertext: Uint8Array;
-  /** Must be exactly 16 bytes (T-26) — a shorter tag must be rejected. */
+  /** Must be exactly 16 bytes — a shorter tag must be rejected. */
   authTag: Uint8Array;
-  /** Recipient-binding additional authenticated data (T-28), when present. */
+  /** Recipient-binding additional authenticated data, when present. */
   additionalData?: Uint8Array;
 }
 

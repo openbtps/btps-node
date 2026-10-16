@@ -641,7 +641,7 @@ export default function () {
           entityName: 'trusted_sender',
         }),
         middlewarePath: middlewareFile,
-        // Only the file's middleware: the defaults (EBA-187) are tested in rateLimit.test.ts.
+        // Only the file's middleware: the default middleware is tested in rateLimit.test.ts.
         defaultMiddleware: false,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
         tlsOptions: {
@@ -760,7 +760,7 @@ export default function () {
           entityName: 'trusted_sender',
         }),
         middlewarePath: middlewareFile,
-        // Only the file's middleware: the defaults (EBA-187) are tested in rateLimit.test.ts.
+        // Only the file's middleware: the default middleware is tested in rateLimit.test.ts.
         defaultMiddleware: false,
         serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
         tlsOptions: {
@@ -1619,7 +1619,7 @@ export default function () {
         expect(result).toBe(null);
       });
 
-      it('should return the trusted key, not the new one, for refreshing agents with a different key (item D)', async () => {
+      it('should return the trusted key, not the new one, for refreshing agents with a different key', async () => {
         const mockTrustRecord = {
           id: 'test-trust-id',
           senderId: 'test-agent',
@@ -1655,7 +1655,8 @@ export default function () {
           document: newAuthDoc,
         };
 
-        // The 1.0 defect (T-24) returned the request's own key here.
+        // The 1.0 defect returned the request's own key here, so a refresh was
+        // accepted under the key it carried instead of the agent's current key.
         const result = await server['getAgentPublicKey'](artifact);
         expect(result).toBe(
           '-----BEGIN PUBLIC KEY-----\nVEVTVF9LRVlfQkFTRTY0\n-----END PUBLIC KEY-----',
@@ -1744,7 +1745,7 @@ export default function () {
     });
 
     describe('verifyAgentTrust', () => {
-      it('refuses onboarding agents when the server has no token store (item E)', async () => {
+      it('refuses onboarding agents when the server has no token store', async () => {
         const artifact: BTPAgentArtifact = {
           version: '1.0.0',
           id: 'test-id',
@@ -1896,7 +1897,7 @@ export default function () {
       });
     });
 
-    describe('trust-refusal error codes (EBA-124)', () => {
+    describe('trust-refusal error codes', () => {
       const PAST = new Date('2020-01-01T00:00:00.000Z').toISOString();
 
       const transporterArtifact = (): BTPTransporterArtifact => ({
@@ -2041,9 +2042,8 @@ export default function () {
         });
       });
 
-      // "Wire error codes" AC: option B (decided 2026-10-06) - expired and
-      // not-allowed/revoked are meant to be distinguishable by a sender.
-      // Since EBA-188 the distinction is the response's stable `code`
+      // Decided 2026-10-06: expired and not-allowed/revoked are meant to be
+      // distinguishable by a sender. Since stable wire codes the distinction is the response's stable `code`
       // (BTP_ERROR_TRUST_EXPIRED or BTP_ERROR_TRUST_NOT_ALLOWED), both with
       // `status.code` 403. These tests assert on the actual socket.write()
       // payload, not on which BTPError constant the trust-refusal path
@@ -2086,7 +2086,7 @@ export default function () {
           JSON.parse((socket.write as Mock).mock.calls[0][0] as string) as BTPServerResponse;
 
         beforeEach(async () => {
-          // Signature verification isn't the concern of this ticket - force it
+          // Signature verification isn't the concern of these tests - force it
           // to pass so the trust-refusal branch is reached.
           const utils = await import('../../core/utils/index.js');
           vi.spyOn(utils, 'resolvePublicKey').mockResolvedValue(
@@ -2123,7 +2123,7 @@ export default function () {
           expect(written.status.ok).toBe(false);
           expect(written.status.message).toBe(BTP_ERROR_TRUST_EXPIRED.message);
           expect(written.status.message).not.toBe(BTP_ERROR_TRUST_NOT_ALLOWED.message);
-          // EBA-188: a trust refusal is 403, and the stable code tells expired apart.
+          // A trust refusal is 403, and the stable code tells expired apart.
           expect(written.status.code).toBe(403);
           expect(written.code).toBe(BTP_ERROR_TRUST_EXPIRED.code);
         });
@@ -2139,7 +2139,7 @@ export default function () {
           expect(written.type).toBe('btps_error');
           expect(written.status.ok).toBe(false);
           expect(written.status.message).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.message);
-          // EBA-188: the stable code collapses too; the precise reason stays in reqCtx.error.
+          // The stable code collapses too; the precise reason stays in reqCtx.error.
           expect(written.status.code).toBe(403);
           expect(written.code).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.code);
           expect(reqCtx.error?.code).toBe('BTP_ERROR_TRUST_REVOKED');
@@ -2148,7 +2148,7 @@ export default function () {
 
         // Round 1 finding: a blocked/rejected/pending record with a past
         // expiresAt was mislabelled EXPIRED internally, which leaked
-        // BTP_ERROR_TRUST_EXPIRED onto the wire for records Option B never
+        // BTP_ERROR_TRUST_EXPIRED onto the wire for records the wire codes never
         // meant to distinguish. All three must still read not-allowed on
         // the wire, and reqCtx.error must not be EXPIRED.
         it('sends a not-allowed refusal on the wire for a blocked trust with a past expiresAt', async () => {

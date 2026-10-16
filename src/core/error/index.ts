@@ -16,7 +16,7 @@ export class BTPErrorException extends Error {
   public readonly code?: string | number;
   public readonly cause?: unknown;
   public readonly meta?: Record<string, unknown>;
-  /** Whether a sender may retry: from the wire error table by code (EBA-188). */
+  /** Whether a sender may retry: from the wire error table by code. */
   public readonly retryable: boolean;
 
   constructor(

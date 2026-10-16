@@ -98,7 +98,7 @@ export const signEncrypt = async <T = unknown>(
     }
   }
 
-  // A BTPS_EVENT's id is its event's id (release plan section 2.7).
+  // A BTPS_EVENT's id is its event's id.
   const eventId =
     restPayload.type === 'BTPS_EVENT' && typeof document === 'object' && document !== null
       ? (document as { id?: unknown }).id

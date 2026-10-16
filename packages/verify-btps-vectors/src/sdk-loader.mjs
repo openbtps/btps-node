@@ -59,7 +59,7 @@ const fakeDnsPlugin = {
  *   null on a tree without document model v2
  * @property {Record<string, any> | null} authentication exports of
  *   src/core/authentication/index.ts (@btps/sdk/authentication), or null on a
- *   tree without item D's keyRotation.ts
+ *   tree without keyRotation.ts (key-rotating refresh)
  * @property {(records: Record<string, string[]>) => void} setTxtRecords replace the fake DNS zone
  * @property {string} root the SDK source tree that was loaded
  */

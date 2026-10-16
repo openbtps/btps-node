@@ -6,10 +6,11 @@
  */
 
 /*
- * EBA-233 (Item 8a) — AC2, AC4, AC5 and AC6 (decrypter half).
+ * Decrypter conformance: PemDecrypter and KmsDecrypter behave alike, the
+ * interface is runtime-agnostic, a KMS failure fails closed, and no private
+ * key material is exposed.
  *
- * These tests are the executable form of the acceptance criteria, written
- * from the ticket before any implementation existed.
+ * These tests were written before any implementation existed.
  *
  * Shape assumed, for the same reason given in signer-conformance.test.ts
  * (naming follows the existing BTPEncryption fields: encryptedKey, iv,
@@ -19,8 +20,8 @@
  *     encryptedKey: Uint8Array;      // RSA-OAEP wrapped AES-256 key
  *     iv: Uint8Array;
  *     ciphertext: Uint8Array;
- *     authTag: Uint8Array;           // must be exactly 16 bytes (T-26)
- *     additionalData?: Uint8Array;   // recipient-binding AAD (T-28)
+ *     authTag: Uint8Array;           // must be exactly 16 bytes; a short tag is refused
+ *     additionalData?: Uint8Array;   // recipient-binding AAD
  *   }
  *   interface Decrypter {
  *     readonly algorithm: 'aes-256-gcm';
@@ -31,7 +32,7 @@
  *                                        // KMS facade; no network call here.
  *
  * If the implementation lands on different names, update this file in the
- * same change rather than treating the mismatch as a second ticket.
+ * same change rather than treating the mismatch as separate work.
  */
 
 import { describe, it, expect, expectTypeOf } from 'vitest';
@@ -148,7 +149,7 @@ const implementations: Implementation[] = [
   },
 ];
 
-describe.each(implementations)('AC2: $name conformance', ({ name, makeDecrypter }) => {
+describe.each(implementations)('$name conformance', ({ name, makeDecrypter }) => {
   it(`${name} reports the aes-256-gcm algorithm id`, () => {
     expect(makeDecrypter().algorithm).toBe('aes-256-gcm');
   });
@@ -195,7 +196,7 @@ describe.each(implementations)('AC2: $name conformance', ({ name, makeDecrypter 
     sdkDefects.gcmTag.cases
       .filter((c) => c.expect === 'reject')
       .map((c) => [c.name, c] as const),
-  )(`${name} rejects the sdk-defects.vector.json case: %s (T-26)`, async (_caseName, defectCase) => {
+  )(`${name} rejects the sdk-defects.vector.json case: %s (a short GCM tag)`, async (_caseName, defectCase) => {
     const decrypter =
       name === 'PemDecrypter'
         ? new PemDecrypter({ privateKey: oaepWrapVector.privateKeyPem })
@@ -214,7 +215,7 @@ describe.each(implementations)('AC2: $name conformance', ({ name, makeDecrypter 
     ).rejects.toThrow();
   });
 
-  it(`${name} enforces exactly 16-byte authTagLength even when the short tag happens to be a valid prefix of the real one (T-26)`, async () => {
+  it(`${name} enforces exactly 16-byte authTagLength even when the short tag happens to be a valid prefix of the real one`, async () => {
     const request = encryptAesGcm(vectors.encryption.plaintext, vectors.encryption.publicKeyPem);
     const shortButRealPrefixTag = request.authTag.slice(0, 12);
 
@@ -223,7 +224,7 @@ describe.each(implementations)('AC2: $name conformance', ({ name, makeDecrypter 
     ).rejects.toThrow();
   });
 
-  it(`${name} fails the tag check when additionalData does not match what the sender bound (T-28)`, async () => {
+  it(`${name} fails the tag check when additionalData does not match what the sender bound (recipient binding)`, async () => {
     const boundAad = vectors.encryption.additionalData;
     const wrongAad = `${boundAad}-tampered`;
     const request = encryptAesGcm(vectors.encryption.plaintext, vectors.encryption.publicKeyPem, boundAad);
@@ -236,7 +237,7 @@ describe.each(implementations)('AC2: $name conformance', ({ name, makeDecrypter 
     ).rejects.toThrow();
   });
 
-  it(`${name} passes correct additionalData through unchanged, so a correctly bound recipient still decrypts (T-28 positive case)`, async () => {
+  it(`${name} passes correct additionalData through unchanged, so a correctly bound recipient still decrypts (recipient binding, positive case)`, async () => {
     const boundAad = vectors.encryption.additionalData;
     const request = encryptAesGcm(vectors.encryption.plaintext, vectors.encryption.publicKeyPem, boundAad);
 
@@ -249,7 +250,7 @@ describe.each(implementations)('AC2: $name conformance', ({ name, makeDecrypter 
   });
 });
 
-describe('AC5: KMS failure fails closed, with no partial/fallback plaintext', () => {
+describe('KMS failure fails closed, with no partial/fallback plaintext', () => {
   const validTag = new Uint8Array(16);
 
   it('rejects with a typed retryable error when KMS throttles', async () => {
@@ -296,7 +297,7 @@ describe('AC5: KMS failure fails closed, with no partial/fallback plaintext', ()
   });
 });
 
-describe('AC6: KmsDecrypter exposes no private key material (T-27)', () => {
+describe('KmsDecrypter exposes no private key material', () => {
   it('the KmsDecrypter constructor options do not accept a private key', () => {
     type KmsDecrypterOptions = ConstructorParameters<typeof KmsDecrypter>[0];
     expectTypeOf<KmsDecrypterOptions>().not.toHaveProperty('privateKey');
@@ -305,7 +306,7 @@ describe('AC6: KmsDecrypter exposes no private key material (T-27)', () => {
 
   it('no Decrypter method accepts a private key as an argument', () => {
     // Decrypter.decrypt takes only the wrapped-key/ciphertext request shape;
-    // nothing in DecryptRequest is private key material (T-27).
+    // nothing in DecryptRequest is private key material.
     expectTypeOf<Decrypter['decrypt']>().parameters.toEqualTypeOf<
       [Parameters<Decrypter['decrypt']>[0]]
     >();
@@ -317,10 +318,10 @@ describe('AC6: KmsDecrypter exposes no private key material (T-27)', () => {
   // typecheck` — the project's actual `test` script is `vitest run`, which
   // never type-checks test files, so a regression there would report green.
   // This test forces a real tsc pass over this file (same approach as the
-  // AC4 tsc subprocess test below), so the assertions are enforced by
+  // runtime-agnostic tsc subprocess test below), so the assertions are enforced by
   // `yarn test`.
   it('this file type-checks under tsc (so the expectTypeOf assertions above are actually enforced)', () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'eba-233-decrypter-ac6-'));
+    const tmpDir = mkdtempSync(join(tmpdir(), 'btps-decrypter-no-private-key-'));
     const tsconfigPath = join(tmpDir, 'tsconfig.json');
     const repoRoot = join(__dirname, '..');
     writeFileSync(
@@ -353,7 +354,7 @@ describe('AC6: KmsDecrypter exposes no private key material (T-27)', () => {
   });
 });
 
-describe('AC4: src/decrypter-interface.ts is runtime-agnostic', () => {
+describe('src/decrypter-interface.ts is runtime-agnostic', () => {
   const SRC_PATH = join(__dirname, '../src/decrypter-interface.ts');
   const source = readFileSync(SRC_PATH, 'utf8');
 
@@ -375,7 +376,7 @@ describe('AC4: src/decrypter-interface.ts is runtime-agnostic', () => {
   });
 
   it('type-checks under tsc with lib es2022+dom and no @types/node', () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'eba-233-decrypter-interface-'));
+    const tmpDir = mkdtempSync(join(tmpdir(), 'btps-decrypter-interface-'));
     const tsconfigPath = join(tmpDir, 'tsconfig.json');
     writeFileSync(
       tsconfigPath,
@@ -401,9 +402,9 @@ describe('AC4: src/decrypter-interface.ts is runtime-agnostic', () => {
   });
 });
 
-// EBA-441 (item I): the same implementations, through the SDK's own
+// The same implementations, through the SDK's own
 // decryption paths rather than called directly.
-describe.each(implementations)('EBA-441: $name through the SDK core', ({ name, makeDecrypter }) => {
+describe.each(implementations)('$name through the SDK core', ({ name, makeDecrypter }) => {
   const forOaepWrap = (): Decrypter =>
     name === 'PemDecrypter'
       ? new PemDecrypter({ privateKey: oaepWrapVector.privateKeyPem })

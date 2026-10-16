@@ -6,9 +6,8 @@
  */
 
 /*
- * BTPS 1.1 item A (EBA-440): the lifecycle event, carried as BTPS_EVENT.
- * Release plan page 10518529, sections 2.3 (the event) and 2.7 (ids and the
- * reply chain). The golden vectors in test/vectors/events/ are the fixtures.
+ * BTPS 1.1 lifecycle events: the event, carried as BTPS_EVENT, its ids and
+ * the reply chain. The golden vectors in test/vectors/events/ are the fixtures.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -70,7 +69,7 @@ const envelope = (document: unknown, overrides: Doc = {}) => ({
   ...overrides,
 });
 
-describe('item A: the lifecycle event (BtpEventDocSchema)', () => {
+describe('the lifecycle event (BtpEventDocSchema)', () => {
   it('has a vector for every event type, and every vector validates', () => {
     const names = readdirSync(EVENTS).filter((n) => n.endsWith('.json'));
     const types = new Set(names.map((n) => load(n).eventType));
@@ -78,7 +77,7 @@ describe('item A: the lifecycle event (BtpEventDocSchema)', () => {
     for (const name of names) expect(accepts(load(name))).toBe(true);
   });
 
-  it('names exactly the event types of section 2.3, and none it replaced', () => {
+  it('names exactly the 1.1 event types, and none they replaced', () => {
     expect(BTP_EVENT_TYPES).toEqual([
       'paid',
       'partially_paid',
@@ -92,7 +91,7 @@ describe('item A: the lifecycle event (BtpEventDocSchema)', () => {
     }
   });
 
-  describe('inReplyTo per the section 2.7 table', () => {
+  describe('inReplyTo per the reply-chain table', () => {
     const vectorFor = (eventType: string) =>
       readdirSync(EVENTS)
         .map((n) => load(n))
@@ -231,7 +230,7 @@ describe('item A: the lifecycle event (BtpEventDocSchema)', () => {
   });
 });
 
-describe('item A: the envelope rules (validateBtpEventEnvelope)', () => {
+describe('lifecycle events: the envelope rules (validateBtpEventEnvelope)', () => {
   const event = () => load('paid.by-payer.json') as BTPEventDoc;
 
   it('the payer writes back about the biller’s document; the biller answers about its own', () => {
@@ -262,7 +261,7 @@ describe('item A: the envelope rules (validateBtpEventEnvelope)', () => {
   });
 });
 
-describe('item A: the reply chain (validateBtpEventReply, the platform’s check)', () => {
+describe('lifecycle events: the reply chain (validateBtpEventReply, the platform’s check)', () => {
   const sent = (name: string, from: string, to: string, set: Doc = {}) => ({
     event: { ...load(name), ...set } as BTPEventDoc,
     from,
@@ -270,7 +269,7 @@ describe('item A: the reply chain (validateBtpEventReply, the platform’s check
   });
   const paid = sent('paid.by-payer.json', PAYER, BILLER);
 
-  it('accepts each reply of the section 2.7 table', () => {
+  it('accepts each reply of the reply-chain table', () => {
     const pairs = [
       [paid, sent('response.accepts-paid.json', BILLER, PAYER)],
       [
@@ -329,7 +328,7 @@ describe('item A: the reply chain (validateBtpEventReply, the platform’s check
   });
 });
 
-describe('item A: BTPS_EVENT on the wire (transporter schema)', () => {
+describe('lifecycle events: BTPS_EVENT on the wire (transporter schema)', () => {
   it('is a transporter type, validated by the event schema', () => {
     expect(TRANSPORTER_ACTIONS).toContain('BTPS_EVENT');
     expect(processBtpDocSchema('BTPS_EVENT')).toBe(BtpEventDocSchema);
@@ -401,7 +400,7 @@ describe('item A: BTPS_EVENT on the wire (transporter schema)', () => {
   });
 });
 
-describe('item A: the agent action event.send', () => {
+describe('lifecycle events: the agent action event.send', () => {
   it('is an agent action that requires a document, validated as an event', () => {
     expect(AGENT_ACTIONS).toContain('event.send');
     expect(AGENT_ACTIONS_REQUIRING_DOCUMENT).toContain('event.send');

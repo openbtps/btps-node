@@ -44,7 +44,7 @@ export type BTPInvoiceV2Doc = z.infer<typeof BtpInvoiceV2DocSchema>;
 export type BTPCreditNoteDoc = z.infer<typeof BtpCreditNoteDocSchema>;
 export type BTPPayslipDoc = z.infer<typeof BtpPayslipDocSchema>;
 export type BTPDocV2 = z.infer<typeof BtpDocV2Schema>;
-/** A lifecycle event: the content of a `BTPS_EVENT` (item A, EBA-440). */
+/** A lifecycle event: the content of a `BTPS_EVENT`. */
 export type BTPEventDoc = z.infer<typeof BtpEventDocSchema>;
 export type BTPEventType = (typeof BTP_EVENT_TYPES)[number];
 
@@ -78,7 +78,7 @@ export interface BTPDelegation {
 }
 
 /**
- * Proof of possession of a new agent key (item D, EBA-112): a signature by
+ * Proof of possession of a new agent key: a signature by
  * the new key over the JCS form of `{ agentId, identity, newPublicKey,
  * issuedAt }`.
  */
@@ -258,7 +258,7 @@ export type BTPServerResponse<T = BTPServerResDocs> = {
   id: string;
   issuedAt: string;
   type: 'btps_error' | 'btps_response';
-  /** On a `btps_error`, the stable error code a sender decides retry by (EBA-188). */
+  /** On a `btps_error`, the stable error code a sender decides retry by. */
   code?: string;
   reqId?: string;
   document?: T;

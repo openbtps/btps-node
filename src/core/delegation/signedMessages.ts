@@ -12,7 +12,7 @@ import type { BTPAttestation, BTPDelegation, BTPTransporterArtifact } from '../s
  * (BtpsDelegator) and the verifier (BtpsServer) both build the message here,
  * so they cannot drift apart. They did: the delegation was signed before
  * the attestation was added, and verified with it in place, so an attested
- * delegation never verified (addendum item 10, EBA-122).
+ * delegation never verified (fixed in 1.1, #23).
  *
  * Order of signing: the agent signs the artifact; the delegator signs the
  * artifact with the delegation; the attestor, when there is one, signs the

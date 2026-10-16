@@ -6,10 +6,10 @@
  */
 
 /*
- * BTPS 1.1 addendum item 10 (EBA-122), the defects that live on the server
+ * BTPS 1.1 SDK defects that live on the server
  * path, over real TLS sockets on 127.0.0.1 with real keys and a real
  * BtpsServer. Nothing is mocked: the agents connect by host, so no DNS is
- * asked. A device is registered as item E has it (#21): a one-time token,
+ * asked. A device is registered as device registration has it (#21): a one-time token,
  * then auth.request.
  */
 
@@ -177,7 +177,7 @@ const connection = (port: number) => ({
   maxRetries: 0,
 });
 
-/** Registers a device for `identity` as item E has it, and returns its agent. */
+/** Registers a device for `identity` by a one-time token, and returns its agent. */
 const registerDevice = async (started: Started, identity: string) => {
   const device = genKeys();
   const auth = new BtpsAuthentication({
@@ -203,7 +203,7 @@ const registerDevice = async (started: Started, identity: string) => {
   });
 };
 
-describe('item 10: a device agent sends through its own server', () => {
+describe('a device agent sends through its own server', () => {
   let started: Started | undefined;
   let agents: BtpsAgent[] = [];
 
@@ -283,7 +283,7 @@ const exchange = (port: number, lines: unknown[], count: number) =>
     socket.on('error', reject);
   });
 
-describe('fix list 4: interleaved requests on one connection', () => {
+describe('interleaved requests on one connection', () => {
   let started: Started | undefined;
   let agents: BtpsAgent[] = [];
 
@@ -417,7 +417,7 @@ const sendRaw = (port: number, payload: string, chunk = 16 * 1024, waitMs = 4000
     socket.on('error', () => done(true));
   });
 
-describe('fix list 10: an over-long line closes the connection', () => {
+describe('an over-long line closes the connection', () => {
   const LIMIT = 64 * 1024;
   let started: Started | undefined;
 
@@ -521,7 +521,7 @@ const control = (action: 'PING' | 'QUIT', id: string) => ({
   action,
 });
 
-describe('fix list 15: PING and QUIT', () => {
+describe('PING and QUIT', () => {
   let started: Started | undefined;
 
   afterEach(() => {
@@ -578,7 +578,7 @@ describe('fix list 15: PING and QUIT', () => {
   });
 });
 
-describe('EBA-445: a host closes the connection after a "not found" lookup answer', () => {
+describe('a host closes the connection after a "not found" lookup answer', () => {
   let started: Started | undefined;
 
   afterEach(() => {

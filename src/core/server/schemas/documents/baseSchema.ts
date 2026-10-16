@@ -40,8 +40,8 @@ export const capped = {
  * Fields every v2 document carries. This is the document only: the
  * transporter artifact around it (id, issuedAt, type, from, to, selectors)
  * is a separate layer. A document never carries a status: `status`,
- * `paidAt`, `refundedAt` and `disputedAt` are refused by name (release
- * plan section 2.5).
+ * `paidAt`, `refundedAt` and `disputedAt` are refused by name: status
+ * travels as lifecycle events.
  */
 export const BtpDocV2BaseSchema = z
   .object({

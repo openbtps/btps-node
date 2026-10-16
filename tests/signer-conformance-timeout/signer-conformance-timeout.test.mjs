@@ -1,10 +1,10 @@
-// EBA-392: test/signer-conformance.test.ts's AC6 test ("this file
+// test/signer-conformance.test.ts's tsc type-check test ("this file
 // type-checks under tsc (so the expectTypeOf assertions above are actually
 // enforced)") spawns a real `tsc` subprocess and took 5467 ms on one
 // observed CI run, against vitest's default per-test timeout of 5000 ms.
-// Per the ticket: "the test itself is correct; the timeout is too tight" —
-// so the fix is to raise the timeout (a per-test override, or
-// vitest.config.ts's `testTimeout`), not to make tsc itself faster.
+// The test itself is correct; the timeout was too tight — so the fix (#11)
+// is to raise the timeout (a per-test override, or vitest.config.ts's
+// `testTimeout`), not to make tsc itself faster.
 //
 // This check reads source rather than spawning tsc itself, so it can't
 // reintroduce the same kind of timing flake it exists to guard against.
@@ -14,16 +14,13 @@
 //
 // What this does NOT test, stated plainly:
 //
-// - AC1 ("the tsc type-check completes in under 5000 ms on CI runs") is not
-//   asserted here and is not met by this change. This change raises the
-//   timeout; it does not make tsc faster. The ticket's description ("the
-//   timeout is too tight") and AC1 point in different directions, and that
-//   conflict is raised on EBA-392 for the ticket's author to resolve. A
-//   wall-clock assertion of < 5000 ms would itself be the timing flake this
-//   ticket exists to remove. Measured locally on 2026-10-10 (10 cores): the
-//   AC6 tsc run checks 368 files; a cold run took 6.74 s, warm runs ~3.1 s.
-// - AC2 ("no timeout failures over 10 consecutive CI runs") is an
-//   observation over CI history after merge, not a property of the code.
+// - That the tsc type-check completes in under 5000 ms on CI. This change
+//   raises the timeout; it does not make tsc faster, and a wall-clock
+//   assertion of < 5000 ms would itself be the timing flake this check
+//   exists to remove. Measured locally on 2026-10-10 (10 cores): the tsc run
+//   checks 368 files; a cold run took 6.74 s, warm runs ~3.1 s.
+// - That there are no timeout failures over many consecutive CI runs: that
+//   is an observation over CI history after merge, not a property of the code.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,7 +33,7 @@ const VITEST_CONFIG = path.join(ROOT, 'vitest.config.ts');
 // vitest's documented default per-test timeout, absent any override.
 const VITEST_DEFAULT_TIMEOUT_MS = 5000;
 
-// Observed worst-case run time for the tsc subprocess (ticket body). The
+// Observed worst-case run time for the tsc subprocess on CI. The
 // fixed timeout must clear this with real margin, not by a handful of ms —
 // CI runners vary, and a bare-minimum bump just moves the flake.
 const OBSERVED_WORST_CASE_MS = 5467;
@@ -49,7 +46,7 @@ function readGlobalTestTimeout() {
   return match ? Number(match[1]) : undefined;
 }
 
-// Finds the `it(...)` block for the flaky AC6 tsc test and returns any
+// Finds the `it(...)` block for the flaky tsc test and returns any
 // explicit per-test timeout set on it, as either a trailing numeric third
 // argument (`}, 15000);`) or a trailing options object
 // (`}, { timeout: 15000 });`).
@@ -57,7 +54,7 @@ function readPerTestTimeout(source) {
   const titleMarker = 'this file type-checks under tsc';
   const titleIndex = source.indexOf(titleMarker);
   if (titleIndex === -1) {
-    throw new Error(`expected to find the AC6 tsc test ("${titleMarker}") in ${TEST_FILE}`);
+    throw new Error(`expected to find the tsc type-check test ("${titleMarker}") in ${TEST_FILE}`);
   }
 
   // The matching `it(...)` block closes at the same 2-space indent the
@@ -67,7 +64,7 @@ function readPerTestTimeout(source) {
   closingRe.lastIndex = titleIndex;
   const closingMatch = closingRe.exec(source);
   if (!closingMatch) {
-    throw new Error(`expected to find the closing "});" for the AC6 tsc test in ${TEST_FILE}`);
+    throw new Error(`expected to find the closing "});" for the tsc type-check test in ${TEST_FILE}`);
   }
 
   const trailer = closingMatch[1] ?? '';
@@ -80,7 +77,7 @@ function readPerTestTimeout(source) {
   return undefined;
 }
 
-describe('EBA-392: the AC6 tsc type-check test has a timeout with real headroom over its observed worst-case runtime', () => {
+describe('the signer-conformance tsc type-check test has a timeout with real headroom over its observed worst-case runtime', () => {
   const source = fs.readFileSync(TEST_FILE, 'utf8');
   const perTestTimeout = readPerTestTimeout(source);
   const globalTimeout = readGlobalTestTimeout();
@@ -89,7 +86,7 @@ describe('EBA-392: the AC6 tsc type-check test has a timeout with real headroom 
   it("is not left on vitest's default 5000 ms timeout (the documented cause of the flake)", () => {
     expect(
       effectiveTimeout,
-      `effective timeout for the AC6 tsc test is ${effectiveTimeout} ms — still the unmodified ` +
+      `effective timeout for the tsc type-check test is ${effectiveTimeout} ms — still the unmodified ` +
         `vitest default that caused the ${OBSERVED_WORST_CASE_MS} ms run to fail`,
     ).toBeGreaterThan(VITEST_DEFAULT_TIMEOUT_MS);
   });

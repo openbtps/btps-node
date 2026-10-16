@@ -134,7 +134,7 @@ export class BtpsServer {
   private readonly issuedAtWindowMs: number;
   private readonly tokenStore?: TokenStore;
   private readonly authentication?: BtpsAuthentication;
-  /** Registration tokens consumed in the trust step, until the device is bound (item E). */
+  /** Registration tokens consumed in the trust step, until the device is bound. */
   private readonly registrations = new WeakMap<BTPAgentArtifact, BTPsTokenDocument>();
   private readonly middlewareManager: MiddlewareManager;
   private readonly connectionTimeoutMs: number;
@@ -166,11 +166,11 @@ export class BtpsServer {
     this.tlsOptions = options.tlsOptions;
     this.trustStore = options.trustStore;
     this.identityStore = options.identityStore;
-    // Replay protection is not optional (item F): with no store given, an
+    // Replay protection is not optional: with no store given, an
     // in-memory one, which forgets on restart and is not shared.
     this.replayStore = options.replayStore ?? new InMemoryReplayStore();
     this.issuedAtWindowMs = resolveIssuedAtWindow(options.issuedAtWindowMs);
-    // Device registration (item E): only with a token store; without one,
+    // Device registration: only with a token store; without one,
     // every auth.request is refused.
     this.tokenStore = options.tokenStore;
     if (this.tokenStore) {
@@ -180,7 +180,7 @@ export class BtpsServer {
         tokenConfig: options.tokenConfig,
       });
     }
-    // Upward only (EBA-443): never closed on a sender still waiting by default.
+    // Upward only: never closed on a sender still waiting by default.
     const { connectionTimeoutMs = BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS } = options;
     if (
       typeof connectionTimeoutMs !== 'number' ||
@@ -194,7 +194,7 @@ export class BtpsServer {
       });
     }
     this.connectionTimeoutMs = connectionTimeoutMs;
-    // Lower only (fix list 10): a longer line than the protocol's is never read.
+    // Lower only: a longer line than the protocol's is never read.
     const { maxLineLength = BTP_MAX_LINE_LENGTH } = options;
     if (
       !Number.isInteger(maxLineLength) ||
@@ -320,7 +320,7 @@ export class BtpsServer {
   private handleConnection(socket: TLSSocket) {
     const ipAddress = socket.remoteAddress ?? 'unknown';
     const startTime = new Date().toISOString();
-    // A line is never buffered past maxLineLength (fix list 10).
+    // A line is never buffered past maxLineLength.
     const stream = socket.pipe(split2({ maxLength: this.maxLineLength }));
     const context: BTPContext = {
       socket,
@@ -348,8 +348,7 @@ export class BtpsServer {
     };
 
     // Lines from one connection are handled concurrently, each with a
-    // request and response context of its own (fix list 4, addendum item
-    // 10): its reqId, its responseSent and its identity. One shared context,
+    // request and response context of its own: its reqId, its responseSent and its identity. One shared context,
     // overwritten by each line, crossed the responses of interleaved requests.
     stream.on('data', async (line: string) => {
       // split2 checks only the part of a line still waiting for its end, so
@@ -486,8 +485,8 @@ export class BtpsServer {
   }
 
   /**
-   * A request and response context for one line of a connection (fix list
-   * 4): what middleware sees for a line, the reqId its answer carries, and
+   * A request and response context for one line of a connection: what
+   * middleware sees for a line, the reqId its answer carries, and
    * whether it has been answered, are that line's own.
    */
   private createLineContext(context: BTPContext) {
@@ -534,7 +533,7 @@ export class BtpsServer {
     const { res } = context;
     const { action } = artifact;
     switch (action) {
-      // A health check (fix list 15): answered, and the connection stays
+      // A health check: answered, and the connection stays
       // open, so it can be asked again on the same connection.
       case 'PING':
         return this.sendBtpsResponse(res.socket, {
@@ -574,7 +573,7 @@ export class BtpsServer {
     const { identity, identitySelector } = artifact;
     const { selector } = this.serverIdentity;
 
-    // The store is asked by identity: it hashes it itself (fix list 1, defect 1).
+    // The store is asked by identity: it hashes it itself.
     // Without a selector of its own the server cannot say which key signed.
     const identityRecord = selector
       ? await this.identityStore?.getPublicKeyRecord(identity, identitySelector)
@@ -637,7 +636,7 @@ export class BtpsServer {
 
     const { data } = reqCtx;
 
-    // Core issuedAt window (non-negotiable, item F). Before the signature, so
+    // Core issuedAt window (non-negotiable). Before the signature, so
     // a stale replay costs no key lookup.
     const windowError = this.checkIssuedAt(data);
     if (windowError) {
@@ -659,7 +658,7 @@ export class BtpsServer {
     if (afterSigVerResponseSent) return; // Response already sent, stop processing
 
     if (!isValid) {
-      // A refused refresh says why (item D): not signed by the current key, or no proof of the new one.
+      // A refused refresh says why: not signed by the current key, or no proof of the new one.
       const refreshRefusal = [BTP_ERROR_REFRESH_NOT_CURRENT_KEY, BTP_ERROR_KEY_ROTATION_PROOF].find(
         (e) => e.code === reqCtx.error?.code,
       );
@@ -692,14 +691,14 @@ export class BtpsServer {
     if (afterTrustVerResponseSent) return; // Response already sent, stop processing
 
     if (!isTrusted) {
-      // EBA-124 (option B, decided 2026-10-06): reqCtx.error carries the
+      // reqCtx.error carries the
       // precise server-side reason (never-trusted, expired, revoked); the
       // wire only distinguishes expired from everything else, so an
       // un-upgraded 1.0 peer still just sees "not allowed" for a revoked or
       // never-trusted sender.
-      // A refused registration says why (item E): no store, no token, a bad,
+      // A refused registration says why: no store, no token, a bad,
       // used or another identity's token.
-      // A privacy refusal says so (EBA-444): only the other form can succeed.
+      // A privacy refusal says so: only the other form can succeed.
       const toldApart = [...REGISTRATION_ERRORS, BTP_ERROR_TRUST_PRIVACY].find(
         (e) => e.code === reqCtx.error?.code,
       );
@@ -711,7 +710,7 @@ export class BtpsServer {
       return this.sendBtpsError(resCtx.socket, wireError, resCtx.reqId);
     }
 
-    // Core duplicate check (non-negotiable, item F): only now that the
+    // Core duplicate check (non-negotiable): only now that the
     // signature and trust hold, so an unverified sender cannot spend
     // someone else's ids.
     const { from: replayFrom, id: replayId } = this.replayPair(data);
@@ -753,7 +752,7 @@ export class BtpsServer {
     );
     if (afterOnArtifactResponseSent) return; // Response already sent, stop processing
 
-    // Fix list 3: a trust request is answered success only once something
+    // A trust request is answered success only once something
     // stored it. Otherwise the sender may send the same request again.
     if (
       data.type === 'transporter' &&
@@ -779,7 +778,7 @@ export class BtpsServer {
   }
 
   /**
-   * The issuedAt window (item F), for transporter and agent artifacts alike.
+   * The issuedAt window, for transporter and agent artifacts alike.
    * Control and identity-lookup artifacts never reach the pipeline: they are
    * unsigned, so their issuedAt proves nothing, and they change no state.
    */
@@ -825,7 +824,7 @@ export class BtpsServer {
   /**
    * Executes one step's middleware, in priority order.
    *
-   * The rule (EBA-445), once a handler's promise settles:
+   * The rule, once a handler's promise settles:
    * - it answered (`sendRes` / `sendError`): the request is done; nothing
    *   after it runs, middleware or core;
    * - else it called `next()`, at any point: the next handler runs;
@@ -912,7 +911,7 @@ export class BtpsServer {
     }
 
     if (artifact.action === 'auth.refresh') {
-      // Item D (EBA-112): signed by the current key; a new key comes with its proof.
+      // Signed by the current key; a new key comes with its proof.
       const check = verifyAgentRefresh({
         artifact,
         currentPublicKey: agentPublicPem,
@@ -929,7 +928,7 @@ export class BtpsServer {
   /**
    * Gets the public key for an agent based on whether it's onboarding or existing.
    * Every agent that is not onboarding, including one refreshing to a new
-   * key, is verified with the key in its trust record (item D).
+   * key, is verified with the key in its trust record.
    */
   private async getAgentPublicKey(artifact: BTPAgentArtifact): Promise<string | null> {
     const isOnboardingAgent = artifact.action === 'auth.request';
@@ -941,7 +940,7 @@ export class BtpsServer {
     }
 
     // Every other agent: the key in its own agent record, never in a record
-    // between two identities (fix-list item 5).
+    // between two identities.
     const resolved = await resolveAgentKey(this.trustStore, artifact);
     return resolved.ok ? resolved.publicKeyPem : null;
   }
@@ -953,7 +952,7 @@ export class BtpsServer {
     artifact: BTPAgentArtifact,
   ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
     // An onboarding agent is trusted only on a registration token issued to
-    // the identity it registers for, consumed here, once (item E).
+    // the identity it registers for, consumed here, once.
     if (artifact.action === 'auth.request') return this.verifyRegistration(artifact);
 
     const { agentId, to } = artifact;
@@ -971,7 +970,7 @@ export class BtpsServer {
   }
 
   /**
-   * Item E (EBA-113): an `auth.request` is trusted only on a registration
+   * An `auth.request` is trusted only on a registration
    * token issued to the identity it names, which must be the artifact's
    * `to`. The token is consumed here, atomically, and kept until
    * `registerAgent` binds the device.
@@ -991,7 +990,7 @@ export class BtpsServer {
   }
 
   /**
-   * Item E (EBA-113): binds the device to the identity its registration
+   * Binds the device to the identity its registration
    * token was issued to, under an agent id the server generates, and
    * answers the device. The application's Agent handlers never see an
    * `auth.request`.
@@ -1166,7 +1165,7 @@ export class BtpsServer {
     }
 
     /* The delegator signed the artifact and the delegation before any
-     * attestation was added: verify that same message (addendum item 10). */
+     * attestation was added: verify that same message. */
     const { isValid: isValidDelegation } = verifySignature(
       delegationSignedMessage(restArtifact, delegation),
       delegation.signature,
@@ -1263,8 +1262,8 @@ export class BtpsServer {
     }
 
     if (artifact.type === 'BTPS_EVENT') {
-      // An event is accepted over the normal record or the flipped one (item A,
-      // release plan section 2.4); every other type needs the normal record.
+      // An event is accepted over the normal record or the flipped one;
+      // every other type needs the normal record.
       const { isTrusted, record } = await resolveEventTrust(
         artifact.from,
         artifact.to,
@@ -1272,7 +1271,7 @@ export class BtpsServer {
       );
       if (!isTrusted) return { isTrusted, error: this.getTrustRefusalError(record) };
       // The record that granted it governs its privacy: the flipped one when
-      // the event came over the flipped trust (EBA-444).
+      // the event came over the flipped trust.
       return this.checkPrivacy(artifact, record);
     }
 
@@ -1290,7 +1289,7 @@ export class BtpsServer {
   }
 
   /**
-   * EBA-444 (fix list 8): an active trust admits a `BTPS_DOC` or
+   * An active trust admits a `BTPS_DOC` or
    * `BTPS_EVENT` only in the form its `privacyType` agreed. Not applied to
    * TRUST_REQ and TRUST_RES, which negotiate the agreement.
    */
@@ -1317,10 +1316,10 @@ export class BtpsServer {
   }
 
   /**
-   * EBA-124: determines the precise, server-side-only reason a non-trust
+   * Determines the precise, server-side-only reason a non-trust
    * artifact is refused - never-trusted, expired, revoked, or blocked.
    *
-   * Option B (decided 2026-10-06): only the expired case gets its own wire
+   * Only the expired case gets its own wire
    * code (BTP_ERROR_TRUST_EXPIRED); revoked, blocked, never-trusted, pending
    * and rejected all collapse onto BTP_ERROR_TRUST_NOT_ALLOWED on the wire
    * (see executeRequestPipeline). This method's result is what reqCtx.error
@@ -1391,7 +1390,7 @@ export class BtpsServer {
   }
 
   /**
-   * Fix list 3: whether the trust store holds a pending request from the
+   * Whether the trust store holds a pending request from the
    * artifact's sender to its receiver, the record the platform keeps for
    * the receiver to decide on.
    */
@@ -1446,7 +1445,7 @@ export class BtpsServer {
     error?: 'JSON' | 'VALIDATION';
   } {
     try {
-      // Strict parse: an artifact with a duplicate member name is refused (JCS, item 5).
+      // Strict parse: an artifact with a duplicate member name is refused (JCS).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- typed as JSON.parse was
       const data = parseJson<any>(line);
 
@@ -1557,7 +1556,7 @@ export class BtpsServer {
 
   /**
    * Sends a BTPS error response to the client: the error's stable code,
-   * status class and fixed message from the wire error table (EBA-188). The
+   * status class and fixed message from the wire error table. The
    * error's own message never reaches the socket, and a code the table does
    * not know goes out as BTP_ERROR_UNKNOWN.
    */
@@ -1720,8 +1719,8 @@ export class BtpsServer {
   }
 
   /**
-   * What middleware and handlers may know of the server's identity (fix list
-   * 12): its identity, public key and selector. Never the private key or the
+   * What middleware and handlers may know of the server's identity: its
+   * identity, public key and selector. Never the private key or the
    * Signer: the server signs with them itself.
    */
   public getServerIdentity(): BtpsServerPublicIdentity {

@@ -1,4 +1,4 @@
-// EBA-156: CI must build the root package before installing/testing
+// CI must build the root package before installing/testing
 // examples/btps-nest-app (main points at dist), and must run a separate
 // "pack smoke" job that `yarn pack`s the root, installs the resulting
 // tarball in a temp directory without --immutable, and imports @btps/sdk.
@@ -8,8 +8,8 @@
 // same ratchet as src/core/crypto/jcs.test.ts and
 // test/vectors/known-failing.json. Removing or renaming the workflow, or
 // reordering the example job so the root build no longer comes first, turns
-// them red. The workflow's design notes are on
-// https://ebilladdress.atlassian.net/wiki/spaces/ES/pages/8749306
+// them red. The workflow's design notes are in the comment at the top of
+// .github/workflows/ci.yml.
 //
 // No YAML parser is a project dependency, so job bodies are isolated with a
 // small indentation-based splitter rather than adding one just for this test.
@@ -99,8 +99,8 @@ describe('CI: root build runs before the example app is installed/tested', () =>
   });
 });
 
-describe('CI: this ticket\'s own checks run on every PR', () => {
-  // Without this, criterion 1's portal-checksum gate (portal-checksum.test.mjs)
+describe('CI: the example app packaging checks run on every PR', () => {
+  // Without this, the portal-checksum gate (portal-checksum.test.mjs)
   // only ran when someone remembered to run it locally.
   it('a workflow step runs vitest over tests/example-app-packaging', () => {
     const steps = allJobs()
@@ -121,7 +121,7 @@ describe('CI: a separate pack-smoke job validates the published tarball', () => 
     expect(packJob, 'expected a job that runs `yarn pack`').toBeTruthy();
 
     // Must install the resulting tarball, and must not pass --immutable while doing so
-    // (an --immutable install is exactly the workspace-resolution problem this ticket fixes;
+    // (an --immutable install is exactly the workspace-resolution problem the portal: link fixed;
     // the pack-smoke job exists to prove the *published artifact* installs on its own).
     // Only the *tarball* install is checked: the job's root install, which
     // builds the artifact, should be --immutable and is not constrained here.

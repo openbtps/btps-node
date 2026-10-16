@@ -42,7 +42,7 @@ export * from './keygen.js';
 export * from './keySelection.js';
 export * from './types.js';
 
-// Signer and Decrypter (BTPS 1.1, item I): the interfaces the SDK signs and
+// Signer and Decrypter (BTPS 1.1): the interfaces the SDK signs and
 // decrypts through, and their PEM and KMS implementations.
 export type { Signer, SignerAlgorithm, SignerPublicKey } from '../../signer-interface.js';
 export type { Decrypter, DecrypterAlgorithm, DecryptRequest } from '../../decrypter-interface.js';
@@ -61,11 +61,11 @@ export {
   type KmsDecrypterOptions,
 } from '../../kms-decrypter.js';
 
-/** An AES-256-GCM tag is 16 bytes; anything shorter is refused (fix list 2, T-26). */
+/** An AES-256-GCM tag is 16 bytes; anything shorter is refused. */
 const GCM_TAG_BYTES = 16;
 
 /**
- * Refuses an RSA key shorter than BTP_MIN_RSA_KEY_BITS (fix list 12): for
+ * Refuses an RSA key shorter than BTP_MIN_RSA_KEY_BITS: for
  * `encryption`, the receiver's public key; for a `signature`, the signer's.
  * `pem` is a public or private key PEM. A key that does not parse is left to
  * the call that uses it, which refuses it in its own way.
@@ -144,7 +144,7 @@ export const encryptBtpPayload = (
  * a `PemDecrypter`; PEM is for tests and the interim only.
  *
  * An auth tag that is not exactly 16 bytes is refused before any key is
- * used (fix list 2, T-26).
+ * used.
  */
 export const decryptBtpPayload = async <T = unknown>(
   payload: unknown = '',

@@ -43,8 +43,7 @@ export const BTP_ERROR_TRUST_NOT_ALLOWED: BTPError = {
 };
 
 /**
- * EBA-124 (option B, decided 2026-10-06): the one trust refusal a sender can
- * tell apart on the wire. It goes out with its own `code`; every other
+ * The one trust refusal a sender can tell apart on the wire. It goes out with its own `code`; every other
  * refusal goes out as BTP_ERROR_TRUST_NOT_ALLOWED (see BTP_WIRE_ERRORS).
  */
 export const BTP_ERROR_TRUST_EXPIRED: BTPError = {
@@ -53,8 +52,8 @@ export const BTP_ERROR_TRUST_EXPIRED: BTPError = {
 };
 
 /**
- * EBA-124: the precise, server-side-only reason for a revoked trust record.
- * On the wire this collapses onto BTP_ERROR_TRUST_NOT_ALLOWED (option B) -
+ * The precise, server-side-only reason for a revoked trust record.
+ * On the wire this collapses onto BTP_ERROR_TRUST_NOT_ALLOWED -
  * same `code`, `message` and `status.code` - so a revoked sender cannot
  * distinguish their refusal from a never-trusted one.
  */
@@ -64,7 +63,7 @@ export const BTP_ERROR_TRUST_REVOKED: BTPError = {
 };
 
 /**
- * EBA-444 (fix list 8): a `BTPS_DOC` or `BTPS_EVENT` whose encryption does
+ * A `BTPS_DOC` or `BTPS_EVENT` whose encryption does
  * not match the trust's agreed `privacyType`: unencrypted on an `encrypted`
  * trust, or encrypted on an `unencrypted` one. Sent with its own code: the
  * sender agreed the privacy type, so telling it costs nothing, and only a
@@ -196,7 +195,7 @@ export const BTP_ERROR_MONEY_OUT_OF_RANGE: BTPError = {
 };
 
 /**
- * Replay protection (item F, EBA-114): the artifact's `issuedAt` is more than
+ * Replay protection: the artifact's `issuedAt` is more than
  * ISSUED_AT_WINDOW_MS from the server's clock (too old or too far ahead), or
  * cannot be read. Resending the same artifact cannot succeed: sign a new one,
  * with a new id, and check the sender's clock.
@@ -207,7 +206,7 @@ export const BTP_ERROR_ISSUED_AT_WINDOW: BTPError = {
 };
 
 /**
- * Replay protection (item F, EBA-114): this server already accepted an
+ * Replay protection: this server already accepted an
  * artifact with the same `(from, id)`. After a timed-out send this means the
  * first copy arrived. Any new artifact must be signed with a new id.
  */
@@ -217,7 +216,7 @@ export const BTP_ERROR_ALREADY_RECEIVED: BTPError = {
 };
 
 /**
- * Key-rotating refresh (item D, EBA-112, threat T-24): an `auth.refresh` was
+ * Key-rotating refresh: an `auth.refresh` was
  * not signed by the agent's current trusted key. A refresh, rotating or not,
  * is signed by the key the server already holds; a new key alone proves
  * nothing, because a stolen refresh token is enough to make one.
@@ -228,7 +227,7 @@ export const BTP_ERROR_REFRESH_NOT_CURRENT_KEY: BTPError = {
 };
 
 /**
- * Key-rotating refresh (item D, EBA-112): an `auth.refresh` carries a new
+ * Key-rotating refresh: an `auth.refresh` carries a new
  * public key without a valid proof of possession of it (`keyProof`: a
  * signature by the new key over the JCS form of
  * `{ agentId, identity, newPublicKey, issuedAt }`).
@@ -239,7 +238,7 @@ export const BTP_ERROR_KEY_ROTATION_PROOF: BTPError = {
 };
 
 /**
- * Device registration (item E, EBA-113, threat T-25): this server has no
+ * Device registration: this server has no
  * token store, so it cannot check a registration token and refuses every
  * `auth.request`. It never falls back to accepting one.
  */
@@ -249,7 +248,7 @@ export const BTP_ERROR_REGISTRATION_UNAVAILABLE: BTPError = {
 };
 
 /**
- * Device registration (item E, EBA-113): an `auth.request` carries no
+ * Device registration: an `auth.request` carries no
  * registration token (`document.authToken` is empty).
  */
 export const BTP_ERROR_REGISTRATION_TOKEN_MISSING: BTPError = {
@@ -258,7 +257,7 @@ export const BTP_ERROR_REGISTRATION_TOKEN_MISSING: BTPError = {
 };
 
 /**
- * Device registration (item E, EBA-113): no unexpired registration token with
+ * Device registration: no unexpired registration token with
  * this value was issued to the identity named. A token issued to another
  * identity is refused the same way: tokens are looked up by identity.
  */
@@ -268,7 +267,7 @@ export const BTP_ERROR_REGISTRATION_TOKEN_INVALID: BTPError = {
 };
 
 /**
- * Device registration (item E, EBA-113): the registration token was already
+ * Device registration: the registration token was already
  * used. A token registers one device, once; ask the identity's owner for a
  * new one.
  */
@@ -278,7 +277,7 @@ export const BTP_ERROR_REGISTRATION_TOKEN_USED: BTPError = {
 };
 
 /**
- * Device registration (item E, EBA-113): the `auth.request` names two
+ * Device registration: the `auth.request` names two
  * identities (`document.identity` is not the artifact's `to`), or the token
  * found was issued to another identity than the one named.
  */
@@ -293,7 +292,7 @@ export const BTP_ERROR_DOC_SCHEMA: BTPError = {
 };
 
 /**
- * Identity lookup (fix list 1, EBA-442): a server given an identity store
+ * Identity lookup: a server given an identity store
  * answers lookups signed with its own key, so it must name the selector that
  * key is published at, `serverIdentity.selector`. Thrown when the server is
  * constructed without one.
@@ -304,7 +303,7 @@ export const BTP_ERROR_SERVER_SELECTOR: BTPError = {
 };
 
 /**
- * Fix list 10 (EBA-122): a line longer than the server reads
+ * A line longer than the server reads
  * (BTP_MAX_LINE_LENGTH, or the server's own lower `maxLineLength`). The
  * server answers this and closes the connection.
  */
@@ -314,7 +313,7 @@ export const BTP_ERROR_LINE_TOO_LONG: BTPError = {
 };
 
 /**
- * Fix list 3 (EBA-445): a `TRUST_REQ` passed every check, but nothing
+ * A `TRUST_REQ` passed every check, but nothing
  * confirmed it was stored: the `forwardTo` handler did not return `true` and
  * the trust store holds no pending record for the pair. The sender is never
  * told "accepted" for a request nobody kept; it may send it again.
@@ -325,7 +324,7 @@ export const BTP_ERROR_TRUST_REQUEST_NOT_STORED: BTPError = {
 };
 
 /**
- * Fix list 12 (EBA-445): middleware that cannot be loaded: a definition that
+ * Middleware that cannot be loaded: a definition that
  * does not validate (a handler with fewer than three parameters, an unknown
  * phase or step), or a middleware file named explicitly that does not exist.
  * Thrown when the server starts. Kept on the server; would go out as
@@ -337,7 +336,7 @@ export const BTP_ERROR_MIDDLEWARE: BTPError = {
 };
 
 /**
- * Fix list 12 (EBA-445): an RSA key shorter than BTP_MIN_RSA_KEY_BITS (2048)
+ * An RSA key shorter than BTP_MIN_RSA_KEY_BITS (2048)
  * bits, for encryption or for a signature. Refused before it is used.
  */
 export const BTP_ERROR_KEY_TOO_SMALL: BTPError = {
@@ -346,7 +345,7 @@ export const BTP_ERROR_KEY_TOO_SMALL: BTPError = {
 };
 
 /**
- * EBA-445: a server or client option outside what the protocol allows, e.g.
+ * A server or client option outside what the protocol allows, e.g.
  * a `maxLineLength` above BTP_MAX_LINE_LENGTH. Thrown at construction;
  * never sent by a server.
  */

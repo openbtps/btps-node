@@ -1,7 +1,7 @@
 services:
   btps-server:
     build:
-      # Repository root: the app's @btps/sdk is `portal:../..` (EBA-166).
+      # Repository root: the app's @btps/sdk is `portal:../..`.
       # dockerfile is relative to the context.
       context: ../..
       dockerfile: examples/btps-nest-app/Dockerfile

@@ -9,14 +9,14 @@ import { describe, it, expect } from 'vitest';
 import * as keygen from './keygen.js';
 
 /*
- * Expected failures (`it.fails`) until EBA-116 (BTPS 1.1 item 6a, separate
- * signing and encryption keys and selectors) lands. On baseline 367cd09,
+ * Expected failures (`it.fails`) until separate signing and encryption keys
+ * land. On baseline 367cd09,
  * getBTPKeyPair() produces one RSA keypair used for both signing and
  * encryption, and keygen.ts has no generateIdentityKeyPairs export. When the
  * fix lands these turn red, and that change must flip `it.fails` to `it`.
  * Same ratchet as test/vectors/known-failing.json.
  */
-const XFAIL = 'expected failure until EBA-116 lands';
+const XFAIL = 'expected failure until separate keys land';
 
 interface KeyPairWithFingerprint {
   publicKey: string;
@@ -37,7 +37,7 @@ function generateIdentityKeyPairs(): IdentityKeyPairs {
   return fn() as IdentityKeyPairs;
 }
 
-describe('EBA-116: signing and encryption use separate keys from day one', () => {
+describe('signing and encryption use separate keys from day one', () => {
   it.fails(
     `returns a dedicated signing keypair and a dedicated encryption keypair (${XFAIL})`,
     () => {

@@ -1,12 +1,10 @@
-// EBA-152: the pipeline EBA-156 added builds the root package, then
-// installs/tests examples/btps-nest-app and pack-smokes the published
-// tarball — but it never runs the root package's own `yarn test`
-// (vitest run) or `yarn verify:btps-vectors`, and it never builds
-// examples/btps-nest-app itself (only the root SDK it depends on).
-// .github/workflows/ci.yml says as much:
-//   "The full root `yarn test` and verify:btps-vectors belong to EBA-152,
-//    which builds on this file; the scoped tests/example-app-packaging step is not a
-//    substitute for it."
+// The pipeline as first added (#3) built the root package, then
+// installed/tested examples/btps-nest-app and pack-smoked the published
+// tarball — but it never ran the root package's own `yarn test`
+// (vitest run) or `yarn verify:btps-vectors`, and it never built
+// examples/btps-nest-app itself (only the root SDK it depends on). The
+// scoped tests/example-app-packaging step is not a substitute for those, so
+// these checks require them.
 //
 // These checks read the workflow file the same way
 // tests/example-app-packaging/ci-workflow.test.mjs does: no YAML parser is a project
@@ -88,8 +86,8 @@ function stepWorkingDirectory(stepBody) {
 }
 
 describe('CI: the root test suite (`yarn test`) runs on every PR', () => {
-  // The scoped `yarn vitest run tests/example-app-packaging` step (added by EBA-156) only
-  // runs this ticket's directory, not the project's full vitest suite
+  // The scoped `yarn vitest run tests/example-app-packaging` step only
+  // runs that directory, not the project's full vitest suite
   // (src/**/*.test.ts, test/vectors, etc). That scoped step is not a
   // substitute for the root `yarn test` script.
   it('a workflow step runs `yarn test` at the repository root, not scoped to examples/btps-nest-app', () => {
@@ -117,10 +115,9 @@ describe('CI: `yarn verify:btps-vectors` runs on every PR', () => {
   });
 });
 
-describe('CI: checks report under the names EBA-133 will require', () => {
-  // A required-status-check rule matches the check name exactly; EBA-133 and
-  // the EBA-107 check catalogue (page 8978471) name them ci/test and
-  // ci/vectors. Renaming a job silently orphans the rule.
+describe('CI: checks report under the names the required status checks use', () => {
+  // A required-status-check rule matches the check name exactly; master's
+  // required checks are ci/test and ci/vectors. Renaming a job silently orphans the rule.
   const jobNamed = (name) => allJobs().find((j) => new RegExp(`^    name:\\s*${name}\\s*$`, 'm').test(j.body));
 
   it('a job named ci/test runs root `yarn test`', () => {

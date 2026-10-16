@@ -6,15 +6,15 @@
  */
 
 /*
- * EBA-233 (Item 8a). One interface, multiple implementations: PemSigner
- * (test/vectors and the T-06 PEM interim) and KmsSigner (managed custody,
+ * One interface, multiple implementations: PemSigner (test/vectors, and
+ * the interim before managed key custody) and KmsSigner (managed custody,
  * backed by KMS). Deliberately free of any import — this file must stay
- * loadable in any runtime (browser, native, Node) ahead of EBA-234's device
- * bindings, and AC4 checks that directly: no node:*, fs, crypto or
- * @aws-sdk/* import, and it must type-check under `lib es2022+dom` with no
- * @types/node.
+ * loadable in any runtime (browser, native, Node) ahead of device-side
+ * signing, and the signer conformance tests check that directly: no
+ * node:*, fs, crypto or @aws-sdk/* import, and it must type-check under
+ * `lib es2022+dom` with no @types/node.
  *
- * T-27 (no API accepts a user's private key): enforced by this shape itself
+ * No API accepts a user's private key: enforced by this shape itself
  * — nothing here takes key material as an argument. A PEM-backed
  * implementation holds its private key in its own constructor options, off
  * this interface.

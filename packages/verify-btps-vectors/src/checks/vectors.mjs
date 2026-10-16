@@ -260,7 +260,7 @@ export function vectorChecks(runtime, set) {
 }
 
 /**
- * Item 6: the key a signature selector names is the only sender key that
+ * Separate selectors: the key a signature selector names is the only sender key that
  * verifies the artifact, and the key an encryption selector names is the
  * only receiver key that unwraps it. The SDK checks prove the SDK writes the
  * selectors; these prove each runtime keeps the two keys apart.

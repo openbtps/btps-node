@@ -1,9 +1,9 @@
-// EBA-156: real end-to-end checks that run actual `yarn`/`npm` processes.
+// Real end-to-end checks that run actual `yarn`/`npm` processes.
 //
 // These are slower and, for the pack-smoke install step, network-dependent
 // (installing the example app's real dependency tree touches the registry).
-// They are kept here anyway because the acceptance criteria describe process
-// exit codes, not file contents — a static check of package.json cannot see
+// They are kept here anyway because what they prove is a process exit
+// code, not file contents — a static check of package.json cannot see
 // whether `yarn install --immutable` actually exits 0. This repo already
 // accepts this kind of process-level test (see
 // packages/verify-btps-vectors/test/cli.test.mjs), so it is written the same
@@ -40,7 +40,7 @@ function run(cmd, args, cwd) {
   return { status: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
 
-integration('fresh-clone install (EBA-156 acceptance criterion 2)', () => {
+integration('fresh-clone install', () => {
   it(
     'root `yarn build`, then `yarn install --immutable` in examples/btps-nest-app, exits 0',
     () => {
@@ -58,7 +58,7 @@ integration('fresh-clone install (EBA-156 acceptance criterion 2)', () => {
   );
 });
 
-integration('pack smoke (EBA-156 acceptance criterion 4)', () => {
+integration('pack smoke', () => {
   it(
     'yarn pack at the root produces a tarball that installs (without --immutable) and imports as @btps/sdk',
     () => {
@@ -83,7 +83,7 @@ integration('pack smoke (EBA-156 acceptance criterion 4)', () => {
       const install = run('npm', ['install', tarballPath], installDir);
       expect(install.status, `npm install of the packed tarball failed:\n${install.out}`).toBe(0);
 
-      // Criterion 4: the import must come from the installed tarball, not a
+      // The import must come from the installed tarball, not a
       // portal:/symlink back into this checkout.
       const installedSdk = path.join(installDir, 'node_modules/@btps/sdk');
       expect(fs.lstatSync(installedSdk).isSymbolicLink(), '@btps/sdk was linked, not installed from the tarball').toBe(

@@ -79,7 +79,7 @@ describe('BtpsDelegator', () => {
     }));
   });
 
-  // EBA-445 (fix list 12). Read: the constructor started init()'s DNS lookup
+  // Read: the constructor started init()'s DNS lookup
   // and awaited nothing, so a failure was an unhandled rejection.
   describe('auto-init is awaited, never started by the constructor', () => {
     const autoDelegator = () => {

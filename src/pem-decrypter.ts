@@ -6,9 +6,9 @@
  */
 
 /*
- * EBA-233 (Item 8a). PEM-backed Decrypter: test vectors, and the T-06
- * interim until the end date Bhupendra accepts. Never used with real keys
- * in production — see KmsDecrypter for managed custody.
+ * PEM-backed Decrypter: test vectors, and the interim before managed key
+ * custody. Never used with real keys in production — see KmsDecrypter for
+ * managed custody.
  */
 
 import crypto from 'crypto';
@@ -21,7 +21,7 @@ export interface PemDecrypterOptions {
 
 const ALGORITHM: DecrypterAlgorithm = 'aes-256-gcm';
 
-/** T-26: every Decrypter must enforce exactly 16-byte AES-GCM tags. */
+/** Every Decrypter must enforce exactly 16-byte AES-GCM tags. */
 const AUTH_TAG_LENGTH = 16;
 
 export class PemDecrypter implements Decrypter {
@@ -49,7 +49,7 @@ export class PemDecrypter implements Decrypter {
   }
 }
 
-/** T-26: reject any tag that isn't exactly 16 bytes before it ever reaches
+/** Reject any tag that isn't exactly 16 bytes before it ever reaches
  * the AEAD check — a short tag is a materially weaker guarantee, not a
  * smaller version of the same one. */
 export function assertFullLengthAuthTag(authTag: Uint8Array): void {
@@ -61,7 +61,7 @@ export function assertFullLengthAuthTag(authTag: Uint8Array): void {
 }
 
 /** Shared by PemDecrypter and KmsDecrypter's local AES-GCM step. Also
- * pins authTagLength at the cipher level (T-26), so Node itself refuses a
+ * pins authTagLength at the cipher level, so Node itself refuses a
  * tag shorter than 16 bytes rather than relying on the pre-check alone. */
 export function decryptAesGcm(aesKey: Buffer, request: DecryptRequest): Uint8Array {
   const decipher = crypto.createDecipheriv('aes-256-gcm', aesKey, Buffer.from(request.iv), {

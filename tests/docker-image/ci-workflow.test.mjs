@@ -1,8 +1,8 @@
-// EBA-166 acceptance criterion: "CI builds the image". Today
-// .github/workflows/ci.yml never invokes `docker build` or
+// CI builds the btps-server image. Before #8,
+// .github/workflows/ci.yml never invoked `docker build` or
 // `docker compose build` anywhere — the btps-server image (built from
-// examples/btps-nest-app/Dockerfile) is never exercised in CI, so the
-// breakage this ticket fixes (build context "." cannot reach the
+// examples/btps-nest-app/Dockerfile) was never exercised in CI, so the
+// breakage #8 fixed (build context "." cannot reach the
 // portal:../..-linked @btps/sdk at the repository root) would keep
 // regressing silently.
 //
@@ -56,9 +56,9 @@ function allRunLines() {
 }
 
 describe('CI: the btps-server Docker image (examples/btps-nest-app) is built', () => {
-  // EBA-166 acceptance criterion "CI builds the image" (the docker-image job
-  // in .github/workflows/ci.yml). Without that step, the breakage this ticket
-  // fixes (build context "." could not reach the portal:../..-linked
+  // CI builds the image (the docker-image job
+  // in .github/workflows/ci.yml). Without that step, the breakage #8
+  // fixed (build context "." could not reach the portal:../..-linked
   // @btps/sdk at the repository root) would never be exercised by CI and
   // could come back without anyone noticing. This checks the workflow's
   // shape only. The evidence that the image builds is that job going green.

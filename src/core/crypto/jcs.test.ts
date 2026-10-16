@@ -28,7 +28,7 @@ const ORACLE = join(__dirname, '../../../packages/verify-btps-vectors/src/jcs.mj
 type Oracle = { canonicalize: (jsonText: string) => string };
 const loadOracle = async (): Promise<Oracle> => (await import(ORACLE)) as Oracle;
 
-describe('EBA-115: canonicalize (JCS, RFC 8785)', () => {
+describe('canonicalize (JCS, RFC 8785)', () => {
   for (const vector of vectors) {
     if (vector.expectError) {
       it(`${vector.name}: rejects the input, as the oracle does`, async () => {
@@ -98,7 +98,7 @@ describe('EBA-115: canonicalize (JCS, RFC 8785)', () => {
   });
 });
 
-describe('EBA-115: parseJson (strict JSON.parse)', () => {
+describe('parseJson (strict JSON.parse)', () => {
   it('returns what JSON.parse returns for valid JSON', () => {
     const text = '{"a":[1,2,{"b":null}],"c":"d\\n","e":-0.5e3,"f":true}';
     expect(parseJson(text)).toEqual(JSON.parse(text));
@@ -118,7 +118,7 @@ describe('EBA-115: parseJson (strict JSON.parse)', () => {
   });
 });
 
-describe('EBA-115: canonicalizeValue', () => {
+describe('canonicalizeValue', () => {
   it('canonicalizes what JSON.stringify would put on the wire', () => {
     expect(canonicalizeValue({ b: undefined, a: new Date(0), c: [undefined] })).toBe(
       '{"a":"1970-01-01T00:00:00.000Z","c":[null]}',

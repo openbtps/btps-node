@@ -2,16 +2,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 /**
- * EBA-154: confirms @nestjs/testing has been a devDependency of
+ * Confirms @nestjs/testing has been a devDependency of
  * examples/btps-nest-app since 6b73e35, pinned to the same major version
  * as @nestjs/core, and guards that pin against drifting out of sync between
- * package.json and yarn.lock (criterion 1). Also guards that @btps/sdk
- * stays declared as a dependency (criterion 2) — see the inner describe
- * below for how that guard's expected value tracks EBA-156. These checks
+ * package.json and yarn.lock. Also guards that @btps/sdk
+ * stays declared as a dependency — see the inner describe
+ * below for how that guard's expected value tracks the portal: link. These checks
  * read the raw config files so they do not depend on node_modules being
  * installed.
  */
-describe('examples/btps-nest-app dependency configuration (EBA-154)', () => {
+describe('examples/btps-nest-app dependency configuration', () => {
   const appRoot = path.join(__dirname, '..');
   const packageJsonPath = path.join(appRoot, 'package.json');
   const yarnLockPath = path.join(appRoot, 'yarn.lock');
@@ -91,14 +91,14 @@ describe('examples/btps-nest-app dependency configuration (EBA-154)', () => {
     });
   });
 
-  describe('@btps/sdk dependency (EBA-154)', () => {
-    // EBA-156 replaced the gitignored, hand-built package.tgz (a file:
+  describe('@btps/sdk dependency', () => {
+    // #3 replaced the gitignored, hand-built package.tgz (a file:
     // dependency whose yarn.lock hash went stale whenever the tarball was
     // rebuilt, c997031) with a portal: reference to the workspace root,
     // which has no tarball hash to go stale. Full coverage of that
     // resolution — package.json, yarn.lock, and the absence of
     // package.tgz — lives in tests/example-app-packaging/package-dependency.test.mjs;
-    // this just keeps EBA-154's "is @btps/sdk declared at all" guard
+    // this just keeps the "is @btps/sdk declared at all" guard
     // pointed at the dependency's current, correct value.
     it('has a @btps/sdk dependency pointing at the workspace root via portal:', () => {
       expect(packageJson.dependencies).toHaveProperty('@btps/sdk', 'portal:../..');

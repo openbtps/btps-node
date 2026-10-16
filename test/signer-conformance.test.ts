@@ -6,15 +6,14 @@
  */
 
 /*
- * EBA-233 (Item 8a) — AC1, AC3, AC4, AC5, AC6.
+ * Signer conformance: PemSigner and KmsSigner behave alike, their signatures
+ * verify through the SDK, the interface is runtime-agnostic, a KMS failure
+ * fails closed, and no private key material is exposed.
  *
- * These tests are the executable form of the acceptance criteria, written
- * from the ticket before any implementation existed.
- *
- * The ticket does not prescribe the exact shape of `Signer`, `PemSigner` or
- * `KmsSigner` — only the three things AC1 names (sign, getPublicKey,
- * algorithm id) and the threat-model constraints (T-06, T-27). This file
- * fixes a concrete shape so the criteria are checkable, following the
+ * These tests were written before any implementation existed. What was
+ * required is only a signer's three parts (sign, getPublicKey, algorithm id),
+ * managed key custody, and that no API accepts a user's private key. This
+ * file fixes a concrete shape so those are checkable, following the
  * naming already used elsewhere in src/core/crypto (PemKeys has
  * `publicKey`/`privateKey`; BTPKeyPair adds `fingerprint`):
  *
@@ -26,11 +25,11 @@
  *   new PemSigner({ publicKey, privateKey })
  *   new KmsSigner({ client, keyId })   // `client` is an injected, duck-typed
  *                                      // KMS facade so this suite never makes
- *                                      // a network call; AC7 is the real-KMS
+ *                                      // a network call; a real-KMS run is the
  *                                      // proof and is out of scope here.
  *
  * If the implementation lands on different names, update this file in the
- * same change rather than treating the mismatch as a second ticket.
+ * same change rather than treating the mismatch as separate work.
  */
 
 import { describe, it, expect, expectTypeOf } from 'vitest';
@@ -46,7 +45,7 @@ import { PemSigner } from '../src/pem-signer.js';
 import { KmsSigner, type KmsSignClient } from '../src/kms-signer.js';
 import { canonicalize, signBtpPayload, signEncrypt, verifySignature } from '@core/crypto/index.js';
 
-// EBA-392: the two tests below that spawn a real `tsc` take ~1–2.5 s on an
+// The two tests below that spawn a real `tsc` take ~1–2.5 s on an
 // idle 10-core machine, but one CI run took 5467 ms under parallel-suite
 // contention and failed against vitest's default 5000 ms per-test timeout.
 // They get a 30000 ms timeout each (the literal on each `it(...)` call),
@@ -112,7 +111,7 @@ const implementations: Implementation[] = [
   },
 ];
 
-describe.each(implementations)('AC1: $name conformance', ({ name, makeSigner, publicKeyPem }) => {
+describe.each(implementations)('$name conformance', ({ name, makeSigner, publicKeyPem }) => {
   it(`${name} reports the pinned algorithm id`, () => {
     const signer = makeSigner();
     expect(signer.algorithm).toBe('RSASSA_PKCS1_V1_5_SHA_256');
@@ -135,7 +134,7 @@ describe.each(implementations)('AC1: $name conformance', ({ name, makeSigner, pu
   });
 });
 
-describe('AC3: wire-format proof — a KMS signature and a PEM signature over the same input both verify through the SDK verify path', () => {
+describe('wire-format proof — a KMS signature and a PEM signature over the same input both verify through the SDK verify path', () => {
   it('signBtpPayload-equivalent output from both Signer implementations verifies via @core/crypto verifySignature', async () => {
     const pemSigner = new PemSigner({
       publicKey: vectors.signing.publicKeyPem,
@@ -147,7 +146,7 @@ describe('AC3: wire-format proof — a KMS signature and a PEM signature over th
     });
 
     const payload = vectors.signing.payload;
-    // BTPS 1.1 (EBA-115) signs the RFC 8785 canonical form, not JSON.stringify output.
+    // BTPS 1.1 signs the RFC 8785 canonical form, not JSON.stringify output.
     const data = new TextEncoder().encode(canonicalize(JSON.stringify(payload)));
     const fingerprint = crypto
       .createHash('sha256')
@@ -173,7 +172,7 @@ describe('AC3: wire-format proof — a KMS signature and a PEM signature over th
   });
 });
 
-describe('AC4: src/signer-interface.ts is runtime-agnostic', () => {
+describe('src/signer-interface.ts is runtime-agnostic', () => {
   const SRC_PATH = join(__dirname, '../src/signer-interface.ts');
   const source = readFileSync(SRC_PATH, 'utf8');
 
@@ -195,7 +194,7 @@ describe('AC4: src/signer-interface.ts is runtime-agnostic', () => {
   });
 
   it('type-checks under tsc with lib es2022+dom and no @types/node', () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'eba-233-signer-interface-'));
+    const tmpDir = mkdtempSync(join(tmpdir(), 'btps-signer-interface-'));
     const tsconfigPath = join(tmpDir, 'tsconfig.json');
     writeFileSync(
       tsconfigPath,
@@ -225,7 +224,7 @@ describe('AC4: src/signer-interface.ts is runtime-agnostic', () => {
   }, 30000);
 });
 
-describe('AC5: KMS failure fails closed, with no PEM fallback', () => {
+describe('KMS failure fails closed, with no PEM fallback', () => {
   it('rejects with a typed retryable error when KMS throttles', async () => {
     const client: KmsSignClient = {
       async sign() {
@@ -266,7 +265,7 @@ describe('AC5: KMS failure fails closed, with no PEM fallback', () => {
   });
 });
 
-describe('AC6: KmsSigner exposes no private key material (T-27)', () => {
+describe('KmsSigner exposes no private key material', () => {
   it('the KmsSigner constructor options do not accept a private key', () => {
     type KmsSignerOptions = ConstructorParameters<typeof KmsSigner>[0];
     expectTypeOf<KmsSignerOptions>().not.toHaveProperty('privateKey');
@@ -283,10 +282,10 @@ describe('AC6: KmsSigner exposes no private key material (T-27)', () => {
   // typecheck` — the project's actual `test` script is `vitest run`, which
   // never type-checks test files, so a regression there would report green.
   // This test forces a real tsc pass over this file (same approach as the
-  // AC4 tsc subprocess test above), so the assertions are enforced by
+  // runtime-agnostic tsc subprocess test above), so the assertions are enforced by
   // `yarn test`.
   it('this file type-checks under tsc (so the expectTypeOf assertions above are actually enforced)', () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'eba-233-signer-ac6-'));
+    const tmpDir = mkdtempSync(join(tmpdir(), 'btps-signer-no-private-key-'));
     const tsconfigPath = join(tmpDir, 'tsconfig.json');
     const repoRoot = join(__dirname, '..');
     writeFileSync(
@@ -323,9 +322,9 @@ describe('AC6: KmsSigner exposes no private key material (T-27)', () => {
   }, 30000);
 });
 
-// EBA-441 (item I): the same implementations, through the SDK's own signing
+// The same implementations, through the SDK's own signing
 // paths rather than called directly.
-describe.each(implementations)('EBA-441: $name through the SDK core', ({ name, makeSigner }) => {
+describe.each(implementations)('$name through the SDK core', ({ name, makeSigner }) => {
   const pemKeys = {
     publicKey: vectors.signing.publicKeyPem,
     privateKey: vectors.signing.privateKeyPem,

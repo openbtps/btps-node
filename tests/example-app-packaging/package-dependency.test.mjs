@@ -1,4 +1,4 @@
-// EBA-156: @btps/sdk must resolve reproducibly for btps-nest-app (workspace link or
+// @btps/sdk must resolve reproducibly for btps-nest-app (workspace link or
 // published version), not a gitignored, hand-built package.tgz.
 //
 // These checks are static (no install, no network) so they fail fast and name the
@@ -34,7 +34,7 @@ describe('examples/btps-nest-app dependency on @btps/sdk', () => {
 
   it('no gitignored package.tgz is required for the example app to resolve @btps/sdk', () => {
     // A hand-built tarball is exactly what made `yarn install --immutable` unreproducible
-    // (EBA-154 discovery). If this file is still part of the resolution, the fix regressed.
+    // (found while resyncing the lockfile, #2). If this file is still part of the resolution, the fix regressed.
     const pkg = JSON.parse(fs.readFileSync(path.join(NEST_APP, 'package.json'), 'utf8'));
     expect(fs.existsSync(path.join(NEST_APP, 'package.tgz'))).toBe(false);
     expect(JSON.stringify(pkg)).not.toContain('package.tgz');

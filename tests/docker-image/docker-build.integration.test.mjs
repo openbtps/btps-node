@@ -1,4 +1,4 @@
-// EBA-166: real end-to-end proof that the btps-server image builds from a
+// Real end-to-end proof that the btps-server image builds from a
 // fresh clone and can actually load @btps/sdk, not just that its Dockerfile
 // looks plausible (dockerfile-copy-sources.test.mjs is the static version of
 // that half of the check).
@@ -16,10 +16,9 @@
 //
 //   BTPS_INTEGRATION=1 yarn vitest run tests/docker-image/docker-build.integration.test.mjs
 //
-// CI does not need this flag: once this ticket is implemented, a workflow
-// step runs the equivalent `docker build`/`docker compose build` natively on
-// a real fresh checkout (see ci-workflow.test.mjs), which is the actual
-// acceptance signal; this file is a local reproduction tool.
+// CI does not need this flag: the docker-image workflow job runs the
+// equivalent `docker build`/`docker compose build` natively on a real fresh
+// checkout (see ci-workflow.test.mjs), which is the real signal; this file is a local reproduction tool.
 import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -65,11 +64,11 @@ afterAll(() => {
   if (imageTag) spawnSync('docker', ['image', 'rm', '-f', imageTag]);
 });
 
-integration('fresh-clone docker build (EBA-166 acceptance criteria 1-3)', () => {
+integration('fresh-clone docker build', () => {
   it(
     'builds the btps-server image from examples/btps-nest-app on a fresh clone',
     () => {
-      imageTag = `btps-server-eba-166-test:${Date.now()}`;
+      imageTag = `btps-server-docker-image-test:${Date.now()}`;
       const nestAppDir = path.join(cloneDir, 'examples/btps-nest-app');
 
       const build = run('docker', ['compose', 'build', 'btps-server'], nestAppDir);

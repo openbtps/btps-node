@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# EBA-166: a no-Docker stand-in for the btps-server image build, for machines
+# A no-Docker stand-in for the btps-server image build, for machines
 # without a Docker daemon. It replays every RUN step of
 # examples/btps-nest-app/Dockerfile, in order, on a `git archive` export of
 # HEAD (a fresh-clone stand-in), copying the same paths each COPY names.
