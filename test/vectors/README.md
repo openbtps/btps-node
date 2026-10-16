@@ -5,7 +5,7 @@ built in EBA-110). Every runtime must reproduce them exactly: Node, web, and
 later iOS and Android. The runner is
 [`packages/verify-btps-vectors`](../../packages/verify-btps-vectors/).
 
-**Published as vector set 1.1.0** (EBA-123). [`manifest.json`](./manifest.json)
+**Published as vector set 1.1.0.** [`manifest.json`](./manifest.json)
 gives the set's version and the SHA-256 of every vector file (this README and
 `known-failing.json` are not vectors and are not listed).
 `yarn verify:btps-vectors` fails if a file differs from its hash, is missing,
@@ -66,10 +66,9 @@ a vector can pin. That client will bring its own tests.
 Vectors are frozen once other code is tested against them, and set 1.1.0 is
 frozen by its manifest: changing any vector means a new set version, a
 manifest rewritten with `vectors-manifest.mjs --write`, and a changelog entry.
-The item 6b
-vectors (EBA-117) are frozen by ~2026-10-16. There are no item 9 key-use
-vectors: item 9 was withdrawn on 2026-10-11, and with it that part of founder
-decision R-30. `generate-vectors.mjs` writes only the
+There are no
+key-use vectors for separate signing and encryption keys: that proposal was
+withdrawn on 2026-10-11. `generate-vectors.mjs` writes only the
 files that are missing. `--force` regenerates every key and random byte; if
 you use it, say so in every change whose tests read these files.
 

@@ -476,7 +476,7 @@ describe('PR #26: the client end and getSocket defects', () => {
   });
 });
 
-describe('EBA-123: what a reconnect carries', () => {
+describe('what a reconnect carries', () => {
   /**
    * A TLS server that records every line by connection (1, 2, ...). The first
    * connection is closed on its first line, unanswered; later ones answer

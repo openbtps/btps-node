@@ -28,16 +28,16 @@ now; every party upgrades together.
 
 ### Not in this release yet
 
-These are part of the 1.1 plan but not in the pull requests below; each lands
+These are part of 1.1 but not in the pull requests below; each lands
 before 1.1.0 is published.
 
-- **Version on the wire (item M, EBA-403).** `BTP_PROTOCOL_VERSION` is still
+- **Version on the wire.** `BTP_PROTOCOL_VERSION` is still
   `1.0.0`, `_btps.host` still advertises `v=1.0.0`, and the server does not yet
   check an artifact's `version`. "Refuses 1.0" above means refuses the 1.0
   shapes, not the version string.
-- **Authorised delegators and attestors (item C, EBA-111).** The address's
+- **Authorised delegators and attestors.** The address's
   `_btps.host` record does not yet declare who may delegate or attest for it.
-- **The Hermes run (EBA-150, PR #4).** The vectors have run on Node and Node's
+- **The Hermes run (PR #4).** The vectors have run on Node and Node's
   WebCrypto only, not on React Native's engine.
 - **The package version.** `package.json` still says `1.0.0`; it becomes
   `1.1.0` when the release is cut from `release/1.1`.
@@ -78,7 +78,7 @@ before 1.1.0 is published.
 Each pull request below is stacked on the one before it and merges into
 `release/1.1`.
 
-#### #14 Canonical signing with JCS (item G, EBA-115)
+#### #14 Canonical signing with JCS
 
 - **Wire:** every signature is over the RFC 8785 (JCS) canonical form of the
   payload without `signature`. A line with a duplicate member name is refused
@@ -88,7 +88,7 @@ Each pull request below is stacked on the one before it and merges into
   signer signs the JCS bytes (`canonicalize` from `@btps/sdk/crypto`, and
   `jcs.vectors.json`).
 
-#### #15 Separate `signatureSelector` and `encryptionSelector` (item H, EBA-116)
+#### #15 Separate `signatureSelector` and `encryptionSelector`
 
 - **Wire:** the single `selector` is replaced by `signatureSelector` (the
   sender's signing key, required unless delegated) and `encryptionSelector`
@@ -100,7 +100,7 @@ Each pull request below is stacked on the one before it and merges into
 - **Migrate:** pass `sender.selector` and `payload.encryptionSelector`; a
   receiver that rotated passes a lookup `(encryptionSelector) => key`.
 
-#### #16 Document model v2, wired into the core (item B, EBA-119, EBA-402)
+#### #16 Document model v2, wired into the core
 
 - **Wire:** an unencrypted `BTPS_DOC` must be a v2 `invoice`, `credit_note`
   or `payslip`. The 1.0 invoice is refused. No document carries a status.
@@ -113,7 +113,7 @@ Each pull request below is stacked on the one before it and merges into
   [what changed from 1.0](docs/docusaurus/docs/protocol/specifications/document-model-v2.md#what-changed-from-10).
   New export path `@btps/sdk/documents`. Supersedes PR #9.
 
-#### #17 Lifecycle events, `BTPS_EVENT` (item A, EBA-440)
+#### #17 Lifecycle events, `BTPS_EVENT`
 
 - **Wire:** a fourth transporter type, `BTPS_EVENT`, carrying `paid`,
   `partially_paid`, `disputed`, `refund_requested`, `refund` and `response`
@@ -125,7 +125,7 @@ Each pull request below is stacked on the one before it and merges into
   the checks the [Lifecycle Events](docs/docusaurus/docs/protocol/specifications/lifecycle-events.md)
   page lists.
 
-#### #18 Signer and Decrypter in the core; exports (item I, EBA-441)
+#### #18 Signer and Decrypter in the core; exports
 
 - **Wire:** a GCM tag that is not exactly 16 bytes is refused on every
   decrypt path.
@@ -135,7 +135,7 @@ Each pull request below is stacked on the one before it and merges into
   and the interim). `BtpsTransporter`, the Signer/Decrypter classes and their
   helpers are exported (`@btps/sdk/client`, `@btps/sdk/crypto`).
 
-#### #19 Replay window and `(from, id)` uniqueness (item F, EBA-114)
+#### #19 Replay window and `(from, id)` uniqueness
 
 - **Wire:** an artifact whose `issuedAt` is more than 5 minutes from the
   server's clock is refused (`BTP_ERROR_ISSUED_AT_WINDOW`), and a repeated
@@ -146,7 +146,7 @@ Each pull request below is stacked on the one before it and merges into
   shared storage (`replayStore`). Resending the same signed artifact after a
   timeout is safe inside the window.
 
-#### #20 Key-rotating refresh signed by the current key (item D, EBA-112)
+#### #20 Key-rotating refresh signed by the current key
 
 - **Wire:** every `auth.refresh` is verified with the device's current key;
   a refresh that rotates carries a `keyProof` signed by the new key. A 1.0
@@ -154,12 +154,12 @@ Each pull request below is stacked on the one before it and merges into
   `BTP_ERROR_KEY_ROTATION_PROOF`).
 - **Migrate:** rotate with `BtpsAuthentication.rotateKey`.
 
-#### #21 Device registration bound to the identity (item E, EBA-113)
+#### #21 Device registration bound to the identity
 
 - **Wire:** the server answers every `auth.request` itself, consuming a
   one-time registration token issued to the identity; five new refusals
   (`BTP_ERROR_REGISTRATION_*`). An agent artifact whose `agentId` is an
-  identity is refused (fix list 5).
+  identity is refused, so an agent message cannot be forged as the identity.
 - **Breaks:** application `auth.request` handlers never run; without a
   `tokenStore`, every registration is refused; `TokenStore` has a new
   required, atomic `consume()`.
@@ -167,7 +167,7 @@ Each pull request below is stacked on the one before it and merges into
   `BtpsAuthentication`; remove `auth.request` handlers; implement `consume()`
   in a custom store (Redis: `GETDEL`).
 
-#### #22 Host identity lookup repaired (item J, EBA-442, EBA-186)
+#### #22 Host identity lookup repaired
 
 - **Wire:** lookup stays DNS first, then the address's host; the host's
   answer is signed and checked (request id, signer in the address's domain,
@@ -176,7 +176,7 @@ Each pull request below is stacked on the one before it and merges into
   `serverIdentity.selector` (`BTP_ERROR_SERVER_SELECTOR`).
 - **Migrate:** publish the server's key at a selector and pass it.
 
-#### #23 SDK defects of addendum item 10, fix lists 4 and 10 (item K, EBA-122)
+#### #23 Agent artifacts, attested delegation, per-line request context, line limit, identity rules
 
 - **Wire:** each line on a connection gets its own answer, by `reqId`; a line
   longer than `BTP_MAX_LINE_LENGTH` is answered `BTP_ERROR_LINE_TOO_LONG` and
@@ -187,7 +187,7 @@ Each pull request below is stacked on the one before it and merges into
 - **Breaks:** identities outside the strict character rules are refused.
 - **Migrate:** none for SDK users beyond the identity rule.
 
-#### #24 Stable error codes on the wire (fix list 6, EBA-188)
+#### #24 Stable error codes on the wire
 
 - **Wire:** an error answer carries a stable string `code` beside `status`,
   from one table (`BTP_WIRE_ERRORS`); the message is the code's fixed one.
@@ -196,7 +196,7 @@ Each pull request below is stacked on the one before it and merges into
   bare status keeps its class but not its message.
 - **Migrate:** decide retries by `error.code` and `error.retryable`.
 
-#### #25 `privacyType` enforced; rate limits by verified identity (EBA-444, EBA-187)
+#### #25 `privacyType` enforced; rate limits by verified identity
 
 - **Wire:** a `BTPS_DOC` or `BTPS_EVENT` that breaks the trust's
   `privacyType` is refused (`BTP_ERROR_TRUST_PRIVACY`). Identity rate limits
@@ -206,7 +206,7 @@ Each pull request below is stacked on the one before it and merges into
 - **Migrate:** a multi-instance server passes a shared rate limiter through
   `defaultMiddleware`.
 
-#### #26 Fix lists 3, 12, 14 and 15, and smaller defects (EBA-445)
+#### #26 Trust-request storage, middleware, PING, and smaller defects
 
 - **Wire:** a `TRUST_REQ` is answered success only once stored
   (`BTP_ERROR_TRUST_REQUEST_NOT_STORED` otherwise); `PING` is answered and the
@@ -219,7 +219,7 @@ Each pull request below is stacked on the one before it and merges into
 - **Migrate:** `forwardTo` returns `true` once it stored a trust request;
   fix any middleware file that no longer loads.
 
-#### #27 Timeout minimums (item L, EBA-443)
+#### #27 Timeout minimums
 
 - **Wire:** a receiver replies within 10 s or answers "try again"; a sender
   waits at least 10 s for a reply and 5 s to connect.
@@ -228,7 +228,7 @@ Each pull request below is stacked on the one before it and merges into
   at least 30000.
 - **Migrate:** use `connectTimeoutMs` and `replyTimeoutMs`.
 
-#### #28 Documentation, published vectors, and resend on reconnect (item N, EBA-123)
+#### #28 Documentation, published vectors, and resend on reconnect
 
 - **Client:** after a retryable failure `BtpsClient` reconnects and sends, on
   the new connection, every pending send that was never written. A send that
