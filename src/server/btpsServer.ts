@@ -35,6 +35,7 @@ import {
   BTP_ERROR_UNKNOWN,
   BTP_ERROR_INVALID_ACTION,
   BTP_ERROR_EVENT_UNRELATED,
+  BTP_ERROR_KEY_ROTATION_PROOF,
 } from '@core/error/constant.js';
 import {
   assertStrictJson,
@@ -90,6 +91,8 @@ import {
 } from './libs/artifactTimeWindow.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
+import { BtpAuthReqDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
+import { keyProofPayload } from '@core/authentication/keyProof.js';
 import type { BTPIdentityRecord } from '@core/storage/types.js';
 import type { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 
@@ -707,7 +710,47 @@ export class BtpsServer {
     }
 
     const { isValid, error } = verifySignature(signedMsg, signature, agentPublicPem);
-    return { isValid, error };
+    if (!isValid || artifact.action !== 'auth.refresh') return { isValid, error };
+    return this.verifyKeyProof(artifact, agentPublicPem);
+  }
+
+  /**
+   * An auth.refresh that names a key other than the agent's current one moves
+   * the device to that key. It is already signed by the current key, and must
+   * also carry a keyProof signed by the new key, so a stolen refresh token
+   * alone cannot move a device to someone else's key.
+   */
+  private verifyKeyProof(
+    artifact: BTPAgentArtifact,
+    currentPublicPem: string,
+  ): { isValid: boolean; error?: BTPErrorException } {
+    const refuse = (cause: string) => ({
+      isValid: false,
+      error: new BTPErrorException(BTP_ERROR_KEY_ROTATION_PROOF, {
+        cause,
+        meta: { agentId: artifact.agentId },
+      }),
+    });
+    const parsed = BtpAuthReqDocSchema.safeParse(artifact.document);
+    if (!parsed.success) return refuse('auth.refresh has no valid document');
+    const { identity, publicKey, keyProof } = parsed.data;
+
+    try {
+      if (getFingerprintFromPem(publicKey) === getFingerprintFromPem(currentPublicPem)) {
+        return { isValid: true, error: undefined };
+      }
+    } catch {
+      return refuse('the new key is not a public key');
+    }
+    if (!keyProof) return refuse('a new key without a keyProof');
+    const proof = verifySignature(
+      keyProofPayload(artifact.agentId, identity, publicKey),
+      keyProof,
+      publicKey,
+    );
+    return proof.isValid
+      ? { isValid: true, error: undefined }
+      : refuse('the keyProof does not verify');
   }
 
   /**
@@ -729,18 +772,15 @@ export class BtpsServer {
     if (!trustRecord) {
       return null; // Trust record not found
     }
-    const currentKeyFingerprint = trustRecord.publicKeyFingerprint;
 
     const { document } = artifact;
     if (document) {
       const isRefreshingAgent = artifact.action === 'auth.refresh';
       if (isRefreshingAgent) {
+        // Signed by the current key even when it names a new one; a new key
+        // is checked against its keyProof in verifyAgentSignature.
         const publicKey = (document as BTPAuthReqDoc)?.publicKey;
         if (!publicKey) return null; // refreshing agent must have a public key
-        if (currentKeyFingerprint !== getFingerprintFromPem(publicKey)) {
-          /* Must be rotated */
-          return publicKey;
-        }
       } else {
         return base64ToPem(trustRecord.publicKeyBase64);
       }

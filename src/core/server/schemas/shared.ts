@@ -11,3 +11,9 @@ import { z } from 'zod';
 export const identitySchema = z
   .string()
   .regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}');
+
+export const BtpSignatureSchema = z.object({
+  algorithmHash: z.literal('sha256'),
+  value: z.string(),
+  fingerprint: z.string(),
+});

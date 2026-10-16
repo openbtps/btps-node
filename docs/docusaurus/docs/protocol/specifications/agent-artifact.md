@@ -157,6 +157,16 @@ Used to refresh authentication tokens.
 - **authToken**: Refresh token for authentication renewal
 - **publicKey**: Agent's public key in PEM format
 
+**Optional Fields:**
+
+- **keyProof**: Required when `publicKey` is a new key for the device: the new key's signature (`algorithmHash`, `value`, `fingerprint`) over the canonical form of `{ "type": "btps_key_proof", "agentId", "identity", "publicKey" }`
+
+**Signing and Key Changes:**
+
+A refresh is always signed by the device's **current** key, the one the server holds for the agent, even when it names a new one. The refresh token alone is not enough: someone who stole it cannot refresh, or move the device to a key of their own, without the device's current key.
+
+To move a device to a new key, the refresh names the new key in `publicKey` and carries a `keyProof` signed by that new key. The two signatures together show one device holds both keys. A refresh that names a new key without a valid `keyProof` is refused (`BTP_ERROR_KEY_ROTATION_PROOF`) before the platform's handler runs. The SDK does both with `BtpsAuthentication.rotateKey`.
+
 ### 3. Trust Request Document (`trust.request`)
 
 Used to send trust requests to other organizations.

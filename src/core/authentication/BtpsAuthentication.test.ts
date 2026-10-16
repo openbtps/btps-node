@@ -14,6 +14,9 @@ import { BTPErrorException } from '../error/index.js';
 import { getBTPKeyPair } from '../crypto/keygen.js';
 import { PemSigner } from '../crypto/pem-signer.js';
 import { BtpsAgent } from '../../client/btpsAgent.js';
+import { verifySignature } from '../crypto/index.js';
+import { BtpAuthReqDocSchema } from '../server/schemas/btpsDocsSchema.js';
+import { keyProofPayload } from './keyProof.js';
 
 // Mock trust store
 class MockTrustStore extends AbstractTrustStore<BTPTrustRecord> {
@@ -632,6 +635,60 @@ describe('BtpsAuthentication', () => {
         expect.objectContaining({ publicKey: keys.publicKey, authToken: 'AUTH-TOKEN' }),
       );
       expect(command.mock.contexts[0]).toMatchObject({ signingKey: signer });
+    });
+  });
+
+  describe('rotateKey', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('signs with the current key, names the new key, and proves it with the new key', async () => {
+      const current = getBTPKeyPair();
+      const next = getBTPKeyPair();
+      const command = vi.spyOn(BtpsAgent.prototype, 'command').mockResolvedValue({
+        response: undefined,
+        error: new BTPErrorException({ message: 'stop here' }),
+      });
+
+      await BtpsAuthentication.rotateKey(
+        'agent-1',
+        'alice$example.com',
+        'REFRESH-TOKEN',
+        current,
+        next,
+      );
+
+      const [action, , document] = command.mock.calls[0] ?? [];
+      expect(action).toBe('auth.refresh');
+      expect(command.mock.contexts[0]).toMatchObject({
+        signingKey: { publicKey: current.publicKey, privateKey: current.privateKey },
+      });
+      const request = BtpAuthReqDocSchema.parse(document);
+      expect(request.publicKey).toBe(next.publicKey);
+      expect(request.keyProof).toBeDefined();
+      const proof = request.keyProof
+        ? verifySignature(
+            keyProofPayload('agent-1', 'alice$example.com', next.publicKey),
+            request.keyProof,
+            next.publicKey,
+          )
+        : undefined;
+      expect(proof?.isValid).toBe(true);
+    });
+
+    it('sends no proof on an ordinary refresh', async () => {
+      const current = getBTPKeyPair();
+      const command = vi.spyOn(BtpsAgent.prototype, 'command').mockResolvedValue({
+        response: undefined,
+        error: new BTPErrorException({ message: 'stop here' }),
+      });
+
+      await BtpsAuthentication.refreshSession('agent-1', 'alice$example.com', 'TOKEN', current);
+
+      const request = BtpAuthReqDocSchema.parse(command.mock.calls[0]?.[2]);
+      expect(request.publicKey).toBe(current.publicKey);
+      expect(request.keyProof).toBeUndefined();
     });
   });
 });

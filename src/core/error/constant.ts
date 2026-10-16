@@ -152,6 +152,11 @@ export const BTP_ERROR_UNKNOWN: BTPError = {
   message: 'Unknown error',
 };
 
+export const BTP_ERROR_KEY_ROTATION_PROOF: BTPError = {
+  code: 'BTP_ERROR_KEY_ROTATION_PROOF',
+  message: 'A new device key needs a proof signed by that key',
+};
+
 export const BTP_ERROR_ARTIFACT_TIME_WINDOW: BTPError = {
   code: 'BTP_ERROR_ARTIFACT_TIME_WINDOW',
   message: 'Artifact was not issued within the time window of this server',

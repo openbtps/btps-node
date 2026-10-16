@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { CURRENCY_CODES } from '../constants/currency.js';
-import { identitySchema } from './shared.js';
+import { BtpSignatureSchema, identitySchema } from './shared.js';
 
 /** A SHA-256, written in lowercase hex. */
 const sha256Hex = z.string().regex(/^[0-9a-f]{64}$/, 'must be a SHA-256 in lowercase hex');
@@ -202,6 +202,7 @@ export const BtpAuthReqDocSchema = z.object({
   authToken: z.string(),
   publicKey: z.string(),
   agentInfo: z.record(z.union([z.string(), z.array(z.string())])).optional(),
+  keyProof: BtpSignatureSchema.optional(),
 });
 
 // Schema for BTPAuthResDoc (used in server responses)
