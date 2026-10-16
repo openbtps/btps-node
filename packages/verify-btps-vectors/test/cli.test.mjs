@@ -17,27 +17,29 @@ describe('verify-btps-vectors CLI', () => {
     expect(code).toBe(0);
   });
 
-  it('in strict mode exits 1 and names each failing check and its ticket', () => {
+  it('in strict mode exits 0 once every item check passes, naming each with its ticket', () => {
     const { code, out } = run();
-    expect(code).toBe(1);
+    expect(code).toBe(0);
+    // Item 10 passes since EBA-122: a second `$`, and a `:`, are refused.
     expect(out).toMatch(
-      /FAIL  sdk\/item-10\/identity\/reject\/alice\$saas\.example\$evil\.example \[item 10: EBA-122\]/,
+      /PASS  sdk\/item-10\/identity\/reject\/alice\$saas\.example\$evil\.example \[item 10: EBA-122\]/,
     );
+    expect(out).toMatch(/PASS  sdk\/item-10\/identity\/reject\/alice:evil\$saas\.example/);
     // Item I (EBA-441) refuses a short GCM tag on every decrypt path.
     expect(out).toMatch(/PASS  sdk\/item-10\/gcm-tag\/truncated-4-byte-tag-rejected/);
     // Item 6 passes since EBA-116.
     expect(out).toMatch(/PASS  sdk\/item-6\/artifact-names-signature-selector/);
   });
 
-  it('exits 1 when the known-failing list is missing an entry', () => {
+  it('exits 1 when the known-failing list names a check that now passes', () => {
     const known = JSON.parse(fs.readFileSync(KNOWN_FAILING, 'utf8'));
-    delete known.checks['sdk/item-10/identity/reject/alice$saas.example$evil.example'];
+    known.checks['sdk/item-10/identity/reject/alice$saas.example$evil.example'] = 'EBA-122';
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'btps-kf-')), 'known.json');
     fs.writeFileSync(file, JSON.stringify(known));
     const { code, out } = run('--known-failing', file);
     expect(code).toBe(1);
     expect(out).toMatch(
-      /^FAIL  sdk\/item-10\/identity\/reject\/alice\$saas\.example\$evil\.example/m,
+      /NOW PASSING, remove from the known-failing list: sdk\/item-10\/identity\/reject\/alice\$saas\.example\$evil\.example/,
     );
   });
 

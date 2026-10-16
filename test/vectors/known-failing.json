@@ -1,7 +1,5 @@
 {
-  "description": "Checks that fail on the BTPS 1.1 baseline because the defect they prove is not fixed yet. `verify-btps-vectors --known-failing test/vectors/known-failing.json` passes only while the failing set is exactly this list, so each fix ticket must remove its own entries in the same change that makes them pass. Delete this file once it is empty.",
+  "description": "Checks that fail on the BTPS 1.1 baseline because the defect they prove is not fixed yet. `verify-btps-vectors --known-failing test/vectors/known-failing.json` passes only while the failing set is exactly this list, so each fix ticket must remove its own entries in the same change that makes them pass. Empty since EBA-122 (2026-10-16): every item check passes. Kept, empty, because CI runs the vectors with --known-failing (tests/eba-152); a new check that must fail first is listed here.",
   "baseline": "367cd0966687b0f61fbb4aa703f26c5e37e89eca",
-  "checks": {
-    "sdk/item-10/identity/reject/alice$saas.example$evil.example": "EBA-122"
-  }
+  "checks": {}
 }

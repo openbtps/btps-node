@@ -6,7 +6,7 @@
  */
 
 import { resolveTxt } from 'dns/promises';
-import { ParsedIdentity } from './types.js';
+import { parseIdentity, isValidIdentity } from './identity.js';
 import {
   BTPControlArtifact,
   BTPAgentArtifact,
@@ -29,23 +29,7 @@ export * from './money.js';
 export * from './documentChecks.js';
 export * from './freeze.js';
 export * from './timestampWindow.js';
-
-export const parseIdentity = (identity: string): ParsedIdentity | null => {
-  const [accountName, domainName] = identity.split('$');
-  if (!accountName || !domainName) {
-    return null;
-  }
-
-  return {
-    accountName,
-    domainName,
-  };
-};
-
-export const isValidIdentity = (identity: string = '') => {
-  const parsedIdentity = parseIdentity(identity);
-  return !!parsedIdentity;
-};
+export { parseIdentity, isValidIdentity };
 
 export function pemToBase64(pem: string): string {
   return pem

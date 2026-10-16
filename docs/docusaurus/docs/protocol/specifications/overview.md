@@ -47,6 +47,20 @@ BTPS uses email-like addressing for organizational identities:
 - `subdomain.accounts$vendor.com`
 - `pay.john$vendor.com`
 
+**Character rules (BTPS 1.1).** An identity that breaks any of these is refused,
+wherever it appears (`from`, `to`, a delegation's or attestation's `signedBy`,
+a reference):
+
+- exactly one `$`: `alice$saas.com$evil.org` is refused, never read as `alice$saas.com`;
+- the username: one or more parts of `A-Z`, `a-z`, `0-9`, `_` and `-`, separated
+  by single dots, at most 64 characters, each part at most 63 (it becomes part of
+  a DNS name, below);
+- the domain: a host name of at least two labels, each of `A-Z`, `a-z`, `0-9`
+  and `-`, not starting or ending with `-`, at most 63 characters, at most 253 in all;
+- at most 256 characters in all;
+- so never a `:`, a space, an `@` or a `+`. A trust id is the hash of `from:to`,
+  and a colon in an address could make two different pairs share one.
+
 ---
 
 ## 🔐 DNS TXT Identity Record (Public Key)

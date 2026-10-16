@@ -35,7 +35,7 @@ export function createFixedSdkFake() {
 
   const parseIdentity = (identity) => {
     const parts = identity.split('$');
-    if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+    if (parts.length !== 2 || !parts[0] || !parts[1] || identity.includes(':')) return null;
     return { accountName: parts[0], domainName: parts[1] };
   };
 

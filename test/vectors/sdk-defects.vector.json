@@ -63,6 +63,14 @@
     {
       "input": "alice$",
       "expect": "reject"
+    },
+    {
+      "input": "alice$saas.example:evil.example",
+      "expect": "reject"
+    },
+    {
+      "input": "alice:evil$saas.example",
+      "expect": "reject"
     }
   ]
 }
