@@ -46,12 +46,25 @@ export const BtpTrustResDocSchema = z.object({
   privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']).optional(),
 });
 
+// Schema for BTPKeyProof: the new key's signature on a key-rotating
+// auth.refresh (item D, EBA-112). The signature shape is BtpSignatureSchema's,
+// written out here because schema.ts imports this file.
+export const BtpKeyProofSchema = z.object({
+  issuedAt: z.string().datetime(),
+  signature: z.object({
+    algorithmHash: z.literal('sha256'),
+    value: z.string(),
+    fingerprint: z.string(),
+  }),
+});
+
 // Schema for BTPAuthReqDoc (used in agent artifacts)
 export const BtpAuthReqDocSchema = z.object({
   identity: identitySchema,
   authToken: z.string(),
   publicKey: z.string(),
   agentInfo: z.record(z.union([z.string(), z.array(z.string())])).optional(),
+  keyProof: BtpKeyProofSchema.optional(),
 });
 
 // Schema for BTPAuthResDoc (used in server responses)

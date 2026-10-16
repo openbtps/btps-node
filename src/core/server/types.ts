@@ -83,11 +83,28 @@ export interface BTPDelegation {
   selector: string;
 }
 
+/**
+ * Proof of possession of a new agent key (item D, EBA-112): a signature by
+ * the new key over the JCS form of `{ agentId, identity, newPublicKey,
+ * issuedAt }`.
+ */
+export interface BTPKeyProof {
+  issuedAt: string;
+  signature: BTPSignature;
+}
+
 export interface BTPAuthReqDoc {
   identity: string;
-  authToken: string; // generated via generateUserToken
-  publicKey: string; // device publicKey
+  authToken: string; // auth.request: generated via generateUserToken; auth.refresh: the refresh token
+  /**
+   * auth.request: the device key to enrol. auth.refresh: the key to hold
+   * after the refresh, which is the current key, or a new one when it
+   * rotates. The artifact is always signed by the current key.
+   */
+  publicKey: string;
   agentInfo?: Record<string, string | string[]>;
+  /** auth.refresh only, and required when `publicKey` is a new key. */
+  keyProof?: BTPKeyProof;
 }
 
 export interface BTPAuthResDoc {

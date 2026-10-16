@@ -208,6 +208,28 @@ export const BTP_ERROR_ALREADY_RECEIVED: BTPError = {
   message: 'Artifact already received',
 };
 
+/**
+ * Key-rotating refresh (item D, EBA-112, threat T-24): an `auth.refresh` was
+ * not signed by the agent's current trusted key. A refresh, rotating or not,
+ * is signed by the key the server already holds; a new key alone proves
+ * nothing, because a stolen refresh token is enough to make one.
+ */
+export const BTP_ERROR_REFRESH_NOT_CURRENT_KEY: BTPError = {
+  code: 'BTP_ERROR_REFRESH_NOT_CURRENT_KEY',
+  message: 'Refresh must be signed by the current agent key',
+};
+
+/**
+ * Key-rotating refresh (item D, EBA-112): an `auth.refresh` carries a new
+ * public key without a valid proof of possession of it (`keyProof`: a
+ * signature by the new key over the JCS form of
+ * `{ agentId, identity, newPublicKey, issuedAt }`).
+ */
+export const BTP_ERROR_KEY_ROTATION_PROOF: BTPError = {
+  code: 'BTP_ERROR_KEY_ROTATION_PROOF',
+  message: 'Key rotation requires a valid proof of the new key',
+};
+
 export const BTP_ERROR_DOC_SCHEMA: BTPError = {
   code: 'BTP_ERROR_DOC_SCHEMA',
   message: 'Document does not match the document model',
