@@ -20,7 +20,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { canonicalize } from '../src/jcs.mjs';
+import { canonicalize, canonicalizeValue } from '../src/jcs.mjs';
 import { oaepEncrypt } from '../src/oaep-reference.mjs';
 import { createWebRuntime } from '../src/runtimes/web.mjs';
 import { toBase64, utf8 } from '../src/encoding.mjs';
@@ -320,9 +320,223 @@ function sdkDefects() {
   };
 }
 
+/**
+ * Item D (EBA-112): auth.refresh artifacts, each signed in full, checked
+ * against the agent's current key. Self-held custody only: a managed
+ * identity has no device key, and its one case shows the refresh path does
+ * not apply to it.
+ */
+function refresh() {
+  const now = '2026-10-16T00:00:00.000Z';
+  const tenMinutesAgo = '2026-10-15T23:50:00.000Z';
+  const agentId = 'btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00';
+  const identity = 'alice$saas.example';
+  const keys = { current: newKeyPair(), new: newKeyPair(), other: newKeyPair() };
+  const managed = readVector('kms-signature.vector.json');
+
+  const sign = (payload, key) => ({
+    algorithmHash: 'sha256',
+    value: crypto
+      .sign('sha256', Buffer.from(canonicalizeValue(payload), 'utf8'), key.privateKeyPem)
+      .toString('base64'),
+    fingerprint: fingerprint(key.publicKeyPem),
+  });
+  const proof = (key, overrides = {}) => {
+    const payload = {
+      agentId,
+      identity,
+      newPublicKey: keys.new.publicKeyPem,
+      issuedAt: now,
+      ...overrides,
+    };
+    return { issuedAt: payload.issuedAt, signature: sign(payload, key) };
+  };
+  let serial = 0;
+  const artifact = ({ signedBy, publicKey, keyProof, docIdentity = identity, from = agentId }) => {
+    serial += 1;
+    const unsigned = {
+      version: '1.1.0',
+      id: `00000000-0000-4000-8000-${String(serial).padStart(12, '0')}`,
+      action: 'auth.refresh',
+      agentId: from,
+      to: identity,
+      issuedAt: now,
+      encryption: null,
+      document: {
+        identity: docIdentity,
+        authToken: 'refresh-token-vector',
+        publicKey: publicKey.publicKeyPem,
+        ...(keyProof ? { keyProof } : {}),
+      },
+    };
+    return { ...unsigned, signature: sign(unsigned, signedBy) };
+  };
+  const accept = (name, rotation, a) => ({
+    name,
+    currentKey: 'current',
+    artifact: a,
+    expect: 'accept',
+    rotation,
+  });
+  const refuse = (name, reason, error, a, currentKey = 'current') => ({
+    name,
+    currentKey,
+    artifact: a,
+    expect: 'refuse',
+    reason,
+    error,
+  });
+  const NOT_CURRENT = 'BTP_ERROR_REFRESH_NOT_CURRENT_KEY';
+  const PROOF = 'BTP_ERROR_KEY_ROTATION_PROOF';
+
+  return {
+    item: 'D',
+    tickets: ['EBA-112'],
+    description:
+      "BTPS 1.1 item D, a key-rotating refresh is signed by the current key (addendum item 2, threat T-24). Each case is an auth.refresh artifact, signed over its JCS form, checked when the server holds `currentKey` for the agent (null: it holds none) and its clock reads `now`, with `windowMs`. Without rotation, document.publicKey is the current key. With rotation, document.publicKey is the new key, the artifact is still signed by the current key, and document.keyProof is the new key's signature over the JCS form of { agentId, identity, newPublicKey, issuedAt }. `reason` names why a case is refused, and `error` the error code on the wire. tokens: a refresh token is single-use; each step refreshes with a token issued earlier (issued-0 at enrolment, issued-n by the n-th accepted refresh).",
+    provenance: `${TEST_ONLY} The managed identity key is the one in kms-signature.vector.json.`,
+    now,
+    windowMs: 300000,
+    agentId,
+    identity,
+    selfHeld: {
+      custody: 'self-held',
+      keys: Object.fromEntries(
+        Object.entries(keys).map(([name, key]) => [
+          name,
+          { ...key, fingerprint: fingerprint(key.publicKeyPem) },
+        ]),
+      ),
+      cases: [
+        accept(
+          'refresh-without-rotation-accepted',
+          false,
+          artifact({ signedBy: keys.current, publicKey: keys.current }),
+        ),
+        accept(
+          'rotation-signed-by-current-key-with-countersigned-new-key-accepted',
+          true,
+          artifact({ signedBy: keys.current, publicKey: keys.new, keyProof: proof(keys.new) }),
+        ),
+        refuse(
+          'rotation-signed-only-by-new-key-refused',
+          'not-current-key',
+          NOT_CURRENT,
+          artifact({ signedBy: keys.new, publicKey: keys.new }),
+        ),
+        refuse(
+          'rotation-signed-by-new-key-with-its-own-proof-refused',
+          'not-current-key',
+          NOT_CURRENT,
+          artifact({ signedBy: keys.new, publicKey: keys.new, keyProof: proof(keys.new) }),
+        ),
+        refuse(
+          'refresh-signed-by-another-key-refused',
+          'not-current-key',
+          NOT_CURRENT,
+          artifact({ signedBy: keys.other, publicKey: keys.current }),
+        ),
+        refuse(
+          'rotation-without-proof-refused',
+          'no-proof',
+          PROOF,
+          artifact({ signedBy: keys.current, publicKey: keys.new }),
+        ),
+        refuse(
+          'rotation-proof-signed-by-another-key-refused',
+          'bad-proof',
+          PROOF,
+          artifact({ signedBy: keys.current, publicKey: keys.new, keyProof: proof(keys.other) }),
+        ),
+        refuse(
+          'rotation-proof-for-another-agent-refused',
+          'bad-proof',
+          PROOF,
+          artifact({
+            signedBy: keys.current,
+            publicKey: keys.new,
+            keyProof: proof(keys.new, { agentId: 'btps_ag_00000000-0000-4000-8000-000000000000' }),
+          }),
+        ),
+        refuse(
+          'rotation-proof-for-another-key-refused',
+          'bad-proof',
+          PROOF,
+          artifact({
+            signedBy: keys.current,
+            publicKey: keys.new,
+            keyProof: proof(keys.new, { newPublicKey: keys.other.publicKeyPem }),
+          }),
+        ),
+        refuse(
+          'rotation-proof-for-another-identity-refused',
+          'identity-mismatch',
+          PROOF,
+          artifact({
+            signedBy: keys.current,
+            publicKey: keys.new,
+            docIdentity: 'mallory$saas.example',
+            keyProof: proof(keys.new, { identity: 'mallory$saas.example' }),
+          }),
+        ),
+        refuse(
+          'rotation-proof-ten-minutes-old-refused',
+          'proof-stale',
+          PROOF,
+          artifact({
+            signedBy: keys.current,
+            publicKey: keys.new,
+            keyProof: proof(keys.new, { issuedAt: tenMinutesAgo }),
+          }),
+        ),
+        refuse(
+          'proof-without-rotation-refused',
+          'proof-without-rotation',
+          PROOF,
+          artifact({ signedBy: keys.current, publicKey: keys.current, keyProof: proof(keys.new) }),
+        ),
+        refuse(
+          'refresh-with-no-agent-key-on-record-refused',
+          'no-current-key',
+          NOT_CURRENT,
+          artifact({ signedBy: keys.current, publicKey: keys.current }),
+          null,
+        ),
+      ],
+      tokens: [
+        { use: 'issued-0', expect: 'accept' },
+        { use: 'issued-0', expect: 'refuse' },
+        { use: 'issued-1', expect: 'accept' },
+        { use: 'issued-1', expect: 'refuse' },
+        { use: 'issued-0', expect: 'refuse' },
+      ],
+    },
+    managed: {
+      custody: 'managed',
+      keyVector: 'kms-signature.vector.json',
+      description:
+        'Not applicable. A managed identity has no interactive device key: its key is held by the platform (KMS) and published under a selector, and it rotates by publishing a new selector (item H, selectors.vector.json), never through auth.refresh. The server holds no agent key for it, so a refresh signed by the managed key itself is refused.',
+      cases: [
+        refuse(
+          'managed-key-refresh-not-applicable',
+          'no-current-key',
+          NOT_CURRENT,
+          artifact({
+            signedBy: managed,
+            publicKey: managed,
+            from: 'btps_ag_managed-not-a-device',
+          }),
+          null,
+        ),
+      ],
+    },
+  };
+}
+
 write('self-held-signature.vector.json', await selfHeldSignature());
 write('oaep-mgf1-sha1.negative.vector.json', mgf1Sha1Negative());
 write('selectors.vector.json', selectors());
 write('selectors-receiver-rotation.vector.json', selectorsReceiverRotation());
 write('sdk-defects.vector.json', sdkDefects());
 write('jcs-signature.vectors.json', jcsSignature());
+write('refresh.vectors.json', refresh());

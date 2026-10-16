@@ -1,0 +1,487 @@
+{
+  "item": "D",
+  "tickets": ["EBA-112"],
+  "description": "BTPS 1.1 item D, a key-rotating refresh is signed by the current key (addendum item 2, threat T-24). Each case is an auth.refresh artifact, signed over its JCS form, checked when the server holds `currentKey` for the agent (null: it holds none) and its clock reads `now`, with `windowMs`. Without rotation, document.publicKey is the current key. With rotation, document.publicKey is the new key, the artifact is still signed by the current key, and document.keyProof is the new key's signature over the JCS form of { agentId, identity, newPublicKey, issuedAt }. `reason` names why a case is refused, and `error` the error code on the wire. tokens: a refresh token is single-use; each step refreshes with a token issued earlier (issued-0 at enrolment, issued-n by the n-th accepted refresh).",
+  "provenance": "TEST-ONLY key generated locally for the BTPS golden vectors (EBA-110). Never use it for anything else. The managed identity key is the one in kms-signature.vector.json.",
+  "now": "2026-10-16T00:00:00.000Z",
+  "windowMs": 300000,
+  "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+  "identity": "alice$saas.example",
+  "selfHeld": {
+    "custody": "self-held",
+    "keys": {
+      "current": {
+        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1207U1B671LXLmhKT5ya\njYCIDdT5nheTkN7qy+Sd4+LYdu7Nce6e4/u1j2qkkM15i2R3cWuGek8cFWK/44Hl\nczoZHbGGqIaYV0qxmirNpmm9SMw0xLe/siocXLAwePxclveFcBgQf+vVsDWwTTyU\neYVyN93hjVxlGGDKIYV/8cBf+GL01RrUVFPo/BuKRwTGujBluNrhW4VDFtqnIrxO\nF1NgRR+gAxgz4aUlg1/vle4W0W68miUKhxRd6DdxBbGAJLh1wKse702ycnpHMHeB\n9fRgx+ZLds6G5+NER81kHGZSDQuQTOsia9ykwfDkLnyHEq7ByaFkpWnnBWG02oTb\nfQIDAQAB\n-----END PUBLIC KEY-----\n",
+        "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDXbTtTUHrvUtcu\naEpPnJqNgIgN1PmeF5OQ3urL5J3j4th27s1x7p7j+7WPaqSQzXmLZHdxa4Z6TxwV\nYr/jgeVzOhkdsYaohphXSrGaKs2mab1IzDTEt7+yKhxcsDB4/FyW94VwGBB/69Ww\nNbBNPJR5hXI33eGNXGUYYMohhX/xwF/4YvTVGtRUU+j8G4pHBMa6MGW42uFbhUMW\n2qcivE4XU2BFH6ADGDPhpSWDX++V7hbRbryaJQqHFF3oN3EFsYAkuHXAqx7vTbJy\nekcwd4H19GDH5kt2zobn40RHzWQcZlINC5BM6yJr3KTB8OQufIcSrsHJoWSlaecF\nYbTahNt9AgMBAAECggEAELtu9W5lkgOW64eVp//ToER4rMxbM/yETWcHCR2hZtMW\neYxcQCpmxHHnPPOtQwL2mw1LWq+dkw/kcEPKgC71ZaEAVOZWPW4w1GzchQsojHGf\njlEwEwxrkvjC2a8koK0HOwGQJ2/zDiCA6S4OWr1nEdY71BuDepGP15gi8v4VvS7N\nnrlYOgs0YpZr+UAV18/uFTKRr048GDIBpm1X3YS9e35TW4GZEuzKScmhe3B97bO2\nxYlyBpkIGqjcm/AnPYTLQIvIlDpmQn0sQp8E0tAyCubVmvoGRwtDseYQEPXNknFT\npoxvZD+QHXZS/5wrzVGQghEK/b93O3botR/qWvK3+QKBgQD9qAHRI77vtdtJplEz\nQ3Hj0MDheciTBJYCTtCSb8lIBc8FFLn5YSntaGmzVKkkV34Z/XSJEfAMz/e/vCVa\nGFS7BnB+OoENMfIowlME6w7jCmvbs+Pss27m0nggCpqopsupJrtS8D2a9Fu6KCGk\n4KVDNxnT9GIsJam3nTLFxxdmeQKBgQDZaswWnCBjaoqmKox2k9X7QmuJbspRVeLN\nCYUrP9zh6/VYXlqVJGu38QURCh18FjWGM4JTnceLh5zMmhjLatb6oyOJVU54Cig9\nZH/zteYbbRedChHsPoy2fkPNXuNRuF9FxHMrsAociB2ak512X+PSWqrqmYO4Pqpc\nvmP+QihsJQKBgQCVgMeJX9sy5+nWr+teHptq3ehBPQlF9ccAlzmBhdeJ1rqc0QmH\n/Ye7wPXD19tVaygM44EjJOpqcs0gOiF9x6dxECuPiqXzhAOpmFdcJ7r/gG3v8Uge\ng+eSrmxU3ksnqh+RlB2GlciJowrJXsvtpOZjBn/3mCugv5YXfdSmE2EsaQKBgHfp\n0Vp/DdYHQyVWvlYAP7ru7UTFmEy34/lWUN6DwJ3SeGUe1TMA/XBcPIEjZRO1ZBv6\neN0JXq90QmUOcLJw4NUn+Uebh0XpxDvoHDIclyd1SdrRXQVBknZsuZShyxqdZ96g\n9SyZUVpfMIS6+dP6Gzs/ypjNxrptxaSVVa08a/MJAoGBANclgehvL6jxN8Axc3tr\nBAEnom7bVRhAhfzhGzIQD2G5WNTh9yVmiG+Jitfl03uo0IGLhafGqmod04SOu3lm\n93sofMMSSJ8iGaRWOQoHc1BKxQ1jkxFDDkulSxwP1/gox7Y7JskuaeTV8pTaKpbw\nIMGBoliv6d3Hx57f6If79eR1\n-----END PRIVATE KEY-----\n",
+        "fingerprint": "+0RMKb8GyEhbwJrnF+EQdEHnnh1KNO4j51bAR/txiRs="
+      },
+      "new": {
+        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmIQWSc5tVXW+QZSdSSQD\nZafH58kt1Hz7Lc31kJOco58A1PoytCydr9DWzlmo+nIbghzRR6FQlJgJyafOmeCi\nCH8gQMuQzpVpxKOivnXH4WV083GHR9PrIgcWgN/eeCYlvc51MisvYXcp0xtVmzld\nRM8DB96LVQagePLH+RQAoAOnTK8TtfjTBOa+Fyaaw4vUZDFe3T7crVzc8KXywiMx\n8LvlCP+Wshcw7tR0kGd6/tfhIFvuopyd1wU5GOeAMqYKeidieiys2Drt6JGsA3+j\n6qyRLziXohLy19V5bWkMX0f+nIrAX0KndowMVgrBiUgY6UwpmwZdGsdEpxxFc96V\nXQIDAQAB\n-----END PUBLIC KEY-----\n",
+        "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCYhBZJzm1Vdb5B\nlJ1JJANlp8fnyS3UfPstzfWQk5yjnwDU+jK0LJ2v0NbOWaj6chuCHNFHoVCUmAnJ\np86Z4KIIfyBAy5DOlWnEo6K+dcfhZXTzcYdH0+siBxaA3954JiW9znUyKy9hdynT\nG1WbOV1EzwMH3otVBqB48sf5FACgA6dMrxO1+NME5r4XJprDi9RkMV7dPtytXNzw\npfLCIzHwu+UI/5ayFzDu1HSQZ3r+1+EgW+6inJ3XBTkY54Aypgp6J2J6LKzYOu3o\nkawDf6PqrJEvOJeiEvLX1XltaQxfR/6cisBfQqd2jAxWCsGJSBjpTCmbBl0ax0Sn\nHEVz3pVdAgMBAAECggEAHt/mbyyFv54lVLtUF+Fdeq+7bTWxvGlMo9ok0w6+z/S5\nQ2Qe7ZB2n4fkZEOMTJ7a6L0StLB4UoxwtszsqwPpaVTq35MWDmv6zF7f7DSFsSBL\ny5h47VZ+LBZJPO+U5re6PjFUUkKhxdZMtjq7WsADHJHXqDkp9Z1w0Os9BjRBaCLl\nLWFgdHGtF4dGDv2ym6UNp3uAV5QdRuMvekIOiQGd+OhSN9gnhpGNIQOqn6BOrRH8\ndpywILRuSRkY9HUmwkqnRnnNd8WPmoqWWTVmnPzW0Zhp0EV1+njb8I7EsQjUxawK\nDBgD5qZFtNcTN0o/23KfGf35DtogyyCyV6o+kHXNdQKBgQDKmQps5JMRccSodJvv\nTpOoww0y6OlCy3zST/F5z7cLZL1rcRQzqw9Wy8xdlz2w4LsHmeRuqJ32bX4HtbwA\nVRFd6Y/guoluLsww3ib1Q2IXoVImRDqNuGOOQ+8F6ONHQToTpSwxZLQjAxQ5A6bQ\ndrhFNv6+T+Nxjtv+cSqtD7A0gwKBgQDAt5uCLaYs1lWELTUZiLJLOdjJHmj/Egxg\nbbIBrVvxPb48deS4+iikTzQ+998qg12FBDw1VQDQtvmPLK0McpiFuC+KhGX99dw+\nz2oef15d8s5g8q+nT8ObbZ9hGALUwboGNazI2plkuewGXzuIdJh2AKl6tuG021T3\n+k7KX6ionwKBgG4isjsuKxEBouHcumRmd/j3R/aUDTJlgo6mLOSGWcCU3DBLQasw\n497QXWHHdR7xnFruevL5MR4kua2hSvl3RUCjVrbZURqX0CMEsXMFVY75ALqSvq4K\nPfy5y3eP+fXjbJn/Yb3cO90IsHaqGIYc8+GUmvmEXmV+PvPcO1HnRGfXAoGAZf3F\n8zMtivUz9Ovn+kd59I38yROrBbMLkcz8NB8HVbkTgPPzxGHAOJUiVWDhXqJ/T/JZ\n2u/Nqqfrk3ZVbw0G414C6w/+2lTP5v3mb5WA37+ssWo+xBFWuF9fxgbrGKYeSUMG\n2pW2MLSk0Qp9e04Zkfnvt94pvYmGgmaaZEgT/okCgYAlBBQ/qIxOD8VrLBnnc3xl\nZrpK270dLHT1sasw5CkQ2a/K19sFawjz3tzUUe1sNab56rF6LadY89bQk1OPHFir\nUjE8T9DLGJO6mz/MunWuLcNuV422IFXhnMEPfcfui6dnJ5tECb/xge9DCI/g6p7X\n05yfwmTVzxu/x4+0g+KI9Q==\n-----END PRIVATE KEY-----\n",
+        "fingerprint": "wfH/sLGp6nDF2OG8bR1XIYw++K9SnbGjwaJDuSdjgrs="
+      },
+      "other": {
+        "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnO1A/ehQHyZWMT3wuOe8\nKMpS/X6n+vRL9yaa72kd5ooY/lruqD+/+pRuRlr37zt+rYdJJ9CYocXpcS51NER1\nnmmzcpQPkS6Fu03lsnTZhvxqNT+hqGCufJ9bhmEW6Ed4aeGos6AVrdizLFrVFtI/\nTJkV9yhtExqNtpWQWSHMYD2p+1PcfjQW4wb2l1zucTS6t6c5oIHCYtBG+R3b6VPX\nbjAEzxaRqRG6Zc6IzAfAbkHav0llTBMrIF3IqPEJdVLaigE7R6goAQQCAUIJ/0kF\nPNExNUnG/S4VmnDwadLs2vN3IpaBKhBva9dstSi/hA9zy1LeF7EBopy03LIq45dA\npQIDAQAB\n-----END PUBLIC KEY-----\n",
+        "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCc7UD96FAfJlYx\nPfC457woylL9fqf69Ev3JprvaR3mihj+Wu6oP7/6lG5GWvfvO36th0kn0Jihxelx\nLnU0RHWeabNylA+RLoW7TeWydNmG/Go1P6GoYK58n1uGYRboR3hp4aizoBWt2LMs\nWtUW0j9MmRX3KG0TGo22lZBZIcxgPan7U9x+NBbjBvaXXO5xNLq3pzmggcJi0Eb5\nHdvpU9duMATPFpGpEbplzojMB8BuQdq/SWVMEysgXcio8Ql1UtqKATtHqCgBBAIB\nQgn/SQU80TE1Scb9LhWacPBp0uza83ciloEqEG9r12y1KL+ED3PLUt4XsQGinLTc\nsirjl0ClAgMBAAECggEAAaF1EXWpHjW/esWnBu6vLQZWHcGPYokxN4fg34OzGWlO\nR8YvWu3RwJiOT81ZyYiyn4veXqEdoOwumCBtk4AJQVAvSU2t5I0fJDpt4kfJKMyY\ndX09oINSUfJu+6ioZU3XjUh7gJnMsg3NK8CehTRk99xS7jkjY2QAIn3J4plo4Xwg\nkmMIf4E+0W+claFS43O4cXSalvPylgT5A7/6sWrZFYAPUlxXAOfF2NbFXFmtR+9j\npkx5KZjrUoMyrzN588OJEDyLQkLyPezawskrHkTASQNq0m3gi4zj10/874J6nWgm\nmfgxuZt5EOeHpYOp6EzUofjZAelFYr/KbhQlQKmpWQKBgQDMdUD8xREAXAOqBO+K\nWs/n6HRP4mcmdycZldueb3xhId9af62dLSEaAx3OVwsckdBVDlCw1D3eL60XqyAW\n/IgJ75kZdPrsNBch2CZhhtotrztDTY+RYUdy3HLfyhzu6ChZqFjaZJZNRqynFCYP\nAzAJI5fag/hduN9JHEt2cjzZ+QKBgQDEfI9KYWq69eFMMMt2eLQPK4RmMEeZvMDN\nxdnJGpGEgLvmPLUvyPTYk1Ni1YMUUTNWfuve0yoffWhmngUA8HixeL+eBY1FlpIc\nKJ88QCFnA+lBFKZsmpWBsoyCFGs755ZXDo1si+gA31c/EFu7ReTvalZSYIlCMhqL\nO0BH3HVnDQKBgQCtFTYGxe02mK6hZ7xBK8+FS0vrtIYOEiCPkEVzQn3Q3JPwUNXw\nkRvMoYbB/v3xGZ974bp9d69IQKQPvVZVH0Mq5iJ9YoJpI0/R3uHe/gIFWqqYtzgq\nomeR3P2CZd9IgFBoVhOiDjUPBh1y86OkYdZwZilPWxkOfkrH4aQgiWTqQQKBgHOw\n07379hf3RpzR7jrnfz2fZem1a7M9zFhcsosStbPLCNfbzuM/88rBlEuRZAjGdu/q\n837T3u2DrcEeMdwHu0jjzA+DPVdH/OfPk1KqgABj8Sd8vTEdJAKl2s2MsEcpaQAB\ndYwAJK6+0mQzgY+W6+F8Py9p3+e2EKMCVCr7x7TRAoGAUUjziM+pGG+GN19+lRJ6\nzmQzGq4C2FX731YqEPF3XJ4q89k/E1e0n6eVxUQLzEBnDA1n9jhs2twwo2kHsVy5\na/yJYvJpvBv91gHxfstSzM9SDvHdZHhuyKSOEV6+acYq4DniRcZuHublxE6sWVxd\nDsP6cm3MHH8y+Aze/7w+jgw=\n-----END PRIVATE KEY-----\n",
+        "fingerprint": "/n9VwAEpX7LHw/0wJzC9ARoPKuewKdm3oTI7c30xVZ8="
+      }
+    },
+    "cases": [
+      {
+        "name": "refresh-without-rotation-accepted",
+        "currentKey": "current",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8000-000000000001",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1207U1B671LXLmhKT5ya\njYCIDdT5nheTkN7qy+Sd4+LYdu7Nce6e4/u1j2qkkM15i2R3cWuGek8cFWK/44Hl\nczoZHbGGqIaYV0qxmirNpmm9SMw0xLe/siocXLAwePxclveFcBgQf+vVsDWwTTyU\neYVyN93hjVxlGGDKIYV/8cBf+GL01RrUVFPo/BuKRwTGujBluNrhW4VDFtqnIrxO\nF1NgRR+gAxgz4aUlg1/vle4W0W68miUKhxRd6DdxBbGAJLh1wKse702ycnpHMHeB\n9fRgx+ZLds6G5+NER81kHGZSDQuQTOsia9ykwfDkLnyHEq7ByaFkpWnnBWG02oTb\nfQIDAQAB\n-----END PUBLIC KEY-----\n"
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "va542sUy6mzRS3EXBcTUkmWsZ1nX5Z9T/gcrTyxnRp/OpR3JlZj9Q2USQN5+5ukRevBAWJ9dov8xfpVky9y3dX2MOcCy3xfMbgZZDnA35W8kLOJZtrgZsPTNj9ACCB/T5YTvjxB1f15Zf3B13cJR8boSuCQ/StYRTWxYR6MeZ+5Du7UVMsCxozrH/bWkV0nKhpE366jQVT1UIoqILRcKDTY5bD3ETAB6T68jC2d1t+v8MiZT+syDOPXYgowtrsBRks7SvVCohvqKI8zrDAyqA90JLOXpaBEfwDzvOsAI5by7Fq8dlEcFRESWcr+ygHePfbEbi2vWZQ1ILf5w8CaEsg==",
+            "fingerprint": "+0RMKb8GyEhbwJrnF+EQdEHnnh1KNO4j51bAR/txiRs="
+          }
+        },
+        "expect": "accept",
+        "rotation": false
+      },
+      {
+        "name": "rotation-signed-by-current-key-with-countersigned-new-key-accepted",
+        "currentKey": "current",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8000-000000000002",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmIQWSc5tVXW+QZSdSSQD\nZafH58kt1Hz7Lc31kJOco58A1PoytCydr9DWzlmo+nIbghzRR6FQlJgJyafOmeCi\nCH8gQMuQzpVpxKOivnXH4WV083GHR9PrIgcWgN/eeCYlvc51MisvYXcp0xtVmzld\nRM8DB96LVQagePLH+RQAoAOnTK8TtfjTBOa+Fyaaw4vUZDFe3T7crVzc8KXywiMx\n8LvlCP+Wshcw7tR0kGd6/tfhIFvuopyd1wU5GOeAMqYKeidieiys2Drt6JGsA3+j\n6qyRLziXohLy19V5bWkMX0f+nIrAX0KndowMVgrBiUgY6UwpmwZdGsdEpxxFc96V\nXQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "keyProof": {
+              "issuedAt": "2026-10-16T00:00:00.000Z",
+              "signature": {
+                "algorithmHash": "sha256",
+                "value": "DNBoqa8cmAYLVX5WffvCFtGIFzktus2LCq36ujGu45DEkHZsdiPDPNO3WzThjHRp0b2HP0RMzwwKk8gokQpUf674x2fZVizuZxCif6UYrp/uTfFSQRA4v2skJjkDqyEJ8TXh86lyDHiz1jsGQ9NEC11JDeg17FUel78WGyBezwj4Ulc3oF7dRP3gbbqqb0gHCb30Q6hzt3FCaQJYEPcSGSr5Qokh7tDOsmhFvUj8cL1vdxQ4B2544B4Xt2zOjaVaFBpZ8liJqfga1EoHVo/BFW6J0eCpCNWfUTBGk1Aq4LF4Qith6WYQ/NuXx6FmwpOVoKdc7RwNgfklfzzVt/uDvw==",
+                "fingerprint": "wfH/sLGp6nDF2OG8bR1XIYw++K9SnbGjwaJDuSdjgrs="
+              }
+            }
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "WiHkB8hwVpU8fqNR6wMrzesC3C7aNxTt4adVIIqQ/kLYyvzzWv5LzAFlPYGNYahvvDdImZ2GG042qr1qYUrEDsq58ht9mIkDPCz5dw6PI9TFpNtuhhPq+OT+1kFeILpgpzifC6E6fN8e6DC4pP2vzrQysOcmgSC5Ipq+gEiiWs+HinhlrB4j31BMvF6+z1s0Ff/G9VtkbYexd7l16It6U8+xUU+cldlV6QWO2p5cehPWPpXa1hB35BosS2RDvoPkKRgvd2YbN5FWE10jsSkfkwdQ1wo77Dj8xw6vVSKKJX3bJ2cXedm+sKZ9agkz1bsUnfzDc7RT8H2eg+UfGJrvDQ==",
+            "fingerprint": "+0RMKb8GyEhbwJrnF+EQdEHnnh1KNO4j51bAR/txiRs="
+          }
+        },
+        "expect": "accept",
+        "rotation": true
+      },
+      {
+        "name": "rotation-signed-only-by-new-key-refused",
+        "currentKey": "current",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8000-000000000003",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmIQWSc5tVXW+QZSdSSQD\nZafH58kt1Hz7Lc31kJOco58A1PoytCydr9DWzlmo+nIbghzRR6FQlJgJyafOmeCi\nCH8gQMuQzpVpxKOivnXH4WV083GHR9PrIgcWgN/eeCYlvc51MisvYXcp0xtVmzld\nRM8DB96LVQagePLH+RQAoAOnTK8TtfjTBOa+Fyaaw4vUZDFe3T7crVzc8KXywiMx\n8LvlCP+Wshcw7tR0kGd6/tfhIFvuopyd1wU5GOeAMqYKeidieiys2Drt6JGsA3+j\n6qyRLziXohLy19V5bWkMX0f+nIrAX0KndowMVgrBiUgY6UwpmwZdGsdEpxxFc96V\nXQIDAQAB\n-----END PUBLIC KEY-----\n"
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "e5BoUL9XoBsITAHfju5voKE92hpz5GJDGIKMXYGKyoGcKB6SCTGyxFQbmc4KGVLEyZ7ZvIakCzsgIyByVkxiogMNFkiE0FiB3Ov0rD0jJ8PqwvknEhRUtxaX2b3d2+gys1x2DMa2v5mHWZf5gQD3EhFhEPxWKMvjGU66S/39VfHb9P5uQS4kyq6JZC6v7gwHLvGnSy2OHJ5h6ETLBw0mkgjBtnwEf2Sh+CPGk0BPYbNtGl5jZRxf27onD1jPKsPq8ArvXGTSKsTFg1SZPM99vYBvheucXu9PTYcy8tHKkTU5xPiEUomCcR7eplvLHHzXLVYTERMh/yIV95k+VPMTag==",
+            "fingerprint": "wfH/sLGp6nDF2OG8bR1XIYw++K9SnbGjwaJDuSdjgrs="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-current-key",
+        "error": "BTP_ERROR_REFRESH_NOT_CURRENT_KEY"
+      },
+      {
+        "name": "rotation-signed-by-new-key-with-its-own-proof-refused",
+        "currentKey": "current",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8000-000000000004",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmIQWSc5tVXW+QZSdSSQD\nZafH58kt1Hz7Lc31kJOco58A1PoytCydr9DWzlmo+nIbghzRR6FQlJgJyafOmeCi\nCH8gQMuQzpVpxKOivnXH4WV083GHR9PrIgcWgN/eeCYlvc51MisvYXcp0xtVmzld\nRM8DB96LVQagePLH+RQAoAOnTK8TtfjTBOa+Fyaaw4vUZDFe3T7crVzc8KXywiMx\n8LvlCP+Wshcw7tR0kGd6/tfhIFvuopyd1wU5GOeAMqYKeidieiys2Drt6JGsA3+j\n6qyRLziXohLy19V5bWkMX0f+nIrAX0KndowMVgrBiUgY6UwpmwZdGsdEpxxFc96V\nXQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "keyProof": {
+              "issuedAt": "2026-10-16T00:00:00.000Z",
+              "signature": {
+                "algorithmHash": "sha256",
+                "value": "DNBoqa8cmAYLVX5WffvCFtGIFzktus2LCq36ujGu45DEkHZsdiPDPNO3WzThjHRp0b2HP0RMzwwKk8gokQpUf674x2fZVizuZxCif6UYrp/uTfFSQRA4v2skJjkDqyEJ8TXh86lyDHiz1jsGQ9NEC11JDeg17FUel78WGyBezwj4Ulc3oF7dRP3gbbqqb0gHCb30Q6hzt3FCaQJYEPcSGSr5Qokh7tDOsmhFvUj8cL1vdxQ4B2544B4Xt2zOjaVaFBpZ8liJqfga1EoHVo/BFW6J0eCpCNWfUTBGk1Aq4LF4Qith6WYQ/NuXx6FmwpOVoKdc7RwNgfklfzzVt/uDvw==",
+                "fingerprint": "wfH/sLGp6nDF2OG8bR1XIYw++K9SnbGjwaJDuSdjgrs="
+              }
+            }
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "Pwg7HXL1idqH2X44xgcZPMEEvjYycx6AGttRBviRtdmEfnCmp2Lultjkks98snBlITXWIye4cGqlLhJNmHHsWYU2RjmSDX4ksSfpqEpNjw+p2b14J+w8vd+7SVyU5tPqhfbZYmC4VFvjzqnxxaw6bAsgz/7H+hYXegPwlqN37MUIGI5iWv36uYWpjOj30cHD6PtrMydldS5PawsXW5wqrP3dBoB4nAUsPw+WdZf3SWOR8JVr0dLY906H20LnazfNIBxqorIv+kj2SckAhtJPwIUmmt3MtagcullpPIebMpjfggBUllpT/fex7ECZXTWiq5O5Id2uYNfXPyBgc+Zkxw==",
+            "fingerprint": "wfH/sLGp6nDF2OG8bR1XIYw++K9SnbGjwaJDuSdjgrs="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-current-key",
+        "error": "BTP_ERROR_REFRESH_NOT_CURRENT_KEY"
+      },
+      {
+        "name": "refresh-signed-by-another-key-refused",
+        "currentKey": "current",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8000-000000000005",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1207U1B671LXLmhKT5ya\njYCIDdT5nheTkN7qy+Sd4+LYdu7Nce6e4/u1j2qkkM15i2R3cWuGek8cFWK/44Hl\nczoZHbGGqIaYV0qxmirNpmm9SMw0xLe/siocXLAwePxclveFcBgQf+vVsDWwTTyU\neYVyN93hjVxlGGDKIYV/8cBf+GL01RrUVFPo/BuKRwTGujBluNrhW4VDFtqnIrxO\nF1NgRR+gAxgz4aUlg1/vle4W0W68miUKhxRd6DdxBbGAJLh1wKse702ycnpHMHeB\n9fRgx+ZLds6G5+NER81kHGZSDQuQTOsia9ykwfDkLnyHEq7ByaFkpWnnBWG02oTb\nfQIDAQAB\n-----END PUBLIC KEY-----\n"
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "gEJvEWrxPkqQoOT7grPAn3fUCjyTr90VR/K7T+Ko1D4J9PyOAxIQqnWyEEpnnxzR1DFVbb1wClrltXZwn1sX8ZetsGmQcYBsXDGW49b6a1E4df3xynRIk/pzhnsyw1Be8GuzIlolxY8iGrib31yAr/hZrERSf32UfCnnbykRaGTD8vbR0JVXyTnMCoC0UE9kygj+MeaMBKaV2RHtN8ZvuBcqDucwOqt7eZiRS3ytfCB0+Q5eB6C/PWprULpPWU/g8DluueTypJk53qKgYwr3XyAv8BiQTOoOcG6h6Y1C8Cg0jMuv/0vBaxgs3+3HN2zb0qCBJ4KHxLWXTNCoMukLoQ==",
+            "fingerprint": "/n9VwAEpX7LHw/0wJzC9ARoPKuewKdm3oTI7c30xVZ8="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-current-key",
+        "error": "BTP_ERROR_REFRESH_NOT_CURRENT_KEY"
+      },
+      {
+        "name": "rotation-without-proof-refused",
+        "currentKey": "current",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8000-000000000006",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmIQWSc5tVXW+QZSdSSQD\nZafH58kt1Hz7Lc31kJOco58A1PoytCydr9DWzlmo+nIbghzRR6FQlJgJyafOmeCi\nCH8gQMuQzpVpxKOivnXH4WV083GHR9PrIgcWgN/eeCYlvc51MisvYXcp0xtVmzld\nRM8DB96LVQagePLH+RQAoAOnTK8TtfjTBOa+Fyaaw4vUZDFe3T7crVzc8KXywiMx\n8LvlCP+Wshcw7tR0kGd6/tfhIFvuopyd1wU5GOeAMqYKeidieiys2Drt6JGsA3+j\n6qyRLziXohLy19V5bWkMX0f+nIrAX0KndowMVgrBiUgY6UwpmwZdGsdEpxxFc96V\nXQIDAQAB\n-----END PUBLIC KEY-----\n"
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "0RXG4a/b0o2olQgVpHg3tURj1IFtpn0Fp9Cma32LM66mLyj4UpV/Rc4ehMPvI4Z+pJY5dRnv58iQZAdcuJCHKMKoz9KEUgfVcNLnRZHZ/VSjGQ6VWE4L8e1MjpZ6bXZvGQpiFEC3D4yj5GaVTcVVwuEVfhonnDCSF2o7KeK4GlG1mmvIGyyOPsxBXfE9EA/vCcC3SHImeNyw1/pYyGcNpj4pLNNqWWzWjVeXPoR+mVQ3TlHQGee0wC2ubT2eN1qW2nqFrpbGvEN5+UeQqPR0SAGJju6PcLs60CPbAKAzg1ycKX6Pjw106xAExM3xOLVnLDD0V/ujFIRJsMlOrcSy+Q==",
+            "fingerprint": "+0RMKb8GyEhbwJrnF+EQdEHnnh1KNO4j51bAR/txiRs="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-proof",
+        "error": "BTP_ERROR_KEY_ROTATION_PROOF"
+      },
+      {
+        "name": "rotation-proof-signed-by-another-key-refused",
+        "currentKey": "current",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8000-000000000007",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmIQWSc5tVXW+QZSdSSQD\nZafH58kt1Hz7Lc31kJOco58A1PoytCydr9DWzlmo+nIbghzRR6FQlJgJyafOmeCi\nCH8gQMuQzpVpxKOivnXH4WV083GHR9PrIgcWgN/eeCYlvc51MisvYXcp0xtVmzld\nRM8DB96LVQagePLH+RQAoAOnTK8TtfjTBOa+Fyaaw4vUZDFe3T7crVzc8KXywiMx\n8LvlCP+Wshcw7tR0kGd6/tfhIFvuopyd1wU5GOeAMqYKeidieiys2Drt6JGsA3+j\n6qyRLziXohLy19V5bWkMX0f+nIrAX0KndowMVgrBiUgY6UwpmwZdGsdEpxxFc96V\nXQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "keyProof": {
+              "issuedAt": "2026-10-16T00:00:00.000Z",
+              "signature": {
+                "algorithmHash": "sha256",
+                "value": "Io7r8rXNUI5YM6/HUSZwnykezwRaWRO5U2wQlwISjKdNHhgZueYsqUUyRUa5uH+2UlO1VHhiUUdQq0GaGU8zTz2bGoEzCNuHC/02zeg7clx/1Mdd61DbSwX0Bv+lTKFdlg/SACH5NS6zIAIRojpQv020P2e1SbN++pzuuY1na4cM+q4USbYsSEoAmF3xrL91Pkc8BDrpKulECTkvOy1K7CJVa/3r3fx7/dXgb4qi7Z9JtfJtamiwSpmTRNbH0mZjFWi8QPt/dBopbxvNpGGkNxzXC2ZB+O8C16UAUj7guxy7J/PnxhzvzKZDm0hwC2dM1qieK9403v0NmlYxKDtGPw==",
+                "fingerprint": "/n9VwAEpX7LHw/0wJzC9ARoPKuewKdm3oTI7c30xVZ8="
+              }
+            }
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "nbyyYJQpB6uBZ3us6X1N9rZp2qZ+sP1ugEaXu1WQG9624jQsrmTDK6+IdGKCIjRyXrLs6K+7MDC7gK4281Rc9afQqzCH/kyXp/H+Wbc7ydIKk4O/If2ENpqYjRXJ3hZiraPlO8CBh799VXzwJtPSAkUQCkgz0ioe1z9/uNMloyH6uARzYYhwpxoeX4bxI47pCdSZhp6oDQkFuvPMt4no7g/mTsPO/yDtR50aisWBDbH2lVz2ZXzT6hkpPouKHG7vRJVeKWx9+BWbZlnpgXuH65M33YxHHOucKnRNtLkeNVJUA33jagI+zDO2HTXGguE/t36+81wocSXf5CgNl/epCw==",
+            "fingerprint": "+0RMKb8GyEhbwJrnF+EQdEHnnh1KNO4j51bAR/txiRs="
+          }
+        },
+        "expect": "refuse",
+        "reason": "bad-proof",
+        "error": "BTP_ERROR_KEY_ROTATION_PROOF"
+      },
+      {
+        "name": "rotation-proof-for-another-agent-refused",
+        "currentKey": "current",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8000-000000000008",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmIQWSc5tVXW+QZSdSSQD\nZafH58kt1Hz7Lc31kJOco58A1PoytCydr9DWzlmo+nIbghzRR6FQlJgJyafOmeCi\nCH8gQMuQzpVpxKOivnXH4WV083GHR9PrIgcWgN/eeCYlvc51MisvYXcp0xtVmzld\nRM8DB96LVQagePLH+RQAoAOnTK8TtfjTBOa+Fyaaw4vUZDFe3T7crVzc8KXywiMx\n8LvlCP+Wshcw7tR0kGd6/tfhIFvuopyd1wU5GOeAMqYKeidieiys2Drt6JGsA3+j\n6qyRLziXohLy19V5bWkMX0f+nIrAX0KndowMVgrBiUgY6UwpmwZdGsdEpxxFc96V\nXQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "keyProof": {
+              "issuedAt": "2026-10-16T00:00:00.000Z",
+              "signature": {
+                "algorithmHash": "sha256",
+                "value": "KsUmI3WdzQjajJ1yUdzV23JUOaR2CiM37lKuJMOmKsSTfNfZspH5xwiunSrUQHaZmRqZCYlxWvqNHA3QUqRBr1MpxrPKdU5eJJwYm+h2lGTi5iGq9oWUxHw+P9hYoJsNEZ8zoGVzLnfvFqBb9z4NAbiLmgPCvYNe92zVs6BmPs9hJjmYTsUEBj9Zd4iQhii/hmviPqFXyuipgmmBHnl27pcw+TUz6SqYhnN5lij0S42578p0OD/YLkKc8SdZvijCsPnpy/gx0Jz+8tom6hZksyJ+0KuQ+e6thy5WU58r7/sQZPJVAuH535upJRunzTQdZNGGTMRoSL4pPVS+JhodfA==",
+                "fingerprint": "wfH/sLGp6nDF2OG8bR1XIYw++K9SnbGjwaJDuSdjgrs="
+              }
+            }
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "BVmTDL1gQkizQenfSl5z/ncbx14zpt0+P8Ff3MNZGuFTsKHxekY1a400e0qZS1jv3wY2K7jkTAJLFADjzEfAbvO5f/RnSndhDuRswsp3lcdDf/CjxAUydd7v5sfwvXqNRrKwmAWendyncutkBQ4Gnb8dfa2oQorUCKYC2J0xEo4375GrNSiGg3ZDq/DUyawnxthYy0vDGcRGk/llw/mRE/QFZYER0NRBxyTPCVZa6VGuVveh0w7VNn/pmSTmnt8ftbP4yjMzu0Ps6lSD1enegbnQFtVa7OZAQ8QdWunZNc8JHoTx67emIxfDHW36O4bYeTbpe7mQaRF+tDD5Y0JvHA==",
+            "fingerprint": "+0RMKb8GyEhbwJrnF+EQdEHnnh1KNO4j51bAR/txiRs="
+          }
+        },
+        "expect": "refuse",
+        "reason": "bad-proof",
+        "error": "BTP_ERROR_KEY_ROTATION_PROOF"
+      },
+      {
+        "name": "rotation-proof-for-another-key-refused",
+        "currentKey": "current",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8000-000000000009",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmIQWSc5tVXW+QZSdSSQD\nZafH58kt1Hz7Lc31kJOco58A1PoytCydr9DWzlmo+nIbghzRR6FQlJgJyafOmeCi\nCH8gQMuQzpVpxKOivnXH4WV083GHR9PrIgcWgN/eeCYlvc51MisvYXcp0xtVmzld\nRM8DB96LVQagePLH+RQAoAOnTK8TtfjTBOa+Fyaaw4vUZDFe3T7crVzc8KXywiMx\n8LvlCP+Wshcw7tR0kGd6/tfhIFvuopyd1wU5GOeAMqYKeidieiys2Drt6JGsA3+j\n6qyRLziXohLy19V5bWkMX0f+nIrAX0KndowMVgrBiUgY6UwpmwZdGsdEpxxFc96V\nXQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "keyProof": {
+              "issuedAt": "2026-10-16T00:00:00.000Z",
+              "signature": {
+                "algorithmHash": "sha256",
+                "value": "HxD3r06vRX2JYeIWScx0dwQN82QZA2n5lJS/3D53RHIMoVlpdVt4Zx8739eJQ1p2mSIJf61yFEObtm6lC7jeWHOT+2ir/xepAI+6bZfMkHPxY95zvSnH8naTZ4ngPUC5qDiIj/m4g1x0bNHFcLZW8h1i08NFEzrCdIPFZcVL2nCBr8nkmMEnl4OXxaduuveh8W0ZvSnp521c/rqtEYGUJkBevNiWcyL/oRxths4EO41n6sCJcEnu+Bh+nbx0dYIEfZJ4A1KKLg6ShwLBh6JwKSifv6QPCmwrj2qySrjxeKw86S6EGW3KgF8HgCKs0yUITSbbaP+3+AiwflSlqbx6ug==",
+                "fingerprint": "wfH/sLGp6nDF2OG8bR1XIYw++K9SnbGjwaJDuSdjgrs="
+              }
+            }
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "WOasj2Ved/j5H0u0Y7oSkSNmZOnNryQMvQ7GXinMf8bUfXfJkdCc9HVs0zX5SnkULBNi6Qu9VXARWPI+a391Hg4QidisrUK2jV5wqaMXpjxL9KhQLzfJGzfGdorx45TAjg5meBFnzesE3K4K54nRW4FzYZMPwEOAqcVXvpaR4kTW2LAEG3mOYVuo6INl48parB9fuB8SQSmKsIedPFDYc+WAjl3OaIOyZExykHEq+jw4FP+HGNTBYhD9IM0rfbSqZRbgGi1uGQQzaVGV/oeCCVNqFgkStzVk1Y+g67o5TnI+rmm9f8UlSJqN7uEKvhygVGG9xvfxivQYp+clzYZwTA==",
+            "fingerprint": "+0RMKb8GyEhbwJrnF+EQdEHnnh1KNO4j51bAR/txiRs="
+          }
+        },
+        "expect": "refuse",
+        "reason": "bad-proof",
+        "error": "BTP_ERROR_KEY_ROTATION_PROOF"
+      },
+      {
+        "name": "rotation-proof-for-another-identity-refused",
+        "currentKey": "current",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8000-000000000010",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "mallory$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmIQWSc5tVXW+QZSdSSQD\nZafH58kt1Hz7Lc31kJOco58A1PoytCydr9DWzlmo+nIbghzRR6FQlJgJyafOmeCi\nCH8gQMuQzpVpxKOivnXH4WV083GHR9PrIgcWgN/eeCYlvc51MisvYXcp0xtVmzld\nRM8DB96LVQagePLH+RQAoAOnTK8TtfjTBOa+Fyaaw4vUZDFe3T7crVzc8KXywiMx\n8LvlCP+Wshcw7tR0kGd6/tfhIFvuopyd1wU5GOeAMqYKeidieiys2Drt6JGsA3+j\n6qyRLziXohLy19V5bWkMX0f+nIrAX0KndowMVgrBiUgY6UwpmwZdGsdEpxxFc96V\nXQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "keyProof": {
+              "issuedAt": "2026-10-16T00:00:00.000Z",
+              "signature": {
+                "algorithmHash": "sha256",
+                "value": "gUFhySP9N0n8zzK2RC9BZa6W7wRjPkl9IRwOvXCtZ6RG8k4dEh+DbXCbrsdnKU8pM8zJsYCGs09XN7AIcUCosDsV9oGWfd2goIkWbLpp4J4A9mCCzI+9ynDfa/IbB+5t5Q4RKHNXBS/7nGLqP4KDhRAXp1cNIu2iVhR7nrxWFr6uyL66c+TCmkY+i/99HUAA+/ITu/5ysaG289HFmBXtMvfWM+4r5/N5pwxxcxLkgYbNP3YO5cZctvwGKO8Xbj6a+6j6cLacfCgTKP9xB6XcU0JApz6eJ1PoUy4Chn4XH19XHjqSEUDdKgRxzvB/KsqtmPQkiHrf3qyvQe/S+ffjJA==",
+                "fingerprint": "wfH/sLGp6nDF2OG8bR1XIYw++K9SnbGjwaJDuSdjgrs="
+              }
+            }
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "CuH7OBvustlBsepfdopP10e4wKuoYkZtUVFw8xVFXVL11LoZ0z1KfmNE4dmkA+sTJW3EUP6ncav3mZVzXmyom7kONUk+zuemdiLZEbdyVmUPA58ACPXoarbMm0ht+6ErNxyDJ8RAy6pC0V8a9QxDryZRnKOJtlszeZXP3/pFOtgAIdJ9FC9yeT77/roljhDghr5PLjKbS9BmjP1NBVq6hQlo3H1KDubnS7kZoaANQFj3s6YIw4U1r92SRBmqdVzFu7FytdOEBtDCCoCMdVuLy0v6FvzoGzX5GxpqVa6UWn5Xhi0LKb6MEVSuVqpPK7xz38ra8iX1Ftl97rZ+xvVChQ==",
+            "fingerprint": "+0RMKb8GyEhbwJrnF+EQdEHnnh1KNO4j51bAR/txiRs="
+          }
+        },
+        "expect": "refuse",
+        "reason": "identity-mismatch",
+        "error": "BTP_ERROR_KEY_ROTATION_PROOF"
+      },
+      {
+        "name": "rotation-proof-ten-minutes-old-refused",
+        "currentKey": "current",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8000-000000000011",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmIQWSc5tVXW+QZSdSSQD\nZafH58kt1Hz7Lc31kJOco58A1PoytCydr9DWzlmo+nIbghzRR6FQlJgJyafOmeCi\nCH8gQMuQzpVpxKOivnXH4WV083GHR9PrIgcWgN/eeCYlvc51MisvYXcp0xtVmzld\nRM8DB96LVQagePLH+RQAoAOnTK8TtfjTBOa+Fyaaw4vUZDFe3T7crVzc8KXywiMx\n8LvlCP+Wshcw7tR0kGd6/tfhIFvuopyd1wU5GOeAMqYKeidieiys2Drt6JGsA3+j\n6qyRLziXohLy19V5bWkMX0f+nIrAX0KndowMVgrBiUgY6UwpmwZdGsdEpxxFc96V\nXQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "keyProof": {
+              "issuedAt": "2026-10-15T23:50:00.000Z",
+              "signature": {
+                "algorithmHash": "sha256",
+                "value": "B3kwZPvq+xKAxBKN52L6cnyB6iBV92U36gKxnuHekz9nIapd4azUat8Ed2hg9J1+IZaHLs+Riqx/mrOVfOludqYrDHybi6GAFNdLZIIXxx+m9C0NWeTqIScSxVL003OBt6aLwGLkTTRnpQsT9Q6rJKNDbtTe3770hX6MVmUp8nstEAiLLnVcPRBj8LEdSEhCMkGQXI9J5yAXjoOF3iHei1KFGcsIfUe1nS+ib7RnwdAOt7YpB8y9hM7F018duVPuuC2bm3YubQxpNe3JI1f/8tJhtKahioDDNWk87hPEU8SZaOustN6zl8V+/cGEiyn/snjmUNMxVNWwWLV+Dm/HPw==",
+                "fingerprint": "wfH/sLGp6nDF2OG8bR1XIYw++K9SnbGjwaJDuSdjgrs="
+              }
+            }
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "KpnEwx3n4qVgsFXape4Oz17sH1ywolAJthtvy4Y4y+JJqLiWqnRapZD52h7Ksw6au0Oq8F5aj9qhiw9wAJhSkXk5q11iMEQaBKjZ/bCzTqJn24VDbvzu28N5OjEqCJf0R+76SGNcj4xIVDvYvR+IwMqmb+Cqtg35uSfuwO9OGUXBkW4cDlSqI7BsCkF8MVu9wJ20hct84GvlnPYlta4WEu2A7+gHlW3b2LapJzWvs8mFX9p/zTrqPMWAf7EMbDXrVc/8UJZQkDyTKa6YS0rVsyggtKX7rEI54DXuIFYdTH0zqpBGA5VIyF+ot6ajcM9UZffZMleJpC3hY8+VIsB81g==",
+            "fingerprint": "+0RMKb8GyEhbwJrnF+EQdEHnnh1KNO4j51bAR/txiRs="
+          }
+        },
+        "expect": "refuse",
+        "reason": "proof-stale",
+        "error": "BTP_ERROR_KEY_ROTATION_PROOF"
+      },
+      {
+        "name": "proof-without-rotation-refused",
+        "currentKey": "current",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8000-000000000012",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1207U1B671LXLmhKT5ya\njYCIDdT5nheTkN7qy+Sd4+LYdu7Nce6e4/u1j2qkkM15i2R3cWuGek8cFWK/44Hl\nczoZHbGGqIaYV0qxmirNpmm9SMw0xLe/siocXLAwePxclveFcBgQf+vVsDWwTTyU\neYVyN93hjVxlGGDKIYV/8cBf+GL01RrUVFPo/BuKRwTGujBluNrhW4VDFtqnIrxO\nF1NgRR+gAxgz4aUlg1/vle4W0W68miUKhxRd6DdxBbGAJLh1wKse702ycnpHMHeB\n9fRgx+ZLds6G5+NER81kHGZSDQuQTOsia9ykwfDkLnyHEq7ByaFkpWnnBWG02oTb\nfQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "keyProof": {
+              "issuedAt": "2026-10-16T00:00:00.000Z",
+              "signature": {
+                "algorithmHash": "sha256",
+                "value": "DNBoqa8cmAYLVX5WffvCFtGIFzktus2LCq36ujGu45DEkHZsdiPDPNO3WzThjHRp0b2HP0RMzwwKk8gokQpUf674x2fZVizuZxCif6UYrp/uTfFSQRA4v2skJjkDqyEJ8TXh86lyDHiz1jsGQ9NEC11JDeg17FUel78WGyBezwj4Ulc3oF7dRP3gbbqqb0gHCb30Q6hzt3FCaQJYEPcSGSr5Qokh7tDOsmhFvUj8cL1vdxQ4B2544B4Xt2zOjaVaFBpZ8liJqfga1EoHVo/BFW6J0eCpCNWfUTBGk1Aq4LF4Qith6WYQ/NuXx6FmwpOVoKdc7RwNgfklfzzVt/uDvw==",
+                "fingerprint": "wfH/sLGp6nDF2OG8bR1XIYw++K9SnbGjwaJDuSdjgrs="
+              }
+            }
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "Y1/eXNLKaXer0Ypm3MMj9a2cwW/FgIzXQqmIsZg3a3sf3C8VBYX6w8v3H/QNl1HGPG6/AIrcHZ/mlyAAzyhiLbte+e1GAc4or8s7lILLmeMhNdAAOIbPEs0hLq3tV2+yGrimO7N+7U0Hti0XRZ0Y96kM8IyAN8tw1E9blBMOgngO8saliUjPhRkzXyyiQ9XcZOOTJe/Jv9yIXPDpljNFLry5YGredBEZnQRI2tmNMiBRzamfIYWrev97okvmo+nBnd3oGM2/O4rdPlzSuBRrJO0RFZswQ/e06QoC96ABl4FdUd7Md7tTColdarBxrcttVywWPpn18319E2ulR2bvng==",
+            "fingerprint": "+0RMKb8GyEhbwJrnF+EQdEHnnh1KNO4j51bAR/txiRs="
+          }
+        },
+        "expect": "refuse",
+        "reason": "proof-without-rotation",
+        "error": "BTP_ERROR_KEY_ROTATION_PROOF"
+      },
+      {
+        "name": "refresh-with-no-agent-key-on-record-refused",
+        "currentKey": null,
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8000-000000000013",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_6f1c2b9e-4f0a-4d7e-9a51-2c8d7e3b1a00",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1207U1B671LXLmhKT5ya\njYCIDdT5nheTkN7qy+Sd4+LYdu7Nce6e4/u1j2qkkM15i2R3cWuGek8cFWK/44Hl\nczoZHbGGqIaYV0qxmirNpmm9SMw0xLe/siocXLAwePxclveFcBgQf+vVsDWwTTyU\neYVyN93hjVxlGGDKIYV/8cBf+GL01RrUVFPo/BuKRwTGujBluNrhW4VDFtqnIrxO\nF1NgRR+gAxgz4aUlg1/vle4W0W68miUKhxRd6DdxBbGAJLh1wKse702ycnpHMHeB\n9fRgx+ZLds6G5+NER81kHGZSDQuQTOsia9ykwfDkLnyHEq7ByaFkpWnnBWG02oTb\nfQIDAQAB\n-----END PUBLIC KEY-----\n"
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "OzZooFqn75PIF1Ayp+esQKM4VW57QCbpP48ZjVqeTQsXDT+DncVoJCdYZLyWLWHPqpTfHVWhtlR3YXjF/fTION+FAkkRP6a4thiYYWUwmlH4bCq6yRstb8/CA4+7odX6CTKF2+UvUa0Qe4i6dx8Kqvk+H1Z0qZc3cQljXGLMyrnlL0N31GYZc6Iyago1Yg1L36qg1BKww0DmAot720OJM8O40UV+JYOxCXcFXfzwB6wBD2NQ517S91dM9YeEdFlJaxBu97wWr3UM4EfSuv0OT2O9j468tYSdqI4mldOs3YlefuQF5SFN2xTJba5hYQQAbZwa7Rm1ICRiT8cFajdi1Q==",
+            "fingerprint": "+0RMKb8GyEhbwJrnF+EQdEHnnh1KNO4j51bAR/txiRs="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-current-key",
+        "error": "BTP_ERROR_REFRESH_NOT_CURRENT_KEY"
+      }
+    ],
+    "tokens": [
+      {
+        "use": "issued-0",
+        "expect": "accept"
+      },
+      {
+        "use": "issued-0",
+        "expect": "refuse"
+      },
+      {
+        "use": "issued-1",
+        "expect": "accept"
+      },
+      {
+        "use": "issued-1",
+        "expect": "refuse"
+      },
+      {
+        "use": "issued-0",
+        "expect": "refuse"
+      }
+    ]
+  },
+  "managed": {
+    "custody": "managed",
+    "keyVector": "kms-signature.vector.json",
+    "description": "Not applicable. A managed identity has no interactive device key: its key is held by the platform (KMS) and published under a selector, and it rotates by publishing a new selector (item H, selectors.vector.json), never through auth.refresh. The server holds no agent key for it, so a refresh signed by the managed key itself is refused.",
+    "cases": [
+      {
+        "name": "managed-key-refresh-not-applicable",
+        "currentKey": null,
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8000-000000000014",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_managed-not-a-device",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArlhp1Th8WEqOBszPSXSI\nabxtIb/yGvGUvMtxWACENxKWbK/4elcppOv4wLvX2w/OjQRB4ptLVcMsuBctE5N8\nEWgm2Vowz7MQYwfB2jY2tMQgtlV8Gebmm0+OwF6lMjy5tx5KKr/49NvIGGtA7Qq1\n+jL3oW1b1y12TB42L+VOReOhOUnxwEVLGoy6bUnSqBQMNC8PM5EapYQ30TIqofUB\nKCRgOc+k75QBuopdXVvkh5PFVuA218QQ6ZUAy1XEhQVMN+5JN6KMp8rY8YKKCGSW\ngkPie3/BdkwpaeXmh1KSBnIklcELw1d3jk5fp0/APbwlbrzotxHlpe39sMp5RV02\nuQIDAQAB\n-----END PUBLIC KEY-----\n"
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "I/BPdnrNe6QHk+enxsGVAghs8y0w7GXARJkBk9NuGd75tjC2K6vLoDXajJAwcV0K9NB3OfOGvbrtILHQcjtGnAojMOv+rwp3i3rK7ZT2i1cOefR/XFSbGLNsr/u1iR4jeg/freHHlz3IzbJLxnylJqoyxSXyfbZxoaHrnUSNidoh/Bjm+Ddw2lq+Npmzp1bS5gSm+WYxGZNFfUXCU51I9QKHz7Z/9DVbeaNLVJ+QvIQ1oCWtry/aBQl9FNXurbw4bTUWT9F8831VlIj0wSzf1/HEhr/VYIvV9cJ2lr6q2PHfISI1cMcadfs1KEcTfPvjOGCTCXZEqXAziCvzqvmYPQ==",
+            "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-current-key",
+        "error": "BTP_ERROR_REFRESH_NOT_CURRENT_KEY"
+      }
+    ]
+  }
+}

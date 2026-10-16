@@ -7,5 +7,6 @@
 
 export * from './types.js';
 export * from './BtpsAuthentication.js';
+export * from './keyRotation.js';
 export * from './storage/InMemoryAuthSessionStore.js';
 export * from './storage/InMemoryTokenStore.js';
