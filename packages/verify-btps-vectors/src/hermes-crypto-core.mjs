@@ -1,6 +1,6 @@
 /**
  * The BTPS 1.1 crypto profile in nothing but ECMAScript, for the "hermes"
- * runtime driver (EBA-150): SHA-256, RSASSA-PKCS1-v1_5/SHA-256 signatures,
+ * runtime driver: SHA-256, RSASSA-PKCS1-v1_5/SHA-256 signatures,
  * RSA-OAEP/SHA-256 with MGF1-SHA-256 key wrap, and the minimal DER reading
  * an RSA SPKI or PKCS#8 key needs.
  *

@@ -1,10 +1,10 @@
 /**
  * Vector checks, run once per runtime driver. They prove the vectors are
  * self-consistent and that the runtime implements the BTPS 1.1 crypto
- * profile: JCS (item 5), RSASSA-PKCS1-v1_5/SHA-256 signatures for both
+ * profile: JCS, RSASSA-PKCS1-v1_5/SHA-256 signatures for both
  * custody modes, RSA-OAEP/SHA-256 with MGF1-SHA-256 wrapping, and separate
  * signing and encryption keys, and the separate signature and encryption
- * selectors (item 6).
+ * selectors.
  *
  * Canonical forms come from the runtime when it canonicalises itself
  * (`runtime.canonicalize`, e.g. Hermes running the SDK's jcs.ts), and from
@@ -30,7 +30,6 @@ export function vectorChecks(runtime, set) {
   for (const vector of set.jcs) {
     checks.push({
       id: id(`jcs/${vector.name}`),
-      item: 5,
       async run() {
         for (const input of vector.inputs) {
           if (vector.expectError) {
@@ -60,7 +59,6 @@ export function vectorChecks(runtime, set) {
     if (c.expect === 'reject') {
       checks.push({
         id: id(`jcs-signature/${c.name}`),
-        item: 5,
         async run() {
           for (const input of c.inputs) {
             ensure(
@@ -85,7 +83,6 @@ export function vectorChecks(runtime, set) {
     }
     checks.push({
       id: id(`jcs-signature/${c.name}`),
-      item: 5,
       async run() {
         ensure(
           await runtime.verifyPkcs1Sha256(jcsKey.publicKeyPem, utf8(c.canonicalPayload), signature),
@@ -117,7 +114,6 @@ export function vectorChecks(runtime, set) {
       },
       {
         id: name('canonical-payload-is-jcs-of-raw-payload'),
-        item: 5,
         async run() {
           ensure(
             (await canon(vector.payloadRaw)) === vector.canonicalPayload,
@@ -140,7 +136,6 @@ export function vectorChecks(runtime, set) {
       },
       {
         id: name('signature-does-not-verify-over-raw-key-order'),
-        item: 5,
         async run() {
           ensure(
             !(await runtime.verifyPkcs1Sha256(
@@ -287,7 +282,6 @@ function selectorChecks(runtime, set, canon) {
     checks.push(
       {
         id: id('every-key-has-its-fingerprint'),
-        item: 6,
         async run() {
           for (const party of [sender, receiver]) {
             for (const [selector, key] of Object.entries(party.keys)) {
@@ -302,7 +296,6 @@ function selectorChecks(runtime, set, canon) {
       },
       {
         id: id('only-the-signature-selector-key-verifies'),
-        item: 6,
         async run() {
           const canonical = utf8(await canon(JSON.stringify(vector.artifact)));
           const signer = sender.keys[expect.signatureSelector];
@@ -323,7 +316,6 @@ function selectorChecks(runtime, set, canon) {
       },
       {
         id: id('only-the-encryption-selector-key-unwraps'),
-        item: 6,
         async run() {
           const target = receiver.keys[expect.encryptionSelector];
           ensure(target, `no receiver key at ${expect.encryptionSelector}`);

@@ -20,10 +20,10 @@ function copyVectors(mutate) {
 const failingIds = async (dir) =>
   (await runChecks(manifestChecks(dir))).filter((r) => !r.passed).map((r) => r.id);
 
-describe('the published vector manifest (EBA-123)', () => {
-  it('is version 1.1.1 and matches the committed set exactly', async () => {
+describe('the published vector manifest', () => {
+  it('is version 1.1.2 and matches the committed set exactly', async () => {
     const manifest = readManifest(VECTORS_DIR);
-    expect(manifest.version).toBe('1.1.1');
+    expect(manifest.version).toBe('1.1.2');
     expect(manifest).toEqual(buildManifest(VECTORS_DIR));
     expect(Object.keys(manifest.files)).toEqual(listVectorFiles(VECTORS_DIR));
     expect(await failingIds(VECTORS_DIR)).toEqual([]);

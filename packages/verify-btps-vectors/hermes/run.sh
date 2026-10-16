@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs `yarn verify:btps-vectors` with Hermes 250829098.0.17, the engine
-# react-native@0.86.3 ships, in a container (EBA-150). Needs only Docker;
+# react-native@0.86.3 ships, in a container. Needs only Docker;
 # installs nothing on the host.
 #
 #   packages/verify-btps-vectors/hermes/run.sh [verify-btps-vectors options]

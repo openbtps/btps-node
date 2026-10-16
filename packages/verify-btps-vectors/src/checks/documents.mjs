@@ -1,5 +1,5 @@
 /**
- * Item 7, document model v2 (EBA-119, EBA-402): document-model.vectors.json
+ * Document model v2: document-model.vectors.json
  * and the documents in test/vectors/documents/.
  *
  * - documentRuntimeChecks: each document's JCS form signs and verifies on
@@ -18,7 +18,6 @@ import { canonicalizeValue } from '../jcs.mjs';
 import { fromBase64, utf8 } from '../encoding.mjs';
 import { ensure } from '../check.mjs';
 
-const ITEM = 7;
 
 /**
  * The document a case names, changed by its `set`, `unset` and `setPath`. A
@@ -50,7 +49,6 @@ export function documentRuntimeChecks(runtime, set) {
   const key = set.managedSignature;
   const checks = Object.entries(set.documents).map(([name, raw]) => ({
     id: `vectors/${runtime.name}/documents/${name}/sign-then-verify`,
-    item: ITEM,
     async run() {
       const canonical = utf8(await runtimeCanonical(runtime, raw));
       const signature = await runtime.signPkcs1Sha256(key.privateKeyPem, canonical);
@@ -63,7 +61,6 @@ export function documentRuntimeChecks(runtime, set) {
     if (!raw.attachments?.length) continue;
     checks.push({
       id: `vectors/${runtime.name}/documents/${name}/attachment-sha256`,
-      item: ITEM,
       async run() {
         for (const [index, attachment] of raw.attachments.entries()) {
           const digest = await runtime.sha256Hex(fromBase64(attachment.content));
@@ -102,9 +99,7 @@ export async function runtimeCanonical(runtime, value) {
 export function documentSdkChecks(sdk, set) {
   const model = set.documentModel;
   const check = (name, run) => ({
-    id: `sdk/item-7/${name}`,
-    item: ITEM,
-    tickets: model.tickets,
+    id: `sdk/documents/${name}`,
     run() {
       ensure(
         sdk.documents,

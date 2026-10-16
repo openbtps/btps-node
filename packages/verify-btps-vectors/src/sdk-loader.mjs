@@ -77,10 +77,10 @@ export async function loadSdk(sdkRoot) {
     }
   }
 
-  // Document model v2 (item 7) is absent from trees before EBA-119/EBA-402;
+  // Document model v2 is absent from trees before BTPS 1.1;
   // its checks then fail rather than the whole run.
   const hasDocuments = fs.existsSync(path.join(root, DOCUMENTS_ENTRY));
-  // Item D (EBA-112) adds verifyAgentRefresh; its checks fail on trees without it.
+  // Key-rotating refresh adds verifyAgentRefresh; its checks fail on trees without it.
   const hasKeyRotation = fs.existsSync(path.join(root, KEY_ROTATION_ENTRY));
 
   const { build } = await import('esbuild');

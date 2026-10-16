@@ -2,7 +2,7 @@
  * Reference JSON Canonicalization Scheme (RFC 8785) for the BTPS golden vectors.
  *
  * This is the harness's *oracle*, not the SDK's implementation. The SDK's own
- * canonical signing is EBA-115 (BTPS 1.1 item 5); this file exists so the
+ * canonical signing lives in src/core/crypto/jcs.ts; this file exists so the
  * vectors can be checked for self-consistency on every runtime without
  * trusting the code under test.
  *
@@ -10,7 +10,7 @@
  * browser, in React Native, and in Node.
  *
  * Beyond RFC 8785 serialisation, the parser enforces the input rules the
- * BTPS 1.1 addendum (page 8323117, item 5) requires of a signed document:
+ * BTPS 1.1 canonical signing requires of a signed document:
  *   - duplicate member names are rejected, at any depth;
  *   - lone UTF-16 surrogates are rejected (RFC 8785 §3.2.2 requires I-JSON);
  *   - numbers that are not finite IEEE-754 doubles are rejected.

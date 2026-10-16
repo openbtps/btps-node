@@ -1,5 +1,5 @@
 /**
- * The published vector set's manifest (EBA-123): `test/vectors/manifest.json`
+ * The published vector set's manifest: `test/vectors/manifest.json`
  * names the set's version and the SHA-256 of every file in it, so a third
  * party can tell that the vectors it runs are byte for byte the ones
  * released, and so no vector changes without a new manifest.
@@ -14,11 +14,15 @@ import path from 'node:path';
 
 export const MANIFEST_FILE = 'manifest.json';
 /*
- * 1.1.1 (EBA-119, 2026-10-16): the credit note took the 1.1 invoice's shape,
+ * 1.1.1 (2026-10-16, #31): the credit note took the 1.1 invoice's shape,
  * so documents/credit-note.v2.json and document-model.vectors.json changed,
  * and the taxTotal group went with verifyTaxTotal.
+ * 1.1.2 (2026-10-16): metadata only. The vector files lost their internal
+ * planning labels ("item", "tickets") and their descriptions and provenance
+ * say what they cover in plain words. Every key, signature, payload,
+ * document and expected outcome is byte-identical to 1.1.1.
  */
-export const VECTOR_SET_VERSION = '1.1.1';
+export const VECTOR_SET_VERSION = '1.1.2';
 
 /**
  * In the directory but not vectors: the manifest itself, the README, and the
