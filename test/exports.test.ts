@@ -140,3 +140,26 @@ describe('package exports (EBA-112, key-rotating refresh)', () => {
     expect(mod.BtpsAuthentication.rotateKey).toBeTypeOf('function');
   });
 });
+
+describe('package exports (EBA-113, device registration)', () => {
+  it.each([
+    ['./authentication', 'consumeRegistrationToken'],
+    ['./authentication', 'resolveAgentKey'],
+    ['./authentication', 'isAgentId'],
+  ])('@btps/sdk%s exports %s', async (subpath, name) => {
+    const mod = await importSubpath(subpath);
+    expect(mod[name], `${name} from ${subpath}`).toBeTypeOf('function');
+  });
+
+  it.each([
+    ['./authentication', 'REGISTRATION_ERRORS'],
+    ['./error', 'BTP_ERROR_REGISTRATION_UNAVAILABLE'],
+    ['./error', 'BTP_ERROR_REGISTRATION_TOKEN_MISSING'],
+    ['./error', 'BTP_ERROR_REGISTRATION_TOKEN_INVALID'],
+    ['./error', 'BTP_ERROR_REGISTRATION_TOKEN_USED'],
+    ['./error', 'BTP_ERROR_REGISTRATION_IDENTITY_MISMATCH'],
+  ])('@btps/sdk%s exports %s', async (subpath, name) => {
+    const mod = await importSubpath(subpath);
+    expect(mod[name], `${name} from ${subpath}`).toBeDefined();
+  });
+});

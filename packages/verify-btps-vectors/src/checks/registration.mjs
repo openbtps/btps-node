@@ -230,8 +230,14 @@ export function registrationSdkChecks(sdk, set) {
           `${at}: ${result.outcome} (${result.reason ?? 'bound'}); expected ${step.expect}`,
         );
         if (step.expect === 'refuse') {
-          ensure(result.reason === step.reason, `${at}: refused as ${result.reason}; expected ${step.reason}`);
-          ensure(result.error === step.error, `${at}: error ${result.error}; expected ${step.error}`);
+          ensure(
+            result.reason === step.reason,
+            `${at}: refused as ${result.reason}; expected ${step.reason}`,
+          );
+          ensure(
+            result.error === step.error,
+            `${at}: error ${result.error}; expected ${step.error}`,
+          );
           continue;
         }
         await ensureBound(trustStore, step.request, result);
@@ -290,7 +296,11 @@ export function registrationSdkChecks(sdk, set) {
           reason = resolved.reason;
         } else {
           const { signed, signature } = unsign(c.artifact);
-          const valid = sdk.crypto.verifySignature(signed, signature, resolved.publicKeyPem).isValid;
+          const valid = sdk.crypto.verifySignature(
+            signed,
+            signature,
+            resolved.publicKeyPem,
+          ).isValid;
           outcome = valid ? 'accept' : 'refuse';
           reason = valid ? undefined : 'signature';
         }

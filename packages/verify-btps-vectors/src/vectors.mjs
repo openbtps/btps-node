@@ -64,14 +64,23 @@ function loadDocumentModel(dir, set) {
   }
   const documentsDir = path.join(dir, model.documentsDir);
   if (!fs.existsSync(documentsDir)) {
-    throw new VectorLoadError(file, `documents directory ${model.documentsDir} not found in ${dir}`);
+    throw new VectorLoadError(
+      file,
+      `documents directory ${model.documentsDir} not found in ${dir}`,
+    );
   }
   set.documents = {};
-  for (const name of fs.readdirSync(documentsDir).filter((n) => n.endsWith('.json')).sort()) {
+  for (const name of fs
+    .readdirSync(documentsDir)
+    .filter((n) => n.endsWith('.json'))
+    .sort()) {
     try {
       set.documents[name] = JSON.parse(fs.readFileSync(path.join(documentsDir, name), 'utf8'));
     } catch (error) {
-      throw new VectorLoadError(file, `${model.documentsDir}/${name} is not valid JSON (${error.message})`);
+      throw new VectorLoadError(
+        file,
+        `${model.documentsDir}/${name} is not valid JSON (${error.message})`,
+      );
     }
   }
   if (Object.keys(set.documents).length === 0) {
@@ -84,7 +93,10 @@ function loadDocumentModel(dir, set) {
     for (const c of model[group]) {
       requireFields(file, c, ['name', 'document', 'expect']);
       if (typeof c.document === 'string' && !(c.document in set.documents)) {
-        throw new VectorLoadError(file, `${group}/${c.name}: ${model.documentsDir}/${c.document} not found`);
+        throw new VectorLoadError(
+          file,
+          `${group}/${c.name}: ${model.documentsDir}/${c.document} not found`,
+        );
       }
     }
   }
@@ -111,18 +123,26 @@ function loadEventModel(dir, set) {
     throw new VectorLoadError(file, `events directory ${model.eventsDir} not found in ${dir}`);
   }
   set.events = {};
-  for (const name of fs.readdirSync(eventsDir).filter((n) => n.endsWith('.json')).sort()) {
+  for (const name of fs
+    .readdirSync(eventsDir)
+    .filter((n) => n.endsWith('.json'))
+    .sort()) {
     try {
       set.events[name] = JSON.parse(fs.readFileSync(path.join(eventsDir, name), 'utf8'));
     } catch (error) {
-      throw new VectorLoadError(file, `${model.eventsDir}/${name} is not valid JSON (${error.message})`);
+      throw new VectorLoadError(
+        file,
+        `${model.eventsDir}/${name} is not valid JSON (${error.message})`,
+      );
     }
   }
   if (Object.keys(set.events).length === 0) {
     throw new VectorLoadError(file, `no events in ${model.eventsDir}`);
   }
   const exists = (name) =>
-    name.startsWith('documents/') ? name.slice('documents/'.length) in set.documents : name in set.events;
+    name.startsWith('documents/')
+      ? name.slice('documents/'.length) in set.documents
+      : name in set.events;
   const named = (group, label, c) => {
     if (typeof c.event === 'string' && !exists(c.event)) {
       throw new VectorLoadError(file, `${group}/${label}: ${c.event} not found`);
@@ -236,7 +256,8 @@ function loadRegistration(set) {
     }
   };
   const knownToken = (where, name) => {
-    if (!(name in model.tokens)) throw new VectorLoadError(file, `${where}: unknown token "${name}"`);
+    if (!(name in model.tokens))
+      throw new VectorLoadError(file, `${where}: unknown token "${name}"`);
   };
   nonEmpty('sequences', model.sequences);
   for (const sequence of model.sequences) {
