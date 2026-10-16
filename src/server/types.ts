@@ -111,7 +111,7 @@ export interface BtpsServerOptions {
    * lower, and then refuses artifacts near the caps; a longer line is
    * answered BTP_ERROR_LINE_TOO_LONG and the connection closed. A value
    * above BTP_MAX_LINE_LENGTH is refused at construction with
-   * BTP_ERROR_INVALID_OPTION (EBA-445).
+   * BTP_ERROR_INVALID_OPTION.
    */
   maxLineLength?: number;
 }

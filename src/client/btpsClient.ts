@@ -162,7 +162,7 @@ export class BtpsClient {
           const error = new BTPErrorException(BTP_ERROR_SOCKET_TIMEOUT, {
             cause: 'connection timeout',
           });
-          // Every pending send gets its answer (fix list 12): destroy()
+          // Every pending send gets its answer: destroy()
           // used to clear the queue without resolving, so a send whose own
           // timer was longer than the connection's waited forever.
           this.cleanupQueue(error);
@@ -174,7 +174,7 @@ export class BtpsClient {
   }
 
   /**
-   * Emits `error` only to a listener (fix list 12): an EventEmitter with no
+   * Emits `error` only to a listener: an EventEmitter with no
    * `error` listener throws, inside the SDK. Without one, it is logged.
    */
   protected emitError(info: { error: Error } & BTPSRetryInfo) {
@@ -186,8 +186,8 @@ export class BtpsClient {
   }
 
   protected attachListeners(socket: TLSSocket, receiverId: string) {
-    // An answer is never buffered past BTP_MAX_LINE_LENGTH, as on the server
-    // (fix list 10): a longer one fails every pending send and closes the
+    // An answer is never buffered past BTP_MAX_LINE_LENGTH, as on the
+    // server: a longer one fails every pending send and closes the
     // connection.
     const lines = socket.pipe(split2({ maxLength: BTP_MAX_LINE_LENGTH }));
     let refusedOverlong = false;
@@ -286,7 +286,7 @@ export class BtpsClient {
         });
         this.pumpNextQueue();
       } else if (!msg?.reqId && msg?.type === 'btps_error' && this.soleWrittenJob()) {
-        // Fix list 14: an error answer with no reqId (written before the
+        // An error answer with no reqId (written before the
         // server parsed the line, e.g. a 429 by network address) can only be
         // about the one send on the wire. It is handed back as an error only:
         // nothing is read as delivered without its own id.
@@ -308,7 +308,7 @@ export class BtpsClient {
     }
   }
 
-  /** The pending send, when exactly one is pending and it is on the wire (fix list 14). */
+  /** The pending send, when exactly one is pending and it is on the wire. */
   protected soleWrittenJob() {
     if (this.queue.size !== 1) return undefined;
     const [entry] = this.queue.entries();
@@ -1063,7 +1063,7 @@ export class BtpsClient {
     this.backpressureQueue = [];
     this.removeAllListeners();
     this.socket?.destroy();
-    // A send still pending is answered, never left waiting (fix list 12).
+    // A send still pending is answered, never left waiting.
     this.cleanupQueue(new BTPErrorException(BTP_ERROR_CLIENT_DESTROYED));
   }
 }

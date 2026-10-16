@@ -6,8 +6,8 @@
  */
 
 /*
- * EBA-445: fix list 3 and the server side of fix list 12. Real keys, end to
- * end through parse, signature and trust; only DNS key lookup is faked.
+ * Trust-request storage, and the server side of the middleware and
+ * connection fixes. Real keys, end to end through parse, signature and trust; only DNS key lookup is faked.
  *
  * Adapted from the failing tests on `test/identity-lookup-failing`
  * (sdkDefects.test.ts, "server identity and middleware", "package entry
@@ -175,7 +175,7 @@ const deliver = async (
   return JSON.parse(writes[0]![0] as string) as BTPServerResponse;
 };
 
-describe('EBA-445', () => {
+describe('trust-request storage, middleware and connection fixes', () => {
   let store: MapTrustStore;
 
   beforeEach(() => {
@@ -198,8 +198,8 @@ describe('EBA-445', () => {
     vi.restoreAllMocks();
   });
 
-  describe('fix list 3: a TRUST_REQ answers success only once something stored it', () => {
-    // Read 2026-10-13 (fix list page, item 3): answered 200 whether or not
+  describe('a TRUST_REQ answers success only once something stored it', () => {
+    // Read 2026-10-13: answered 200 whether or not
     // anything stored the request.
     it('answers BTP_ERROR_TRUST_REQUEST_NOT_STORED when nothing stored it', async () => {
       const onError = vi.fn();
@@ -270,7 +270,7 @@ describe('EBA-445', () => {
     });
   });
 
-  describe('fix list 12: a handler that returns without next() stops the chain', () => {
+  describe('a handler that returns without next() stops the chain', () => {
     const mw = (name: string, handler: MiddlewareDefinition['handler']): MiddlewareDefinition =>
       ({ phase: 'before', step: 'onArtifact', config: { name }, handler }) as MiddlewareDefinition;
 
@@ -372,7 +372,7 @@ describe('EBA-445', () => {
     });
   });
 
-  describe('fix list 12: getServerIdentity gives middleware no private key', () => {
+  describe('getServerIdentity gives middleware no private key', () => {
     // Adapted from sdkDefects.test.ts: getServerIdentity() returned the
     // options object, private key included, to every middleware.
     it('returns the identity, public key and selector only', () => {
@@ -450,7 +450,7 @@ describe('EBA-445', () => {
   });
 
   describe('middleware loading (adapted from sdkDefects.test.ts)', () => {
-    // EBA-187 already loads the defaults with no file; kept as the failing test had it.
+    // The default middleware already loads with no file; kept as the failing test had it.
     it('loads the default middleware when there is no middleware file', async () => {
       const manager = new MiddlewareManager();
       await manager.loadMiddleware({ trustStore: store });

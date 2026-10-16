@@ -14,7 +14,7 @@
  * option, e.g. `createDefaultMiddleware({ rateLimiter })`; `false` turns the
  * defaults off. A file that still includes them gets them once.
  *
- * What a handler is given (EBA-445):
+ * What a handler is given:
  * - `req.data`: `{ type, artifact }` once the line is parsed; `type` is
  *   'transporter' or 'agent' from signature verification on;
  * - `req.getIdentity()`: `{ from, to }` as the artifact names them (a claim

@@ -119,7 +119,7 @@ describe('MiddlewareManager', () => {
       expect(manager.getAllMiddleware().length).toBe(0);
     });
 
-    // EBA-445 (fix list 12): a path given and not there is a mistake, not "no middleware".
+    // A path given and not there is a mistake, not "no middleware".
     it('fails loudly when a middleware path given explicitly does not exist', async () => {
       const trustStore = new JsonTrustStore({
         connection: TEST_FILE,
@@ -130,7 +130,7 @@ describe('MiddlewareManager', () => {
       });
     });
 
-    // EBA-445 (fix list 12): it used to be dropped with only a warning.
+    // It used to be dropped with only a warning.
     it('fails loudly when a handler declares fewer than three parameters', async () => {
       await fs.writeFile(
         middlewareFile,
@@ -178,7 +178,7 @@ describe('MiddlewareManager', () => {
       expect(middleware.length).toBe(1);
       expect(middleware[0].config?.name).toBe('test-middleware');
     });
-    // EBA-445: an invalid definition fails the load; it is no longer skipped with a warning.
+    // An invalid definition fails the load; it is no longer skipped with a warning.
     it('fails on invalid middleware (missing handler)', async () => {
       await fs.writeFile(middlewareFile, invalidMiddlewareMissingHandler, 'utf8');
       const trustStore = new JsonTrustStore({

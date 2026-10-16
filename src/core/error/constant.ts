@@ -313,7 +313,7 @@ export const BTP_ERROR_LINE_TOO_LONG: BTPError = {
 };
 
 /**
- * Fix list 3 (EBA-445): a `TRUST_REQ` passed every check, but nothing
+ * A `TRUST_REQ` passed every check, but nothing
  * confirmed it was stored: the `forwardTo` handler did not return `true` and
  * the trust store holds no pending record for the pair. The sender is never
  * told "accepted" for a request nobody kept; it may send it again.
@@ -324,7 +324,7 @@ export const BTP_ERROR_TRUST_REQUEST_NOT_STORED: BTPError = {
 };
 
 /**
- * Fix list 12 (EBA-445): middleware that cannot be loaded: a definition that
+ * Middleware that cannot be loaded: a definition that
  * does not validate (a handler with fewer than three parameters, an unknown
  * phase or step), or a middleware file named explicitly that does not exist.
  * Thrown when the server starts. Kept on the server; would go out as
@@ -336,7 +336,7 @@ export const BTP_ERROR_MIDDLEWARE: BTPError = {
 };
 
 /**
- * Fix list 12 (EBA-445): an RSA key shorter than BTP_MIN_RSA_KEY_BITS (2048)
+ * An RSA key shorter than BTP_MIN_RSA_KEY_BITS (2048)
  * bits, for encryption or for a signature. Refused before it is used.
  */
 export const BTP_ERROR_KEY_TOO_SMALL: BTPError = {
@@ -345,7 +345,7 @@ export const BTP_ERROR_KEY_TOO_SMALL: BTPError = {
 };
 
 /**
- * EBA-445: a server or client option outside what the protocol allows, e.g.
+ * A server or client option outside what the protocol allows, e.g.
  * a `maxLineLength` above BTP_MAX_LINE_LENGTH. Thrown at construction;
  * never sent by a server.
  */

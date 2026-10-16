@@ -179,7 +179,7 @@ export class BtpsServer {
       });
     }
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 30000;
-    // Lower only (fix list 10): a longer line than the protocol's is never read.
+    // Lower only: a longer line than the protocol's is never read.
     const { maxLineLength = BTP_MAX_LINE_LENGTH } = options;
     if (
       !Number.isInteger(maxLineLength) ||
@@ -518,7 +518,7 @@ export class BtpsServer {
     const { res } = context;
     const { action } = artifact;
     switch (action) {
-      // A health check (fix list 15): answered, and the connection stays
+      // A health check: answered, and the connection stays
       // open, so it can be asked again on the same connection.
       case 'PING':
         return this.sendBtpsResponse(res.socket, {
@@ -737,7 +737,7 @@ export class BtpsServer {
     );
     if (afterOnArtifactResponseSent) return; // Response already sent, stop processing
 
-    // Fix list 3: a trust request is answered success only once something
+    // A trust request is answered success only once something
     // stored it. Otherwise the sender may send the same request again.
     if (
       data.type === 'transporter' &&
@@ -809,7 +809,7 @@ export class BtpsServer {
   /**
    * Executes one step's middleware, in priority order.
    *
-   * The rule (EBA-445), once a handler's promise settles:
+   * The rule, once a handler's promise settles:
    * - it answered (`sendRes` / `sendError`): the request is done; nothing
    *   after it runs, middleware or core;
    * - else it called `next()`, at any point: the next handler runs;
@@ -1375,7 +1375,7 @@ export class BtpsServer {
   }
 
   /**
-   * Fix list 3: whether the trust store holds a pending request from the
+   * Whether the trust store holds a pending request from the
    * artifact's sender to its receiver, the record the platform keeps for
    * the receiver to decide on.
    */
@@ -1682,8 +1682,8 @@ export class BtpsServer {
   }
 
   /**
-   * What middleware and handlers may know of the server's identity (fix list
-   * 12): its identity, public key and selector. Never the private key or the
+   * What middleware and handlers may know of the server's identity: its
+   * identity, public key and selector. Never the private key or the
    * Signer: the server signs with them itself.
    */
   public getServerIdentity(): BtpsServerPublicIdentity {

@@ -229,7 +229,7 @@ describe('BTP_WIRE_ERRORS', () => {
     );
   });
 
-  it('keeps a middleware or option error on the server: sent as BTP_ERROR_UNKNOWN (EBA-445)', () => {
+  it('keeps a middleware or option error on the server: sent as BTP_ERROR_UNKNOWN', () => {
     for (const hidden of [BTP_ERROR_MIDDLEWARE, BTP_ERROR_INVALID_OPTION]) {
       expect(toWireError(hidden)).toEqual({
         code: BTP_ERROR_UNKNOWN.code,

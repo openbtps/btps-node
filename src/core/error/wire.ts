@@ -56,7 +56,7 @@ export const BTP_WIRE_ERRORS: readonly BTPWireErrorRule[] = Object.freeze([
   rule(E.BTP_ERROR_RESOLVE_DNS, 401, false),
   rule(E.BTP_ERROR_RESOLVE_PUBKEY, 401, false),
   rule(E.BTP_ERROR_KEY_TOO_SMALL, 401, false),
-  // 403: trust refusal; only an expired trust is told apart (option B)
+  // 403: trust refusal; only an expired trust is told apart
   rule(E.BTP_ERROR_TRUST_NOT_ALLOWED, 403, false),
   rule(E.BTP_ERROR_TRUST_EXPIRED, 403, false),
   rule(E.BTP_ERROR_TRUST_NON_EXISTENT, 403, false, E.BTP_ERROR_TRUST_NOT_ALLOWED),

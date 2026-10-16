@@ -293,7 +293,7 @@ export class BtpsAuthentication {
     data?: BTPAuthResDoc;
     error?: BTPErrorException;
   }> {
-    // Taken atomically (EBA-445): of two refreshes racing with one token,
+    // Taken atomically: of two refreshes racing with one token,
     // exactly one gets it. A get-then-remove let both succeed.
     let taken: Awaited<ReturnType<TokenStore['consume']>>;
     try {

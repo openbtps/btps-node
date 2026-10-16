@@ -65,7 +65,7 @@ export {
 const GCM_TAG_BYTES = 16;
 
 /**
- * Refuses an RSA key shorter than BTP_MIN_RSA_KEY_BITS (fix list 12): for
+ * Refuses an RSA key shorter than BTP_MIN_RSA_KEY_BITS: for
  * `encryption`, the receiver's public key; for a `signature`, the signer's.
  * `pem` is a public or private key PEM. A key that does not parse is left to
  * the call that uses it, which refuses it in its own way.

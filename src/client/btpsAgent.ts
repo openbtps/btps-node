@@ -207,7 +207,7 @@ export class BtpsAgent extends BtpsClient {
         encryptedDocument = data;
         encryption = encryptionInfo;
       } catch (error) {
-        // A receiver key under 2048 bits says so (fix list 12).
+        // A receiver key under 2048 bits says so.
         if (error instanceof BTPErrorException && error.code === BTP_ERROR_KEY_TOO_SMALL.code) {
           return await this.buildClientErrorResponse(error);
         }

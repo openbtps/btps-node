@@ -523,7 +523,7 @@ const control = (action: 'PING' | 'QUIT', id: string) => ({
   action,
 });
 
-describe('fix list 15: PING and QUIT', () => {
+describe('PING and QUIT', () => {
   let started: Started | undefined;
 
   afterEach(() => {
@@ -580,7 +580,7 @@ describe('fix list 15: PING and QUIT', () => {
   });
 });
 
-describe('EBA-445: a host closes the connection after a "not found" lookup answer', () => {
+describe('a host closes the connection after a "not found" lookup answer', () => {
   let started: Started | undefined;
 
   afterEach(() => {
