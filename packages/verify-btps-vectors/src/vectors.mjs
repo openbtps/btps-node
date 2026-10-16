@@ -23,6 +23,7 @@ export const VECTOR_FILES = Object.freeze({
   eventModel: 'event.vectors.json',
   replay: 'replay.vectors.json',
   refresh: 'refresh.vectors.json',
+  registration: 'registration.vectors.json',
 });
 
 export class VectorLoadError extends Error {
@@ -215,6 +216,57 @@ function loadRefresh(set) {
   }
 }
 
+/** Item E: registration sequences, a concurrent pair, and forged agent artifacts. */
+function loadRegistration(set) {
+  const file = VECTOR_FILES.registration;
+  const model = set.registration;
+  requireFields(file, model, [
+    'now',
+    'tokenExpiryMs',
+    'identity',
+    'keys',
+    'tokens',
+    'sequences',
+    'concurrent',
+    'forged',
+  ]);
+  const nonEmpty = (group, list) => {
+    if (!Array.isArray(list) || list.length === 0) {
+      throw new VectorLoadError(file, `expected a non-empty "${group}" array`);
+    }
+  };
+  const knownToken = (where, name) => {
+    if (!(name in model.tokens)) throw new VectorLoadError(file, `${where}: unknown token "${name}"`);
+  };
+  nonEmpty('sequences', model.sequences);
+  for (const sequence of model.sequences) {
+    requireFields(file, sequence, ['name', 'tokenStore', 'issue', 'steps']);
+    nonEmpty(`${sequence.name}.steps`, sequence.steps);
+    for (const name of sequence.issue) knownToken(sequence.name, name);
+    for (const step of sequence.steps) {
+      requireFields(file, step, ['request', 'expect']);
+      if (step.expect === 'refuse') requireFields(file, step, ['reason', 'error']);
+      else if (step.expect !== 'accept') {
+        throw new VectorLoadError(file, `${sequence.name}: unknown expect "${step.expect}"`);
+      }
+    }
+  }
+  requireFields(file, model.concurrent, ['name', 'issue', 'requests', 'expect']);
+  for (const name of model.concurrent.issue) knownToken(model.concurrent.name, name);
+  requireFields(file, model.forged, ['enrolled', 'correspondentTrust', 'cases']);
+  nonEmpty('forged.cases', model.forged.cases);
+  for (const key of [model.forged.enrolled.key, model.forged.correspondentTrust.key]) {
+    if (!(key in model.keys)) throw new VectorLoadError(file, `forged: unknown key "${key}"`);
+  }
+  for (const c of model.forged.cases) {
+    requireFields(file, c, ['name', 'action', 'artifact', 'expect']);
+    if (c.expect === 'refuse') requireFields(file, c, ['reason']);
+    else if (c.expect !== 'accept') {
+      throw new VectorLoadError(file, `${c.name}: unknown expect "${c.expect}"`);
+    }
+  }
+}
+
 /**
  * @param {string} dir the test/vectors directory
  * @returns {Record<keyof typeof VECTOR_FILES, any>}
@@ -310,6 +362,7 @@ export function loadVectorSet(dir) {
   loadEventModel(dir, set);
   loadReplay(set);
   loadRefresh(set);
+  loadRegistration(set);
 
   // The only shared key is the encryption key, referenced by name. Resolve it
   // once so checks never read files themselves.
