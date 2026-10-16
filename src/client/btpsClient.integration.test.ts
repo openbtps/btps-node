@@ -16,6 +16,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { execFileSync } from 'child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'fs';
 import tls, { type TLSSocket } from 'tls';
+import net from 'net';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
@@ -24,12 +25,21 @@ import { BtpsClient } from './btpsClient.js';
 import {
   BTP_ERROR_CLIENT_DESTROYED,
   BTP_ERROR_CONNECTION_CLOSED,
+  BTP_ERROR_CONNECTION_ENDED,
+  BTP_ERROR_INVALID_OPTION,
   BTP_ERROR_LINE_TOO_LONG,
   BTP_ERROR_RATE_LIMITER,
   BTP_ERROR_SOCKET_TIMEOUT,
   BTPErrorException,
 } from '../core/error/index.js';
-import type { BTPClientResponse } from './types/index.js';
+import {
+  BTP_CONNECT_TIMEOUT_DEFAULT_MS,
+  BTP_CONNECT_TIMEOUT_MIN_MS,
+  BTP_MAX_TIMER_MS,
+  BTP_REPLY_TIMEOUT_DEFAULT_MS,
+  BTP_REPLY_TIMEOUT_MIN_MS,
+} from '../core/server/constants/index.js';
+import type { BTPClientOptions, BTPClientResponse } from './types/index.js';
 
 const MAX_LINE = 4096;
 vi.mock('../core/server/constants/index.js', async (importOriginal) => ({
@@ -118,17 +128,17 @@ const ping = () => ({
   action: 'PING' as const,
 });
 
-let servers: tls.Server[] = [];
+let servers: net.Server[] = [];
 let clients: BtpsClient[] = [];
 
-const newClient = (port: number, connectionTimeoutMs = 5000) => {
+const newClient = (port: number, options: Partial<BTPClientOptions> = {}) => {
   const client = new BtpsClient({
     to: 'billing$acme.example',
     host: '127.0.0.1',
     port,
     btpMtsOptions: { ca: tlsCert },
-    connectionTimeoutMs,
     maxRetries: 0,
+    ...options,
   });
   clients.push(client);
   return client;
@@ -204,22 +214,19 @@ describe('fix list 14: an error answer with no reqId', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const { response, error } = await client.send(ping());
     expect(response).toBeUndefined();
-    expect(error?.code).toBe(BTP_ERROR_CONNECTION_CLOSED.code);
+    // Ended since the end handler was corrected (PR #26); it used to
+    // reconnect, and the close answered instead.
+    expect([BTP_ERROR_CONNECTION_ENDED.code, BTP_ERROR_CONNECTION_CLOSED.code]).toContain(
+      error?.code,
+    );
     expect(messages).toHaveLength(1);
   });
 });
 
 describe('fix list 12: the client', () => {
   // Read 2026-10-13: the connection timeout cleared the queue without
-  // resolving, so a send whose own timer was longer waited forever.
-  it('send() cannot hang when the connection times out before the send timer', async () => {
-    const port = await start(() => {}); // reads, never answers
-    const client = newClient(port, 300);
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    const result = await within(client.send(ping(), 30_000), 3000);
-    expect(result).not.toBe('hung');
-    expect((result as BTPClientResponse).error?.code).toBe(BTP_ERROR_SOCKET_TIMEOUT.code);
-  });
+  // resolving, so a send whose own timer was longer waited forever. Since
+  // EBA-443 that timeout is the connect timeout; see the test below.
 
   it('destroy() answers a pending send instead of dropping it', async () => {
     const port = await start(() => {});
@@ -268,5 +275,201 @@ describe('fix list 12: the client', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const result = await within(client.send(ping(), 30_000), 3000);
     expect((result as BTPClientResponse).error?.code).toBe(BTP_ERROR_LINE_TOO_LONG.code);
+  });
+});
+
+/** A port with nothing listening on it. */
+const closedPort = async () => {
+  const server = net.createServer();
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const { port } = server.address() as { port: number };
+  await new Promise((r) => server.close(r));
+  return port;
+};
+
+const answerTo = (line: Record<string, unknown>) =>
+  answer({ status: { ok: true, code: 200, message: 'ok' }, type: 'btps_response', reqId: line.id });
+
+describe('EBA-443: timeout minimums (fix list 13)', () => {
+  const refused = expect.objectContaining({ code: BTP_ERROR_INVALID_OPTION.code });
+
+  it('defaults to a 5 s connect and a 20 s reply wait', () => {
+    expect(BTP_CONNECT_TIMEOUT_DEFAULT_MS).toBe(5_000);
+    expect(BTP_REPLY_TIMEOUT_DEFAULT_MS).toBe(20_000);
+    expect(newClient(1).getTimeouts()).toEqual({
+      connectTimeoutMs: 5_000,
+      replyTimeoutMs: 20_000,
+    });
+  });
+
+  it('refuses a connect timeout below 5 s, and accepts 5 s and above', () => {
+    expect(BTP_CONNECT_TIMEOUT_MIN_MS).toBe(5_000);
+    for (const connectTimeoutMs of [4_999, 1_000, 0, -1, Number.NaN, BTP_MAX_TIMER_MS + 1]) {
+      expect(() => newClient(1, { connectTimeoutMs })).toThrow(refused);
+    }
+    expect(newClient(1, { connectTimeoutMs: 5_000 }).getTimeouts().connectTimeoutMs).toBe(5_000);
+    expect(newClient(1, { connectTimeoutMs: 60_000 }).getTimeouts().connectTimeoutMs).toBe(60_000);
+  });
+
+  it('refuses a reply wait below 10 s, and accepts 10 s and above', () => {
+    expect(BTP_REPLY_TIMEOUT_MIN_MS).toBe(10_000);
+    for (const replyTimeoutMs of [9_999, 5_000, 0, -1, Number.NaN, BTP_MAX_TIMER_MS + 1]) {
+      expect(() => newClient(1, { replyTimeoutMs })).toThrow(refused);
+    }
+    expect(newClient(1, { replyTimeoutMs: 10_000 }).getTimeouts().replyTimeoutMs).toBe(10_000);
+    expect(newClient(1, { replyTimeoutMs: 90_000 }).getTimeouts().replyTimeoutMs).toBe(90_000);
+  });
+
+  it('refuses the removed connectionTimeoutMs rather than ignoring it', () => {
+    expect(() => newClient(1, { connectionTimeoutMs: 30_000 } as never)).toThrow(refused);
+  });
+
+  it('update() refuses a value below a minimum and changes nothing', () => {
+    const client = newClient(1, { connectTimeoutMs: 6_000 });
+    expect(() => client.update({ connectTimeoutMs: 7_000, replyTimeoutMs: 9_000 })).toThrow(
+      refused,
+    );
+    expect(client.getTimeouts()).toEqual({ connectTimeoutMs: 6_000, replyTimeoutMs: 20_000 });
+    client.update({ replyTimeoutMs: 15_000 });
+    expect(client.getTimeouts()).toEqual({ connectTimeoutMs: 6_000, replyTimeoutMs: 15_000 });
+  });
+
+  it('send() refuses a reply wait below 10 s, before connecting', async () => {
+    let connections = 0;
+    const port = await start(() => {});
+    servers[servers.length - 1]!.on('secureConnection', () => connections++);
+    const { error } = await newClient(port).send(ping(), 9_999);
+    expect(error).toEqual(refused);
+    expect(connections).toBe(0);
+  });
+
+  // The rule's point: a receiver may hold a message for a slow moment and
+  // still answer, without "try again".
+  it('a server holding its reply for 9 s is answered to a sender on the defaults', async () => {
+    const port = await start((socket, lines) => {
+      const line = lines[lines.length - 1]!;
+      setTimeout(() => socket.write(answerTo(line)), 9_000);
+    });
+    const client = newClient(port);
+    const replyTimer = vi.spyOn(client as unknown as { replyTimer: () => void }, 'replyTimer');
+    const startedAt = Date.now();
+    const { response, error } = await client.send(ping());
+    expect(error).toBeUndefined();
+    expect(response?.status).toMatchObject({ ok: true, code: 200 });
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(9_000);
+    // The wait once written is the 20 s default.
+    expect(replyTimer).toHaveBeenLastCalledWith(expect.any(String), expect.any(Function), 20_000);
+  }, 20_000);
+
+  // A host that takes the TCP connection and never completes TLS: the same
+  // wait as an unreachable one, and deterministic on any network.
+  it('the connect timeout fires on a host that never completes the connection', async () => {
+    // Reads and drops the ClientHello: unread, the socket would never see
+    // the client close, and the server would never finish closing.
+    const stalled = net.createServer((socket) => socket.on('error', () => {}).resume());
+    await new Promise<void>((r) => stalled.listen(0, '127.0.0.1', r));
+    servers.push(stalled);
+    const { port } = stalled.address() as { port: number };
+    const client = newClient(port);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const startedAt = Date.now();
+    const result = await within(client.send(ping(), 60_000), 10_000);
+    const elapsed = Date.now() - startedAt;
+    expect(result).not.toBe('hung');
+    expect((result as BTPClientResponse).error?.code).toBe(BTP_ERROR_SOCKET_TIMEOUT.code);
+    expect(elapsed).toBeGreaterThanOrEqual(4_900);
+    expect(elapsed).toBeLessThan(7_000);
+  }, 15_000);
+});
+
+describe('PR #26: the client end and getSocket defects', () => {
+  /** A TLS server that counts connections and runs `onLine` for each line read. */
+  const countingServer = async (onLine: (socket: TLSSocket, connection: number) => void) => {
+    const counter = { connections: 0 };
+    const port = await start(() => {});
+    const server = servers[servers.length - 1] as tls.Server;
+    server.removeAllListeners('secureConnection');
+    server.on('secureConnection', (socket) => {
+      const connection = ++counter.connections;
+      socket.on('error', () => {});
+      let buffered = '';
+      socket.on('data', (chunk) => {
+        buffered += chunk.toString();
+        if (buffered.includes('\n')) onLine(socket, connection);
+      });
+    });
+    return { port, counter };
+  };
+
+  // The end handler called retryConnect exactly when it would not retry.
+  it('does not reconnect when the server ends the connection after answering', async () => {
+    const { port, counter } = await countingServer((socket) => {
+      socket.write(
+        answer({ status: { ok: true, code: 200, message: 'ok' }, type: 'btps_response' }),
+      );
+      socket.end();
+    });
+    const client = newClient(port, { maxRetries: 3, retryDelayMs: 50 });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await within(client.send(ping()), 3_000);
+    await new Promise((r) => setTimeout(r, 500));
+    expect(counter.connections).toBe(1);
+  });
+
+  it('reconnects when the server ends the connection before any answer, while retries remain', async () => {
+    const { port, counter } = await countingServer((socket, connection) => {
+      if (connection === 1) socket.end();
+    });
+    const client = newClient(port, { maxRetries: 1, retryDelayMs: 50 });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const result = await within(client.send(ping()), 3_000);
+    expect(result).not.toBe('hung');
+    expect([BTP_ERROR_CONNECTION_ENDED.code, BTP_ERROR_CONNECTION_CLOSED.code]).toContain(
+      (result as BTPClientResponse).error?.code,
+    );
+    await new Promise((r) => setTimeout(r, 500));
+    expect(counter.connections).toBe(2);
+  });
+
+  // getSocket() settled only on connecting: a refused connection left it
+  // pending for good.
+  it('getSocket() settles with the error when the connection is refused', async () => {
+    const client = newClient(await closedPort());
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const getSocket = (client as unknown as { getSocket: () => Promise<unknown> }).getSocket.bind(
+      client,
+    );
+    const result = await Promise.race([
+      getSocket(),
+      new Promise<'hung'>((r) => setTimeout(() => r('hung'), 3_000)),
+    ]);
+    expect(result).not.toBe('hung');
+    expect(result).toMatchObject({ socket: undefined, error: expect.any(BTPErrorException) });
+  });
+
+  it('getSocket() settles when the server closes before the connection is made', async () => {
+    const closing = net.createServer((socket) => socket.destroy());
+    await new Promise<void>((r) => closing.listen(0, '127.0.0.1', r));
+    servers.push(closing);
+    const { port } = closing.address() as { port: number };
+    const client = newClient(port);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const getSocket = (client as unknown as { getSocket: () => Promise<unknown> }).getSocket.bind(
+      client,
+    );
+    const result = await Promise.race([
+      getSocket(),
+      new Promise<'hung'>((r) => setTimeout(() => r('hung'), 3_000)),
+    ]);
+    expect(result).not.toBe('hung');
+    expect(result).toMatchObject({ socket: undefined, error: expect.any(BTPErrorException) });
+  });
+
+  it('a send to a refused port is answered with the connection error', async () => {
+    const client = newClient(await closedPort());
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const result = await within(client.send(ping()), 3_000);
+    expect(result).not.toBe('hung');
+    expect((result as BTPClientResponse).error).toBeInstanceOf(BTPErrorException);
   });
 });

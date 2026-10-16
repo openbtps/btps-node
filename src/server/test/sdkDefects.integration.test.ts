@@ -156,7 +156,6 @@ const startServer = async (
     tokenStore,
     tlsOptions: { cert: tlsCert, key: tlsKey },
     port,
-    connectionTimeoutMs: 5000,
     // No middleware path: no file is loaded, only the defaults.
     ...options,
   });
@@ -175,7 +174,6 @@ const connection = (port: number) => ({
   host: '127.0.0.1',
   port,
   btpMtsOptions: { ca: tlsCert },
-  connectionTimeoutMs: 5000,
   maxRetries: 0,
 });
 

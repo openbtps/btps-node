@@ -222,7 +222,6 @@ const startBtpsServer = async (
     identityStore,
     tlsOptions: { cert: tlsCert, key: tlsKey },
     port,
-    connectionTimeoutMs: 3000,
     // No middleware path: no file is loaded, only the defaults.
   });
   vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -391,7 +390,6 @@ describe('BtpsClient.resolveIdentity against a stand-in host', () => {
       port,
       hostSelector: DOMAIN_SELECTOR,
       btpMtsOptions: { ca: tlsCert },
-      connectionTimeoutMs: 3000,
     });
 
   afterEach(async () => {
@@ -608,7 +606,6 @@ describe('identity lookup end to end: BtpsClient and BtpsServer over TLS', () =>
     new BtpsClient({
       to: USER_IDENTITY,
       btpMtsOptions: { ca: tlsCert },
-      connectionTimeoutMs: 5000,
     });
 
   it('an address with no DNS record is found through its host, and the signed answer verifies', async () => {

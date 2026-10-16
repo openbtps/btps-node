@@ -553,7 +553,8 @@ published at `<selector>._btps.identity.admin.saas.com`.
 ```typescript
 import { BtpsClient } from '@btps/sdk/client';
 
-const client = new BtpsClient({ to: 'alice$saas.com', connectionTimeoutMs: 5000 });
+// The host has connectTimeoutMs + replyTimeoutMs (default 25 s) to answer.
+const client = new BtpsClient({ to: 'alice$saas.com' });
 
 const { response, error } = await client.resolveIdentity('alice$saas.com', 'test$example.com');
 if (error) {

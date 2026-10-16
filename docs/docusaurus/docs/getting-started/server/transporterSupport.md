@@ -59,7 +59,7 @@ function createTransporter(userId: string) {
     connectionTTLSeconds: 300,
     maxRetries: 3,
     retryDelayMs: 1000,
-    connectionTimeoutMs: 30000,
+    replyTimeoutMs: 30000, // default 20000, minimum 10000
     host: 'localhost',
     port: 3443,
     btpMtsOptions: {
@@ -460,7 +460,7 @@ const agent = new BtpsAgent({
   port: 3443,
   maxRetries: 3,
   retryDelayMs: 1000,
-  connectionTimeoutMs: 5000,
+  connectTimeoutMs: 5000, // default and minimum
   btpMtsOptions: { rejectUnauthorized: false },
 });
 

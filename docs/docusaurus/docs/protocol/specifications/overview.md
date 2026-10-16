@@ -295,6 +295,35 @@ These are used for notifying the agent or client related to delivery failure. No
 - Must handle trust establishment before sending invoices
 - Must implement retry logic for failed deliveries
 
+### Timeouts (BTPS 1.1)
+
+Every receiver gets a known amount of time to reply, so one that is briefly
+slow can hold a message and answer it normally instead of answering "try
+again".
+
+|  | Minimum | Default (SDK) |
+| --- | --- | --- |
+| Connecting to a receiver (TCP and TLS) | 5 seconds | 5 seconds |
+| Waiting for the reply once the artifact is written | 10 seconds | 20 seconds |
+
+- **A receiver** replies within 10 seconds of reading an artifact, or answers
+  with an error the sender may retry (status 429 or 5xx, see
+  [Wire Errors](./wire-errors.md)): "try again".
+- **A sender** waits at least 10 seconds for that reply, and at least 5 seconds
+  to connect. Either wait may be longer; the protocol sets no upper bound.
+  Nobody is required to wait longer than the minimum.
+- **A receiver's idle timeout** on a connection is longer than a sender's
+  default connect and reply waits together, so it never closes on a sender
+  that is still waiting. The SDK server's is at least 30 seconds.
+- **Between versions:** a 1.0 sender may give up after 5 seconds, so a
+  receiver can count on the 10-second wait only from 1.1 senders.
+
+In the SDK, the client's `connectTimeoutMs` and `replyTimeoutMs` and the
+server's `connectionTimeoutMs` can only be raised: a value below the minimum is
+refused at construction with `BTP_ERROR_INVALID_OPTION`, never raised to it.
+The constants are `BTP_CONNECT_TIMEOUT_MIN_MS`, `BTP_REPLY_TIMEOUT_MIN_MS`,
+`BTP_REPLY_TIMEOUT_DEFAULT_MS` and `BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS`.
+
 ### Error Handling
 
 - Invalid signatures: Reject with 401 Unauthorized

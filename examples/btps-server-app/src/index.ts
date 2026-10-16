@@ -53,7 +53,6 @@ const BTPsServer = BtpsServerSingletonFactory.create({
     ...certBundle,
     requestCert: false,
   },
-  connectionTimeoutMs: 5000,
   // Registration tokens issued with Auth.storeAuthToken (item E).
   tokenStore: memoryTokenStore,
   serverIdentity: {

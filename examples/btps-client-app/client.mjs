@@ -5,7 +5,6 @@ const btpsClient = new BtpsClient({
   identity: 'finance$ebilladdress.com',
   bptIdentityCert: readFileSync('./keys/finance/finance-public.pem'),
   btpIdentityKey: readFileSync('./keys/finance/finance-private.pem'),
-  connectionTimeoutMs: 1000,
   maxRetries: 5,
   retryDelayMs: 500,
   btpMtsOptions: {

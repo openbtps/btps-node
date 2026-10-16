@@ -19,6 +19,29 @@ export const BTPS_DNS_IDENTITY_NAME_SPACE = '_btps.identity';
  */
 export const BTP_MIN_RSA_KEY_BITS = 2048;
 
+/**
+ * How long a sender waits (fix list 13, EBA-443). Either may be set higher,
+ * with no upper bound from the protocol; neither lower. A receiver answers
+ * within BTP_REPLY_TIMEOUT_MIN_MS, or answers "try again".
+ * - connecting to a receiver (TCP and TLS): minimum and default 5 s;
+ * - waiting for the reply once the artifact is written: minimum 10 s,
+ *   default 20 s.
+ */
+export const BTP_CONNECT_TIMEOUT_MIN_MS = 5_000;
+export const BTP_CONNECT_TIMEOUT_DEFAULT_MS = 5_000;
+export const BTP_REPLY_TIMEOUT_MIN_MS = 10_000;
+export const BTP_REPLY_TIMEOUT_DEFAULT_MS = 20_000;
+
+/**
+ * The shortest idle timeout a server may close a connection on, and its
+ * default (EBA-443): above the default reply wait plus the connecting wait,
+ * so a receiver never closes on a sender that is still waiting by default.
+ */
+export const BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS = 30_000;
+
+/** Node's longest timer, in ms: a longer one fires after 1 ms. An SDK limit, not the protocol's. */
+export const BTP_MAX_TIMER_MS = 2_147_483_647;
+
 const ENCODED_ATTACHMENTS_MAX_LENGTH =
   BTP_DOC_LIMITS.ATTACHMENTS_MAX * BTP_DOC_LIMITS.ATTACHMENT_CONTENT_MAX_LENGTH;
 /** The rest of a document beside its attachments' files, and the transporter envelope. */

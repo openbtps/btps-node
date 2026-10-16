@@ -33,7 +33,13 @@ import {
   BTP_ERROR_TRUST_REQUEST_NOT_STORED,
   toWireError,
 } from '../../core/error/index.js';
-import { BTP_MAX_LINE_LENGTH } from '../../core/server/constants/index.js';
+import {
+  BTP_CONNECT_TIMEOUT_DEFAULT_MS,
+  BTP_MAX_LINE_LENGTH,
+  BTP_MAX_TIMER_MS,
+  BTP_REPLY_TIMEOUT_DEFAULT_MS,
+  BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS,
+} from '../../core/server/constants/index.js';
 import type { BTPTrustRecord } from '../../core/trust/types.js';
 import type { PemKeys } from '../../core/crypto/types.js';
 import type { BTPServerResponse, BTPTransporterArtifact } from '../../core/server/types.js';
@@ -446,6 +452,31 @@ describe('EBA-445', () => {
     it('accepts the default itself and any lower value', () => {
       expect(() => newServer(store, { maxLineLength: BTP_MAX_LINE_LENGTH })).not.toThrow();
       expect(() => newServer(store, { maxLineLength: 1024 })).not.toThrow();
+    });
+  });
+
+  // EBA-443 (fix list 13): never closed on a sender still waiting by default.
+  describe('connectionTimeoutMs may only be raised', () => {
+    const timeoutOf = (server: BtpsServer) =>
+      (server as unknown as { connectionTimeoutMs: number }).connectionTimeoutMs;
+
+    it('defaults to its minimum, 30 s, above a sender default connect and reply waits', () => {
+      expect(BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS).toBe(30_000);
+      expect(BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS).toBeGreaterThan(
+        BTP_CONNECT_TIMEOUT_DEFAULT_MS + BTP_REPLY_TIMEOUT_DEFAULT_MS,
+      );
+      expect(timeoutOf(newServer(store))).toBe(30_000);
+    });
+
+    it.each([29_999, 5_000, 0, -1, Number.NaN, BTP_MAX_TIMER_MS + 1])('refuses %s', (value) => {
+      expect(() => newServer(store, { connectionTimeoutMs: value })).toThrow(
+        expect.objectContaining({ code: BTP_ERROR_INVALID_OPTION.code }),
+      );
+    });
+
+    it('accepts the minimum and any higher value', () => {
+      expect(timeoutOf(newServer(store, { connectionTimeoutMs: 30_000 }))).toBe(30_000);
+      expect(timeoutOf(newServer(store, { connectionTimeoutMs: 120_000 }))).toBe(120_000);
     });
   });
 

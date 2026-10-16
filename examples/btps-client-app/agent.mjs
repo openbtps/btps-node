@@ -13,7 +13,7 @@ const btpsAgent = new BtpsAgent({
     identityCert: publicKey.toString('utf8'),
   },
   btpIdentity: 'finance$ebilladdress.com',
-  connectionTimeoutMs: 30000,
+  replyTimeoutMs: 30000,
   maxRetries: 5,
   retryDelayMs: 500,
   btpMtsOptions: {

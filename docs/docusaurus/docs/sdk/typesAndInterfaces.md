@@ -50,7 +50,7 @@ interface BtpsServerOptions {
 - `port`: Optional port number (default: 3443)
 - `onError`: Optional error handler function
 - `tlsOptions`: Required TLS cert and key options. Use self signed cert for local development. Make sure to set rejectUnauthorized false when connecting using BtpsClient for local development
-- `connectionTimeoutMs`: Optional connection timeout in milliseconds (default: 30000)
+- `connectionTimeoutMs`: Optional idle timeout of a connection, in milliseconds. Default and minimum: `BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS` = 30000, above a sender's default connect and reply waits together ([timeouts](../protocol/specifications/overview.md#timeouts-btps-11)). It may be raised, never lowered: a lower value makes the constructor throw `BTP_ERROR_INVALID_OPTION`
 - `middlewarePath`: Optional path to middleware file
 
 ---
@@ -66,7 +66,8 @@ interface BTPClientOptions {
   to: string;
   maxRetries?: number;
   retryDelayMs?: number;
-  connectionTimeoutMs?: number;
+  connectTimeoutMs?: number;
+  replyTimeoutMs?: number;
   btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
   host?: string;
   hostSelector?: string;
@@ -81,7 +82,13 @@ interface BTPClientOptions {
 - `to`: Required recipient identity (e.g., 'billing$yourdomain.com')
 - `maxRetries`: Optional maximum retry attempts (default: 3)
 - `retryDelayMs`: Optional delay between retries in milliseconds (default: 1000)
-- `connectionTimeoutMs`: Optional connection timeout in milliseconds (default: 5000)
+- `connectTimeoutMs`: Optional limit on connecting (TCP and TLS), in milliseconds. Default and minimum: 5000 (`BTP_CONNECT_TIMEOUT_MIN_MS`)
+- `replyTimeoutMs`: Optional wait for the reply once the artifact is written, in milliseconds: the default for `send()`. Default 20000 (`BTP_REPLY_TIMEOUT_DEFAULT_MS`), minimum 10000 (`BTP_REPLY_TIMEOUT_MIN_MS`)
+
+Both may be raised, never lowered ([timeouts](../protocol/specifications/overview.md#timeouts-btps-11)): a value below its minimum (or above 2147483647, Node's longest timer) makes the constructor and `update()` throw `BTP_ERROR_INVALID_OPTION`; it is refused, not raised to the minimum.
+
+**`connectionTimeoutMs` was removed in BTPS 1.1.** It set both waits at once. Passing it makes the constructor throw `BTP_ERROR_INVALID_OPTION`; use `connectTimeoutMs` and `replyTimeoutMs`.
+
 - `btpMtsOptions`: Optional TLS connection options (excluding port and host)
 - `host`: Optional custom host override
 - `hostSelector`: Optional DNS selector for key management (default: 'btps1')
@@ -294,7 +301,8 @@ Options for updating BTPS client connections.
 interface UpdateBTPClientOptions {
   maxRetries?: number;
   retryDelayMs?: number;
-  connectionTimeoutMs?: number;
+  connectTimeoutMs?: number;
+  replyTimeoutMs?: number;
   maxQueue?: number;
 }
 ```
@@ -303,7 +311,8 @@ interface UpdateBTPClientOptions {
 
 - `maxRetries`: Optional maximum retry attempts
 - `retryDelayMs`: Optional delay between retries in milliseconds
-- `connectionTimeoutMs`: Optional connection timeout in milliseconds
+- `connectTimeoutMs`: Optional connect limit in milliseconds, at least 5000
+- `replyTimeoutMs`: Optional reply wait in milliseconds, at least 10000. A value below a minimum throws `BTP_ERROR_INVALID_OPTION` and changes nothing
 - `maxQueue`: Optional maximum queue size for request handling
 
 ### BTPTransporterMetrics
@@ -742,7 +751,8 @@ interface BtpsClientOptions {
   bptIdentityCert: string;
   maxRetries?: number;
   retryDelayMs?: number;
-  connectionTimeoutMs?: number;
+  connectTimeoutMs?: number;
+  replyTimeoutMs?: number;
   btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
   host?: string;
   port?: number;
@@ -756,7 +766,7 @@ interface BtpsClientOptions {
 - `bptIdentityCert`: PEM-encoded public key certificate
 - `maxRetries`: Maximum retry attempts (default: 5)
 - `retryDelayMs`: Delay between retries in milliseconds (default: 1000)
-- `connectionTimeoutMs`: Connection timeout in milliseconds
+- `connectTimeoutMs`, `replyTimeoutMs`: Connect limit and reply wait in milliseconds, as in [BTPClientOptions](#btpclientoptions)
 - `btpMtsOptions`: Additional TLS connection options
 - `host`: Optional host override
 - `port`: Optional port override
@@ -1011,7 +1021,8 @@ Options for agent authentication.
 interface AuthAgentOptions {
   host?: string;
   port?: number;
-  connectionTimeoutMs?: number;
+  connectTimeoutMs?: number;
+  replyTimeoutMs?: number;
 }
 ```
 

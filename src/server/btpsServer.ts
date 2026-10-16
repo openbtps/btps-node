@@ -80,7 +80,9 @@ import type {
 import { BTPErrorException, toWireError, transformToBTPErrorException } from '@core/error/index.js';
 import {
   BTP_MAX_LINE_LENGTH,
+  BTP_MAX_TIMER_MS,
   BTP_PROTOCOL_VERSION,
+  BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS,
   IMMEDIATE_ACTIONS,
 } from '../core/server/constants/index.js';
 import type {
@@ -178,7 +180,20 @@ export class BtpsServer {
         tokenConfig: options.tokenConfig,
       });
     }
-    this.connectionTimeoutMs = options.connectionTimeoutMs ?? 30000;
+    // Upward only (EBA-443): never closed on a sender still waiting by default.
+    const { connectionTimeoutMs = BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS } = options;
+    if (
+      typeof connectionTimeoutMs !== 'number' ||
+      !Number.isFinite(connectionTimeoutMs) ||
+      connectionTimeoutMs < BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS ||
+      connectionTimeoutMs > BTP_MAX_TIMER_MS
+    ) {
+      throw new BTPErrorException(BTP_ERROR_INVALID_OPTION, {
+        cause: `connectionTimeoutMs must be a number of ms from BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS (${BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS}) to ${BTP_MAX_TIMER_MS}`,
+        meta: { connectionTimeoutMs },
+      });
+    }
+    this.connectionTimeoutMs = connectionTimeoutMs;
     // Lower only (fix list 10): a longer line than the protocol's is never read.
     const { maxLineLength = BTP_MAX_LINE_LENGTH } = options;
     if (

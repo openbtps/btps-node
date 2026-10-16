@@ -191,7 +191,7 @@ type Started = { server: BtpsServer; port: number; trustStore: MapTrustStore };
  * application's own middleware would.
  */
 const startServer = async (
-  options: { answer?: BTPError; connectionTimeoutMs?: number } = {},
+  options: { answer?: BTPError; idleTimeoutMs?: number } = {},
 ): Promise<Started> => {
   const port = await freePort();
   const trustStore = new MapTrustStore();
@@ -200,8 +200,13 @@ const startServer = async (
     trustStore,
     tlsOptions: { cert: tlsCert, key: tlsKey },
     port,
-    connectionTimeoutMs: options.connectionTimeoutMs ?? 5000,
   });
+  // Below the 30 s minimum (EBA-443), set past the check so the idle
+  // timeout can be seen without waiting for it.
+  if (options.idleTimeoutMs !== undefined) {
+    (server as unknown as { connectionTimeoutMs: number }).connectionTimeoutMs =
+      options.idleTimeoutMs;
+  }
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
   await server.start();
@@ -225,7 +230,6 @@ const clientFor = (port: number, maxRetries = 0) =>
     host: '127.0.0.1',
     port,
     btpMtsOptions: { ca: tlsCert },
-    connectionTimeoutMs: 5000,
     maxRetries,
   });
 
@@ -383,7 +387,7 @@ describe('EBA-188: a refusal carries its status class and stable code', () => {
   });
 
   it('503: an idle connection timed out by the server is BTP_ERROR_SOCKET_TIMEOUT', async () => {
-    started = await startServer({ connectionTimeoutMs: 300 });
+    started = await startServer({ idleTimeoutMs: 300 });
     const answer = JSON.parse(await rawAnswer(started.port));
     expect(answer.status).toMatchObject({ ok: false, code: 503 });
     expect(answer.code).toBe(BTP_ERROR_SOCKET_TIMEOUT.code);

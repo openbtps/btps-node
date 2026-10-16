@@ -90,7 +90,6 @@ describe('BtpsClient', () => {
       to: 'test$example.com',
       maxRetries: 2,
       retryDelayMs: 10,
-      connectionTimeoutMs: 100,
       maxQueue: 10,
       btpMtsOptions: {
         rejectUnauthorized: false,

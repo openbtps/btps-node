@@ -196,7 +196,7 @@ const client = new BtpsClient({
   to: 'admin$yourdomain.com', // Target server identity
   maxRetries: 3,
   retryDelayMs: 1000,
-  connectionTimeoutMs: 5000,
+  connectTimeoutMs: 5000, // default and minimum
   host: 'localhost', // For development - overrides DNS lookup
   port: 3443,
   btpMtsOptions: {

@@ -86,7 +86,6 @@ describe('BtpsAgent', () => {
       btpIdentity: 'test$example.com',
       maxRetries: 2,
       retryDelayMs: 10,
-      connectionTimeoutMs: 100,
       btpMtsOptions: {
         rejectUnauthorized: false,
       },

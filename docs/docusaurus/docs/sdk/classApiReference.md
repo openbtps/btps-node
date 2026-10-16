@@ -189,7 +189,7 @@ import { BtpsClient } from '@btps/sdk';
 new BtpsClient(options: BTPClientOptions)
 ```
 
-- **options**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) – Client configuration (to, maxRetries, retryDelayMs, connectionTimeoutMs, etc.)
+- **options**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) – Client configuration (to, maxRetries, retryDelayMs, connectTimeoutMs, replyTimeoutMs, etc.). A timeout below its minimum (connect 5 s, reply 10 s) throws `BTP_ERROR_INVALID_OPTION`, as does the removed `connectionTimeoutMs`
 
 **Example:**
 
@@ -199,7 +199,8 @@ const client = new BtpsClient({
   to: 'billing$yourdomain.com',
   maxRetries: 5,
   retryDelayMs: 1000,
-  connectionTimeoutMs: 30000,
+  connectTimeoutMs: 5000, // default and minimum
+  replyTimeoutMs: 30000, // default 20000, minimum 10000
   maxQueue: 100,
 });
 ```
@@ -235,7 +236,7 @@ await client.send(artifact, timeoutMs?);
 Sends a pre-signed BTPS artifact to the server. **Note**: The artifact must be pre-signed using `signAndEncrypt` from the crypto module before sending.
 
 - **artifact**: [BTPArtifact](./typesAndInterfaces.md#btpartifact) – Pre-signed artifact to send
-- **timeoutMs**: `number` (optional, default: 5000) – Timeout in milliseconds
+- **timeoutMs**: `number` (optional, default: the client's `replyTimeoutMs`, 20000) – How long to wait for the reply once the artifact is written, in milliseconds. Below 10000 the send is answered `BTP_ERROR_INVALID_OPTION` and nothing is sent. Connecting has its own limit, `connectTimeoutMs`, and is not counted in it
 - **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
 
 **Example:**
@@ -359,7 +360,7 @@ const agent = new BtpsAgent({
   btpIdentity: 'billing$yourdomain.com',
   maxRetries: 5,
   retryDelayMs: 1000,
-  connectionTimeoutMs: 30000,
+  replyTimeoutMs: 30000,
 });
 ```
 
@@ -375,7 +376,7 @@ Executes an agent command with optional document payload.
 - **identity**: `string` – Target BTPS identity
 - **document**: [BtpsAgentDoc](./typesAndInterfaces.md#btpsagentdoc) (optional) – Document payload
 - **options**: [BTPCryptoOptions](./typesAndInterfaces.md#btpcryptooptions) (optional) – Cryptographic options
-- **timeoutMs**: `number` (optional) – Timeout in milliseconds
+- **timeoutMs**: `number` (optional) – Reply wait in milliseconds, as for `send()`: default `replyTimeoutMs`, minimum 10000
 - **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
 
 **Example:**
@@ -440,7 +441,7 @@ const transporter = new BtpsTransporter({
   connectionTTLSeconds: 300,
   maxRetries: 3,
   retryDelayMs: 1000,
-  connectionTimeoutMs: 30000,
+  replyTimeoutMs: 30000,
   maxQueue: 100,
 });
 ```

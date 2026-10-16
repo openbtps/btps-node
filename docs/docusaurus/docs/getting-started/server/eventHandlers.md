@@ -396,7 +396,7 @@ const agent = new BtpsAgent({
   port: 3443,
   maxRetries: 3,
   retryDelayMs: 1000,
-  connectionTimeoutMs: 5000,
+  connectTimeoutMs: 5000, // default and minimum
   btpMtsOptions: { rejectUnauthorized: false },
 });
 

@@ -19,7 +19,6 @@ async function testLightweightFactory() {
       options: {
         requestCert: false,
       },
-      connectionTimeoutMs: 5000,
     });
 
     console.log('✅ Successfully created server instance');

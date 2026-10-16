@@ -94,7 +94,7 @@ describe('BtpsTransporter', () => {
       connectionTTLSeconds: 60,
       maxRetries: 2,
       retryDelayMs: 10,
-      connectionTimeoutMs: 100,
+      connectTimeoutMs: 5000,
       maxQueue: 10,
       btpMtsOptions: {
         rejectUnauthorized: false,
@@ -151,7 +151,7 @@ describe('BtpsTransporter', () => {
       expect(transporter.getClientOptions()).toEqual({
         maxRetries: 2,
         retryDelayMs: 10,
-        connectionTimeoutMs: 100,
+        connectTimeoutMs: 5000,
         maxQueue: 10,
         btpMtsOptions: {
           rejectUnauthorized: false,
@@ -180,7 +180,7 @@ describe('BtpsTransporter', () => {
           to: 'alice$example.com',
           maxRetries: 2,
           retryDelayMs: 10,
-          connectionTimeoutMs: 100,
+          connectTimeoutMs: 5000,
           maxQueue: 10,
           btpMtsOptions: {
             rejectUnauthorized: false,
@@ -324,13 +324,13 @@ describe('BtpsTransporter', () => {
 
         const updatedConnection = transporter.updateConnection('alice$example.com', {
           maxRetries: 5,
-          connectionTimeoutMs: 200,
+          replyTimeoutMs: 15000,
         });
 
         expect(updatedConnection).toBeDefined();
         expect(mockClient.update).toHaveBeenCalledWith({
           maxRetries: 5,
-          connectionTimeoutMs: 200,
+          replyTimeoutMs: 15000,
         });
       });
 
@@ -381,7 +381,8 @@ describe('BtpsTransporter', () => {
 
         expect(result.error).toBeUndefined();
         expect(result.response).toBeDefined();
-        expect(mockClient.send).toHaveBeenCalledWith(mockArtifact, 5000); // default timeout
+        // The client's own reply wait (EBA-443).
+        expect(mockClient.send).toHaveBeenCalledWith(mockArtifact, undefined);
       });
 
       it('should create connection if not exists', async () => {
@@ -406,7 +407,7 @@ describe('BtpsTransporter', () => {
       it('should use custom timeout from clientOptions', async () => {
         const clientOptions: BTPClientOptions = {
           to: 'alice$example.com',
-          connectionTimeoutMs: 10000,
+          replyTimeoutMs: 10000,
         };
 
         await transporter.transport('alice$example.com', mockArtifact, clientOptions);
@@ -683,7 +684,7 @@ describe('BtpsTransporter', () => {
         expect(options).toEqual({
           maxRetries: 2,
           retryDelayMs: 10,
-          connectionTimeoutMs: 100,
+          connectTimeoutMs: 5000,
           maxQueue: 10,
           btpMtsOptions: {
             rejectUnauthorized: false,

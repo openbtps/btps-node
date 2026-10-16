@@ -36,7 +36,6 @@ async function startServer() {
       ...certBundle,
       requestCert: false,
     },
-    connectionTimeoutMs: 5000,
   });
 
   await BTPsServer.start();
