@@ -21,6 +21,7 @@ import {
   type PemKeys,
 } from '@core/crypto/index.js';
 import { signKeyProof } from './keyRotation.js';
+import { consumeRegistrationToken } from './registration.js';
 import type {
   ServerAuthConfig,
   AuthRequestResponse,
@@ -246,28 +247,23 @@ export class BtpsAuthentication {
   }
 
   /**
-   * Validate an authentication token (server-side)
+   * Validate an authentication token (server-side), consuming it: a token is
+   * valid once (item E). The server core already does this for every
+   * `auth.request` when it is given a token store; this is for a platform
+   * that checks a token outside the server.
+   * @param userIdentity - The identity the token was issued to
    * @param token - The auth token to validate
-   * @param identity - The identity to validate the token for
    * @returns Validation result with user identity if valid
    */
   async validateAuthToken(userIdentity: string, token: string): Promise<AuthValidationResult> {
     try {
-      const storedToken = await this.tokenStore.get(userIdentity, token);
-      if (!storedToken) {
-        return {
-          isValid: false,
-          error: new BTPErrorException({ message: 'Invalid or expired auth token' }),
-        };
-      }
-
-      // Remove the token after successful validation (one-time use)
-      await this.tokenStore.remove(userIdentity, token);
-
-      return {
-        isValid: true,
-        userIdentity: storedToken.userIdentity,
-      };
+      const result = await consumeRegistrationToken(this.tokenStore, {
+        identity: userIdentity,
+        to: userIdentity,
+        authToken: token,
+      });
+      if (!result.ok) return { isValid: false, error: result.error };
+      return { isValid: true, userIdentity: result.identity };
     } catch (error) {
       return {
         isValid: false,
