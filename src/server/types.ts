@@ -44,6 +44,17 @@ export type BtpsServerIdentity = { identity: string; selector?: string } & (
   | { publicKey: string; privateKey: string; signer?: undefined }
 );
 
+/**
+ * What `BtpsServer.getServerIdentity()` gives middleware and handlers (fix
+ * list 12): the identity, its public key (when the server was given one) and
+ * its selector. Never the private key or the Signer.
+ */
+export type BtpsServerPublicIdentity = {
+  identity: string;
+  publicKey?: string;
+  selector?: string;
+};
+
 export interface BtpsServerOptions {
   serverIdentity: BtpsServerIdentity;
   trustStore: AbstractTrustStore<BTPTrustRecord>;
@@ -98,7 +109,9 @@ export interface BtpsServerOptions {
    * The longest line read, in characters (fix list 10). Defaults to
    * BTP_MAX_LINE_LENGTH, sized to the document caps. A server may set it
    * lower, and then refuses artifacts near the caps; a longer line is
-   * answered BTP_ERROR_LINE_TOO_LONG and the connection closed.
+   * answered BTP_ERROR_LINE_TOO_LONG and the connection closed. A value
+   * above BTP_MAX_LINE_LENGTH is refused at construction with
+   * BTP_ERROR_INVALID_OPTION (EBA-445).
    */
   maxLineLength?: number;
 }

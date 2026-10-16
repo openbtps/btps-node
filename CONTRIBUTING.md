@@ -64,7 +64,7 @@ src/
 
 ### Naming Conventions
 
-- **Files:** Use kebab-case for file names (e.g., `btps-server.ts`)
+- **Files:** Use camelCase for file names (e.g., `btpsServer.ts`, `transporterSchema.ts`), or the class's own name for a file that holds one class (e.g., `BtpsDelegator.ts`). See `AGENTS.md`.
 - **Classes:** Use PascalCase (e.g., `BtpsServer`)
 - **Functions:** Use camelCase (e.g., `sendInvoice`)
 - **Constants:** Use UPPER_SNAKE_CASE (e.g., `DEFAULT_PORT`)

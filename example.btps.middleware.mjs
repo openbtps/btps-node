@@ -13,6 +13,17 @@
  * for a large or multi-instance server, pass the server's `defaultMiddleware`
  * option, e.g. `createDefaultMiddleware({ rateLimiter })`; `false` turns the
  * defaults off. A file that still includes them gets them once.
+ *
+ * What a handler is given (EBA-445):
+ * - `req.data`: `{ type, artifact }` once the line is parsed; `type` is
+ *   'transporter' or 'agent' from signature verification on;
+ * - `req.getIdentity()`: `{ from, to }` as the artifact names them (a claim
+ *   until the signature is verified);
+ * - `req.isValid`, `req.isTrusted`, `req.error`: the core's results so far;
+ * - `res.sendRes(...)`, `res.sendError(...)`: answer and stop;
+ * - `next()`: carry on. Returning without `next()` and without an answer
+ *   stops the remaining handlers of the same step; it is never a refusal.
+ * Steps: parsing, signatureVerification, trustVerification, onArtifact, onError.
  */
 
 export default function createMiddleware(dependencies) {
@@ -32,8 +43,9 @@ export default function createMiddleware(dependencies) {
         },
       },
       handler: async (req, res, next, context) => {
-        if (!req.isValid && req.from) {
-          console.log(`[SIGNATURE-TRACKER] Invalid signature from ${req.from}`);
+        const { from } = req.getIdentity();
+        if (!req.isValid && from) {
+          console.log(`[SIGNATURE-TRACKER] Invalid signature from ${from}`);
           // In a real implementation, you would track this in a database
           // and potentially block the sender after too many failures
         }
@@ -52,17 +64,16 @@ export default function createMiddleware(dependencies) {
         options: {},
       },
       handler: async (req, res, next, context) => {
-        console.log(
-          `[TRUST] ${req.from} trust status: ${req.isTrusted ? 'TRUSTED' : 'NOT TRUSTED'}`,
-        );
+        const { from } = req.getIdentity();
+        console.log(`[TRUST] ${from} trust status: ${req.isTrusted ? 'TRUSTED' : 'NOT TRUSTED'}`);
         await next();
       },
     },
 
-    // Custom invoice validation (before message processing)
+    // Custom invoice validation (before the artifact is handed to the application)
     {
       phase: 'before',
-      step: 'onMessage',
+      step: 'onArtifact',
       priority: 1,
       config: {
         name: 'invoice-validator',
@@ -72,14 +83,22 @@ export default function createMiddleware(dependencies) {
         },
       },
       handler: async (req, res, next, context) => {
-        if (req.artifact?.type === 'BTPS_DOC' && req.artifact.document?.type === 'invoice') {
+        const { type, artifact } = req.data;
+        // An encrypted document cannot be read here: only an unencrypted invoice is checked.
+        if (
+          type === 'transporter' &&
+          artifact.type === 'BTPS_DOC' &&
+          !artifact.encryption &&
+          artifact.document?.type === 'invoice'
+        ) {
           const { maxInvoiceAmount } = context.config;
-          const amount = req.artifact.document.total.amount;
+          const amount = artifact.document.totalAmount.amount;
 
           if (amount > maxInvoiceAmount) {
             console.log(
-              `[INVOICE-VALIDATOR] Invoice ${req.artifact.id} exceeds amount limit: ${amount}`,
+              `[INVOICE-VALIDATOR] Invoice ${artifact.id} exceeds amount limit: ${amount}`,
             );
+            // A bare 400 goes out as BTP_ERROR_VALIDATION; its message stays here.
             return res.sendError({
               code: 400,
               message: `Invoice amount ${amount} exceeds maximum allowed amount ${maxInvoiceAmount}`,
@@ -91,18 +110,19 @@ export default function createMiddleware(dependencies) {
       },
     },
 
-    // Message processing metrics (before message processing)
+    // Artifact processing metrics (before the artifact is handed to the application)
     {
       phase: 'before',
-      step: 'onMessage',
+      step: 'onArtifact',
       priority: 2,
       config: {
-        name: 'message-metrics',
+        name: 'artifact-metrics',
         enabled: true,
         options: {},
       },
       handler: async (req, res, next, context) => {
-        console.log(`[METRICS] Processing message ${req.artifact?.id} from ${req.from}`);
+        const { from } = req.getIdentity();
+        console.log(`[METRICS] Processing artifact ${req.data.artifact.id} from ${from}`);
         // In a real implementation, you would send this to your metrics system
         await next();
       },
@@ -119,7 +139,8 @@ export default function createMiddleware(dependencies) {
         options: {},
       },
       handler: async (req, res, next, context) => {
-        console.error(`[ERROR] ${req.error?.message} from ${req.from || 'unknown'}`);
+        const { from } = req.getIdentity?.() ?? {};
+        console.error(`[ERROR] ${req.error?.code} from ${from || 'unknown'}`);
         // In a real implementation, you would log this to your error tracking system
         await next();
       },

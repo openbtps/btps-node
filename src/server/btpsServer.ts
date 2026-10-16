@@ -94,6 +94,7 @@ import type {
   BTPContext,
   PreProcessedArtifact,
   BtpsErrorAction,
+  BtpsServerPublicIdentity,
 } from './types.js';
 import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { validate } from '@core/utils/validation.js';
@@ -178,7 +179,19 @@ export class BtpsServer {
       });
     }
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 30000;
-    this.maxLineLength = options.maxLineLength ?? BTP_MAX_LINE_LENGTH;
+    // Lower only (fix list 10): a longer line than the protocol's is never read.
+    const { maxLineLength = BTP_MAX_LINE_LENGTH } = options;
+    if (
+      !Number.isInteger(maxLineLength) ||
+      maxLineLength < 1 ||
+      maxLineLength > BTP_MAX_LINE_LENGTH
+    ) {
+      throw new BTPErrorException(BTP_ERROR_INVALID_OPTION, {
+        cause: `maxLineLength must be a whole number from 1 to BTP_MAX_LINE_LENGTH (${BTP_MAX_LINE_LENGTH})`,
+        meta: { maxLineLength },
+      });
+    }
+    this.maxLineLength = maxLineLength;
     this.middlewareManager = new MiddlewareManager(
       options.middlewarePath,
       options.defaultMiddleware,
@@ -1691,8 +1704,18 @@ export class BtpsServer {
     return { publicKey: publicKey!, privateKey: privateKey! };
   }
 
-  public getServerIdentity(): BtpsServerOptions['serverIdentity'] {
-    return this.serverIdentity;
+  /**
+   * What middleware and handlers may know of the server's identity (fix list
+   * 12): its identity, public key and selector. Never the private key or the
+   * Signer: the server signs with them itself.
+   */
+  public getServerIdentity(): BtpsServerPublicIdentity {
+    const { identity, publicKey, selector } = this.serverIdentity;
+    return {
+      identity,
+      ...(publicKey !== undefined ? { publicKey } : {}),
+      ...(selector !== undefined ? { selector } : {}),
+    };
   }
 
   public getDependencies(): {
