@@ -45,7 +45,7 @@ describe('document model v2 vectors', () => {
     ]);
   });
 
-  it('the SDK on this tree passes every item 7 check', async () => {
+  it('the SDK on this tree passes every sdk/documents check', async () => {
     const checks = documentSdkChecks(await loadSdk(REPO_ROOT), set);
     expect(checks.length).toBeGreaterThan(20);
     expect(checks.every((c) => c.id.startsWith('sdk/documents/'))).toBe(true);

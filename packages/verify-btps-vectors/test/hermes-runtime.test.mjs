@@ -1,4 +1,4 @@
-// EBA-150: the golden vectors inside a real Hermes. locateHermes() decides;
+// The golden vectors inside a real Hermes. locateHermes() decides;
 // the "with Hermes" block runs only where the pinned binary is installed
 // (hermes/run.sh) and is skipped, by name, elsewhere.
 

@@ -61,7 +61,6 @@ export function documentRuntimeChecks(runtime, set) {
     if (!raw.attachments?.length) continue;
     checks.push({
       id: `vectors/${runtime.name}/documents/${name}/attachment-sha256`,
-      item: ITEM,
       async run() {
         for (const [index, attachment] of raw.attachments.entries()) {
           const digest = await runtime.sha256Hex(fromBase64(attachment.content));

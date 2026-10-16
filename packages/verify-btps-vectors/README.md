@@ -34,12 +34,12 @@ devDependency of the repository root). It has been run on Node 24.21.0 only.
 
 | Suite                 | Runs on            | What it shows                                                                                                                                                                                                                                                                                                                                                          |
 | --------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `manifest/…`          | node               | EBA-123: the set is the published one. `test/vectors/manifest.json` names version 1.1.0, and every vector file is present, listed, and has the SHA-256 the manifest gives it. `scripts/vectors-manifest.mjs` checks the same and then runs the harness; `--write` rewrites the manifest for a new set version |
+| `manifest/…`          | node               | the set is the published one. `test/vectors/manifest.json` names version 1.1.0, and every vector file is present, listed, and has the SHA-256 the manifest gives it. `scripts/vectors-manifest.mjs` checks the same and then runs the harness; `--write` rewrites the manifest for a new set version                                                                   |
 | `vectors/<runtime>/…` | node, web, hermes  | JCS (RFC 8785) vectors; managed and self-held signatures verify over the canonical bytes and **not** over the raw key order; re-signing reproduces the vector bytes; the KMS-style OAEP wrap unwraps; an MGF1-SHA-1 wrap is refused; the signing and encryption keys are distinct and cannot stand in for each other                                                   |
-| `vectors/<runtime>/selectors…/…` | node, web, hermes | item 6: every key in the two selector vectors has its stated fingerprint; only the sender key at `signatureSelector` verifies, and only the receiver key at `encryptionSelector` unwraps |
+| `vectors/<runtime>/selectors…/…` | node, web, hermes | separate selectors: every key in the two selector vectors has its stated fingerprint; only the sender key at `signatureSelector` verifies, and only the receiver key at `encryptionSelector` unwraps |
 | `vectors/<runtime>/sha256/…` | node, web, hermes | the runtime recomputes the lowercase hex SHA-256 of every file `manifest.json` lists |
-| `vectors/<runtime>/documents/…` | node, web, hermes | item 7: every document in `test/vectors/documents/` signs and verifies over its JCS form, and each attachment hashes to its lowercase hex `sha256`. Not pinned signatures: there is no one signature for an arbitrary invoice |
-| `vectors/<runtime>/events/…` | node, web, hermes | item A: every event in `test/vectors/events/` signs and verifies over its JCS form |
+| `vectors/<runtime>/documents/…` | node, web, hermes | document model v2: every document in `test/vectors/documents/` signs and verifies over its JCS form, and each attachment hashes to its lowercase hex `sha256`. Not pinned signatures: there is no one signature for an arbitrary invoice |
+| `vectors/<runtime>/events/…` | node, web, hermes | lifecycle events: every event in `test/vectors/events/` signs and verifies over its JCS form |
 | `interop/<a>-><b>/…`  | every ordered pair | a signature or wrap made by one runtime is accepted by the other, and signatures are byte-identical to the vector                                                                                                                                                                                                                                                      |
 | `oracle/oaep/…`       | node               | the reference OAEP (raw RSA) confirms the positive wrap decodes only under MGF1-SHA-256, and that the negative vector really is an MGF1-SHA-1 wrap                                                                                                                                                                                                                     |
 | `sdk/kms/…`           | node, SDK          | the SDK's fingerprint, `encryptRSA` and `decryptRSA` match the KMS profile. Passes on 367cd09                                                                                                                                                                                                                                                                          |
@@ -107,7 +107,7 @@ with the oracle, `src/jcs.mjs`).
 
 ## Hermes
 
-EBA-150. The `hermes` driver ([`src/runtimes/hermes.mjs`](src/runtimes/hermes.mjs))
+The `hermes` driver ([`src/runtimes/hermes.mjs`](src/runtimes/hermes.mjs))
 runs every operation in a real `hermes` process: Hermes **250829098.0.17**,
 the engine `react-native@0.86.3` (Expo SDK 57) ships, built by
 [`hermes/Dockerfile`](hermes/Dockerfile) from facebook/hermes tag
@@ -141,7 +141,7 @@ why Hermes was not run.
 
 **Not run on Hermes**, by design: `sdk/…` (the SDK's behaviour, bundled for
 Node, including its AES-256-GCM paths: the Hermes profile has no AES, and the
-item 10 GCM-tag vectors decrypt through the SDK), `oracle/…` (the Node
+GCM-tag defect vectors decrypt through the SDK), `oracle/…` (the Node
 reference OAEP) and `manifest/…` (file presence, a Node check; the digests
 themselves are recomputed in Hermes).
 
@@ -153,7 +153,7 @@ themselves are recomputed in Hermes).
   iOS or Android harness exists yet.
 - **Hermes is the bare engine on Linux** (proven on aarch64), not a React
   Native app on a device: no JSI, no native modules, no keystore. It proves the engine runs
-  the profile and the SDK's JCS; a device run is EBA-168.
+  the profile and the SDK's JCS; a run on a device is still to come.
 - **No vector was produced by AWS KMS or a device keystore.** The managed
   vector is signed by node:crypto with the algorithm KMS uses
   (RSASSA_PKCS1_V1_5_SHA_256), and the self-held one by WebCrypto. A vector

@@ -1,8 +1,7 @@
 # BTPS golden vectors
 
-These are the vectors for BTPS 1.1 (addendum page 8323117, epic EBA-109,
-built in EBA-110). Every runtime must reproduce them exactly: Node, web,
-Hermes (EBA-150), and later iOS and Android. The runner is
+These are the vectors for BTPS 1.1. Every runtime must reproduce them
+exactly: Node, web, Hermes, and later iOS and Android. The runner is
 [`packages/verify-btps-vectors`](../../packages/verify-btps-vectors/).
 
 **Published as vector set 1.1.0.** [`manifest.json`](./manifest.json)

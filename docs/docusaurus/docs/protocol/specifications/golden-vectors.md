@@ -151,14 +151,14 @@ What vector set 1.1.0 proved on Hermes, 79 checks, all passing:
 | Managed and self-held signatures | 12 | fingerprints, canonical payload, verify over canonical and not raw bytes, re-signing reproduces the vector bytes, a tampered payload is refused |
 | RSA-OAEP wrap and unwrap | 3 | the KMS-style vector unwraps, the MGF1-SHA-1 wrap is refused, a fresh wrap round-trips |
 | Key separation | 3 | signing and encryption keys are distinct and cannot stand in for each other |
-| Selectors (item 6) | 6 | every key's fingerprint; only the `signatureSelector` key verifies and only the `encryptionSelector` key unwraps, in both selector vectors |
+| Selectors | 6 | every key's fingerprint; only the `signatureSelector` key verifies and only the `encryptionSelector` key unwraps, in both selector vectors |
 | Lowercase hex SHA-256 | 4 | every file in `manifest.json`, and each document attachment's `sha256` |
 | Documents and events | 18 | each document and lifecycle event, canonicalised in Hermes (equal to the oracle), signs and verifies |
 | Interop | 12 | Hermes signatures and wraps accepted by Node and WebCrypto and the reverse; Hermes signature bytes equal the vector's |
 
 Not run on Hermes: the `sdk/…` checks (the SDK's behaviour, bundled for
-Node, including AES-256-GCM: the Hermes profile has no AES, so the item 10
-GCM-tag vectors are not run there), the `oracle/…` reference OAEP, and the
+Node, including AES-256-GCM: the Hermes profile has no AES, so the
+GCM-tag defect vectors are not run there), the `oracle/…` reference OAEP, and the
 manifest's file-presence checks. This is the bare engine, not a React Native
 app on a device: no JSI, native modules or keystore.
 

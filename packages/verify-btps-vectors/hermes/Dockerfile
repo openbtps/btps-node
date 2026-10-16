@@ -1,4 +1,4 @@
-# The Hermes CLI that react-native@0.86.3 ships (EBA-150), built from source
+# The Hermes CLI that react-native@0.86.3 ships, built from source
 # on top of the Node image the vectors run under, so the golden vectors run
 # inside the real engine. See ../README.md, "Hermes".
 #

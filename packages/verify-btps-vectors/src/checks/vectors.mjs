@@ -4,7 +4,7 @@
  * profile: JCS, RSASSA-PKCS1-v1_5/SHA-256 signatures for both
  * custody modes, RSA-OAEP/SHA-256 with MGF1-SHA-256 wrapping, and separate
  * signing and encryption keys, and the separate signature and encryption
- * selectors (item 6).
+ * selectors.
  *
  * Canonical forms come from the runtime when it canonicalises itself
  * (`runtime.canonicalize`, e.g. Hermes running the SDK's jcs.ts), and from
@@ -30,7 +30,6 @@ export function vectorChecks(runtime, set) {
   for (const vector of set.jcs) {
     checks.push({
       id: id(`jcs/${vector.name}`),
-      item: 5,
       async run() {
         for (const input of vector.inputs) {
           if (vector.expectError) {
@@ -115,7 +114,6 @@ export function vectorChecks(runtime, set) {
       },
       {
         id: name('canonical-payload-is-jcs-of-raw-payload'),
-        item: 5,
         async run() {
           ensure(
             (await canon(vector.payloadRaw)) === vector.canonicalPayload,
@@ -262,7 +260,7 @@ export function vectorChecks(runtime, set) {
 }
 
 /**
- * Item 6: the key a signature selector names is the only sender key that
+ * Separate selectors: the key a signature selector names is the only sender key that
  * verifies the artifact, and the key an encryption selector names is the
  * only receiver key that unwraps it. The SDK checks prove the SDK writes the
  * selectors; these prove each runtime keeps the two keys apart.
@@ -284,7 +282,6 @@ function selectorChecks(runtime, set, canon) {
     checks.push(
       {
         id: id('every-key-has-its-fingerprint'),
-        item: 6,
         async run() {
           for (const party of [sender, receiver]) {
             for (const [selector, key] of Object.entries(party.keys)) {
@@ -299,7 +296,6 @@ function selectorChecks(runtime, set, canon) {
       },
       {
         id: id('only-the-signature-selector-key-verifies'),
-        item: 6,
         async run() {
           const canonical = utf8(await canon(JSON.stringify(vector.artifact)));
           const signer = sender.keys[expect.signatureSelector];
@@ -320,7 +316,6 @@ function selectorChecks(runtime, set, canon) {
       },
       {
         id: id('only-the-encryption-selector-key-unwraps'),
-        item: 6,
         async run() {
           const target = receiver.keys[expect.encryptionSelector];
           ensure(target, `no receiver key at ${expect.encryptionSelector}`);

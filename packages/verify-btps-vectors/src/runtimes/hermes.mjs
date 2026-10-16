@@ -1,5 +1,5 @@
 /**
- * The "hermes" runtime driver (EBA-150): every operation runs inside a real
+ * The "hermes" runtime driver: every operation runs inside a real
  * `hermes` process, the JavaScript engine React Native ships, with nothing
  * above it. It is registered only when locateHermes() has found that binary
  * at the pinned version; finding none is a reported outcome, never a
