@@ -6,7 +6,7 @@
  */
 
 /*
- * EBA-115 (BTPS 1.1 item 5): signatures are over the RFC 8785 (JCS) form, end
+ * Canonical signing: signatures are over the RFC 8785 (JCS) form, end
  * to end, with real keys. Only DNS key lookup is faked.
  */
 
@@ -147,7 +147,7 @@ const baseArtifact = () => ({
   },
 });
 
-describe('EBA-115: canonical signing end to end', () => {
+describe('canonical signing end to end', () => {
   let server: BtpsServer;
 
   beforeEach(() => {
@@ -158,6 +158,7 @@ describe('EBA-115: canonical signing end to end', () => {
       async (identity: string) => identities[identity]?.publicKey,
     );
     vi.mocked(utils.getHostAndSelector).mockResolvedValue({
+      version: '1.0.0',
       host: 'btps.saas.example:3443',
       selector: 'btps1',
     });
@@ -279,12 +280,12 @@ describe('EBA-115: canonical signing end to end', () => {
     ).toBe(true);
   });
 
-  // Addendum item 10 ("an attested delegation never verifies on the server
-  // path"), not EBA-115's: the delegation is signed before the attestation is
-  // added, but verifyDelegation checks it with the attestation still in. The
-  // same on release/1.1 before JCS.
+  // A known SDK defect, not a canonical-signing one: an attested delegation
+  // never verifies on the server path. The delegation is signed before the
+  // attestation is added, but verifyDelegation checks it with the attestation
+  // still in. The same on release/1.1 before JCS.
   it.fails(
-    'the server accepts an attested delegation (expected failure until addendum item 10 is fixed)',
+    'the server accepts an attested delegation (expected failure until the attested-delegation defect is fixed)',
     async () => {
       const delegator = new BtpsDelegator({
         identity: 'delegator$saas.example',
@@ -310,7 +311,7 @@ describe('EBA-115: canonical signing end to end', () => {
   it('the server signs its own response over the JCS form', async () => {
     // Captured as handed to sendBtpsResponse, before its schema check: on
     // release/1.1 that check refuses the identity-lookup document (a separate
-    // defect, reported on EBA-115's pull request), and signing is what is
+    // defect, reported on #14), and signing is what is
     // under test here.
     const sent: BTPServerResponse[] = [];
     vi.spyOn(
@@ -369,8 +370,8 @@ describe('EBA-115: canonical signing end to end', () => {
     expect(await client['verifyServerMessage'](tampered)).toMatchObject({ isValid: false });
   });
 
-  // Pre-existing defect, not EBA-115's, and the same on release/1.1 before
-  // JCS: verifyServerMessage verifies `{ ...msg, encryption: msg.encryption ?? null }`,
+  // Pre-existing defect, not a canonical-signing one, and the same on
+  // release/1.1 before JCS: verifyServerMessage verifies `{ ...msg, encryption: msg.encryption ?? null }`,
   // so a response the server signed without an `encryption` member (as
   // handleIdentityLookup does) never verifies. Reported on the pull request.
   it.fails(

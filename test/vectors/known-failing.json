@@ -1,12 +1,12 @@
 {
-  "description": "Checks that fail on the BTPS 1.1 baseline because the defect they prove is not fixed yet. `verify-btps-vectors --known-failing test/vectors/known-failing.json` passes only while the failing set is exactly this list, so each fix ticket must remove its own entries in the same change that makes them pass. Delete this file once it is empty.",
+  "description": "Checks that fail on the BTPS 1.1 baseline because the defect they prove is not fixed yet, each mapped to a short note on what fixes it. `verify-btps-vectors --known-failing test/vectors/known-failing.json` passes only while the failing set is exactly this list, so a fix must remove its own entries in the same change that makes them pass. Delete this file once it is empty.",
   "baseline": "367cd0966687b0f61fbb4aa703f26c5e37e89eca",
   "checks": {
-    "sdk/item-6/artifact-names-signature-selector": "EBA-116",
-    "sdk/item-6/artifact-names-encryption-selector": "EBA-116",
-    "sdk/item-6/signature-verifies-with-sender-key-at-signature-selector": "EBA-116",
-    "sdk/item-10/gcm-tag/truncated-4-byte-tag-rejected": "EBA-122",
-    "sdk/item-10/gcm-tag/truncated-12-byte-tag-rejected": "EBA-122",
-    "sdk/item-10/identity/reject/alice$saas.example$evil.example": "EBA-122"
+    "sdk/selectors/artifact-names-signature-selector": "separate signature and encryption selectors",
+    "sdk/selectors/artifact-names-encryption-selector": "separate signature and encryption selectors",
+    "sdk/selectors/signature-verifies-with-sender-key-at-signature-selector": "separate signature and encryption selectors",
+    "sdk/defects/gcm-tag/truncated-4-byte-tag-rejected": "refuse a short GCM tag",
+    "sdk/defects/gcm-tag/truncated-12-byte-tag-rejected": "refuse a short GCM tag",
+    "sdk/defects/identity/reject/alice$saas.example$evil.example": "strict identity rules"
   }
 }

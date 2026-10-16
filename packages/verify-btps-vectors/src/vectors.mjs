@@ -35,7 +35,7 @@ function requireFields(file, object, fields) {
 
 /**
  * @param {string} dir the test/vectors directory
- * @returns {Record<keyof typeof VECTOR_FILES, any>}
+ * @returns {Record<keyof typeof VECTOR_FILES, unknown>}
  * @throws {VectorLoadError}
  */
 export function loadVectorSet(dir) {

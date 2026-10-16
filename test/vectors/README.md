@@ -14,28 +14,27 @@ algorithm is the one that mode uses.
 | File                                  | Content                                                                                                                                                                                                                                                                      |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `jcs.vectors.json`                    | RFC 8785 cases: key order, unicode, nesting, integer money, whitespace, UTF-16 sort, escaping, number forms. Also cases that must be rejected: duplicate names (including escaped and nested), lone surrogates, numbers that overflow a double, trailing content             |
-| `jcs-signature.vectors.json`          | item 5 (EBA-115): whole payloads in several key orders (key order varied, unicode, nested objects), each signed once over its JCS form with the `kms-signature.vector.json` key; and payloads with duplicate member names, signed over their raw bytes, that must be refused |
+| `jcs-signature.vectors.json`          | canonical signing: whole payloads in several key orders (key order varied, unicode, nested objects), each signed once over its JCS form with the `kms-signature.vector.json` key; and payloads with duplicate member names, signed over their raw bytes, that must be refused |
 | `kms-signature.vector.json`           | `custody: managed`. RSASSA-PKCS1-v1_5/SHA-256 (KMS `RSASSA_PKCS1_V1_5_SHA_256`) over the JCS form of `payloadRaw`                                                                                                                                                            |
 | `self-held-signature.vector.json`     | `custody: self-held`. Same algorithm, signed via WebCrypto, with its own key                                                                                                                                                                                                 |
 | `oaep-wrap.vector.json`               | the **encryption** key, and an AES key wrapped with OAEP-SHA-256 / MGF1-SHA-256 (KMS `RSAES_OAEP_SHA_256`)                                                                                                                                                                   |
 | `oaep-mgf1-sha1.negative.vector.json` | a wrap to the same key with MGF1-SHA-1, which every runtime must refuse                                                                                                                                                                                                      |
-| `selectors.vector.json`               | item 6: the sender rotated btps1 to btps2 and the receiver is on btps1                                                                                                                                                                                                       |
-| `sdk-defects.vector.json`             | item 10: GCM tags of 16, 12 and 4 bytes, and identities with extra `$`                                                                                                                                                                                                       |
-| `known-failing.json`                  | the item checks that fail on 367cd09, and which ticket owns each fix                                                                                                                                                                                                         |
+| `selectors.vector.json`               | separate selectors: the sender rotated btps1 to btps2 and the receiver is on btps1                                                                                                                                                                                           |
+| `sdk-defects.vector.json`             | SDK defects: GCM tags of 16, 12 and 4 bytes, and identities with extra `$`                                                                                                                                                                                                   |
+| `known-failing.json`                  | the checks that fail on 367cd09, each with a note on what fixes it                                                                                                                                                                                                           |
 
 The signing keys and the encryption key in these vectors are distinct, and a
 check enforces it. They are keys in different roles: the signature vectors
 stand for a delegator or device key, which only signs, and the wrap vector
 stands for a receiver's key, which is only encrypted to. This is not a rule
-that one identity holds two keys. BTPS keeps one key per identity; item 9 of
-the 1.1 addendum (separate signing and encryption keys, EBA-121) was withdrawn
-by founder decision on 2026-10-11.
+that one identity holds two keys. BTPS keeps one key per identity; a proposal for
+separate signing and encryption key pairs (#10) was withdrawn on 2026-10-11.
 
 The item 6 vectors cover EBA-116 (6a, separate selectors) and EBA-117 (6b,
 the encryption-key lookup rule). **EBA-118 (6c, a DoH client that checks the
 AD bit) has no vector here, on purpose.** There is no DoH client on 367cd09
 to fail against, and its behaviour depends on a resolver rather than on bytes
-a vector can pin. EBA-118 brings its own tests.
+a vector can pin. That client will bring its own tests.
 
 ## Changing vectors
 
@@ -44,9 +43,9 @@ vectors (EBA-117) are frozen by ~2026-10-16. There are no item 9 key-use
 vectors: item 9 was withdrawn on 2026-10-11, and with it that part of founder
 decision R-30. `generate-vectors.mjs` writes only the
 files that are missing. `--force` regenerates every key and random byte; if
-you use it, say so on every ticket whose tests read these files.
+you use it, say so in every change whose tests read these files.
 
 Open question, not decided here: what a canonicaliser does with an integer
 above 2^53 − 1. RFC 8785 serialises it as the nearest double, which for
-money means a silently different amount. Item 7 (EBA-119) owns the money
+money means a silently different amount. Document model v2 owns the money
 representation.

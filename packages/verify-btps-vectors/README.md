@@ -2,7 +2,7 @@
 
 Runs the BTPS golden vectors in [`test/vectors/`](../../test/vectors/) on every
 runtime driver, across runtimes, and against the `@btps/sdk` source tree.
-This is the `verify:btps-vectors` verb from EBA-110 (BTPS 1.1 epic EBA-109).
+This is the `verify:btps-vectors` command of BTPS 1.1.
 
 ```sh
 # From the repository root (same as the CI form below)
@@ -12,7 +12,7 @@ yarn verify:btps-vectors
 node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs \
   --known-failing test/vectors/known-failing.json
 
-# Strict form: every check must pass. Red until EBA-116 and EBA-122 land.
+# Strict form: every check must pass. Red until the known-failing list is empty.
 node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs
 ```
 
@@ -31,20 +31,20 @@ devDependency of the repository root). It has been run on Node 24.21.0 only.
 | `interop/<a>-><b>/…`  | node→web, web→node | a signature or wrap made by one runtime is accepted by the other, and signatures are byte-identical to the vector                                                                                                                                                                                                    |
 | `oracle/oaep/…`       | node               | the reference OAEP (raw RSA) confirms the positive wrap decodes only under MGF1-SHA-256, and that the negative vector really is an MGF1-SHA-1 wrap                                                                                                                                                                   |
 | `sdk/kms/…`           | node, SDK          | the SDK's fingerprint, `encryptRSA` and `decryptRSA` match the KMS profile. Passes on 367cd09                                                                                                                                                                                                                        |
-| `sdk/item-5/…`        | node, SDK          | BTPS 1.1 item 5, JCS signing (EBA-115), including `jcs-signature.vectors.json`: each payload verifies in every key order and re-signs to the vector bytes; duplicate names are refused. **Fails on 367cd09; passes since EBA-115**                                                                                   |
-| `sdk/item-6/…`        | node, SDK          | item 6, separate `signatureSelector` and `encryptionSelector` (EBA-116). **Fails on 367cd09**                                                                                                                                                                                                                        |
-| `sdk/item-10/…`       | node, SDK          | item 10, the defects that can be expressed as data: short GCM tags, identities with more than one `$` (EBA-122). **Fails on 367cd09**                                                                                                                                                                                |
+| `sdk/jcs/…`           | node, SDK          | canonical signing with JCS, including `jcs-signature.vectors.json`: each payload verifies in every key order and re-signs to the vector bytes; duplicate names are refused. **Fails on 367cd09; passes since canonical signing (#14)**                                                                               |
+| `sdk/selectors/…`     | node, SDK          | separate `signatureSelector` and `encryptionSelector`. **Fails on 367cd09**                                                                                                                                                                                                                                          |
+| `sdk/defects/…`       | node, SDK          | the SDK defects that can be expressed as data: short GCM tags, identities with more than one `$`. **Fails on 367cd09**                                                                                                                                                                                               |
 
 ### The known-failing list
 
 [`test/vectors/known-failing.json`](../../test/vectors/known-failing.json)
-lists the item checks that fail on baseline 367cd09, each with the ticket
-that owns its fix. Under `--known-failing`, the run passes only if the
+lists the checks that fail on baseline 367cd09, each with a short note on
+what fixes it. Under `--known-failing`, the run passes only if the
 failing set is **exactly** that list:
 
 - a failure not on the list fails the run;
-- a listed check that now passes fails the run too, so **a fix ticket must
-  remove its own entries in the same change** that fixes them;
+- a listed check that now passes fails the run too, so **a fix must
+  remove its own entries in the same change** that makes them pass;
 - a listed id that no longer exists fails the run.
 
 So the list can only shrink, and it can never hide a check that started
@@ -53,13 +53,13 @@ to the strict form.
 
 ### The same ratchet in `yarn test`
 
-EBA-110's acceptance tests in `src/core/crypto/{index,jcs,identityKeys}.test.ts`
+The harness's tests in `src/core/crypto/{index,jcs,identityKeys}.test.ts`
 reproduce the same defects as vitest tests. Each one that fails on 367cd09 is
-written as `it.fails`, and its name says which ticket's fix makes it pass:
-"(expected failure until EBA-115 lands)". So `yarn test` stays green on
-master. When the fix lands, those tests turn red, and the fix ticket must
-change `it.fails` to `it` in the same change, just as it removes its
-known-failing entries.
+written as `it.fails`, and its name says which fix makes it pass:
+"(expected failure until separate selectors land)". So `yarn test` stays green on
+master. When the fix lands, those tests turn red, and the fix must change
+`it.fails` to `it` in the same change, just as it removes its known-failing
+entries.
 
 ### Running against another SDK tree
 
@@ -100,11 +100,15 @@ that — so a browser or React Native harness can import
   change in the same PR.
 - **Item 10 covers two of its seven defects.** Schema failures, crossed
   responses, the line-length limit and error codes are server behaviour, and
-  EBA-122 tests them itself.
-- **Item 5 duplicate-name rejection is tested through `verifySignature`
-  with a string payload.** Since EBA-115 the SDK also refuses duplicates
+  the SDK's server tests cover them.
+- **Duplicate-name rejection is tested through `verifySignature`
+  with a string payload.** Since canonical signing (#14) the SDK also refuses duplicates
   where it reads the wire (`parseJson` in the server and client), which
   `yarn test` covers rather than this harness.
 - The reference JCS in [`src/jcs.mjs`](src/jcs.mjs) is the harness's oracle.
-  It is not the SDK implementation, which is `src/core/crypto/jcs.ts`
-  (EBA-115); the two must agree on every vector.
+  It serialises with `json-canonicalize` and parses with
+  `@humanwhocodes/momoa`; the SDK, `src/core/crypto/jcs.ts`, serialises with
+  `canonicalize`. Two libraries by different authors must agree on every
+  vector, so the oracle is not the code under test checking itself. The
+  oracle refuses a member named `toJSON`, which `json-canonicalize` would
+  pass to `JSON.stringify` unsorted.

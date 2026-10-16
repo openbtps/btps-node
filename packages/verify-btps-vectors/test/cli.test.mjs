@@ -17,23 +17,21 @@ describe('verify-btps-vectors CLI', () => {
     expect(code).toBe(0);
   });
 
-  it('in strict mode exits 1 and names each failing check and its ticket', () => {
+  it('in strict mode exits 1 and names each failing check', () => {
     const { code, out } = run();
     expect(code).toBe(1);
-    expect(out).toMatch(
-      /FAIL  sdk\/item-6\/artifact-names-signature-selector \[item 6: EBA-116, EBA-117\]/,
-    );
-    expect(out).toMatch(/FAIL  sdk\/item-10\/gcm-tag\/truncated-4-byte-tag-rejected/);
+    expect(out).toMatch(/^FAIL {2}sdk\/selectors\/artifact-names-signature-selector$/m);
+    expect(out).toMatch(/FAIL {2}sdk\/defects\/gcm-tag\/truncated-4-byte-tag-rejected/);
   });
 
   it('exits 1 when the known-failing list is missing an entry', () => {
     const known = JSON.parse(fs.readFileSync(KNOWN_FAILING, 'utf8'));
-    delete known.checks['sdk/item-10/gcm-tag/truncated-4-byte-tag-rejected'];
+    delete known.checks['sdk/defects/gcm-tag/truncated-4-byte-tag-rejected'];
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'btps-kf-')), 'known.json');
     fs.writeFileSync(file, JSON.stringify(known));
     const { code, out } = run('--known-failing', file);
     expect(code).toBe(1);
-    expect(out).toMatch(/^FAIL  sdk\/item-10\/gcm-tag\/truncated-4-byte-tag-rejected/m);
+    expect(out).toMatch(/^FAIL {2}sdk\/defects\/gcm-tag\/truncated-4-byte-tag-rejected/m);
   });
 
   it('--json emits machine-readable results', () => {

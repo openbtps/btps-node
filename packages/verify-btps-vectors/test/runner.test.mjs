@@ -125,7 +125,7 @@ describe('evaluate', () => {
   });
 
   it('known-failing mode passes when the failing set matches the list exactly', () => {
-    expect(evaluate(results, { checks: { b: 'EBA-1' } }).ok).toBe(true);
+    expect(evaluate(results, { checks: { b: 'a fix' } }).ok).toBe(true);
   });
 
   it('known-failing mode fails on an unlisted failure', () => {
@@ -135,13 +135,13 @@ describe('evaluate', () => {
   });
 
   it('known-failing mode fails when a listed check now passes, so the list has to shrink', () => {
-    const verdict = evaluate(results, { checks: { a: 'EBA-1', b: 'EBA-1' } });
+    const verdict = evaluate(results, { checks: { a: 'a fix', b: 'a fix' } });
     expect(verdict.ok).toBe(false);
     expect(verdict.fixedButListed.map((r) => r.id)).toEqual(['a']);
   });
 
   it('known-failing mode fails when a listed check did not run at all', () => {
-    const verdict = evaluate(results, { checks: { b: 'EBA-1', gone: 'EBA-1' } });
+    const verdict = evaluate(results, { checks: { b: 'a fix', gone: 'a fix' } });
     expect(verdict.ok).toBe(false);
     expect(verdict.listedButMissing).toEqual(['gone']);
   });

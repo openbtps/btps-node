@@ -24,9 +24,10 @@ const oaep = (key) => ({
 });
 
 /**
- * A stand-in for an SDK with items 5, 6 and 10 fixed, written only to show
- * that every item check can pass — i.e. none of them is unsatisfiable. It is
- * not a proposal for how EBA-115/116/122 should implement the fixes.
+ * A stand-in for an SDK with canonical signing, separate selectors and the
+ * SDK defects fixed, written only to show that every regression check can
+ * pass — i.e. none of them is unsatisfiable. It is not a proposal for how
+ * the SDK should implement the fixes.
  */
 export function createFixedSdkFake() {
   let records = new Map();
