@@ -10,6 +10,9 @@ import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { BTPKeyConfig, BTPKeyPair } from './types.js';
 import { getFingerprintFromPem } from './index.js';
+import { BTP_ERROR_KEY_TOO_SMALL } from '@core/error/constant.js';
+import { BTPErrorException } from '@core/error/index.js';
+import { BTP_MIN_RSA_KEY_BITS } from '@core/server/constants/btps-protocol.js';
 
 export async function generateKeys(accountName: string) {
   const dir = join('keys', accountName);
@@ -24,8 +27,16 @@ export async function generateKeys(accountName: string) {
 }
 
 export const getBTPKeyPair = (keyConfig?: BTPKeyConfig): BTPKeyPair => {
+  const keySize = keyConfig?.keySize ?? BTP_MIN_RSA_KEY_BITS;
+  // A key the protocol would refuse is never made (fix list 12).
+  if (keySize < BTP_MIN_RSA_KEY_BITS) {
+    throw new BTPErrorException(BTP_ERROR_KEY_TOO_SMALL, {
+      cause: `keySize ${keySize} is below ${BTP_MIN_RSA_KEY_BITS}`,
+      meta: { keySize },
+    });
+  }
   const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-    modulusLength: keyConfig?.keySize ?? 2048,
+    modulusLength: keySize,
     publicKeyEncoding: {
       type: keyConfig?.publicKeyEncoding ?? 'spki',
       format: keyConfig?.format ?? 'pem',

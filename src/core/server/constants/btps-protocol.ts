@@ -12,6 +12,12 @@ export const MIN_SUPPORTED_VERSION = '1.0.0';
 export const MAX_SUPPORTED_VERSION = '1.0.0';
 export const BTPS_DNS_HOST_NAME_SPACE = '_btps.host';
 export const BTPS_DNS_IDENTITY_NAME_SPACE = '_btps.identity';
+/**
+ * The shortest RSA key the protocol accepts, in bits, for encryption and for
+ * signatures alike (fix list 12, EBA-445). A shorter key is refused with
+ * BTP_ERROR_KEY_TOO_SMALL before it is used.
+ */
+export const BTP_MIN_RSA_KEY_BITS = 2048;
 
 const ENCODED_ATTACHMENTS_MAX_LENGTH =
   BTP_DOC_LIMITS.ATTACHMENTS_MAX * BTP_DOC_LIMITS.ATTACHMENT_CONTENT_MAX_LENGTH;

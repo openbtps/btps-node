@@ -9,6 +9,7 @@ import {
   BTPErrorException,
   BTP_ERROR_RESOLVE_DNS,
   BTP_ERROR_UNSUPPORTED_ENCRYPT,
+  BTP_ERROR_KEY_TOO_SMALL,
   BTP_ERROR_VALIDATION,
   transformToBTPErrorException,
 } from '@core/error/index.js';
@@ -206,6 +207,10 @@ export class BtpsAgent extends BtpsClient {
         encryptedDocument = data;
         encryption = encryptionInfo;
       } catch (error) {
+        // A receiver key under 2048 bits says so (fix list 12).
+        if (error instanceof BTPErrorException && error.code === BTP_ERROR_KEY_TOO_SMALL.code) {
+          return await this.buildClientErrorResponse(error);
+        }
         return await this.buildClientErrorResponse(
           new BTPErrorException(BTP_ERROR_UNSUPPORTED_ENCRYPT, {
             cause: `Failed to encrypt document for ${to}`,

@@ -25,9 +25,11 @@ import {
   BTP_ERROR_UNKNOWN,
   BTP_ERROR_CANONICAL_JSON,
   BTP_ERROR_VALIDATION,
+  BTP_ERROR_KEY_TOO_SMALL,
 } from '@core/error/constant.js';
 
 import { BTPErrorException } from '@core/error/index.js';
+import { BTP_MIN_RSA_KEY_BITS } from '@core/server/constants/btps-protocol.js';
 import { canonicalize, canonicalizeValue } from './jcs.js';
 import { isSigner, toDecrypter, toSigner } from './custody.js';
 
@@ -62,6 +64,31 @@ export {
 /** An AES-256-GCM tag is 16 bytes; anything shorter is refused (fix list 2, T-26). */
 const GCM_TAG_BYTES = 16;
 
+/**
+ * Refuses an RSA key shorter than BTP_MIN_RSA_KEY_BITS (fix list 12): for
+ * `encryption`, the receiver's public key; for a `signature`, the signer's.
+ * `pem` is a public or private key PEM. A key that does not parse is left to
+ * the call that uses it, which refuses it in its own way.
+ *
+ * @throws {BTPErrorException} BTP_ERROR_KEY_TOO_SMALL
+ */
+export const assertRsaKeySize = (pem: string, use: 'encryption' | 'signature'): void => {
+  let key: crypto.KeyObject;
+  try {
+    key = crypto.createPublicKey(pem);
+  } catch {
+    return;
+  }
+  const bits = key.asymmetricKeyDetails?.modulusLength;
+  const isRsa = key.asymmetricKeyType === 'rsa' || key.asymmetricKeyType === 'rsa-pss';
+  if (isRsa && bits !== undefined && bits < BTP_MIN_RSA_KEY_BITS) {
+    throw new BTPErrorException(BTP_ERROR_KEY_TOO_SMALL, {
+      cause: `A ${bits}-bit RSA key for ${use}; the minimum is ${BTP_MIN_RSA_KEY_BITS}`,
+      meta: { bits, use, minimumBits: BTP_MIN_RSA_KEY_BITS },
+    });
+  }
+};
+
 /** Why a call through a Signer or Decrypter failed, as a BTPErrorException.
  * A KMS failure keeps its `retryable` flag in `meta`. */
 const custodyError = (err: unknown): BTPErrorException => {
@@ -87,6 +114,7 @@ export const encryptBtpPayload = (
     mode: 'standardEncrypt',
   },
 ) => {
+  assertRsaKeySize(receiverPubPem, 'encryption');
   const aesKey = crypto.randomBytes(32); // 256-bit AES key
   const iv = crypto.randomBytes(12); // 96-bit IV (recommended for GCM)
   const algorithm: EncryptionAlgorithmType = options.algorithm;
@@ -269,6 +297,8 @@ export const signBtpPayload = async (
   } catch (err) {
     throw custodyError(err);
   }
+  // Checked on the key the signer reports, so a KMS key is held to it too.
+  assertRsaKeySize(publicKey, 'signature');
 
   return {
     algorithmHash,
@@ -293,6 +323,12 @@ export const verifySignature = (
           ? error
           : new BTPErrorException(BTP_ERROR_CANONICAL_JSON, { cause: error }),
     };
+  }
+
+  try {
+    assertRsaKeySize(senderPubKey, 'signature');
+  } catch (error) {
+    return { isValid: false, error: error as BTPErrorException };
   }
 
   let senderFingerprint;

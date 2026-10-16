@@ -15,10 +15,14 @@ import {
   encryptRSA,
   decryptRSA,
   getFingerprintFromPem,
+  encryptBtpPayload,
+  getBTPKeyPair,
+  assertRsaKeySize,
 } from './index.js';
 import { canonicalize } from './jcs.js';
 import { PemKeys } from './types.js';
-import { BTPErrorException } from '@core/error/index.js';
+import { BTPErrorException, BTP_ERROR_KEY_TOO_SMALL } from '@core/error/index.js';
+import { BTP_MIN_RSA_KEY_BITS } from '@core/server/constants/index.js';
 
 interface KmsSignatureVector {
   algorithm: string;
@@ -322,5 +326,56 @@ describe('EBA-116/117/118: SDK RSA-OAEP wrap/unwrap interop with KMS RSAES_OAEP_
     );
 
     expect(unwrapped.toString('base64')).toBe(oaepVector.plaintextKeyBase64);
+  });
+});
+
+// EBA-445 (fix list 12). Ran 2026-10-12: a 1024-bit key was accepted for encryption.
+describe('RSA keys under 2048 bits are refused', () => {
+  const pair = (modulusLength: number): PemKeys =>
+    crypto.generateKeyPairSync('rsa', {
+      modulusLength,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+  const small = pair(1024);
+  const enough = pair(2048);
+  const tooSmall = expect.objectContaining({ code: BTP_ERROR_KEY_TOO_SMALL.code });
+
+  it('the minimum is 2048 bits', () => {
+    expect(BTP_MIN_RSA_KEY_BITS).toBe(2048);
+  });
+
+  it('for encryption: refuses to encrypt to a 1024-bit key', () => {
+    expect(() => encryptBtpPayload({ a: 1 }, small.publicKey)).toThrow(tooSmall);
+    expect(() => encryptBtpPayload({ a: 1 }, enough.publicKey)).not.toThrow();
+  });
+
+  it('for a signature: refuses to sign with a 1024-bit key', async () => {
+    await expect(signBtpPayload({ a: 1 }, small)).rejects.toEqual(tooSmall);
+    await expect(signBtpPayload({ a: 1 }, enough)).resolves.toBeDefined();
+  });
+
+  it('for a signature: refuses to verify with a 1024-bit key', () => {
+    // Signed directly, as a peer not using this SDK could.
+    const signature = {
+      algorithmHash: 'sha256' as const,
+      value: crypto
+        .sign('sha256', Buffer.from(canonicalize('{"a":1}')), small.privateKey)
+        .toString('base64'),
+      fingerprint: getFingerprintFromPem(small.publicKey),
+    };
+    const result = verifySignature({ a: 1 }, signature, small.publicKey);
+    expect(result.isValid).toBe(false);
+    expect(result.error).toEqual(tooSmall);
+  });
+
+  it('never makes one: getBTPKeyPair refuses a keySize under 2048', () => {
+    expect(() => getBTPKeyPair({ keySize: 1024 })).toThrow(tooSmall);
+  });
+
+  it('assertRsaKeySize takes a public or a private key PEM', () => {
+    expect(() => assertRsaKeySize(small.privateKey, 'signature')).toThrow(tooSmall);
+    expect(() => assertRsaKeySize(enough.privateKey, 'signature')).not.toThrow();
+    expect(() => assertRsaKeySize(pair(3072).publicKey, 'encryption')).not.toThrow();
   });
 });
