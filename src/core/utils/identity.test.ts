@@ -6,10 +6,9 @@
  */
 
 /*
- * BTPS 1.1 addendum item 10 (EBA-122): an identity is `account$domain` by
- * strict character rules. Reproduced 2026-10-04: parseIdentity read
- * `alice$saas.com$evil.org` as domain `saas.com`. And no `:` (founder,
- * 2026-10-16), which closes the one gap in computeTrustId's `from:to`.
+ * BTPS 1.1: an identity is `account$domain` by strict character rules.
+ * Reproduced 2026-10-04: parseIdentity read `alice$saas.com$evil.org` as
+ * domain `saas.com`. And no `:` (decided 2026-10-16), which closes the one gap in computeTrustId's `from:to`.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -50,7 +49,7 @@ const refused: [string, string][] = [
   ['alice$sääs.example', 'a character outside the rules'],
 ];
 
-describe('item 10: an identity is account$domain, by strict character rules', () => {
+describe('an identity is account$domain, by strict character rules', () => {
   it.each(accepted)('accepts %s', (identity) => {
     expect(parseIdentity(identity)).toEqual({
       accountName: identity.slice(0, identity.indexOf('$')),

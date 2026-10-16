@@ -1,6 +1,6 @@
 /**
- * Item E, device registration bound to the identity (EBA-113), and fix-list
- * item 5 (a forged agent message): registration.vectors.json against the
+ * Device registration bound to the identity, and forged agent messages:
+ * registration.vectors.json against the
  * SDK's parts, loaded from the tree under test (@btps/sdk/authentication).
  *
  * The server's two steps for an auth.request, composed here from the same
@@ -18,7 +18,6 @@
 import crypto from 'node:crypto';
 import { ensure } from '../check.mjs';
 
-const ITEM = 'E';
 const WINDOW_MS = 5 * 60 * 1000;
 
 /** The trust id the protocol keys records by: sha256 of lowercase `from:to`, hex. */
@@ -83,9 +82,7 @@ export function registrationSdkChecks(sdk, set) {
     Object.keys(model.keys).find((name) => model.keys[name].publicKeyPem === publicKeyPem);
 
   const check = (name, run) => ({
-    id: `sdk/item-E/${name}`,
-    item: ITEM,
-    tickets: model.tickets,
+    id: `sdk/registration/${name}`,
     run() {
       ensure(
         typeof sdk.authentication?.consumeRegistrationToken === 'function' &&

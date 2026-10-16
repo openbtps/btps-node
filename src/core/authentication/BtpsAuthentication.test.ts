@@ -609,7 +609,7 @@ describe('BtpsAuthentication', () => {
     });
   });
 
-  describe('item D (EBA-112): a refresh token is single-use', () => {
+  describe('key-rotating refresh: a refresh token is single-use', () => {
     it('reissuing with a token already spent is refused', async () => {
       const userIdentity = 'alice$saas.com';
       const decryptBy = 'admin$saas.com';

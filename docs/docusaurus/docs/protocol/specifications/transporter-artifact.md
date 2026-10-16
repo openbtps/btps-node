@@ -284,7 +284,7 @@ BTPS 1.1. The full rules are on [Lifecycle Events](./lifecycle-events.md).
 
 A receiving server refuses an artifact it has already accepted, and one
 signed too long ago or too far ahead to tell. Both checks are part of the
-protocol, not options (BTPS 1.1 item F, addendum item 4).
+protocol, not options (BTPS 1.1).
 
 ### The `issuedAt` window
 

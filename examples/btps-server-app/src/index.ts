@@ -54,7 +54,7 @@ const BTPsServer = BtpsServerSingletonFactory.create({
     requestCert: false,
   },
   connectionTimeoutMs: 5000,
-  // Registration tokens issued with Auth.storeAuthToken (item E).
+  // Registration tokens issued with Auth.storeAuthToken (device registration).
   tokenStore: memoryTokenStore,
   serverIdentity: {
     identity: 'hr$ebilladdress.com',
@@ -71,7 +71,7 @@ BTPsServer.onIncomingArtifact('Agent', async (artifact, resCtx) => {
 
     switch (action) {
       // auth.request never reaches this handler: the server answers it
-      // itself, on a registration token from memoryTokenStore (item E).
+      // itself, on a registration token from memoryTokenStore.
       case 'auth.refresh':
         const { document: refreshAuthDoc, agentId, id: refreshReqId } = artifact;
         if (!refreshAuthDoc) {

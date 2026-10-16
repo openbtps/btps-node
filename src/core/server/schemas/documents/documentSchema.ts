@@ -13,7 +13,7 @@ import { BtpPayslipDocSchema } from './payslipSchema.js';
 /**
  * A v2 document, discriminated by `type`: the content of an unencrypted
  * `BTPS_DOC`. Lifecycle events are not documents: they travel as
- * `BTPS_EVENT` (release plan section 2).
+ * `BTPS_EVENT`.
  */
 export const BtpDocV2Schema = z.discriminatedUnion('type', [
   BtpInvoiceV2DocSchema,

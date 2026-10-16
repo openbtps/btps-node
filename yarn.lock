@@ -80,6 +80,7 @@ __metadata:
     eslint-import-resolver-typescript: "npm:^4.4.3"
     eslint-plugin-import: "npm:^2.29.0"
     fast-glob: "npm:^3.3.3"
+    json-canonicalize: "npm:^3.0.1"
     lodash: "npm:^4.17.21"
     nodemon: "npm:^3.0.0"
     ora: "npm:^8.2.0"
@@ -3233,6 +3234,13 @@ __metadata:
   version: 3.0.1
   resolution: "json-buffer@npm:3.0.1"
   checksum: 10c0/0d1c91569d9588e7eef2b49b59851f297f3ab93c7b35c7c221e288099322be6b562767d11e4821da500f3219542b9afd2e54c5dc573107c1126ed1080f8e96d7
+  languageName: node
+  linkType: hard
+
+"json-canonicalize@npm:^3.0.1":
+  version: 3.0.1
+  resolution: "json-canonicalize@npm:3.0.1"
+  checksum: 10c0/d87c031bebc22130d3a1d0262fac10586f086eb6ad9388983de1f0ae92e0b866b7be27de60ead07cc3047e1ea27f9d56954ff29333aa33b48d21ec6320eaa52d
   languageName: node
   linkType: hard
 

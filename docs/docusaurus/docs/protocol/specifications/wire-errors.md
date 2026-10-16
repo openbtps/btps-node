@@ -8,7 +8,7 @@ sidebar_label: Wire Errors
 Every error a BTPS 1.1 server sends carries three things: a stable string
 `code`, a status class in `status.code`, and the fixed `status.message` of
 that code. A sender decides whether to retry from the `code`, never from the
-message text. BTPS 1.1, fix list 6 (EBA-188).
+message text. New in BTPS 1.1.
 
 ```json
 {
@@ -41,13 +41,13 @@ The table lives in one place in the SDK, `BTP_WIRE_ERRORS` in
   the artifact was delivered before: do not send it again.
 - **An unknown code** (a newer peer's) is decided by its status class the
   same way: 429 and 5xx retryable, 4xx not.
-- **Trust refusals (EBA-124, option B, 2026-10-06).** Only an expired trust is
+- **Trust refusals (#6, 2026-10-06).** Only an expired trust is
   told apart. Never trusted, revoked, blocked, pending, rejected and already
   active all go out as `BTP_ERROR_TRUST_NOT_ALLOWED`, so a sender cannot learn
   that it was blocked. The precise reason stays on the server, in the request
   context's `error`. The table enforces this for middleware too: a middleware
   that answers with `BTP_ERROR_TRUST_REVOKED` sends `BTP_ERROR_TRUST_NOT_ALLOWED`.
-- **A privacy refusal is told apart (EBA-444).** When a trust is active but
+- **A privacy refusal is told apart.** When a trust is active but
   the artifact's form breaks its agreed `privacyType`, the server sends
   `BTP_ERROR_TRUST_PRIVACY`. The sender agreed the privacy type, so this tells
   it nothing new, and only a resend in the other form can succeed.
@@ -80,8 +80,7 @@ without the request's own `reqId` is never read as delivered.
 ## Versions
 
 A 1.0 server sent every string-coded error as status 500 with no `code`. 1.0
-interop is not a concern: a 1.1 server refuses 1.0 artifacts (release plan,
-section 6).
+interop is not a concern: a 1.1 server refuses 1.0 artifacts.
 
 ## The table
 

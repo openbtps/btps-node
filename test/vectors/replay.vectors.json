@@ -1,7 +1,5 @@
 {
-  "item": "F",
-  "tickets": ["EBA-114"],
-  "description": "BTPS 1.1 item F, replay and duplicate protection (addendum item 4; release plan page 10518529, sections 2.7 and 4). window: an artifact whose issuedAt is the given value, received when the server's clock reads `now`, is accepted or refused with `reason`, under `windowMs` (ISSUED_AT_WINDOW_MS when absent). deliveries: each step is an artifact `(from, id)` signed at `issuedAt` and received at `receivedAt`, in order, by one server with one replay store; `expect` is accept, refuse-window (the window refuses it, whatever the store holds) or refuse-duplicate (inside the window, and its (from, id) was accepted before). A step with the same from, id and issuedAt as an earlier one is the same artifact sent again.",
+  "description": "BTPS 1.1 replay and duplicate protection. window: an artifact whose issuedAt is the given value, received when the server's clock reads `now`, is accepted or refused with `reason`, under `windowMs` (ISSUED_AT_WINDOW_MS when absent). deliveries: each step is an artifact `(from, id)` signed at `issuedAt` and received at `receivedAt`, in order, by one server with one replay store; `expect` is accept, refuse-window (the window refuses it, whatever the store holds) or refuse-duplicate (inside the window, and its (from, id) was accepted before). A step with the same from, id and issuedAt as an earlier one is the same artifact sent again.",
   "windowMs": 300000,
   "now": "2026-10-16T12:00:00.000Z",
   "window": [

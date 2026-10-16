@@ -11,7 +11,7 @@ The BTPS Server SDK features a powerful, phase-based middleware system that lets
 ## Default Middleware and Rate Limiting
 
 Every `BtpsServer` runs a **default middleware set**, before your middleware
-file's, whether or not you give a file (BTPS 1.1, EBA-187):
+file's, whether or not you give a file (BTPS 1.1):
 
 | Phase / step | Default | Keyed by |
 | --- | --- | --- |
@@ -68,7 +68,7 @@ new BtpsServer({
   }),
 });
 
-// Counters in a shared store, for several server instances: any RateLimiter.
+// Counters in a shared store, for several server instances: your own RateLimiter.
 new BtpsServer({ ...options, defaultMiddleware: createDefaultMiddleware({ rateLimiter: myRedisLimiter }) });
 
 // Your own set instead of the defaults:

@@ -135,7 +135,7 @@ describe.each(implementations)('AC1: $name conformance', ({ name, makeSigner, pu
   });
 });
 
-describe('AC3: wire-format proof — a KMS signature and a PEM signature over the same input both verify through the SDK verify path', () => {
+describe('wire-format proof — a KMS signature and a PEM signature over the same input both verify through the SDK verify path', () => {
   it('signBtpPayload-equivalent output from both Signer implementations verifies via @core/crypto verifySignature', async () => {
     const pemSigner = new PemSigner({
       publicKey: vectors.signing.publicKeyPem,
@@ -147,7 +147,7 @@ describe('AC3: wire-format proof — a KMS signature and a PEM signature over th
     });
 
     const payload = vectors.signing.payload;
-    // BTPS 1.1 (EBA-115) signs the RFC 8785 canonical form, not JSON.stringify output.
+    // BTPS 1.1 signs the RFC 8785 canonical form, not JSON.stringify output.
     const data = new TextEncoder().encode(canonicalize(JSON.stringify(payload)));
     const fingerprint = crypto
       .createHash('sha256')
@@ -323,9 +323,9 @@ describe('AC6: KmsSigner exposes no private key material (T-27)', () => {
   }, 30000);
 });
 
-// EBA-441 (item I): the same implementations, through the SDK's own signing
+// The same implementations, through the SDK's own signing
 // paths rather than called directly.
-describe.each(implementations)('EBA-441: $name through the SDK core', ({ name, makeSigner }) => {
+describe.each(implementations)('$name through the SDK core', ({ name, makeSigner }) => {
   const pemKeys = {
     publicKey: vectors.signing.publicKeyPem,
     privateKey: vectors.signing.privateKeyPem,

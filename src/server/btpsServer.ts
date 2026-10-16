@@ -132,7 +132,7 @@ export class BtpsServer {
   private readonly issuedAtWindowMs: number;
   private readonly tokenStore?: TokenStore;
   private readonly authentication?: BtpsAuthentication;
-  /** Registration tokens consumed in the trust step, until the device is bound (item E). */
+  /** Registration tokens consumed in the trust step, until the device is bound. */
   private readonly registrations = new WeakMap<BTPAgentArtifact, BTPsTokenDocument>();
   private readonly middlewareManager: MiddlewareManager;
   private readonly connectionTimeoutMs: number;
@@ -164,11 +164,11 @@ export class BtpsServer {
     this.tlsOptions = options.tlsOptions;
     this.trustStore = options.trustStore;
     this.identityStore = options.identityStore;
-    // Replay protection is not optional (item F): with no store given, an
+    // Replay protection is not optional: with no store given, an
     // in-memory one, which forgets on restart and is not shared.
     this.replayStore = options.replayStore ?? new InMemoryReplayStore();
     this.issuedAtWindowMs = resolveIssuedAtWindow(options.issuedAtWindowMs);
-    // Device registration (item E): only with a token store; without one,
+    // Device registration: only with a token store; without one,
     // every auth.request is refused.
     this.tokenStore = options.tokenStore;
     if (this.tokenStore) {
@@ -305,7 +305,7 @@ export class BtpsServer {
   private handleConnection(socket: TLSSocket) {
     const ipAddress = socket.remoteAddress ?? 'unknown';
     const startTime = new Date().toISOString();
-    // A line is never buffered past maxLineLength (fix list 10).
+    // A line is never buffered past maxLineLength.
     const stream = socket.pipe(split2({ maxLength: this.maxLineLength }));
     const context: BTPContext = {
       socket,
@@ -333,8 +333,7 @@ export class BtpsServer {
     };
 
     // Lines from one connection are handled concurrently, each with a
-    // request and response context of its own (fix list 4, addendum item
-    // 10): its reqId, its responseSent and its identity. One shared context,
+    // request and response context of its own: its reqId, its responseSent and its identity. One shared context,
     // overwritten by each line, crossed the responses of interleaved requests.
     stream.on('data', async (line: string) => {
       // split2 checks only the part of a line still waiting for its end, so
@@ -471,8 +470,8 @@ export class BtpsServer {
   }
 
   /**
-   * A request and response context for one line of a connection (fix list
-   * 4): what middleware sees for a line, the reqId its answer carries, and
+   * A request and response context for one line of a connection: what
+   * middleware sees for a line, the reqId its answer carries, and
    * whether it has been answered, are that line's own.
    */
   private createLineContext(context: BTPContext) {
@@ -559,7 +558,7 @@ export class BtpsServer {
     const { identity, identitySelector } = artifact;
     const { selector } = this.serverIdentity;
 
-    // The store is asked by identity: it hashes it itself (fix list 1, defect 1).
+    // The store is asked by identity: it hashes it itself.
     // Without a selector of its own the server cannot say which key signed.
     const identityRecord = selector
       ? await this.identityStore?.getPublicKeyRecord(identity, identitySelector)
@@ -622,7 +621,7 @@ export class BtpsServer {
 
     const { data } = reqCtx;
 
-    // Core issuedAt window (non-negotiable, item F). Before the signature, so
+    // Core issuedAt window (non-negotiable). Before the signature, so
     // a stale replay costs no key lookup.
     const windowError = this.checkIssuedAt(data);
     if (windowError) {
@@ -644,7 +643,7 @@ export class BtpsServer {
     if (afterSigVerResponseSent) return; // Response already sent, stop processing
 
     if (!isValid) {
-      // A refused refresh says why (item D): not signed by the current key, or no proof of the new one.
+      // A refused refresh says why: not signed by the current key, or no proof of the new one.
       const refreshRefusal = [BTP_ERROR_REFRESH_NOT_CURRENT_KEY, BTP_ERROR_KEY_ROTATION_PROOF].find(
         (e) => e.code === reqCtx.error?.code,
       );
@@ -682,9 +681,9 @@ export class BtpsServer {
       // wire only distinguishes expired from everything else, so an
       // un-upgraded 1.0 peer still just sees "not allowed" for a revoked or
       // never-trusted sender.
-      // A refused registration says why (item E): no store, no token, a bad,
+      // A refused registration says why: no store, no token, a bad,
       // used or another identity's token.
-      // A privacy refusal says so (EBA-444): only the other form can succeed.
+      // A privacy refusal says so: only the other form can succeed.
       const toldApart = [...REGISTRATION_ERRORS, BTP_ERROR_TRUST_PRIVACY].find(
         (e) => e.code === reqCtx.error?.code,
       );
@@ -696,7 +695,7 @@ export class BtpsServer {
       return this.sendBtpsError(resCtx.socket, wireError, resCtx.reqId);
     }
 
-    // Core duplicate check (non-negotiable, item F): only now that the
+    // Core duplicate check (non-negotiable): only now that the
     // signature and trust hold, so an unverified sender cannot spend
     // someone else's ids.
     const { from: replayFrom, id: replayId } = this.replayPair(data);
@@ -764,7 +763,7 @@ export class BtpsServer {
   }
 
   /**
-   * The issuedAt window (item F), for transporter and agent artifacts alike.
+   * The issuedAt window, for transporter and agent artifacts alike.
    * Control and identity-lookup artifacts never reach the pipeline: they are
    * unsigned, so their issuedAt proves nothing, and they change no state.
    */
@@ -897,7 +896,7 @@ export class BtpsServer {
     }
 
     if (artifact.action === 'auth.refresh') {
-      // Item D (EBA-112): signed by the current key; a new key comes with its proof.
+      // Signed by the current key; a new key comes with its proof.
       const check = verifyAgentRefresh({
         artifact,
         currentPublicKey: agentPublicPem,
@@ -914,7 +913,7 @@ export class BtpsServer {
   /**
    * Gets the public key for an agent based on whether it's onboarding or existing.
    * Every agent that is not onboarding, including one refreshing to a new
-   * key, is verified with the key in its trust record (item D).
+   * key, is verified with the key in its trust record.
    */
   private async getAgentPublicKey(artifact: BTPAgentArtifact): Promise<string | null> {
     const isOnboardingAgent = artifact.action === 'auth.request';
@@ -926,7 +925,7 @@ export class BtpsServer {
     }
 
     // Every other agent: the key in its own agent record, never in a record
-    // between two identities (fix-list item 5).
+    // between two identities.
     const resolved = await resolveAgentKey(this.trustStore, artifact);
     return resolved.ok ? resolved.publicKeyPem : null;
   }
@@ -938,7 +937,7 @@ export class BtpsServer {
     artifact: BTPAgentArtifact,
   ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
     // An onboarding agent is trusted only on a registration token issued to
-    // the identity it registers for, consumed here, once (item E).
+    // the identity it registers for, consumed here, once.
     if (artifact.action === 'auth.request') return this.verifyRegistration(artifact);
 
     const { agentId, to } = artifact;
@@ -956,7 +955,7 @@ export class BtpsServer {
   }
 
   /**
-   * Item E (EBA-113): an `auth.request` is trusted only on a registration
+   * An `auth.request` is trusted only on a registration
    * token issued to the identity it names, which must be the artifact's
    * `to`. The token is consumed here, atomically, and kept until
    * `registerAgent` binds the device.
@@ -976,7 +975,7 @@ export class BtpsServer {
   }
 
   /**
-   * Item E (EBA-113): binds the device to the identity its registration
+   * Binds the device to the identity its registration
    * token was issued to, under an agent id the server generates, and
    * answers the device. The application's Agent handlers never see an
    * `auth.request`.
@@ -1151,7 +1150,7 @@ export class BtpsServer {
     }
 
     /* The delegator signed the artifact and the delegation before any
-     * attestation was added: verify that same message (addendum item 10). */
+     * attestation was added: verify that same message. */
     const { isValid: isValidDelegation } = verifySignature(
       delegationSignedMessage(restArtifact, delegation),
       delegation.signature,
@@ -1248,8 +1247,8 @@ export class BtpsServer {
     }
 
     if (artifact.type === 'BTPS_EVENT') {
-      // An event is accepted over the normal record or the flipped one (item A,
-      // release plan section 2.4); every other type needs the normal record.
+      // An event is accepted over the normal record or the flipped one;
+      // every other type needs the normal record.
       const { isTrusted, record } = await resolveEventTrust(
         artifact.from,
         artifact.to,
@@ -1257,7 +1256,7 @@ export class BtpsServer {
       );
       if (!isTrusted) return { isTrusted, error: this.getTrustRefusalError(record) };
       // The record that granted it governs its privacy: the flipped one when
-      // the event came over the flipped trust (EBA-444).
+      // the event came over the flipped trust.
       return this.checkPrivacy(artifact, record);
     }
 
@@ -1275,7 +1274,7 @@ export class BtpsServer {
   }
 
   /**
-   * EBA-444 (fix list 8): an active trust admits a `BTPS_DOC` or
+   * An active trust admits a `BTPS_DOC` or
    * `BTPS_EVENT` only in the form its `privacyType` agreed. Not applied to
    * TRUST_REQ and TRUST_RES, which negotiate the agreement.
    */
@@ -1431,59 +1430,37 @@ export class BtpsServer {
     error?: 'JSON' | 'VALIDATION';
   } {
     try {
-      // Strict parse: an artifact with a duplicate member name is refused (JCS, item 5).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- typed as JSON.parse was
-      const data = parseJson<any>(line);
+      // Strict parse: an artifact with a duplicate member name is refused (JCS).
+      const data = parseJson<unknown>(line);
 
-      let type: 'agent' | 'transporter' | 'identityLookup' | 'control' | undefined;
+      // IMPORTANT: the artifact is always the original data, for signature
+      // verification. Zod may coerce, strip, or reorder fields, which would
+      // break it; the schema below only decides whether the line is valid.
+      let parsed: PreProcessedArtifact;
       if (isBtpsControlArtifact(data)) {
-        type = 'control';
+        parsed = { artifact: data, type: 'control' };
       } else if (isBtpsTransportArtifact(data)) {
-        type = 'transporter';
+        parsed = { artifact: data, type: 'transporter' };
       } else if (isBtpsIdentityRequest(data)) {
-        type = 'identityLookup';
+        parsed = { artifact: data, type: 'identityLookup' };
       } else if (isBtpsAgentArtifact(data)) {
-        type = 'agent';
+        // respondNow stays false until the artifact passes the schema.
+        parsed = { artifact: data, type: 'agent', respondNow: false };
+      } else {
+        // Valid JSON, but no artifact: there is no { type, artifact } to give.
+        return { error: 'VALIDATION' };
       }
 
-      if (!type) {
-        return { error: 'VALIDATION', data };
+      if (!validate(BtpArtifactServerSchema, data).success) {
+        return { error: 'VALIDATION', data: parsed };
       }
 
-      const validationResult = validate(BtpArtifactServerSchema, data);
-
-      if (!validationResult.success) {
+      if (parsed.type === 'agent') {
         return {
-          error: 'VALIDATION',
-          data:
-            type === 'agent'
-              ? { artifact: data, type, respondNow: false } // Default value for agent artifacts
-              : { artifact: data, type },
+          data: { ...parsed, respondNow: this.isImmediateAction(parsed.artifact.action) },
         };
       }
-
-      // IMPORTANT: For signature verification, always use the original data.
-      // Zod may coerce, strip, or reorder fields, which will break signature verification.
-      // Use validationResult.data only for type-safe business logic, not for cryptographic checks.
-
-      switch (type) {
-        case 'transporter':
-          return { data: { artifact: data as BTPTransporterArtifact, type } };
-        case 'identityLookup':
-          return { data: { artifact: data as BTPIdentityLookupRequest, type } };
-        case 'agent':
-          return {
-            data: {
-              artifact: data as BTPAgentArtifact,
-              type,
-              respondNow: this.isImmediateAction((data as BTPAgentArtifact).action),
-            },
-          };
-        case 'control':
-          return { data: { artifact: data as BTPControlArtifact, type } };
-        default:
-          return { error: 'VALIDATION', data: undefined };
-      }
+      return { data: parsed };
     } catch {
       return { error: 'JSON' };
     }
@@ -1542,7 +1519,7 @@ export class BtpsServer {
 
   /**
    * Sends a BTPS error response to the client: the error's stable code,
-   * status class and fixed message from the wire error table (EBA-188). The
+   * status class and fixed message from the wire error table. The
    * error's own message never reaches the socket, and a code the table does
    * not know goes out as BTP_ERROR_UNKNOWN.
    */

@@ -1,6 +1,6 @@
 /**
- * Item J, host identity lookup repaired (EBA-442), and fix-list item 9,
- * padded keys in DNS (EBA-186): identity-lookup.vectors.json against the
+ * Host identity lookup, repaired, and keys whose base64 carries padding in
+ * DNS: identity-lookup.vectors.json against the
  * SDK's parts, loaded from the tree under test.
  *
  * - parse: `parseBtpsTxtRecord` (@btps/sdk) reads each TXT record into the
@@ -16,7 +16,6 @@
 
 import { ensure } from '../check.mjs';
 
-const ITEM = 'J';
 
 const base64 = (pem) =>
   String(pem ?? '')
@@ -31,9 +30,7 @@ const base64 = (pem) =>
 export function identityLookupSdkChecks(sdk, set) {
   const model = set.identityLookup;
   const check = (name, needs, run) => ({
-    id: `sdk/item-J/${name}`,
-    item: ITEM,
-    tickets: model.tickets,
+    id: `sdk/identity-lookup/${name}`,
     run() {
       for (const [where, fn] of needs) {
         ensure(typeof fn === 'function', `the SDK has no ${where}`);

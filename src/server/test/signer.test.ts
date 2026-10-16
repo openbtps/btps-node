@@ -6,7 +6,7 @@
  */
 
 /*
- * BTPS 1.1 item I (EBA-441): every signing path signs through a Signer and
+ * BTPS 1.1: every signing path signs through a Signer and
  * every decryption path decrypts through a Decrypter. The KMS signer and
  * decrypter here are KmsSigner and KmsDecrypter over a fake KMS client that
  * holds a key generated for the test: nothing here touches a real KMS.
@@ -153,7 +153,7 @@ const withTag = (encryption: BTPEncryption, bytes: number): BTPEncryption => ({
   authTag: Buffer.from(encryption.authTag, 'base64').subarray(0, bytes).toString('base64'),
 });
 
-describe('EBA-441: the core signs through a Signer and decrypts through a Decrypter', () => {
+describe('the core signs through a Signer and decrypts through a Decrypter', () => {
   let server: BtpsServer;
 
   beforeEach(() => {
@@ -349,7 +349,7 @@ describe('EBA-441: the core signs through a Signer and decrypts through a Decryp
       ).toMatchObject({ isValid: true });
     });
 
-    // Addendum item 10, fixed by EBA-122: the delegation was signed without
+    // Fixed in #23: the delegation was signed without
     // its attestation but verified with it in place. Both sides now build
     // the message in core/delegation/signedMessages.ts.
     it('an attested delegation verifies at the server end to end', async () => {
@@ -489,7 +489,7 @@ describe('EBA-441: the core signs through a Signer and decrypts through a Decryp
     ).toBe(true);
   });
 
-  describe('a GCM tag that is not 16 bytes is refused on every decrypt path (fix list 2)', () => {
+  describe('a GCM tag that is not 16 bytes is refused on every decrypt path', () => {
     const bob = key('bob$receiver.example');
 
     /** alice's artifact to bob, re-signed after its tag was cut to 4 bytes. */
