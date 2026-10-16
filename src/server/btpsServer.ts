@@ -180,7 +180,7 @@ export class BtpsServer {
         tokenConfig: options.tokenConfig,
       });
     }
-    // Upward only (EBA-443): never closed on a sender still waiting by default.
+    // Upward only: never closed on a sender still waiting by default.
     const { connectionTimeoutMs = BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS } = options;
     if (
       typeof connectionTimeoutMs !== 'number' ||
@@ -194,7 +194,7 @@ export class BtpsServer {
       });
     }
     this.connectionTimeoutMs = connectionTimeoutMs;
-    // Lower only (fix list 10): a longer line than the protocol's is never read.
+    // Lower only: a longer line than the protocol's is never read.
     const { maxLineLength = BTP_MAX_LINE_LENGTH } = options;
     if (
       !Number.isInteger(maxLineLength) ||

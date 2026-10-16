@@ -455,7 +455,7 @@ describe('trust-request storage, middleware and connection fixes', () => {
     });
   });
 
-  // EBA-443 (fix list 13): never closed on a sender still waiting by default.
+  // Never closed on a sender still waiting by default.
   describe('connectionTimeoutMs may only be raised', () => {
     const timeoutOf = (server: BtpsServer) =>
       (server as unknown as { connectionTimeoutMs: number }).connectionTimeoutMs;

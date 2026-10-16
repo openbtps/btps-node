@@ -227,7 +227,8 @@ describe('an error answer with no reqId', () => {
 describe('the client answers every pending send', () => {
   // Read 2026-10-13: the connection timeout cleared the queue without
   // resolving, so a send whose own timer was longer waited forever. Since
-  // EBA-443 that timeout is the connect timeout; see the test below.
+  // the timeout minimums (#27) that timeout is the connect timeout; see the
+  // test below.
 
   it('destroy() answers a pending send instead of dropping it', async () => {
     const port = await start(() => {});
@@ -291,7 +292,7 @@ const closedPort = async () => {
 const answerTo = (line: Record<string, unknown>) =>
   answer({ status: { ok: true, code: 200, message: 'ok' }, type: 'btps_response', reqId: line.id });
 
-describe('EBA-443: timeout minimums (fix list 13)', () => {
+describe('timeout minimums', () => {
   const refused = expect.objectContaining({ code: BTP_ERROR_INVALID_OPTION.code });
 
   it('defaults to a 5 s connect and a 20 s reply wait', () => {

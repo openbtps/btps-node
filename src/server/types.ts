@@ -92,8 +92,8 @@ export interface BtpsServerOptions {
   onError?: (err: BTPErrorException) => void;
 
   /**
-   * How long a connection may sit idle before the server closes it, in ms
-   * (EBA-443). Default and minimum BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS
+   * How long a connection may sit idle before the server closes it, in ms.
+   * Default and minimum BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS
    * (30 s), above a sender's default connect and reply waits together. A
    * lower value is refused at construction with BTP_ERROR_INVALID_OPTION.
    */

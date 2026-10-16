@@ -201,7 +201,7 @@ const startServer = async (
     tlsOptions: { cert: tlsCert, key: tlsKey },
     port,
   });
-  // Below the 30 s minimum (EBA-443), set past the check so the idle
+  // Below the 30 s minimum, set past the check so the idle
   // timeout can be seen without waiting for it.
   if (options.idleTimeoutMs !== undefined) {
     (server as unknown as { connectionTimeoutMs: number }).connectionTimeoutMs =

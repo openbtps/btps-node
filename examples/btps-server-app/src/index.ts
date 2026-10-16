@@ -53,7 +53,7 @@ const BTPsServer = BtpsServerSingletonFactory.create({
     ...certBundle,
     requestCert: false,
   },
-  // Registration tokens issued with Auth.storeAuthToken (item E).
+  // Registration tokens issued with Auth.storeAuthToken (device registration).
   tokenStore: memoryTokenStore,
   serverIdentity: {
     identity: 'hr$ebilladdress.com',

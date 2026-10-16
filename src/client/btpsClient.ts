@@ -76,7 +76,7 @@ import { validate } from '@core/utils/validation.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 
 /**
- * A timeout option (EBA-443): from its minimum up to Node's longest timer.
+ * A timeout option: from its minimum up to Node's longest timer.
  * Anything else is refused, never raised.
  */
 const checkTimeout = (name: string, value: unknown, min: number): number => {
@@ -95,9 +95,9 @@ const checkTimeout = (name: string, value: unknown, min: number): number => {
 };
 
 export class BtpsClient {
-  /** Connecting (TCP and TLS), in ms (EBA-443). */
+  /** Connecting (TCP and TLS), in ms. */
   protected connectTimeoutMs: number;
-  /** The wait for a reply once an artifact is written, in ms (EBA-443). */
+  /** The wait for a reply once an artifact is written, in ms. */
   protected replyTimeoutMs: number;
   protected socket?: TLSSocket;
   protected emitter: EventEmitter = new EventEmitter();
@@ -116,7 +116,7 @@ export class BtpsClient {
       artifact: BTPArtifact;
       resolve: (v: BTPClientResponse) => void;
       timeout: NodeJS.Timeout;
-      /** The reply wait, restarted when the artifact is written (EBA-443). */
+      /** The reply wait, restarted when the artifact is written. */
       timeoutMs: number;
       /** On the wire (or in the backpressure queue): it waits for its answer, and is never sent again. */
       written?: boolean;
@@ -244,7 +244,7 @@ export class BtpsClient {
         }),
       );
 
-      // Connecting only (EBA-443): once connected, each send has its reply wait.
+      // Connecting only: once connected, each send has its reply wait.
       connectTimer = setTimeout(() => {
         const error = new BTPErrorException(BTP_ERROR_SOCKET_TIMEOUT, {
           cause: `no connection to ${hostname}:${port} in ${this.connectTimeoutMs}ms`,
@@ -254,7 +254,7 @@ export class BtpsClient {
         this.states.isConnected = false;
         // Settled first, so the caller answers its own send with this error.
         settle({ socket: undefined, error });
-        // Every pending send gets its answer (fix list 12).
+        // Every pending send gets its answer.
         this.cleanupQueue(error);
         sock.destroy();
       }, this.connectTimeoutMs);
@@ -559,7 +559,7 @@ export class BtpsClient {
     this.options.maxQueue = maxQueue ?? this.options.maxQueue;
   }
 
-  /** The waits in use, in ms (EBA-443). */
+  /** The waits in use, in ms. */
   getTimeouts(): { connectTimeoutMs: number; replyTimeoutMs: number } {
     return { connectTimeoutMs: this.connectTimeoutMs, replyTimeoutMs: this.replyTimeoutMs };
   }
@@ -689,7 +689,7 @@ export class BtpsClient {
     if (job?.written) return;
     if (job) {
       job.written = true;
-      // The reply wait starts once the artifact is written (EBA-443), so
+      // The reply wait starts once the artifact is written, so
       // connecting never eats into it.
       clearTimeout(job.timeout);
       job.timeout = this.replyTimer(artifact.id, job.resolve, job.timeoutMs);
@@ -1070,7 +1070,7 @@ export class BtpsClient {
         id: randomUUID(),
         issuedAt: new Date().toISOString(),
       };
-      // One limit over connecting and the answer (EBA-443).
+      // One limit over connecting and the answer.
       const timeoutMs = Math.min(this.connectTimeoutMs + this.replyTimeoutMs, BTP_MAX_TIMER_MS);
       let settled = false;
       let answered = false;
