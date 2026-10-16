@@ -86,6 +86,9 @@ export const BtpServerResponseSchema = z
     id: z.string(),
     issuedAt: z.string().datetime(),
     type: z.enum(['btps_error', 'btps_response']),
+    // The stable error code of a `btps_error` (EBA-188): a sender decides
+    // whether to retry from it, never from `status.message`.
+    code: z.string().min(1).optional(),
     reqId: z.string().optional(),
     document: z.union([BtpServerResDocsSchema, z.string()]).optional(),
     signature: BtpSignatureSchema.optional(),

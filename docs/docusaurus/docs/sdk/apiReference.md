@@ -1110,9 +1110,9 @@ Error constant for trust requests not allowed at this time.
 - `code`: `'BTP_ERROR_TRUST_NOT_ALLOWED'`
 - `message`: `'BTPS trust request is not allowed at this time. Contact receiver'`
 
-This is also the response a sender receives for a **revoked** trust record: on the wire, revoked and never-trusted produce an identical response body (the same `message`), so a sender who was removed cannot tell their refusal apart from one who was never trusted. The server's own context keeps the precise reason (see `BTP_ERROR_TRUST_REVOKED` below).
+This is also the response a sender receives for a **revoked** trust record: on the wire, revoked and never-trusted produce an identical response body (the same `code`, `message` and `status.code` 403), so a sender who was removed cannot tell their refusal apart from one who was never trusted. The server's own context keeps the precise reason (see `BTP_ERROR_TRUST_REVOKED` below).
 
-The distinction between trust-refusal cases described on this page lives in the response's `status.message` text, not in its numeric `status.code`. Today `status.code` is `500` for this and for every other application-level BTPS error, regardless of which of these constants produced it — a separate, pre-existing gap (`sendBtpsError`'s `typeof error.code === 'number' ? error.code : 500` fallback) tracked by EBA-188, not fixed by the trust-refusal work described here.
+Since BTPS 1.1 (EBA-188) every error response carries its stable `code` and the status class of that code; see [Wire Errors](../protocol/specifications/wire-errors.md) for the table, which also says which codes are retryable.
 
 ---
 
@@ -1123,7 +1123,7 @@ const BTP_ERROR_TRUST_EXPIRED: BTPError;
 ```
 
 **Description:**
-Error constant for a trust record that was `accepted` and whose `expiresAt` has since passed. A `blocked`, `rejected`, or `pending` record with a past `expiresAt` is reported under its own status instead — it is not "expired". Unlike a revoked or never-existent trust, an expired trust produces its own distinct response `message` on the wire, so a sender can tell the difference and know a request may re-establish trust (see the note on `BTP_ERROR_TRUST_NOT_ALLOWED` above — the numeric `status.code` does not carry this distinction today). An un-upgraded peer that does not recognize this message must still treat it as a refusal (not-allowed), which is why `status.ok` and `status.code` stay identical to a plain not-allowed refusal.
+Error constant for a trust record that was `accepted` and whose `expiresAt` has since passed. A `blocked`, `rejected`, or `pending` record with a past `expiresAt` is reported under its own status instead — it is not "expired". Unlike a revoked or never-existent trust, an expired trust goes out with its own `code` on the wire, so a sender can tell the difference and know a request may re-establish trust. `status.ok` and `status.code` (403) stay identical to a plain not-allowed refusal, and neither is retryable.
 
 **Properties:**
 
@@ -1272,7 +1272,7 @@ Error constant for signature verification failures.
 **Properties:**
 
 - `code`: `'BTP_ERROR_SIG_VERIFICATION'`
-- `message`: `' Signature verification failed'`
+- `message`: `'Signature verification failed'`
 
 ---
 
@@ -1367,7 +1367,7 @@ Error constant for unknown errors.
 
 **Properties:**
 
-- `code`: `'BTP_UNKNOWN_ERROR'`
+- `code`: `'BTP_ERROR_UNKNOWN'` (it was `'BTP_UNKNOWN_ERROR'` before BTPS 1.1)
 - `message`: `'Unknown error'`
 
 ---
@@ -1576,7 +1576,7 @@ Error constant for signature verification failures.
 **Properties:**
 
 - `code`: `'BTP_ERROR_SIG_VERIFICATION'`
-- `message`: `' Signature verification failed'`
+- `message`: `'Signature verification failed'`
 
 ---
 
@@ -1623,7 +1623,7 @@ Error constant for unknown or unexpected errors.
 
 **Properties:**
 
-- `code`: `'BTP_UNKNOWN_ERROR'`
+- `code`: `'BTP_ERROR_UNKNOWN'` (it was `'BTP_UNKNOWN_ERROR'` before BTPS 1.1)
 - `message`: `'Unknown error'`
 
 ---

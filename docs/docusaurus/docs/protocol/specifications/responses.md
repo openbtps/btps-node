@@ -56,6 +56,7 @@ BTPS server responses (`BTPServerResponse`) are designed to provide consistent, 
 
 ## Optional Fields
 
+- **code**: on a `btps_error`, the stable error code (BTPS 1.1), e.g. `BTP_ERROR_TRUST_NOT_ALLOWED`. A 1.1 server always sends it on an error. A sender decides whether to retry from it, never from `status.message`. Every code, its status and whether it is retryable: [Wire Errors](./wire-errors.md)
 - **reqId**: ID of the original request (for correlation)
 - **document**: Response document content (see Document Types section)
 - **signature**: Digital signature for response authenticity
@@ -88,14 +89,17 @@ The status field provides information about the response:
 
 ### Status Codes
 
+On an error, `status.code` is the class of the error's stable `code`, from one table ([Wire Errors](./wire-errors.md)). An application error is never sent as 500.
+
 - **200**: Success - Operation completed successfully
-- **400**: Bad Request - Invalid request format or parameters
-- **401**: Unauthorized - Authentication required or failed
-- **403**: Forbidden - Insufficient permissions
-- **404**: Not Found - Resource not found
-- **429**: Too Many Requests - Rate limit exceeded
-- **500**: Internal Server Error - Server processing error
-- **503**: Service Unavailable - Server temporarily unavailable
+- **400**: Bad Request - the artifact cannot be read or does not validate
+- **401**: Unauthorized - who sent it, or whether they signed it, does not hold
+- **403**: Forbidden - trust refusal, or a protocol rule broken (window, replay, registration, line too long)
+- **429**: Too Many Requests - Rate limit exceeded; retryable
+- **500**: Internal Server Error - unexpected only, always `BTP_ERROR_UNKNOWN` (or the server-configuration error); retryable
+- **503**: Service Unavailable - the connection, not the artifact (a timeout); retryable
+
+`status.message` is the fixed message of the code's constant. A server never writes an error's own or internal text (a thrown message, a resolver's answer) to the wire.
 
 ## Response Types
 
@@ -126,15 +130,17 @@ Used when the operation fails:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": false,
     "code": 400,
-    "message": "Invalid request format"
+    "message": "Invalid JSON format"
   },
   "id": "btps_response_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
-  "type": "btps_error"
+  "type": "btps_error",
+  "code": "BTP_ERROR_INVALID_JSON",
+  "reqId": "the-request-id"
 }
 ```
 
@@ -388,29 +394,26 @@ Responses can be encrypted for confidentiality:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": false,
-    "code": 404,
+    "code": 401,
     "message": "Identity not found"
   },
   "id": "btps_response_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
-  "type": "btps_error"
+  "type": "btps_error",
+  "code": "BTP_ERROR_IDENTITY_NOT_FOUND"
 }
 ```
 
 ## Error Handling
 
-### Common Error Scenarios
+### Error Codes and Retry
 
-- **400 Bad Request**: Invalid request format or parameters
-- **401 Unauthorized**: Authentication required or failed
-- **403 Forbidden**: Insufficient permissions
-- **404 Not Found**: Resource not found
-- **429 Too Many Requests**: Rate limit exceeded
-- **500 Internal Server Error**: Server processing error
-- **503 Service Unavailable**: Server temporarily unavailable
+Every error goes out with a stable `code`, a status class and a fixed message, from one table: [Wire Errors](./wire-errors.md). A sender retries by `code`: 429, 500 and 503 are retryable; no 4xx is. A code a sender does not know (a newer peer's) is decided by its status class the same way.
+
+A trust refusal tells apart only an expired trust (`BTP_ERROR_TRUST_EXPIRED`). Never trusted, revoked, blocked, pending, rejected and already active all go out as `BTP_ERROR_TRUST_NOT_ALLOWED`, so a sender cannot learn that it was blocked. The precise reason stays on the server.
 
 ### Error Response Structure
 
@@ -418,15 +421,17 @@ All error responses follow the same structure:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": false,
-    "code": 400,
-    "message": "Detailed error message"
+    "code": 403,
+    "message": "BTPS trust request is not allowed at this time. Contact receiver"
   },
   "id": "btps_response_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
-  "type": "btps_error"
+  "type": "btps_error",
+  "code": "BTP_ERROR_TRUST_NOT_ALLOWED",
+  "reqId": "the-request-id"
 }
 ```
 

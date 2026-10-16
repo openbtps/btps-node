@@ -79,6 +79,7 @@ const sidebars: SidebarsConfig = {
             'protocol/specifications/control-artifact',
             'protocol/specifications/delivery-failure-artifact',
             'protocol/specifications/responses',
+            'protocol/specifications/wire-errors',
           ],
         },
         'protocol/trustRecord',

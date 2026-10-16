@@ -7,19 +7,24 @@
 
 import { BTP_ERROR_UNKNOWN } from './constant.js';
 import { BTPError } from './types.js';
+import { isRetryableError } from './wire.js';
 export * from './constant.js';
 export * from './types.js';
+export * from './wire.js';
 
 export class BTPErrorException extends Error {
   public readonly code?: string | number;
   public readonly cause?: unknown;
   public readonly meta?: Record<string, unknown>;
+  /** Whether a sender may retry: from the wire error table by code (EBA-188). */
+  public readonly retryable: boolean;
 
   constructor(
     btpError: BTPError,
     options?: {
       cause?: unknown;
       meta?: Record<string, unknown>;
+      retryable?: boolean;
     },
   ) {
     super(btpError.message);
@@ -28,6 +33,7 @@ export class BTPErrorException extends Error {
     this.code = btpError.code;
     this.cause = options?.cause;
     this.meta = options?.meta;
+    this.retryable = options?.retryable ?? isRetryableError(btpError.code);
 
     // Fix prototype chain
     Object.setPrototypeOf(this, new.target.prototype);
@@ -46,6 +52,7 @@ export class BTPErrorException extends Error {
       name: this.name,
       code: this.code,
       message: this.message,
+      retryable: this.retryable,
       stack: this.stack,
       ...(this.meta ? { meta: this.meta } : {}),
       ...(this.cause ? { cause: this.cause } : {}),

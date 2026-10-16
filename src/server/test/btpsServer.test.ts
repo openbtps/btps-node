@@ -2038,15 +2038,11 @@ export default function () {
 
       // "Wire error codes" AC: option B (decided 2026-10-06) - expired and
       // not-allowed/revoked are meant to be distinguishable by a sender.
-      // In the real implementation that distinction lives in `status.message`
-      // only: `status.code` is a coarse bucket (200/404/403/500 - see
-      // BTPStatus, core/server/types.ts) and sendBtpsError's
-      // `typeof error.code === 'number' ? error.code : 500` fallback
-      // (btpsServer.ts:1178) makes it 500 for every BTPError here, since none
-      // of their `code` fields are numbers. These tests assert on the actual
-      // socket.write() payload, not on which BTPError constant the
-      // trust-refusal path happened to pick internally, so that fallback
-      // can't hide behind a pre-serialization spy.
+      // Since EBA-188 the distinction is the response's stable `code`
+      // (BTP_ERROR_TRUST_EXPIRED or BTP_ERROR_TRUST_NOT_ALLOWED), both with
+      // `status.code` 403. These tests assert on the actual socket.write()
+      // payload, not on which BTPError constant the trust-refusal path
+      // happened to pick internally.
       // This exercises the trust-refusal path in executeRequestPipeline
       // (btpsServer.ts, around :543).
       describe('wire error codes (trust-refusal path)', () => {
@@ -2122,11 +2118,9 @@ export default function () {
           expect(written.status.ok).toBe(false);
           expect(written.status.message).toBe(BTP_ERROR_TRUST_EXPIRED.message);
           expect(written.status.message).not.toBe(BTP_ERROR_TRUST_NOT_ALLOWED.message);
-          // Not a distinguishing field here - see the describe-block comment
-          // above. Asserted explicitly so a future change to the sendBtpsError
-          // fallback (making `code` error-specific) doesn't silently regress
-          // unnoticed.
-          expect(written.status.code).toBe(500);
+          // EBA-188: a trust refusal is 403, and the stable code tells expired apart.
+          expect(written.status.code).toBe(403);
+          expect(written.code).toBe(BTP_ERROR_TRUST_EXPIRED.code);
         });
 
         it('sends a not-allowed refusal on the wire for a revoked trust', async () => {
@@ -2140,6 +2134,11 @@ export default function () {
           expect(written.type).toBe('btps_error');
           expect(written.status.ok).toBe(false);
           expect(written.status.message).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.message);
+          // EBA-188: the stable code collapses too; the precise reason stays in reqCtx.error.
+          expect(written.status.code).toBe(403);
+          expect(written.code).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.code);
+          expect(reqCtx.error?.code).toBe('BTP_ERROR_TRUST_REVOKED');
+          expect((socket.write as Mock).mock.calls[0][0]).not.toContain('REVOKED');
         });
 
         // Round 1 finding: a blocked/rejected/pending record with a past

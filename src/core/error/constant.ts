@@ -43,13 +43,9 @@ export const BTP_ERROR_TRUST_NOT_ALLOWED: BTPError = {
 };
 
 /**
- * EBA-124 (option B, decided 2026-10-06): an expired trust record gets its
- * own distinct response `message` on the wire, separate from
- * BTP_ERROR_TRUST_NOT_ALLOWED. This distinction lives only in the response
- * body text - sendBtpsError's `typeof error.code === 'number' ? error.code
- * : 500` fallback (btpsServer.ts:1178) means the numeric `status.code` is
- * 500 for this and every other application error today, a separate,
- * pre-existing gap tracked by EBA-188, not fixed here.
+ * EBA-124 (option B, decided 2026-10-06): the one trust refusal a sender can
+ * tell apart on the wire. It goes out with its own `code`; every other
+ * refusal goes out as BTP_ERROR_TRUST_NOT_ALLOWED (see BTP_WIRE_ERRORS).
  */
 export const BTP_ERROR_TRUST_EXPIRED: BTPError = {
   code: 'BTP_ERROR_TRUST_EXPIRED',
@@ -59,7 +55,7 @@ export const BTP_ERROR_TRUST_EXPIRED: BTPError = {
 /**
  * EBA-124: the precise, server-side-only reason for a revoked trust record.
  * On the wire this collapses onto BTP_ERROR_TRUST_NOT_ALLOWED (option B) -
- * same response `message`, same `status.code` - so a revoked sender cannot
+ * same `code`, `message` and `status.code` - so a revoked sender cannot
  * distinguish their refusal from a never-trusted one.
  */
 export const BTP_ERROR_TRUST_REVOKED: BTPError = {
@@ -109,7 +105,7 @@ export const BTP_ERROR_SIG_MISMATCH: BTPError = {
 
 export const BTP_ERROR_SIG_VERIFICATION: BTPError = {
   code: 'BTP_ERROR_SIG_VERIFICATION',
-  message: ' Signature verification failed',
+  message: 'Signature verification failed',
 };
 
 export const BTP_ERROR_CANONICAL_JSON: BTPError = {
@@ -143,7 +139,7 @@ export const BTP_ERROR_DECRYPTION_UNINTENDED: BTPError = {
 };
 
 export const BTP_ERROR_UNKNOWN: BTPError = {
-  code: 'BTP_UNKNOWN_ERROR',
+  code: 'BTP_ERROR_UNKNOWN',
   message: 'Unknown error',
 };
 
@@ -303,4 +299,16 @@ export const BTP_ERROR_SERVER_SELECTOR: BTPError = {
 export const BTP_ERROR_LINE_TOO_LONG: BTPError = {
   code: 'BTP_ERROR_LINE_TOO_LONG',
   message: 'Line exceeds the maximum length',
+};
+
+/** The client was asked to send after `destroy()`. Never sent by a server. */
+export const BTP_ERROR_CLIENT_DESTROYED: BTPError = {
+  code: 'BTP_ERROR_CLIENT_DESTROYED',
+  message: 'BtpsClient instance is destroyed',
+};
+
+/** A connection to the receiver is already being made. Never sent by a server. */
+export const BTP_ERROR_ALREADY_CONNECTING: BTPError = {
+  code: 'BTP_ERROR_ALREADY_CONNECTING',
+  message: 'Already connecting',
 };

@@ -179,3 +179,22 @@ describe('package exports (EBA-442 and EBA-186, identity lookup)', () => {
     expect(mod.BTP_ERROR_SERVER_SELECTOR).toBeDefined();
   });
 });
+
+describe('package exports (EBA-188, wire error codes)', () => {
+  it.each([
+    ['./error', 'toWireError'],
+    ['./error', 'isRetryableError'],
+    ['./error', 'getWireErrorRule'],
+  ])('@btps/sdk%s exports %s', async (subpath, name) => {
+    const mod = await importSubpath(subpath);
+    expect(mod[name], `${name} from ${subpath}`).toBeTypeOf('function');
+  });
+
+  it.each([
+    ['./error', 'BTP_WIRE_ERRORS'],
+    ['./error', 'BTP_WIRE_ERRORS_BY_STATUS'],
+  ])('@btps/sdk%s exports %s', async (subpath, name) => {
+    const mod = await importSubpath(subpath);
+    expect(mod[name], `${name} from ${subpath}`).toBeDefined();
+  });
+});

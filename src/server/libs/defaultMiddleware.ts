@@ -11,7 +11,7 @@
  * This file provides a default set of middleware for the BtpsServer.
  * These are used when no external middleware file is specified.
  */
-import { BTPError } from '@core/error/types.js';
+import { BTP_ERROR_RATE_LIMITER } from '@core/error/constant.js';
 import { MiddlewareDefinitionArray } from '../types.js';
 import { BtpsSimpleRateLimiter } from './btpsSimpleRateLimiter.js';
 import { BtpsSimpleMetricsTracker } from './btpsSimpleMetricsTracker.js';
@@ -36,9 +36,8 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
       },
       handler: async (req, res, next) => {
         if (!(await rateLimiter.isAllowed(req.remoteAddress, 'ipAddress'))) {
-          const error: BTPError = { code: 429, message: 'Too many requests' };
           metrics.onMessageRejected(req.remoteAddress, '', 'Rate limit exceeded');
-          return res.sendError(error);
+          return res.sendError(BTP_ERROR_RATE_LIMITER);
         }
         await next();
       },
@@ -72,9 +71,8 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
 
         // artifact is guaranteed to be present after this point
         if (!(await rateLimiter.isAllowed(from, 'fromIdentity'))) {
-          const error: BTPError = { code: 429, message: 'Too many requests' };
           metrics.onMessageRejected(remoteAddress, to, 'Rate limit exceeded');
-          return res.sendError(error); // Stop flow, response sent
+          return res.sendError(BTP_ERROR_RATE_LIMITER); // Stop flow, response sent
         }
         await next();
       },

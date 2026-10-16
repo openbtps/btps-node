@@ -27,6 +27,8 @@ import {
   UpdateBTPClientOptions,
 } from './types/index.js';
 import {
+  BTP_ERROR_ALREADY_CONNECTING,
+  BTP_ERROR_CLIENT_DESTROYED,
   BTP_ERROR_CONNECTION_CLOSED,
   BTP_ERROR_CONNECTION_ENDED,
   BTP_ERROR_IDENTITY,
@@ -34,8 +36,10 @@ import {
   BTP_ERROR_SIG_VERIFICATION,
   BTP_ERROR_SOCKET_TIMEOUT,
   BTP_ERROR_TIMEOUT,
+  BTP_ERROR_UNKNOWN,
   BTP_ERROR_VALIDATION,
   BTPErrorException,
+  isRetryableError,
   transformToBTPErrorException,
 } from '@core/error/index.js';
 import type {
@@ -106,7 +110,7 @@ export class BtpsClient {
     if (this.socket && !this.socket.destroyed) return { socket: this.socket, error: undefined };
 
     if (this.states.isConnecting) {
-      const error = new BTPErrorException({ message: 'already connecting' });
+      const error = new BTPErrorException(BTP_ERROR_ALREADY_CONNECTING);
       this.emitter.emit('error', {
         error,
         ...this.getRetryInfo(error),
@@ -122,8 +126,8 @@ export class BtpsClient {
     const btpHostDnsConfig = await this.resolveBtpsHostDnsTxt(this.options.to);
     if (!btpHostDnsConfig) {
       this.states.isConnecting = false;
-      const error = new BTPErrorException({
-        message: `DNS resolution failed for ${this.options.to}`,
+      const error = new BTPErrorException(BTP_ERROR_RESOLVE_DNS, {
+        cause: `DNS resolution failed for ${this.options.to}`,
       });
       return { socket: undefined, error };
     }
@@ -235,7 +239,13 @@ export class BtpsClient {
         clearTimeout(timeout);
         resolve({
           response: validSignature ? msg : undefined,
-          error: !validSignature ? error : undefined,
+          // An error answer is returned as an error too, so a sender decides
+          // retry by its code and `retryable` (EBA-188).
+          error: !validSignature
+            ? error
+            : msg.type === 'btps_error'
+              ? this.wireErrorToException(msg)
+              : undefined,
         });
         this.pumpNextQueue();
       } else {
@@ -587,20 +597,24 @@ export class BtpsClient {
    * @returns True if the error is non-retryable, false otherwise
    */
   protected isNonRetryableError(err: unknown): boolean {
-    const message = ((err as BTPErrorException)?.message ?? '').toLowerCase();
-    const nonRetrayableError = [
-      'client disconnected after inactivity',
-      'already connecting',
-      'dns resolution failed',
-      'invalid identity',
-      'invalid btpaddress',
-      'invalid hostname',
-      'invalid artifact',
-      'unsupported protocol',
-      'signature verification failed',
-      'destroyed',
-    ];
-    return nonRetrayableError.some((m) => message.includes(m));
+    // By code, from the wire error table (EBA-188); never by message text.
+    if (err instanceof BTPErrorException) return !err.retryable;
+    return !isRetryableError((err as { code?: string | number } | undefined)?.code);
+  }
+
+  /**
+   * The error a `btps_error` answer is handed back with (EBA-188): its stable
+   * code, the server's status, and whether the same artifact may be sent again.
+   */
+  protected wireErrorToException(msg: BTPServerResponse): BTPErrorException {
+    const code = msg.code ?? BTP_ERROR_UNKNOWN.code;
+    return new BTPErrorException(
+      { code, message: msg.status.message ?? BTP_ERROR_UNKNOWN.message },
+      {
+        meta: { status: msg.status.code, reqId: msg.reqId },
+        retryable: isRetryableError(msg.code, msg.status.code),
+      },
+    );
   }
 
   protected async verifyServerMessage(
@@ -702,7 +716,7 @@ export class BtpsClient {
   ): Promise<BTPClientResponse> {
     if (this.states.isDestroyed) {
       return this.buildClientErrorResponse(
-        new BTPErrorException({ message: 'BtpsClient instance is destroyed' }),
+        new BTPErrorException(BTP_ERROR_CLIENT_DESTROYED),
         'response',
       );
     }
@@ -801,7 +815,7 @@ export class BtpsClient {
 
     if (isEmpty(hostname) || !hostname) {
       return await this.buildClientErrorResponse(
-        new BTPErrorException({ message: `invalid hostname: ${hostname}` }),
+        new BTPErrorException(BTP_ERROR_RESOLVE_DNS, { cause: `invalid hostname: ${hostname}` }),
       );
     }
 

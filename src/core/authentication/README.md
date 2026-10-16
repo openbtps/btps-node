@@ -285,6 +285,7 @@ The authentication class integrates seamlessly with the existing BTPS server inf
 ```typescript
 import { BtpsServer } from '@core/server/btpsServer.js';
 import { BtpsAuthentication } from '@core/authentication/index.js';
+import { BTP_ERROR_AUTHENTICATION_INVALID } from '@core/error/index.js';
 
 const server = new BtpsServer({
   port: 3443,
@@ -305,7 +306,8 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
     // Validate the auth token
     const validation = await auth.validateAuthToken(agentId, authRequest.authToken);
     if (!validation.isValid) {
-      resCtx.sendError(new BTPErrorException({ message: 'Invalid auth token' }));
+      // A constant from @btps/sdk/error: it goes out with its own code and status (EBA-188).
+      resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
       return;
     }
 

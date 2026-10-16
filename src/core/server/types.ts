@@ -212,7 +212,8 @@ export type BTPArtifact =
 
 export type BTPStatus = {
   ok: boolean;
-  code: number; // 200 -> Sent OK | 404 --> Not Allowed | 403 --> Temporary Not Allowed | 500 --> Error
+  /** 200 on success; on an error, the status class from the wire error table (BTP_WIRE_ERRORS). */
+  code: number;
   message?: string;
 };
 
@@ -263,6 +264,8 @@ export type BTPServerResponse<T = BTPServerResDocs> = {
   id: string;
   issuedAt: string;
   type: 'btps_error' | 'btps_response';
+  /** On a `btps_error`, the stable error code a sender decides retry by (EBA-188). */
+  code?: string;
   reqId?: string;
   document?: T;
   signature?: BTPSignature;

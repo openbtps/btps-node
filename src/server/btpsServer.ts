@@ -73,7 +73,7 @@ import type {
   BTPStatus,
   BTPTransporterArtifact,
 } from '@core/server/types.js';
-import { BTPErrorException, transformToBTPErrorException } from '@core/error/index.js';
+import { BTPErrorException, toWireError, transformToBTPErrorException } from '@core/error/index.js';
 import {
   BTP_MAX_LINE_LENGTH,
   BTP_PROTOCOL_VERSION,
@@ -1424,7 +1424,10 @@ export class BtpsServer {
   }
 
   /**
-   * Sends a BTPS error response to the client
+   * Sends a BTPS error response to the client: the error's stable code,
+   * status class and fixed message from the wire error table (EBA-188). The
+   * error's own message never reaches the socket, and a code the table does
+   * not know goes out as BTP_ERROR_UNKNOWN.
    */
   private async sendBtpsError(
     socket: TLSSocket,
@@ -1432,20 +1435,15 @@ export class BtpsServer {
     reqId?: string,
     action?: BtpsErrorAction,
   ) {
-    const response = this.prepareBtpsResponse(
-      {
-        ok: false,
-        code: typeof error.code === 'number' ? error.code : 500,
-        message: error.message,
-      },
-      reqId,
-    );
+    const { code, status, message } = toWireError(error);
+    const response = this.prepareBtpsResponse({ ok: false, code: status, message }, reqId);
 
     this.sendBtpsResponse(
       socket,
       {
         ...response,
         type: 'btps_error',
+        code,
       },
       action,
     );

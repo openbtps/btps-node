@@ -98,6 +98,8 @@ A middleware definition is an object with the following structure:
 
 Middleware is defined as an array of objects in a `.mjs` file (default: `btps.middleware.mjs`). Each object specifies the phase, step, and handler function.
 
+**Answering with an error (BTPS 1.1).** Pass a constant from `@btps/sdk/error`, e.g. `res.sendError(BTP_ERROR_RATE_LIMITER)`: it goes out with its stable `code`, status and fixed message ([Wire Errors](../protocol/specifications/wire-errors.md)). A bare status, as in the 1.0 examples below, is sent as that class's constant (400, 401, 403 or 429); its own message is not sent, and any other code goes out as `BTP_ERROR_UNKNOWN` (500).
+
 **Example:**
 
 ```js
