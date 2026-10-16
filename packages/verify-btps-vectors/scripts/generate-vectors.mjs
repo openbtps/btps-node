@@ -315,7 +315,7 @@ function sdkDefects() {
 }
 
 /**
- * Item D (EBA-112): auth.refresh artifacts, each signed in full, checked
+ * Key-rotating refresh: auth.refresh artifacts, each signed in full, checked
  * against the agent's current key. Self-held custody only: a managed
  * identity has no device key, and its one case shows the refresh path does
  * not apply to it.
@@ -384,10 +384,8 @@ function refresh() {
   const PROOF = 'BTP_ERROR_KEY_ROTATION_PROOF';
 
   return {
-    item: 'D',
-    tickets: ['EBA-112'],
     description:
-      "BTPS 1.1 item D, a key-rotating refresh is signed by the current key (addendum item 2, threat T-24). Each case is an auth.refresh artifact, signed over its JCS form, checked when the server holds `currentKey` for the agent (null: it holds none) and its clock reads `now`, with `windowMs`. Without rotation, document.publicKey is the current key. With rotation, document.publicKey is the new key, the artifact is still signed by the current key, and document.keyProof is the new key's signature over the JCS form of { agentId, identity, newPublicKey, issuedAt }. `reason` names why a case is refused, and `error` the error code on the wire. tokens: a refresh token is single-use; each step refreshes with a token issued earlier (issued-0 at enrolment, issued-n by the n-th accepted refresh).",
+      "BTPS 1.1 key-rotating refresh: a refresh is signed by the agent's current key, never accepted under the key the request itself carries. Each case is an auth.refresh artifact, signed over its JCS form, checked when the server holds `currentKey` for the agent (null: it holds none) and its clock reads `now`, with `windowMs`. Without rotation, document.publicKey is the current key. With rotation, document.publicKey is the new key, the artifact is still signed by the current key, and document.keyProof is the new key's signature over the JCS form of { agentId, identity, newPublicKey, issuedAt }. `reason` names why a case is refused, and `error` the error code on the wire. tokens: a refresh token is single-use; each step refreshes with a token issued earlier (issued-0 at enrolment, issued-n by the n-th accepted refresh).",
     provenance: `${TEST_ONLY} The managed identity key is the one in kms-signature.vector.json.`,
     now,
     windowMs: 300000,
@@ -509,7 +507,7 @@ function refresh() {
       custody: 'managed',
       keyVector: 'kms-signature.vector.json',
       description:
-        'Not applicable. A managed identity has no interactive device key: its key is held by the platform (KMS) and published under a selector, and it rotates by publishing a new selector (item H, selectors.vector.json), never through auth.refresh. The server holds no agent key for it, so a refresh signed by the managed key itself is refused.',
+        'Not applicable. A managed identity has no interactive device key: its key is held by the platform (KMS) and published under a selector, and it rotates by publishing a new selector (see selectors.vector.json), never through auth.refresh. The server holds no agent key for it, so a refresh signed by the managed key itself is refused.',
       cases: [
         refuse(
           'managed-key-refresh-not-applicable',

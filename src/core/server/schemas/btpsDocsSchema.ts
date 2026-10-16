@@ -47,7 +47,7 @@ export const BtpTrustResDocSchema = z.object({
 });
 
 // Schema for BTPKeyProof: the new key's signature on a key-rotating
-// auth.refresh (item D, EBA-112). The signature shape is BtpSignatureSchema's,
+// auth.refresh. The signature shape is BtpSignatureSchema's,
 // written out here because schema.ts imports this file.
 export const BtpKeyProofSchema = z.object({
   issuedAt: z.string().datetime(),

@@ -541,7 +541,7 @@ export class BtpsServer {
     if (afterSigVerResponseSent) return; // Response already sent, stop processing
 
     if (!isValid) {
-      // A refused refresh says why (item D): not signed by the current key, or no proof of the new one.
+      // A refused refresh says why: not signed by the current key, or no proof of the new one.
       const refreshRefusal = [BTP_ERROR_REFRESH_NOT_CURRENT_KEY, BTP_ERROR_KEY_ROTATION_PROOF].find(
         (e) => e.code === reqCtx.error?.code,
       );
@@ -748,7 +748,7 @@ export class BtpsServer {
     }
 
     if (artifact.action === 'auth.refresh') {
-      // Item D (EBA-112): signed by the current key; a new key comes with its proof.
+      // Signed by the current key; a new key comes with its proof.
       const check = verifyAgentRefresh({
         artifact,
         currentPublicKey: agentPublicPem,
@@ -765,7 +765,7 @@ export class BtpsServer {
   /**
    * Gets the public key for an agent based on whether it's onboarding or existing.
    * Every agent that is not onboarding, including one refreshing to a new
-   * key, is verified with the key in its trust record (item D).
+   * key, is verified with the key in its trust record.
    */
   private async getAgentPublicKey(artifact: BTPAgentArtifact): Promise<string | null> {
     const isOnboardingAgent = artifact.action === 'auth.request';

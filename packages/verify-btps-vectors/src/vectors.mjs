@@ -179,7 +179,7 @@ function loadReplay(set) {
   }
 }
 
-/** Item D: refresh cases per custody mode, and the refresh-token sequence. */
+/** Key-rotating refresh: refresh cases per custody mode, and the refresh-token sequence. */
 function loadRefresh(set) {
   const file = VECTOR_FILES.refresh;
   const model = set.refresh;

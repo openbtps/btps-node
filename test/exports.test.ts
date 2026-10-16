@@ -115,7 +115,7 @@ describe('package exports (replay protection)', () => {
   });
 });
 
-describe('package exports (EBA-112, key-rotating refresh)', () => {
+describe('package exports (key-rotating refresh)', () => {
   it.each([
     ['./authentication', 'verifyAgentRefresh'],
     ['./authentication', 'signKeyProof'],

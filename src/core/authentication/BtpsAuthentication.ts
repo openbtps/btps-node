@@ -119,7 +119,7 @@ export class BtpsAuthentication {
     const commandAction = type === 'refresh' ? 'auth.refresh' : 'auth.request';
 
     try {
-      // The artifact is always signed by the key the server holds (item D).
+      // The artifact is always signed by the key the server holds.
       const options: BTPAgentOptions = {
         ...agentOptions,
         agent: isSigner(keyPair)
@@ -482,7 +482,7 @@ export class BtpsAuthentication {
 
   /**
    * Refresh an authentication session and rotate the device key to `newKey`
-   * (client-side, self-held custody; item D, EBA-112).
+   * (client-side, self-held custody).
    *
    * The request is signed by `currentKey`, the key the server holds, and
    * carries `newKey`'s public key with `newKey`'s signature over

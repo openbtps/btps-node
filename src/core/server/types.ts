@@ -84,7 +84,7 @@ export interface BTPDelegation {
 }
 
 /**
- * Proof of possession of a new agent key (item D, EBA-112): a signature by
+ * Proof of possession of a new agent key: a signature by
  * the new key over the JCS form of `{ agentId, identity, newPublicKey,
  * issuedAt }`.
  */

@@ -330,7 +330,7 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
 - `BtpsAuthentication.authenticate(identity: string, authToken: string, keyPair: PemKeys, agentInfo?: Record<string, string | string[]>, agentOptions?: AuthAgentOptions): Promise<AuthRequestResult>`
 - `BtpsAuthentication.refreshSession(agentId: string, identity: string, refreshToken: string, keyPair: BTPSigningKey, agentInfo?: Record<string, string | string[]>, agentOptions?: AuthAgentOptions): Promise<AuthRequestResult>`: keeps the key; `keyPair` must be the key the server holds
 - `BtpsAuthentication.rotateKey(agentId: string, identity: string, refreshToken: string, currentKey: BTPSigningKey, newKey: BTPSigningKey, agentInfo?: Record<string, string | string[]>, agentOptions?: AuthAgentOptions): Promise<AuthRequestResult>`: refreshes and rotates the device key (self-held custody). Signed by `currentKey`, with `newKey`'s `keyProof`
-- `verifyAgentRefresh({ artifact, currentPublicKey, nowMs, windowMs? })`: the server's check of an `auth.refresh` (item D, EBA-112): signed by the current key, and a new key only with a valid `keyProof`
+- `verifyAgentRefresh({ artifact, currentPublicKey, nowMs, windowMs? })`: the server's check of an `auth.refresh`: signed by the current key, and a new key only with a valid `keyProof`
 - `signKeyProof({ agentId, identity, newKey, issuedAt? })`: the new key's signature over the JCS form of `{ agentId, identity, newPublicKey, issuedAt }`
 
 ### Instance Methods
