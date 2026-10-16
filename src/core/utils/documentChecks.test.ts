@@ -8,12 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import {
-  verifyTaxTotal,
-  reconcilePayslip,
-  verifyAttachments,
-  formatSha256,
-} from './documentChecks.js';
+import { reconcilePayslip, verifyAttachments, formatSha256 } from './documentChecks.js';
 import { sha256 } from './bytes.js';
 import { BTP_DOC_SHA256 } from '@core/server/constants/documents.js';
 import { moneyEquals } from './money.js';
@@ -38,66 +33,6 @@ function load<T extends BTPDocV2>(name: string, type: T['type']): T {
 const invoice = () => load<BTPInvoiceV2Doc>('invoice.v2.json', 'invoice');
 const creditNote = () => load<BTPCreditNoteDoc>('credit-note.v2.json', 'credit_note');
 const payslip = (name: string) => load<BTPPayslipDoc>(name, 'payslip');
-
-function byCategory(check: ReturnType<typeof verifyTaxTotal>, taxCategory: string) {
-  const entry = check.byCategory.find((c) => c.taxCategory === taxCategory);
-  if (!entry) throw new Error(`no byCategory entry for ${taxCategory}`);
-  return entry;
-}
-
-describe('verifyTaxTotal (EBA-119): credit notes only', () => {
-  it('confirms the credit note: total and tax per rate equal the line items', () => {
-    const check = verifyTaxTotal(creditNote());
-    expect(check.ok).toBe(true);
-    expect(check.computedTotal).toEqual({ amount: 20000, currency: 'AUD' });
-    expect(byCategory(check, 'GST10')).toMatchObject({
-      computedAmount: { amount: 2000, currency: 'AUD' },
-      declaredAmount: { amount: 2000, currency: 'AUD' },
-      ok: true,
-    });
-  });
-
-  it('reports ok: false, and does not throw, when the declared total disagrees', () => {
-    const tampered: BTPCreditNoteDoc = { ...creditNote(), total: { amount: 999, currency: 'AUD' } };
-    const check = verifyTaxTotal(tampered);
-    expect(check.ok).toBe(false);
-    expect(check.declaredTotal).toEqual({ amount: 999, currency: 'AUD' });
-    expect(check.computedTotal).toEqual({ amount: 20000, currency: 'AUD' });
-    // The per-rate check is independent of the total.
-    expect(check.byCategory.every((c) => c.ok)).toBe(true);
-  });
-
-  it("isolates one rate's mismatch while the total is correct", () => {
-    const original = creditNote();
-    const tampered: BTPCreditNoteDoc = {
-      ...original,
-      lineItems: [
-        ...original.lineItems,
-        {
-          description: 'GST-free line',
-          quantity: '1',
-          unitPrice: { amount: 0, currency: 'AUD' },
-          lineTotal: { amount: 0, currency: 'AUD' },
-          taxAmount: { amount: 0, currency: 'AUD' },
-          taxCategory: 'GST0',
-        },
-      ],
-      taxTotals: [
-        { taxCategory: 'GST10', amount: { amount: 999, currency: 'AUD' } },
-        { taxCategory: 'GST0', amount: { amount: 0, currency: 'AUD' } },
-      ],
-    };
-    const check = verifyTaxTotal(tampered);
-    expect(check.computedTotal).toEqual(tampered.total);
-    expect(check.ok).toBe(false);
-    expect(byCategory(check, 'GST10')).toMatchObject({
-      computedAmount: { amount: 2000, currency: 'AUD' },
-      declaredAmount: { amount: 999, currency: 'AUD' },
-      ok: false,
-    });
-    expect(byCategory(check, 'GST0').ok).toBe(true);
-  });
-});
 
 /*
  * The six approved payslip cases (page 8945684, EBA-119 comments

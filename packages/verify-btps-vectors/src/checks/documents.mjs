@@ -10,8 +10,8 @@
  * - documentSdkChecks: the SDK's own document model, loaded from the tree
  *   under test (`sdk.documents`, @btps/sdk/documents): schema vectors per
  *   type, the ownership rule, the attachment check (each file is the
- *   size and sha256 the document states), the tax-total and payslip checks,
- *   and that parsing never changes a document.
+ *   size and sha256 the document states), the payslip check, and that
+ *   parsing never changes a document.
  */
 
 import { canonicalizeValue } from '../jcs.mjs';
@@ -168,24 +168,6 @@ export function documentSdkChecks(sdk, set) {
           ensure(
             result.problems.some((p) => p.index === index && p.field === c.expect.reject),
             `expected a problem in attachments.${index}.${c.expect.reject}, got: ${found.join('; ')}`,
-          );
-        }
-      }),
-    );
-  }
-
-  for (const c of model.taxTotal) {
-    checks.push(
-      check(`tax-total/${c.name}`, (documents) => {
-        const result = documents.verifyTaxTotal(parsed(documents, caseDocument(set, c), c.name));
-        ensure(result.ok === c.expect.ok, `ok is ${result.ok}, expected ${c.expect.ok}`);
-        sameMoney(result.computedTotal, c.expect.computedTotal, 'computedTotal');
-        for (const [taxCategory, amount] of Object.entries(c.expect.byCategory)) {
-          const entry = result.byCategory.find((e) => e.taxCategory === taxCategory);
-          ensure(entry, `no result for ${taxCategory}`);
-          ensure(
-            entry.computedAmount.amount === amount,
-            `${taxCategory} computed ${entry.computedAmount.amount}, expected ${amount}`,
           );
         }
       }),

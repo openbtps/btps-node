@@ -54,7 +54,10 @@ const CASES: Record<
       },
     },
   ],
-  TITLE_MAX_LENGTH: [{ where: 'title', build: (n) => ({ ...invoice(), title: 't'.repeat(n) }) }],
+  TITLE_MAX_LENGTH: [
+    { where: 'title', build: (n) => ({ ...invoice(), title: 't'.repeat(n) }) },
+    { where: 'credit note title', build: (n) => ({ ...creditNote(), title: 't'.repeat(n) }) },
+  ],
   NAME_MAX_LENGTH: [
     {
       where: 'issuer name',
@@ -86,14 +89,6 @@ const CASES: Record<
       }),
     },
     {
-      where: 'credit note tax category',
-      build: (n) => {
-        const doc = creditNote();
-        doc.lineItems[0].taxCategory = 'c'.repeat(n);
-        return doc;
-      },
-    },
-    {
       where: 'reference type',
       build: (n) => ({ ...invoice(), references: [{ ...invoice().references[0], type: 'c'.repeat(n) }] }),
     },
@@ -108,10 +103,10 @@ const CASES: Record<
   ],
   DECIMAL_MAX_LENGTH: [
     {
-      where: 'credit note quantity',
+      where: 'earning quantity',
       build: (n) => {
-        const doc = creditNote();
-        doc.lineItems[0].quantity = '1'.repeat(n);
+        const doc = payslip();
+        doc.earnings[0].quantity = '1'.repeat(n);
         return doc;
       },
     },
@@ -151,13 +146,20 @@ const CASES: Record<
     },
     { where: 'invoice description', build: (n) => ({ ...invoice(), description: 'd'.repeat(n) }) },
     {
-      where: 'credit note line description',
+      where: 'credit note line-item text cell',
       build: (n) => {
         const doc = creditNote();
-        doc.lineItems[0].description = 'd'.repeat(n);
+        doc.lineItems.rows[0].Description = 'd'.repeat(n);
         return doc;
       },
     },
+    {
+      where: 'credit note description',
+      build: (n) => ({ ...creditNote(), description: 'd'.repeat(n) }),
+    },
+  ],
+  REASON_MAX_LENGTH: [
+    { where: 'credit note reason', build: (n) => ({ ...creditNote(), reason: 'r'.repeat(n) }) },
   ],
   LINE_ITEMS_MAX: [
     {
@@ -169,8 +171,12 @@ const CASES: Record<
       },
     },
     {
-      where: 'credit note line items',
-      build: (n) => ({ ...creditNote(), lineItems: many(n, creditNote().lineItems[0]) }),
+      where: 'credit note line-item rows',
+      build: (n) => {
+        const doc = creditNote();
+        doc.lineItems.rows = many(n, doc.lineItems.rows[0]);
+        return doc;
+      },
     },
   ],
   LINE_ITEM_COLUMNS_MAX: [
@@ -189,12 +195,6 @@ const CASES: Record<
         doc.lineItems.rows = [keys(n, 1)];
         return doc;
       },
-    },
-  ],
-  TAX_TOTALS_MAX: [
-    {
-      where: 'credit note tax totals',
-      build: (n) => ({ ...creditNote(), taxTotals: many(n, creditNote().taxTotals[0]) }),
     },
   ],
   PAYSLIP_LINES_MAX: [

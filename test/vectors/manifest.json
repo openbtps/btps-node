@@ -1,12 +1,12 @@
 {
   "name": "btps-golden-vectors",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "protocol": "BTPS 1.1",
   "description": "The BTPS 1.1 golden vectors. Every file of the set, with the lowercase hex SHA-256 of its bytes. See docs/docusaurus/docs/protocol/specifications/golden-vectors.md.",
   "hashAlgorithm": "sha256",
   "files": {
-    "document-model.vectors.json": "70198306d4b3f4c4bc4142c2b1615585d865d3e9feb94488426125de2b323bfa",
-    "documents/credit-note.v2.json": "bb7715769fcc2851b886347645c9006970b37b01ae7f80f9285498c42d3ac6f1",
+    "document-model.vectors.json": "7fc9b653ab898b30a89c52fdbd213a90ca0bf9702d8f62b270ee71fa7c932783",
+    "documents/credit-note.v2.json": "47026c22843b3eebf17e7a6d6e2456b22be4a64f8e0c193e65141a52e6ccbba7",
     "documents/invoice.correction.v2.json": "4e6b460e2d0cd8e400c2aed590bad21d18e5e3aa3684b4e55f9813b19df70703",
     "documents/invoice.v2.json": "df334d0bfdf677f0b649764762122522edad8826712e1eb71d2f5b80b3d8d2ae",
     "documents/payslip.hourly.v2.json": "f1d4e38cf049c330a7022469e363c7bd121fb946862c9f6dd8d15cbe1f2f8614",

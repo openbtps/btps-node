@@ -18,7 +18,7 @@ now; every party upgrades together.
   [Selectors](docs/docusaurus/docs/protocol/specifications/transporter-artifact.md#selectors-btps-11),
   [Timeouts](docs/docusaurus/docs/protocol/specifications/overview.md#timeouts-btps-11),
   [Algorithms](docs/docusaurus/docs/protocol/security/algorithm.md).
-- **Golden vectors:** set 1.1.0 in [`test/vectors/`](test/vectors/), pinned by
+- **Golden vectors:** set 1.1.1 in [`test/vectors/`](test/vectors/), pinned by
   [`test/vectors/manifest.json`](test/vectors/manifest.json); how to run them
   against another implementation is on
   [Golden Vectors](docs/docusaurus/docs/protocol/specifications/golden-vectors.md).
@@ -60,7 +60,9 @@ before 1.1.0 is published.
    integer minor units (`{ amount, currency }`), `attachments` (a list) in
    place of `attachment`, and no `status`, `paidAt`, `refundedAt` or
    `disputedAt`. Send paid, partly paid, disputed and refunded as
-   `BTPS_EVENT` lifecycle events.
+   `BTPS_EVENT` lifecycle events. Send a credit note in the invoice's shape
+   with `type: "credit_note"`, a positive `totalAmount`, a `credits`
+   reference to the invoice and, optionally, a `reason`.
 5. **Server.** Pass `tokenStore` (device registration) and remove your
    `auth.request` handlers; set `serverIdentity.selector` if you pass an
    `identityStore`; pass a shared `replayStore` if you run more than one
@@ -107,6 +109,14 @@ Each pull request below is stacked on the one before it and merges into
   Every string, list and attachment is capped; attachments are verified
   against their `size` and `sha256`; every `references` entry must come from
   the artifact's sender.
+- **Credit note (2026-10-16, EBA-119):** the credit note takes the 1.1
+  invoice's shape: `title`, `totalAmount` in integer minor units and greater
+  than zero (the type says it is a credit, not the sign), the same
+  `lineItems` table with tax in its columns, `issuer`, `attachments`,
+  `description` and `metadata`. `references` is required, with at least one
+  `credits` entry; `reason` (up to 500 characters) is new and optional. PR
+  #9's structured lines, `total`, `taxTotals` and `extensions` are refused,
+  and `verifyTaxTotal` and `TAX_TOTALS_MAX` are removed.
 - **Breaks:** `BtpInvoiceDocSchema`, `BtpAttachmentSchema` and `BTPInvoiceDoc`
   are removed.
 - **Migrate:** see Upgrading, step 4, and
@@ -239,4 +249,6 @@ Each pull request below is stacked on the one before it and merges into
 - **Docs:** every page describes RSA-2048 and AES-256-GCM, the 1.1 shapes
   and the real `@btps/sdk` subpaths.
 - **Vectors:** published as set 1.1.0 with a SHA-256 manifest, checked by
-  `yarn verify:btps-vectors`.
+  `yarn verify:btps-vectors`. Set 1.1.1 replaces it: the credit note vector
+  takes the invoice's shape, with its refusals, and the `taxTotal` cases are
+  gone with `verifyTaxTotal`.

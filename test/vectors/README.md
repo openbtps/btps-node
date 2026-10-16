@@ -5,7 +5,8 @@ built in EBA-110). Every runtime must reproduce them exactly: Node, web,
 Hermes (EBA-150), and later iOS and Android. The runner is
 [`packages/verify-btps-vectors`](../../packages/verify-btps-vectors/).
 
-**Published as vector set 1.1.0** (EBA-123). [`manifest.json`](./manifest.json)
+**Published as vector set 1.1.1** (EBA-123; 1.1.1 is 1.1.0 with the credit
+note in the 1.1 invoice's shape, EBA-119). [`manifest.json`](./manifest.json)
 gives the set's version and the SHA-256 of every vector file (this README and
 `known-failing.json` are not vectors and are not listed).
 `yarn verify:btps-vectors` fails if a file differs from its hash, is missing,
@@ -36,7 +37,7 @@ algorithm is the one that mode uses.
 | `selectors.vector.json`                   | item 6: the sender rotated btps1 to btps2 and the receiver is on btps1                                                                                                                                                                                                       |
 | `selectors-receiver-rotation.vector.json` | item 6: the receiver rotated btps2 to btps3 after the document was encrypted to btps2, and keeps btps2 to decrypt; the sender signs with btps1                                                                                                                               |
 | `sdk-defects.vector.json`                 | item 10: GCM tags of 16, 12 and 4 bytes, and identities with extra `$` or a `:` (EBA-122)                                                                                                                                                                                    |
-| `document-model.vectors.json`             | item 7 (EBA-119, EBA-402): schema cases per type (accepted, and refused: a status field, no title, a float `totalAmount` or line-item cell, an unnamed field, PR #9's invoice fields, 1.0's `attachment`, a `metadata` over its cap, an identifier key with no namespace, a reference type that is not a code, more than 20 references, a credit note with no `credits` reference, a lifecycle event, the 1.0 invoice, an attachment with no file, base64 that is not, a `sha256` in upper case or base64, a media type other than PDF, JPEG or PNG, a file over 10 MiB), the ownership rule over every reference, the attachment check (a size or hash that is not the file's, base64 that is not canonical), credit-note tax totals and payslip reconciliation, over the documents below |
+| `document-model.vectors.json`             | item 7 (EBA-119, EBA-402): schema cases per type (accepted, and refused: a status field, no title, a float `totalAmount` or line-item cell, an unnamed field, PR #9's invoice fields, 1.0's `attachment`, a `metadata` over its cap, an identifier key with no namespace, a reference type that is not a code, more than 20 references, a credit note with no `credits` reference, a zero or negative `totalAmount`, PR #9's `taxTotals` or structured lines, a float cell or a `reason` over its cap, a lifecycle event, the 1.0 invoice, an attachment with no file, base64 that is not, a `sha256` in upper case or base64, a media type other than PDF, JPEG or PNG, a file over 10 MiB), the ownership rule over every reference, the attachment check (a size or hash that is not the file's, base64 that is not canonical) and payslip reconciliation, over the documents below |
 | `documents/*.v2.json`                     | item 7: v2 documents. The invoices are the 1.0 invoice as changed on 2026-10-16 (`totalAmount` in minor units, the line-item table with tax as columns, an issuer with `identifiers: { "au:abn": … }`, `metadata`, `attachments`); the corrected invoice carries two attachments and a `correction_of` reference, the credit note a `credits` reference. Payslips as in PR #9. Attachments carry their file, as in BTPS 1.0: small real PDF and PNG bytes in base64, with their `size` and lowercase-hex `sha256`. Each is also checked to be unchanged by parsing and to sign over its JCS form. No lifecycle event: that is `BTPS_EVENT` |
 | `event.vectors.json`                      | item A (EBA-440): lifecycle events (`BTPS_EVENT`). Schema cases per event type (accepted, and refused per the release plan's 2.3 and 2.7 tables: `inReplyTo` where it is forbidden or missing, amounts, reasons, decisions, `remainingDueDate`, the replaced event names), the envelope rule (the event id is the artifact id; only a document between the two parties) and reply chains, over the events below |
 | `events/*.json`                           | item A: one or more events per type, all about one invoice between `billing$acme.example` (biller) and `finance$client.example` (payer). Each is also checked to be unchanged by parsing and to sign over its JCS form. Their `document.sha256` values are illustrative |
@@ -64,7 +65,7 @@ a vector can pin. EBA-118 brings its own tests.
 
 ## Changing vectors
 
-Vectors are frozen once other code is tested against them, and set 1.1.0 is
+Vectors are frozen once other code is tested against them, and set 1.1.1 is
 frozen by its manifest: changing any vector means a new set version, a
 manifest rewritten with `vectors-manifest.mjs --write`, and a changelog entry.
 The item 6b

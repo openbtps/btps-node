@@ -7,7 +7,7 @@
  *
  * --check (the default) checks that every file in the set has the SHA-256 the
  * manifest gives it, that none is missing or unlisted, and that the set is
- * version 1.1.0. Then it reproduces the set's derived values: it runs the
+ * the version VECTOR_SET_VERSION names (src/manifest.mjs). Then it reproduces the set's derived values: it runs the
  * whole harness (bin/verify-btps-vectors.mjs) over the set, which recomputes
  * every canonical form, signature, fingerprint, unwrap and verdict from the
  * vectors' inputs and compares it with the published one. --no-sdk runs only

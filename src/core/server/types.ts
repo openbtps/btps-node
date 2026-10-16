@@ -28,11 +28,7 @@ import type {
   BtpInvoiceLineItemsV2Schema,
   BtpInvoiceIssuerV2Schema,
 } from './schemas/documents/invoiceSchema.js';
-import type {
-  BtpCreditNoteDocSchema,
-  BtpCreditNoteLineItemSchema,
-  BtpCreditNoteTaxTotalSchema,
-} from './schemas/documents/creditNoteSchema.js';
+import type { BtpCreditNoteDocSchema } from './schemas/documents/creditNoteSchema.js';
 import type { BtpPayslipDocSchema } from './schemas/documents/payslipSchema.js';
 import type { BtpDocV2Schema } from './schemas/documents/documentSchema.js';
 import type { BtpEventDocSchema } from './schemas/documents/eventSchema.js';
@@ -45,8 +41,6 @@ export type BTPAttachment = z.infer<typeof BtpInvoiceAttachmentV2Schema>;
 export type BTPInvoiceLineItems = z.infer<typeof BtpInvoiceLineItemsV2Schema>;
 export type BTPInvoiceIssuer = z.infer<typeof BtpInvoiceIssuerV2Schema>;
 export type BTPInvoiceV2Doc = z.infer<typeof BtpInvoiceV2DocSchema>;
-export type BTPCreditNoteLineItem = z.infer<typeof BtpCreditNoteLineItemSchema>;
-export type BTPCreditNoteTaxTotal = z.infer<typeof BtpCreditNoteTaxTotalSchema>;
 export type BTPCreditNoteDoc = z.infer<typeof BtpCreditNoteDocSchema>;
 export type BTPPayslipDoc = z.infer<typeof BtpPayslipDocSchema>;
 export type BTPDocV2 = z.infer<typeof BtpDocV2Schema>;

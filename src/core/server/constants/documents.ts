@@ -19,11 +19,11 @@ export const BTP_DOC_LIMITS = {
   ID_MAX_LENGTH: 128,
   /** The identity in a reference (`references[].from`). */
   IDENTITY_MAX_LENGTH: 256,
-  /** An invoice title. */
+  /** An invoice's or credit note's title. */
   TITLE_MAX_LENGTH: 200,
   /** A name: invoice issuer, employee, employer, payee, fund, attachment, a line-item column, a payment link's text, a template. */
   NAME_MAX_LENGTH: 200,
-  /** A short code or reference: category, tax category, tax id, identifier and its key, unit, account and member numbers, employee id, phone. */
+  /** A short code or reference: category, tax id, identifier and its key, unit, account and member numbers, employee id, phone. */
   CODE_MAX_LENGTH: 64,
   /** An email address (RFC 5321's limit). */
   EMAIL_MAX_LENGTH: 254,
@@ -33,14 +33,14 @@ export const BTP_DOC_LIMITS = {
   DECIMAL_MAX_LENGTH: 32,
   /** A postal address. */
   ADDRESS_MAX_LENGTH: 500,
-  /** Free text: a description, a credit note's reason, a string cell in an invoice's line items. */
+  /** Free text: a description, a string cell in an invoice's or credit note's line items. */
   TEXT_MAX_LENGTH: 2000,
-  /** Line items: an invoice's rows, a credit note's lines. */
+  /** A credit note's `reason`: a short line saying why it was credited. */
+  REASON_MAX_LENGTH: 500,
+  /** Rows in an invoice's or credit note's line items. */
   LINE_ITEMS_MAX: 500,
-  /** Columns in an invoice's line items, and cells in one row. */
+  /** Columns in an invoice's or credit note's line items, and cells in one row. */
   LINE_ITEM_COLUMNS_MAX: 50,
-  /** Tax totals (one per rate) on a credit note. */
-  TAX_TOTALS_MAX: 50,
   /** Each of a payslip's earnings, deductions and contributions. */
   PAYSLIP_LINES_MAX: 200,
   /** Tax ids on a payslip's employer. */
@@ -57,7 +57,7 @@ export const BTP_DOC_LIMITS = {
   ATTACHMENT_MAX_BYTES: 10 * 1024 * 1024,
   /** One attachment's `content`, in base64 characters: the length of 10 MiB encoded. */
   ATTACHMENT_CONTENT_MAX_LENGTH: 4 * Math.ceil((10 * 1024 * 1024) / 3),
-  /** Top-level keys in an open object: `extensions`, an invoice's `metadata` and `template.data`. */
+  /** Top-level keys in an open object: `extensions`, an invoice's or credit note's `metadata`, an invoice's `template.data`. */
   EXTENSIONS_MAX_KEYS: 50,
   /** The JSON form of an open object (as for EXTENSIONS_MAX_KEYS), in characters (16 KiB). */
   EXTENSIONS_MAX_LENGTH: 16 * 1024,

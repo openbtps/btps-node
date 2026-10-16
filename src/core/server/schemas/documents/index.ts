@@ -39,11 +39,8 @@ export {
   BtpInvoiceV2DocSchema,
 } from './invoiceSchema.js';
 export {
-  BtpCreditNoteLineItemSchema,
-  BtpCreditNoteLineItemsSchema,
-  BtpCreditNoteTaxTotalSchema,
-  BtpCreditNoteTaxTotalsSchema,
   BtpCreditNoteReferencesSchema,
+  BtpCreditNoteTotalAmountSchema,
   BtpCreditNoteDocSchema,
 } from './creditNoteSchema.js';
 export {
@@ -94,8 +91,6 @@ export type {
   BTPInvoiceLineItems,
   BTPInvoiceIssuer,
   BTPInvoiceV2Doc,
-  BTPCreditNoteLineItem,
-  BTPCreditNoteTaxTotal,
   BTPCreditNoteDoc,
   BTPPayslipDoc,
   BTPDocV2,

@@ -54,7 +54,6 @@ function loadDocumentModel(dir, set) {
     'schema',
     'ownership',
     'attachments',
-    'taxTotal',
     'payslip',
   ]);
   if (model.keyVector !== VECTOR_FILES.managedSignature) {
@@ -87,7 +86,7 @@ function loadDocumentModel(dir, set) {
   if (Object.keys(set.documents).length === 0) {
     throw new VectorLoadError(file, `no documents in ${model.documentsDir}`);
   }
-  for (const group of ['schema', 'ownership', 'attachments', 'taxTotal', 'payslip']) {
+  for (const group of ['schema', 'ownership', 'attachments', 'payslip']) {
     if (!Array.isArray(model[group]) || model[group].length === 0) {
       throw new VectorLoadError(file, `expected a non-empty "${group}" array`);
     }

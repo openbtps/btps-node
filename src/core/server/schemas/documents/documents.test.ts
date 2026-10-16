@@ -308,6 +308,109 @@ describe('the 1.1 invoice: the 1.0 invoice with the changes of 2026-10-16', () =
   });
 });
 
+describe('the 1.1 credit note: the 1.1 invoice shape (2026-10-16, EBA-119)', () => {
+  type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const creditNote = (): Doc => load('credit-note.v2.json');
+  const accepted = (doc: unknown) => BtpCreditNoteDocSchema.safeParse(doc).success;
+
+  it("carries the invoice's table, issuer and a credits reference, with tax in the columns", () => {
+    const parsed = BtpCreditNoteDocSchema.parse(creditNote());
+    expect(parsed.totalAmount).toEqual({ amount: 22000, currency: 'AUD' });
+    expect(parsed.lineItems.columns).toContain('Tax');
+    expect(parsed.issuer?.identifiers).toEqual({ 'au:abn': '51824753556' });
+    expect(parsed.references.map((r) => r.type)).toEqual(['credits']);
+    expect(parsed.reason).toBe('One consulting day was not delivered.');
+  });
+
+  it('takes the same building blocks as the invoice, so the two cannot drift', () => {
+    const shape = BtpCreditNoteDocSchema.shape;
+    const invoiceShape = BtpInvoiceV2DocSchema.shape;
+    expect(shape.lineItems).toBe(invoiceShape.lineItems);
+    expect(shape.issuer.unwrap()).toBe(invoiceShape.issuer.unwrap());
+    expect(shape.attachments.unwrap()).toBe(invoiceShape.attachments.unwrap());
+    expect(shape.metadata.unwrap()).toBe(invoiceShape.metadata.unwrap());
+  });
+
+  it('accepts attachments, metadata and a description, as on the invoice', () => {
+    const invoice = load('invoice.v2.json') as Doc;
+    const doc = {
+      ...creditNote(),
+      attachments: invoice.attachments,
+      metadata: invoice.metadata,
+      description: 'x',
+    };
+    expect(accepted(doc)).toBe(true);
+  });
+
+  it('requires a positive totalAmount: the type, not the sign, says it is a credit', () => {
+    for (const amount of [0, -22000]) {
+      const result = BtpCreditNoteDocSchema.safeParse({
+        ...creditNote(),
+        totalAmount: { amount, currency: 'AUD' },
+      });
+      expect(result.success, String(amount)).toBe(false);
+      expect(result.error?.issues[0]?.path).toEqual(['totalAmount', 'amount']);
+    }
+    expect(accepted({ ...creditNote(), totalAmount: { amount: 1, currency: 'AUD' } })).toBe(true);
+    expect(accepted({ ...creditNote(), totalAmount: { amount: 220.5, currency: 'AUD' } })).toBe(
+      false,
+    );
+    expect(accepted({ ...creditNote(), totalAmount: { amount: 1, currency: 'AUD', x: 1 } })).toBe(
+      false,
+    );
+  });
+
+  it('refuses a float in a line-item cell', () => {
+    const doc = creditNote();
+    doc.lineItems.rows[0].Tax = 2000.5;
+    expect(accepted(doc)).toBe(false);
+  });
+
+  it('requires a non-empty title', () => {
+    const doc = creditNote();
+    delete doc.title;
+    expect(accepted(doc)).toBe(false);
+    expect(accepted({ ...creditNote(), title: '' })).toBe(false);
+  });
+
+  it(`caps reason at ${BTP_DOC_LIMITS.REASON_MAX_LENGTH} characters and refuses an empty one`, () => {
+    const doc = creditNote();
+    delete doc.reason;
+    expect(accepted(doc)).toBe(true);
+    expect(
+      accepted({ ...creditNote(), reason: 'r'.repeat(BTP_DOC_LIMITS.REASON_MAX_LENGTH) }),
+    ).toBe(true);
+    expect(
+      accepted({ ...creditNote(), reason: 'r'.repeat(BTP_DOC_LIMITS.REASON_MAX_LENGTH + 1) }),
+    ).toBe(false);
+    expect(accepted({ ...creditNote(), reason: '' })).toBe(false);
+  });
+
+  it("refuses PR #9's credit note fields (structured lines, total, taxTotals, extensions) and a payment link", () => {
+    const removed: Record<string, unknown> = {
+      total: { amount: 20000, currency: 'AUD' },
+      taxTotals: [{ taxCategory: 'GST10', amount: { amount: 2000, currency: 'AUD' } }],
+      extensions: { 'au:x': 1 },
+      paymentLink: { linkText: 'Pay', url: 'https://pay.example.com' },
+    };
+    for (const [field, value] of Object.entries(removed)) {
+      expect(accepted({ ...creditNote(), [field]: value }), field).toBe(false);
+    }
+    const structured = creditNote();
+    structured.lineItems = [
+      {
+        description: 'Partial credit',
+        quantity: '1',
+        unitPrice: { amount: 20000, currency: 'AUD' },
+        lineTotal: { amount: 20000, currency: 'AUD' },
+        taxAmount: { amount: 2000, currency: 'AUD' },
+        taxCategory: 'GST10',
+      },
+    ];
+    expect(accepted(structured)).toBe(false);
+  });
+});
+
 describe('document model v2: invoice title', () => {
   it('requires a non-empty title', () => {
     const invoice = load('invoice.v2.json');

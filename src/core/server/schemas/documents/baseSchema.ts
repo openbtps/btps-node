@@ -17,8 +17,8 @@ const statusRefused = () => z.undefined({ invalid_type_error: STATUS_NOT_IN_DOCU
 /*
  * Every v2 object is strict: a field the model does not name is refused,
  * not silently dropped, so what is validated is exactly what was signed.
- * The open places are `extensions`, an invoice's `metadata` and its
- * `template.data`, each bounded in size. Every string and array is capped
+ * The open places are a payslip's `extensions`, an invoice's or credit
+ * note's `metadata` and an invoice's `template.data`, each bounded in size. Every string and array is capped
  * (BTP_DOC_LIMITS).
  */
 
@@ -125,10 +125,10 @@ const openObject = (label: string) =>
       }
     });
 
-/** A free-form, namespaced extension bag on a credit note or payslip. */
+/** A free-form, namespaced extension bag on a payslip. */
 export const BtpDocExtensionsSchema = openObject('extensions');
 
-/** An invoice's `metadata`: the provider's own data, which the protocol never reads. */
+/** An invoice's or credit note's `metadata`: the provider's own data, which the protocol never reads. */
 export const BtpDocMetadataSchema = openObject('metadata');
 
 /** The data an invoice's `template` is filled with. */

@@ -1,7 +1,7 @@
 {
   "item": 7,
   "tickets": ["EBA-119", "EBA-402"],
-  "description": "BTPS 1.1 item 7, document model v2. Each case names a document in documents/ (or gives one inline), optionally changed by `set` (top-level fields replaced), `unset` (top-level fields removed) and `setPath` (each entry sets the value at `path`, an array of keys and indexes: `value` as given, or `repeat` written `times` times followed by `then`, for a file too large to write out). schema: the SDK's parseBtpDocV2 accepts or refuses it. ownership: every entry in a document's references (a credit note's credits, a corrected invoice's correction_of, any other) may only name a document from the envelope's own sender. attachments: the SDK's verifyAttachments accepts or refuses each attachment's file, and names the field at fault (content, size or sha256). taxTotal (credit notes only: an invoice's line items are a table the protocol does not add up) and payslip: the SDK's verifyTaxTotal and reconcilePayslip agree with the stated results, and report a disagreement rather than throw. Every document in documents/ is also checked to be unchanged by parsing, and signed and verified over its JCS form on every runtime.",
+  "description": "BTPS 1.1 item 7, document model v2. Each case names a document in documents/ (or gives one inline), optionally changed by `set` (top-level fields replaced), `unset` (top-level fields removed) and `setPath` (each entry sets the value at `path`, an array of keys and indexes: `value` as given, or `repeat` written `times` times followed by `then`, for a file too large to write out). schema: the SDK's parseBtpDocV2 accepts or refuses it. ownership: every entry in a document's references (a credit note's credits, a corrected invoice's correction_of, any other) may only name a document from the envelope's own sender. attachments: the SDK's verifyAttachments accepts or refuses each attachment's file, and names the field at fault (content, size or sha256). payslip: the SDK's reconcilePayslip agrees with the stated results, and reports a disagreement rather than throw. There is no tax-total check: an invoice's and a credit note's line items are a table the protocol does not add up, and a credit note's totalAmount is positive (its type says it is a credit). Every document in documents/ is also checked to be unchanged by parsing, and signed and verified over its JCS form on every runtime.",
   "documentsDir": "documents",
   "keyVector": "kms-signature.vector.json",
   "schema": [
@@ -201,6 +201,59 @@
       "expect": "reject"
     },
     {
+      "name": "credit-note-zero-totalAmount-refused",
+      "document": "credit-note.v2.json",
+      "set": { "totalAmount": { "amount": 0, "currency": "AUD" } },
+      "expect": "reject"
+    },
+    {
+      "name": "credit-note-negative-totalAmount-refused",
+      "document": "credit-note.v2.json",
+      "set": { "totalAmount": { "amount": -22000, "currency": "AUD" } },
+      "expect": "reject"
+    },
+    {
+      "name": "credit-note-pr9-taxTotals-refused",
+      "document": "credit-note.v2.json",
+      "set": { "taxTotals": [{ "taxCategory": "GST10", "amount": { "amount": 2000, "currency": "AUD" } }] },
+      "expect": "reject"
+    },
+    {
+      "name": "credit-note-pr9-structured-lines-refused",
+      "document": "credit-note.v2.json",
+      "set": {
+        "lineItems": [
+          {
+            "description": "Partial credit: consulting services",
+            "quantity": "1",
+            "unitPrice": { "amount": 20000, "currency": "AUD" },
+            "lineTotal": { "amount": 20000, "currency": "AUD" },
+            "taxAmount": { "amount": 2000, "currency": "AUD" },
+            "taxCategory": "GST10"
+          }
+        ]
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "credit-note-float-line-item-cell-refused",
+      "document": "credit-note.v2.json",
+      "setPath": [{ "path": ["lineItems", "rows", 0, "Tax"], "value": 2000.5 }],
+      "expect": "reject"
+    },
+    {
+      "name": "credit-note-reason-over-cap-refused",
+      "document": "credit-note.v2.json",
+      "setPath": [{ "path": ["reason"], "repeat": "x", "times": 501 }],
+      "expect": "reject"
+    },
+    {
+      "name": "credit-note-with-status-refused",
+      "document": "credit-note.v2.json",
+      "set": { "status": "refunded" },
+      "expect": "reject"
+    },
+    {
       "name": "invoice-former-replaces-refused",
       "document": "invoice.v2.json",
       "set": {
@@ -397,37 +450,6 @@
         { "path": ["attachments", 1, "size"], "value": 68 }
       ],
       "expect": { "reject": "size", "index": 1 }
-    }
-  ],
-  "taxTotal": [
-    {
-      "name": "credit-note-one-rate",
-      "document": "credit-note.v2.json",
-      "expect": {
-        "ok": true,
-        "computedTotal": { "amount": 20000, "currency": "AUD" },
-        "byCategory": { "GST10": 2000 }
-      }
-    },
-    {
-      "name": "credit-note-total-disagrees",
-      "document": "credit-note.v2.json",
-      "set": { "total": { "amount": 999, "currency": "AUD" } },
-      "expect": {
-        "ok": false,
-        "computedTotal": { "amount": 20000, "currency": "AUD" },
-        "byCategory": { "GST10": 2000 }
-      }
-    },
-    {
-      "name": "credit-note-rate-disagrees",
-      "document": "credit-note.v2.json",
-      "set": { "taxTotals": [{ "taxCategory": "GST10", "amount": { "amount": 999, "currency": "AUD" } }] },
-      "expect": {
-        "ok": false,
-        "computedTotal": { "amount": 20000, "currency": "AUD" },
-        "byCategory": { "GST10": 2000 }
-      }
     }
   ],
   "payslip": [

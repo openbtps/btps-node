@@ -8,7 +8,7 @@ sidebar_label: Golden Vectors
 The golden vectors are the bytes every BTPS 1.1 implementation must agree
 on: canonical JSON, signatures, key wrapping, documents, lifecycle events,
 replay windows, device registration and refresh, and identity lookup. They are
-published with the release as **vector set 1.1.0**, in
+published with the release as **vector set 1.1.1**, in
 [`test/vectors/`](https://github.com/openbtps/btps-node/tree/master/test/vectors)
 of the btps-node repository, and the
 [1.1.0 changelog entry](https://github.com/openbtps/btps-node/blob/master/CHANGELOG.md)
@@ -22,7 +22,7 @@ not.
 
 | | |
 | --- | --- |
-| Version | `1.1.0`, in `test/vectors/manifest.json` |
+| Version | `1.1.1`, in `test/vectors/manifest.json`. 1.1.1 is 1.1.0 with the credit note in the 1.1 invoice's shape (EBA-119) |
 | Protocol | BTPS 1.1 |
 | Integrity | `manifest.json` gives the lowercase hex SHA-256 of every vector file |
 | Keys | **Test-only** RSA keys generated locally, committed on purpose. Never use them for anything else |
@@ -42,7 +42,7 @@ vectors, so the manifest does not list them.
 | `oaep-mgf1-sha1.negative.vector.json` | The same wrap with MGF1-SHA-1 must be **refused** |
 | `selectors.vector.json`, `selectors-receiver-rotation.vector.json` | `signatureSelector` names the sender's key and `encryptionSelector` the receiver's, and each rotates on its own |
 | `sdk-defects.vector.json` | A GCM tag of any length but 16 bytes is refused; identities with a second `$` or a `:` are refused |
-| `document-model.vectors.json`, `documents/*.v2.json` | Document model v2: which invoices, credit notes and payslips validate and which are refused, the ownership rule, attachment checks, tax totals and payslip reconciliation |
+| `document-model.vectors.json`, `documents/*.v2.json` | Document model v2: which invoices, credit notes and payslips validate and which are refused, the ownership rule, attachment checks and payslip reconciliation |
 | `event.vectors.json`, `events/*.json` | Lifecycle events (`BTPS_EVENT`): schema per event type, the envelope rule and reply chains |
 | `replay.vectors.json` | The `issuedAt` window (±5 minutes, inclusive) and `(from, id)` delivery sequences |
 | `refresh.vectors.json` | `auth.refresh`: signed by the device's current key; a new key only with a valid `keyProof` |
@@ -142,7 +142,9 @@ and canonical JSON runs the SDK's own `src/core/crypto/jcs.ts`. The crypto
 takes the canonical bytes, as KMS does, so the JCS proven on Hermes is the
 SDK's, not a copy.
 
-What vector set 1.1.0 proved on Hermes, 79 checks, all passing:
+What vector set 1.1.0 proved on Hermes, 79 checks, all passing. Set 1.1.1
+was re-run on the same image on 2026-10-16: the same 79 checks, all passing,
+the credit note among the documents.
 
 | Category | Checks | What Hermes did |
 | --- | --- | --- |

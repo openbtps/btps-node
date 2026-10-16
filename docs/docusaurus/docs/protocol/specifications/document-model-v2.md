@@ -25,7 +25,6 @@ import {
   BtpDocV2Schema,
   parseBtpDocV2,
   validateBtpDocOwnership,
-  verifyTaxTotal,
   reconcilePayslip,
   verifyAttachments,
   BTP_DOC_LIMITS,
@@ -43,7 +42,7 @@ import {
 | `type` | `invoice`, `credit_note` or `payslip`. A lifecycle event is not a document: it travels as its own artifact (`BTPS_EVENT`, see [Lifecycle Events](./lifecycle-events.md)) |
 | `id` | Required, 1 to 128 characters |
 | No status | `status`, `paidAt`, `refundedAt` and `disputedAt` are refused by name. A document is signed and never changes; its status is derived from accepted lifecycle events |
-| Strict | A field the model does not name is refused, not silently dropped, so what is validated is exactly what was signed. The open places are `extensions`, an invoice's `metadata` and its `template.data` (see [Open objects](#open-objects)) |
+| Strict | A field the model does not name is refused, not silently dropped, so what is validated is exactly what was signed. The open places are a payslip's `extensions`, an invoice's or credit note's `metadata` and an invoice's `template.data` (see [Open objects](#open-objects)) |
 | Size caps | Every string, array and attachment is bounded (see [Size caps](#size-caps)) |
 | `references` | Related documents, each `{ type, from, id, sha256 }`, all from the same sender (see [References](#references)) |
 | `sha256` | Lowercase hex, 64 characters, wherever it appears (see [How a `sha256` is written](#how-a-sha256-is-written)) |
@@ -68,10 +67,11 @@ The helpers `addMoney`, `subtractMoney`, `sumMoney`, `moneyEquals` and
 with `BTP_ERROR_MONEY_NOT_INTEGER`, `BTP_ERROR_MONEY_CURRENCY_MISMATCH` or
 `BTP_ERROR_MONEY_OUT_OF_RANGE` for a malformed amount.
 
-On a credit note or payslip, a rate or quantity is a decimal string
-(`"32.50"`, `"38"`) for display only. **A line's amount is never recomputed
-from rate × quantity**; it is what the issuer states. An invoice's line items
-are a table, whose money cells are integers too (see [Invoice](#invoice)).
+On a payslip, a rate or quantity is a decimal string (`"32.50"`, `"38"`)
+for display only. **A line's amount is never recomputed from rate ×
+quantity**; it is what the issuer states. An invoice's and a credit note's
+line items are a table, whose money cells are integers too (see
+[Invoice](#invoice)).
 
 ## Invoice
 
@@ -149,6 +149,7 @@ interface BTPInvoiceV2Doc {
 | `status`, `paidAt`, `refundedAt`, `disputedAt` | in the document | Removed, and refused by name: status comes from lifecycle events (`BTPS_EVENT`) |
 | `id`, `title`, `issuedAt`, `dueAt`, `paymentLink`, `description`, `template` | | Unchanged, with size caps |
 | Strictness | unknown fields passed through | Every object is strict and every string, list and open object capped |
+| Credit note | none | New: `type: "credit_note"`, the 1.1 invoice's shape with a required `credits` reference, an optional `reason` and a positive `totalAmount` (see [Credit note](#credit-note)) |
 
 ### Line items: a table the issuer lays out
 
@@ -184,36 +185,84 @@ PR #9's invoice additions are not part of 1.1: `invoiceNumber` (the `id` is
 the invoice number), `issueDate`, `supplyDate`, `seller`, `buyer`, the
 structured line items with `taxCategory`, `taxTotals`, `gstInclusive`,
 `paymentTerms`, `dueDate` and `extensions`. Each is refused as an unknown
-field. `verifyTaxTotal` no longer applies to invoices.
+field.
 
 ## Credit note
 
-`BtpCreditNoteDocSchema`, type `BTPCreditNoteDoc`. Required: `id`,
-`issuedAt`, `references`, `lineItems` (1 to 500), `total`, `taxTotals` (1 to
-50). Optional: `reason`, `extensions`.
-
-- A line item is `description`, `quantity` (decimal string), `unitPrice`,
-  `lineTotal`, `taxAmount` (money) and `taxCategory`, the rate key (e.g.
-  `"GST10"`). A tax total is `{ taxCategory, amount }`, one per rate.
-- `references` must include a `credits` entry naming the invoice the credit
-  note credits (see [References](#references)). It replaces the
-  `relatesToInvoice` field proposed earlier.
-
-### Tax totals are verified, and a mismatch is a warning
-
-`verifyTaxTotal(doc)` (credit notes only) recomputes the total from the line
-items, and the tax per rate by grouping lines by `taxCategory`, and compares
-both with the declared values:
+`BtpCreditNoteDocSchema`, type `BTPCreditNoteDoc`. **The 1.1 credit note
+takes the 1.1 invoice's shape** (decided 2026-10-16, EBA-119): the same
+line-item table, issuer, attachments and metadata, built from the same
+schemas, so the two cannot drift.
 
 ```ts
-const check = verifyTaxTotal(creditNote);
-// check.ok, check.computedTotal, check.declaredTotal,
-// check.byCategory: { taxCategory, computedAmount, declaredAmount, ok }[]
+interface BTPCreditNoteDoc {
+  schemaVersion: 2;
+  type: 'credit_note';
+  id: string; // the credit note number: unique per sender
+  issuedAt: string; // ISO 8601
+  title: string; // 1 to 200 characters
+  totalAmount: { amount: number; currency: CurrencyCode }; // integer minor units, greater than zero
+  lineItems: {
+    columns: string[];
+    rows: Array<Record<string, string | number>>; // strings and integers; never a float
+  };
+  issuer?: { name: string; email?: string; phone?: string; address?: string; identifiers?: Record<string, string> };
+  description?: string;
+  attachments?: BTPAttachment[]; // up to 10
+  references: Array<{ type: string; from: string; id: string; sha256: string }>; // at least one "credits"
+  reason?: string; // why it was credited: 1 to 500 characters
+  metadata?: Record<string, unknown>; // the provider's own data
+}
 ```
 
-It never throws for a disagreement: `ok` is false, and whether that blocks
-anything is the receiving platform's decision. The schema does not refuse a
-credit note whose totals disagree.
+```json
+{
+  "schemaVersion": 2,
+  "type": "credit_note",
+  "id": "cn_3001",
+  "issuedAt": "2026-10-02T00:00:00.000Z",
+  "title": "Credit note for invoice inv_2001",
+  "totalAmount": { "amount": 22000, "currency": "AUD" },
+  "lineItems": {
+    "columns": ["Description", "Quantity", "Unit price", "Tax code", "Tax", "Amount"],
+    "rows": [
+      { "Description": "Partial credit: consulting services", "Quantity": 1, "Unit price": 20000, "Tax code": "GST", "Tax": 2000, "Amount": 22000 }
+    ]
+  },
+  "issuer": { "name": "Biller Pty Ltd", "identifiers": { "au:abn": "51824753556" } },
+  "references": [
+    { "type": "credits", "from": "biller$example.com", "id": "inv_2001", "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf" }
+  ],
+  "reason": "One consulting day was not delivered."
+}
+```
+
+- **`references` is required** and must include a `credits` entry naming
+  the invoice the credit note credits (see [References](#references)). Every
+  reference's `from` must be the envelope's `from` (see
+  [Ownership](#ownership)). It replaces the `relatesToInvoice` field proposed
+  earlier.
+- **Amounts are positive.** `totalAmount.amount` must be greater than zero:
+  `type: "credit_note"` is what says the amount is a credit, so it carries no
+  sign. A zero or negative `totalAmount` is refused. Write the table's money
+  cells the same way, as the amounts credited; the protocol does not read
+  the cells, so it does not check their sign.
+- **Tax is in the line items**, as columns, exactly as on the invoice. The
+  protocol does not add the rows up or compare them with `totalAmount`.
+- `reason` is new and optional: a short line saying why the invoice was
+  credited, 1 to 500 characters (`REASON_MAX_LENGTH`).
+- Strict, as every v2 object: the status fields are refused by name, and an
+  invoice's `dueAt`, `paymentLink` and `template` are refused as unknown
+  fields.
+
+### Removed from the credit note proposed in PR #9
+
+The structured line items (`description`, `quantity`, `unitPrice`,
+`lineTotal`, `taxAmount`, `taxCategory`), `total`, `taxTotals` and
+`extensions` are not part of 1.1, and each is refused. `verifyTaxTotal`, which
+checked `taxTotals` against those lines, is removed from the SDK, with the
+`TAX_TOTALS_MAX` cap. The money helpers (`addMoney`, `sumMoney`, …) stay:
+`reconcilePayslip` uses them.
 
 ## Payslip
 
@@ -279,7 +328,7 @@ const check = verifyAttachments(invoice);
 // check.ok, check.problems: { index, field: 'content' | 'size' | 'sha256', message }[]
 ```
 
-Unlike the tax-total and payslip checks, a problem here is a refusal: the
+Unlike the payslip check, a problem here is a refusal: the
 server runs `verifyAttachments` on every unencrypted `BTPS_DOC`, and on the
 document of an agent's `artifact.send`, and refuses the artifact with the
 problem at `document.attachments.<index>.<field>`. For an encrypted
@@ -299,9 +348,9 @@ to change it.
 ## Open objects
 
 Three places carry whatever the sender puts there, exactly as given:
-`extensions` on a credit note or payslip (namespaced, e.g.
-`"au:stateCustomField": {…}`), and an invoice's `metadata` and
-`template.data`. Each is bounded: at most 50 keys, each up to 64
+`extensions` on a payslip (namespaced, e.g.
+`"au:stateCustomField": {…}`), an invoice's or credit note's `metadata`, and
+an invoice's `template.data`. Each is bounded: at most 50 keys, each up to 64
 characters, and at most 16 KiB as JSON.
 
 ## References
@@ -368,17 +417,17 @@ length: it has one exact form (see [How a `sha256` is written](#how-a-sha256-is-
 | --- | --- | --- |
 | `ID_MAX_LENGTH` | 128 | a document id; a reference's `id` |
 | `IDENTITY_MAX_LENGTH` | 256 | a reference's `from` |
-| `TITLE_MAX_LENGTH` | 200 | an invoice's `title` |
+| `TITLE_MAX_LENGTH` | 200 | an invoice's or credit note's `title` |
 | `NAME_MAX_LENGTH` | 200 | names: issuer, employer, employee, payee, fund, attachment, template; a line-item column; a payment link's text |
-| `CODE_MAX_LENGTH` | 64 | categories, reference types, tax categories, tax ids, identifier keys and values, a phone number, units, account and member numbers, employee id, `yearToDate` keys, open-object keys |
+| `CODE_MAX_LENGTH` | 64 | categories, reference types, tax ids, identifier keys and values, a phone number, units, account and member numbers, employee id, `yearToDate` keys, open-object keys |
 | `EMAIL_MAX_LENGTH` | 254 | the issuer's `email` |
 | `URL_MAX_LENGTH` | 2048 | a payment link's `url` |
-| `DECIMAL_MAX_LENGTH` | 32 | `quantity`, `rate` |
+| `DECIMAL_MAX_LENGTH` | 32 | a payslip line's `quantity`, `rate` |
 | `ADDRESS_MAX_LENGTH` | 500 | addresses |
-| `TEXT_MAX_LENGTH` | 2000 | descriptions, a credit note's `reason`, a text cell in an invoice's line items |
-| `LINE_ITEMS_MAX` | 500 | an invoice's line-item rows; a credit note's `lineItems` |
-| `LINE_ITEM_COLUMNS_MAX` | 50 | an invoice's line-item columns, and the cells in one row |
-| `TAX_TOTALS_MAX` | 50 | a credit note's `taxTotals` |
+| `TEXT_MAX_LENGTH` | 2000 | descriptions, a text cell in an invoice's or credit note's line items |
+| `REASON_MAX_LENGTH` | 500 | a credit note's `reason` |
+| `LINE_ITEMS_MAX` | 500 | an invoice's or credit note's line-item rows |
+| `LINE_ITEM_COLUMNS_MAX` | 50 | an invoice's or credit note's line-item columns, and the cells in one row |
 | `PAYSLIP_LINES_MAX` | 200 | each of `earnings`, `deductions`, `contributions` |
 | `TAX_IDS_MAX` | 10 | a payslip employer's `taxIds` |
 | `IDENTIFIERS_MAX` | 10 | an invoice issuer's `identifiers` |

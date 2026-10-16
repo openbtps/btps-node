@@ -32,7 +32,6 @@ describe('@btps/sdk/documents (EBA-441, schemas only)', () => {
       'BtpDocReferenceSchema',
       'parseBtpDocV2',
       'validateBtpDocOwnership',
-      'verifyTaxTotal',
       'reconcilePayslip',
       'verifyAttachments',
       'formatSha256',
@@ -53,6 +52,8 @@ describe('@btps/sdk/documents (EBA-441, schemas only)', () => {
       expect(documents, name).toHaveProperty(name);
     }
     expect(documents.CURRENCY_CODES).toContain('AUD');
+    // The credit note took the invoice's table (2026-10-16): no tax totals to check.
+    expect(documents).not.toHaveProperty('verifyTaxTotal');
   });
 
   it('bundles for a neutral platform: no Node built-in is reachable from it', async () => {

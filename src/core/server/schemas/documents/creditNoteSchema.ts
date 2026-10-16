@@ -7,52 +7,26 @@
 
 import { z } from 'zod';
 import { BTP_DOC_LIMITS, BTP_DOC_REFERENCE_TYPES } from '../../constants/documents.js';
-import { BtpMoneySchema, BtpDecimalStringSchema } from './moneySchema.js';
+import { BtpMoneySchema } from './moneySchema.js';
 import {
   BtpIssuedDocV2BaseSchema,
-  BtpDocExtensionsSchema,
+  BtpDocMetadataSchema,
   BtpDocReferencesSchema,
   capped,
 } from './baseSchema.js';
+import {
+  BtpDocAttachmentsSchema,
+  BtpInvoiceIssuerV2Schema,
+  BtpInvoiceLineItemsV2Schema,
+} from './invoiceSchema.js';
 
 /*
- * The credit note keeps the structured lines and tax totals it had on this
- * branch. The invoice no longer shares them (it went back to 1.0's table on
- * 2026-10-16); whether the credit note should follow is an open question.
+ * The 1.1 credit note takes the 1.1 invoice's shape (founder, 2026-10-16,
+ * EBA-119): the same line-item table, issuer, attachments and metadata,
+ * with tax in the table's columns. PR #9's structured lines, `taxTotals`
+ * and `verifyTaxTotal` are gone. It adds a required `credits` reference and
+ * an optional `reason`.
  */
-
-/**
- * `taxCategory` is the rate key `taxTotals` groups by, so it is required: a
- * line cannot carry tax that no total can be checked against.
- */
-export const BtpCreditNoteLineItemSchema = z
-  .object({
-    description: capped.text(),
-    quantity: BtpDecimalStringSchema,
-    unitPrice: BtpMoneySchema,
-    lineTotal: BtpMoneySchema,
-    taxAmount: BtpMoneySchema,
-    taxCategory: capped.code().min(1),
-  })
-  .strict();
-
-/** One rate's tax across the credit note; checked by `verifyTaxTotal`. */
-export const BtpCreditNoteTaxTotalSchema = z
-  .object({
-    taxCategory: capped.code().min(1),
-    amount: BtpMoneySchema,
-  })
-  .strict();
-
-export const BtpCreditNoteLineItemsSchema = z
-  .array(BtpCreditNoteLineItemSchema)
-  .min(1)
-  .max(BTP_DOC_LIMITS.LINE_ITEMS_MAX);
-
-export const BtpCreditNoteTaxTotalsSchema = z
-  .array(BtpCreditNoteTaxTotalSchema)
-  .min(1)
-  .max(BTP_DOC_LIMITS.TAX_TOTALS_MAX);
 
 /** A credit note's references: at least one, naming the invoice it credits. */
 export const BtpCreditNoteReferencesSchema = BtpDocReferencesSchema.min(1).refine(
@@ -63,15 +37,28 @@ export const BtpCreditNoteReferencesSchema = BtpDocReferencesSchema.min(1).refin
 );
 
 /**
- * A credit note names the invoice it credits with a `credits` reference
- * (2026-10-16: `relatesToInvoice` folded into `references`).
+ * The amount credited, positive: `type: 'credit_note'` is what says it is a
+ * credit, so the amount carries no sign. Zero credits nothing.
  */
+export const BtpCreditNoteTotalAmountSchema = BtpMoneySchema.extend({
+  amount: z
+    .number()
+    .int()
+    .safe()
+    .positive(
+      'a credit note credits a positive amount: the type, not the sign, says it is a credit',
+    ),
+}).strict();
+
 export const BtpCreditNoteDocSchema = BtpIssuedDocV2BaseSchema.extend({
   type: z.literal('credit_note'),
+  title: z.string().min(1).max(BTP_DOC_LIMITS.TITLE_MAX_LENGTH),
+  totalAmount: BtpCreditNoteTotalAmountSchema,
+  lineItems: BtpInvoiceLineItemsV2Schema,
+  issuer: BtpInvoiceIssuerV2Schema.optional(),
+  description: capped.text().optional(),
+  attachments: BtpDocAttachmentsSchema.optional(),
   references: BtpCreditNoteReferencesSchema,
-  reason: capped.text().optional(),
-  lineItems: BtpCreditNoteLineItemsSchema,
-  total: BtpMoneySchema,
-  taxTotals: BtpCreditNoteTaxTotalsSchema,
-  extensions: BtpDocExtensionsSchema.optional(),
+  reason: z.string().min(1).max(BTP_DOC_LIMITS.REASON_MAX_LENGTH).optional(),
+  metadata: BtpDocMetadataSchema.optional(),
 }).strict();

@@ -3,6 +3,26 @@
   "type": "credit_note",
   "id": "cn_3001",
   "issuedAt": "2026-10-02T00:00:00.000Z",
+  "title": "Credit note for invoice inv_2001",
+  "totalAmount": { "amount": 22000, "currency": "AUD" },
+  "lineItems": {
+    "columns": ["Description", "Quantity", "Unit price", "Tax code", "Tax", "Amount"],
+    "rows": [
+      {
+        "Description": "Partial credit: consulting services",
+        "Quantity": 1,
+        "Unit price": 20000,
+        "Tax code": "GST",
+        "Tax": 2000,
+        "Amount": 22000
+      }
+    ]
+  },
+  "issuer": {
+    "name": "Biller Pty Ltd",
+    "email": "accounts@biller.example.com",
+    "identifiers": { "au:abn": "51824753556" }
+  },
   "references": [
     {
       "type": "credits",
@@ -11,18 +31,6 @@
       "sha256": "ae5b9964e2b837793076d01df1613b13f2997d266cba209a1bd058cd8a2c35bf"
     }
   ],
-  "lineItems": [
-    {
-      "description": "Partial credit: consulting services",
-      "quantity": "1",
-      "unitPrice": { "amount": 20000, "currency": "AUD" },
-      "lineTotal": { "amount": 20000, "currency": "AUD" },
-      "taxAmount": { "amount": 2000, "currency": "AUD" },
-      "taxCategory": "GST10"
-    }
-  ],
-  "total": { "amount": 20000, "currency": "AUD" },
-  "taxTotals": [
-    { "taxCategory": "GST10", "amount": { "amount": 2000, "currency": "AUD" } }
-  ]
+  "reason": "One consulting day was not delivered.",
+  "description": "Money cells are in cents (AUD). The amount credited is positive: the type says it is a credit."
 }

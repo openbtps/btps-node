@@ -13,7 +13,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export const MANIFEST_FILE = 'manifest.json';
-export const VECTOR_SET_VERSION = '1.1.0';
+/*
+ * 1.1.1 (EBA-119, 2026-10-16): the credit note took the 1.1 invoice's shape,
+ * so documents/credit-note.v2.json and document-model.vectors.json changed,
+ * and the taxTotal group went with verifyTaxTotal.
+ */
+export const VECTOR_SET_VERSION = '1.1.1';
 
 /**
  * In the directory but not vectors: the manifest itself, the README, and the

@@ -5,85 +5,20 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import type {
-  BTPCreditNoteDoc,
-  BTPCreditNoteLineItem,
-  BTPDocV2,
-  BTPMoney,
-  BTPPayslipDoc,
-} from '@core/server/types.js';
+import type { BTPDocV2, BTPMoney, BTPPayslipDoc } from '@core/server/types.js';
 import { BTP_DOC_SHA256 } from '@core/server/constants/documents.js';
 import { moneyEquals, subtractMoney, sumMoney, zeroMoney } from './money.js';
 import { decodeBase64Strict, encodeBase64, encodeHex, sha256 } from './bytes.js';
 
 /*
- * Checks over a valid v2 document's own arithmetic. Both report a
- * disagreement in their result and never throw for one: whether it blocks
- * anything is the receiving platform's decision. Neither recomputes a line
+ * Checks over a valid v2 document. The payslip check reports a
+ * disagreement in its result and never throws for one: whether it blocks
+ * anything is the receiving platform's decision. It never recomputes a line
  * from its rate or quantity; the stated line amounts are what is summed.
- */
-
-export interface BTPTaxTotalByCategory {
-  taxCategory: string;
-  computedAmount: BTPMoney;
-  declaredAmount: BTPMoney;
-  ok: boolean;
-}
-
-export interface BTPTaxTotalCheck {
-  /** True when the declared total and every declared tax total equal the line items. */
-  ok: boolean;
-  computedTotal: BTPMoney;
-  declaredTotal: BTPMoney;
-  /** One entry per tax category seen on the line items or in `taxTotals`. */
-  byCategory: BTPTaxTotalByCategory[];
-}
-
-/**
- * Recomputes a credit note's total and its tax per rate (`taxCategory`) from
- * the line items, and compares them with the declared `total` and
- * `taxTotals`. Credit notes only: the invoice carries its line items as a
- * table whose columns the issuer chooses, so there is nothing for the
+ * There is no tax-total check: an invoice's and a credit note's line items
+ * are a table whose columns the issuer chooses, so there is nothing for the
  * protocol to add up.
  */
-export function verifyTaxTotal(doc: BTPCreditNoteDoc): BTPTaxTotalCheck {
-  const currency = doc.total.currency;
-  const computedTotal = sumMoney(
-    doc.lineItems.map((line) => line.lineTotal),
-    currency,
-  );
-
-  const linesByCategory = new Map<string, BTPCreditNoteLineItem[]>();
-  for (const line of doc.lineItems) {
-    const lines = linesByCategory.get(line.taxCategory) ?? [];
-    lines.push(line);
-    linesByCategory.set(line.taxCategory, lines);
-  }
-
-  const declaredByCategory = new Map(doc.taxTotals.map((t) => [t.taxCategory, t.amount]));
-
-  const categories = new Set<string>([...linesByCategory.keys(), ...declaredByCategory.keys()]);
-  const byCategory: BTPTaxTotalByCategory[] = [...categories].map((taxCategory) => {
-    const computedAmount = sumMoney(
-      (linesByCategory.get(taxCategory) ?? []).map((line) => line.taxAmount),
-      currency,
-    );
-    const declaredAmount = declaredByCategory.get(taxCategory) ?? zeroMoney(currency);
-    return {
-      taxCategory,
-      computedAmount,
-      declaredAmount,
-      ok: moneyEquals(computedAmount, declaredAmount),
-    };
-  });
-
-  return {
-    ok: moneyEquals(computedTotal, doc.total) && byCategory.every((c) => c.ok),
-    computedTotal,
-    declaredTotal: doc.total,
-    byCategory,
-  };
-}
 
 export interface BTPPayslipReconciliation {
   /** False when gross or net does not reconcile. A warning, never a rejection. */
@@ -164,7 +99,7 @@ export function formatSha256(digest: Uint8Array): string {
 /**
  * Checks each attachment's file against what the document states about it:
  * `content` is canonical base64, decodes to exactly `size` bytes, and those
- * bytes hash to `sha256`. Unlike the tax and payslip checks, a problem here
+ * bytes hash to `sha256`. Unlike the payslip check, a problem here
  * is a refusal: the server runs this on every unencrypted `BTPS_DOC`, after
  * the schema. A document with no attachments passes.
  */
