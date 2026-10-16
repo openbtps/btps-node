@@ -102,6 +102,8 @@ export class BtpsClient {
   protected socket?: TLSSocket;
   protected emitter: EventEmitter = new EventEmitter();
   protected retries = 0;
+  /** A reconnect is scheduled or under way: sends never written wait for it. */
+  protected reconnecting = false;
   protected backpressureQueue: string[] = [];
   protected states: ConnectionStates = {
     isConnecting: false,
@@ -215,7 +217,10 @@ export class BtpsClient {
         sock = tls.connect(tlsOptions, () => {
           this.states.isConnected = true;
           this.states.isConnecting = false;
-          sock.ref(); // keep process alive on connect
+          // Held open only for a pending send: a reconnect with nothing to
+          // send must not keep the process alive.
+          if (this.queue.size) sock.ref();
+          else sock.unref();
 
           this.socket = sock;
           this.emitter.emit('connected', {
@@ -252,6 +257,7 @@ export class BtpsClient {
         });
         this.states.isConnecting = false;
         this.states.isConnected = false;
+        this.reconnecting = false;
         // Settled first, so the caller answers its own send with this error.
         settle({ socket: undefined, error });
         // Every pending send gets its answer (fix list 12).
@@ -341,13 +347,29 @@ export class BtpsClient {
     });
 
     socket.on('close', () => {
-      // Reject all in-flight
+      // A connection the client has already replaced holds none of its sends.
+      if (this.socket && this.socket !== socket) return;
       const err = new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, {
         cause: 'connection closed',
       });
       const info = this.getRetryInfo(err);
       this.emitter.emit('end', { ...info, error: err });
-      this.resolveError(err);
+      // What was written to this connection went with it.
+      this.backpressureQueue = [];
+      this.states.isDraining = false;
+      if (this.reconnecting) {
+        // A send written here and not answered may have reached the server:
+        // it is answered with the error and never resent automatically.
+        // Resending is the caller's choice; replay protection makes a resend
+        // of the same artifact inside the window safe. A send never written
+        // waits for the new connection.
+        this.states.isConnected = false;
+        this.states.isConnecting = false;
+        this.socket = undefined;
+        this.answerWritten(err);
+      } else {
+        this.resolveError(err);
+      }
     });
   }
 
@@ -463,11 +485,36 @@ export class BtpsClient {
     if (this.retries >= maxRetries) return;
 
     this.retries++;
-    setTimeout(() => {
-      void this.getSocket().catch((err) => {
-        /* next error will schedule again */
-      });
-    }, delay);
+    this.reconnecting = true;
+    setTimeout(() => void this.reconnect(receiverId), delay);
+  }
+
+  /**
+   * Makes the new connection and sends on it every pending send never
+   * written. It used to connect and send nothing, so a send queued while
+   * reconnecting waited out its timer.
+   */
+  protected async reconnect(receiverId: string) {
+    // Destroyed, or a send is already connecting: that connection sends the queue.
+    if (this.states.isDestroyed || this.states.isConnecting) {
+      this.reconnecting = false;
+      return;
+    }
+    const { socket, error } = await this.getSocket();
+    if (socket) {
+      this.reconnecting = false;
+      this.pumpNextQueue();
+      return;
+    }
+    // A connection that failed is handled by its own listeners, which retry
+    // or answer every pending send. Failing to resolve the host comes before
+    // any connection, so nothing else would.
+    if (error.code === BTP_ERROR_RESOLVE_DNS.code) {
+      const info = this.getRetryInfo(error);
+      this.emitError({ error, ...info });
+      if (info.willRetry) this.retryConnect(receiverId);
+      else this.resolveError(error);
+    }
   }
 
   /**
@@ -478,8 +525,19 @@ export class BtpsClient {
   protected resolveError(error?: BTPErrorException) {
     this.states.isConnected = false;
     this.states.isConnecting = false;
+    this.reconnecting = false;
     this.socket = undefined;
     this.cleanupQueue(error);
+  }
+
+  /** Answers, with `error`, every pending send already written. */
+  protected answerWritten(error: BTPErrorException) {
+    for (const [id, job] of this.queue) {
+      if (!job.written) continue;
+      clearTimeout(job.timeout);
+      this.queue.delete(id);
+      job.resolve({ response: undefined, error });
+    }
   }
 
   /**

@@ -382,25 +382,25 @@ describe('EBA-443: timeout minimums (fix list 13)', () => {
   }, 15_000);
 });
 
-describe('PR #26: the client end and getSocket defects', () => {
-  /** A TLS server that counts connections and runs `onLine` for each line read. */
-  const countingServer = async (onLine: (socket: TLSSocket, connection: number) => void) => {
-    const counter = { connections: 0 };
-    const port = await start(() => {});
-    const server = servers[servers.length - 1] as tls.Server;
-    server.removeAllListeners('secureConnection');
-    server.on('secureConnection', (socket) => {
-      const connection = ++counter.connections;
-      socket.on('error', () => {});
-      let buffered = '';
-      socket.on('data', (chunk) => {
-        buffered += chunk.toString();
-        if (buffered.includes('\n')) onLine(socket, connection);
-      });
+/** A TLS server that counts connections and runs `onLine` for each line read. */
+const countingServer = async (onLine: (socket: TLSSocket, connection: number) => void) => {
+  const counter = { connections: 0 };
+  const port = await start(() => {});
+  const server = servers[servers.length - 1] as tls.Server;
+  server.removeAllListeners('secureConnection');
+  server.on('secureConnection', (socket) => {
+    const connection = ++counter.connections;
+    socket.on('error', () => {});
+    let buffered = '';
+    socket.on('data', (chunk) => {
+      buffered += chunk.toString();
+      if (buffered.includes('\n')) onLine(socket, connection);
     });
-    return { port, counter };
-  };
+  });
+  return { port, counter };
+};
 
+describe('PR #26: the client end and getSocket defects', () => {
   // The end handler called retryConnect exactly when it would not retry.
   it('does not reconnect when the server ends the connection after answering', async () => {
     const { port, counter } = await countingServer((socket) => {
@@ -471,5 +471,118 @@ describe('PR #26: the client end and getSocket defects', () => {
     const result = await within(client.send(ping()), 3_000);
     expect(result).not.toBe('hung');
     expect((result as BTPClientResponse).error).toBeInstanceOf(BTPErrorException);
+  });
+});
+
+describe('EBA-123: what a reconnect carries', () => {
+  /**
+   * A TLS server that records every line by connection (1, 2, ...). The first
+   * connection is closed on its first line, unanswered; later ones answer
+   * every line with a success.
+   */
+  const dropFirstServer = async () => {
+    const lines: { connection: number; id: unknown }[] = [];
+    let connections = 0;
+    const port = await start(() => {});
+    const server = servers[servers.length - 1] as tls.Server;
+    server.removeAllListeners('secureConnection');
+    server.on('secureConnection', (socket) => {
+      const connection = ++connections;
+      socket.on('error', () => {});
+      let buffered = '';
+      socket.on('data', (chunk) => {
+        buffered += chunk.toString();
+        let newline;
+        while ((newline = buffered.indexOf('\n')) !== -1) {
+          const line = JSON.parse(buffered.slice(0, newline)) as { id: unknown };
+          buffered = buffered.slice(newline + 1);
+          lines.push({ connection, id: line.id });
+          if (connection === 1) {
+            socket.destroy();
+            return;
+          }
+          socket.write(
+            answer({
+              status: { ok: true, code: 200, message: 'ok' },
+              type: 'btps_response',
+              reqId: line.id,
+            }),
+          );
+        }
+      });
+    });
+    return { port, lines, connections: () => connections };
+  };
+
+  it('a send written and not answered is answered with the error and never resent', async () => {
+    const server = await dropFirstServer();
+    const client = newClient(server.port, { maxRetries: 1, retryDelayMs: 50 });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const sent = ping();
+    const result = await within(client.send(sent), 3_000);
+    expect(result).not.toBe('hung');
+    expect([BTP_ERROR_CONNECTION_ENDED.code, BTP_ERROR_CONNECTION_CLOSED.code]).toContain(
+      (result as BTPClientResponse).error?.code,
+    );
+    await new Promise((r) => setTimeout(r, 500));
+    // The client reconnected, and the new connection carried nothing.
+    expect(server.connections()).toBe(2);
+    expect(server.lines).toEqual([{ connection: 1, id: sent.id }]);
+  });
+
+  it('a send never written goes on the new connection and is answered there', async () => {
+    const server = await dropFirstServer();
+    const client = newClient(server.port, { maxRetries: 1, retryDelayMs: 50 });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const first = ping();
+    const second = ping();
+    let queued: Promise<BTPClientResponse> | undefined;
+    // The second send is made while the reconnect is connecting, so it is
+    // queued, never written to the dropped connection.
+    const internals = client as unknown as { getSocket: () => Promise<unknown> };
+    const getSocket = internals.getSocket.bind(client);
+    let calls = 0;
+    vi.spyOn(internals, 'getSocket').mockImplementation(() => {
+      const connecting = getSocket();
+      if (++calls === 2) queued = client.send(second);
+      return connecting;
+    });
+
+    const a = await within(client.send(first), 3_000);
+    expect((a as BTPClientResponse).error).toBeInstanceOf(BTPErrorException);
+    await vi.waitFor(() => expect(queued).toBeDefined(), { timeout: 3_000 });
+    const b = await within(queued!, 3_000);
+    expect(b).not.toBe('hung');
+    expect((b as BTPClientResponse).error).toBeUndefined();
+    expect((b as BTPClientResponse).response?.reqId).toBe(second.id);
+    expect(server.lines).toEqual([
+      { connection: 1, id: first.id },
+      { connection: 2, id: second.id },
+    ]);
+  });
+
+  it('a reconnect with nothing to send does not keep the process alive', async () => {
+    const server = await dropFirstServer();
+    const client = newClient(server.port, { maxRetries: 1, retryDelayMs: 50 });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const held = new Map<TLSSocket, boolean>();
+    const proto = tls.TLSSocket.prototype;
+    const ref = proto.ref;
+    const unref = proto.unref;
+    vi.spyOn(proto, 'ref').mockImplementation(function (this: TLSSocket) {
+      held.set(this, true);
+      return ref.call(this);
+    });
+    vi.spyOn(proto, 'unref').mockImplementation(function (this: TLSSocket) {
+      held.set(this, false);
+      return unref.call(this);
+    });
+    const internals = client as unknown as { socket?: TLSSocket };
+
+    await within(client.send(ping()), 3_000);
+    // The dropped connection is forgotten on close; the reconnect sets its own.
+    await vi.waitFor(() => expect(internals.socket).toBeDefined(), { timeout: 3_000 });
+    expect(server.connections()).toBe(2);
+    expect(held.get(internals.socket!)).toBe(false);
   });
 });
