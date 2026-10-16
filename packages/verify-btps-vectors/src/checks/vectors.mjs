@@ -3,9 +3,13 @@
  * self-consistent and that the runtime implements the BTPS 1.1 crypto
  * profile: JCS (item 5), RSASSA-PKCS1-v1_5/SHA-256 signatures for both
  * custody modes, RSA-OAEP/SHA-256 with MGF1-SHA-256 wrapping, and separate
- * signing and encryption keys.
+ * signing and encryption keys, and the separate signature and encryption
+ * selectors (item 6).
  *
- * Nothing here touches the SDK; see sdk.mjs for that.
+ * Canonical forms come from the runtime when it canonicalises itself
+ * (`runtime.canonicalize`, e.g. Hermes running the SDK's jcs.ts), and from
+ * the jcs.mjs oracle otherwise. Nothing else here touches the SDK; see
+ * sdk.mjs for that.
  */
 
 import { canonicalize } from '../jcs.mjs';
@@ -19,18 +23,20 @@ import { ensure, ensureRejects } from '../check.mjs';
  */
 export function vectorChecks(runtime, set) {
   const id = (name) => `vectors/${runtime.name}/${name}`;
+  const canon = async (text) =>
+    runtime.canonicalize ? runtime.canonicalize(text) : canonicalize(text);
   const checks = [];
 
   for (const vector of set.jcs) {
     checks.push({
       id: id(`jcs/${vector.name}`),
       item: 5,
-      run() {
+      async run() {
         for (const input of vector.inputs) {
           if (vector.expectError) {
             let accepted = false;
             try {
-              canonicalize(input);
+              await canon(input);
               accepted = true;
             } catch {
               // rejected, as expected
@@ -38,7 +44,7 @@ export function vectorChecks(runtime, set) {
             ensure(!accepted, `accepted ${JSON.stringify(input)}; expected rejection`);
             continue;
           }
-          const output = canonicalize(input);
+          const output = await canon(input);
           ensure(
             output === vector.expectedCanonical,
             `${JSON.stringify(input)} canonicalised to ${JSON.stringify(output)}, expected ${JSON.stringify(vector.expectedCanonical)}`,
@@ -63,7 +69,7 @@ export function vectorChecks(runtime, set) {
             );
             let accepted = false;
             try {
-              canonicalize(input);
+              await canon(input);
               accepted = true;
             } catch {
               // refused, as expected
@@ -87,7 +93,7 @@ export function vectorChecks(runtime, set) {
         );
         for (const input of c.inputs) {
           ensure(
-            canonicalize(input) === c.canonicalPayload,
+            (await canon(input)) === c.canonicalPayload,
             `${JSON.stringify(input)} does not canonicalise to canonicalPayload`,
           );
           ensure(input !== c.canonicalPayload, 'an input is already canonical');
@@ -112,9 +118,9 @@ export function vectorChecks(runtime, set) {
       {
         id: name('canonical-payload-is-jcs-of-raw-payload'),
         item: 5,
-        run() {
+        async run() {
           ensure(
-            canonicalize(vector.payloadRaw) === vector.canonicalPayload,
+            (await canon(vector.payloadRaw)) === vector.canonicalPayload,
             'canonicalPayload is not JCS(payloadRaw)',
           );
           ensure(
@@ -254,5 +260,92 @@ export function vectorChecks(runtime, set) {
     },
   );
 
+  checks.push(...selectorChecks(runtime, set, canon));
+  return checks;
+}
+
+/**
+ * Item 6: the key a signature selector names is the only sender key that
+ * verifies the artifact, and the key an encryption selector names is the
+ * only receiver key that unwraps it. The SDK checks prove the SDK writes the
+ * selectors; these prove each runtime keeps the two keys apart.
+ */
+function selectorChecks(runtime, set, canon) {
+  const checks = [];
+  const keyPair = (key) =>
+    key.keyVector
+      ? set.oaepWrap
+      : { publicKeyPem: key.publicKeyPem, privateKeyPem: key.privateKeyPem };
+
+  for (const [name, vector] of [
+    ['selectors', set.selectors],
+    ['selectors-receiver-rotation', set.selectorsReceiverRotation],
+  ]) {
+    const id = (check) => `vectors/${runtime.name}/${name}/${check}`;
+    const { sender, receiver, expect } = vector;
+
+    checks.push(
+      {
+        id: id('every-key-has-its-fingerprint'),
+        item: 6,
+        async run() {
+          for (const party of [sender, receiver]) {
+            for (const [selector, key] of Object.entries(party.keys)) {
+              const fp = await runtime.spkiFingerprint(keyPair(key).publicKeyPem);
+              ensure(
+                fp === key.fingerprint,
+                `${party.identity} ${selector}: fingerprint ${fp}, vector says ${key.fingerprint}`,
+              );
+            }
+          }
+        },
+      },
+      {
+        id: id('only-the-signature-selector-key-verifies'),
+        item: 6,
+        async run() {
+          const canonical = utf8(await canon(JSON.stringify(vector.artifact)));
+          const signer = sender.keys[expect.signatureSelector];
+          ensure(signer?.privateKeyPem, `no sender key at ${expect.signatureSelector}`);
+          const signature = await runtime.signPkcs1Sha256(signer.privateKeyPem, canonical);
+          for (const [selector, key] of Object.entries(sender.keys)) {
+            const verified = await runtime.verifyPkcs1Sha256(
+              key.publicKeyPem,
+              canonical,
+              signature,
+            );
+            ensure(
+              verified === (selector === expect.signatureSelector),
+              `the sender key at ${selector} ${verified ? 'verified' : 'did not verify'} a signature made at ${expect.signatureSelector}`,
+            );
+          }
+        },
+      },
+      {
+        id: id('only-the-encryption-selector-key-unwraps'),
+        item: 6,
+        async run() {
+          const target = receiver.keys[expect.encryptionSelector];
+          ensure(target, `no receiver key at ${expect.encryptionSelector}`);
+          const key = crypto.getRandomValues(new Uint8Array(32));
+          const wrapped = await runtime.oaepWrap(keyPair(target).publicKeyPem, key);
+          for (const [selector, other] of Object.entries(receiver.keys)) {
+            const { privateKeyPem } = keyPair(other);
+            if (selector === expect.encryptionSelector) {
+              ensure(
+                bytesEqual(await runtime.oaepUnwrap(privateKeyPem, wrapped), key),
+                `the receiver key at ${selector} unwrapped a different key`,
+              );
+            } else {
+              await ensureRejects(
+                () => runtime.oaepUnwrap(privateKeyPem, wrapped),
+                `the receiver key at ${selector} unwrapped a key wrapped at ${expect.encryptionSelector}`,
+              );
+            }
+          }
+        },
+      },
+    );
+  }
   return checks;
 }

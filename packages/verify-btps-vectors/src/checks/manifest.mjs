@@ -51,3 +51,32 @@ export function manifestChecks(vectorsDir) {
     },
   ];
 }
+
+/**
+ * A runtime with `sha256Hex` recomputes every listed file's lowercase hex
+ * SHA-256 itself, so the manifest is checkable wherever the set is run.
+ *
+ * @param {import('../runtimes/types.mjs').RuntimeDriver} runtime
+ * @param {string} vectorsDir
+ * @returns {import('../check.mjs').Check[]}
+ */
+export function manifestDigestChecks(runtime, vectorsDir) {
+  if (!runtime.sha256Hex) return [];
+  return [
+    {
+      id: `vectors/${runtime.name}/sha256/manifest-files`,
+      async run() {
+        ensure(
+          fs.existsSync(path.join(vectorsDir, MANIFEST_FILE)),
+          `${MANIFEST_FILE} is missing from ${vectorsDir}`,
+        );
+        for (const [file, hash] of Object.entries(readManifest(vectorsDir).files ?? {})) {
+          const full = path.join(vectorsDir, file);
+          ensure(fs.existsSync(full), `${file} is listed but missing`);
+          const digest = await runtime.sha256Hex(new Uint8Array(fs.readFileSync(full)));
+          ensure(digest === hash, `${file}: sha256 ${digest}, the manifest says ${hash}`);
+        }
+      },
+    },
+  ];
+}

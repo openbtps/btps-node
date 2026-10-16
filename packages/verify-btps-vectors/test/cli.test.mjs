@@ -5,8 +5,12 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { BIN, KNOWN_FAILING } from './helpers.mjs';
 
+// Hermes, where installed, is exercised by hermes-runtime.test.mjs; these
+// stay on node and web so they take the same time everywhere.
 const run = (...args) => {
-  const r = spawnSync(process.execPath, ['--no-deprecation', BIN, ...args], { encoding: 'utf8' });
+  const r = spawnSync(process.execPath, ['--no-deprecation', BIN, '--no-hermes', ...args], {
+    encoding: 'utf8',
+  });
   return { code: r.status, out: `${r.stdout}${r.stderr}` };
 };
 
@@ -49,6 +53,13 @@ describe('verify-btps-vectors CLI', () => {
     const parsed = JSON.parse(out);
     expect(parsed.ok).toBe(true);
     expect(parsed.results.some((r) => r.id.startsWith('interop/web->node/'))).toBe(true);
+    expect(parsed.hermes).toEqual({ available: false, reason: '--no-hermes' });
+    expect(parsed.results.some((r) => r.id.includes('hermes'))).toBe(false);
+  });
+
+  it('says when Hermes is not run, and why', () => {
+    const { out } = run('--no-sdk');
+    expect(out).toMatch(/verify-btps-vectors: hermes not run: --no-hermes/);
   });
 
   it('exits 2 on an unknown option or an unreadable vector directory', () => {

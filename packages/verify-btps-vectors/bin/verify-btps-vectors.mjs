@@ -11,6 +11,9 @@
  *   --no-sdk                run only the vector, interop and oracle checks
  *   --known-failing <file>  pass only if the failing checks are exactly the
  *                           ones listed in <file> (see test/vectors/known-failing.json)
+ *   --no-hermes             do not look for Hermes; by default the vectors also
+ *                           run in a `hermes` binary at the pinned version when
+ *                           one is on HERMES_CLI_PATH or PATH (hermes/run.sh)
  *   --json                  print results as JSON instead of text
  *
  * Exit codes: 0 OK, 1 checks failed (or did not match --known-failing),
@@ -27,6 +30,7 @@ import {
   readKnownFailing,
   runChecks,
 } from '../src/runner.mjs';
+import { locateHermes } from '../src/runtimes/hermes.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -39,6 +43,7 @@ async function main() {
         'sdk-root': { type: 'string', default: REPO_ROOT },
         'no-sdk': { type: 'boolean', default: false },
         'known-failing': { type: 'string' },
+        'no-hermes': { type: 'boolean', default: false },
         json: { type: 'boolean', default: false },
       },
       strict: true,
@@ -47,6 +52,17 @@ async function main() {
   } catch (error) {
     console.error(`verify-btps-vectors: ${error.message}`);
     return 2;
+  }
+
+  const hermes = values['no-hermes']
+    ? { available: false, reason: '--no-hermes' }
+    : await locateHermes();
+  if (!values.json) {
+    console.error(
+      hermes.available
+        ? `verify-btps-vectors: hermes ${hermes.version} (${hermes.arch}) at ${hermes.binaryPath}`
+        : `verify-btps-vectors: hermes not run: ${hermes.reason}`,
+    );
   }
 
   let checks;
@@ -58,6 +74,7 @@ async function main() {
     checks = await buildChecks({
       vectorsDir: path.resolve(values.vectors),
       sdkRoot: values['no-sdk'] ? null : path.resolve(values['sdk-root']),
+      hermes,
     });
   } catch (error) {
     console.error(`verify-btps-vectors: could not start: ${error.message}`);
@@ -67,7 +84,7 @@ async function main() {
   const results = await runChecks(checks);
   const verdict = evaluate(results, knownFailing);
   if (values.json) {
-    console.log(JSON.stringify({ ok: verdict.ok, results, ...verdict }, null, 2));
+    console.log(JSON.stringify({ ok: verdict.ok, hermes, results, ...verdict }, null, 2));
   } else {
     console.log(formatReport(results, verdict, knownFailing));
   }

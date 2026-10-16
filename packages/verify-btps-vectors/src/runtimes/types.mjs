@@ -9,6 +9,11 @@
  * @property {(publicKeyPem: string, keyBytes: Uint8Array) => Promise<Uint8Array>} oaepWrap
  * @property {(privateKeyPem: string, wrapped: Uint8Array) => Promise<Uint8Array>} oaepUnwrap
  * @property {(publicKeyPem: string) => Promise<string>} spkiFingerprint base64 SHA-256 of the SPKI DER
+ * @property {(bytes: Uint8Array) => Promise<string>} [sha256Hex] optional: lowercase hex
+ *   SHA-256, for the manifest and attachment digests
+ * @property {(jsonText: string) => Promise<string>} [canonicalize] optional: the runtime's own
+ *   RFC 8785 canonicaliser; without one, checks use the jcs.mjs oracle
+ * @property {string} [version] optional: the engine version, for reports
  */
 
 export {};

@@ -4,8 +4,9 @@
  *
  * - documentRuntimeChecks: each document's JCS form signs and verifies on
  *   every runtime driver, so no document the model accepts is unsignable on
- *   Node or WebCrypto. These are not pinned signatures: there is no one
- *   signature for an arbitrary invoice, so there is nothing to pin.
+ *   any of them. These are not pinned signatures: there is no one
+ *   signature for an arbitrary invoice, so there is nothing to pin. A driver
+ *   with `sha256Hex` also recomputes each attachment's lowercase hex sha256.
  * - documentSdkChecks: the SDK's own document model, loaded from the tree
  *   under test (`sdk.documents`, @btps/sdk/documents): schema vectors per
  *   type, the ownership rule, the attachment check (each file is the
@@ -14,7 +15,7 @@
  */
 
 import { canonicalizeValue } from '../jcs.mjs';
-import { utf8 } from '../encoding.mjs';
+import { fromBase64, utf8 } from '../encoding.mjs';
 import { ensure } from '../check.mjs';
 
 const ITEM = 7;
@@ -47,16 +48,50 @@ function caseDocument(set, c) {
  */
 export function documentRuntimeChecks(runtime, set) {
   const key = set.managedSignature;
-  return Object.entries(set.documents).map(([name, raw]) => ({
+  const checks = Object.entries(set.documents).map(([name, raw]) => ({
     id: `vectors/${runtime.name}/documents/${name}/sign-then-verify`,
     item: ITEM,
     async run() {
-      const canonical = utf8(canonicalizeValue(raw));
+      const canonical = utf8(await runtimeCanonical(runtime, raw));
       const signature = await runtime.signPkcs1Sha256(key.privateKeyPem, canonical);
       const verified = await runtime.verifyPkcs1Sha256(key.publicKeyPem, canonical, signature);
       ensure(verified, `${name} signed on ${runtime.name} but did not verify`);
     },
   }));
+  if (!runtime.sha256Hex) return checks;
+  for (const [name, raw] of Object.entries(set.documents)) {
+    if (!raw.attachments?.length) continue;
+    checks.push({
+      id: `vectors/${runtime.name}/documents/${name}/attachment-sha256`,
+      item: ITEM,
+      async run() {
+        for (const [index, attachment] of raw.attachments.entries()) {
+          const digest = await runtime.sha256Hex(fromBase64(attachment.content));
+          ensure(
+            /^[0-9a-f]{64}$/.test(digest),
+            `attachments.${index}: ${digest} is not lowercase hex`,
+          );
+          ensure(
+            digest === attachment.sha256,
+            `attachments.${index}: sha256 ${digest}, the document says ${attachment.sha256}`,
+          );
+        }
+      },
+    });
+  }
+  return checks;
+}
+
+/**
+ * The JCS form a runtime signs: its own canonicaliser's when it has one, and
+ * then it must agree with the oracle's; the oracle's otherwise.
+ */
+export async function runtimeCanonical(runtime, value) {
+  const expected = canonicalizeValue(value);
+  if (!runtime.canonicalize) return expected;
+  const canonical = await runtime.canonicalize(JSON.stringify(value));
+  ensure(canonical === expected, `${runtime.name} canonicalised differently from the oracle`);
+  return canonical;
 }
 
 /**

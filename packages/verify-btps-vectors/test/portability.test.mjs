@@ -12,6 +12,8 @@ const PORTABLE_ENTRIES = [
   'src/checks/vectors.mjs',
   'src/checks/interop.mjs',
   'src/checks/documents.mjs',
+  'src/checks/events.mjs',
+  'src/hermes-crypto-core.mjs',
 ];
 const BUILTINS = new Set(builtinModules.flatMap((m) => [m, `node:${m}`]));
 const IMPORT =

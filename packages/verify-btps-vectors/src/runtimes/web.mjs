@@ -63,5 +63,10 @@ export function createWebRuntime(webCrypto = globalThis.crypto) {
       const digest = await subtle.digest('SHA-256', pemToDer(publicKeyPem, 'PUBLIC KEY'));
       return toBase64(digest);
     },
+
+    async sha256Hex(bytes) {
+      const digest = new Uint8Array(await subtle.digest('SHA-256', bytes));
+      return Array.from(digest, (b) => b.toString(16).padStart(2, '0')).join('');
+    },
   };
 }

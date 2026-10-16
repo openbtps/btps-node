@@ -110,6 +110,31 @@ describe('vector checks catch broken vectors on every runtime', () => {
       'vectors/node/keys/signing-and-encryption-keys-are-distinct',
     );
   });
+
+  it('a rotated-out sender key that is really the current one is caught', async () => {
+    const dir = copyVectors((d) =>
+      editJson(d, VECTOR_FILES.selectors, (v) => {
+        v.sender.keys.btps1.publicKeyPem = v.sender.keys.btps2.publicKeyPem;
+      }),
+    );
+    expect(await failingIds(dir)).toEqual(
+      expect.arrayContaining([
+        'vectors/node/selectors/every-key-has-its-fingerprint',
+        'vectors/web/selectors/only-the-signature-selector-key-verifies',
+      ]),
+    );
+  });
+
+  it('a vector file that differs from its manifest hash fails every runtime digest', async () => {
+    const dir = copyVectors((d) => fs.appendFileSync(path.join(d, VECTOR_FILES.jcs), '\n'));
+    expect(await failingIds(dir)).toEqual(
+      expect.arrayContaining([
+        'manifest/every-file-matches-its-hash',
+        'vectors/node/sha256/manifest-files',
+        'vectors/web/sha256/manifest-files',
+      ]),
+    );
+  });
 });
 
 describe('evaluate', () => {

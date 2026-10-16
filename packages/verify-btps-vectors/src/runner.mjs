@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import { loadVectorSet } from './vectors.mjs';
 import { createNodeRuntime } from './runtimes/node.mjs';
 import { createWebRuntime } from './runtimes/web.mjs';
+import { createHermesRuntime } from './runtimes/hermes.mjs';
 import { vectorChecks } from './checks/vectors.mjs';
 import { interopChecks } from './checks/interop.mjs';
 import { oracleChecks } from './checks/oracle.mjs';
@@ -23,7 +24,7 @@ import { replaySdkChecks } from './checks/replay.mjs';
 import { refreshSdkChecks } from './checks/refresh.mjs';
 import { registrationSdkChecks } from './checks/registration.mjs';
 import { identityLookupSdkChecks } from './checks/identityLookup.mjs';
-import { manifestChecks } from './checks/manifest.mjs';
+import { manifestChecks, manifestDigestChecks } from './checks/manifest.mjs';
 import { loadSdk } from './sdk-loader.mjs';
 
 /**
@@ -39,13 +40,17 @@ import { loadSdk } from './sdk-loader.mjs';
  * @param {object} options
  * @param {string} options.vectorsDir
  * @param {string | null} options.sdkRoot null to skip the SDK checks
+ * @param {import('./runtimes/hermes.mjs').HermesLocation} [options.hermes] a
+ *   locateHermes() result; Hermes joins the runtimes only when it is available
  * @returns {Promise<import('./check.mjs').Check[]>}
  */
-export async function buildChecks({ vectorsDir, sdkRoot }) {
+export async function buildChecks({ vectorsDir, sdkRoot, hermes }) {
   const set = loadVectorSet(vectorsDir);
   const runtimes = [createNodeRuntime(), createWebRuntime()];
+  if (hermes?.available) runtimes.push(await createHermesRuntime(hermes, { sdkRoot }));
   const checks = [
     ...manifestChecks(vectorsDir),
+    ...runtimes.flatMap((runtime) => manifestDigestChecks(runtime, vectorsDir)),
     ...runtimes.flatMap((runtime) => vectorChecks(runtime, set)),
     ...runtimes.flatMap((runtime) => documentRuntimeChecks(runtime, set)),
     ...runtimes.flatMap((runtime) => eventRuntimeChecks(runtime, set)),

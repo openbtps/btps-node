@@ -13,6 +13,7 @@
 import { canonicalizeValue } from '../jcs.mjs';
 import { utf8 } from '../encoding.mjs';
 import { ensure } from '../check.mjs';
+import { runtimeCanonical } from './documents.mjs';
 
 const ITEM = 'A';
 const DOCUMENT_PREFIX = 'documents/';
@@ -42,7 +43,7 @@ export function eventRuntimeChecks(runtime, set) {
     id: `vectors/${runtime.name}/events/${name}/sign-then-verify`,
     item: ITEM,
     async run() {
-      const canonical = utf8(canonicalizeValue(raw));
+      const canonical = utf8(await runtimeCanonical(runtime, raw));
       const signature = await runtime.signPkcs1Sha256(key.privateKeyPem, canonical);
       const verified = await runtime.verifyPkcs1Sha256(key.publicKeyPem, canonical, signature);
       ensure(verified, `${name} signed on ${runtime.name} but did not verify`);

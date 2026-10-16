@@ -26,8 +26,23 @@ describe('item 7: document model v2 vectors (EBA-119, EBA-402)', () => {
     const checks = [createNodeRuntime(), createWebRuntime()].flatMap((runtime) =>
       documentRuntimeChecks(runtime, set),
     );
-    expect(checks.length).toBe(2 * Object.keys(set.documents).length);
+    const withAttachments = Object.values(set.documents).filter((d) => d.attachments?.length);
+    expect(withAttachments.length).toBeGreaterThan(0);
+    expect(checks.length).toBe(2 * (Object.keys(set.documents).length + withAttachments.length));
     expect(failing(await runChecks(checks))).toEqual([]);
+  });
+
+  it("an attachment whose bytes do not match its sha256 fails on each runtime's digest", async () => {
+    const [name, doc] = Object.entries(set.documents).find(([, d]) => d.attachments?.length);
+    const broken = structuredClone(doc);
+    broken.attachments[0].sha256 = 'f'.repeat(64);
+    const checks = [createNodeRuntime(), createWebRuntime()].flatMap((runtime) =>
+      documentRuntimeChecks(runtime, { ...set, documents: { [name]: broken } }),
+    );
+    expect(failing(await runChecks(checks))).toEqual([
+      expect.stringMatching(new RegExp(`^vectors/node/documents/${name}/attachment-sha256: `)),
+      expect.stringMatching(new RegExp(`^vectors/web/documents/${name}/attachment-sha256: `)),
+    ]);
   });
 
   it('the SDK on this tree passes every item 7 check', async () => {

@@ -43,5 +43,9 @@ export function createNodeRuntime() {
       const der = crypto.createPublicKey(publicKeyPem).export({ format: 'der', type: 'spki' });
       return crypto.createHash('sha256').update(der).digest('base64');
     },
+
+    async sha256Hex(bytes) {
+      return crypto.createHash('sha256').update(bytes).digest('hex');
+    },
   };
 }

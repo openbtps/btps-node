@@ -62,6 +62,7 @@
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
     "verify:btps-vectors": "node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs --known-failing test/vectors/known-failing.json",
+    "verify:btps-vectors:hermes": "bash packages/verify-btps-vectors/hermes/run.sh",
     "build:strip-comments": "node build/stripComments.mjs"
   },
   "devDependencies": {
