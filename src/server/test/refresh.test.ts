@@ -6,8 +6,8 @@
  */
 
 /*
- * BTPS 1.1 item D (EBA-112, addendum item 2, threat T-24): a key-rotating
- * refresh is signed by the current key. Real keys, real signatures, the real
+ * BTPS 1.1 key-rotating refresh: a refresh is signed by the agent's current
+ * key, never accepted under the key the request itself carries. Real keys, real signatures, the real
  * pipeline (parse, window, signature, trust, duplicate check) and a real
  * BtpsAuthentication behind it. The cases in test/vectors/refresh.vectors.json
  * run here through the server, and in keyRotation.test.ts and
@@ -155,7 +155,7 @@ const refreshArtifact = async (
   return { ...unsigned, signature: await signBtpPayload(unsigned, signedBy) } as BTPAgentArtifact;
 };
 
-describe('item D: a key-rotating refresh is signed by the current key, through the server', () => {
+describe('a key-rotating refresh is signed by the current key, through the server', () => {
   let trustStore: MapTrustStore;
   let tokenStore: InMemoryTokenStore;
   let auth: BtpsAuthentication;
@@ -229,7 +229,7 @@ describe('item D: a key-rotating refresh is signed by the current key, through t
     vi.restoreAllMocks();
   });
 
-  describe('EBA-112 acceptance', () => {
+  describe('key-rotating refresh cases', () => {
     it('a refresh with a new key, signed only by the new key, is refused and the key is kept', async () => {
       const current = genKeys();
       const attacker = genKeys();
@@ -392,7 +392,7 @@ describe('item D: a key-rotating refresh is signed by the current key, through t
       expect(reissued[2]!.data).toBeDefined();
     });
 
-    it('the same refresh artifact sent twice is refused by replay protection (EBA-114)', async () => {
+    it('the same refresh artifact sent twice is refused by replay protection', async () => {
       const current = genKeys();
       const server = makeServer();
       const { agentId, refreshToken } = await enrolDevice(current);
@@ -429,7 +429,7 @@ describe('item D: a key-rotating refresh is signed by the current key, through t
         if (c.expect === 'accept') {
           expect(response.status.ok).toBe(true);
         } else if (c.reason === 'no-current-key') {
-          // No trust record: the server refuses before item D's check runs.
+          // No trust record: the server refuses before the current-key check runs.
           expect(response.status.message).toBe(BTP_ERROR_SIG_VERIFICATION.message);
         } else {
           const expected = [BTP_ERROR_REFRESH_NOT_CURRENT_KEY, BTP_ERROR_KEY_ROTATION_PROOF].find(

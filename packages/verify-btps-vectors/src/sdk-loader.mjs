@@ -51,15 +51,15 @@ const fakeDnsPlugin = {
 
 /**
  * @typedef {object} LoadedSdk
- * @property {Record<string, any>} crypto exports of src/core/crypto/index.ts
- * @property {Record<string, any>} utils  exports of src/core/utils/index.ts
- * @property {Record<string, any>} storage exports of src/core/storage/index.ts (@btps/sdk/storage)
- * @property {Record<string, any> | null} documents exports of
+ * @property {Record<string, unknown>} crypto exports of src/core/crypto/index.ts
+ * @property {Record<string, unknown>} utils  exports of src/core/utils/index.ts
+ * @property {Record<string, unknown>} storage exports of src/core/storage/index.ts (@btps/sdk/storage)
+ * @property {Record<string, unknown> | null} documents exports of
  *   src/core/server/schemas/documents/index.ts (@btps/sdk/documents), or
  *   null on a tree without document model v2
- * @property {Record<string, any> | null} authentication exports of
+ * @property {Record<string, unknown> | null} authentication exports of
  *   src/core/authentication/index.ts (@btps/sdk/authentication), or null on a
- *   tree without item D's keyRotation.ts
+ *   tree without keyRotation.ts (key-rotating refresh)
  * @property {(records: Record<string, string[]>) => void} setTxtRecords replace the fake DNS zone
  * @property {string} root the SDK source tree that was loaded
  */
@@ -77,10 +77,10 @@ export async function loadSdk(sdkRoot) {
     }
   }
 
-  // Document model v2 (item 7) is absent from trees before EBA-119/EBA-402;
+  // Document model v2 is absent from trees before BTPS 1.1;
   // its checks then fail rather than the whole run.
   const hasDocuments = fs.existsSync(path.join(root, DOCUMENTS_ENTRY));
-  // Item D (EBA-112) adds verifyAgentRefresh; its checks fail on trees without it.
+  // Key-rotating refresh adds verifyAgentRefresh; its checks fail on trees without it.
   const hasKeyRotation = fs.existsSync(path.join(root, KEY_ROTATION_ENTRY));
 
   const { build } = await import('esbuild');

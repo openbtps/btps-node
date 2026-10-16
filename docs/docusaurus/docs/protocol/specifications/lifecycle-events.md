@@ -125,7 +125,7 @@ An example of each type is in the golden vectors,
 - **The signature proves who sent it;** an id never has to.
 - **A reused id is refused:** the server refuses any `(from, id)` it has
   already accepted inside the `issuedAt` window, even on a different event
-  (EBA-114, addendum item 4; see
+  (see
   [Replay Protection](./transporter-artifact.md#replay-protection-btps-11)).
   Past the window the server's store may have let the pair go, so a platform
   that keeps events still refuses an event id it already holds for the pair.
@@ -188,7 +188,7 @@ about an invoice between A and B.
   decrypts (below).
 
 Enforcing `privacyType` itself (refusing an unencrypted event on an
-encrypted trust) is fix-list item 8, EBA-444, and is not in this change.
+encrypted trust) is a separate change (#25), not this one.
 
 ## What the receiving platform checks
 
@@ -210,7 +210,7 @@ checks belong to the receiving platform:
    no `remainingDueDate` unless the answered event is a `partially_paid`, a
    refund within what was paid. The protocol cannot check this.
 5. **An event id already held** for the pair is refused. The server refuses
-   a repeated `(from, id)` inside the window (EBA-114); past it, only the
+   a repeated `(from, id)` inside the window; past it, only the
    platform's own store of events can.
 
 **Where:** a `before onArtifact` middleware. The existing middleware context
@@ -280,7 +280,7 @@ to the event's `id`.
 ## Golden vectors
 
 `test/vectors/event.vectors.json`, over the events in `test/vectors/events/`
-(`yarn verify:btps-vectors`, checks `sdk/item-A/…`):
+(`yarn verify:btps-vectors`, checks `sdk/events/…`):
 
 - schema cases for every event type, accepted and refused per the tables above;
 - the envelope: the id equals the artifact id, and only a document between

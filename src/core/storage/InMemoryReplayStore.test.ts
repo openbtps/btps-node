@@ -18,7 +18,7 @@ const clock = () => {
   return { now: () => now, set: (ms: number) => (now = ms) };
 };
 
-describe('item F: InMemoryReplayStore', () => {
+describe('replay protection: InMemoryReplayStore', () => {
   it('remembers a pair once', async () => {
     const store = new InMemoryReplayStore();
     const until = new Date(Date.now() + 60_000);

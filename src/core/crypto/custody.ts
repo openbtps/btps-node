@@ -15,7 +15,7 @@ import type { BTPDecryptionKey, BTPSigningKey } from './types.js';
 
 /**
  * The SDK signs through a `Signer` and decrypts through a `Decrypter`
- * (BTPS 1.1, item I). A PEM key given where one is expected is wrapped here,
+ * (BTPS 1.1). A PEM key given where one is expected is wrapped here,
  * so callers that pass PEM keep working; PEM is for tests and the interim.
  */
 
