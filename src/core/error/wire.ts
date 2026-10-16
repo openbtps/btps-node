@@ -55,6 +55,7 @@ export const BTP_WIRE_ERRORS: readonly BTPWireErrorRule[] = Object.freeze([
   rule(E.BTP_ERROR_IDENTITY_NOT_FOUND, 401, false),
   rule(E.BTP_ERROR_RESOLVE_DNS, 401, false),
   rule(E.BTP_ERROR_RESOLVE_PUBKEY, 401, false),
+  rule(E.BTP_ERROR_KEY_TOO_SMALL, 401, false),
   // 403: trust refusal; only an expired trust is told apart (option B)
   rule(E.BTP_ERROR_TRUST_NOT_ALLOWED, 403, false),
   rule(E.BTP_ERROR_TRUST_EXPIRED, 403, false),
@@ -78,6 +79,10 @@ export const BTP_WIRE_ERRORS: readonly BTPWireErrorRule[] = Object.freeze([
   // 500: unexpected
   rule(E.BTP_ERROR_UNKNOWN, 500, true),
   rule(E.BTP_ERROR_SERVER_SELECTOR, 500, true),
+  rule(E.BTP_ERROR_TRUST_REQUEST_NOT_STORED, 500, true),
+  // 500: the receiver's own configuration or code; the reason stays on the server
+  rule(E.BTP_ERROR_MIDDLEWARE, 500, true, E.BTP_ERROR_UNKNOWN),
+  rule(E.BTP_ERROR_INVALID_OPTION, 500, true, E.BTP_ERROR_UNKNOWN),
   // 503: the connection, not the artifact
   rule(E.BTP_ERROR_SOCKET_TIMEOUT, 503, true),
   rule(E.BTP_ERROR_SOCKET_CLOSED, 503, true),

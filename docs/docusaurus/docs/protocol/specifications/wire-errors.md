@@ -106,6 +106,7 @@ test fails when a constant is added without one.
 | `BTP_ERROR_IDENTITY_NOT_FOUND` | 401 | no | The host has no key for the address |
 | `BTP_ERROR_RESOLVE_DNS` | 401 | no | No BTPS DNS record for the address |
 | `BTP_ERROR_RESOLVE_PUBKEY` | 401 | no | No key published; the server's pipeline answers it as `BTP_ERROR_SIG_VERIFICATION` |
+| `BTP_ERROR_KEY_TOO_SMALL` | 401 | no | An RSA key shorter than 2048 bits, for encryption or a signature (EBA-445); the server's pipeline answers a signature by one as `BTP_ERROR_SIG_VERIFICATION` |
 | `BTP_ERROR_TRUST_NOT_ALLOWED` | 403 | no | No trust allows this sender (never trusted, revoked, blocked, pending, rejected, already active) |
 | `BTP_ERROR_TRUST_EXPIRED` | 403 | no | The trust was accepted and has expired; a new trust request may restore it |
 | `BTP_ERROR_TRUST_NON_EXISTENT` | 403 | no | Server side only: sent as `BTP_ERROR_TRUST_NOT_ALLOWED` |
@@ -124,6 +125,9 @@ test fails when a constant is added without one.
 | `BTP_ERROR_RATE_LIMITER` | 429 | yes | Too many requests: slow down and retry |
 | `BTP_ERROR_UNKNOWN` | 500 | yes | Unexpected failure on the server |
 | `BTP_ERROR_SERVER_SELECTOR` | 500 | yes | Server configuration: no `serverIdentity.selector` (raised at start-up) |
+| `BTP_ERROR_TRUST_REQUEST_NOT_STORED` | 500 | yes | A `TRUST_REQ` passed every check, but the receiver did not confirm it stored it (EBA-445). The same request may be sent again |
+| `BTP_ERROR_MIDDLEWARE` | 500 | yes | Server side only: middleware that cannot be loaded, raised at start-up. Never sent; would go out as `BTP_ERROR_UNKNOWN` |
+| `BTP_ERROR_INVALID_OPTION` | 500 | yes | Server or client configuration out of range, raised at construction. Never sent; would go out as `BTP_ERROR_UNKNOWN` |
 | `BTP_ERROR_SOCKET_TIMEOUT` | 503 | yes | The connection timed out |
 | `BTP_ERROR_SOCKET_CLOSED` | 503 | yes | The socket was already closed |
 | `BTP_ERROR_TIMEOUT` | 503 | yes | Client only: no answer within the send timeout |

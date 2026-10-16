@@ -35,6 +35,8 @@ import {
   BTP_ERROR_SOCKET_TIMEOUT,
   BTP_ERROR_AUTHENTICATION_INVALID,
   BTP_ERROR_CONNECTION_CLOSED,
+  BTP_ERROR_MIDDLEWARE,
+  BTP_ERROR_INVALID_OPTION,
 } from './constant.js';
 import { BTP_WIRE_ERRORS } from './wire.js';
 import type { BTPError } from './types.js';
@@ -214,12 +216,28 @@ describe('BTP_WIRE_ERRORS', () => {
     });
   });
 
-  it('sends 500 only for BTP_ERROR_UNKNOWN and the server-configuration error', () => {
+  it('sends 500 only for BTP_ERROR_UNKNOWN, the server-configuration error and an unstored trust request', () => {
     const fiveHundred = constants
       .filter(([, c]) => toWireError(c).status === 500)
-      .map(([name]) => name)
-      .sort();
-    expect(fiveHundred).toEqual(['BTP_ERROR_SERVER_SELECTOR', 'BTP_ERROR_UNKNOWN']);
+      .map(([, c]) => toWireError(c).code);
+    expect(new Set(fiveHundred)).toEqual(
+      new Set([
+        'BTP_ERROR_SERVER_SELECTOR',
+        'BTP_ERROR_TRUST_REQUEST_NOT_STORED',
+        'BTP_ERROR_UNKNOWN',
+      ]),
+    );
+  });
+
+  it('keeps a middleware or option error on the server: sent as BTP_ERROR_UNKNOWN (EBA-445)', () => {
+    for (const hidden of [BTP_ERROR_MIDDLEWARE, BTP_ERROR_INVALID_OPTION]) {
+      expect(toWireError(hidden)).toEqual({
+        code: BTP_ERROR_UNKNOWN.code,
+        status: 500,
+        message: BTP_ERROR_UNKNOWN.message,
+        retryable: true,
+      });
+    }
   });
 
   it('retries 429, 500 and 503 only', () => {
