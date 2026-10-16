@@ -7,6 +7,8 @@
 import { decryptBtpPayload, verifySignature } from './index.js';
 import { BTPCryptoResponse, VerifyEncryptedPayload } from './types.js';
 import { BTPErrorException } from '@core/error/index.js';
+import { BTP_ERROR_VALIDATION } from '@core/error/constant.js';
+import { decryptedEventProblem } from '@core/server/schemas/helpers.js';
 import isEmpty from 'lodash/isEmpty.js';
 
 const genDecryptError = (error: BTPErrorException) => ({
@@ -43,6 +45,14 @@ export const decryptVerify = async <T = unknown>(
     : { data: document, error: undefined };
 
   if (decryptionErrors) return genDecryptError(decryptionErrors);
+
+  // An encrypted event is checked once it can be read, as an unencrypted one is on arrival.
+  if (needsDecryption && restEncryptedPayload.type === 'BTPS_EVENT') {
+    const problem = decryptedEventProblem(decryptedData, restEncryptedPayload);
+    if (problem) {
+      return genDecryptError(new BTPErrorException(BTP_ERROR_VALIDATION, { cause: problem }));
+    }
+  }
 
   const decryptedPayload: VerifyEncryptedPayload<T> = {
     ...restEncryptedPayload,
