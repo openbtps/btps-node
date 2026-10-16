@@ -35,8 +35,8 @@ sequenceDiagram
 ## Key Features
 
 - **End-to-End Encryption:** All messages are encrypted from sender to receiver, unless the trust record specifies unencrypted communication.
-- **Multiple Algorithms:** Supports RSA, Ed25519, AES-256-CBC, and more.
-- **Key Exchange:** Public keys are discovered via DNS and `.well-known` endpoints.
+- **One Algorithm Set:** RSA keys of 2048 bits at least, signatures with SHA-256 over the RFC 8785 (JCS) canonical form, and AES-256-GCM with a 16-byte tag, the key wrapped with RSA-OAEP (SHA-256). See [Algorithms & Types](./algorithm.md).
+- **Key Exchange:** Public keys are discovered via DNS, or from the address's host when DNS has no record ([Identity Lookup](../specifications/identity-lookup-artifact.md)).
 - **Message Signing:** Every message is signed by the sender and verified by the receiver.
 - **Forward Secrecy:** Key rotation and revocation are supported for ongoing security.
 
@@ -48,9 +48,9 @@ sequenceDiagram
 
 ## High-Level Workflow
 
-1. **Key Discovery:** Sender retrieves the receiver's public key from DNS or `.well-known`.
-2. **Message Signing:** Sender signs the message with their private key.
-3. **Encryption:** Message is encrypted using the receiver's public key (asymmetric) or a negotiated symmetric key, unless trust record allows unencrypted.
+1. **Key Discovery:** Sender retrieves the receiver's public key from DNS, or from the receiver's host when DNS has no record.
+2. **Encryption:** The document is encrypted with a fresh AES-256-GCM key, and that key is wrapped with the receiver's public RSA key, unless the trust's `privacyType` allows unencrypted.
+3. **Message Signing:** Sender signs the artifact, encrypted document included, with their private key (encrypt-then-sign).
 4. **Transmission:** Encrypted (or plain) message is sent to the receiver's inbox endpoint.
 5. **Decryption & Verification:** Receiver decrypts the message (if encrypted) and verifies the sender's signature.
 

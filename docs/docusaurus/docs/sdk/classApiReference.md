@@ -17,7 +17,7 @@ The main server class for running a secure, multi-tenant BTPS server over TLS. H
 **Import:**
 
 ```js
-import { BtpsServer } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
 ```
 
 ### constructor
@@ -31,20 +31,23 @@ new BtpsServer(options: BtpsServerOptions)
 **Example:**
 
 ```js
-import { BtpsServer, JsonTrustStore } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
+import { JsonTrustStore } from '@btps/sdk/trust';
 import { KmsSigner } from '@btps/sdk/crypto';
 const trustStore = new JsonTrustStore({ connection: './trust.json' });
 const server = new BtpsServer({
   serverIdentity: {
     identity: 'server$example.com',
+    // Where the server's key is published; required with an identityStore.
+    selector: 'btps1',
     // Signs the server's own responses. A Signer such as KmsSigner keeps the
     // key in KMS; a PEM pair (publicKey + privateKey) is for tests and the interim.
     signer: new KmsSigner({ client: kms, keyId: 'alias/btps-server' }),
   },
   tlsOptions: {
-    cert: '-----BEGIN PUBLIC KEY-----...',
-    key: '-----BEGIN PRIVATE KEY-----...'
-  }
+    cert: '-----BEGIN CERTIFICATE-----...',
+    key: '-----BEGIN PRIVATE KEY-----...',
+  },
   trustStore,
   port: 3443,
   connectionTimeoutMs: 30000,
@@ -180,7 +183,7 @@ The main client class for sending BTPS artifacts (trust requests, invoices, etc.
 **Import:**
 
 ```js
-import { BtpsClient } from '@btps/sdk';
+import { BtpsClient } from '@btps/sdk/client';
 ```
 
 ### constructor
@@ -194,7 +197,7 @@ new BtpsClient(options: BTPClientOptions)
 **Example:**
 
 ```js
-import { BtpsClient } from '@btps/sdk';
+import { BtpsClient } from '@btps/sdk/client';
 const client = new BtpsClient({
   to: 'billing$yourdomain.com',
   maxRetries: 5,
@@ -205,27 +208,37 @@ const client = new BtpsClient({
 });
 ```
 
-### connect
+### on / off
 
 ```ts
-client.connect(receiverId, callbacks?)
+client.on(event, listener);
+client.off(event, listener);
 ```
 
-Establishes a TLS connection to a BTPS server.
-
-- **receiverId**: `string` – BTPS identity of the server (e.g., `inbox$vendor.com`)
-- **callbacks**: `(events: TypedEventEmitter) => void` (optional) – Register event listeners ([TypedEventEmitter](./typesAndInterfaces.md#typedeventemitter))
+The client connects on the first `send()`, to the host its `to` identity's
+DNS names (or to `host` and `port`, when given). Register listeners for the
+connection's events ([TypedEventEmitter](./typesAndInterfaces.md#typedeventemitter)).
+`error` is emitted only when a listener is registered; without one, the error
+is logged.
 
 **Example:**
 
 ```js
-client.connect('inbox$vendor.com', (events) => {
-  events.on('connected', () => console.log('Connected!'));
-  events.on('message', (msg) => console.log('Received:', msg));
-  events.on('error', (errorInfo) => console.error('Error:', errorInfo.error));
-  events.on('end', (endInfo) => console.log('Connection ended:', endInfo));
-});
+client.on('connected', () => console.log('Connected!'));
+client.on('message', (msg) => console.log('Unsolicited answer:', msg));
+client.on('error', (errorInfo) => console.error('Error:', errorInfo.error));
+client.on('end', (endInfo) => console.log('Connection ended:', endInfo));
 ```
+
+**Reconnecting (BTPS 1.1).** On a failure it may retry (`maxRetries`,
+`retryDelayMs`), the client reconnects. A send already written to the dropped
+connection, and not answered, is answered with the error and never resent
+automatically: it may have reached the server. Resending it is the caller's
+choice, and resending the same signed artifact inside its `issuedAt` window
+is safe, because the server refuses a repeated `(from, id)` as
+`BTP_ERROR_ALREADY_RECEIVED` ([replay protection](../protocol/specifications/transporter-artifact.md)).
+A send never written goes on the new connection. A reconnect with nothing to
+send does not keep the process alive.
 
 ### send
 
@@ -233,7 +246,7 @@ client.connect('inbox$vendor.com', (events) => {
 await client.send(artifact, timeoutMs?);
 ```
 
-Sends a pre-signed BTPS artifact to the server. **Note**: The artifact must be pre-signed using `signAndEncrypt` from the crypto module before sending.
+Sends a pre-signed BTPS artifact to the server. **Note**: The artifact must be pre-signed using `signEncrypt` from the crypto module before sending. Each answer is matched to its send by `reqId`; a `btps_error` answer is returned as `error` too (a `BTPErrorException` with the wire `code` and `retryable`), as well as `response`.
 
 - **artifact**: [BTPArtifact](./typesAndInterfaces.md#btpartifact) – Pre-signed artifact to send
 - **timeoutMs**: `number` (optional, default: the client's `replyTimeoutMs`, 20000) – How long to wait for the reply once the artifact is written, in milliseconds. Below 10000 the send is answered `BTP_ERROR_INVALID_OPTION` and nothing is sent. Connecting has its own limit, `connectTimeoutMs`, and is not counted in it
@@ -242,38 +255,44 @@ Sends a pre-signed BTPS artifact to the server. **Note**: The artifact must be p
 **Example:**
 
 ```js
-import { signAndEncrypt } from '@btps/sdk/crypto';
+import { signEncrypt } from '@btps/sdk/crypto';
 
-// First, sign the artifact
-const artifact = {
-  id: 'trust_req_123',
-  type: 'btp_trust_request',
-  issuedAt: new Date().toISOString(),
-  document: {
-    name: 'Your Company Name',
-    email: 'billing@yourdomain.com',
-    reason: 'To send monthly invoices',
-    phone: '+1234567890',
-  },
-};
-
-// Sign the artifact before sending (REQUIRED)
-const signedArtifact = await signAndEncrypt(
-  'billing$yourdomain.com',
-  { accountName: 'billing', domainName: 'yourdomain.com', pemFiles: { publicKey, privateKey } },
+// Sign (and here, encrypt) the artifact before sending (REQUIRED)
+const { payload, error } = await signEncrypt(
+  'pay$client.com', // the receiver
   {
-    type: 'BTPS_DOC',
-    document: artifact,
-    selector: 'btps1',
+    accountName: 'billing',
+    domainName: 'yourdomain.com',
+    selector: 'btps1', // the sender's key that signs: becomes signatureSelector
+    signer, // a Signer (KmsSigner in production); pemFiles for tests and the interim
+  },
+  {
+    version: '1.0.0',
+    type: 'TRUST_REQ',
+    from: 'billing$yourdomain.com',
+    to: 'pay$client.com',
+    document: {
+      id: crypto.randomUUID(),
+      name: 'Your Company Name',
+      email: 'billing@yourdomain.com',
+      reason: 'To send monthly invoices',
+      phone: '+1234567890',
+    },
+    encryptionSelector: 'btps1', // the receiver's key it is encrypted to
+  },
+  {
+    signature: { algorithmHash: 'sha256' },
+    encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
   },
 );
 
 // Then send the signed artifact
-const res = await client.send(signedArtifact.payload, 10000); // 10 second timeout
-if (res.response) {
-  console.log('Server response:', res.response);
+const res = await client.send(payload, 10000); // 10 s reply wait, the minimum
+if (res.error) {
+  // Retry by code: res.error.retryable, never by message text
+  console.error('Error:', res.error.code, res.error.retryable);
 } else {
-  console.error('Error:', res.error);
+  console.log('Server response:', res.response);
 }
 ```
 
@@ -333,7 +352,7 @@ A specialized client for agent-based operations, extending BtpsClient with agent
 **Import:**
 
 ```js
-import { BtpsAgent } from '@btps/sdk';
+import { BtpsAgent } from '@btps/sdk/client';
 ```
 
 ### constructor
@@ -382,8 +401,10 @@ Executes an agent command with optional document payload.
 **Example:**
 
 ```js
-// Authentication request
-const authRes = await agent.command('auth.request', 'server$domain.com', {
+// Device registration (BTPS 1.1): authToken is the one-time registration
+// token issued to user$domain.com; identity must be that identity. The
+// server consumes the token and answers itself.
+const authRes = await agent.command('auth.request', 'user$domain.com', {
   identity: 'user$domain.com',
   authToken: 'ABC123DEF456',
   publicKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
@@ -399,16 +420,28 @@ const trustRes = await agent.command('trust.request', 'vendor$domain.com', {
 });
 
 // Send artifact
+// Send an invoice (document model v2: integer minor units, no status)
 const sendRes = await agent.command('artifact.send', 'client$domain.com', {
-  title: 'Invoice #123',
+  schemaVersion: 2,
+  type: 'invoice',
   id: 'inv_123',
   issuedAt: new Date().toISOString(),
-  status: 'unpaid',
-  totalAmount: { value: 100.0, currency: 'USD' },
+  title: 'Invoice #123',
+  totalAmount: { amount: 10000, currency: 'USD' },
   lineItems: {
     columns: ['Description', 'Amount'],
-    rows: [{ Description: 'Service', Amount: 100.0 }],
+    rows: [{ Description: 'Service', Amount: 10000 }],
   },
+});
+
+// Mark it paid: a lifecycle event (BTPS_EVENT)
+const eventRes = await agent.command('event.send', 'client$domain.com', {
+  schemaVersion: 2,
+  type: 'lifecycle_event',
+  id: crypto.randomUUID(),
+  occurredAt: new Date().toISOString(),
+  document: { from: 'billing$yourdomain.com', id: 'inv_123', sha256: invoiceSha256 },
+  eventType: 'paid',
 });
 ```
 
@@ -949,6 +982,16 @@ if (result.success) {
   console.error('Session refresh failed:', result.error);
 }
 ```
+
+A refresh is signed by the device's current key, the one its server holds; it keeps that key. `keyPair` may be a `Signer` or a PEM pair.
+
+#### rotateKey
+
+```ts
+await BtpsAuthentication.rotateKey(agentId, identity, refreshToken, currentKey, newKey, agentInfo?, agentOptions?)
+```
+
+Refreshes the session and replaces the device's key (BTPS 1.1). The request is signed by `currentKey`, and carries the new public key with a `keyProof` signed by `newKey`. A rotating refresh signed only by the new key is refused (`BTP_ERROR_REFRESH_NOT_CURRENT_KEY`), and one whose proof does not verify is refused with `BTP_ERROR_KEY_ROTATION_PROOF`. Both keys may be a `Signer` or a PEM pair. See [Authentication Flow](../protocol/authentication/authenticationFlow.md).
 
 ---
 
@@ -1645,7 +1688,7 @@ new BTPErrorException(btpError, options?)
 import {
   BTPErrorException,
   BTP_ERROR_IDENTITY,
-  BTP_ERROR_SELECTOR_NOT_FOUND,
+  BTP_ERROR_RESOLVE_PUBKEY,
 } from '@btps/sdk/error';
 throw new BTPErrorException(BTP_ERROR_IDENTITY, {
   cause: 'Invalid format',
@@ -1653,8 +1696,8 @@ throw new BTPErrorException(BTP_ERROR_IDENTITY, {
 });
 
 // Key rotation error example
-throw new BTPErrorException(BTP_ERROR_SELECTOR_NOT_FOUND, {
-  cause: 'Selector not found in DNS',
+throw new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
+  cause: 'No key published at this selector',
   meta: { selector: 'btps1', identity: 'alice$example.com' },
 });
 ```
@@ -1682,6 +1725,7 @@ console.log(error.toJSON());
 ### Properties
 
 - `code` (`string | number`): Error code
+- `retryable` (`boolean`): Whether the same artifact may be sent again, from the [wire error table](../protocol/specifications/wire-errors.md) (BTPS 1.1)
 - `cause` (`unknown`): Underlying cause of the error
 - `meta` (`Record<string, unknown>`): Additional metadata
 - `timestamp` (`string`): Error timestamp

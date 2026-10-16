@@ -30,8 +30,8 @@ function HeroSection() {
             <Link className={styles.primaryButton} to="/docs/">
               Read the Docs
             </Link>
-            <Link className={styles.secondaryButton} to="/docs/cli/overview">
-              Try the CLI
+            <Link className={styles.secondaryButton} to="/docs/protocol/specifications/overview">
+              Read the Specification
             </Link>
           </div>
         </div>

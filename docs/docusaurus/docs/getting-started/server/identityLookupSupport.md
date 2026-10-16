@@ -189,7 +189,7 @@ The server responds to identity lookup requests with this structure:
 
 ```json
 {
-  "version": "1.0.0.0",
+  "version": "1.0.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -322,7 +322,7 @@ await identityStore.storePublicKeyRecord('alice$saas.com', {
       publicKey:
         '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----',
       keyType: 'rsa',
-      version: '1.0.0.0',
+      version: '1.0.0',
       createdAt: '2025-01-15T10:30:00Z',
     },
   ],

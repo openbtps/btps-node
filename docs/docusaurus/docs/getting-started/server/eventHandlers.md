@@ -147,9 +147,18 @@ async function handleInboxFetch(artifact: any, resCtx: any, server: any) {
         to: artifact.to,
         issuedAt: new Date().toISOString(),
         document: {
+          // A document model v2 invoice: integer minor units, no status
+          schemaVersion: 2,
+          type: 'invoice',
+          id: 'INV-12345',
+          issuedAt: '2025-01-15T00:00:00.000Z',
           title: 'Invoice #12345',
-          amount: 299.99,
-          dueDate: '2025-02-15',
+          dueAt: '2025-02-15T00:00:00.000Z',
+          totalAmount: { amount: 29999, currency: 'USD' },
+          lineItems: {
+            columns: ['Description', 'Amount'],
+            rows: [{ Description: 'Subscription', Amount: 29999 }],
+          },
         },
       },
     ];
@@ -361,9 +370,11 @@ import {
   BTP_ERROR_VALIDATION
 } from '@btps/sdk/error';
 
-// Use predefined errors
-case 'auth.request':
-  if (!isValidAuthToken(artifact.document?.authToken)) {
+// Use predefined errors. They go on the wire as their stable code
+// (BTPS 1.1, see Wire Errors); a bare { code, message } keeps only its class.
+// (auth.request never reaches a handler: the server registers devices itself.)
+case 'auth.refresh':
+  if (!isKnownDevice(artifact.agentId)) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
   }
   break;

@@ -64,6 +64,7 @@ const trustStore = new MongoTrustStore({
 const server = new BtpsServer({
   serverIdentity: {
     identity: 'admin$yourdomain.com',
+    selector: 'btps1', // where this key is published; required with an identityStore
     publicKey: readFileSync('./keys/public.pem', 'utf8'),
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
@@ -167,6 +168,7 @@ const identityStore = new MongoIdentityStore({
 const server = new BtpsServer({
   serverIdentity: {
     identity: 'admin$yourdomain.com',
+    selector: 'btps1', // where this key is published; required with an identityStore
     publicKey: readFileSync('./keys/public.pem', 'utf8'),
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
@@ -198,6 +200,7 @@ const trustStore = new JsonTrustStore({
 const server = new BtpsServer({
   serverIdentity: {
     identity: 'admin$yourdomain.com',
+    selector: 'btps1', // where this key is published; required with an identityStore
     publicKey: readFileSync('./keys/public.pem', 'utf8'),
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
@@ -228,6 +231,7 @@ const identityStore = new JsonIdentityStore({
 const server = new BtpsServer({
   serverIdentity: {
     identity: 'admin$yourdomain.com',
+    selector: 'btps1', // where this key is published; required with an identityStore
     publicKey: readFileSync('./keys/public.pem', 'utf8'),
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
@@ -252,6 +256,7 @@ const trustStore = new JsonTrustStore({
 const server = new BtpsServer({
   serverIdentity: {
     identity: 'admin$yourdomain.com',
+    selector: 'btps1', // where this key is published; required with an identityStore
     publicKey: readFileSync('./keys/public.pem', 'utf8'),
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
@@ -335,6 +340,7 @@ const identityStore = await createIdentityStore();
 const server = new BtpsServer({
   serverIdentity: {
     identity: process.env.SERVER_IDENTITY || 'admin$yourdomain.com',
+    selector: process.env.SERVER_SELECTOR || 'btps1', // required with an identityStore
     publicKey: readFileSync(process.env.SERVER_PUBLIC_KEY_PATH || './keys/public.pem', 'utf8'),
     privateKey: readFileSync(process.env.SERVER_PRIVATE_KEY_PATH || './keys/private.pem', 'utf8'),
   },
@@ -379,6 +385,9 @@ For multi-tenant applications, you can use different storage backends per tenant
 
 ```typescript
 import { BtpsServer } from '@btps/sdk/server';
+import { parseIdentity } from '@btps/sdk';
+import { AbstractTrustStore, computeTrustId, type BTPTrustRecord } from '@btps/sdk/trust';
+import { AbstractIdentityStore, type BTPIdentityRecord } from '@btps/sdk/storage';
 import { MongoTrustStore } from './storage/MongoTrustStore';
 
 class MultiTenantTrustStore extends AbstractTrustStore<BTPTrustRecord> {
@@ -400,23 +409,33 @@ class MultiTenantTrustStore extends AbstractTrustStore<BTPTrustRecord> {
     return store;
   }
 
+  // A trust id is computeTrustId(senderId, receiverId): a SHA-256 hex hash,
+  // with no colons and nothing to read a tenant from. The tenant comes from
+  // the record's own addresses; a lookup by id alone asks each tenant's store
+  // (or a shared id -> tenant index, if you keep one).
   async getById(computedId: string): Promise<BTPTrustRecord | undefined> {
-    const tenantId = this.extractTenantId(computedId);
-    return this.getStoreForTenant(tenantId).getById(computedId);
+    for (const store of this.stores.values()) {
+      const record = await store.getById(computedId);
+      if (record) return record;
+    }
+    return undefined;
   }
 
   async create(record: Omit<BTPTrustRecord, 'id'>, computedId?: string): Promise<BTPTrustRecord> {
-    const tenantId = this.extractTenantId(
-      computedId || computeTrustId(record.senderId, record.receiverId),
+    const tenantId = this.tenantOf(record.receiverId);
+    return this.getStoreForTenant(tenantId).create(
+      record,
+      computedId ?? computeTrustId(record.senderId, record.receiverId),
     );
-    return this.getStoreForTenant(tenantId).create(record, computedId);
   }
 
   // Implement other methods similarly...
 
-  private extractTenantId(computedId: string): string {
-    // Extract tenant ID from computedId format: 'tenant:from:to'
-    return computedId.split(':')[0];
+  private tenantOf(identity: string): string {
+    // The tenant is the receiving identity's domain: 'user$tenant.com' -> 'tenant.com'
+    const parsed = parseIdentity(identity);
+    if (!parsed) throw new Error(`Not a BTPS identity: ${identity}`);
+    return parsed.domainName;
   }
 }
 
@@ -439,47 +458,42 @@ class MultiTenantIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> 
     return store;
   }
 
+  // A computed id is a hash, like a trust id: the tenant is never read from
+  // it. Lookups by id ask each tenant's store; lookups by identity go to the
+  // identity's own domain.
   async getById(computedId: string): Promise<BTPIdentityRecord | undefined> {
-    const tenantId = this.extractTenantId(computedId);
-    return this.getStoreForTenant(tenantId).getById(computedId);
+    for (const store of this.stores.values()) {
+      const record = await store.getById(computedId);
+      if (record) return record;
+    }
+    return undefined;
   }
 
   async create(record: BTPIdentityRecord, computedId: string): Promise<BTPIdentityRecord> {
-    const tenantId = this.extractTenantId(computedId);
-    return this.getStoreForTenant(tenantId).create(record, computedId);
-  }
-
-  async update(computedId: string, patch: Partial<BTPIdentityRecord>): Promise<BTPIdentityRecord> {
-    const tenantId = this.extractTenantId(computedId);
-    return this.getStoreForTenant(tenantId).update(computedId, patch);
-  }
-
-  async delete(computedId: string): Promise<void> {
-    const tenantId = this.extractTenantId(computedId);
-    return this.getStoreForTenant(tenantId).delete(computedId);
+    return this.getStoreForTenant(this.tenantOf(record.identity)).create(record, computedId);
   }
 
   async getPublicKeyRecord(identity: string): Promise<BTPIdentityRecord | undefined> {
-    const tenantId = this.extractTenantIdFromIdentity(identity);
-    return this.getStoreForTenant(tenantId).getPublicKeyRecord(identity);
+    return this.getStoreForTenant(this.tenantOf(identity)).getPublicKeyRecord(identity);
   }
 
   async storePublicKeyRecord(
     identity: string,
     publicKeyRecord: BTPIdentityRecord,
   ): Promise<BTPIdentityRecord> {
-    const tenantId = this.extractTenantIdFromIdentity(identity);
-    return this.getStoreForTenant(tenantId).storePublicKeyRecord(identity, publicKeyRecord);
+    return this.getStoreForTenant(this.tenantOf(identity)).storePublicKeyRecord(
+      identity,
+      publicKeyRecord,
+    );
   }
 
-  private extractTenantId(computedId: string): string {
-    // Extract tenant ID from computedId format: 'tenant:identity'
-    return computedId.split(':')[0];
-  }
+  // update and delete: find the owning store as getById does.
 
-  private extractTenantIdFromIdentity(identity: string): string {
-    // Extract tenant ID from identity format: 'user$tenant.com'
-    return identity.split('$')[1].split('.')[0];
+  private tenantOf(identity: string): string {
+    // 'user$tenant.com' -> 'tenant.com'
+    const parsed = parseIdentity(identity);
+    if (!parsed) throw new Error(`Not a BTPS identity: ${identity}`);
+    return parsed.domainName;
   }
 }
 
@@ -508,15 +522,17 @@ const tenantBIdentityStore = new MongoIdentityStore({
   entityName: 'tenant_b_identity',
 });
 
-multiTenantTrustStore.addTenant('tenant_a', tenantATrustStore);
-multiTenantTrustStore.addTenant('tenant_b', tenantBTrustStore);
+// Tenants are keyed by the receiving identity's domain
+multiTenantTrustStore.addTenant('tenant-a.example', tenantATrustStore);
+multiTenantTrustStore.addTenant('tenant-b.example', tenantBTrustStore);
 
-multiTenantIdentityStore.addTenant('tenant_a', tenantAIdentityStore);
-multiTenantIdentityStore.addTenant('tenant_b', tenantBIdentityStore);
+multiTenantIdentityStore.addTenant('tenant-a.example', tenantAIdentityStore);
+multiTenantIdentityStore.addTenant('tenant-b.example', tenantBIdentityStore);
 
 const server = new BtpsServer({
   serverIdentity: {
     identity: 'admin$yourdomain.com',
+    selector: 'btps1', // where this key is published; required with an identityStore
     publicKey: readFileSync('./keys/public.pem', 'utf8'),
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },

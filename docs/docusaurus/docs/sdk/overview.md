@@ -31,7 +31,7 @@ If you're using CommonJS and still want to consume this SDK, use dynamic `import
 ```js
 // CommonJS workaround (Node 16+)
 (async () => {
-  const { default: JsonTrustStore } = await import('@btps/sdk/trust');
+  const { JsonTrustStore } = await import('@btps/sdk/trust');
   const store = new JsonTrustStore({ ... });
 })();
 ```
@@ -42,32 +42,37 @@ If you're using CommonJS and still want to consume this SDK, use dynamic `import
 
 ```js
 // ESM import (recommended)
-import { BtpsServer, BtpsClient } from '@btps/sdk';
-import { signEncrypt, keygen } from '@btps/sdk/crypto';
+import { BtpsServer } from '@btps/sdk/server';
+import { BtpsClient, BtpsAgent, BtpsTransporter } from '@btps/sdk/client';
+import { signEncrypt, getBTPKeyPair } from '@btps/sdk/crypto';
 import { JsonTrustStore } from '@btps/sdk/trust';
 import { BTPErrorException } from '@btps/sdk/error';
 
 // Import types (TypeScript)
-import type { BTPArtifact } from '@btps/sdk';
+import type { BTPArtifact } from '@btps/sdk/server';
 import type { BTPInvoiceV2Doc } from '@btps/sdk/documents';
 ```
+
+Each class is imported from its subpath. The root `@btps/sdk` holds only the
+shared utilities (identity parsing, DNS lookup helpers, the `issuedAt` window).
 
 ---
 
 ## 📦 Entry Points & Subpath Exports
 
-| Import Path                | Description                      |
-| -------------------------- | -------------------------------- |
-| `@btps/sdk`                | Main SDK (server, client, utils) |
-| `@btps/sdk/server`         | Server-side exports              |
-| `@btps/sdk/server/core`    | Server core libraries            |
-| `@btps/sdk/client`         | Client-side exports              |
-| `@btps/sdk/crypto`         | Cryptographic utilities          |
-| `@btps/sdk/trust`          | Trust store and trust types      |
-| `@btps/sdk/authentication` | Authentication utilities         |
-| `@btps/sdk/delegation`     | Delegation utilities             |
-| `@btps/sdk/error`          | Error types and helpers          |
-| `@btps/sdk/storage`        | Storage utilities                |
+| Import Path                | Description                                                        |
+| -------------------------- | ------------------------------------------------------------------ |
+| `@btps/sdk`                | Shared utilities (identity, DNS lookup, `issuedAt` window)         |
+| `@btps/sdk/server`         | `BtpsServer`, wire types and protocol constants                    |
+| `@btps/sdk/server/core`    | Server core libraries (middleware, rate limiter, factory)          |
+| `@btps/sdk/client`         | `BtpsClient`, `BtpsAgent`, `BtpsTransporter`                       |
+| `@btps/sdk/crypto`         | Signing, encryption, `Signer`/`Decrypter`, JCS, key generation     |
+| `@btps/sdk/trust`          | Trust store and trust types                                        |
+| `@btps/sdk/authentication` | Device registration, sessions and key rotation                     |
+| `@btps/sdk/delegation`     | `BtpsDelegator` and the delegation signed messages                 |
+| `@btps/sdk/error`          | `BTPErrorException`, error constants and the wire error table      |
+| `@btps/sdk/storage`        | Identity, storage and replay stores                                |
+| `@btps/sdk/documents`      | Document model v2 and lifecycle event schemas, money helpers       |
 
 ---
 
@@ -90,8 +95,10 @@ dist/
 │   │   └── index.js         ← @btps/sdk/authentication
 │   ├── delegation/
 │   │   └── index.js         ← @btps/sdk/delegation
-│   └── storage/
-│       └── index.js         ← @btps/sdk/storage
+│   ├── storage/
+│   │   └── index.js         ← @btps/sdk/storage
+│   └── server/schemas/documents/
+│       └── index.js         ← @btps/sdk/documents
 ├── client/
 │   └── index.js             ← @btps/sdk/client
 └── server/
@@ -114,8 +121,9 @@ dist/
 ### Generate a Key Pair
 
 ```js
-import { keygen } from '@btps/sdk/crypto';
-const { publicKey, privateKey } = await keygen('ed25519');
+import { getBTPKeyPair } from '@btps/sdk/crypto';
+// RSA, 2048 bits by default; a keySize under 2048 throws BTP_ERROR_KEY_TOO_SMALL
+const { publicKey, privateKey, fingerprint } = getBTPKeyPair({ keySize: 2048 });
 ```
 
 ### Sign and Encrypt a Document

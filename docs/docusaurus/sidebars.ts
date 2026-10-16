@@ -44,17 +44,6 @@ const sidebars: SidebarsConfig = {
             'getting-started/server/supportingQueries',
           ],
         },
-        {
-          type: 'category',
-          label: 'Client Setup',
-          items: [
-            'getting-started/client/prerequisites',
-            'getting-started/client/setup',
-            'getting-started/client/authentication',
-            'getting-started/client/btpsAgent',
-            'getting-started/client/btpsTransporter',
-          ],
-        },
       ],
     },
     {
@@ -80,6 +69,7 @@ const sidebars: SidebarsConfig = {
             'protocol/specifications/delivery-failure-artifact',
             'protocol/specifications/responses',
             'protocol/specifications/wire-errors',
+            'protocol/specifications/golden-vectors',
           ],
         },
         'protocol/trustRecord',
@@ -124,37 +114,6 @@ const sidebars: SidebarsConfig = {
         },
 
         // Add more protocol docs here
-      ],
-    },
-    {
-      type: 'category',
-      label: 'BTPS Client',
-      items: [
-        'client/overview',
-        'client/setup',
-        {
-          type: 'category',
-          label: 'BTPS Agent',
-          items: [
-            'client/btpsAgent/overview',
-            'client/btpsAgent/setup',
-            'client/btpsAgent/commands',
-            'client/btpsAgent/examples',
-          ],
-        },
-        {
-          type: 'category',
-          label: 'BTPS Transporter',
-          items: [
-            'client/btpsTransporter/overview',
-            'client/btpsTransporter/setup',
-            'client/btpsTransporter/examples',
-          ],
-        },
-        'client/examples',
-        'client/metricsAndMonitor',
-        'client/debugging',
-        'client/bestPractices',
       ],
     },
     {

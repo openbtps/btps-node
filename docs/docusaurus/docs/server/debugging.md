@@ -52,7 +52,7 @@ This guide helps you diagnose, debug, and resolve common issues with the BTPS Se
 
 - **Check:** No handler registered, or error in middleware.
 - **Solution:**
-  - Ensure you use `server.onMessage()` or `server.forwardTo()`/`forwardToWebhook()`.
+  - Ensure you use `server.onIncomingArtifact()` or `server.forwardTo()`.
   - Check middleware for early `res.sendError()` calls.
 
 ### 7. High Latency or Resource Usage

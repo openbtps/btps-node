@@ -11,11 +11,11 @@ BTPS ensures that only the intended recipient can decrypt and verify the authent
 
 1. **Artifact Reception:** BTPS server receives the BTPS Artifact from sender.
 2. **Artifact Validation:** BTPS server validates the artifact structure and format.
-3. **Signature Verification:** BTPS server verifies the sender's digital signature using the sender's public key (from DNS or .well-known).
+3. **Signature Verification:** BTPS server verifies the sender's digital signature over the artifact's RFC 8785 (JCS) canonical form, using the sender's public key at the artifact's `signatureSelector` (from DNS, or from the sender's host when DNS has no record). An RSA key under 2048 bits is refused.
 4. **Forward to Receiver:** BTPS server forwards the verified artifact to the receiver's inbox endpoint.
 5. **Receiver Processing:** Receiver obtains the BTPS Artifact from their inbox endpoint.
-6. **Key Decryption:** If the artifact is encrypted, the receiver's `Decrypter` unwraps the AES key with the receiver's private RSA key (in KMS, for `KmsDecrypter`).
-7. **Payload Decryption:** If encrypted, receiver decrypts the payload using the AES key and IV. If not encrypted, the payload is used as-is.
+6. **Key Decryption:** If the artifact is encrypted, the receiver's `Decrypter` unwraps the AES key (RSA-OAEP, SHA-256) with the receiver's private RSA key at the artifact's `encryptionSelector` (in KMS, for `KmsDecrypter`).
+7. **Payload Decryption:** If encrypted, receiver decrypts the payload with AES-256-GCM, using the AES key, the IV and the 16-byte tag. If not encrypted, the payload is used as-is.
 8. **Document Extraction:** The decrypted (or plain) payload is parsed into the original document.
 9. **Business Logic Validation:** Receiver performs additional validation specific to their SaaS platform or business requirements.
 10. **Process & Action:** The document is further processed by the receiver and action is then performed accordingly per business logic.
@@ -87,7 +87,7 @@ sequenceDiagram
     Receiver->>Receiver: Receive artifact from inbox
     alt Encrypted artifact
         Receiver->>Receiver: Decrypt AES key (Receiver's private key)
-        Receiver->>Receiver: Decrypt payload (AES-256-CBC)
+        Receiver->>Receiver: Decrypt payload (AES-256-GCM, 16-byte tag)
     else Unencrypted artifact
         Receiver->>Receiver: Views plain payload
     end
@@ -101,16 +101,19 @@ sequenceDiagram
 ```json
 {
   "document": {
-    "title": "Monthly Service Invoice",
+    "schemaVersion": 2,
+    "type": "invoice",
     "id": "INV-2025-001",
-    "totalAmount": {
-      "value": 1500.00,
-      "currency": "USD"
-    },
-    "lineItems": {...}
+    "issuedAt": "2025-01-15T10:30:00.000Z",
+    "title": "Monthly Service Invoice",
+    "totalAmount": { "amount": 150000, "currency": "USD" },
+    "lineItems": {
+      "columns": ["Description", "Amount"],
+      "rows": [{ "Description": "Monthly service", "Amount": 150000 }]
+    }
   },
   "signature": {
-    "algorithm": "sha256",
+    "algorithmHash": "sha256",
     "value": "...",
     "fingerprint": "..."
   }

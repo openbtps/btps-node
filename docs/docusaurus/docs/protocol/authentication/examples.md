@@ -14,8 +14,8 @@ token store your `BtpsAuthentication` issues tokens into (`tokenStore` in
 `BtpsServerOptions`). It consumes the registration token once and binds the
 device to the token's identity under an agent id it generates; without a
 token store it refuses every `auth.request`. An `auth.request` never reaches
-an `onIncomingArtifact('Agent', …)` handler, so the `auth.request` handlers
-below are 1.0 code and do nothing on 1.1. See
+an `onIncomingArtifact('Agent', …)` handler, so the examples below handle
+only `auth.refresh` there. See
 [Authentication Flow](./authenticationFlow.md) and the
 [agent artifact specification](../specifications/agent-artifact.md#registration-is-bound-to-the-identity-btps-11).
 
@@ -31,12 +31,15 @@ import { JsonTrustStore } from '@btps/sdk/trust';
 import { BtpsServer } from '@btps/sdk/server';
 import { BTP_ERROR_AUTHENTICATION_INVALID } from '@btps/sdk/error';
 
+const trustStore = new JsonTrustStore({ connection: './trust-store.json' });
+// One token store, shared: the platform issues registration tokens into it
+// (auth.generateAuthToken + auth.storeAuthToken), and the server consumes them.
+const tokenStore = new InMemoryTokenStore();
+
 // Create authentication instance
 const auth = new BtpsAuthentication({
-  trustStore: new JsonTrustStore({
-    connection: './trust-store.json',
-  }),
-  tokenStore: new InMemoryTokenStore(),
+  trustStore,
+  tokenStore,
   tokenConfig: {
     authTokenLength: 12,
     authTokenExpiryMs: 15 * 60 * 1000, // 15 minutes
@@ -44,65 +47,28 @@ const auth = new BtpsAuthentication({
   },
 });
 
-// Create BTPS server
+// Create BTPS server. It answers every auth.request itself: it consumes the
+// registration token once and binds the device to the token's identity.
 const server = new BtpsServer({
+  serverIdentity: {
+    identity: 'admin$saas.com',
+    selector: 'btps1',
+    signer: serverSigner, // a Signer, e.g. KmsSigner; a PEM pair for tests and the interim
+  },
   port: 3443,
-  trustStore: auth.trustStore,
+  trustStore,
+  tokenStore, // without it, every auth.request is refused
+  tlsOptions: { cert, key },
 });
 
-// Handle authentication requests
+// Session refreshes reach the application; registrations never do.
 server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
-  if (artifact.respondNow) {
-    const { action } = artifact;
-
-    switch (action) {
-      case 'auth.request':
-        await handleAuthRequest(artifact, resCtx, auth, server);
-        break;
-
-      case 'auth.refresh':
-        await handleAuthRefresh(artifact, resCtx, auth, server);
-        break;
-    }
+  if (artifact.respondNow && artifact.action === 'auth.refresh') {
+    // The server has already verified the request with the device's
+    // current key, and any keyProof for a new key (BTPS 1.1).
+    await handleAuthRefresh(artifact, resCtx, auth, server);
   }
 });
-
-async function handleAuthRequest(artifact, resCtx, auth, server) {
-  const { document, to, id: reqId } = artifact;
-
-  if (!document) {
-    return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-  }
-
-  const { authToken, publicKey, identity, agentInfo } = document;
-
-  // Validate the auth token
-  const { isValid } = await auth.validateAuthToken(to, authToken);
-  if (!isValid) {
-    return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-  }
-
-  // Create agent and trust record
-  const authResponseDoc = await auth.createAgent({
-    decidedBy: identity,
-    publicKey,
-    userIdentity: identity,
-    agentInfo,
-  });
-
-  return resCtx.sendRes({
-    ...server.prepareBtpsResponse(
-      {
-        ok: true,
-        message: 'Authentication successful',
-        code: 200,
-      },
-      reqId,
-    ),
-    type: 'btps_response',
-    document: authResponseDoc,
-  });
-}
 
 async function handleAuthRefresh(artifact, resCtx, auth, server) {
   const { document: refreshAuthDoc, agentId, id: refreshReqId } = artifact;
@@ -204,67 +170,10 @@ class ProductionAuthService {
     }
   }
 
-  async handleAuthRequest(artifact: any, resCtx: any) {
-    const startTime = Date.now();
-    const { document, to, id: reqId } = artifact;
-
-    try {
-      if (!document) {
-        return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-      }
-
-      const { authToken, publicKey, identity, agentInfo } = document;
-
-      // Validate auth token
-      const { isValid, userIdentity, metadata } = await this.auth.validateAuthToken(to, authToken);
-
-      if (!isValid) {
-        this.metrics.recordAuthAttempt(false);
-        this.logger.logAuthEvent({
-          type: 'auth_failure',
-          userIdentity: identity,
-          reason: 'invalid_token',
-        });
-        return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-      }
-
-      // Create agent
-      const authResponseDoc = await this.auth.createAgent({
-        decidedBy: identity,
-        publicKey,
-        userIdentity: identity,
-        agentInfo,
-        privacyType: 'encrypted',
-        trustExpiryMs: 30 * 24 * 60 * 60 * 1000, // 30 days
-      });
-
-      const processingTime = Date.now() - startTime;
-
-      this.metrics.recordAuthAttempt(true, processingTime);
-      this.logger.logAuthEvent({
-        type: 'auth_success',
-        userIdentity: identity,
-        agentId: authResponseDoc.agentId,
-        processingTime,
-      });
-
-      return resCtx.sendRes({
-        ok: true,
-        message: 'Authentication successful',
-        code: 200,
-        id: reqId,
-        type: 'btps_response',
-        document: authResponseDoc,
-      });
-    } catch (error) {
-      this.metrics.recordAuthAttempt(false);
-      this.logger.logError('auth_request_failed', error, {
-        userIdentity: document?.identity,
-        agentId: document?.agentId,
-      });
-      return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-    }
-  }
+  // There is no handleAuthRequest: from BTPS 1.1 the server registers devices
+  // itself, consuming the token from the tokenStore passed to BtpsServer.
+  // Count registrations from server-side middleware or the trust store
+  // instead.
 
   async handleAuthRefresh(artifact: any, resCtx: any) {
     const { document: refreshAuthDoc, agentId, id: refreshReqId } = artifact;
@@ -454,7 +363,7 @@ const auth = new BtpsAuthentication({
 
 ```typescript
 import { BtpsAuthentication } from '@btps/sdk/authentication';
-import { generateKeyPair } from '@btps/sdk/crypto';
+import { getBTPKeyPair } from '@btps/sdk/crypto';
 
 class BTPSAuthClient {
   private keyPair: PemKeys | null = null;
@@ -465,7 +374,7 @@ class BTPSAuthClient {
   async registerDevice(authToken: string, userIdentity: string) {
     try {
       // Generate device keypair
-      this.keyPair = await generateKeyPair();
+      this.keyPair = getBTPKeyPair();
       this.userIdentity = userIdentity;
 
       // Perform authentication
@@ -1033,7 +942,7 @@ app.listen(3000, () => {
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { BtpsAuthentication } from '@btps/sdk/authentication';
-import { generateKeyPair } from '@btps/sdk/crypto';
+import { getBTPKeyPair } from '@btps/sdk/crypto';
 import * as Keychain from 'react-native-keychain';
 
 const BTPSAuthScreen = () => {
@@ -1073,7 +982,7 @@ const BTPSAuthScreen = () => {
 
     try {
       // Generate device keypair
-      const keyPair = await generateKeyPair();
+      const keyPair = getBTPKeyPair();
 
       // Perform authentication
       const result = await BtpsAuthentication.authenticate(
@@ -1213,50 +1122,48 @@ describe('BtpsAuthentication', () => {
 
   describe('generateAuthToken', () => {
     it('should generate tokens with correct length', () => {
-      const token = BtpsAuthentication.generateAuthToken('test@example.com', 8);
+      const token = BtpsAuthentication.generateAuthToken('test$example.com', 8);
       expect(token).toHaveLength(8);
     });
 
     it('should generate unique tokens', () => {
-      const token1 = BtpsAuthentication.generateAuthToken('test@example.com');
-      const token2 = BtpsAuthentication.generateAuthToken('test@example.com');
+      const token1 = BtpsAuthentication.generateAuthToken('test$example.com');
+      const token2 = BtpsAuthentication.generateAuthToken('test$example.com');
       expect(token1).not.toBe(token2);
     });
   });
 
   describe('validateAuthToken', () => {
-    it('should validate stored tokens', async () => {
-      const userIdentity = 'test@example.com';
+    it('should validate stored tokens, once', async () => {
+      const userIdentity = 'test$example.com';
       const authToken = BtpsAuthentication.generateAuthToken(userIdentity);
-      const agentId = BtpsAuthentication.generateAgentId();
 
-      await auth.storeAuthToken(authToken, userIdentity, agentId);
+      await auth.storeAuthToken(authToken, userIdentity, userIdentity);
 
-      const result = await auth.validateAuthToken(agentId, authToken);
+      const result = await auth.validateAuthToken(userIdentity, authToken);
       expect(result.isValid).toBe(true);
       expect(result.userIdentity).toBe(userIdentity);
+
+      // A registration token is consumed: the second use is refused (BTPS 1.1)
+      const again = await auth.validateAuthToken(userIdentity, authToken);
+      expect(again.isValid).toBe(false);
+      expect(again.error?.code).toBe('BTP_ERROR_REGISTRATION_TOKEN_USED');
     });
 
-    it('should reject expired tokens', async () => {
-      const userIdentity = 'test@example.com';
-      const authToken = BtpsAuthentication.generateAuthToken(userIdentity);
-      const agentId = BtpsAuthentication.generateAgentId();
+    it('should reject a token issued to another identity', async () => {
+      const authToken = BtpsAuthentication.generateAuthToken('test$example.com');
+      await auth.storeAuthToken(authToken, 'test$example.com', 'test$example.com');
 
-      await auth.storeAuthToken(authToken, userIdentity, agentId);
-
-      // Simulate token expiry
-      tokenStore.tokens.clear();
-
-      const result = await auth.validateAuthToken(agentId, authToken);
+      const result = await auth.validateAuthToken('other$example.com', authToken);
       expect(result.isValid).toBe(false);
-      expect(result.error?.message).toBe('Token not found');
+      expect(result.error?.code).toBe('BTP_ERROR_REGISTRATION_TOKEN_INVALID');
     });
   });
 
   describe('createAgent', () => {
     it('should create agent with valid data', async () => {
       const result = await auth.createAgent({
-        userIdentity: 'test@example.com',
+        userIdentity: 'test$example.com',
         publicKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
         agentInfo: {
           deviceName: 'Test Device',
@@ -1278,41 +1185,30 @@ describe('BtpsAuthentication', () => {
 
 ```typescript
 import { BtpsServer } from '@btps/sdk/server';
-import { BtpsAuthentication } from '@btps/sdk/authentication';
-import { BtpsClient } from '@btps/sdk/client';
+import { BtpsAuthentication, InMemoryTokenStore } from '@btps/sdk/authentication';
+import { JsonTrustStore } from '@btps/sdk/trust';
+import { getBTPKeyPair } from '@btps/sdk/crypto';
 
 describe('BTPS Authentication Integration', () => {
   let server: BtpsServer;
   let auth: BtpsAuthentication;
-  let client: BtpsClient;
 
   beforeAll(async () => {
-    // Start test server
-    auth = new BtpsAuthentication({
-      trustStore: new JsonTrustStore({ connection: './test-trust.json' }),
-      tokenStore: new InMemoryTokenStore(),
-    });
+    // Start test server. It registers devices itself from the shared token
+    // store, so no auth.request handler is needed (BTPS 1.1).
+    const trustStore = new JsonTrustStore({ connection: './test-trust.json' });
+    const tokenStore = new InMemoryTokenStore();
+    auth = new BtpsAuthentication({ trustStore, tokenStore });
 
     server = new BtpsServer({
+      serverIdentity: { identity: 'admin$example.com', ...getBTPKeyPair() }, // PEM: tests only
       port: 3444, // Use different port for testing
-      trustStore: auth.trustStore,
-    });
-
-    // Set up authentication handlers
-    server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
-      if (artifact.action === 'auth.request') {
-        await handleAuthRequest(artifact, resCtx, auth, server);
-      }
+      trustStore,
+      tokenStore,
+      tlsOptions: { cert: testCert, key: testKey },
     });
 
     await server.start();
-
-    // Create test client
-    client = new BtpsClient({
-      identity: 'test@example.com',
-      btpIdentityKey: 'test_private_key',
-      bptIdentityCert: 'test_public_key',
-    });
   });
 
   afterAll(async () => {
@@ -1320,16 +1216,14 @@ describe('BTPS Authentication Integration', () => {
   });
 
   it('should complete full authentication flow', async () => {
-    // Generate auth token
-    const authToken = BtpsAuthentication.generateAuthToken('test@example.com');
-    const agentId = BtpsAuthentication.generateAgentId();
+    // Issue a registration token to the identity
+    const authToken = BtpsAuthentication.generateAuthToken('test$example.com');
+    await auth.storeAuthToken(authToken, 'test$example.com', 'test$example.com');
 
-    await auth.storeAuthToken(authToken, 'test@example.com', agentId);
-
-    // Perform authentication
-    const keyPair = await generateKeyPair();
+    // Perform authentication with a fresh device key (RSA, 2048 bits)
+    const keyPair = getBTPKeyPair();
     const result = await BtpsAuthentication.authenticate(
-      'test@example.com',
+      'test$example.com',
       authToken,
       keyPair,
       {

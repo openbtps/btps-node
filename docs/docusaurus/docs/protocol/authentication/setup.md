@@ -14,8 +14,8 @@ token store your `BtpsAuthentication` issues tokens into (`tokenStore` in
 `BtpsServerOptions`). It consumes the registration token once and binds the
 device to the token's identity under an agent id it generates; without a
 token store it refuses every `auth.request`. An `auth.request` never reaches
-an `onIncomingArtifact('Agent', …)` handler, so the `auth.request` handlers
-below are 1.0 code and do nothing on 1.1. See
+an `onIncomingArtifact('Agent', …)` handler, so the server integration below
+handles only `auth.refresh` there. See
 [Authentication Flow](./authenticationFlow.md) and the
 [agent artifact specification](../specifications/agent-artifact.md#registration-is-bound-to-the-identity-btps-11).
 
@@ -84,72 +84,34 @@ Integrate authentication with your BTPS server:
 
 ```typescript
 import { BtpsServer } from '@btps/sdk/server';
-import { BtpsAuthentication } from '@btps/sdk/authentication';
+import { BtpsAuthentication, InMemoryTokenStore } from '@btps/sdk/authentication';
+import { JsonTrustStore } from '@btps/sdk/trust';
 import { BTP_ERROR_AUTHENTICATION_INVALID } from '@btps/sdk/error';
 
+const trustStore = new JsonTrustStore({ connection: './trust.json' });
+// Shared: the platform issues registration tokens into it, the server consumes them.
+const tokenStore = new InMemoryTokenStore();
+
+const auth = new BtpsAuthentication({ trustStore, tokenStore });
+
 const server = new BtpsServer({
+  serverIdentity: {
+    identity: 'admin$saas.com',
+    selector: 'btps1',
+    signer: serverSigner, // a Signer, e.g. KmsSigner
+  },
   port: 3443,
-  trustStore: auth.trustStore,
+  trustStore,
+  tokenStore, // the server answers every auth.request itself; without it, all are refused
+  tlsOptions: { cert, key },
 });
 
-const auth = new BtpsAuthentication({
-  trustStore: server.trustStore,
-  tokenStore: new InMemoryTokenStore(),
-});
-
-// Handle authentication requests
+// Session refreshes reach the application; registrations never do.
 server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
-  if (artifact.respondNow) {
-    const { action } = artifact;
-
-    switch (action) {
-      case 'auth.request':
-        await handleAuthRequest(artifact, resCtx, auth);
-        break;
-
-      case 'auth.refresh':
-        await handleAuthRefresh(artifact, resCtx, auth);
-        break;
-    }
+  if (artifact.respondNow && artifact.action === 'auth.refresh') {
+    await handleAuthRefresh(artifact, resCtx, auth);
   }
 });
-
-async function handleAuthRequest(artifact, resCtx, auth) {
-  const { document, to, id: reqId } = artifact;
-
-  if (!document) {
-    return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-  }
-
-  const { authToken, publicKey, identity, agentInfo } = document;
-
-  // Validate the auth token
-  const { isValid } = await auth.validateAuthToken(userIdentity, authToken);
-  if (!isValid) {
-    return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-  }
-
-  // Create agent and trust record
-  const authResponseDoc = await auth.createAgent({
-    decidedBy: identity,
-    publicKey,
-    userIdentity: identity,
-    agentInfo,
-  });
-
-  return resCtx.sendRes({
-    ...server.prepareBtpsResponse(
-      {
-        ok: true,
-        message: 'Authentication successful',
-        code: 200,
-      },
-      reqId,
-    ),
-    type: 'btps_response',
-    document: authResponseDoc,
-  });
-}
 
 async function handleAuthRefresh(artifact, resCtx, auth) {
   const { document: refreshAuthDoc, agentId, id: refreshReqId } = artifact;
@@ -238,7 +200,7 @@ setInterval(
 
 ```typescript
 import { BtpsAuthentication } from '@btps/sdk/authentication';
-import { generateKeyPair } from '@btps/sdk/crypto';
+import { getBTPKeyPair } from '@btps/sdk/crypto';
 ```
 
 ### **2. Device Registration**
@@ -253,7 +215,7 @@ class BTPSAuthManager {
   async registerDevice(authToken: string, userIdentity: string) {
     try {
       // Generate device keypair
-      this.keyPair = await generateKeyPair();
+      this.keyPair = getBTPKeyPair(); // RSA, 2048 bits
       this.userIdentity = userIdentity;
 
       // Perform authentication

@@ -73,10 +73,18 @@ flowchart LR
     "encryptedKey": "base64-encoded-encrypted-key",
     "iv": "base64-encoded-initialization-vector",
     "type": "standardEncrypt",
-    "authTag": "authTagString"
-  }
+    "authTag": "base64-encoded-16-byte-gcm-tag"
+  },
+  "signatureSelector": "btps1",
+  "encryptionSelector": "btps1"
 }
 ```
+
+`signatureSelector` names the sender's key that signed the artifact, and
+`encryptionSelector` the receiver's key it was encrypted to (BTPS 1.1; see
+[Selectors](./specifications/transporter-artifact.md#selectors-btps-11)). An
+artifact that is not encrypted has `"encryption": null` and no
+`encryptionSelector`.
 
 ### BTPS Document (Business Content)
 
@@ -94,19 +102,26 @@ The `document` field contains the actual business content:
 }
 ```
 
-**Invoice Document:**
+**Invoice Document** ([document model v2](./specifications/document-model-v2.md)):
 
 ```json
 {
-  "title": "Monthly Service Invoice",
+  "schemaVersion": 2,
+  "type": "invoice",
   "id": "INV-2025-001",
-  "totalAmount": {
-    "value": 1500.00,
-    "currency": "USD"
-  },
-  "lineItems": {...}
+  "issuedAt": "2025-01-15T10:30:00.000Z",
+  "title": "Monthly Service Invoice",
+  "totalAmount": { "amount": 150000, "currency": "USD" },
+  "lineItems": {
+    "columns": ["Description", "Quantity", "Unit price", "Amount"],
+    "rows": [{ "Description": "Monthly service", "Quantity": 1, "Unit price": 150000, "Amount": 150000 }]
+  }
 }
 ```
+
+Amounts are integers in minor units (`150000` is USD 1,500.00). An invoice
+carries no status: paid, disputed and refunded are
+[lifecycle events](./specifications/lifecycle-events.md).
 
 ---
 
@@ -137,11 +152,14 @@ sequenceDiagram
 3. **Validation**: Verify DNS response integrity and format
 4. **Storage**: Store receiver's public key for future use
 
-**DNS TXT Record Format:**
+**DNS TXT Record Format** (two records; see [the specification](./specifications/overview.md)):
 
 ```
-v=BTP1; k=rsa; p=<base64_public_key>; u=<btps_host:port>
+_btps.host.<domain>                              v=1.0.0; u=<btps_host:port>; s=<selector>
+<selector>._btps.identity.<account>.<domain>     v=1.0.0; k=rsa; p=<base64_public_key>
 ```
+
+The key is RSA, 2048 bits at least; a smaller key is refused.
 
 ---
 
@@ -377,12 +395,12 @@ Sender → Receiver: Invoice BTPS Artifact
   "from": "billing$vendor.com",
   "to": "pay$client.com",
   "document": {
-    "title": "Monthly Service Invoice",
+    "schemaVersion": 2,
+    "type": "invoice",
     "id": "INV-2025-001",
-    "totalAmount": {
-      "value": 1500.00,
-      "currency": "USD"
-    },
+    "issuedAt": "2025-01-15T10:30:00.000Z",
+    "title": "Monthly Service Invoice",
+    "totalAmount": { "amount": 150000, "currency": "USD" },
     "lineItems": {...}
   },
   "signature": {...},

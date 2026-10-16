@@ -196,16 +196,12 @@ const config: Config = {
                 to: '/docs/getting-started/server/setup',
               },
               {
-                label: 'Client Setup',
-                to: '/docs/getting-started/client/setup',
+                label: 'Btps Transporter',
+                to: '/docs/getting-started/server/transporter-integration',
               },
               {
                 label: 'Btps Agent',
-                to: '/docs/getting-started/client/agent-setup',
-              },
-              {
-                label: 'Btps Transporter',
-                to: '/docs/getting-started/client/transporter-setup',
+                to: '/docs/sdk/class-api-references#btpsagent',
               },
             ],
           },
@@ -234,12 +230,12 @@ const config: Config = {
             title: 'Developer Resources',
             items: [
               {
-                label: 'BTPS Client',
-                to: '/docs/client/overview',
+                label: 'BTPS 1.1 Changelog',
+                href: 'https://github.com/openbtps/btps-node/blob/master/CHANGELOG.md',
               },
               {
-                label: 'Client Best Practices',
-                to: '/docs/client/best-practices',
+                label: 'Golden Vectors',
+                to: '/docs/protocol/specifications/golden-vectors',
               },
               {
                 label: 'BTPS Server',

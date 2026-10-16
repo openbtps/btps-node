@@ -129,14 +129,7 @@ A delegated artifact is a standard BTPS artifact with an additional `delegation`
   "type": "BTPS_DOC",
   "from": "alice$saas.com",
   "to": "bob$client.com",
-  "document": {
-    "title": "Monthly Service Invoice",
-    "id": "INV-2025-001",
-    "totalAmount": {
-      "value": 1500.0,
-      "currency": "USD"
-    }
-  },
+  "document": "base64-encoded-encrypted-invoice",
   "signature": {
     "algorithmHash": "sha256",
     "value": "base64-encoded-signature",
@@ -145,10 +138,11 @@ A delegated artifact is a standard BTPS artifact with an additional `delegation`
   "encryption": {
     "algorithm": "aes-256-gcm",
     "encryptedKey": "base64-encoded-encrypted-key",
-    "iv": "base64-encoded-initialization-vector",
+    "iv": "base64-encoded-12-byte-iv",
     "type": "standardEncrypt",
-    "authTag": "authTagString"
-  }
+    "authTag": "base64-encoded-16-byte-tag"
+  },
+  "encryptionSelector": "btps1",
   "delegation": {
     "agentId": "device_agent_123",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
@@ -194,15 +188,15 @@ The BtpsServer performs verification in the following order:
 
 #### **Step 2: Attestation Verification (if present)**
 
-- Resolve attestor's public key via DNS
-- Verify attestation signature against delegation metadata
+- Resolve attestor's public key via DNS, at `delegation.attestation.selector` (the attestor's own key)
+- Verify the attestation signature over the signed delegation plus the attestation, without the attestation's own `signature`
 - Reject if verification fails
 
 #### **Step 3: Delegation Signature Verification**
 
-- Resolve delegator's public key via DNS
-- Create signed message: `{ ...artifact, delegation: { ...delegation, signature: undefined } }`
-- Verify delegation signature using delegator's public key
+- Resolve delegator's public key via DNS, at `delegation.selector`
+- Create signed message: the artifact plus its delegation, without the delegation's `signature` and without any `attestation` (BTPS 1.1: the delegator signs before the attestation is added, so the verifier takes it out). `delegationSignedMessage` and `attestationSignedMessage` from `@btps/sdk/delegation` build both messages, for signer and verifier alike
+- Verify delegation signature, over the RFC 8785 (JCS) form of that message, using delegator's public key
 - Reject if verification fails
 
 #### **Step 4: Agent Signature Verification**
@@ -216,21 +210,21 @@ The BtpsServer performs verification in the following order:
 #### **Delegator Public Key**
 
 ```bash
-# Resolve delegator identity
-dig TXT alice.btps.saas.com
+# Resolve delegator identity at delegation.selector (btps1)
+dig TXT btps1._btps.identity.alice.saas.com
 
-# Expected response
-alice.btps.saas.com. 300 IN TXT "p=...delegator_public_key..."
+# Expected response (an RSA key of 2048 bits at least)
+btps1._btps.identity.alice.saas.com. 300 IN TXT "v=1.0.0; k=rsa; p=...delegator_public_key..."
 ```
 
 #### **Attestor Public Key (if attestation present)**
 
 ```bash
-# Resolve attestor identity
-dig TXT admin.btps.saas.com
+# Resolve attestor identity at delegation.attestation.selector (btps1)
+dig TXT btps1._btps.identity.admin.saas.com
 
 # Expected response
-admin.btps.saas.com. 300 IN TXT "p=...attestor_public_key..."
+btps1._btps.identity.admin.saas.com. 300 IN TXT "v=1.0.0; k=rsa; p=...attestor_public_key..."
 ```
 
 ### **Error Conditions**

@@ -191,9 +191,9 @@ This flexibility ensures BTPS can scale from static file hosting to full enterpr
 
 ### Cryptographic Security
 
-- **Key Strength**: Use RSA-2048+ or Ed25519 keys
+- **Key Strength**: RSA keys of 2048 bits or more; smaller keys are refused
 - **Key Rotation**: Implement regular key rotation using selectors
-- **Algorithm Selection**: Use SHA-256 for signatures, AES-256-CBC for encryption
+- **Algorithms**: SHA-256 for signatures (over the RFC 8785 canonical form), AES-256-GCM with a 16-byte tag for encryption
 - **Random Generation**: Use cryptographically secure random number generators
 
 ### Network Security

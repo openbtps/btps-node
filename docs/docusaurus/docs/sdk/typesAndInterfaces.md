@@ -35,6 +35,8 @@ interface BtpsServerOptions {
   tlsOptions: BtpsTlsOptions;
   connectionTimeoutMs?: number;
   middlewarePath?: string;
+  defaultMiddleware?: MiddlewareDefinitionArray | false;
+  maxLineLength?: number;
 }
 ```
 
@@ -51,7 +53,9 @@ interface BtpsServerOptions {
 - `onError`: Optional error handler function
 - `tlsOptions`: Required TLS cert and key options. Use self signed cert for local development. Make sure to set rejectUnauthorized false when connecting using BtpsClient for local development
 - `connectionTimeoutMs`: Optional idle timeout of a connection, in milliseconds. Default and minimum: `BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS` = 30000, above a sender's default connect and reply waits together ([timeouts](../protocol/specifications/overview.md#timeouts-btps-11)). It may be raised, never lowered: a lower value makes the constructor throw `BTP_ERROR_INVALID_OPTION`
-- `middlewarePath`: Optional path to middleware file
+- `middlewarePath`: Optional path to middleware file. A path given explicitly that does not exist, or a definition in it that does not validate, fails the load with `BTP_ERROR_MIDDLEWARE` (BTPS 1.1)
+- `defaultMiddleware`: Optional. The rate limiting (by network address before parsing, by verified identity after signature verification) and metrics that run before the middleware file's, always loaded unless this says otherwise: omitted, `createDefaultMiddleware()`; an array runs instead (for example `createDefaultMiddleware({ rateLimiter })`); `false` turns them off ([middleware](../server/middlewares.md))
+- `maxLineLength`: Optional longest line read, in characters. Default and maximum `BTP_MAX_LINE_LENGTH`; a longer line is answered `BTP_ERROR_LINE_TOO_LONG` and the connection closed. A value above the maximum makes the constructor throw `BTP_ERROR_INVALID_OPTION`
 
 ---
 
@@ -80,7 +84,7 @@ interface BTPClientOptions {
 **Properties:**
 
 - `to`: Required recipient identity (e.g., 'billing$yourdomain.com')
-- `maxRetries`: Optional maximum retry attempts (default: 3)
+- `maxRetries`: Optional maximum reconnect attempts after a retryable connection failure (default: 5). A send written to the dropped connection and not answered is answered with the error and never resent automatically; a send never written goes on the new connection
 - `retryDelayMs`: Optional delay between retries in milliseconds (default: 1000)
 - `connectTimeoutMs`: Optional limit on connecting (TCP and TLS), in milliseconds. Default and minimum: 5000 (`BTP_CONNECT_TIMEOUT_MIN_MS`)
 - `replyTimeoutMs`: Optional wait for the reply once the artifact is written, in milliseconds: the default for `send()`. Default 20000 (`BTP_REPLY_TIMEOUT_DEFAULT_MS`), minimum 10000 (`BTP_REPLY_TIMEOUT_MIN_MS`)
@@ -92,7 +96,7 @@ Both may be raised, never lowered ([timeouts](../protocol/specifications/overvie
 - `btpMtsOptions`: Optional TLS connection options (excluding port and host)
 - `host`: Optional custom host override
 - `hostSelector`: Optional DNS selector for key management (default: 'btps1')
-- `version`: Optional protocol version (default: '1.0.0.0')
+- `version`: Optional protocol version (default: `BTP_PROTOCOL_VERSION`)
 - `port`: Optional custom port override
 - `maxQueue`: Optional maximum queue size for request handling (default: 100)
 
@@ -740,36 +744,10 @@ interface BTPInvoiceV2Doc {
 
 ## Client Types
 
-### BtpsClientOptions
-
-Configuration options for BTPS clients.
-
-```ts
-interface BtpsClientOptions {
-  identity: string;
-  btpIdentityKey: string;
-  bptIdentityCert: string;
-  maxRetries?: number;
-  retryDelayMs?: number;
-  connectTimeoutMs?: number;
-  replyTimeoutMs?: number;
-  btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
-  host?: string;
-  port?: number;
-}
-```
-
-**Properties:**
-
-- `identity`: BTPS identity (e.g., `billing$yourdomain.com`)
-- `btpIdentityKey`: PEM-encoded private key
-- `bptIdentityCert`: PEM-encoded public key certificate
-- `maxRetries`: Maximum retry attempts (default: 5)
-- `retryDelayMs`: Delay between retries in milliseconds (default: 1000)
-- `connectTimeoutMs`, `replyTimeoutMs`: Connect limit and reply wait in milliseconds, as in [BTPClientOptions](#btpclientoptions)
-- `btpMtsOptions`: Additional TLS connection options
-- `host`: Optional host override
-- `port`: Optional port override
+A client's options are [BTPClientOptions](#btpclientoptions). A `BtpsClient`
+holds no key of its own: it sends artifacts already signed with `signEncrypt`
+(a `Signer`, or PEM keys for tests and the interim). A device signs through
+`BtpsAgent`'s `agent.signer` ([BTPAgentOptions](#btpagentoptions)).
 
 ### BTPSRetryInfo
 
@@ -1283,8 +1261,14 @@ interface BTPServerResponse<T = BTPServerResDocs> {
   encryption?: BTPEncryption;
   signedBy?: string;
   signatureSelector?: string; // The signedBy identity's key that signed the response
+  code?: string; // on a btps_error: the stable wire code, e.g. 'BTP_ERROR_TRUST_EXPIRED'
 }
 ```
+
+On an error answer, `code` is the stable code from the
+[wire error table](../protocol/specifications/wire-errors.md), `status.code`
+its class, and `status.message` the code's fixed message. A sender decides
+whether to retry by `code`, never by the message text.
 
 ### BTPStatus
 
@@ -1908,8 +1892,10 @@ type EncryptionMode = 'none' | 'standardEncrypt' | '2faEncrypt';
 Supported encryption algorithms.
 
 ```ts
-type EncryptionAlgorithmType = 'aes-256-cbc';
+type EncryptionAlgorithmType = 'aes-256-gcm';
 ```
+
+The only encryption algorithm in BTPS 1.1.
 
 ### BTPEncryption
 
@@ -1918,27 +1904,28 @@ Encryption metadata structure.
 ```ts
 interface BTPEncryption {
   algorithm: EncryptionAlgorithmType;
-  encryptedKey: string;
-  iv: string;
+  encryptedKey: string; // base64, the AES-256 key wrapped with RSA-OAEP (SHA-256)
+  iv: string; // base64, 12 bytes
   type: EncryptionMode;
+  authTag: string; // base64, exactly 16 bytes; any other length is refused
 }
 ```
 
-### SignatureAlgorithmType
+### SignatureAlgorithmHash
 
-Supported signature algorithms.
+Supported signature hash algorithms: RSA (2048 bits at least) with SHA-256.
 
 ```ts
-type SignatureAlgorithmType = 'sha256';
+type SignatureAlgorithmHash = 'sha256';
 ```
 
 ### BTPSignature
 
-Digital signature structure.
+Digital signature structure. The signature is over the RFC 8785 (JCS) canonical form of the payload without its `signature` member.
 
 ```ts
 interface BTPSignature {
-  algorithm: SignatureAlgorithmType;
+  algorithmHash: SignatureAlgorithmHash;
   value: string;
   fingerprint: string;
 }
@@ -1951,7 +1938,7 @@ Options for cryptographic operations.
 ```ts
 interface BTPCryptoOptions {
   signature: {
-    algorithm: SignatureAlgorithmType;
+    algorithmHash: SignatureAlgorithmHash;
   };
   encryption?: {
     algorithm: EncryptionAlgorithmType;

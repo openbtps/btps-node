@@ -22,21 +22,21 @@ sequenceDiagram
 ``` 
 
 ## Key Generation
-- Keys are generated using strong, industry-standard algorithms (RSA-2048+, Ed25519 planned).
-- Keys are stored in PEM format for compatibility and portability.
-- Public keys are published via DNS TXT records or .well-known endpoints for discovery.
+- Keys are RSA, 2048 bits at least. A smaller key is refused for signing, verifying and encrypting (`BTP_ERROR_KEY_TOO_SMALL`).
+- In production a key is held in KMS and used through a `Signer` and a `Decrypter`; PEM files are for tests and the interim only.
+- Public keys are published in DNS TXT records at `<selector>._btps.identity.<account>.<domain>`, or answered by the address's host for an identity with no DNS record.
 
 ## Key Rotation
 - Keys should be rotated regularly to maintain forward secrecy.
 - When rotating keys:
   1. Generate a new key pair.
-  2. Update the DNS TXT record or .well-known endpoint with the new public key.
+  2. Publish the new public key at a new selector (or in the host's identity store), and sign with that selector from then on: artifacts name it as `signatureSelector`.
   3. Notify trusted parties if required.
-  4. Retain the old key for a grace period to allow in-flight messages to be decrypted.
+  4. Keep the old private key for as long as documents encrypted to it may still arrive: they name it as `encryptionSelector`.
 - BTPS maintains a key history for audit and compliance.
 
 ## Key Revocation
-- If a key is compromised, immediately revoke it by removing it from DNS/.well-known and updating trust records.
+- If a key is compromised, immediately revoke it by removing it from DNS (or the host's identity store) and updating trust records.
 - Notify all trusted parties of the revocation.
 - Update trust relationships to require re-establishment with the new key.
 

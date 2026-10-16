@@ -99,9 +99,9 @@ return {
 **Key Generation**:
 
 ```typescript
-import { generateKeyPair } from '@btps/sdk/crypto';
+import { getBTPKeyPair } from '@btps/sdk/crypto';
 
-const keyPair = await generateKeyPair();
+const keyPair = getBTPKeyPair(); // RSA, 2048 bits
 // Returns: { publicKey: "-----BEGIN PUBLIC KEY-----\n...", privateKey: "-----BEGIN PRIVATE KEY-----\n..." }
 ```
 
@@ -109,7 +109,7 @@ const keyPair = await generateKeyPair();
 
 ```json
 {
-  "version": "1.0.0.0",
+  "version": "1.0.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "auth_req_123456",
   "action": "auth.request",
@@ -127,7 +127,7 @@ const keyPair = await generateKeyPair();
     }
   },
   "signature": {
-    "algorithm": "sha256",
+    "algorithmHash": "sha256",
     "value": "base64_encoded_signature",
     "fingerprint": "device_public_key_fingerprint"
   }
@@ -195,13 +195,12 @@ specification).
 
 ```json
 {
-  "version": "1.0.0.0",
+  "version": "1.0.0",
   "issuedAt": "2025-01-15T10:30:15Z",
-  "id": "auth_req_123456",
+  "id": "5d2c8a7e-4b1f-4f0e-9c3a-2e7b6d1f0a9c",
+  "reqId": "auth_req_123456",
   "type": "btps_response",
-  "ok": true,
-  "message": "Authentication successful",
-  "code": 200,
+  "status": { "ok": true, "code": 200, "message": "Authentication successful" },
   "document": {
     "agentId": "btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28",
     "refreshToken": "-PnjR_MKMiEpG94Tr1dS-hU4VHbnG3g9Z0pMLWUY1eE",
@@ -227,7 +226,7 @@ specification).
 
 ```json
 {
-  "version": "1.0.0.0",
+  "version": "1.0.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "refresh_req_789012",
   "action": "auth.refresh",
@@ -243,7 +242,7 @@ specification).
     }
   },
   "signature": {
-    "algorithm": "sha256",
+    "algorithmHash": "sha256",
     "value": "base64_encoded_signature",
     "fingerprint": "device_public_key_fingerprint"
   }
@@ -345,13 +344,12 @@ async validateAndReissueRefreshToken(
 
 ```json
 {
-  "version": "1.0.0.0",
+  "version": "1.0.0",
   "issuedAt": "2025-01-15T10:30:15Z",
-  "id": "refresh_req_789012",
+  "id": "0f6e2b9a-7c3d-4e58-a1b2-c4d5e6f7a8b9",
+  "reqId": "refresh_req_789012",
   "type": "btps_response",
-  "ok": true,
-  "message": "Refresh Auth Session Successful",
-  "code": 200,
+  "status": { "ok": true, "code": 200, "message": "Refresh Auth Session Successful" },
   "document": {
     "agentId": "btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28",
     "refreshToken": "new_refresh_token_here",

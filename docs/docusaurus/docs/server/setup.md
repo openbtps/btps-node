@@ -24,7 +24,7 @@ BTPS requires a trust store to manage trust relationships. There are two main op
   - **Not recommended for:** Production, multi-instance, or high-throughput deployments due to lack of distributed locking and scalability.
   - **Usage:**
     ```js
-    import { JsonTrustStore } from '@btps/sdk';
+    import { JsonTrustStore } from '@btps/sdk/trust';
     const trustStore = new JsonTrustStore({ connection: './trust.json' });
     ```
 - **Database-backed Trust Stores (Recommended for Production):**
@@ -39,11 +39,14 @@ The `BtpsServer` class accepts the following options:
 
 | Option           | Type         | Description                                                      |
 | ---------------- | ------------ | ---------------------------------------------------------------- |
+| `serverIdentity` | `object`     | The server's identity, its `Signer` (or a PEM pair for tests and the interim), and `selector` (required with an `identityStore`) |
 | `port`           | `number`     | Port to listen on (default: 3443)                                |
 | `trustStore`     | `TrustStore` | Trust store instance (see above)                                 |
 | `middlewarePath` | `string`     | Path to middleware file (optional, default: btps.middleware.mjs) |
 | `onError`        | `function`   | Optional error handler callback                                  |
-| `options`        | `object`     | TLS options (certs, keys, etc.)                                  |
+| `tlsOptions`     | `object`     | TLS options (certs, keys, etc.)                                  |
+| `tokenStore`     | `TokenStore` | Registration tokens; without one, every device registration (`auth.request`) is refused |
+| `replayStore`    | `AbstractReplayStore` | `(from, id)` seen once; default in memory, not shared between instances |
 
 `defaultMiddleware` (array or `false`, optional) is the middleware that runs
 before the file's. Omitted, it is `createDefaultMiddleware()`: rate limiting
@@ -54,9 +57,16 @@ it; `false` turns it off. See
 **Example:**
 
 ```js
-import { BtpsServer, JsonTrustStore } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
+import { JsonTrustStore } from '@btps/sdk/trust';
+import { KmsSigner } from '@btps/sdk/crypto';
 const trustStore = new JsonTrustStore({ connection: './trust.json' });
 const server = new BtpsServer({
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    selector: 'btps1',
+    signer: new KmsSigner({ client: kms, keyId: 'alias/btps-server' }),
+  },
   port: 3443,
   trustStore,
   middlewarePath: './btps.middleware.mjs',
@@ -82,10 +92,11 @@ Middleware enables custom validation, logging, rate limiting, and business logic
 ```js
 export default [
   {
-    stage: 'before',
-    type: 'parsing',
-    handler: async (ctx, res, next) => {
-      // Custom logic here
+    phase: 'before',
+    step: 'parsing',
+    handler: async (req, res, next) => {
+      // Custom logic here. Call next() to run the next handler; answering
+      // (res.sendError) ends the request; doing neither stops this step's chain.
       await next();
     },
   },

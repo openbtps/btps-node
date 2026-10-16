@@ -34,7 +34,7 @@ BTPS uses DNS TXT records to publish multiple public keys under different select
 Selectors can be any meaningful identifier and follow this naming pattern:
 
 ```
-<selector>._btps.identity.<identity>.<domain>
+<selector>._btps.identity.<account>.<domain>
 ```
 
 **Examples:**
@@ -60,21 +60,21 @@ legacy._btps.identity.finance.vendorcorp.com  → Legacy key for backward compat
 Each selector publishes a DNS TXT record with the following format:
 
 ```
-btps1._btps.identity.finance.vendorcorp.com. IN TXT "v=1.0.0;k=rsa-sha256;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
+btps1._btps.identity.finance.vendorcorp.com. IN TXT "v=1.0.0; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
 ```
 
 **Record Components:**
 
-- `v=BTPS1` - Protocol version
-- `k=rsa-sha256` - Key algorithm
-- `p=<base64-encoded-public-key>` - Public key in PEM format
+- `v=1.0.0` - Protocol version
+- `k=rsa` - Key type: RSA, 2048 bits at least (a smaller key is refused)
+- `p=<base64-encoded-public-key>` - The SPKI public key, base64 (the PEM body without its header lines)
 
 #### 2. Selector Resolution Records
 
 The main BTPS selector record must be updated to include the current selector:
 
 ```
-_btps.vendorcorp.com. IN TXT "v=1.0.0;u=btps.vendorcorp.com:3443;s=btps2"
+_btps.host.vendorcorp.com. IN TXT "v=1.0.0; u=btps.vendorcorp.com:3443; s=btps2"
 ```
 
 **Record Components:**
@@ -125,7 +125,7 @@ graph TD
 **Key Steps:**
 
 1. **Publish New Public Key Record**: Create DNS TXT record for new selector
-2. **Update Selector Resolution Record**: Modify `_btps.<identity>.<domain>` to point to new selector
+2. **Update Selector Resolution Record**: Modify `_btps.host.<domain>` to point to new selector
 3. **Test Resolution**: Verify both records resolve correctly
 4. **Gradual Migration**: Start using new selector while maintaining old one
 
@@ -149,13 +149,13 @@ Create the new DNS TXT records before publishing:
 #### Public Key Record
 
 ```dns
-btps2._btps.identity.finance.vendorcorp.com. IN TXT "v=BTPS1;k=rsa-sha256;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
+btps2._btps.identity.finance.vendorcorp.com. IN TXT "v=1.0.0; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
 ```
 
 #### Selector Resolution Record
 
 ```dns
-_btps.host.vendorcorp.com. IN TXT "v=1.0.0;u=btps.vendorcorp.com:3443;s=btps2"
+_btps.host.vendorcorp.com. IN TXT "v=1.0.0; u=btps.vendorcorp.com:3443; s=btps2"
 ```
 
 **Note:** The selector resolution record (`_btps.host.vendorcorp.com`) must be updated to point to the new selector (`s=btps2`) during key rotation.
@@ -184,20 +184,20 @@ The key rotation process involves updating two types of DNS records:
 
 ```dns
 # Before rotation (existing record)
-btps1._btps.finance.vendorcorp.com. IN TXT "v=BTPS1;k=rsa-sha256;p=OLD_PUBLIC_KEY"
+btps1._btps.identity.finance.vendorcorp.com. IN TXT "v=1.0.0; k=rsa; p=OLD_PUBLIC_KEY"
 
 # After rotation (new record added)
-btps2._btps.finance.vendorcorp.com. IN TXT "v=BTPS1;k=rsa-sha256;p=NEW_PUBLIC_KEY"
+btps2._btps.identity.finance.vendorcorp.com. IN TXT "v=1.0.0; k=rsa; p=NEW_PUBLIC_KEY"
 ```
 
 #### Step 2: Update Selector Resolution Record
 
 ```dns
 # Before rotation
-_btps.finance.vendorcorp.com. IN TXT "v=1.0.0;u=btps.vendorcorp.com:3443;s=btps1"
+_btps.host.vendorcorp.com. IN TXT "v=1.0.0; u=btps.vendorcorp.com:3443; s=btps1"
 
 # After rotation (updated to point to new selector)
-_btps.finance.vendorcorp.com. IN TXT "v=1.0.0;u=btps.vendorcorp.com:3443;s=btps2"
+_btps.host.vendorcorp.com. IN TXT "v=1.0.0; u=btps.vendorcorp.com:3443; s=btps2"
 ```
 
 ### 2. Publishing Multiple Keys
@@ -209,44 +209,79 @@ const newSelector = 'btps2';
 
 // DNS TXT records (published simultaneously)
 // Public Key Records:
-// btps1._btps.finance.vendorcorp.com. IN TXT "v=BTPS1;k=rsa-sha256;p=OLD_PUBLIC_KEY"
-// btps2._btps.finance.vendorcorp.com. IN TXT "v=BTPS1;k=rsa-sha256;p=NEW_PUBLIC_KEY"
+// btps1._btps.identity.finance.vendorcorp.com. IN TXT "v=1.0.0; k=rsa; p=OLD_PUBLIC_KEY"
+// btps2._btps.identity.finance.vendorcorp.com. IN TXT "v=1.0.0; k=rsa; p=NEW_PUBLIC_KEY"
 
 // Selector Resolution Record (updated to point to new selector):
-// _btps.finance.vendorcorp.com. IN TXT "v=1.0.0;u=btps.vendorcorp.com:3443;s=btps2"
+// _btps.host.vendorcorp.com. IN TXT "v=1.0.0; u=btps.vendorcorp.com:3443; s=btps2"
 ```
 
-### 2. Artifact Signing with Selectors
+### 2. Artifact Signing with Selectors (BTPS 1.1)
+
+An artifact names the two keys it uses apart, so that the sender and the
+receiver rotate on their own:
+
+- `signatureSelector`: the **sender's** key that signed it. The verifier
+  resolves `<signatureSelector>._btps.identity.<account>.<domain>` for `from`.
+- `encryptionSelector`: the **receiver's** key the document was encrypted to.
+  The receiver opens the document with its private key at that selector,
+  which may no longer be its current one.
+
+BTPS 1.0's single `selector` field is refused. See
+[Selectors](./specifications/transporter-artifact.md#selectors-btps-11).
 
 ```javascript
-import { BtpsClient } from '@btps/sdk';
+import { signEncrypt, getBTPKeyPair } from '@btps/sdk/crypto';
+import { BtpsClient } from '@btps/sdk/client';
 
-const client = new BtpsClient({
-  identity: 'alice$example.com',
-  btpIdentityKey: 'PRIVATE_KEY',
-  bptIdentityCert: 'PUBLIC_KEY',
-});
-
-// Sign artifact with new selector
-const artifact = await client.send({
-  to: 'bob$example.com',
-  type: 'BTPS_DOC',
-  selector: 'btps2', // Specify new selector
-  document: {
-    title: 'Invoice #123',
-    // ... document content
+// Sign with the new key, published at btps2
+const { payload, error } = await signEncrypt(
+  'bob$example.com',
+  {
+    accountName: 'alice',
+    domainName: 'example.com',
+    selector: 'btps2', // the sender's new key: sent as signatureSelector
+    signer: newSigner, // a Signer over the btps2 key (pemFiles for tests and the interim)
   },
-});
+  {
+    version: '1.0.0',
+    type: 'BTPS_DOC',
+    from: 'alice$example.com',
+    to: 'bob$example.com',
+    document: invoice, // a document model v2 invoice
+    encryptionSelector: 'btps1', // the receiver's current selector
+  },
+  {
+    signature: { algorithmHash: 'sha256' },
+    encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+  },
+);
+
+const client = new BtpsClient({ to: 'bob$example.com' });
+const result = await client.send(payload);
 ```
 
 ### 3. Verification with Selector Resolution
 
+The receiving server verifies the signature with the sender's key at
+`signatureSelector`, never at the receiver's selector. The receiver then
+decrypts with its key at `encryptionSelector`: give `decryptVerify` a lookup by
+selector, so that documents encrypted to a key it has since rotated away from
+still open.
+
 ```javascript
-// Verification automatically resolves the correct public key
-// based on the selector in the artifact
-const isValid = await verifyArtifact(artifact);
-// Uses selector from artifact.selector to resolve public key
+import { decryptVerify } from '@btps/sdk/crypto';
+
+const keysBySelector = { btps1: oldDecrypter, btps2: currentDecrypter };
+const { payload, error } = await decryptVerify(
+  senderPublicKeyPem, // resolved at artifact.signatureSelector
+  artifact,
+  (encryptionSelector) => keysBySelector[encryptionSelector],
+);
 ```
+
+A receiver keeps an old private key for as long as documents encrypted to it
+may still arrive.
 
 ## Best Practices
 
@@ -350,7 +385,7 @@ gantt
 
 #### 1. Selector Not Found
 
-**Error:** `BTP_ERROR_SELECTOR_NOT_FOUND`
+**Error:** `BTP_ERROR_RESOLVE_PUBKEY` (no key at the artifact's `signatureSelector`), reported to the sender as a signature failure
 
 **Causes:**
 
@@ -401,31 +436,46 @@ gantt
 ### Node.js Implementation
 
 ```javascript
-import { BtpsClient, getHostAndSelector } from '@btps/sdk';
+import { parseIdentity, resolvePublicKey } from '@btps/sdk';
+import { signEncrypt, verifySignature } from '@btps/sdk/crypto';
 
 class KeyRotationManager {
-  constructor(identity, privateKey, publicKey) {
-    this.client = new BtpsClient({
-      identity,
-      btpIdentityKey: privateKey,
-      bptIdentityCert: publicKey,
-    });
+  constructor(identity, signersBySelector, currentSelector) {
+    this.identity = identity;
+    this.signers = signersBySelector; // e.g. { btps1: oldSigner, btps2: newSigner }
+    this.currentSelector = currentSelector;
   }
 
-  async signWithSelector(selector, document, recipient) {
-    return await this.client.send({
-      to: recipient,
-      type: 'BTPS_DOC',
-      selector,
-      document,
-    });
+  async sign(document, recipient, recipientSelector) {
+    const { accountName, domainName } = parseIdentity(this.identity);
+    return signEncrypt(
+      recipient,
+      {
+        accountName,
+        domainName,
+        selector: this.currentSelector, // sent as signatureSelector
+        signer: this.signers[this.currentSelector],
+      },
+      {
+        version: '1.0.0',
+        type: 'BTPS_DOC',
+        from: this.identity,
+        to: recipient,
+        document,
+        encryptionSelector: recipientSelector,
+      },
+      {
+        signature: { algorithmHash: 'sha256' },
+        encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+      },
+    );
   }
 
   async verifyArtifact(artifact) {
-    // Verification automatically uses the selector from the artifact
-    const { host, selector } = await getHostAndSelector(artifact.from);
-    const publicKey = await resolvePublicKey(host, selector);
-    return await verifySignature(artifact, publicKey);
+    // The sender's key at the artifact's own signatureSelector
+    const publicKey = await resolvePublicKey(artifact.from, artifact.signatureSelector);
+    const { signature, ...signed } = artifact;
+    return verifySignature(signed, signature, publicKey);
   }
 }
 ```
@@ -482,7 +532,7 @@ nslookup _btps.host.vendorcorp.com
 import { resolvePublicKey } from '@btps/sdk';
 
 try {
-  const publicKey = await resolvePublicKey('finance.vendorcorp.com', 'btps1');
+  const publicKey = await resolvePublicKey('finance$vendorcorp.com', 'btps1');
   console.log('Key resolved successfully');
 } catch (error) {
   console.error('Key resolution failed:', error);
@@ -503,16 +553,19 @@ try {
 ### Verification Issues
 
 ```javascript
-// Test artifact verification
-import { verifyArtifact } from '@btps/sdk';
+// Test artifact verification, at the artifact's own signatureSelector
+import { resolvePublicKey } from '@btps/sdk';
+import { verifySignature } from '@btps/sdk/crypto';
 
-try {
-  const isValid = await verifyArtifact(artifact);
-  console.log('Verification result:', isValid);
-} catch (error) {
-  console.error('Verification failed:', error);
-}
+const publicKey = await resolvePublicKey(artifact.from, artifact.signatureSelector);
+const { signature, ...signed } = artifact;
+const { isValid, error } = verifySignature(signed, signature, publicKey);
+console.log('Verification result:', isValid, error?.code);
 ```
+
+An artifact that still carries the 1.0 `selector` field is refused before
+verification, with a validation error naming `signatureSelector` and
+`encryptionSelector`.
 
 ## Conclusion
 

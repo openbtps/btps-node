@@ -30,7 +30,8 @@ npm install @btps/sdk
 ```
 
 ```js
-import { BtpsServer, BtpsTransporter } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
+import { BtpsTransporter } from '@btps/sdk/client';
 import { JsonTrustStore } from '@btps/sdk/trust';
 import { signEncrypt } from '@btps/sdk/crypto';
 
@@ -43,9 +44,9 @@ const server = new BtpsServer({
   },
   trustStore: new JsonTrustStore({ connection: './trust.json' }),
   tlsOptions: {
-    cert:'-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
+    cert: '-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----',
     key: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',
-  }
+  },
   port: 3443,
 });
 await server.start();
@@ -56,16 +57,18 @@ const transporter = new BtpsTransporter({
   connectionTTLSeconds: 300,
   maxRetries: 3,
   retryDelayMs: 1000,
-  connectionTimeoutMs: 30000,
+  connectTimeoutMs: 5000, // default and minimum
+  replyTimeoutMs: 20000, // default; minimum 10000
 });
 
 // Create and sign a trust request
 const trustRequest = {
-  version: '1.0.0.0',
-  id: 'trust_req_123456',
+  version: '1.0.0',
+  id: crypto.randomUUID(),
   issuedAt: new Date().toISOString(),
   type: 'TRUST_REQ',
   document: {
+    id: crypto.randomUUID(),
     name: 'Your Company Name',
     email: 'billing@yourdomain.com',
     reason: 'To send monthly invoices',

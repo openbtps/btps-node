@@ -19,15 +19,16 @@ The BTPS (Billing Trust Protocol Secure) specification defines a standardized pr
 
 ### Message Security
 
-- **End-to-End Encryption**: Sensitive documents encrypted with AES-256-CBC
-- **Digital Signatures**: SHA-256 signatures for message authenticity and integrity
+- **End-to-End Encryption**: Sensitive documents encrypted with AES-256-GCM (16-byte tag), the key wrapped with RSA-OAEP (SHA-256) to the receiver's RSA key
+- **Digital Signatures**: RSA (2048 bits at least) with SHA-256, over the RFC 8785 (JCS) canonical form of the artifact
 - **TLS Transport**: All communication secured with TLS 1.3
 
 ### Document Types
 
 - **Trust Requests**: Establish trust relationships between organizations
 - **Trust Responses**: Accept, reject, or block trust requests
-- **Invoices**: Secure billing documents with line items and payment details
+- **Business documents** ([document model v2](./document-model-v2.md)): invoices, credit notes and payslips
+- **Lifecycle events** ([`BTPS_EVENT`](./lifecycle-events.md)): paid, partially paid, disputed, refund requested, refund, and the answers to them
 
 ---
 
@@ -118,8 +119,10 @@ _btps.host.vendorcorp.com
 ### TXT Record Format
 
 ```
-v=1.0.0; u=<btps_host:port> s=<selector>
+v=1.0.0; u=<btps_host:port>; s=<selector>
 ```
+
+Tags are separated by `;`, and each tag is split on its first `=` only.
 
 **Parameters:**
 
@@ -130,7 +133,7 @@ v=1.0.0; u=<btps_host:port> s=<selector>
 **Example TXT Record:**
 
 ```
-v=1.0.0; u=btps.vendorcorp.com:3443 s=btps1
+v=1.0.0; u=btps.vendorcorp.com:3443; s=btps1
 ```
 
 ### Lookup Flow
@@ -162,15 +165,16 @@ All BTPS messages follow a standardized envelope structure:
     // Document-specific content (see Document Types section)
   },
   "signature": {
-    "algorithm": "sha256",
+    "algorithmHash": "sha256",
     "value": "base64-encoded-signature",
     "fingerprint": "sha256-base64-fingerprint"
   },
   "encryption": {
-    "algorithm": "aes-256-cbc",
-    "encryptedPayload": "base64-encoded-encrypted-document",
-    "encryptedKey": "base64-encoded-encrypted-key",
-    "iv": "base64-encoded-initialization-vector"
+    "algorithm": "aes-256-gcm",
+    "encryptedKey": "base64-encoded-rsa-oaep-wrapped-key",
+    "iv": "base64-encoded-12-byte-iv",
+    "type": "standardEncrypt",
+    "authTag": "base64-encoded-16-byte-tag"
   },
   "signatureSelector": "btps2",
   "encryptionSelector": "btps1",
@@ -181,7 +185,7 @@ All BTPS messages follow a standardized envelope structure:
     "signedBy": "alice$saas.com",
     "issuedAt": "2025-01-15T10:30:00Z",
     "signature": {
-      "algorithm": "sha256",
+      "algorithmHash": "sha256",
       "value": "base64-encoded-signature",
       "fingerprint": "sha256-base64-fingerprint"
     },
@@ -191,7 +195,7 @@ All BTPS messages follow a standardized envelope structure:
       "issuedAt": "2025-01-15T10:30:00Z",
       "signedBy": "admin$saas.com",
       "signature": {
-        "algorithm": "sha256",
+        "algorithmHash": "sha256",
         "value": "base64-encoded-signature",
         "fingerprint": "sha256-base64-fingerprint"
       },
@@ -212,7 +216,12 @@ All BTPS messages follow a standardized envelope structure:
 - `document`: The actual document content
 - `signature`: Cryptographic signature for authenticity
 - `encryption`: Encryption details (null for unencrypted messages)
+- `signatureSelector`: the sender's key that signed the artifact (required unless it carries a `delegation`)
+- `encryptionSelector`: the receiver's key the document was encrypted to (present exactly when `encryption` is)
 - `delegation`: Artifacts that was delegated for agents
+
+A 1.1 implementation refuses an artifact that carries the 1.0 `selector`
+field; see [Selectors](./transporter-artifact.md#selectors-btps-11).
 
 ---
 
@@ -246,18 +255,30 @@ These are used for notifying the agent or client related to delivery failure. No
 
 ### Cryptographic Requirements
 
+**Keys:**
+
+- RSA only, 2048 bits at least. A smaller key is refused for signing,
+  verifying and encrypting (`BTP_ERROR_KEY_TOO_SMALL`). RSA is the only key
+  type in BTPS 1.1.
+
 **Digital Signatures:**
 
-- Algorithm: SHA-256 with RSA, Ed25519, or ECDSA
-- Signature covers entire message envelope (excluding signature field)
-- Public key must be published in DNS TXT record
+- Algorithm: RSASSA-PKCS1-v1_5 with SHA-256 (`"algorithmHash": "sha256"`)
+- Covers the RFC 8785 (JCS) canonical form of the whole artifact without its
+  `signature` member, so key order and whitespace do not matter. A duplicate
+  member name is refused (`BTP_ERROR_CANONICAL_JSON`).
+- Encrypt-then-sign: the signature covers the encrypted document.
+- The sender's public key is published in DNS at `signatureSelector`, or
+  answered by its host ([Identity Lookup](./identity-lookup-artifact.md))
 
 **Encryption:**
 
-- Algorithm: AES-256-CBC
-- Key exchange: RSA-OAEP or ECDH
-- IV: Random 16-byte initialization vector
-- Encrypted content: Base64 encoded
+- Algorithm: AES-256-GCM with a random 256-bit key and a random 12-byte IV
+- Authentication tag: exactly 16 bytes. Any other length is refused before a
+  key is used.
+- Key wrapping: RSA-OAEP with SHA-256 and MGF1-SHA-256, to the receiver's key
+  at `encryptionSelector`
+- Encrypted document, key, IV and tag: base64 encoded
 
 **Transport Security:**
 
@@ -325,6 +346,10 @@ The constants are `BTP_CONNECT_TIMEOUT_MIN_MS`, `BTP_REPLY_TIMEOUT_MIN_MS`,
 `BTP_REPLY_TIMEOUT_DEFAULT_MS` and `BTP_SERVER_CONNECTION_TIMEOUT_MIN_MS`.
 
 ### Error Handling
+
+An error answer carries a stable string `code` beside its `status`, and a
+sender decides whether to retry by that code, never by message text. The full
+table is [Wire Errors](./wire-errors.md). In short:
 
 - Invalid signatures: Reject with 401 Unauthorized
 - Untrusted sender: Reject with 403 Forbidden

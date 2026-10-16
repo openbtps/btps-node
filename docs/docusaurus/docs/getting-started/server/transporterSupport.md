@@ -20,7 +20,7 @@ When a `BtpsAgent` sends a command to your server, the server follows this flow:
 5. **Transporter processes** from outbox asynchronously (like SMTP mail delivery)
 6. **Results stored** in sent inbox (success) or failure inbox with `BTPDeliveryFailureDoc` (failure)
 
-For detailed information about the BtpsTransporter class, see [BtpsTransporter Overview](/docs/client/btpsTransporter/overview) and [BtpsTransporter API Reference](/docs/sdk/class-api-references#btpstransporter).
+For detailed information about the BtpsTransporter class, see [BtpsTransporter Overview](/docs/sdk/class-api-references#btpstransporter) and [BtpsTransporter API Reference](/docs/sdk/class-api-references#btpstransporter).
 
 ## Transporter API
 
@@ -52,7 +52,7 @@ const trustStore = new JsonTrustStore({
 });
 
 // Transporter factory - creates different instances per user
-// See [BtpsTransporter Overview](/docs/client/btpsTransporter/overview) for detailed architecture
+// See [BtpsTransporter Overview](/docs/sdk/class-api-references#btpstransporter) for detailed architecture
 function createTransporter(userId: string) {
   return new BtpsTransporter({
     maxConnections: 10,
@@ -530,6 +530,6 @@ With transporter integration configured, you can now:
 - [Event Handlers](./eventHandlers.md)
 - [Middleware Integration](./middlewares.md)
 - [Server Setup](./setup.md)
-- [BtpsTransporter Overview](/docs/client/btpsTransporter/overview) - Detailed architecture and use cases
+- [BtpsTransporter Overview](/docs/sdk/class-api-references#btpstransporter) - Detailed architecture and use cases
 - [BtpsTransporter API Reference](/docs/sdk/class-api-references#btpstransporter) - Complete class documentation
 - [BtpsAgent API Reference](/docs/sdk/class-api-references#btpsagent) - Agent command documentation

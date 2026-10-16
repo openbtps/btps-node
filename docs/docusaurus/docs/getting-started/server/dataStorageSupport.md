@@ -89,13 +89,13 @@ const identityStore = new JsonIdentityStore({
 import {
   AbstractTrustStore,
   BTPTrustRecord,
-  TrustStoreOptions,
   computeTrustId,
 } from '@btps/sdk/trust';
+import type { StorageStoreOptions } from '@btps/sdk/storage';
 import { MongoClient } from 'mongodb';
 
 export class MongoTrustStore extends AbstractTrustStore<BTPTrustRecord> {
-  constructor(options: TrustStoreOptions) {
+  constructor(options: StorageStoreOptions) {
     super(options);
     // Initialize MongoDB connection and collection
   }
@@ -134,7 +134,7 @@ export class MongoTrustStore extends AbstractTrustStore<BTPTrustRecord> {
 ```typescript
 // src/index.ts
 import { MongoClient } from 'mongodb';
-import { BtpsServer } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
 import { MongoTrustStore } from './storage/MongoTrustStore';
 
 // Connect to MongoDB
@@ -277,7 +277,7 @@ export class MongoArtifactStorage implements ArtifactStorage {
 ```typescript
 // src/index.ts
 import { MongoClient } from 'mongodb';
-import { BtpsServer } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
 import { MongoTrustStore } from './storage/MongoTrustStore';
 import { MongoArtifactStorage } from './storage/MongoArtifactStorage';
 
@@ -298,6 +298,7 @@ const artifactStorage = new MongoArtifactStorage(mongoClient, 'btps');
 const server = new BtpsServer({
   serverIdentity: {
     identity: 'admin$yourdomain.com',
+    selector: 'btps1', // where this key is published; required with an identityStore
     publicKey: readFileSync('./keys/public.pem', 'utf8'),
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
@@ -343,11 +344,14 @@ console.log('🚀 BTPS Server with MongoDB storage running');
 For development and testing, you can use the built-in JSON storage:
 
 ```typescript
-import { BtpsServer, JsonTrustStore, JsonIdentityStore } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
+import { JsonTrustStore } from '@btps/sdk/trust';
+import { JsonIdentityStore } from '@btps/sdk/storage';
 
 const server = new BtpsServer({
   serverIdentity: {
     identity: 'admin$yourdomain.com',
+    selector: 'btps1', // required with an identityStore: where this key is published
     publicKey: readFileSync('./keys/public.pem', 'utf8'),
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
@@ -375,13 +379,13 @@ For SQL databases, here are basic implementations:
 import {
   AbstractTrustStore,
   BTPTrustRecord,
-  TrustStoreOptions,
   computeTrustId,
 } from '@btps/sdk/trust';
+import type { StorageStoreOptions } from '@btps/sdk/storage';
 import { Pool } from 'pg';
 
 export class PostgresTrustStore extends AbstractTrustStore<BTPTrustRecord> {
-  constructor(options: TrustStoreOptions) {
+  constructor(options: StorageStoreOptions) {
     super(options);
     // Initialize PostgreSQL connection pool
     // Setup table schema if needed

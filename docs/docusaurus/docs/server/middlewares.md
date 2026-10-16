@@ -23,7 +23,7 @@ file's, whether or not you give a file (BTPS 1.1, EBA-187):
 | before `onError` | Error logging | — |
 
 Over a limit, the server answers `BTP_ERROR_RATE_LIMITER` (429, retryable).
-It is defined in [`defaultMiddleware.ts`](../../../../src/server/libs/defaultMiddleware.ts)
+It is defined in [`defaultMiddleware.ts`](https://github.com/openbtps/btps-node/blob/master/src/server/libs/defaultMiddleware.ts)
 and exported from `@btps/sdk/server/core` as `createDefaultMiddleware`.
 
 ### Why identity is limited after signature verification
@@ -88,7 +88,7 @@ A middleware file written before 1.1 that still includes
 that already runs (`default-ip-rate-limiter`, `default-identity-rate-limiter`
 and the rest) is skipped with a warning, so the defaults run once.
 
-See [`example.btps.middleware.mjs`](../../../../example.btps.middleware.mjs) for a middleware file that adds to the defaults.
+See [`example.btps.middleware.mjs`](https://github.com/openbtps/btps-node/blob/master/example.btps.middleware.mjs) for a middleware file that adds to the defaults.
 
 > **Note:** The default limiter keeps its counters in memory, per server process. For several instances behind one address, pass a `RateLimiter` backed by a shared store (e.g. Redis), as above.
 
@@ -104,11 +104,13 @@ Middleware can be registered for specific **phases** and **steps** in the reques
 | after   | signatureVerification | After signature is verified        |
 | before  | trustVerification     | Before trust is checked            |
 | after   | trustVerification     | After trust is checked             |
-| before  | onMessage             | Before message is processed        |
-| after   | onMessage             | After message is processed         |
+| before  | onArtifact            | Before the artifact is processed   |
+| after   | onArtifact            | After the artifact is processed    |
 | before  | onError               | Before error is handled            |
 | after   | onError               | After error is handled             |
-| server  | onStart/onStop        | Server lifecycle hooks             |
+
+Server lifecycle hooks are not middleware steps: a middleware module may export
+`onServerStart`, `onServerStop` and `onResponseSent` beside its array.
 
 ## Middleware Execution Flow
 
@@ -135,16 +137,17 @@ A middleware definition is an object with the following structure:
 
 ```js
 {
-  stage: 'before' | 'after' | 'server', // Phase in the lifecycle
-  type: 'parsing' | 'signatureVerification' | 'trustVerification' | 'onMessage' | 'onError' | 'onStart' | 'onStop', // Step or event
+  phase: 'before' | 'after', // When, relative to the step
+  step: 'parsing' | 'signatureVerification' | 'trustVerification' | 'onArtifact' | 'onError',
   priority?: number, // (Optional) Lower numbers run first
   config?: { ... }, // (Optional) Custom config for this middleware
-  handler: async (ctx, res, next, context) => { ... }, // Middleware function
+  handler: async (req, res, next, context) => { ... }, // Middleware function
 }
 ```
 
-- **stage**: When the middleware runs (before/after a step, or server lifecycle)
-- **type**: The specific step or event
+- **phase**: Whether the middleware runs before or after the step
+- **step**: The specific step
+- A definition that does not validate (an unknown phase or step, a missing handler, a handler with fewer than 3 parameters) fails the server's start with `BTP_ERROR_MIDDLEWARE` (BTPS 1.1); it is no longer skipped with a warning
 - **priority**: (Optional) Controls execution order within the phase/step
 - **config**: (Optional) Custom configuration for the middleware
 - **handler**: The async function that implements your logic
@@ -153,19 +156,21 @@ A middleware definition is an object with the following structure:
 
 Middleware is defined as an array of objects in a `.mjs` file (default: `btps.middleware.mjs`). Each object specifies the phase, step, and handler function.
 
-**Answering with an error (BTPS 1.1).** Pass a constant from `@btps/sdk/error`, e.g. `res.sendError(BTP_ERROR_RATE_LIMITER)`: it goes out with its stable `code`, status and fixed message ([Wire Errors](../protocol/specifications/wire-errors.md)). A bare status, as in the 1.0 examples below, is sent as that class's constant (400, 401, 403 or 429); its own message is not sent, and any other code goes out as `BTP_ERROR_UNKNOWN` (500).
+**Answering with an error (BTPS 1.1).** Pass a constant from `@btps/sdk/error`, e.g. `res.sendError(BTP_ERROR_RATE_LIMITER)`: it goes out with its stable `code`, status and fixed message ([Wire Errors](../protocol/specifications/wire-errors.md)). A bare status such as `{ code: 403, message }` is sent as that class's constant (400, 401, 403 or 429); its own message is not sent, and any other code goes out as `BTP_ERROR_UNKNOWN` (500).
 
 **Example:**
 
 ```js
+import { BTP_ERROR_TRUST_NOT_ALLOWED, BTP_ERROR_VALIDATION } from '@btps/sdk/error';
+
 export default [
   // Block specific IPs
   {
-    stage: 'before',
-    type: 'parsing',
-    handler: async (ctx, res, next) => {
-      if (ctx.remoteAddress === '1.2.3.4') {
-        res.sendError({ code: 403, message: 'Blocked IP' });
+    phase: 'before',
+    step: 'parsing',
+    handler: async (req, res, next) => {
+      if (req.remoteAddress === '1.2.3.4') {
+        res.sendError(BTP_ERROR_TRUST_NOT_ALLOWED);
         return;
       }
       await next();
@@ -173,20 +178,20 @@ export default [
   },
   // Log parsed artifacts
   {
-    stage: 'after',
-    type: 'parsing',
-    handler: async (ctx, res, next) => {
-      console.log('Parsed artifact:', ctx.artifact);
+    phase: 'after',
+    step: 'parsing',
+    handler: async (req, res, next) => {
+      console.log('Parsed artifact:', req.data?.artifact);
       await next();
     },
   },
   // Require signature
   {
-    stage: 'before',
-    type: 'signatureVerification',
-    handler: async (ctx, res, next) => {
-      if (!ctx.artifact || !ctx.artifact.signature) {
-        res.sendError({ code: 400, message: 'Missing signature' });
+    phase: 'before',
+    step: 'signatureVerification',
+    handler: async (req, res, next) => {
+      if (!req.data?.artifact?.signature) {
+        res.sendError(BTP_ERROR_VALIDATION);
         return;
       }
       await next();
@@ -204,12 +209,18 @@ import { enqueueArtifact } from './queue';
 
 export default [
   {
-    stage: 'before',
-    type: 'onMessage',
-    handler: async (ctx, res, next) => {
-      await enqueueArtifact(ctx.artifact);
-      res.sendResponse({ ok: true, message: 'Queued for processing', code: 202 });
-      // Do not call next() to short-circuit further processing
+    phase: 'before',
+    step: 'onArtifact',
+    handler: async (req, res, next, context) => {
+      await enqueueArtifact(req.data.artifact);
+      res.sendRes({
+        ...context.serverInstance.prepareBtpsResponse(
+          { ok: true, message: 'Queued for processing', code: 202 },
+          res.reqId,
+        ),
+        type: 'btps_response',
+      });
+      // Answering ends the request: the core does not process it again
     },
   },
 ];
@@ -218,8 +229,8 @@ export default [
 ## Middleware Context & API
 
 Each handler receives:
-- `ctx`: Request context (artifact, remoteAddress, etc.)
-- `res`: Response context (sendError, sendResponse, etc.)
+- `req`: Request context (`req.data.artifact` once parsed, `req.remoteAddress`, `req.getIdentity()`, etc.)
+- `res`: Response context (`sendError`, `sendRes`, `reqId`)
 - `next`: Call to continue to the next middleware
 - `context`: (Optional) Additional context (dependencies, config, server instance)
 

@@ -140,7 +140,7 @@ Resolves the BTPS host and selector for a given identity by querying DNS TXT rec
 ```js
 import { getHostAndSelector } from '@btps/sdk';
 const result = await getHostAndSelector('billing$company.com');
-// result = { host: 'btps://btps.company.com:3443', selector: 'btps1', version: '1.0.0.0' }
+// result = { host: 'btps.company.com:3443', selector: 'btps1', version: '1.0.0' }
 ```
 
 ---
@@ -1177,22 +1177,6 @@ Error constant for missing or invalid public key resolution.
 
 - `code`: `'BTP_ERROR_RESOLVE_PUBKEY'`
 - `message`: `'No valid public-key found'`
-
----
-
-### BTP_ERROR_SELECTOR_NOT_FOUND
-
-```ts
-const BTP_ERROR_SELECTOR_NOT_FOUND: BTPError;
-```
-
-**Description:**
-Error constant for missing or invalid selector during DNS resolution. Used when a specific selector cannot be found for key rotation scenarios.
-
-**Properties:**
-
-- `code`: `'BTP_ERROR_SELECTOR_NOT_FOUND'`
-- `message`: `'No valid selector found'`
 
 ---
 

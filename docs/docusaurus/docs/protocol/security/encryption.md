@@ -9,13 +9,13 @@ BTPS uses a hybrid encryption approach to ensure that messages are both confiden
 
 ## Encryption Workflow
 
-1. **Key Discovery:** Sender retrieves the receiver's public key from DNS or `.well-known`.
+1. **Key Discovery:** Sender retrieves the receiver's public key (RSA, 2048 bits at least) from DNS, or from the receiver's host when DNS has no record. The selector it was published at becomes the artifact's `encryptionSelector`.
 2. **Payload Preparation:** Sender prepares the message/document to be sent.
-3. **Symmetric Key Generation:** Sender generates a random AES-256 key and IV.
-4. **Payload Encryption:** The message is encrypted using AES-256-CBC with the generated key and IV.
-5. **Key Encryption:** The AES key is encrypted using the receiver's public RSA key (RSA-OAEP).
-6. **Message Signing:** The sender signs the encrypted payload and metadata with their private key (SHA-256).
-7. **Artifact Assembly:** The encrypted payload, encrypted key, IV, and signature are assembled into a BTPS Artifact.
+3. **Symmetric Key Generation:** Sender generates a random AES-256 key and a random 12-byte IV.
+4. **Payload Encryption:** The message is encrypted using AES-256-GCM with the generated key and IV, which gives a 16-byte authentication tag.
+5. **Key Encryption:** The AES key is wrapped with the receiver's public RSA key (RSA-OAEP, SHA-256 and MGF1-SHA-256).
+6. **Message Signing:** The sender signs the artifact, encrypted document included, over its RFC 8785 (JCS) canonical form, with RSA and SHA-256 (encrypt-then-sign). The key it signs with is named by `signatureSelector`.
+7. **Artifact Assembly:** The encrypted payload, encrypted key, IV, tag, selectors and signature are assembled into a BTPS Artifact.
 8. **Transmission:** The artifact is sent to the receiver's endpoint.
 
 ## Optional Encryption (Based on Trust Record)
@@ -40,13 +40,13 @@ sequenceDiagram
     participant Receiver
     Sender->>Sender: Check trust record for encryption requirement
     alt Encryption required
-        Sender->>Sender: Generate AES key & IV
-        Sender->>Sender: Encrypt payload (AES-256-CBC)
-        Sender->>Sender: Encrypt AES key (Receiver's RSA pubkey)
+        Sender->>Sender: Generate AES-256 key & 12-byte IV
+        Sender->>Sender: Encrypt payload (AES-256-GCM, 16-byte tag)
+        Sender->>Sender: Wrap AES key (RSA-OAEP SHA-256, receiver's key at encryptionSelector)
     else No encryption
         Sender->>Sender: Use plain payload
     end
-    Sender->>Sender: Sign artifact (Sender's private key)
+    Sender->>Sender: Sign JCS form of artifact (sender's key at signatureSelector)
     Sender->>Receiver: Send BTPS Artifact
 ```
 
@@ -54,18 +54,26 @@ sequenceDiagram
 
 ```json
 {
-  "algorithm": "aes-256-cbc",
-  "encryptedKey": "...",
-  "iv": "...",
-  "type": "standardEncrypt",
-  "document": "...", // Encrypted payload (base64) or plain text
+  "document": "...", // Encrypted payload (base64), or the plain document when encryption is null
+  "encryption": {
+    "algorithm": "aes-256-gcm",
+    "encryptedKey": "...",
+    "iv": "...",
+    "type": "standardEncrypt",
+    "authTag": "..."
+  },
+  "signatureSelector": "btps1",
+  "encryptionSelector": "btps1",
   "signature": {
-    "algorithm": "sha256",
+    "algorithmHash": "sha256",
     "value": "...",
     "fingerprint": "..."
   }
 }
 ```
+
+The other envelope fields (`version`, `id`, `issuedAt`, `type`, `from`, `to`)
+are left out here; see [Transporter Artifact](../specifications/transporter-artifact.md).
 
 ## Signing Process
 

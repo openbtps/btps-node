@@ -52,7 +52,8 @@ npm install
 Create `src/index.ts` with a minimal BTPS server:
 
 ```typescript
-import { BtpsServer, JsonTrustStore } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
+import { JsonTrustStore } from '@btps/sdk/trust';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -190,7 +191,7 @@ Create a simple test client to verify your server is working:
 
 ```typescript
 // test-client.ts
-import { BtpsClient } from '@btps/sdk';
+import { BtpsClient } from '@btps/sdk/client';
 
 const client = new BtpsClient({
   to: 'admin$yourdomain.com', // Target server identity
@@ -207,14 +208,16 @@ const client = new BtpsClient({
 async function testConnection() {
   try {
     // Create a simple control artifact to test connection
+    // PING is answered ok (200) and keeps the connection open (BTPS 1.1)
     const controlArtifact = {
-      version: '1.0.0.0',
-      id: 'test_control_123',
+      version: '1.0.0',
+      id: crypto.randomUUID(),
       issuedAt: new Date().toISOString(),
-      action: 'QUIT' as const,
+      action: 'PING' as const,
     };
 
-    const result = await client.send(controlArtifact, 5000);
+    // 10 s is the shortest reply wait; a lower one is refused (BTP_ERROR_INVALID_OPTION)
+    const result = await client.send(controlArtifact, 10000);
 
     if (result.error) {
       console.error('❌ Connection failed:', result.error.message);
@@ -249,7 +252,7 @@ Your basic server now includes:
 - **Middleware Support**: Custom middleware for request processing
 - **Error Handling**: Graceful error management
 - **Graceful Shutdown**: Proper cleanup on exit
-- **Protocol Version**: BTPS 1.0.0 compliance
+- **Protocol Version**: BTPS 1.1 (see the [changelog](https://github.com/openbtps/btps-node/blob/master/CHANGELOG.md))
 
 ## Environment Variables
 

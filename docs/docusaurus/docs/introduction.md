@@ -85,7 +85,7 @@ BTPS provides:
    - Senders must request trust from receivers before sending business documents.
    - Receivers approve, reject, or block senders. Only trusted senders can deliver documents.
 3. **Secure Message Exchange:**
-   - All messages are signed and encrypted using strong cryptography (RSA, Ed25519, AES-256, etc.).
+   - All messages are signed with RSA (2048 bits at least) and SHA-256, and documents are encrypted with AES-256-GCM.
    - Servers verify sender identity, trust status, and document integrity before accepting any message.
 4. **Key Rotation & Revocation:**
    - Key changes are managed via DNS and `.well-known` records. Trust can be revoked or expired at any time.
@@ -197,14 +197,14 @@ graph TD
 
 - **Message formats and artifacts structure:** Defines the standard structure for all BTPS artifacts, including documents, encryption, and signature fields. Ensures interoperability and consistent validation across all implementations.
 - **Trust establishment and verification flows:** Outlines the handshake and approval process for establishing trust between parties, including request, verification, approval/rejection, and storage of trust records. Guarantees that only approved senders can deliver documents.
-- **Cryptographic operations (signing, encryption, verification):** Utilizes strong cryptographic algorithms (e.g., AES-256-CBC, RSA, SHA-256) for signing, encrypting, and verifying messages. Ensures confidentiality, integrity, and authenticity of all communications.
+- **Cryptographic operations (signing, encryption, verification):** Utilizes strong cryptographic algorithms (AES-256-GCM, RSA-2048 or larger, SHA-256) for signing, encrypting, and verifying messages. Ensures confidentiality, integrity, and authenticity of all communications.
 - **Error handling and response codes:** Standardizes error responses and codes for all protocol operations, making it easier to debug, monitor, and automate error recovery.
 
 ### Identity System
 
 > Provides decentralized, DNS-based identity management and public key distribution, enabling secure onboarding and ongoing verification of all participants.
 
-- **DNS-based identity resolution:** Uses DNS TXT records and `.well-known` endpoints to publish and discover public keys and inbox endpoints. Enables decentralized, federated identity management without a central authority.
+- **DNS-based identity resolution:** Uses DNS TXT records to publish and discover public keys and server endpoints; an address with no DNS record of its own is answered, signed, by its host. Enables decentralized, federated identity management without a central authority.
 - **Public key distribution via DNS TXT records:** Ensures that public keys are easily discoverable and verifiable by any party, supporting secure onboarding and key rotation.
 - **Key rotation and management:** Allows organizations to rotate cryptographic keys regularly for forward secrecy and to respond to key compromise. Key history is maintained for audit and compliance.
 - **Identity verification procedures:** Provides mechanisms for verifying the authenticity of sender and receiver identities using cryptographic proofs and DNS-based validation.

@@ -11,7 +11,7 @@ The `BtpsDelegator` class is a production-grade utility for creating and managin
 ## 📦 Import
 
 ```typescript
-import { BtpsDelegator } from '@btps/sdk/core/delegation';
+import { BtpsDelegator } from '@btps/sdk/delegation';
 ```
 
 ## 🏗️ Class Overview
@@ -37,7 +37,7 @@ new BtpsDelegator(options: BtpsDelegatorOptions): BtpsDelegator
 **Example:**
 
 ```typescript
-import { BtpsDelegator } from '@btps/sdk/core/delegation';
+import { BtpsDelegator } from '@btps/sdk/delegation';
 
 const delegator = new BtpsDelegator({
   identity: 'alice$saas.com',
@@ -362,7 +362,7 @@ throw new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
 ### **SaaS Platform Integration**
 
 ```typescript
-import { BtpsDelegator } from '@btps/sdk/core/delegation';
+import { BtpsDelegator } from '@btps/sdk/delegation';
 
 // Initialize delegator for SaaS platform
 const delegator = new BtpsDelegator({
@@ -430,8 +430,8 @@ try {
 The `BtpsDelegator` class integrates with the `BtpsServer` for delegation processing:
 
 ```typescript
-import { BtpsServer } from '@btps/sdk';
-import { BtpsDelegator } from '@btps/sdk/core/delegation';
+import { BtpsServer } from '@btps/sdk/server';
+import { BtpsDelegator } from '@btps/sdk/delegation';
 
 // Initialize server
 const server = new BtpsServer({
@@ -446,7 +446,7 @@ const delegator = new BtpsDelegator({
 });
 
 // Process incoming artifacts
-server.onMessage(async (artifact) => {
+server.onIncomingArtifact('Transporter', async (artifact) => {
   if (artifact.delegation) {
     console.log('Received delegated artifact from:', artifact.delegation.agentId);
   }

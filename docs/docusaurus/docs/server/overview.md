@@ -44,16 +44,21 @@ graph TD
 ## Main Class: `BtpsServer`
 
 ```js
-import { BtpsServer } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
 
 const server = new BtpsServer({
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    selector: 'btps1', // where the server's key is published
+    signer, // a Signer, e.g. KmsSigner from @btps/sdk/crypto
+  },
   port: 3443,
   trustStore, // Instance of a TrustStore (see advancedUsages)
   middlewarePath: './btps.middleware.mjs',
   onError: (err) => {
     /* handle errors */
   },
-  options: {
+  tlsOptions: {
     /* TLS options */
   },
 });
@@ -69,7 +74,7 @@ graph TD
   R -- "Trust Accept" --> P
 ```
 
-- **Identity Discovery:** DNS TXT records and .well-known endpoints
+- **Identity Discovery:** DNS TXT records first, then the address's host (signed identity lookup)
 - **Trust Establishment:** Explicit, directional trust relationships
 - **Secure Exchange:** Signed and encrypted artifacts
 - **Document Processing:** Extraction and validation of business documents
@@ -77,8 +82,8 @@ graph TD
 ## Security Posture
 
 - **TLS 1.2+ required** for all connections
-- **End-to-end encryption** using AES-256-CBC and RSA/Ed25519
-- **Digital signatures** (SHA-256) for authenticity and integrity
+- **End-to-end encryption** using AES-256-GCM, the key wrapped with RSA-OAEP (RSA keys of 2048 bits at least)
+- **Digital signatures** (RSA with SHA-256, over the RFC 8785 canonical form) for authenticity and integrity
 - **Pluggable trust store** for secure, auditable trust management
 - **Audit logging** and compliance support
 

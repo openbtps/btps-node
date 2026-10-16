@@ -379,8 +379,8 @@ const server = new BtpsServer({ port: 3443, trustStore });
 
 ## Webhooks & Event-Driven Integrations
 
-- Use `server.forwardToWebhook(url)` to forward verified artifacts to a webhook.
-- Use `server.onMessage(handler)` to process artifacts in custom logic.
+- Use `server.forwardTo(handler)` to hand verified artifacts to your own code, for example to post them to a webhook. For a `TRUST_REQ`, return `true` once you have stored it: the sender is answered success only then (BTPS 1.1).
+- Use `server.onIncomingArtifact('Transporter' | 'Agent', handler)` to process artifacts in custom logic.
 - Integrate with SaaS apps, audit systems, or orchestration tools.
 
 ## Metrics & Custom Logging
