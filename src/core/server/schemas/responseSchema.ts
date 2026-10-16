@@ -61,8 +61,20 @@ export const BtpQueryResultSchema = z.object({
   hasNext: z.boolean().optional(),
 });
 
+// Schema for BTPIdentityResDoc: the key record a host answers an identity lookup with
+export const BtpIdentityResDocSchema = z.object({
+  selector: z.string().min(1),
+  publicKey: z.string().min(1),
+  keyType: z.literal('rsa'),
+  version: z.string().min(1),
+});
+
 // Schema for BTPServerResDocs (union of possible response documents)
-export const BtpServerResDocsSchema = z.union([BtpAuthResDocSchema, BtpQueryResultSchema]);
+export const BtpServerResDocsSchema = z.union([
+  BtpAuthResDocSchema,
+  BtpQueryResultSchema,
+  BtpIdentityResDocSchema,
+]);
 
 // Schema for BTPServerResponse
 export const BtpServerResponseSchema = z

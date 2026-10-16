@@ -283,3 +283,14 @@ export const BTP_ERROR_DOC_SCHEMA: BTPError = {
   code: 'BTP_ERROR_DOC_SCHEMA',
   message: 'Document does not match the document model',
 };
+
+/**
+ * Identity lookup (fix list 1, EBA-442): a server given an identity store
+ * answers lookups signed with its own key, so it must name the selector that
+ * key is published at, `serverIdentity.selector`. Thrown when the server is
+ * constructed without one.
+ */
+export const BTP_ERROR_SERVER_SELECTOR: BTPError = {
+  code: 'BTP_ERROR_SERVER_SELECTOR',
+  message: 'A server that answers identity lookups needs serverIdentity.selector',
+};

@@ -172,6 +172,7 @@ describe('EBA-441: the core signs through a Signer and decrypts through a Decryp
       trustStore: new EmptyTrustStore(),
       serverIdentity: {
         identity: 'server$receiver.example',
+        selector: 'btps1',
         signer: fakeKms(key('server$receiver.example')).signer,
       },
       tlsOptions: { key: 'unused', cert: 'unused' },

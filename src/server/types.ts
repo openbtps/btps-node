@@ -33,8 +33,13 @@ export interface BtpsTlsOptions extends TlsOptions {
  * The server's own identity. It signs its responses through `signer` (a
  * `Signer`, e.g. `KmsSigner`), or through the PEM pair `publicKey` and
  * `privateKey`, which is for tests and the interim only.
+ *
+ * `selector` names where that key is published:
+ * `<selector>._btps.identity.<account>.<domain>`. A signed response carries
+ * it as `signatureSelector`. Required when the server has an
+ * `identityStore`, since identity lookup answers are signed (EBA-442).
  */
-export type BtpsServerIdentity = { identity: string } & (
+export type BtpsServerIdentity = { identity: string; selector?: string } & (
   | { signer: Signer; publicKey?: string; privateKey?: undefined }
   | { publicKey: string; privateKey: string; signer?: undefined }
 );

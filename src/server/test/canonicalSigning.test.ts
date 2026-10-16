@@ -164,7 +164,7 @@ describe('EBA-115: canonical signing end to end', () => {
     server = new BtpsServer({
       trustStore: new EmptyTrustStore(),
       identityStore: new OneIdentityStore(),
-      serverIdentity: { identity: 'server$receiver.example', ...keys.server },
+      serverIdentity: { identity: 'server$receiver.example', selector: 'btps1', ...keys.server },
       tlsOptions: { key: 'unused', cert: 'unused' },
     });
   });

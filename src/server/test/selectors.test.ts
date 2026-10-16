@@ -142,7 +142,7 @@ describe('EBA-116: separate signatureSelector and encryptionSelector', () => {
     }));
     server = new BtpsServer({
       trustStore: new EmptyTrustStore(),
-      serverIdentity: { identity: 'server$receiver.example', ...genKeys() },
+      serverIdentity: { identity: 'server$receiver.example', selector: 'srv1', ...genKeys() },
       tlsOptions: { key: 'unused', cert: 'unused' },
     });
   });
@@ -367,7 +367,8 @@ describe('EBA-116: separate signatureSelector and encryptionSelector', () => {
     );
 
     expect(sent).toHaveLength(1);
-    expect(sent[0]).toMatchObject({ signatureSelector: 'btps1' });
+    // The server's own selector, not the request's hostSelector (EBA-442).
+    expect(sent[0]).toMatchObject({ signatureSelector: 'srv1' });
     expect(sent[0]).not.toHaveProperty('selector');
   });
 });

@@ -40,6 +40,7 @@ import {
   BTP_ERROR_REFRESH_NOT_CURRENT_KEY,
   BTP_ERROR_KEY_ROTATION_PROOF,
   BTP_ERROR_REGISTRATION_TOKEN_INVALID,
+  BTP_ERROR_SERVER_SELECTOR,
 } from '@core/error/constant.js';
 import {
   type BTPSigningKey,
@@ -50,7 +51,6 @@ import {
 } from '@core/crypto/index.js';
 import {
   isDelegationAllowed,
-  computeId,
   isBtpsIdentityRequest,
   isBtpsTransportArtifact,
   resolvePublicKey,
@@ -138,6 +138,11 @@ export class BtpsServer {
    * @param options - The server options
    */
   constructor(options: BtpsServerOptions) {
+    if (options.identityStore && !options.serverIdentity.selector) {
+      throw new BTPErrorException(BTP_ERROR_SERVER_SELECTOR, {
+        meta: { identity: options.serverIdentity.identity },
+      });
+    }
     this.serverIdentity = options.serverIdentity;
     this.port = options.port ?? 3443;
     this.onError = options.onError;
@@ -477,22 +482,24 @@ export class BtpsServer {
     },
   ) {
     const { res } = context;
-    const { identity, hostSelector, identitySelector } = artifact;
+    const { identity, identitySelector } = artifact;
+    const { selector } = this.serverIdentity;
 
-    const computedId = computeId(identity);
-    const identityRecord = await this.identityStore?.getPublicKeyRecord(
-      computedId,
-      identitySelector,
-    );
+    // The store is asked by identity: it hashes it itself (fix list 1, defect 1).
+    // Without a selector of its own the server cannot say which key signed.
+    const identityRecord = selector
+      ? await this.identityStore?.getPublicKeyRecord(identity, identitySelector)
+      : undefined;
     if (!identityRecord)
       return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND, res.reqId);
 
-    const { createdAt, ...restRecord } = identityRecord;
+    // Only the key record's wire fields: the store's own (createdAt, any extra) stay home.
+    const { selector: keySelector, publicKey, keyType, version } = identityRecord;
     const data: BTPServerResponse = {
       ...this.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }, res.reqId),
       type: 'btps_response',
-      signatureSelector: hostSelector,
-      document: restRecord,
+      signatureSelector: selector,
+      document: { selector: keySelector, publicKey, keyType, version },
       signedBy: this.serverIdentity.identity,
     };
 
