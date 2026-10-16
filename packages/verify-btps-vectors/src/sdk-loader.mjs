@@ -16,6 +16,8 @@ import { pathToFileURL } from 'node:url';
 
 const FAKE_DNS_NAMESPACE = 'verify-btps-vectors-dns';
 const DOCUMENTS_ENTRY = 'src/core/server/schemas/documents/index.ts';
+const AUTHENTICATION_ENTRY = 'src/core/authentication/index.ts';
+const KEY_ROTATION_ENTRY = 'src/core/authentication/keyRotation.ts';
 
 const fakeDnsModule = `
 let records = new Map();
@@ -55,6 +57,9 @@ const fakeDnsPlugin = {
  * @property {Record<string, any> | null} documents exports of
  *   src/core/server/schemas/documents/index.ts (@btps/sdk/documents), or
  *   null on a tree without document model v2
+ * @property {Record<string, any> | null} authentication exports of
+ *   src/core/authentication/index.ts (@btps/sdk/authentication), or null on a
+ *   tree without item D's keyRotation.ts
  * @property {(records: Record<string, string[]>) => void} setTxtRecords replace the fake DNS zone
  * @property {string} root the SDK source tree that was loaded
  */
@@ -75,6 +80,8 @@ export async function loadSdk(sdkRoot) {
   // Document model v2 (item 7) is absent from trees before EBA-119/EBA-402;
   // its checks then fail rather than the whole run.
   const hasDocuments = fs.existsSync(path.join(root, DOCUMENTS_ENTRY));
+  // Item D (EBA-112) adds verifyAgentRefresh; its checks fail on trees without it.
+  const hasKeyRotation = fs.existsSync(path.join(root, KEY_ROTATION_ENTRY));
 
   const { build } = await import('esbuild');
   const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-btps-vectors-sdk-'));
@@ -89,6 +96,9 @@ export async function loadSdk(sdkRoot) {
           hasDocuments
             ? `export * as documents from './${DOCUMENTS_ENTRY}';`
             : 'export const documents = null;',
+          hasKeyRotation
+            ? `export * as authentication from './${AUTHENTICATION_ENTRY}';`
+            : 'export const authentication = null;',
           "export { __setTxtRecords } from 'verify-btps-vectors:dns';",
         ].join('\n'),
         resolveDir: root,
@@ -115,6 +125,7 @@ export async function loadSdk(sdkRoot) {
       utils: mod.utils,
       storage: mod.storage,
       documents: mod.documents,
+      authentication: mod.authentication,
       setTxtRecords: mod.__setTxtRecords,
       root,
     };

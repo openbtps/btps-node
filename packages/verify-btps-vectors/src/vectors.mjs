@@ -22,6 +22,7 @@ export const VECTOR_FILES = Object.freeze({
   documentModel: 'document-model.vectors.json',
   eventModel: 'event.vectors.json',
   replay: 'replay.vectors.json',
+  refresh: 'refresh.vectors.json',
 });
 
 export class VectorLoadError extends Error {
@@ -178,6 +179,42 @@ function loadReplay(set) {
   }
 }
 
+/** Item D: refresh cases per custody mode, and the refresh-token sequence. */
+function loadRefresh(set) {
+  const file = VECTOR_FILES.refresh;
+  const model = set.refresh;
+  requireFields(file, model, ['now', 'windowMs', 'agentId', 'identity', 'selfHeld', 'managed']);
+  requireFields(file, model.selfHeld, ['keys', 'cases', 'tokens']);
+  requireFields(file, model.managed, ['keyVector', 'description', 'cases']);
+  for (const [group, cases] of [
+    ['selfHeld.cases', model.selfHeld.cases],
+    ['selfHeld.tokens', model.selfHeld.tokens],
+    ['managed.cases', model.managed.cases],
+  ]) {
+    if (!Array.isArray(cases) || cases.length === 0) {
+      throw new VectorLoadError(file, `expected a non-empty "${group}" array`);
+    }
+  }
+  for (const c of [...model.selfHeld.cases, ...model.managed.cases]) {
+    requireFields(file, c, ['name', 'artifact', 'expect']);
+    if (c.currentKey === undefined) {
+      throw new VectorLoadError(file, `${c.name}: missing "currentKey"`);
+    }
+    if (c.currentKey !== null && !(c.currentKey in model.selfHeld.keys)) {
+      throw new VectorLoadError(file, `${c.name}: unknown currentKey "${c.currentKey}"`);
+    }
+    if (c.expect === 'accept') requireFields(file, c, ['rotation']);
+    else if (c.expect === 'refuse') requireFields(file, c, ['reason', 'error']);
+    else throw new VectorLoadError(file, `${c.name}: unknown expect "${c.expect}"`);
+  }
+  for (const step of model.selfHeld.tokens) {
+    requireFields(file, step, ['use', 'expect']);
+    if (!['accept', 'refuse'].includes(step.expect)) {
+      throw new VectorLoadError(file, `tokens: unknown expect "${step.expect}"`);
+    }
+  }
+}
+
 /**
  * @param {string} dir the test/vectors directory
  * @returns {Record<keyof typeof VECTOR_FILES, any>}
@@ -272,6 +309,7 @@ export function loadVectorSet(dir) {
   loadDocumentModel(dir, set);
   loadEventModel(dir, set);
   loadReplay(set);
+  loadRefresh(set);
 
   // The only shared key is the encryption key, referenced by name. Resolve it
   // once so checks never read files themselves.

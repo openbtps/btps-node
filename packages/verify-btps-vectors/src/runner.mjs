@@ -20,6 +20,7 @@ import { sdkChecks } from './checks/sdk.mjs';
 import { documentRuntimeChecks, documentSdkChecks } from './checks/documents.mjs';
 import { eventRuntimeChecks, eventSdkChecks } from './checks/events.mjs';
 import { replaySdkChecks } from './checks/replay.mjs';
+import { refreshSdkChecks } from './checks/refresh.mjs';
 import { loadSdk } from './sdk-loader.mjs';
 
 /**
@@ -54,6 +55,7 @@ export async function buildChecks({ vectorsDir, sdkRoot }) {
       ...documentSdkChecks(sdk, set),
       ...eventSdkChecks(sdk, set),
       ...replaySdkChecks(sdk, set),
+      ...refreshSdkChecks(sdk, set),
     );
   }
 
