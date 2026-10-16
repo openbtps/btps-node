@@ -6,7 +6,7 @@
  * against these exact bytes. So this script only writes files that do not
  * exist yet, and refuses to overwrite one unless given --force. Regenerating
  * changes every key and every randomised byte (OAEP seeds, GCM IVs), and
- * whoever does that owes a note on every ticket whose tests read the vectors.
+ * whoever does that must say so in every change whose tests read the vectors.
  *
  * Every key it creates is a TEST-ONLY RSA-2048 key, generated locally, and is
  * labelled so in the file. None of them was produced by AWS KMS or a device
@@ -32,7 +32,7 @@ const VECTORS_DIR = path.resolve(
 const force = process.argv.includes('--force');
 
 const TEST_ONLY =
-  'TEST-ONLY key generated locally for the BTPS golden vectors (EBA-110). Never use it for anything else.';
+  'TEST-ONLY key generated locally for the BTPS golden vectors. Never use it for anything else.';
 
 function newKeyPair() {
   const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
@@ -110,7 +110,7 @@ function mgf1Sha1Negative() {
 }
 
 /**
- * Item 5 (EBA-115): whole signed payloads, each given in several key orders
+ * Canonical signing: whole signed payloads, each given in several key orders
  * and spellings, signed once over the JCS form with the managed signing key.
  * RSASSA-PKCS1-v1_5 is deterministic, so any conforming signer reproduces
  * signatureBase64 from any of the inputs. The reject cases are signed over
@@ -138,7 +138,7 @@ function jcsSignature() {
 
   return {
     description:
-      'BTPS 1.1 item 5: signatures are over the RFC 8785 (JCS) form of the payload. Every input of an accept case must verify against signatureBase64, and signing any of them must reproduce it. A reject case carries duplicate member names and a signature over its raw bytes; it must be refused.',
+      'BTPS 1.1 canonical signing: signatures are over the RFC 8785 (JCS) form of the payload. Every input of an accept case must verify against signatureBase64, and signing any of them must reproduce it. A reject case carries duplicate member names and a signature over its raw bytes; it must be refused.',
     keyVector: 'kms-signature.vector.json',
     algorithm: 'RSASSA_PKCS1_V1_5_SHA_256',
     cases: [
@@ -172,8 +172,6 @@ function selectors() {
   const senderCurrent = newKeyPair();
   const receiver = readVector('oaep-wrap.vector.json');
   return {
-    item: 6,
-    tickets: ['EBA-116', 'EBA-117'],
     description:
       'The sender rotated its signing key from btps1 to btps2 and kept the old key published; the receiver still encrypts on btps1. An artifact must name the sender key it was signed with (signatureSelector) apart from the receiver key it was encrypted to (encryptionSelector). On 367cd09 one `selector` field carries the receiver selector, so a verifier looks up the wrong sender key.',
     provenance: `${TEST_ONLY} The receiver encryption key is the one in oaep-wrap.vector.json.`,
@@ -287,10 +285,8 @@ function sdkDefects() {
   });
 
   return {
-    item: 10,
-    tickets: ['EBA-122'],
     description:
-      'BTPS 1.1 item 10 defects that can be expressed as data. The other item-10 defects (server schema, crossed responses, line length, error codes) are server-path behaviour and are tested by EBA-122 itself.',
+      'BTPS 1.1 SDK defects that can be expressed as data. The other defects of that set (server schema, crossed responses, line length, error codes) are server-path behaviour and are tested in src/server/test.',
     provenance: `${TEST_ONLY} The receiver key is the one in oaep-wrap.vector.json.`,
     gcmTag: {
       receiverKeyVector: 'oaep-wrap.vector.json',

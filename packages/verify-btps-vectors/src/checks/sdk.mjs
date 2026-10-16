@@ -2,14 +2,13 @@
  * SDK conformance checks: the vectors run against @btps/sdk itself, loaded
  * from a source tree (see sdk-loader.mjs).
  *
- * The item-tagged checks are the regression proof the ticket asks for
- * (EBA-110): on the 367cd09 baseline they fail, and the fix tickets turn
- * them green — item 5 → EBA-115, item 6 → EBA-116/EBA-117, item 10 →
- * EBA-122. The untagged ones (KMS interop) already pass on the baseline and
- * must stay passing.
+ * The canonical-signing (sdk/jcs), selector (sdk/selectors) and defect
+ * (sdk/defects) checks are regression proof: on the 367cd09 baseline they
+ * fail, and the BTPS 1.1 fixes turn them green. The KMS interop checks
+ * already pass on the baseline and must stay passing.
  *
  * Only the SDK's *public* exports are called, and every call that depends on
- * an API shape a fix ticket may change sits in one adapter below, marked.
+ * an API shape a fix may change sits in one adapter below, marked.
  */
 
 import crypto from 'node:crypto';
@@ -143,7 +142,7 @@ export function sdkChecks(sdk, set) {
     },
   );
 
-  // --- Item 5: canonical signing (EBA-115) --------------------------------
+  // --- Canonical signing -------------------------------------------------
   for (const v of [set.managedSignature, set.selfHeldSignature]) {
     const signature = {
       algorithmHash: 'sha256',
@@ -152,9 +151,7 @@ export function sdkChecks(sdk, set) {
     };
     checks.push(
       {
-        id: `sdk/item-5/${v.custody}/verifySignature-accepts-reordered-payload`,
-        item: 5,
-        tickets: ['EBA-115'],
+        id: `sdk/jcs/${v.custody}/verifySignature-accepts-reordered-payload`,
         run() {
           const { isValid, error } = sdkCrypto.verifySignature(
             JSON.parse(v.payloadRaw),
@@ -168,9 +165,7 @@ export function sdkChecks(sdk, set) {
         },
       },
       {
-        id: `sdk/item-5/${v.custody}/signBtpPayload-signs-canonical-bytes`,
-        item: 5,
-        tickets: ['EBA-115'],
+        id: `sdk/jcs/${v.custody}/signBtpPayload-signs-canonical-bytes`,
         run() {
           const signed = sdkCrypto.signBtpPayload(JSON.parse(v.payloadRaw), {
             publicKey: v.publicKeyPem,
@@ -185,9 +180,7 @@ export function sdkChecks(sdk, set) {
     );
   }
   checks.push({
-    id: 'sdk/item-5/verifySignature-rejects-duplicate-member-names',
-    item: 5,
-    tickets: ['EBA-115'],
+    id: 'sdk/jcs/verifySignature-rejects-duplicate-member-names',
     run() {
       const v = set.managedSignature;
       const duplicated = '{"amountCents":100,"amountCents":100000,"id":"dup-1"}';
@@ -227,9 +220,7 @@ export function sdkChecks(sdk, set) {
     };
     if (c.expect === 'reject') {
       checks.push({
-        id: `sdk/item-5/jcs-signature/${c.name}`,
-        item: 5,
-        tickets: ['EBA-115'],
+        id: `sdk/jcs/jcs-signature/${c.name}`,
         run() {
           for (const input of c.inputs) {
             ensure(
@@ -242,9 +233,7 @@ export function sdkChecks(sdk, set) {
       continue;
     }
     checks.push({
-      id: `sdk/item-5/jcs-signature/${c.name}`,
-      item: 5,
-      tickets: ['EBA-115'],
+      id: `sdk/jcs/jcs-signature/${c.name}`,
       run() {
         c.inputs.forEach((input, i) => {
           for (const [form, payload] of [
@@ -270,49 +259,47 @@ export function sdkChecks(sdk, set) {
     });
   }
 
-  // --- Item 6: separate signature and encryption selectors (EBA-116/117) --
-  const item6 = set.selectors;
+  // --- Separate signature and encryption selectors ------------------------
+  const selectors = set.selectors;
   let artifactPromise;
-  const item6Artifact = () => {
+  const selectorsArtifact = () => {
     artifactPromise ??= (async () => {
-      sdk.setTxtRecords(item6Zone(item6, set.oaepWrap.publicKeyPem));
-      const { payload, error } = await produceItem6Artifact(sdk, item6);
+      sdk.setTxtRecords(selectorsZone(selectors, set.oaepWrap.publicKeyPem));
+      const { payload, error } = await produceSelectorsArtifact(sdk, selectors);
       if (error || !payload)
         throw new Error(`signEncrypt failed: ${error?.message ?? 'no payload'}`);
       return payload;
     })();
     return artifactPromise;
   };
-  const item6Check = (name, run) => ({
-    id: `sdk/item-6/${name}`,
-    item: 6,
-    tickets: item6.tickets,
+  const selectorsCheck = (name, run) => ({
+    id: `sdk/selectors/${name}`,
     run,
   });
 
   checks.push(
-    item6Check('artifact-names-signature-selector', async () => {
-      const artifact = await item6Artifact();
+    selectorsCheck('artifact-names-signature-selector', async () => {
+      const artifact = await selectorsArtifact();
       ensure(
-        artifact.signatureSelector === item6.expect.signatureSelector,
-        `signatureSelector is ${JSON.stringify(artifact.signatureSelector)}, expected "${item6.expect.signatureSelector}" (selector=${JSON.stringify(artifact.selector)})`,
+        artifact.signatureSelector === selectors.expect.signatureSelector,
+        `signatureSelector is ${JSON.stringify(artifact.signatureSelector)}, expected "${selectors.expect.signatureSelector}" (selector=${JSON.stringify(artifact.selector)})`,
       );
     }),
-    item6Check('artifact-names-encryption-selector', async () => {
-      const artifact = await item6Artifact();
+    selectorsCheck('artifact-names-encryption-selector', async () => {
+      const artifact = await selectorsArtifact();
       ensure(
-        artifact.encryptionSelector === item6.expect.encryptionSelector,
-        `encryptionSelector is ${JSON.stringify(artifact.encryptionSelector)}, expected "${item6.expect.encryptionSelector}"`,
+        artifact.encryptionSelector === selectors.expect.encryptionSelector,
+        `encryptionSelector is ${JSON.stringify(artifact.encryptionSelector)}, expected "${selectors.expect.encryptionSelector}"`,
       );
     }),
-    item6Check('signature-verifies-with-sender-key-at-signature-selector', async () => {
-      const artifact = await item6Artifact();
+    selectorsCheck('signature-verifies-with-sender-key-at-signature-selector', async () => {
+      const artifact = await selectorsArtifact();
       const selector = artifact.signatureSelector;
       ensure(
         typeof selector === 'string',
         `the artifact does not name the sender's signing key; its one selector (${JSON.stringify(artifact.selector)}) is the receiver's, and the sender key there is the rotated-out one`,
       );
-      const senderKey = await utils.resolvePublicKey(item6.sender.identity, selector);
+      const senderKey = await utils.resolvePublicKey(selectors.sender.identity, selector);
       ensure(senderKey, `no sender key published at ${selector}`);
       const { signature, ...signed } = artifact;
       const { isValid } = sdkCrypto.verifySignature(signed, signature, senderKey);
@@ -405,9 +392,7 @@ export function sdkChecks(sdk, set) {
   const defects = set.sdkDefects;
   for (const c of defects.gcmTag.cases) {
     checks.push({
-      id: `sdk/item-10/gcm-tag/${c.name}`,
-      item: 10,
-      tickets: defects.tickets,
+      id: `sdk/defects/gcm-tag/${c.name}`,
       run() {
         let result;
         try {
@@ -437,9 +422,7 @@ export function sdkChecks(sdk, set) {
   }
   for (const c of defects.identities) {
     checks.push({
-      id: `sdk/item-10/identity/${c.expect}/${c.input}`,
-      item: 10,
-      tickets: defects.tickets,
+      id: `sdk/defects/identity/${c.expect}/${c.input}`,
       run() {
         const parsed = utils.parseIdentity(c.input);
         if (c.expect === 'accept') ensure(parsed, `${c.input} was rejected`);

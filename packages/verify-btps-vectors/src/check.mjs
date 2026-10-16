@@ -3,9 +3,8 @@
  * known-failing lists and CI logs refer to it.
  *
  * @typedef {object} Check
- * @property {string} id      e.g. "vectors/web/jcs/key-order-is-insignificant"
- * @property {number} [item]  the BTPS 1.1 addendum item it proves, if any
- * @property {string[]} [tickets] the tickets that own the fix
+ * @property {string} id      e.g. "vectors/web/jcs/key-order-is-insignificant"; its
+ *   second segment names the area of BTPS 1.1 it proves (e.g. "sdk/jcs/…")
  * @property {() => Promise<void> | void} run throws CheckFailure (or anything) to fail
  */
 

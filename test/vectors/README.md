@@ -28,9 +28,8 @@ The signing keys and the encryption key in these vectors are distinct, and a
 check enforces it. They are keys in different roles: the signature vectors
 stand for a delegator or device key, which only signs, and the wrap vector
 stands for a receiver's key, which is only encrypted to. This is not a rule
-that one identity holds two keys. BTPS keeps one key per identity; item 9 of
-the 1.1 addendum (separate signing and encryption keys, EBA-121) was withdrawn
-by founder decision on 2026-10-11.
+that one identity holds two keys. BTPS keeps one key per identity; a proposal for
+separate signing and encryption key pairs (#10) was withdrawn on 2026-10-11.
 
 The item 6 vectors cover EBA-116 (6a, separate selectors) and EBA-117 (6b,
 the encryption-key lookup rule). Between them each selector changes on its
@@ -38,7 +37,7 @@ own: in `selectors.vector.json` only the sender rotated, in
 `selectors-receiver-rotation.vector.json` only the receiver did. **EBA-118 (6c, a DoH client that checks the
 AD bit) has no vector here, on purpose.** There is no DoH client on 367cd09
 to fail against, and its behaviour depends on a resolver rather than on bytes
-a vector can pin. EBA-118 brings its own tests.
+a vector can pin. That client will bring its own tests.
 
 ## Changing vectors
 
@@ -47,9 +46,9 @@ vectors (EBA-117) are frozen by ~2026-10-16. There are no item 9 key-use
 vectors: item 9 was withdrawn on 2026-10-11, and with it that part of founder
 decision R-30. `generate-vectors.mjs` writes only the
 files that are missing. `--force` regenerates every key and random byte; if
-you use it, say so on every ticket whose tests read these files.
+you use it, say so in every change whose tests read these files.
 
 Open question, not decided here: what a canonicaliser does with an integer
 above 2^53 − 1. RFC 8785 serialises it as the nearest double, which for
-money means a silently different amount. Item 7 (EBA-119) owns the money
+money means a silently different amount. Document model v2 owns the money
 representation.
