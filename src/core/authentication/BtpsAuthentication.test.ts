@@ -64,6 +64,10 @@ class MockTrustStore extends AbstractTrustStore<BTPTrustRecord> {
     return records.find((record) => record.senderId === agentId);
   }
 
+  async isKnownArtifact(): Promise<boolean> {
+    return false;
+  }
+
   clear(): void {
     this.records.clear();
   }

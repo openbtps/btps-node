@@ -72,6 +72,11 @@ export const BTP_ERROR_TRUST_ALREADY_ACTIVE: BTPError = {
   message: 'BTPS trust record already exist. Request invalid',
 };
 
+export const BTP_ERROR_EVENT_UNRELATED: BTPError = {
+  code: 'BTP_ERROR_EVENT_UNRELATED',
+  message: 'Event does not relate to an artifact exchanged between its parties',
+};
+
 export const BTP_ERROR_RESOLVE_DNS: BTPError = {
   code: 'BTP_ERROR_RESOLVE_DNS',
   message: 'No valid DNS record found',

@@ -34,6 +34,7 @@ import {
   BTP_ERROR_IDENTITY_NOT_FOUND,
   BTP_ERROR_UNKNOWN,
   BTP_ERROR_INVALID_ACTION,
+  BTP_ERROR_EVENT_UNRELATED,
 } from '@core/error/constant.js';
 import {
   assertStrictJson,
@@ -530,8 +531,11 @@ export class BtpsServer {
     );
     if (beforeTrustVerResponseSent) return; // Response already sent, stop processing
 
-    // Core trust verification (non-negotiable)
-    const { isTrusted, error: trustError } = await this.verifyTrust(data);
+    // Core trust verification (non-negotiable); an event must also relate to a known artifact
+    const trust = await this.verifyTrust(data);
+    const { isTrusted, error: trustError } = trust.isTrusted
+      ? await this.verifyEventRelation(data)
+      : trust;
     reqCtx.isTrusted = isTrusted;
     if (trustError) reqCtx.error = trustError;
 
@@ -926,6 +930,32 @@ export class BtpsServer {
     }
 
     return verifySignature(signedMsg, signature, publicKey);
+  }
+
+  /**
+   * A `BTPS_EVENT` must name (`relatesTo`, outside its document) an artifact
+   * the platform's trust store says passed between the same two parties. It
+   * is checked without decrypting anything, so it holds for self-held keys
+   * too. Other artifacts pass.
+   */
+  private async verifyEventRelation(
+    data: ProcessedArtifact,
+  ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
+    if (data.type !== 'transporter' || data.artifact.type !== 'BTPS_EVENT') {
+      return { isTrusted: true, error: undefined };
+    }
+    const { relatesTo, from, to } = data.artifact;
+    const isKnown =
+      relatesTo !== undefined &&
+      (await this.trustStore.isKnownArtifact({ artifactId: relatesTo, from, to }));
+    if (isKnown) return { isTrusted: true, error: undefined };
+    return {
+      isTrusted: false,
+      error: new BTPErrorException(BTP_ERROR_EVENT_UNRELATED, {
+        cause: `no artifact ${relatesTo} between ${from} and ${to}`,
+        meta: { relatesTo, from, to },
+      }),
+    };
   }
 
   /**

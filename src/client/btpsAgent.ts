@@ -16,6 +16,7 @@ import { BtpsClient } from './btpsClient.js';
 import type {
   BTPAgentOptions,
   BTPClientResponse,
+  BtpsAgentCommandOptions,
   BtpsAgentCommandParams,
   BtpsAgentDoc,
 } from './types/index.js';
@@ -31,7 +32,6 @@ import type {
 } from 'server/index.js';
 import type {
   BTPCryptoArtifact,
-  BTPCryptoOptions,
   BTPCryptoResponse,
   BTPEncryption,
   PemKeys,
@@ -229,6 +229,7 @@ export class BtpsAgent extends BtpsClient {
       to: to,
       selector: receiverDnsTxt.selector,
       encryption: encryption,
+      ...(options?.relatesTo !== undefined && { relatesTo: options.relatesTo }),
     };
 
     try {
@@ -253,7 +254,7 @@ export class BtpsAgent extends BtpsClient {
     actionType: AgentAction,
     identity: string,
     document?: BtpsAgentDoc,
-    options?: BTPCryptoOptions,
+    options?: BtpsAgentCommandOptions,
     timeoutMs?: number,
   ): Promise<BTPClientResponse> {
     // Validate command parameters using schema

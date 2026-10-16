@@ -124,10 +124,17 @@ export class MongoTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   async getAll(receiverId?: string): Promise<BTPTrustRecord[]> {
     // Return all records, optionally filtered by receiverId
   }
+
+  async isKnownArtifact(query: { artifactId: string; from: string; to: string }): Promise<boolean> {
+    // Return true if your platform delivered an artifact with this id between
+    // these two identities, in either direction. Every BTPS_EVENT is refused otherwise
+  }
 }
 ```
 
 **Important**: The `computedId` parameter should be used as the record's `id` field. Do not generate your own IDs for trust records.
+
+**Events**: `isKnownArtifact` is required. Every lifecycle event (`BTPS_EVENT`) names, in `relatesTo`, the `BTPS_DOC` artifact that delivered its invoice, and the server accepts the event only when this method says that artifact passed between the event's two parties. Answer it from wherever your platform records the artifacts it sends and receives. See [Lifecycle Event](../../protocol/specifications/transporter-artifact.md#4-lifecycle-event-btps_event).
 
 ### MongoDB Setup and Usage
 
@@ -410,6 +417,11 @@ export class PostgresTrustStore extends AbstractTrustStore<BTPTrustRecord> {
 
   async getAll(receiverId?: string): Promise<BTPTrustRecord[]> {
     // Return all records, optionally filtered by receiverId
+  }
+
+  async isKnownArtifact(query: { artifactId: string; from: string; to: string }): Promise<boolean> {
+    // Return true if your platform delivered an artifact with this id between
+    // these two identities, in either direction. Every BTPS_EVENT is refused otherwise
   }
 }
 ```
