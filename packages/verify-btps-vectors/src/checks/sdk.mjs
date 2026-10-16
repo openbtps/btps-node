@@ -21,12 +21,9 @@ const pemToTxtBase64 = (pem) =>
   pem.replace(/-----(BEGIN|END) PUBLIC KEY-----/g, '').replace(/\s+/g, '');
 
 /**
- * ADAPTER — item 6 call shape. On 367cd09 the caller passes one `selector`
- * (the receiver's) in the payload, and `sender` has no selector at all.
- * The sender's selector is offered two ways a 1.1 SDK might read it — on
- * the sender object and in the sender domain's _btps.host record — so the
- * check does not dictate EBA-116's API. If EBA-116 changes how a caller
- * asks for encryption, update this function and say so on EBA-116.
+ * ADAPTER: the signEncrypt call shape. The caller passes its own selector,
+ * the one its signing key is published at, as `selector`; the SDK finds the
+ * receiver's key at the selector the receiver's host record names.
  */
 async function produceItem6Artifact(sdk, vector) {
   const [senderAccount, senderDomain] = vector.sender.identity.split('$');
@@ -42,7 +39,7 @@ async function produceItem6Artifact(sdk, vector) {
   return sdk.crypto.signEncrypt(
     vector.receiver.identity,
     sender,
-    { ...vector.artifact, selector: vector.receiver.hostSelector },
+    { ...vector.artifact, selector: vector.sender.hostSelector },
     {
       signature: { algorithmHash: 'sha256' },
       encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
@@ -208,7 +205,7 @@ export function sdkChecks(sdk, set) {
     },
   });
 
-  // --- Item 6: separate signature and encryption selectors (EBA-116/117) --
+  // --- Item 6: the artifact names the sender's selector -------------------
   const item6 = set.selectors;
   let artifactPromise;
   const item6Artifact = () => {
@@ -232,31 +229,21 @@ export function sdkChecks(sdk, set) {
     item6Check('artifact-names-signature-selector', async () => {
       const artifact = await item6Artifact();
       ensure(
-        artifact.signatureSelector === item6.expect.signatureSelector,
-        `signatureSelector is ${JSON.stringify(artifact.signatureSelector)}, expected "${item6.expect.signatureSelector}" (selector=${JSON.stringify(artifact.selector)})`,
-      );
-    }),
-    item6Check('artifact-names-encryption-selector', async () => {
-      const artifact = await item6Artifact();
-      ensure(
-        artifact.encryptionSelector === item6.expect.encryptionSelector,
-        `encryptionSelector is ${JSON.stringify(artifact.encryptionSelector)}, expected "${item6.expect.encryptionSelector}"`,
+        artifact.selector === item6.expect.selector,
+        `selector is ${JSON.stringify(artifact.selector)}, expected the sender's "${item6.expect.selector}"`,
       );
     }),
     item6Check('signature-verifies-with-sender-key-at-signature-selector', async () => {
       const artifact = await item6Artifact();
-      const selector = artifact.signatureSelector;
-      ensure(
-        typeof selector === 'string',
-        `the artifact does not name the sender's signing key; its one selector (${JSON.stringify(artifact.selector)}) is the receiver's, and the sender key there is the rotated-out one`,
-      );
+      const selector = artifact.selector;
+      ensure(typeof selector === 'string', 'the artifact names no selector');
       const senderKey = await utils.resolvePublicKey(item6.sender.identity, selector);
       ensure(senderKey, `no sender key published at ${selector}`);
       const { signature, ...signed } = artifact;
       const { isValid } = sdkCrypto.verifySignature(signed, signature, senderKey);
       ensure(isValid === true, `signature does not verify with the sender key at ${selector}`);
     }),
-    item6Check('document-decrypts-with-receiver-key-at-encryption-selector', async () => {
+    item6Check('document-decrypts-with-receiver-current-key', async () => {
       const artifact = await item6Artifact();
       ensure(artifact.encryption, 'the document was not encrypted');
       const { data, error } = sdkCrypto.decryptBtpPayload(

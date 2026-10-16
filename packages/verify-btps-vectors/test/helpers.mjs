@@ -95,8 +95,10 @@ export function createFixedSdkFake() {
       }
     },
     async signEncrypt(to, sender, payload) {
-      const { selector: encryptionSelector, document, ...rest } = payload;
-      const receiverPem = await resolvePublicKey(to, encryptionSelector);
+      // `selector` is the sender's; the receiver's key is at its host record's selector.
+      const { selector, document, ...rest } = payload;
+      const receiverHost = records.get(`_btps.host.${parseIdentity(to).domainName}`)?.[0];
+      const receiverPem = await resolvePublicKey(to, receiverHost?.match(/s=([^;]+)/)?.[1]);
       const aesKey = crypto.randomBytes(32);
       const iv = crypto.randomBytes(12);
       const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
@@ -108,8 +110,7 @@ export function createFixedSdkFake() {
         ...rest,
         id: 'fake-1',
         issuedAt: '2026-01-01T00:00:00.000Z',
-        signatureSelector: sender.selector,
-        encryptionSelector,
+        selector,
         document: data,
         encryption: {
           algorithm: 'aes-256-gcm',
