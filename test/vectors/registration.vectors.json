@@ -2202,6 +2202,164 @@
         },
         "expect": "refuse",
         "reason": "no-record"
+      },
+      {
+        "name": "sentbox.fetch/enrolled-device-accepted",
+        "action": "sentbox.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000098",
+          "action": "sentbox.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "tUXsWaPirnQ5sTalbIVhEIMIkVhysgbV3QYYKmOhrBbOddL8Ze+zqkk0q3SbZF93vEHuVHSHUaeqJNEX+lB87H5KftFrpKzijwAuDHvptpwfm7Df3z8wdVZp/VTWcFAebXGQYhTlYTuVimdV5kOZDn8lbKrJELCNLDfLfeB6tzkBt2L+qLIjHqRjbQzuirGQ/lqRIKDQqvBwOFAp//tnWJvc1Db4ViTbRP6VARtj0zd88htwIq9sgoAzrBft4tl5jbrEWv0VwBiVPzjG/lGCd9qxCdp6euhpl3H8AZabTqcWtfW2wOUujvVleAtd2hLot9gvFNiydLZYBathyECIgQ==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "sentbox.fetch/real-agent-id-signed-by-another-key-refused",
+        "action": "sentbox.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000099",
+          "action": "sentbox.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "Ym5LRU835ntPfhCCJA7aAfBzjWScu5rv0EkZqxYpjDB8a8zhZFr3eadrGtJfKJcip0hOrxqMPd2DuF+vDpKo5gp4KQjyBN9jM2Y91TOUYUi4KZEBLEa9jMbtwGKEGZ287or62eUdqsqFDOkS+bqbSpzmMEzSRqUvvDCN0dTy0Fww229BXRO2vqTuq0fgbOGJtlDt/ED42DmX4U0rvDcI9+OF1u2TKD4DXRoPNEihleOFjrId5lknPpBImSPvD2DNpUvoudxDLZ2eZcmHyXzB3o6FKzhcBylShM4G4XKOMwTpD6X3RA8iNxGYyoWe8WxW2x8/f0hhYpOgWpokBqm22A==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "sentbox.fetch/correspondent-identity-as-agent-refused",
+        "action": "sentbox.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000100",
+          "action": "sentbox.fetch",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "py2P98Wc3wzsoNGWu1zYwjAdTdEJx8QWAAIrNqrcV9edaeSfH4FLOA/hdggGHOldaRnTPs9xF+xMytBbAcS+cjRWm2ZnHIUzXZnspbkyfp4xyQ8IVyEFLxgliMT54fE0EhGI6zjxfpKWfpvjsKEPY3MyNlObQsfYi3FwJa8IVdugMAqYmaLMnr6x+YCPYOQ51yTz8+owMLIoXVPALBFKUOA+cQNn9BfEOQHF0G9E5PyoGwHTdpZmuuIOyZlGqK2xWUV7FM/wc1o37ukKZ5GB18UjCjIT3/8yY8foYkVdxx632Epsend9qT2/JtztM723SspIhJmOCiUoncEr/J4rvQ==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "sentbox.fetch/device-of-another-identity-refused",
+        "action": "sentbox.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000101",
+          "action": "sentbox.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "1DBLI23+no3aAN7njTAAx/HAlQMqu3b6ZYGxLJd9KpbMbULwkYzu0WH9QcUTlhge0//Ghuy774Xpp81R1h8/UqXDCPIygfh6msMim7ECNLhH06Eps3kKzHdmB0xkdpEa9JE5Ms7Pq4G+ej9mIn+9VM2ByenFG3v0c3G5NlSThI/9HByd7ITDscA3duyTILSaqykQ0cLr55pyCO1482GTWw4joq6Vh0fkUXwP+j1/qeI7y81cjwgrrDQJYKkJeyAQnwV11BqjTuLoOF2J5pMgvOj9YJcp4/1+EkGFfbEucIZNMysv0Cb1hJXIqCnnDbXRuoV1RO4LQqo8CTHZY5ryVg==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "sentbox.delete/enrolled-device-accepted",
+        "action": "sentbox.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000102",
+          "action": "sentbox.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "icBnJa2h02LYU9nxJtWAcRhHQ9M+xV8uyQVXnDNnqJ6Rw1RM5FBnPI74C8SEMkk7FIaNIg+6bEm3XM1NR4ll+e6CJrqnrpwGyscN4cKldcesdmTtikKT5ItlY2VijgyR8vNxMySjD5avx/X0t5AD1K/BOAWzDSj8kkupVx/mIgzAeGbqUt/Bo/qBytsixriHzeswcMmmh8D1c2uK/vd2MSbC5erRXqhgbBw5FdPRGpdO13Ea3cS8w4aUXh5G47eJmo3uMnL/K2P+5CkSo3PnhIwr7nK/3Fhpb6Hsi2LUI7jLg9utzvZHrKa3ZWKaNQn0z/KkLobttWsqwyuL+f/4UQ==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "sentbox.delete/real-agent-id-signed-by-another-key-refused",
+        "action": "sentbox.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000103",
+          "action": "sentbox.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "IineesGttUusmqY3f4wVY2YWt5ltISrQ19oIvUHAhu2eIh3f287OLKSp3EuLRC1gr9lrgP8K2WfNXrboAKSEzR9I32e1jvAEAAVCQPcgabGURSb6ME5+alKUAj7kvO6DhqVA/sP+dkZO47qWVitOAsT8frBo6X1CNYQDWS9kWI8Snkc4i+Ix/kkCN0i1a0IFoD1sO5KPil66GLe+x4LMujVOWkzljg3J5JDoOGDCW38IBXfMSAYZNkMrqEGuYL/Y23c+gYogV7C7koD2GAaaSP0jTCTGMR6HmAKQZIM+4dU9f3ILFriU6HIL9YBsCezq4Iw/aevNsOyUYKuD36coYw==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "sentbox.delete/correspondent-identity-as-agent-refused",
+        "action": "sentbox.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000104",
+          "action": "sentbox.delete",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "mSfb7rVcpkR2yGykZbDkc491clQOsoRLrTCkUpxf7LqDs7LG4qXjyjIu1I3aoABQX191APW5F5BVEAIBbSqO9dmGtWkQ4BN4sOt4wpee7zj4hJFzo18FJSIwg3u+28mK8fSU9wFQoMDlFcHpe4ZzcbrX6yBFHVuR+HmyksBIBo6n2jGO9CT7PpzGotg2L5v4rbkCq0vT7EEXMS8tT7SYxQ3WMJYgJrKQJaBmqE8lzTMsQgyZGOfw5lrVOM96lc45idJOmOi35ntamF1PrISAcOaG/PElTEVr7MGnK99+dM9vu8hEVzWRQIfSXPMnd987CsTuSXfgMrwhlswNAa4HUQ==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "sentbox.delete/device-of-another-identity-refused",
+        "action": "sentbox.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000105",
+          "action": "sentbox.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "yq+4GwUk1kTFUhzFmYU6kBROjpk4Ir1pcXgZMDHQNkKuLo4IE1bwkJkLHa4th1QcZ9obo3+/R8QGMw4PrEJjEmiRkM+qKpdR5MpnCDWrC2ht0i8j9bYtoTZXVRiFCLOmF0t58JK1wphJBQ2EiFrF7d8O0JzKLKnidPwD6pE7tS1Pdk7ppsDmmedOxXjluErNflnId9/ij4fdFcm78ACFMzI/El3Ht07elFWLbZWKFTdQ/8tNCaeBsCY7Goa6niWH0J+isE2oPS4cJJEORcaS3bo9DjsFO5Py1dy2ytydfW6pNlc+vPOsJIMmxSPG3QzI18ib17nELrrMctYkLFGvcw==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
       }
     ]
   }

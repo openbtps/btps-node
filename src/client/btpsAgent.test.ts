@@ -563,7 +563,8 @@ describe('BtpsAgent', () => {
         expect.objectContaining({
           action: 'trust.request',
           agentId: 'test-agent-123',
-          to: 'bob$company.com',
+          // Its own identity: the transporter artifact inside goes to bob (EBA-122).
+          to: 'test$example.com',
           document: expect.any(Object),
           version: BTP_PROTOCOL_VERSION,
         }),
@@ -821,7 +822,8 @@ describe('BtpsAgent', () => {
         expect.objectContaining({
           action: 'trust.request',
           agentId: 'test-agent-123',
-          to: 'bob$company.com',
+          // Its own identity: the transporter artifact inside goes to bob (EBA-122).
+          to: 'test$example.com',
           document: expect.any(Object),
           version: BTP_PROTOCOL_VERSION,
         }),
@@ -903,7 +905,8 @@ describe('BtpsAgent', () => {
         expect.objectContaining({
           action: 'trust.request',
           agentId: 'test-agent-123',
-          to: 'bob$company.com',
+          // Its own identity: the transporter artifact inside goes to bob (EBA-122).
+          to: 'test$example.com',
           document: expect.any(Object),
           version: BTP_PROTOCOL_VERSION,
         }),

@@ -117,6 +117,10 @@ export class BtpsAgent extends BtpsClient {
 
     const needForTransport = Object.keys(mappedTransporterAction).includes(actionType);
     if (needForTransport) {
+      // The agent artifact goes to this agent's own identity, whose server
+      // holds its trust record (item E) and sends the transporter artifact
+      // inside it on to the receiver (addendum item 10, EBA-122).
+      agentArtifact.to = this.options.to;
       const { payload: transporterPayload, error: transporterError } =
         await this.buildTransportArtifact({
           ...commandParams,

@@ -31,6 +31,9 @@ export const AGENT_ACTIONS = [
   ...TRUST_IMMEDIATE_ACTIONS,
   ...INBOX_ACTIONS,
   ...OUTBOX_ACTIONS,
+  // Listed with the immediate actions but missing here, so every sentbox
+  // action was refused by the schema (addendum item 10, EBA-122).
+  ...SENTBOX_ACTIONS,
   ...DRAFT_ACTIONS,
   ...SYSTEM_ACTIONS,
   ...AUTH_ACTIONS,
@@ -40,6 +43,20 @@ export const AGENT_ACTIONS = [
 ] as const;
 
 export const TRANSPORTER_ACTIONS = ['TRUST_REQ', 'TRUST_RES', 'BTPS_DOC', 'BTPS_EVENT'] as const;
+
+/**
+ * The agent actions whose document is a transporter artifact, built and
+ * signed by the device, which its identity's server sends on; and the
+ * artifact's type for each (addendum item 10, EBA-122).
+ */
+export const AGENT_TRANSPORTER_ACTIONS = {
+  'trust.request': 'TRUST_REQ',
+  'trust.respond': 'TRUST_RES',
+  'artifact.send': 'BTPS_DOC',
+  'event.send': 'BTPS_EVENT',
+} as const satisfies Partial<
+  Record<(typeof AGENT_ACTIONS)[number], (typeof TRANSPORTER_ACTIONS)[number]>
+>;
 
 export const IMMEDIATE_ACTIONS = [
   ...SYSTEM_ACTIONS,

@@ -43,7 +43,7 @@ Agent artifacts (`BTPAgentArtifact`) are designed for client-to-server communica
 - **id**: Unique message identifier (UUID v4 recommended)
 - **action**: Agent action type (see Supported Actions section)
 - **agentId**: Unique identifier for the authenticated agent
-- **to**: Recipient's BTPS identity address
+- **to**: The identity the agent acts for, whose server holds the agent's trust record (BTPS 1.1). For the actions that carry a transporter artifact, the receiver is that artifact's `to`, not this one (see Artifact Actions)
 - **issuedAt**: ISO 8601 timestamp of message creation
 - **signature**: Cryptographic signature for authenticity
 
@@ -112,6 +112,18 @@ Agent artifacts (`BTPAgentArtifact`) are designed for client-to-server communica
 builds a `BTPS_EVENT` transporter artifact whose `id` is the event's `id`.
 The document is required, and is validated as a lifecycle event before it
 is sent. See [Lifecycle Events](./lifecycle-events.md).
+
+**What these actions carry (BTPS 1.1).** `artifact.send`, `event.send`,
+`trust.request` and `trust.respond` carry, as their `document`, the transporter
+artifact the device built and signed: `BTPS_DOC`, `BTPS_EVENT`, `TRUST_REQ` and
+`TRUST_RES` respectively. The agent artifact's `to` is the agent's own identity;
+the transporter artifact's `from` must be that same identity, and its `to` is
+the receiver. The server holds the transporter artifact to every rule of a
+transporter artifact (its document, the envelope and ownership rules, the
+attachment check), except that it does not yet name a `signatureSelector`: the
+device's key is published nowhere, so the identity's server adds a delegation
+before sending it on. `sentbox.fetch` and `sentbox.delete` are agent actions
+like the other mailbox actions (they were refused by the 1.0 schema).
 
 ## Supported Document Types
 

@@ -739,6 +739,10 @@ function registration() {
     'event.send',
     'trash.fetch',
     'trash.delete',
+    // Added by EBA-122, when AGENT_ACTIONS gained the sentbox actions; last,
+    // so the ids above are unchanged.
+    'sentbox.fetch',
+    'sentbox.delete',
   ];
   const agentArtifact = (action, from, signedBy, to = identity) => {
     const unsigned = {
