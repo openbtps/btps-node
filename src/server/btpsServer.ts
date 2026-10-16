@@ -102,6 +102,10 @@ import {
   REGISTRATION_ERRORS,
 } from '@core/authentication/registration.js';
 import { BtpsAuthentication } from '@core/authentication/BtpsAuthentication.js';
+import {
+  attestationSignedMessage,
+  delegationSignedMessage,
+} from '@core/delegation/signedMessages.js';
 import type { BTPsTokenDocument, TokenStore } from '@core/authentication/types.js';
 
 /**
@@ -912,9 +916,10 @@ export class BtpsServer {
   private async verifyAttestation(
     delegation: Omit<BTPDelegation, 'attestation'> & { attestation: BTPAttestation },
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
-    const { attestation, ...restDelegation } = delegation;
-    const { signature, ...restAttestation } = attestation;
+    const { attestation } = delegation;
+    const { signature } = attestation;
 
+    // The attestor's own key, at the selector the attestation names.
     const attestorPubKey = await resolvePublicKey(attestation.signedBy, attestation.selector);
     if (!attestorPubKey) {
       return {
@@ -925,8 +930,11 @@ export class BtpsServer {
         }),
       };
     }
-    const signedMsg = { ...restDelegation, attestation: restAttestation };
-    const { isValid, error } = verifySignature(signedMsg, signature, attestorPubKey);
+    const { isValid, error } = verifySignature(
+      attestationSignedMessage(delegation),
+      signature,
+      attestorPubKey,
+    );
     return {
       isValid,
       error: error
@@ -1029,11 +1037,13 @@ export class BtpsServer {
       };
     }
 
-    const { signature, ...restDelegation } = delegation;
-    const signedMsg = { ...artifactWithDelegation, delegation: restDelegation };
-
-    /* Verify the delegation signature against the delegated artifact which includes the original artifact and signed artifact*/
-    const { isValid: isValidDelegation } = verifySignature(signedMsg, signature, delegatorPubKey);
+    /* The delegator signed the artifact and the delegation before any
+     * attestation was added: verify that same message (addendum item 10). */
+    const { isValid: isValidDelegation } = verifySignature(
+      delegationSignedMessage(restArtifact, delegation),
+      delegation.signature,
+      delegatorPubKey,
+    );
     if (!isValidDelegation) {
       return {
         isValid: isValidDelegation,

@@ -280,37 +280,33 @@ describe('EBA-115: canonical signing end to end', () => {
   });
 
   // Addendum item 10 ("an attested delegation never verifies on the server
-  // path"), not EBA-115's: the delegation is signed before the attestation is
-  // added, but verifyDelegation checks it with the attestation still in. The
-  // same on release/1.1 before JCS.
-  it.fails(
-    'the server accepts an attested delegation (expected failure until addendum item 10 is fixed)',
-    async () => {
-      const delegator = new BtpsDelegator({
-        identity: 'delegator$saas.example',
-        privateKey: keys.saas.privateKey,
-        autoInit: false,
-      });
-      await delegator.init();
-      const agentSigned = await signEncrypt(
-        undefined,
-        {
-          accountName: 'alice',
-          domainName: 'saas.example',
-          selector: 'btps1',
-          pemFiles: keys.agent,
-        },
-        baseArtifact(),
-      );
-      const delegated = await delegator.delegateArtifact(
-        'btps_ag_device-1',
-        keys.agent.publicKey,
-        agentSigned.payload as unknown as BTPTransporterArtifact,
-        { identity: 'alice$saas.example', keyPair: keys.alice },
-      );
-      expect(await serverVerifies(delegated)).toMatchObject({ isValid: true });
-    },
-  );
+  // path"), fixed by EBA-122: the delegation is signed before the attestation
+  // is added, and verifyDelegation now checks it without the attestation.
+  it('the server accepts an attested delegation', async () => {
+    const delegator = new BtpsDelegator({
+      identity: 'delegator$saas.example',
+      privateKey: keys.saas.privateKey,
+      autoInit: false,
+    });
+    await delegator.init();
+    const agentSigned = await signEncrypt(
+      undefined,
+      {
+        accountName: 'alice',
+        domainName: 'saas.example',
+        selector: 'btps1',
+        pemFiles: keys.agent,
+      },
+      baseArtifact(),
+    );
+    const delegated = await delegator.delegateArtifact(
+      'btps_ag_device-1',
+      keys.agent.publicKey,
+      agentSigned.payload as unknown as BTPTransporterArtifact,
+      { identity: 'alice$saas.example', keyPair: keys.alice },
+    );
+    expect(await serverVerifies(delegated)).toMatchObject({ isValid: true });
+  });
 
   it('the server signs its own response over the JCS form', async () => {
     // Captured as handed to sendBtpsResponse, before its schema check: on

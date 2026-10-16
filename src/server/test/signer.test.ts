@@ -349,17 +349,42 @@ describe('EBA-441: the core signs through a Signer and decrypts through a Decryp
       ).toMatchObject({ isValid: true });
     });
 
-    // Pre-existing defect, not EBA-441's, and the same with a PEM key pair:
-    // the delegation is signed without its attestation, but the server
-    // verifies it with the attestation in place, so an attested delegation
-    // never verifies end to end. Reported on the pull request.
-    it.fails(
-      'an attested delegation verifies at the server end to end (expected failure: pre-existing server defect)',
-      async () => {
-        const delegated = await onBehalfOfCarol(fakeKms(key('carol$custom.example')).signer);
-        expect(await serverVerifies(delegated)).toMatchObject({ isValid: true });
-      },
-    );
+    // Addendum item 10, fixed by EBA-122: the delegation was signed without
+    // its attestation but verified with it in place. Both sides now build
+    // the message in core/delegation/signedMessages.ts.
+    it('an attested delegation verifies at the server end to end', async () => {
+      const delegated = await onBehalfOfCarol(fakeKms(key('carol$custom.example')).signer);
+      // Each signature names its own signer's key: the attestor's is not carol's.
+      expect(delegated.delegation.selector).toBe('c7');
+      expect(delegated.delegation.attestation).toMatchObject({
+        signedBy: 'delegator$saas.example',
+        selector: 'sk1',
+      });
+      expect(await serverVerifies(delegated)).toMatchObject({ isValid: true });
+    });
+
+    it('an attested delegation changed after signing, or naming the wrong attestor key, is refused', async () => {
+      const delegated = await onBehalfOfCarol(fakeKms(key('carol$custom.example')).signer);
+      const changed = <T>(edit: (d: typeof delegated) => void): T => {
+        const copy = structuredClone(delegated);
+        edit(copy);
+        return copy as T;
+      };
+      for (const tampered of [
+        // the attestation's own fields
+        changed((d) => (d.delegation.attestation!.issuedAt = new Date(0).toISOString())),
+        // the user's selector in place of the attestor's
+        changed((d) => (d.delegation.attestation!.selector = 'c7')),
+        // the delegation it covers
+        changed((d) => (d.delegation.agentPubKey = key('carol$custom.example').publicKey)),
+        // the attestation dropped: required when the delegator is the sender
+        changed((d) => delete d.delegation.attestation),
+      ]) {
+        expect(await serverVerifies(tampered as typeof delegated)).toMatchObject({
+          isValid: false,
+        });
+      }
+    });
   });
 
   describe('BtpsAgent signs with its device key through a Signer', () => {

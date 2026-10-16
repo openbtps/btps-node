@@ -7,6 +7,7 @@
 
 import type { BTPTransporterArtifact, BTPDelegation, BTPAttestation } from '../server/types.js';
 import { signBtpPayload } from '../crypto/index.js';
+import { attestationSignedMessage, delegationSignedMessage } from './signedMessages.js';
 import type { BTPSigningKey, PemKeys } from '@core/crypto/types.js';
 import type { Signer } from '../../signer-interface.js';
 import { getHostAndSelector, resolvePublicKey } from '@core/utils/index.js';
@@ -198,22 +199,18 @@ export class BtpsDelegator {
     agentPubKey: string;
     selector: string;
   }): Promise<BTPDelegation> {
-    const issuedAt = new Date().toISOString();
-    const delegationPayload = {
-      ...params.artifact,
-      delegation: {
-        agentId: params.agentId,
-        agentPubKey: params.agentPubKey,
-        signedBy: params.delegatorIdentity,
-        issuedAt,
-        selector: params.selector,
-      },
+    const delegation = {
+      agentId: params.agentId,
+      agentPubKey: params.agentPubKey,
+      signedBy: params.delegatorIdentity,
+      issuedAt: new Date().toISOString(),
+      selector: params.selector,
     };
-    const signature = await signBtpPayload(delegationPayload, params.delegatorKey);
-    return {
-      ...delegationPayload.delegation,
-      signature,
-    };
+    const signature = await signBtpPayload(
+      delegationSignedMessage(params.artifact, delegation),
+      params.delegatorKey,
+    );
+    return { ...delegation, signature };
   }
 
   /**
@@ -225,19 +222,16 @@ export class BtpsDelegator {
     attestorKey: BTPSigningKey;
     selector: string;
   }): Promise<BTPAttestation> {
-    const issuedAt = new Date().toISOString();
-    const attestationPayload = {
-      ...params.delegation,
-      attestation: {
-        signedBy: params.attestorIdentity,
-        issuedAt,
-        selector: params.selector,
-      },
+    const attestation = {
+      signedBy: params.attestorIdentity,
+      issuedAt: new Date().toISOString(),
+      // The attestor's own key: the server resolves it at signedBy + selector.
+      selector: params.selector,
     };
-    const signature = await signBtpPayload(attestationPayload, params.attestorKey);
-    return {
-      ...attestationPayload.attestation,
-      signature,
-    };
+    const signature = await signBtpPayload(
+      attestationSignedMessage({ ...params.delegation, attestation }),
+      params.attestorKey,
+    );
+    return { ...attestation, signature };
   }
 }
