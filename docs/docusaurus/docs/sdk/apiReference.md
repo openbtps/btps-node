@@ -1097,6 +1097,22 @@ Server-side-only error constant for a trust record with `status: 'revoked'`. Thi
 
 ---
 
+### BTP_ERROR_EVENT_UNRELATED
+
+```ts
+const BTP_ERROR_EVENT_UNRELATED: BTPError;
+```
+
+**Description:**
+Server-side-only error constant for a `BTPS_EVENT` whose `relatesTo` the trust store does not know as an artifact between the event's two parties (see `isKnownArtifact` on [AbstractTrustStore](./classApiReference.md#isknownartifact)). Like a revoked trust, it never reaches the wire: the sender receives `BTP_ERROR_TRUST_NOT_ALLOWED`.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_EVENT_UNRELATED'`
+- `message`: `'Event does not relate to an artifact exchanged between its parties'`
+
+---
+
 ### BTP_ERROR_TRUST_ALREADY_ACTIVE
 
 ```ts

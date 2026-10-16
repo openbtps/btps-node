@@ -25,11 +25,21 @@ export const BtpTransporterArtifactBaseSchema = z.object({
   document: z.unknown(),
   delegation: BtpDelegationSchema.optional(),
   selector: z.string(),
+  relatesTo: z.string().min(1).optional(),
 });
 
 // Schema for transporter artifacts with document validation
 export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.superRefine(
   (data, ctx) => {
+    // An event names, outside its (possibly encrypted) document, the artifact
+    // that delivered its invoice, so a server can check it without decrypting.
+    if ((data.type === 'BTPS_EVENT') !== (data.relatesTo !== undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'relatesTo is required on a BTPS_EVENT and only there',
+        path: ['relatesTo'],
+      });
+    }
     if (data.encryption) {
       // If encrypted, document must be a string
       if (typeof data.document !== 'string') {

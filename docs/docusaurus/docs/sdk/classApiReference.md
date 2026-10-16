@@ -369,7 +369,7 @@ Executes an agent command with optional document payload.
 - **actionType**: [AgentAction](./typesAndInterfaces.md#agentaction) – Type of agent action
 - **identity**: `string` – Target BTPS identity
 - **document**: [BtpsAgentDoc](./typesAndInterfaces.md#btpsagentdoc) (optional) – Document payload
-- **options**: [BTPCryptoOptions](./typesAndInterfaces.md#btpcryptooptions) (optional) – Cryptographic options
+- **options**: [BtpsAgentCommandOptions](./typesAndInterfaces.md#btpsagentcommandoptions) (optional) – Cryptographic options, and on `event.send` the required `relatesTo`
 - **timeoutMs**: `number` (optional) – Timeout in milliseconds
 - **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
 
@@ -404,6 +404,20 @@ const sendRes = await agent.command('artifact.send', 'client$domain.com', {
     rows: [{ Description: 'Service', Amount: 10000 }],
   },
 });
+
+// Lifecycle event: relatesTo is the id of the BTPS_DOC artifact that delivered the invoice
+const eventRes = await agent.command(
+  'event.send',
+  'billing$vendor.com',
+  {
+    type: 'lifecycle_event',
+    id: crypto.randomUUID(),
+    occurredAt: new Date().toISOString(),
+    document: { from: 'billing$vendor.com', id: 'INV-2025-001', sha256: 'lowercase-hex-sha256' },
+    eventType: 'paid',
+  },
+  { signature: { algorithmHash: 'sha256' }, relatesTo: invoiceArtifactId },
+);
 ```
 
 ---
@@ -1458,6 +1472,34 @@ const all = await store.getAll();
 const filtered = await store.getAll('receiver-id');
 ```
 
+### isKnownArtifact
+
+```ts
+await store.isKnownArtifact({ artifactId, from, to });
+```
+
+Answer whether an artifact with this id passed between these two identities, in either direction. The server asks this for every `BTPS_EVENT`, using the event's `relatesTo`, and refuses the event unless the answer is `true` (`BTP_ERROR_EVENT_UNRELATED` in the server's context, `BTP_ERROR_TRUST_NOT_ALLOWED` on the wire). Only the platform knows which artifacts it delivered, so every trust store must implement it. A store that always answers `false` accepts no events (see [Lifecycle Event](../protocol/specifications/transporter-artifact.md#4-lifecycle-event-btps_event)).
+
+- **artifactId**: `string` – the event's `relatesTo`: the `id` of the `BTPS_DOC` artifact that delivered the invoice
+- **from**: `string` – the event's sender
+- **to**: `string` – the event's receiver
+- **Returns**: `Promise<boolean>`
+
+**Example:**
+
+```js
+async isKnownArtifact({ artifactId, from, to }) {
+  const count = await this.artifacts.countDocuments({
+    id: artifactId,
+    $or: [
+      { from, to },
+      { from: to, to: from },
+    ],
+  });
+  return count > 0;
+}
+```
+
 ---
 
 ## JsonTrustStore
@@ -1580,6 +1622,30 @@ Get all trust records, optionally filtered by receiver.
 ```js
 const all = await trustStore.getAll();
 const filtered = await trustStore.getAll('receiver-id');
+```
+
+### isKnownArtifact
+
+```ts
+await trustStore.isKnownArtifact({ artifactId, from, to });
+```
+
+Always `false`: this store keeps trust records, not artifacts, so a server using it as is accepts no `BTPS_EVENT`. To accept events, extend it and answer from wherever your platform keeps the artifacts it delivered (see [AbstractTrustStore.isKnownArtifact](#isknownartifact)).
+
+**Example:**
+
+```js
+class MyTrustStore extends JsonTrustStore {
+  async isKnownArtifact({ artifactId, from, to }) {
+    // wherever your platform records the artifacts it sends and receives
+    const artifact = await myArtifacts.getById(artifactId);
+    if (!artifact) return false;
+    return (
+      (artifact.from === from && artifact.to === to) ||
+      (artifact.from === to && artifact.to === from)
+    );
+  }
+}
 ```
 
 ### flushNow

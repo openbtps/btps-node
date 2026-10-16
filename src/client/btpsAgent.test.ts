@@ -736,12 +736,42 @@ describe('BtpsAgent', () => {
         eventType: 'paid',
       };
 
-      await agent.command('event.send', 'bob$company.com', event);
+      await agent.command('event.send', 'bob$company.com', event, {
+        signature: { algorithmHash: 'sha256' },
+        relatesTo: 'doc-1',
+      });
 
       expect(mockCrypto.signBtpPayload).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'BTPS_EVENT', id: event.id }),
+        expect.objectContaining({ type: 'BTPS_EVENT', id: event.id, relatesTo: 'doc-1' }),
         expect.any(Object),
       );
+    });
+
+    it('should refuse event.send without relatesTo, and relatesTo on any other action', async () => {
+      const event: BTPDocType = {
+        type: 'lifecycle_event',
+        id: '7f1c1f0e-3b9a-4c2e-9a51-2f8f0b1d6c11',
+        occurredAt: '2024-01-05T00:00:00.000Z',
+        document: { from: 'bob$company.com', id: 'INV-001', sha256: 'c'.repeat(64) },
+        eventType: 'paid',
+      };
+      const trustRequest: BTPDocType = {
+        id: 'trust-req-1',
+        name: 'Alice',
+        email: 'alice@example.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      };
+
+      const withoutRelatesTo = await agent.command('event.send', 'bob$company.com', event);
+      const onTrustRequest = await agent.command('trust.request', 'bob$company.com', trustRequest, {
+        signature: { algorithmHash: 'sha256' },
+        relatesTo: 'doc-1',
+      });
+
+      expect(withoutRelatesTo.error?.cause).toContain('options.relatesTo');
+      expect(onTrustRequest.error?.cause).toContain('options.relatesTo');
+      expect(mockCrypto.signBtpPayload).not.toHaveBeenCalled();
     });
   });
 
