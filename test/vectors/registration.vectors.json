@@ -1,0 +1,2208 @@
+{
+  "item": "E",
+  "tickets": [
+    "EBA-113"
+  ],
+  "description": "BTPS 1.1 item E, device registration bound to the identity (addendum item 3, threat T-25), and fix-list item 5 (a forged agent message). sequences: each starts from an empty token store (none when tokenStore is false) holding the tokens in `issue`, each issued `issuedMsBeforeUse` before the steps run and valid for `tokenExpiryMs`; each step is an auth.request signed over its JCS form, accepted (the device is bound to the token's identity under an agent id the server generates) or refused with `reason` and the error code `error`. In the lifecycle sequence the device is then used, refreshed with a key rotation, and its old key refused. concurrent: both requests race for one token; exactly one is accepted. forged: the store holds one enrolled device (`enrolled`) and one trust between two identities (`correspondentTrust`); each case is an agent artifact for an action other than auth.request, accepted only when it is the enrolled device's, signed by its key, to its identity.",
+  "provenance": "TEST-ONLY key generated locally for the BTPS golden vectors (EBA-110). Never use it for anything else.",
+  "now": "2026-10-16T00:00:00.000Z",
+  "tokenExpiryMs": 900000,
+  "identity": "alice$saas.example",
+  "otherIdentity": "bob$saas.example",
+  "keys": {
+    "deviceA": {
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+      "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDtSb/uFJtfr0Gq\nmhMVDjDwDbBF0pN8e2Dn5teCnhddtJ9169H9TsuyklMCqQu5bOzoY1eid9OWXPl4\no4D9DBbd1+91wGnFzZI4kgcFtsFvetl3LjXOVMT6iXslhwUBepJgk6mn9aj/WRG9\nJiR+wnkGnY7fe5fO2/3OhaQFj6sTuxk9CB0RAOy+JOvk3Ta5A4LVXuIN8n4KN7Aq\ngZRneLiv4rryYjK3jPQqdxlnscRy5DhlJvaOdW7FzKhCCdfG1z46uc4eetz0HmFD\n1fclz5LH8R4n+CfdC0BHx50Cxj/CNMrUbLnLnPWAVDil/kofDBwnkwfrVQ/B2Iap\nj3LfdD3zAgMBAAECggEABpaC/flgn7/tB0Sqn+UYPHdKKNg9xPVTbYEXrsp8+/yz\nEPEhoS4JEI41c6iXCxMT/DkO7K0Xqei3lCVmf9vHu8/UoHoZT0kvfRZ0iw5m44R1\n13Q9dDBScqW5TmnjcePusesQIrW2dz7VOB0ZuEpuVaIV0bmpt+utrhDrZGgiY7zt\np5eJH9KBIJuubc+sVqMXcAHDocgezdRHzr3ynrAd24y3KkfuWhMqHL/fIj6sEJrw\nn+QUMAAh8ICAa68oxqPtTsk/e2jcWgzUyp8KkxTMCxEDEDKYmE6sEOm1WMD64lRu\nudLsrhFVCKc+7tI8XrijBOlEB2mbFmutMSJMW+AGeQKBgQD5zA9m0BA+6bOW4SnV\nfzbUPx+tVsIX3BQfkidZXzzjbpOnG/kPuBONcVGyJfBl+GW/6ymNQyew56l77Gx4\npaifeL54z1LMwtU8z4Xrz+Lvo9WvbZR/K+zvIgW4xxMexp1hXK5o2qkDRxFG4b96\nLpf6z7+no+dntRqaA2TWG1sIXwKBgQDzLiuzzVc7+2ecCKq9IZrnH4vvjEY345/G\nYm9UtXBPicoh3rxW4E7RusCWitKEujWpRlSrQBjIcXL3vpXxnMOMgfi5uFkzFCoG\nK1fqGHQvOit46b+XIyW2QNl7gnE7LJfkUw1miMyQuUrhriuClONaidOGc+bnLkeD\nbRtBDhtC7QKBgHkjcpyjbh10bDlRPF5i8Q4BBrWjC0FS4xdkY1y+COMqbsRtllz/\nIcxIFhxUtb5dtcpamq380TTDQ7frMbdYbuvXPFeOA1N1cL+qzAFNsXoRc8E9XPRH\nMwHM+AVh1W3pV80tiw8iazBBuKktNRRloCJruT/tBn2OoDXsS2xhm8X1AoGAUIye\nlTQTDR89NoX4aCVVdfERHQvNxn1zUvcQAXMH/JCbj5SDthMeiIHfgP4CtUwosiVF\nrmPQ0bQibMWITTur2kLC7GGPykeHk/uPZ08qTOprs+VZPOq7dx8L6slOUFd5CHwq\nGCh/+gAmOZLDfsFqfXbhxctmVHUT4wik2mudxBECgYBszKxzxzhmK1PaaAUOZfwe\nVZjl+UM6jEpTOuYPDBpRWojCrtk7j5Y8NBFM58/EMVLHG2xb69bReNlPE/2CVd+d\nHdX5IXxj84G9fAMUdedFECSi6cgbzin4KfsR0XAb6uf9o7F1RGfXFcbvFmF8w9Zz\nFCIqnXn94mq5klUeBx4BlQ==\n-----END PRIVATE KEY-----\n",
+      "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+    },
+    "deviceB": {
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx2ddyTINbhLy0q/c2L/C\nOLqt3wuVlCoJjxseWPt2nq/w2fZCsNuxQVo9MKCEOTBRT9qlZpdtEuAJcxs7/OC1\ngbwSXwl6ZWIAC6aZD25BkolK624LvL2/AJJk+Np8Pmsre8IsYjXMli9qfDiPyoqO\no1ub7x3XsZKeOx7kf6QQhj4sbN/mrNcRdTd3GEq8FwXkQPEWTuJnkRS3cbjX3WDE\nTb/ULtE2HotIHC2h436Sz0OyItPKDePmlP6HoqSGOk5kxUYEVS+S96ewtW55QZIR\nrOwHXIMycTmXnxo9T+1Au3dkDlfRQ1Om7GYd4AwEB9gSFT3EwE5tdBKcUswAEBjF\nfQIDAQAB\n-----END PUBLIC KEY-----\n",
+      "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDHZ13JMg1uEvLS\nr9zYv8I4uq3fC5WUKgmPGx5Y+3aer/DZ9kKw27FBWj0woIQ5MFFP2qVml20S4Alz\nGzv84LWBvBJfCXplYgALppkPbkGSiUrrbgu8vb8AkmT42nw+ayt7wixiNcyWL2p8\nOI/Kio6jW5vvHdexkp47HuR/pBCGPixs3+as1xF1N3cYSrwXBeRA8RZO4meRFLdx\nuNfdYMRNv9Qu0TYei0gcLaHjfpLPQ7Ii08oN4+aU/oeipIY6TmTFRgRVL5L3p7C1\nbnlBkhGs7AdcgzJxOZefGj1P7UC7d2QOV9FDU6bsZh3gDAQH2BIVPcTATm10EpxS\nzAAQGMV9AgMBAAECggEAHGkQVj2w5ymA+l6/JwyvRfjnE/vpDGqu4PpaqQ/u9y4X\nMV7iYqNyjl6mkDqWjDVjqG59GXBixIkyH3nWYrG7eqgKsArAKxi66+4JKccqRZAV\nIhUUTAh24cR56XDrudL4J5JjU3zZ0N4hnGBMsG1sZD8FqRyF4lGDBOZiZQNBrXaG\n4UonXbNirfuXS6XLhcaUQ94VDxdXPrMGDpqtElGTufLDDJ5oDjK4l1Qoq/n7QZWL\nS0yBUmvihqEcmkiJnSF955k5xXNqhg08RDpsQ9XAnKlwiK5jNSGcpw8tuQwsj8SO\n8HdkumBFma+9hl5ksIOpaBwnzunPmhanTrq06iYnywKBgQDo8Ev8E03JJ2ffAzYB\ndG+VIi0Ha6tD2P3mKnrIZ3b6fy2mhuYxTEWN9JPge6i8tgVCVFFcEhv+rXZlGTSW\nIUPrtDaLPigPS8lcQBdZAJYZdZ53u58wrCtuK8fNgMgar1T2VbH/8kl5nM8lwZ+a\nk4XHS+1454zyi2v60JtkM9QjRwKBgQDbJSVsoC2F9APXi2vMdCsjM1+X0E0FsnYf\nk2mNNKwIIyMS35oRPPSYJLOKYJfa9pTXuAiaEiyiimwRZA0eWDSK1Hd+f/XRWz5f\n0swjmvNSOef25wmZBm88QN3sXnsDehyf1nCt8S21jrhexrwOBgCQ83btmeaL7GLf\n0Ly+U6MLGwKBgGEldksWseYmbQdxC2Dn8nE745Oor7CIGruXE8XogJJP3/YHZJFC\nwe9GBTYl3GV3dBIJoDTJyKsaJLpdHLVQAkeWzPidX4+hh8TVZedUe0T67K/6q5Vc\n+G/mCloGT23xmXlym92makYxw6J3cdzBkZVgcRVvXDT7OHlN7sCHbP2ZAoGAAa25\nKanYb2w9E0uYGcrSAcUE+G66CE8jpH5GkrRSlQVf4WchEPy8iuXNEkRHJYA6B6T7\nO+LjwKL6zO9NQmw+ismx2KA2S9I9GhLNSYCIWJrk8fk3E5r/AyEkEglvO8mVqovD\n9TEhvoBHXUJ8ckcNfg6/XHaPU4cOAtTgfTy6xP0CgYA03YGHiu4UhK96TByHZ+iZ\nlw9BL9gb7Ccv3oGOWXu7xvI/VBLBXLcxK3u7j+HjRiTDjFyLt75HlW14jgPYdjuy\nqwZkkhiHu0FqwjVcVtzM5a7RgXy+KEUX/MwchaahLC/aqfdYgd1UmaqtX6tJKMsu\ndsPpIIr9hdLpKWSVhD0EGQ==\n-----END PRIVATE KEY-----\n",
+      "fingerprint": "jWkxkLi2Oa+l6QJ4PzxuEvxewspfB/LQZTDjizlQqEk="
+    },
+    "deviceA2": {
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtpM7b22LvbArXh3NzL85\novIh4sVJl6tvsiO+qrm5UKPTGULyRFS5hTW/75D4MGK0ZjXdvkdNnCSO00eMPkmc\n+Gir0qt6JVRk8/B+QL4NpqQmwg06Sy2r5Bz1C3R/yEHgC2WMIl6EKLMRzYJctKag\nL4q9CHH+Fb3ZWM+sgTxIaqKiTZMoYdJUW8XNFCfTw/X5mR8Ek//UnR5kOGWL9D/Y\nesLX9dJzAu+m2b4FOgE/ylhedBYUqMb13c/ID84d0VpHPejdZ+LvDcrDkpAFp+Hi\n4QAGGCbfn4DK5c+ED1TOcIp5nUFXsMmVuXOBOulfC8hWwXsO8dlDhpL8s5NtSqi+\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
+      "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC2kztvbYu9sCte\nHc3Mvzmi8iHixUmXq2+yI76qublQo9MZQvJEVLmFNb/vkPgwYrRmNd2+R02cJI7T\nR4w+SZz4aKvSq3olVGTz8H5Avg2mpCbCDTpLLavkHPULdH/IQeALZYwiXoQosxHN\ngly0pqAvir0Icf4VvdlYz6yBPEhqoqJNkyhh0lRbxc0UJ9PD9fmZHwST/9SdHmQ4\nZYv0P9h6wtf10nMC76bZvgU6AT/KWF50FhSoxvXdz8gPzh3RWkc96N1n4u8NysOS\nkAWn4eLhAAYYJt+fgMrlz4QPVM5winmdQVewyZW5c4E66V8LyFbBew7x2UOGkvyz\nk21KqL4jAgMBAAECggEAG3BH1RiS5nsndAmT+FrKKrcBE2JbC7RJdm2be2+rbiHG\nLrG6VJKhybyo5TQrA0/nlMTbrSZs1N6ZqHRu8J2CPcMIBQKduiZ+KuXQfk0RzXg2\nFaEvSu/I5DYwjabV3XQpBmLIi2cbrZIxRsAky/GOzsD8ZTHcjHVFHkJ3xnnCLbmV\nDfgyj2tSY9eGK3KTVY0IwIeCpfckNssMBllEbattIO0EL9RR3AFSge7tnd3w5ldW\n7O8V2xAxT9cPFepT5VOQou7Rpz8fOcN++Q2ONmwIGCpzdXBfju3L72bJFM5aHrEo\nmmx/7acA7eY3VvlkPnQ6t8JZXUIIuq8y8FGVUDOZ4QKBgQDjDYzON2KwXWJNpndG\nI96X2/p5irWO7roZQmP6zVX1ygXGrfVkZ1OkfbUgqY7Q1zb7NPh5UNAoYyJgic1o\nvnYAVRYRedc6Z+/Rdm8sCLWx4fMxRJbHW1uHtKCa9DrT6Okbzc2UFes2ft4bIJPZ\nPxKpMBO1N5ZdwT5LvnaObTOLVwKBgQDN2gkuIO0dnxsM2XvFGwE2NKDFC70iEwzs\nJFdwvfsJW1OMHMYJXc4o4Y9DiMPWJXqF9tdkQT8D0XHtycCMMHeDAaahWpnm8dGR\n0pw+H4woA/CP7ycqr7cxCUI8W+MlnTRtjgdV1Gyraar93OfS4J/QiSDDQ4M8Wy7X\nBY+AzGIwFQKBgGCuKmC80LcMbIln8q3ZJDVBpBwQ5lJgcLnEvVHUEWBBj8gT1sPU\nA5etN20bBgcDPRQmcA8oTBqGa+LzipWpVBG8KVNzsCPckg99AMWdR9Dgx28ZJ6Ln\n0cetMB4LFOma6Xe/YGRIGQnxZ53hd1MwOj/0is/FRa/SUzZpeY4YDbStAoGAZkIl\nxVB9+fULzvpKzcN4eqDyLHCEZ+TmynfTKCJ4DlHb0wKILib3Pr+uF3JdNogvsVTJ\n8vemghMNcX6DtCBvfhjX2dfUFDGUVcg17XZmfYpXemjnIAFiE23yBWHwGMNbRAEG\nC9EWmqBHXQzb7JnBSiqUp+tlyhnRzuboPqdJL3ECgYB2I6u6eRCOy/U26ge4jgPS\nL39PxXZayWwzxF91ntXWe+7rRAoCRPZn/zH/3jffmz72ELb6DJbnXuvdxJTPbdip\nWpw5TuOvz8rU1z5S2d9Z4L+AEWf7G4R23PQauzawuHaUjO/yEBN5UlRz8I51rc7m\n2ojjn1YajOf9+OFGCfFmfg==\n-----END PRIVATE KEY-----\n",
+      "fingerprint": "8sx4bt6I8vP5pK8CJpTgAo0B4AirtHlMJDUmZb0pMqA="
+    },
+    "attacker": {
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwOOWuv++SyE5m4pDseo1\nn0vWzWcn0272BHR5BS7c/h8Vay1kXxumdZKDEJbizZyOmxhC7Wccc9b1HIDjItMF\nq/R5HlhaS3xMK6adZtOpbRU/EUVz4GUjIbx0Y7UMVnXh8X5Tti653CezJDcgGHHQ\nDZgYVx4Oaa6c4591aB0dOUJUEPgD1U+OmCakOWErcPmUh8FjtlJd/jGcQeGikUwP\nKcRsI0HUk2pueDSnxxOvD4GWcPnVky33KSdO7Yc8WFEpdQMK5NRPThCToYUUmP1x\nF/8Tn70IQy95NGbNRx5ZhKlMasW/K/zX4TiBKoHCQQuA3kh+HDflmvPsf8yN4S/T\n1wIDAQAB\n-----END PUBLIC KEY-----\n",
+      "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDA45a6/75LITmb\nikOx6jWfS9bNZyfTbvYEdHkFLtz+HxVrLWRfG6Z1koMQluLNnI6bGELtZxxz1vUc\ngOMi0wWr9HkeWFpLfEwrpp1m06ltFT8RRXPgZSMhvHRjtQxWdeHxflO2LrncJ7Mk\nNyAYcdANmBhXHg5prpzjn3VoHR05QlQQ+APVT46YJqQ5YStw+ZSHwWO2Ul3+MZxB\n4aKRTA8pxGwjQdSTam54NKfHE68PgZZw+dWTLfcpJ07thzxYUSl1Awrk1E9OEJOh\nhRSY/XEX/xOfvQhDL3k0Zs1HHlmEqUxqxb8r/NfhOIEqgcJBC4DeSH4cN+Wa8+x/\nzI3hL9PXAgMBAAECggEAH7kukJnAF8YindirEodFA2prLQQCskzlDE2Fm9sdwHOn\nR6XDBLtc8KhEgwV1zsApWguu8jGLpeecD3CJKrCPFb1S8DEyxIhwVJuF9qPoEQc2\nBKaqDKVFlmZStBVSLqQboWaX6PYdXj5vQY0Ja8vIHnw9wJIyZ6IurmcK3bEwHbro\nQ5NkEdt8MdiDgO3QjKqiwZL1W4mLHO10cQ9dtA/t9fBN3e0qfELKq0exIaaZoquO\nltubL+J6lf8GSFQkcvaSInPyXVR7Zagp2erJk2oSrHFsxUCwHJZihbKCcvi8XZDQ\nGE0OaA3OJS2O9AxMtqI6j7Ft1k11/m3l6cDT6v+O1QKBgQDoJ/LAEBu9rsVU4Wt6\nB3zhUTIxR7KkR2cXLCsPEyfTxLUhGQYQOOmhJTUwlltv7WHopq6qD8xmuVpetjv7\nac13nb425CURSDV/JF2vWy2vS5lqgy+zyTt+kncfenFGkETkOI/3Iy+mpP9i9nAC\n/X7twR78tNsAOcjslzusXVzDewKBgQDUszJ4pV/xtDJbmbf6AeSNlinyu2nIjBXQ\nR7Oi+ub9Ux8XlwE5EU7R2+PYZRvgDTrtTWgDtO8AhKnEtSoB7gDZIubltt7AL9WO\nx+IRBwzUofCcVEvvU4Ym4PJlGSNSezv0jMTdQNZCrkVAagaK1cwUheRv2KXjO5Kd\n97moRG8EVQKBgQCtceMf8Sj4nxFY6A1HHz8Ci4onXTyvFZWEr4AABDy2L3lvn+Vy\ny0JpHYZOpZbs2XpTuew2rBT3DjXhGt9XZ2WVn2mUUwEKl1s4gS/pKgLIu3+EHzzN\nYmOrnbuX7f+hS3nc1BFi/4vDQfR3uExZP5DMCoOfI3OXCJT/hcGUdjAu7wKBgHzj\nz2HZsLFKXjs80jLhA6NDJdRZyO4xmulWAJtU+WaLdPkz+Era583/cBRyoeB3xD7s\nMYPjrGZAfzJ6MXU6m5LjlHITY02ziJCyuwHGgvkjMRWJxaB8CYwwjwNftEbNB1I7\niahkVqqGizEcUEUa7h6q04v8yMLZCujoOUIdFJaVAoGBAJyXimNL1zJ0i0WCyQ31\nnLwMfCBdURouXiCHVtxjl1FJHWeWXLCSWgy5DqtHRqlrN4zKG2FSLuYZ7HTflrBt\ngb26mcXbznz4dvGc3DD4wiJ3Pm8XapWkImfOFNxNT4rD0DXYYPmUnXwDHayk1jqH\nbDSmuye/0k7mGSvV2wIl+JO8\n-----END PRIVATE KEY-----\n",
+      "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+    },
+    "correspondent": {
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxGAUhBuYx5+NSSt032Xx\nVwI4qDo3DrTGblXcDcjc4MozLivHtVthpsn7zc9gaegbDln/SMe+ahXj3HQC5wS7\nBU+wS7DZ54K7lXk7P7e3kVNil0WMPRZd6KH2dLRNEgo56+9iaODK78ECGN6kk1XM\n4760UuEPi1TDpBELkLDLQLnth0DfYWcRbd1EB1J/rvfdUGmjuN/MnnMxSiU2768C\notRe60cv+VtuySgCtpt1oTcfUQvrqCDE/y7IlVD4TqoVlo7eQfgcnohbAI/r0npb\nhy//dmVeNCaJN0DpPGMxKSlFjlVFltuNvMlSYag4xbpl5NMjDAYE6KSy2qVBr741\niQIDAQAB\n-----END PUBLIC KEY-----\n",
+      "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDEYBSEG5jHn41J\nK3TfZfFXAjioOjcOtMZuVdwNyNzgyjMuK8e1W2GmyfvNz2Bp6BsOWf9Ix75qFePc\ndALnBLsFT7BLsNnngruVeTs/t7eRU2KXRYw9Fl3oofZ0tE0SCjnr72Jo4MrvwQIY\n3qSTVczjvrRS4Q+LVMOkEQuQsMtAue2HQN9hZxFt3UQHUn+u991QaaO438yeczFK\nJTbvrwKi1F7rRy/5W27JKAK2m3WhNx9RC+uoIMT/LsiVUPhOqhWWjt5B+ByeiFsA\nj+vSeluHL/92ZV40Jok3QOk8YzEpKUWOVUWW2428yVJhqDjFumXk0yMMBgTopLLa\npUGvvjWJAgMBAAECggEAANW6PJoL7xxU6tDYGzuJGEI6iK+PrJy048Lyb64RD1UY\nvNtjitg3vPBqpUQ6kBS0Kb5U9SOhQfz0Fiu5l+8XlvUQ5i97K65s+vyUFYgjzAa/\nWm6JozhZP5wRqssZ8UfRGXlP8St0fWq0BjRLHZO9rmGxDVGm4eQjPUszwgKYaJ7n\n0b1vc72QeRsq1R2F9uI+O5g5o6Y8FGzXUb5GyLYxvdK70C5f79GIeRWGnXSL4HP+\nugTyr41EmekhN1BvRnlQnqhQG69nINkPiQ/WPuPSku1K1nAyComVOLRkNV/PoI4r\nwWi+WFusZzA4WThm7kJtydvXjCDX8bWqL7A0iMVk4QKBgQD8dkqcwkzLzhHWRe00\nN/5rJS/O6jZokFuNu75PGe48ElQ75uBswulcdjY1Q1R1cM+okhcE2GspwHHXWThz\nM0zP3ShSwxc73rDivxCMsmOEAjVmO9ew6fHnoAuxBxhQ1Se3UCtQC8es6QY31RVd\n2ZExfEmdYV1ecam9pmS8yT+n4QKBgQDHIJPFu69hYETENREmzFjHa+zILJwWYnb4\nH3vl5LQSATDhSV5FKOvGL5JovpXTviGzJMhhlfuGLaSXtBcPPYG1Yi04dgZgHfWq\n6CWfAMmUytDHpVVN+vXM2sAnFMWmONt8BeNv/plwK/fmk7GcaSGyBPUbkqP9W25c\n0ZS6q/yiqQKBgHvFerrzvzbD5pbIXYyWTxM0fgXRaa9F5rzL6HdbXSLyUX20qR5p\nSINeKSFfyw5wqj4YsVRczd0ATk+nnDdOVUArStOYddGSUeI4jeKMqqFTe96NRCel\n6kUGf/TgZ5lphzkmArYRsGkjLTs+KmWCft5l8qlHzMC6tN8Xrpenip/BAoGAeg7y\nBcaiHmJQRKTyuoGP+c2h+qG9m8sHedhyrdyetFqeh7ndWy9WNsl6SVJprL1jEth9\nK7Qv1XOs7ICrkd/13iUr6uwNxGUY7YYXaXumFNqtV3N08rPeb4+3MT1+WgGIKGHD\npCbADw4kiuYFfQbEbMa1KA2fD/I3mBWvwS0jUuECgYBJI5LElRO4EXIDr0fHYCMZ\nTP0tnpKuWkvb3r62uUxx/R6cItra+joRqc1xicQyTH9DKYzJaC45Chgb18IaozQf\nQRvpKwyc2Xx3tdcgxOSuMBQTsvpdo35BF5nBJOyHIxySlPu6boPleDIO8srxWFh8\n/rUKqMb56fRrqngwpJedaQ==\n-----END PRIVATE KEY-----\n",
+      "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+    }
+  },
+  "tokens": {
+    "alice-1": {
+      "identity": "alice$saas.example",
+      "token": "K7Q2M9X4P8RW",
+      "issuedMsBeforeUse": 0
+    },
+    "alice-2": {
+      "identity": "alice$saas.example",
+      "token": "H3N6T8V2C5ZD",
+      "issuedMsBeforeUse": 60000
+    },
+    "alice-expired": {
+      "identity": "alice$saas.example",
+      "token": "R9W4E7Y2U6PB",
+      "issuedMsBeforeUse": 960000
+    },
+    "bob-1": {
+      "identity": "bob$saas.example",
+      "token": "M2X8Q4L7S9GJ",
+      "issuedMsBeforeUse": 0
+    }
+  },
+  "sequences": [
+    {
+      "name": "lifecycle-register-then-reuse-refused",
+      "tokenStore": true,
+      "issue": [
+        "alice-1"
+      ],
+      "lifecycle": true,
+      "steps": [
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000001",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "alice$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "alice$saas.example",
+              "authToken": "K7Q2M9X4P8RW",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceA"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "hfG41ouMSsl4BJTyUOUAfajEp6ImkaHuODjJD32+bj0eigvjORuqsNxDdUWVFirP+FhyKovpdAgdvcXAC3tdF3T+/XUJuUqIaRQUr3ZKDMAIGVfISu3/oGUPUujS++gWlQPY09ERq+L9WirTfV+F4TwDKKlP2G9kXPytAWDFYzQWhCkv39jOFUCyxKKYnzH0Ag7RLL2/hwgpqI9njLfIcXRvQbWSHLaWYcOFQfbDUnTL9KvRyDSCKfi8EeQ1Qg+j03nnt4YCv8fFYVWfMG0TeHbI89Zf8l48ww4wCT0+oeH/tTag1k1697Ti9Z2Fo0tfqpH/vZORLfv3Ae/exwW+0g==",
+              "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+            }
+          },
+          "expect": "accept"
+        },
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000002",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "alice$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "alice$saas.example",
+              "authToken": "K7Q2M9X4P8RW",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceA"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "SgSFcv1zKKIXTmU8k8ZL0uGgeljmiIh/KiKhSZUb9dONxHg+vrvSB5AhjErpqOW2uUIqAXnYVUVQxv87s8dwfV92t8WQuiyBdafmuQ5NTmluEE695qtievly47xKwPF7X78v7m0dFW0+Mdtt/kKNPoka/D7EhpP9uzhSbCZvzK2t7B1/dPgGZAnLURM8JpHlhiOOOR9yMbTw+W8zFeCjv+aHOU5R29jFTML+OJyK5yDD28rZ9XL72DAQHs60OjLguEgJTvUio5jxUDueMBNNjwLJX+wMN9I+iuiN6lpO52nR5QGjXPGuLNrBe4anYSvdDpMjbyX0z+/IB7eisiI3+Q==",
+              "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+            }
+          },
+          "expect": "refuse",
+          "reason": "used",
+          "error": "BTP_ERROR_REGISTRATION_TOKEN_USED"
+        }
+      ]
+    },
+    {
+      "name": "token-reused-on-second-device-refused",
+      "tokenStore": true,
+      "issue": [
+        "alice-1"
+      ],
+      "steps": [
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000003",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "alice$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "alice$saas.example",
+              "authToken": "K7Q2M9X4P8RW",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceA"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "OEqMylKtf5mm6jqZKQh8r4o/6l/CYGb2FBkZBNlX38Nyak79tsPgxwt5uoSHx7lg66wkMSKvuqzP4wqFzTzFtrpNLebvEfAGMGTrGim6dOmh1Q5oiFAlpDRtq9mfJvEQSXIlttbeKrywMJBQAVkxCreC13h8N9aH2B2XwC1zSbwmyc8ySlOPTOvXDY63g9cpPjwWHFtFhhj2K33QXFLx3gKNOo3vCFJiQEa0rMQwbzzmRZl21psdFSnmyT4pr+NS2PqvbqhY8QoqF2Pkiqm+KaX1kVDhqVKLGIvPST4REkC4BrKfmqQ/HuSA20O4CzkGgsDC/h2p75Hw54JpS6r4jQ==",
+              "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+            }
+          },
+          "expect": "accept"
+        },
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000004",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "alice$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "alice$saas.example",
+              "authToken": "K7Q2M9X4P8RW",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx2ddyTINbhLy0q/c2L/C\nOLqt3wuVlCoJjxseWPt2nq/w2fZCsNuxQVo9MKCEOTBRT9qlZpdtEuAJcxs7/OC1\ngbwSXwl6ZWIAC6aZD25BkolK624LvL2/AJJk+Np8Pmsre8IsYjXMli9qfDiPyoqO\no1ub7x3XsZKeOx7kf6QQhj4sbN/mrNcRdTd3GEq8FwXkQPEWTuJnkRS3cbjX3WDE\nTb/ULtE2HotIHC2h436Sz0OyItPKDePmlP6HoqSGOk5kxUYEVS+S96ewtW55QZIR\nrOwHXIMycTmXnxo9T+1Au3dkDlfRQ1Om7GYd4AwEB9gSFT3EwE5tdBKcUswAEBjF\nfQIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceB"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "riMjJ9NTnBadWzwbkUvCXL2fNdQH7oIuT45DZtJuhHYkWAY32x9jTQbxnDKw6AYwAEKdK0bNhoqF2rjoP0CStJ1vUAWd02zKA7CKQqPnHgHVWGtQCKOPKsqgohS/Lh41CptL7Loi1JLmwrwgxbt3ohjZuyeVfyW35witKPX2h86r4D9GgutMWRyJK9j9OkGoLJ0zCz1PKGavzAyQHvDsMBVZByHIca2rAh77t75PJPqcK2/eo4sgF8K8a0whyMeaI4ifGMibmTqtOYkH5T+43IC4RTVhy14nX6WGRjdYzeE51y8rDOgZp6LlE8mFLPVoQO9gb+kySibL4YGjBrOZbA==",
+              "fingerprint": "jWkxkLi2Oa+l6QJ4PzxuEvxewspfB/LQZTDjizlQqEk="
+            }
+          },
+          "expect": "refuse",
+          "reason": "used",
+          "error": "BTP_ERROR_REGISTRATION_TOKEN_USED"
+        }
+      ]
+    },
+    {
+      "name": "two-tokens-two-devices-accepted",
+      "tokenStore": true,
+      "issue": [
+        "alice-1",
+        "alice-2"
+      ],
+      "steps": [
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000005",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "alice$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "alice$saas.example",
+              "authToken": "K7Q2M9X4P8RW",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceA"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "iIoH3tvgzgZRnk8qTdnAyco9zkFuL8SIgQT3UGrqgE4MgK6eMDSg7W9ULnjif37Y/QYrSZgRiLPLrgCBj3l1IlN8ZeRwTArjF0EVPMJoNVZ2Pp3elmBRfrZgHH5OyZ4YiBe5xbMLruTUgj8jzXH5em5q6uPyVe65GveUoLTwZ+L4UOLZto6wAaFRR6fhEsvLuo0Ztzt7FVqqxKx0pLyO40NBPkPU8ToCh/NjE/CfAmiC5SFl3RZX4xcdp+e1zuL/qXF/dqofTgTwXWN1oFFq3uuh4YPPShKI65erGvHtlwHGPc9iG+P97yqwnfT7Nd/Di3GcQhXDhB43A/MlEWU06g==",
+              "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+            }
+          },
+          "expect": "accept"
+        },
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000006",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "alice$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "alice$saas.example",
+              "authToken": "H3N6T8V2C5ZD",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx2ddyTINbhLy0q/c2L/C\nOLqt3wuVlCoJjxseWPt2nq/w2fZCsNuxQVo9MKCEOTBRT9qlZpdtEuAJcxs7/OC1\ngbwSXwl6ZWIAC6aZD25BkolK624LvL2/AJJk+Np8Pmsre8IsYjXMli9qfDiPyoqO\no1ub7x3XsZKeOx7kf6QQhj4sbN/mrNcRdTd3GEq8FwXkQPEWTuJnkRS3cbjX3WDE\nTb/ULtE2HotIHC2h436Sz0OyItPKDePmlP6HoqSGOk5kxUYEVS+S96ewtW55QZIR\nrOwHXIMycTmXnxo9T+1Au3dkDlfRQ1Om7GYd4AwEB9gSFT3EwE5tdBKcUswAEBjF\nfQIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceB"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "Qmqti9Vb+v/IIQGsGwHEb+d9umEj6ouMRBB56n0K+dmTbU8jDPKZ017eQZcFz2o1Wm9bW1ywyzjNyQtMWvgXC3IqXd6h3flVqw7uPnLGcxOYMme6+7A6YsJniay7+ZBsH1JHHumzdE+qI/bG/brCab3f7JpGT6JzGBh9dZ/3bSewiCMtKU9kXzmc8v6jdNlQ5QcLWag69Ad6V2y+UdHcdzNOkfgYjlFW0sUoKDJARWbYe8iyF/qX6dF6OBNgz9s6V64CAiYj2A8skZKh7uDiNaJNuWs/t+4nMG3AyjDye0rgfd8xuAZKk4LJEbMEUWvSX1YZ+kDo5aZ0VPD2MKGs8A==",
+              "fingerprint": "jWkxkLi2Oa+l6QJ4PzxuEvxewspfB/LQZTDjizlQqEk="
+            }
+          },
+          "expect": "accept"
+        }
+      ]
+    },
+    {
+      "name": "expired-token-refused",
+      "tokenStore": true,
+      "issue": [
+        "alice-expired"
+      ],
+      "steps": [
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000007",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "alice$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "alice$saas.example",
+              "authToken": "R9W4E7Y2U6PB",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceA"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "1bbNmXU6I659Ul8pCc28bMNrqCz7xRepOAu+5nwKQTfdxxm0MDDtUtmzj90yz6Qfr5VHqgi91Tg6hMrOZt9DuWgb+eECb1PUkJIYwg1pA4z744r9TSTun/PNR/h0G0EeGTFsdkX7ucTTos6i9BEg1LOfghDY8H3gPCTDtmjpoGpIOG5pdEDaVR0MpC0XMbeWivkPQUv8npYyhR9+RrsvgacBY3auYQiXbXgVpRnmu9HkmJCSpJ+3e4+Bsrh+MWKqLWTRfApHf+VeZN1TeBkf8JtLdxfQwRJqfwtu4d5TI9lqeNsq+Ayxc9+WGVbk+MFuzzp2BGfv22n+vyP2mRfEHA==",
+              "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+            }
+          },
+          "expect": "refuse",
+          "reason": "invalid",
+          "error": "BTP_ERROR_REGISTRATION_TOKEN_INVALID"
+        }
+      ]
+    },
+    {
+      "name": "unknown-token-refused",
+      "tokenStore": true,
+      "issue": [
+        "alice-1"
+      ],
+      "steps": [
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000008",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "alice$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "alice$saas.example",
+              "authToken": "ZZZZZZZZZZZZ",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceA"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "QSZzczBQyRoeyuiTJYDaYyDRv++PLpYq2/cUajvoL3ziuLMzarD9c96q/NBd6ppuxRitGi1TmdEEEZI6TTZwWjonsbEeKaCqlGj5OqeyKHoQ6tZcknmsd8d7fKoPoA0Qr3pxlGGwRC4LPIuVm1E17ymdBhgRn56TWmbXHeEqPi1IdfRf4/91VNtaot3WPJQG0kucQF3t7nXQXLG4Qera1F1pP4vUmJPUdPWntO8y4nZlmEmc55gpl4EoKbl+6kY1nC1IsIBeN49eoDvR4qO5GHcWmujdptGeJsTmOXDRBPz0BkSWtBn3206B6s5npbLqBLq/MvsarDHdzlETiTgMcA==",
+              "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+            }
+          },
+          "expect": "refuse",
+          "reason": "invalid",
+          "error": "BTP_ERROR_REGISTRATION_TOKEN_INVALID"
+        }
+      ]
+    },
+    {
+      "name": "missing-token-refused",
+      "tokenStore": true,
+      "issue": [
+        "alice-1"
+      ],
+      "steps": [
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000009",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "alice$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "alice$saas.example",
+              "authToken": "",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceA"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "16y0NKgWAqZm78UB/yAbuJXciXcbAv70PCbJS2/kqGI+ey/8u1F8/Q7kbeoZ3AkmZKmDlBFu4B+FQbb1kvSWB2s/pRei/4lvC/N1kcpKeR7KWqlqaqtyBzca6WJYdSm+Qnc7ZaPM50nIzuO/0VOAOxX2S4nwFjdjd6vww+aPzlhvYbVPMBVBoRv2rQ040VZxUrHojAQaAIhnbe0FomtZj5sJTP2+29MJwt5KbKs7GKn8oCgjGF9ptmLtgXrRvxoUFA+ziT3pH+Sw3/T4oqw1qdtxdfnUlG9daQxdPrQFNT3t9PORvSo3nfny0stPpRjaJGZhtExs+qPUC0+77j8A9w==",
+              "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+            }
+          },
+          "expect": "refuse",
+          "reason": "missing",
+          "error": "BTP_ERROR_REGISTRATION_TOKEN_MISSING"
+        }
+      ]
+    },
+    {
+      "name": "token-of-another-identity-refused",
+      "tokenStore": true,
+      "issue": [
+        "bob-1"
+      ],
+      "steps": [
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000010",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "alice$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "alice$saas.example",
+              "authToken": "M2X8Q4L7S9GJ",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceA"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "1qDMTL8+fhAeu36wM7N5Fd5cjEzhZl121KYOUCCJR0TuUJAdo1rY2jf/GdxlYPsIe1JOXzQyD6J9lV07FgwAGDw1/iO7/DJZ9KKjx7uBAChpRqufgVU3nC9/a9Fk0o7vtJE0x9kkGy/FdciAFOuMdy8A0SqAGj0UUZPGsCHgwAdS+YdG4L2G8jCWBjTok7rR/IQdsRd99qwyl1aOfDelb5amGZayCVK2md7x7MczCLA3v/MSwXTkN1/VUugHdywtVVhkHUPbbXxOCBPqPWpNK9arLltUdGLCuOPNfgwHchs017hMnQ+Ivddn31o2xStLHaiIXNSRwK/X7WRhevjUNA==",
+              "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+            }
+          },
+          "expect": "refuse",
+          "reason": "invalid",
+          "error": "BTP_ERROR_REGISTRATION_TOKEN_INVALID"
+        },
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000011",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "alice$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "bob$saas.example",
+              "authToken": "M2X8Q4L7S9GJ",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceA"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "1KXhnpWy8iQbu9olxM4fIMxNEDxzM0gJgeXXOJXCCydpMLjiJ0CkX2YIEQH8XdClwORgY7XjCJih87Q1kj7mYelDPVRTRcxNUhMzgij3YCbxp+L9qZ1bPO/4u7JhL7NjorO42rDuq6eFjqwMMoWFCKuII6d1p180LnMEJflPj+3gP0r4hxOv5aSuL0ykcM69wv4Y38zmMHYFYypBd5wQXlbc2hjAwoIFpCBfMuGpHdGJV/D4D5/NBnl2hoXg7ShVtmwzXQfnP42fJnDk/Aid0zezZ1uW0bvRM/l5f6Dx2cI4gS3DVVWJwrBM3fbpgREEeiIZY7+95NET832ENQg5UA==",
+              "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+            }
+          },
+          "expect": "refuse",
+          "reason": "identity-mismatch",
+          "error": "BTP_ERROR_REGISTRATION_IDENTITY_MISMATCH"
+        },
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000012",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "bob$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "bob$saas.example",
+              "authToken": "M2X8Q4L7S9GJ",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceA"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "a/FCl9QP3MLPYdEMRkZqhF6uZr/GEbscug4G6zEB8sFCQBThIuu1vM6fQs0VYwAZzQoImwryFvfApdSTceMSJv6vtndqKH1AHko/yTo3DjotstCHgBCkD2RkfI76jhdB5v5YzIgzbUAOYPqigTUEhk979mTA/Sa0M8OCBNW9siKEjzGpeDbMfJw1w4xROXpxQSIKnTJuZV0wHzOkGmQmeEMZR+NxrRRc4n16Q/LWGRxwVY4G/YjMPiTnLVR8U9JqU1MKpiUrL0xfzydcm9cF1Dn58QSz6GziKwr6jusnppePVPVps1iObbAY6UA0K8HSAEgRbzKFCSQQvEp8JSLDxA==",
+              "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+            }
+          },
+          "expect": "accept"
+        }
+      ]
+    },
+    {
+      "name": "signed-by-another-key-than-enrolled-refused",
+      "tokenStore": true,
+      "issue": [
+        "alice-1"
+      ],
+      "steps": [
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000013",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "alice$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "alice$saas.example",
+              "authToken": "K7Q2M9X4P8RW",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceA"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "CssrhUhpsbjcYQnMxcGNTeaiUe/NHCMAOw5IccsR58A1G2jop8Qs81sPHVCcTI3XuVEsR9JVCCS/JstMJUORxzYmiYbG16z2DJr0LpYVSzvXTXst98R3W3PhBesXFvcQ3atXQYqaUeZ2boFbAeJcFAjJkELnGYLoo3wy7nmpT1LI7e76bNLynL8tT8UJ0esBU6wGaXa/wosPAae4Bfem7jhdFsm8TaXo/wWYRjZ7jw0GQsHODW8kw8UlxbQOoKEqEEz2LvwjSDTqBEJU5VeXM3YtE62vdey0mPwDZYb7M55hNun/seZhbomo8Mv/RQbRN7cNjhr+XweEEXZQwtebfQ==",
+              "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+            }
+          },
+          "expect": "refuse",
+          "reason": "signature",
+          "error": "BTP_ERROR_SIG_VERIFICATION"
+        },
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000014",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "alice$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "alice$saas.example",
+              "authToken": "K7Q2M9X4P8RW",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceA"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "RSVkTOeYtDmOuCn7Xga0LwkYVvYHpp2FffqsdvJPy7YtYvQNK6g91UOtByRS7zdPPrxo0ayI3yxrONgZYhUho8DsFZFvqV7+b1jER43e12gm5r7m+TmFGsRkRsF7D36mhp5VsvWQRanMH5kb/8PUGzEOhg6iY6ovmVuc+qnc7YK629FjgGzc6Np10EZiB9RodFRLQKy5/B0GOzzKK2z1TJQYZd1DVCgBxvVWjEbfW0iKTUk9XFqRKuWqvqg0CvLHC6kAA/S6QEwW/K7HQReajjaXS/siODhubxslFvIo1nCmG3H9Ugs2qOsVP1S/canjK+qDepOryDH8RgqV1vlbCw==",
+              "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+            }
+          },
+          "expect": "accept"
+        }
+      ]
+    },
+    {
+      "name": "no-token-store-refused",
+      "tokenStore": false,
+      "issue": [],
+      "steps": [
+        {
+          "request": {
+            "version": "1.1.0",
+            "id": "00000000-0000-4000-8e00-000000000015",
+            "action": "auth.request",
+            "agentId": "temp",
+            "to": "alice$saas.example",
+            "issuedAt": "2026-10-16T00:00:00.000Z",
+            "encryption": null,
+            "document": {
+              "identity": "alice$saas.example",
+              "authToken": "K7Q2M9X4P8RW",
+              "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentInfo": {
+                "deviceName": "deviceA"
+              }
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "sf4GIjp3kqXoi77EUICozNZyP+VjleNURMEBMB4bp4Dw8qYcVOhHBQf3O9PrKmsNYfVI8yI0CTCUq+vK0D54Ujy4UmxIYQCXJJKQbn3SCbNXOBD2+ARjb5gredAC7tDIyksuILnRtGSk5CwAtRYsYtRXlDbMbVt6pJuDJ2ZaovB6AhQB4R0HCLZtnf9InS3imcC9a/wu6poiZ5N1YrYD9boU0OwjCQ5nn01y08PdRDedts14I7lfXQ97jXZj3sn7McwyIaGUofkhNJ7jJVrBXe5OEMH/jjVbU2/X0jn53K4udUU8pqqUsVbMxFDkmSmNb8/aOBVs2fq/DBumQLiHrQ==",
+              "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+            }
+          },
+          "expect": "refuse",
+          "reason": "unavailable",
+          "error": "BTP_ERROR_REGISTRATION_UNAVAILABLE"
+        }
+      ]
+    }
+  ],
+  "concurrent": {
+    "name": "concurrent-registrations-one-accepted",
+    "issue": [
+      "alice-1"
+    ],
+    "requests": [
+      {
+        "version": "1.1.0",
+        "id": "00000000-0000-4000-8e00-000000000016",
+        "action": "auth.request",
+        "agentId": "temp",
+        "to": "alice$saas.example",
+        "issuedAt": "2026-10-16T00:00:00.000Z",
+        "encryption": null,
+        "document": {
+          "identity": "alice$saas.example",
+          "authToken": "K7Q2M9X4P8RW",
+          "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n",
+          "agentInfo": {
+            "deviceName": "deviceA"
+          }
+        },
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "C4qEZ+OaTMMjgLM6gDxpSgt+qMqsx//qPP3JdX7c8fsE51nU/jxo7svLSJvknRLNCWdEYx6mfxPZBw/CO+ru1YOBAs0pPXu/0VXJTuT070ixGBX+6gytMQ9dhibdAQgQMRoqOtPQb/VsKWEnHEpu3Q423erafdvmk/gzZ4G0V9qoSBAKrlBS+SXcLfuDKRUDQTGlTmPHveS1azio/SwOHOrt3EKd24vgSzJVJKI60v1ZBNIRpowre+mLCSDn/ldMfLD0I3dcpUFn6IeJVnnPFa6Rop7YMz/7BSpK6WBN3rjPJ9DvUNNBHc4Oug3bYeoCsbJKKbtSX96cUm2FXi1Fhw==",
+          "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+        }
+      },
+      {
+        "version": "1.1.0",
+        "id": "00000000-0000-4000-8e00-000000000017",
+        "action": "auth.request",
+        "agentId": "temp",
+        "to": "alice$saas.example",
+        "issuedAt": "2026-10-16T00:00:00.000Z",
+        "encryption": null,
+        "document": {
+          "identity": "alice$saas.example",
+          "authToken": "K7Q2M9X4P8RW",
+          "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx2ddyTINbhLy0q/c2L/C\nOLqt3wuVlCoJjxseWPt2nq/w2fZCsNuxQVo9MKCEOTBRT9qlZpdtEuAJcxs7/OC1\ngbwSXwl6ZWIAC6aZD25BkolK624LvL2/AJJk+Np8Pmsre8IsYjXMli9qfDiPyoqO\no1ub7x3XsZKeOx7kf6QQhj4sbN/mrNcRdTd3GEq8FwXkQPEWTuJnkRS3cbjX3WDE\nTb/ULtE2HotIHC2h436Sz0OyItPKDePmlP6HoqSGOk5kxUYEVS+S96ewtW55QZIR\nrOwHXIMycTmXnxo9T+1Au3dkDlfRQ1Om7GYd4AwEB9gSFT3EwE5tdBKcUswAEBjF\nfQIDAQAB\n-----END PUBLIC KEY-----\n",
+          "agentInfo": {
+            "deviceName": "deviceB"
+          }
+        },
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "my9lmoTEpBUaRbg8U5Q4WOGfZnkPoxVeeDOnAbIIRPChphXgD+YkdCpfILIQ96GhjbO3sN9Ka8V508P/Tx0nh303/kSFJnmDvH0IAfRNKZ9sCtYxhD7MsfMNyYXFj1s6Co81jPeyursrC+NM3+3dT1QAGz+3n3uOgD7M5m8gZ5cDIOEDxHdbuLSFQImDNbUw5I6uI2njlCYumIukenVvtIDLXeOfWY6UFpnwcVCbXhuWt1n3SVJz60FtaEj/HR6gKlJ8enNQzjvfCT6dQwzwI5SvMKtGin6Xxi6IcNC0JlygQSxjHBjEXxAfW/7n1mSbrMVqFPPgskWH1gANfoxPCA==",
+          "fingerprint": "jWkxkLi2Oa+l6QJ4PzxuEvxewspfB/LQZTDjizlQqEk="
+        }
+      }
+    ],
+    "expect": {
+      "accept": 1,
+      "refuse": 1,
+      "error": "BTP_ERROR_REGISTRATION_TOKEN_USED"
+    }
+  },
+  "forged": {
+    "enrolled": {
+      "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+      "identity": "alice$saas.example",
+      "key": "deviceA"
+    },
+    "correspondentTrust": {
+      "senderId": "carol$other.example",
+      "receiverId": "alice$saas.example",
+      "key": "correspondent"
+    },
+    "cases": [
+      {
+        "name": "trust.request/enrolled-device-accepted",
+        "action": "trust.request",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000018",
+          "action": "trust.request",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "0KNPHAuCKK/Njez/eeOOxIAKyTlXQwMgotpTG6i2IX/wD46B2lhUgm/uSftrwf10PHGWm4e6fM5wLCbg/aQN5NLXAcoUHqObIByoLG+N7450eZ66KV5/GWry5tEk7tJiWLwfmoW0GAP1rFiGpfxs0OoUG1BQXnU5OoDCFfMnX0tTf6jNhRJVXuup8IO12UkyMZycnZFhRGvIQaL3eDcEjyad6DUO/qsC9fT/noiv/adfXKuyVizd8Q6KGtNAEC8p6xKK62JLfUOG+0/IUaKmHjpjlZe2ZDqgRzLnfMhOvpUOuda8RSEyO9ATz6andtn/tjP+an92WdyE48beOyZo3w==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "trust.request/real-agent-id-signed-by-another-key-refused",
+        "action": "trust.request",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000019",
+          "action": "trust.request",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "ovGuUEtvETw64/Z0oL2fZ1+XtM1WzM446QggWo8s/bWKEriT9N6Olorfa8EBGVtZTpOh1U9j/A1/8aYyQsNLxUhypSLJiNQCC9nyLRQouQG6uOJUM7N/VOobPsKgLowEDSifqmFGCq0rMfEnCBLgsMcwuoT+SHv3KMAIdUKLT32fd2yj3DLDujwnQzfj6wtImmqRbnlTQgc31Pw9quIAUxALQEmPr/lBRo7H7QnuTTnYe1EC1T60QetWfE88NYCsBiwNNblf1pq/+JqlThIcSkGeexCnaSV6dyPjMRJOxoL0z8q5MAOr2PG9QkqMIj2YcNNZyIe1VaYYwiZPRKYGlw==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "trust.request/correspondent-identity-as-agent-refused",
+        "action": "trust.request",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000020",
+          "action": "trust.request",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "LbN9drWThqmFh076/DyRMhwqQuaAFFubg/wanbXaJPxD8pXfBWqY3gNPsutw4LqA8LESHs8z2aiTqOO+kyUSGgyLlEvoU9t+VkW3OcOJ3Laz3G3gXqdcxf3fvKi0lDLacqPeoqaj1lOTQqkRHUh5vgRCY/fZVLL1fpvn95t9UJms4P1LS6JVJ7pFyFo0wACdU8xoD2XIHcVcv5rYTI7PMNxW8tjY3PL6kG/vAevTeg5LxAiRP+FnWOS4dOOClAANg2NHLG5B0dvza/PT9for8gesgyZXLlzJfP0kKDDk5jH/0rBPE8G9l5YXUkaNLd7lhWApsiezQ9nWnTmGVdB6Gw==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "trust.request/device-of-another-identity-refused",
+        "action": "trust.request",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000021",
+          "action": "trust.request",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "7JJAFF6pTeJMn07OA4p29di3POzx6/M6YCyEd9mvmdZIEYeWVh3x2ku3wVWkhIgucqHPoagOzXfKXMAxE02f24dyMa/EnzVN8udQjc3M02go/8FbDMh8pbwcHjQFNHnBsZ37N95VlQj9m8GkTiWr6fZQdNg1KujXn67pPqUP6XUA4m//0wy+xMwJZAPKH29PACUvWLc6ohpzaANjigR1KORtySmyDHvT8ZFI5hD5PH7kVs1U9mZhOZBatBlW+qOHBv+UIPiq8mawPG4X1uJok7L7CQY2i6IrcRasjlBwhCpRnurgvRgDIDxAOij+c89G7JCsRqBzlPqzmUSSMOZPrw==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "trust.respond/enrolled-device-accepted",
+        "action": "trust.respond",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000022",
+          "action": "trust.respond",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "WYV6gbl+gih6WGoffDhn1UpJFYEp2ItfuRmBq4s91yEBvV/aXUO7rcDdYBQ3E8He0s0PYTfXFOHtFytFDv8nSRjOW2mHlljF1rkYTOfJAqu1/li7A0RITh5rPXAlcRa81vXDvo4Q8I0yRptEfzDfwey5RV9FDVDM/iLPrZSQ0RojS753nbsu6vX039/ya6sdpfxarDyKjnxPKzG18wJ0zLA/tTlHS+fRfdvzMNAG4Q1cmy4JwzPgLTEHdEUONALAxeXfkzazkRujwigPfHuPtrJqF42Z/W6MiLngPV4BAWCq0P1M3kAwzHb7QTdO8wbMjo7dtwmuwjU2Y9Q1P+JoaQ==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "trust.respond/real-agent-id-signed-by-another-key-refused",
+        "action": "trust.respond",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000023",
+          "action": "trust.respond",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "S2R2eWLD6XsWH9fM0Q8Pu+6+xphztPVNpSBT2DV70n+u9MnJs2oyQss9NuWigBlSeXVQuPMKs56xsmBshAnHmThvnZR2c2TLSu8f7y4nXiyChWITR5JNxLV+1eAfBlGcUrJLjUV1kYzJwz6VZ8leh7TZfT5y2Tn2bDxkNAUYOo4oQNmZpcgfaw2Etf0I0QovR//ffy1/K/A6yDRP6eq/RPyWPt561G39fsZxrDI+ru0Fi07CbdILY4bkAuUKoskmnWe4w3lv+pfrVYBLABWYRPwd8uF8z06ziWwwPZzQSzC+NYr2TAUmlV3UNc4N04/UVO30RkmLXw6z/4QUBCboTQ==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "trust.respond/correspondent-identity-as-agent-refused",
+        "action": "trust.respond",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000024",
+          "action": "trust.respond",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "fLq5ES9WK7lBtx0a8fMUzkI9tt1UFhdpmUIElhtOJiTpuAYxwxOvu8EsveGcQylJrcnk4AwoG5SQeME1PoSl756v6yHLs/ONwb6TeXWfumFgfSgRLFFZZnjz/auctPtPpUEB/jkGvoyjBFqd9KXs68ykGblet143xR5P0OP9owsfgRkr31hv4nf93RY2kvlfQZQojTAu0iiHswLwxvnbMYc6qyM9ZdXMAGloF2w/7qVWCiZwunpfsxwOG/Mh83oI8/HbSGq1kJWvj1ZXz2xCElFjyFeYUbJAk6IztvFk+R2oN3f8Rqnl8Va7Ws9jngplpqzI87cJSDs7zSDxf/X7nw==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "trust.respond/device-of-another-identity-refused",
+        "action": "trust.respond",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000025",
+          "action": "trust.respond",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "x6wEGT7rhfAhvBWA3JrIV1V2+GmLvtKlFmVayrlp7DkjpIMcCNJ84iFySvdGKghrU4MkHWusLbv4v1OecntGdYRhm+Y7tMA/F9VQRIMLs+lz34698VIE7O9I2rd26SA2XdBJdUbhWz6WeKlD///hTB3pIqdFBsM+fI4qg4iNJ2BRgJVSdiCOWgqnKnxBWZ+ongMscDuCDDTOakOrFRIYD2dCSLX8lTkJDaLt20rH2Q9x+7b5yvXPGr9fUoV9FUaPS0LWK0X9XM1cCweeM2D2DrkXeVj2nSenMDy4lWJ7NPanCs1WBAFiG24ZxC1+/TCLOetH8euAzrlIQX+8JQXjqQ==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "trust.update/enrolled-device-accepted",
+        "action": "trust.update",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000026",
+          "action": "trust.update",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "X8hG5t3XxxQ9uPNStimUW+LlvkK2HwXFwHSWQZXNGnrp8Qb10WzcUWYdg//xVxQtjd5FePVyOZa2gEjWPrHU22+P0V2XpwNFal+6KkRSwTkgtldY5X5OncMkhunRGPqckAShdyYIXRcPFp5VPfq01m6k/vyBTLYapMdzs4fx4hltmk6WaopHLbWb7zbJfbhih9U0qYWm8gdJxHBF2Msl1Isx24LDxhpSB8eet75f3Z2FgxFJJDo1+NgCGRRkoUFGh/uABdtkLqBU4PQWLPILfiWkJ0//N1NrdzCEY1x6sioM4tGsX2KCBr8qyKxoo2i6Fw151NS9aunc9WtIrWiarQ==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "trust.update/real-agent-id-signed-by-another-key-refused",
+        "action": "trust.update",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000027",
+          "action": "trust.update",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "bJNq8aQMXD/xAJ3eD2s8DsRuX2Aplf+Ns+GPTJEjOyA7eMxVnObT6N3wScC919iNGirHm8KLMv9wOZMH/SZ5g+LAlrhAROX1Vtlue3+ciVym3/bRd6yO0JbT1nvk5Rb89G3V08NqM/oJDdyfYIh/QydYaSY8hOy5mnaPehS5EYu3+e6Szl84bzGBrXbiYELSm0bFn/CYfxQfS1MgnLG8FndEa485r+qyzrWNiu8KNGIMtzBdulMEIl17QfeEnHk3Yea36cKZWG/H3yBMh7x5CA2Sum0kxbyuvk+mAnwnDO1MpgaSkKtF0wxwtsu74/cSTBlTEpngnOnZRs6InNZ77A==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "trust.update/correspondent-identity-as-agent-refused",
+        "action": "trust.update",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000028",
+          "action": "trust.update",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "BKnINp+5o8VHSiChMhU26AUkbjwawXljAzDydrjwq2ia0M0fnUodC+Rm0Aj3O6T1EFpRYMDKO5sxZ4tcO4h8bMVTZzrul++5NH2P8LAj2d/Sg443/0sAyL4g9pdifCuNHjvT0w9ZZZ7MAfFKS8YXdAT1UmWL4KbGI2HUE8sR/X26FB2UJynk1d8R8sMUGlREcwTtmlXoWv6lg2XbYBuj/FvPZF31hxqloUOYgUMOL7nfPLX/OgORZ/jmcJmy0zwAClGERaqUHmpFvHIkdAiRM9Tb4VI5ghAoRuW8wUjL8vYJLI4bZPDBE/cpNE3Og/Hy/0NFldhcikZ86ZvqVL/pAQ==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "trust.update/device-of-another-identity-refused",
+        "action": "trust.update",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000029",
+          "action": "trust.update",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "zsIIF56LNCfcsFHzWDi2QBjrmz+cfO/6g5/AufA403YU0Ti/eC8mHkI6eFL7utHCft/i5cbmBbvGDdTOHEJjlL5xLnem8Y3FnnQl6xQrhYfMjiISo7LGVk0Z9i4DcLcck5uTa/4yFOu4mDqS6K7u85bJU5Eix4QE5ziF1qjOVx4wChm5TWg9y+GIf699AwHwS2RjGO5y0KsoQAh0xg5dydVULTVt80/SzmydWobpIo6EO9Dfv1QCRVllHy+VH90oqqSkEo3m3vIisEfCGFlxfqLM7nFNJxmwEvy42rxyi3Q+JCE/CwSmyC3IthLr/SZHTuoRbDDPacq8nUGpbCzbgw==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "trust.delete/enrolled-device-accepted",
+        "action": "trust.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000030",
+          "action": "trust.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "4mNcC0De74I6mce/7ITvy0rpsKFZEEazaNZ9TU/3JVBeH6DZFrPthGKoA7wQ7HnfJ6bHWImHwvAHp4KofbTMjIrb1vzXERu+Ehqf/jsLikW4uo33osbJJqiDwrGImMTu91wiXuDYukqkfYCod1G1sN2PO8N9gQZGmU5GRd1CzW0gEjK94Asb1gRxvPVQ09vAPWUPUs1Qvn/cmttb3AEzcansB4vFwwARGo+ZOC9HZKNjX731VyizsYeqZUFH3B3ERJreC8Db0iPCrmZFAk1+LczQtDCMr3Fi3AzteQ+6k7tRGT48e/pmE05GhBxlHINHFMRwzJxbfdZMb/sO3iaKVg==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "trust.delete/real-agent-id-signed-by-another-key-refused",
+        "action": "trust.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000031",
+          "action": "trust.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "X3+R0fnRngMJpLB4yWuLmwBO1GcjN9iKqlB2ufYDHszqEKCptxznUwy7scEQOF0byjKi+akp5HJfydL2xq5vwQdwgSy+1f2iEGwMXCV2MaNdqMOJsDM5tYJNXMIkepmJo7jOQr9d2NzCF7AsbLEnqtgCohI+v3ZwJFpvvvZKQn67H5c/0boIflafjHFh15y2mTlfw0TAq2//eBTuNSqtPUAQqkVreHG5AjZ5JSQuetnFSoOYNO8CU4oox04br7yO0d9Cj95GXqOvMXT5A8qa+w3CPnfpAr72SIvlBX6ZZnyQfw1imuIQqsTRtXM+yk2N9h6zEZankb7jAqc6zjWuWA==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "trust.delete/correspondent-identity-as-agent-refused",
+        "action": "trust.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000032",
+          "action": "trust.delete",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "s/x/cTlV5fDiWNpdpxbmTP5wq5H/oSZvLgghTtGUlC+WyHXeb1sc5/ZmHpzU0wHdbKmI7FjIbgNihODNU0KmnRZKYQIAqxtczk7xG0OC8ah+VecQoG/oRRFs+oBRD1phSmzPp9shLVzWMl1pMalCiX/D2wilN1C7MNFFp4ApLrpOUaJZ5UAlhGmZD9WDCOy7wFL3k/q1QMeHZPtDITgkAlP/4asvj4OL3gqsk+4YtYvW4bK8GGksv64tnN74vp1CWaGagt2QaGKUBwuW3Q6Mflh9nfDuVjbv5trJ4pnnI+WHvaBoS3AwOYOMivktmRt5azbJlMq5fbQ++gPP4Ph+vQ==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "trust.delete/device-of-another-identity-refused",
+        "action": "trust.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000033",
+          "action": "trust.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "qbHCVGX3BdGk4ykG2lJWvJbLvKMKnDZjYs41OArfk/aLNgjwW+NgjMJvHCFPqqfzIf8DF0ptjoqNU9ku7ihGlkH9nzE6augOs/8KrunNx5bW1bA9WzCcBbdLtSAyYWVObbh02z4SeufXBf0p5UsUvqCA7Gaoztq4OH0wv3rcEPQFEPRAmC2XmT3eHRG7amgVcb0vSdW0lm/pR984SIIMiYjN9ARgrR21BV94l3MJswEGJTGQplkAgGU0PdmDZCzl4uLx2rXaKMZsfStok9XiII7XfigUWLBkbDg5RDqa2oNJF4SYBNdQGixt9Bf1NzmFX69Pz5YNOq1TcgBU7CSeKw==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "trust.fetch/enrolled-device-accepted",
+        "action": "trust.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000034",
+          "action": "trust.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "bajGHnvEifPtWOI4+US//udn1DpXnNlL6Vg3nhsnrdiiSEVlZPr/QeaDVgMGvqbA5NBRx0GRhS0qYEr13Jb1j4TFPUz0oZCpovg6u0BL3nu5/WKuQd0eSaWZyV5Bhj2J65Fu+QLxxHq3s+LbaCi2U0dCe7As1W06bvBJVlD6LJNmQ8z0GG2Sf2drIRHuoVO0+DmETIFJ9pspHFLarXmzjSM7GUtUNvwFwcgqsy/0vl1KG9NiG2Vuir4b99d2EQVpHJEdfXyISH8mFUF1pBlJ/Ba59DZlk2bOIKgVwGINO9u7QS64LWES0dKlYltYpfsJoaz5GLzr2J0n+X3oUk/M1g==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "trust.fetch/real-agent-id-signed-by-another-key-refused",
+        "action": "trust.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000035",
+          "action": "trust.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "K/1mGX5IzuhzqJqjXP6frG5wsqtirUhn0diUW73NDsqvK7+amu1UXVT5d8Z0iSP3Pq7n76c2AxKKRDAy4CN+ffNahX5IcgvJUQvUkgBPL53gu9Y/3X21QriRqcopSxzSPSla5OF49HQ5NfagFCAZGk6u2EBJ/9TozmSOlkjHiB3MAYdIuNfdsjumMp0Ae40uF6/buN4UY5OWJi2pJ/P6/nB9PmtAaqCqLJd3UEbUc8xI1yRNfI9n95/HCLgTjcfCsirh/O4Gm+A/JKCDJe1JJ+u6MFQYNqK4+fGmGpTjf30B6s2P3SaZrYaP98ArmIYjjGPHm/pMoQL2BJ0tlNP38Q==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "trust.fetch/correspondent-identity-as-agent-refused",
+        "action": "trust.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000036",
+          "action": "trust.fetch",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "nMD6bR3CVmaBDQT3vLpH8FFq3llxrThpNgbatrVqyL08nLGRZ6GWUTeuFyYkDyIidEMSHCpx7ecE3d1qju1uGmnZ4LGWdmT/xuKGjcecaqyhG0/rqMQszvidykhiZ7W0hALXZOQjtU7Sp79Q/jGs9Ti8sX81F2Nkfdu1thrE4kpyhBoZXffMPXf/UJveTbO9LIHRedKuDamyFD/ztaeUI/Cep+ShHG1QEDyy6lm/m146giNDOiiTfrYOrJ0h4PeRnSnR707aH5Jk4soCnVnJc2SQ2YHEWvejg323zeAgpOcFDbBoJXQcUg/6zL9kb5nwxC6dZ1V5RQ4b5fAtWshc7g==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "trust.fetch/device-of-another-identity-refused",
+        "action": "trust.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000037",
+          "action": "trust.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "3b+97mq0BsCj+1JB5v0nNDaZ2AlyNe0cfncsxXNfxL+0Csw82OlSAZzQESWeTCuh8J6DYXUwKw75f6u5E/Yb9Tk9GRJEDETy32ClwV767eVawPOp2PnLTmVt8mLf96PtHUep4yhR9NwuGNBzGFX1w23TlybJ5nAYnE6o59KDkSnnLR4E0WWhQOBH5Cwl9BFZmbdOK3s+5a+jTD3U7ttoUPZd03H0/B5eegLDRYmPzA6kTfnZ/AbQ3hCHELCY6lNC3OPCO4bya9MIT7yikeoULA2RKYfqhj7h8iTnmE8h+ZXzWKy1df+lfuWr1TLk3a1PGcvRgCMQ6IqvwuI21k7peg==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "inbox.fetch/enrolled-device-accepted",
+        "action": "inbox.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000038",
+          "action": "inbox.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "DVHn5eoPj81M+8QVVp38i024h0NBcvMIiwGKa9k/2e6P+bk5pL8mSjoFA2feMCS66ao4gVTAVIx2XGKda3ZliDlLoBJ21+OBS372sfb9ur+WN8+auHWW/jfY4ePAcRpyj1GfksMwp2uHGEJ0kX+BnUXdFhZ639EQxOxeb67Xv+aab7k2GeUiyArylGxvZoWoPUcpARIeZv4Y7tuDgQaJn7ZMjyCNR8+jhIAZfmH0qxk8dGOVjmk/9qd6lG3Tn2EGVFPNYh6KDfyWSKz/YJxBLGBNJRjIwgtLzzIF7rWsX+NeA3euispUcg7rdaem9PYs/qxuJndn5wvNksQEDughjg==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "inbox.fetch/real-agent-id-signed-by-another-key-refused",
+        "action": "inbox.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000039",
+          "action": "inbox.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "VPZUvvUOkX1/Bbflz7HF68NsIBdh6HzM9fuJrVAIxN97cfbEkuHdiSJHzl9UAggRJInkCqrJ6wVPJHIZELuZJJDQHEMCJ12PbX9Da90O/ogktF0XBdTxlYgVI/NFGiWZH8v7yKlb2Uaq5baqZ+Ir/8mCT48xM3GeK5jifxk8U7d2HhuRmQ/V8l8ta/dR4h0UPp+A1Ep60EKikMpMJbFQ0dwHFFmn9rUbywKOWARBtP4ti3WM7sSoObZ9hpgm07Ff/gKp8ARqNIC3048qTXnWL+mk251PwN/1FZjUQ9kBLuy3A9g0+7/7RzFm2XgDoFe/ECT+quyLvxEhgPCkrDiuCg==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "inbox.fetch/correspondent-identity-as-agent-refused",
+        "action": "inbox.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000040",
+          "action": "inbox.fetch",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "KiNDYSr9nRBfdmaBRsbdqlI3sg3CpQwaR0pGbZaIK3YLuw6yI9NYUgEPEDjPsx4cCONop8QOe1TBdYxgDsurZOaKAoG0cRaPhVoknpie2l77ToxxmIHP4Z2yoAlV3EZe6G+n5+d4VZgkLwqZlwEjOH2nqt/3p8a+aVy02LaMWZkU5mpXB0J1F8sOWml4O9LDfs6f6qVb1gGsZ1QE6U9uXeRMs/Qbc/FsBRxT7mDsi4cZCJz6qQ9sjyYQAwnViaXkJ88zawyi4jdB0KSf6aC2bRQEaQbppnxAMUeB9PK8bS0apQ0+PGoak63rzasZNalv6V7qhjykKkKgDz3xDmRWiA==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "inbox.fetch/device-of-another-identity-refused",
+        "action": "inbox.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000041",
+          "action": "inbox.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "ucrACLDnl49+uy993N9i/AvPCdbCTSD22759vBeRZAWaZTdsvwfZZx8GWyx14iLZhgv5jf9opxjy0ySts/VzMT0AGmAREAp7/Lpc5Ty/jNJwpwZ2liUBWqwbDARUOXh5yml+ltzFT8F4qM+DLWWFz18ZCtSyBC7KMpGtbuYUl48H8eKoXnDr0mnFcsZpjBP393+jtOfcVYAmF2E46FJNoE1Rn+2rSJCuRXxmDdq7KAjZPOpnhMlvX1XCbOETFsQ1Xnia726qdPSLirBHvacrxEGeKLFVl3ZhxOHPBik5Tqks3CV2e/xhusRV/Tw2nQfB5uYaSVneKbwUkJ3tQ0RpTA==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "inbox.delete/enrolled-device-accepted",
+        "action": "inbox.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000042",
+          "action": "inbox.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "xmrKwMqEMwGvPcYgTdd2J2TWWdZg8zeMHDI/heF5O1hsc+mgWasUCT2ZCus3LF6UWCiy/Kk3Y8VKyEcPA7wY0CLpaYBPFp1wgJXoweHnP9MDiT/z4sk3F8+KzaMXNW23JgA/vPfSzCSgIM8gbEmgfK8pe08DqoA7KndqYLOgMDbin348fV1r5TQi6tUNRsNqk4oUxYCs3O3xBhB0FFzf3495neMUPKIk5hQMk4Lf008a8Am1dL3euIe+ac0p2GjEhY97GhJM3v9f5ftjbjdyacStMLoiUwFMTIdkZD7e5d0JKx1Bn8dmNfPIEdnvrNhp9fv7/5bl5sOV6XBKCreLtg==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "inbox.delete/real-agent-id-signed-by-another-key-refused",
+        "action": "inbox.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000043",
+          "action": "inbox.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "tvu4mSJcYkJ7y2z2QjBaFOZ8T3o1qR/SB6E5R/EeR1/zB0I8ASU8BLvBQaAUWlBzlBV8LVRdh4mF44WhPjxTsKUyOQ0kI+o1JJbl7Qdm8Fx/f6K5r4EQDE/s2hy5PRr9wM3XSeCdk+KAz1Gv7X6clKMNwEPO63D+OoiO3O5mGNrCw41kcSbbZujAJ09tXXXV36ba+FDjgtF6ZGTpq/ytjVgCPgLpZGBIzDWa2z5bvnYcksJb1nLYqtV8JB7lvc6loRchLBdH82lp16psuEjhtRdXNWaVC/35ART/akO5HPSlgT6HjCIYjSUYW8tJv3r43fKVg+c7mmYwsmam8lcoLg==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "inbox.delete/correspondent-identity-as-agent-refused",
+        "action": "inbox.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000044",
+          "action": "inbox.delete",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "Dwzbi6JeWmii/vd6CW+xqLkiDW44DgxEN5hY57UVX7SjuWw5/qT+cH+Y0Jpvg+AFTChdynv4xgGcDIgCGqb+YzWjdDTRd1c72P+FVJix244/EmF8zQknC4/eD3+lcMcrDqylbNoQiFHgTiEURLhngDDcFS5k2PN3t9V2OnhYJVDYoczQ8w+8xMQpb6X/CMzebzUtFFAnl8lPyFSGzKRDFkGGyWAoFSvg4OdQn+VMtlMB5gaEOuy241u25FNorUZnnnOOPMuXjsAvCSN7Q0HYHQ8vCZUyqQV54vh03YzUC/KS416E53vPO25hqTDx0pOtO0HHhuGJC6JyS45uxahOrw==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "inbox.delete/device-of-another-identity-refused",
+        "action": "inbox.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000045",
+          "action": "inbox.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "YjY3i3rwCq9uJK3AzrzNwsRvvXQi1Hn6D3arzuw/WdDv7e4IEZA2t62Aj5p+gg9OLu0YrMtUgi3rZ4VkAf+paAStsg3VlEDT558euj5nxrw7m+Y24kjPAq+jCb7T//7k0AKWbYlEt7KJZPj60CdUSFvM2Au18+yOqc1KgzEZSUL6LrDwVBKhSp2xsg1YYf2JXf5urdYn1JHd+q+IadKherHO7ABFDbmhKFRAYuZpm6oMZFq04D4aGxrHbDhxyUt8Kv4xhjEEMX7mlDQ8WDW3MBuE+v/xF2xxbCqDn1cREJlJc5ZwHTv+Ps4GlanjnfQicN5IqOprlO8Ntm+LA/oDMA==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "inbox.seen/enrolled-device-accepted",
+        "action": "inbox.seen",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000046",
+          "action": "inbox.seen",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "ejZ7Cth0IGxpHpI31IeE2+agwtoBPfr4O9LeesGd6+hQg5i51sPwx6ekOfyPAnE4UuCrTWgwcWc3uvdRM9nMfHyij8ut8WT8n+WUJ9V+qYgkA+SvXr3e7PyX/Xeii/gdg5v4p4E5reiICU+6ZCZsyutp9qsSrulnVCJOgnzNuYWi7N2ngfVUds4OuFqwCsFEsIywhCCFOFjI86vbPWgHf5WNqZ5TSV4Ev+925TIA+IBHIP+RSFOpyatdvzrCJd8o+QxgKy7fdreksFgTfWapamXRLg3AmQLliWYvS7aFP35C0VpfKTCSadEP7gWwmbUocKZy9z2FW29P+ZUH2OPQvQ==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "inbox.seen/real-agent-id-signed-by-another-key-refused",
+        "action": "inbox.seen",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000047",
+          "action": "inbox.seen",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "CaQBSJLJxLExsTJf+uFaZ4JFcYk69QoGP652arf++iQrJeSP8IrMm8dGHB4uUPRcJuF0Zv3ut6kNOW8cXWKqn8nVDYhd06jks8ibzNQizmHhpsdsvitIFnjvjiVHXBVNZ/YntT2pSPbsFMOBbkBouqZ6rx4a+V1FF6w2iQFK7dvbmDumY1cC5netNsKhzzkN/3GKzuzIGUXUEF8eR0BmwFzavWxFVcDFSvfI0s6llEwTtPc9lQQJKc/uwx/g3zW0YPLM5Bg3zU56jJdWgpaDZKXyDnlnVh2/i26LaxZGoQkTONbzZ25Wkwye4DtjV+N2ThrxHjRZBZIHQlrNoKrn/Q==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "inbox.seen/correspondent-identity-as-agent-refused",
+        "action": "inbox.seen",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000048",
+          "action": "inbox.seen",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "qMFPUNHcMeJAvu5HtFsiZGVtTOXecSnpUEHtDTubCMXU8ny4mq21QosQztor9fi2PGs/uczPZ/MSBhzBU/dDVLWm8VJa/tCG8b/i57AHD9Nd9iGWEY5udu6aaYPmIas+Qf6GMzCYSqMQpRrhuv6A0c72FcuHytCJGUt1SDqBjuWCwtNgJfM7ubkN/qAOSfdPKuzc33ElnBLwbtwK6OLXeFSxTTwUyAUIWtIR6vaE3XY9ooEphEvHnWzH8Vv2LnHgwc5c82Nb6mQzVJhllZt3N24BkVv1EAOS4fIKCKxIjqjB+atGeF723mkvSJSBG31GSlUdLwE0Tb1kT0NYBAWVYQ==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "inbox.seen/device-of-another-identity-refused",
+        "action": "inbox.seen",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000049",
+          "action": "inbox.seen",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "ZPzvvsRDWuqtiwHLFNh5skQU059EoxBfceEtQ6A22IV7BE0dqJ8+ovZGqdjLwXE5n4cbTYNjS+vmPj9ZGUWZRB164LwZoGm0wRRVcdb3dEahCb+jUm+RxrSZfwebB/YsRuMpyh+npp3SHZ9VtHsHc9v2+F+6b95v5XzIS7NCgEo5TFNTD4oAiMPYy1r0SyXYaD3A9ZhDIMeZr7LwWRvjYVWZHEZkRcZ8Z/a8JzFJFD4gmz3la4LImTTLoCeYsPycUV6ipUaaMj4XHojnnUbua94HTqhn4XF8ZC2eshEePdRiefCHAUhQ85aXGc+PX+vlBfsqdZw3zMpc9syzNm64Ig==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "outbox.fetch/enrolled-device-accepted",
+        "action": "outbox.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000050",
+          "action": "outbox.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "feIaZ6XZ/KkeYCQNUBCONe8s35cfjnk+N2YPLbXHOzuMb9xVaQ79il6WQIMyyZrQJ6WkcUC9Jn/rlePhCTrtHQxL55kEPjmbZ6gsqkPqIZ5gwheIew6SmcmexMqZIbtOYHu+6znUpBRLsqlTzZPSADHE9Cr8d4hP+RIgMoXMtCVASA8kCZLH77PbrIa4vujsxHfS6HIHRS4x4ZN6/1fpVCs/TEfO/HSffLLuv7g92xSOzwt16nEZipLJYrhdk7OuwEPwiXdsorpspHUdKnH/4bFLzatJ9YR3OiJRgXm85iFZ50Vq/wNecwfaLb0UrkV3/8E+EcE/LmBBKP1unntqGg==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "outbox.fetch/real-agent-id-signed-by-another-key-refused",
+        "action": "outbox.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000051",
+          "action": "outbox.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "O15tTkJPgGOev80AYPwoZO9JgAfIinKmzu9jLDhZtOCgSfncZ+rvh5KURYGMczN0Fz1ET8+M5+sbFV2004ziaIlBz+eBmh5ak2sQpO6q+8vOW8m0z/FNf7OPwrNzDr+wfep12LkgioG14AgoaEcLvYi4vcU74QtIU9Ztt+bF5jZ4xMr7pxV/EzhFuNqk0MhFvKcfViIEpCmTdb9aWhT/iI2TQryloWKFp+XFnBYrGD/aGUp0NGOTcIYzoL/8mQ6aD7drA9Y2AmNueiOFyUhiSpLyMdfLIlb3s5ZxiB8XcJiu8BbexrAHXBKfbdW1uEkjnvREljBmIMHsbQ+Je9eJtg==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "outbox.fetch/correspondent-identity-as-agent-refused",
+        "action": "outbox.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000052",
+          "action": "outbox.fetch",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "DdZovftgxiiz1aJL5BxFrTApMdi20j/HOa5NYk1ZMtIClooLav8iUoCddPhjP+OAWZvqtgxqd1j/VyEgDrAnEJNy5XCbFkXhC21Oazq1pw/K5cLSXBampr8XAs7He+mc514gIHb0LIjIMpKYwgi6tS09alM5GkX0rUITbeLC1NIZXsA6xMMn5ixhwz3SwrcXZGS8Uth/WOTSyN/Mlaw0VjkZNegWsuirTdJKkYIafACYwjoKcOV8ULteLa/msK9N9vQNX0VrjK1vYLsWti5AY8bJr7sYePF8EJ6w4tbM9IwYha8ywIngzSeg5HMTdI6YM44T2Umx5PuBnAxn2I5CHg==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "outbox.fetch/device-of-another-identity-refused",
+        "action": "outbox.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000053",
+          "action": "outbox.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "oXj4zW1sLN8LlqVRdH4hQYzgrhb8YvOYgdEWGr7HqeLZNgyGbFzva0EeP/9QPOVGwpKwNWNDQG542WtEY9vlGJ4SOaX/YzWlfgJb5geEqj1Gk2Lgsge8zvYLITJN6RpWGtxn9fxE53Z7JHxMcnH1+EJrRCpiDrgKVPN53twbFzMDBg3sTIS4qONUnrmFVZGcVrb7CcAOy8IcXlgeMS6JHwQb42edDDwN3DmosnnJXYFpIrSdEgVrY3Wb6JSY1SqTF3vKbkqC+UC8650hUboVTELhasutIhP753iC4hyitB0As5d9Z/5kJAJlk0rWT/foZLbdfg13oyjIVGclhK06PA==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "outbox.cancel/enrolled-device-accepted",
+        "action": "outbox.cancel",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000054",
+          "action": "outbox.cancel",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "cF52EIb8YRIYASBNtRL9cH+Tz044D/TjS6ZWX64kLq9fgEsSMB7ZjB6DukShppPZhnjUNDAwZzAoxKdpfANMo599VAjPKDDlxSQskmeeZLjPdgKKk25GAh4M/8eECR3MK7pj5GLFx0/1JpavQY5vBMdkRRHCY3Yqms8bRdSa9SnLjhy7NygFbivT7cboVcw16w0WEn3t4l7c5FoYEB00MeSdg+nFYgL20VToyR5v1jbSF6jfCXTWxY6yi+goDVskdGGpb/4BWQ6KXyP8ip/K1mkC8A+jVsxzR2XrArQKnVsaxL5EDmoqnmuhGXjUmEKvu8zCGT81GLxddzRZTamiNQ==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "outbox.cancel/real-agent-id-signed-by-another-key-refused",
+        "action": "outbox.cancel",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000055",
+          "action": "outbox.cancel",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "sh+6i51QGOrZORxX1ahHh0mqQgGngbjDf5GNzy5L+EVHSUr9c5uh4XZq3EKp/kEiu+O8u/qzPoxnJnUYY+3Lu5JUOd9u7I5fiHXsfMBQCI8CTBQF+l1KJnMxosECrTrT4QQA/7Pt8uZrU+1JwXA8lx21ZmSgaEM9t3od4iz3CpUJRS+25O2yHVOEwsRULJhT0/wEnx5WMgzczN1C2KqjWqY37bBIMmqx6jPIQg/wZh1yXHnNJ2oX9BDl2FkXCoKo+myRqnaJTe5GVtgw1gu2kU4k1ZDiNq4MGtL4pNMU5lxY9PiS4TEqOduZgEsq+PrrnSZmzgo3Mj1vGcV41x/BGg==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "outbox.cancel/correspondent-identity-as-agent-refused",
+        "action": "outbox.cancel",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000056",
+          "action": "outbox.cancel",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "R554tq3gf7buhcP75L4EbDYHLr/G2uVqFQVXdOml8HWMlF2j++andVwdCV2C6nQLGq0RevcwP5KTx+su/GPKxelWn+FiBgsGhR96c45Kr2u1WYGHiWkKTkt0OIHd17ZnduRLYJsAfEAzKFdAR6X3AYQP/5zzWgwlMMBHLHpxs7ChdUvQtc2ILG7Ti0lBH3cEAXbFut6qItIHY0yigYlrfq6AB+6G39iqMWVDbJJ7W5npooU5uY5+KwIikNg4xnBK8SOMm5nSI75lBln0+wPzTwX7Lrvz+2TjFCpHmz+R/YISoefmIRM4FTmYOgZHRMyGHCRQn7l1x4GNoTWBLanbZg==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "outbox.cancel/device-of-another-identity-refused",
+        "action": "outbox.cancel",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000057",
+          "action": "outbox.cancel",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "5cNYxkXCoOT9p/wp/V+Jbv8MkKfVYWLvhusHxTL2BqGdB5lGDTi8qBCs+zOabayq6UrsP6vmi95r4qm86yDa3+eq/LpA1f1YzLfAtNaP6kPz567sB3+Ql7OJPUeGSAodKXFYvg4P7jm0trDejoPUbO6Z2Kmf0A7KAGXxi+s9Deb+bNPchr7XKKCB7EjlDZ3qkIPz+1pA4C0EszYKJ89cOSh/wQ7BiFSj+fpu7nhkgJNNVsEhCv3/SlRelJtbhhNF5EFDFoJBj9QCLMczrH6VZ+SHM526ZHGxeZ5eNzh+qLUP1MsnGhKpE1hIgcQX18Ye/dvOgrQEJp5zvskePn5cRw==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "draft.fetch/enrolled-device-accepted",
+        "action": "draft.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000058",
+          "action": "draft.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "fHhCoy8viJcmH/mHuOduJ1o61hqqG/r++TUpLI1ot+0o+ivht95j5CK0QuGmENLqHqYNeb0DU5Y3V6noyI89DUf5idYvaBghJek+k1dr60bqbzG3XWI2J0X1XeftlWPdJ8hMl2qz+5LlF38WXf/zKKZkCFkROCERuYGbi9A1GenNWB8MwDeOgOlcs6bGYUsn9Qvj1joyGFC4JrzK3zCiCG7c5QG2aKn/Y1VU1d3nWeQGnshqb0T4fs7WMT9TAcyWLEJDv9PmqoqDp715wwb+8zdQSJFx7laCgnjvICBw7guU/aMuo5FINYcXLXLntkF6hBdBs01+tVzrqGX4HgF0cQ==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "draft.fetch/real-agent-id-signed-by-another-key-refused",
+        "action": "draft.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000059",
+          "action": "draft.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "Bg7YK9tvodsG6LuHct957vDvgCA8YAd8UBM5+KFP37k5yNT+VaDoyS73zH9FvAYeBhWef+4vN9m4326EsM7KfMkiS0NyFuy0LbmXBYqkcrW+mMyj386aNKU5HQLGU5f7tYel4rUsQBNffCrLBTxMSnLNtmOja7l5O97pOsLvP4f1Fq2VTUxmHOYpygiwv3L5duvK6UjK64a+GPNVF7P93X8P/YgzKBm1i74Jd/tLQMsZcVq+3j/LHcGrHAq2zL7eEr047wulA2MBwB/Nlj4+eGKSnuna+/toyPP67U/3NQcsadPdisrUAdJwyG4HWGF6L+PWPekWX+ynBz39KmEjnA==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "draft.fetch/correspondent-identity-as-agent-refused",
+        "action": "draft.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000060",
+          "action": "draft.fetch",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "EsRQl7G81btX3daZkuqj35R5eEv+UxFgqINEy4gI6UxPfdt2TaIUTXPNPOxnm4mSCMA8kNqpMskGc2oVWDdJtaa0b+hLFARUKpOEVLbPR0wNyahmXQNVR6DjltZAoY2Kq1Xw3RJPWuL/lEaFWdCsn1gfiyFQfvRjAqILvWGZmjSH9H/A8z78D11Iy1iVwQEv2M2vtZ8jXhFbA4ESlJKR7K9oLU7AelFDFUva9z5gCViPPF8YfipGhcSvKtCgMspTbKhtWGI0aDjx8LapCzaXvoHq2vS6xPevxgWcJUzlHPYbx9tyUMzSglDTzzcqmpzBRLRleh8DYKr8CMRtwelzwg==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "draft.fetch/device-of-another-identity-refused",
+        "action": "draft.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000061",
+          "action": "draft.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "5SXGsLB022J+1l2wqlMmIZH99df3su1oIKvn5L8XKsaCGJ4Nl3EHnmeQwp3QjT1ldHIrmf2tdov9hD25YR8UOzWea6m/mrPlizCF26gC0b6CE+gOc7B1uxzAE55SF0tVKDvZ8IBv+cos3toZAW3mzM7QPc/+Wr+uYpO3Y2qn7YlQrHYNAOET+Kj4Rx1k9oYdv6o4a5bQOjXGHKM6HyiJFnQd7KIhmB7hQZpy6scTT2ssXSiXHNhJZeNtNZIAESuIhdiBy7kFjk/1qQ/yRZOWdZtHPckLOCSvxUY0qEUnhQ24inhyGe/O5OjB0z0tjFKFuj/VBub9hwX/ylsBm94toA==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "draft.create/enrolled-device-accepted",
+        "action": "draft.create",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000062",
+          "action": "draft.create",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "fEc9Jt68fvH92LMDQslTCcwcXCCc20cBdFo4Ma/16NfMGcf1QycuHvK7mmg01+an7bNEi4aAaAjPClpGlXssyh82cTzc3g2YTE/GwRL5HtG6OHxNvIV8ci+rS43acazzQMl5Wx6NOwLeqo+WW+9aCvk5zT60KSz+DfCVl6hXVSVitS1I+OMjq/57qeSo6TWsBoZXB8U/FuZ4pRmicuhQ6+MztT5Md2x8Y06FyVeTYovcODkAriyE7FzqwsEgbG2GTgzVd6PeLPEV2QolSOMnSX61XyfcVR/obe5bmp4itv8LOrK/405Twap8j5Srjz2QKznAnamUOA+zSgH9fzcKOQ==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "draft.create/real-agent-id-signed-by-another-key-refused",
+        "action": "draft.create",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000063",
+          "action": "draft.create",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "f4fOyGv1S5J6VhO+gcmlz9AhDuaMStdZfieCZEtnQadnHVP/xGpF3EFJSXDq2Hn1lk8uMnpIc/N7PdqZUA1Ick+JYzHL2Tx8JLIKu780iNjxLZxV2qT/LLN9hoQYBTcQ3/SXNVlZ3TMRg0IBZtWT2bi+d3XPKougiXQQp4thuA/2tVBIYLtLjGrIKAjwdVsxiUafKMMWfNjyoGt7xeTl3ozytVvmQi1bJs5L+6tRF/nkSMjutnkans0eQlMF9MwxE5JT9XF93FTF/LbdBEDTkX4dURucfz4iC0+xZZlGeq9X58mGLy2N8uobo8siYdYXUDfi1VCvdH6FxLFbzhcYKg==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "draft.create/correspondent-identity-as-agent-refused",
+        "action": "draft.create",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000064",
+          "action": "draft.create",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "X2OJZ6M+xa9yTP15rCnYYDzWHBL2YXf8iDupU3Z/IMwhBh4xLV1RGSJ2COtXjyY2RWXuWJf9P7vx2AFGJa7Q/KMhIfOgIyrwr7S/V80pKcworSNCUsxWPK9Ie/UiISfOhYG1CsVazGTbh3fMOrIpzc9LaXbGi0oeY3hm4mMXAsZiU6kgY48DG+A9rKzCky55aP+8xOE8sUf4iDu3HNYfoI69ux2QoU8nXDBy727ZPE628VfjfQq5Mp8hkZldxTqQxATm8S+3+3OJGNPVmkgs1WoVHh5cL3Ja/nPgTwWeX3RU5MNONmml6QbyTJQ6pA90i8jSsW5KCi8XuVDdmbRxWQ==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "draft.create/device-of-another-identity-refused",
+        "action": "draft.create",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000065",
+          "action": "draft.create",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "KZVt8pSaweZ0mJlgo6kBudv2Laauru9EnbdVz+/hpjW1fp5dojAYTZlyxeJkKBPMWMLcD1L3/4Aq2IkFwSjQsc0sdZf1zUlkQ+JbDyqS5IMfmtzjoJLhH4nc1Zw2biKeq/8vDD4rFlbvZVG5UE9buOMfZJPfJu0vsKftiRf9b9nqqCsD9H3VVoDPVDzA2349UozkkKHQXIOlmO8KlFWKB0AP2cZ+V+u8ZasUt86jnh0Cz8MH+IumlDpGhLcLrJwq6vwseski/6koXVaps61XCaU3icJR44FPB3phohiPZfsnkNs+lIvKV1g5/eg/fF1EqP5yXj+D1F/vbg3YFaq6sg==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "draft.update/enrolled-device-accepted",
+        "action": "draft.update",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000066",
+          "action": "draft.update",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "PGnW1qOUVIOwNUQwVfEzmmjVchmzamcSsPOfBz0F/oZ+o1dr7ezu8LeSzI4WlYfQ6tw5M4WwwD1TYofBmnzEsw6p0jPo9Obh6sInjKy0l3ga2Wgl6l3vHloWhlfYveMCGUNXmHUAK+OBSGGjgIZL2+JW+SM2n5RkBEFjpVHoCxW3ktCyWmYel/nuv4BT+D34C0v2xb+VJ10zoLaqAQQXzFBPwL4XTnqy17RLcp09vOb2CvwwPu3v450Wl6XcPgBBCWkt9ULWWtuZ2B/R6cWrQCBtiWSAkyJ1LMoSmIBm79Z0lEXxfj1i+1ovrLOH/0wHMsOZMp0VQ1x55Lu4aZHq0w==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "draft.update/real-agent-id-signed-by-another-key-refused",
+        "action": "draft.update",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000067",
+          "action": "draft.update",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "YHysSma2Cxigndwds8xcWbNDUQSIKG7rYTyLMHz6kX8RCF+l0qArgyeJC2UeSgyAxB7G4McV4vtPWbzjpVCAMYW4R/nR9yENGDyNw5+WlxTpJVaSMRD6DjtFStwbGH2z0heWYLDCA0MvXist5VHDgxfz9QXbtUVMcor2LjbG1oiiCBnhHHREEeDtoXUdfSmaj1TASnzIyfIMOS58K2cDLIz/E2m1XRmd/ccWbOCpn2WRtbP9sNkghcMIK77gc0wviPYWVE7qwTl+uoyeOjco6m48zJ3xRsRuxFUF9oYV7EF/MntwcrcAU+4xU5AJNnTM8gEPk7hI9yna+evrij41iA==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "draft.update/correspondent-identity-as-agent-refused",
+        "action": "draft.update",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000068",
+          "action": "draft.update",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "bv1rE4eGxmtqqicLDDLpBZlu/Wq04qNONHefXRPJBss5jQDtzH8l40HfpU+Q2xCHA5Mp9CCx76dk/thR4QIdL8JPCLE9K3Nef7ynvn5AWUH+B9rCrCrF5xQ98it0In4xNUUX4HF5r19nfQfGp4iAPbdKoDhJgienQ1yVh3mZIS7QnWlg0PDBUeUedrTrgGP7b+/jHecsaaY1dTaH447Ue1p5kKGW5vo7jquP/IVVNA1yoDwD1CJtQZEqlzj07JgY1Fd27XXxZGtcF3XafNcxmzgHKnGgFpwEJE+2g+CZmM/iFhtTRwUxbFBCJpYrNLDi76Ptjcw2TN9sAZTfpHeCsw==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "draft.update/device-of-another-identity-refused",
+        "action": "draft.update",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000069",
+          "action": "draft.update",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "ggApdnUq0n6ChJegV/z6jrdsDV5Bx5rU/B95DohBjjr1JwY6GiMpyJHcf8i07n1tQfuLXirEvb+yW0BdUO4INPvlCwtR4gQA97IXUrdYQCRpgBdmN0Ton8amFe3jewT3MMsXbBFvi4qhzMlAjERavDtJffnsuqBAcorTw/2Fw6aSWruEzeADY8yG1U22u2ECE7KGxERgRz1saov0ENWVXTLsHOY6e4RmAG0ymULRNCPiWJKmYDaNZLs6OrAMKj1ai9ZQdeib9S93MgKmNwdFdcxd7U8iTZLIhJHf7mG5TmnGLaCYVe6HG+Ai+GK1tNmHTg/augHB3o1zjoTf0VBF7g==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "draft.delete/enrolled-device-accepted",
+        "action": "draft.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000070",
+          "action": "draft.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "UwKzUniijELddOyJ+7QlNTyXtJxgBagviYBdR6merN9j68OCrSBpaIWhkeOa0Jk9WNz/aThQ60SMXtjo8ND7gO2mQ3K07qhyBG+J2xH9GQx8LZNUVd+yGaJwYUHBaIY9K+iRRT7F0UFnLY2HgpmrOHZ2IE3OPmR2QkDfvoYZcEAGJkOUdgs6gsuQcTV/Oza+aYDbqpUoI9fFdq02XXn4roWLnR81xQ75xMlBFRjDmbzpqudkiCXSvWY4vIwbB+N4+L9gMWs/KPi5oO5rDjldun8HmSuMw4TdSP4HIChPdU0EsRtZhUAKpYkNpDwn+AU+RzhbBgYcPHBpPXqKzemdFQ==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "draft.delete/real-agent-id-signed-by-another-key-refused",
+        "action": "draft.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000071",
+          "action": "draft.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "FK/55WFFq8BEDi/xtwqW0BrqNO75SOzTkRgvMNtyYtS2sZxE5IUQ3T9RlIpRCcWiZDCfdxcqGwiV79oE4Q1BPNhEWWOmmv8ylkW84Z7qrrAFHzz5HQCUZiFV6CDfVmEDADvhU9IUHwIZGYtweCeMDXtio/oyDcrQS1ccaREYeNhH2/1gARebnKTAz36O6b0V7WMqn/HP+HwvId065P+Jn/i70Chfgb4uyUB0Mwc+y9P3zADmZZ3pnXV2elJcoHSFlZIYY5QbimzkDldPtZ4+65DOX665S0wcaTQI3R5vWSGt0T8QWbzBflslcEcnPV2ucLr5vn9K/Fqaht9MY+HDHw==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "draft.delete/correspondent-identity-as-agent-refused",
+        "action": "draft.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000072",
+          "action": "draft.delete",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "cqBX085FaB2QG7Xmbc6/qWrtAvHkgzOzpjEzT2nNKAk0KlLkLrnCB0Nzh7FG1zqd8D09z0B5+1lwTDUV0nzyjUft1cuNi6ZVjmUeGZ36y+uedxzQR5L4uJjQYLrih1x4/bwUzgACDudSDy1z8AwClP5S2sAKaosK4HJd+eF0WMtVPutyjv15AFWjWLICCgFi/oxrOkIdkrAaA1a3T+FWNxu5XqfKCGZhZu7WLT3JKOX2eFt/ZTsrrhQf7T8N577L9Mn3wl1EpQ62tNCQ5Y2JmI0iJKPXYGrFmyz5EshF41TJowVDepRQJYi1f/vmF4b4Uf0E6Pqaqa7Bth55VRvL2g==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "draft.delete/device-of-another-identity-refused",
+        "action": "draft.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000073",
+          "action": "draft.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "0tWK6twoOPKROjN04BXPkON95pBFdYmjF/Wmw5170ufhKtSw8E0hHqR33KYiEbbEBCsP9MVJPLb+el16bzpZ/GtDbGyD7HvxstbFvIogiop7gYKJK92xKZYAwcWGb7tKJuHEU6DR06y280ZVuJbxuvQGHVD8OR28M8zJoXEFT88v1LKL8XDpX0ddPvY1+gkX7/9wMRuPoX3OUwaKQjH5+j0+4t0aeCpcRFnLYrzTUCN4WmuQgkwrI8qkMCitPyuxrEtLX7wKPlHPcID4vT8KXlF5Rxy9wDbGXmm/6aY4tmZH4imn614DthD7S1KCjpb1TcE2yK5eQEJ8Az0bUEzUIw==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "system.ping/enrolled-device-accepted",
+        "action": "system.ping",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000074",
+          "action": "system.ping",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "4KlKt6D/GbSxTrIVpv/FVLZK6nnI1P/nTGPGy2rUFLXtWxDPfMHtKA6n7TTrzJtRB+9aWLqINu2U/FQxC1peC9J4d4CVfa22euu/wPU2lrR+75Nn/RZdOnXlNgLbykx6E/atEgj61ku7uglPxqCvRwm9vYDv1FzXV22VXVzRGmNgezS4ERJRupZ9GK7PEqRP3cdtgN3iouu3YByD7DYBXTNxvN2gtnqmc3w6kBt1mNpQxqWdWL0NWdgAH8AyGBtZxM+UE+NW2wFuIX8zrR45nFH/kM8R0weFuJrG40Pir2pzNCX9v2sw1xZtzuVman06MySX//Hce8yV2gp5XPzqYg==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "system.ping/real-agent-id-signed-by-another-key-refused",
+        "action": "system.ping",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000075",
+          "action": "system.ping",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "vXjeVn5lVocVahi94SOfJ54giXfsvPB+lZ5TXusv9Anc04YWJv0Vf7IdmWk6FMj+1y3YyuI5w25zxaZyulbWX2LZ58b0eL8bzeuywrZgsV/+6Cgjatc2xxNG118vlmzMWKY9+Rr7Nsch1gkD4HorRrbQjgRUHMJPk43KTFvjfBpuwLvVD499IivMm2+c1MK+pCUsdrktnLCoDom8N0vROhKYM5/JajNVOHd2SmKGbWwbvomAJchCax3sofDoIyHUmLa5QOVmpDSkqtUDOoOQ8DWR5UyfCrRhu/MH1A/kGvFbs2hUx98AJL4oP44nyGOETgfZYBN4br9Z8Rzm2OtERw==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "system.ping/correspondent-identity-as-agent-refused",
+        "action": "system.ping",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000076",
+          "action": "system.ping",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "VRAYkStTa7Xi1GXV7Wc2BdGsDq/8UtU9Rq2HrqdVbP2KrUFfSEYH4GTySZcPB/BpTNoI05CGu6iX36wi/IHXUlZANS45Z6BHxQmXgflWMoLUi2C1ODbRq6Kq41kcsVBSD/e2lov1QrhWoq66WgfTSh3apyBDal2FSu0XMXiLTK+IlSF43dSYdKQ0AacW+A+aZ5acVNCJ+Y1VV1NvgmZA4U1pEU29sAM+KWNpE4Ev0F4LyUbIFh01K7p2J+f6wDXgzES0Q0cvS+cSR1mZ4Pnm+bJjUQ9HbXfrnD0gMmF4nrINHUajwDJTiqOBtMsB8i0pg3SHDAqomag7c8t34O7eEQ==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "system.ping/device-of-another-identity-refused",
+        "action": "system.ping",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000077",
+          "action": "system.ping",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "K8xpJ5ad12z0oE92d6UQccQ6gByvCmedkyTixUdy1Q8wM3dOLypYHghkCjdRSqiGqgCM+rUvh8LYwt6UFhL33YgxbAJSfCshPsrH48bkNbLY14KxqmNRQHVj3YZ30Qi8bRamEXaEqGmUc1WB/d7cRC6OMSIg2iwqKl3vZvaiWwN/vtzJ0uE540JQMYVlVCVXVE1myDdKTV8FY5kiFEquk9F7l8+hPa6X/NEvL0MM4dCLrOWucpmzLIfwBsiW4VH/4iNOl+WdgtoRSmMyU99QJGVfRPWhhVPScL8Dsp3L2D2QvbuIGnyKx21K04WgOsXnzJPBU/VMBsLt02Uk89s5Tw==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "auth.refresh/enrolled-device-accepted",
+        "action": "auth.refresh",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000078",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n"
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "eMWem7QAM/Ce54ISw+Ya7t0fx7jiiU5Mbh6u6KcVy5retkKnGcDm8YweGYMgcqm73i9AxWItxKoclwrCLTYS7/VWPfJQ4ZuQB+uKPDzSP2Bn+S0pkG6GBf4F2F3jNt+IZF/LWGlY4h+g+YerY0SnPmReOz69tJl9+1PWqTIkpKhNzo7huEFRWPnaIuLEQnU2A6eG4RIz2qfoDCUUK97yaWeUiF+qSa6vJnyPkLO7wq47TWSX3fhtNdDGYnisfDgvcmxrkQQkzhccrARCJvsYGPLZsDsERA+6W5avffgHzFLk4LNW1E6r2eEfaAVAIpwnFdoO8xPc3r+DfG7zVbyTbg==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "auth.refresh/real-agent-id-signed-by-another-key-refused",
+        "action": "auth.refresh",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000079",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwOOWuv++SyE5m4pDseo1\nn0vWzWcn0272BHR5BS7c/h8Vay1kXxumdZKDEJbizZyOmxhC7Wccc9b1HIDjItMF\nq/R5HlhaS3xMK6adZtOpbRU/EUVz4GUjIbx0Y7UMVnXh8X5Tti653CezJDcgGHHQ\nDZgYVx4Oaa6c4591aB0dOUJUEPgD1U+OmCakOWErcPmUh8FjtlJd/jGcQeGikUwP\nKcRsI0HUk2pueDSnxxOvD4GWcPnVky33KSdO7Yc8WFEpdQMK5NRPThCToYUUmP1x\nF/8Tn70IQy95NGbNRx5ZhKlMasW/K/zX4TiBKoHCQQuA3kh+HDflmvPsf8yN4S/T\n1wIDAQAB\n-----END PUBLIC KEY-----\n"
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "tQoM3RJllN/ZJn4/0wU7x4zF1qjUnuROfw+22wbNQokPKA4N8NLkQolWDYW+5z0owbmIkDQNOJvfEoNXsodsBmMIOqM9SjrB59Akyblpp0Ez0gu8V3X/T51ypQBBFACjhhJG4W+o3AtxZeXU+AvLUk4QlCKkU8vQSmQYpHXsSEVlk4DNYe7IZH8PesVbzNYILQHwJEjmi0riHcRSbD4uyWCZpUbz4ArT5BhYgvfSfXDn2FRilkhJk8dLVP0LIFEUet3ke4HMkLWn1HO8Ck7mH7noXmobH6MvH61yz66Z0yaXwyfLrWQzd2DM5Vdb+/ocdNjQTQy6i/YcFMBEauF4Qw==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "auth.refresh/correspondent-identity-as-agent-refused",
+        "action": "auth.refresh",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000080",
+          "action": "auth.refresh",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "alice$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxGAUhBuYx5+NSSt032Xx\nVwI4qDo3DrTGblXcDcjc4MozLivHtVthpsn7zc9gaegbDln/SMe+ahXj3HQC5wS7\nBU+wS7DZ54K7lXk7P7e3kVNil0WMPRZd6KH2dLRNEgo56+9iaODK78ECGN6kk1XM\n4760UuEPi1TDpBELkLDLQLnth0DfYWcRbd1EB1J/rvfdUGmjuN/MnnMxSiU2768C\notRe60cv+VtuySgCtpt1oTcfUQvrqCDE/y7IlVD4TqoVlo7eQfgcnohbAI/r0npb\nhy//dmVeNCaJN0DpPGMxKSlFjlVFltuNvMlSYag4xbpl5NMjDAYE6KSy2qVBr741\niQIDAQAB\n-----END PUBLIC KEY-----\n"
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "gl8B4oRw4mRa/5aQ5wUaS8EBlGNIz2oqWukti7Z7Tagq1/7bqJuheB1DRus8G85WdFTt052fN9EvUF1qewsb1ezzOSE/zBBuiR+QO+C2i119qePOJGnSSmyPvuLRBwiXo8/bqyBxgoWAjztTo85a8uITL63rzJI+BOTne0TBJqMO6JvlOWM32qXt6YO3IiJ+yl9pZtaB7sky8uUQ72wMXhjL/QVlWmi1aGzDHACewVzF503TOF2dVB0CQWwEoLqfmsQa91BIJNSit9pGiZ5X2IhvcG9LS8YRgSHUxI8LYnR7ZJZWb7mzspgk07A+oSmdCt7rPnYhtqkHnDFZ5Pm+nQ==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "auth.refresh/device-of-another-identity-refused",
+        "action": "auth.refresh",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000081",
+          "action": "auth.refresh",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "document": {
+            "identity": "bob$saas.example",
+            "authToken": "refresh-token-vector",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Um/7hSbX69BqpoTFQ4w\n8A2wRdKTfHtg5+bXgp4XXbSfdevR/U7LspJTAqkLuWzs6GNXonfTllz5eKOA/QwW\n3dfvdcBpxc2SOJIHBbbBb3rZdy41zlTE+ol7JYcFAXqSYJOpp/Wo/1kRvSYkfsJ5\nBp2O33uXztv9zoWkBY+rE7sZPQgdEQDsviTr5N02uQOC1V7iDfJ+CjewKoGUZ3i4\nr+K68mIyt4z0KncZZ7HEcuQ4ZSb2jnVuxcyoQgnXxtc+OrnOHnrc9B5hQ9X3Jc+S\nx/EeJ/gn3QtAR8edAsY/wjTK1Gy5y5z1gFQ4pf5KHwwcJ5MH61UPwdiGqY9y33Q9\n8wIDAQAB\n-----END PUBLIC KEY-----\n"
+          },
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "rl73LtJF8kjg028lZLqRSHIUt7L0Qs0wAgZHbnoOD9sGunisrYCr2Ftg/UYwpUuGFCpJ5IXH+sBPvLwnOYlZ5IR6foZc7VTqXkDPK2ffF8I84+tDCJ4MiA0v1PfPN0b73HI/usTxTZkfiEtJ+vT0fh8T+UM3cjdhkII/ZpKkaHD9n22fCADW+JanekVL1CdHahhM09TlV5oCx7amx1GnoCBVG+gJPfatfSyRFiEaP5hpaF2+MmWfQspmoZjsfw43Ix70l3VW9GduAxHkjtiSgfQgv6VaMgxsPhCz6xjKbZwZd0yqSgOQgQGz626sV4ZfWWEf9dler2YgaFjNPmfs9A==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "artifact.send/enrolled-device-accepted",
+        "action": "artifact.send",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000082",
+          "action": "artifact.send",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "RnG56IXw02vAC7prDybA/rWsSkOikOBqxsnym00EFKhnEbo1y1oHK1pA8ynMxTF4CcU+U/w2SdINR5XB0PaOHps166CLhPSeVK9ygNTEcexDQ6YrNLaXHtVl1EYrst9Rpwgvvh+jkaHg0jemd0V/o4glOExtV7K6O/joCYFm1KLQM4W1tmHzb0zNhWEgJFqygRb8t9CNwRrKYcJe17nVGE07mI5Tdsh8kWPGlU3ydgNkDcqHJlzRbT+TutSIBoCpW4bR0/s5w2jeo5wxLdH5kswYuSKZarhLJ/wJx64NO23pKfdQNMR8j/QZy7rkHy4CJDHVkx6CcEuI9Jn/udKPZg==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "artifact.send/real-agent-id-signed-by-another-key-refused",
+        "action": "artifact.send",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000083",
+          "action": "artifact.send",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "bUzc90HQKdTVVo/Wtz+nNJKRMe2rzYESyTsFg9SveGNVbJyu63NRi+/PkWtHIIaVb+pR7xLLecST/lSN178TktsrOd6GYlYVSb5cyUr25wm6Xefhbc6M5sJ//Oj/W8t9vkMA4uMbmCJ0MlgYGWekVNnRCeSM9HPSGNkQfi4/ZR0Wri4JGNBMxrfz8k2IvKAXuFQ5bS5ZCH//3NrLRQEvOlyHY1uMlZQK9mallnahHwIejS89Mu/cpxvuYe5faQX/b8/onngGf2JtP41xteeDjo3bTL5Tesm1HPfFszgThe4t6PNr/GhKqKMo/m5prObX0lhiLDihKSC1oJd7LkKg8w==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "artifact.send/correspondent-identity-as-agent-refused",
+        "action": "artifact.send",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000084",
+          "action": "artifact.send",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "ZuDNFxR+UZCjoS8uzCYfHwDGrbcvK/m59+ibPuIBXRigReBwW/avK/fmqJ8AOO1wF2OVhEVxk+tOEiItD5vggBD2cTBnfGD8qe/LkEZvPywufEY+4n3i3a4R+Lj7PKuypLY/bUiGgkytvtCQdji7gcHXP0yiIASSP5Jlwv2RTndXR2iESlRqWVd7Hd4vqrsWirpsW3p2joiJOM103KWphf05l6m+2j7FmIdzIEgPp9nOL17BeBewZYtwBm7eyzjS6csgeOo54BV21J6EE0y8nLZCiUDfayQ8PP69ef8vHmEaBeCPlEHNBlfM232Bh7G1NHDF2bpgqLQogQ4Y5vqdwQ==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "artifact.send/device-of-another-identity-refused",
+        "action": "artifact.send",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000085",
+          "action": "artifact.send",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "HRxQn4o56oHXtf4yRJpw1tPQyAPc/xJDsQAdNvsF1JjV7BTcaaZNUyhRC1uQl4r/KRVFcWhV7dQ0m15C2UctxaYZNFN+oE8UXZYymkffWjSHIg1VrC5ULgXjZ792P3Fw4Bo3xyGJ4hsM0lHvAYmt0w6rJKgU35Yf47SYTG9AiIVMUDBDC7x/JM4DAT3GaNAym41dFDOxiH6t8hYpgTiDB0zfbpMGZd0tsud9NnpHff1a5Q9cmIH9LO6F7nI6OUr7I2R2e3hEZTCKK+RU2AFyR0eeECg65dmFunV8vdJ8zKzo5rfN6PjVYzFGVbEpSPu+kYd2cR7vEac7hj9EYiJ46Q==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "event.send/enrolled-device-accepted",
+        "action": "event.send",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000086",
+          "action": "event.send",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "H7mI7HjzPYXexl2YYcUcAtPH1ktZpq3mvY6Zk1LjCHPV5CzrLRmuAqruEPjbO3drHAe6ceU2CRmVIoI2CmV8X8ajTpwgaBWU4BiMBiAOvKpJ/3mFDXPLUQbFile8lyEgeSW6NGrAhMHBNELaSEldgIF4XZMUVT7Te0ArwWX+v174EvGjvF3PzNJZShgKPcVJths10kc0q+rmBAgdGKvr2LViqA/5sDODrchSVAHoFHNE2xBsxG1dxwGQi+6km84EYxzaAsuJCTuiIBHDNVu3SSnpbAHg7kb1udyuNbZcVqJG+Q4UKvXi3JAMCVwe4coKqyRVzJK92/pTGR6y88l93g==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "event.send/real-agent-id-signed-by-another-key-refused",
+        "action": "event.send",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000087",
+          "action": "event.send",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "PDPoaBJRgZq5u5nDPFhsnbT7sl892j9ehNVop8DtlIP5SQYzMi6iHiNIegOim/Mzm77PZ39TzQLy8KpV7nWWTERQD+smh+V1p+A0Z834LsRGBE/lsc3EoCtnN/mSj9GD+GIHLrd902JWLeT/3uCPATI2GnaD2MsIliom6H/XSAg6euSIPjCvKVAB5ujgJiCPabWBMiCLGwdPLJI9DSvNCMcCVJm0DAzuQz4qCuSMGOS0+FrYQRKrCWP+PT4wAFu64FC22A/dD9IvRQ+35/DUPbZU7X2Qyi7/2TSPKAF/keC+4g9UU70hI8t9O16DpvTFRf07p5bXdOzwh0LCGVS9oQ==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "event.send/correspondent-identity-as-agent-refused",
+        "action": "event.send",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000088",
+          "action": "event.send",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "GbUc4/o1k/XQRT1rWZIhQV8ArldY+ZM+oLVzAdRHgEyFaunRIvGdHomGjZX3mAoE70wHRT/rBxYkaGhFpZC2DvnFj7VIDrFPCMmhHcLtI/PXyGNRsYX1LVRmEDvn0BxDfAZ9teYItHbl3EzmkyYLEja+LKgq0FoeI+1RsE9bA6C489gPiI7SImd/AXpVPnbN0+A3uFmiJNRyH6vbrc+mn3Y6Pd0Y7ddxtSlGsW/VmgoM9mRfm/ZuJ5EQLq2iDaycuCAMMfZSWnKLbKnZ9P/caZOCrWZTY7fPcWyG7ZkwP5+tbYwvJBVpUeByelJMTqtXqQbNfMs4c/Q0ATjae5HoQw==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "event.send/device-of-another-identity-refused",
+        "action": "event.send",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000089",
+          "action": "event.send",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "WMqHT8pT0qYIUWtDRrvGx4hysRGi3D0fkWUy1H9Q6Ij9ffVJqd1zBdELPEVYeRdSri27Jl0NbR2vPS1d51Y7H5mNGH89TkCEjLcpD3JO4/9D3qJqF8C6+TsrZsCT5oyjtoi0kBQLfHFrAYR+iJKcuG4nUApPQMsTDjJ3GIZE6X+mJRCj7uLgB5EMp9KEBdumLRyJmjOHqzLVxAiOeuVxYbINEixUJvPJ5E4Jch/merLzl1dzBsBpqARoVI3GfGmle6AdWHxWEy8Ra393gkGM0Cdk7YV0Vw5pTyc60HbnTS50LSK5PVTIInLAWEupaODpIrRYW8dfr2WnBB32WqKaqw==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "trash.fetch/enrolled-device-accepted",
+        "action": "trash.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000090",
+          "action": "trash.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "1k4jjmADOFRDyo7pt6SFWWZw2ckWmYQ/M4F0z6SKv/POnli2mty0TitM3FIsB7z9WbYEzxoqLxYEwcMS6hUaI/ohdXr0EDEwq7OHBC+fbizP11wRdFTd3eIJrD8Yk8tebU+QLmfZJxPX4c1lyblQMV8moq9HZXtIlK5UZVlA7fgFJdOnw/F9xK4BLvb/3AkkICHR+1+OkIdzgwO1mejLsb8JwNzd935isfxh+ecIzyZ1UZ0f5okt8rIXVU9MazmFI2MbQzP8T2W3MxlbVQA89isW2GpWZwnHOl404umvZe4hayixJ3Q/2DZ0+CLqJHJ1xn2wF5pPIfYFgMH8eY9s2g==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "trash.fetch/real-agent-id-signed-by-another-key-refused",
+        "action": "trash.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000091",
+          "action": "trash.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "EsenM39ck57+V8PszlmmvON87+qVfGMHBarDQnEgw+5G3fk7Vo3qzBoOt9qtdNq14DmE3i53cYjqXAdcQT5cCpRi9wp1HDj1GoRY6o1t994Cesg6A1Mixq3aEMmxd8lrNoScbuknJ1mH9XlyGuojiNL3A2ZiG1ynKr47bqBFvWtHCow+1vXrAEUjo+TeT7wVyqeAGA1bs+LJ4nVe/zMKGK2Rei6c5AntcOHSWmeRai3k8EBn++kb7CUTyRxt6VGBSiRfk257lT91HL8vI98DdR7K+U11A/oENL0YaN+eapyN3YgaxtX2QqyzcvkP/6FfdMnxBdm+HLaHn/ad+n9xdw==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "trash.fetch/correspondent-identity-as-agent-refused",
+        "action": "trash.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000092",
+          "action": "trash.fetch",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "H2S6IdUhI75y1zOj1KzCZcIKy25oaniIEo2rgSa27vmrnb5o9xI5V+yQlX3Yc+saH8u2rfCpYFk8NsdBMB2KuGaEuK1k9oaBj47GBE1nstLyE8WAh1tZbNhxa8TMMykutyKG9EEUTdorUEdehSpDeqUd+/u64tn2/QWhx0F6OivMsB6k4JAp1Sq+pKtYButlT7oyMkwD7ujp9knn3uGTlu0NBUuV7//g1TLGr4JUOq62Mt5YU+QtdQv6ug/+il8NiQmE7tl8aGpRZBgMkV+ioqged81r4s+Zo8JXrBatKU/N015M+gXNU2PLhZC7F6O2RV+f6bdOBEu26ZN5bD4JdQ==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "trash.fetch/device-of-another-identity-refused",
+        "action": "trash.fetch",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000093",
+          "action": "trash.fetch",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "x/WfCIE71yPkd4JH+SNNd1Vo+5nBtG4lH66PPJUF6scuF+zF1Y7TzO21YiznrzceLWr5vz7NBl0ra75TY2yUxLTNWsRuvq2j/PSKzhfTCgo/+2us5yzpDzMnZ5VrvBD2yyAlTIlpKr/kjeZAzO1ixQ4AmPOlgGMbkTUp5PMwuW/75i1VDpMKaD1pKlTeZXmW59luFpNZSYbJ3ej0pxcoCDGFgOm4Brc7u/BWCO4ZR6X6BSQrXTnCUmjsgW1gB+Bass+rsJOIP2nuHCfROZGrZI8WbO/A+qq3V4Y/RbGlN+uB25PBzLWV4H/2yZeqb35YgM49ZsvB/AYZTZkq+o2fPQ==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      },
+      {
+        "name": "trash.delete/enrolled-device-accepted",
+        "action": "trash.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000094",
+          "action": "trash.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "s1IAv/iYgMkd2gTBhCRW9fi1C9NrljK/lsE+p4FgzEAZBrpLbjV5oDHNAGpZfYUxEyp5sK9pP5DMc4mf7ZlBxbtoFxLQy9SnBGR2PxggAO9ul05COjHA+6y6P/WpU4/hNww/Eir3YULTYv+OyDLFsyW+ffMHxureyZRVe8CEApe3fj0vR5VfBpfij4GJqI6NpgpS8qI3wa/nb7xU4AI49n/2eHnAb1jj20f9vCo5nnO8hUWvQaKAp2TN1tL7wcth7XUrMnrGTNeCY2HVOaGUHTraEDl4fzCsDWG+RwqBP/qxsflnT3SctHhCztqBCkdzNeC/zdPHVC5/1imAI/Ecuw==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "trash.delete/real-agent-id-signed-by-another-key-refused",
+        "action": "trash.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000095",
+          "action": "trash.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "fhVgUqbSiQzmpfowGql/vdyqJcyWo7O0oi37tR6KlxVvma3kMplJAKkqNCijKzuRyzuF6lJpFgZqQ3fUX9CxUm8pdLeSyJ0MjF/bfUTQrreP1Ilfzz9n+Q3c3rw6flIbC9NOLEh8bbEKO8+xHYSYZwlZNf+vcMO2RpUKSt81+UpFmKd/LESIHgOdazQq3AvSoz3Q9u242RvK+CCQkXhSciHdcZVtSf4eeS2outBxvjow6EfoDx9Qe3bKmo8S4kuYf+76l7kMNxF6d/CqF7uQEdtI7TDgRq2D7nqC+FL6RlZRDAcK/b3X+cMgDioHyv5lAzv1JQU8m3zPQsCcfDyY5g==",
+            "fingerprint": "nD0cBfEpKrKgEdukk0D+B4otEVost+CFcjQM/bmFGb0="
+          }
+        },
+        "expect": "refuse",
+        "reason": "signature"
+      },
+      {
+        "name": "trash.delete/correspondent-identity-as-agent-refused",
+        "action": "trash.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000096",
+          "action": "trash.delete",
+          "agentId": "carol$other.example",
+          "to": "alice$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "A50QMWcDJzCXgeDL9poE1FZQGej1pAtly7stCvT8PMEu+7lSbncnF9b2HpZY30BHJnPTQb9N0Kv2B21adcmHillU+KyzhjQKlu+iV6y99UXVm4V+vYk1UZBKLbNYb5Np7zHcNbkSJMhX53h2fSEhEz9OPFLFP1QHlwcB6uarSE9tiCA3F5nsjD2lmlWjFzZH/QQHZBnSHAw+5a+UqlsdfJ+J1kJr5I9t7VT0h6C3Q+Eeww/ewRkZY5YsK4LYhT/vo9na7CUcH/OLVDLSMaREeK/5JV5kW4dvXpvrlGhY3E1Uor38/pwf6C/TH7ZtPwA7PArsdtkRpqu/5uBJzOQJpg==",
+            "fingerprint": "i2ozSAY0gHm+b7b9bGOJrKh27X0bUw3ot1ap3XUfO1k="
+          }
+        },
+        "expect": "refuse",
+        "reason": "not-an-agent"
+      },
+      {
+        "name": "trash.delete/device-of-another-identity-refused",
+        "action": "trash.delete",
+        "artifact": {
+          "version": "1.1.0",
+          "id": "00000000-0000-4000-8e00-000000000097",
+          "action": "trash.delete",
+          "agentId": "btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11",
+          "to": "bob$saas.example",
+          "issuedAt": "2026-10-16T00:00:00.000Z",
+          "encryption": null,
+          "signature": {
+            "algorithmHash": "sha256",
+            "value": "SyRK3mvXpBYvVpCfw9OrIM3lgWJpIO6E3dqBrvQv+kANgwq/0rF2TaB9SBNBohHwXp3sry2kEP4ne8bWK7ve02rhqZOdqUG2Oa++QQCbWi2pNSGTgtBoy8XmhtGLgzaUuRfyzf5XEvsk8zQZINQNQysopMqehLr0kJ3upEQ+GkCke1dyFBuDQvNV6a1N29hh/wc8WkT7l+z6dyOP8Tn41AaQgJ+lW/OPByb5kr05dVt0NMhhdnLZk8Eei8NRNB0X6OOsHE1izZDtpCQDSQe7zGTIBtnz2mmIL99uJlASWiyQ5ve/+QbRKXftfDtzZ6yRNWcyl7cnhISX7kBAo4wvgA==",
+            "fingerprint": "WURZvl6HEOo+mhqoWtspKAB/CF2sZ+OsGXufWGCsHI4="
+          }
+        },
+        "expect": "refuse",
+        "reason": "no-record"
+      }
+    ]
+  }
+}

@@ -533,6 +533,291 @@ function refresh() {
   };
 }
 
+/**
+ * Item E (EBA-113): auth.request artifacts, each signed in full by the
+ * device key it enrols, run in sequences against a token store; and forged
+ * agent artifacts for every other agent action (fix-list item 5).
+ */
+function registration() {
+  const now = '2026-10-16T00:00:00.000Z';
+  const identity = 'alice$saas.example';
+  const otherIdentity = 'bob$saas.example';
+  const correspondent = 'carol$other.example';
+  const agentId = 'btps_ag_3b8e1f52-7c4d-4e9a-8a16-5d2c9f0e7b11';
+  const tokenExpiryMs = 15 * 60 * 1000;
+  const keys = {
+    deviceA: newKeyPair(),
+    deviceB: newKeyPair(),
+    deviceA2: newKeyPair(),
+    attacker: newKeyPair(),
+    correspondent: newKeyPair(),
+  };
+
+  const sign = (payload, key) => ({
+    algorithmHash: 'sha256',
+    value: crypto
+      .sign('sha256', Buffer.from(canonicalizeValue(payload), 'utf8'), key.privateKeyPem)
+      .toString('base64'),
+    fingerprint: fingerprint(key.publicKeyPem),
+  });
+  let serial = 0;
+  const nextId = () => {
+    serial += 1;
+    return `00000000-0000-4000-8e00-${String(serial).padStart(12, '0')}`;
+  };
+
+  /** An auth.request as BtpsAuthentication.authenticate builds it: agentId "temp". */
+  const request = ({ device, token, docIdentity = identity, to = identity, signedBy = device }) => {
+    const unsigned = {
+      version: '1.1.0',
+      id: nextId(),
+      action: 'auth.request',
+      agentId: 'temp',
+      to,
+      issuedAt: now,
+      encryption: null,
+      document: {
+        identity: docIdentity,
+        authToken: token,
+        publicKey: keys[device].publicKeyPem,
+        agentInfo: { deviceName: device },
+      },
+    };
+    return { ...unsigned, signature: sign(unsigned, keys[signedBy]) };
+  };
+
+  const tokens = {
+    'alice-1': { identity, token: 'K7Q2M9X4P8RW', issuedMsBeforeUse: 0 },
+    'alice-2': { identity, token: 'H3N6T8V2C5ZD', issuedMsBeforeUse: 60_000 },
+    'alice-expired': { identity, token: 'R9W4E7Y2U6PB', issuedMsBeforeUse: 16 * 60 * 1000 },
+    'bob-1': { identity: otherIdentity, token: 'M2X8Q4L7S9GJ', issuedMsBeforeUse: 0 },
+  };
+  const ok = (r) => ({ request: r, expect: 'accept' });
+  const no = (r, reason, error) => ({ request: r, expect: 'refuse', reason, error });
+  const E = (name) => `BTP_ERROR_REGISTRATION_${name}`;
+
+  const sequences = [
+    {
+      name: 'lifecycle-register-then-reuse-refused',
+      tokenStore: true,
+      issue: ['alice-1'],
+      lifecycle: true,
+      steps: [
+        ok(request({ device: 'deviceA', token: tokens['alice-1'].token })),
+        no(request({ device: 'deviceA', token: tokens['alice-1'].token }), 'used', E('TOKEN_USED')),
+      ],
+    },
+    {
+      name: 'token-reused-on-second-device-refused',
+      tokenStore: true,
+      issue: ['alice-1'],
+      steps: [
+        ok(request({ device: 'deviceA', token: tokens['alice-1'].token })),
+        no(request({ device: 'deviceB', token: tokens['alice-1'].token }), 'used', E('TOKEN_USED')),
+      ],
+    },
+    {
+      name: 'two-tokens-two-devices-accepted',
+      tokenStore: true,
+      issue: ['alice-1', 'alice-2'],
+      steps: [
+        ok(request({ device: 'deviceA', token: tokens['alice-1'].token })),
+        ok(request({ device: 'deviceB', token: tokens['alice-2'].token })),
+      ],
+    },
+    {
+      name: 'expired-token-refused',
+      tokenStore: true,
+      issue: ['alice-expired'],
+      steps: [
+        no(
+          request({ device: 'deviceA', token: tokens['alice-expired'].token }),
+          'invalid',
+          E('TOKEN_INVALID'),
+        ),
+      ],
+    },
+    {
+      name: 'unknown-token-refused',
+      tokenStore: true,
+      issue: ['alice-1'],
+      steps: [
+        no(request({ device: 'deviceA', token: 'ZZZZZZZZZZZZ' }), 'invalid', E('TOKEN_INVALID')),
+      ],
+    },
+    {
+      name: 'missing-token-refused',
+      tokenStore: true,
+      issue: ['alice-1'],
+      steps: [no(request({ device: 'deviceA', token: '' }), 'missing', E('TOKEN_MISSING'))],
+    },
+    {
+      name: 'token-of-another-identity-refused',
+      tokenStore: true,
+      issue: ['bob-1'],
+      steps: [
+        // Bob's token presented for alice: looked up under alice, not found.
+        no(
+          request({ device: 'deviceA', token: tokens['bob-1'].token }),
+          'invalid',
+          E('TOKEN_INVALID'),
+        ),
+        // Bob's token, the document naming bob, sent to alice's address.
+        no(
+          request({ device: 'deviceA', token: tokens['bob-1'].token, docIdentity: otherIdentity }),
+          'identity-mismatch',
+          E('IDENTITY_MISMATCH'),
+        ),
+        // Bob's token is still good for bob: the refusals did not spend it.
+        ok(
+          request({
+            device: 'deviceA',
+            token: tokens['bob-1'].token,
+            docIdentity: otherIdentity,
+            to: otherIdentity,
+          }),
+        ),
+      ],
+    },
+    {
+      name: 'signed-by-another-key-than-enrolled-refused',
+      tokenStore: true,
+      issue: ['alice-1'],
+      steps: [
+        no(
+          request({ device: 'deviceA', token: tokens['alice-1'].token, signedBy: 'attacker' }),
+          'signature',
+          'BTP_ERROR_SIG_VERIFICATION',
+        ),
+        // A refusal at the signature does not spend the token.
+        ok(request({ device: 'deviceA', token: tokens['alice-1'].token })),
+      ],
+    },
+    {
+      name: 'no-token-store-refused',
+      tokenStore: false,
+      issue: [],
+      steps: [
+        no(
+          request({ device: 'deviceA', token: tokens['alice-1'].token }),
+          'unavailable',
+          E('UNAVAILABLE'),
+        ),
+      ],
+    },
+  ];
+
+  const concurrent = {
+    name: 'concurrent-registrations-one-accepted',
+    issue: ['alice-1'],
+    requests: [
+      request({ device: 'deviceA', token: tokens['alice-1'].token }),
+      request({ device: 'deviceB', token: tokens['alice-1'].token }),
+    ],
+    expect: { accept: 1, refuse: 1, error: E('TOKEN_USED') },
+  };
+
+  // Every agent action but auth.request (AGENT_ACTIONS, src/core/server/constants).
+  const actions = [
+    'trust.request',
+    'trust.respond',
+    'trust.update',
+    'trust.delete',
+    'trust.fetch',
+    'inbox.fetch',
+    'inbox.delete',
+    'inbox.seen',
+    'outbox.fetch',
+    'outbox.cancel',
+    'draft.fetch',
+    'draft.create',
+    'draft.update',
+    'draft.delete',
+    'system.ping',
+    'auth.refresh',
+    'artifact.send',
+    'event.send',
+    'trash.fetch',
+    'trash.delete',
+  ];
+  const agentArtifact = (action, from, signedBy, to = identity) => {
+    const unsigned = {
+      version: '1.1.0',
+      id: nextId(),
+      action,
+      agentId: from,
+      to,
+      issuedAt: now,
+      encryption: null,
+      ...(action === 'auth.refresh'
+        ? {
+            document: {
+              identity: to,
+              authToken: 'refresh-token-vector',
+              publicKey: keys[signedBy].publicKeyPem,
+            },
+          }
+        : {}),
+    };
+    return { ...unsigned, signature: sign(unsigned, keys[signedBy]) };
+  };
+  const forgedCases = actions.flatMap((action) => [
+    {
+      name: `${action}/enrolled-device-accepted`,
+      action,
+      artifact: agentArtifact(action, agentId, 'deviceA'),
+      expect: 'accept',
+    },
+    {
+      name: `${action}/real-agent-id-signed-by-another-key-refused`,
+      action,
+      artifact: agentArtifact(action, agentId, 'attacker'),
+      expect: 'refuse',
+      reason: 'signature',
+    },
+    {
+      name: `${action}/correspondent-identity-as-agent-refused`,
+      action,
+      artifact: agentArtifact(action, correspondent, 'correspondent'),
+      expect: 'refuse',
+      reason: 'not-an-agent',
+    },
+    {
+      name: `${action}/device-of-another-identity-refused`,
+      action,
+      artifact: agentArtifact(action, agentId, 'deviceA', otherIdentity),
+      expect: 'refuse',
+      reason: 'no-record',
+    },
+  ]);
+
+  return {
+    item: 'E',
+    tickets: ['EBA-113'],
+    description:
+      "BTPS 1.1 item E, device registration bound to the identity (addendum item 3, threat T-25), and fix-list item 5 (a forged agent message). sequences: each starts from an empty token store (none when tokenStore is false) holding the tokens in `issue`, each issued `issuedMsBeforeUse` before the steps run and valid for `tokenExpiryMs`; each step is an auth.request signed over its JCS form, accepted (the device is bound to the token's identity under an agent id the server generates) or refused with `reason` and the error code `error`. In the lifecycle sequence the device is then used, refreshed with a key rotation, and its old key refused. concurrent: both requests race for one token; exactly one is accepted. forged: the store holds one enrolled device (`enrolled`) and one trust between two identities (`correspondentTrust`); each case is an agent artifact for an action other than auth.request, accepted only when it is the enrolled device's, signed by its key, to its identity.",
+    provenance: `${TEST_ONLY}`,
+    now,
+    tokenExpiryMs,
+    identity,
+    otherIdentity,
+    keys: Object.fromEntries(
+      Object.entries(keys).map(([name, key]) => [
+        name,
+        { ...key, fingerprint: fingerprint(key.publicKeyPem) },
+      ]),
+    ),
+    tokens,
+    sequences,
+    concurrent,
+    forged: {
+      enrolled: { agentId, identity, key: 'deviceA' },
+      correspondentTrust: { senderId: correspondent, receiverId: identity, key: 'correspondent' },
+      cases: forgedCases,
+    },
+  };
+}
+
 write('self-held-signature.vector.json', await selfHeldSignature());
 write('oaep-mgf1-sha1.negative.vector.json', mgf1Sha1Negative());
 write('selectors.vector.json', selectors());
@@ -540,3 +825,4 @@ write('selectors-receiver-rotation.vector.json', selectorsReceiverRotation());
 write('sdk-defects.vector.json', sdkDefects());
 write('jcs-signature.vectors.json', jcsSignature());
 write('refresh.vectors.json', refresh());
+write('registration.vectors.json', registration());
