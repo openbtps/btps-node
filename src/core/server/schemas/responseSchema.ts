@@ -8,7 +8,7 @@
 import { z } from 'zod';
 import { BtpSignatureSchema, BtpEncryptionSchema } from './schema.js';
 import { identitySchema } from './shared.js';
-import { BtpAuthResDocSchema } from './btpsDocsSchema.js';
+import { BtpAuthResDocSchema, BtpIdentityResDocSchema } from './btpsDocsSchema.js';
 import { BtpTransporterArtifactSchema } from './artifacts/transporterSchema.js';
 
 // Schema for BTPStatus
@@ -62,7 +62,11 @@ export const BtpQueryResultSchema = z.object({
 });
 
 // Schema for BTPServerResDocs (union of possible response documents)
-export const BtpServerResDocsSchema = z.union([BtpAuthResDocSchema, BtpQueryResultSchema]);
+export const BtpServerResDocsSchema = z.union([
+  BtpAuthResDocSchema,
+  BtpQueryResultSchema,
+  BtpIdentityResDocSchema,
+]);
 
 // Schema for BTPServerResponse
 export const BtpServerResponseSchema = z

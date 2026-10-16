@@ -142,6 +142,29 @@ describe('BtpServerResponseSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('should validate a signed identity lookup answer', () => {
+    const identityAnswer = {
+      version: '1.0.0',
+      status: { ok: true, code: 200, message: 'success' },
+      id: '123e4567-e89b-12d3-a456-426614174000',
+      issuedAt: '2025-01-01T00:00:00.000Z',
+      type: 'btps_response' as const,
+      reqId: 'req-123',
+      document: { selector: 'btps1', publicKey: 'public-key', keyType: 'rsa', version: '1.0.0' },
+      signature: { algorithmHash: 'sha256' as const, value: 'sig', fingerprint: 'fp' },
+      signedBy: 'host$example.com',
+      selector: 'btps1',
+    };
+
+    expect(validate(BtpServerResponseSchema, identityAnswer).success).toBe(true);
+    expect(
+      validate(BtpServerResponseSchema, {
+        ...identityAnswer,
+        document: { ...identityAnswer.document, keyType: 'ec' },
+      }).success,
+    ).toBe(false);
+  });
+
   it('should validate response with signature and encryption', () => {
     const validResponseWithCrypto = {
       version: '1.0.0',
