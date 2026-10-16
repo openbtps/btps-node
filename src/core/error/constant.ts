@@ -152,6 +152,11 @@ export const BTP_ERROR_UNKNOWN: BTPError = {
   message: 'Unknown error',
 };
 
+export const BTP_ERROR_ARTIFACT_TOO_LARGE: BTPError = {
+  code: 'BTP_ERROR_ARTIFACT_TOO_LARGE',
+  message: 'Artifact exceeds the size limit of this server',
+};
+
 export const BTP_ERROR_SOCKET_TIMEOUT: BTPError = {
   code: 'BTP_ERROR_SOCKET_TIMEOUT',
   message: 'Socket timeout. Connection closed',

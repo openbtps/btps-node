@@ -28,6 +28,7 @@ interface BtpsServerOptions {
   tlsOptions: BtpsTlsOptions;
   connectionTimeoutMs?: number;
   middlewarePath?: string;
+  maxArtifactSizeKb?: number;
 }
 ```
 
@@ -41,6 +42,7 @@ interface BtpsServerOptions {
 - `tlsOptions`: Required TLS cert and key options. Use self signed cert for local development. Make sure to set rejectUnauthorized false when connecting using BtpsClient for local development
 - `connectionTimeoutMs`: Optional connection timeout in milliseconds (default: 30000)
 - `middlewarePath`: Optional path to middleware file
+- `maxArtifactSizeKb`: Optional largest artifact the server accepts, in KB, where 1 KB is 1024 bytes (default: 5120, that is 5 MB). An artifact over it is refused before it is read in full, with the limit in the error message, and the connection is closed. The minimum is 1024 (1 MB): a smaller value logs a warning and 1024 is used, and a value that is not a size logs a warning and the default is used. There is no maximum.
 
 ---
 

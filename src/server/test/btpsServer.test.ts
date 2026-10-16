@@ -40,7 +40,9 @@ import {
   BTP_ERROR_TRUST_REVOKED,
   BTP_ERROR_TRUST_BLOCKED,
   BTP_ERROR_EVENT_UNRELATED,
+  BTP_ERROR_ARTIFACT_TOO_LARGE,
 } from '../../core/error/index.js';
+import { PassThrough } from 'stream';
 
 const TEST_FILE = path.join(__dirname, 'test-trust-store.json');
 
@@ -2595,6 +2597,56 @@ export default function () {
       const { signature, ...signed } = response;
       expect(signed.signedBy).toBe('host$example.com');
       expect(signature && verifySignature(signed, signature, keys.publicKey).isValid).toBe(true);
+    });
+  });
+
+  describe('artifact size limit', () => {
+    const connect = (server: BtpsServer) => {
+      const input = new PassThrough();
+      const socket = Object.assign(new EventEmitter(), {
+        remoteAddress: '1.2.3.4',
+        destroyed: false,
+        writableEnded: false,
+        writable: true,
+        pipe: <T extends NodeJS.WritableStream>(destination: T) => input.pipe(destination),
+        setTimeout: vi.fn(),
+        write: vi.fn(),
+        end: vi.fn(),
+        destroy: vi.fn(),
+      }) as unknown as TLSSocket;
+      server['handleConnection'](socket);
+      return { input, socket };
+    };
+    const makeServer = (maxArtifactSizeKb?: number) =>
+      new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        maxArtifactSizeKb,
+      });
+
+    it('refuses an artifact over its limit with the limit in the message, then closes', async () => {
+      const { input, socket } = connect(makeServer(2048));
+
+      input.write(Buffer.alloc(2048 * 1024 + 1, 'a'));
+      await vi.waitFor(() => expect(socket.destroy).toHaveBeenCalled());
+
+      const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
+      expect(written.type).toBe('btps_error');
+      expect(written.status.ok).toBe(false);
+      expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 2048 KB`);
+    });
+
+    it('starts with a warning and the 1024 KB minimum when set lower', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { input, socket } = connect(makeServer(100));
+
+      input.write(Buffer.alloc(1024 * 1024 + 1, 'a'));
+      await vi.waitFor(() => expect(socket.destroy).toHaveBeenCalled());
+
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('below the 1024 KB minimum'));
+      const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
+      expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 1024 KB`);
     });
   });
 

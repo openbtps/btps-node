@@ -280,6 +280,10 @@ attachment.sha256 = createHash('sha256').update(bytes).digest('hex');
 
 `size` and `sha256` let a receiving platform that stores the file apart from the document (for example in object storage) confirm later that it is still exactly the file that arrived, recognise the same file sent twice, and show the file's size before it is downloaded. They are not what protects the file in transit: the artifact's signature already covers the whole document, attachments included. The protocol does not check them; a platform may.
 
+**Size:**
+
+Each receiving server sets the largest artifact it accepts: 5 MB unless it chooses otherwise (see [Server Requirements](./overview.md#server-requirements)). Attachments travel inside the artifact as base64, which is a third larger than the file itself, so a 5 MB artifact carries about 3.7 MB of files. When the files do not fit, send them in further documents that reference the first one (`follows`, see References) rather than in one large artifact.
+
 **References:**
 
 A document can point to other signed documents, for example a corrected invoice to the invoice it replaces:

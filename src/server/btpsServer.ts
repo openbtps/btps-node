@@ -83,6 +83,7 @@ import type {
 import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { validate } from '@core/utils/validation.js';
 import { MiddlewareManager } from './libs/middlewareManager.js';
+import { artifactSizeGuard, resolveMaxArtifactSizeKb } from './libs/artifactSizeGuard.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
 import type { BTPIdentityRecord } from '@core/storage/types.js';
@@ -100,6 +101,7 @@ export class BtpsServer {
   private readonly trustStore: AbstractTrustStore<BTPTrustRecord>;
   private readonly middlewareManager: MiddlewareManager;
   private readonly connectionTimeoutMs: number;
+  private readonly maxArtifactSizeKb: number;
   private readonly dependencies: {
     trustStore: AbstractTrustStore<BTPTrustRecord>;
     identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
@@ -122,6 +124,7 @@ export class BtpsServer {
     this.trustStore = options.trustStore;
     this.identityStore = options.identityStore;
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 30000;
+    this.maxArtifactSizeKb = resolveMaxArtifactSizeKb(options.maxArtifactSizeKb);
     this.middlewareManager = new MiddlewareManager(options.middlewarePath);
     this.dependencies = {
       trustStore: this.trustStore,
@@ -232,7 +235,9 @@ export class BtpsServer {
     const ipAddress = socket.remoteAddress ?? 'unknown';
     const now = Date.now();
     const startTime = new Date(now).toISOString();
-    const stream = socket.pipe(split2());
+    const sizeGuard = artifactSizeGuard(this.maxArtifactSizeKb);
+    socket.pipe(sizeGuard);
+    const stream = sizeGuard.pipe(split2());
     const context: BTPContext = {
       socket,
       remoteAddress: ipAddress,
@@ -393,11 +398,13 @@ export class BtpsServer {
     };
 
     socket.on('error', handleError);
+    sizeGuard.on('error', handleError);
     stream.on('error', handleError);
 
     // Cleanup to avoid memory leaks and max listener warnings
     socket.on('close', () => {
       socket.off('error', handleError);
+      sizeGuard.off('error', handleError);
       if (typeof stream.off === 'function') stream.off('error', handleError);
     });
   }

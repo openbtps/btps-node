@@ -87,6 +87,7 @@ const server = new BtpsServer({
   port: 3443,
   tlsOptions,
   connectionTimeoutMs: 30000,
+  maxArtifactSizeKb: 5120, // the largest artifact accepted, in KB (default 5 MB, minimum 1 MB)
   onError: (error) => {
     console.error('Server Error:', error.message);
   },
