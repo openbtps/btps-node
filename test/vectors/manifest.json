@@ -34,7 +34,7 @@
     "refresh.vectors.json": "9a4f796322b90128cc6be9dbbda1155d97e03b716301aac79155f9aef232d9fd",
     "registration.vectors.json": "2834d325b1078b5a44410076fb12444bb6856543f84df7300870bba11f980fb4",
     "replay.vectors.json": "41462908965cc757fe32946d0964f3f237781880eb9382a9049e67fa725481c0",
-    "sdk-defects.vector.json": "438eb97d61f7fea66b5cf8c1862e1f8466e95b81e4a9e886114fe813ecddf612",
+    "sdk-defects.vector.json": "a40b8d53b7ea5fa0572bd434c54a8bb67be49cadedb7dba60c6a84136bca3ac1",
     "selectors-receiver-rotation.vector.json": "e8b83d22fa3bb5e1fbc8f6e873c4feb96160ded498cf394ac38832d790a2dddb",
     "selectors.vector.json": "d2566da961757c3a364ee4119290a12f2743f3b8ca870899b187ab2a045d5295",
     "self-held-signature.vector.json": "ecf0b6725fb06f43176f3e803bdcac18142e3644c61bac53a5ea69e0142c045f"

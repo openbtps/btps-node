@@ -284,7 +284,7 @@ function sdkDefects() {
 
   return {
     description:
-      'BTPS 1.1 SDK defects that can be expressed as data. The other defects of that set (server schema, crossed responses, line length, error codes) are server-path behaviour and are tested by the SDK's server tests.',
+      'BTPS 1.1 SDK defects that can be expressed as data. The other defects of that set (server schema, crossed responses, line length, error codes) are server-path behaviour and are tested in src/server/test.',
     provenance: `${TEST_ONLY} The receiver key is the one in oaep-wrap.vector.json.`,
     gcmTag: {
       receiverKeyVector: 'oaep-wrap.vector.json',
