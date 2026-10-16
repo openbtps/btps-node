@@ -440,6 +440,28 @@ describe('item D: a key-rotating refresh is signed by the current key, through t
       },
     );
 
+    it('self-held/tokens: a refresh token is single-use', async () => {
+      const current = genKeys();
+      const server = makeServer();
+      const { agentId, refreshToken } = await enrolDevice(current);
+      const issued = [refreshToken];
+      for (const step of vectors.selfHeld.tokens) {
+        const token = issued[Number(step.use.replace('issued-', ''))]!;
+        const response = await deliver(
+          server,
+          await refreshArtifact(agentId, current, {
+            identity: USER,
+            authToken: token,
+            publicKey: current.publicKey,
+          }),
+        );
+        expect(response.status.ok).toBe(true);
+        const { data } = reissued.at(-1)!;
+        expect(data ? 'accept' : 'refuse').toBe(step.expect);
+        if (data) issued.push(data.refreshToken);
+      }
+    });
+
     it.each(vectors.managed.cases.map((c) => [c.name, c] as const))('managed/%s', async (_, c) => {
       // A managed identity has no agent trust record: there is no device key to refresh.
       const response = await run(c);
