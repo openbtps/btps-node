@@ -6,11 +6,10 @@
  */
 
 /*
- * EBA-444 (fix list 8): the server enforces a trust's `privacyType`. Real
+ * The server enforces a trust's `privacyType`. Real
  * keys, end to end through parse, signature and trust; only DNS key lookup is
  * faked. Every privacy type × BTPS_DOC and BTPS_EVENT × encrypted and
- * unencrypted, and an event over the flipped record (release plan section
- * 2.4) is governed by that record.
+ * unencrypted, and an event over the flipped record is governed by that record.
  *
  * Adapted from the failing test on `test/identity-lookup-failing`
  * (sdkDefects.test.ts, "trust privacy type"), which failed on master 2ac824f:
@@ -137,7 +136,7 @@ const allowed = (privacyType: BTPEncryptionType, encrypted: boolean) =>
  * biller holds to the payer (BILLER -> PAYER):
  * - a document from the biller, over the normal record;
  * - an event from the biller, over the normal record;
- * - an event from the payer, over the flipped record (section 2.4).
+ * - an event from the payer, over the flipped record.
  */
 const ROUTES = [
   {
@@ -169,7 +168,7 @@ const CASES = ROUTES.flatMap((route) =>
   ),
 );
 
-describe('EBA-444: the server enforces privacyType', () => {
+describe('the server enforces privacyType', () => {
   let server: BtpsServer;
   let store: MapTrustStore;
 

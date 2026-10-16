@@ -31,7 +31,7 @@ export interface StorageStoreOptions {
   entityName?: string; // e.g. 'trustedSenders', 'trust_rejections'
 }
 
-/** One accepted `(from, id)` pair in a replay store (item F, EBA-114). */
+/** One accepted `(from, id)` pair in a replay store. */
 export interface BTPReplayEntry {
   key: string; // computeReplayKey(from, id)
   from: string; // the sender identity, or agent id, lower-cased

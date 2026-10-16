@@ -66,7 +66,7 @@ describe('TokenStore.consume (InMemoryTokenStore)', () => {
   });
 });
 
-describe('consumeRegistrationToken (item E)', () => {
+describe('consumeRegistrationToken (device registration)', () => {
   const request = (authToken: string, identity = ALICE, to = ALICE) => ({
     identity,
     to,
@@ -151,7 +151,7 @@ describe('consumeRegistrationToken (item E)', () => {
   });
 });
 
-describe('resolveAgentKey (fix-list item 5)', () => {
+describe('resolveAgentKey (a forged agent message is refused)', () => {
   const record = (senderId: string, receiverId: string): BTPTrustRecord => ({
     id: computeTrustId(senderId, receiverId),
     senderId,

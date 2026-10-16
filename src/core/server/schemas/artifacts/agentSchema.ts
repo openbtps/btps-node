@@ -29,7 +29,7 @@ const sameIdentity = (a: string, b: string) => a.toLowerCase() === b.toLowerCase
 /**
  * The document of `artifact.send`, `event.send`, `trust.request` and
  * `trust.respond` is the transporter artifact the device built, not a bare
- * document (addendum item 10, EBA-122). It is held to every transporter rule
+ * document. It is held to every transporter rule
  * (its document, envelope, ownership and attachments), is of the action's
  * type, and is sent from the identity the agent acts for: a device sends
  * only as its own identity.

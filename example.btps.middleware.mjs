@@ -5,7 +5,7 @@
  * The middleware can be used for rate limiting, metrics, logging, custom validation, etc.
  *
  * The server's default middleware (createDefaultMiddleware) always runs before
- * this file's, so it is not included here (EBA-187):
+ * this file's, so it is not included here:
  * 1. rate limiting by network address (before parsing);
  * 2. rate limiting by verified identity (after signature verification);
  * 3. metrics and error logging.
@@ -14,7 +14,7 @@
  * option, e.g. `createDefaultMiddleware({ rateLimiter })`; `false` turns the
  * defaults off. A file that still includes them gets them once.
  *
- * What a handler is given (EBA-445):
+ * What a handler is given:
  * - `req.data`: `{ type, artifact }` once the line is parsed; `type` is
  *   'transporter' or 'agent' from signature verification on;
  * - `req.getIdentity()`: `{ from, to }` as the artifact names them (a claim

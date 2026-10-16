@@ -1,6 +1,6 @@
 {
   "keyUse": "encryption",
-  "provenance": "TEST-ONLY key generated locally for the BTPS golden vectors (EBA-110). Wrapped with OAEP SHA-256 / MGF1-SHA-256, the parameters of AWS KMS RSAES_OAEP_SHA_256. Not produced by AWS KMS.",
+  "provenance": "TEST-ONLY key generated locally for the BTPS golden vectors. Wrapped with OAEP SHA-256 / MGF1-SHA-256, the parameters of AWS KMS RSAES_OAEP_SHA_256. Not produced by AWS KMS.",
   "algorithm": "RSAES_OAEP_SHA_256",
   "mgf1Algorithm": "SHA_256",
   "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApOvyeETDdTL5rYuq2Wvb\nHIu7bFn+7oHHSfyPTXUDn6iUELVKJzONqjbtxm3pKeCe6S48/DR06G7qwU9uon12\n1TIlTvfTugEX7jPTcVdqNYm6j0ubWywAfs/VPefBjOOlQ43L3g9t0CsiA3XJCVDR\nXfK2CSbFu58qSdNzAglKFyqR+GymObtn0s3d2vwYszUofxL5Ue0Ryhlpzu9nT9X8\ncNCHtpA75/usFOf9MySjn3dxOYFKMk22Vh7gc49uth+mrPk+99BTkYr36FlmnU3F\nbBWZ+8sw2HZhWNkdUbCGGIenUpSN1Jhp2v5FZUgd1dckoREK5iprCBR0yQrZZQGO\n5wIDAQAB\n-----END PUBLIC KEY-----\n",

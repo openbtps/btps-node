@@ -15,7 +15,7 @@ const total = () =>
   set.identityLookup.dns.length +
   set.identityLookup.lookup.cases.length;
 
-describe('item J: identity lookup vectors (EBA-442, EBA-186)', () => {
+describe('identity lookup vectors', () => {
   it('covers padded keys, an absent record, and every answer the client must refuse', () => {
     const model = set.identityLookup;
     expect(model.parse.map((c) => c.name)).toEqual(
@@ -37,14 +37,14 @@ describe('item J: identity lookup vectors (EBA-442, EBA-186)', () => {
     );
   });
 
-  it('the SDK on this tree passes every item J check', async () => {
+  it('the SDK on this tree passes every sdk/identity-lookup check', async () => {
     const checks = identityLookupSdkChecks(await loadSdk(REPO_ROOT), set);
     expect(checks.length).toBe(total());
-    expect(checks.every((c) => c.item === 'J' && c.id.startsWith('sdk/item-J/'))).toBe(true);
+    expect(checks.every((c) => c.id.startsWith('sdk/identity-lookup/'))).toBe(true);
     expect(failing(await runChecks(checks))).toEqual([]);
   });
 
-  it('every item J check fails on an SDK without the repaired lookup', async () => {
+  it('every sdk/identity-lookup check fails on an SDK without the repaired lookup', async () => {
     const results = await runChecks(
       identityLookupSdkChecks({ utils: {}, crypto: {}, setTxtRecords: () => {} }, set),
     );

@@ -1,5 +1,5 @@
 /**
- * The published vector set's manifest (EBA-123): `test/vectors/manifest.json`
+ * The published vector set's manifest: `test/vectors/manifest.json`
  * names the set's version and the SHA-256 of every file in it, so a third
  * party can tell that the vectors it runs are byte for byte the ones
  * released, and so no vector changes without a new manifest.

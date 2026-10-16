@@ -1,5 +1,5 @@
 /**
- * Item A, lifecycle events (EBA-440): event.vectors.json and the events in
+ * Lifecycle events: event.vectors.json and the events in
  * test/vectors/events/.
  *
  * - eventRuntimeChecks: each event's JCS form signs and verifies on every
@@ -15,7 +15,6 @@ import { utf8 } from '../encoding.mjs';
 import { ensure } from '../check.mjs';
 import { runtimeCanonical } from './documents.mjs';
 
-const ITEM = 'A';
 const DOCUMENT_PREFIX = 'documents/';
 
 /** The event (or document) a case names, changed by its `set` and `unset`. A fresh copy every time. */
@@ -41,7 +40,6 @@ export function eventRuntimeChecks(runtime, set) {
   const key = set.managedSignature;
   return Object.entries(set.events).map(([name, raw]) => ({
     id: `vectors/${runtime.name}/events/${name}/sign-then-verify`,
-    item: ITEM,
     async run() {
       const canonical = utf8(await runtimeCanonical(runtime, raw));
       const signature = await runtime.signPkcs1Sha256(key.privateKeyPem, canonical);
@@ -59,9 +57,7 @@ export function eventRuntimeChecks(runtime, set) {
 export function eventSdkChecks(sdk, set) {
   const model = set.eventModel;
   const check = (name, run) => ({
-    id: `sdk/item-A/${name}`,
-    item: ITEM,
-    tickets: model.tickets,
+    id: `sdk/events/${name}`,
     run() {
       ensure(
         sdk.documents?.parseBtpEventDoc,

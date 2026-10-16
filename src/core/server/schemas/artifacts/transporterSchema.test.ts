@@ -36,7 +36,7 @@ const artifact = (document: unknown, overrides: Record<string, unknown> = {}) =>
 const messages = (result: ReturnType<typeof BtpTransporterArtifactSchema.safeParse>) =>
   result.success ? [] : result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
 
-describe('BTPS_DOC carries a v2 document (EBA-402)', () => {
+describe('BTPS_DOC carries a v2 document', () => {
   for (const name of [
     'invoice.v2.json',
     'invoice.correction.v2.json',
@@ -50,7 +50,7 @@ describe('BTPS_DOC carries a v2 document (EBA-402)', () => {
     });
   }
 
-  it('refuses the BTPS 1.0 invoice: 1.1 refuses 1.0 (release plan section 6)', () => {
+  it('refuses the BTPS 1.0 invoice: 1.1 refuses 1.0', () => {
     const v1 = {
       title: 'Invoice',
       id: 'INV-1',

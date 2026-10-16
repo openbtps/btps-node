@@ -329,7 +329,7 @@ describe('EBA-116/117/118: SDK RSA-OAEP wrap/unwrap interop with KMS RSAES_OAEP_
   });
 });
 
-// EBA-445 (fix list 12). Ran 2026-10-12: a 1024-bit key was accepted for encryption.
+// Ran 2026-10-12: a 1024-bit key was accepted for encryption.
 describe('RSA keys under 2048 bits are refused', () => {
   const pair = (modulusLength: number): PemKeys =>
     crypto.generateKeyPairSync('rsa', {

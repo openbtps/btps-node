@@ -18,12 +18,15 @@ import { STATUS_NOT_IN_DOCUMENT } from './baseSchema.js';
 import { parseBtpDocV2 } from '../helpers.js';
 import { canonicalizeValue } from '@core/crypto/jcs.js';
 import { BTP_DOC_LIMITS, BTP_DOC_REFERENCE_TYPES } from '../../constants/documents.js';
+import type { BTPCreditNoteDoc, BTPInvoiceV2Doc } from '../../types.js';
 
 const DOCUMENTS = new URL('../../../../../test/vectors/documents/', import.meta.url);
 const REPO_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 
 const readBytes = (name: string): string => readFileSync(new URL(name, DOCUMENTS), 'utf8');
 const load = (name: string): Record<string, unknown> => JSON.parse(readBytes(name));
+/** A fixture as the document type it is, for tests that change one field of it. */
+const loadAs = <T>(name: string): T => JSON.parse(readBytes(name));
 const fixtureNames = readdirSync(DOCUMENTS)
   .filter((name) => name.endsWith('.json'))
   .sort();
@@ -97,7 +100,7 @@ describe('document model v2: an attachment carries its file (BTPS 1.0 shape, 202
   });
 });
 
-describe('document model v2: schema vectors per type (EBA-119)', () => {
+describe('document model v2: schema vectors per type', () => {
   it('has the expected vectors, and no lifecycle event (that is BTPS_EVENT)', () => {
     expect(fixtureNames).toEqual([
       'credit-note.v2.json',
@@ -169,7 +172,7 @@ describe('document model v2: schema vectors per type (EBA-119)', () => {
   });
 });
 
-describe('document model v2: status lives only in events (release plan 2.5)', () => {
+describe('document model v2: status lives only in events', () => {
   const STATUS_FIELDS = {
     status: 'paid',
     paidAt: '2026-10-03T00:00:00.000Z',
@@ -195,13 +198,16 @@ describe('document model v2: status lives only in events (release plan 2.5)', ()
 });
 
 describe('the 1.1 invoice: the 1.0 invoice with the changes of 2026-10-16', () => {
-  type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-  const invoice = (): Doc => load('invoice.v2.json');
+  const invoice = () => loadAs<BTPInvoiceV2Doc>('invoice.v2.json');
   const accepted = (doc: unknown) => BtpInvoiceV2DocSchema.safeParse(doc).success;
   const withCell = (value: unknown) => {
     const doc = invoice();
-    doc.lineItems.rows[0].Tax = value;
-    return doc;
+    const [first, ...rest] = doc.lineItems.rows;
+    return { ...doc, lineItems: { ...doc.lineItems, rows: [{ ...first, Tax: value }, ...rest] } };
+  };
+  const withIssuer = (issuer: Record<string, unknown>) => {
+    const doc = invoice();
+    return { ...doc, issuer: { ...doc.issuer, ...issuer } };
   };
 
   it('carries totalAmount as integer minor units, and refuses 1.0\'s float value', () => {
@@ -238,19 +244,14 @@ describe('the 1.1 invoice: the 1.0 invoice with the changes of 2026-10-16', () =
 
   it('refuses an identifier key without a namespace, or with more than one', () => {
     for (const key of ['abn', 'au:abn:extra', ':abn', 'au:', 'au abn']) {
-      const doc = invoice();
-      doc.issuer.identifiers = { [key]: '51824753556' };
-      expect(accepted(doc), key).toBe(false);
+      expect(accepted(withIssuer({ identifiers: { [key]: '51824753556' } })), key).toBe(false);
     }
-    const doc = invoice();
-    doc.issuer.identifiers = { 'gb:vat': 'GB123456789', 'eu:vat': 'DE123456789' };
-    expect(accepted(doc)).toBe(true);
+    const identifiers = { 'gb:vat': 'GB123456789', 'eu:vat': 'DE123456789' };
+    expect(accepted(withIssuer({ identifiers }))).toBe(true);
   });
 
   it('refuses an issuer email that is not an email address', () => {
-    const doc = invoice();
-    doc.issuer.email = 'not an email';
-    expect(accepted(doc)).toBe(false);
+    expect(accepted(withIssuer({ email: 'not an email' }))).toBe(false);
   });
 
   it('carries metadata exactly as given, and refuses it over its caps', () => {
@@ -285,7 +286,7 @@ describe('the 1.1 invoice: the 1.0 invoice with the changes of 2026-10-16', () =
     );
   });
 
-  it("refuses PR #9's invoice fields, which the founder removed", () => {
+  it("refuses PR #9's invoice fields, which 1.1 removed", () => {
     const removed: Record<string, unknown> = {
       invoiceNumber: 'INV-1',
       issueDate: '2026-10-01T00:00:00.000Z',
@@ -302,8 +303,7 @@ describe('the 1.1 invoice: the 1.0 invoice with the changes of 2026-10-16', () =
     for (const [field, value] of Object.entries(removed)) {
       expect(accepted({ ...invoice(), [field]: value }), field).toBe(false);
     }
-    const structured = invoice();
-    structured.lineItems = [{ description: 'x', taxCategory: 'GST10' }];
+    const structured = { ...invoice(), lineItems: [{ description: 'x', taxCategory: 'GST10' }] };
     expect(accepted(structured)).toBe(false);
   });
 });
@@ -512,7 +512,7 @@ describe('document model v2: references (2026-10-16)', () => {
   });
 });
 
-describe('document model v2: money is integer minor units plus ISO 4217 (EBA-119)', () => {
+describe('document model v2: money is integer minor units plus ISO 4217', () => {
   it('accepts a well-formed amount', () => {
     expect(BtpMoneySchema.safeParse({ amount: 170000, currency: 'AUD' }).success).toBe(true);
   });
@@ -527,7 +527,7 @@ describe('document model v2: money is integer minor units plus ISO 4217 (EBA-119
   });
 });
 
-describe('document model v2: payslip vectors (EBA-119)', () => {
+describe('document model v2: payslip vectors', () => {
   it('carries a deduction payee and contributions with and without a fund', () => {
     const hourly = BtpPayslipDocSchema.parse(load('payslip.hourly.v2.json'));
     expect(BtpPayslipPayeeSchema.safeParse(hourly.deductions[0]?.payee).success).toBe(true);
@@ -559,7 +559,7 @@ describe('document model v2: payslip vectors (EBA-119)', () => {
   });
 });
 
-describe('document model v2: a document is never mutated by parsing (EBA-119)', () => {
+describe('document model v2: a document is never mutated by parsing', () => {
   for (const name of fixtureNames) {
     it(`${name}: the input is unchanged and the parsed document drops nothing`, () => {
       const raw = load(name);
@@ -603,7 +603,7 @@ describe('document model v2: a document is never mutated by parsing (EBA-119)', 
   });
 });
 
-describe('document model v2: shipped source (EBA-119)', () => {
+describe('document model v2: shipped source', () => {
   const files = fg.sync(MODEL_SOURCES, { cwd: REPO_ROOT, absolute: true });
 
   it('found the model source', () => {

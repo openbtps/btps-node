@@ -36,7 +36,7 @@ export const isTrustActive = (trust?: BTPTrustRecord): boolean => {
 
 /**
  * Whether a trust's agreed `privacyType` allows an artifact that is, or is
- * not, encrypted (EBA-444, fix list 8):
+ * not, encrypted:
  * - `encrypted`: only encrypted;
  * - `unencrypted`: only unencrypted;
  * - `mixed`: either;
@@ -117,7 +117,7 @@ const isRecordBetween = (record: BTPTrustRecord, a: string, b: string): boolean 
 };
 
 /**
- * Trust for a `BTPS_EVENT` (BTPS 1.1 item A, release plan section 2.4).
+ * Trust for a `BTPS_EVENT` (BTPS 1.1 lifecycle events).
  *
  * Once A has accepted B's trust request, so B may send documents to A, B's
  * server accepts events from A over that same trust. So an event from

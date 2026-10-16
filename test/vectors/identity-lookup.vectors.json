@@ -1,11 +1,6 @@
 {
-  "item": "J",
-  "tickets": [
-    "EBA-442",
-    "EBA-186"
-  ],
-  "description": "BTPS 1.1 item J, host identity lookup repaired (fix list 1), and fix-list item 9 (padded keys in DNS). parse: each TXT record, as the strings a resolver returns, read into its tags; a value keeps every '=' after the first. dns: the address's own identity record, looked up first over a fake zone in which every other name has no record (ENOTFOUND): a key, absent (the client then asks the host), or an error. lookup: answers a host sends to `request`, checked with the zone's keys: accepted with the key record, or refused with the error code. The server-side defects (the double hash, the response schema, the socket) are behaviour, tested over real TLS in src/server/test/identityLookup.integration.test.ts.",
-  "provenance": "TEST-ONLY key generated locally for the BTPS golden vectors (EBA-110). Never use it for anything else. The 3072-bit and 4096-bit keys are test-only too, and exist to carry base64 padding.",
+  "description": "BTPS 1.1 host identity lookup, repaired, and keys whose base64 carries padding in DNS. parse: each TXT record, as the strings a resolver returns, read into its tags; a value keeps every '=' after the first. dns: the address's own identity record, looked up first over a fake zone in which every other name has no record (ENOTFOUND): a key, absent (the client then asks the host), or an error. lookup: answers a host sends to `request`, checked with the zone's keys: accepted with the key record, or refused with the error code. The server-side defects (the double hash, the response schema, the socket) are behaviour, tested over real TLS in src/server/test/identityLookup.integration.test.ts.",
+  "provenance": "TEST-ONLY key generated locally for the BTPS golden vectors. Never use it for anything else. The 3072-bit and 4096-bit keys are test-only too, and exist to carry base64 padding.",
   "keys": {
     "host": {
       "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArfcnUIudHir5NXwB751M\n6WX5tRzJ1M+gRj04lKAvqgjT1Fq5if8LLXgTEJrSYbHHE4YHyyehL3CDYWmz6ZbZ\n0A/XrLyz90LcBBaPtNFWzrq4s8a9ykaCOFiuRvrvnUO2bjl2t+28Qa9LyORqjXzB\nRixSQ+sFqho9RHuXW5MdXkmhR7G4ibI/TtbA40psQYXoxoAklAuOcrcX7mSuPbtJ\nmbQS77SMzl3h8fJRDlw12B+sv1QXqjZ8nCA4348veuNaLqmL5Sd+QjBPnYYibYcE\ntch64XokuLuwIBND550JAM+UNNr9/t5LT0+2pEvfiwnPHdO9EAoe2ew8/OGIJhfF\nTwIDAQAB\n-----END PUBLIC KEY-----\n",

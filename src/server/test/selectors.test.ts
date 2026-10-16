@@ -6,7 +6,7 @@
  */
 
 /*
- * EBA-116 (BTPS 1.1 item 6): a transporter artifact names the sender key it
+ * Separate selectors: a transporter artifact names the sender key it
  * was signed with (signatureSelector) apart from the receiver key it was
  * encrypted to (encryptionSelector), and 1.0's single `selector` is refused.
  * Real keys, end to end through the server's parse and verify steps; only
@@ -125,7 +125,7 @@ const aliceSends = async (encrypted = true): Promise<BTPTransporterArtifact> => 
   return payload as unknown as BTPTransporterArtifact;
 };
 
-describe('EBA-116: separate signatureSelector and encryptionSelector', () => {
+describe('separate signatureSelector and encryptionSelector', () => {
   let server: BtpsServer;
 
   beforeEach(() => {
@@ -193,7 +193,7 @@ describe('EBA-116: separate signatureSelector and encryptionSelector', () => {
     expect(await serverVerifies(artifact)).toMatchObject({ isValid: true });
   });
 
-  describe('1.0 artifacts are refused (plan section 6: no 1.0 fallback)', () => {
+  describe('1.0 artifacts are refused (no 1.0 fallback)', () => {
     const asOneDotZero = (artifact: BTPTransporterArtifact) => {
       const { signatureSelector: _s, encryptionSelector, ...rest } = artifact;
       return { ...rest, selector: encryptionSelector ?? 'btps1' };
@@ -367,7 +367,7 @@ describe('EBA-116: separate signatureSelector and encryptionSelector', () => {
     );
 
     expect(sent).toHaveLength(1);
-    // The server's own selector, not the request's hostSelector (EBA-442).
+    // The server's own selector, not the request's hostSelector.
     expect(sent[0]).toMatchObject({ signatureSelector: 'srv1' });
     expect(sent[0]).not.toHaveProperty('selector');
   });

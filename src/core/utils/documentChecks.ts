@@ -34,7 +34,7 @@ export interface BTPPayslipReconciliation {
 /**
  * Checks a payslip's declared gross and net against its earnings,
  * deductions and tax withheld. A gross or net that does not reconcile is a
- * warning, not a rejection (EBA-103 section 2, amended 2026-10-08).
+ * warning, not a rejection.
  */
 export function reconcilePayslip(doc: BTPPayslipDoc): BTPPayslipReconciliation {
   const currency = doc.gross.currency;

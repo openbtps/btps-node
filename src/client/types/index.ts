@@ -31,14 +31,14 @@ export interface BTPClientOptions {
   maxRetries?: number;
   retryDelayMs?: number;
   /**
-   * How long connecting (TCP and TLS) may take, in ms (EBA-443). Default and
+   * How long connecting (TCP and TLS) may take, in ms. Default and
    * minimum BTP_CONNECT_TIMEOUT_MIN_MS (5 s). A lower value is refused with
    * BTP_ERROR_INVALID_OPTION.
    */
   connectTimeoutMs?: number;
   /**
-   * How long `send()` waits for the reply once the artifact is written, in ms
-   * (EBA-443). Default BTP_REPLY_TIMEOUT_DEFAULT_MS (20 s), minimum
+   * How long `send()` waits for the reply once the artifact is written, in ms.
+   * Default BTP_REPLY_TIMEOUT_DEFAULT_MS (20 s), minimum
    * BTP_REPLY_TIMEOUT_MIN_MS (10 s). A lower value is refused with
    * BTP_ERROR_INVALID_OPTION.
    */
