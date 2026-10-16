@@ -15,8 +15,11 @@ import {
   encryptRSA,
   decryptRSA,
   getFingerprintFromPem,
+  encryptBtpPayload,
+  decryptBtpPayload,
 } from './index.js';
 import { PemKeys } from './types.js';
+import { BTP_ERROR_CANONICAL_JSON } from '../error/constant.js';
 
 interface KmsSignatureVector {
   algorithm: string;
@@ -272,5 +275,34 @@ describe('EBA-116/117/118: SDK RSA-OAEP wrap/unwrap interop with KMS RSAES_OAEP_
     );
 
     expect(unwrapped.toString('base64')).toBe(oaepVector.plaintextKeyBase64);
+  });
+});
+
+describe('decryptBtpPayload reads the decrypted document strictly', () => {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  const opened = (plaintext: string) => {
+    const { data, encryption } = encryptBtpPayload(plaintext, publicKey);
+    return decryptBtpPayload(data, encryption, privateKey);
+  };
+
+  it('returns a document without duplicate member names', () => {
+    const result = opened('{"amount":100,"currency":"AUD"}');
+    expect(result.error).toBeUndefined();
+    expect(result.data).toEqual({ amount: 100, currency: 'AUD' });
+  });
+
+  it('refuses a document with a duplicate member name, at any depth', () => {
+    for (const plaintext of [
+      '{"amount":100,"amount":1}',
+      '{"totalAmount":{"amount":100,"amount":1}}',
+    ]) {
+      const result = opened(plaintext);
+      expect(result.data).toBeUndefined();
+      expect(result.error?.code).toBe(BTP_ERROR_CANONICAL_JSON.code);
+    }
   });
 });
