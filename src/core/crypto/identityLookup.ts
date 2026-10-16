@@ -40,7 +40,7 @@ const refuse = (
 const domainOf = (identity: string) => parseIdentity(identity)?.domainName.toLowerCase();
 
 /**
- * Checks a host's answer to an identity lookup (fix list 1, EBA-442) and
+ * Checks a host's answer to an identity lookup and
  * returns the key record it carries.
  *
  * The answer is accepted only when it:
@@ -110,7 +110,7 @@ export const verifyIdentityLookupResponse = async (
     );
   }
 
-  // Verified as received: nothing is added before verifying (defect 5).
+  // Verified as received: nothing is added before verifying.
   const { payload, error } = await decryptVerify<BTPServerResponse>(
     hostPublicKey,
     msg as unknown as VerifyEncryptedPayload<BTPServerResponse>,

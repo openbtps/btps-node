@@ -90,7 +90,7 @@ export interface AuthValidationResult {
 }
 
 /**
- * What `TokenStore.consume` found (item E, EBA-113).
+ * What `TokenStore.consume` found.
  */
 export type BTPTokenConsumeResult<T extends BTPsTokenDocument = BTPsTokenDocument> =
   | { status: 'consumed'; record: T }
@@ -115,7 +115,7 @@ export interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
   /** Remove a refresh token */
   remove(agentId: string, token: string): Promise<void>;
   /**
-   * Take a token, once (item E, EBA-113). Atomic: of any number of calls
+   * Take a token, once. Atomic: of any number of calls
    * racing for the same unexpired token, exactly one gets `consumed`, and
    * the token is gone for every later `get` and `consume`. A token that was
    * consumed before answers `used` until it would have expired; an unknown

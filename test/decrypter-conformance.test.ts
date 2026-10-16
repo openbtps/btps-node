@@ -414,9 +414,9 @@ describe('AC4: src/decrypter-interface.ts is runtime-agnostic', () => {
   }, 30000);
 });
 
-// EBA-441 (item I): the same implementations, through the SDK's own
+// The same implementations, through the SDK's own
 // decryption paths rather than called directly.
-describe.each(implementations)('EBA-441: $name through the SDK core', ({ name, makeDecrypter }) => {
+describe.each(implementations)('$name through the SDK core', ({ name, makeDecrypter }) => {
   const forOaepWrap = (): Decrypter =>
     name === 'PemDecrypter'
       ? new PemDecrypter({ privateKey: oaepWrapVector.privateKeyPem })

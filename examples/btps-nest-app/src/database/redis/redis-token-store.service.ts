@@ -181,7 +181,7 @@ export class RedisTokenStoreService
   }
 
   /**
-   * Take a token once (BTPS 1.1 item E). GETDEL is atomic in Redis (6.2+):
+   * Take a token once (BTPS 1.1 device registration). GETDEL is atomic in Redis (6.2+):
    * of two devices racing with one registration token, one gets it. A
    * marker remembers the token until it would have expired, to answer
    * `used` rather than `invalid`.

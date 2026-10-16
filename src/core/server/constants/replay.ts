@@ -6,7 +6,7 @@
  */
 
 /*
- * Replay protection (BTPS 1.1 item F, EBA-114; addendum item 4). See the
+ * Replay protection (BTPS 1.1). See the
  * "Replay protection" section of the transporter artifact specification.
  */
 

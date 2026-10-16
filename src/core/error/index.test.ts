@@ -144,7 +144,7 @@ describe('BTP_ERROR_TRUST_REVOKED', () => {
   });
 });
 
-// EBA-188 (fix list 6): the wire error table.
+// Stable error codes: the wire error table.
 describe('BTP_WIRE_ERRORS', () => {
   const constants = Object.entries(errorModule).filter(
     (entry): entry is [string, BTPError] =>
@@ -163,7 +163,7 @@ describe('BTP_WIRE_ERRORS', () => {
     expect(mismatched).toEqual([]);
   });
 
-  it('sends a trust refusal other than expired as not-allowed (EBA-124, option B)', () => {
+  it('sends a trust refusal other than expired as not-allowed', () => {
     for (const precise of [
       BTP_ERROR_TRUST_REVOKED,
       BTP_ERROR_TRUST_BLOCKED,
@@ -266,7 +266,7 @@ describe('BTP_WIRE_ERRORS', () => {
   });
 });
 
-describe('BTPErrorException.retryable (EBA-188)', () => {
+describe('BTPErrorException.retryable', () => {
   it('comes from the wire error table by code', () => {
     expect(new BTPErrorException(BTP_ERROR_RATE_LIMITER).retryable).toBe(true);
     expect(new BTPErrorException(BTP_ERROR_TRUST_EXPIRED).retryable).toBe(false);

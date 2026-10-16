@@ -118,8 +118,8 @@ export class BtpsAgent extends BtpsClient {
     const needForTransport = Object.keys(mappedTransporterAction).includes(actionType);
     if (needForTransport) {
       // The agent artifact goes to this agent's own identity, whose server
-      // holds its trust record (item E) and sends the transporter artifact
-      // inside it on to the receiver (addendum item 10, EBA-122).
+      // holds its trust record (device registration) and sends the
+      // transporter artifact inside it on to the receiver.
       agentArtifact.to = this.options.to;
       const { payload: transporterPayload, error: transporterError } =
         await this.buildTransportArtifact({
@@ -225,7 +225,7 @@ export class BtpsAgent extends BtpsClient {
     // artifact carries no signatureSelector, and is verified through the
     // delegation its identity's server adds (BtpsDelegator).
     const transporterArtifact: Omit<BTPTransporterArtifact, 'signature'> = {
-      // An event's id is its artifact's id: one id end to end (release plan section 2.7).
+      // An event's id is its artifact's id: one id end to end.
       id: artifactType === 'BTPS_EVENT' ? (document as BTPEventDoc).id : randomUUID(),
       issuedAt: new Date().toISOString(),
       version: this.getProtocolVersion(),

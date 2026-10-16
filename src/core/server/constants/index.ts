@@ -23,7 +23,7 @@ const TRASH_ACTIONS = ['trash.fetch', 'trash.delete'] as const;
 const SYSTEM_ACTIONS = ['system.ping'] as const;
 export const AUTH_ACTIONS = ['auth.request', 'auth.refresh'] as const;
 const ARTIFACT_ACTIONS = ['artifact.send'] as const;
-// A lifecycle event, sent as a BTPS_EVENT transporter artifact (item A, EBA-440).
+// A lifecycle event, sent as a BTPS_EVENT transporter artifact.
 const EVENT_ACTIONS = ['event.send'] as const;
 
 export const AGENT_ACTIONS = [
@@ -32,7 +32,7 @@ export const AGENT_ACTIONS = [
   ...INBOX_ACTIONS,
   ...OUTBOX_ACTIONS,
   // Listed with the immediate actions but missing here, so every sentbox
-  // action was refused by the schema (addendum item 10, EBA-122).
+  // action was refused by the schema (fixed in 1.1).
   ...SENTBOX_ACTIONS,
   ...DRAFT_ACTIONS,
   ...SYSTEM_ACTIONS,
@@ -47,7 +47,7 @@ export const TRANSPORTER_ACTIONS = ['TRUST_REQ', 'TRUST_RES', 'BTPS_DOC', 'BTPS_
 /**
  * The agent actions whose document is a transporter artifact, built and
  * signed by the device, which its identity's server sends on; and the
- * artifact's type for each (addendum item 10, EBA-122).
+ * artifact's type for each.
  */
 export const AGENT_TRANSPORTER_ACTIONS = {
   'trust.request': 'TRUST_REQ',

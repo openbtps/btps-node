@@ -29,8 +29,8 @@ const validParts = (value: string, part: RegExp, minParts: number): boolean => {
 };
 
 /**
- * Reads `account$domain`, by strict character rules (BTPS 1.1, addendum
- * item 10), and returns null for anything else:
+ * Reads `account$domain`, by strict character rules (BTPS 1.1), and
+ * returns null for anything else:
  * - exactly one `$`;
  * - the account: one or more parts of `A-Z a-z 0-9 _ -`, separated by single
  *   dots, at most 64 characters. It becomes part of a DNS name
@@ -38,7 +38,7 @@ const validParts = (value: string, part: RegExp, minParts: number): boolean => {
  * - the domain: a host name of at least two labels, each `A-Z a-z 0-9 -`,
  *   not starting or ending with `-`, at most 253 characters;
  * - so never a `:`. A trust id hashes `from:to`, and an address with a colon
- *   could make two pairs share one (release plan, fix list 12).
+ *   could make two pairs share one.
  */
 export const parseIdentity = (identity: string): ParsedIdentity | null => {
   if (typeof identity !== 'string' || identity.length > IDENTITY_MAX_LENGTH) return null;

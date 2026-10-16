@@ -6,11 +6,11 @@
  */
 
 /*
- * BTPS 1.1 item E (EBA-113, addendum item 3, threat T-25): a device is
+ * BTPS 1.1 device registration bound to the identity: a device is
  * registered only on a one-time registration token issued to the owner of
  * the identity, and it is bound to exactly that identity. Also the rule that
- * closes fix-list item 5: an agent artifact is verified only with an agent's
- * own trust record, never with a record between two identities.
+ * stops a forged agent message: an agent artifact is verified only with an
+ * agent's own trust record, never with a record between two identities.
  */
 
 import { computeTrustId } from '@core/trust/index.js';
@@ -68,7 +68,7 @@ const refuse = (
 const sameIdentity = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
 /**
- * Takes a registration token, once, for an `auth.request` (item E).
+ * Takes a registration token, once, for an `auth.request`.
  *
  * - `identity` is the request document's `identity`, and `to` the
  *   artifact's `to`: they must be the same identity.
@@ -124,7 +124,7 @@ export type BTPAgentKeyResult =
 /**
  * The key an agent artifact other than `auth.request` is verified with: the
  * one in the agent's own trust record, `(agentId → to)`, as `createAgent`
- * wrote it (fix-list item 5).
+ * wrote it.
  *
  * The trust store also holds records between two identities, under the same
  * `computeTrustId(from, to)`. An artifact whose `agentId` is a correspondent's

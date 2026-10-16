@@ -11,7 +11,7 @@ export type BTPError = {
 };
 
 /**
- * The status class an error goes out with (EBA-188): 400 parsing and
+ * The status class an error goes out with: 400 parsing and
  * validation, 401 identity and signature, 403 trust refusal and protocol
  * violations, 429 rate limit, 500 unexpected, 503 connection and timeout.
  */
