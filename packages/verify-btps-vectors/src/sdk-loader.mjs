@@ -71,7 +71,7 @@ export async function loadSdk(sdkRoot) {
     }
   }
 
-  // Document model v2 (item 7) is absent from trees before EBA-119/EBA-402;
+  // Document model v2 is absent from trees before BTPS 1.1;
   // its checks then fail rather than the whole run.
   const hasDocuments = fs.existsSync(path.join(root, DOCUMENTS_ENTRY));
 

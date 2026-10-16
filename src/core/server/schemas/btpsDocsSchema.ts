@@ -68,5 +68,5 @@ export const BtpAgentQueryDocSchema = z.object({
   to: BtpStringQueryFilterSchema.optional(),
 });
 
-// A BTPS_DOC is a v2 document; the 1.0 invoice is refused (release plan section 6).
+// A BTPS_DOC is a v2 document; the 1.0 invoice is refused.
 export const BtpDocSchema = z.union([BtpTrustReqDocSchema, BtpTrustResDocSchema, BtpDocV2Schema]);

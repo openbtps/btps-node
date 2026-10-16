@@ -5,7 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-/** Document model v2 ships in BTPS 1.1 (addendum item 7, EBA-119). */
+/** Document model v2 ships in BTPS 1.1. */
 export const SCHEMA_VERSION_V2 = 2 as const;
 
 /**
@@ -74,8 +74,8 @@ export type BTPDocSha256Encoding = 'hex' | 'base64';
 
 /**
  * How every v2 `sha256` is written: an attachment's, and a reference's
- * (`references`, an event's `document`). Lowercase hex, 64 characters, as
- * the founder confirmed (2026-10-16). This is the one place to change it:
+ * (`references`, an event's `document`). Lowercase hex, 64 characters
+ * (settled 2026-10-16). This is the one place to change it:
  * the schemas take `pattern`, and the attachment check encodes the digest
  * it computes with `encoding`.
  */

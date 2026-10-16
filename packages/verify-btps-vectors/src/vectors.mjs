@@ -36,7 +36,7 @@ function requireFields(file, object, fields) {
 }
 
 /**
- * Item 7: reads every document in the model's documents directory into
+ * Document model v2: reads every document in the model's documents directory into
  * `set.documents` (file name -> parsed JSON), and checks that every case
  * names one that exists, so a deleted document is a load error.
  */

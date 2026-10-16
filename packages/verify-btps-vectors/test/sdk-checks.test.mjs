@@ -32,9 +32,9 @@ describe('SDK checks', () => {
 
   it('every known-failing entry names an SDK check and what fixes it', () => {
     const known = JSON.parse(fs.readFileSync(KNOWN_FAILING, 'utf8'));
-    for (const [id, ticket] of Object.entries(known.checks)) {
-      expect(id).toMatch(/^sdk\/item-(5|6|7|10)\//);
-      expect(ticket).toMatch(/^EBA-\d+$/);
+    for (const [id, note] of Object.entries(known.checks)) {
+      expect(id).toMatch(/^sdk\/(jcs|selectors|documents|defects)\//);
+      expect(typeof note === 'string' && note.trim().length > 0).toBe(true);
     }
   });
 
