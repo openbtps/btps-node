@@ -1614,7 +1614,7 @@ export default function () {
         expect(result).toBe(null);
       });
 
-      it('should return new public key for refreshing agents with different fingerprint', async () => {
+      it('should return the trusted key, not the new one, for refreshing agents with a different key (item D)', async () => {
         const mockTrustRecord = {
           id: 'test-trust-id',
           from: 'test-agent',
@@ -1650,12 +1650,11 @@ export default function () {
           document: newAuthDoc,
         };
 
-        // Mock getFingerprintFromPem to avoid crypto errors
-        const crypto = await import('../../core/crypto/index.js');
-        vi.spyOn(crypto, 'getFingerprintFromPem').mockReturnValue('new-fingerprint');
-
+        // The 1.0 defect (T-24) returned the request's own key here.
         const result = await server['getAgentPublicKey'](artifact);
-        expect(result).toBe('-----BEGIN PUBLIC KEY-----\nNEW_KEY\n-----END PUBLIC KEY-----');
+        expect(result).toBe(
+          '-----BEGIN PUBLIC KEY-----\nVEVTVF9LRVlfQkFTRTY0\n-----END PUBLIC KEY-----',
+        );
       });
     });
 

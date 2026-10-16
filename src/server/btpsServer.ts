@@ -37,10 +37,11 @@ import {
   BTP_ERROR_INVALID_ACTION,
   BTP_ERROR_ISSUED_AT_WINDOW,
   BTP_ERROR_ALREADY_RECEIVED,
+  BTP_ERROR_REFRESH_NOT_CURRENT_KEY,
+  BTP_ERROR_KEY_ROTATION_PROOF,
 } from '@core/error/constant.js';
 import {
   type BTPSigningKey,
-  getFingerprintFromPem,
   parseJson,
   resolveSignatureKey,
   signBtpPayload,
@@ -94,6 +95,7 @@ import type { BTPIdentityRecord } from '@core/storage/types.js';
 import type { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 import type { AbstractReplayStore } from '@core/storage/AbstractReplayStore.js';
 import { InMemoryReplayStore } from '@core/storage/InMemoryReplayStore.js';
+import { verifyAgentRefresh } from '@core/authentication/keyRotation.js';
 
 /**
  * BTPS Secure Server over TLS (btps://)
@@ -539,7 +541,15 @@ export class BtpsServer {
     if (afterSigVerResponseSent) return; // Response already sent, stop processing
 
     if (!isValid) {
-      return this.sendBtpsError(resCtx.socket, BTP_ERROR_SIG_VERIFICATION, resCtx.reqId);
+      // A refused refresh says why (item D): not signed by the current key, or no proof of the new one.
+      const refreshRefusal = [BTP_ERROR_REFRESH_NOT_CURRENT_KEY, BTP_ERROR_KEY_ROTATION_PROOF].find(
+        (e) => e.code === reqCtx.error?.code,
+      );
+      return this.sendBtpsError(
+        resCtx.socket,
+        refreshRefusal ?? BTP_ERROR_SIG_VERIFICATION,
+        resCtx.reqId,
+      );
     }
 
     // Execute before trust verification middleware
@@ -737,12 +747,25 @@ export class BtpsServer {
       };
     }
 
+    if (artifact.action === 'auth.refresh') {
+      // Item D (EBA-112): signed by the current key; a new key comes with its proof.
+      const check = verifyAgentRefresh({
+        artifact,
+        currentPublicKey: agentPublicPem,
+        nowMs: Date.now(),
+        windowMs: this.issuedAtWindowMs,
+      });
+      return check.ok ? { isValid: true } : { isValid: false, error: check.error };
+    }
+
     const { isValid, error } = verifySignature(signedMsg, signature, agentPublicPem);
     return { isValid, error };
   }
 
   /**
-   * Gets the public key for an agent based on whether it's onboarding or existing
+   * Gets the public key for an agent based on whether it's onboarding or existing.
+   * Every agent that is not onboarding, including one refreshing to a new
+   * key, is verified with the key in its trust record (item D).
    */
   private async getAgentPublicKey(artifact: BTPAgentArtifact): Promise<string | null> {
     const isOnboardingAgent = artifact.action === 'auth.request';
@@ -759,22 +782,6 @@ export class BtpsServer {
 
     if (!trustRecord) {
       return null; // Trust record not found
-    }
-    const currentKeyFingerprint = trustRecord.publicKeyFingerprint;
-
-    const { document } = artifact;
-    if (document) {
-      const isRefreshingAgent = artifact.action === 'auth.refresh';
-      if (isRefreshingAgent) {
-        const publicKey = (document as BTPAuthReqDoc)?.publicKey;
-        if (!publicKey) return null; // refreshing agent must have a public key
-        if (currentKeyFingerprint !== getFingerprintFromPem(publicKey)) {
-          /* Must be rotated */
-          return publicKey;
-        }
-      } else {
-        return base64ToPem(trustRecord.publicKeyBase64);
-      }
     }
 
     return base64ToPem(trustRecord.publicKeyBase64);

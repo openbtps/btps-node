@@ -181,11 +181,21 @@ export const verifyAgentRefresh = (input: {
 
   const window = checkIssuedAtWindow(keyProof.issuedAt, nowMs, windowMs);
   if (!window.ok) {
-    return refuse('proof-stale', { agentId, to, issuedAt: keyProof.issuedAt, window: window.reason });
+    return refuse('proof-stale', {
+      agentId,
+      to,
+      issuedAt: keyProof.issuedAt,
+      window: window.reason,
+    });
   }
 
   const proved = verifySignature(
-    keyProofPayload({ agentId, identity: to, newPublicKey: publicKey, issuedAt: keyProof.issuedAt }),
+    keyProofPayload({
+      agentId,
+      identity: to,
+      newPublicKey: publicKey,
+      issuedAt: keyProof.issuedAt,
+    }),
     keyProof.signature,
     publicKey,
   );
