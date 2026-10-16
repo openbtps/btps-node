@@ -10,9 +10,28 @@ BTPS (Billing Trust Protocol Secure) is a next-generation protocol for exchangin
 
 - **Email-like addressing:** Use familiar addresses like `billing$vendorcorp.com` to send and receive documents.
 - **Trust-based delivery:** Only approved senders can deliver bills/invoices to your platform—no more spam or fraud.
-- **Cryptographic security:** Every message is signed, encrypted, and verifiable end-to-end.
-- **Automated onboarding:** DNS and `.well-known` records make trust establishment and key rotation seamless.
+- **Cryptographic security:** Every message is signed (RSA, 2048 bits at least, with SHA-256 over the RFC 8785 canonical form), and documents are encrypted end to end with AES-256-GCM.
+- **Automated onboarding:** DNS records make key discovery and key rotation seamless.
 - **Open and extensible:** Integrate with any backend, database, or workflow using the open SDK.
+
+---
+
+## 🆕 BTPS 1.1
+
+BTPS 1.1 is the hardening release of the protocol and of `@btps/sdk`, shipped
+as one release and a deliberate break with 1.0. It brings:
+
+- **Canonical signing** (RFC 8785) and **separate `signatureSelector` and `encryptionSelector`**, so each side rotates its keys on its own;
+- **Document model v2** (invoices, credit notes, payslips; integer money; no status in a document) and **lifecycle events** (`BTPS_EVENT`: paid, partially paid, disputed, refunds);
+- **Replay protection**, **device registration bound to the identity**, and **key rotation signed by the current key**;
+- **Stable error codes on the wire**, enforced `privacyType`, rate limits by verified identity, and **timeout minimums**;
+- the core signing and decrypting through a **`Signer` and `Decrypter`** (KMS in production), and RSA keys under 2048 bits refused.
+
+Read:
+
+- the [changelog](CHANGELOG.md): every change, what breaks, and how to upgrade from 1.0;
+- the [specification](docs/docusaurus/docs/protocol/specifications/overview.md);
+- the [golden vectors](test/vectors/) (set 1.1.0, [manifest](test/vectors/manifest.json)), and [how to run them against your implementation](docs/docusaurus/docs/protocol/specifications/golden-vectors.md).
 
 ---
 
@@ -23,32 +42,45 @@ npm install @btps/sdk
 ```
 
 ```js
-import { BtpsServer, BtpsClient } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
+import { BtpsClient } from '@btps/sdk/client';
+import { JsonTrustStore } from '@btps/sdk/trust';
+import { KmsSigner, signEncrypt } from '@btps/sdk/crypto';
 
 // Start a BTPS server
 const server = new BtpsServer({
-  /* ...options... */
+  serverIdentity: {
+    identity: 'admin$yourdomain.com',
+    selector: 'btps1',
+    signer: new KmsSigner({ client: kms, keyId: 'alias/btps-server' }),
+  },
+  trustStore: new JsonTrustStore({ connection: './trust.json' }),
+  tlsOptions: { cert, key },
 });
-server.start();
+await server.start();
 
-// Send a BTPS message
-const client = new BtpsClient({
-  /* ...options... */
-});
-await client.sendInvoice({
-  /* ...invoice data... */
-});
+// Sign an artifact, then send it
+const { payload } = await signEncrypt(
+  'pay$client.com',
+  { accountName: 'billing', domainName: 'yourdomain.com', selector: 'btps1', signer },
+  { version: '1.0.0', type: 'TRUST_REQ', from: 'billing$yourdomain.com', to: 'pay$client.com', document: trustRequest },
+  { signature: { algorithmHash: 'sha256' } },
+);
+const client = new BtpsClient({ to: 'pay$client.com' });
+const { response, error } = await client.send(payload);
 ```
 
-See [docs/SERVER](docs/docusaurus//docs/server/overview.md) and [docs/CLIENT](docs/docusaurus/docs/client/overview.md) for full usage.
+See the [Server](docs/docusaurus/docs/server/overview.md) and [SDK](docs/docusaurus/docs/sdk/overview.md) guides for full usage.
 
 ---
 
 ## 📚 Documentation
 
-- [BTPS Protocol Spec](docs/docusaurus/docs/protocol/specifications.md)
-- [Server SDK Usage](docs/docusaurus/docs/sdk/overview.md)
-- [Client SDK Usage](docs/docusaurus/docs/client/overview.md)
+- [BTPS Protocol Specification](docs/docusaurus/docs/protocol/specifications/overview.md)
+- [Golden Vectors](docs/docusaurus/docs/protocol/specifications/golden-vectors.md)
+- [Changelog and upgrade guide](CHANGELOG.md)
+- [SDK Overview and Entry Points](docs/docusaurus/docs/sdk/overview.md)
+- [Class API Reference](docs/docusaurus/docs/sdk/classApiReference.md)
 - [Trust Model & Onboarding](docs/docusaurus/docs/protocol/trustRecord.md)
 - [SDK Usage & Reference](docs/docusaurus/docs/sdk/apiReference.md)
 - [Examples & Advanced Patterns](docs/docusaurus/docs/server/advancedUsages.md)
@@ -125,18 +157,18 @@ BTPS enables sophisticated document orchestration across the entire billing life
 
 ## 🤝 Contributing
 
-- Open source, MIT licensed
-- See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
-- Join the discussion: [GitHub Issues](https://github.com/your-org/btps-sdk/issues)
+- Open source, Apache-2.0 licensed ([LICENSE](LICENSE))
+- See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) for guidelines
+- Join the discussion: [GitHub Issues](https://github.com/openbtps/btps-node/issues)
 
 ---
 
 ## 🏗️ High-Level Architecture
 
-See [docs/ARCHITECTURE.md](docs/docusaurus/docs/protocol/overview.md) for a protocol overview and diagrams.
+See the [protocol overview](docs/docusaurus/docs/protocol/overview.md) for the architecture and diagrams.
 
 ---
 
 ## About
 
-BTPS is maintained by [Your Organization], with inspiration from DKIM, modern email, and open standards. Contributions and feedback are welcome!
+BTPS is developed in [openbtps/btps-node](https://github.com/openbtps/btps-node), with inspiration from DKIM, modern email, and open standards. Contributions and feedback are welcome!
