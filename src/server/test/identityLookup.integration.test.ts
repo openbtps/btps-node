@@ -70,6 +70,9 @@ const keyTxt = (publicKey: string): string[][] => {
   return [record.match(/.{1,255}/g)!];
 };
 
+/** A PEM as DNS returns it differs in line endings only: compare the key itself. */
+const keyOf = (pem: string | undefined) => pemToBase64(pem ?? '');
+
 const identityName = (identity: string, selector: string) => {
   const [account, domain] = identity.split('$');
   return `${selector}._btps.identity.${account}.${domain}`;
@@ -500,7 +503,7 @@ describe('BtpsClient.resolveIdentity against a stand-in host', () => {
 
     it('signed by a key other than the one published at its signatureSelector', async () => {
       expect(await refused(signedAnswer({}, otherKeys))).toMatchObject({
-        code: 'BTP_ERROR_SIG_VERIFICATION',
+        code: 'BTP_ERROR_SIG_MISMATCH',
       });
     });
 
@@ -642,7 +645,7 @@ describe('identity lookup end to end: BtpsClient and BtpsServer over TLS', () =>
     const { response, error } = await sender().resolveIdentity(USER_IDENTITY, REQUESTER);
 
     expect(error, `resolveIdentity failed: ${error?.message}`).toBeUndefined();
-    expect(response?.publicKey).toBe(dnsKeys.publicKey);
+    expect(keyOf(response?.publicKey)).toBe(keyOf(dnsKeys.publicKey));
     expect(asked).not.toHaveBeenCalled();
     expect(connections).not.toHaveBeenCalled();
   });
@@ -668,7 +671,7 @@ describe('identity lookup end to end: BtpsClient and BtpsServer over TLS', () =>
       const { response, error } = await sender().resolveIdentity(USER_IDENTITY, REQUESTER);
 
       expect(error, `resolveIdentity failed: ${error?.message}`).toBeUndefined();
-      expect(response?.publicKey).toBe(big.publicKey);
+      expect(keyOf(response?.publicKey)).toBe(keyOf(big.publicKey));
     });
 
     it('resolve through the host, whose own key is as large', async () => {
@@ -682,7 +685,7 @@ describe('identity lookup end to end: BtpsClient and BtpsServer over TLS', () =>
       const { response, error } = await sender().resolveIdentity(USER_IDENTITY, REQUESTER);
 
       expect(error, `resolveIdentity failed: ${error?.message}`).toBeUndefined();
-      expect(response?.publicKey).toBe(big.publicKey);
+      expect(keyOf(response?.publicKey)).toBe(keyOf(big.publicKey));
     });
   });
 });

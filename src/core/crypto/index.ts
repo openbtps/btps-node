@@ -33,6 +33,7 @@ import { isSigner, toDecrypter, toSigner } from './custody.js';
 
 export * from './custody.js';
 export * from './decryptVerify.js';
+export * from './identityLookup.js';
 export * from './jcs.js';
 export * from './signEncrypt.js';
 export * from './keygen.js';

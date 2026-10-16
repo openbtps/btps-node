@@ -7,6 +7,7 @@
 
 import tls, { type TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
+import { StringDecoder } from 'string_decoder';
 import split2 from 'split2';
 import {
   getBtpAddressParts,
@@ -29,9 +30,7 @@ import {
   BTP_ERROR_CONNECTION_CLOSED,
   BTP_ERROR_CONNECTION_ENDED,
   BTP_ERROR_IDENTITY,
-  BTP_ERROR_IDENTITY_NOT_FOUND,
   BTP_ERROR_RESOLVE_DNS,
-  BTP_ERROR_RESOLVE_PUBKEY,
   BTP_ERROR_SIG_VERIFICATION,
   BTP_ERROR_SOCKET_TIMEOUT,
   BTP_ERROR_TIMEOUT,
@@ -55,6 +54,10 @@ import {
 } from '@core/crypto/types.js';
 import { decryptVerify } from '@core/crypto/decryptVerify.js';
 import { parseJson } from '@core/crypto/jcs.js';
+import {
+  type BTPIdentityLookupResult,
+  verifyIdentityLookupResponse,
+} from '@core/crypto/identityLookup.js';
 import { validate } from '@core/utils/validation.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 export class BtpsClient {
@@ -622,12 +625,9 @@ export class BtpsClient {
         };
       }
 
-      const encryptedPayload = {
-        ...msg,
-        encryption: msg?.encryption ?? null,
-      } as VerifyEncryptedPayload<BTPServerResponse>;
+      // Verified as received: adding `encryption: null` changed the signed bytes (defect 5).
       const { error: decryptError } = await this.decryptVerifyArtifact(
-        encryptedPayload,
+        msg as VerifyEncryptedPayload<BTPServerResponse>,
         senderPubPem!,
       );
 
@@ -790,156 +790,132 @@ export class BtpsClient {
       );
     }
 
+    let dnsIdentityParts: Awaited<ReturnType<typeof getDnsIdentityParts>>;
     try {
-      /* try resolving the identity from the host dns config */
-      const dnsIdentityParts = await getDnsIdentityParts(identity, selector);
-      /* If the identity is resolved from the dns config, return the identity */
-      if (dnsIdentityParts && typeof dnsIdentityParts === 'object') {
-        const { key, version, pem } = dnsIdentityParts;
-        return {
-          response: {
-            keyType: key as 'rsa',
-            publicKey: pem,
-            selector,
-            version,
-            hostname,
-            port,
-          },
-          error: undefined,
-        };
-      }
-
-      /* If the identity is not resolved from the dns config, prepare the connection to the server
-       * and prepare the events for the identity resolve
-       * and return the promise to resolve the identity
-       */
-
-      /* Call the server to get the identity */
-      return await new Promise((resolve) => {
-        const tlsOptions = {
-          ...this.options.btpMtsOptions,
-          host: hostname,
-          port: port,
-        };
-        let tempSocket: TLSSocket | undefined = tls.connect(tlsOptions);
-        if (tempSocket) {
-          const identityLookupRequest: BTPIdentityLookupRequest = {
-            identity,
-            from,
-            hostSelector: selector,
-            version: BTP_PROTOCOL_VERSION,
-            id: randomUUID(),
-            issuedAt: new Date().toISOString(),
-          };
-          tempSocket?.write(JSON.stringify(identityLookupRequest) + '\n');
-        }
-        try {
-          tempSocket?.on('data', async (data) => {
-            const msg = parseJson<BTPServerResponse>(data.toString());
-            const { signature, signedBy, signatureSelector, type, status } = msg;
-
-            if (type === 'btps_error' || !status.ok) {
-              resolve(
-                this.buildClientErrorResponse(
-                  new BTPErrorException(BTP_ERROR_IDENTITY_NOT_FOUND, {
-                    cause: `Server returned error for identity: ${identity}`,
-                    meta: msg,
-                  }),
-                ),
-              );
-              return;
-            }
-
-            /* resolving the identity from the server must be signed and have signedBy and signatureSelector */
-            if (!signature || !signedBy || !signatureSelector) {
-              resolve(
-                this.buildClientErrorResponse(
-                  new BTPErrorException(BTP_ERROR_VALIDATION, {
-                    cause: 'Message is not signed or does not have signedBy',
-                    meta: msg,
-                  }),
-                ),
-              );
-              return;
-            }
-
-            /* If the message is signed, decrypt and verify the message */
-            const hostPubPem = await resolvePublicKey(signedBy, signatureSelector);
-            if (!hostPubPem) {
-              resolve(
-                this.buildClientErrorResponse(
-                  new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
-                    cause: `SignedBy is present but public key is not found for identity: ${signedBy} and signatureSelector: ${signatureSelector}`,
-                    meta: msg,
-                  }),
-                ),
-              );
-              return;
-            }
-
-            const encryptedPayload = {
-              ...msg,
-              encryption: msg?.encryption ?? null,
-            } as VerifyEncryptedPayload<BTPServerResponse>;
-            const { payload: decryptedPayload, error: decryptError } =
-              await this.decryptVerifyArtifact(encryptedPayload, hostPubPem, receiverKeys);
-
-            if (decryptError) {
-              resolve(this.buildClientErrorResponse(decryptError));
-              return;
-            }
-
-            const { document } = (decryptedPayload as BTPServerResponse) || {};
-            if (!document) {
-              resolve(
-                this.buildClientErrorResponse(
-                  new BTPErrorException(BTP_ERROR_VALIDATION, {
-                    cause: 'document is not present in the message',
-                    meta: msg,
-                  }),
-                ),
-              );
-              return;
-            }
-
-            /* If the document is present, return the document */
-            resolve({
-              response: {
-                ...(document as BTPIdentityResDoc),
-                hostname,
-                port,
-                version,
-              },
-              error: undefined,
-            });
-          });
-          tempSocket?.on('error', (err) => {
-            resolve(this.buildClientErrorResponse(transformToBTPErrorException(err)));
-          });
-          tempSocket?.on('end', () => {
-            resolve(
-              this.buildClientErrorResponse(
-                new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, { cause: 'connection ended' }),
-              ),
-            );
-          });
-          tempSocket?.on('close', () => {
-            resolve(
-              this.buildClientErrorResponse(
-                new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, { cause: 'connection closed' }),
-              ),
-            );
-          });
-        } catch (error) {
-          resolve(this.buildClientErrorResponse(transformToBTPErrorException(error)));
-        } finally {
-          tempSocket?.destroy();
-          tempSocket = undefined;
-        }
-      });
+      /* DNS first: the address's own identity record */
+      dnsIdentityParts = await getDnsIdentityParts(identity, selector);
     } catch (error) {
+      // A resolver failure is not an absent record: the host is not asked (EBA-442).
       return await this.buildClientErrorResponse(transformToBTPErrorException(error));
     }
+    if (dnsIdentityParts && typeof dnsIdentityParts === 'object') {
+      const { key, version, pem } = dnsIdentityParts;
+      return {
+        response: {
+          keyType: key as 'rsa',
+          publicKey: pem,
+          selector,
+          version,
+          hostname,
+          port,
+        },
+        error: undefined,
+      };
+    }
+
+    /* No record of its own: ask the address's host, which answers signed */
+    const { record, error } = await this.lookupIdentityAtHost(
+      identity,
+      from,
+      { hostname, port, selector },
+      receiverKeys,
+    );
+    if (error) return await this.buildClientErrorResponse(error);
+    return { response: { ...record, hostname, port, version }, error: undefined };
+  }
+
+  /**
+   * Asks a host for the key record of one of its addresses, over a connection
+   * of its own, and checks the signed answer (`verifyIdentityLookupResponse`).
+   * Settles exactly once: on the first answer line, an error, the host closing
+   * first, or the timeout. Never rejects.
+   */
+  protected lookupIdentityAtHost(
+    identity: string,
+    from: string,
+    host: { hostname: string; port: number; selector: string },
+    receiverKeys?: BTPDecryptionKeys,
+  ): Promise<BTPIdentityLookupResult> {
+    return new Promise((resolve) => {
+      const request: BTPIdentityLookupRequest = {
+        identity,
+        from,
+        hostSelector: host.selector,
+        version: BTP_PROTOCOL_VERSION,
+        id: randomUUID(),
+        issuedAt: new Date().toISOString(),
+      };
+      const timeoutMs = this.options.connectionTimeoutMs ?? 5000;
+      let settled = false;
+      let answered = false;
+      let buffered = '';
+
+      let socket: TLSSocket;
+      try {
+        socket = tls.connect({
+          ...this.options.btpMtsOptions,
+          host: host.hostname,
+          port: host.port,
+        });
+      } catch (err) {
+        resolve({ record: undefined, error: transformToBTPErrorException(err) });
+        return;
+      }
+      const decoder = new StringDecoder('utf8');
+
+      const settle = (result: BTPIdentityLookupResult) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        socket.destroy();
+        resolve(result);
+      };
+      const fail = (error: BTPErrorException) => settle({ record: undefined, error });
+
+      const timer = setTimeout(
+        () =>
+          fail(
+            new BTPErrorException(BTP_ERROR_TIMEOUT, {
+              cause: `No identity lookup answer from ${host.hostname}:${host.port} in ${timeoutMs}ms`,
+            }),
+          ),
+        timeoutMs,
+      );
+
+      socket.on('data', (chunk: Buffer | string) => {
+        if (answered) return;
+        buffered += typeof chunk === 'string' ? chunk : decoder.write(chunk);
+        const newline = buffered.indexOf('\n');
+        if (newline === -1) return;
+        answered = true;
+        const line = buffered.slice(0, newline);
+        // Checked off the event handler, so nothing it throws is left unhandled.
+        Promise.resolve()
+          .then(() => parseJson<unknown>(line))
+          .then((answer) => verifyIdentityLookupResponse(answer, request, receiverKeys))
+          .then(settle, (err: unknown) =>
+            fail(
+              transformToBTPErrorException(err, {
+                cause: `Unreadable identity lookup answer from ${host.hostname}:${host.port}`,
+              }),
+            ),
+          );
+      });
+      socket.on('error', (err) => {
+        if (!answered) fail(transformToBTPErrorException(err));
+      });
+      socket.on('close', () => {
+        if (!answered) {
+          fail(
+            new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, {
+              cause: `${host.hostname}:${host.port} closed the connection without answering the identity lookup`,
+            }),
+          );
+        }
+      });
+
+      socket.write(JSON.stringify(request) + '\n');
+    });
   }
 
   /**

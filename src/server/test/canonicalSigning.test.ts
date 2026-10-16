@@ -361,9 +361,7 @@ describe('EBA-115: canonical signing end to end', () => {
 
   it('the client verifies a signed server response whatever its key order', async () => {
     const client = new BtpsClient({ to: 'server$receiver.example' });
-    // `encryption: null` is signed here because the client adds it before
-    // verifying; see the expected failure below.
-    const response = await signedResponse({ encryption: null });
+    const response = await signedResponse({});
 
     expect(await client['verifyServerMessage'](overTheWire(response))).toMatchObject({
       isValid: true,
@@ -374,17 +372,12 @@ describe('EBA-115: canonical signing end to end', () => {
     expect(await client['verifyServerMessage'](tampered)).toMatchObject({ isValid: false });
   });
 
-  // Pre-existing defect, not EBA-115's, and the same on release/1.1 before
-  // JCS: verifyServerMessage verifies `{ ...msg, encryption: msg.encryption ?? null }`,
-  // so a response the server signed without an `encryption` member (as
-  // handleIdentityLookup does) never verifies. Reported on the pull request.
-  it.fails(
-    'the client verifies a server response signed without an encryption member (expected failure: pre-existing client defect)',
-    async () => {
-      const client = new BtpsClient({ to: 'server$receiver.example' });
-      expect(await client['verifyServerMessage'](await signedResponse({}))).toMatchObject({
-        isValid: true,
-      });
-    },
-  );
+  // Was an expected failure (fix list 1, defect 5): verifyServerMessage
+  // verified `{ ...msg, encryption: msg.encryption ?? null }`. Fixed in EBA-442.
+  it('the client verifies a server response signed without an encryption member', async () => {
+    const client = new BtpsClient({ to: 'server$receiver.example' });
+    expect(await client['verifyServerMessage'](await signedResponse({}))).toMatchObject({
+      isValid: true,
+    });
+  });
 });

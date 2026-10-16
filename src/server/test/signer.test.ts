@@ -546,25 +546,30 @@ describe('EBA-441: the core signs through a Signer and decrypts through a Decryp
           version: '1.1.0',
         });
         const { data, encryption } = encryptBtpPayload(lookupDoc, alice.publicKey);
-        const unsigned = {
-          version: '1.1.0',
-          status: { ok: true, code: 200, message: 'success' },
-          id: 'lookup-441',
-          issuedAt: '2026-01-01T00:00:00.000Z',
-          type: 'btps_response',
-          reqId: 'lookup-441',
-          signedBy: 'server$receiver.example',
-          signatureSelector: 'btps1',
-          document: data,
-          encryption: withTag(encryption, bytes),
-        };
-        const answer = {
-          ...unsigned,
-          signature: await signBtpPayload(unsigned, key('server$receiver.example')),
+        /** The host's answer to the request written, which it names by id. */
+        const answerTo = async (request: { id: string }) => {
+          const unsigned = {
+            version: '1.1.0',
+            status: { ok: true, code: 200, message: 'success' },
+            id: 'lookup-441',
+            issuedAt: '2026-01-01T00:00:00.000Z',
+            type: 'btps_response',
+            reqId: request.id,
+            signedBy: 'server$receiver.example',
+            signatureSelector: 'btps1',
+            document: data,
+            encryption: withTag(encryption, bytes),
+          };
+          return {
+            ...unsigned,
+            signature: await signBtpPayload(unsigned, key('server$receiver.example')),
+          };
         };
         const socket = Object.assign(new EventEmitter(), {
-          write: vi.fn(() => {
-            setImmediate(() => socket.emit('data', Buffer.from(JSON.stringify(answer))));
+          write: vi.fn((line: string) => {
+            void answerTo(JSON.parse(line)).then((answer) =>
+              socket.emit('data', Buffer.from(JSON.stringify(answer) + '\n')),
+            );
             return true;
           }),
           destroy: vi.fn(),
