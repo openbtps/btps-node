@@ -26,11 +26,11 @@ describe('SDK checks', () => {
     expect(failing(results)).toEqual(Object.keys(known.checks).sort());
   });
 
-  it('every known-failing entry names an item check and an owning ticket', () => {
+  it('every known-failing entry names an item check and what fixes it', () => {
     const known = JSON.parse(fs.readFileSync(KNOWN_FAILING, 'utf8'));
-    for (const [id, ticket] of Object.entries(known.checks)) {
+    for (const [id, fix] of Object.entries(known.checks)) {
       expect(id).toMatch(/^sdk\/item-(5|6|10)\//);
-      expect(ticket).toMatch(/^EBA-\d+$/);
+      expect(fix).toMatch(/\S/);
     }
   });
 

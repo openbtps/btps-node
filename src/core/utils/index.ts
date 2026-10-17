@@ -6,7 +6,6 @@
  */
 
 import { resolveTxt } from 'dns/promises';
-import { ParsedIdentity } from './types.js';
 import {
   BTPControlArtifact,
   BTPAgentArtifact,
@@ -22,22 +21,9 @@ import { transformToBTPErrorException } from '@core/error/index.js';
 
 export * from './types.js';
 
-export const parseIdentity = (identity: string): ParsedIdentity | null => {
-  const [accountName, domainName] = identity.split('$');
-  if (!accountName || !domainName) {
-    return null;
-  }
+import { parseIdentity, isValidIdentity } from './identity.js';
 
-  return {
-    accountName,
-    domainName,
-  };
-};
-
-export const isValidIdentity = (identity: string = '') => {
-  const parsedIdentity = parseIdentity(identity);
-  return !!parsedIdentity;
-};
+export { parseIdentity, isValidIdentity };
 
 export function pemToBase64(pem: string): string {
   return pem

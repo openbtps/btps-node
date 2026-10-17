@@ -47,6 +47,8 @@ BTPS uses email-like addressing for organizational identities:
 - `subdomain.accounts$vendor.com`
 - `pay.john$vendor.com`
 
+An address has exactly one separator and no `:` anywhere: `alice$saas.example$evil.example`, `alice$$saas.example` and `alice:x$saas.example` are refused. A trust id is a hash of `from:to`, so a `:` in an address could make two pairs share an id, and a device's record id starts with `agent:`, which no address can then imitate (see the agent artifact's `agentId`).
+
 ---
 
 ## 🔐 DNS TXT Identity Record (Public Key)

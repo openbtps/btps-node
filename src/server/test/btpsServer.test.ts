@@ -10,7 +10,7 @@ import { BtpsServer } from '../btpsServer.js';
 import { BtpsClient } from '../../client/btpsClient.js';
 import { AbstractTrustStore } from '../../core/trust/storage/AbstractTrustStore.js';
 import { BTPTrustRecord } from '../../core/trust/types.js';
-import { computeTrustId } from '../../core/trust/index.js';
+import { computeAgentTrustId, computeTrustId } from '../../core/trust/index.js';
 import { EventEmitter } from 'events';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { BTP_PROTOCOL_VERSION } from '../../core/server/constants/index.js';
@@ -18,11 +18,7 @@ import JsonTrustStore from '../../core/trust/storage/JsonTrustStore.js';
 import { AbstractIdentityStore } from '../../core/storage/AbstractIdentityStore.js';
 import type { BTPIdentityRecord, IdentityPubKeyRecord } from '../../core/storage/types.js';
 import { PemSigner } from '../../core/crypto/pem-signer.js';
-import {
-  getFingerprintFromPem,
-  signBtpPayload,
-  verifySignature,
-} from '../../core/crypto/index.js';
+import { getFingerprintFromPem, signBtpPayload, verifySignature } from '../../core/crypto/index.js';
 import { pemToBase64 } from '../../core/utils/index.js';
 import { keyProofPayload } from '../../core/authentication/keyProof.js';
 import { generateKeyPairSync } from 'crypto';
@@ -1613,6 +1609,8 @@ export default function () {
           id: 'test-trust-id',
           from: 'test-agent',
           to: 'test-to',
+          senderId: 'test-agent',
+          receiverId: 'test-to',
           publicKeyBase64: 'VEVTVF9LRVlfQkFTRTY0',
           publicKeyFingerprint: 'test-fingerprint',
           status: 'active',
@@ -1642,8 +1640,9 @@ export default function () {
         expect(result).toBe(
           '-----BEGIN PUBLIC KEY-----\nVEVTVF9LRVlfQkFTRTY0\n-----END PUBLIC KEY-----',
         );
+        // A device's record is looked up under the device id, never a trust id between identities
         expect(trustStore.getById).toHaveBeenCalledWith(
-          '8443508bfad3c67ae0c6adc3aab01da86339e11489c209b16c1d217b4de5da6b',
+          computeAgentTrustId('test-agent', 'test-to'),
         );
       });
 
@@ -1675,6 +1674,8 @@ export default function () {
           id: 'test-trust-id',
           from: 'test-agent',
           to: 'test-to',
+          senderId: 'test-agent',
+          receiverId: 'test-to',
           publicKeyBase64: 'VEVTVF9LRVlfQkFTRTY0',
           publicKeyFingerprint: 'old-fingerprint',
           status: 'active',
@@ -1740,7 +1741,12 @@ export default function () {
           to: identity,
           issuedAt: new Date().toISOString(),
           encryption: null,
-          document: { identity, authToken: 'refresh-token', publicKey, ...(keyProof && { keyProof }) },
+          document: {
+            identity,
+            authToken: 'refresh-token',
+            publicKey,
+            ...(keyProof && { keyProof }),
+          },
         };
         return { ...unsigned, signature: signBtpPayload(unsigned, signedBy) };
       };
@@ -1768,7 +1774,7 @@ export default function () {
         expect(result.isValid).toBe(true);
       });
 
-      it("refuses a refresh that moves to a new key signed only by that new key: a stolen token is not enough", async () => {
+      it('refuses a refresh that moves to a new key signed only by that new key: a stolen token is not enough', async () => {
         const attacker = keyPair();
         const result = await server['verifyAgentSignature'](
           refresh(attacker, attacker.publicKey, proof(attacker, attacker.publicKey)),
@@ -1905,6 +1911,8 @@ export default function () {
           id: 'test-trust-id',
           from: 'test-agent',
           to: 'test-to',
+          senderId: 'test-agent',
+          receiverId: 'test-to',
           publicKeyBase64: 'VEVTVF9LRVlfQkFTRTY0',
           publicKeyFingerprint: 'test-fingerprint',
           status: 'active',
@@ -2886,6 +2894,110 @@ export default function () {
       } finally {
         tcp.close();
       }
+    });
+  });
+
+  describe("a trusted business posing as one of the receiver's devices", () => {
+    const bob = 'bob$example.com';
+    const carol = 'carol$other.com';
+    const keyPair = () =>
+      generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      });
+    const carolKeys = keyPair();
+    const phoneKeys = keyPair();
+    const phoneId = 'btps_ag_7f3a2c1e-0000-4000-8000-000000000001';
+    const record = (id: string, senderId: string, keys: { publicKey: string }): BTPTrustRecord => ({
+      id,
+      senderId,
+      receiverId: bob,
+      status: 'accepted',
+      createdAt: new Date().toISOString(),
+      decidedBy: bob,
+      decidedAt: new Date().toISOString(),
+      publicKeyBase64: pemToBase64(keys.publicKey),
+      publicKeyFingerprint: getFingerprintFromPem(keys.publicKey),
+      keyHistory: [],
+      privacyType: 'unencrypted',
+    });
+    // Bob accepted Carol's trust request, and registered his phone.
+    const records = [
+      record(computeTrustId(carol, bob), carol, carolKeys),
+      record(computeAgentTrustId(phoneId, bob), phoneId, phoneKeys),
+    ];
+
+    // Runs an inbox.fetch from `agentId`, signed with `keys`, through the pipeline.
+    const fetchInbox = async (agentId: string, keys: { publicKey: string; privateKey: string }) => {
+      const store = new DummyTrustStore();
+      store.getById = vi.fn(async (id: string) => records.find((r) => r.id === id));
+      const server = new BtpsServer({
+        serverIdentity: { identity: bob, publicKey: 'pub', privateKey: 'priv' },
+        trustStore: store,
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const delivered = vi.fn();
+      server.onIncomingArtifact('Agent', delivered);
+      const unsigned = {
+        version: '1.0.0',
+        id: `fetch-${agentId}`,
+        issuedAt: new Date().toISOString(),
+        to: bob,
+        action: 'inbox.fetch' as const,
+        agentId,
+        encryption: null,
+        document: { limit: 50 },
+      };
+      const artifact: BTPAgentArtifact = { ...unsigned, signature: signBtpPayload(unsigned, keys) };
+      const socket = {
+        destroyed: false,
+        writableEnded: false,
+        writable: true,
+        write: vi.fn(),
+        end: vi.fn(),
+        destroy: vi.fn(),
+      } as unknown as TLSSocket;
+      const data = { type: 'agent' as const, artifact, respondNow: true };
+      const reqCtx = {
+        socket,
+        startTime: new Date().toISOString(),
+        remoteAddress: '1.2.3.4',
+        data,
+      } as unknown as BTPRequestCtx<'before', 'signatureVerification'>;
+      const resCtx = {
+        socket,
+        startTime: new Date().toISOString(),
+        remoteAddress: '1.2.3.4',
+        reqId: artifact.id,
+        data,
+        responseSent: false,
+        sendRes: () => {},
+        sendError: () => {},
+      } as unknown as BTPResponseCtx<'before', 'signatureVerification'>;
+
+      await server['executeRequestPipeline'](reqCtx, resCtx);
+      return { delivered, socket };
+    };
+
+    it("does not deliver an agent request whose agentId is the business's own identity", async () => {
+      // Carol never registers a device: she signs an inbox.fetch with her own key.
+      const { delivered, socket } = await fetchInbox(carol, carolKeys);
+
+      expect(delivered).not.toHaveBeenCalled();
+      const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
+      expect(written.type).toBe('btps_error');
+    });
+
+    it('does not reach the business record through an agentId that is not an identity either', async () => {
+      // Without the identity check, the device id formula alone keeps her out.
+      const { delivered } = await fetchInbox('carol', carolKeys);
+      expect(delivered).not.toHaveBeenCalled();
+    });
+
+    it("delivers a request from the receiver's registered device, signed by its key", async () => {
+      const { delivered } = await fetchInbox(phoneId, phoneKeys);
+      expect(delivered).toHaveBeenCalledTimes(1);
     });
   });
 
