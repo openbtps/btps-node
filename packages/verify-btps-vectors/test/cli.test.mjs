@@ -17,20 +17,20 @@ describe('verify-btps-vectors CLI', () => {
     expect(code).toBe(0);
   });
 
-  it('in strict mode exits 1 and names each failing check and its ticket', () => {
+  it('in strict mode exits 0: every check passes on this tree', () => {
     const { code, out } = run();
-    expect(code).toBe(1);
-    expect(out).toMatch(/FAIL  sdk\/item-10\/gcm-tag\/truncated-4-byte-tag-rejected \[/);
+    expect(out).toMatch(/verify:btps-vectors: OK/);
+    expect(code).toBe(0);
   });
 
-  it('exits 1 when the known-failing list is missing an entry', () => {
+  it('exits 1 when the known-failing list names a check that now passes', () => {
     const known = JSON.parse(fs.readFileSync(KNOWN_FAILING, 'utf8'));
-    delete known.checks['sdk/item-10/gcm-tag/truncated-4-byte-tag-rejected'];
+    known.checks['sdk/item-10/gcm-tag/truncated-4-byte-tag-rejected'] = 'already fixed';
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'btps-kf-')), 'known.json');
     fs.writeFileSync(file, JSON.stringify(known));
     const { code, out } = run('--known-failing', file);
     expect(code).toBe(1);
-    expect(out).toMatch(/^FAIL  sdk\/item-10\/gcm-tag\/truncated-4-byte-tag-rejected/m);
+    expect(out).toMatch(/NOW PASSING.*sdk\/item-10\/gcm-tag\/truncated-4-byte-tag-rejected/);
   });
 
   it('--json emits machine-readable results', () => {

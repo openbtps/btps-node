@@ -26,6 +26,7 @@ import {
 
 import { BTPErrorException } from '@core/error/index.js';
 import { assertStrictJson, canonicalize, canonicalizeValue } from './jcs.js';
+import { assertFullLengthAuthTag } from './pem-decrypter.js';
 import type { Signer } from './signer-interface.js';
 import type { Decrypter } from './decrypter-interface.js';
 
@@ -89,12 +90,16 @@ export const decryptBtpPayload = <T = unknown>(
       Buffer.from(encryption.encryptedKey, 'base64'),
     );
 
+    // A full 16-byte tag only: a shorter one is a weaker integrity check
+    const authTag = Buffer.from(encryption.authTag, 'base64');
+    assertFullLengthAuthTag(authTag);
     const decipher = crypto.createDecipheriv(
       encryption.algorithm,
       decryptedKey,
       Buffer.from(encryption.iv, 'base64'),
+      { authTagLength: 16 },
     );
-    decipher.setAuthTag(Buffer.from(encryption.authTag, 'base64'));
+    decipher.setAuthTag(authTag);
 
     const stringifiedPayload = typeof payload !== 'string' ? JSON.stringify(payload) : payload;
 
