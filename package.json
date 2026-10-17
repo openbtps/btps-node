@@ -60,6 +60,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "vitest run -c vitest.e2e.config.ts",
+    "test:security": "vitest run -c vitest.security.config.ts",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
     "verify:btps-vectors": "node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs --known-failing test/vectors/known-failing.json",
