@@ -411,6 +411,28 @@ class PostgreSQLTokenStore implements TokenStore {
     await this.pool.query(query, [agentId, token]);
   }
 
+  // One statement reads and deletes, so a code or refresh token is used once
+  async consume(agentId: string, token: string): Promise<BTPsTokenDocument | undefined> {
+    const query = `
+      DELETE FROM auth_tokens
+      WHERE agent_id = $1 AND token = $2 AND expires_at > NOW()
+      RETURNING token, agent_id, user_identity, created_at, expires_at, metadata
+    `;
+
+    const result = await this.pool.query(query, [agentId, token]);
+    const row = result.rows[0];
+    if (!row) return undefined;
+
+    return {
+      token: row.token,
+      agentId: row.agent_id,
+      userIdentity: row.user_identity,
+      createdAt: row.created_at,
+      expiresAt: row.expires_at,
+      metadata: row.metadata,
+    };
+  }
+
   async cleanup(): Promise<void> {
     const query = `
       DELETE FROM auth_tokens

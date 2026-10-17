@@ -216,6 +216,14 @@ class RedisTokenStore implements TokenStore {
     await this.redis.del(`auth_token:${agentId}:${token}`);
   }
 
+  // Read and remove in one atomic step, so a code or refresh token is used once
+  async consume(agentId: string, token: string): Promise<BTPsTokenDocument | undefined> {
+    const data = await this.redis.getdel(`auth_token:${agentId}:${token}`);
+    if (!data) return undefined;
+    const storedToken: BTPsTokenDocument = JSON.parse(data);
+    return new Date() > new Date(storedToken.expiresAt) ? undefined : storedToken;
+  }
+
   async cleanup(): Promise<void> {
     // Redis handles expiry automatically
   }
