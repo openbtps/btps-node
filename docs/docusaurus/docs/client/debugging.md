@@ -32,7 +32,7 @@ This guide helps you diagnose, debug, and resolve issues when using the BTPS Cli
 
 ### **Errors the Receiver Answers With**
 
-A refusal from the receiving server arrives as `result.error`, with the exact status in `result.error.status`: for example `BTP_ERROR_TRUST_NON_EXISTENT` when there is no trust yet, or `BTP_ERROR_PRIVACY_TYPE` when the trust requires encryption. It tells you what you can fix, never details only the receiver knows. See [Server Responses](../protocol/specifications/responses.md) for every code.
+A refusal from the receiving server arrives as `result.error`, with the exact status in `result.error.status`: for example `BTP_ERROR_TRUST_NOT_ALLOWED` when there is no active trust, `BTP_ERROR_TRUST_EXPIRED` when it has expired, or `BTP_ERROR_PRIVACY_TYPE` when the trust requires encryption. It tells you what you can fix, never details only the receiver knows: a trust that was never made, is pending, rejected, revoked or blocked all read `BTP_ERROR_TRUST_NOT_ALLOWED`. See [Server Responses](../protocol/specifications/responses.md) for every code.
 
 ### **Transporter-Specific Errors**
 

@@ -194,14 +194,14 @@ async function handleInboxFetch(artifact: any, resCtx: any) {
 
 ### Response Structure
 
-Query responses follow this structure:
+`BtpsServer` checks every answer before it goes out. A `document` must be a query result (below), an authentication result or an identity lookup; any other document, such as `{ deletedCount: 2 }`, fails that check and the connection is closed without an answer. So a fetch answers with a query result, and a change (delete, seen, cancel, update) answers with a status alone.
 
 ```typescript
 interface QueryResponse {
-  results: unknown[]; // Array of items
+  results: { artifact: BTPTransporterArtifact; meta?: { seen?: boolean; seenAt?: string } }[];
   cursor?: string; // Pagination cursor
-  total: number; // Total count
-  hasNext: boolean; // Whether more items exist
+  total?: number; // Total count
+  hasNext?: boolean; // Whether more items exist
 }
 
 // Handle inbox.delete command
@@ -223,10 +223,7 @@ async function handleInboxDelete(artifact: any, resCtx: any) {
         },
         artifact.id,
       ),
-      type: 'btps_response',
-      document: {
-        deletedCount: ids.length,
-      },
+      type: 'btps_response', // a status alone: see Response Structure
     });
   } catch (error) {
     console.error('Inbox delete error:', error);
@@ -257,9 +254,6 @@ async function handleInboxSeen(artifact: any, resCtx: any) {
         artifact.id,
       ),
       type: 'btps_response',
-      document: {
-        markedCount: ids.length,
-      },
     });
   } catch (error) {
     console.error('Inbox seen error:', error);
@@ -337,9 +331,6 @@ async function handleOutboxCancel(artifact: any, resCtx: any) {
         artifact.id,
       ),
       type: 'btps_response',
-      document: {
-        cancelledCount: ids.length,
-      },
     });
   } catch (error) {
     console.error('Outbox cancel error:', error);
@@ -379,11 +370,9 @@ async function handleDraftCreate(artifact: any, resCtx: any) {
         },
         artifact.id,
       ),
+      // A status alone: a new draft's id has no answer shape yet, so the
+      // device finds the draft with draft.fetch
       type: 'btps_response',
-      document: {
-        id: draft.id,
-        createdAt: draft.createdAt,
-      },
     });
   } catch (error) {
     console.error('Draft create error:', error);
@@ -504,9 +493,6 @@ async function handleTrashDelete(artifact: any, resCtx: any) {
         artifact.id,
       ),
       type: 'btps_response',
-      document: {
-        deletedCount: ids.length,
-      },
     });
   } catch (error) {
     console.error('Trash delete error:', error);

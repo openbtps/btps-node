@@ -336,8 +336,12 @@ try {
       case 'BTP_ERROR_SIG_VERIFICATION':
         console.error('Signature refused - check your key and selector');
         break;
-      case 'BTP_ERROR_TRUST_NON_EXISTENT':
-        console.error('No trust with this recipient yet - send a trust request first');
+      case 'BTP_ERROR_TRUST_NOT_ALLOWED':
+        // No active trust; the receiver never says why
+        console.error('No active trust with this recipient - send a trust request first');
+        break;
+      case 'BTP_ERROR_TRUST_EXPIRED':
+        console.error('Trust has expired - ask the recipient to renew it');
         break;
       case 'BTP_ERROR_VALIDATION':
         console.error('Artifact validation failed');
