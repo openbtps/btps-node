@@ -2,7 +2,8 @@ import { configDefaults, defineConfig } from 'vitest/config';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  // The SDK's own tsconfig only: the docs site's extends a package CI never installs.
+  plugins: [tsconfigPaths({ projects: ['./tsconfig.json'] })],
   test: {
     // The journeys run apart, as ci/e2e: yarn test:e2e (vitest.e2e.config.ts).
     exclude: [...configDefaults.exclude, 'tests/e2e/**'],
