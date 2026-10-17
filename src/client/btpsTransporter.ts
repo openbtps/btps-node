@@ -301,12 +301,8 @@ export class BtpsTransporter {
       connection = await this.registerConnection(to, clientOptions);
     }
 
-    /* timeoutMs is the timeout for the client to send the artifact
-     * by default if clientOptions is provided then use the connectionTimeoutMs
-     * if not provided then send method will take care the its own default timeout
-     */
-    const timeoutMs = clientOptions?.connectionTimeoutMs ?? 5000;
-    return connection.client.send(artifact, timeoutMs);
+    // The client's own reply wait applies unless these options set one.
+    return connection.client.send(artifact, clientOptions?.replyTimeoutMs);
   }
 
   /*

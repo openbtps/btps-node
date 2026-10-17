@@ -94,6 +94,7 @@ import {
   artifactTimeWindowError,
   resolveMaxArtifactAgeSeconds,
 } from './libs/artifactTimeWindow.js';
+import { resolveConnectionTimeoutMs } from './libs/connectionTimeout.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
 import { BtpAuthReqDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
@@ -136,7 +137,7 @@ export class BtpsServer {
     this.tlsOptions = options.tlsOptions;
     this.trustStore = options.trustStore;
     this.identityStore = options.identityStore;
-    this.connectionTimeoutMs = options.connectionTimeoutMs ?? 30000;
+    this.connectionTimeoutMs = resolveConnectionTimeoutMs(options.connectionTimeoutMs);
     this.maxArtifactSizeKb = resolveMaxArtifactSizeKb(options.maxArtifactSizeKb);
     this.maxArtifactAgeSeconds = resolveMaxArtifactAgeSeconds(options.maxArtifactAgeSeconds);
     this.middlewareManager = new MiddlewareManager(options.middlewarePath);
@@ -310,12 +311,17 @@ export class BtpsServer {
     };
 
     // Data event handler
+    // Requests on this connection still being handled: while there are any,
+    // the idle timeout does not close it.
+    let inFlight = 0;
+
     stream.on('data', async (line: string) => {
       if (!line.trim()) return;
 
       const { reqCtx: parseReq, resCtx: parseRes } = createContexts();
       parseReq.rawPacket = line;
 
+      inFlight++;
       try {
         // Execute before parsing middleware
         const beforeParseMiddleware = this.middlewareManager.getMiddleware('before', 'parsing');
@@ -403,10 +409,16 @@ export class BtpsServer {
           },
           'end',
         );
+      } finally {
+        inFlight--;
       }
     });
 
     socket.setTimeout(this.connectionTimeoutMs, () => {
+      if (inFlight > 0) {
+        socket.setTimeout(this.connectionTimeoutMs);
+        return;
+      }
       const timeoutError = new BTPErrorException(BTP_ERROR_SOCKET_TIMEOUT, {
         cause: `Connection timeout after ${this.connectionTimeoutMs}ms`,
         meta: { remoteAddress: socket.remoteAddress, timeoutMs: this.connectionTimeoutMs },

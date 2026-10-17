@@ -53,6 +53,13 @@ import { decryptVerify } from '@core/crypto/decryptVerify.js';
 import { assertStrictJson } from '@core/crypto/jcs.js';
 import { validate } from '@core/utils/validation.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
+import {
+  DEFAULT_CONNECT_TIMEOUT_MS,
+  DEFAULT_REPLY_TIMEOUT_MS,
+  MIN_CONNECT_TIMEOUT_MS,
+  MIN_REPLY_TIMEOUT_MS,
+  resolveTimeoutMs,
+} from './libs/timeouts.js';
 export class BtpsClient {
   protected socket?: TLSSocket;
   protected emitter: EventEmitter = new EventEmitter();
@@ -74,6 +81,9 @@ export class BtpsClient {
     }
   >();
 
+  protected connectTimeoutMs: number;
+  protected replyTimeoutMs: number;
+
   constructor(protected options: BTPClientOptions) {
     const { to } = this.options;
     // Validate to identity
@@ -82,6 +92,18 @@ export class BtpsClient {
         cause: 'Invalid to identity',
       });
     }
+    this.connectTimeoutMs = resolveTimeoutMs(
+      'connectTimeoutMs',
+      options.connectTimeoutMs,
+      MIN_CONNECT_TIMEOUT_MS,
+      DEFAULT_CONNECT_TIMEOUT_MS,
+    );
+    this.replyTimeoutMs = resolveTimeoutMs(
+      'replyTimeoutMs',
+      options.replyTimeoutMs,
+      MIN_REPLY_TIMEOUT_MS,
+      DEFAULT_REPLY_TIMEOUT_MS,
+    );
   }
 
   protected async getSocket(): Promise<
@@ -128,7 +150,16 @@ export class BtpsClient {
     };
 
     return new Promise((resolve) => {
+      // A receiver that is down costs a sender only this long per attempt.
+      const connectTimer = setTimeout(() => {
+        sock.destroy(
+          new BTPErrorException(BTP_ERROR_SOCKET_TIMEOUT, {
+            cause: `could not connect within ${this.connectTimeoutMs} ms`,
+          }),
+        );
+      }, this.connectTimeoutMs);
       const sock = tls.connect(tlsOptions, () => {
+        clearTimeout(connectTimer);
         this.states.isConnected = true;
         this.states.isConnecting = false;
         sock.ref(); // keep process alive on connect
@@ -142,15 +173,18 @@ export class BtpsClient {
         });
         resolve({ socket: sock, error: undefined });
       });
+      sock.once('close', () => clearTimeout(connectTimer));
       this.attachListeners(sock, this.options.to);
-      if (this.options.connectionTimeoutMs) {
-        sock.setTimeout(this.options.connectionTimeoutMs, () => {
-          sock.destroy(
-            new BTPErrorException(BTP_ERROR_SOCKET_TIMEOUT, {
-              cause: 'connection timeout',
-            }),
-          );
-          this.destroy();
+      const idleMs = this.options.connectionTimeoutMs;
+      if (idleMs) {
+        // An idle connection is closed, never one with an artifact waiting for
+        // its answer; the client stays usable and reconnects on the next send.
+        sock.setTimeout(idleMs, () => {
+          if (this.queue.size > 0) {
+            sock.setTimeout(idleMs);
+            return;
+          }
+          this.end();
         });
       }
     });
@@ -388,9 +422,32 @@ export class BtpsClient {
    * @param options - The options to update
    */
   update(options: UpdateBTPClientOptions): void {
-    const { maxRetries, retryDelayMs, connectionTimeoutMs, maxQueue } = options;
+    const {
+      maxRetries,
+      retryDelayMs,
+      connectTimeoutMs,
+      replyTimeoutMs,
+      connectionTimeoutMs,
+      maxQueue,
+    } = options;
     this.options.maxRetries = maxRetries ?? this.options.maxRetries;
     this.options.retryDelayMs = retryDelayMs ?? this.options.retryDelayMs;
+    if (connectTimeoutMs !== undefined) {
+      this.connectTimeoutMs = resolveTimeoutMs(
+        'connectTimeoutMs',
+        connectTimeoutMs,
+        MIN_CONNECT_TIMEOUT_MS,
+        DEFAULT_CONNECT_TIMEOUT_MS,
+      );
+    }
+    if (replyTimeoutMs !== undefined) {
+      this.replyTimeoutMs = resolveTimeoutMs(
+        'replyTimeoutMs',
+        replyTimeoutMs,
+        MIN_REPLY_TIMEOUT_MS,
+        DEFAULT_REPLY_TIMEOUT_MS,
+      );
+    }
     this.options.connectionTimeoutMs = connectionTimeoutMs ?? this.options.connectionTimeoutMs;
     this.options.maxQueue = maxQueue ?? this.options.maxQueue;
   }
@@ -688,13 +745,14 @@ export class BtpsClient {
   /**
    * Send the artifact to the server
    * @param artifact - The artifact to send
-   * @param timeoutMs - The timeout in milliseconds
+   * @param timeoutMs - How long to wait for the answer, in ms: the client's `replyTimeoutMs` by default, never below 10000
    * @returns The response from the server
    */
-  async send(
-    artifact: BTPArtifact,
-    timeoutMs: number = this.options.connectionTimeoutMs ?? 5000,
-  ): Promise<BTPClientResponse> {
+  async send(artifact: BTPArtifact, timeoutMs?: number): Promise<BTPClientResponse> {
+    timeoutMs =
+      timeoutMs === undefined
+        ? this.replyTimeoutMs
+        : resolveTimeoutMs('replyTimeoutMs', timeoutMs, MIN_REPLY_TIMEOUT_MS, this.replyTimeoutMs);
     if (this.states.isDestroyed) {
       return this.buildClientErrorResponse(
         new BTPErrorException({ message: 'BtpsClient instance is destroyed' }),
@@ -1012,6 +1070,9 @@ export class BtpsClient {
     this.backpressureQueue = [];
     this.removeAllListeners();
     this.socket?.destroy();
-    this.cleanupQueue();
+    // Every send still waiting is answered, so none waits forever.
+    this.cleanupQueue(
+      new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, { cause: 'client destroyed' }),
+    );
   }
 }

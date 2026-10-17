@@ -293,6 +293,17 @@ These are used for notifying the agent or client related to delivery failure. No
 - may encrypt sensitive documents
 - Must handle trust establishment before sending invoices
 - Must implement retry logic for failed deliveries
+- Must wait at least 10 seconds for the answer once an artifact is sent (20 seconds by default in the SDK), and at least 5 seconds to connect. A sender may wait longer; none waits less
+
+### Timing
+
+Every receiver can count on the sender's minimum reply wait:
+
+- **A receiver answers within 10 seconds** of receiving an artifact, or answers that the sender should send again later (`429`, `5xx`). Within that time it can ride out a slow moment, such as a busy database, and answer normally.
+- **A receiver never closes a connection while it is handling one of its requests.** How long it keeps an idle connection open is its own choice.
+- **The connect wait is short and separate**, so a receiver that is down costs a sender only a few seconds per attempt.
+
+The waits are a ceiling, not a hold: a receiver that answers in milliseconds keeps a connection busy for milliseconds.
 
 ### Error Handling
 

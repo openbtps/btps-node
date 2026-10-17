@@ -46,6 +46,7 @@ export interface BtpsServerOptions {
   port?: number;
   onError?: (err: BTPErrorException) => void;
 
+  /** Closes a connection after this long with no request being handled, in ms. Default 30000; no minimum. A connection is never closed while one of its requests is handled. */
   connectionTimeoutMs?: number;
   middlewarePath?: string; // Path to btps.middleware.mjs file
   /** The largest artifact this server can accept, in KB (1 KB = 1024 bytes). Default 5120 (5 MB), minimum 1024 (1 MB). */

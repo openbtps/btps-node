@@ -553,7 +553,8 @@ const client = new BtpsClient({
   to: 'admin$saas.com',
   maxRetries: 3,
   retryDelayMs: 1000,
-  connectionTimeoutMs: 5000,
+  connectTimeoutMs: 5000, // wait to connect: at least 5000 ms
+  replyTimeoutMs: 20000, // wait for the answer: at least 10000 ms
   host: 'localhost',
   port: 3443,
   btpMtsOptions: { rejectUnauthorized: false },
@@ -571,7 +572,7 @@ async function testIdentityLookup() {
       identitySelector: 'btps1',
     };
 
-    const result = await client.send(identityLookupRequest, 5000);
+    const result = await client.send(identityLookupRequest);
 
     if (result.error) {
       console.error('Identity lookup failed:', result.error);

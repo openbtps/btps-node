@@ -440,6 +440,16 @@ const server = new BtpsServer({ port: 3443, trustStore });
 - Batch trust store operations where possible.
 - Always call `server.stop()` on shutdown to release resources.
 
+### Running at Scale
+
+A BTPS server takes no load decisions for you, but nothing in it stands in the way of running millions of connections. What matters is how fast you answer and how long you keep idle connections:
+
+- **Answer fast: queue, then acknowledge.** The server answers success once your handler returns, so put the artifact on your own queue (SQS, Kafka, a database outbox) and return. The connection is busy for milliseconds. Senders wait up to 10 seconds or more for an answer, but that is a ceiling for slow moments, not a hold.
+- **Keep idle connections short.** Each open TLS connection holds memory. Set `connectionTimeoutMs` low (a few seconds) when you serve very many senders: there is no minimum, and a connection is never closed while one of its requests is being handled.
+- **Run many server instances** behind a layer-4 (TCP) load balancer; see [Server Factories & Registries](#server-factories--registries-managing-multiple-btps-servers). Keep shared state (trust, identities, rate limits, duplicates) in shared stores, not in one process.
+- **Raise the operating system's limits**, such as open files per process, for the number of connections you expect.
+- **Answer "send again later" under real overload** (`429` or `503`) rather than holding connections open.
+
 ## Security Best Practices
 
 - Use strong TLS configuration and rotate certificates regularly.

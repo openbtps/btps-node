@@ -237,7 +237,7 @@ await client.send(artifact, timeoutMs?);
 Sends a pre-signed BTPS artifact to the server. **Note**: The artifact must be pre-signed using `signAndEncrypt` from the crypto module before sending.
 
 - **artifact**: [BTPArtifact](./typesAndInterfaces.md#btpartifact) – Pre-signed artifact to send
-- **timeoutMs**: `number` (optional, default: 5000) – Timeout in milliseconds
+- **timeoutMs**: `number` (optional) – How long to wait for the answer, in milliseconds: the client's `replyTimeoutMs` by default (20000), never below 10000
 - **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
 
 **Example:**
@@ -380,7 +380,7 @@ Executes an agent command with optional document payload.
 - **identity**: `string` – Target BTPS identity
 - **document**: [BtpsAgentDoc](./typesAndInterfaces.md#btpsagentdoc) (optional) – Document payload
 - **options**: [BtpsAgentCommandOptions](./typesAndInterfaces.md#btpsagentcommandoptions) (optional) – Cryptographic options, and on `event.send` the required `relatesTo`
-- **timeoutMs**: `number` (optional) – Timeout in milliseconds
+- **timeoutMs**: `number` (optional) – How long to wait for the answer, in milliseconds: the agent's `replyTimeoutMs` by default (20000), never below 10000
 - **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
 
 **Example:**
