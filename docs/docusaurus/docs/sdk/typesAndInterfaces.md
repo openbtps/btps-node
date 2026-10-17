@@ -1315,8 +1315,9 @@ Status information for responses.
 ```ts
 interface BTPStatus {
   ok: boolean;
-  code: number;
+  code: number; // 4xx: do not resend as is; 429 and 5xx: resend later
   message?: string;
+  error?: string; // on an error, its BTPS code, e.g. 'BTP_ERROR_TRUST_EXPIRED'
 }
 ```
 

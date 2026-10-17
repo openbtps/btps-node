@@ -9,6 +9,8 @@ export interface IRateLimitOptions {
   ipAddress?: number;
   fromIdentity?: number;
   cleanupIntervalSec?: number;
+  /** The most counters kept per type (default 100000); past it, the oldest is dropped */
+  maxEntries?: number;
 }
 
 export interface IMetricsTracker {

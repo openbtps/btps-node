@@ -39,6 +39,7 @@ import {
   BTP_ERROR_KEY_ROTATION_PROOF,
   BTP_ERROR_AGENT_ID,
   BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
+  BTP_ERROR_PRIVACY_TYPE,
 } from '@core/error/constant.js';
 import {
   assertStrictJson,
@@ -621,11 +622,15 @@ export class BtpsServer {
       // precise server-side reason (never-trusted, expired, revoked); the
       // wire only distinguishes expired from everything else, so an
       // un-upgraded 1.0 peer still just sees "not allowed" for a revoked or
-      // never-trusted sender.
+      // never-trusted sender. A sender with an active trust is also told when
+      // it did not encrypt as that trust requires.
+      const refusal = reqCtx.error;
       const wireError =
-        reqCtx.error?.code === BTP_ERROR_TRUST_EXPIRED.code
+        refusal?.code === BTP_ERROR_TRUST_EXPIRED.code
           ? BTP_ERROR_TRUST_EXPIRED
-          : BTP_ERROR_TRUST_NOT_ALLOWED;
+          : refusal && refusal.code === BTP_ERROR_PRIVACY_TYPE.code
+            ? refusal
+            : BTP_ERROR_TRUST_NOT_ALLOWED;
       return this.sendBtpsError(resCtx.socket, wireError, resCtx.reqId);
     }
 
@@ -744,7 +749,18 @@ export class BtpsServer {
     }
 
     const { isValid, error } = verifySignature(signedMsg, signature, agentPublicPem);
-    if (!isValid || artifact.action !== 'auth.refresh') return { isValid, error };
+    // One answer for an unknown device and a wrong key alike: a fingerprint
+    // mismatch would tell a prober that the device is registered.
+    if (!isValid) {
+      return {
+        isValid,
+        error: new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
+          cause: error,
+          meta: { agentId: signedMsg.agentId, action: artifact.action },
+        }),
+      };
+    }
+    if (artifact.action !== 'auth.refresh') return { isValid, error };
     return this.verifyKeyProof(artifact, agentPublicPem);
   }
 
@@ -1106,19 +1122,41 @@ export class BtpsServer {
     // to them. This applies to events only; anything else needs its own trust.
     if (artifact.type === 'BTPS_EVENT' && !isTrustActive(trustRecord)) {
       const ownTrust = await this.trustStore.getById(computeTrustId(artifact.to, artifact.from));
-      if (isTrustActive(ownTrust)) return { isTrusted: true, error: undefined };
+      if (isTrustActive(ownTrust)) return this.verifyPrivacyType(artifact, ownTrust);
     }
 
     if (artifact.type === 'TRUST_REQ') {
       const { isValid, error } = validateTrustRequest(trustRecord);
       return { isTrusted: isValid, error };
     } else {
-      const isTrusted = isTrustActive(trustRecord);
-      return {
-        isTrusted,
-        error: isTrusted ? undefined : this.getTrustRefusalError(trustRecord),
-      };
+      if (!isTrustActive(trustRecord)) {
+        return { isTrusted: false, error: this.getTrustRefusalError(trustRecord) };
+      }
+      return this.verifyPrivacyType(artifact, trustRecord);
     }
+  }
+
+  /**
+   * A trust records how its artifacts are sent: 'encrypted' refuses one sent in
+   * the clear, 'unencrypted' one the receiver did not agree to decrypt, and
+   * 'mixed' allows either. A record without one allows either.
+   */
+  private verifyPrivacyType(
+    artifact: BTPTransporterArtifact,
+    trustRecord?: BTPTrustRecord,
+  ): { isTrusted: boolean; error?: BTPErrorException } {
+    const required = trustRecord?.privacyType;
+    const sent = artifact.encryption ? 'encrypted' : 'unencrypted';
+    if (!required || required === 'mixed' || required === sent) {
+      return { isTrusted: true, error: undefined };
+    }
+    return {
+      isTrusted: false,
+      error: new BTPErrorException(
+        { ...BTP_ERROR_PRIVACY_TYPE, message: `${BTP_ERROR_PRIVACY_TYPE.message}: ${required}` },
+        { meta: { required, sent } },
+      ),
+    };
   }
 
   /**
@@ -1201,20 +1239,21 @@ export class BtpsServer {
 
   /**
    * Whether anything on this server takes artifacts of this type: a handler
-   * registered with onIncomingArtifact, forwardTo, or onArtifact middleware.
+   * registered with onIncomingArtifact, forwardTo, or 'before onArtifact'
+   * middleware. 'after onArtifact' middleware runs once delivery is done, as
+   * metrics do, so it takes nothing.
    */
   private acceptsArtifacts(type: 'agent' | 'transporter'): boolean {
     return (
       this.emitter.listenerCount(type === 'agent' ? 'agentArtifact' : 'transporterArtifact') > 0 ||
       this.handlerFn !== null ||
-      this.middlewareManager.getMiddleware('before', 'onArtifact').length > 0 ||
-      this.middlewareManager.getMiddleware('after', 'onArtifact').length > 0
+      this.middlewareManager.getMiddleware('before', 'onArtifact').length > 0
     );
   }
 
   private noHandlerWarning(type: 'agent' | 'transporter'): string {
     const name = type === 'agent' ? 'Agent' : 'Transporter';
-    return `no ${name} handler, forwardTo or onArtifact middleware is registered, so ${type} artifacts are refused. Register one with onIncomingArtifact('${name}', handler).`;
+    return `no ${name} handler, forwardTo or 'before onArtifact' middleware is registered, so ${type} artifacts are refused. Register one with onIncomingArtifact('${name}', handler).`;
   }
 
   /**
@@ -1385,20 +1424,34 @@ export class BtpsServer {
   /**
    * Sends a BTPS error response to the client
    */
+  /**
+   * What a sender is told about an error. A BTPS error carries its status and
+   * its code; a numeric code set by middleware is sent as given. Anything else
+   * is internal: a generic 500, so no internal detail ever reaches the wire.
+   * The full error stays with the server, keyed by the response id.
+   */
+  private wireStatus(error: BTPError): BTPStatus {
+    if (typeof error.code === 'number') {
+      return { ok: false, code: error.code, message: error.message };
+    }
+    if (error.status && error.code) {
+      return { ok: false, code: error.status, message: error.message, error: error.code };
+    }
+    return {
+      ok: false,
+      code: BTP_ERROR_UNKNOWN.status ?? 500,
+      message: BTP_ERROR_UNKNOWN.message,
+      error: String(BTP_ERROR_UNKNOWN.code),
+    };
+  }
+
   private async sendBtpsError(
     socket: TLSSocket,
     error: BTPError,
     reqId?: string,
     action?: BtpsErrorAction,
   ) {
-    const response = this.prepareBtpsResponse(
-      {
-        ok: false,
-        code: typeof error.code === 'number' ? error.code : 500,
-        message: error.message,
-      },
-      reqId,
-    );
+    const response = this.prepareBtpsResponse(this.wireStatus(error), reqId);
 
     this.sendBtpsResponse(
       socket,

@@ -57,7 +57,7 @@ export const artifactSizeGuard = (
     discarding = true;
     onTooLarge(
       new BTPErrorException({
-        code: BTP_ERROR_ARTIFACT_TOO_LARGE.code,
+        ...BTP_ERROR_ARTIFACT_TOO_LARGE,
         message: `${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: ${maxKb} KB`,
       }),
     );

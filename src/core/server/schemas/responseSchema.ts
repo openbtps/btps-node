@@ -16,6 +16,7 @@ export const BtpStatusSchema = z.object({
   ok: z.boolean(),
   code: z.number(),
   message: z.string().optional(),
+  error: z.string().optional(),
 });
 
 // Schema for BTPDeliveryFailureDoc

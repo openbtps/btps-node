@@ -117,7 +117,7 @@ Registers a handler for specific types of incoming artifacts.
 
 The server answers a transporter artifact with success only after every Transporter handler has returned, so a handler should return once the artifact is safely stored or queued. If a handler throws, the sender gets an error instead and can send again.
 
-A server with no handler for a type, no `forwardTo` handler and no `onArtifact` middleware refuses artifacts of that type with `BTP_ERROR_ARTIFACT_NOT_ACCEPTED`, and warns once it starts listening. Handlers registered right after `start()` count.
+A server with no handler for a type, no `forwardTo` handler and no `before` `onArtifact` middleware refuses artifacts of that type with `BTP_ERROR_ARTIFACT_NOT_ACCEPTED`, and warns once it starts listening. Handlers registered right after `start()` count.
 
 **Example:**
 
