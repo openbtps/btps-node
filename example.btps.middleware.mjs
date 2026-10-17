@@ -10,17 +10,11 @@ export default function createMiddleware(dependencies) {
   const { trustStore: _trustStore } = dependencies;
   console.log('sample middleware: ', createDefaultMiddleware()); // inspect default middleware
   return [
-    /* Sample default middleware used as a starting point for your own middleware.
-     * Default middleware can able to handle for small to medium size BTPS server.
-     * For large scale BTPS server or Sass enterprises, you should implement your own middleware which does not store any state in memory but use external services like Redis, etc.
-     *
-     * Default middleware:
-     * 1. IP-based rate limiting (before parsing)
-     * 2. Request logging (before signature verification)
-     * 3. Trust verification logging (after trust verification)
-     * 4. Custom invoice validation (before message processing)
-     * 5. Message processing metrics (before message processing)
-     * 6. Error handling middleware
+    /* The SDK's ready-made middleware, a starting point for your own: rate
+     * limiting by address (before parsing) and by identity (after signature
+     * verification), and metrics. It counts in this process's memory, so it is
+     * for development and tests only. In production, rate limit against a
+     * shared store such as Redis or Memcached, behind the RateLimiter contract.
      */
     ...createDefaultMiddleware(),
 
@@ -38,8 +32,9 @@ export default function createMiddleware(dependencies) {
         },
       },
       handler: async (req, res, next, context) => {
-        if (!req.isValid && req.from) {
-          console.log(`[SIGNATURE-TRACKER] Invalid signature from ${req.from}`);
+        const { from } = req.getIdentity();
+        if (!req.isValid && from) {
+          console.log(`[SIGNATURE-TRACKER] Invalid signature from ${from}`);
           // In a real implementation, you would track this in a database
           // and potentially block the sender after too many failures
         }
@@ -59,32 +54,34 @@ export default function createMiddleware(dependencies) {
       },
       handler: async (req, res, next, context) => {
         console.log(
-          `[TRUST] ${req.from} trust status: ${req.isTrusted ? 'TRUSTED' : 'NOT TRUSTED'}`,
+          `[TRUST] ${req.getIdentity().from} trust status: ${req.isTrusted ? 'TRUSTED' : 'NOT TRUSTED'}`,
         );
         await next();
       },
     },
 
-    // Custom invoice validation (before message processing)
+    // Custom invoice validation (before the artifact is handed over)
     {
       phase: 'before',
-      step: 'onMessage',
+      step: 'onArtifact',
       priority: 1,
       config: {
         name: 'invoice-validator',
         enabled: true,
         options: {
-          maxInvoiceAmount: 10000,
+          maxInvoiceAmount: 1000000, // in minor units: 10,000.00
         },
       },
       handler: async (req, res, next, context) => {
-        if (req.artifact?.type === 'BTPS_DOC' && req.artifact.document?.totalAmount) {
+        // An unencrypted invoice only: an encrypted one is opened by the platform, later
+        const artifact = req.data?.artifact;
+        if (artifact?.type === 'BTPS_DOC' && artifact.document?.totalAmount) {
           const { maxInvoiceAmount } = context.config;
-          const amount = req.artifact.document.totalAmount.value;
+          const amount = artifact.document.totalAmount.amount;
 
           if (amount > maxInvoiceAmount) {
             console.log(
-              `[INVOICE-VALIDATOR] Invoice ${req.artifact.id} exceeds amount limit: ${amount}`,
+              `[INVOICE-VALIDATOR] Invoice ${artifact.id} exceeds amount limit: ${amount}`,
             );
             return res.sendError({
               code: 400,
@@ -97,10 +94,10 @@ export default function createMiddleware(dependencies) {
       },
     },
 
-    // Message processing metrics (before message processing)
+    // Metrics (before the artifact is handed over)
     {
       phase: 'before',
-      step: 'onMessage',
+      step: 'onArtifact',
       priority: 2,
       config: {
         name: 'message-metrics',
@@ -108,7 +105,9 @@ export default function createMiddleware(dependencies) {
         options: {},
       },
       handler: async (req, res, next, context) => {
-        console.log(`[METRICS] Processing message ${req.artifact?.id} from ${req.from}`);
+        console.log(
+          `[METRICS] Processing artifact ${req.data?.artifact?.id} from ${req.getIdentity().from}`,
+        );
         // In a real implementation, you would send this to your metrics system
         await next();
       },
@@ -125,7 +124,9 @@ export default function createMiddleware(dependencies) {
         options: {},
       },
       handler: async (req, res, next, context) => {
-        console.error(`[ERROR] ${req.error?.message} from ${req.from || 'unknown'}`);
+        console.error(
+          `[ERROR] ${req.error?.message} from ${req.getIdentity?.().from ?? 'unknown'}`,
+        );
         // In a real implementation, you would log this to your error tracking system
         await next();
       },
