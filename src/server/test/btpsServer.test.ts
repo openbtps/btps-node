@@ -2864,6 +2864,72 @@ export default function () {
     });
   });
 
+  describe('several artifacts on one connection', () => {
+    it('answers the next artifact after a middleware answered the one before', async () => {
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        connectionTimeoutMs: 2000,
+      });
+      // A middleware that answers the first artifact itself, as a filter does.
+      btps['middlewareManager']['middleware'] = [
+        {
+          phase: 'before',
+          step: 'parsing',
+          handler: async (req, res) => {
+            if (req.rawPacket?.includes('"first"')) {
+              res.sendRes({
+                ...btps.prepareBtpsResponse({ ok: true, message: 'filtered', code: 200 }),
+                type: 'btps_response',
+              });
+            }
+          },
+        },
+      ];
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+      const issuedAt = new Date().toISOString();
+
+      try {
+        const answers = await new Promise<BTPServerResponse[]>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const lines = received.split('\n').filter(Boolean);
+            if (lines.length === 2) {
+              client.end();
+              resolve(lines.map((l) => JSON.parse(l)));
+            }
+          });
+          client.on('error', reject);
+          setTimeout(() => reject(new Error(`no second answer: ${received}`)), 1000);
+          client.write(
+            `{"version":"1.0.0","id":"first","issuedAt":"${issuedAt}","action":"PING"}\n`,
+          );
+          setTimeout(
+            () =>
+              client.write(
+                `{"version":"1.0.0","id":"second","issuedAt":"${issuedAt}","action":"PING"}\n`,
+              ),
+            100,
+          );
+        });
+
+        expect(answers[0]?.status.message).toBe('filtered');
+        expect(answers[1]?.status.message).toBe('Server is operational');
+        expect(answers[1]?.reqId).toBe('second');
+      } finally {
+        tcp.close();
+      }
+    });
+  });
+
   describe('closing gently after an unexpected error', () => {
     it('delivers the error to a sender that is still sending its next artifact', async () => {
       const btps = new BtpsServer({
