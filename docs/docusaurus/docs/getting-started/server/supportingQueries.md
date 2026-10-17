@@ -18,7 +18,7 @@ Every agent command reaches one handler, `onIncomingArtifact('Agent', handler)`.
 - **Sentbox Management**: Fetch, delete artifacts already delivered
 - **Draft Management**: Create, fetch, update, delete drafts
 - **Trash Management**: Fetch, permanently delete
-- **Trust Management**: Fetch, update, delete the user's own trust records (their contacts)
+- **Trust Management**: Fetch the user's trust requests; update and delete the user's own trust records
 
 Your server moves an artifact from the outbox to the sentbox once it is delivered.
 
@@ -53,7 +53,7 @@ For complete BtpsAgent command documentation, see [BtpsAgent.command()](/docs/sd
 'trash.delete'; // Permanently delete from trash: { ids }
 
 // Trust operations: the user's own trust records
-'trust.fetch'; // Fetch trust relationships (contacts)
+'trust.fetch'; // Fetch trust requests: a query result of TRUST_REQ artifacts, the trust's state in meta
 'trust.update'; // Change one: { id, document }, e.g. a revoke
 'trust.delete'; // Remove them: { ids }
 

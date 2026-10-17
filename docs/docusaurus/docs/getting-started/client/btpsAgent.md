@@ -95,7 +95,7 @@ const trashResponse = await agent.command('trash.fetch', me, { limit: 10, sort: 
 
 ### Trust Management Commands
 
-Trusts are the user's contacts. `trust.request` and `trust.respond` are sent to the other side: the agent builds, signs and sends the trust artifact itself. A trust response is accepted only while the request is pending.
+A trust starts as a request. `trust.request` and `trust.respond` are sent to the other side: the agent builds, signs and sends the trust artifact itself. A trust response is accepted only while the request is pending.
 
 ```typescript
 import { randomUUID } from 'crypto';
@@ -119,11 +119,12 @@ const trustResponse = await agent.command('trust.respond', 'sender$domain.com', 
 });
 ```
 
-Once a trust exists, it is the user's own record, kept by their provider. `trust.fetch`, `trust.update` and `trust.delete` read and change it there; nothing is sent to the other side. A revoke or block takes effect on the other side's next artifact, which is refused.
+The user's provider keeps a record of each trust. `trust.fetch`, `trust.update` and `trust.delete` read and change those records there; nothing is sent to the other side. A revoke or block takes effect on the other side's next artifact, which is refused.
 
 ```typescript
-// List the user's contacts (their trusts)
-const contacts = await agent.command('trust.fetch', me, { limit: 50 });
+// List the user's trust requests: each entry is the signed TRUST_REQ, with the
+// trust's state (e.g. { trustId, status }) in meta
+const requests = await agent.command('trust.fetch', me, { limit: 50 });
 
 // Revoke one: the trust record's id, and its new decision
 const trustRevoke = await agent.command('trust.update', me, {
@@ -366,7 +367,7 @@ class TrustManager {
     return response.response;
   }
 
-  // Revoke a contact: changes the user's own trust record, sends nothing
+  // Revoke a trust: changes the user's own trust record, sends nothing
   async revokeTrust(trustRecordId: string, message?: string) {
     const response = await this.agent.command('trust.update', this.identity, {
       id: trustRecordId,

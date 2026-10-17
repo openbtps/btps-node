@@ -306,7 +306,7 @@ command('trust.update', to: string, document: BTPAgentMutation): Promise<BTPClie
 ```
 
 **Description:**
-Changes one of your trust records (your contacts) at your provider: revoke or block it, extend its expiry, or change its privacy type. Nothing is sent to the other side: the change takes effect on their next artifact, which is refused if the trust is no longer active.
+Changes one of your trust records at your provider: revoke or block it, extend its expiry, or change its privacy type. Nothing is sent to the other side: the change takes effect on their next artifact, which is refused if the trust is no longer active.
 
 **Arguments:**
 
@@ -352,7 +352,7 @@ command('trust.delete', to: string, document: BTPIdsPayload): Promise<BTPClientR
 ```
 
 **Description:**
-Removes trust records from your contacts at your provider. Nothing is sent to the other side. To stop someone sending without removing the record, revoke or block it with `trust.update`.
+Removes trust records at your provider. Nothing is sent to the other side. To stop someone sending without removing the record, revoke or block it with `trust.update`.
 
 **Arguments:**
 
@@ -379,7 +379,7 @@ if (result.error) {
 
 **Use Cases:**
 
-- Cleaning up old contacts
+- Cleaning up old trust requests
 - Automated cleanup of expired trusts
 
 ---
@@ -1176,7 +1176,7 @@ command('trust.fetch', to: string, document?: BTPAgentQuery): Promise<BTPClientR
 ```
 
 **Description:**
-Lists your contacts: the trust records your provider holds for you, with their status, with optional filtering and pagination. The protocol passes the query to your provider as given.
+Lists your trust requests, received and sent, with optional filtering and pagination: what a requests screen shows. The protocol passes the query to your provider as given.
 
 **Arguments:**
 
@@ -1185,7 +1185,21 @@ Lists your contacts: the trust records your provider holds for you, with their s
 
 **Returns:**
 
-- `Promise<BTPClientResponse>`: Your trust records, active and pending, with pagination information.
+- `Promise<BTPClientResponse>`: A query result in `response.document`. Each entry's `artifact` is the signed `TRUST_REQ` (the requester's name, email and reason are in its `document`), and its `meta` carries the trust's state, for example `{ trustId, status, decidedAt }`.
+
+```js
+{
+  results: [
+    {
+      artifact: { type: 'TRUST_REQ', from: 'billing$vendor.com', to: 'billing$yourdomain.com', document: { name: 'Vendor Pty Ltd', email: '…', reason: '…' } /* … */ },
+      meta: { trustId: 'fb275f18…', status: 'pending' },
+    },
+  ],
+  cursor: '…',
+}
+```
+
+A pending request is answered with `trust.respond`; an accepted one is revoked or blocked with `trust.update`, using `meta.trustId`.
 
 **Example:**
 

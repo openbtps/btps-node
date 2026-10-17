@@ -85,7 +85,7 @@ graph TD
 
 - **`trust.request`**: Send trust request to establish relationship (sent to the other side)
 - **`trust.respond`**: Respond to a pending trust request (sent to the requester)
-- **`trust.fetch`**: List the user's contacts, their trusts
+- **`trust.fetch`**: List the user's trust requests, received and sent, with their status
 - **`trust.update`**: Change one of the user's trust records, e.g. revoke or block it
 - **`trust.delete`**: Remove trust records
 
