@@ -548,6 +548,18 @@ describe('BtpsServer', () => {
         expect(await process(s)).toBe(false);
         expect(s.write).not.toHaveBeenCalled();
       });
+
+      it('still refuses it when only after-onArtifact middleware, such as metrics, is loaded', async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        server['middlewareManager']['middleware'] = [
+          { phase: 'after', step: 'onArtifact', handler: async () => {} },
+        ];
+        const s = socket();
+
+        expect(await process(s)).toBe(true);
+        const written: BTPServerResponse = JSON.parse((s.write as Mock).mock.calls[0]?.[0]);
+        expect(written.status.error).toBe(BTP_ERROR_ARTIFACT_NOT_ACCEPTED.code);
+      });
     });
   });
 

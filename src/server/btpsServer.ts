@@ -1239,20 +1239,21 @@ export class BtpsServer {
 
   /**
    * Whether anything on this server takes artifacts of this type: a handler
-   * registered with onIncomingArtifact, forwardTo, or onArtifact middleware.
+   * registered with onIncomingArtifact, forwardTo, or 'before onArtifact'
+   * middleware. 'after onArtifact' middleware runs once delivery is done, as
+   * metrics do, so it takes nothing.
    */
   private acceptsArtifacts(type: 'agent' | 'transporter'): boolean {
     return (
       this.emitter.listenerCount(type === 'agent' ? 'agentArtifact' : 'transporterArtifact') > 0 ||
       this.handlerFn !== null ||
-      this.middlewareManager.getMiddleware('before', 'onArtifact').length > 0 ||
-      this.middlewareManager.getMiddleware('after', 'onArtifact').length > 0
+      this.middlewareManager.getMiddleware('before', 'onArtifact').length > 0
     );
   }
 
   private noHandlerWarning(type: 'agent' | 'transporter'): string {
     const name = type === 'agent' ? 'Agent' : 'Transporter';
-    return `no ${name} handler, forwardTo or onArtifact middleware is registered, so ${type} artifacts are refused. Register one with onIncomingArtifact('${name}', handler).`;
+    return `no ${name} handler, forwardTo or 'before onArtifact' middleware is registered, so ${type} artifacts are refused. Register one with onIncomingArtifact('${name}', handler).`;
   }
 
   /**

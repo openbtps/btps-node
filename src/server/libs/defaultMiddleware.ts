@@ -8,8 +8,10 @@
 /**
  * Default BTPS Server Middleware Configuration
  *
- * This file provides a default set of middleware for the BtpsServer.
- * These are used when no external middleware file is specified.
+ * A ready-made set of middleware a provider can include from its own
+ * middleware file: rate limiting by address and by identity, and metrics.
+ * The server never loads it by itself; filtering and limiting are the
+ * provider's choice.
  */
 import { BTP_ERROR_RATE_LIMITER } from '@core/error/constant.js';
 import { MiddlewareDefinitionArray } from '../types.js';

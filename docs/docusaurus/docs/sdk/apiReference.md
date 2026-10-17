@@ -1493,7 +1493,7 @@ const BTP_ERROR_ARTIFACT_NOT_ACCEPTED: BTPError;
 ```
 
 **Description:**
-Error constant for an artifact the receiving server has nothing to take: no handler registered with `onIncomingArtifact` for its type, no `forwardTo` handler and no `onArtifact` middleware. The server refuses it instead of answering success, and logs a warning, as it also does when it starts without one.
+Error constant for an artifact the receiving server has nothing to take: no handler registered with `onIncomingArtifact` for its type, no `forwardTo` handler and no `before` `onArtifact` middleware (an `after` step, such as metrics, runs once delivery is done and takes nothing). The server refuses it instead of answering success, and logs a warning, as it also does when it starts without one.
 
 **Properties:**
 
