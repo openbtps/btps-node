@@ -53,7 +53,7 @@ export const artifactTimeWindowError = (
   }
   return new BTPErrorException(
     {
-      code: BTP_ERROR_ARTIFACT_TIME_WINDOW.code,
+      ...BTP_ERROR_ARTIFACT_TIME_WINDOW,
       message: `${BTP_ERROR_ARTIFACT_TIME_WINDOW.message}: ${maxAgeSeconds} seconds`,
     },
     { meta: { issuedAt, maxAgeSeconds } },

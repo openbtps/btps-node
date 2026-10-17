@@ -46,6 +46,9 @@ import {
   BTP_ERROR_ARTIFACT_TIME_WINDOW,
   BTP_ERROR_KEY_ROTATION_PROOF,
   BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
+  BTP_ERROR_UNKNOWN,
+  BTP_ERROR_SIG_VERIFICATION,
+  BTP_ERROR_RATE_LIMITER,
 } from '../../core/error/index.js';
 import { PassThrough } from 'stream';
 import net from 'net';
@@ -1953,6 +1956,87 @@ export default function () {
       });
     });
 
+    describe('probing for registered devices', () => {
+      const keyPair = () =>
+        generateKeyPairSync('rsa', {
+          modulusLength: 2048,
+          publicKeyEncoding: { type: 'spki', format: 'pem' },
+          privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+        });
+
+      it('answers an unknown device and a wrong key alike', async () => {
+        const deviceKeys = keyPair();
+        const proberKeys = keyPair();
+        const unsigned = {
+          version: '1.0.0',
+          id: 'probe-1',
+          agentId: 'btps_ag_probe',
+          action: 'inbox.fetch' as const,
+          to: 'bob$example.com',
+          issuedAt: new Date().toISOString(),
+          encryption: null,
+          document: { limit: 1 },
+        };
+        const artifact = {
+          ...unsigned,
+          signature: signBtpPayload(unsigned, proberKeys),
+        } as BTPAgentArtifact;
+        const answerWith = async (registeredKey: string | undefined) => {
+          server['getAgentPublicKey'] = vi.fn().mockResolvedValue(registeredKey);
+          return (await server['verifyAgentSignature'](artifact)).error;
+        };
+
+        const unknown = await answerWith(undefined);
+        const registered = await answerWith(deviceKeys.publicKey);
+
+        expect(unknown?.code).toBe(BTP_ERROR_SIG_VERIFICATION.code);
+        expect(registered?.code).toBe(BTP_ERROR_SIG_VERIFICATION.code);
+        expect(registered?.message).toBe(unknown?.message);
+      });
+    });
+
+    describe('what a sender is told about an error', () => {
+      it('sends a BTPS error with its status and its code', () => {
+        expect(server['wireStatus'](BTP_ERROR_RATE_LIMITER)).toEqual({
+          ok: false,
+          code: 429,
+          message: BTP_ERROR_RATE_LIMITER.message,
+          error: BTP_ERROR_RATE_LIMITER.code,
+        });
+      });
+
+      it('keeps the status of an error sent with its limit', () => {
+        const error = new BTPErrorException({
+          ...BTP_ERROR_ARTIFACT_TOO_LARGE,
+          message: `${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 1024 KB`,
+        });
+        expect(server['wireStatus'](error)).toMatchObject({
+          code: 413,
+          error: BTP_ERROR_ARTIFACT_TOO_LARGE.code,
+        });
+      });
+
+      it('sends a numeric code set by middleware as given', () => {
+        expect(server['wireStatus']({ code: 402, message: 'Payment required' })).toEqual({
+          ok: false,
+          code: 402,
+          message: 'Payment required',
+        });
+      });
+
+      it('never sends the detail of an internal error', () => {
+        const status = server['wireStatus'](
+          new BTPErrorException({ code: 'ECONNREFUSED', message: 'connect 10.0.0.5:5432' }),
+        );
+        expect(status).toEqual({
+          ok: false,
+          code: 500,
+          message: BTP_ERROR_UNKNOWN.message,
+          error: BTP_ERROR_UNKNOWN.code,
+        });
+      });
+    });
+
     describe('verifyAgentTrust', () => {
       it('should return trusted for onboarding agents', async () => {
         const artifact: BTPAgentArtifact = {
@@ -2453,19 +2537,11 @@ export default function () {
         });
       });
 
-      // "Wire error codes" AC: option B (decided 2026-10-06) - expired and
-      // not-allowed/revoked are meant to be distinguishable by a sender.
-      // In the real implementation that distinction lives in `status.message`
-      // only: `status.code` is a coarse bucket (200/404/403/500 - see
-      // BTPStatus, core/server/types.ts) and sendBtpsError's
-      // `typeof error.code === 'number' ? error.code : 500` fallback
-      // (btpsServer.ts:1178) makes it 500 for every BTPError here, since none
-      // of their `code` fields are numbers. These tests assert on the actual
-      // socket.write() payload, not on which BTPError constant the
-      // trust-refusal path happened to pick internally, so that fallback
-      // can't hide behind a pre-serialization spy.
-      // This exercises the trust-refusal path in executeRequestPipeline
-      // (btpsServer.ts, around :543).
+      // Expired is distinguishable by a sender; revoked, blocked and
+      // never-trusted all read as not-allowed. Both are 403, told apart by
+      // `status.error`. These tests assert on the actual socket.write()
+      // payload, not on which BTPError constant the trust-refusal path picked
+      // internally.
       describe('wire error codes (trust-refusal path)', () => {
         const buildMockSocket = () =>
           ({
@@ -2561,11 +2637,8 @@ export default function () {
           expect(written.status.ok).toBe(false);
           expect(written.status.message).toBe(BTP_ERROR_TRUST_EXPIRED.message);
           expect(written.status.message).not.toBe(BTP_ERROR_TRUST_NOT_ALLOWED.message);
-          // Not a distinguishing field here - see the describe-block comment
-          // above. Asserted explicitly so a future change to the sendBtpsError
-          // fallback (making `code` error-specific) doesn't silently regress
-          // unnoticed.
-          expect(written.status.code).toBe(500);
+          expect(written.status.code).toBe(403);
+          expect(written.status.error).toBe(BTP_ERROR_TRUST_EXPIRED.code);
         });
 
         it('sends a not-allowed refusal on the wire for a revoked trust', async () => {
@@ -2579,6 +2652,9 @@ export default function () {
           expect(written.type).toBe('btps_error');
           expect(written.status.ok).toBe(false);
           expect(written.status.message).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.message);
+          // A revoked sender reads exactly what a never-trusted one does.
+          expect(written.status.code).toBe(403);
+          expect(written.status.error).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.code);
         });
 
         // Round 1 finding: a blocked/rejected/pending record with a past
@@ -3026,7 +3102,12 @@ export default function () {
 
         const written: BTPServerResponse = JSON.parse(answer);
         expect(written.type).toBe('btps_error');
-        expect(written.status.message).toBe('unexpected failure');
+        // Internal detail never reaches the wire.
+        expect(written.status).toMatchObject({
+          code: 500,
+          message: BTP_ERROR_UNKNOWN.message,
+          error: BTP_ERROR_UNKNOWN.code,
+        });
       } finally {
         tcp.close();
       }

@@ -15,31 +15,37 @@ export const BTP_ERROR_SOCKET_CLOSED: BTPError = {
 export const BTP_ERROR_IDENTITY: BTPError = {
   code: 'BTP_ERROR_IDENTITY',
   message: 'BTPS identity is expected in the format username$domain.',
+  status: 400,
 };
 
 export const BTP_ERROR_IDENTITY_NOT_FOUND: BTPError = {
   code: 'BTP_ERROR_IDENTITY_NOT_FOUND',
   message: 'Identity not found',
+  status: 404,
 };
 
 export const BTP_ERROR_TRUST_NON_EXISTENT: BTPError = {
   code: 'BTP_ERROR_TRUST_NON_EXISTENT',
   message: 'BTPS trust record does not exist',
+  status: 403,
 };
 
 export const BTPS_ERROR_ACTION_TYPE: BTPError = {
   code: 'BTPS_ERROR_ACTION_TYPE',
   message: 'BTPS action type is not valid',
+  status: 400,
 };
 
 export const BTP_ERROR_TRUST_BLOCKED: BTPError = {
   code: 'BTP_ERROR_TRUST_BLOCKED',
   message: 'BTPS trust request is not allowed. Contact receiver',
+  status: 403,
 };
 
 export const BTP_ERROR_TRUST_NOT_ALLOWED: BTPError = {
   code: 'BTP_ERROR_TRUST_NOT_ALLOWED',
   message: 'BTPS trust request is not allowed at this time. Contact receiver',
+  status: 403,
 };
 
 /**
@@ -52,6 +58,7 @@ export const BTP_ERROR_TRUST_NOT_ALLOWED: BTPError = {
 export const BTP_ERROR_TRUST_EXPIRED: BTPError = {
   code: 'BTP_ERROR_TRUST_EXPIRED',
   message: 'BTPS trust record has expired',
+  status: 403,
 };
 
 /**
@@ -63,16 +70,19 @@ export const BTP_ERROR_TRUST_EXPIRED: BTPError = {
 export const BTP_ERROR_TRUST_REVOKED: BTPError = {
   code: 'BTP_ERROR_TRUST_REVOKED',
   message: 'BTPS trust record has been revoked',
+  status: 403,
 };
 
 export const BTP_ERROR_TRUST_ALREADY_ACTIVE: BTPError = {
   code: 'BTP_ERROR_TRUST_ALREADY_ACTIVE',
   message: 'BTPS trust record already exist. Request invalid',
+  status: 409,
 };
 
 export const BTP_ERROR_EVENT_UNRELATED: BTPError = {
   code: 'BTP_ERROR_EVENT_UNRELATED',
   message: 'Event does not relate to an artifact exchanged between its parties',
+  status: 400,
 };
 
 export const BTP_ERROR_RESOLVE_DNS: BTPError = {
@@ -83,61 +93,73 @@ export const BTP_ERROR_RESOLVE_DNS: BTPError = {
 export const BTP_ERROR_RESOLVE_PUBKEY: BTPError = {
   code: 'BTP_ERROR_RESOLVE_PUBKEY',
   message: 'No valid public-key found',
+  status: 401,
 };
 
 export const BTP_ERROR_RATE_LIMITER: BTPError = {
   code: 'BTP_ERROR_RATE_LIMITER',
   message: 'Too many request than its allowed',
+  status: 429,
 };
 
 export const BTP_ERROR_INVALID_ACTION: BTPError = {
   code: 'BTP_ERROR_INVALID_ACTION',
   message: 'Invalid action',
+  status: 400,
 };
 
 export const BTP_ERROR_INVALID_JSON = {
   code: 'BTP_ERROR_INVALID_JSON',
   message: 'Invalid JSON format',
+  status: 400,
 };
 
 export const BTP_ERROR_VALIDATION = {
   code: 'BTP_ERROR_VALIDATION',
   message: 'BTPS artifact validation failed',
+  status: 400,
 };
 
 export const BTP_ERROR_SIG_MISMATCH: BTPError = {
   code: 'BTP_ERROR_SIG_MISMATCH',
   message: 'fingerprint mis-match',
+  status: 401,
 };
 
 export const BTP_ERROR_SIG_VERIFICATION: BTPError = {
   code: 'BTP_ERROR_SIG_VERIFICATION',
   message: ' Signature verification failed',
+  status: 401,
 };
 
 export const BTP_ERROR_CANONICAL_JSON: BTPError = {
   code: 'BTP_ERROR_CANONICAL_JSON',
   message: 'Payload cannot be canonicalized (RFC 8785)',
+  status: 400,
 };
 
 export const BTP_ERROR_DELEGATION_SIG_VERIFICATION: BTPError = {
   code: 'BTP_ERROR_DELEGATION_SIG_VERIFICATION',
   message: 'Delegation signature verification failed',
+  status: 401,
 };
 
 export const BTP_ERROR_ATTESTATION_VERIFICATION: BTPError = {
   code: 'BTP_ERROR_ATTESTATION_VERIFICATION',
   message: 'Attestation verification failed',
+  status: 401,
 };
 
 export const BTP_ERROR_DELEGATION_INVALID: BTPError = {
   code: 'BTP_ERROR_DELEGATION_INVALID',
   message: 'Delegation is invalid',
+  status: 401,
 };
 
 export const BTP_ERROR_UNSUPPORTED_ENCRYPT: BTPError = {
   code: 'BTP_ERROR_UNSUPPORTED_ENCRYPT',
   message: 'Unsupported encryption algorithm',
+  status: 400,
 };
 
 export const BTP_ERROR_DECRYPTION_UNINTENDED: BTPError = {
@@ -148,41 +170,49 @@ export const BTP_ERROR_DECRYPTION_UNINTENDED: BTPError = {
 export const BTP_ERROR_UNKNOWN: BTPError = {
   code: 'BTP_UNKNOWN_ERROR',
   message: 'Unknown error',
+  status: 500,
 };
 
 export const BTP_ERROR_AGENT_ID: BTPError = {
   code: 'BTP_ERROR_AGENT_ID',
   message: 'An agent id names a registered device, not an identity',
+  status: 403,
 };
 
 export const BTP_ERROR_KEY_ROTATION_PROOF: BTPError = {
   code: 'BTP_ERROR_KEY_ROTATION_PROOF',
   message: 'A new device key needs a proof signed by that key',
+  status: 401,
 };
 
 export const BTP_ERROR_ARTIFACT_TIME_WINDOW: BTPError = {
   code: 'BTP_ERROR_ARTIFACT_TIME_WINDOW',
   message: 'Artifact was not issued within the time window of this server',
+  status: 400,
 };
 
 export const BTP_ERROR_ARTIFACT_TOO_LARGE: BTPError = {
   code: 'BTP_ERROR_ARTIFACT_TOO_LARGE',
   message: 'Artifact exceeds the size limit of this server',
+  status: 413,
 };
 
 export const BTP_ERROR_ARTIFACT_NOT_ACCEPTED: BTPError = {
   code: 'BTP_ERROR_ARTIFACT_NOT_ACCEPTED',
   message: 'This server does not accept this kind of artifact',
+  status: 503,
 };
 
 export const BTP_ERROR_SOCKET_TIMEOUT: BTPError = {
   code: 'BTP_ERROR_SOCKET_TIMEOUT',
   message: 'Socket timeout. Connection closed',
+  status: 408,
 };
 
 export const BTP_ERROR_AUTHENTICATION_INVALID: BTPError = {
   code: 'BTP_ERROR_AUTHENTICATION_INVALID',
   message: 'Authentication failed',
+  status: 401,
 };
 
 export const BTP_ERROR_TIMEOUT: BTPError = {

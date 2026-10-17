@@ -744,7 +744,18 @@ export class BtpsServer {
     }
 
     const { isValid, error } = verifySignature(signedMsg, signature, agentPublicPem);
-    if (!isValid || artifact.action !== 'auth.refresh') return { isValid, error };
+    // One answer for an unknown device and a wrong key alike: a fingerprint
+    // mismatch would tell a prober that the device is registered.
+    if (!isValid) {
+      return {
+        isValid,
+        error: new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
+          cause: error,
+          meta: { agentId: signedMsg.agentId, action: artifact.action },
+        }),
+      };
+    }
+    if (artifact.action !== 'auth.refresh') return { isValid, error };
     return this.verifyKeyProof(artifact, agentPublicPem);
   }
 
@@ -1385,20 +1396,34 @@ export class BtpsServer {
   /**
    * Sends a BTPS error response to the client
    */
+  /**
+   * What a sender is told about an error. A BTPS error carries its status and
+   * its code; a numeric code set by middleware is sent as given. Anything else
+   * is internal: a generic 500, so no internal detail ever reaches the wire.
+   * The full error stays with the server, keyed by the response id.
+   */
+  private wireStatus(error: BTPError): BTPStatus {
+    if (typeof error.code === 'number') {
+      return { ok: false, code: error.code, message: error.message };
+    }
+    if (error.status && error.code) {
+      return { ok: false, code: error.status, message: error.message, error: error.code };
+    }
+    return {
+      ok: false,
+      code: BTP_ERROR_UNKNOWN.status ?? 500,
+      message: BTP_ERROR_UNKNOWN.message,
+      error: String(BTP_ERROR_UNKNOWN.code),
+    };
+  }
+
   private async sendBtpsError(
     socket: TLSSocket,
     error: BTPError,
     reqId?: string,
     action?: BtpsErrorAction,
   ) {
-    const response = this.prepareBtpsResponse(
-      {
-        ok: false,
-        code: typeof error.code === 'number' ? error.code : 500,
-        message: error.message,
-      },
-      reqId,
-    );
+    const response = this.prepareBtpsResponse(this.wireStatus(error), reqId);
 
     this.sendBtpsResponse(
       socket,

@@ -1057,6 +1057,8 @@ try {
 
 ## Error Constants (`@btps/sdk/error`)
 
+A constant a server sends carries a `status`: the numeric `status.code` it is answered with, while its `code` goes out as `status.error`. See [Status Codes](../protocol/specifications/responses.md#status-codes) for each status and whether a sender should send again. Middleware can send its own error with a numeric `code` (for example `{ code: 402, message: 'Payment required' }`), which goes out as given. Any other error is treated as internal and answered `500` with `BTP_UNKNOWN_ERROR`, so its detail never reaches the wire.
+
 ### BTP_ERROR_IDENTITY
 
 ```ts
@@ -1128,7 +1130,7 @@ Error constant for trust requests not allowed at this time.
 
 This is also the response a sender receives for a **revoked** trust record: on the wire, revoked and never-trusted produce an identical response body (the same `message`), so a sender who was removed cannot tell their refusal apart from one who was never trusted. The server's own context keeps the precise reason (see `BTP_ERROR_TRUST_REVOKED` below).
 
-The distinction between trust-refusal cases described on this page lives in the response's `status.message` text, not in its numeric `status.code`. Today `status.code` is `500` for this and for every other application-level BTPS error, regardless of which of these constants produced it (`sendBtpsError`'s `typeof error.code === 'number' ? error.code : 500` fallback).
+On the wire it is `status.code` `403` with `status.error` `'BTP_ERROR_TRUST_NOT_ALLOWED'`.
 
 ---
 
@@ -1139,7 +1141,7 @@ const BTP_ERROR_TRUST_EXPIRED: BTPError;
 ```
 
 **Description:**
-Error constant for a trust record that was `accepted` and whose `expiresAt` has since passed. A `blocked`, `rejected`, or `pending` record with a past `expiresAt` is reported under its own status instead — it is not "expired". Unlike a revoked or never-existent trust, an expired trust produces its own distinct response `message` on the wire, so a sender can tell the difference and know a request may re-establish trust (see the note on `BTP_ERROR_TRUST_NOT_ALLOWED` above — the numeric `status.code` does not carry this distinction today). An un-upgraded peer that does not recognize this message must still treat it as a refusal (not-allowed), which is why `status.ok` and `status.code` stay identical to a plain not-allowed refusal.
+Error constant for a trust record that was `accepted` and whose `expiresAt` has since passed. A `blocked`, `rejected`, or `pending` record with a past `expiresAt` is reported under its own status instead — it is not "expired". Unlike a revoked or never-existent trust, an expired trust produces its own `status.error` and `message` on the wire, so a sender can tell the difference and know a request may re-establish trust. An un-upgraded peer that does not recognize it must still treat it as a refusal (not-allowed), which is why `status.ok` and `status.code` (`403`) stay identical to a plain not-allowed refusal.
 
 **Properties:**
 

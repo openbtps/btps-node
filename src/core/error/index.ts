@@ -12,6 +12,7 @@ export * from './types.js';
 
 export class BTPErrorException extends Error {
   public readonly code?: string | number;
+  public readonly status?: number;
   public readonly cause?: unknown;
   public readonly meta?: Record<string, unknown>;
 
@@ -26,6 +27,7 @@ export class BTPErrorException extends Error {
 
     this.name = 'BTPErrorException';
     this.code = btpError.code;
+    this.status = btpError.status;
     this.cause = options?.cause;
     this.meta = options?.meta;
 
@@ -45,6 +47,7 @@ export class BTPErrorException extends Error {
     return {
       name: this.name,
       code: this.code,
+      ...(this.status ? { status: this.status } : {}),
       message: this.message,
       stack: this.stack,
       ...(this.meta ? { meta: this.meta } : {}),

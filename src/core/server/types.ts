@@ -154,8 +154,10 @@ export type BTPArtifact =
 
 export type BTPStatus = {
   ok: boolean;
-  code: number; // 200 -> Sent OK | 404 --> Not Allowed | 403 --> Temporary Not Allowed | 500 --> Error
+  code: number; // 200 OK | 4xx: do not resend as is | 429 and 5xx: resend later
   message?: string;
+  /** On an error, its BTPS code, e.g. 'BTP_ERROR_TRUST_EXPIRED' */
+  error?: string;
 };
 
 export interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFailureArtifact> {

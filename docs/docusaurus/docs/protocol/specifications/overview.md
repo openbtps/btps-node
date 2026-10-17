@@ -217,7 +217,7 @@ Agent artifacts types are used for communicating from client to their identity h
 
 ### 3. IdentityLookup Artifact (`BTPIdentityLookupRequest`)
 
-IdentityLookup artifacts are used for requesting identity public records for those identity records that are not published in DNS records. Commonly used for users operating under SaaS domain. eg: `john$ebilladdress.com`. Requires delegation support and identity storage at the implementing server.
+IdentityLookup artifacts are used for requesting identity public records for those identity records that are not published in DNS records. Commonly used for users operating under SaaS domain. eg: `john$saas.com`. Requires delegation support and identity storage at the implementing server.
 
 ### 4. Control Artifact (`BTPControlArtifact`)
 
@@ -281,5 +281,6 @@ These are used for notifying the agent or client related to delivery failure. No
 - Invalid message format: Reject with 400 Bad Request
 - Artifact issued outside the server's time window: Reject with the window in the message (`BTP_ERROR_ARTIFACT_TIME_WINDOW`, for example `Artifact was not issued within the time window of this server: 300 seconds`), keeping the connection open
 - Artifact over the server's size limit: Reject with the limit in the message (`BTP_ERROR_ARTIFACT_TOO_LARGE`, for example `Artifact exceeds the size limit of this server: 5120 KB`) and close the connection
-- Server errors: Return 500 Internal Server Error
+- Server errors: Return 500 Internal Server Error, with a generic message and never the error's own detail
 - Rate limiting: Return 429 Too Many Requests
+- Every error carries its BTPS code in `status.error`; see [Status Codes](./responses.md#status-codes) for each code, whether to send again, and what an error never reveals
