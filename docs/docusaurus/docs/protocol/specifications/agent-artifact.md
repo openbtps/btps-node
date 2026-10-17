@@ -323,7 +323,7 @@ Used to send transporter artifacts to other organizations. The device builds and
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "btps_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
   "type": "BTPS_DOC",
@@ -377,7 +377,7 @@ Agent artifacts support optional encryption using AES-256-GCM:
 
 - **Algorithm**: AES-256-GCM
 - **Encryption Types**: `none`, `standardEncrypt`, `2faEncrypt`
-- **Key Exchange**: RSA-OAEP or ECDH
+- **Key Exchange**: RSA-OAEP with SHA-256
 - **IV**: Random initialization vector
 - **Auth Tag**: GCM authentication tag for integrity
 - **Content**: Base64 encoded encrypted payload

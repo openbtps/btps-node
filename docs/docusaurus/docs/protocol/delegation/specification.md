@@ -123,7 +123,7 @@ A delegated artifact is a standard BTPS artifact with an additional `delegation`
 
 ```json
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "msg_123",
   "type": "BTPS_DOC",
@@ -227,7 +227,7 @@ The BtpsServer performs verification in the following order:
 dig TXT _btps.host.saas.com
 
 # Expected response
-_btps.host.saas.com. 300 IN TXT "v=1.0.0; u=btps.saas.com:3443; s=btps1; op=admin$saas.com"
+_btps.host.saas.com. 300 IN TXT "v=1.1.0; u=btps.saas.com:3443; s=btps1; op=admin$saas.com"
 ```
 
 #### **Delegator Public Key**
@@ -237,7 +237,7 @@ _btps.host.saas.com. 300 IN TXT "v=1.0.0; u=btps.saas.com:3443; s=btps1; op=admi
 dig TXT btps1._btps.identity.admin.saas.com
 
 # Expected response
-btps1._btps.identity.admin.saas.com. 300 IN TXT "v=1.0.0; k=rsa; p=...delegator_public_key..."
+btps1._btps.identity.admin.saas.com. 300 IN TXT "v=1.1.0; k=rsa; p=...delegator_public_key..."
 ```
 
 #### **Attestor Public Key (if attestation present)**
@@ -247,7 +247,7 @@ btps1._btps.identity.admin.saas.com. 300 IN TXT "v=1.0.0; k=rsa; p=...delegator_
 dig TXT btps1._btps.identity.admin.saas.com
 
 # Expected response
-btps1._btps.identity.admin.saas.com. 300 IN TXT "v=1.0.0; k=rsa; p=...attestor_public_key..."
+btps1._btps.identity.admin.saas.com. 300 IN TXT "v=1.1.0; k=rsa; p=...attestor_public_key..."
 ```
 
 ### **Error Conditions**

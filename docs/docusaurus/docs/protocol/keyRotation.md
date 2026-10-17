@@ -60,26 +60,26 @@ legacy._btps.identity.finance.vendorcorp.com  → Legacy key for backward compat
 Each selector publishes a DNS TXT record with the following format:
 
 ```
-btps1._btps.identity.finance.vendorcorp.com. IN TXT "v=1.0.0;k=rsa-sha256;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
+btps1._btps.identity.finance.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
 ```
 
 **Record Components:**
 
-- `v=BTPS1` - Protocol version
-- `k=rsa-sha256` - Key algorithm
-- `p=<base64-encoded-public-key>` - Public key in PEM format
+- `v=1.1.0` - Protocol version
+- `k=rsa` - Key type
+- `p=<base64-encoded-public-key>` - Public key: base64 SPKI, without PEM headers
 
 #### 2. Selector Resolution Records
 
 The main BTPS selector record must be updated to include the current selector:
 
 ```
-_btps.host.vendorcorp.com. IN TXT "v=1.0.0;u=btps.vendorcorp.com:3443;s=btps2;op=admin$vendorcorp.com"
+_btps.host.vendorcorp.com. IN TXT "v=1.1.0;u=btps.vendorcorp.com:3443;s=btps2;op=admin$vendorcorp.com"
 ```
 
 **Record Components:**
 
-- `v=1.0.0` - BTPS protocol version
+- `v=1.1.0` - BTPS protocol version
 - `u=<btps_host:port>` - BTPS server host and port
 - `s=<selectorName>` - Current active selector for key resolution
 - `op=<operator_identity>` - The domain's operator, which delegates, attests and answers identity lookups for the domain ([The Domain Operator](./specifications/overview.md#the-domain-operator))
@@ -150,13 +150,13 @@ Create the new DNS TXT records before publishing:
 #### Public Key Record
 
 ```dns
-btps2._btps.identity.finance.vendorcorp.com. IN TXT "v=BTPS1;k=rsa-sha256;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
+btps2._btps.identity.finance.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
 ```
 
 #### Selector Resolution Record
 
 ```dns
-_btps.host.vendorcorp.com. IN TXT "v=1.0.0;u=btps.vendorcorp.com:3443;s=btps2;op=admin$vendorcorp.com"
+_btps.host.vendorcorp.com. IN TXT "v=1.1.0;u=btps.vendorcorp.com:3443;s=btps2;op=admin$vendorcorp.com"
 ```
 
 **Note:** The selector resolution record (`_btps.host.vendorcorp.com`) must be updated to point to the new selector (`s=btps2`) during key rotation.
@@ -185,20 +185,20 @@ The key rotation process involves updating two types of DNS records:
 
 ```dns
 # Before rotation (existing record)
-btps1._btps.identity.finance.vendorcorp.com. IN TXT "v=BTPS1;k=rsa-sha256;p=OLD_PUBLIC_KEY"
+btps1._btps.identity.finance.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=OLD_PUBLIC_KEY"
 
 # After rotation (new record added)
-btps2._btps.identity.finance.vendorcorp.com. IN TXT "v=BTPS1;k=rsa-sha256;p=NEW_PUBLIC_KEY"
+btps2._btps.identity.finance.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=NEW_PUBLIC_KEY"
 ```
 
 #### Step 2: Update Selector Resolution Record
 
 ```dns
 # Before rotation
-_btps.host.vendorcorp.com. IN TXT "v=1.0.0;u=btps.vendorcorp.com:3443;s=btps1;op=admin$vendorcorp.com"
+_btps.host.vendorcorp.com. IN TXT "v=1.1.0;u=btps.vendorcorp.com:3443;s=btps1;op=admin$vendorcorp.com"
 
 # After rotation (updated to point to new selector)
-_btps.host.vendorcorp.com. IN TXT "v=1.0.0;u=btps.vendorcorp.com:3443;s=btps2;op=admin$vendorcorp.com"
+_btps.host.vendorcorp.com. IN TXT "v=1.1.0;u=btps.vendorcorp.com:3443;s=btps2;op=admin$vendorcorp.com"
 ```
 
 ### 2. Publishing Multiple Keys
@@ -210,11 +210,11 @@ const newSelector = 'btps2';
 
 // DNS TXT records (published simultaneously)
 // Public Key Records:
-// btps1._btps.identity.finance.vendorcorp.com. IN TXT "v=BTPS1;k=rsa-sha256;p=OLD_PUBLIC_KEY"
-// btps2._btps.identity.finance.vendorcorp.com. IN TXT "v=BTPS1;k=rsa-sha256;p=NEW_PUBLIC_KEY"
+// btps1._btps.identity.finance.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=OLD_PUBLIC_KEY"
+// btps2._btps.identity.finance.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=NEW_PUBLIC_KEY"
 
 // Selector Resolution Record (updated to point to new selector):
-// _btps.host.vendorcorp.com. IN TXT "v=1.0.0;u=btps.vendorcorp.com:3443;s=btps2;op=admin$vendorcorp.com"
+// _btps.host.vendorcorp.com. IN TXT "v=1.1.0;u=btps.vendorcorp.com:3443;s=btps2;op=admin$vendorcorp.com"
 ```
 
 ### 2. Artifact Signing with Selectors

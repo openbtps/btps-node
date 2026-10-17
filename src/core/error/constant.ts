@@ -197,6 +197,12 @@ export const BTP_ERROR_ARTIFACT_TOO_LARGE: BTPError = {
   status: 413,
 };
 
+export const BTP_ERROR_VERSION_UNSUPPORTED: BTPError = {
+  code: 'BTP_ERROR_VERSION_UNSUPPORTED',
+  message: 'This server does not support the artifact protocol version',
+  status: 400,
+};
+
 export const BTP_ERROR_PRIVACY_TYPE: BTPError = {
   code: 'BTP_ERROR_PRIVACY_TYPE',
   message: 'Artifact does not use the encryption its trust requires',

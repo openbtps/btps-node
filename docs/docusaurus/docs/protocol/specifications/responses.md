@@ -16,7 +16,7 @@ BTPS server responses (`BTPServerResponse`) are designed to provide consistent, 
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -124,7 +124,7 @@ Used when the operation completes successfully:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -145,7 +145,7 @@ Used when the operation fails:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": false,
     "code": 400,
@@ -222,7 +222,7 @@ Response to identity lookup requests:
   "selector": "john1",
   "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
   "keyType": "rsa",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
 ```
 
@@ -239,7 +239,7 @@ Simple string responses for basic operations:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -304,7 +304,7 @@ Responses can be encrypted for confidentiality:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -333,7 +333,7 @@ Responses can be encrypted for confidentiality:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -372,7 +372,7 @@ Responses can be encrypted for confidentiality:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -385,7 +385,7 @@ Responses can be encrypted for confidentiality:
     "selector": "john1",
     "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
     "keyType": "rsa",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "signature": {
     "algorithmHash": "sha256",
@@ -401,7 +401,7 @@ Responses can be encrypted for confidentiality:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": false,
     "code": 404,
@@ -426,7 +426,7 @@ All error responses follow the same structure:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": false,
     "code": 400,

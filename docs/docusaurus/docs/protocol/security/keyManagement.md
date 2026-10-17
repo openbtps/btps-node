@@ -22,7 +22,7 @@ sequenceDiagram
 ``` 
 
 ## Key Generation
-- Keys are generated using strong, industry-standard algorithms (RSA-2048+, Ed25519 planned).
+- Keys are generated using strong, industry-standard algorithms (RSA, 2048 bits or more).
 - Keys are stored in PEM format for compatibility and portability.
 - Public keys are published via DNS TXT records or .well-known endpoints for discovery.
 

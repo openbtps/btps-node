@@ -22,7 +22,7 @@ Update your `package.json` to use ES modules:
 ```json
 {
   "name": "btps-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "nodemon --exec node --loader tsx src/index.ts",
@@ -30,7 +30,7 @@ Update your `package.json` to use ES modules:
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@btps/sdk": "^1.0.0"
+    "@btps/sdk": "^1.1.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
@@ -211,7 +211,7 @@ async function testConnection() {
   try {
     // Create a simple control artifact to test connection
     const controlArtifact = {
-      version: '1.0.0.0',
+      version: '1.1.0',
       id: 'test_control_123',
       issuedAt: new Date().toISOString(),
       action: 'QUIT' as const,
@@ -252,7 +252,7 @@ Your basic server now includes:
 - **Middleware Support**: Custom middleware for request processing
 - **Error Handling**: Graceful error management
 - **Graceful Shutdown**: Proper cleanup on exit
-- **Protocol Version**: BTPS 1.0.0 compliance
+- **Protocol Version**: BTPS 1.1.0 compliance
 
 ## Environment Variables
 

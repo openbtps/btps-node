@@ -15,7 +15,7 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "btps_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
   "type": "TRUST_REQ",
@@ -392,7 +392,7 @@ So every `BTPS_EVENT` carries `relatesTo` in its envelope, outside the encrypted
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "0b6f4b5e-5d0a-4c4e-8f43-2a7d3a1f9e01",
   "issuedAt": "2025-02-03T08:15:00Z",
   "type": "BTPS_EVENT",
@@ -420,7 +420,7 @@ Transporter artifacts support optional encryption using AES-256-GCM:
 
 - **Algorithm**: AES-256-GCM
 - **Encryption Types**: `none`, `standardEncrypt`, `2faEncrypt`
-- **Key Exchange**: RSA-OAEP or ECDH
+- **Key Exchange**: RSA-OAEP with SHA-256
 - **IV**: Random initialization vector
 - **Auth Tag**: GCM authentication tag for integrity
 - **Content**: Base64 encoded encrypted payload

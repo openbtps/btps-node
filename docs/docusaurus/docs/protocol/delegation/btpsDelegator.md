@@ -204,7 +204,7 @@ const delegatedArtifact = await delegator.delegateArtifact(agentId, agentPubKey,
 
 ```json
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "msg_123",
   "type": "BTPS_DOC",
@@ -253,7 +253,7 @@ const delegatedArtifact = await delegator.delegateArtifact(agentId, agentPubKey,
 
 ```json
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "msg_123",
   "type": "BTPS_DOC",
@@ -594,21 +594,21 @@ Ensure proper DNS TXT records are configured:
 
 ```
 _btps.host.saas.com
-v=1.0.0; u=btps.saas.com:3443; s=btps1; op=admin$saas.com
+v=1.1.0; u=btps.saas.com:3443; s=btps1; op=admin$saas.com
 ```
 
 **Host Record of a custom domain hosted by the SaaS:**
 
 ```
 _btps.host.bobco.com
-v=1.0.0; u=btps.saas.com:3443; s=btps1; op=admin$saas.com
+v=1.1.0; u=btps.saas.com:3443; s=btps1; op=admin$saas.com
 ```
 
 **Identity Record:**
 
 ```
 btps1._btps.identity.alice.saas.com
-v=1.0.0; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...
+v=1.1.0; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...
 ```
 
 ### **Debug Mode**

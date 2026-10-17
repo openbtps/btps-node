@@ -146,7 +146,7 @@ flowchart TD
 
 ```json
 {
-  "version": "1.0.0.0",
+  "version": "1.1.0",
   "id": "identity_lookup_123456",
   "issuedAt": "2025-01-15T10:30:00Z",
   "identity": "alice$saas.com",
@@ -170,7 +170,7 @@ flowchart TD
 
 ```json
 {
-  "version": "1.0.0.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -184,7 +184,7 @@ flowchart TD
     "selector": "btps1",
     "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
     "keyType": "rsa",
-    "version": "1.0.0.0"
+    "version": "1.1.0"
   },
   "signedBy": "admin$saas.com",
   "selector": "btps1",

@@ -146,7 +146,7 @@ Returns the BTPS protocol version string.
 
 **Returns:**
 
-- `string`: Protocol version (e.g., "1.0.0")
+- `string`: Protocol version (e.g., "1.1.0")
 
 **Example:**
 

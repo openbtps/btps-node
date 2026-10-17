@@ -108,13 +108,13 @@ Value:
 The TXT record should contain key-value pairs separated by semicolons:
 
 ```
-k=rsa;v=1.0.0;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+k=rsa;v=1.1.0;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
 ```
 
 **Parameters:**
 
 - `k`: key type (for key signature and encryption eg: rsa)
-- `v`: BTPS protocol version (currently "1.0.0")
+- `v`: BTPS protocol version (currently "1.1.0")
 - `p`: Base64-encoded public key (without PEM headers)
 
 ## DNS TXT Host and Selector Record
@@ -138,13 +138,13 @@ Value:
 The TXT record should contain key-value pairs separated by semicolons:
 
 ```
-v=1.0.0;u=btps://btps.yourdomain.com:3443;s=btps1;op=admin$yourdomain.com
+v=1.1.0;u=btps://btps.yourdomain.com:3443;s=btps1;op=admin$yourdomain.com
 ```
 
 **Parameters:**
 
 - `u`: btps server host running address followed by port. If port is not present default 3443 will be used
-- `v`: BTPS protocol version (currently "1.0.0")
+- `v`: BTPS protocol version (currently "1.1.0")
 - `s`: selector. This is for key rotation feature. This is required
 - `op`: the domain's operator, the identity your BTPS server runs as (its `serverIdentity.identity`). Receivers accept delegations, attestations and identity lookup answers for your domain only from this identity. Required if your server delegates for your users or answers identity lookups. See [The Domain Operator](../../protocol/specifications/overview.md#the-domain-operator).
 
@@ -161,7 +161,7 @@ const publicKey = readFileSync('./keys/public.pem', 'utf8');
 const base64Key = pemToBase64(publicKey);
 
 // Create DNS record content
-const dnsRecord = `k=rsa;v=1.0.0;p=${base64Key}`;
+const dnsRecord = `k=rsa;v=1.1.0;p=${base64Key}`;
 
 console.log('DNS TXT Record for: btps1._btps.billing.yourdomain.com');
 console.log('Content:', dnsRecord);
@@ -177,7 +177,7 @@ import { getHostAndSelector, getDnsIdentityParts } from '@btps/sdk';
 // Test host and selector resolution
 const hostInfo = await getHostAndSelector('billing$yourdomain.com');
 console.log('Host Info:', hostInfo);
-// Output: { version: '1.0.0', host: 'btps://btps.yourdomain.com:3443', selector: 'btps1', operator: 'admin$yourdomain.com' }
+// Output: { version: '1.1.0', host: 'btps://btps.yourdomain.com:3443', selector: 'btps1', operator: 'admin$yourdomain.com' }
 
 // Test public key resolution
 const publicKey = await getDnsIdentityParts('billing$yourdomain.com', 'btps1', 'pem');

@@ -54,7 +54,7 @@ flowchart LR
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "btps_1234567890abcdef",
   "type": "TRUST_REQ",
@@ -140,8 +140,8 @@ sequenceDiagram
 **DNS TXT Record Format:**
 
 ```
-_btps.host.<domain>:                         v=1.0.0; u=<btps_host:port>; s=<selector>; op=<operator_identity>
-<selector>._btps.identity.<account>.<domain>: v=1.0.0; k=rsa; p=<base64_public_key>
+_btps.host.<domain>:                         v=1.1.0; u=<btps_host:port>; s=<selector>; op=<operator_identity>
+<selector>._btps.identity.<account>.<domain>: v=1.1.0; k=rsa; p=<base64_public_key>
 ```
 
 See [DNS records](./specifications/overview.md) for each field.
@@ -313,7 +313,7 @@ Receiver → Sender: Trust Response BTPS Artifact
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "trust_1234567890",
   "type": "TRUST_REQ",
   "from": "billing$vendor.com",
@@ -344,7 +344,7 @@ Receiver → Sender: Trust Response BTPS Artifact
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "response_1234567890",
   "type": "TRUST_RES",
   "from": "pay$client.com",
@@ -374,7 +374,7 @@ Sender → Receiver: Invoice BTPS Artifact
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "invoice_1234567890",
   "type": "BTPS_DOC",
   "from": "billing$vendor.com",

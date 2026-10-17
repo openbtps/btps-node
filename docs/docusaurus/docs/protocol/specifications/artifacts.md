@@ -204,8 +204,8 @@ The BTPS protocol defines several types of artifacts that serve different purpos
 
 **Document Encryption**:
 
-- AES-256-CBC for sensitive documents
-- RSA-OAEP or ECDH for key exchange
+- AES-256-GCM for sensitive documents
+- RSA-OAEP with SHA-256 for key exchange
 - Optional encryption based on privacy requirements
 
 **Transport Security**:

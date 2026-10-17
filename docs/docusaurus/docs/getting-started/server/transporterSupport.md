@@ -280,7 +280,7 @@ async function processOutboxItem(item: any) {
 
     // Send the artifact using transport method
     const result = await transporter.transport(item.to, {
-      version: '1.0.0',
+      version: '1.1.0',
       issuedAt: new Date().toISOString(),
       id: item.id,
       type: item.type,

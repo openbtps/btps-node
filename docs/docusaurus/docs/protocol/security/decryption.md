@@ -53,7 +53,7 @@ sequenceDiagram
     Receiver->>Receiver: Receive artifact from inbox
     alt Encrypted artifact
         Receiver->>Receiver: Decrypt AES key (Receiver's private key)
-        Receiver->>Receiver: Decrypt payload (AES-256-CBC)
+        Receiver->>Receiver: Decrypt payload (AES-256-GCM)
     else Unencrypted artifact
         Receiver->>Receiver: Views plain payload
     end
@@ -76,7 +76,7 @@ sequenceDiagram
     "lineItems": {...}
   },
   "signature": {
-    "algorithm": "sha256",
+    "algorithmHash": "sha256",
     "value": "...",
     "fingerprint": "..."
   }
