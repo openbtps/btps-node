@@ -38,45 +38,60 @@ export function base64ToPem(base64: string): string {
   return ['-----BEGIN PUBLIC KEY-----', ...lines, '-----END PUBLIC KEY-----'].join('\n');
 }
 
+/**
+ * A BTPS TXT record's `key=value` fields. A field splits at its first `=`
+ * only: a base64 value keeps its padding.
+ */
+const parseBtpsTxtRecord = (txtRecords: string[][]): Record<string, string> => {
+  const flat = txtRecords.map((r) => r.join('')).join('');
+  return Object.fromEntries(
+    flat
+      .split(';')
+      .map((field) => {
+        const at = field.indexOf('=');
+        return at === -1 ? [] : [field.slice(0, at).trim(), field.slice(at + 1).trim()];
+      })
+      .filter((pair) => pair.length === 2 && pair[0] !== ''),
+  );
+};
+
+/** A name with no record is no answer, not an error: the caller can look elsewhere. */
+const resolveBtpsTxt = async (dnsName: string): Promise<string[][]> => {
+  try {
+    return await resolveTxt(dnsName);
+  } catch (error: unknown) {
+    const code = (error as { code?: string })?.code;
+    if (code === 'ENOTFOUND' || code === 'ENODATA') return [];
+    throw transformToBTPErrorException(error);
+  }
+};
+
 export const getHostAndSelector = async (
   identity: string,
-): Promise<{ version: string; host: string; selector: string } | undefined> => {
+): Promise<{ version: string; host: string; selector: string; operator?: string } | undefined> => {
   const parsedIdentity = parseIdentity(identity);
   if (!parsedIdentity) {
     return undefined;
   }
 
   const dnsName = `${BTPS_DNS_HOST_NAME_SPACE}.${parsedIdentity.domainName}`;
-
-  try {
-    const txtRecords = await resolveTxt(dnsName);
-    if (!txtRecords.length) {
-      return undefined;
-    }
-
-    const flat = txtRecords.map((r) => r.join('')).join('');
-    const parts = Object.fromEntries(
-      flat
-        .split(';')
-        .map((s) =>
-          s
-            .trim()
-            .split('=')
-            .map((p) => p.trim()),
-        )
-        .filter((pair) => pair.length === 2),
-    );
-
-    if (!parts['v'] || !parts['u'] || !parts['s']) return undefined;
-
-    return {
-      version: parts['v'],
-      host: parts['u'],
-      selector: parts['s'],
-    };
-  } catch (error: unknown) {
-    throw transformToBTPErrorException(error);
+  const txtRecords = await resolveBtpsTxt(dnsName);
+  if (!txtRecords.length) {
+    return undefined;
   }
+
+  const parts = parseBtpsTxtRecord(txtRecords);
+  if (!parts['v'] || !parts['u'] || !parts['s']) return undefined;
+
+  // `op`: the identity that operates the domain's BTPS server, the only one
+  // that may delegate, attest or answer lookups for its addresses.
+  const operator = parts['op'];
+  return {
+    version: parts['v'],
+    host: parts['u'],
+    selector: parts['s'],
+    ...(operator && isValidIdentity(operator) ? { operator } : {}),
+  };
 };
 
 export const getDnsIdentityParts = async (
@@ -99,42 +114,26 @@ export const getDnsIdentityParts = async (
 
   const dnsName = `${selector}.${BTPS_DNS_IDENTITY_NAME_SPACE}.${accountName}.${domainName}`;
 
-  try {
-    const txtRecords = await resolveTxt(dnsName);
-    if (!txtRecords.length) {
-      return undefined;
-    }
-
-    const flat = txtRecords.map((r) => r.join('')).join('');
-
-    const parts = Object.fromEntries(
-      flat
-        .split(';')
-        .map((s) =>
-          s
-            .trim()
-            .split('=')
-            .map((p) => p.trim()),
-        )
-        .filter((pair) => pair.length === 2),
-    );
-
-    if (!type) {
-      return {
-        key: parts['k'],
-        version: parts['v'],
-        pem: base64ToPem(parts['p']),
-      };
-    }
-
-    if (type === 'pem') {
-      return base64ToPem(parts['p']);
-    }
-
-    return parts[typeMap[type]];
-  } catch (error: unknown) {
-    throw transformToBTPErrorException(error);
+  const txtRecords = await resolveBtpsTxt(dnsName);
+  if (!txtRecords.length) {
+    return undefined;
   }
+
+  const parts = parseBtpsTxtRecord(txtRecords);
+
+  if (!type) {
+    return {
+      key: parts['k'],
+      version: parts['v'],
+      pem: base64ToPem(parts['p']),
+    };
+  }
+
+  if (type === 'pem') {
+    return base64ToPem(parts['p']);
+  }
+
+  return parts[typeMap[type]];
 };
 
 export const getBtpAddressParts = (input: string): URL | null => {
@@ -240,49 +239,24 @@ export function computeId(identity: string): string {
 /**
  * Checks if the artifact can be delegated
  * @param artifact - The artifact to check
+ * @param operator - The identity operating the sender's domain (`op` in its `_btps.host` record)
  * @returns True if the artifact can be delegated, false otherwise
  * @condition for delegation:
- * - The artifact must have a delegation
- * - The artifact must have a from
- * - The delegation must have a signedBy
- * - The from and signedBy must be same for custom domain like `alice@alice.com`
- * - The from and signedBy must be from the same domain for SaaS domain like `alice$company.com` if the sender is not using custom domain
- * - The delegation must have an agentId
+ * - The artifact must have a delegation, a from and a delegation signedBy
+ * - signedBy is the sender itself, as for a custom domain like `alice$alice.com`
+ *   (an attestation by the operator is then required), or
+ * - signedBy is the operator of the sender's domain. Being on the same domain is
+ *   not enough: on a shared domain every user can hold a key of their own.
  */
-export const isDelegationAllowed = (artifact: BTPTransporterArtifact): boolean => {
+export const isDelegationAllowed = (
+  artifact: BTPTransporterArtifact,
+  operator?: string,
+): boolean => {
   const { delegation, from } = artifact || {};
-  if (!delegation || !from) {
+  const signedBy = delegation?.signedBy;
+  if (!from || !signedBy || !parseIdentity(from) || !parseIdentity(signedBy)) {
     return false;
   }
 
-  const { signedBy } = delegation || {};
-  if (!signedBy) {
-    return false;
-  }
-
-  const parsedSender = parseIdentity(from);
-  const parsedDelegator = parseIdentity(signedBy);
-  if (!parsedSender || !parsedDelegator) {
-    return false;
-  }
-
-  /*
-   * If the from and signedBy are the same, the artifact can be delegated
-   * This is the common case for when the sender is using a custom domain like `alice@alice.com`
-   * and hence the delegator must be from the same domain like `admin@alice.com`
-   */
-  if (from === signedBy) {
-    return true;
-  }
-
-  /*
-   * If the from and signedBy are different, the artifact can be delegated if the delegator is from the same domain
-   * This is the most common case and happens when the sender is using SaaS domain like `alice$company.com`
-   * and hence the delegator must be from the same domain like `admin$company.com`
-   */
-  if (parsedSender.domainName === parsedDelegator.domainName) {
-    return true;
-  }
-
-  return false;
+  return from === signedBy || (!!operator && signedBy === operator);
 };

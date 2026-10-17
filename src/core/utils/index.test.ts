@@ -98,6 +98,21 @@ describe('utils/index', () => {
       mockDns.mockRejectedValue(new Error('DNS error'));
       await expect(getDnsIdentityParts('test$example.com', 'btps1')).rejects.toThrow('DNS error');
     });
+
+    it('keeps the base64 padding of a key, as a 3072 or 4096-bit key has', async () => {
+      mockDns.mockResolvedValue([['k=rsa; v=1.0.0; p=AAAAAQ==']]);
+
+      const parts = await getDnsIdentityParts('test$example.com', 'btps1');
+
+      expect(parts).toMatchObject({ pem: base64ToPem('AAAAAQ==') });
+    });
+
+    it('answers no record, rather than failing, for a name DNS does not have', async () => {
+      for (const code of ['ENOTFOUND', 'ENODATA']) {
+        mockDns.mockRejectedValue(Object.assign(new Error(code), { code }));
+        await expect(getDnsIdentityParts('test$example.com', 'btps1')).resolves.toBeUndefined();
+      }
+    });
   });
 
   describe('getBtpAddressParts', () => {
@@ -148,6 +163,25 @@ describe('utils/index', () => {
       mockDns.mockResolvedValue([[txtRecord]]);
       const hostAndSelector = await getHostAndSelector('test$example.com');
       expect(hostAndSelector).toBeUndefined();
+    });
+
+    it("reads the domain's operator from op", async () => {
+      mockDns.mockResolvedValue([
+        ['v=1.1.0; u=btps.example.com:3443; s=btps1; op=admin$example.com'],
+      ]);
+
+      expect(await getHostAndSelector('test$example.com')).toEqual({
+        host: 'btps.example.com:3443',
+        selector: 'btps1',
+        version: '1.1.0',
+        operator: 'admin$example.com',
+      });
+    });
+
+    it('ignores an op that is not an identity', async () => {
+      mockDns.mockResolvedValue([['v=1.1.0; u=btps.example.com; s=btps1; op=admin']]);
+
+      expect(await getHostAndSelector('test$example.com')).not.toHaveProperty('operator');
     });
   });
 
@@ -377,30 +411,39 @@ describe('isDelegationAllowed', () => {
     ).toBe(true);
   });
 
-  it('should return true if from and signedBy are different but same domain (SaaS domain)', () => {
+  const delegated = (from: string, signedBy: string) =>
+    ({
+      from,
+      delegation: { signedBy },
+      document: '',
+    }) as Partial<BTPTransporterArtifact> as BTPTransporterArtifact;
+
+  it("allows the sender's domain operator to delegate", () => {
     expect(
-      isDelegationAllowed({
-        from: 'alice$company.com',
-        delegation: { signedBy: 'admin$company.com' },
-        document: '',
-      } as Partial<BTPTransporterArtifact> as BTPTransporterArtifact),
+      isDelegationAllowed(delegated('alice$company.com', 'admin$company.com'), 'admin$company.com'),
     ).toBe(true);
   });
 
-  it('should return false if from and signedBy are different and different domains', () => {
+  it('refuses another user on the same domain: being on the domain is not enough', () => {
     expect(
-      isDelegationAllowed({
-        from: 'alice$company.com',
-        delegation: { signedBy: 'admin$other.com' },
-        document: '',
-      } as Partial<BTPTransporterArtifact> as BTPTransporterArtifact),
+      isDelegationAllowed(
+        delegated('alice$company.com', 'mallory$company.com'),
+        'admin$company.com',
+      ),
     ).toBe(false);
+  });
+
+  it('refuses every delegator but the sender itself when the domain declares no operator', () => {
+    expect(isDelegationAllowed(delegated('alice$company.com', 'admin$company.com'))).toBe(false);
+    expect(isDelegationAllowed(delegated('alice$alice.com', 'alice$alice.com'))).toBe(true);
+  });
+
+  it('allows an operator on another domain, as for a business on its own domain hosted by a SaaS', () => {
     expect(
-      isDelegationAllowed({
-        from: 'alice$alice.com',
-        delegation: { signedBy: 'admin$other.com' },
-        document: '',
-      } as Partial<BTPTransporterArtifact> as BTPTransporterArtifact),
+      isDelegationAllowed(delegated('bob$bobco.com', 'admin$saas.com'), 'admin$saas.com'),
+    ).toBe(true);
+    expect(
+      isDelegationAllowed(delegated('bob$bobco.com', 'admin$other.com'), 'admin$saas.com'),
     ).toBe(false);
   });
 });

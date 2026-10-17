@@ -138,7 +138,7 @@ Value:
 The TXT record should contain key-value pairs separated by semicolons:
 
 ```
-v=1.0.0;u=btps://btps.yourdomain.com:3443;s=btps1
+v=1.0.0;u=btps://btps.yourdomain.com:3443;s=btps1;op=admin$yourdomain.com
 ```
 
 **Parameters:**
@@ -146,6 +146,7 @@ v=1.0.0;u=btps://btps.yourdomain.com:3443;s=btps1
 - `u`: btps server host running address followed by port. If port is not present default 3443 will be used
 - `v`: BTPS protocol version (currently "1.0.0")
 - `s`: selector. This is for key rotation feature. This is required
+- `op`: the domain's operator, the identity your BTPS server runs as (its `serverIdentity.identity`). Receivers accept delegations, attestations and identity lookup answers for your domain only from this identity. Required if your server delegates for your users or answers identity lookups. See [The Domain Operator](../../protocol/specifications/overview.md#the-domain-operator).
 
 ### Generate DNS Record
 
@@ -176,7 +177,7 @@ import { getHostAndSelector, getDnsIdentityParts } from '@btps/sdk';
 // Test host and selector resolution
 const hostInfo = await getHostAndSelector('billing$yourdomain.com');
 console.log('Host Info:', hostInfo);
-// Output: { version: '1.0.0', host: 'btps://btps.yourdomain.com:3443', selector: 'btps1' }
+// Output: { version: '1.0.0', host: 'btps://btps.yourdomain.com:3443', selector: 'btps1', operator: 'admin$yourdomain.com' }
 
 // Test public key resolution
 const publicKey = await getDnsIdentityParts('billing$yourdomain.com', 'btps1', 'pem');
@@ -195,7 +196,7 @@ BTPS identities follow the format: `account$domain.com`
 
 **Rules:**
 
-- Account name: lowercase letters, numbers, hyphens
+- Account name: may contain dots and underscores, as in `pat.doe$company.com`; never `:` or a second `$`
 - Domain: valid domain name
 - Separator: `$` character
 

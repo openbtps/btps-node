@@ -9,7 +9,7 @@ Identity lookup artifacts are used to request identity public records for identi
 
 ## Overview
 
-Identity lookup artifacts (`BTPIdentityLookupRequest`) are designed for requesting identity public records when DNS-based resolution is not available. This is commonly used for SaaS platform identities like `john$ebilladdress.com` where the identity is managed by the SaaS provider rather than published in DNS.
+Identity lookup artifacts (`BTPIdentityLookupRequest`) are designed for requesting identity public records when DNS-based resolution is not available. This is commonly used for SaaS platform identities like `john$saas.com` where the identity is managed by the SaaS provider rather than published in DNS.
 
 ## Artifact Structure
 
@@ -18,7 +18,7 @@ Identity lookup artifacts (`BTPIdentityLookupRequest`) are designed for requesti
   "version": "1.0",
   "id": "btps_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
-  "identity": "john$ebilladdress.com",
+  "identity": "john$saas.com",
   "from": "billing$vendorcorp.com",
   "hostSelector": "btps1",
   "identitySelector": "john1"
@@ -49,7 +49,7 @@ When a SaaS platform manages identities that are not published in DNS:
   "version": "1.0",
   "id": "btps_lookup_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
-  "identity": "john$ebilladdress.com",
+  "identity": "john$saas.com",
   "from": "billing$vendorcorp.com",
   "hostSelector": "btps1",
   "identitySelector": "john1"
@@ -114,7 +114,7 @@ When the identity is found, the server responds with the identity's public key i
     "value": "base64-encoded-signature",
     "fingerprint": "sha256-base64-fingerprint"
   },
-  "signedBy": "ebilladdress.com",
+  "signedBy": "admin$saas.com",
   "selector": "btps1"
 }
 ```
@@ -181,6 +181,18 @@ The response document contains the identity's public key information:
 - Must have identity storage setup
 - Must verify requesting party permissions
 - Must implement proper privacy controls
+- Must run as the domain's operator: the answer is signed by the server's identity, which must be the `op` in the looked-up identity's `_btps.host` record
+
+### Who May Answer
+
+The requester accepts an answer only when:
+
+1. its `signedBy` is the operator (`op`) of the looked-up identity's domain, read from `_btps.host.<domain>`;
+2. its signature verifies with the operator's key, at the answer's `selector`.
+
+An answer signed by anyone else is refused, even with a valid signature. A domain without `op` cannot be looked up through its host. See [The Domain Operator](./overview.md#the-domain-operator).
+
+The requester asks the host only when DNS has no record for the identity: a lookup is DNS first, then the host.
 
 ### Identity Storage
 
@@ -218,7 +230,7 @@ Servers implementing identity lookup must:
   "version": "1.0",
   "id": "btps_lookup_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
-  "identity": "john$ebilladdress.com",
+  "identity": "john$saas.com",
   "from": "billing$vendorcorp.com",
   "hostSelector": "btps1",
   "identitySelector": "john1"
@@ -249,7 +261,7 @@ Servers implementing identity lookup must:
     "value": "base64-encoded-signature",
     "fingerprint": "sha256-base64-fingerprint"
   },
-  "signedBy": "ebilladdress.com",
+  "signedBy": "admin$saas.com",
   "selector": "btps1"
 }
 ```
@@ -295,7 +307,7 @@ Servers implementing identity lookup must:
     "value": "base64-encoded-signature",
     "fingerprint": "sha256-base64-fingerprint"
   },
-  "signedBy": "company.com",
+  "signedBy": "admin$company.com",
   "selector": "btps1"
 }
 ```

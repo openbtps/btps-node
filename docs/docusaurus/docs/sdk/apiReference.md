@@ -121,11 +121,11 @@ const pem = base64ToPem(base64String);
 ### getHostAndSelector
 
 ```ts
-getHostAndSelector(identity: string): Promise<{ host: string; selector: string; version: string } | undefined>
+getHostAndSelector(identity: string): Promise<{ host: string; selector: string; version: string; operator?: string } | undefined>
 ```
 
 **Description:**
-Resolves the BTPS host and selector for a given identity by querying DNS TXT records. This function is used for key rotation support, allowing multiple public keys to be published under different selectors.
+Resolves the BTPS host, selector and operator for a given identity by querying the `_btps.host.<domain>` DNS TXT record. The selector supports key rotation, allowing multiple public keys to be published under different selectors. The operator (`op`) is the identity that may delegate, attest and answer identity lookups for the domain ([The Domain Operator](../protocol/specifications/overview.md#the-domain-operator)).
 
 **Arguments:**
 
@@ -133,14 +133,14 @@ Resolves the BTPS host and selector for a given identity by querying DNS TXT rec
 
 **Returns:**
 
-- `Promise<{ host: string; selector: string; version: string } | undefined>`: Object containing the host URL, current selector, and version, or `undefined` if not found.
+- `Promise<{ host: string; selector: string; version: string; operator?: string } | undefined>`: Object containing the host URL, current selector, version and, when the record declares a valid one, the operator. `undefined` if there is no record: a name DNS does not have is no record, not an error.
 
 **Example:**
 
 ```js
 import { getHostAndSelector } from '@btps/sdk';
 const result = await getHostAndSelector('billing$company.com');
-// result = { host: 'btps://btps.company.com:3443', selector: 'btps1', version: '1.0.0.0' }
+// result = { host: 'btps://btps.company.com:3443', selector: 'btps1', version: '1.0.0', operator: 'admin$company.com' }
 ```
 
 ---
@@ -384,15 +384,16 @@ const id = computeId('billing$company.com');
 ### isDelegationAllowed
 
 ```ts
-isDelegationAllowed(artifact: BTPTransporterArtifact): boolean
+isDelegationAllowed(artifact: BTPTransporterArtifact, operator?: string): boolean
 ```
 
 **Description:**
-Checks if an artifact can be delegated based on delegation rules and domain validation.
+Checks whether an artifact's delegator may delegate for its sender: the delegator is the sender itself (`delegation.signedBy === from`), or the operator of the sender's domain. Being on the same domain is not enough. Without an operator, only the sender itself may delegate.
 
 **Arguments:**
 
 - `artifact` (`BTPTransporterArtifact`, required): The artifact to check.
+- `operator` (`string`, optional): The operator of the sender's domain, as `getHostAndSelector(artifact.from)` returns it.
 
 **Returns:**
 
@@ -401,8 +402,9 @@ Checks if an artifact can be delegated based on delegation rules and domain vali
 **Example:**
 
 ```js
-import { isDelegationAllowed } from '@btps/sdk';
-const canDelegate = isDelegationAllowed(artifact);
+import { getHostAndSelector, isDelegationAllowed } from '@btps/sdk';
+const { operator } = (await getHostAndSelector(artifact.from)) ?? {};
+const canDelegate = isDelegationAllowed(artifact, operator);
 ```
 
 ---

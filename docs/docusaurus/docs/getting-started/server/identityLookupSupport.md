@@ -113,10 +113,11 @@ class CustomIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
 
   // Identity-specific methods
   async getPublicKeyRecord(
-    identity: string,
+    computedId: string,
     selector?: string,
   ): Promise<BTPIdentityRecord | undefined> {
-    // Return public key record for specific identity and selector
+    // Return the public key record whose id is computedId (computeId(identity),
+    // computed by the server), at the selector. Never hash computedId again.
   }
 
   async storePublicKeyRecord(
@@ -250,6 +251,7 @@ When a SaaS-managed sender needs to send documents:
 **Requirements:**
 
 - `signedBy` identity must have DNS records published
+- `signedBy` must be the operator (`op`) in the sender domain's `_btps.host` record ([The Domain Operator](../../protocol/specifications/overview.md#the-domain-operator))
 - Delegation signature verified against DNS public key
 - Agent public key included for chain verification
 - SaaS platform manages delegation lifecycle
@@ -346,11 +348,13 @@ class MongoIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
   }
 
   async getPublicKeyRecord(
-    identity: string,
+    computedId: string,
     selector?: string,
   ): Promise<BTPIdentityRecord | undefined> {
     const db = this.client.db();
-    const query = selector ? { identity, 'publicKeys.selector': selector } : { identity };
+    const query = selector
+      ? { id: computedId, 'publicKeys.selector': selector }
+      : { id: computedId };
 
     const record = await db.collection(this.collection).findOne(query);
     return record || undefined;

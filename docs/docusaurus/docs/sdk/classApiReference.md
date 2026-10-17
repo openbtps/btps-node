@@ -1174,12 +1174,12 @@ new AbstractIdentityStore(options: StorageStoreOptions)
 ### getPublicKeyRecord
 
 ```ts
-await store.getPublicKeyRecord(identity, selector?)
+await store.getPublicKeyRecord(computedId, selector?)
 ```
 
-Retrieves a public key record for a given identity and selector.
+Retrieves a public key record for a given identity and selector. The server passes the identity's computed id (`computeId(identity)`); the store uses it as the record id as given and never hashes it again.
 
-- **identity**: `string` – Identity to get public key for
+- **computedId**: `string` – The identity's computed id, `computeId(identity)`
 - **selector**: `string` (optional) – Selector for key rotation (defaults to current selector)
 - **Returns**: `Promise<IdentityPubKeyRecord | undefined>` – Public key record if found
 
@@ -1227,13 +1227,13 @@ Retrieves a record by its computed ID.
 ### create
 
 ```ts
-await store.create(record, identity);
+await store.create(record, computedId?);
 ```
 
-Creates a new record with computed ID based on identity.
+Creates a new record under its computed ID.
 
 - **record**: `Omit<T, 'id'>` – Record data without ID
-- **identity**: `string` – Identity to compute ID from
+- **computedId**: `string` (optional) – The record's computed ID
 - **Returns**: `Promise<T>` – Created record with ID
 
 ### update
@@ -1322,13 +1322,13 @@ Retrieves an identity record by its computed ID.
 ### create
 
 ```ts
-await store.create(record, identity);
+await store.create(record, computedId?);
 ```
 
 Creates a new identity record.
 
 - **record**: `Omit<BTPIdentityRecord, 'id'>` – Identity record data without ID
-- **identity**: `string` – Identity string to compute ID from
+- **computedId**: `string` (optional) – The identity's computed ID, `computeId(record.identity)`; computed from `record.identity` when not given
 - **Returns**: `Promise<BTPIdentityRecord>` – Created identity record with ID
 
 ### update
@@ -1357,19 +1357,22 @@ Deletes an identity record.
 ### getPublicKeyRecord
 
 ```ts
-await store.getPublicKeyRecord(identity, selector?)
+await store.getPublicKeyRecord(computedId, selector?)
 ```
 
-Retrieves a public key record for a given identity and selector.
+Retrieves a public key record for a given identity and selector. The server passes the identity's computed id (`computeId(identity)`); the store uses it as the record id as given and never hashes it again.
 
-- **identity**: `string` – Identity to get public key for
+- **computedId**: `string` – The identity's computed id, `computeId(identity)`
 - **selector**: `string` (optional) – Selector for key rotation (defaults to current selector)
 - **Returns**: `Promise<IdentityPubKeyRecord | undefined>` – Public key record if found
 
 **Example:**
 
 ```js
-const publicKeyRecord = await identityStore.getPublicKeyRecord('alice$company.com', 'btps1');
+const publicKeyRecord = await identityStore.getPublicKeyRecord(
+  computeId('alice$company.com'),
+  'btps1',
+);
 if (publicKeyRecord) {
   console.log('Public key:', publicKeyRecord.publicKey);
   console.log('Version:', publicKeyRecord.version);

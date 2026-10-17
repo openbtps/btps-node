@@ -140,8 +140,11 @@ sequenceDiagram
 **DNS TXT Record Format:**
 
 ```
-v=BTP1; k=rsa; p=<base64_public_key>; u=<btps_host:port>
+_btps.host.<domain>:                         v=1.0.0; u=<btps_host:port>; s=<selector>; op=<operator_identity>
+<selector>._btps.identity.<account>.<domain>: v=1.0.0; k=rsa; p=<base64_public_key>
 ```
+
+See [DNS records](./specifications/overview.md) for each field.
 
 ---
 

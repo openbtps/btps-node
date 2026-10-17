@@ -34,6 +34,8 @@ export interface BTPClientOptions {
   btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
   host?: string;
   hostSelector?: string;
+  /** With `host`: the identity operating that host, which signs its lookup answers. Otherwise read from DNS (`op`). */
+  hostOperator?: string;
   version?: string;
   port?: number;
   maxQueue?: number;
@@ -163,4 +165,6 @@ export type BtpsHostDnsTxt = {
   hostname: string;
   selector: string;
   port: number;
+  /** The identity operating the host (`op`), when declared */
+  operator?: string;
 };

@@ -148,9 +148,10 @@ const allTrusts = await trustStore.getAll();
 ### Use Storage Utilities
 
 ```js
+import { computeId } from '@btps/sdk';
 import { JsonIdentityStore } from '@btps/sdk/storage';
 const identityStore = new JsonIdentityStore({ connection: './identities.json' });
-const publicKey = await identityStore.getPublicKeyRecord('alice$saas.com');
+const publicKey = await identityStore.getPublicKeyRecord(computeId('alice$saas.com'));
 ```
 
 ---

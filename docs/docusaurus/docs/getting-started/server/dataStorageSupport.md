@@ -31,8 +31,9 @@ Extends `AbstractStorageStore` for identity-specific storage (public keys, selec
 
 ```typescript
 abstract class AbstractIdentityStore<T extends BTPIdentityRecord> extends AbstractStorageStore<T> {
+  // computedId: computeId(identity), computed by the server; use it as given
   abstract getPublicKeyRecord(
-    identity: string,
+    computedId: string,
     selector?: string,
   ): Promise<IdentityPubKeyRecord | undefined>;
 }
