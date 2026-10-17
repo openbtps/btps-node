@@ -250,6 +250,7 @@ When a SaaS-managed sender needs to send documents:
 **Requirements:**
 
 - `signedBy` identity must have DNS records published
+- `signedBy` must be the operator (`op`) in the sender domain's `_btps.host` record ([The Domain Operator](../../protocol/specifications/overview.md#the-domain-operator))
 - Delegation signature verified against DNS public key
 - Agent public key included for chain verification
 - SaaS platform manages delegation lifecycle

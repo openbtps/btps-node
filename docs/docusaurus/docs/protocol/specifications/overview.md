@@ -106,7 +106,7 @@ _btps.host.vendorcorp.com
 ### TXT Record Format
 
 ```
-v=1.0.0; u=<btps_host:port> s=<selector>
+v=1.0.0; u=<btps_host:port>; s=<selector>; op=<operator_identity>
 ```
 
 **Parameters:**
@@ -114,25 +114,45 @@ v=1.0.0; u=<btps_host:port> s=<selector>
 - `v`: Protocol version (`1.0.0`)
 - `u`: BTPS server host and port (e.g., `btps.vendorcorp.com:3443`). Default port is `3443` if not present.
 - `s`: BTPS selector (e.g., `btps1`)
+- `op`: The domain's **operator**: the identity that runs the domain's BTPS server (e.g., `admin$vendorcorp.com`). See [The Domain Operator](#the-domain-operator).
+
+Each field is `key=value`, separated by `;`. A value is everything after the field's first `=`, so a base64 value keeps its padding.
 
 **Example TXT Record:**
 
 ```
-v=1.0.0; u=btps.vendorcorp.com:3443 s=btps1
+v=1.0.0; u=btps.vendorcorp.com:3443; s=btps1; op=admin$vendorcorp.com
 ```
 
 ### Lookup Flow
 
 1. Given identity: `billing$vendorcorp.com`
 2. Extract domain: `vendorcorp.com`
-3. Resolve `_btps.host.vendorcorp.com` → host address and selector
-4. Resolve `btps1._btps.identity.finance.vendorcorp.com` → public key
+3. Resolve `_btps.host.vendorcorp.com` → host address, selector and operator
+4. Resolve `btps1._btps.identity.billing.vendorcorp.com` → public key
+5. If DNS has no such record, ask the host at `u` with an identity lookup. Only an answer signed by the domain's operator (`op`) is accepted.
 
 This separation enables:
 
 - Independent key rotation via `selector`
 - Centralized host resolution per domain
 - DNS compatibility across providers
+
+### The Domain Operator
+
+The operator (`op`) is the identity that runs a domain's BTPS server and speaks for the domain's addresses. A receiver accepts these only from the operator of the sender's domain:
+
+- **Delegation:** a delegation's `signedBy` must be the operator of the domain of `from`, or the sender itself (`from === signedBy`, as for `alice$alice.com`). Being an address on the same domain is not enough: on a shared domain every user can hold a key of their own, and could otherwise sign as any other user.
+- **Attestation:** an attestation's `signedBy` must be the operator of the domain of `from`.
+- **Identity lookup answers:** an answer from the host must be signed by the operator of the looked-up identity's domain.
+
+The operator may be on another domain. A business on its own domain hosted by a SaaS publishes the SaaS's identity, for example `op=admin$saas.com` in `_btps.host.bobco.com`.
+
+A domain without `op` accepts no delegation, attestation or host lookup answer except from the sender itself.
+
+**Changing the operator.** A receiver checks the operator once, when an artifact arrives. Artifacts already accepted are not checked again, so changing `op` does not affect them. An artifact still in flight that was delegated by the old operator is refused after the change, so change `op` once outgoing sends have been delivered, or delegate them again.
+
+**Accounts with dots.** An identity's key record name joins the account and domain with a dot: `pat.doe$example.com` and `pat$doe.example.com` both name `btps1._btps.identity.pat.doe.example.com`. A domain that delegates a subdomain to another party must not have accounts whose dotted names overlap that subdomain, or the subdomain's owner could publish keys for them.
 
 ## Message Envelope Format
 

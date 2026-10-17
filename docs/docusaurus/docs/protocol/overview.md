@@ -59,7 +59,8 @@ Sender does a DNS Host and Identity TXT lookup for:
 
   - version
   - host address
-  - selector key for protocol support.
+  - selector key for protocol support
+  - operator: the identity that runs the domain's BTPS server and alone may delegate, attest or answer identity lookups for it.
 
 - `btps1._btps.identity.finance.vendor.com` - Identity lookup retrieves:
   - key type

@@ -422,6 +422,7 @@ export class BtpsClient {
           selector: this.options?.hostSelector ?? 'btps1',
           version: this.options?.version ?? BTP_PROTOCOL_VERSION,
           port,
+          ...(this.options?.hostOperator ? { operator: this.options.hostOperator } : {}),
         });
         return;
       }
@@ -447,6 +448,7 @@ export class BtpsClient {
             port,
             selector: btpConfig.selector,
             version: btpConfig.version,
+            ...(btpConfig.operator ? { operator: btpConfig.operator } : {}),
           });
         })
         .catch(() => {
@@ -633,12 +635,9 @@ export class BtpsClient {
         };
       }
 
-      const encryptedPayload = {
-        ...msg,
-        encryption: msg?.encryption ?? null,
-      } as VerifyEncryptedPayload<BTPServerResponse>;
+      // Verified as signed: adding a field it was not signed with would fail it.
       const { error: decryptError } = await this.decryptVerifyArtifact(
-        encryptedPayload,
+        msg as VerifyEncryptedPayload<BTPServerResponse>,
         senderPubPem!,
       );
 
@@ -817,133 +816,137 @@ export class BtpsClient {
         };
       }
 
-      /* If the identity is not resolved from the dns config, prepare the connection to the server
-       * and prepare the events for the identity resolve
-       * and return the promise to resolve the identity
-       */
+      /* Not in DNS: ask the address's host. Only the domain's operator (`op`)
+       * may answer for its addresses, so the answer must be signed by it. */
+      const { operator } = btpHostDnsConfig;
+      if (!operator) {
+        return await this.buildClientErrorResponse(
+          new BTPErrorException(BTP_ERROR_IDENTITY_NOT_FOUND, {
+            cause: `${identity} has no key in DNS, and its domain declares no operator to answer for it`,
+          }),
+        );
+      }
 
-      /* Call the server to get the identity */
       return await new Promise((resolve) => {
-        const tlsOptions = {
-          ...this.options.btpMtsOptions,
-          host: hostname,
-          port: port,
+        const socket = tls.connect({ ...this.options.btpMtsOptions, host: hostname, port });
+        // The connection closes once there is an answer, and not before.
+        let settled = false;
+        const settle: typeof resolve = (value) => {
+          settled = true;
+          socket.destroy();
+          resolve(value);
         };
-        let tempSocket: TLSSocket | undefined = tls.connect(tlsOptions);
-        if (tempSocket) {
-          const identityLookupRequest: BTPIdentityLookupRequest = {
-            identity,
-            from,
-            hostSelector: selector,
-            version: BTP_PROTOCOL_VERSION,
-            id: randomUUID(),
-            issuedAt: new Date().toISOString(),
-          };
-          tempSocket?.write(JSON.stringify(identityLookupRequest) + '\n');
-        }
-        try {
-          tempSocket?.on('data', async (data) => {
-            const msg: BTPServerResponse = JSON.parse(data.toString());
-            const { signature, signedBy, selector, type, status } = msg;
+        const fail = (error: BTPErrorException) => {
+          if (!settled) settle(this.buildClientErrorResponse(error));
+        };
 
-            if (type === 'btps_error' || !status.ok) {
-              resolve(
-                this.buildClientErrorResponse(
-                  new BTPErrorException(BTP_ERROR_IDENTITY_NOT_FOUND, {
-                    cause: `Server returned error for identity: ${identity}`,
-                    meta: msg,
-                  }),
-                ),
-              );
-              return;
-            }
+        const identityLookupRequest: BTPIdentityLookupRequest = {
+          identity,
+          from,
+          hostSelector: selector,
+          version: BTP_PROTOCOL_VERSION,
+          id: randomUUID(),
+          issuedAt: new Date().toISOString(),
+        };
+        socket.write(JSON.stringify(identityLookupRequest) + '\n');
 
-            /* resolving the identity from the server must be signed and have signedBy and selector */
-            if (!signature || !signedBy || !selector) {
-              resolve(
-                this.buildClientErrorResponse(
-                  new BTPErrorException(BTP_ERROR_VALIDATION, {
-                    cause: 'Message is not signed or does not have signedBy',
-                    meta: msg,
-                  }),
-                ),
-              );
-              return;
-            }
+        let received = '';
+        socket.on('data', async (chunk) => {
+          received += chunk.toString();
+          const end = received.indexOf('\n');
+          if (end === -1) return;
+          socket.removeAllListeners('data');
 
-            /* If the message is signed, decrypt and verify the message */
-            const hostPubPem = await resolvePublicKey(signedBy, selector);
-            if (!hostPubPem) {
-              resolve(
-                this.buildClientErrorResponse(
-                  new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
-                    cause: `SignedBy is present but public key is not found for identity: ${signedBy} and selector: ${selector}`,
-                    meta: msg,
-                  }),
-                ),
-              );
-              return;
-            }
+          let msg: BTPServerResponse;
+          try {
+            const line = received.slice(0, end);
+            assertStrictJson(line);
+            msg = JSON.parse(line);
+          } catch (error) {
+            fail(new BTPErrorException(BTP_ERROR_VALIDATION, { cause: error }));
+            return;
+          }
+          const { signature, signedBy, selector: signedWith, type, status } = msg;
 
-            const encryptedPayload = {
-              ...msg,
-              encryption: msg?.encryption ?? null,
-            } as VerifyEncryptedPayload<BTPServerResponse>;
-            const { payload: decryptedPayload, error: decryptError } =
-              await this.decryptVerifyArtifact(encryptedPayload, hostPubPem, receiverKey);
-
-            if (decryptError) {
-              resolve(this.buildClientErrorResponse(decryptError));
-              return;
-            }
-
-            const { document } = (decryptedPayload as BTPServerResponse) || {};
-            if (!document) {
-              resolve(
-                this.buildClientErrorResponse(
-                  new BTPErrorException(BTP_ERROR_VALIDATION, {
-                    cause: 'document is not present in the message',
-                    meta: msg,
-                  }),
-                ),
-              );
-              return;
-            }
-
-            /* If the document is present, return the document */
-            resolve({
-              response: {
-                ...(document as BTPIdentityResDoc),
-                hostname,
-                port,
-                version,
-              },
-              error: undefined,
-            });
-          });
-          tempSocket?.on('error', (err) => {
-            resolve(this.buildClientErrorResponse(transformToBTPErrorException(err)));
-          });
-          tempSocket?.on('end', () => {
-            resolve(
-              this.buildClientErrorResponse(
-                new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, { cause: 'connection ended' }),
-              ),
+          if (type === 'btps_error' || !status.ok) {
+            fail(
+              new BTPErrorException(BTP_ERROR_IDENTITY_NOT_FOUND, {
+                cause: `Server returned error for identity: ${identity}`,
+                meta: msg,
+              }),
             );
-          });
-          tempSocket?.on('close', () => {
-            resolve(
-              this.buildClientErrorResponse(
-                new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, { cause: 'connection closed' }),
-              ),
+            return;
+          }
+
+          /* resolving the identity from the server must be signed and have signedBy and selector */
+          if (!signature || !signedBy || !signedWith) {
+            fail(
+              new BTPErrorException(BTP_ERROR_VALIDATION, {
+                cause: 'Message is not signed or does not have signedBy',
+                meta: msg,
+              }),
             );
+            return;
+          }
+
+          if (signedBy !== operator) {
+            fail(
+              new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
+                cause: `The answer is signed by ${signedBy}, not by ${operator}, the operator of ${identity}'s domain`,
+              }),
+            );
+            return;
+          }
+
+          const hostPubPem = await resolvePublicKey(signedBy, signedWith);
+          if (!hostPubPem) {
+            fail(
+              new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
+                cause: `SignedBy is present but public key is not found for identity: ${signedBy} and selector: ${signedWith}`,
+                meta: msg,
+              }),
+            );
+            return;
+          }
+
+          // Verified as signed: adding a field it was not signed with would fail it.
+          const { payload: decryptedPayload, error: decryptError } =
+            await this.decryptVerifyArtifact(
+              msg as VerifyEncryptedPayload<BTPServerResponse>,
+              hostPubPem,
+              receiverKey,
+            );
+
+          if (decryptError) {
+            fail(decryptError);
+            return;
+          }
+
+          const { document } = (decryptedPayload as BTPServerResponse) || {};
+          if (!document) {
+            fail(
+              new BTPErrorException(BTP_ERROR_VALIDATION, {
+                cause: 'document is not present in the message',
+                meta: msg,
+              }),
+            );
+            return;
+          }
+
+          settle({
+            response: {
+              ...(document as BTPIdentityResDoc),
+              hostname,
+              port,
+              version,
+            },
+            error: undefined,
           });
-        } catch (error) {
-          resolve(this.buildClientErrorResponse(transformToBTPErrorException(error)));
-        } finally {
-          tempSocket?.destroy();
-          tempSocket = undefined;
-        }
+        });
+        socket.on('error', (err) => fail(transformToBTPErrorException(err)));
+        socket.on('close', () =>
+          fail(new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, { cause: 'connection closed' })),
+        );
       });
     } catch (error) {
       return await this.buildClientErrorResponse(transformToBTPErrorException(error));

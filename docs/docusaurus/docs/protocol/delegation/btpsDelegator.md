@@ -308,8 +308,10 @@ The delegator automatically verifies the delegator identity during initializatio
 
 The delegator uses DNS TXT records to resolve identity information:
 
-- **Host Resolution**: `_btps.host.<domain>` for host and selector information
+- **Host Resolution**: `_btps.host.<domain>` for host, selector and operator (`op`) information
 - **Key Resolution**: `<selector>._btps.identity.<account>.<domain>` for public key information
+
+The delegator's identity must be the operator (`op`) named in the `_btps.host` record of every domain it delegates for. Receivers refuse a delegation or attestation signed by anyone else, even another address on the same domain. See [The Domain Operator](../specifications/overview.md#the-domain-operator).
 
 ### **Key Pair Matching** (Protected)
 
@@ -539,13 +541,14 @@ const delegator = new BtpsDelegator({
 ### **DNS-Based Verification**
 
 - Uses DNS TXT records for identity resolution
-- Verifies host and selector information via `_btps.host.<domain>`
+- Verifies host, selector and operator information via `_btps.host.<domain>`
 - Resolves public keys via `<selector>._btps.identity.<account>.<domain>`
+- Accepts a delegation only from the operator of the sender's domain, or from the sender itself
 
 ### **Attestation Requirements**
 
 - Custom domain delegations automatically include attestation
-- SaaS platform acts as the attestor for custom domain users
+- The SaaS platform acts as the attestor for custom domain users, and must be named as that domain's operator (`op`)
 - Provides third-party validation for enhanced security
 
 ### **Key Pair Validation**
@@ -573,10 +576,15 @@ const delegator = new BtpsDelegator({
    - Verify DNS resolution for custom domain identities
 
 3. **Attestation Issues**
+
    - Verify attestor private key is available for custom domains
    - Check attestor identity configuration
    - Ensure proper key pair matching
    - Verify DNS resolution for attestor identity
+   - Check the custom domain's `_btps.host` record names the attestor as `op`
+
+4. **Delegation refused by the receiver as "not the operator"**
+   - The delegator's identity is not the `op` in the sender's domain's `_btps.host` record, or the record has no `op`
 
 ### **DNS Configuration**
 
@@ -586,7 +594,14 @@ Ensure proper DNS TXT records are configured:
 
 ```
 _btps.host.saas.com
-v=1.0.0; u=btps.saas.com:3443; s=btps1
+v=1.0.0; u=btps.saas.com:3443; s=btps1; op=admin$saas.com
+```
+
+**Host Record of a custom domain hosted by the SaaS:**
+
+```
+_btps.host.bobco.com
+v=1.0.0; u=btps.saas.com:3443; s=btps1; op=admin$saas.com
 ```
 
 **Identity Record:**
@@ -601,7 +616,7 @@ v=1.0.0; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...
 ```typescript
 // Enable debug logging for troubleshooting
 const delegator = new BtpsDelegator({
-  identity: 'alice$saas.com',
+  identity: 'admin$saas.com',
   privateKey: process.env.PRIVATE_KEY,
 });
 
@@ -616,7 +631,7 @@ import { getHostAndSelector, resolvePublicKey } from '@btps/sdk';
 
 // Test DNS resolution
 const hostAndSelector = await getHostAndSelector('alice$saas.com');
-console.log('Host and selector:', hostAndSelector);
+console.log('Host and selector:', hostAndSelector); // operator must be the delegator: 'admin$saas.com'
 
 // Test public key resolution
 const publicKey = await resolvePublicKey('alice$saas.com', 'btps1');

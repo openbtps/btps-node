@@ -51,7 +51,7 @@ import {
 import {
   base64ToPem,
   isDelegationAllowed,
-  computeId,
+  getHostAndSelector,
   isBtpsIdentityRequest,
   isBtpsTransportArtifact,
   resolvePublicKey,
@@ -495,11 +495,8 @@ export class BtpsServer {
     const { res } = context;
     const { identity, hostSelector, identitySelector } = artifact;
 
-    const computedId = computeId(identity);
-    const identityRecord = await this.identityStore?.getPublicKeyRecord(
-      computedId,
-      identitySelector,
-    );
+    // The store takes the identity itself and computes its own record id.
+    const identityRecord = await this.identityStore?.getPublicKeyRecord(identity, identitySelector);
     if (!identityRecord)
       return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND, res.reqId);
 
@@ -959,12 +956,18 @@ export class BtpsServer {
       delegation: BTPDelegation;
     },
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
+    // Only the sender itself or its domain's operator may delegate, and only
+    // the operator may attest: the receiver learns who that is from DNS.
+    const operator = (await getHostAndSelector(artifactWithDelegation.from))?.operator;
+
     /* If the artifact is not allowed to be delegated, return an error */
-    if (!isDelegationAllowed(artifactWithDelegation)) {
+    if (!isDelegationAllowed(artifactWithDelegation, operator)) {
       return {
         isValid: false,
         error: new BTPErrorException(BTP_ERROR_DELEGATION_INVALID, {
-          cause: 'Delegation is not allowed',
+          cause: operator
+            ? `Delegation is not allowed: ${artifactWithDelegation.delegation.signedBy} is not the operator of ${artifactWithDelegation.from}'s domain`
+            : `Delegation is not allowed: ${artifactWithDelegation.from}'s domain declares no operator`,
         }),
       };
     }
@@ -988,6 +991,14 @@ export class BtpsServer {
 
     /* If attestation is provided, verify it */
     if (delegation.attestation) {
+      if (delegation.attestation.signedBy !== operator) {
+        return {
+          isValid: false,
+          error: new BTPErrorException(BTP_ERROR_ATTESTATION_VERIFICATION, {
+            cause: `${delegation.attestation.signedBy} is not the operator of ${artifactWithDelegation.from}'s domain`,
+          }),
+        };
+      }
       const { isValid, error } = await this.verifyAttestation(
         delegation as Omit<BTPDelegation, 'attestation'> & { attestation: BTPAttestation },
       );

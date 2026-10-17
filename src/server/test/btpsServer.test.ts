@@ -1113,6 +1113,65 @@ export default function () {
       expect(result.isValid).toBe(false);
     });
 
+    describe("only the sender's domain operator may delegate", () => {
+      const keys = () =>
+        generateKeyPairSync('rsa', {
+          modulusLength: 2048,
+          publicKeyEncoding: { type: 'spki', format: 'pem' },
+          privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+        });
+      const agentKeys = keys();
+      const delegatorKeys = keys();
+
+      // An artifact from alice, signed by a device and delegated by `signedBy`
+      // with `delegatorKeys`, which DNS publishes for `signedBy`.
+      const delegatedBy = async (signedBy: string, operator: string) => {
+        const utils = await import('../../core/utils/index.js');
+        vi.spyOn(utils, 'getHostAndSelector').mockResolvedValue({
+          version: '1.0.0',
+          host: 'btps.saas.test',
+          selector: 'btps1',
+          operator,
+        });
+        vi.spyOn(utils, 'resolvePublicKey').mockResolvedValue(delegatorKeys.publicKey);
+        const unsigned = {
+          version: '1.0.0',
+          id: 'd-1',
+          type: 'BTPS_DOC' as const,
+          from: 'alice$saas.test',
+          to: 'bob$other.test',
+          issuedAt: new Date().toISOString(),
+          encryption: null,
+          document: 'document',
+          selector: 'btps1',
+        };
+        const artifact = { ...unsigned, signature: signBtpPayload(unsigned, agentKeys) };
+        const delegation = {
+          agentId: 'device-1',
+          agentPubKey: agentKeys.publicKey,
+          signedBy,
+          issuedAt: new Date().toISOString(),
+          selector: 'btps1',
+        };
+        const signature = signBtpPayload({ ...artifact, delegation }, delegatorKeys);
+        return server['verifyDelegation']({
+          ...artifact,
+          delegation: { ...delegation, signature },
+        } as BTPTransporterArtifact & { delegation: BTPDelegation });
+      };
+
+      it('refuses another user on the same domain, with a key of her own', async () => {
+        const result = await delegatedBy('mallory$saas.test', 'admin$saas.test');
+
+        expect(result.isValid).toBe(false);
+        expect(String(result.error?.cause)).toContain('is not the operator');
+      });
+
+      it('accepts the operator', async () => {
+        expect((await delegatedBy('admin$saas.test', 'admin$saas.test')).isValid).toBe(true);
+      });
+    });
+
     it('covers verifySignature error path (missing pubkey)', async () => {
       // Mock resolvePublicKey to return undefined
       const utils = await import('../../core/utils/index.js');

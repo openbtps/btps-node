@@ -26,7 +26,7 @@ _btps1._btps.identity.user.domain.com
 
 **Challenges for SaaS Platforms:**
 
-1. **Scale Limitations**: SaaS platforms like `ebilladdress.com` cannot feasibly publish DNS records for millions of users
+1. **Scale Limitations**: SaaS platforms like `saas.com` cannot feasibly publish DNS records for millions of users
 2. **Management Overhead**: Individual DNS record management becomes prohibitively expensive
 3. **Performance Degradation**: High DNS query volume degrades performance
 4. **Operational Complexity**: Key rotation, revocation, and updates become unmanageable
@@ -34,9 +34,9 @@ _btps1._btps.identity.user.domain.com
 ### Example Scenario
 
 ```
-SaaS Platform: ebilladdress.com
-Users: alice@ebilladdress.com, bob@ebilladdress.com, charlie@ebilladdress.com
-BTPS Identities: alice$ebilladdress.com, bob$ebilladdress.com, charlie$ebilladdress.com
+SaaS Platform: saas.com
+Users: alice@saas.com, bob@saas.com, charlie@saas.com
+BTPS Identities: alice$saas.com, bob$saas.com, charlie$saas.com
 
 Problem: Cannot publish DNS records for each user
 Solution: Identity Record system for centralized key management
@@ -110,8 +110,9 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[Document with Delegation] --> B{Verify Delegation}
-    B --> C[Lookup signedBy DNS]
+    A[Document with Delegation] --> B{signedBy is the sender domain's op?}
+    B -->|No| E2[❌ Delegation Not Allowed]
+    B -->|Yes| C[Lookup signedBy DNS]
     C --> D{Valid DNS Record?}
     D -->|No| E[❌ Delegation Invalid]
     D -->|Yes| F[Get signedBy Public Key]
@@ -198,7 +199,7 @@ flowchart TD
 **Response Fields:**
 
 - `document`: Identity public key information
-- `signedBy`: SaaS platform identity that signed the response
+- `signedBy`: SaaS platform identity that signed the response. It must be the operator (`op`) in the looked-up identity's `_btps.host` record, or the requester refuses the answer ([The Domain Operator](./specifications/overview.md#the-domain-operator))
 - `selector`: Key selector for rotation management
 - `signature`: Cryptographic signature by SaaS platform
 

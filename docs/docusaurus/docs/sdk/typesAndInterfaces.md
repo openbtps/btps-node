@@ -63,6 +63,7 @@ interface BTPClientOptions {
   btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
   host?: string;
   hostSelector?: string;
+  hostOperator?: string;
   version?: string;
   port?: number;
   maxQueue?: number;
@@ -78,6 +79,7 @@ interface BTPClientOptions {
 - `btpMtsOptions`: Optional TLS connection options (excluding port and host)
 - `host`: Optional custom host override
 - `hostSelector`: Optional DNS selector for key management (default: 'btps1')
+- `hostOperator`: Optional, with `host`: the identity operating that host, which must sign its identity lookup answers. Without `host`, the operator comes from DNS (`op` in `_btps.host`)
 - `version`: Optional protocol version (default: '1.0.0.0')
 - `port`: Optional custom port override
 - `maxQueue`: Optional maximum queue size for request handling (default: 100)
