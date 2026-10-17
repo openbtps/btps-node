@@ -38,12 +38,14 @@ export const AGENT_ACTIONS = [
 
 export const TRANSPORTER_ACTIONS = ['TRUST_REQ', 'TRUST_RES', 'BTPS_DOC', 'BTPS_EVENT'] as const;
 
-/** Agent actions that carry a transporter artifact, built by the device, and its type */
+/**
+ * Agent actions that carry a transporter artifact, built by the device, and its
+ * type. trust.update and trust.delete are not among them: they edit the user's
+ * own trust records at their provider and send nothing.
+ */
 export const AGENT_TRANSPORTER_ACTIONS = {
   'trust.request': 'TRUST_REQ',
   'trust.respond': 'TRUST_RES',
-  'trust.update': 'TRUST_RES',
-  'trust.delete': 'TRUST_RES',
   'artifact.send': 'BTPS_DOC',
   'event.send': 'BTPS_EVENT',
 } as const satisfies Record<string, (typeof TRANSPORTER_ACTIONS)[number]>;
