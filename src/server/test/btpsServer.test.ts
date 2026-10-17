@@ -2238,7 +2238,7 @@ export default function () {
       });
     });
 
-    describe('trust-refusal error codes (EBA-124)', () => {
+    describe('trust-refusal error codes', () => {
       const PAST = new Date('2020-01-01T00:00:00.000Z').toISOString();
 
       const transporterArtifact = (): BTPTransporterArtifact => ({

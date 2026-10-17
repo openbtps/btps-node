@@ -608,7 +608,7 @@ export class BtpsServer {
     if (afterTrustVerResponseSent) return; // Response already sent, stop processing
 
     if (!isTrusted) {
-      // EBA-124 (option B, decided 2026-10-06): reqCtx.error carries the
+      // reqCtx.error carries the
       // precise server-side reason (never-trusted, expired, revoked); the
       // wire only distinguishes expired from everything else, so an
       // un-upgraded 1.0 peer still just sees "not allowed" for a revoked or
@@ -1113,10 +1113,10 @@ export class BtpsServer {
   }
 
   /**
-   * EBA-124: determines the precise, server-side-only reason a non-trust
+   * Determines the precise, server-side-only reason a non-trust
    * artifact is refused - never-trusted, expired, revoked, or blocked.
    *
-   * Option B (decided 2026-10-06): only the expired case gets its own wire
+   * Only the expired case gets its own wire
    * code (BTP_ERROR_TRUST_EXPIRED); revoked, blocked, never-trusted, pending
    * and rejected all collapse onto BTP_ERROR_TRUST_NOT_ALLOWED on the wire
    * (see executeRequestPipeline). This method's result is what reqCtx.error
