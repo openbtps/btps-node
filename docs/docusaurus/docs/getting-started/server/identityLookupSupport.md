@@ -547,7 +547,7 @@ SERVER_PRIVATE_KEY_PATH=./keys/private.pem
 ### Test Identity Lookup Request
 
 ```typescript
-import { BtpsClient } from '@btps/sdk';
+import { BtpsClient } from '@btps/sdk/client';
 
 const client = new BtpsClient({
   to: 'admin$saas.com',

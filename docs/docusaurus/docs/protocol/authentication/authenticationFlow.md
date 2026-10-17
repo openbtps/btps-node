@@ -99,9 +99,9 @@ return {
 **Key Generation**:
 
 ```typescript
-import { generateKeyPair } from '@btps/sdk/crypto';
+import { getBTPKeyPair } from '@btps/sdk/crypto';
 
-const keyPair = await generateKeyPair();
+const keyPair = getBTPKeyPair();
 // Returns: { publicKey: "-----BEGIN PUBLIC KEY-----\n...", privateKey: "-----BEGIN PRIVATE KEY-----\n..." }
 ```
 

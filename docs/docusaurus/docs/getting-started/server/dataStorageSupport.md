@@ -87,16 +87,12 @@ const identityStore = new JsonIdentityStore({
 
 ```typescript
 // src/storage/MongoTrustStore.ts
-import {
-  AbstractTrustStore,
-  BTPTrustRecord,
-  TrustStoreOptions,
-  computeTrustId,
-} from '@btps/sdk/trust';
+import { AbstractTrustStore, BTPTrustRecord, computeTrustId } from '@btps/sdk/trust';
+import { StorageStoreOptions } from '@btps/sdk/storage';
 import { MongoClient } from 'mongodb';
 
 export class MongoTrustStore extends AbstractTrustStore<BTPTrustRecord> {
-  constructor(options: TrustStoreOptions) {
+  constructor(options: StorageStoreOptions) {
     super(options);
     // Initialize MongoDB connection and collection
   }
@@ -142,7 +138,7 @@ export class MongoTrustStore extends AbstractTrustStore<BTPTrustRecord> {
 ```typescript
 // src/index.ts
 import { MongoClient } from 'mongodb';
-import { BtpsServer } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
 import { MongoTrustStore } from './storage/MongoTrustStore';
 
 // Connect to MongoDB
@@ -285,7 +281,7 @@ export class MongoArtifactStorage implements ArtifactStorage {
 ```typescript
 // src/index.ts
 import { MongoClient } from 'mongodb';
-import { BtpsServer } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
 import { MongoTrustStore } from './storage/MongoTrustStore';
 import { MongoArtifactStorage } from './storage/MongoArtifactStorage';
 
@@ -351,7 +347,9 @@ console.log('🚀 BTPS Server with MongoDB storage running');
 For development and testing, you can use the built-in JSON storage:
 
 ```typescript
-import { BtpsServer, JsonTrustStore, JsonIdentityStore } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
+import { JsonTrustStore } from '@btps/sdk/trust';
+import { JsonIdentityStore } from '@btps/sdk/storage';
 
 const server = new BtpsServer({
   serverIdentity: {
@@ -380,16 +378,12 @@ For SQL databases, here are basic implementations:
 
 ```typescript
 // src/storage/PostgresTrustStore.ts
-import {
-  AbstractTrustStore,
-  BTPTrustRecord,
-  TrustStoreOptions,
-  computeTrustId,
-} from '@btps/sdk/trust';
+import { AbstractTrustStore, BTPTrustRecord, computeTrustId } from '@btps/sdk/trust';
+import { StorageStoreOptions } from '@btps/sdk/storage';
 import { Pool } from 'pg';
 
 export class PostgresTrustStore extends AbstractTrustStore<BTPTrustRecord> {
-  constructor(options: TrustStoreOptions) {
+  constructor(options: StorageStoreOptions) {
     super(options);
     // Initialize PostgreSQL connection pool
     // Setup table schema if needed

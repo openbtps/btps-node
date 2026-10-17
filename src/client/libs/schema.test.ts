@@ -23,6 +23,7 @@ import {
 } from '../../core/server/schemas/schema.js';
 import { identitySchema } from '../../core/server/schemas/shared.js';
 import { BtpInvoiceDocSchema } from '../../core/server/schemas/btpsDocsSchema.js';
+import { IMMEDIATE_ACTIONS } from '../../core/server/constants/index.js';
 
 describe('BtpsAgent Schema Validation', () => {
   describe('BtpsAgentCommandSchema', () => {
@@ -343,6 +344,8 @@ describe('BtpsAgent Schema Validation', () => {
         'inbox.delete',
         'outbox.fetch',
         'outbox.cancel',
+        'sentbox.fetch',
+        'sentbox.delete',
         'draft.fetch',
         'draft.create',
         'draft.update',
@@ -356,6 +359,21 @@ describe('BtpsAgent Schema Validation', () => {
         const result = BtpsAgentActionTypeSchema.safeParse(action);
         expect(result.success).toBe(true);
       });
+    });
+
+    it('accepts every action the server answers at once', () => {
+      IMMEDIATE_ACTIONS.forEach((action) => {
+        expect(BtpsAgentActionTypeSchema.safeParse(action).success).toBe(true);
+      });
+    });
+
+    it('lets a device fetch its sent items', () => {
+      const result = BtpsAgentCommandCallSchema.safeParse({
+        actionType: 'sentbox.fetch',
+        to: 'alice$example.com',
+        document: { limit: 10, sort: 'desc' },
+      });
+      expect(result.success).toBe(true);
     });
 
     it('should fail with invalid action type', () => {

@@ -1218,22 +1218,6 @@ Error constant for missing or invalid public key resolution.
 
 ---
 
-### BTP_ERROR_SELECTOR_NOT_FOUND
-
-```ts
-const BTP_ERROR_SELECTOR_NOT_FOUND: BTPError;
-```
-
-**Description:**
-Error constant for missing or invalid selector during DNS resolution. Used when a specific selector cannot be found for key rotation scenarios.
-
-**Properties:**
-
-- `code`: `'BTP_ERROR_SELECTOR_NOT_FOUND'`
-- `message`: `'No valid selector found'`
-
----
-
 ### BTP_ERROR_RATE_LIMITER
 
 ```ts

@@ -1141,17 +1141,6 @@ interface OnBehalfOfOptions {
 
 ## Trust Store Types
 
-### TrustStoreOptions
-
-Configuration options for trust stores.
-
-```ts
-interface TrustStoreOptions {
-  connection: unknown;
-  entityName?: string;
-}
-```
-
 ### BTPTrustStatus
 
 Possible trust record statuses.

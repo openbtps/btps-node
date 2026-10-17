@@ -17,7 +17,7 @@ The main server class for running a secure, multi-tenant BTPS server over TLS. H
 **Import:**
 
 ```js
-import { BtpsServer } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
 ```
 
 ### constructor
@@ -31,7 +31,8 @@ new BtpsServer(options: BtpsServerOptions)
 **Example:**
 
 ```js
-import { BtpsServer, JsonTrustStore } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
+import { JsonTrustStore } from '@btps/sdk/trust';
 const trustStore = new JsonTrustStore({ connection: './trust.json' });
 const server = new BtpsServer({
   serverIdentity: {
@@ -182,7 +183,7 @@ The main client class for sending BTPS artifacts (trust requests, invoices, etc.
 **Import:**
 
 ```js
-import { BtpsClient } from '@btps/sdk';
+import { BtpsClient } from '@btps/sdk/client';
 ```
 
 ### constructor
@@ -196,7 +197,7 @@ new BtpsClient(options: BTPClientOptions)
 **Example:**
 
 ```js
-import { BtpsClient } from '@btps/sdk';
+import { BtpsClient } from '@btps/sdk/client';
 const client = new BtpsClient({
   to: 'billing$yourdomain.com',
   maxRetries: 5,
@@ -234,7 +235,7 @@ client.connect('inbox$vendor.com', (events) => {
 await client.send(artifact, timeoutMs?);
 ```
 
-Sends a pre-signed BTPS artifact to the server. **Note**: The artifact must be pre-signed using `signAndEncrypt` from the crypto module before sending.
+Sends a pre-signed BTPS artifact to the server. **Note**: The artifact must be pre-signed using `signEncrypt` from the crypto module before sending.
 
 - **artifact**: [BTPArtifact](./typesAndInterfaces.md#btpartifact) – Pre-signed artifact to send
 - **timeoutMs**: `number` (optional) – How long to wait for the answer, in milliseconds: the client's `replyTimeoutMs` by default (20000), never below 10000
@@ -243,34 +244,34 @@ Sends a pre-signed BTPS artifact to the server. **Note**: The artifact must be p
 **Example:**
 
 ```js
-import { signAndEncrypt } from '@btps/sdk/crypto';
+import { randomUUID } from 'crypto';
+import { signEncrypt } from '@btps/sdk/crypto';
 
-// First, sign the artifact
-const artifact = {
-  id: 'trust_req_123',
-  type: 'btp_trust_request',
-  issuedAt: new Date().toISOString(),
-  document: {
-    name: 'Your Company Name',
-    email: 'billing@yourdomain.com',
-    reason: 'To send monthly invoices',
-    phone: '+1234567890',
-  },
-};
-
-// Sign the artifact before sending (REQUIRED)
-const signedArtifact = await signAndEncrypt(
-  'billing$yourdomain.com',
+// Sign the artifact before sending (REQUIRED). A trust request is sent
+// unencrypted: there is no trust yet.
+const signedArtifact = await signEncrypt(
+  'client$theirdomain.com',
   { accountName: 'billing', domainName: 'yourdomain.com', pemFiles: { publicKey, privateKey } },
   {
-    type: 'BTPS_DOC',
-    document: artifact,
-    selector: 'btps1',
+    version: '1.1.0',
+    type: 'TRUST_REQ',
+    from: 'billing$yourdomain.com',
+    to: 'client$theirdomain.com',
+    selector: 'btps1', // the selector your own key is published under
+    document: {
+      id: randomUUID(),
+      name: 'Your Company Name',
+      email: 'billing@yourdomain.com',
+      reason: 'To send monthly invoices',
+      phone: '+1234567890',
+    },
   },
+  { signature: { algorithmHash: 'sha256' } },
 );
+if (signedArtifact.error) throw signedArtifact.error;
 
 // Then send the signed artifact
-const res = await client.send(signedArtifact.payload, 10000); // 10 second timeout
+const res = await client.send(signedArtifact.payload);
 if (res.response) {
   console.log('Server response:', res.response);
 } else {
@@ -334,7 +335,7 @@ A specialized client for agent-based operations, extending BtpsClient with agent
 **Import:**
 
 ```js
-import { BtpsAgent } from '@btps/sdk';
+import { BtpsAgent } from '@btps/sdk/client';
 ```
 
 ### constructor
@@ -348,7 +349,7 @@ new BtpsAgent(options: BTPAgentOptions)
 **Example:**
 
 ```js
-import { BtpsAgent } from '@btps/sdk';
+import { BtpsAgent } from '@btps/sdk/client';
 const agent = new BtpsAgent({
   agent: {
     id: 'agent_123',
@@ -439,7 +440,7 @@ A connection management and message delivery service that handles direct message
 **Import:**
 
 ```js
-import { BtpsTransporter } from '@btps/sdk';
+import { BtpsTransporter } from '@btps/sdk/client';
 ```
 
 ### constructor
@@ -453,7 +454,7 @@ new BtpsTransporter(options: BTPTransporterOptions)
 **Example:**
 
 ```js
-import { BtpsTransporter } from '@btps/sdk';
+import { BtpsTransporter } from '@btps/sdk/client';
 const transporter = new BtpsTransporter({
   maxConnections: 50,
   connectionTTLSeconds: 300,
@@ -1386,10 +1387,10 @@ if (publicKeyRecord) {
 ### constructor
 
 ```ts
-new AbstractTrustStore(options: TrustStoreOptions)
+new AbstractTrustStore(options: StorageStoreOptions)
 ```
 
-- **options**: [TrustStoreOptions](./typesAndInterfaces.md#truststoreoptions) – Trust store configuration
+- **options**: [StorageStoreOptions](./typesAndInterfaces.md#storagestoreoptions) – Trust store configuration
 
 **Example:**
 
@@ -1541,10 +1542,10 @@ import { JsonTrustStore } from '@btps/sdk/trust';
 ### constructor
 
 ```ts
-new JsonTrustStore(options: TrustStoreOptions)
+new JsonTrustStore(options: StorageStoreOptions)
 ```
 
-- **options**: [TrustStoreOptions](./typesAndInterfaces.md#truststoreoptions) – Trust store configuration
+- **options**: [StorageStoreOptions](./typesAndInterfaces.md#storagestoreoptions) – Trust store configuration
 
 **Example:**
 
@@ -1718,19 +1719,15 @@ new BTPErrorException(btpError, options?)
 **Example:**
 
 ```js
-import {
-  BTPErrorException,
-  BTP_ERROR_IDENTITY,
-  BTP_ERROR_SELECTOR_NOT_FOUND,
-} from '@btps/sdk/error';
+import { BTPErrorException, BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '@btps/sdk/error';
 throw new BTPErrorException(BTP_ERROR_IDENTITY, {
   cause: 'Invalid format',
   meta: { identity: 'invalid-identity' },
 });
 
 // Key rotation error example
-throw new BTPErrorException(BTP_ERROR_SELECTOR_NOT_FOUND, {
-  cause: 'Selector not found in DNS',
+throw new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
+  cause: 'No key published at this selector',
   meta: { selector: 'btps1', identity: 'alice$example.com' },
 });
 ```

@@ -23,7 +23,8 @@ npm install @btps/sdk
 ```
 
 ```js
-import { BtpsServer, BtpsClient } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
+import { BtpsClient } from '@btps/sdk/client';
 
 // Start a BTPS server
 const server = new BtpsServer({
