@@ -11,7 +11,7 @@ import type { BTPAgentOptions } from '../../client/types/index.js';
 import type { BTPAuthReqDoc, BTPAuthResDoc } from '@core/server/types.js';
 import type { BTPTrustRecord } from '@core/trust/types.js';
 import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
-import { computeTrustId } from '@core/trust/index.js';
+import { computeAgentTrustId } from '@core/trust/index.js';
 import {
   generateUserToken,
   getFingerprintFromPem,
@@ -93,7 +93,7 @@ export class BtpsAuthentication {
     };
 
     return {
-      ...(await this.trustStore.create(trustRecord, computeTrustId(agentId, userIdentity))),
+      ...(await this.trustStore.create(trustRecord, computeAgentTrustId(agentId, userIdentity))),
       expiresAt: trustRecord.expiresAt!,
     };
   }
@@ -318,7 +318,7 @@ export class BtpsAuthentication {
       };
     }
     const { userIdentity } = validationResult;
-    const computedId = computeTrustId(agentId, userIdentity);
+    const computedId = computeAgentTrustId(agentId, userIdentity);
     const trustRecord = await this.trustStore.getById(computedId);
 
     if (!trustRecord) {

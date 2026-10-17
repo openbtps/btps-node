@@ -152,6 +152,11 @@ export const BTP_ERROR_UNKNOWN: BTPError = {
   message: 'Unknown error',
 };
 
+export const BTP_ERROR_AGENT_ID: BTPError = {
+  code: 'BTP_ERROR_AGENT_ID',
+  message: 'An agent id names a registered device, not an identity',
+};
+
 export const BTP_ERROR_KEY_ROTATION_PROOF: BTPError = {
   code: 'BTP_ERROR_KEY_ROTATION_PROOF',
   message: 'A new device key needs a proof signed by that key',

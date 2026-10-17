@@ -6,11 +6,13 @@
  */
 
 import { z } from 'zod';
+import { isValidIdentity } from '@core/utils/identity.js';
 
 // Schema for validating individual parameters
 export const identitySchema = z
   .string()
-  .regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}');
+  .regex(/^\S+\$\S+\.\S+$/, 'From field must match pattern: {username}${domain}')
+  .refine(isValidIdentity, 'An identity has one separator and no ":"');
 
 export const BtpSignatureSchema = z.object({
   algorithmHash: z.literal('sha256'),

@@ -79,6 +79,20 @@ export function computeTrustId(senderId: string, receiverId: string): string {
 }
 
 /**
+ * The trust record id of a device (agent) registered for an identity. Device
+ * records share the trust store with the records between two identities, so
+ * their ids carry an `agent:` prefix that no identity can have (an identity has
+ * no `:`): a lookup for a device can never find a record between two
+ * identities, whatever `agentId` it is given.
+ *
+ * @param agentId - The device's agent id, as `createAgent` issued it
+ * @param identity - The identity the device is registered for
+ */
+export function computeAgentTrustId(agentId: string, identity: string): string {
+  return computeTrustId(`agent:${agentId}`, identity);
+}
+
+/**
  * Validates a TRUST_RES by checking if the response is authorized.
  * Ensures that only the original receiver of a trust request is allowed to respond.
  *

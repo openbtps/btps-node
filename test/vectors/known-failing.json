@@ -3,7 +3,6 @@
   "baseline": "367cd0966687b0f61fbb4aa703f26c5e37e89eca",
   "checks": {
     "sdk/item-10/gcm-tag/truncated-4-byte-tag-rejected": "EBA-122",
-    "sdk/item-10/gcm-tag/truncated-12-byte-tag-rejected": "EBA-122",
-    "sdk/item-10/identity/reject/alice$saas.example$evil.example": "EBA-122"
+    "sdk/item-10/gcm-tag/truncated-12-byte-tag-rejected": "EBA-122"
   }
 }

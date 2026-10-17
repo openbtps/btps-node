@@ -10,6 +10,7 @@ import {
   validateTrustRequest,
   BTPTrustRecord,
   computeTrustId,
+  computeAgentTrustId,
   validateTrustResponse,
 } from '@core/trust/index.js';
 import tls, { TlsOptions, TLSSocket } from 'tls';
@@ -36,6 +37,7 @@ import {
   BTP_ERROR_INVALID_ACTION,
   BTP_ERROR_EVENT_UNRELATED,
   BTP_ERROR_KEY_ROTATION_PROOF,
+  BTP_ERROR_AGENT_ID,
 } from '@core/error/constant.js';
 import {
   assertStrictJson,
@@ -687,6 +689,20 @@ export class BtpsServer {
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
     const { signature, ...signedMsg } = artifact;
 
+    // An agent id names a device the server registered, never an identity: a
+    // correspondent must not be able to sign with its own key and act as one of
+    // the receiver's devices. Device records are also kept apart by their id
+    // (computeAgentTrustId); this refuses an identity before any lookup.
+    if (artifact.action !== 'auth.request' && isValidIdentity(artifact.agentId)) {
+      return {
+        isValid: false,
+        error: new BTPErrorException(BTP_ERROR_AGENT_ID, {
+          cause: `${artifact.agentId} is an identity, not an agent id`,
+          meta: { agentId: artifact.agentId, action: artifact.action },
+        }),
+      };
+    }
+
     // Get public key based on agent type
     const agentPublicPem = await this.getAgentPublicKey(artifact);
 
@@ -766,10 +782,11 @@ export class BtpsServer {
     }
 
     // For existing agents, get public key from trust store
-    const computedTrustId = computeTrustId(artifact.agentId, artifact.to);
+    const computedTrustId = computeAgentTrustId(artifact.agentId, artifact.to);
     const trustRecord = await this.trustStore.getById(computedTrustId);
 
-    if (!trustRecord) {
+    // The record must be this agent's own: a device registered for `to`
+    if (!trustRecord || trustRecord.senderId !== artifact.agentId) {
       return null; // Trust record not found
     }
 
@@ -802,7 +819,7 @@ export class BtpsServer {
     }
 
     const { agentId, to } = artifact;
-    const computedTrustId = computeTrustId(agentId, to);
+    const computedTrustId = computeAgentTrustId(agentId, to);
     const trustRecord = await this.trustStore.getById(computedTrustId);
     if (!trustRecord) {
       return {

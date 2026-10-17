@@ -930,6 +930,27 @@ const trustId = computeTrustId('finance$company.com', 'billing$vendor.org');
 
 ---
 
+### computeAgentTrustId
+
+```ts
+computeAgentTrustId(agentId: string, identity: string): string
+```
+
+**Description:**
+Computes the trust record id of a device (agent) registered for an identity: `computeTrustId('agent:' + agentId, identity)`. Device records live in the same trust store as the trust between two identities, and this prefix keeps their ids apart. An identity has no `:`, so no trust id between two identities can ever equal a device's. `BtpsAuthentication` stores and finds device records with it; a trust store needs no change.
+
+**Example:**
+
+```js
+import { computeAgentTrustId } from '@btps/sdk/trust';
+const deviceRecordId = computeAgentTrustId(
+  'btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
+  'alice$saas.com',
+);
+```
+
+---
+
 ### validateTrustResponse
 
 ```ts
@@ -1396,6 +1417,22 @@ Error constant for socket timeouts.
 
 - `code`: `'BTP_ERROR_SOCKET_TIMEOUT'`
 - `message`: `'Socket timeout. Connection closed'`
+
+---
+
+### BTP_ERROR_AGENT_ID
+
+```ts
+const BTP_ERROR_AGENT_ID: BTPError;
+```
+
+**Description:**
+Error constant for an agent artifact, other than `auth.request`, whose `agentId` is an identity rather than a device id the server issued. It is refused before any key is looked up, so a trusted business cannot sign with its own key and act as one of the receiver's devices.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_AGENT_ID'`
+- `message`: `'An agent id names a registered device, not an identity'`
 
 ---
 
