@@ -59,6 +59,7 @@
     "base64": "bash -c 'base64 -i \"$1\" | tr -d \"\\n\"' --",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "vitest run -c vitest.e2e.config.ts",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
     "verify:btps-vectors": "node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs --known-failing test/vectors/known-failing.json",
