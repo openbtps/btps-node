@@ -237,9 +237,10 @@ const result = await transporter.transport('recipient$client.com', artifact);
 
 ### **Connection Lifecycle**
 
-- **Automatic Creation**: Connections created on-demand during transport
-- **TTL Management**: Automatic connection expiration and cleanup
+- **Automatic Creation**: Connections created on-demand during transport, one per recipient
+- **Idle TTL**: A connection closes after `connectionTTLSeconds` with no send. Every send restarts the count, and a connection is never closed while a send waits for its answer, so a recipient receiving often keeps its connection
 - **Connection Pooling**: Efficient reuse of established connections
+- **A full pool makes room**: At `maxConnections`, a new recipient closes the connection idle longest. It is refused (`BTP_TRANSPORTER_ERROR_MAX_CONNECTIONS_REACHED`) only when every connection has a send waiting
 - **Override Support**: Ability to replace existing connections
 
 ### **Queue Management**

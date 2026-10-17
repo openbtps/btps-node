@@ -228,11 +228,34 @@ describe('BtpsTransporter', () => {
         expect(transporter.getTotalConnections()).toBe(1);
       });
 
-      it('should throw error when max connections reached', async () => {
-        // Register up to max connections
-        for (let i = 0; i < 5; i++) {
-          await transporter.registerConnection(`user${i}$example.com`);
+      it('closes the connection idle longest to make room when full', async () => {
+        vi.useFakeTimers();
+        try {
+          for (let i = 0; i < 5; i++) {
+            vi.setSystemTime(Date.UTC(2026, 0, 1, 0, 0, i));
+            await transporter.registerConnection(`user${i}$example.com`);
+          }
+          // user0 was used most recently, so user1 has been idle longest
+          vi.setSystemTime(Date.UTC(2026, 0, 1, 0, 0, 10));
+          await transporter.transport('user0$example.com', mockArtifact);
+
+          await transporter.registerConnection('new$example.com');
+
+          expect(transporter.getConnection('user1$example.com')).toBeUndefined();
+          expect(transporter.getConnection('user0$example.com')).toBeDefined();
+          expect(transporter.getConnection('new$example.com')).toBeDefined();
+          expect(transporter.getTotalConnections()).toBe(5);
+        } finally {
+          vi.useRealTimers();
         }
+      });
+
+      it('refuses a new recipient only when every connection has a send waiting', async () => {
+        vi.mocked(mockClient.send).mockReturnValue(new Promise(() => {}));
+        for (let i = 0; i < 5; i++) {
+          void transporter.transport(`user${i}$example.com`, mockArtifact);
+        }
+        await vi.waitFor(() => expect(mockClient.send).toHaveBeenCalledTimes(5));
 
         await expect(transporter.registerConnection('new$example.com')).rejects.toThrow(
           BTP_TRANSPORTER_ERROR_MAX_CONNECTIONS_REACHED.message,
@@ -387,9 +410,12 @@ describe('BtpsTransporter', () => {
       });
 
       it('answers with an error, rather than throwing, when no connection can be opened', async () => {
+        // Every connection has a send waiting for its answer
+        vi.mocked(mockClient.send).mockReturnValue(new Promise(() => {}));
         for (let i = 0; i < 5; i++) {
-          await transporter.registerConnection(`user${i}$example.com`);
+          void transporter.transport(`user${i}$example.com`, mockArtifact);
         }
+        await vi.waitFor(() => expect(mockClient.send).toHaveBeenCalledTimes(5));
 
         const result = await transporter.transport('new$example.com', mockArtifact);
 
@@ -689,6 +715,45 @@ describe('BtpsTransporter', () => {
         expect(transporter.getConnectionTTLSeconds()).toBe(120);
       });
 
+      it('keeps a busy connection past its TTL, counting from the last send', async () => {
+        vi.useFakeTimers();
+        try {
+          // A send every 30 s for 3 minutes, on a 60 s TTL
+          for (let i = 0; i < 6; i++) {
+            await transporter.transport('busy$example.com', mockArtifact);
+            vi.advanceTimersByTime(30 * 1000);
+          }
+          expect(transporter.getConnection('busy$example.com')).toBeDefined();
+          expect(BtpsClient).toHaveBeenCalledTimes(1);
+
+          vi.advanceTimersByTime(30 * 1000); // 60 s idle
+          expect(transporter.getConnection('busy$example.com')).toBeUndefined();
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('never closes a connection while a send waits for its answer', async () => {
+        vi.useFakeTimers();
+        try {
+          let answer: (value: Awaited<ReturnType<BtpsClient['send']>>) => void = () => {};
+          vi.mocked(mockClient.send).mockReturnValueOnce(new Promise((r) => (answer = r)));
+          const sending = transporter.transport('slow$example.com', mockArtifact);
+          await vi.waitFor(() => expect(mockClient.send).toHaveBeenCalled());
+
+          vi.advanceTimersByTime(5 * 60 * 1000); // well past the 60 s TTL
+          expect(transporter.getConnection('slow$example.com')).toBeDefined();
+          expect(mockClient.destroy).not.toHaveBeenCalled();
+
+          answer({ response: undefined, error: undefined });
+          await sending;
+          vi.advanceTimersByTime(60 * 1000); // then idle for its TTL
+          expect(transporter.getConnection('slow$example.com')).toBeUndefined();
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
       it('closes a connection once its TTL in seconds has passed', async () => {
         vi.useFakeTimers();
         try {
@@ -947,19 +1012,14 @@ describe('BtpsTransporter', () => {
     });
 
     it('should handle max connections edge case', async () => {
-      // Fill up to max connections
+      // Fill up to max connections with idle ones
       for (let i = 0; i < 5; i++) {
         await transporter.registerConnection(`user${i}$example.com`);
       }
 
-      // Try to register one more
-      await expect(transporter.registerConnection('overflow$example.com')).rejects.toThrow(
-        BTP_TRANSPORTER_ERROR_MAX_CONNECTIONS_REACHED.message,
-      );
-
-      // Deregister one and try again
-      transporter.deregisterConnection('user0$example.com');
+      // One more makes room rather than failing, and the pool stays at its limit
       await expect(transporter.registerConnection('overflow$example.com')).resolves.toBeDefined();
+      expect(transporter.getTotalConnections()).toBe(5);
     });
 
     it('should handle empty artifact in transport', async () => {
