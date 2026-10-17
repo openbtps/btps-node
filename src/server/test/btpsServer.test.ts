@@ -45,6 +45,7 @@ import {
   BTP_ERROR_ARTIFACT_TOO_LARGE,
   BTP_ERROR_ARTIFACT_TIME_WINDOW,
   BTP_ERROR_KEY_ROTATION_PROOF,
+  BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
 } from '../../core/error/index.js';
 import { PassThrough } from 'stream';
 import net from 'net';
@@ -502,6 +503,46 @@ describe('BtpsServer', () => {
         });
 
         await expect(process()).rejects.toThrow('queue unavailable');
+      });
+    });
+
+    describe('a server with nothing to take an artifact', () => {
+      const socket = () =>
+        ({
+          destroyed: false,
+          writableEnded: false,
+          writable: true,
+          write: vi.fn(),
+          end: vi.fn(),
+          destroy: vi.fn(),
+        }) as unknown as TLSSocket;
+      const process = (s: TLSSocket) =>
+        server['processMessage'](
+          { type: 'transporter', artifact: { id: 't-1' } as BTPTransporterArtifact },
+          { socket: s, reqId: 't-1' } as unknown as BTPResponseCtx,
+          {} as BTPRequestCtx,
+        );
+
+      it('refuses it instead of answering success', async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const s = socket();
+
+        expect(await process(s)).toBe(true);
+
+        const written: BTPServerResponse = JSON.parse((s.write as Mock).mock.calls[0]?.[0]);
+        expect(written.type).toBe('btps_error');
+        expect(written.status.message).toBe(BTP_ERROR_ARTIFACT_NOT_ACCEPTED.message);
+        expect(written.reqId).toBe('t-1');
+      });
+
+      it('takes it when onArtifact middleware delivers it', async () => {
+        server['middlewareManager']['middleware'] = [
+          { phase: 'before', step: 'onArtifact', handler: async () => {} },
+        ];
+        const s = socket();
+
+        expect(await process(s)).toBe(false);
+        expect(s.write).not.toHaveBeenCalled();
       });
     });
   });

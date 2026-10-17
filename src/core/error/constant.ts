@@ -172,6 +172,11 @@ export const BTP_ERROR_ARTIFACT_TOO_LARGE: BTPError = {
   message: 'Artifact exceeds the size limit of this server',
 };
 
+export const BTP_ERROR_ARTIFACT_NOT_ACCEPTED: BTPError = {
+  code: 'BTP_ERROR_ARTIFACT_NOT_ACCEPTED',
+  message: 'This server does not accept this kind of artifact',
+};
+
 export const BTP_ERROR_SOCKET_TIMEOUT: BTPError = {
   code: 'BTP_ERROR_SOCKET_TIMEOUT',
   message: 'Socket timeout. Connection closed',

@@ -38,6 +38,7 @@ import {
   BTP_ERROR_EVENT_UNRELATED,
   BTP_ERROR_KEY_ROTATION_PROOF,
   BTP_ERROR_AGENT_ID,
+  BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
 } from '@core/error/constant.js';
 import {
   assertStrictJson,
@@ -1199,6 +1200,24 @@ export class BtpsServer {
   }
 
   /**
+   * Whether anything on this server takes artifacts of this type: a handler
+   * registered with onIncomingArtifact, forwardTo, or onArtifact middleware.
+   */
+  private acceptsArtifacts(type: 'agent' | 'transporter'): boolean {
+    return (
+      this.emitter.listenerCount(type === 'agent' ? 'agentArtifact' : 'transporterArtifact') > 0 ||
+      this.handlerFn !== null ||
+      this.middlewareManager.getMiddleware('before', 'onArtifact').length > 0 ||
+      this.middlewareManager.getMiddleware('after', 'onArtifact').length > 0
+    );
+  }
+
+  private noHandlerWarning(type: 'agent' | 'transporter'): string {
+    const name = type === 'agent' ? 'Agent' : 'Transporter';
+    return `no ${name} handler, forwardTo or onArtifact middleware is registered, so ${type} artifacts are refused. Register one with onIncomingArtifact('${name}', handler).`;
+  }
+
+  /**
    * Core message processing (non-negotiable)
    */
   private async processMessage(
@@ -1207,6 +1226,13 @@ export class BtpsServer {
     reqCtx: BTPRequestCtx,
   ): Promise<boolean> {
     const { artifact, type } = data;
+
+    // Nothing here would take it, so it is refused rather than answered as delivered.
+    if (!this.acceptsArtifacts(type)) {
+      console.warn(`[BtpsServer] Refused a ${type} artifact: ${this.noHandlerWarning(type)}`);
+      this.sendBtpsError(resCtx.socket, BTP_ERROR_ARTIFACT_NOT_ACCEPTED, resCtx.reqId);
+      return true;
+    }
 
     if (type === 'agent') {
       const { respondNow } = data;
@@ -1456,6 +1482,12 @@ export class BtpsServer {
     await this.initialize();
     this.server.listen(this.port, () => {
       console.log(`✅ BtpsServer started on port ${this.port}`);
+      // Checked once listening, so handlers registered right after start() count.
+      for (const type of ['transporter', 'agent'] as const) {
+        if (!this.acceptsArtifacts(type)) {
+          console.warn(`[BtpsServer] Warning: ${this.noHandlerWarning(type)}`);
+        }
+      }
     });
   }
 

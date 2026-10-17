@@ -1484,6 +1484,22 @@ Error constant for an artifact larger than the receiving server's limit (`maxArt
 
 ---
 
+### BTP_ERROR_ARTIFACT_NOT_ACCEPTED
+
+```ts
+const BTP_ERROR_ARTIFACT_NOT_ACCEPTED: BTPError;
+```
+
+**Description:**
+Error constant for an artifact the receiving server has nothing to take: no handler registered with `onIncomingArtifact` for its type, no `forwardTo` handler and no `onArtifact` middleware. The server refuses it instead of answering success, and logs a warning, as it also does when it starts without one.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_ARTIFACT_NOT_ACCEPTED'`
+- `message`: `'This server does not accept this kind of artifact'`
+
+---
+
 ### BTP_ERROR_AUTHENTICATION_INVALID
 
 ```ts
