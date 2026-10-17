@@ -1032,7 +1032,9 @@ export class BtpsServer {
       };
     }
 
-    const { signature, ...restDelegation } = delegation;
+    // The delegation is signed before it is attested: the attestation, added
+    // after and signed over the delegation, is not part of what it signed.
+    const { signature, attestation, ...restDelegation } = delegation;
     const signedMsg = { ...artifactWithDelegation, delegation: restDelegation };
 
     /* Verify the delegation signature against the delegated artifact which includes the original artifact and signed artifact*/
