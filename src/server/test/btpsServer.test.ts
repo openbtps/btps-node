@@ -475,6 +475,35 @@ describe('BtpsServer', () => {
       expect(server['_parseAndValidateArtifact'](line).error).not.toBe('JSON');
       expect(server['_parseAndValidateArtifact'](duplicated)).toEqual({ error: 'JSON' });
     });
+
+    describe('a transported artifact is answered only after its handler returns', () => {
+      const data = {
+        type: 'transporter' as const,
+        artifact: { id: 't-1' } as BTPTransporterArtifact,
+      };
+      const process = () =>
+        server['processMessage'](data, {} as BTPResponseCtx, {} as BTPRequestCtx);
+
+      it('waits for an async handler before it carries on', async () => {
+        let stored = false;
+        server.onIncomingArtifact('Transporter', async () => {
+          await new Promise((r) => setTimeout(r, 20));
+          stored = true;
+        });
+
+        await process();
+
+        expect(stored).toBe(true);
+      });
+
+      it('fails when a handler throws, so no success is answered', async () => {
+        server.onIncomingArtifact('Transporter', async () => {
+          throw new Error('queue unavailable');
+        });
+
+        await expect(process()).rejects.toThrow('queue unavailable');
+      });
+    });
   });
 
   describe('Response Generation', () => {

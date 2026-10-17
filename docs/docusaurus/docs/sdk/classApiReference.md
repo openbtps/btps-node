@@ -113,7 +113,9 @@ Registers a handler for specific types of incoming artifacts.
 - **type**: `'Agent' | 'Transporter'` – Type of artifact to handle
 - **handler**: Function to handle the artifact
   - For Agent: `(artifact: BTPAgentArtifact & { respondNow: boolean }, resCtx: ArtifactResCtx) => void`
-  - For Transporter: `(artifact: BTPTransporterArtifact) => void`
+  - For Transporter: `(artifact: BTPTransporterArtifact) => void | Promise<void>`
+
+The server answers a transporter artifact with success only after every Transporter handler has returned, so a handler should return once the artifact is safely stored or queued. If a handler throws, the sender gets an error instead and can send again.
 
 **Example:**
 

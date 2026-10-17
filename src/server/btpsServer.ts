@@ -1209,7 +1209,12 @@ export class BtpsServer {
 
       if (this.isResponseSent(resCtx)) return true;
     } else {
-      this.emitter.emit('transporterArtifact', artifact);
+      // Success is answered only once every handler has returned; one that
+      // throws is answered as an error, so the sender knows to try again.
+      const listeners = this.emitter.listeners('transporterArtifact') as ((
+        a: BTPTransporterArtifact,
+      ) => unknown)[];
+      await Promise.all(listeners.map(async (listener) => listener(artifact)));
     }
     await this._forwardArtifact(data);
     return false;
@@ -1471,7 +1476,7 @@ export class BtpsServer {
   // Function overload for 'Transporter'
   public onIncomingArtifact(
     type: 'Transporter',
-    handler: (artifact: BTPTransporterArtifact) => void,
+    handler: (artifact: BTPTransporterArtifact) => void | Promise<void>,
   ): void;
 
   /**
@@ -1481,7 +1486,7 @@ export class BtpsServer {
     type: 'Agent' | 'Transporter',
     handler:
       | ((artifact: BTPAgentArtifact & { respondNow: boolean }, resCtx: ArtifactResCtx) => void)
-      | ((artifact: BTPTransporterArtifact) => void),
+      | ((artifact: BTPTransporterArtifact) => void | Promise<void>),
   ) {
     if (type === 'Agent') {
       this.emitter.on(
