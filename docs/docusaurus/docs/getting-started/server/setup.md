@@ -52,7 +52,8 @@ npm install
 Create `src/index.ts` with a minimal BTPS server:
 
 ```typescript
-import { BtpsServer, JsonTrustStore } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
+import { JsonTrustStore } from '@btps/sdk/trust';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -192,7 +193,7 @@ Create a simple test client to verify your server is working:
 
 ```typescript
 // test-client.ts
-import { BtpsClient } from '@btps/sdk';
+import { BtpsClient } from '@btps/sdk/client';
 
 const client = new BtpsClient({
   to: 'admin$yourdomain.com', // Target server identity

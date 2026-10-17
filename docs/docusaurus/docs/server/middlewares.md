@@ -18,7 +18,7 @@ For development and tests, the SDK provides a **default middleware set**. A BTPS
 - **Message processing metrics**
 - **Error logging**
 
-This default middleware is defined in [`defaultMiddleware.ts`](../../../../src/server/libs/defaultMiddleware.ts) and can be used as-is or as a starting point for your own configuration.
+This default middleware is defined in [`defaultMiddleware.ts`](https://github.com/openbtps/btps-node/blob/master/src/server/libs/defaultMiddleware.ts) and can be used as-is or as a starting point for your own configuration.
 
 **How to use:**
 
@@ -36,7 +36,7 @@ export default function createMiddleware() {
 }
 ```
 
-See [`example.btps.middleware.mjs`](../../../../example.btps.middleware.mjs) for a real-world example of extending and customizing the default middleware.
+See [`example.btps.middleware.mjs`](https://github.com/openbtps/btps-node/blob/master/example.btps.middleware.mjs) for a real-world example of extending and customizing the default middleware.
 
 > **Note:** The default middleware keeps its counters in the server's own memory, so it is for development and tests only. In production, use middleware backed by shared services, such as Redis for rate limiting behind the `RateLimiter` contract and Prometheus for metrics.
 

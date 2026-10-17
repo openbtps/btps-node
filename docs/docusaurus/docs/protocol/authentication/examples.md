@@ -462,7 +462,7 @@ const auth = new BtpsAuthentication({
 
 ```typescript
 import { BtpsAuthentication } from '@btps/sdk/authentication';
-import { generateKeyPair } from '@btps/sdk/crypto';
+import { getBTPKeyPair } from '@btps/sdk/crypto';
 
 class BTPSAuthClient {
   private keyPair: PemKeys | null = null;
@@ -473,7 +473,7 @@ class BTPSAuthClient {
   async registerDevice(authToken: string, userIdentity: string) {
     try {
       // Generate device keypair
-      this.keyPair = await generateKeyPair();
+      this.keyPair = getBTPKeyPair();
       this.userIdentity = userIdentity;
 
       // Perform authentication
@@ -1041,7 +1041,7 @@ app.listen(3000, () => {
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { BtpsAuthentication } from '@btps/sdk/authentication';
-import { generateKeyPair } from '@btps/sdk/crypto';
+import { getBTPKeyPair } from '@btps/sdk/crypto';
 import * as Keychain from 'react-native-keychain';
 
 const BTPSAuthScreen = () => {
@@ -1081,7 +1081,7 @@ const BTPSAuthScreen = () => {
 
     try {
       // Generate device keypair
-      const keyPair = await generateKeyPair();
+      const keyPair = getBTPKeyPair();
 
       // Perform authentication
       const result = await BtpsAuthentication.authenticate(
@@ -1335,7 +1335,7 @@ describe('BTPS Authentication Integration', () => {
     await auth.storeAuthToken(authToken, 'test@example.com', agentId);
 
     // Perform authentication
-    const keyPair = await generateKeyPair();
+    const keyPair = getBTPKeyPair();
     const result = await BtpsAuthentication.authenticate(
       'test@example.com',
       authToken,

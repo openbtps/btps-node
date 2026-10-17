@@ -20,6 +20,8 @@ btp*.json
 .DS_Store
 client
 !src/client
+!docs/docusaurus/docs/client
+!docs/docusaurus/docs/getting-started/client
 .env*
 *.tgz
 test

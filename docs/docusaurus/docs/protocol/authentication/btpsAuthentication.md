@@ -198,9 +198,9 @@ static authenticate(
 **Example:**
 
 ```typescript
-import { generateKeyPair } from '@btps/sdk/crypto';
+import { getBTPKeyPair } from '@btps/sdk/crypto';
 
-const keyPair = await generateKeyPair();
+const keyPair = getBTPKeyPair();
 const result = await BtpsAuthentication.authenticate(
   'alice$saas.com',
   'YDVKSEU4CEEW',

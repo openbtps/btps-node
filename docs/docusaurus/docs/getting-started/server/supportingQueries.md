@@ -11,13 +11,16 @@ BTPS server supports immediate response commands for managing inbox, outbox, dra
 
 ## Understanding Immediate Response Commands
 
-BTPS agents can send commands with `respondNow: true` to get immediate responses for:
+Every agent command reaches one handler, `onIncomingArtifact('Agent', handler)`. The server marks each with `respondNow`: `true` for a command your server answers at once from its own storage, `false` for one it takes to deliver (`artifact.send`, `event.send`, `trust.request`, `trust.respond`). The agent does not set it. Commands answered at once:
 
 - **Inbox Management**: Fetch, delete, mark as seen
-- **Outbox Management**: Fetch, cancel pending messages
+- **Outbox Management**: Fetch, cancel artifacts still being delivered
+- **Sentbox Management**: Fetch, delete artifacts already delivered
 - **Draft Management**: Create, fetch, update, delete drafts
 - **Trash Management**: Fetch, permanently delete
-- **Sentbox Management**: Fetch, delete sent messages
+- **Trust Management**: Fetch, update, delete the user's own trust records (their contacts)
+
+Your server moves an artifact from the outbox to the sentbox once it is delivered.
 
 For complete BtpsAgent command documentation, see [BtpsAgent.command()](/docs/sdk/class-api-references#command).
 
@@ -28,48 +31,47 @@ For complete BtpsAgent command documentation, see [BtpsAgent.command()](/docs/sd
 ```typescript
 // Inbox operations
 'inbox.fetch'; // Fetch inbox messages with filtering
-'inbox.fetchById'; // Fetch specific messages by ID
-'inbox.delete'; // Delete messages from inbox
-'inbox.seen'; // Mark messages as read
-'inbox.update'; // Update message content
+'inbox.delete'; // Delete messages from inbox: { ids }
+'inbox.seen'; // Mark messages as read: { ids }
 
-// Outbox operations
-'outbox.fetch'; // Fetch pending messages
-'outbox.fetchById'; // Fetch specific pending messages
-'outbox.cancel'; // Cancel pending messages
-'outbox.update'; // Update pending message content
+// Outbox operations: artifacts still being delivered
+'outbox.fetch'; // Fetch them
+'outbox.cancel'; // Cancel delivery: { ids }
+
+// Sentbox operations: artifacts already delivered
+'sentbox.fetch'; // Fetch sent messages
+'sentbox.delete'; // Delete sent messages: { ids }
 
 // Draft operations
 'draft.fetch'; // Fetch draft messages
-'draft.fetchById'; // Fetch specific drafts
-'draft.create'; // Create new draft
-'draft.update'; // Update existing draft
-'draft.delete'; // Delete drafts
+'draft.create'; // Create new draft: { type, document }
+'draft.update'; // Update existing draft: { id, document }
+'draft.delete'; // Delete drafts: { ids }
 
 // Trash operations
 'trash.fetch'; // Fetch trashed messages
-'trash.fetchById'; // Fetch specific trashed messages
-'trash.delete'; // Permanently delete from trash
+'trash.delete'; // Permanently delete from trash: { ids }
 
-// Sentbox operations
-'sentbox.fetch'; // Fetch sent messages
-'sentbox.fetchById'; // Fetch specific sent messages
-'sentbox.delete'; // Delete sent messages
-'sentbox.update'; // Update sent message content
+// Trust operations: the user's own trust records
+'trust.fetch'; // Fetch trust relationships (contacts)
+'trust.update'; // Change one: { id, document }, e.g. a revoke
+'trust.delete'; // Remove them: { ids }
 
-// Trust operations
-'trust.fetch'; // Fetch trust relationships
+// System
+'system.ping'; // Health check
 ```
 
 ### Query Structure
 
-Agent commands with `respondNow: true` follow this structure:
+An agent command your server answers at once arrives like this:
 
 ```typescript
 interface QueryCommand {
   action: string; // e.g., 'inbox.fetch', 'outbox.fetch'
+  agentId: string; // the device that sent it
+  to: string; // the user it acts for
   document?: {
-    // Query parameters specific to the action
+    // Query parameters for a fetch
     limit?: number;
     cursor?: string;
     since?: string;
@@ -77,7 +79,7 @@ interface QueryCommand {
     query?: Record<string, unknown>;
     sort?: 'asc' | 'desc';
   };
-  respondNow: true; // Required for immediate response
+  respondNow: true; // set by the server for these actions
 }
 ```
 
@@ -107,9 +109,9 @@ const server = new BtpsServer({
 
 // Handle immediate response commands
 server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
-  // Only handle immediate response requests
+  // Only handle immediate response requests here
   if (!artifact.respondNow) {
-    return; // Let other handlers process async requests
+    return; // artifact.send and the like: queue for delivery elsewhere
   }
 
   console.log('📱 Immediate request:', artifact.action);
@@ -357,14 +359,15 @@ async function handleDraftCreate(artifact: any, resCtx: any) {
   const { agentId, document } = artifact;
 
   try {
-    const { to, type, document: content, expiresAt } = document;
+    // type and document are checked by the protocol; any other field (such as
+    // a recipient the app attached) arrives as the app sent it
+    const { type, document: content, ...rest } = document;
 
     // Create new draft
     const draft = await createDraft(agentId, {
-      to,
       type,
       document: content,
-      expiresAt,
+      ...rest,
     });
 
     return resCtx.sendRes({
@@ -549,7 +552,7 @@ interface BTPStringQueryFilter {
 
 ```typescript
 interface BtpsServerResponse<T = BTPServerResDocs> {
-  version: string; // Required: Protocol version (e.g., "1.0")
+  version: string; // Required: Protocol version (e.g., "1.1.0")
   status: BTPStatus; // Required: Response status
   id: string; // Required: Unique response ID
   issuedAt: string; // Required: ISO timestamp
@@ -565,6 +568,7 @@ interface BTPStatus {
   ok: boolean; // Required: Success indicator
   code: number; // Required: HTTP-style status code
   message?: string; // Optional: Human-readable message
+  error?: string; // On an error: its BTPS code, e.g. 'BTP_ERROR_TRUST_EXPIRED'
 }
 
 // Status codes:
@@ -585,6 +589,7 @@ interface BTPAuthResDoc {
   agentId: string; // Required: Generated agent identifier
   refreshToken: string; // Required: Refresh token for session
   expiresAt: string; // Required: ISO timestamp when token expires
+  decryptBy: string; // Required: Identity to decrypt by when decrypting the document
 }
 
 // Query result response
@@ -774,7 +779,7 @@ async function fetchInboxItems(agentId: string, query: BTPAgentQuery) {
 
 ```typescript
 {
-  version: "1.0",
+  version: "1.1.0",
   status: { ok: true, code: 200 },
   id: "response-12345678",
   issuedAt: "2025-01-15T10:30:00Z",

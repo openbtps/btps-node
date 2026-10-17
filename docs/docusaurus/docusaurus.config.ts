@@ -78,8 +78,10 @@ const config: Config = {
   organizationName: 'openbtps', // Usually your GitHub org/user name.
   projectName: 'btps-node', // Usually your repo name.
 
-  onBrokenLinks: 'warn',
-  onBrokenMarkdownLinks: 'warn',
+  // The docs are checked in CI (ci/docs): a broken link or anchor fails the build.
+  onBrokenLinks: 'throw',
+  onBrokenAnchors: 'throw',
+  onBrokenMarkdownLinks: 'throw',
 
   // Even if you don't use internalization, you can use this field to set useful
   // metadata like html lang. For example, if your site is Chinese, you may want

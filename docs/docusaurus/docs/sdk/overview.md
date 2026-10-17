@@ -42,13 +42,14 @@ If you're using CommonJS and still want to consume this SDK, use dynamic `import
 
 ```js
 // ESM import (recommended)
-import { BtpsServer, BtpsClient } from '@btps/sdk';
-import { signEncrypt, keygen } from '@btps/sdk/crypto';
+import { BtpsServer } from '@btps/sdk/server';
+import { BtpsClient } from '@btps/sdk/client';
+import { signEncrypt, getBTPKeyPair } from '@btps/sdk/crypto';
 import { JsonTrustStore } from '@btps/sdk/trust';
 import { BTPErrorException } from '@btps/sdk/error';
 
 // Import types (TypeScript)
-import type { BTPArtifact, BTPInvoiceDoc } from '@btps/sdk';
+import type { BTPArtifact, BTPInvoiceDoc } from '@btps/sdk/server';
 ```
 
 ---

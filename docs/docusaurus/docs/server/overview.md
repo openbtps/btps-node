@@ -44,7 +44,7 @@ graph TD
 ## Main Class: `BtpsServer`
 
 ```js
-import { BtpsServer } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
 
 const server = new BtpsServer({
   port: 3443,
