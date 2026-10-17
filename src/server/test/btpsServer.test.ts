@@ -13,7 +13,7 @@ import { BTPTrustRecord } from '../../core/trust/types.js';
 import { computeAgentTrustId, computeTrustId } from '../../core/trust/index.js';
 import { EventEmitter } from 'events';
 import tls, { TlsOptions, TLSSocket } from 'tls';
-import { BTP_PROTOCOL_VERSION } from '../../core/server/constants/index.js';
+import { BTP_PROTOCOL_VERSION, isSupportedVersion } from '../../core/server/constants/index.js';
 import JsonTrustStore from '../../core/trust/storage/JsonTrustStore.js';
 import { AbstractIdentityStore } from '../../core/storage/AbstractIdentityStore.js';
 import type { BTPIdentityRecord, IdentityPubKeyRecord } from '../../core/storage/types.js';
@@ -50,6 +50,7 @@ import {
   BTP_ERROR_SIG_VERIFICATION,
   BTP_ERROR_RATE_LIMITER,
   BTP_ERROR_PRIVACY_TYPE,
+  BTP_ERROR_VERSION_UNSUPPORTED,
 } from '../../core/error/index.js';
 import { PassThrough } from 'stream';
 import net from 'net';
@@ -3097,6 +3098,63 @@ export default function () {
     });
   });
 
+  describe('the protocol version', () => {
+    it('refuses a 1.0 artifact before any signature work, naming what it supports', async () => {
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+
+      try {
+        const answer = await new Promise<BTPServerResponse>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const end = received.indexOf('\n');
+            if (end !== -1) {
+              client.end();
+              resolve(JSON.parse(received.slice(0, end)));
+            }
+          });
+          client.on('error', reject);
+          client.write(
+            `{"version":"1.0.0","id":"old","issuedAt":"${new Date().toISOString()}","action":"PING"}\n`,
+          );
+        });
+
+        expect(answer.status).toMatchObject({
+          ok: false,
+          code: 400,
+          error: BTP_ERROR_VERSION_UNSUPPORTED.code,
+          message: `${BTP_ERROR_VERSION_UNSUPPORTED.message}: supports 1.1.0 to 1.1.0`,
+        });
+        expect(answer.reqId).toBe('old');
+        expect(answer.version).toBe('1.1.0');
+      } finally {
+        tcp.close();
+      }
+    });
+
+    it('speaks 1.1, and any 1.1 patch, but not 1.0, 1.2 or a malformed version', () => {
+      expect(isSupportedVersion('1.1.0')).toBe(true);
+      expect(isSupportedVersion('1.1.7')).toBe(true);
+      expect(isSupportedVersion('1.1')).toBe(true);
+      expect(isSupportedVersion('1.0.0')).toBe(false);
+      expect(isSupportedVersion('1.2.0')).toBe(false);
+      expect(isSupportedVersion('1.0.0.0')).toBe(false);
+      expect(isSupportedVersion('v1.1.0')).toBe(false);
+      expect(isSupportedVersion(undefined)).toBe(false);
+    });
+  });
+
   describe('the idle timeout', () => {
     it('never closes a connection while one of its requests is handled', async () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -3138,7 +3196,7 @@ export default function () {
           });
           client.on('error', reject);
           client.write(
-            `{"version":"1.0.0","id":"slow","issuedAt":"${new Date().toISOString()}","action":"PING"}\n`,
+            `{"version":"${BTP_PROTOCOL_VERSION}","id":"slow","issuedAt":"${new Date().toISOString()}","action":"PING"}\n`,
           );
         });
 
@@ -3196,12 +3254,12 @@ export default function () {
           client.on('error', reject);
           setTimeout(() => reject(new Error(`no second answer: ${received}`)), 1000);
           client.write(
-            `{"version":"1.0.0","id":"first","issuedAt":"${issuedAt}","action":"PING"}\n`,
+            `{"version":"${BTP_PROTOCOL_VERSION}","id":"first","issuedAt":"${issuedAt}","action":"PING"}\n`,
           );
           setTimeout(
             () =>
               client.write(
-                `{"version":"1.0.0","id":"second","issuedAt":"${issuedAt}","action":"PING"}\n`,
+                `{"version":"${BTP_PROTOCOL_VERSION}","id":"second","issuedAt":"${issuedAt}","action":"PING"}\n`,
               ),
             100,
           );

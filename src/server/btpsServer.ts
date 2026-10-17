@@ -40,6 +40,7 @@ import {
   BTP_ERROR_AGENT_ID,
   BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
   BTP_ERROR_PRIVACY_TYPE,
+  BTP_ERROR_VERSION_UNSUPPORTED,
 } from '@core/error/constant.js';
 import {
   assertStrictJson,
@@ -73,7 +74,13 @@ import type {
   BTPTransporterArtifact,
 } from '@core/server/types.js';
 import { BTPErrorException, transformToBTPErrorException } from '@core/error/index.js';
-import { BTP_PROTOCOL_VERSION, IMMEDIATE_ACTIONS } from '../core/server/constants/index.js';
+import {
+  BTP_PROTOCOL_VERSION,
+  IMMEDIATE_ACTIONS,
+  MAX_SUPPORTED_VERSION,
+  MIN_SUPPORTED_VERSION,
+  isSupportedVersion,
+} from '../core/server/constants/index.js';
 import type {
   BtpsServerOptions,
   BTPRequestCtx,
@@ -374,6 +381,18 @@ export class BtpsServer {
         if (parseError || !data) {
           const errorToSend = parseError ?? BTP_ERROR_INVALID_JSON;
           return this.sendBtpsError(socket, errorToSend);
+        }
+
+        // Before any signature work: an artifact of another protocol version is refused.
+        if (!isSupportedVersion(data.artifact.version)) {
+          return this.sendBtpsError(
+            socket,
+            {
+              ...BTP_ERROR_VERSION_UNSUPPORTED,
+              message: `${BTP_ERROR_VERSION_UNSUPPORTED.message}: supports ${MIN_SUPPORTED_VERSION} to ${MAX_SUPPORTED_VERSION}`,
+            },
+            parseRes.reqId,
+          );
         }
 
         if (data.type === 'control') {
