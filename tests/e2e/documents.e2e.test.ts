@@ -78,6 +78,21 @@ describe('journey: an invoice, then whether it was paid', () => {
     expect(payload?.document).toMatchObject({ id: 'INV-001', totalAmount: { amount: 150000 } });
   });
 
+  it('delivers an encrypted invoice to an address whose key only its host keeps', async () => {
+    const managed = await addUser(clientHost, 'managed', 'host');
+    await recordTrust(clientHost.trustStore, vendor.identity, managed.identity, 'accepted');
+
+    // signEncrypt finds the key from the client's host: DNS has none for it.
+    const toManaged = await artifactFrom(vendor, managed.identity, 'BTPS_DOC', invoiceDocument());
+    const { response } = await deliver(toManaged);
+
+    expect(response?.status).toMatchObject({ ok: true, code: 200 });
+    const arrived = clientHost.inbox.find((a) => a.id === toManaged.id)!;
+    const { payload, error } = await open<BTPTransporterArtifact>(managed, arrived);
+    expect(error).toBeUndefined();
+    expect(payload?.document).toMatchObject({ id: 'INV-001' });
+  });
+
   it('cannot be opened by anyone else', async () => {
     const outsider = await addUser(clientHost, 'outsider');
     const arrived = clientHost.inbox.find((a) => a.id === invoice.id)!;

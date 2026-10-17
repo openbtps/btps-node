@@ -294,6 +294,7 @@ export async function artifactFrom(
         ? {}
         : { encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' } }),
     },
+    { btpMtsOptions: senderTls },
   );
   if (error) throw error;
   return payload as unknown as BTPTransporterArtifact;
