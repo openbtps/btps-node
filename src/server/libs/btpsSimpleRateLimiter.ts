@@ -8,6 +8,12 @@
 import { RateLimiter } from './abstractRateLimiter.js';
 import { CounterRecord, IRateLimitOptions } from './type.js';
 
+/**
+ * An in-memory example of the RateLimiter contract, for development and tests.
+ * Not for production: its counters live in one process, so they are not shared
+ * between servers and cost that server memory under a flood. Production limits
+ * belong in a shared store such as Redis or Memcached, behind RateLimiter.
+ */
 export class BtpsSimpleRateLimiter implements RateLimiter {
   private readonly identityLimitPerSec: number;
   private readonly ipLimitPerSec: number;

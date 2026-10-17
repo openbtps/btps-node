@@ -78,21 +78,28 @@ console.log('🚀 BTPS Server with middleware running');
 
 ## Default Middleware Features
 
-A BTPS server does not limit or filter traffic by itself: how many artifacts an address or an identity may send is the provider's decision. The SDK gives you the pieces so you do not have to build them. `createDefaultMiddleware()` is a ready-made set you can include from your middleware file:
+A BTPS server does not limit or filter traffic by itself: how many artifacts an address or an identity may send is the provider's decision. The SDK shows where to tap in and gives you an example to start from. `createDefaultMiddleware()` is a ready-made set you can include from your middleware file:
 
 - **Rate limiting by network address**, before parsing: 50 artifacts per second per address
 - **Rate limiting by identity**, after signature verification: 30 per second per identity. It counts only once the signature proves the sender, so no one can use up another identity's allowance by naming it
 - **Metrics** for received and rejected artifacts
 
-An artifact over a limit is answered `BTP_ERROR_RATE_LIMITER` (429), which tells the sender to send again later. The limiter keeps at most 100,000 counters per kind, dropping the oldest, so a flood of distinct addresses cannot grow its memory.
+An artifact over a limit is answered `BTP_ERROR_RATE_LIMITER` (429), which tells the sender to send again later.
 
-For your own limits, use `BtpsSimpleRateLimiter` directly, or implement the `RateLimiter` contract (for example backed by Redis when you run several servers):
+:::warning Not for production
+
+The ready-made set counts with `BtpsSimpleRateLimiter`, which keeps its counters in the server's own memory. Use it for development and tests only. In production its counters are not shared between servers, and a server under a flood pays for them in memory, with at most 100,000 counters per kind before the oldest is dropped. Rate limiting done properly needs a shared store such as Redis or Memcached: implement the `RateLimiter` contract against your store, and call it from your middleware exactly as below.
+
+:::
+
+The steps to tap into are the same whatever store counts. This example uses the in-memory limiter for brevity; in production, replace it with your own `RateLimiter`:
 
 ```javascript
 // btps.middleware.mjs
 import { BtpsSimpleRateLimiter } from '@btps/sdk/server/core';
 import { BTP_ERROR_RATE_LIMITER } from '@btps/sdk/error';
 
+// Development only. In production: your RateLimiter backed by Redis or Memcached
 const limiter = new BtpsSimpleRateLimiter({ ipAddress: 20, fromIdentity: 5 });
 
 export default function createMiddleware() {
