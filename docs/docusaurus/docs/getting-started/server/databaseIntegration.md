@@ -125,9 +125,10 @@ class MongoIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
   }
 
   // Identity-specific methods
-  async getPublicKeyRecord(identity: string): Promise<BTPIdentityRecord | undefined> {
+  // The server passes computeId(identity): the record id, used as given
+  async getPublicKeyRecord(computedId: string): Promise<BTPIdentityRecord | undefined> {
     const db = this.client.db();
-    const record = await db.collection(this.collection).findOne({ identity });
+    const record = await db.collection(this.collection).findOne({ id: computedId });
     return record || undefined;
   }
 
@@ -453,9 +454,9 @@ class MultiTenantIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> 
     return this.getStoreForTenant(tenantId).delete(computedId);
   }
 
-  async getPublicKeyRecord(identity: string): Promise<BTPIdentityRecord | undefined> {
-    const tenantId = this.extractTenantIdFromIdentity(identity);
-    return this.getStoreForTenant(tenantId).getPublicKeyRecord(identity);
+  async getPublicKeyRecord(computedId: string): Promise<BTPIdentityRecord | undefined> {
+    const tenantId = this.extractTenantId(computedId);
+    return this.getStoreForTenant(tenantId).getPublicKeyRecord(computedId);
   }
 
   async storePublicKeyRecord(

@@ -391,8 +391,9 @@ When a SaaS-managed sender (without custom domain) needs to send documents:
 export abstract class AbstractIdentityStore<
   T extends BTPIdentityRecord,
 > extends AbstractStorageStore<T> {
+  // computedId: computeId(identity), computed by the server; use it as given
   abstract getPublicKeyRecord(
-    identity: string,
+    computedId: string,
     selector?: string,
   ): Promise<IdentityPubKeyRecord | undefined>;
 }
@@ -431,8 +432,8 @@ const identityStore = new JsonIdentityStore({
 
 ```typescript
 class DatabaseIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
-  async getPublicKeyRecord(identity: string, selector?: string) {
-    // Database implementation
+  async getPublicKeyRecord(computedId: string, selector?: string) {
+    // Look the record up by its id, computedId, as given
   }
 }
 ```

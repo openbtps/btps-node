@@ -21,7 +21,7 @@ import { BtpsClient } from './btpsClient.js';
 import { BtpsServer } from '../server/btpsServer.js';
 import { JsonIdentityStore } from '../core/storage/JsonIdentityStore.js';
 import JsonTrustStore from '../core/trust/storage/JsonTrustStore.js';
-import { pemToBase64 } from '../core/utils/index.js';
+import { computeId, pemToBase64 } from '../core/utils/index.js';
 
 vi.mock('dns/promises', () => ({ resolveTxt: vi.fn() }));
 
@@ -70,7 +70,7 @@ describe('identity lookup through the host', () => {
         ],
         createdAt: new Date().toISOString(),
       },
-      'bob$saas.test',
+      computeId('bob$saas.test'),
     );
     const server = new BtpsServer({
       serverIdentity: { identity: 'admin$saas.test', ...operatorKeys },

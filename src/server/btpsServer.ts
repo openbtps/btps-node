@@ -51,6 +51,7 @@ import {
 import {
   base64ToPem,
   isDelegationAllowed,
+  computeId,
   getHostAndSelector,
   isBtpsIdentityRequest,
   isBtpsTransportArtifact,
@@ -495,8 +496,10 @@ export class BtpsServer {
     const { res } = context;
     const { identity, hostSelector, identitySelector } = artifact;
 
-    // The store takes the identity itself and computes its own record id.
-    const identityRecord = await this.identityStore?.getPublicKeyRecord(identity, identitySelector);
+    const identityRecord = await this.identityStore?.getPublicKeyRecord(
+      computeId(identity),
+      identitySelector,
+    );
     if (!identityRecord)
       return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND, res.reqId);
 
