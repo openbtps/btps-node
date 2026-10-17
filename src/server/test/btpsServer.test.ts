@@ -3001,6 +3001,19 @@ export default function () {
     });
   });
 
+  describe('getServerIdentity, which middleware can reach', () => {
+    it('returns the identity and public key, never the private key', () => {
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'PUBLIC', privateKey: 'SECRET' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const identity = server.getServerIdentity();
+      expect(identity).toEqual({ identity: 'host$example.com', publicKey: 'PUBLIC' });
+      expect(JSON.stringify(identity)).not.toContain('SECRET');
+    });
+  });
+
   describe('control artifacts', () => {
     const control = async (action: 'PING' | 'QUIT') => {
       const server = new BtpsServer({

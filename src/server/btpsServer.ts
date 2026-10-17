@@ -1496,8 +1496,16 @@ export class BtpsServer {
     }
   }
 
-  public getServerIdentity(): BtpsServerOptions['serverIdentity'] {
-    return this.serverIdentity;
+  /**
+   * The server's identity and, when it is configured with a PEM key pair, its
+   * public key. Never the private key: middleware is handed this server, and the
+   * key stays with the server alone.
+   */
+  public getServerIdentity(): { identity: string; publicKey?: string } {
+    const { identity } = this.serverIdentity;
+    return 'signer' in this.serverIdentity
+      ? { identity }
+      : { identity, publicKey: this.serverIdentity.publicKey };
   }
 
   public getDependencies(): {
