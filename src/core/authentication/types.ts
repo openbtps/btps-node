@@ -106,6 +106,12 @@ export interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
   get(agentId: string, token: string): Promise<T | undefined>;
   /** Remove a refresh token */
   remove(agentId: string, token: string): Promise<void>;
+  /**
+   * Take a token once: return it and remove it in one step, or undefined when
+   * there is none or it has expired. Of two calls racing for the same token,
+   * exactly one gets it, so one registration code or refresh token is used once.
+   */
+  consume(agentId: string, token: string): Promise<T | undefined>;
   /** Clean up expired tokens */
   cleanup(): Promise<void>;
 }

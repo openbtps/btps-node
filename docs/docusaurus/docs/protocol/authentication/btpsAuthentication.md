@@ -653,10 +653,15 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
   /** Remove a token */
   remove(agentId: string, token: string): Promise<void>;
 
+  /** Take a token once: return it and remove it in one atomic step */
+  consume(agentId: string, token: string): Promise<T | undefined>;
+
   /** Clean up expired tokens */
   cleanup(): Promise<void>;
 }
 ```
+
+`consume` is how a registration code and a refresh token are used: read and removed in **one atomic step**, so of two devices racing with the same code, only one is registered, and of two refreshes racing with one token, only one succeeds. A two-step read-then-delete is not enough. With Redis use `GETDEL`; with SQL, `DELETE … RETURNING`.
 
 ### **AuthSessionStore**
 

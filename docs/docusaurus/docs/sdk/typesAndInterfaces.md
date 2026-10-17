@@ -931,6 +931,7 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
   ): Promise<void>;
   get(agentId: string, token: string): Promise<T | undefined>;
   remove(agentId: string, token: string): Promise<void>;
+  consume(agentId: string, token: string): Promise<T | undefined>; // read and remove in one atomic step
   cleanup(): Promise<void>;
 }
 ```

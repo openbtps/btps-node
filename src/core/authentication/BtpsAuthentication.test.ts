@@ -244,6 +244,18 @@ describe('BtpsAuthentication', () => {
         const storedToken = await tokenStore.get(agentId, token);
         expect(storedToken).toBeUndefined();
       });
+
+      it('registers only one of two devices racing with the same code', async () => {
+        const userIdentity = 'alice$saas.com';
+        await auth.storeAuthToken('ONE_CODE', userIdentity, 'admin$saas.com');
+
+        const results = await Promise.all([
+          auth.validateAuthToken(userIdentity, 'ONE_CODE'),
+          auth.validateAuthToken(userIdentity, 'ONE_CODE'),
+        ]);
+
+        expect(results.filter((r) => r.isValid)).toHaveLength(1);
+      });
     });
 
     describe('createAgent', () => {
@@ -487,6 +499,47 @@ describe('BtpsAuthentication', () => {
 
       expect(result.data).toBeUndefined();
       expect(result.error).toBeDefined();
+    });
+
+    const registeredAgent = async () => {
+      const userIdentity = 'alice$saas.com';
+      const decryptBy = 'admin$saas.com';
+      const { agentId } = await auth.createAgent(
+        { userIdentity, publicKey: mockKeyPair.publicKey, decidedBy: 'admin' },
+        decryptBy,
+      );
+      await tokenStore.store('ONE_REFRESH', agentId, userIdentity, 3600000, decryptBy);
+      return { agentId, decryptBy };
+    };
+
+    it('reissues only once when two refreshes race with the same token', async () => {
+      const { agentId, decryptBy } = await registeredAgent();
+      const options = { publicKey: mockKeyPair.publicKey, decryptBy, decidedBy: 'admin' };
+
+      const results = await Promise.all([
+        auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', options),
+        auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', options),
+      ]);
+
+      expect(results.filter((r) => r.data)).toHaveLength(1);
+    });
+
+    it('puts the token back when the trust update fails, so the device can try again', async () => {
+      const { agentId, decryptBy } = await registeredAgent();
+      const update = vi.spyOn(trustStore, 'update').mockRejectedValueOnce(new Error('store down'));
+
+      const failed = await auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', {
+        decryptBy,
+        decidedBy: 'admin',
+      });
+      const retried = await auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', {
+        decryptBy,
+        decidedBy: 'admin',
+      });
+
+      expect(failed.error).toBeDefined();
+      expect(retried.data).toBeDefined();
+      expect(update).toHaveBeenCalledTimes(2);
     });
   });
 
