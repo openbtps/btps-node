@@ -91,19 +91,19 @@ The status field provides information about the response:
 
 The code tells a sender whether to send the same artifact again:
 
-| Code    | Meaning                                                                                             | Send again?                   |
-| ------- | --------------------------------------------------------------------------------------------------- | ----------------------------- |
-| **200** | Success                                                                                             | –                             |
-| **400** | Bad Request: invalid JSON, validation, canonical JSON, time window, unrelated event, invalid action | No, not as it is              |
-| **401** | Unauthorized: signature, delegation, attestation, key proof or authentication failed                | No, not as it is              |
-| **403** | Forbidden: trust not allowed or expired, an identity used as an agent id                            | No, until trust changes       |
-| **404** | Not Found: identity lookup found no identity                                                        | No                            |
-| **408** | The connection timed out                                                                            | Yes                           |
-| **409** | Conflict: trust is already active                                                                   | No                            |
-| **413** | Artifact over the server's size limit                                                               | No; split it across documents |
-| **429** | Too Many Requests: rate limit exceeded                                                              | Yes, later                    |
-| **500** | Internal Server Error, including a receiving handler that failed                                    | Yes, later                    |
-| **503** | Service Unavailable: the server accepts no artifact of this kind                                    | Yes, later                    |
+| Code    | Meaning                                                                                                                 | Send again?                   |
+| ------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| **200** | Success                                                                                                                 | –                             |
+| **400** | Bad Request: invalid JSON, validation, canonical JSON, time window, invalid action, not encrypted as the trust requires | No, not as it is              |
+| **401** | Unauthorized: signature, delegation, attestation, key proof or authentication failed                                    | No, not as it is              |
+| **403** | Forbidden: trust not allowed or expired, an unrelated event, an identity used as an agent id                            | No, until trust changes       |
+| **404** | Not Found: identity lookup found no identity                                                                            | No                            |
+| **408** | The connection timed out                                                                                                | Yes                           |
+| **409** | Conflict: trust is already active                                                                                       | No                            |
+| **413** | Artifact over the server's size limit                                                                                   | No; split it across documents |
+| **429** | Too Many Requests: rate limit exceeded                                                                                  | Yes, later                    |
+| **500** | Internal Server Error, including a receiving handler that failed                                                        | Yes, later                    |
+| **503** | Service Unavailable: the server accepts no artifact of this kind                                                        | Yes, later                    |
 
 ### What an Error Tells the Sender
 

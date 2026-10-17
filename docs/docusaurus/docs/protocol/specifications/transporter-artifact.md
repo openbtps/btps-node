@@ -150,7 +150,7 @@ Used to accept, reject, or block trust requests.
 - **expiresAt**: Trust expiration date (ISO format)
 - **retryAfterDate**: Date after which retry is allowed (ISO format)
 - **message**: Custom message to sender
-- **privacyType**: Agreed privacy level (unencrypted, encrypted, mixed)
+- **privacyType**: Agreed privacy level (unencrypted, encrypted, mixed). The receiver enforces it on every artifact sent over the trust: `encrypted` refuses one sent in the clear, `unencrypted` refuses an encrypted one, and `mixed` allows either. A refused artifact is answered `BTP_ERROR_PRIVACY_TYPE` (400).
 
 ### 3. BTPS Document (`BTPS_DOC`)
 

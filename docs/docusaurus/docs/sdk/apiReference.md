@@ -1502,6 +1502,23 @@ Error constant for an artifact the receiving server has nothing to take: no hand
 
 ---
 
+### BTP_ERROR_PRIVACY_TYPE
+
+```ts
+const BTP_ERROR_PRIVACY_TYPE: BTPError;
+```
+
+**Description:**
+Error constant for an artifact that does not use the encryption its trust agreed on (`privacyType` on the trust record). An `encrypted` trust refuses an artifact sent in the clear, an `unencrypted` trust refuses an encrypted one, and `mixed` allows either. The required type is appended to the message. Only a sender with an active trust gets this answer.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_PRIVACY_TYPE'`
+- `message`: `'Artifact does not use the encryption its trust requires'`, sent as for example `'Artifact does not use the encryption its trust requires: encrypted'`
+- `status`: `400`
+
+---
+
 ### BTP_ERROR_AUTHENTICATION_INVALID
 
 ```ts

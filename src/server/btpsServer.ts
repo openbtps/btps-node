@@ -39,6 +39,7 @@ import {
   BTP_ERROR_KEY_ROTATION_PROOF,
   BTP_ERROR_AGENT_ID,
   BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
+  BTP_ERROR_PRIVACY_TYPE,
 } from '@core/error/constant.js';
 import {
   assertStrictJson,
@@ -621,11 +622,15 @@ export class BtpsServer {
       // precise server-side reason (never-trusted, expired, revoked); the
       // wire only distinguishes expired from everything else, so an
       // un-upgraded 1.0 peer still just sees "not allowed" for a revoked or
-      // never-trusted sender.
+      // never-trusted sender. A sender with an active trust is also told when
+      // it did not encrypt as that trust requires.
+      const refusal = reqCtx.error;
       const wireError =
-        reqCtx.error?.code === BTP_ERROR_TRUST_EXPIRED.code
+        refusal?.code === BTP_ERROR_TRUST_EXPIRED.code
           ? BTP_ERROR_TRUST_EXPIRED
-          : BTP_ERROR_TRUST_NOT_ALLOWED;
+          : refusal && refusal.code === BTP_ERROR_PRIVACY_TYPE.code
+            ? refusal
+            : BTP_ERROR_TRUST_NOT_ALLOWED;
       return this.sendBtpsError(resCtx.socket, wireError, resCtx.reqId);
     }
 
@@ -1117,19 +1122,41 @@ export class BtpsServer {
     // to them. This applies to events only; anything else needs its own trust.
     if (artifact.type === 'BTPS_EVENT' && !isTrustActive(trustRecord)) {
       const ownTrust = await this.trustStore.getById(computeTrustId(artifact.to, artifact.from));
-      if (isTrustActive(ownTrust)) return { isTrusted: true, error: undefined };
+      if (isTrustActive(ownTrust)) return this.verifyPrivacyType(artifact, ownTrust);
     }
 
     if (artifact.type === 'TRUST_REQ') {
       const { isValid, error } = validateTrustRequest(trustRecord);
       return { isTrusted: isValid, error };
     } else {
-      const isTrusted = isTrustActive(trustRecord);
-      return {
-        isTrusted,
-        error: isTrusted ? undefined : this.getTrustRefusalError(trustRecord),
-      };
+      if (!isTrustActive(trustRecord)) {
+        return { isTrusted: false, error: this.getTrustRefusalError(trustRecord) };
+      }
+      return this.verifyPrivacyType(artifact, trustRecord);
     }
+  }
+
+  /**
+   * A trust records how its artifacts are sent: 'encrypted' refuses one sent in
+   * the clear, 'unencrypted' one the receiver did not agree to decrypt, and
+   * 'mixed' allows either. A record without one allows either.
+   */
+  private verifyPrivacyType(
+    artifact: BTPTransporterArtifact,
+    trustRecord?: BTPTrustRecord,
+  ): { isTrusted: boolean; error?: BTPErrorException } {
+    const required = trustRecord?.privacyType;
+    const sent = artifact.encryption ? 'encrypted' : 'unencrypted';
+    if (!required || required === 'mixed' || required === sent) {
+      return { isTrusted: true, error: undefined };
+    }
+    return {
+      isTrusted: false,
+      error: new BTPErrorException(
+        { ...BTP_ERROR_PRIVACY_TYPE, message: `${BTP_ERROR_PRIVACY_TYPE.message}: ${required}` },
+        { meta: { required, sent } },
+      ),
+    };
   }
 
   /**

@@ -128,7 +128,7 @@ export const BTP_ERROR_SIG_MISMATCH: BTPError = {
 
 export const BTP_ERROR_SIG_VERIFICATION: BTPError = {
   code: 'BTP_ERROR_SIG_VERIFICATION',
-  message: ' Signature verification failed',
+  message: 'Signature verification failed',
   status: 401,
 };
 
@@ -195,6 +195,12 @@ export const BTP_ERROR_ARTIFACT_TOO_LARGE: BTPError = {
   code: 'BTP_ERROR_ARTIFACT_TOO_LARGE',
   message: 'Artifact exceeds the size limit of this server',
   status: 413,
+};
+
+export const BTP_ERROR_PRIVACY_TYPE: BTPError = {
+  code: 'BTP_ERROR_PRIVACY_TYPE',
+  message: 'Artifact does not use the encryption its trust requires',
+  status: 400,
 };
 
 export const BTP_ERROR_ARTIFACT_NOT_ACCEPTED: BTPError = {

@@ -49,6 +49,7 @@ import {
   BTP_ERROR_UNKNOWN,
   BTP_ERROR_SIG_VERIFICATION,
   BTP_ERROR_RATE_LIMITER,
+  BTP_ERROR_PRIVACY_TYPE,
 } from '../../core/error/index.js';
 import { PassThrough } from 'stream';
 import net from 'net';
@@ -2268,7 +2269,7 @@ export default function () {
         publicKeyBase64: 'key',
         publicKeyFingerprint: 'fp',
         keyHistory: [],
-        privacyType: 'encrypted',
+        privacyType: 'unencrypted',
       });
       const storeHolding = (...records: BTPTrustRecord[]) => {
         const byId = new Map(records.map((r) => [r.id, r]));
@@ -2586,6 +2587,50 @@ export default function () {
           );
           const crypto = await import('../../core/crypto/index.js');
           vi.spyOn(crypto, 'verifySignature').mockReturnValue({ isValid: true });
+        });
+
+        it('refuses an artifact sent in the clear over an encrypted trust', async () => {
+          trustStore.getById = vi.fn().mockResolvedValue(trustRecord({ privacyType: 'encrypted' }));
+          const socket = buildMockSocket();
+          const { reqCtx, resCtx } = buildPipelineCtx(socket, transporterArtifact());
+
+          await server['executeRequestPipeline'](reqCtx, resCtx);
+
+          const written = writtenPayload(socket);
+          expect(written.status).toMatchObject({
+            ok: false,
+            code: 400,
+            message: `${BTP_ERROR_PRIVACY_TYPE.message}: encrypted`,
+            error: BTP_ERROR_PRIVACY_TYPE.code,
+          });
+        });
+
+        it('refuses an encrypted artifact over an unencrypted trust, and takes either over mixed', async () => {
+          const encrypted = {
+            ...transporterArtifact(),
+            encryption: {
+              algorithm: 'aes-256-gcm',
+              encryptedKey: 'k',
+              iv: 'i',
+              type: 'standardEncrypt',
+              authTag: 't',
+            },
+          } as BTPTransporterArtifact;
+          const check = (
+            privacyType: BTPTrustRecord['privacyType'],
+            artifact: BTPTransporterArtifact,
+          ) => {
+            trustStore.getById = vi.fn().mockResolvedValue(trustRecord({ privacyType }));
+            return server['verifyTrust']({ artifact, type: 'transporter' });
+          };
+
+          expect((await check('unencrypted', encrypted)).error?.code).toBe(
+            BTP_ERROR_PRIVACY_TYPE.code,
+          );
+          expect((await check('unencrypted', transporterArtifact())).isTrusted).toBe(true);
+          expect((await check('mixed', encrypted)).isTrusted).toBe(true);
+          expect((await check('mixed', transporterArtifact())).isTrusted).toBe(true);
+          expect((await check('encrypted', encrypted)).isTrusted).toBe(true);
         });
 
         it('sends a not-allowed refusal on the wire for a never-trusted sender', async () => {
