@@ -318,6 +318,33 @@ describe('BtpsDelegator', () => {
     });
   });
 
+  describe('Starting on its own (autoInit)', () => {
+    it('waits for its start before delegating, so an early call does not fail', async () => {
+      mockResolvePublicKey.mockResolvedValue(saasKeys.publicKey);
+      const delegator = new BtpsDelegator({
+        identity: 'saas$platform.com',
+        privateKey: saasKeys.privateKey,
+      });
+      delegator['isKeyPairMatching'] = vi.fn().mockReturnValue(true);
+
+      const result = await delegator.delegateArtifact(agentId, agentPubKey, artifact);
+
+      expect(result.delegation.signedBy).toBe('saas$platform.com');
+    });
+
+    it('reports a failed start from delegateArtifact, not as an unhandled rejection', async () => {
+      mockGetHostAndSelector.mockResolvedValue(undefined);
+      const delegator = new BtpsDelegator({
+        identity: 'saas$platform.com',
+        privateKey: saasKeys.privateKey,
+      });
+
+      await expect(
+        delegator.delegateArtifact(agentId, agentPubKey, artifact),
+      ).rejects.toMatchObject({ cause: 'Delegator identity verification failed' });
+    });
+  });
+
   describe('Edge cases', () => {
     it('should throw if delegateArtifact is called before init', async () => {
       const delegator = new BtpsDelegator({
