@@ -3001,6 +3001,48 @@ export default function () {
     });
   });
 
+  describe('control artifacts', () => {
+    const control = async (action: 'PING' | 'QUIT') => {
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const socket = {
+        destroyed: false,
+        writableEnded: false,
+        writable: true,
+        write: vi.fn(),
+        end: vi.fn(),
+        destroy: vi.fn(),
+      } as unknown as TLSSocket;
+      await server['handleControl'](
+        { version: '1.0.0', id: `probe-${action}`, issuedAt: new Date().toISOString(), action },
+        {
+          req: { socket } as unknown as BTPRequestCtx,
+          res: { socket, reqId: `probe-${action}` } as unknown as BTPResponseCtx,
+        },
+      );
+      const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
+      return { written, socket };
+    };
+
+    it('answers PING as operational and keeps the connection open', async () => {
+      const { written, socket } = await control('PING');
+      expect(written.type).toBe('btps_response');
+      expect(written.status).toEqual({ ok: true, code: 200, message: 'Server is operational' });
+      expect(written.reqId).toBe('probe-PING');
+      expect(socket.end).not.toHaveBeenCalled();
+      expect(socket.destroy).not.toHaveBeenCalled();
+    });
+
+    it('answers QUIT and ends the connection', async () => {
+      const { written, socket } = await control('QUIT');
+      expect(written.status).toEqual({ ok: true, code: 200, message: 'bye' });
+      expect(socket.end).toHaveBeenCalled();
+    });
+  });
+
   describe('identity lookup', () => {
     it("writes the signed answer to the socket, where the server's response check passes it", async () => {
       const keys = generateKeyPairSync('rsa', {

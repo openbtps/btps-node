@@ -456,6 +456,15 @@ export class BtpsServer {
           },
           'end',
         );
+      // A health check: answered, and the connection stays open so it can be repeated
+      case 'PING':
+        return this.sendBtpsResponse(res.socket, {
+          ...this.prepareBtpsResponse(
+            { ok: true, message: 'Server is operational', code: 200 },
+            res.reqId,
+          ),
+          type: 'btps_response',
+        });
       default:
         return this.sendBtpsError(res.socket, BTP_ERROR_INVALID_ACTION, res.reqId, 'end');
     }
