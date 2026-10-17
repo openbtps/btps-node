@@ -21,6 +21,7 @@ import * as utils from '../core/utils/index.js';
 import { BTP_PROTOCOL_VERSION } from '../core/server/constants/index.js';
 import type { BTPClientOptions } from './types/index.js';
 import type { BTPTrustReqDoc } from '../core/trust/types.js';
+import type { BTPArtifact } from '../core/server/types.js';
 
 // --- Mocks ---
 vi.mock('tls');
@@ -992,6 +993,50 @@ describe('BtpsClient', () => {
 
       const result = await client.send(artifact);
       expect(result.error).toBeUndefined();
+    });
+  });
+
+  describe('an error the server could not tie to a request', () => {
+    const idlessError = JSON.stringify({
+      version: BTP_PROTOCOL_VERSION,
+      status: { ok: false, code: 400, message: 'Invalid JSON' },
+      id: 'srv-1',
+      issuedAt: new Date().toISOString(),
+      type: 'btps_error',
+    });
+    const pending = (id: string) => {
+      const resolve = vi.fn();
+      client['queue'].set(id, {
+        artifact: { id } as BTPArtifact,
+        resolve,
+        timeout: setTimeout(() => {}, 0),
+      });
+      return resolve;
+    };
+
+    it('goes to the one send that is waiting', async () => {
+      const resolve = pending('only');
+
+      await client['onData'](idlessError);
+
+      expect(resolve).toHaveBeenCalledWith({
+        response: JSON.parse(idlessError),
+        error: undefined,
+      });
+      expect(client['queue'].size).toBe(0);
+    });
+
+    it('goes to no send when several are waiting', async () => {
+      const first = pending('a');
+      const second = pending('b');
+      const heard = vi.fn();
+      client['emitter'].on('message', heard);
+
+      await client['onData'](idlessError);
+
+      expect(first).not.toHaveBeenCalled();
+      expect(second).not.toHaveBeenCalled();
+      expect(heard).toHaveBeenCalled();
     });
   });
 

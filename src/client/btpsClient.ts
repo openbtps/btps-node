@@ -215,10 +215,17 @@ export class BtpsClient {
       const msg: BTPServerResponse = JSON.parse(line);
       this.states.shouldRetry = false;
       const { isValid: validSignature, error } = await this.verifyServerMessage(msg);
-      if (msg?.reqId && this.queue.has(msg.reqId)) {
-        const pendingMsg = { ...this.queue.get(msg.reqId)! };
+      // An error the server could not tie to a request, such as a line it
+      // could not parse, has no reqId: while one send is waiting, it is that one's.
+      const reqId =
+        msg?.reqId ??
+        (msg?.type === 'btps_error' && this.queue.size === 1
+          ? this.queue.keys().next().value
+          : undefined);
+      if (reqId && this.queue.has(reqId)) {
+        const pendingMsg = { ...this.queue.get(reqId)! };
         const { resolve, timeout } = pendingMsg;
-        this.queue.delete(msg.reqId);
+        this.queue.delete(reqId);
         clearTimeout(timeout);
         resolve({
           response: validSignature ? msg : undefined,
