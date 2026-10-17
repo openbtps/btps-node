@@ -610,7 +610,11 @@ export class BtpsServer {
     if (afterSigVerResponseSent) return; // Response already sent, stop processing
 
     if (!isValid) {
-      return this.sendBtpsError(resCtx.socket, BTP_ERROR_SIG_VERIFICATION, resCtx.reqId);
+      // A crypto failure is told exactly: its rules are public, and knowing
+      // which check failed forges nothing. Anything else reads as a failed
+      // signature. A device's own failures are already one answer.
+      const wireError = verificationError?.status ? verificationError : BTP_ERROR_SIG_VERIFICATION;
+      return this.sendBtpsError(resCtx.socket, wireError, resCtx.reqId);
     }
 
     // A signed artifact counts only near the time it was signed: a copy sent
