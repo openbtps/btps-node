@@ -32,6 +32,13 @@ vi.mock('../utils/index.js', () => ({
   resolvePublicKey: vi.fn(),
 }));
 
+// The receiver's host, asked only when DNS has no key: it answers with `hostKey`.
+let hostKey: string | undefined;
+const resolveIdentity = vi.fn(async () => ({ response: hostKey && { publicKey: hostKey } }));
+vi.mock('../../client/btpsClient.js', () => ({
+  BtpsClient: vi.fn(() => ({ resolveIdentity, destroy: vi.fn() })),
+}));
+
 const mockCrypto = vi.mocked(cryptoIndex);
 const mockUtils = vi.mocked(utils);
 
@@ -145,6 +152,34 @@ describe('signEncrypt', () => {
     expect(result.payload).toBeUndefined();
     expect(result.error).toBeInstanceOf(BTPErrorException);
     expect(result.error?.message).toBe(BTP_ERROR_IDENTITY.message);
+  });
+
+  it("encrypts to the key the receiver's host answers with when DNS has none", async () => {
+    mockUtils.resolvePublicKey.mockResolvedValue(undefined);
+    hostKey = 'host-held-key';
+    mockCrypto.encryptBtpPayload.mockReturnValue({
+      data: 'encrypted',
+      encryption: {
+        algorithm: 'aes-256-gcm',
+        encryptedKey: 'k',
+        iv: 'i',
+        type: 'standardEncrypt',
+        authTag: 't',
+      },
+    });
+
+    await signEncrypt('receiver$example.com', sender, payload, {
+      signature: { algorithmHash: 'sha256' },
+      encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+    });
+
+    expect(resolveIdentity).toHaveBeenCalledWith('receiver$example.com', 'sender$example.com');
+    expect(mockCrypto.encryptBtpPayload).toHaveBeenCalledWith(
+      payload.document,
+      'host-held-key',
+      expect.anything(),
+    );
+    hostKey = undefined;
   });
 
   it('should return an error if receiver public key cannot be resolved', async () => {
