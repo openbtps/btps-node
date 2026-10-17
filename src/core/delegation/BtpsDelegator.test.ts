@@ -181,6 +181,23 @@ describe('BtpsDelegator', () => {
       }
     });
 
+    it("names the user's selector on the delegation and the attestor's own on the attestation", async () => {
+      // The SaaS publishes its key at btps1; the custom domain publishes the user's at user2
+      mockGetHostAndSelector.mockResolvedValue({
+        version: '1.0.0',
+        host: 'btps://btps.customdomain.com:3443',
+        selector: 'user2',
+      });
+
+      const result = await delegator.delegateArtifact(agentId, agentPubKey, artifact, {
+        identity: 'user456$customdomain.com',
+        keyPair: userKeys,
+      });
+
+      expect(result.delegation.selector).toBe('user2');
+      expect(result.delegation.attestation?.selector).toBe('btps1');
+    });
+
     it('should throw if not initialized', async () => {
       delegator['isInitialized'] = false;
       await expect(delegator.delegateArtifact(agentId, agentPubKey, artifact)).rejects.toThrow(

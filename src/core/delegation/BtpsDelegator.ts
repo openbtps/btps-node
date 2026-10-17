@@ -150,11 +150,13 @@ export class BtpsDelegator {
 
     if (onBehalfOf) {
       // User key signs delegation, SaaS attests
+      // Signed with the attestor's own key, so it names the attestor's own selector:
+      // the receiver finds the attestor's key under it
       const attestation = await this.createAttestation({
         delegation,
         attestorIdentity: this.identity,
         attestorKey: this.ownKey(this.publicKey),
-        selector,
+        selector: this.selector,
       });
       delegation.attestation = attestation;
     }
