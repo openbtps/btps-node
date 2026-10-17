@@ -317,25 +317,19 @@ class QueueMonitoredTransporter {
   async transportBatchWithMonitoring(recipient: string, artifacts: BTPTransporterArtifact[]) {
     this.queueMetrics.totalBatches++;
 
-    try {
-      const results = await this.transporter.transportBatch(recipient, artifacts);
+    const results = await this.transporter.transportBatch(recipient, artifacts);
 
-      const overflowed = results.filter((r) => r.error?.message.includes('request queue full'));
-      this.queueMetrics.queueOverflowErrors += overflowed.length;
+    const overflowed = results.filter((r) => r.error?.message.includes('request queue full'));
+    this.queueMetrics.queueOverflowErrors += overflowed.length;
 
-      if (results.some((result) => result.error)) {
-        this.queueMetrics.failedBatches++;
-        console.error(`Batch transport failed for ${recipient}`);
-      } else {
-        this.queueMetrics.successfulBatches++;
-      }
-
-      return results;
-    } catch (error) {
-      // No connection could be opened, e.g. maxConnections reached
+    if (results.some((result) => result.error)) {
       this.queueMetrics.failedBatches++;
-      throw error;
+      console.error(`Batch transport failed for ${recipient}`);
+    } else {
+      this.queueMetrics.successfulBatches++;
     }
+
+    return results;
   }
 
   getQueueMetrics() {
@@ -566,13 +560,7 @@ class MonitoredTransporter {
     const startTime = Date.now();
     this.metrics.totalTransports++;
 
-    let result: BTPClientResponse;
-    try {
-      result = await this.transporter.transport(to, artifact);
-    } catch (error) {
-      this.recordFailure('NO_CONNECTION');
-      throw error;
-    }
+    const result = await this.transporter.transport(to, artifact);
 
     this.updateAverageResponseTime(Date.now() - startTime);
 

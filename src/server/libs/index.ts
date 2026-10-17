@@ -6,6 +6,12 @@
  */
 
 export * from './abstractRateLimiter.js';
+export { DEFAULT_MAX_ARTIFACT_SIZE_KB, MIN_MAX_ARTIFACT_SIZE_KB } from './artifactSizeGuard.js';
+export {
+  DEFAULT_MAX_ARTIFACT_AGE_SECONDS,
+  MIN_MAX_ARTIFACT_AGE_SECONDS,
+} from './artifactTimeWindow.js';
+export { DEFAULT_CONNECTION_TIMEOUT_MS } from './connectionTimeout.js';
 export * from './btpsFactory.js';
 export * from './btpsLightweightFactory.js';
 export * from './btpsRegistry.js';

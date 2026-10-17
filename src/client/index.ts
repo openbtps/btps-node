@@ -9,3 +9,10 @@ export * from './types/index.js';
 export { BtpsAgent } from './btpsAgent.js';
 export { BtpsClient } from './btpsClient.js';
 export { BtpsTransporter } from './btpsTransporter.js';
+export * from './constants.ts/index.js';
+export {
+  MIN_CONNECT_TIMEOUT_MS,
+  DEFAULT_CONNECT_TIMEOUT_MS,
+  MIN_REPLY_TIMEOUT_MS,
+  DEFAULT_REPLY_TIMEOUT_MS,
+} from './libs/timeouts.js';
