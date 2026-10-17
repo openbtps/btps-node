@@ -713,9 +713,9 @@ describe('BtpsAgent', () => {
       );
 
       expect(result.error).toBeInstanceOf(BTPErrorException);
-      expect(result.error?.message).toContain(
-        'Could not resolve host and selector for: bob$company.com',
-      );
+      // The sender's own selector cannot be resolved, so nothing is sent.
+      expect(result.error?.code).toBe(BTP_ERROR_RESOLVE_DNS.code);
+      expect(agent.send).not.toHaveBeenCalled();
     });
   });
 

@@ -319,16 +319,17 @@ Used to delete multiple documents.
 
 ### 9. Transporter Artifact Document (`artifact.send`)
 
-Used to send transporter artifacts to other organizations.
+Used to send transporter artifacts to other organizations. The device builds and signs the transporter artifact itself, and the agent artifact carries it as its document. Its `type` follows the action: `BTPS_DOC` for `artifact.send`, `BTPS_EVENT` for `event.send`, `TRUST_REQ` for `trust.request` and `TRUST_RES` for `trust.respond`. Its `selector` is the sender's own, from the sender domain's `_btps.host` record. The server checks the carried artifact against the transporter artifact rules, including its document against its type.
 
 ```json
 {
   "version": "1.0",
   "id": "btps_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
-  "type": "TRUST_REQ",
+  "type": "BTPS_DOC",
   "from": "billing$vendorcorp.com",
   "to": "pay$client.com",
+  "selector": "btps1",
   "document": {
     // Document content
   },

@@ -3097,6 +3097,59 @@ export default function () {
     });
   });
 
+  describe('the idle timeout', () => {
+    it('never closes a connection while one of its requests is handled', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // An idle timeout far below how long the request takes: no minimum applies.
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        connectionTimeoutMs: 100,
+      });
+      expect(warn).not.toHaveBeenCalled();
+      btps['middlewareManager']['middleware'] = [
+        {
+          phase: 'before',
+          step: 'parsing',
+          handler: async () => {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          },
+        },
+      ];
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+
+      try {
+        const answer = await new Promise<BTPServerResponse>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const end = received.indexOf('\n');
+            if (end !== -1) {
+              client.end();
+              resolve(JSON.parse(received.slice(0, end)));
+            }
+          });
+          client.on('error', reject);
+          client.write(
+            `{"version":"1.0.0","id":"slow","issuedAt":"${new Date().toISOString()}","action":"PING"}\n`,
+          );
+        });
+
+        expect(answer.status.message).toBe('Server is operational');
+        expect(answer.reqId).toBe('slow');
+      } finally {
+        tcp.close();
+      }
+    });
+  });
+
   describe('several artifacts on one connection', () => {
     it('answers the next artifact after a middleware answered the one before', async () => {
       const btps = new BtpsServer({

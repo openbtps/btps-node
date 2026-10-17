@@ -198,7 +198,8 @@ const client = new BtpsClient({
   to: 'admin$yourdomain.com', // Target server identity
   maxRetries: 3,
   retryDelayMs: 1000,
-  connectionTimeoutMs: 5000,
+  connectTimeoutMs: 5000, // wait to connect: at least 5000 ms
+  replyTimeoutMs: 20000, // wait for the answer: at least 10000 ms
   host: 'localhost', // For development - overrides DNS lookup
   port: 3443,
   btpMtsOptions: {
@@ -216,7 +217,7 @@ async function testConnection() {
       action: 'QUIT' as const,
     };
 
-    const result = await client.send(controlArtifact, 5000);
+    const result = await client.send(controlArtifact);
 
     if (result.error) {
       console.error('❌ Connection failed:', result.error.message);

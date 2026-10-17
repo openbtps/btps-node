@@ -30,6 +30,11 @@ export interface BTPClientOptions {
   to: string;
   maxRetries?: number;
   retryDelayMs?: number;
+  /** How long to wait to connect, in ms: at least 5000, 5000 by default */
+  connectTimeoutMs?: number;
+  /** How long `send()` waits for the answer, in ms: at least 10000, 20000 by default */
+  replyTimeoutMs?: number;
+  /** Closes the connection after this long with no artifact waiting for an answer, in ms; reconnects on the next send. Off when not set */
   connectionTimeoutMs?: number;
   btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
   host?: string;
@@ -102,6 +107,8 @@ export type BtpsClientErrorInfo = BTPSRetryInfo & { error: BTPErrorException };
 export interface UpdateBTPClientOptions {
   maxRetries?: number;
   retryDelayMs?: number;
+  connectTimeoutMs?: number;
+  replyTimeoutMs?: number;
   connectionTimeoutMs?: number;
   maxQueue?: number;
 }

@@ -41,7 +41,7 @@ interface BtpsServerOptions {
 - `port`: Optional port number (default: 3443)
 - `onError`: Optional error handler function
 - `tlsOptions`: Required TLS cert and key options. Use self signed cert for local development. Make sure to set rejectUnauthorized false when connecting using BtpsClient for local development
-- `connectionTimeoutMs`: Optional connection timeout in milliseconds (default: 30000)
+- `connectionTimeoutMs`: Optional. Closes a connection after this long with no request being handled, in milliseconds (default: 30000, no minimum). A connection is never closed while one of its requests is handled, so a server under heavy load can set it low
 - `middlewarePath`: Optional path to middleware file
 - `maxArtifactSizeKb`: Optional largest artifact the server can accept, in KB, where 1 KB is 1024 bytes (default: 5120, that is 5 MB). An artifact over it is refused before it is read in full, with the limit in the error message, and the connection is closed. The minimum is 1024 (1 MB): a smaller value logs a warning and 1024 is used, and a value that is not a size logs a warning and the default is used. There is no maximum.
 - `maxArtifactAgeSeconds`: Optional time window, in seconds: how far a signed artifact's `issuedAt` may be from the server's clock, either way (default: 300, that is 5 minutes). An artifact outside it is refused after its signature is checked, with the window in the error message, and the connection stays open. The minimum is 60: a smaller value logs a warning and 60 is used, and a value that is not a time logs a warning and the default is used. There is no maximum. Within the window the same artifact can arrive more than once, so a platform treats `(from, id)` as unique.
@@ -59,6 +59,8 @@ interface BTPClientOptions {
   to: string;
   maxRetries?: number;
   retryDelayMs?: number;
+  connectTimeoutMs?: number;
+  replyTimeoutMs?: number;
   connectionTimeoutMs?: number;
   btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
   host?: string;
@@ -75,7 +77,9 @@ interface BTPClientOptions {
 - `to`: Required recipient identity (e.g., 'billing$yourdomain.com')
 - `maxRetries`: Optional maximum retry attempts (default: 3)
 - `retryDelayMs`: Optional delay between retries in milliseconds (default: 1000)
-- `connectionTimeoutMs`: Optional connection timeout in milliseconds (default: 5000)
+- `connectTimeoutMs`: Optional. How long to wait to connect, in milliseconds (default and minimum: 5000)
+- `replyTimeoutMs`: Optional. How long `send()` waits for the answer, in milliseconds (default: 20000, minimum: 10000). A value below a minimum is raised to it, with a warning
+- `connectionTimeoutMs`: Optional. Closes the connection after this long with no artifact waiting for an answer, in milliseconds; the client reconnects on the next send (off by default)
 - `btpMtsOptions`: Optional TLS connection options (excluding port and host)
 - `host`: Optional custom host override
 - `hostSelector`: Optional DNS selector for key management (default: 'btps1')
@@ -783,6 +787,8 @@ interface BtpsClientOptions {
   bptIdentityCert: string;
   maxRetries?: number;
   retryDelayMs?: number;
+  connectTimeoutMs?: number;
+  replyTimeoutMs?: number;
   connectionTimeoutMs?: number;
   btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
   host?: string;

@@ -381,7 +381,8 @@ describe('BtpsTransporter', () => {
 
         expect(result.error).toBeUndefined();
         expect(result.response).toBeDefined();
-        expect(mockClient.send).toHaveBeenCalledWith(mockArtifact, 5000); // default timeout
+        // The client applies its own reply wait (20000 ms by default)
+        expect(mockClient.send).toHaveBeenCalledWith(mockArtifact, undefined);
       });
 
       it('should create connection if not exists', async () => {
@@ -403,15 +404,15 @@ describe('BtpsTransporter', () => {
         expect(mockClient.send).toHaveBeenCalled();
       });
 
-      it('should use custom timeout from clientOptions', async () => {
+      it('should use the reply wait from clientOptions', async () => {
         const clientOptions: BTPClientOptions = {
           to: 'alice$example.com',
-          connectionTimeoutMs: 10000,
+          replyTimeoutMs: 15000,
         };
 
         await transporter.transport('alice$example.com', mockArtifact, clientOptions);
 
-        expect(mockClient.send).toHaveBeenCalledWith(mockArtifact, 10000);
+        expect(mockClient.send).toHaveBeenCalledWith(mockArtifact, 15000);
       });
 
       it('should handle validation errors', async () => {

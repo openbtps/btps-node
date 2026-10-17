@@ -84,17 +84,19 @@ class PrometheusMetricsTracker implements IMetricsTracker {
 ```js
 const metrics = new PrometheusMetricsTracker();
 
-export default [
-  {
-    phase: 'after',
-    step: 'onMessage',
-    handler: async (req, res, next) => {
-      metrics.onMessageReceived(req.from, req.artifact.to);
-      await next();
+export default function createMiddleware() {
+  return [
+    {
+      phase: 'after',
+      step: 'onArtifact',
+      handler: async (req) => {
+        const { from, to } = req.getIdentity();
+        metrics.onMessageReceived(from, to);
+      },
     },
-  },
-  // ...other middleware
-];
+    // ...other middleware
+  ];
+}
 ```
 
 ## Advanced Logging Patterns

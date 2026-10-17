@@ -10,10 +10,10 @@ The BTPS Server SDK features a powerful, phase-based middleware system that lets
 
 ## Default Middleware: Quick Start
 
-For rapid prototyping or small/medium deployments, the SDK provides a **default middleware set** that covers essential features out of the box:
+For development and tests, the SDK provides a **default middleware set**. A BTPS server never loads it by itself; you include it from your middleware file:
 
 - **IP-based rate limiting** (before parsing)
-- **Identity-based rate limiting** (after parsing)
+- **Identity-based rate limiting** (after signature verification, so only a proven sender is counted)
 - **Signature and trust verification metrics**
 - **Message processing metrics**
 - **Error logging**
@@ -21,39 +21,41 @@ For rapid prototyping or small/medium deployments, the SDK provides a **default 
 This default middleware is defined in [`defaultMiddleware.ts`](../../../../src/server/libs/defaultMiddleware.ts) and can be used as-is or as a starting point for your own configuration.
 
 **How to use:**
+
 - If you do not specify a custom middleware file, the server will not use this default middleware as its purely for inspection and implementation guide. However one can include this default middleware into the btps.middleware.mjs of the running server root folder
 - To customize, you can import and extend it in your own middleware file:
 
 ```js
-import { createDefaultMiddleware } from './src/server/libs/defaultMiddleware.js';
+import { createDefaultMiddleware } from '@btps/sdk/server/core';
 
-export default [
-  ...createDefaultMiddleware(),
-  // Add your custom middleware here
-];
+export default function createMiddleware() {
+  return [
+    ...createDefaultMiddleware(),
+    // Add your custom middleware here
+  ];
+}
 ```
 
 See [`example.btps.middleware.mjs`](../../../../example.btps.middleware.mjs) for a real-world example of extending and customizing the default middleware.
 
-> **Note:** The default middleware is suitable for quick setup, development, and small-scale production. For large-scale or SaaS deployments, you should implement custom middleware that uses external services (e.g., Redis for distributed rate limiting, Prometheus for metrics) instead of in-memory state.
+> **Note:** The default middleware keeps its counters in the server's own memory, so it is for development and tests only. In production, use middleware backed by shared services, such as Redis for rate limiting behind the `RateLimiter` contract and Prometheus for metrics.
 
 ## Middleware Phases & Steps
 
 Middleware can be registered for specific **phases** and **steps** in the request lifecycle:
 
-| Phase   | Step                  | Description                        |
-| ------- | --------------------- | ---------------------------------- |
-| before  | parsing               | Before request is parsed/validated |
-| after   | parsing               | After request is parsed/validated  |
-| before  | signatureVerification | Before signature is verified       |
-| after   | signatureVerification | After signature is verified        |
-| before  | trustVerification     | Before trust is checked            |
-| after   | trustVerification     | After trust is checked             |
-| before  | onMessage             | Before message is processed        |
-| after   | onMessage             | After message is processed         |
-| before  | onError               | Before error is handled            |
-| after   | onError               | After error is handled             |
-| server  | onStart/onStop        | Server lifecycle hooks             |
+| Phase  | Step                  | Description                                             |
+| ------ | --------------------- | ------------------------------------------------------- |
+| before | parsing               | Before request is parsed/validated                      |
+| after  | parsing               | After request is parsed/validated                       |
+| before | signatureVerification | Before signature is verified                            |
+| after  | signatureVerification | After signature is verified                             |
+| before | trustVerification     | Before trust is checked                                 |
+| after  | trustVerification     | After trust is checked                                  |
+| before | onArtifact            | Before the artifact is handed over (takes the artifact) |
+| after  | onArtifact            | After the artifact is handed over                       |
+| before | onError               | Before error is handled                                 |
+| after  | onError               | After error is handled                                  |
 
 ## Middleware Execution Flow
 
@@ -68,9 +70,9 @@ flowchart TD
   G --> H[before:trustVerification]
   H --> I[Verify Trust]
   I --> J[after:trustVerification]
-  J --> K[before:onMessage]
-  K --> L[Process Message]
-  L --> M[after:onMessage]
+  J --> K[before:onArtifact]
+  K --> L[Hand Over the Artifact]
+  L --> M[after:onArtifact]
   M --> N[Send Response]
 ```
 
@@ -80,93 +82,94 @@ A middleware definition is an object with the following structure:
 
 ```js
 {
-  stage: 'before' | 'after' | 'server', // Phase in the lifecycle
-  type: 'parsing' | 'signatureVerification' | 'trustVerification' | 'onMessage' | 'onError' | 'onStart' | 'onStop', // Step or event
+  phase: 'before' | 'after', // Before or after the step
+  step: 'parsing' | 'signatureVerification' | 'trustVerification' | 'onArtifact' | 'onError', // The step
   priority?: number, // (Optional) Lower numbers run first
-  config?: { ... }, // (Optional) Custom config for this middleware
-  handler: async (ctx, res, next, context) => { ... }, // Middleware function
+  config?: { name?: string, enabled?: boolean, options?: { ... } }, // (Optional) options reach the handler as context.config
+  handler: async (req, res, next, context) => { ... }, // Middleware function
 }
 ```
 
-- **stage**: When the middleware runs (before/after a step, or server lifecycle)
-- **type**: The specific step or event
+- **phase**: Whether the middleware runs before or after the step
+- **step**: The step it runs around
 - **priority**: (Optional) Controls execution order within the phase/step
-- **config**: (Optional) Custom configuration for the middleware
-- **handler**: The async function that implements your logic
+- **config**: (Optional) Custom configuration for the middleware; `enabled: false` turns it off
+- **handler**: The async function that implements your logic. It is awaited, so it does not have to call `next`
+
+Server start and stop hooks are not middleware definitions: export them alongside the middleware (`onServerStart`, `onServerStop`, `onResponseSent`).
 
 ## Writing Custom Middleware
 
-Middleware is defined as an array of objects in a `.mjs` file (default: `btps.middleware.mjs`). Each object specifies the phase, step, and handler function.
+Middleware is defined as an array of objects in a `.mjs` file (default: `btps.middleware.mjs`). Each object specifies the phase, step, and handler function. A handler stops the request by answering it with `res.sendError()` or `res.sendRes()`; otherwise the server carries on to the next middleware and step.
 
 **Example:**
 
 ```js
-export default [
-  // Block specific IPs
-  {
-    stage: 'before',
-    type: 'parsing',
-    handler: async (ctx, res, next) => {
-      if (ctx.remoteAddress === '1.2.3.4') {
-        res.sendError({ code: 403, message: 'Blocked IP' });
-        return;
-      }
-      await next();
+export default function createMiddleware() {
+  return [
+    // Block specific IPs
+    {
+      phase: 'before',
+      step: 'parsing',
+      handler: async (req, res) => {
+        if (req.remoteAddress === '1.2.3.4') {
+          return res.sendError({ code: 403, message: 'Blocked IP' });
+        }
+      },
     },
-  },
-  // Log parsed artifacts
-  {
-    stage: 'after',
-    type: 'parsing',
-    handler: async (ctx, res, next) => {
-      console.log('Parsed artifact:', ctx.artifact);
-      await next();
+    // Log parsed artifacts
+    {
+      phase: 'after',
+      step: 'parsing',
+      handler: async (req) => {
+        console.log('Parsed artifact:', req.data?.artifact);
+      },
     },
-  },
-  // Require signature
-  {
-    stage: 'before',
-    type: 'signatureVerification',
-    handler: async (ctx, res, next) => {
-      if (!ctx.artifact || !ctx.artifact.signature) {
-        res.sendError({ code: 400, message: 'Missing signature' });
-        return;
-      }
-      await next();
+    // Require signature
+    {
+      phase: 'before',
+      step: 'signatureVerification',
+      handler: async (req, res) => {
+        if (!req.data?.artifact?.signature) {
+          return res.sendError({ code: 400, message: 'Missing signature' });
+        }
+      },
     },
-  },
-];
+  ];
+}
 ```
 
 ## Queuing in Middleware
 
-Middleware can be used to implement queuing for async processing, rate limiting, or deferred actions. For example, you can enqueue requests for later processing, or use a queue to smooth out bursts of traffic:
+Middleware can hand an artifact to your own queue for async processing. A `before onArtifact` middleware counts as taking the artifact, so the server answers success once it returns:
 
 ```js
 import { enqueueArtifact } from './queue';
 
-export default [
-  {
-    stage: 'before',
-    type: 'onMessage',
-    handler: async (ctx, res, next) => {
-      await enqueueArtifact(ctx.artifact);
-      res.sendResponse({ ok: true, message: 'Queued for processing', code: 202 });
-      // Do not call next() to short-circuit further processing
+export default function createMiddleware() {
+  return [
+    {
+      phase: 'before',
+      step: 'onArtifact',
+      handler: async (req) => {
+        // Throw if the queue is unavailable: the sender is told to send again
+        await enqueueArtifact(req.data.artifact);
+      },
     },
-  },
-];
+  ];
+}
 ```
 
 ## Middleware Context & API
 
 Each handler receives:
-- `ctx`: Request context (artifact, remoteAddress, etc.)
-- `res`: Response context (sendError, sendResponse, etc.)
-- `next`: Call to continue to the next middleware
+
+- `req`: Request context (`data.artifact`, `remoteAddress`, `getIdentity()`, `isValid`, `isTrusted`, `error`)
+- `res`: Response context (`sendError`, `sendRes`)
+- `next`: Optional to call: the server continues once the handler returns, unless it answered
 - `context`: (Optional) Additional context (dependencies, config, server instance)
 
-**Short-circuit:** Call `res.sendError()` or `res.sendResponse()` to stop processing and return a result.
+**Short-circuit:** Call `res.sendError()` or `res.sendRes()` to stop processing and return a result.
 
 ## Loading & Ordering Middleware
 
@@ -181,16 +184,18 @@ Each handler receives:
 You can register hooks for server start/stop:
 
 ```js
-export default [
-  // ...other middleware
-];
-
-export async function onServerStart() {
-  // Initialize resources, connect to DB, etc.
-}
-
-export async function onServerStop() {
-  // Cleanup resources, flush logs, etc.
+export default function createMiddleware(dependencies) {
+  return {
+    middleware: [
+      // ...your middleware
+    ],
+    onServerStart: async () => {
+      // Initialize resources, connect to DB, etc.
+    },
+    onServerStop: async () => {
+      // Cleanup resources, flush logs, etc.
+    },
+  };
 }
 ```
 
