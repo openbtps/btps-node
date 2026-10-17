@@ -40,19 +40,15 @@ import type {
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
 import { BtpLifecycleEventSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import { validate } from '@core/utils/validation.js';
-import { AGENT_ACTIONS_REQUIRING_DOCUMENT } from '@core/server/constants/index.js';
+import {
+  AGENT_ACTIONS_REQUIRING_DOCUMENT,
+  AGENT_TRANSPORTER_ACTIONS,
+} from '@core/server/constants/index.js';
 import { encryptBtpPayload, signBtpPayload, signBtpPayloadWithSigner } from '@core/crypto/index.js';
 import { randomUUID } from 'crypto';
 import { isValidIdentity } from '@core/utils/index.js';
 
-const mappedTransporterAction = {
-  'trust.request': 'TRUST_REQ',
-  'trust.respond': 'TRUST_RES',
-  'trust.update': 'TRUST_RES',
-  'trust.delete': 'TRUST_RES',
-  'artifact.send': 'BTPS_DOC',
-  'event.send': 'BTPS_EVENT',
-};
+const mappedTransporterAction = AGENT_TRANSPORTER_ACTIONS;
 
 export class BtpsAgent extends BtpsClient {
   private agentId: string;
@@ -223,6 +219,16 @@ export class BtpsAgent extends BtpsClient {
     const event =
       artifactType === 'BTPS_EVENT' ? BtpLifecycleEventSchema.safeParse(document) : undefined;
 
+    // An artifact names the sender's own selector, the one its key is published at.
+    const senderSelector = (await this.resolveBtpsHostDnsTxt(this.options.to))?.selector;
+    if (!senderSelector) {
+      return await this.buildClientErrorResponse(
+        new BTPErrorException(BTP_ERROR_RESOLVE_DNS, {
+          cause: `Could not resolve the selector of ${this.options.to}`,
+        }),
+      );
+    }
+
     const transporterArtifact: Omit<BTPTransporterArtifact, 'signature'> = {
       id: event?.success ? event.data.id : randomUUID(),
       issuedAt: new Date().toISOString(),
@@ -231,7 +237,7 @@ export class BtpsAgent extends BtpsClient {
       document: encryptedDocument as BTPDocType | string,
       from: this.options.to,
       to: to,
-      selector: receiverDnsTxt.selector,
+      selector: senderSelector,
       encryption: encryption,
       ...(options?.relatesTo !== undefined && { relatesTo: options.relatesTo }),
     };
