@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [tsconfigPaths({ projects: ['./tsconfig.json'] })],
   test: {
     // The journeys run apart, as ci/e2e: yarn test:e2e (vitest.e2e.config.ts).
-    exclude: [...configDefaults.exclude, 'tests/e2e/**'],
+    exclude: [...configDefaults.exclude, 'tests/e2e/**', 'tests/security/**'],
     coverage: {
       provider: 'v8', // or 'istanbul' if preferred
       reporter: ['text', 'html', 'json'],

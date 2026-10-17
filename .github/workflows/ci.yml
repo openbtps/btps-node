@@ -39,8 +39,10 @@
 #                esbuild, so it needs no build.
 # ci/e2e       - `yarn test:e2e`: every BTPS journey, happy and wrong paths,
 #                against real BtpsServers over TLS (tests/e2e).
+# ci/security  - `yarn test:security`: attacks, spoofing, spam and probing
+#                against real BtpsServers over TLS (tests/security).
 #
-# ci/test, ci/vectors and ci/e2e are required status checks, matched by
+# ci/test, ci/vectors, ci/e2e and ci/security are required status checks, matched by
 # name, so renaming any of them breaks the rule. example-app stays the
 # first job: tests/eba-156/ci-workflow.test.mjs finds "the example job" as
 # the first one that works in examples/btps-nest-app.
@@ -192,6 +194,24 @@ jobs:
       # TLS (tests/e2e). openssl, on the runner, makes their certificate.
       - name: yarn test:e2e
         run: yarn test:e2e
+
+  security:
+    name: ci/security
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Enable Yarn via Corepack
+        run: npm install -g corepack@0.34.7 && corepack enable
+      - name: Install root dependencies
+        run: yarn install --immutable
+      # Attacks, spoofing, spam and probing against real BtpsServers over TLS
+      # (tests/security), on the e2e harness.
+      - name: yarn test:security
+        run: yarn test:security
 
   vectors:
     name: ci/vectors
