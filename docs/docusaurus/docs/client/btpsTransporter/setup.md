@@ -37,7 +37,7 @@ const transporter = new BtpsTransporter({
 ```typescript
 interface BTPTransporterOptions {
   maxConnections?: number; // Maximum connections to maintain (default: 10)
-  connectionTTLSeconds?: number; // TTL for connections in seconds (default: 300)
+  connectionTTLSeconds?: number; // Closes a connection after this long idle, in seconds (default: 300)
   // Every BtpsClient option except `to`, applied to each connection, including:
   maxRetries?: number; // Maximum retry attempts (default: 5)
   retryDelayMs?: number; // Delay between retries in ms (default: 1000)
@@ -326,7 +326,7 @@ if (result.error) {
   // Handle specific transport errors
   switch (result.error.code) {
     case BTP_TRANSPORTER_ERROR_MAX_CONNECTIONS_REACHED.code:
-      console.error('No connection could be opened - maxConnections reached');
+      console.error('No connection could be opened - every connection has a send waiting');
       break;
     case 'BTP_ERROR_CONNECTION_CLOSED':
     case 'BTP_ERROR_SOCKET_TIMEOUT':

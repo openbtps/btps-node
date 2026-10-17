@@ -32,6 +32,55 @@ describe('the identity rule', () => {
       expect(isValidIdentity(identity)).toBe(false);
     }
   });
+
+  it('accepts letters, digits, ".", "_" and "-" in the account', () => {
+    for (const identity of ['pat.doe$saas.example', 'pay_2$saas.example', 'a-b$saas.example']) {
+      expect(isValidIdentity(identity)).toBe(true);
+    }
+  });
+
+  it('refuses any other character in the account, so none can pass for another', () => {
+    const lookalikes = [
+      'bіlling$vendor.example', // Cyrillic і
+      'billing​$vendor.example', // zero-width space
+      'bill ing$vendor.example',
+      'bill+ing$vendor.example',
+      'bill@ing$vendor.example',
+      'bïlling$vendor.example',
+    ];
+    for (const identity of lookalikes) expect(isValidIdentity(identity)).toBe(false);
+  });
+
+  it('refuses a domain that breaks DNS rules', () => {
+    const domains = [
+      'localhost', // one label
+      'vendor..example',
+      '-vendor.example',
+      'vendor-.example',
+      'vend_or.example',
+      'vеndor.example', // Cyrillic е
+      `${'a'.repeat(64)}.example`,
+      `${'a.'.repeat(127)}example`, // over 253 characters
+    ];
+    for (const domain of domains) expect(isValidIdentity(`billing$${domain}`)).toBe(false);
+  });
+
+  it('accepts an international domain in its xn-- form', () => {
+    expect(isValidIdentity('billing$xn--bcher-kva.example')).toBe(true);
+    expect(isValidIdentity('billing$bücher.example')).toBe(false);
+  });
+
+  it('accepts capitals, which compare as the same address', () => {
+    expect(isValidIdentity('Billing$Vendor.Example')).toBe(true);
+    expect(computeTrustId('Billing$Vendor.Example', 'pay$client.example')).toBe(
+      computeTrustId('billing$vendor.example', 'pay$client.example'),
+    );
+  });
+
+  it('accounts and labels at their longest are accepted', () => {
+    expect(isValidIdentity(`${'a'.repeat(64)}$${'b'.repeat(63)}.example`)).toBe(true);
+    expect(isValidIdentity(`${'a'.repeat(65)}$vendor.example`)).toBe(false);
+  });
 });
 
 describe('device record ids', () => {

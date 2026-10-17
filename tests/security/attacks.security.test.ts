@@ -233,6 +233,19 @@ describe('attacks on artifacts in transit and on addresses', () => {
       });
     });
 
+    it('refuses a look-alike address, such as one with a Cyrillic letter', async () => {
+      const answer = await sendRaw(
+        clientHost,
+        await lineFrom({ from: 'bіlling$vendor.test' }), // Cyrillic і
+      );
+
+      expect(answer.status).toMatchObject({
+        ok: false,
+        code: 400,
+        error: BTP_ERROR_VALIDATION.code,
+      });
+    });
+
     it('treats an address in capitals as the same address, never a second identity', async () => {
       const artifact = await invoice(
         { ...vendor, identity: vendor.identity.toUpperCase() },

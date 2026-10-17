@@ -169,8 +169,15 @@ export class BtpsTransporter {
       }
     }
 
-    const connectionCount = this.connections.size;
-    if (connectionCount >= this.maxConnections) {
+    // A full pool makes room by closing the connection idle longest; it refuses
+    // only when every connection has a send waiting for its answer.
+    if (this.connections.size >= this.maxConnections) {
+      const idlest = [...this.connections.values()]
+        .filter((c) => c.inFlight === 0)
+        .sort((a, b) => a.lastUsedAt.localeCompare(b.lastUsedAt))[0];
+      if (idlest) this.deregisterConnection(idlest.id);
+    }
+    if (this.connections.size >= this.maxConnections) {
       return {
         connection: undefined,
         error: new BTPErrorException(BTP_TRANSPORTER_ERROR_MAX_CONNECTIONS_REACHED, {
@@ -196,6 +203,7 @@ export class BtpsTransporter {
       clientOptions: clientOptions ?? { to, ...this.clientOptions },
       getStatus: () => client.getConnectionStates(),
       timeout: this.createConnectionTimeout(to),
+      inFlight: 0,
     };
 
     this.connections.set(to, newConnection);
@@ -221,10 +229,26 @@ export class BtpsTransporter {
    * @returns The timeout
    * @description The timeout is the timeout for the connection
    */
-  protected createConnectionTimeout(connectionId: string): NodeJS.Timeout {
-    return setTimeout(() => {
-      this.deregisterConnection(connectionId);
-    }, this.connectionTTLSeconds * 1000);
+  protected createConnectionTimeout(connectionId: string, ttlSeconds?: number): NodeJS.Timeout {
+    return setTimeout(
+      () => {
+        const connection = this.connections.get(connectionId);
+        // Idle only: a connection with a send waiting is given another TTL
+        if (connection && connection.inFlight > 0) {
+          connection.timeout = this.createConnectionTimeout(connectionId, connection.ttlSeconds);
+          return;
+        }
+        this.deregisterConnection(connectionId);
+      },
+      (ttlSeconds ?? this.connectionTTLSeconds) * 1000,
+    );
+  }
+
+  /** Marks a connection used now, so its TTL counts from this moment. */
+  private touch(connection: BTPConnectionInternal): void {
+    clearTimeout(connection.timeout);
+    connection.timeout = this.createConnectionTimeout(connection.id, connection.ttlSeconds);
+    connection.lastUsedAt = new Date().toISOString();
   }
 
   /*
@@ -296,18 +320,26 @@ export class BtpsTransporter {
       );
     }
 
-    let connection = this.getConnection(to);
-    if (!connection) {
+    if (!this.connections.has(to)) {
       // Answered like every other failure, rather than thrown
       try {
-        connection = await this.registerConnection(to, clientOptions);
+        await this.registerConnection(to, clientOptions);
       } catch (error) {
         return this.buildClientErrorResponse(error as BTPErrorException);
       }
     }
+    const connection = this.connections.get(to)!;
 
-    // The client's own reply wait applies unless these options set one.
-    return connection.client.send(artifact, clientOptions?.replyTimeoutMs);
+    connection.inFlight++;
+    this.touch(connection);
+    try {
+      // The client's own reply wait applies unless these options set one.
+      return await connection.client.send(artifact, clientOptions?.replyTimeoutMs);
+    } finally {
+      connection.inFlight--;
+      // Its TTL is idle time: counted from the last answer, not from creation
+      if (this.connections.get(to) === connection) this.touch(connection);
+    }
   }
 
   /*
@@ -420,15 +452,13 @@ export class BtpsTransporter {
   ): BTPConnection | undefined {
     const connection = this.connections.get(id);
     if (!connection) return undefined;
-    const { client, timeout } = connection;
     if (clientOptions) {
-      client.update(clientOptions);
+      connection.client.update(clientOptions);
     }
     if (ttlSeconds) {
-      clearTimeout(timeout);
-      connection.timeout = setTimeout(() => {
-        this.deregisterConnection(id);
-      }, ttlSeconds * 1000);
+      connection.ttlSeconds = ttlSeconds;
+      clearTimeout(connection.timeout);
+      connection.timeout = this.createConnectionTimeout(id, ttlSeconds);
     }
     connection.updatedAt = new Date().toISOString();
     this.emitter.emit('connectionUpdated', id);

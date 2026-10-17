@@ -132,6 +132,10 @@ export type BtpsClientEvents = {
 export type BTPConnectionInternal = BTPConnection & {
   timeout: NodeJS.Timeout;
   listeners?: BtpsClientEvents;
+  /** Sends waiting for their answer: the connection is never closed while any are */
+  inFlight: number;
+  /** Set by updateConnection; the transporter's own TTL otherwise */
+  ttlSeconds?: number;
 };
 
 export type BTPConnection = {
