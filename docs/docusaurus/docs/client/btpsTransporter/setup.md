@@ -203,20 +203,15 @@ class BTPSMessageForwarder {
   private transporter = new BtpsTransporter({ maxConnections: 100 });
 
   async forwardArtifact(artifact: BTPTransporterArtifact) {
-    try {
-      const result = await this.transporter.transport(artifact.to, artifact);
+    // Every failure is answered, including a connection that cannot be opened
+    const result = await this.transporter.transport(artifact.to, artifact);
 
-      if (result.error) {
-        console.error('Forwarding failed:', result.error.message);
-        return { success: false, error: result.error };
-      }
-
-      return { success: true, response: result.response };
-    } catch (error) {
-      // No connection could be opened, e.g. maxConnections reached
-      console.error('Unexpected error:', error);
-      return { success: false, error };
+    if (result.error) {
+      console.error('Forwarding failed:', result.error.message);
+      return { success: false, error: result.error };
     }
+
+    return { success: true, response: result.response };
   }
 }
 ```
@@ -323,37 +318,38 @@ async function sendTrustRequest(recipient: string, companyInfo: Omit<BTPTrustReq
 ### **Transport Errors**
 
 ```typescript
-try {
-  const result = await transporter.transport(to, artifact);
+import { BTP_TRANSPORTER_ERROR_MAX_CONNECTIONS_REACHED } from '@btps/sdk/client';
 
-  if (result.error) {
-    // Handle specific transport errors
-    switch (result.error.code) {
-      case 'BTP_ERROR_CONNECTION_CLOSED':
-      case 'BTP_ERROR_SOCKET_TIMEOUT':
-        console.error('Connection failed - check recipient server');
-        break;
-      case 'BTP_ERROR_SIG_VERIFICATION':
-        console.error('Signature refused - check your key and selector');
-        break;
-      case 'BTP_ERROR_TRUST_NOT_ALLOWED':
-        // No active trust; the receiver never says why
-        console.error('No active trust with this recipient - send a trust request first');
-        break;
-      case 'BTP_ERROR_TRUST_EXPIRED':
-        console.error('Trust has expired - ask the recipient to renew it');
-        break;
-      case 'BTP_ERROR_VALIDATION':
-        console.error('Artifact validation failed');
-        break;
-      default:
-        console.error('Transport failed:', result.error.code, result.error.message);
-    }
-  } else {
-    console.log('Transport successful:', result.response);
+const result = await transporter.transport(to, artifact);
+
+if (result.error) {
+  // Handle specific transport errors
+  switch (result.error.code) {
+    case BTP_TRANSPORTER_ERROR_MAX_CONNECTIONS_REACHED.code:
+      console.error('No connection could be opened - maxConnections reached');
+      break;
+    case 'BTP_ERROR_CONNECTION_CLOSED':
+    case 'BTP_ERROR_SOCKET_TIMEOUT':
+      console.error('Connection failed - check recipient server');
+      break;
+    case 'BTP_ERROR_SIG_VERIFICATION':
+      console.error('Signature refused - check your key and selector');
+      break;
+    case 'BTP_ERROR_TRUST_NOT_ALLOWED':
+      // No active trust; the receiver never says why
+      console.error('No active trust with this recipient - send a trust request first');
+      break;
+    case 'BTP_ERROR_TRUST_EXPIRED':
+      console.error('Trust has expired - ask the recipient to renew it');
+      break;
+    case 'BTP_ERROR_VALIDATION':
+      console.error('Artifact validation failed');
+      break;
+    default:
+      console.error('Transport failed:', result.error.code, result.error.message);
   }
-} catch (error) {
-  console.error('Could not open a connection:', error);
+} else {
+  console.log('Transport successful:', result.response);
 }
 ```
 

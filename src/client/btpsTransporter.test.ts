@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { TLSSocket } from 'tls';
 import { BtpsTransporter } from './btpsTransporter.js';
 import { BtpsClient } from './btpsClient.js';
 import { BTPErrorException, BTP_ERROR_IDENTITY, BTP_ERROR_TIMEOUT } from '@core/error/index.js';
@@ -138,7 +139,7 @@ describe('BtpsTransporter', () => {
 
       expect(defaultTransporter.getMaxConnections()).toBe(BTP_TRANSPORTER_DEFAULT_MAX_CONNECTIONS);
       expect(defaultTransporter.getConnectionTTLSeconds()).toBe(
-        BTP_TRANSPORTER_DEFAULT_CONNECTION_TTL_SECONDS * 1000,
+        BTP_TRANSPORTER_DEFAULT_CONNECTION_TTL_SECONDS,
       );
       expect(defaultTransporter.getClientOptions()).toEqual({});
 
@@ -147,7 +148,7 @@ describe('BtpsTransporter', () => {
 
     it('should initialize with custom options', () => {
       expect(transporter.getMaxConnections()).toBe(5);
-      expect(transporter.getConnectionTTLSeconds()).toBe(60 * 1000);
+      expect(transporter.getConnectionTTLSeconds()).toBe(60);
       expect(transporter.getClientOptions()).toEqual({
         maxRetries: 2,
         retryDelayMs: 10,
@@ -383,6 +384,17 @@ describe('BtpsTransporter', () => {
         expect(result.response).toBeDefined();
         // The client applies its own reply wait (20000 ms by default)
         expect(mockClient.send).toHaveBeenCalledWith(mockArtifact, undefined);
+      });
+
+      it('answers with an error, rather than throwing, when no connection can be opened', async () => {
+        for (let i = 0; i < 5; i++) {
+          await transporter.registerConnection(`user${i}$example.com`);
+        }
+
+        const result = await transporter.transport('new$example.com', mockArtifact);
+
+        expect(result.response).toBeUndefined();
+        expect(result.error?.code).toBe(BTP_TRANSPORTER_ERROR_MAX_CONNECTIONS_REACHED.code);
       });
 
       it('should create connection if not exists', async () => {
@@ -662,10 +674,10 @@ describe('BtpsTransporter', () => {
 
     describe('getConnectionTTLSeconds/updateConnectionTTLSeconds', () => {
       it('should get and update connection TTL', () => {
-        expect(transporter.getConnectionTTLSeconds()).toBe(60 * 1000);
+        expect(transporter.getConnectionTTLSeconds()).toBe(60);
 
         transporter.updateConnectionTTLSeconds(120);
-        expect(transporter.getConnectionTTLSeconds()).toBe(120 * 1000);
+        expect(transporter.getConnectionTTLSeconds()).toBe(120);
       });
 
       it('should update existing connections TTL when requested', async () => {
@@ -674,7 +686,21 @@ describe('BtpsTransporter', () => {
         transporter.updateConnectionTTLSeconds(120, true);
 
         // The timeout should be updated (we can't easily test the timeout itself)
-        expect(transporter.getConnectionTTLSeconds()).toBe(120 * 1000);
+        expect(transporter.getConnectionTTLSeconds()).toBe(120);
+      });
+
+      it('closes a connection once its TTL in seconds has passed', async () => {
+        vi.useFakeTimers();
+        try {
+          await transporter.registerConnection('ttl$example.com');
+
+          vi.advanceTimersByTime(59 * 1000);
+          expect(transporter.getConnection('ttl$example.com')).toBeDefined();
+          vi.advanceTimersByTime(1000);
+          expect(transporter.getConnection('ttl$example.com')).toBeUndefined();
+        } finally {
+          vi.useRealTimers();
+        }
       });
     });
 
@@ -720,7 +746,12 @@ describe('BtpsTransporter', () => {
         transporter as unknown as { connections: Map<string, BTPConnectionInternal> }
       ).connections.get('alice$example.com');
       if (internalConnection?.listeners) {
-        internalConnection.listeners.connected();
+        internalConnection.listeners.connected({
+          identity: 'alice$example.com',
+          retries: 0,
+          states: internalConnection.getStatus(),
+          socket: {} as TLSSocket,
+        });
         internalConnection.listeners.message({
           response: {
             reqId: 'test-req-id',
@@ -1068,7 +1099,7 @@ describe('BtpsTransporter', () => {
 
     it('should handle updateConnectionTTLSeconds with negative value', () => {
       transporter.updateConnectionTTLSeconds(-1);
-      expect(transporter.getConnectionTTLSeconds()).toBe(-1000);
+      expect(transporter.getConnectionTTLSeconds()).toBe(-1);
     });
 
     it('should handle transport with null artifact', async () => {

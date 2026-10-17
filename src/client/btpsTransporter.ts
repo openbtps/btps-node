@@ -51,7 +51,7 @@ export class BtpsTransporter {
 
     this.maxConnections = maxConnections ?? BTP_TRANSPORTER_DEFAULT_MAX_CONNECTIONS;
     this.connectionTTLSeconds =
-      (connectionTTLSeconds ?? BTP_TRANSPORTER_DEFAULT_CONNECTION_TTL_SECONDS) * 1000;
+      connectionTTLSeconds ?? BTP_TRANSPORTER_DEFAULT_CONNECTION_TTL_SECONDS;
 
     this.clientOptions = {
       ...clientOptions,
@@ -224,7 +224,7 @@ export class BtpsTransporter {
   protected createConnectionTimeout(connectionId: string): NodeJS.Timeout {
     return setTimeout(() => {
       this.deregisterConnection(connectionId);
-    }, this.connectionTTLSeconds);
+    }, this.connectionTTLSeconds * 1000);
   }
 
   /*
@@ -298,7 +298,12 @@ export class BtpsTransporter {
 
     let connection = this.getConnection(to);
     if (!connection) {
-      connection = await this.registerConnection(to, clientOptions);
+      // Answered like every other failure, rather than thrown
+      try {
+        connection = await this.registerConnection(to, clientOptions);
+      } catch (error) {
+        return this.buildClientErrorResponse(error as BTPErrorException);
+      }
     }
 
     // The client's own reply wait applies unless these options set one.
@@ -352,7 +357,7 @@ export class BtpsTransporter {
     connectionTTLSeconds: number,
     updateExistingConnections: boolean = false,
   ): void {
-    this.connectionTTLSeconds = connectionTTLSeconds * 1000;
+    this.connectionTTLSeconds = connectionTTLSeconds;
     if (updateExistingConnections) {
       this.connections.forEach((connection) => {
         this.updateConnection(connection.id, undefined, connectionTTLSeconds);

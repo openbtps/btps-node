@@ -12,7 +12,7 @@ This guide explains how to monitor, track, and analyze BTPS Client SDK operation
 
 The client SDK collects no metrics and logs nothing on its own: you choose what to measure and where it goes. It gives you three things to build on:
 
-- **Results**: every `send()`, `transport()` and `command()` resolves with `{ response }` or `{ error }`, so one wrapper sees every outcome. (`transport()` can also throw when it cannot open a new connection, such as when `maxConnections` is reached.)
+- **Results**: every `send()`, `transport()` and `command()` resolves with `{ response }` or `{ error }`, so one wrapper sees every outcome, including a connection that cannot be opened (for example `BTP_TRANSPORTER_ERROR_MAX_CONNECTIONS_REACHED`).
 - **Events**: `BtpsClient` emits `connected`, `error`, `end`, `close` and `message`; `BtpsTransporter` emits the same per connection (`connectionConnected`, `connectionError`, ...), plus `connectionCreated`, `connectionUpdated` and `connectionDestroyed`.
 - **Pool counts**: `transporter.getMetrics()` returns `{ totalConnections, activeConnections }`.
 
@@ -23,12 +23,7 @@ Wrap the call you make, and time it:
 ```js
 const timedTransport = async (transporter, to, artifact) => {
   const started = performance.now();
-  let result;
-  try {
-    result = await transporter.transport(to, artifact);
-  } catch (error) {
-    result = { error }; // no connection could be opened
-  }
+  const result = await transporter.transport(to, artifact);
   const latencyMs = performance.now() - started;
 
   if (result.error) {

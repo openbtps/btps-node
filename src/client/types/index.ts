@@ -19,7 +19,7 @@ import type {
   BTPServerResponse,
   AgentAction,
 } from 'server/index.js';
-import type { ConnectionOptions } from 'tls';
+import type { ConnectionOptions, TLSSocket } from 'tls';
 
 export interface BTPTransporterMetrics {
   totalConnections: number;
@@ -113,8 +113,16 @@ export interface UpdateBTPClientOptions {
   maxQueue?: number;
 }
 
+/** What the client emits on `connected`. */
+export type BtpsClientConnectedInfo = {
+  identity: string;
+  retries: number;
+  states: ConnectionStates;
+  socket: TLSSocket;
+};
+
 export type BtpsClientEvents = {
-  connected: () => void;
+  connected: (connectedInfo: BtpsClientConnectedInfo) => void;
   end: (endInfo: BtpsClientErrorInfo) => void;
   error: (errorInfo: BtpsClientErrorInfo) => void;
   message: (msg: BTPClientResponse & { validSignature: boolean }) => void;
