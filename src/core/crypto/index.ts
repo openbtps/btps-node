@@ -179,10 +179,20 @@ const decryptionError = (err: unknown): BTPErrorException => {
     : new BTPErrorException(BTP_ERROR_UNKNOWN);
 };
 
+/** The smallest RSA key the SDK encrypts to. */
+export const MIN_RSA_KEY_BITS = 2048;
+
 /**
  * Encrypts a buffer using RSA public key with OAEP and SHA-256
  */
 export const encryptRSA = (publicKeyPem: string, data: Buffer): Buffer => {
+  // Below 2048 bits an RSA key no longer protects what is wrapped for it
+  const bits = crypto.createPublicKey(publicKeyPem).asymmetricKeyDetails?.modulusLength ?? 0;
+  if (bits < MIN_RSA_KEY_BITS) {
+    throw new BTPErrorException(BTP_ERROR_UNSUPPORTED_ENCRYPT, {
+      cause: `the receiver's RSA key is ${bits} bits; at least ${MIN_RSA_KEY_BITS} are required`,
+    });
+  }
   return crypto.publicEncrypt(
     {
       key: publicKeyPem,

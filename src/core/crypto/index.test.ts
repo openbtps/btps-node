@@ -26,7 +26,11 @@ import {
   type Decrypter,
 } from './index.js';
 import { PemKeys } from './types.js';
-import { BTP_ERROR_CANONICAL_JSON, BTP_ERROR_DECRYPTION_UNINTENDED } from '../error/constant.js';
+import {
+  BTP_ERROR_CANONICAL_JSON,
+  BTP_ERROR_DECRYPTION_UNINTENDED,
+  BTP_ERROR_UNSUPPORTED_ENCRYPT,
+} from '../error/constant.js';
 
 interface KmsSignatureVector {
   algorithm: string;
@@ -420,5 +424,28 @@ describe('a key held elsewhere: Signer and Decrypter', () => {
 
     expect(result.data).toBeUndefined();
     expect(result.error?.message).toBe('key holder unavailable');
+  });
+});
+
+describe('the smallest key the SDK encrypts to', () => {
+  const rsa = (modulusLength: number) =>
+    crypto.generateKeyPairSync('rsa', {
+      modulusLength,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+
+  it('refuses to encrypt to an RSA key below 2048 bits', () => {
+    expect(() => encryptBtpPayload({ amount: 100 }, rsa(1024).publicKey)).toThrow(
+      expect.objectContaining({ code: BTP_ERROR_UNSUPPORTED_ENCRYPT.code }),
+    );
+  });
+
+  it('encrypts to a 2048-bit key and larger', () => {
+    for (const bits of [2048, 3072]) {
+      expect(encryptBtpPayload({ amount: 100 }, rsa(bits).publicKey).data).toEqual(
+        expect.any(String),
+      );
+    }
   });
 });
