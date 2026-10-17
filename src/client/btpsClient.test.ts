@@ -994,4 +994,25 @@ describe('BtpsClient', () => {
       expect(result.error).toBeUndefined();
     });
   });
+
+  describe('errors with nobody listening', () => {
+    it('logs an unreadable line instead of throwing an unheard error event', async () => {
+      const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+      expect(client['emitter'].listenerCount('error')).toBe(0);
+
+      await expect(client['onData']('not json')).resolves.toBeUndefined();
+
+      expect(logged).toHaveBeenCalledWith('[BtpsClient]::Unhandled error:', expect.anything());
+      logged.mockRestore();
+    });
+
+    it('still hands the error to a listener when there is one', async () => {
+      const listener = vi.fn();
+      client.on('error', listener);
+
+      await client['onData']('not json');
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+  });
 });

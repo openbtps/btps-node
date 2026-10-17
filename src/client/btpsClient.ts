@@ -98,7 +98,7 @@ export class BtpsClient {
 
     if (this.states.isConnecting) {
       const error = new BTPErrorException({ message: 'already connecting' });
-      this.emitter.emit('error', {
+      this.emitError({
         error,
         ...this.getRetryInfo(error),
       });
@@ -169,12 +169,7 @@ export class BtpsClient {
       const errorInfo = { ...info, error };
       this.states.isConnecting = false;
       this.states.isConnected = false;
-      if (this.emitter.listenerCount('error') === 0) {
-        // No error handler registered: log instead of emitting
-        console.error('[BtpsClient]::Unhandled error:', errorInfo);
-      } else {
-        this.emitter.emit('error', errorInfo);
-      }
+      this.emitError(errorInfo);
 
       if (info.willRetry) {
         this.retryConnect(receiverId);
@@ -236,7 +231,7 @@ export class BtpsClient {
     } catch (e) {
       const err = new SyntaxError(`Invalid JSON: ${e}`);
       this.states.shouldRetry = false;
-      this.emitter.emit('error', { error: err, ...this.getRetryInfo(err) });
+      this.emitError({ error: err, ...this.getRetryInfo(err) });
     }
   }
 
@@ -330,6 +325,18 @@ export class BtpsClient {
       }
     }
     this.queue.clear();
+  }
+
+  /**
+   * Hands an error to the client's 'error' listeners, or logs it when there are
+   * none: an 'error' event nobody listens to throws inside the SDK.
+   */
+  protected emitError(errorInfo: BTPSRetryInfo & { error: Error }): void {
+    if (this.emitter.listenerCount('error') === 0) {
+      console.error('[BtpsClient]::Unhandled error:', errorInfo);
+    } else {
+      this.emitter.emit('error', errorInfo);
+    }
   }
 
   /**
@@ -454,7 +461,7 @@ export class BtpsClient {
     if (resolve) {
       resolve({ response: undefined, error });
     } else {
-      this.emitter.emit('error', { error, ...this.getRetryInfo(error) });
+      this.emitError({ error, ...this.getRetryInfo(error) });
     }
     if (timeout) clearTimeout(timeout);
     if (this.queue.has(artifactId)) this.queue.delete(artifactId);
