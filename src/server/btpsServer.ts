@@ -38,6 +38,7 @@ import {
   BTP_ERROR_EVENT_UNRELATED,
   BTP_ERROR_KEY_ROTATION_PROOF,
   BTP_ERROR_AGENT_ID,
+  BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
 } from '@core/error/constant.js';
 import {
   assertStrictJson,
@@ -244,26 +245,19 @@ export class BtpsServer {
    */
   private handleConnection(socket: TLSSocket) {
     const ipAddress = socket.remoteAddress ?? 'unknown';
-    const now = Date.now();
-    const startTime = new Date(now).toISOString();
     // An artifact over the limit: stop reading lines, answer, and end the
     // connection gently while the guard drops whatever else the peer sends,
     // so the answer reaches a peer that is still sending.
     const sizeGuard = artifactSizeGuard(this.maxArtifactSizeKb, (error) => {
       sizeGuard.unpipe(stream);
       stream.destroy();
+      const { reqCtx, resCtx } = createContexts();
       const errorReq = reqCtx as BTPRequestCtx<'before', 'onError'>;
       errorReq.error = error;
       this.handleOnSocketError(error, { req: errorReq, res: resCtx }, 'end');
     });
     socket.pipe(sizeGuard);
     const stream = sizeGuard.pipe(split2());
-    const context: BTPContext = {
-      socket,
-      remoteAddress: ipAddress,
-      startTime,
-    };
-    let responseSent: boolean = false;
     let fromIdentity: string | undefined = undefined;
     let toIdentity: string | undefined = undefined;
 
@@ -275,37 +269,50 @@ export class BtpsServer {
       get: () => ({ to: toIdentity, from: fromIdentity }),
     };
 
-    const reqCtx: BTPRequestCtx<'before', 'parsing'> = { ...context, getIdentity: identityRef.get };
-    const resCtx: BTPResponseCtx<'before', 'parsing'> = {
-      ...context,
-      sendRes: (response) => {
-        if (!responseSent) {
-          responseSent = true;
-        }
-        /* always try to send the response with the reqId */
-        response.reqId = resCtx?.reqId as string | undefined;
-        this.sendBtpsResponse(socket, response);
-      },
-      sendError: (error, action) => {
-        if (!responseSent) {
-          responseSent = true;
-        }
-        /* always try to send the error with the reqId */
-        const reqId = resCtx?.reqId as string | undefined;
-        this.sendBtpsError(socket, error, reqId, action);
-      },
-      get responseSent() {
-        return responseSent;
-      },
+    // Each line is its own request: a connection carries several, and they may
+    // be in flight at once, so none may see another's data, id or answer.
+    const createContexts = () => {
+      const context: BTPContext = {
+        socket,
+        remoteAddress: ipAddress,
+        startTime: new Date().toISOString(),
+      };
+      let responseSent: boolean = false;
+      const reqCtx: BTPRequestCtx<'before', 'parsing'> = {
+        ...context,
+        getIdentity: identityRef.get,
+      };
+      const resCtx: BTPResponseCtx<'before', 'parsing'> = {
+        ...context,
+        sendRes: (response) => {
+          if (!responseSent) {
+            responseSent = true;
+          }
+          /* always try to send the response with the reqId */
+          response.reqId = resCtx?.reqId as string | undefined;
+          this.sendBtpsResponse(socket, response);
+        },
+        sendError: (error, action) => {
+          if (!responseSent) {
+            responseSent = true;
+          }
+          /* always try to send the error with the reqId */
+          const reqId = resCtx?.reqId as string | undefined;
+          this.sendBtpsError(socket, error, reqId, action);
+        },
+        get responseSent() {
+          return responseSent;
+        },
+      };
+      return { reqCtx, resCtx };
     };
 
     // Data event handler
     stream.on('data', async (line: string) => {
       if (!line.trim()) return;
 
-      const parseReq: BTPRequestCtx<'before', 'parsing'> = reqCtx;
+      const { reqCtx: parseReq, resCtx: parseRes } = createContexts();
       parseReq.rawPacket = line;
-      const parseRes = resCtx;
 
       try {
         // Execute before parsing middleware
@@ -402,6 +409,7 @@ export class BtpsServer {
         cause: `Connection timeout after ${this.connectionTimeoutMs}ms`,
         meta: { remoteAddress: socket.remoteAddress, timeoutMs: this.connectionTimeoutMs },
       });
+      const { reqCtx, resCtx } = createContexts();
       const errorReq = reqCtx as BTPRequestCtx<'before', 'onError'>;
       errorReq.error = timeoutError;
       this.handleOnSocketError(
@@ -417,6 +425,7 @@ export class BtpsServer {
     // Shared error handler for both socket and stream
     const handleError = (err: unknown) => {
       const error = transformToBTPErrorException(err);
+      const { reqCtx, resCtx } = createContexts();
       const errorReq = reqCtx as BTPRequestCtx<'before', 'onError'>;
       errorReq.error = error;
       this.handleOnSocketError(error, {
@@ -456,6 +465,15 @@ export class BtpsServer {
           },
           'end',
         );
+      // A health check: answered, and the connection stays open so it can be repeated
+      case 'PING':
+        return this.sendBtpsResponse(res.socket, {
+          ...this.prepareBtpsResponse(
+            { ok: true, message: 'Server is operational', code: 200 },
+            res.reqId,
+          ),
+          type: 'btps_response',
+        });
       default:
         return this.sendBtpsError(res.socket, BTP_ERROR_INVALID_ACTION, res.reqId, 'end');
     }
@@ -599,7 +617,7 @@ export class BtpsServer {
     if (afterTrustVerResponseSent) return; // Response already sent, stop processing
 
     if (!isTrusted) {
-      // EBA-124 (option B, decided 2026-10-06): reqCtx.error carries the
+      // reqCtx.error carries the
       // precise server-side reason (never-trusted, expired, revoked); the
       // wire only distinguishes expired from everything else, so an
       // un-upgraded 1.0 peer still just sees "not allowed" for a revoked or
@@ -1104,10 +1122,10 @@ export class BtpsServer {
   }
 
   /**
-   * EBA-124: determines the precise, server-side-only reason a non-trust
+   * Determines the precise, server-side-only reason a non-trust
    * artifact is refused - never-trusted, expired, revoked, or blocked.
    *
-   * Option B (decided 2026-10-06): only the expired case gets its own wire
+   * Only the expired case gets its own wire
    * code (BTP_ERROR_TRUST_EXPIRED); revoked, blocked, never-trusted, pending
    * and rejected all collapse onto BTP_ERROR_TRUST_NOT_ALLOWED on the wire
    * (see executeRequestPipeline). This method's result is what reqCtx.error
@@ -1182,6 +1200,24 @@ export class BtpsServer {
   }
 
   /**
+   * Whether anything on this server takes artifacts of this type: a handler
+   * registered with onIncomingArtifact, forwardTo, or onArtifact middleware.
+   */
+  private acceptsArtifacts(type: 'agent' | 'transporter'): boolean {
+    return (
+      this.emitter.listenerCount(type === 'agent' ? 'agentArtifact' : 'transporterArtifact') > 0 ||
+      this.handlerFn !== null ||
+      this.middlewareManager.getMiddleware('before', 'onArtifact').length > 0 ||
+      this.middlewareManager.getMiddleware('after', 'onArtifact').length > 0
+    );
+  }
+
+  private noHandlerWarning(type: 'agent' | 'transporter'): string {
+    const name = type === 'agent' ? 'Agent' : 'Transporter';
+    return `no ${name} handler, forwardTo or onArtifact middleware is registered, so ${type} artifacts are refused. Register one with onIncomingArtifact('${name}', handler).`;
+  }
+
+  /**
    * Core message processing (non-negotiable)
    */
   private async processMessage(
@@ -1190,6 +1226,13 @@ export class BtpsServer {
     reqCtx: BTPRequestCtx,
   ): Promise<boolean> {
     const { artifact, type } = data;
+
+    // Nothing here would take it, so it is refused rather than answered as delivered.
+    if (!this.acceptsArtifacts(type)) {
+      console.warn(`[BtpsServer] Refused a ${type} artifact: ${this.noHandlerWarning(type)}`);
+      this.sendBtpsError(resCtx.socket, BTP_ERROR_ARTIFACT_NOT_ACCEPTED, resCtx.reqId);
+      return true;
+    }
 
     if (type === 'agent') {
       const { respondNow } = data;
@@ -1200,7 +1243,12 @@ export class BtpsServer {
 
       if (this.isResponseSent(resCtx)) return true;
     } else {
-      this.emitter.emit('transporterArtifact', artifact);
+      // Success is answered only once every handler has returned; one that
+      // throws is answered as an error, so the sender knows to try again.
+      const listeners = this.emitter.listeners('transporterArtifact') as ((
+        a: BTPTransporterArtifact,
+      ) => unknown)[];
+      await Promise.all(listeners.map(async (listener) => listener(artifact)));
     }
     await this._forwardArtifact(data);
     return false;
@@ -1434,6 +1482,12 @@ export class BtpsServer {
     await this.initialize();
     this.server.listen(this.port, () => {
       console.log(`✅ BtpsServer started on port ${this.port}`);
+      // Checked once listening, so handlers registered right after start() count.
+      for (const type of ['transporter', 'agent'] as const) {
+        if (!this.acceptsArtifacts(type)) {
+          console.warn(`[BtpsServer] Warning: ${this.noHandlerWarning(type)}`);
+        }
+      }
     });
   }
 
@@ -1462,7 +1516,7 @@ export class BtpsServer {
   // Function overload for 'Transporter'
   public onIncomingArtifact(
     type: 'Transporter',
-    handler: (artifact: BTPTransporterArtifact) => void,
+    handler: (artifact: BTPTransporterArtifact) => void | Promise<void>,
   ): void;
 
   /**
@@ -1472,7 +1526,7 @@ export class BtpsServer {
     type: 'Agent' | 'Transporter',
     handler:
       | ((artifact: BTPAgentArtifact & { respondNow: boolean }, resCtx: ArtifactResCtx) => void)
-      | ((artifact: BTPTransporterArtifact) => void),
+      | ((artifact: BTPTransporterArtifact) => void | Promise<void>),
   ) {
     if (type === 'Agent') {
       this.emitter.on(
@@ -1487,8 +1541,16 @@ export class BtpsServer {
     }
   }
 
-  public getServerIdentity(): BtpsServerOptions['serverIdentity'] {
-    return this.serverIdentity;
+  /**
+   * The server's identity and, when it is configured with a PEM key pair, its
+   * public key. Never the private key: middleware is handed this server, and the
+   * key stays with the server alone.
+   */
+  public getServerIdentity(): { identity: string; publicKey?: string } {
+    const { identity } = this.serverIdentity;
+    return 'signer' in this.serverIdentity
+      ? { identity }
+      : { identity, publicKey: this.serverIdentity.publicKey };
   }
 
   public getDependencies(): {

@@ -45,6 +45,7 @@ import {
   BTP_ERROR_ARTIFACT_TOO_LARGE,
   BTP_ERROR_ARTIFACT_TIME_WINDOW,
   BTP_ERROR_KEY_ROTATION_PROOF,
+  BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
 } from '../../core/error/index.js';
 import { PassThrough } from 'stream';
 import net from 'net';
@@ -474,6 +475,75 @@ describe('BtpsServer', () => {
 
       expect(server['_parseAndValidateArtifact'](line).error).not.toBe('JSON');
       expect(server['_parseAndValidateArtifact'](duplicated)).toEqual({ error: 'JSON' });
+    });
+
+    describe('a transported artifact is answered only after its handler returns', () => {
+      const data = {
+        type: 'transporter' as const,
+        artifact: { id: 't-1' } as BTPTransporterArtifact,
+      };
+      const process = () =>
+        server['processMessage'](data, {} as BTPResponseCtx, {} as BTPRequestCtx);
+
+      it('waits for an async handler before it carries on', async () => {
+        let stored = false;
+        server.onIncomingArtifact('Transporter', async () => {
+          await new Promise((r) => setTimeout(r, 20));
+          stored = true;
+        });
+
+        await process();
+
+        expect(stored).toBe(true);
+      });
+
+      it('fails when a handler throws, so no success is answered', async () => {
+        server.onIncomingArtifact('Transporter', async () => {
+          throw new Error('queue unavailable');
+        });
+
+        await expect(process()).rejects.toThrow('queue unavailable');
+      });
+    });
+
+    describe('a server with nothing to take an artifact', () => {
+      const socket = () =>
+        ({
+          destroyed: false,
+          writableEnded: false,
+          writable: true,
+          write: vi.fn(),
+          end: vi.fn(),
+          destroy: vi.fn(),
+        }) as unknown as TLSSocket;
+      const process = (s: TLSSocket) =>
+        server['processMessage'](
+          { type: 'transporter', artifact: { id: 't-1' } as BTPTransporterArtifact },
+          { socket: s, reqId: 't-1' } as unknown as BTPResponseCtx,
+          {} as BTPRequestCtx,
+        );
+
+      it('refuses it instead of answering success', async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const s = socket();
+
+        expect(await process(s)).toBe(true);
+
+        const written: BTPServerResponse = JSON.parse((s.write as Mock).mock.calls[0]?.[0]);
+        expect(written.type).toBe('btps_error');
+        expect(written.status.message).toBe(BTP_ERROR_ARTIFACT_NOT_ACCEPTED.message);
+        expect(written.reqId).toBe('t-1');
+      });
+
+      it('takes it when onArtifact middleware delivers it', async () => {
+        server['middlewareManager']['middleware'] = [
+          { phase: 'before', step: 'onArtifact', handler: async () => {} },
+        ];
+        const s = socket();
+
+        expect(await process(s)).toBe(false);
+        expect(s.write).not.toHaveBeenCalled();
+      });
     });
   });
 
@@ -2238,7 +2308,7 @@ export default function () {
       });
     });
 
-    describe('trust-refusal error codes (EBA-124)', () => {
+    describe('trust-refusal error codes', () => {
       const PAST = new Date('2020-01-01T00:00:00.000Z').toISOString();
 
       const transporterArtifact = (): BTPTransporterArtifact => ({
@@ -2835,6 +2905,72 @@ export default function () {
     });
   });
 
+  describe('several artifacts on one connection', () => {
+    it('answers the next artifact after a middleware answered the one before', async () => {
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        connectionTimeoutMs: 2000,
+      });
+      // A middleware that answers the first artifact itself, as a filter does.
+      btps['middlewareManager']['middleware'] = [
+        {
+          phase: 'before',
+          step: 'parsing',
+          handler: async (req, res) => {
+            if (req.rawPacket?.includes('"first"')) {
+              res.sendRes({
+                ...btps.prepareBtpsResponse({ ok: true, message: 'filtered', code: 200 }),
+                type: 'btps_response',
+              });
+            }
+          },
+        },
+      ];
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+      const issuedAt = new Date().toISOString();
+
+      try {
+        const answers = await new Promise<BTPServerResponse[]>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const lines = received.split('\n').filter(Boolean);
+            if (lines.length === 2) {
+              client.end();
+              resolve(lines.map((l) => JSON.parse(l)));
+            }
+          });
+          client.on('error', reject);
+          setTimeout(() => reject(new Error(`no second answer: ${received}`)), 1000);
+          client.write(
+            `{"version":"1.0.0","id":"first","issuedAt":"${issuedAt}","action":"PING"}\n`,
+          );
+          setTimeout(
+            () =>
+              client.write(
+                `{"version":"1.0.0","id":"second","issuedAt":"${issuedAt}","action":"PING"}\n`,
+              ),
+            100,
+          );
+        });
+
+        expect(answers[0]?.status.message).toBe('filtered');
+        expect(answers[1]?.status.message).toBe('Server is operational');
+        expect(answers[1]?.reqId).toBe('second');
+      } finally {
+        tcp.close();
+      }
+    });
+  });
+
   describe('closing gently after an unexpected error', () => {
     it('delivers the error to a sender that is still sending its next artifact', async () => {
       const btps = new BtpsServer({
@@ -2998,6 +3134,61 @@ export default function () {
     it("delivers a request from the receiver's registered device, signed by its key", async () => {
       const { delivered } = await fetchInbox(phoneId, phoneKeys);
       expect(delivered).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getServerIdentity, which middleware can reach', () => {
+    it('returns the identity and public key, never the private key', () => {
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'PUBLIC', privateKey: 'SECRET' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const identity = server.getServerIdentity();
+      expect(identity).toEqual({ identity: 'host$example.com', publicKey: 'PUBLIC' });
+      expect(JSON.stringify(identity)).not.toContain('SECRET');
+    });
+  });
+
+  describe('control artifacts', () => {
+    const control = async (action: 'PING' | 'QUIT') => {
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const socket = {
+        destroyed: false,
+        writableEnded: false,
+        writable: true,
+        write: vi.fn(),
+        end: vi.fn(),
+        destroy: vi.fn(),
+      } as unknown as TLSSocket;
+      await server['handleControl'](
+        { version: '1.0.0', id: `probe-${action}`, issuedAt: new Date().toISOString(), action },
+        {
+          req: { socket } as unknown as BTPRequestCtx,
+          res: { socket, reqId: `probe-${action}` } as unknown as BTPResponseCtx,
+        },
+      );
+      const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
+      return { written, socket };
+    };
+
+    it('answers PING as operational and keeps the connection open', async () => {
+      const { written, socket } = await control('PING');
+      expect(written.type).toBe('btps_response');
+      expect(written.status).toEqual({ ok: true, code: 200, message: 'Server is operational' });
+      expect(written.reqId).toBe('probe-PING');
+      expect(socket.end).not.toHaveBeenCalled();
+      expect(socket.destroy).not.toHaveBeenCalled();
+    });
+
+    it('answers QUIT and ends the connection', async () => {
+      const { written, socket } = await control('QUIT');
+      expect(written.status).toEqual({ ok: true, code: 200, message: 'bye' });
+      expect(socket.end).toHaveBeenCalled();
     });
   });
 

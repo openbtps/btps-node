@@ -8,3 +8,4 @@
 export * from './types/index.js';
 export { BtpsAgent } from './btpsAgent.js';
 export { BtpsClient } from './btpsClient.js';
+export { BtpsTransporter } from './btpsTransporter.js';

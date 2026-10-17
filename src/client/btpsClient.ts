@@ -98,7 +98,7 @@ export class BtpsClient {
 
     if (this.states.isConnecting) {
       const error = new BTPErrorException({ message: 'already connecting' });
-      this.emitter.emit('error', {
+      this.emitError({
         error,
         ...this.getRetryInfo(error),
       });
@@ -169,12 +169,7 @@ export class BtpsClient {
       const errorInfo = { ...info, error };
       this.states.isConnecting = false;
       this.states.isConnected = false;
-      if (this.emitter.listenerCount('error') === 0) {
-        // No error handler registered: log instead of emitting
-        console.error('[BtpsClient]::Unhandled error:', errorInfo);
-      } else {
-        this.emitter.emit('error', errorInfo);
-      }
+      this.emitError(errorInfo);
 
       if (info.willRetry) {
         this.retryConnect(receiverId);
@@ -220,10 +215,17 @@ export class BtpsClient {
       const msg: BTPServerResponse = JSON.parse(line);
       this.states.shouldRetry = false;
       const { isValid: validSignature, error } = await this.verifyServerMessage(msg);
-      if (msg?.reqId && this.queue.has(msg.reqId)) {
-        const pendingMsg = { ...this.queue.get(msg.reqId)! };
+      // An error the server could not tie to a request, such as a line it
+      // could not parse, has no reqId: while one send is waiting, it is that one's.
+      const reqId =
+        msg?.reqId ??
+        (msg?.type === 'btps_error' && this.queue.size === 1
+          ? this.queue.keys().next().value
+          : undefined);
+      if (reqId && this.queue.has(reqId)) {
+        const pendingMsg = { ...this.queue.get(reqId)! };
         const { resolve, timeout } = pendingMsg;
-        this.queue.delete(msg.reqId);
+        this.queue.delete(reqId);
         clearTimeout(timeout);
         resolve({
           response: validSignature ? msg : undefined,
@@ -236,7 +238,7 @@ export class BtpsClient {
     } catch (e) {
       const err = new SyntaxError(`Invalid JSON: ${e}`);
       this.states.shouldRetry = false;
-      this.emitter.emit('error', { error: err, ...this.getRetryInfo(err) });
+      this.emitError({ error: err, ...this.getRetryInfo(err) });
     }
   }
 
@@ -330,6 +332,18 @@ export class BtpsClient {
       }
     }
     this.queue.clear();
+  }
+
+  /**
+   * Hands an error to the client's 'error' listeners, or logs it when there are
+   * none: an 'error' event nobody listens to throws inside the SDK.
+   */
+  protected emitError(errorInfo: BTPSRetryInfo & { error: Error }): void {
+    if (this.emitter.listenerCount('error') === 0) {
+      console.error('[BtpsClient]::Unhandled error:', errorInfo);
+    } else {
+      this.emitter.emit('error', errorInfo);
+    }
   }
 
   /**
@@ -454,7 +468,7 @@ export class BtpsClient {
     if (resolve) {
       resolve({ response: undefined, error });
     } else {
-      this.emitter.emit('error', { error, ...this.getRetryInfo(error) });
+      this.emitError({ error, ...this.getRetryInfo(error) });
     }
     if (timeout) clearTimeout(timeout);
     if (this.queue.has(artifactId)) this.queue.delete(artifactId);

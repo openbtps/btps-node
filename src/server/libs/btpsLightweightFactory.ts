@@ -22,7 +22,7 @@ interface BtpsServerInstance {
     type: 'Agent' | 'Transporter',
     handler:
       | ((artifact: BTPAgentArtifact, resCtx: ArtifactResCtx) => void)
-      | ((artifact: BTPTransporterArtifact) => void),
+      | ((artifact: BTPTransporterArtifact) => void | Promise<void>),
   ): void;
   getProtocolVersion(): string;
   prepareBtpsResponse(status: BTPStatus, reqId?: string): Omit<BTPServerResponse, 'type'>;

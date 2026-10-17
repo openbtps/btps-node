@@ -26,6 +26,7 @@ import {
 
 import { BTPErrorException } from '@core/error/index.js';
 import { assertStrictJson, canonicalize, canonicalizeValue } from './jcs.js';
+import { assertFullLengthAuthTag } from './pem-decrypter.js';
 import type { Signer } from './signer-interface.js';
 import type { Decrypter } from './decrypter-interface.js';
 
@@ -89,12 +90,16 @@ export const decryptBtpPayload = <T = unknown>(
       Buffer.from(encryption.encryptedKey, 'base64'),
     );
 
+    // A full 16-byte tag only: a shorter one is a weaker integrity check
+    const authTag = Buffer.from(encryption.authTag, 'base64');
+    assertFullLengthAuthTag(authTag);
     const decipher = crypto.createDecipheriv(
       encryption.algorithm,
       decryptedKey,
       Buffer.from(encryption.iv, 'base64'),
+      { authTagLength: 16 },
     );
-    decipher.setAuthTag(Buffer.from(encryption.authTag, 'base64'));
+    decipher.setAuthTag(authTag);
 
     const stringifiedPayload = typeof payload !== 'string' ? JSON.stringify(payload) : payload;
 
@@ -174,10 +179,20 @@ const decryptionError = (err: unknown): BTPErrorException => {
     : new BTPErrorException(BTP_ERROR_UNKNOWN);
 };
 
+/** The smallest RSA key the SDK encrypts to. */
+export const MIN_RSA_KEY_BITS = 2048;
+
 /**
  * Encrypts a buffer using RSA public key with OAEP and SHA-256
  */
 export const encryptRSA = (publicKeyPem: string, data: Buffer): Buffer => {
+  // Below 2048 bits an RSA key no longer protects what is wrapped for it
+  const bits = crypto.createPublicKey(publicKeyPem).asymmetricKeyDetails?.modulusLength ?? 0;
+  if (bits < MIN_RSA_KEY_BITS) {
+    throw new BTPErrorException(BTP_ERROR_UNSUPPORTED_ENCRYPT, {
+      cause: `the receiver's RSA key is ${bits} bits; at least ${MIN_RSA_KEY_BITS} are required`,
+    });
+  }
   return crypto.publicEncrypt(
     {
       key: publicKeyPem,

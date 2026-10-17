@@ -1128,7 +1128,7 @@ Error constant for trust requests not allowed at this time.
 
 This is also the response a sender receives for a **revoked** trust record: on the wire, revoked and never-trusted produce an identical response body (the same `message`), so a sender who was removed cannot tell their refusal apart from one who was never trusted. The server's own context keeps the precise reason (see `BTP_ERROR_TRUST_REVOKED` below).
 
-The distinction between trust-refusal cases described on this page lives in the response's `status.message` text, not in its numeric `status.code`. Today `status.code` is `500` for this and for every other application-level BTPS error, regardless of which of these constants produced it — a separate, pre-existing gap (`sendBtpsError`'s `typeof error.code === 'number' ? error.code : 500` fallback) tracked by EBA-188, not fixed by the trust-refusal work described here.
+The distinction between trust-refusal cases described on this page lives in the response's `status.message` text, not in its numeric `status.code`. Today `status.code` is `500` for this and for every other application-level BTPS error, regardless of which of these constants produced it (`sendBtpsError`'s `typeof error.code === 'number' ? error.code : 500` fallback).
 
 ---
 
@@ -1481,6 +1481,22 @@ Error constant for an artifact larger than the receiving server's limit (`maxArt
 
 - `code`: `'BTP_ERROR_ARTIFACT_TOO_LARGE'`
 - `message`: `'Artifact exceeds the size limit of this server'`, sent as for example `'Artifact exceeds the size limit of this server: 5120 KB'`
+
+---
+
+### BTP_ERROR_ARTIFACT_NOT_ACCEPTED
+
+```ts
+const BTP_ERROR_ARTIFACT_NOT_ACCEPTED: BTPError;
+```
+
+**Description:**
+Error constant for an artifact the receiving server has nothing to take: no handler registered with `onIncomingArtifact` for its type, no `forwardTo` handler and no `onArtifact` middleware. The server refuses it instead of answering success, and logs a warning, as it also does when it starts without one.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_ARTIFACT_NOT_ACCEPTED'`
+- `message`: `'This server does not accept this kind of artifact'`
 
 ---
 

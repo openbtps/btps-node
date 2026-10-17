@@ -35,6 +35,7 @@ export class BtpsDelegator {
   private publicKey?: PemKeys['publicKey'];
   private selector: string = 'btps1';
   private isInitialized = false;
+  private ready?: Promise<void>;
 
   /**
    * Initialize the delegator
@@ -44,7 +45,10 @@ export class BtpsDelegator {
     this.identity = options.identity;
     this.key = 'signer' in options ? options.signer : options.privateKey;
     if (options.autoInit !== false) {
-      this.init();
+      // Kept so delegateArtifact waits for it and reports its failure, rather
+      // than the failure being lost as an unhandled rejection
+      this.ready = this.init();
+      this.ready.catch(() => undefined);
     }
   }
 
@@ -127,6 +131,7 @@ export class BtpsDelegator {
       keyPair: BTPSigningKey;
     },
   ): Promise<BTPTransporterArtifact & { delegation: BTPDelegation }> {
+    if (this.ready) await this.ready;
     if (!this.isInitialized || !this.publicKey)
       throw new BTPErrorException({ message: 'Delegator not initialized' });
 
@@ -150,11 +155,13 @@ export class BtpsDelegator {
 
     if (onBehalfOf) {
       // User key signs delegation, SaaS attests
+      // Signed with the attestor's own key, so it names the attestor's own selector:
+      // the receiver finds the attestor's key under it
       const attestation = await this.createAttestation({
         delegation,
         attestorIdentity: this.identity,
         attestorKey: this.ownKey(this.publicKey),
-        selector,
+        selector: this.selector,
       });
       delegation.attestation = attestation;
     }

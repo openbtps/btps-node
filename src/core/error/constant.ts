@@ -43,13 +43,11 @@ export const BTP_ERROR_TRUST_NOT_ALLOWED: BTPError = {
 };
 
 /**
- * EBA-124 (option B, decided 2026-10-06): an expired trust record gets its
- * own distinct response `message` on the wire, separate from
- * BTP_ERROR_TRUST_NOT_ALLOWED. This distinction lives only in the response
- * body text - sendBtpsError's `typeof error.code === 'number' ? error.code
- * : 500` fallback (btpsServer.ts:1178) means the numeric `status.code` is
- * 500 for this and every other application error today, a separate,
- * pre-existing gap tracked by EBA-188, not fixed here.
+ * An expired trust record gets its own distinct response `message` on the
+ * wire, separate from BTP_ERROR_TRUST_NOT_ALLOWED. This distinction lives
+ * only in the response body text - sendBtpsError's `typeof error.code ===
+ * 'number' ? error.code : 500` fallback means the numeric `status.code` is
+ * 500 for this and every other application error today.
  */
 export const BTP_ERROR_TRUST_EXPIRED: BTPError = {
   code: 'BTP_ERROR_TRUST_EXPIRED',
@@ -57,8 +55,8 @@ export const BTP_ERROR_TRUST_EXPIRED: BTPError = {
 };
 
 /**
- * EBA-124: the precise, server-side-only reason for a revoked trust record.
- * On the wire this collapses onto BTP_ERROR_TRUST_NOT_ALLOWED (option B) -
+ * The precise, server-side-only reason for a revoked trust record.
+ * On the wire this collapses onto BTP_ERROR_TRUST_NOT_ALLOWED -
  * same response `message`, same `status.code` - so a revoked sender cannot
  * distinguish their refusal from a never-trusted one.
  */
@@ -170,6 +168,11 @@ export const BTP_ERROR_ARTIFACT_TIME_WINDOW: BTPError = {
 export const BTP_ERROR_ARTIFACT_TOO_LARGE: BTPError = {
   code: 'BTP_ERROR_ARTIFACT_TOO_LARGE',
   message: 'Artifact exceeds the size limit of this server',
+};
+
+export const BTP_ERROR_ARTIFACT_NOT_ACCEPTED: BTPError = {
+  code: 'BTP_ERROR_ARTIFACT_NOT_ACCEPTED',
+  message: 'This server does not accept this kind of artifact',
 };
 
 export const BTP_ERROR_SOCKET_TIMEOUT: BTPError = {

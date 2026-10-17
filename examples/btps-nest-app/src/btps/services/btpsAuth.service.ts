@@ -8,7 +8,6 @@ import type {
   BTPAuthReqDoc,
   BTPServerResponse,
   BtpsServer,
-  BtpsServerOptions,
 } from '@btps/sdk/server';
 import { BTP_ERROR_AUTHENTICATION_INVALID } from '@btps/sdk/error';
 
@@ -16,7 +15,7 @@ import { BTP_ERROR_AUTHENTICATION_INVALID } from '@btps/sdk/error';
 export class BtpsAuthService {
   private auth: BtpsAuthentication | undefined;
   private server: BtpsServer | undefined;
-  private serverIdentity: BtpsServerOptions['serverIdentity'] | undefined;
+  private serverIdentity: ReturnType<BtpsServer['getServerIdentity']> | undefined;
 
   constructor(private readonly tokenStore: RedisTokenStoreService) {}
 

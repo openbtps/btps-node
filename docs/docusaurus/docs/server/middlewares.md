@@ -171,6 +171,8 @@ Each handler receives:
 ## Loading & Ordering Middleware
 
 - Middleware is loaded from the file specified by `middlewarePath` (default: `btps.middleware.mjs` in the root).
+- Middleware is optional, so a missing file never stops the server. If you set `middlewarePath` and the file is not there, the server logs a warning and runs without middleware.
+- A definition with an invalid `phase`, `step`, `handler` or `priority` is skipped with a warning. A handler is awaited, so it does not have to take `next`.
 - Middleware is executed in the order listed for each phase/step.
 - Use the `priority` field to control execution order (lower numbers run first).
 

@@ -26,7 +26,11 @@ import {
   type Decrypter,
 } from './index.js';
 import { PemKeys } from './types.js';
-import { BTP_ERROR_CANONICAL_JSON, BTP_ERROR_DECRYPTION_UNINTENDED } from '../error/constant.js';
+import {
+  BTP_ERROR_CANONICAL_JSON,
+  BTP_ERROR_DECRYPTION_UNINTENDED,
+  BTP_ERROR_UNSUPPORTED_ENCRYPT,
+} from '../error/constant.js';
 
 interface KmsSignatureVector {
   algorithm: string;
@@ -94,7 +98,7 @@ function genRsaKeyPair(): PemKeys {
   return { publicKey, privateKey };
 }
 
-describe('EBA-115: JCS canonicalization of signed payloads', () => {
+describe('JCS canonicalization of signed payloads', () => {
   it(
     'signs identically regardless of the JS object key insertion order',
     () => {
@@ -123,9 +127,8 @@ describe('EBA-115: JCS canonicalization of signed payloads', () => {
 // The web side signs and verifies the RFC 8785 canonical bytes, as a BTPS 1.1
 // web client must. Both Node-side payloads are deliberately NOT in canonical
 // key order, so these pass only once the SDK also signs canonical bytes, which
-// is EBA-115's fix. (Round 1 had the web side sign JSON.stringify output in a
-// non-canonical order, which no SDK fix could ever make pass.)
-describe('EBA-122: Node and web (WebCrypto) verify each other’s signatures', () => {
+// is what canonical signing fixed.
+describe('Node and web (WebCrypto) verify each other’s signatures', () => {
   it(
     'a signature produced by Node verifies under WebCrypto, even when the payload was rebuilt with different key order',
     async () => {
@@ -194,9 +197,9 @@ describe('EBA-122: Node and web (WebCrypto) verify each other’s signatures', (
   );
 });
 
-describe('EBA-116/117/118: interop with a KMS RSASSA_PKCS1_V1_5_SHA_256 signature', () => {
+describe('interop with a KMS RSASSA_PKCS1_V1_5_SHA_256 signature', () => {
   // The vector's signature is over canonicalPayload; payloadRaw is the same
-  // object in a different key order, so verifying it needs EBA-115's canonical
+  // object in a different key order, so verifying it needs canonical
   // verification.
   it(
     'verifies a precomputed KMS-style signature against the logically equivalent (differently ordered) payload',
@@ -224,7 +227,7 @@ describe('EBA-116/117/118: interop with a KMS RSASSA_PKCS1_V1_5_SHA_256 signatur
 // @types/node's RsaPublicKey/RsaPrivateKey either). So "pinned" is shown by
 // behaviour, not by inspecting the options passed. These pass on baseline
 // 367cd09, as the runner's sdk/kms checks do.
-describe('EBA-116/117/118: the OAEP MGF1 digest is pinned to SHA-256', () => {
+describe('the OAEP MGF1 digest is pinned to SHA-256', () => {
   it('decryptRSA refuses a wrap made with OAEP-SHA-256 and MGF1-SHA-1', () => {
     expect(oaepMgf1Sha1Vector.mgf1Algorithm).toBe('SHA_1');
     expect(() =>
@@ -255,7 +258,7 @@ describe('EBA-116/117/118: the OAEP MGF1 digest is pinned to SHA-256', () => {
   });
 });
 
-describe('EBA-116/117/118: SDK RSA-OAEP wrap/unwrap interop with KMS RSAES_OAEP_SHA_256', () => {
+describe('SDK RSA-OAEP wrap/unwrap interop with KMS RSAES_OAEP_SHA_256', () => {
   it('a key wrapped by the SDK’s encryptRSA unwraps under explicit KMS-equivalent OAEP params', () => {
     const keys = genRsaKeyPair();
     const aesKey = crypto.randomBytes(32);
@@ -420,5 +423,28 @@ describe('a key held elsewhere: Signer and Decrypter', () => {
 
     expect(result.data).toBeUndefined();
     expect(result.error?.message).toBe('key holder unavailable');
+  });
+});
+
+describe('the smallest key the SDK encrypts to', () => {
+  const rsa = (modulusLength: number) =>
+    crypto.generateKeyPairSync('rsa', {
+      modulusLength,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+
+  it('refuses to encrypt to an RSA key below 2048 bits', () => {
+    expect(() => encryptBtpPayload({ amount: 100 }, rsa(1024).publicKey)).toThrow(
+      expect.objectContaining({ code: BTP_ERROR_UNSUPPORTED_ENCRYPT.code }),
+    );
+  });
+
+  it('encrypts to a 2048-bit key and larger', () => {
+    for (const bits of [2048, 3072]) {
+      expect(encryptBtpPayload({ amount: 100 }, rsa(bits).publicKey).data).toEqual(
+        expect.any(String),
+      );
+    }
   });
 });

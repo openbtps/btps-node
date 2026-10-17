@@ -181,6 +181,23 @@ describe('BtpsDelegator', () => {
       }
     });
 
+    it("names the user's selector on the delegation and the attestor's own on the attestation", async () => {
+      // The SaaS publishes its key at btps1; the custom domain publishes the user's at user2
+      mockGetHostAndSelector.mockResolvedValue({
+        version: '1.0.0',
+        host: 'btps://btps.customdomain.com:3443',
+        selector: 'user2',
+      });
+
+      const result = await delegator.delegateArtifact(agentId, agentPubKey, artifact, {
+        identity: 'user456$customdomain.com',
+        keyPair: userKeys,
+      });
+
+      expect(result.delegation.selector).toBe('user2');
+      expect(result.delegation.attestation?.selector).toBe('btps1');
+    });
+
     it('should throw if not initialized', async () => {
       delegator['isInitialized'] = false;
       await expect(delegator.delegateArtifact(agentId, agentPubKey, artifact)).rejects.toThrow(
@@ -298,6 +315,33 @@ describe('BtpsDelegator', () => {
         { privateKey: saasKeys.privateKey, publicKey: saas.publicKey },
       );
       expect(result.delegation.attestation?.signedBy).toBe('saas$platform.com');
+    });
+  });
+
+  describe('Starting on its own (autoInit)', () => {
+    it('waits for its start before delegating, so an early call does not fail', async () => {
+      mockResolvePublicKey.mockResolvedValue(saasKeys.publicKey);
+      const delegator = new BtpsDelegator({
+        identity: 'saas$platform.com',
+        privateKey: saasKeys.privateKey,
+      });
+      delegator['isKeyPairMatching'] = vi.fn().mockReturnValue(true);
+
+      const result = await delegator.delegateArtifact(agentId, agentPubKey, artifact);
+
+      expect(result.delegation.signedBy).toBe('saas$platform.com');
+    });
+
+    it('reports a failed start from delegateArtifact, not as an unhandled rejection', async () => {
+      mockGetHostAndSelector.mockResolvedValue(undefined);
+      const delegator = new BtpsDelegator({
+        identity: 'saas$platform.com',
+        privateKey: saasKeys.privateKey,
+      });
+
+      await expect(
+        delegator.delegateArtifact(agentId, agentPubKey, artifact),
+      ).rejects.toMatchObject({ cause: 'Delegator identity verification failed' });
     });
   });
 
