@@ -12,6 +12,7 @@ export class BtpsSimpleRateLimiter implements RateLimiter {
   private readonly identityLimitPerSec: number;
   private readonly ipLimitPerSec: number;
   private readonly cleanupIntervalMs: number;
+  private readonly maxEntries: number;
   private readonly ipCounters = new Map<string, CounterRecord>();
   private readonly identityCounters = new Map<string, CounterRecord>();
   private cleanupTimer?: NodeJS.Timeout;
@@ -20,6 +21,7 @@ export class BtpsSimpleRateLimiter implements RateLimiter {
     this.identityLimitPerSec = options.fromIdentity ?? 10;
     this.ipLimitPerSec = options.ipAddress ?? 50;
     this.cleanupIntervalMs = (options?.cleanupIntervalSec ?? 60) * 1000;
+    this.maxEntries = options.maxEntries ?? 100_000;
 
     this.startCleanupTimer();
   }
@@ -56,6 +58,13 @@ export class BtpsSimpleRateLimiter implements RateLimiter {
     const current = counters.get(identity);
 
     if (!current || current.windowStart < windowStart) {
+      // A flood of distinct keys must not grow memory until the next cleanup:
+      // re-inserting moves a key to the end, so the first one is the oldest.
+      counters.delete(identity);
+      if (counters.size >= this.maxEntries) {
+        const oldest = counters.keys().next().value;
+        if (oldest !== undefined) counters.delete(oldest);
+      }
       counters.set(identity, { count: 1, windowStart: now });
       return true;
     }
