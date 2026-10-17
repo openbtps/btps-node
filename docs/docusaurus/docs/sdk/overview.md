@@ -113,8 +113,8 @@ dist/
 ### Generate a Key Pair
 
 ```js
-import { keygen } from '@btps/sdk/crypto';
-const { publicKey, privateKey } = await keygen('ed25519');
+import { getBTPKeyPair } from '@btps/sdk/crypto';
+const { publicKey, privateKey } = getBTPKeyPair(); // RSA, 2048 bits by default
 ```
 
 ### Sign and Encrypt a Document
@@ -131,8 +131,8 @@ const { payload, error } = await signEncrypt(
     },
   },
   {
-    signature: { algorithm: 'sha256' },
-    encryption: { algorithm: 'aes-256-cbc', mode: 'standardEncrypt' },
+    signature: { algorithmHash: 'sha256' },
+    encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
   },
 );
 ```

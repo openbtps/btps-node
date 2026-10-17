@@ -250,7 +250,7 @@ case 'system.status':
     document: {
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      version: '1.0.0'
+      version: '1.1.0'
     }
   });
 ```

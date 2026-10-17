@@ -109,7 +109,7 @@ const keyPair = await generateKeyPair();
 
 ```json
 {
-  "version": "1.0.0.0",
+  "version": "1.1.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "auth_req_123456",
   "action": "auth.request",
@@ -127,7 +127,7 @@ const keyPair = await generateKeyPair();
     }
   },
   "signature": {
-    "algorithm": "sha256",
+    "algorithmHash": "sha256",
     "value": "base64_encoded_signature",
     "fingerprint": "device_public_key_fingerprint"
   }
@@ -280,7 +280,7 @@ async createAgent(options: CreateAgentOptions): Promise<BTPAuthResDoc> {
 
 ```json
 {
-  "version": "1.0.0.0",
+  "version": "1.1.0",
   "issuedAt": "2025-01-15T10:30:15Z",
   "id": "auth_req_123456",
   "type": "btps_response",
@@ -312,7 +312,7 @@ async createAgent(options: CreateAgentOptions): Promise<BTPAuthResDoc> {
 
 ```json
 {
-  "version": "1.0.0.0",
+  "version": "1.1.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "refresh_req_789012",
   "action": "auth.refresh",
@@ -328,7 +328,7 @@ async createAgent(options: CreateAgentOptions): Promise<BTPAuthResDoc> {
     }
   },
   "signature": {
-    "algorithm": "sha256",
+    "algorithmHash": "sha256",
     "value": "base64_encoded_signature",
     "fingerprint": "device_public_key_fingerprint"
   }
@@ -399,7 +399,7 @@ async validateAndReissueRefreshToken(
 
 ```json
 {
-  "version": "1.0.0.0",
+  "version": "1.1.0",
   "issuedAt": "2025-01-15T10:30:15Z",
   "id": "refresh_req_789012",
   "type": "btps_response",

@@ -85,7 +85,7 @@ BTPS provides:
    - Senders must request trust from receivers before sending business documents.
    - Receivers approve, reject, or block senders. Only trusted senders can deliver documents.
 3. **Secure Message Exchange:**
-   - All messages are signed and encrypted using strong cryptography (RSA, Ed25519, AES-256, etc.).
+   - All messages are signed and encrypted using strong cryptography: RSA-2048 or larger keys, AES-256-GCM and SHA-256 ([algorithms](./protocol/security/algorithm.md)).
    - Servers verify sender identity, trust status, and document integrity before accepting any message.
 4. **Key Rotation & Revocation:**
    - Key changes are managed via DNS and `.well-known` records. Trust can be revoked or expired at any time.
@@ -197,7 +197,7 @@ graph TD
 
 - **Message formats and artifacts structure:** Defines the standard structure for all BTPS artifacts, including documents, encryption, and signature fields. Ensures interoperability and consistent validation across all implementations.
 - **Trust establishment and verification flows:** Outlines the handshake and approval process for establishing trust between parties, including request, verification, approval/rejection, and storage of trust records. Guarantees that only approved senders can deliver documents.
-- **Cryptographic operations (signing, encryption, verification):** Utilizes strong cryptographic algorithms (e.g., AES-256-CBC, RSA, SHA-256) for signing, encrypting, and verifying messages. Ensures confidentiality, integrity, and authenticity of all communications.
+- **Cryptographic operations (signing, encryption, verification):** Utilizes strong cryptographic algorithms (e.g., AES-256-GCM, RSA, SHA-256) for signing, encrypting, and verifying messages. Ensures confidentiality, integrity, and authenticity of all communications.
 - **Error handling and response codes:** Standardizes error responses and codes for all protocol operations, making it easier to debug, monitor, and automate error recovery.
 
 ### Identity System

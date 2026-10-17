@@ -12,7 +12,7 @@ Following security best practices is critical for maintaining the integrity and 
 
 - **Key Rotation:** Rotate cryptographic keys regularly and update DNS/.well-known records promptly.
 - **Private Key Protection:** Never share private keys; store them securely (e.g., HSM, encrypted disk).
-- **Strong Algorithms:** Use only strong, industry-standard algorithms (e.g., AES-256-CBC, RSA-2048+, SHA-256).
+- **Strong Algorithms:** Use only strong, industry-standard algorithms (e.g., AES-256-GCM, RSA-2048+, SHA-256).
 - **Signature Verification:** Always verify digital signatures before processing any message.
 - **Audit Logging:** Log all cryptographic operations and key management events for audit and compliance.
 - **Access Control:** Restrict access to cryptographic material and key management interfaces.

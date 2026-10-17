@@ -19,7 +19,7 @@ The BTPS (Billing Trust Protocol Secure) specification defines a standardized pr
 
 ### Message Security
 
-- **End-to-End Encryption**: Sensitive documents encrypted with AES-256-CBC
+- **End-to-End Encryption**: Sensitive documents encrypted with AES-256-GCM
 - **Digital Signatures**: SHA-256 signatures for message authenticity and integrity
 - **TLS Transport**: All communication secured with TLS 1.3
 
@@ -70,19 +70,19 @@ btps1._btps.identity.finance.vendorcorp.com
 ### TXT Record Format
 
 ```
-v=1.0.0; k=<key_type>; p=<base64_public_key>
+v=1.1.0; k=<key_type>; p=<base64_public_key>
 ```
 
 **Parameters:**
 
-- `v`: Protocol version (`1.0.0`)
+- `v`: Protocol version (`1.1.0`)
 - `k`: Key type (`rsa`)
 - `p`: Public key (base64-encoded, SPKI format, no PEM headers/footers)
 
 **Example TXT Record:**
 
 ```
-v=1.0.0; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+v=1.1.0; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
 ```
 
 ---
@@ -106,12 +106,12 @@ _btps.host.vendorcorp.com
 ### TXT Record Format
 
 ```
-v=1.0.0; u=<btps_host:port>; s=<selector>; op=<operator_identity>
+v=1.1.0; u=<btps_host:port>; s=<selector>; op=<operator_identity>
 ```
 
 **Parameters:**
 
-- `v`: Protocol version (`1.0.0`)
+- `v`: Protocol version (`1.1.0`)
 - `u`: BTPS server host and port (e.g., `btps.vendorcorp.com:3443`). Default port is `3443` if not present.
 - `s`: BTPS selector (e.g., `btps1`)
 - `op`: The domain's **operator**: the identity that runs the domain's BTPS server (e.g., `admin$vendorcorp.com`). See [The Domain Operator](#the-domain-operator).
@@ -121,7 +121,7 @@ Each field is `key=value`, separated by `;`. A value is everything after the fie
 **Example TXT Record:**
 
 ```
-v=1.0.0; u=btps.vendorcorp.com:3443; s=btps1; op=admin$vendorcorp.com
+v=1.1.0; u=btps.vendorcorp.com:3443; s=btps1; op=admin$vendorcorp.com
 ```
 
 ### Lookup Flow
@@ -160,7 +160,7 @@ All BTPS messages follow a standardized envelope structure:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "btps_1234567890abcdef",
   "type": "TRUST_REQ",
@@ -170,15 +170,16 @@ All BTPS messages follow a standardized envelope structure:
     // Document-specific content (see Document Types section)
   },
   "signature": {
-    "algorithm": "sha256",
+    "algorithmHash": "sha256",
     "value": "base64-encoded-signature",
     "fingerprint": "sha256-base64-fingerprint"
   },
   "encryption": {
-    "algorithm": "aes-256-cbc",
-    "encryptedPayload": "base64-encoded-encrypted-document",
+    "algorithm": "aes-256-gcm",
     "encryptedKey": "base64-encoded-encrypted-key",
-    "iv": "base64-encoded-initialization-vector"
+    "iv": "base64-encoded-initialization-vector",
+    "authTag": "base64-encoded-authentication-tag",
+    "type": "standardEncrypt"
   },
   "selector": "btps1",
   "delegation": {
@@ -188,7 +189,7 @@ All BTPS messages follow a standardized envelope structure:
     "signedBy": "alice$saas.com",
     "issuedAt": "2025-01-15T10:30:00Z",
     "signature": {
-      "algorithm": "sha256",
+      "algorithmHash": "sha256",
       "value": "base64-encoded-signature",
       "fingerprint": "sha256-base64-fingerprint"
     },
@@ -198,7 +199,7 @@ All BTPS messages follow a standardized envelope structure:
       "issuedAt": "2025-01-15T10:30:00Z",
       "signedBy": "admin$saas.com",
       "signature": {
-        "algorithm": "sha256",
+        "algorithmHash": "sha256",
         "value": "base64-encoded-signature",
         "fingerprint": "sha256-base64-fingerprint"
       },
@@ -255,15 +256,15 @@ These are used for notifying the agent or client related to delivery failure. No
 
 **Digital Signatures:**
 
-- Algorithm: SHA-256 with RSA, Ed25519, or ECDSA
-- Signature covers entire message envelope (excluding signature field)
+- Algorithm: RSASSA-PKCS1-v1_5 with SHA-256, with an RSA key of at least 2048 bits
+- Signature covers the entire message envelope (excluding the signature field), in its RFC 8785 (JCS) canonical form; an envelope that names a member twice is refused
 - Public key must be published in DNS TXT record
 
 **Encryption:**
 
-- Algorithm: AES-256-CBC
-- Key exchange: RSA-OAEP or ECDH
-- IV: Random 16-byte initialization vector
+- Algorithm: AES-256-GCM, with a random 256-bit key and a full 16-byte authentication tag
+- Key exchange: RSA-OAEP with SHA-256 (MGF1 SHA-256), to the receiver's key
+- IV: Random 12-byte initialization vector
 - Encrypted content: Base64 encoded
 
 **Transport Security:**
@@ -286,6 +287,7 @@ These are used for notifying the agent or client related to delivery failure. No
 - Must refuse an artifact larger than its own limit before reading any more of it, answer with the limit in the error message, and close the connection gently: send the answer, then end the connection while ignoring whatever else the sender is still sending. Tearing the connection down at once would reset it, and a sender still sending could lose the answer unread.
 - Must close the same gentle way after any other error that ends a connection while it still works (an unexpected failure, an idle timeout): stop reading artifacts, keep draining, send the error, then end. A sender may already be sending its next artifact. Only a connection that is already broken is torn down at once Each server chooses its limit (`maxArtifactSizeKb` in the SDK): 5120 KB (5 MB) by default, at least 1024 KB (1 MB), with no maximum. 1 KB is 1024 bytes, and the size is the artifact's line in bytes
 
+- Must refuse an artifact of a protocol version it does not support, before any signature work, with `BTP_ERROR_VERSION_UNSUPPORTED` (400) naming the versions it supports. Versions compare by major and minor: a 1.1 server accepts any 1.1.x and refuses 1.0. A server advertises its version as `v` in `_btps.host`
 - Must answer success only once the artifact has been handed over: to the platform's handler or queue, which returned. Success means **received**: the receiving platform has the artifact. It does not mean the document was opened or could be decrypted. A BTPS server only verifies signatures and never decrypts; an encrypted document is the receiving platform's to open, when its user views it. A platform that later finds a document unreadable deals with it itself, as an email provider does with an unreadable attachment.
 
 ### Client Requirements

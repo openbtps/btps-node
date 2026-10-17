@@ -11,9 +11,9 @@ BTPS uses digital signatures to ensure the authenticity and integrity of every m
 ## Signature Workflow
 
 ### Signing (Sender Side)
-1. **Payload Preparation:** The sender prepares the artifact (including metadata and payload).
-2. **Hashing:** The sender computes a SHA-256 hash of the artifact.
-3. **Signature Generation:** The sender signs the hash using their private key (RSA or Ed25519 planned).
+1. **Payload Preparation:** The sender prepares the artifact (including metadata and payload), without its `signature`.
+2. **Canonical Form:** The artifact is serialised in its [RFC 8785 (JCS)](https://www.rfc-editor.org/rfc/rfc8785) canonical form, so every implementation signs the same bytes.
+3. **Signature Generation:** The sender signs those bytes with RSASSA-PKCS1-v1_5 and SHA-256, using its RSA private key.
 4. **Fingerprint Calculation:** The sender's public key fingerprint is computed (SHA-256 of the public key DER).
 5. **Signature Attachment:** The signature and fingerprint are attached to the artifact as the `signature` field.
 
@@ -46,7 +46,7 @@ sequenceDiagram
 ```json
 {
   "signature": {
-    "algorithm": "sha256",
+    "algorithmHash": "sha256",
     "value": "...",
     "fingerprint": "..."
   }

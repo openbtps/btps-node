@@ -12,7 +12,7 @@ BTPS uses a hybrid encryption approach to ensure that messages are both confiden
 1. **Key Discovery:** Sender retrieves the receiver's public key from DNS or `.well-known`.
 2. **Payload Preparation:** Sender prepares the message/document to be sent.
 3. **Symmetric Key Generation:** Sender generates a random AES-256 key and IV.
-4. **Payload Encryption:** The message is encrypted using AES-256-CBC with the generated key and IV.
+4. **Payload Encryption:** The message is encrypted using AES-256-GCM with the generated key and IV.
 5. **Key Encryption:** The AES key is encrypted using the receiver's public RSA key (RSA-OAEP).
 6. **Message Signing:** The sender signs the encrypted payload and metadata with their private key (SHA-256).
 7. **Artifact Assembly:** The encrypted payload, encrypted key, IV, and signature are assembled into a BTPS Artifact.
@@ -41,7 +41,7 @@ sequenceDiagram
     Sender->>Sender: Check trust record for encryption requirement
     alt Encryption required
         Sender->>Sender: Generate AES key & IV
-        Sender->>Sender: Encrypt payload (AES-256-CBC)
+        Sender->>Sender: Encrypt payload (AES-256-GCM)
         Sender->>Sender: Encrypt AES key (Receiver's RSA pubkey)
     else No encryption
         Sender->>Sender: Use plain payload
@@ -54,13 +54,14 @@ sequenceDiagram
 
 ```json
 {
-  "algorithm": "aes-256-cbc",
+  "algorithm": "aes-256-gcm",
   "encryptedKey": "...",
   "iv": "...",
+  "authTag": "...",
   "type": "standardEncrypt",
   "document": "...", // Encrypted payload (base64) or plain text
   "signature": {
-    "algorithm": "sha256",
+    "algorithmHash": "sha256",
     "value": "...",
     "fingerprint": "..."
   }

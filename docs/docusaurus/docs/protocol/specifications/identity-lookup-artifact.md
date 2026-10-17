@@ -15,7 +15,7 @@ Identity lookup artifacts (`BTPIdentityLookupRequest`) are designed for requesti
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "btps_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
   "identity": "john$saas.com",
@@ -46,7 +46,7 @@ When a SaaS platform manages identities that are not published in DNS:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "btps_lookup_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
   "identity": "john$saas.com",
@@ -62,7 +62,7 @@ When organizations manage private identities internally:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "btps_lookup_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
   "identity": "internal.user$company.com",
@@ -77,7 +77,7 @@ When verifying identities across different domains:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "btps_lookup_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
   "identity": "finance$client.org",
@@ -94,7 +94,7 @@ When the identity is found, the server responds with the identity's public key i
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -107,7 +107,7 @@ When the identity is found, the server responds with the identity's public key i
     "selector": "john1",
     "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
     "keyType": "rsa",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "signature": {
     "algorithmHash": "sha256",
@@ -125,7 +125,7 @@ When the identity is not found:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": false,
     "code": 404,
@@ -148,7 +148,7 @@ The response document contains the identity's public key information:
   "selector": "john1",
   "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
   "keyType": "rsa",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
 ```
 
@@ -227,7 +227,7 @@ Servers implementing identity lookup must:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "btps_lookup_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
   "identity": "john$saas.com",
@@ -241,7 +241,7 @@ Servers implementing identity lookup must:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -254,7 +254,7 @@ Servers implementing identity lookup must:
     "selector": "john1",
     "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
     "keyType": "rsa",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "signature": {
     "algorithmHash": "sha256",
@@ -274,7 +274,7 @@ Servers implementing identity lookup must:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "btps_lookup_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
   "identity": "finance$company.com",
@@ -287,7 +287,7 @@ Servers implementing identity lookup must:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -300,7 +300,7 @@ Servers implementing identity lookup must:
     "selector": "btps1",
     "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
     "keyType": "rsa",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "signature": {
     "algorithmHash": "sha256",

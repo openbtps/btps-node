@@ -140,7 +140,7 @@ Resolves the BTPS host, selector and operator for a given identity by querying t
 ```js
 import { getHostAndSelector } from '@btps/sdk';
 const result = await getHostAndSelector('billing$company.com');
-// result = { host: 'btps://btps.company.com:3443', selector: 'btps1', version: '1.0.0', operator: 'admin$company.com' }
+// result = { host: 'btps://btps.company.com:3443', selector: 'btps1', version: '1.1.0', operator: 'admin$company.com' }
 ```
 
 ---
@@ -173,7 +173,7 @@ Resolves DNS TXT records for a specific selector of a BTPS identity and extracts
 ```js
 import { getDnsIdentityParts } from '@btps/sdk';
 const allParts = await getDnsIdentityParts('billing$company.com', 'btps1');
-// Returns: { key: 'abc123', version: '1.0.0', pem: '-----BEGIN PUBLIC KEY-----...' }
+// Returns: { key: 'abc123', version: '1.1.0', pem: '-----BEGIN PUBLIC KEY-----...' }
 
 const justPem = await getDnsIdentityParts('billing$company.com', 'btps1', 'pem');
 // Returns: '-----BEGIN PUBLIC KEY-----...'
@@ -1501,6 +1501,23 @@ Error constant for an artifact the receiving server has nothing to take: no hand
 
 - `code`: `'BTP_ERROR_ARTIFACT_NOT_ACCEPTED'`
 - `message`: `'This server does not accept this kind of artifact'`
+
+---
+
+### BTP_ERROR_VERSION_UNSUPPORTED
+
+```ts
+const BTP_ERROR_VERSION_UNSUPPORTED: BTPError;
+```
+
+**Description:**
+Error constant for an artifact whose `version` the receiving server does not support. A 1.1 server accepts any 1.1.x and refuses 1.0. It is checked before any signature work, and the supported versions are appended to the message.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_VERSION_UNSUPPORTED'`
+- `message`: `'This server does not support the artifact protocol version'`, sent as for example `'This server does not support the artifact protocol version: supports 1.1.0 to 1.1.0'`
+- `status`: `400`
 
 ---
 

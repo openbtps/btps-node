@@ -77,7 +77,7 @@ graph TD
 ## Security Posture
 
 - **TLS 1.2+ required** for all connections
-- **End-to-end encryption** using AES-256-CBC and RSA/Ed25519
+- **End-to-end encryption** using AES-256-GCM and RSA-OAEP
 - **Digital signatures** (SHA-256) for authenticity and integrity
 - **Pluggable trust store** for secure, auditable trust management
 - **Audit logging** and compliance support
