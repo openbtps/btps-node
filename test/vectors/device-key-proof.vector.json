@@ -1,0 +1,16 @@
+{
+  "description": "auth.refresh with a new key carries keyProof: a signature by the NEW key over the canonical form of { type: \"btps_key_proof\", agentId, identity, publicKey }, where publicKey is the new key. The artifact itself is still signed by the current key. An implementation reproduces `canonical` and verifies `keyProof` with `payload.publicKey`.",
+  "provenance": "The new key is self-held-signature.vector.json's. TEST-ONLY.",
+  "payload": {
+    "type": "btps_key_proof",
+    "agentId": "btps_ag_7d1c2e3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f",
+    "identity": "alice$saas.example",
+    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApmbSkQN2QV4GWGkpioYz\nKKWwlB53SS+xDc1JRHY6Wfndo15BwcD1ClHeOLYvJP5e5RxxqWo21tZApNGXunYs\nMwidCxJLyTUtQYCL7k/PxUhqEKjsGmSU0qMp0wF/1JXSEQEV5IW4Hu2PedQ7lMv2\n1xR7vYiOBHLAwLSLgl18Z6A43B9D72e2YrdMRrVy/iDS/ih2LtxzTDmdjHxoJKHx\nYD1d8BW/wvSoJ3uFPJXLely8dkERFErm+8Ug5/Zt+EQODruipqzilLzBGT3bgdpU\n/BvLCSsVUqdzKg45svH+euAue55aOyU+TZR3N1XZZcdB5brEYCfSo7+60109CgVN\nAQIDAQAB\n-----END PUBLIC KEY-----\n"
+  },
+  "canonical": "{\"agentId\":\"btps_ag_7d1c2e3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f\",\"identity\":\"alice$saas.example\",\"publicKey\":\"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApmbSkQN2QV4GWGkpioYz\\nKKWwlB53SS+xDc1JRHY6Wfndo15BwcD1ClHeOLYvJP5e5RxxqWo21tZApNGXunYs\\nMwidCxJLyTUtQYCL7k/PxUhqEKjsGmSU0qMp0wF/1JXSEQEV5IW4Hu2PedQ7lMv2\\n1xR7vYiOBHLAwLSLgl18Z6A43B9D72e2YrdMRrVy/iDS/ih2LtxzTDmdjHxoJKHx\\nYD1d8BW/wvSoJ3uFPJXLely8dkERFErm+8Ug5/Zt+EQODruipqzilLzBGT3bgdpU\\n/BvLCSsVUqdzKg45svH+euAue55aOyU+TZR3N1XZZcdB5brEYCfSo7+60109CgVN\\nAQIDAQAB\\n-----END PUBLIC KEY-----\\n\",\"type\":\"btps_key_proof\"}",
+  "keyProof": {
+    "algorithmHash": "sha256",
+    "value": "IVm7zhk25JpG45yvCKceZrYL506Tc5ZikhlXTKAd/BvSPF/A0o5xtPbfsj0bd0vF/gxW0cJl8nBJDrOpXki+3dSSGZXZOizDh4heoR5zr6rqWwUq2Q0niDZ/APhpwia8St5ip2u/yX3QCZj4OWskPqIKbaduK0eeagP1T0G2xEuy3r+/qhQ5Zj5rzIyy0eZUFnvxQFuBQz4qS/SnHQSm5MgyC2n83kRRclBtliAWXLe2vaIb0cYFBYW9JF95aS2eI10/iJie3SOqDG3oTeYFjl01YX53dkGV0ifhg1JrlzM3LdOBsyuY1tJjqye0Ni1tgx8M9OxgEVQr3La5mhXSHQ==",
+    "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+  }
+}

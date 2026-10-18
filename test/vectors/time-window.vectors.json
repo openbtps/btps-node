@@ -1,0 +1,54 @@
+{
+  "description": "A server refuses a signed artifact whose issuedAt is further than maxArtifactAgeSeconds from its own clock, in either direction (BTP_ERROR_ARTIFACT_TIME_WINDOW). The edge itself is inside. An issuedAt that is not a date is refused.",
+  "now": "2026-10-19T12:00:00.000Z",
+  "cases": [
+    {
+      "name": "now",
+      "issuedAt": "2026-10-19T12:00:00.000Z",
+      "maxAgeSeconds": 300,
+      "expect": "accept"
+    },
+    {
+      "name": "at-the-edge-in-the-past",
+      "issuedAt": "2026-10-19T11:55:00.000Z",
+      "maxAgeSeconds": 300,
+      "expect": "accept"
+    },
+    {
+      "name": "at-the-edge-in-the-future",
+      "issuedAt": "2026-10-19T12:05:00.000Z",
+      "maxAgeSeconds": 300,
+      "expect": "accept"
+    },
+    {
+      "name": "one-second-too-old",
+      "issuedAt": "2026-10-19T11:54:59.000Z",
+      "maxAgeSeconds": 300,
+      "expect": "refuse"
+    },
+    {
+      "name": "one-second-too-far-ahead",
+      "issuedAt": "2026-10-19T12:05:01.000Z",
+      "maxAgeSeconds": 300,
+      "expect": "refuse"
+    },
+    {
+      "name": "inside-a-minimum-window",
+      "issuedAt": "2026-10-19T11:59:00.000Z",
+      "maxAgeSeconds": 60,
+      "expect": "accept"
+    },
+    {
+      "name": "outside-a-minimum-window",
+      "issuedAt": "2026-10-19T11:58:59.000Z",
+      "maxAgeSeconds": 60,
+      "expect": "refuse"
+    },
+    {
+      "name": "not-a-date",
+      "issuedAt": "yesterday",
+      "maxAgeSeconds": 300,
+      "expect": "refuse"
+    }
+  ]
+}

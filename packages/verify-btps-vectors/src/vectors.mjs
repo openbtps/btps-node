@@ -17,6 +17,12 @@ export const VECTOR_FILES = Object.freeze({
   oaepMgf1Sha1: 'oaep-mgf1-sha1.negative.vector.json',
   selectors: 'selectors.vector.json',
   sdkDefects: 'sdk-defects.vector.json',
+  addresses: 'addresses.vectors.json',
+  documents: 'documents.vectors.json',
+  signedArtifacts: 'signed-artifacts.vector.json',
+  deviceKeyProof: 'device-key-proof.vector.json',
+  timeWindow: 'time-window.vectors.json',
+  manifest: 'manifest.json',
 });
 
 export class VectorLoadError extends Error {
@@ -93,6 +99,24 @@ export function loadVectorSet(dir) {
     'expect',
   ]);
   requireFields(VECTOR_FILES.sdkDefects, set.sdkDefects, ['gcmTag', 'identities']);
+  requireFields(VECTOR_FILES.addresses, set.addresses, ['accept', 'refuse', 'same']);
+  requireFields(VECTOR_FILES.documents, set.documents, ['cases', 'eventEnvelope']);
+  for (const c of set.documents.cases) {
+    requireFields(VECTOR_FILES.documents, c, ['name', 'type', 'document', 'expect']);
+  }
+  requireFields(VECTOR_FILES.signedArtifacts, set.signedArtifacts, [
+    'sender',
+    'receiver',
+    'document',
+    'artifacts',
+  ]);
+  requireFields(VECTOR_FILES.deviceKeyProof, set.deviceKeyProof, [
+    'payload',
+    'canonical',
+    'keyProof',
+  ]);
+  requireFields(VECTOR_FILES.timeWindow, set.timeWindow, ['now', 'cases']);
+  requireFields(VECTOR_FILES.manifest, set.manifest, ['hashAlgorithm', 'files']);
 
   // The only shared key is the encryption key, referenced by name. Resolve it
   // once so checks never read files themselves.
@@ -100,6 +124,7 @@ export function loadVectorSet(dir) {
     ['oaepMgf1Sha1', set.oaepMgf1Sha1.keyVector],
     ['selectors', set.selectors.receiver.keys?.btps1?.keyVector],
     ['sdkDefects', set.sdkDefects.gcmTag.receiverKeyVector],
+    ['signedArtifacts', set.signedArtifacts.receiver.keyVector],
   ]) {
     if (ref !== VECTOR_FILES.oaepWrap) {
       throw new VectorLoadError(
@@ -109,5 +134,6 @@ export function loadVectorSet(dir) {
     }
   }
 
+  set.dir = dir;
   return set;
 }

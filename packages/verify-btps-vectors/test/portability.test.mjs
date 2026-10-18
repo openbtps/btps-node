@@ -14,6 +14,8 @@ const PORTABLE_ENTRIES = [
   'src/runtimes/web.mjs',
   'src/checks/vectors.mjs',
   'src/checks/interop.mjs',
+  'src/checks/protocol-runtime.mjs',
+  'src/cases.mjs',
 ];
 const PORTABLE_PACKAGES = new Set(['canonicalize', '@humanwhocodes/momoa']);
 const BUILTINS = new Set(builtinModules.flatMap((m) => [m, `node:${m}`]));

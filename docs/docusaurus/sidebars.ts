@@ -71,6 +71,7 @@ const sidebars: SidebarsConfig = {
           items: [
             'protocol/specifications/overview',
             'protocol/specifications/limits',
+            'protocol/specifications/golden-vectors',
             'protocol/specifications/artifacts',
             'protocol/specifications/transporter-artifact',
             'protocol/specifications/agent-artifact',

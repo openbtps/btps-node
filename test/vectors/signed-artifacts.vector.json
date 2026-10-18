@@ -1,0 +1,99 @@
+{
+  "description": "Transporter artifacts exactly as they travel. The signature is RSASSA-PKCS1-v1_5 with SHA-256 over the RFC 8785 canonical form of the artifact without its `signature`; `fingerprint` is the base64 SHA-256 of the sender's SPKI public key. The encrypted document is AES-256-GCM over JSON.stringify(document), with a 12-byte IV and a 16-byte tag, its key wrapped to the receiver with RSA-OAEP (SHA-256, MGF1 SHA-256). An implementation verifies both signatures, reproduces each `canonical` exactly, and decrypts the encrypted document to `document`.",
+  "provenance": "The sender key is kms-signature.vector.json's; the receiver key is oaep-wrap.vector.json's. Both are TEST-ONLY.",
+  "sender": {
+    "identity": "billing$vendor.example",
+    "selector": "btps1",
+    "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArlhp1Th8WEqOBszPSXSI\nabxtIb/yGvGUvMtxWACENxKWbK/4elcppOv4wLvX2w/OjQRB4ptLVcMsuBctE5N8\nEWgm2Vowz7MQYwfB2jY2tMQgtlV8Gebmm0+OwF6lMjy5tx5KKr/49NvIGGtA7Qq1\n+jL3oW1b1y12TB42L+VOReOhOUnxwEVLGoy6bUnSqBQMNC8PM5EapYQ30TIqofUB\nKCRgOc+k75QBuopdXVvkh5PFVuA218QQ6ZUAy1XEhQVMN+5JN6KMp8rY8YKKCGSW\ngkPie3/BdkwpaeXmh1KSBnIklcELw1d3jk5fp0/APbwlbrzotxHlpe39sMp5RV02\nuQIDAQAB\n-----END PUBLIC KEY-----\n"
+  },
+  "receiver": {
+    "identity": "pay$client.example",
+    "selector": "btps1",
+    "keyVector": "oaep-wrap.vector.json"
+  },
+  "document": {
+    "type": "invoice",
+    "title": "October",
+    "id": "INV-1",
+    "issuedAt": "2026-10-19T00:00:00.000Z",
+    "totalAmount": {
+      "amount": 150000,
+      "currency": "AUD"
+    },
+    "lineItems": {
+      "columns": ["Item", "Amount"],
+      "rows": [
+        {
+          "Item": "Website build",
+          "Amount": 150000
+        }
+      ]
+    }
+  },
+  "artifacts": [
+    {
+      "name": "plain",
+      "canonical": "{\"document\":{\"id\":\"INV-1\",\"issuedAt\":\"2026-10-19T00:00:00.000Z\",\"lineItems\":{\"columns\":[\"Item\",\"Amount\"],\"rows\":[{\"Amount\":150000,\"Item\":\"Website build\"}]},\"title\":\"October\",\"totalAmount\":{\"amount\":150000,\"currency\":\"AUD\"},\"type\":\"invoice\"},\"encryption\":null,\"from\":\"billing$vendor.example\",\"id\":\"5a1e8f3c-2b4d-4e6f-8a9b-0c1d2e3f4a5b\",\"issuedAt\":\"2026-10-19T00:00:00.000Z\",\"selector\":\"btps1\",\"to\":\"pay$client.example\",\"type\":\"BTPS_DOC\",\"version\":\"1.1.0\"}",
+      "artifact": {
+        "version": "1.1.0",
+        "id": "5a1e8f3c-2b4d-4e6f-8a9b-0c1d2e3f4a5b",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "encryption": null,
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000
+              }
+            ]
+          }
+        },
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "aAJ1Dk//S4PvjHwjWzgvMLQkhCRLuiHLxUYtKROGCo3atUBc1SqoLYpjU9FW8qZWKuFqX37jtRYrhhGtkJwmwPUWWAzNLGyS6/PkRcvqFlUcDiWlWIjYeVn/8Nq+lzAPN9t6Thg592SgC8QJUUXF1Ifk04J0PMRif97T8S/EbbBaub6pJGfCBPb/ex+NxHtbComa+v+fVD9OduzMaNYYgIhoxO8/RB4CGi7D1JeZCeB7tdrc/hJjSiwnOg3DgqVzRkVrPF3R4yape2Fis7YOFqDfA1m6mJW9x4dhoIPDrg/RKuiIXZy+KS+KQBQSw5Cl63VQB2ji3s0Gz/p2nxhKng==",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        }
+      }
+    },
+    {
+      "name": "encrypted",
+      "canonical": "{\"document\":\"ppaMuu1TzIznjxEit1t7Q3ISb9rXC/dpFSzO1Gbu8CetpNBuYVbcET02qa4I11l1vMoj40ZGOJf6id4RPCHJJFGK8byGaCPIWcgEiQQp1wDhgberGpuEwrL3mWz+/HEh8bfJnLlXL1MdswtMDzD5zNQyYwotM0cWwZSRxRHdzcdUrHF0Hvq7vtBpJSjMcnVox8hgpYLE6Flv9jVBSb6Bd71Cy8ACnQd1V0EPBPHLwomtemJaLNTrW460VA9fZxZ5BD5DZ1IHkHOaC2RjABUHOXRpnPMdc02ZeMO3u8ejMmEBxoay\",\"encryption\":{\"algorithm\":\"aes-256-gcm\",\"authTag\":\"Gwm6TxoCb7exGvNEpa8EqA==\",\"encryptedKey\":\"DNaYBF2aD4ltPxfaqqptKBYVHHh2GuaJiruOcjuf403LFiZpRibBFgiZWlPkH7A19DMEuEvHYgUp4KgA/DpKwf7EZamQQN2bq5G20IPmokQRMTBjKwBKRjV2fw3KHremUIJdjU9GnKdozLgNdvFoRoiD4A1SsdTPUSuvR200XwCHNWNGNVCRvhBtSJCtldCey8vTxccsY6625GB7XMKsTTNVVAnWP3FeawEVGSz8e2j12AUa7paJMgeUxTaqQArbBDSFJG/CA6xJyIn/R5Hso39xedNAjrY2HnWzXM30WD30DeZYKKwFvo8oVflsAMpRhfT1/Vbo7nokiZ9HwTGXIQ==\",\"iv\":\"C71vp6DbmfS/02xw\",\"type\":\"standardEncrypt\"},\"from\":\"billing$vendor.example\",\"id\":\"6b2f9a4d-3c5e-4f70-9bac-1d2e3f4a5b6c\",\"issuedAt\":\"2026-10-19T00:00:00.000Z\",\"selector\":\"btps1\",\"to\":\"pay$client.example\",\"type\":\"BTPS_DOC\",\"version\":\"1.1.0\"}",
+      "artifact": {
+        "version": "1.1.0",
+        "id": "6b2f9a4d-3c5e-4f70-9bac-1d2e3f4a5b6c",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "DNaYBF2aD4ltPxfaqqptKBYVHHh2GuaJiruOcjuf403LFiZpRibBFgiZWlPkH7A19DMEuEvHYgUp4KgA/DpKwf7EZamQQN2bq5G20IPmokQRMTBjKwBKRjV2fw3KHremUIJdjU9GnKdozLgNdvFoRoiD4A1SsdTPUSuvR200XwCHNWNGNVCRvhBtSJCtldCey8vTxccsY6625GB7XMKsTTNVVAnWP3FeawEVGSz8e2j12AUa7paJMgeUxTaqQArbBDSFJG/CA6xJyIn/R5Hso39xedNAjrY2HnWzXM30WD30DeZYKKwFvo8oVflsAMpRhfT1/Vbo7nokiZ9HwTGXIQ==",
+          "iv": "C71vp6DbmfS/02xw",
+          "authTag": "Gwm6TxoCb7exGvNEpa8EqA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ppaMuu1TzIznjxEit1t7Q3ISb9rXC/dpFSzO1Gbu8CetpNBuYVbcET02qa4I11l1vMoj40ZGOJf6id4RPCHJJFGK8byGaCPIWcgEiQQp1wDhgberGpuEwrL3mWz+/HEh8bfJnLlXL1MdswtMDzD5zNQyYwotM0cWwZSRxRHdzcdUrHF0Hvq7vtBpJSjMcnVox8hgpYLE6Flv9jVBSb6Bd71Cy8ACnQd1V0EPBPHLwomtemJaLNTrW460VA9fZxZ5BD5DZ1IHkHOaC2RjABUHOXRpnPMdc02ZeMO3u8ejMmEBxoay",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "ZIQQDgCS8M6UlvT3CIFJ2tMtrKnp7UuOTtUvJwH+JM+xhCgOdDEuK9Anr3IO0+J351R6SY+/clyGRapypfdz7CEZ5o26W6c6WUriRLVtg0b1fhlTKqNFE63Z6k7+hY6jhYsWQJCFbPkxGPw/rbfhujLh8xCdU6QeCajmiIh/ItVS10ZxZuMUbuiCou/1BDn2odZBkfobLfBrgb72Owb0r+x0+PJ5l+z3gOWgix24IT7LGR9E/dxZAPlohPc4oMnrmZfp8PLrbnm/pPtvlAfV+/WeaeDIOSeUX9b6HBKnKYK4iAmgxvNBwYVup0P20aNzzp1XQNTCqBwipLAOHANjog==",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        }
+      }
+    }
+  ]
+}
