@@ -24,6 +24,13 @@ import { canonicalize } from '../src/jcs.mjs';
 import { oaepEncrypt } from '../src/oaep-reference.mjs';
 import { createWebRuntime } from '../src/runtimes/web.mjs';
 import { toBase64, utf8 } from '../src/encoding.mjs';
+import {
+  addresses,
+  deviceKeyProof,
+  documents,
+  signedArtifacts,
+  timeWindow,
+} from './protocol-vectors.mjs';
 
 const VECTORS_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -225,3 +232,47 @@ write('self-held-signature.vector.json', await selfHeldSignature());
 write('oaep-mgf1-sha1.negative.vector.json', mgf1Sha1Negative());
 write('selectors.vector.json', selectors());
 write('sdk-defects.vector.json', sdkDefects());
+
+write('addresses.vectors.json', addresses());
+write('documents.vectors.json', documents());
+write(
+  'signed-artifacts.vector.json',
+  signedArtifacts(readVector('kms-signature.vector.json'), readVector('oaep-wrap.vector.json')),
+);
+write(
+  'device-key-proof.vector.json',
+  deviceKeyProof(readVector('self-held-signature.vector.json')),
+);
+write('time-window.vectors.json', timeWindow());
+
+// The manifest names every vector file with the SHA-256 of its bytes, so a
+// copy of the set can be checked whole. Rewritten on every run.
+const vectorFiles = fs
+  .readdirSync(VECTORS_DIR)
+  .filter((f) => f.endsWith('.json') && f !== 'manifest.json' && f !== 'known-failing.json')
+  .sort();
+const files = Object.fromEntries(
+  vectorFiles.map((f) => [
+    f,
+    crypto
+      .createHash('sha256')
+      .update(fs.readFileSync(path.join(VECTORS_DIR, f)))
+      .digest('hex'),
+  ]),
+);
+fs.writeFileSync(
+  path.join(VECTORS_DIR, 'manifest.json'),
+  `${JSON.stringify(
+    {
+      name: 'btps-golden-vectors',
+      protocol: 'BTPS 1.1',
+      description:
+        'Every file of the BTPS 1.1 golden vector set, with the lowercase hex SHA-256 of its bytes. See test/vectors/README.md.',
+      hashAlgorithm: 'sha256',
+      files,
+    },
+    null,
+    2,
+  )}\n`,
+);
+console.log(`wrote     manifest.json (${vectorFiles.length} files)`);

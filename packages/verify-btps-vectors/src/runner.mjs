@@ -17,6 +17,8 @@ import { vectorChecks } from './checks/vectors.mjs';
 import { interopChecks } from './checks/interop.mjs';
 import { oracleChecks } from './checks/oracle.mjs';
 import { sdkChecks } from './checks/sdk.mjs';
+import { manifestChecks, protocolSdkChecks } from './checks/protocol.mjs';
+import { protocolCanonicalChecks, protocolRuntimeChecks } from './checks/protocol-runtime.mjs';
 import { loadSdk } from './sdk-loader.mjs';
 
 /**
@@ -40,8 +42,15 @@ export async function buildChecks({ vectorsDir, sdkRoot }) {
     ...runtimes.flatMap((runtime) => vectorChecks(runtime, set)),
     ...interopChecks(runtimes, set),
     ...oracleChecks(set),
+    ...manifestChecks(set),
+    ...protocolCanonicalChecks(set),
+    ...runtimes.flatMap((runtime) => protocolRuntimeChecks(runtime, set)),
   ];
-  if (sdkRoot) checks.push(...sdkChecks(await loadSdk(sdkRoot), set));
+  if (sdkRoot) {
+    const sdk = await loadSdk(sdkRoot);
+    checks.push(...sdkChecks(sdk, set));
+    checks.push(...protocolSdkChecks(sdk, set, set.oaepWrap.privateKeyPem));
+  }
 
   const seen = new Set();
   for (const { id } of checks) {

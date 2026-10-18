@@ -55,6 +55,12 @@ of an exchange must upgrade together.
 
 ### Added
 
+- **Protocol golden vectors** for any implementation, in any language:
+  addresses, every document type with each field limit at and one over,
+  two artifacts exactly as they travel (plain and encrypted), the device key
+  proof, the time window, and a manifest of the whole set with each file's
+  SHA-256. `yarn verify:btps-vectors` checks them on Node and WebCrypto and
+  against the SDK.
 - **Receipts, payslips and letters.** A `BTPS_DOC` now carries an `invoice`,
   a `receipt`, a `payslip` or a `letter`, by its `type`.
 
