@@ -83,6 +83,10 @@ version (1.2) is a new minor version, and a server refuses artifacts of
 another major.minor, so a wire change is never released as a patch. Every
 release is listed in [CHANGELOG.md](CHANGELOG.md).
 
+A maintainer releases by tagging `vX.Y.Z` on `master`. The tag runs
+`.github/workflows/publish.yml`, which, once approved, stages the version on
+npm. It is installable only after a maintainer approves it on npm with 2FA.
+
 ## License
 
 By contributing, you agree that your contributions are licensed under the
