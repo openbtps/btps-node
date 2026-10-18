@@ -1,4 +1,4 @@
-// EBA-166: the btps-server Docker image (examples/btps-nest-app/Dockerfile,
+// The btps-server Docker image (examples/btps-nest-app/Dockerfile,
 // built via examples/btps-nest-app/docker-compose.yml) cannot build on a
 // fresh clone. docker-compose.yml sets the build context to ".", and the
 // Dockerfile does `COPY package.tgz ./package.tgz` — but package.tgz is
@@ -6,7 +6,7 @@
 // in that build stage, so a fresh `git clone` has no such file inside the
 // build context. `docker build` fails at that COPY with "file not found"
 // before it ever reaches @btps/sdk, which examples/btps-nest-app now
-// resolves via `portal:../..` into the repository root (EBA-156) — a
+// resolves via `portal:../..` into the repository root — a
 // directory the "." build context cannot see at all.
 //
 // This check needs no Docker daemon: a COPY instruction that does not use
@@ -22,7 +22,7 @@
 // docker binary) — only that nothing in the instruction list is doomed to
 // fail before that. No YAML parser is a project dependency, so
 // docker-compose.yml is read with a small indentation-based slicer, the same
-// approach tests/eba-156/ci-workflow.test.mjs uses for workflow YAML.
+// approach tests/packaging/ci-workflow.test.mjs uses for workflow YAML.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';

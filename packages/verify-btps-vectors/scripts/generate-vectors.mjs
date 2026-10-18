@@ -32,7 +32,7 @@ const VECTORS_DIR = path.resolve(
 const force = process.argv.includes('--force');
 
 const TEST_ONLY =
-  'TEST-ONLY key generated locally for the BTPS golden vectors (EBA-110). Never use it for anything else.';
+  'TEST-ONLY key generated locally for the BTPS golden vectors. Never use it for anything else.';
 
 function newKeyPair() {
   const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
@@ -115,7 +115,6 @@ function selectors() {
   const receiver = readVector('oaep-wrap.vector.json');
   return {
     item: 6,
-    tickets: ['EBA-116', 'EBA-117'],
     description:
       "The sender rotated its signing key from btps1 to btps2 and kept the old key published; the receiver's current key is at btps1. The artifact's selector must name the sender's signing key (btps2), which the verifier looks up; the document is encrypted to the receiver's key at the selector its host record names. In 1.0, signEncrypt put the receiver's selector in the artifact, so the verifier looked up the sender's rotated-out key.",
     provenance: `${TEST_ONLY} The receiver encryption key is the one in oaep-wrap.vector.json.`,
@@ -184,9 +183,8 @@ function sdkDefects() {
 
   return {
     item: 10,
-    tickets: ['EBA-122'],
     description:
-      'BTPS 1.1 item 10 defects that can be expressed as data. The other item-10 defects (server schema, crossed responses, line length, error codes) are server-path behaviour and are tested by EBA-122 itself.',
+      'BTPS 1.1 item 10 defects that can be expressed as data. The other item-10 defects (server schema, crossed responses, line length, error codes) are server-path behaviour and are tested in the SDK and the e2e journeys.',
     provenance: `${TEST_ONLY} The receiver key is the one in oaep-wrap.vector.json.`,
     gcmTag: {
       receiverKeyVector: 'oaep-wrap.vector.json',

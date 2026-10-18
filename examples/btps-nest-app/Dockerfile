@@ -1,7 +1,7 @@
-# btps-server image for examples/btps-nest-app (EBA-166).
+# btps-server image for examples/btps-nest-app.
 #
 # BUILD CONTEXT IS THE REPOSITORY ROOT, not this directory. The app depends on
-# @btps/sdk through `portal:../..` (EBA-156), i.e. the repository root, which a
+# @btps/sdk through `portal:../..`, i.e. the repository root, which a
 # context of "." cannot see. docker-compose.yml sets this up; by hand:
 #
 #   docker build -f examples/btps-nest-app/Dockerfile --target production .

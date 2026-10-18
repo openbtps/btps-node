@@ -23,7 +23,6 @@ import { loadSdk } from './sdk-loader.mjs';
  * @typedef {object} CheckResult
  * @property {string} id
  * @property {number} [item]
- * @property {string[]} [tickets]
  * @property {boolean} passed
  * @property {string} [message]
  */
@@ -60,7 +59,7 @@ export async function buildChecks({ vectorsDir, sdkRoot }) {
 export async function runChecks(checks) {
   const results = [];
   for (const check of checks) {
-    const base = { id: check.id, item: check.item, tickets: check.tickets };
+    const base = { id: check.id, item: check.item };
     try {
       await check.run();
       results.push({ ...base, passed: true });
@@ -124,7 +123,7 @@ export function formatReport(results, verdict, knownFailing) {
   const lines = [];
   for (const r of results) {
     const tag = r.passed ? 'PASS' : listed.has(r.id) ? 'XFAIL' : 'FAIL';
-    const owner = r.tickets?.length ? ` [item ${r.item}: ${r.tickets.join(', ')}]` : '';
+    const owner = r.item !== undefined ? ` [item ${r.item}]` : '';
     lines.push(`${tag.padEnd(5)} ${r.id}${owner}`);
     if (!r.passed) lines.push(`      ${r.message}`);
   }

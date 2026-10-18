@@ -1,5 +1,5 @@
-// EBA-152 criterion: "a smoke test in btps-nest-app imports each @btps/sdk
-// subpath it uses, and it runs in this pipeline."
+// The requirement: a smoke test in btps-nest-app imports each @btps/sdk
+// subpath it uses, and it runs in this pipeline.
 //
 // The smoke test is examples/btps-nest-app/smoke/sdk-subpaths.mjs, run by
 // `yarn test:sdk-smoke`. It is a plain Node ESM script rather than a jest
@@ -68,7 +68,7 @@ describe('examples/btps-nest-app smoke test covers every @btps/sdk subpath the a
   });
 
   it('handles multi-line, type-only, re-export, side-effect and dynamic imports', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'eba-152-app-'));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'btps-smoke-app-'));
     try {
       fs.mkdirSync(path.join(tmp, 'src/nested'), { recursive: true });
       fs.writeFileSync(

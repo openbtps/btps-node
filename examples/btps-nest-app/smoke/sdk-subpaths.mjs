@@ -1,4 +1,4 @@
-// EBA-152: runtime smoke test for the @btps/sdk subpaths btps-nest-app uses.
+// Runtime smoke test for the @btps/sdk subpaths btps-nest-app uses.
 //
 // Why this is a plain Node ESM script and not a jest spec: the app's jest
 // runs through ts-jest, which compiles specs to CommonJS, and @btps/sdk's

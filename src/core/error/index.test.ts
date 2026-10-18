@@ -99,10 +99,10 @@ describe('BTP_ERROR_SELECTOR_NOT_FOUND', () => {
   });
 });
 
-// EBA-124: trust-refusal error codes (never-trusted, expired, revoked).
+// Trust-refusal error codes (never-trusted, expired, revoked).
 // Decision (option B, 2026-10-06): expired gets its own wire code; revoked
 // and never-trusted both collapse onto BTP_ERROR_TRUST_NOT_ALLOWED on the
-// wire, per documentation in the EBA-123 spec.
+// wire, as the protocol's responses page documents.
 describe('BTP_ERROR_TRUST_EXPIRED', () => {
   it('is a distinct, documented wire code for an expired trust', () => {
     expect(BTP_ERROR_TRUST_EXPIRED.code).toBe('BTP_ERROR_TRUST_EXPIRED');

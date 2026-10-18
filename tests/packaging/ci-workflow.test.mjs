@@ -1,4 +1,4 @@
-// EBA-156: CI must build the root package before installing/testing
+// CI must build the root package before installing/testing
 // examples/btps-nest-app (main points at dist), and must run a separate
 // "pack smoke" job that `yarn pack`s the root, installs the resulting
 // tarball in a temp directory without --immutable, and imports @btps/sdk.
@@ -99,16 +99,16 @@ describe('CI: root build runs before the example app is installed/tested', () =>
   });
 });
 
-describe('CI: this ticket\'s own checks run on every PR', () => {
-  // Without this, criterion 1's portal-checksum gate (portal-checksum.test.mjs)
+describe('CI: the packaging checks run on every PR', () => {
+  // Without this, the portal-checksum gate (portal-checksum.test.mjs)
   // only ran when someone remembered to run it locally.
-  it('a workflow step runs vitest over tests/eba-156', () => {
+  it('a workflow step runs vitest over tests/packaging', () => {
     const steps = allJobs()
       .flatMap((j) => j.body.split('\n'))
       .filter((l) => /^\s*run:/.test(l));
     expect(
-      steps.some((l) => /\b(yarn|npx)\s+vitest\s+run\b.*\btests\/eba-156\b/.test(l)),
-      'expected a `run:` step executing `vitest run tests/eba-156`',
+      steps.some((l) => /\b(yarn|npx)\s+vitest\s+run\b.*\btests\/packaging\b/.test(l)),
+      'expected a `run:` step executing `vitest run tests/packaging`',
     ).toBe(true);
   });
 });
