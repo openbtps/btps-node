@@ -75,6 +75,7 @@ import type {
 } from '@core/server/types.js';
 import { BTPErrorException, transformToBTPErrorException } from '@core/error/index.js';
 import {
+  AGENT_TRANSPORTER_ACTIONS,
   BTP_PROTOCOL_VERSION,
   IMMEDIATE_ACTIONS,
   MAX_SUPPORTED_VERSION,
@@ -839,6 +840,17 @@ export class BtpsServer {
   }
 
   /**
+   * The identity a device acts for, under which its record is kept. A send
+   * (`artifact.send`, `event.send`, `trust.request`, `trust.respond`) is
+   * addressed `to` the receiver, so its owner is the sender of the transporter
+   * artifact it carries; any other action is on the owner's own account, `to`.
+   */
+  private deviceOwner(artifact: BTPAgentArtifact): string {
+    if (!(artifact.action in AGENT_TRANSPORTER_ACTIONS)) return artifact.to;
+    return (artifact.document as BTPTransporterArtifact).from;
+  }
+
+  /**
    * Gets the public key for an agent based on whether it's onboarding or existing
    */
   private async getAgentPublicKey(artifact: BTPAgentArtifact): Promise<string | null> {
@@ -851,7 +863,7 @@ export class BtpsServer {
     }
 
     // For existing agents, get public key from trust store
-    const computedTrustId = computeAgentTrustId(artifact.agentId, artifact.to);
+    const computedTrustId = computeAgentTrustId(artifact.agentId, this.deviceOwner(artifact));
     const trustRecord = await this.trustStore.getById(computedTrustId);
 
     // The record must be this agent's own: a device registered for `to`
@@ -888,7 +900,7 @@ export class BtpsServer {
     }
 
     const { agentId, to } = artifact;
-    const computedTrustId = computeAgentTrustId(agentId, to);
+    const computedTrustId = computeAgentTrustId(agentId, this.deviceOwner(artifact));
     const trustRecord = await this.trustStore.getById(computedTrustId);
     if (!trustRecord) {
       return {

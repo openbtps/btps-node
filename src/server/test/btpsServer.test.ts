@@ -1779,16 +1779,38 @@ export default function () {
             fingerprint: 'test-fingerprint',
           },
           encryption: null,
-          document: {},
+          // A send carries the transporter artifact the device signed, from its own user.
+          document: { from: 'test-owner', to: 'test-to' } as BTPAgentArtifact['document'],
         };
 
         const result = await server['getAgentPublicKey'](artifact);
         expect(result).toBe(
           '-----BEGIN PUBLIC KEY-----\nVEVTVF9LRVlfQkFTRTY0\n-----END PUBLIC KEY-----',
         );
-        // A device's record is looked up under the device id, never a trust id between identities
+        // A device's record is looked up under the device id and its owner, never a
+        // trust id between identities, and never under the receiver of a send.
         expect(trustStore.getById).toHaveBeenCalledWith(
-          computeAgentTrustId('test-agent', 'test-to'),
+          computeAgentTrustId('test-agent', 'test-owner'),
+        );
+      });
+
+      it("looks a device up under `to` on an action on its user's own data", async () => {
+        trustStore.getById = vi.fn().mockResolvedValue(null);
+        const artifact = {
+          id: 'test-id',
+          agentId: 'test-agent',
+          action: 'inbox.fetch',
+          to: 'test-owner',
+          issuedAt: new Date().toISOString(),
+          signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
+          encryption: null,
+          document: { limit: 10 },
+        } as BTPAgentArtifact;
+
+        await server['getAgentPublicKey'](artifact);
+
+        expect(trustStore.getById).toHaveBeenCalledWith(
+          computeAgentTrustId('test-agent', 'test-owner'),
         );
       });
 

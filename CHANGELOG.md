@@ -88,6 +88,11 @@ of an exchange must upgrade together.
 
 ### Fixed
 
+- A device can send. Its `artifact.send`, `event.send`, `trust.request` and
+  `trust.respond`, addressed to someone else, were refused as a signature
+  failure, because the server looked the device up under the receiver. It is
+  now looked up under the sender of the artifact it carries.
+
 - AES-GCM requires a full 16-byte authentication tag. RSA keys under 2048
   bits are refused.
 - A server with no handler for an artifact refuses it

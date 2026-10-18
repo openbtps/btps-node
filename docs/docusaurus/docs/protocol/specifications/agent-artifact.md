@@ -42,8 +42,8 @@ Agent artifacts (`BTPAgentArtifact`) are designed for client-to-server communica
 
 - **id**: Unique message identifier (UUID v4 recommended)
 - **action**: Agent action type (see Supported Actions section)
-- **agentId**: Unique identifier for the authenticated agent: the device id the server issued when the device registered (`btps_ag_…` by default). It is never an identity: on every action but `auth.request`, an `agentId` that is a valid identity is refused before any key is looked up (`BTP_ERROR_AGENT_ID`). The server finds the device's key only under the device's own record id, `computeAgentTrustId(agentId, to)`, which can never be the id of a trust between two identities, so a trusted business cannot sign with its own key and act as one of the receiver's devices
-- **to**: Recipient's BTPS identity address
+- **agentId**: Unique identifier for the authenticated agent: the device id the server issued when the device registered (`btps_ag_…` by default). It is never an identity: on every action but `auth.request`, an `agentId` that is a valid identity is refused before any key is looked up (`BTP_ERROR_AGENT_ID`). The server finds the device's key only under the device's own record id, `computeAgentTrustId(agentId, owner)`, which can never be the id of a trust between two identities, so a trusted business cannot sign with its own key and act as one of the receiver's devices. The owner is the user the device acts for: on a send (`artifact.send`, `event.send`, `trust.request`, `trust.respond`) it is the `from` of the transporter artifact the device signed and carries; on any other action it is `to`. A device that carries an artifact `from` anyone but its own user is refused (`BTP_ERROR_SIG_VERIFICATION`)
+- **to**: Recipient's BTPS identity address. On a send it is the receiver; on an action on the user's own data (`inbox.fetch`, `trust.fetch`, …) it is the user's own address
 - **issuedAt**: ISO 8601 timestamp of message creation
 - **signature**: Cryptographic signature for authenticity
 
