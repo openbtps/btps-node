@@ -20,7 +20,8 @@ import type {
   BTPTransporterMetrics,
 } from './types/index.js';
 import { isValidIdentity } from '@core/utils/index.js';
-import { BTP_PROTOCOL_VERSION, BTPTransporterArtifact } from 'server/index.js';
+import { BTP_PROTOCOL_VERSION } from '@core/server/constants/index.js';
+import type { BTPTransporterArtifact } from '@core/server/types.js';
 import {
   BTP_TRANSPORTER_DEFAULT_CONNECTION_TTL_SECONDS,
   BTP_TRANSPORTER_DEFAULT_MAX_CONNECTIONS,
