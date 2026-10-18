@@ -95,8 +95,6 @@ same address.
 - **A device can be told the id of what it just created** (a draft, for
   example), and a provider's malformed answer reaches the device as a clear
   error instead of a closed connection.
-- **A `logger` option** for `BtpsServer`, so providers send its messages to
-  their own logs.
 - **Less work per artifact:** one pass that checks and canonicalises the JSON
   instead of four, and a cache of parsed keys, measured with benchmarks first.
 - **Simpler device commands:** a device acting on its own data need not name
