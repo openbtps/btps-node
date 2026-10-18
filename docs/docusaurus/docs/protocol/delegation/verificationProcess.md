@@ -10,14 +10,26 @@ BTPS delegation verification is a multi-step cryptographic process that ensures 
 
 ## 🔍 Verification Overview
 
-The delegation verification process consists of four main steps that ensure complete authorization and authenticity:
+The delegation verification process consists of five steps that ensure complete authorization and authenticity:
 
+0. **Operator Check**: The delegator must be the sender domain's operator, or the sender itself
 1. **Attestation Requirement Check**: Determine if attestation is required
 2. **Attestation Verification**: Verify third-party signature (if present)
 3. **Delegation Signature Verification**: Verify delegator's signature
 4. **Original Artifact Verification**: Verify agent's signature on the message
 
 ## 🏗️ Verification Process
+
+### **Step 0: Operator Check**
+
+The server reads the operator (`op`) from the `_btps.host` record of the domain of `artifact.from`:
+
+- **Accepted**: `delegation.signedBy` is that operator, or the sender itself (`delegation.signedBy === artifact.from`)
+- **Refused**: anyone else, including another address on the same domain, and every delegator when the domain declares no operator
+
+A signature only proves who signed; it cannot prove the signer may speak for the sender. On a shared domain every user can hold a key of their own, so the domain itself must name who speaks for it. See [The Domain Operator](../specifications/overview.md#the-domain-operator).
+
+An attestation, when present, must also be signed by the operator.
 
 ### **Step 1: Attestation Requirement Check**
 

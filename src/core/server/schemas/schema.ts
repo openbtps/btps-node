@@ -8,7 +8,7 @@
 import { z } from 'zod';
 import { AGENT_ACTIONS, TRANSPORTER_ACTIONS } from '../constants/index.js';
 import { BtpAgentQueryDocSchema, BtpDocSchema } from './btpsDocsSchema.js';
-import { identitySchema } from './shared.js';
+import { BtpSignatureSchema, identitySchema } from './shared.js';
 
 // Schema for BTPCryptoOptions
 export const BtpCryptoOptionsSchema = z.object({
@@ -36,11 +36,7 @@ export const BtpEncryptionSchema = z.object({
   authTag: z.string(),
 });
 
-export const BtpSignatureSchema = z.object({
-  algorithmHash: z.literal('sha256'),
-  value: z.string(),
-  fingerprint: z.string(),
-});
+export { BtpSignatureSchema };
 
 // Schema for BTPDelegation
 export const BtpDelegationSchema = z.object({

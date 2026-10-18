@@ -26,7 +26,7 @@ const oaep = (key) => ({
 /**
  * A stand-in for an SDK with items 5, 6 and 10 fixed, written only to show
  * that every item check can pass — i.e. none of them is unsatisfiable. It is
- * not a proposal for how EBA-115/116/122 should implement the fixes.
+ * not how the SDK implements the fixes.
  */
 export function createFixedSdkFake() {
   let records = new Map();
@@ -95,8 +95,10 @@ export function createFixedSdkFake() {
       }
     },
     async signEncrypt(to, sender, payload) {
-      const { selector: encryptionSelector, document, ...rest } = payload;
-      const receiverPem = await resolvePublicKey(to, encryptionSelector);
+      // `selector` is the sender's; the receiver's key is at its host record's selector.
+      const { selector, document, ...rest } = payload;
+      const receiverHost = records.get(`_btps.host.${parseIdentity(to).domainName}`)?.[0];
+      const receiverPem = await resolvePublicKey(to, receiverHost?.match(/s=([^;]+)/)?.[1]);
       const aesKey = crypto.randomBytes(32);
       const iv = crypto.randomBytes(12);
       const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);
@@ -108,8 +110,7 @@ export function createFixedSdkFake() {
         ...rest,
         id: 'fake-1',
         issuedAt: '2026-01-01T00:00:00.000Z',
-        signatureSelector: sender.selector,
-        encryptionSelector,
+        selector,
         document: data,
         encryption: {
           algorithm: 'aes-256-gcm',

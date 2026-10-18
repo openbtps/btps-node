@@ -4,7 +4,7 @@ A NestJS application that integrates the BTPS Server with MongoDB and Redis supp
 
 ## Prerequisites
 
-- Node.js 20+ with ES module support
+- Node.js 24+ with ES module support
 - Docker and Docker Compose (for MongoDB and Redis)
 - BTPS server identity keys (public/private key pair)
 

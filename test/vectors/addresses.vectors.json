@@ -1,0 +1,87 @@
+{
+  "description": "BTPS 1.1 addresses (Protocol Specification Overview, \"Identity format\"). An address is account$domain with exactly one $. The account is a-z, 0-9, \".\", \"_\" and \"-\", 1 to 64 characters. The domain follows DNS: at least two labels of a-z, 0-9 and \"-\", each 1 to 63 characters, not starting or ending with \"-\", at most 253 characters in all; an international name in its xn-- form. Letters compare without case. An implementation accepts every \"accept\" input, refuses every \"refuse\" input, and treats each \"same\" pair as one identity.",
+  "accept": [
+    "alice$example.com",
+    "billing.team_2-a$saas.example",
+    "Billing$Vendor.Com",
+    "pay$sub.domain.example.co.uk",
+    "billing$xn--bcher-kva.example",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa$example.com",
+    "alice$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example",
+    "alice$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  ],
+  "refuse": [
+    {
+      "input": "alice$saas.example$evil.example",
+      "reason": "two separators"
+    },
+    {
+      "input": "alice$$saas.example",
+      "reason": "two separators"
+    },
+    {
+      "input": "$saas.example",
+      "reason": "empty account"
+    },
+    {
+      "input": "alice$",
+      "reason": "empty domain"
+    },
+    {
+      "input": "alice@example.com",
+      "reason": "no separator"
+    },
+    {
+      "input": "alice$localhost",
+      "reason": "a single label"
+    },
+    {
+      "input": "alice$-bad.example",
+      "reason": "a label starting with \"-\""
+    },
+    {
+      "input": "alice$bad-.example",
+      "reason": "a label ending with \"-\""
+    },
+    {
+      "input": "alice$ex_ample.com",
+      "reason": "\"_\" in the domain"
+    },
+    {
+      "input": "alice:x$saas.example",
+      "reason": "\":\" in the account"
+    },
+    {
+      "input": "al ice$saas.example",
+      "reason": "a space"
+    },
+    {
+      "input": "alice+tag$saas.example",
+      "reason": "\"+\" in the account"
+    },
+    {
+      "input": "bіlling$vendor.com",
+      "reason": "a Cyrillic letter that looks Latin"
+    },
+    {
+      "input": "billing$bücher.example",
+      "reason": "a non-ASCII domain not in xn-- form"
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa$example.com",
+      "reason": "an account of 65 characters"
+    },
+    {
+      "input": "alice$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example",
+      "reason": "a label of 64 characters"
+    },
+    {
+      "input": "alice$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "reason": "a domain of 254 characters"
+    }
+  ],
+  "same": [
+    ["Billing$Vendor.com", "billing$vendor.com"],
+    ["ALICE$EXAMPLE.COM", "alice$example.com"]
+  ]
+}

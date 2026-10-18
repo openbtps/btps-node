@@ -179,7 +179,7 @@ Performs client-side authentication using a temporary token.
 static authenticate(
   identity: string,
   authToken: string,
-  keyPair: PemKeys,
+  keyPair: BTPSigningKey,
   agentInfo?: Record<string, string | string[]>,
   agentOptions?: AuthAgentOptions
 ): Promise<AuthRequestResult>
@@ -189,7 +189,7 @@ static authenticate(
 
 - `identity`: `string` - User identity
 - `authToken`: `string` - Temporary authentication token
-- `keyPair`: [PemKeys](/docs/sdk/types-and-interfaces#pemkeys) - Device keypair
+- `keyPair`: [BTPSigningKey](/docs/sdk/types-and-interfaces#btpsigningkey-and-btpdecryptionkey) - Device key pair, or a Signer holding it
 - `agentInfo` (optional): `Record<string, string | string[]>` - Device information
 - `agentOptions` (optional): [AuthAgentOptions](#authagentoptions) - Authentication options
 
@@ -198,9 +198,9 @@ static authenticate(
 **Example:**
 
 ```typescript
-import { generateKeyPair } from '@btps/sdk/crypto';
+import { getBTPKeyPair } from '@btps/sdk/crypto';
 
-const keyPair = await generateKeyPair();
+const keyPair = getBTPKeyPair();
 const result = await BtpsAuthentication.authenticate(
   'alice$saas.com',
   'YDVKSEU4CEEW',
@@ -241,7 +241,7 @@ static refreshSession(
   agentId: string,
   identity: string,
   refreshToken: string,
-  keyPair: PemKeys,
+  keyPair: BTPSigningKey,
   agentInfo?: Record<string, string | string[]>,
   agentOptions?: AuthAgentOptions
 ): Promise<AuthRequestResult>
@@ -252,7 +252,7 @@ static refreshSession(
 - `agentId`: `string` - Agent identifier
 - `identity`: `string` - User identity
 - `refreshToken`: `string` - Current refresh token
-- `keyPair`: [PemKeys](/docs/sdk/types-and-interfaces#pemkeys) - Device keypair
+- `keyPair`: [BTPSigningKey](/docs/sdk/types-and-interfaces#btpsigningkey-and-btpdecryptionkey) - Device key pair, or a Signer holding it
 - `agentInfo` (optional): `Record<string, string | string[]>` - Updated device information
 - `agentOptions` (optional): [AuthAgentOptions](#authagentoptions) - Authentication options
 
@@ -281,6 +281,43 @@ if (refreshResult.success) {
   const { refreshToken: newToken, expiresAt } =
     refreshResult.response?.document;
   console.log('Session refreshed:', { newToken, expiresAt });
+}
+```
+
+`keyPair` must be the device's current key, the one the server holds: the refresh is signed with it. To change the device's key, use `rotateKey`.
+
+### **rotateKey**
+
+Refreshes a session and moves the device to a new key.
+
+```typescript
+static rotateKey(
+  agentId: string,
+  identity: string,
+  refreshToken: string,
+  currentKey: BTPSigningKey,
+  newKey: BTPSigningKey,
+  agentInfo?: Record<string, string | string[]>,
+  agentOptions?: AuthAgentOptions
+): Promise<AuthRequestResult>
+```
+
+The refresh is signed by `currentKey` and carries a `keyProof` signed by `newKey`, so the server accepts the new key only from the device that holds both (see [the refresh document](../specifications/agent-artifact.md#2-authentication-refresh-document-authrefresh)). Either key can be a PEM key pair or a [Signer](/docs/sdk/types-and-interfaces#signer), such as one over the device's keystore. Once it succeeds, the device signs with `newKey`.
+
+**Example:**
+
+```typescript
+const newKeyPair = getBTPKeyPair();
+const result = await BtpsAuthentication.rotateKey(
+  agentId,
+  'alice$saas.com',
+  refreshToken,
+  currentKeyPair,
+  newKeyPair,
+);
+
+if (result.success) {
+  // Keep newKeyPair and the new refresh token; sign from now on with newKeyPair
 }
 ```
 
@@ -616,10 +653,15 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
   /** Remove a token */
   remove(agentId: string, token: string): Promise<void>;
 
+  /** Take a token once: return it and remove it in one atomic step */
+  consume(agentId: string, token: string): Promise<T | undefined>;
+
   /** Clean up expired tokens */
   cleanup(): Promise<void>;
 }
 ```
+
+`consume` is how a registration code and a refresh token are used: read and removed in **one atomic step**, so of two devices racing with the same code, only one is registered, and of two refreshes racing with one token, only one succeeds. A two-step read-then-delete is not enough. With Redis use `GETDEL`; with SQL, `DELETE … RETURNING`.
 
 ### **AuthSessionStore**
 

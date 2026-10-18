@@ -35,7 +35,7 @@ sequenceDiagram
 ## Key Features
 
 - **End-to-End Encryption:** All messages are encrypted from sender to receiver, unless the trust record specifies unencrypted communication.
-- **Multiple Algorithms:** Supports RSA, Ed25519, AES-256-CBC, and more.
+- **Algorithms:** RSA-2048 or larger keys, AES-256-GCM, RSA-OAEP and SHA-256 signatures over the canonical form ([algorithms](./algorithm.md)).
 - **Key Exchange:** Public keys are discovered via DNS and `.well-known` endpoints.
 - **Message Signing:** Every message is signed by the sender and verified by the receiver.
 - **Forward Secrecy:** Key rotation and revocation are supported for ongoing security.

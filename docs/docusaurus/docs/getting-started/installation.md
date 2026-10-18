@@ -30,7 +30,8 @@ npm install @btps/sdk
 ```
 
 ```js
-import { BtpsServer, BtpsTransporter } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
+import { BtpsTransporter } from '@btps/sdk/client';
 import { JsonTrustStore } from '@btps/sdk/trust';
 import { signEncrypt } from '@btps/sdk/crypto';
 
@@ -61,7 +62,7 @@ const transporter = new BtpsTransporter({
 
 // Create and sign a trust request
 const trustRequest = {
-  version: '1.0.0.0',
+  version: '1.1.0',
   id: 'trust_req_123456',
   issuedAt: new Date().toISOString(),
   type: 'TRUST_REQ',

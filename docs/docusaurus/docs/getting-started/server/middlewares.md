@@ -22,7 +22,7 @@ import { createDefaultMiddleware } from '@btps/sdk/server/core';
 export default function createMiddleware(dependencies) {
   return {
     middleware: [
-      // Include default middleware for essential functionality
+      // Optional: the SDK's ready-made rate limiting and metrics
       ...createDefaultMiddleware(),
 
       // Add your custom middleware here
@@ -78,12 +78,57 @@ console.log('🚀 BTPS Server with middleware running');
 
 ## Default Middleware Features
 
-The `createDefaultMiddleware()` function provides essential functionality:
+A BTPS server does not limit or filter traffic by itself: how many artifacts an address or an identity may send is the provider's decision. The SDK shows where to tap in and gives you an example to start from. `createDefaultMiddleware()` is a ready-made set you can include from your middleware file:
 
-- **Rate limiting** (IP and identity-based)
-- **Request logging and metrics**
-- **Error handling**
-- **Signature and trust verification tracking**
+- **Rate limiting by network address**, before parsing: 50 artifacts per second per address
+- **Rate limiting by identity**, after signature verification: 30 per second per identity. It counts only once the signature proves the sender, so no one can use up another identity's allowance by naming it
+- **Metrics** for received and rejected artifacts
+
+An artifact over a limit is answered `BTP_ERROR_RATE_LIMITER` (429), which tells the sender to send again later.
+
+:::warning Not for production
+
+The ready-made set counts with `BtpsSimpleRateLimiter`, which keeps its counters in the server's own memory. Use it for development and tests only. In production its counters are not shared between servers, and a server under a flood pays for them in memory, with at most 100,000 counters per kind before the oldest is dropped. Rate limiting done properly needs a shared store such as Redis or Memcached: implement the `RateLimiter` contract against your store, and call it from your middleware exactly as below.
+
+:::
+
+The steps to tap into are the same whatever store counts. This example uses the in-memory limiter for brevity; in production, replace it with your own `RateLimiter`:
+
+```javascript
+// btps.middleware.mjs
+import { BtpsSimpleRateLimiter } from '@btps/sdk/server/core';
+import { BTP_ERROR_RATE_LIMITER } from '@btps/sdk/error';
+
+// Development only. In production: your RateLimiter backed by Redis or Memcached
+const limiter = new BtpsSimpleRateLimiter({ ipAddress: 20, fromIdentity: 5 });
+
+export default function createMiddleware() {
+  return [
+    {
+      phase: 'before',
+      step: 'parsing',
+      handler: async (req, res) => {
+        if (!(await limiter.isAllowed(req.remoteAddress, 'ipAddress'))) {
+          return res.sendError(BTP_ERROR_RATE_LIMITER);
+        }
+      },
+    },
+    {
+      phase: 'after',
+      step: 'signatureVerification',
+      handler: async (req, res) => {
+        if (req.error) return; // the server refuses it already
+        const { from } = req.getIdentity();
+        if (!(await limiter.isAllowed(from, 'fromIdentity'))) {
+          return res.sendError(BTP_ERROR_RATE_LIMITER);
+        }
+      },
+    },
+  ];
+}
+```
+
+The same pattern filters anything else, such as duplicates or blocked addresses: tap into the step where the information you need is verified, and answer with an error to refuse.
 
 ## Middleware Phases and Steps
 
@@ -167,6 +212,47 @@ export default function createMiddleware(dependencies) {
   };
 }
 ```
+
+## Ignoring Duplicate Artifacts
+
+Within the server's time window (`maxArtifactAgeSeconds`, 5 minutes by default) the same artifact can arrive more than once. A sender may retry under load, or someone holding a copy may send it again. The platform treats `(from, id)` as unique. It can do that where it stores artifacts, or earlier with a middleware right after signature verification, so a duplicate is answered at once and never reaches trust checks or the platform's handler:
+
+```javascript
+// btps.middleware.mjs
+export default function createMiddleware(dependencies) {
+  return {
+    middleware: [
+      {
+        phase: 'after',
+        step: 'signatureVerification',
+        priority: 10,
+        config: { name: 'ignore-duplicates', enabled: true },
+        handler: async (req, res, next) => {
+          const { type, artifact } = req.data;
+          // `artifacts` is wherever your platform records the artifacts it received
+          if (
+            req.isValid &&
+            type === 'transporter' &&
+            (await artifacts.has(artifact.from, artifact.id))
+          ) {
+            // Already received: answer success without processing it again
+            return res.sendRes({
+              ...dependencies.serverInstance.prepareBtpsResponse(
+                { ok: true, code: 200, message: 'Already received' },
+                artifact.id,
+              ),
+              type: 'btps_response',
+            });
+          }
+          await next();
+        },
+      },
+    ],
+  };
+}
+```
+
+Answering a duplicate with success, rather than an error, tells a sender that retried that its first attempt arrived. A platform may refuse duplicates instead with `res.sendError(...)`.
 
 ## Testing Your Middleware
 

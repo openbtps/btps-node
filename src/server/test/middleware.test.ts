@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs/promises';
 import { existsSync, unlinkSync } from 'fs';
+import os from 'os';
 import path from 'path';
 import { MiddlewareManager } from '../libs/middlewareManager.js';
 import JsonTrustStore from '../../core/trust/storage/JsonTrustStore.js';
@@ -168,6 +169,45 @@ describe('MiddlewareManager', () => {
       expect(middleware[0].config?.name).toBe('first');
       expect(middleware[1].config?.name).toBe('third');
       expect(middleware[2].config?.name).toBe('second');
+    });
+    it('loads a handler that does not take next', async () => {
+      await fs.writeFile(
+        middlewareFile,
+        simpleMiddleware.replace('async (req, res, next) => { await next(); }', '(req, res) => {}'),
+        'utf8',
+      );
+      const trustStore = new JsonTrustStore({
+        connection: TEST_FILE,
+        entityName: 'trusted_sender',
+      });
+      await middlewareManager.loadMiddleware({ trustStore });
+      expect(middlewareManager.getAllMiddleware()).toHaveLength(1);
+    });
+    it('warns when the configured middleware file is missing', async () => {
+      const trustStore = new JsonTrustStore({
+        connection: TEST_FILE,
+        entityName: 'trusted_sender',
+      });
+      const warnSpy = vi.spyOn(console, 'warn');
+      await middlewareManager.loadMiddleware({ trustStore });
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining(middlewareFile));
+    });
+    it('stays quiet when no file was configured and the default is absent', async () => {
+      const trustStore = new JsonTrustStore({
+        connection: TEST_FILE,
+        entityName: 'trusted_sender',
+      });
+      const cwd = process.cwd();
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'btps-mw-'));
+      process.chdir(dir);
+      try {
+        const warnSpy = vi.spyOn(console, 'warn');
+        await new MiddlewareManager().loadMiddleware({ trustStore });
+        expect(warnSpy).not.toHaveBeenCalled();
+      } finally {
+        process.chdir(cwd);
+        await fs.rm(dir, { recursive: true });
+      }
     });
   });
 

@@ -18,11 +18,9 @@ Configuration options for the BTPS server.
 
 ```ts
 interface BtpsServerOptions {
-  serverIdentity: {
-    identity: string;
-    publicKey: string;
-    privateKey: string;
-  };
+  serverIdentity:
+    | { identity: string; publicKey: string; privateKey: string }
+    | { identity: string; signer: Signer };
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   port?: number;
@@ -30,19 +28,23 @@ interface BtpsServerOptions {
   tlsOptions: BtpsTlsOptions;
   connectionTimeoutMs?: number;
   middlewarePath?: string;
+  maxArtifactSizeKb?: number;
+  maxArtifactAgeSeconds?: number;
 }
 ```
 
 **Properties:**
 
-- `serverIdentity`: Required server identity configuration with identity, public key, and private key
+- `serverIdentity`: Required server identity: its identity, with its PEM public and private key, or with a `signer` holding the key elsewhere, such as a KMS (see [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter))
 - `trustStore`: Required trust store instance for managing trust records
 - `identityStore`: Optional identity store instance for managing identity records
 - `port`: Optional port number (default: 3443)
 - `onError`: Optional error handler function
 - `tlsOptions`: Required TLS cert and key options. Use self signed cert for local development. Make sure to set rejectUnauthorized false when connecting using BtpsClient for local development
-- `connectionTimeoutMs`: Optional connection timeout in milliseconds (default: 30000)
+- `connectionTimeoutMs`: Optional. Closes a connection after this long with no request being handled, in milliseconds (default: 30000, no minimum). A connection is never closed while one of its requests is handled, so a server under heavy load can set it low
 - `middlewarePath`: Optional path to middleware file
+- `maxArtifactSizeKb`: Optional largest artifact the server can accept, in KB, where 1 KB is 1024 bytes (default: 5120, that is 5 MB). An artifact over it is refused before it is read in full, with the limit in the error message, and the connection is closed. The minimum is 1024 (1 MB): a smaller value logs a warning and 1024 is used, and a value that is not a size logs a warning and the default is used. There is no maximum.
+- `maxArtifactAgeSeconds`: Optional time window, in seconds: how far a signed artifact's `issuedAt` may be from the server's clock, either way (default: 300, that is 5 minutes). An artifact outside it is refused after its signature is checked, with the window in the error message, and the connection stays open. The minimum is 60: a smaller value logs a warning and 60 is used, and a value that is not a time logs a warning and the default is used. There is no maximum. Within the window the same artifact can arrive more than once, so a platform treats `(from, id)` as unique.
 
 ---
 
@@ -57,10 +59,13 @@ interface BTPClientOptions {
   to: string;
   maxRetries?: number;
   retryDelayMs?: number;
+  connectTimeoutMs?: number;
+  replyTimeoutMs?: number;
   connectionTimeoutMs?: number;
   btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
   host?: string;
   hostSelector?: string;
+  hostOperator?: string;
   version?: string;
   port?: number;
   maxQueue?: number;
@@ -72,11 +77,14 @@ interface BTPClientOptions {
 - `to`: Required recipient identity (e.g., 'billing$yourdomain.com')
 - `maxRetries`: Optional maximum retry attempts (default: 3)
 - `retryDelayMs`: Optional delay between retries in milliseconds (default: 1000)
-- `connectionTimeoutMs`: Optional connection timeout in milliseconds (default: 5000)
+- `connectTimeoutMs`: Optional. How long to wait to connect, in milliseconds (default and minimum: 5000)
+- `replyTimeoutMs`: Optional. How long `send()` waits for the answer, in milliseconds (default: 20000, minimum: 10000). A value below a minimum is raised to it, with a warning
+- `connectionTimeoutMs`: Optional. Closes the connection after this long with no artifact waiting for an answer, in milliseconds; the client reconnects on the next send (off by default)
 - `btpMtsOptions`: Optional TLS connection options (excluding port and host)
 - `host`: Optional custom host override
 - `hostSelector`: Optional DNS selector for key management (default: 'btps1')
-- `version`: Optional protocol version (default: '1.0.0.0')
+- `hostOperator`: Optional, with `host`: the identity operating that host, which must sign its identity lookup answers. Without `host`, the operator comes from DNS (`op` in `_btps.host`)
+- `version`: Optional protocol version (default: '1.1.0')
 - `port`: Optional custom port override
 - `maxQueue`: Optional maximum queue size for request handling (default: 100)
 
@@ -86,18 +94,16 @@ Configuration options for BTPS agent connections.
 
 ```ts
 interface BTPAgentOptions extends Omit<BTPClientOptions, 'to'> {
-  agent: {
-    id: string;
-    identityKey: string;
-    identityCert: string;
-  };
+  agent:
+    | { id: string; identityKey: string; identityCert: string }
+    | { id: string; signer: Signer; decrypter?: Decrypter };
   btpIdentity: string;
 }
 ```
 
 **Properties:**
 
-- `agent`: Required agent configuration with ID, identity key, and certificate
+- `agent`: Required agent configuration: its ID, with its PEM identity key and certificate, or with a `signer` (and optionally a `decrypter`) holding the device key elsewhere, such as the device's own keystore
 - `btpIdentity`: Required BTPS identity for the agent
 - All properties from `BTPClientOptions` except `to`
 
@@ -247,6 +253,18 @@ type BtpsAgentDoc = BTPDocType | BTPAuthReqDoc | BTPAgentMutation | BTPIdsPayloa
 - `BTPAgentMutation`: Agent mutation documents
 - `BTPIdsPayload`: ID payload documents
 - `BTPAgentQuery`: Agent query documents
+
+### BtpsAgentCommandOptions
+
+Options for `BtpsAgent.command`: the [BTPCryptoOptions](#btpcryptooptions), plus `relatesTo` for events.
+
+```ts
+type BtpsAgentCommandOptions = BTPCryptoOptions & {
+  relatesTo?: string;
+};
+```
+
+- `relatesTo`: Required on `event.send` and refused on every other action: the `id` of the `BTPS_DOC` artifact that delivered the invoice the event is about. It is set on the `BTPS_EVENT` envelope, outside the encrypted document, so the receiving server can check it without decrypting
 
 ### BTPConnection
 
@@ -441,17 +459,17 @@ interface AuthAgentOptions {
 Configuration options for BTPS delegator.
 
 ```ts
-interface BtpsDelegatorOptions {
+type BtpsDelegatorOptions = {
   identity: string;
-  privateKey: string;
   autoInit?: boolean;
-}
+} & ({ privateKey: string } | { signer: Signer });
 ```
 
 **Properties:**
 
 - `identity`: Required delegator identity
-- `privateKey`: Required delegator private key in PEM format
+- `privateKey`: The delegator private key in PEM format, or
+- `signer`: A [Signer](#signer) holding the delegator key elsewhere, such as a KMS
 - `autoInit`: Optional flag to disable auto-initialization (default: true)
 
 ---
@@ -668,53 +686,107 @@ interface MiddlewareModule {
 
 ### BTPAttachment
 
-File attachment for documents.
+File attachment for documents. `size` and `sha256` are computed by the sender from the decoded file bytes; a receiving platform can use them to confirm a file it stored separately is unchanged. The protocol does not check them (see the Transporter Artifact specification, Attachments).
 
 ```ts
 interface BTPAttachment {
   content: string; // base64
   type: 'application/pdf' | 'image/jpeg' | 'image/png';
   filename?: string;
+  size: number; // bytes of the decoded file
+  sha256: string; // SHA-256 of the decoded file, 64 lowercase hex characters
+}
+```
+
+### BTPDocReference
+
+A link to another signed document, such as a corrected invoice naming the invoice it corrects (see the Transporter Artifact specification, References).
+
+```ts
+interface BTPDocReference {
+  type: string; // correction_of | credits | instalment_of | follows | receipt_for | a prefixed code
+  from: string;
+  id: string;
+  sha256: string; // lowercase hex
 }
 ```
 
 ### BTPInvoiceDoc
 
-Invoice document structure.
+Invoice document structure. It carries no status: that comes from lifecycle events. Every amount is a whole number in the ISO 4217 minor units of `totalAmount.currency` (`4997` AUD is 49.97); BTPS never converts amounts (see the Transporter Artifact specification, Money Amounts).
 
 ```ts
 interface BTPInvoiceDoc {
+  type: 'invoice';
   title: string;
-  id: string;
+  id: string; // the invoice number, unique per sender
   issuedAt: string; // ISO format
-  status: 'paid' | 'unpaid' | 'partial' | 'refunded' | 'disputed';
   dueAt?: string; // ISO format
-  paidAt?: string; // ISO format
-  refundedAt?: string; // ISO format
-  disputedAt?: string; // ISO format
   totalAmount: {
-    value: number;
+    amount: number; // integer ISO 4217 minor units: 12345 USD is 123.45, 12345 JPY is ¥12,345
     currency: CurrencyCode;
   };
   lineItems: {
     columns: string[];
-    rows: Array<Record<string, string | number>>;
+    rows: Array<Record<string, string | number>>; // money cells in integer minor units
   };
   issuer?: {
     name: string;
     email?: string;
     phone?: string;
+    address?: string;
+    identifiers?: Record<string, string>; // e.g. { 'au:abn': '51824753556' }
   };
   paymentLink?: {
     linkText: string;
     url: string;
   };
   description?: string;
-  attachment?: BTPAttachment;
+  attachments?: BTPAttachment[];
+  references?: BTPDocReference[];
   template?: {
     name: string;
     data: Record<string, unknown>;
   };
+  metadata?: Record<string, unknown>;
+}
+```
+
+### BTPReceiptDoc
+
+Proof of a payment: the invoice without what asks for payment, plus `payment`. It is partial when `payment.amount` is less than `totalAmount`.
+
+```ts
+interface BTPReceiptDoc
+  extends Omit<BTPInvoiceDoc, 'type' | 'dueAt' | 'paymentLink' | 'lineItems'> {
+  type: 'receipt';
+  lineItems?: BTPInvoiceDoc['lineItems'];
+  payment: {
+    amount: BTPInvoiceDoc['totalAmount']; // more than zero
+    paidAt: string; // ISO format
+    method?: string; // card | bank_transfer | cash | a prefixed code
+    reference?: string;
+  };
+}
+```
+
+### BTPLifecycleEvent
+
+A lifecycle event: what a `BTPS_EVENT` carries. Its `id` is the carrying artifact's `id`; replies name the event they answer in `inReplyTo` (see the Transporter Artifact specification, Lifecycle Event). Shown here as one interface; the SDK types it as a union by `eventType`, so each event type has exactly its own fields.
+
+```ts
+interface BTPLifecycleEvent {
+  type: 'lifecycle_event';
+  id: string; // a random UUID, the carrying artifact's id
+  occurredAt: string; // ISO format
+  document: { from: string; id: string; sha256: string }; // the invoice it is about
+  eventType: 'paid' | 'partially_paid' | 'disputed' | 'refund_requested' | 'refund' | 'response';
+  amount?: { amount: number; currency: CurrencyCode }; // partially_paid, refund: minor units, more than zero
+  reason?: string; // disputed: rejected | amount_wrong | not_as_agreed | a prefixed code
+  decision?: 'accepted' | 'rejected'; // response
+  inReplyTo?: string; // refund, response: the id of the event answered
+  remainingDueDate?: string; // an accepted response to a partially_paid
+  message?: string; // free text for the other party
 }
 ```
 
@@ -733,6 +805,8 @@ interface BtpsClientOptions {
   bptIdentityCert: string;
   maxRetries?: number;
   retryDelayMs?: number;
+  connectTimeoutMs?: number;
+  replyTimeoutMs?: number;
   connectionTimeoutMs?: number;
   btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
   host?: string;
@@ -883,6 +957,7 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
   ): Promise<void>;
   get(agentId: string, token: string): Promise<T | undefined>;
   remove(agentId: string, token: string): Promise<void>;
+  consume(agentId: string, token: string): Promise<T | undefined>; // read and remove in one atomic step
   cleanup(): Promise<void>;
 }
 ```
@@ -1003,6 +1078,46 @@ interface PemKeys {
 }
 ```
 
+### Signer
+
+Signs for an identity while its private key stays elsewhere: a KMS, an HSM or the user's device. `PemSigner` is the built-in implementation for a PEM key pair (`new PemSigner({ publicKey, privateKey })`). See [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter).
+
+```ts
+interface Signer {
+  readonly algorithm: 'RSASSA_PKCS1_V1_5_SHA_256';
+  sign(data: Uint8Array): Promise<Uint8Array>; // the raw signature over data
+  getPublicKey(): Promise<{ publicKey: string; fingerprint: string }>; // SPKI PEM
+}
+```
+
+### Decrypter
+
+Decrypts a document for an identity while its private key stays elsewhere. `PemDecrypter` is the built-in implementation for a PEM private key (`new PemDecrypter({ privateKey })`). An implementation must refuse an `authTag` that is not exactly 16 bytes.
+
+```ts
+interface Decrypter {
+  readonly algorithm: 'aes-256-gcm';
+  decrypt(request: DecryptRequest): Promise<Uint8Array>; // the plaintext
+}
+
+interface DecryptRequest {
+  encryptedKey: Uint8Array; // the RSA-OAEP-wrapped AES-256 key
+  iv: Uint8Array;
+  ciphertext: Uint8Array;
+  authTag: Uint8Array; // exactly 16 bytes
+  additionalData?: Uint8Array;
+}
+```
+
+### BTPSigningKey and BTPDecryptionKey
+
+A key as the SDK takes it: a PEM key, or a key held elsewhere.
+
+```ts
+type BTPSigningKey = PemKeys | Signer;
+type BTPDecryptionKey = string | Decrypter; // a PEM private key, or a Decrypter
+```
+
 ### ParsedIdentity
 
 Parsed BTPS identity components.
@@ -1023,11 +1138,10 @@ type ParsedIdentity = {
 Configuration options for the delegator.
 
 ```ts
-interface BtpsDelegatorOptions {
+type BtpsDelegatorOptions = {
   identity: string;
-  privateKey: PemKeys['privateKey'];
   autoInit?: boolean;
-}
+} & ({ privateKey: PemKeys['privateKey'] } | { signer: Signer });
 ```
 
 ### OnBehalfOfOptions
@@ -1037,24 +1151,13 @@ Options for custom domain delegations.
 ```ts
 interface OnBehalfOfOptions {
   identity: string;
-  keyPair: PemKeys;
+  keyPair: BTPSigningKey; // the user's PEM key pair, or a Signer holding the user's key
 }
 ```
 
 ---
 
 ## Trust Store Types
-
-### TrustStoreOptions
-
-Configuration options for trust stores.
-
-```ts
-interface TrustStoreOptions {
-  connection: unknown;
-  entityName?: string;
-}
-```
 
 ### BTPTrustStatus
 
@@ -1196,6 +1299,7 @@ interface BTPTransporterArtifact {
   encryption: BTPEncryption | null;
   delegation?: BTPDelegation;
   selector: string; // Selector used for public key resolution (e.g., 'btps1', 'btps2')
+  relatesTo?: string; // BTPS_EVENT only, and required there: the id of the BTPS_DOC artifact that delivered the invoice
 }
 ```
 
@@ -1226,8 +1330,9 @@ Status information for responses.
 ```ts
 interface BTPStatus {
   ok: boolean;
-  code: number;
+  code: number; // 4xx: do not resend as is; 429 and 5xx: resend later
   message?: string;
+  error?: string; // on an error, its BTPS code, e.g. 'BTP_ERROR_TRUST_EXPIRED'
 }
 ```
 
@@ -1325,8 +1430,11 @@ interface BTPAgentQuery {
 Generic document type.
 
 ```ts
-type BTPDocType = BTPInvoiceDoc | BTPTrustReqDoc | BTPTrustResDoc;
+type BTPDocument = BTPInvoiceDoc | BTPReceiptDoc | BTPPayslipDoc | BTPLetterDoc; // what a BTPS_DOC carries
+type BTPDocType = BTPDocument | BTPLifecycleEvent | BTPTrustReqDoc | BTPTrustResDoc;
 ```
+
+`BTPPayslipDoc` and `BTPLetterDoc` are inferred from their schemas; their fields are in the Transporter Artifact specification.
 
 ### BTPStringQueryFilter
 
@@ -1488,7 +1596,8 @@ type AgentAction =
   | 'system.ping'
   | 'auth.request'
   | 'auth.refresh'
-  | 'artifact.send';
+  | 'artifact.send'
+  | 'event.send';
 ```
 
 ### AgentActionRequiringDocument
@@ -1502,6 +1611,7 @@ type AgentActionRequiringDocument =
   | 'trust.update'
   | 'trust.delete'
   | 'artifact.send'
+  | 'event.send'
   | 'auth.request'
   | 'auth.refresh'
   | 'inbox.seen'
@@ -1519,7 +1629,7 @@ type AgentActionRequiringDocument =
 Artifact type identifiers.
 
 ```ts
-type BTPArtifactType = 'TRUST_REQ' | 'TRUST_RES' | 'BTPS_DOC';
+type BTPArtifactType = 'TRUST_REQ' | 'TRUST_RES' | 'BTPS_DOC' | 'BTPS_EVENT';
 ```
 
 ### CurrencyCode
@@ -1823,7 +1933,7 @@ type EncryptionMode = 'none' | 'standardEncrypt' | '2faEncrypt';
 Supported encryption algorithms.
 
 ```ts
-type EncryptionAlgorithmType = 'aes-256-cbc';
+type EncryptionAlgorithmType = 'aes-256-gcm';
 ```
 
 ### BTPEncryption

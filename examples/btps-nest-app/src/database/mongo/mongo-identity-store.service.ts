@@ -97,13 +97,14 @@ export class MongoIdentityStoreService extends AbstractIdentityStore<BTPIdentity
   }
 
   async getPublicKeyRecord(
-    identity: string,
+    computedId: string,
     selector?: string,
   ): Promise<IdentityPubKeyRecord | undefined> {
     try {
+      // The server passes the computed id: the record id, used as given.
       const query = selector
-        ? { identity, 'publicKeys.selector': selector }
-        : { identity };
+        ? { id: computedId, 'publicKeys.selector': selector }
+        : { id: computedId };
 
       const record = await this.identityRecordModel.findOne(query).exec();
       if (!record) {

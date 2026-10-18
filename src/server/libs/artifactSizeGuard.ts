@@ -1,0 +1,83 @@
+/**
+ * @license
+ * Copyright (c) 2025 Bhupendra Tamang
+ * Licensed under the Apache License, Version 2.0
+ * https://www.apache.org/licenses/LICENSE-2.0
+ */
+
+import { Transform } from 'stream';
+import { BTPErrorException } from '@core/error/index.js';
+import { BTP_ERROR_ARTIFACT_TOO_LARGE } from '@core/error/constant.js';
+
+/** The largest artifact a server can accept unless it sets `maxArtifactSizeKb`: 5 MB. */
+export const DEFAULT_MAX_ARTIFACT_SIZE_KB = 5120;
+
+/** The smallest limit a server may set: 1 MB. */
+export const MIN_MAX_ARTIFACT_SIZE_KB = 1024;
+
+/**
+ * The artifact size limit a server uses, in KB. A limit it cannot use as
+ * given never stops the server: it is warned about and replaced by the
+ * minimum (when too small) or the default (when not a size at all).
+ */
+export const resolveMaxArtifactSizeKb = (configured: number | undefined): number => {
+  if (configured === undefined) return DEFAULT_MAX_ARTIFACT_SIZE_KB;
+  if (!Number.isFinite(configured) || configured <= 0) {
+    console.warn(
+      `[BtpsServer] maxArtifactSizeKb ${configured} is not a usable size; using the default ${DEFAULT_MAX_ARTIFACT_SIZE_KB} KB`,
+    );
+    return DEFAULT_MAX_ARTIFACT_SIZE_KB;
+  }
+  if (configured < MIN_MAX_ARTIFACT_SIZE_KB) {
+    console.warn(
+      `[BtpsServer] maxArtifactSizeKb ${configured} is below the ${MIN_MAX_ARTIFACT_SIZE_KB} KB minimum; using ${MIN_MAX_ARTIFACT_SIZE_KB} KB`,
+    );
+    return MIN_MAX_ARTIFACT_SIZE_KB;
+  }
+  return configured;
+};
+
+/**
+ * Passes a connection's bytes through unchanged until one line (one
+ * artifact) passes `maxKb`, counted in bytes before anything is decoded or
+ * parsed. Then it calls `onTooLarge` once and drops everything the
+ * connection sends from that chunk on. So a peer cannot make the server hold
+ * more than the limit for any one artifact, and the server can still answer
+ * and close gently while the peer finishes sending.
+ */
+export const artifactSizeGuard = (
+  maxKb: number,
+  onTooLarge: (error: BTPErrorException) => void,
+): Transform => {
+  const maxBytes = Math.floor(maxKb * 1024);
+  let lineBytes = 0;
+  let discarding = false;
+
+  const refuse = (callback: () => void) => {
+    discarding = true;
+    onTooLarge(
+      new BTPErrorException({
+        ...BTP_ERROR_ARTIFACT_TOO_LARGE,
+        message: `${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: ${maxKb} KB`,
+      }),
+    );
+    callback();
+  };
+
+  return new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      if (discarding) return callback();
+      let start = 0;
+      let newline = chunk.indexOf(0x0a, start);
+      while (newline !== -1) {
+        if (lineBytes + newline - start > maxBytes) return refuse(callback);
+        lineBytes = 0;
+        start = newline + 1;
+        newline = chunk.indexOf(0x0a, start);
+      }
+      lineBytes += chunk.length - start;
+      if (lineBytes > maxBytes) return refuse(callback);
+      callback(null, chunk);
+    },
+  });
+};

@@ -179,6 +179,25 @@ export class RedisTokenStoreService
     }
   }
 
+  // GETDEL reads and deletes in one atomic step: of two calls racing for the
+  // same token, only one gets it.
+  async consume(
+    agentId: string,
+    token: string,
+  ): Promise<BTPsTokenDocument | undefined> {
+    try {
+      const serialized = await this.redis.getdel(this.agentKey(agentId, token));
+      if (!serialized) return undefined;
+      const doc: BTPsTokenDocument = JSON.parse(serialized);
+      await this.redis.unlink(this.userKey(doc.userIdentity, agentId, token));
+      if (new Date() > new Date(doc.expiresAt)) return undefined;
+      return doc;
+    } catch (error) {
+      console.error('Error consuming token from Redis:', error);
+      return undefined;
+    }
+  }
+
   async onModuleDestroy() {
     if (this.redis) {
       await this.redis.quit();

@@ -250,7 +250,7 @@ case 'system.status':
     document: {
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      version: '1.0.0'
+      version: '1.1.0'
     }
   });
 ```
@@ -396,7 +396,8 @@ const agent = new BtpsAgent({
   port: 3443,
   maxRetries: 3,
   retryDelayMs: 1000,
-  connectionTimeoutMs: 5000,
+  connectTimeoutMs: 5000, // wait to connect: at least 5000 ms
+  replyTimeoutMs: 20000, // wait for the answer: at least 10000 ms
   btpMtsOptions: { rejectUnauthorized: false },
 });
 

@@ -7,7 +7,9 @@
 
 import { BTPSignature, BTPEncryption } from '@core/crypto/types.js';
 import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
-import { BTPInvoiceDoc } from '../../server/types.js';
+import { BTPDocument } from '../../server/types.js';
+import type { z } from 'zod';
+import type { BtpLifecycleEventSchema } from './schemas/btpsDocsSchema.js';
 import {
   AGENT_ACTIONS,
   AGENT_ACTIONS_REQUIRING_DOCUMENT,
@@ -22,7 +24,10 @@ export type CurrencyCode = (typeof CURRENCY_CODES)[number];
 export type AgentAction = (typeof AGENT_ACTIONS)[number];
 export type AgentActionRequiringDocument = (typeof AGENT_ACTIONS_REQUIRING_DOCUMENT)[number];
 
-export type BTPDocType = BTPInvoiceDoc | BTPTrustReqDoc | BTPTrustResDoc;
+/** A lifecycle event: what a `BTPS_EVENT` carries (paid, partially paid, disputed, refund, response). */
+export type BTPLifecycleEvent = z.infer<typeof BtpLifecycleEventSchema>;
+
+export type BTPDocType = BTPDocument | BTPLifecycleEvent | BTPTrustReqDoc | BTPTrustResDoc;
 
 export type BTPAttestation = {
   signedBy: string;
@@ -46,6 +51,8 @@ export interface BTPAuthReqDoc {
   authToken: string; // generated via generateUserToken
   publicKey: string; // device publicKey
   agentInfo?: Record<string, string | string[]>;
+  /** On an auth.refresh that moves the device to a new key: that key's signature over keyProofPayload. */
+  keyProof?: BTPSignature;
 }
 
 export interface BTPAuthResDoc {
@@ -135,6 +142,8 @@ export interface BTPTransporterArtifact extends BTPGenericArtifact<BTPDocType | 
   encryption: BTPEncryption | null;
   delegation?: BTPDelegation;
   selector: string;
+  /** On a BTPS_EVENT only: the id of the BTPS_DOC artifact that delivered the invoice it is about. */
+  relatesTo?: string;
 }
 
 export type BTPArtifact =
@@ -145,8 +154,10 @@ export type BTPArtifact =
 
 export type BTPStatus = {
   ok: boolean;
-  code: number; // 200 -> Sent OK | 404 --> Not Allowed | 403 --> Temporary Not Allowed | 500 --> Error
+  code: number; // 200 OK | 4xx: do not resend as is | 429 and 5xx: resend later
   message?: string;
+  /** On an error, its BTPS code, e.g. 'BTP_ERROR_TRUST_EXPIRED' */
+  error?: string;
 };
 
 export interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFailureArtifact> {

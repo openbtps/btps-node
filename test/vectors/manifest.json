@@ -1,0 +1,20 @@
+{
+  "name": "btps-golden-vectors",
+  "protocol": "BTPS 1.1",
+  "description": "Every file of the BTPS 1.1 golden vector set, with the lowercase hex SHA-256 of its bytes. See test/vectors/README.md.",
+  "hashAlgorithm": "sha256",
+  "files": {
+    "addresses.vectors.json": "cea6afc30d9a91aaa5d1310c3b5d0ec3981304cf66e3a2a3e53333ebecab6bab",
+    "device-key-proof.vector.json": "ef08791a6eac8df8540b57c112634d9feda8b82461bcd0737175bf0e9cbf4805",
+    "documents.vectors.json": "722ae0a2abeae2999484a04834a0f8ca2b4f673dac71746c0e6ed4014c3e248f",
+    "jcs.vectors.json": "aac34bc0a6b879a317aca1804f71228f1e0e06a7df4ca138ab4750a4628461d6",
+    "kms-signature.vector.json": "2ec980707588c541d260250dc8343bd84b86777835293cde0bd8e014d54b11de",
+    "oaep-mgf1-sha1.negative.vector.json": "2275824847c6b90f40ba02879734e4ff3ad46a526e8eb74592c1036861352f41",
+    "oaep-wrap.vector.json": "7e4953fe061a4f213433efbc02680503541807ccc7b0c111c2b37daebdf3ae35",
+    "sdk-defects.vector.json": "50b28ff80fe17c16d7bfed4dd28b6df72c4a77a378d54c2cfe6ae09e2970d7b7",
+    "selectors.vector.json": "28765364e5825e132adac1dd40e26c08204b22be37a0c3980f6224bb660f44b6",
+    "self-held-signature.vector.json": "ecf0b6725fb06f43176f3e803bdcac18142e3644c61bac53a5ea69e0142c045f",
+    "signed-artifacts.vector.json": "5876fb3439adac0559110aaa8636cf983624728592587c41af161cfe65877ea7",
+    "time-window.vectors.json": "9135f8c26d7bdbb3bd35e349e01af599f127d950a030d58134d6591944d2ee57"
+  }
+}

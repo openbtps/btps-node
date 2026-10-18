@@ -4,9 +4,11 @@
  * Licensed under the Apache License, Version 2.0
  * https://www.apache.org/licenses/LICENSE-2.0
  */
-import { decryptBtpPayload, verifySignature } from './index.js';
-import { BTPCryptoResponse, VerifyEncryptedPayload } from './types.js';
+import { decryptBtpPayload, decryptBtpPayloadWithDecrypter, verifySignature } from './index.js';
+import { BTPCryptoResponse, BTPDecryptionKey, VerifyEncryptedPayload } from './types.js';
 import { BTPErrorException } from '@core/error/index.js';
+import { BTP_ERROR_VALIDATION } from '@core/error/constant.js';
+import { decryptedDocumentProblem } from '@core/server/schemas/helpers.js';
 import isEmpty from 'lodash/isEmpty.js';
 
 const genDecryptError = (error: BTPErrorException) => ({
@@ -17,7 +19,7 @@ const genDecryptError = (error: BTPErrorException) => ({
 export const decryptVerify = async <T = unknown>(
   senderPubPem: string,
   encryptedPayload: VerifyEncryptedPayload<T>,
-  receiverPrivatePem?: string,
+  receiverKey?: BTPDecryptionKey,
 ): Promise<BTPCryptoResponse<T>> => {
   const { signature, delegation, ...restEncryptedPayload } = encryptedPayload;
 
@@ -33,16 +35,29 @@ export const decryptVerify = async <T = unknown>(
 
   const { encryption, document } = restEncryptedPayload;
 
+  // A Decrypter's methods may all sit on its prototype, so only a PEM string is tested for emptiness.
+  const hasReceiverKey =
+    typeof receiverKey === 'string' ? !isEmpty(receiverKey) : receiverKey !== undefined;
   const needsDecryption =
-    !isEmpty(encryption) &&
-    !isEmpty(receiverPrivatePem) &&
-    !isEmpty(document) &&
-    typeof document === 'string';
-  const { data: decryptedData, error: decryptionErrors } = needsDecryption
-    ? decryptBtpPayload(document, encryption, receiverPrivatePem!)
-    : { data: document, error: undefined };
+    !isEmpty(encryption) && hasReceiverKey && !isEmpty(document) && typeof document === 'string';
+  let decrypted: { data?: unknown; error?: BTPErrorException } = { data: document };
+  if (needsDecryption && receiverKey !== undefined) {
+    decrypted =
+      typeof receiverKey === 'string'
+        ? decryptBtpPayload(document, encryption, receiverKey)
+        : await decryptBtpPayloadWithDecrypter(document, encryption, receiverKey);
+  }
+  const { data: decryptedData, error: decryptionErrors } = decrypted;
 
   if (decryptionErrors) return genDecryptError(decryptionErrors);
+
+  // An encrypted document is checked once it can be read, as an unencrypted one is on arrival.
+  if (needsDecryption) {
+    const problem = decryptedDocumentProblem(decryptedData, restEncryptedPayload);
+    if (problem) {
+      return genDecryptError(new BTPErrorException(BTP_ERROR_VALIDATION, { cause: problem }));
+    }
+  }
 
   const decryptedPayload: VerifyEncryptedPayload<T> = {
     ...restEncryptedPayload,

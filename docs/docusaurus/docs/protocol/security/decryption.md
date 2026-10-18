@@ -28,7 +28,10 @@ BTPS ensures that only the intended recipient can decrypt and verify the authent
   3. Verify the artifact's signature using the sender's public key.
   4. If the artifact's `encryption` field is present, decrypt the AES key and then the payload.
   5. If the artifact is unencrypted (`encryption` is null), use the payload as-is after signature verification.
-  6. Return the verified and decrypted (or plain) document for further processing.
+  6. If it decrypted a lifecycle event (`BTPS_EVENT`), check it as the server checks an unencrypted one on arrival: it must be a valid lifecycle event, its `id` must be the artifact's `id`, and the invoice it names must be between the artifact's `from` and `to`. Otherwise it returns a `BTP_ERROR_VALIDATION` error and no payload.
+  7. Return the verified and decrypted (or plain) document for further processing.
+
+The server cannot read an encrypted event, so this is where it is checked. A platform that decrypts with `decryptBtpPayload` directly skips this check; use `decryptVerify` to receive events.
 
 ## BTPS Server Role
 
@@ -50,7 +53,7 @@ sequenceDiagram
     Receiver->>Receiver: Receive artifact from inbox
     alt Encrypted artifact
         Receiver->>Receiver: Decrypt AES key (Receiver's private key)
-        Receiver->>Receiver: Decrypt payload (AES-256-CBC)
+        Receiver->>Receiver: Decrypt payload (AES-256-GCM)
     else Unencrypted artifact
         Receiver->>Receiver: Views plain payload
     end
@@ -67,13 +70,13 @@ sequenceDiagram
     "title": "Monthly Service Invoice",
     "id": "INV-2025-001",
     "totalAmount": {
-      "value": 1500.00,
+      "amount": 150000,
       "currency": "USD"
     },
     "lineItems": {...}
   },
   "signature": {
-    "algorithm": "sha256",
+    "algorithmHash": "sha256",
     "value": "...",
     "fingerprint": "..."
   }

@@ -25,11 +25,20 @@ import {
 } from '@core/error/constant.js';
 
 import { BTPErrorException } from '@core/error/index.js';
+import { assertStrictJson, canonicalize, canonicalizeValue } from './jcs.js';
+import { assertFullLengthAuthTag } from './pem-decrypter.js';
+import type { Signer } from './signer-interface.js';
+import type { Decrypter } from './decrypter-interface.js';
 
 export * from './decryptVerify.js';
+export * from './jcs.js';
 export * from './signEncrypt.js';
 export * from './keygen.js';
 export * from './types.js';
+export * from './signer-interface.js';
+export * from './decrypter-interface.js';
+export * from './pem-signer.js';
+export * from './pem-decrypter.js';
 
 export const encryptBtpPayload = (
   payload: unknown = '',
@@ -81,50 +90,109 @@ export const decryptBtpPayload = <T = unknown>(
       Buffer.from(encryption.encryptedKey, 'base64'),
     );
 
+    // A full 16-byte tag only: a shorter one is a weaker integrity check
+    const authTag = Buffer.from(encryption.authTag, 'base64');
+    assertFullLengthAuthTag(authTag);
     const decipher = crypto.createDecipheriv(
       encryption.algorithm,
       decryptedKey,
       Buffer.from(encryption.iv, 'base64'),
+      { authTagLength: 16 },
     );
-    decipher.setAuthTag(Buffer.from(encryption.authTag, 'base64'));
+    decipher.setAuthTag(authTag);
 
     const stringifiedPayload = typeof payload !== 'string' ? JSON.stringify(payload) : payload;
 
     let decryptedPayload = decipher.update(stringifiedPayload, 'base64', 'utf8');
     decryptedPayload += decipher.final('utf8');
+    assertStrictJson(decryptedPayload);
 
     return {
       data: JSON.parse(decryptedPayload),
       error: undefined,
     };
   } catch (err: unknown) {
-    const errorRes = {
-      data: undefined,
-      error: new BTPErrorException(BTP_ERROR_UNKNOWN),
-    };
-    if (
-      typeof err === 'object' &&
-      err !== null &&
-      'code' in err &&
-      (err as NodeJS.ErrnoException).code === 'ERR_OSSL_RSA_OAEP_DECODING_ERROR'
-    ) {
-      errorRes.error = new BTPErrorException(BTP_ERROR_DECRYPTION_UNINTENDED);
-      return errorRes;
-    }
-
-    const error =
-      err instanceof Error
-        ? new BTPErrorException({ message: err.message, code: err.name })
-        : new BTPErrorException(BTP_ERROR_UNKNOWN);
-    errorRes.error = error;
-    return errorRes;
+    return { data: undefined, error: decryptionError(err) };
   }
 };
+
+/**
+ * Decrypts like `decryptBtpPayload`, through a Decrypter that holds the
+ * receiver's private key elsewhere (a KMS, a device) instead of a PEM key.
+ */
+export const decryptBtpPayloadWithDecrypter = async <T = unknown>(
+  payload: unknown = '',
+  encryption: BTPEncryption,
+  decrypter: Decrypter,
+): Promise<{ data?: T; error?: BTPErrorException }> => {
+  if (encryption.algorithm !== 'aes-256-gcm') {
+    return {
+      data: undefined,
+      error: new BTPErrorException(BTP_ERROR_UNSUPPORTED_ENCRYPT),
+    };
+  }
+
+  try {
+    const stringifiedPayload = typeof payload !== 'string' ? JSON.stringify(payload) : payload;
+    const plaintext = await decrypter.decrypt({
+      encryptedKey: Buffer.from(encryption.encryptedKey, 'base64'),
+      iv: Buffer.from(encryption.iv, 'base64'),
+      ciphertext: Buffer.from(stringifiedPayload, 'base64'),
+      authTag: Buffer.from(encryption.authTag, 'base64'),
+    });
+    const decryptedPayload = Buffer.from(plaintext).toString('utf8');
+    assertStrictJson(decryptedPayload);
+
+    return {
+      data: JSON.parse(decryptedPayload),
+      error: undefined,
+    };
+  } catch (err: unknown) {
+    return { data: undefined, error: decryptionError(err) };
+  }
+};
+
+/**
+ * What OpenSSL reports when the AES key was wrapped for another RSA key:
+ * usually an OAEP decoding error, but when the wrapped key is larger than
+ * this key's modulus (a few percent of key pairs), a data-too-large error.
+ */
+const WRONG_KEY_CODES = [
+  'ERR_OSSL_RSA_OAEP_DECODING_ERROR',
+  'ERR_OSSL_RSA_DATA_TOO_LARGE_FOR_MODULUS',
+];
+
+/** Why a decryption failed, as a BTPErrorException. */
+const decryptionError = (err: unknown): BTPErrorException => {
+  if (err instanceof BTPErrorException) return err;
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    typeof err.code === 'string' &&
+    WRONG_KEY_CODES.includes(err.code)
+  ) {
+    return new BTPErrorException(BTP_ERROR_DECRYPTION_UNINTENDED);
+  }
+  return err instanceof Error
+    ? new BTPErrorException({ message: err.message, code: err.name })
+    : new BTPErrorException(BTP_ERROR_UNKNOWN);
+};
+
+/** The smallest RSA key the SDK encrypts to. */
+export const MIN_RSA_KEY_BITS = 2048;
 
 /**
  * Encrypts a buffer using RSA public key with OAEP and SHA-256
  */
 export const encryptRSA = (publicKeyPem: string, data: Buffer): Buffer => {
+  // Below 2048 bits an RSA key no longer protects what is wrapped for it
+  const bits = crypto.createPublicKey(publicKeyPem).asymmetricKeyDetails?.modulusLength ?? 0;
+  if (bits < MIN_RSA_KEY_BITS) {
+    throw new BTPErrorException(BTP_ERROR_UNSUPPORTED_ENCRYPT, {
+      cause: `the receiver's RSA key is ${bits} bits; at least ${MIN_RSA_KEY_BITS} are required`,
+    });
+  }
   return crypto.publicEncrypt(
     {
       key: publicKeyPem,
@@ -170,12 +238,19 @@ export const getFingerprintFromPem = (pem: string, hashAlgorithm = 'sha256'): st
   return crypto.createHash(hashAlgorithm).update(der).digest('base64');
 };
 
+/** The bytes a signature covers: the RFC 8785 canonical form of the payload. */
+const signedBytes = (payload: unknown): Buffer =>
+  Buffer.from(
+    typeof payload === 'string' ? canonicalize(payload) : canonicalizeValue(payload),
+    'utf8',
+  );
+
 export const signBtpPayload = (payload: unknown = '', senderPemFiles: PemKeys): BTPSignature => {
-  const stringifiedPayload = typeof payload !== 'string' ? JSON.stringify(payload) : payload;
+  const canonicalPayload = signedBytes(payload);
   const { publicKey, privateKey } = senderPemFiles;
   const algorithmHash: SignatureAlgorithmHash = 'sha256';
 
-  const signature = crypto.sign('sha256', Buffer.from(stringifiedPayload, 'utf8'), privateKey);
+  const signature = crypto.sign('sha256', canonicalPayload, privateKey);
   const senderFingerprint = getFingerprintFromPem(publicKey, 'sha256');
 
   return {
@@ -185,22 +260,53 @@ export const signBtpPayload = (payload: unknown = '', senderPemFiles: PemKeys): 
   };
 };
 
+/**
+ * Signs like `signBtpPayload`, through a Signer that holds the sender's
+ * private key elsewhere (a KMS, a device) instead of a PEM key pair.
+ */
+export const signBtpPayloadWithSigner = async (
+  payload: unknown = '',
+  signer: Signer,
+): Promise<BTPSignature> => {
+  const signature = await signer.sign(signedBytes(payload));
+  const { publicKey } = await signer.getPublicKey();
+
+  return {
+    algorithmHash: 'sha256',
+    value: Buffer.from(signature).toString('base64'),
+    fingerprint: getFingerprintFromPem(publicKey, 'sha256'),
+  };
+};
+
 export const verifySignature = (
   payload: unknown = '',
   signature: BTPSignature,
   senderPubKey: string,
 ): { isValid: boolean; error?: BTPErrorException } => {
-  const stringifiedPayload = typeof payload !== 'string' ? JSON.stringify(payload) : payload;
+  let canonicalPayload: Buffer;
+  try {
+    canonicalPayload = signedBytes(payload);
+  } catch (error) {
+    // A payload with no canonical form (e.g. a duplicate member) never verifies.
+    return {
+      isValid: false,
+      error:
+        error instanceof BTPErrorException
+          ? error
+          : new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, { cause: error }),
+    };
+  }
 
-  let senderFingerprint;
+  let senderFingerprint: string | undefined;
+  // A sender's published key that is not a public key is refused below as a
+  // mismatch, saying why, rather than logged once per artifact it signs.
+  let keyProblem: string | undefined;
   try {
     senderFingerprint = getFingerprintFromPem(senderPubKey, signature.algorithmHash);
   } catch (error) {
-    const err =
-      error instanceof Error
-        ? new BTPErrorException({ code: 500, message: error.message })
-        : new BTPErrorException(BTP_ERROR_SIG_MISMATCH);
-    console.error('[BTPS Error]::[Fingerprint] - getFingerprintFromPem', err.toJSON());
+    const reason = error instanceof BTPErrorException ? error.meta?.reason : undefined;
+    keyProblem =
+      typeof reason === 'string' ? reason : error instanceof Error ? error.message : String(error);
   }
 
   if (senderFingerprint !== signature.fingerprint) {
@@ -210,6 +316,7 @@ export const verifySignature = (
         meta: {
           expected: senderFingerprint,
           actual: signature.fingerprint,
+          ...(keyProblem !== undefined && { reason: keyProblem }),
         },
       }),
     };
@@ -217,7 +324,7 @@ export const verifySignature = (
 
   const isValid = crypto.verify(
     signature.algorithmHash,
-    Buffer.from(stringifiedPayload, 'utf8'),
+    canonicalPayload,
     senderPubKey,
     Buffer.from(signature.value, 'base64'),
   );

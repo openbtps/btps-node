@@ -168,6 +168,20 @@ class MongoTrustStore extends AbstractTrustStore {
       ? await this.client.db().collection(this.entityName).find({ receiverId }).toArray()
       : await this.client.db().collection(this.entityName).find({}).toArray();
   }
+  async isKnownArtifact({ artifactId, from, to }) {
+    // 'artifacts' is wherever the platform records the artifacts it sends and receives
+    const found = await this.client
+      .db()
+      .collection('artifacts')
+      .findOne({
+        id: artifactId,
+        $or: [
+          { from, to },
+          { from: to, to: from },
+        ],
+      });
+    return found !== null;
+  }
 }
 
 // Usage:
@@ -249,6 +263,18 @@ class DynamoTrustStore extends AbstractTrustStore {
     });
     return Items ? Items.map((item) => AWS.DynamoDB.Converter.unmarshall(item)) : [];
   }
+  async isKnownArtifact({ artifactId, from, to }) {
+    // 'artifacts' is wherever the platform records the artifacts it sends and receives
+    const result = await this.client.send(
+      new GetItemCommand({ TableName: 'artifacts', Key: { id: { S: artifactId } } }),
+    );
+    if (!result.Item) return false;
+    const artifact = AWS.DynamoDB.Converter.unmarshall(result.Item);
+    return (
+      (artifact.from === from && artifact.to === to) ||
+      (artifact.from === to && artifact.to === from)
+    );
+  }
 }
 
 // Usage:
@@ -303,6 +329,14 @@ class SqlTrustStore extends AbstractTrustStore {
       ]);
     }
     return await this.db.query(`SELECT * FROM ${this.entityName}`);
+  }
+  async isKnownArtifact({ artifactId, from, to }) {
+    // 'artifacts' is wherever the platform records the artifacts it sends and receives
+    const [rows] = await this.db.query(
+      'SELECT 1 FROM artifacts WHERE id = ? AND ((`from` = ? AND `to` = ?) OR (`from` = ? AND `to` = ?))',
+      [artifactId, from, to, to, from],
+    );
+    return rows.length > 0;
   }
 }
 
@@ -361,6 +395,15 @@ class PostgresTrustStore extends AbstractTrustStore {
       : await this.pool.query(`SELECT * FROM ${this.entityName}`);
     return rows;
   }
+  async isKnownArtifact({ artifactId, from, to }) {
+    // 'artifacts' is wherever the platform records the artifacts it sends and receives
+    const { rows } = await this.pool.query(
+      `SELECT 1 FROM artifacts
+       WHERE id = $1 AND ((sender = $2 AND receiver = $3) OR (sender = $3 AND receiver = $2))`,
+      [artifactId, from, to],
+    );
+    return rows.length > 0;
+  }
 }
 
 // Usage:
@@ -396,6 +439,16 @@ const server = new BtpsServer({ port: 3443, trustStore });
 - Use indexes and efficient queries for high throughput.
 - Batch trust store operations where possible.
 - Always call `server.stop()` on shutdown to release resources.
+
+### Running at Scale
+
+A BTPS server takes no load decisions for you, but nothing in it stands in the way of running millions of connections. What matters is how fast you answer and how long you keep idle connections:
+
+- **Answer fast: queue, then acknowledge.** The server answers success once your handler returns, so put the artifact on your own queue (SQS, Kafka, a database outbox) and return. The connection is busy for milliseconds. Senders wait up to 10 seconds or more for an answer, but that is a ceiling for slow moments, not a hold.
+- **Keep idle connections short.** Each open TLS connection holds memory. Set `connectionTimeoutMs` low (a few seconds) when you serve very many senders: there is no minimum, and a connection is never closed while one of its requests is being handled.
+- **Run many server instances** behind a layer-4 (TCP) load balancer; see [Server Factories & Registries](#server-factories--registries-managing-multiple-btps-servers). Keep shared state (trust, identities, rate limits, duplicates) in shared stores, not in one process.
+- **Raise the operating system's limits**, such as open files per process, for the number of connections you expect.
+- **Answer "send again later" under real overload** (`429` or `503`) rather than holding connections open.
 
 ## Security Best Practices
 

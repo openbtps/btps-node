@@ -113,10 +113,11 @@ class CustomIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
 
   // Identity-specific methods
   async getPublicKeyRecord(
-    identity: string,
+    computedId: string,
     selector?: string,
   ): Promise<BTPIdentityRecord | undefined> {
-    // Return public key record for specific identity and selector
+    // Return the public key record whose id is computedId (computeId(identity),
+    // computed by the server), at the selector. Never hash computedId again.
   }
 
   async storePublicKeyRecord(
@@ -189,7 +190,7 @@ The server responds to identity lookup requests with this structure:
 
 ```json
 {
-  "version": "1.0.0.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -203,7 +204,7 @@ The server responds to identity lookup requests with this structure:
     "selector": "btps1",
     "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
     "keyType": "rsa",
-    "version": "1.0.0.0"
+    "version": "1.1.0"
   },
   "signedBy": "admin$saas.com",
   "selector": "btps1",
@@ -250,6 +251,7 @@ When a SaaS-managed sender needs to send documents:
 **Requirements:**
 
 - `signedBy` identity must have DNS records published
+- `signedBy` must be the operator (`op`) in the sender domain's `_btps.host` record ([The Domain Operator](../../protocol/specifications/overview.md#the-domain-operator))
 - Delegation signature verified against DNS public key
 - Agent public key included for chain verification
 - SaaS platform manages delegation lifecycle
@@ -321,7 +323,7 @@ await identityStore.storePublicKeyRecord('alice$saas.com', {
       publicKey:
         '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----',
       keyType: 'rsa',
-      version: '1.0.0.0',
+      version: '1.1.0',
       createdAt: '2025-01-15T10:30:00Z',
     },
   ],
@@ -346,11 +348,13 @@ class MongoIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
   }
 
   async getPublicKeyRecord(
-    identity: string,
+    computedId: string,
     selector?: string,
   ): Promise<BTPIdentityRecord | undefined> {
     const db = this.client.db();
-    const query = selector ? { identity, 'publicKeys.selector': selector } : { identity };
+    const query = selector
+      ? { id: computedId, 'publicKeys.selector': selector }
+      : { id: computedId };
 
     const record = await db.collection(this.collection).findOne(query);
     return record || undefined;
@@ -543,13 +547,14 @@ SERVER_PRIVATE_KEY_PATH=./keys/private.pem
 ### Test Identity Lookup Request
 
 ```typescript
-import { BtpsClient } from '@btps/sdk';
+import { BtpsClient } from '@btps/sdk/client';
 
 const client = new BtpsClient({
   to: 'admin$saas.com',
   maxRetries: 3,
   retryDelayMs: 1000,
-  connectionTimeoutMs: 5000,
+  connectTimeoutMs: 5000, // wait to connect: at least 5000 ms
+  replyTimeoutMs: 20000, // wait for the answer: at least 10000 ms
   host: 'localhost',
   port: 3443,
   btpMtsOptions: { rejectUnauthorized: false },
@@ -558,7 +563,7 @@ const client = new BtpsClient({
 async function testIdentityLookup() {
   try {
     const identityLookupRequest = {
-      version: '1.0.0.0',
+      version: '1.1.0',
       id: 'test_lookup_123',
       issuedAt: new Date().toISOString(),
       identity: 'alice$saas.com',
@@ -567,7 +572,7 @@ async function testIdentityLookup() {
       identitySelector: 'btps1',
     };
 
-    const result = await client.send(identityLookupRequest, 5000);
+    const result = await client.send(identityLookupRequest);
 
     if (result.error) {
       console.error('Identity lookup failed:', result.error);

@@ -21,6 +21,12 @@ import { BTPError } from '@core/error/types.js';
 import { BTPErrorException } from '@core/error/index.js';
 import { BTPIdentityRecord } from '@core/storage/types.js';
 import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
+import type { Signer } from '@core/crypto/signer-interface.js';
+import type { z } from 'zod';
+import type {
+  BtpLetterDocSchema,
+  BtpPayslipDocSchema,
+} from '@core/server/schemas/btpsDocsSchema.js';
 
 export interface BtpsTlsOptions extends TlsOptions {
   cert: string;
@@ -28,19 +34,32 @@ export interface BtpsTlsOptions extends TlsOptions {
 }
 
 export interface BtpsServerOptions {
-  serverIdentity: {
-    identity: string;
-    publicKey: string;
-    privateKey: string;
-  };
+  /** The server's own key, as a PEM key pair or a Signer holding it elsewhere (a KMS). */
+  serverIdentity:
+    | {
+        identity: string;
+        publicKey: string;
+        privateKey: string;
+      }
+    | {
+        identity: string;
+        signer: Signer;
+      };
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tlsOptions: BtpsTlsOptions;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   port?: number;
   onError?: (err: BTPErrorException) => void;
 
+  /** Closes a connection after this long with no request being handled, in ms. Default 30000; no minimum. A connection is never closed while one of its requests is handled. */
   connectionTimeoutMs?: number;
   middlewarePath?: string; // Path to btps.middleware.mjs file
+  /** The largest artifact this server can accept, in KB (1 KB = 1024 bytes). Default 5120 (5 MB), minimum 1024 (1 MB). */
+  maxArtifactSizeKb?: number;
+  /** How far an artifact's issuedAt may be from this server's clock, in seconds, either way. Default 300 (5 minutes), minimum 60. */
+  maxArtifactAgeSeconds?: number;
+  /** How many requests one connection may have handled at once; at the limit the server stops reading it until one finishes. Default 32, minimum 1. */
+  maxInFlightPerConnection?: number;
 }
 
 // Middleware Types
@@ -240,38 +259,71 @@ export interface BTPAttachment {
   content: string; // base64
   type: 'application/pdf' | 'image/jpeg' | 'image/png';
   filename?: string;
+  size: number; // bytes, as the sender states
+  sha256: string; // lowercase hex, as the sender states
+}
+
+/** A link to another signed document: `correction_of`, `credits`, `instalment_of`, `follows`, or a prefixed code. */
+export interface BTPDocReference {
+  type: string;
+  from: string;
+  id: string;
+  sha256: string; // lowercase hex
 }
 
 export interface BTPInvoiceDoc {
+  type: 'invoice';
   title: string;
-  id: string; // unique per sender
+  id: string; // the invoice number, unique per sender
   issuedAt: string; // ISO format
-  status: 'paid' | 'unpaid' | 'partial' | 'refunded' | 'disputed';
   dueAt?: string; // ISO format
-  paidAt?: string; // ISO format
-  refundedAt?: string; // ISO format
-  disputedAt?: string; // ISO format
   totalAmount: {
-    value: number;
+    amount: number; // integer minor units: 12345 is 123.45
     currency: CurrencyCode; // e.g. 'AUD', 'USD', etc.
   };
   lineItems: {
     columns: string[]; // must include at minimum: ['Description', 'Amount']
-    rows: Array<Record<string, string | number>>;
+    rows: Array<Record<string, string | number>>; // money cells in integer minor units
   };
   issuer?: {
     name: string;
     email?: string;
     phone?: string;
+    address?: string;
+    identifiers?: Record<string, string>; // namespaced, e.g. { 'au:abn': '51824753556' }
   };
   paymentLink?: {
     linkText: string;
     url: string; // should be HTTPS
   };
   description?: string;
-  attachment?: BTPAttachment;
+  attachments?: BTPAttachment[];
+  references?: BTPDocReference[];
   template?: {
     name: string;
     data: Record<string, unknown>;
   };
+  metadata?: Record<string, unknown>; // the sending platform's own data
 }
+
+/** Proof of a payment: the invoice without what asks for payment, plus `payment`. */
+export interface BTPReceiptDoc
+  extends Omit<BTPInvoiceDoc, 'type' | 'dueAt' | 'paymentLink' | 'lineItems'> {
+  type: 'receipt';
+  lineItems?: BTPInvoiceDoc['lineItems'];
+  payment: {
+    amount: BTPInvoiceDoc['totalAmount']; // less than totalAmount on a partial receipt
+    paidAt: string; // ISO format
+    method?: string; // `card`, `bank_transfer`, `cash`, or a prefixed code
+    reference?: string;
+  };
+}
+
+/** A payslip: earnings, deductions, contributions and leave, each named by an open code. */
+export type BTPPayslipDoc = z.infer<typeof BtpPayslipDocSchema>;
+
+/** A letter: a title and one body, `text` or `markdown`. */
+export type BTPLetterDoc = z.infer<typeof BtpLetterDocSchema>;
+
+/** What a `BTPS_DOC` carries. */
+export type BTPDocument = BTPInvoiceDoc | BTPReceiptDoc | BTPPayslipDoc | BTPLetterDoc;

@@ -16,12 +16,16 @@
     "./checks/interop": "./src/checks/interop.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "scripts": {
     "verify:btps-vectors": "node bin/verify-btps-vectors.mjs --known-failing ../../test/vectors/known-failing.json",
     "verify:btps-vectors:strict": "node bin/verify-btps-vectors.mjs",
     "generate-vectors": "node scripts/generate-vectors.mjs"
+  },
+  "dependencies": {
+    "@humanwhocodes/momoa": "^3.3.13",
+    "canonicalize": "^5.1.0"
   },
   "peerDependencies": {
     "esbuild": ">=0.25"

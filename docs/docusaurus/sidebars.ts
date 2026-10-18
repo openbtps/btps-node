@@ -20,6 +20,7 @@ const sidebars: SidebarsConfig = {
       id: 'introduction',
       label: 'BTPS Introduction',
     },
+    'roadmap',
     {
       type: 'category',
       label: 'Getting Started',
@@ -70,6 +71,8 @@ const sidebars: SidebarsConfig = {
           label: 'Specifications',
           items: [
             'protocol/specifications/overview',
+            'protocol/specifications/limits',
+            'protocol/specifications/golden-vectors',
             'protocol/specifications/artifacts',
             'protocol/specifications/transporter-artifact',
             'protocol/specifications/agent-artifact',

@@ -6,8 +6,16 @@
  */
 
 import { randomUUID } from 'crypto';
-import { BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '@core/error/constant.js';
-import { signBtpPayload, encryptBtpPayload } from './index.js';
+import type { ConnectionOptions } from 'tls';
+import {
+  BTP_ERROR_IDENTITY,
+  BTP_ERROR_RESOLVE_PUBKEY,
+  BTP_ERROR_VALIDATION,
+} from '@core/error/constant.js';
+import { processBtpDocSchema } from '@core/server/schemas/helpers.js';
+import type { BTPArtifactType } from '@core/server/types.js';
+import { signBtpPayload, signBtpPayloadWithSigner, encryptBtpPayload } from './index.js';
+import type { Signer } from './signer-interface.js';
 import {
   BTPCryptoResponse,
   PemKeys,
@@ -16,7 +24,7 @@ import {
   BTPEncryption,
   BTPCryptoArtifact,
 } from './types.js';
-import { parseIdentity, resolvePublicKey } from '@core/utils/index.js';
+import { getHostAndSelector, parseIdentity, resolvePublicKey } from '@core/utils/index.js';
 import { ParsedIdentity } from '@core/utils/types.js';
 import { BTPErrorException } from '@core/error/index.js';
 import isEmpty from 'lodash/isEmpty.js';
@@ -26,24 +34,76 @@ const genEncryptError = (error: BTPErrorException) => ({
   error,
 });
 
+/** How signEncrypt reaches a receiver's host when DNS has no key for it. */
+export type ReceiverKeyLookup = {
+  /** TLS options for the connection to the receiver's host */
+  btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
+};
+
+/**
+ * A receiver's key as BTPS finds it: in DNS first, then from the receiver's
+ * host, in an answer its domain's operator signed. The client is loaded only
+ * when DNS has no key, so the core does not depend on it.
+ */
+const findReceiverKey = async (
+  to: string,
+  from: string,
+  selector: string,
+  lookup?: ReceiverKeyLookup,
+): Promise<string | undefined> => {
+  const inDns = await resolvePublicKey(to, selector);
+  if (inDns) return inDns;
+  const { BtpsClient } = await import('../../client/btpsClient.js');
+  const client = new BtpsClient({ to, btpMtsOptions: lookup?.btpMtsOptions, maxRetries: 0 });
+  try {
+    return (await client.resolveIdentity(to, from)).response?.publicKey;
+  } finally {
+    client.destroy();
+  }
+};
+
+/**
+ * Signs an artifact with the sender's key and, when `to` and encryption
+ * options are given, encrypts its document to the receiver's current key.
+ *
+ * `payload.selector` is the sender's own selector: the one its signing key
+ * is published at, which the receiver uses to verify the signature. The
+ * receiver's key is found at the selector the receiver's own host record
+ * names: in DNS, or else from the receiver's host (`lookup` gives the TLS
+ * options for that connection).
+ */
 export const signEncrypt = async <T = unknown>(
   to: string | undefined,
-  sender: ParsedIdentity & { pemFiles: PemKeys },
+  sender: ParsedIdentity & ({ pemFiles: PemKeys } | { signer: Signer }),
   payload: {
     document: T;
     selector?: string;
     [key: string]: unknown;
   },
   options?: BTPCryptoOptions,
+  lookup?: ReceiverKeyLookup,
 ): Promise<BTPCryptoResponse<T>> => {
   const { document, ...restPayload } = payload;
   let encryption: BTPEncryption | null = null;
   let encryptedDoc: string | T = document;
 
-  if (to && payload.selector) {
+  if (to && !isEmpty(options?.encryption)) {
+    // Once encrypted, no server can read the document, so it is checked here.
+    const docSchema = processBtpDocSchema(restPayload.type as BTPArtifactType);
+    if (docSchema && !docSchema.safeParse(document).success) {
+      return genEncryptError(
+        new BTPErrorException(BTP_ERROR_VALIDATION, {
+          cause: 'Document type does not match the artifact type',
+        }),
+      );
+    }
     const parsedReceiver = parseIdentity(to);
     if (!parsedReceiver) return genEncryptError(new BTPErrorException(BTP_ERROR_IDENTITY));
-    const receiverPubPem = await resolvePublicKey(to, payload.selector);
+    const receiverHost = await getHostAndSelector(to);
+    const from = `${sender.accountName}$${sender.domainName}`;
+    const receiverPubPem = receiverHost
+      ? await findReceiverKey(to, from, receiverHost.selector, lookup)
+      : undefined;
     if (!receiverPubPem) return genEncryptError(new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY));
 
     try {
@@ -68,7 +128,10 @@ export const signEncrypt = async <T = unknown>(
 
   let signature: BTPSignature;
   try {
-    signature = signBtpPayload(docToSign, sender.pemFiles);
+    signature =
+      'signer' in sender
+        ? await signBtpPayloadWithSigner(docToSign, sender.signer)
+        : signBtpPayload(docToSign, sender.pemFiles);
   } catch (error) {
     return genEncryptError(error as BTPErrorException);
   }

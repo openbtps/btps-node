@@ -26,7 +26,7 @@ _btps1._btps.identity.user.domain.com
 
 **Challenges for SaaS Platforms:**
 
-1. **Scale Limitations**: SaaS platforms like `ebilladdress.com` cannot feasibly publish DNS records for millions of users
+1. **Scale Limitations**: SaaS platforms like `saas.com` cannot feasibly publish DNS records for millions of users
 2. **Management Overhead**: Individual DNS record management becomes prohibitively expensive
 3. **Performance Degradation**: High DNS query volume degrades performance
 4. **Operational Complexity**: Key rotation, revocation, and updates become unmanageable
@@ -34,9 +34,9 @@ _btps1._btps.identity.user.domain.com
 ### Example Scenario
 
 ```
-SaaS Platform: ebilladdress.com
-Users: alice@ebilladdress.com, bob@ebilladdress.com, charlie@ebilladdress.com
-BTPS Identities: alice$ebilladdress.com, bob$ebilladdress.com, charlie$ebilladdress.com
+SaaS Platform: saas.com
+Users: alice@saas.com, bob@saas.com, charlie@saas.com
+BTPS Identities: alice$saas.com, bob$saas.com, charlie$saas.com
 
 Problem: Cannot publish DNS records for each user
 Solution: Identity Record system for centralized key management
@@ -110,8 +110,9 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[Document with Delegation] --> B{Verify Delegation}
-    B --> C[Lookup signedBy DNS]
+    A[Document with Delegation] --> B{signedBy is the sender domain's op?}
+    B -->|No| E2[❌ Delegation Not Allowed]
+    B -->|Yes| C[Lookup signedBy DNS]
     C --> D{Valid DNS Record?}
     D -->|No| E[❌ Delegation Invalid]
     D -->|Yes| F[Get signedBy Public Key]
@@ -145,7 +146,7 @@ flowchart TD
 
 ```json
 {
-  "version": "1.0.0.0",
+  "version": "1.1.0",
   "id": "identity_lookup_123456",
   "issuedAt": "2025-01-15T10:30:00Z",
   "identity": "alice$saas.com",
@@ -169,7 +170,7 @@ flowchart TD
 
 ```json
 {
-  "version": "1.0.0.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -183,7 +184,7 @@ flowchart TD
     "selector": "btps1",
     "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
     "keyType": "rsa",
-    "version": "1.0.0.0"
+    "version": "1.1.0"
   },
   "signedBy": "admin$saas.com",
   "selector": "btps1",
@@ -198,7 +199,7 @@ flowchart TD
 **Response Fields:**
 
 - `document`: Identity public key information
-- `signedBy`: SaaS platform identity that signed the response
+- `signedBy`: SaaS platform identity that signed the response. It must be the operator (`op`) in the looked-up identity's `_btps.host` record, or the requester refuses the answer ([The Domain Operator](./specifications/overview.md#the-domain-operator))
 - `selector`: Key selector for rotation management
 - `signature`: Cryptographic signature by SaaS platform
 
@@ -390,8 +391,9 @@ When a SaaS-managed sender (without custom domain) needs to send documents:
 export abstract class AbstractIdentityStore<
   T extends BTPIdentityRecord,
 > extends AbstractStorageStore<T> {
+  // computedId: computeId(identity), computed by the server; use it as given
   abstract getPublicKeyRecord(
-    identity: string,
+    computedId: string,
     selector?: string,
   ): Promise<IdentityPubKeyRecord | undefined>;
 }
@@ -430,8 +432,8 @@ const identityStore = new JsonIdentityStore({
 
 ```typescript
 class DatabaseIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
-  async getPublicKeyRecord(identity: string, selector?: string) {
-    // Database implementation
+  async getPublicKeyRecord(computedId: string, selector?: string) {
+    // Look the record up by its id, computedId, as given
   }
 }
 ```

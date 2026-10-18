@@ -411,6 +411,28 @@ class PostgreSQLTokenStore implements TokenStore {
     await this.pool.query(query, [agentId, token]);
   }
 
+  // One statement reads and deletes, so a code or refresh token is used once
+  async consume(agentId: string, token: string): Promise<BTPsTokenDocument | undefined> {
+    const query = `
+      DELETE FROM auth_tokens
+      WHERE agent_id = $1 AND token = $2 AND expires_at > NOW()
+      RETURNING token, agent_id, user_identity, created_at, expires_at, metadata
+    `;
+
+    const result = await this.pool.query(query, [agentId, token]);
+    const row = result.rows[0];
+    if (!row) return undefined;
+
+    return {
+      token: row.token,
+      agentId: row.agent_id,
+      userIdentity: row.user_identity,
+      createdAt: row.created_at,
+      expiresAt: row.expires_at,
+      metadata: row.metadata,
+    };
+  }
+
   async cleanup(): Promise<void> {
     const query = `
       DELETE FROM auth_tokens
@@ -440,7 +462,7 @@ const auth = new BtpsAuthentication({
 
 ```typescript
 import { BtpsAuthentication } from '@btps/sdk/authentication';
-import { generateKeyPair } from '@btps/sdk/crypto';
+import { getBTPKeyPair } from '@btps/sdk/crypto';
 
 class BTPSAuthClient {
   private keyPair: PemKeys | null = null;
@@ -451,7 +473,7 @@ class BTPSAuthClient {
   async registerDevice(authToken: string, userIdentity: string) {
     try {
       // Generate device keypair
-      this.keyPair = await generateKeyPair();
+      this.keyPair = getBTPKeyPair();
       this.userIdentity = userIdentity;
 
       // Perform authentication
@@ -1019,7 +1041,7 @@ app.listen(3000, () => {
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { BtpsAuthentication } from '@btps/sdk/authentication';
-import { generateKeyPair } from '@btps/sdk/crypto';
+import { getBTPKeyPair } from '@btps/sdk/crypto';
 import * as Keychain from 'react-native-keychain';
 
 const BTPSAuthScreen = () => {
@@ -1059,7 +1081,7 @@ const BTPSAuthScreen = () => {
 
     try {
       // Generate device keypair
-      const keyPair = await generateKeyPair();
+      const keyPair = getBTPKeyPair();
 
       // Perform authentication
       const result = await BtpsAuthentication.authenticate(
@@ -1313,7 +1335,7 @@ describe('BTPS Authentication Integration', () => {
     await auth.storeAuthToken(authToken, 'test@example.com', agentId);
 
     // Perform authentication
-    const keyPair = await generateKeyPair();
+    const keyPair = getBTPKeyPair();
     const result = await BtpsAuthentication.authenticate(
       'test@example.com',
       authToken,

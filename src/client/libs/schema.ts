@@ -18,7 +18,8 @@ import { identitySchema } from '@core/server/schemas/shared.js';
 import { validateAgentDocument } from '@core/server/schemas/helpers.js';
 import {
   BtpAuthReqDocSchema,
-  BtpInvoiceDocSchema,
+  BtpDocumentSchema,
+  BtpLifecycleEventSchema,
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
 } from '@core/server/schemas/btpsDocsSchema.js';
@@ -30,7 +31,8 @@ export const BtpsAgentCommandDocumentSchema = z
   .union([
     BtpTrustReqDocSchema,
     BtpTrustResDocSchema,
-    BtpInvoiceDocSchema,
+    BtpDocumentSchema,
+    BtpLifecycleEventSchema,
     BtpAuthReqDocSchema,
     BtpAgentQuerySchema,
     BtpAgentMutationSchema,
@@ -44,7 +46,7 @@ export const BtpsAgentCommandSchema = z.object({
   actionType: BtpsAgentActionTypeSchema,
   to: identitySchema,
   document: BtpsAgentCommandDocumentSchema.optional(),
-  options: BtpCryptoOptionsSchema.optional(),
+  options: BtpCryptoOptionsSchema.extend({ relatesTo: z.string().min(1).optional() }).optional(),
 });
 
 // Schema for validating the complete command call - use server's validation logic
@@ -54,4 +56,7 @@ export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
     message: 'Document is required for this action type or document format is invalid',
     path: ['document'],
   },
-);
+).refine((data) => (data.actionType === 'event.send') === (data.options?.relatesTo !== undefined), {
+  message: 'options.relatesTo is required on event.send and only there',
+  path: ['options', 'relatesTo'],
+});

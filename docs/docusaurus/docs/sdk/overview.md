@@ -42,13 +42,14 @@ If you're using CommonJS and still want to consume this SDK, use dynamic `import
 
 ```js
 // ESM import (recommended)
-import { BtpsServer, BtpsClient } from '@btps/sdk';
-import { signEncrypt, keygen } from '@btps/sdk/crypto';
+import { BtpsServer } from '@btps/sdk/server';
+import { BtpsClient } from '@btps/sdk/client';
+import { signEncrypt, getBTPKeyPair } from '@btps/sdk/crypto';
 import { JsonTrustStore } from '@btps/sdk/trust';
 import { BTPErrorException } from '@btps/sdk/error';
 
 // Import types (TypeScript)
-import type { BTPArtifact, BTPInvoiceDoc } from '@btps/sdk';
+import type { BTPArtifact, BTPInvoiceDoc } from '@btps/sdk/server';
 ```
 
 ---
@@ -113,8 +114,8 @@ dist/
 ### Generate a Key Pair
 
 ```js
-import { keygen } from '@btps/sdk/crypto';
-const { publicKey, privateKey } = await keygen('ed25519');
+import { getBTPKeyPair } from '@btps/sdk/crypto';
+const { publicKey, privateKey } = getBTPKeyPair(); // RSA, 2048 bits by default
 ```
 
 ### Sign and Encrypt a Document
@@ -131,8 +132,8 @@ const { payload, error } = await signEncrypt(
     },
   },
   {
-    signature: { algorithm: 'sha256' },
-    encryption: { algorithm: 'aes-256-cbc', mode: 'standardEncrypt' },
+    signature: { algorithmHash: 'sha256' },
+    encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
   },
 );
 ```
@@ -148,9 +149,10 @@ const allTrusts = await trustStore.getAll();
 ### Use Storage Utilities
 
 ```js
+import { computeId } from '@btps/sdk';
 import { JsonIdentityStore } from '@btps/sdk/storage';
 const identityStore = new JsonIdentityStore({ connection: './identities.json' });
-const publicKey = await identityStore.getPublicKeyRecord('alice$saas.com');
+const publicKey = await identityStore.getPublicKeyRecord(computeId('alice$saas.com'));
 ```
 
 ---

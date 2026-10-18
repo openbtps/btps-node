@@ -199,7 +199,7 @@ async function sendDelegatedArtifact(delegatedArtifact) {
 ```typescript
 // Result for alice$yourdomain.com
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "msg_123",
   "type": "BTPS_DOC",
@@ -229,7 +229,7 @@ async function sendDelegatedArtifact(delegatedArtifact) {
 ```typescript
 // Result for alice$enterprise.com
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "msg_123",
   "type": "BTPS_DOC",

@@ -11,13 +11,16 @@ import type { BTPAgentOptions } from '../../client/types/index.js';
 import type { BTPAuthReqDoc, BTPAuthResDoc } from '@core/server/types.js';
 import type { BTPTrustRecord } from '@core/trust/types.js';
 import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
-import { computeTrustId } from '@core/trust/index.js';
+import { computeAgentTrustId } from '@core/trust/trustUtils.js';
 import {
   generateUserToken,
   getFingerprintFromPem,
   DEFAULT_ALPHABET,
-  type PemKeys,
+  signBtpPayload,
+  signBtpPayloadWithSigner,
+  type BTPSigningKey,
 } from '@core/crypto/index.js';
+import { keyProofPayload } from './keyProof.js';
 import type {
   ServerAuthConfig,
   AuthRequestResponse,
@@ -90,7 +93,7 @@ export class BtpsAuthentication {
     };
 
     return {
-      ...(await this.trustStore.create(trustRecord, computeTrustId(agentId, userIdentity))),
+      ...(await this.trustStore.create(trustRecord, computeAgentTrustId(agentId, userIdentity))),
       expiresAt: trustRecord.expiresAt!,
     };
   }
@@ -105,34 +108,53 @@ export class BtpsAuthentication {
    */
   private static async _fetchAuthSession(
     agentId: string,
-    payload: Omit<BTPAuthReqDoc, 'publicKey'> & { keyPair: PemKeys },
+    payload: Omit<BTPAuthReqDoc, 'publicKey' | 'keyProof'> & {
+      keyPair: BTPSigningKey;
+      newKey?: BTPSigningKey;
+    },
     type: 'refresh' | 'auth' = 'auth',
     agentOptions?: AuthAgentOptions,
   ): Promise<AuthRequestResponse> {
-    const { keyPair, identity, authToken, agentInfo } = payload;
+    const { keyPair, newKey, identity, authToken, agentInfo } = payload;
     const commandAction = type === 'refresh' ? 'auth.refresh' : 'auth.request';
 
     try {
       // Create BtpsAgent for communication
       const options: BTPAgentOptions = {
         ...agentOptions,
-        agent: {
-          id: agentId,
-          identityKey: keyPair.privateKey,
-          identityCert: keyPair.publicKey,
-        },
+        agent:
+          'sign' in keyPair
+            ? { id: agentId, signer: keyPair }
+            : {
+                id: agentId,
+                identityKey: keyPair.privateKey,
+                identityCert: keyPair.publicKey,
+              },
         btpIdentity: identity,
       };
 
       const agent = new BtpsAgent(options);
 
-      // Prepare authentication request
+      // Prepare authentication request. Moving to a new key names that key, and
+      // proves it with the new key's signature; the agent signs with the current one.
+      const announcedKey = newKey ?? keyPair;
+      const publicKey =
+        'sign' in announcedKey
+          ? (await announcedKey.getPublicKey()).publicKey
+          : announcedKey.publicKey;
       const authRequest: BTPAuthReqDoc = {
         identity,
         authToken,
-        publicKey: keyPair.publicKey,
+        publicKey,
         agentInfo,
       };
+      if (newKey) {
+        const proofPayload = keyProofPayload(agentId, identity, publicKey);
+        authRequest.keyProof =
+          'sign' in newKey
+            ? await signBtpPayloadWithSigner(proofPayload, newKey)
+            : signBtpPayload(proofPayload, newKey);
+      }
 
       // Send authentication request
       const { response, error } = await agent.command(commandAction, identity, authRequest);
@@ -240,16 +262,14 @@ export class BtpsAuthentication {
    */
   async validateAuthToken(userIdentity: string, token: string): Promise<AuthValidationResult> {
     try {
-      const storedToken = await this.tokenStore.get(userIdentity, token);
+      // Taken once: of two devices racing with one code, only one is registered
+      const storedToken = await this.tokenStore.consume(userIdentity, token);
       if (!storedToken) {
         return {
           isValid: false,
           error: new BTPErrorException({ message: 'Invalid or expired auth token' }),
         };
       }
-
-      // Remove the token after successful validation (one-time use)
-      await this.tokenStore.remove(userIdentity, token);
 
       return {
         isValid: true,
@@ -284,9 +304,10 @@ export class BtpsAuthentication {
     data?: BTPAuthResDoc;
     error?: BTPErrorException;
   }> {
-    const validationResult = await this.validateRefreshToken(agentId, refreshToken);
+    // Taken once: of two refreshes racing with one token, only one succeeds
+    const storedToken = await this.tokenStore.consume(agentId, refreshToken);
 
-    if (!validationResult.isValid) {
+    if (!storedToken) {
       return {
         data: undefined,
         error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
@@ -295,8 +316,8 @@ export class BtpsAuthentication {
         }),
       };
     }
-    const { userIdentity } = validationResult;
-    const computedId = computeTrustId(agentId, userIdentity);
+    const { userIdentity } = storedToken;
+    const computedId = computeAgentTrustId(agentId, userIdentity);
     const trustRecord = await this.trustStore.getById(computedId);
 
     if (!trustRecord) {
@@ -345,14 +366,25 @@ export class BtpsAuthentication {
     try {
       await this.trustStore.update(computedId, patch);
     } catch (error) {
+      // Usually passing: put the token back for what is left of its life, so
+      // the device can try again rather than register anew.
+      const remainingMs = new Date(storedToken.expiresAt).getTime() - Date.now();
+      if (remainingMs > 0) {
+        await this.tokenStore.store(
+          refreshToken,
+          agentId,
+          userIdentity,
+          remainingMs,
+          storedToken.decryptBy,
+          storedToken.metadata,
+        );
+      }
       return {
         data: undefined,
         error: transformToBTPErrorException(error),
       };
     }
 
-    // delete the old refresh token
-    await this.tokenStore.remove(agentId, refreshToken);
     // generate a new refresh token
     const newRefreshToken = BtpsAuthentication.generateRefreshToken();
     await this.tokenStore.store(
@@ -408,14 +440,14 @@ export class BtpsAuthentication {
   /**
    * Authenticate using an auth token (client-side)
    * @param authToken - The authentication token from the server
-   * @param keyPair - Generated key pair for this device
+   * @param keyPair - Generated key pair for this device, or a Signer holding its key in the device's keystore
    * @param agentInfo - Optional agent information
    * @returns NewAuthentication result with session details
    */
   static async authenticate(
     identity: string,
     authToken: string,
-    keyPair: PemKeys,
+    keyPair: BTPSigningKey,
     agentInfo?: Record<string, string | string[]>,
     agentOptions?: AuthAgentOptions,
   ): Promise<AuthRequestResponse> {
@@ -446,7 +478,7 @@ export class BtpsAuthentication {
     agentId: string,
     identity: string,
     refreshToken: string,
-    keyPair: PemKeys,
+    keyPair: BTPSigningKey,
     agentInfo?: Record<string, string | string[]>,
     agentOptions?: AuthAgentOptions,
   ): Promise<AuthRequestResponse> {
@@ -461,6 +493,39 @@ export class BtpsAuthentication {
     return await this._fetchAuthSession(
       agentId,
       { keyPair, identity, authToken: refreshToken, agentInfo },
+      'refresh',
+      agentOptions,
+    );
+  }
+
+  /**
+   * Refresh an authentication session and move the device to a new key (client-side).
+   * The refresh is signed by the current key and carries a proof signed by the new
+   * key, so the server accepts the new key only from the device that holds both.
+   * After it succeeds, the device signs with the new key.
+   * @param currentKey - The key the server holds for this device today
+   * @param newKey - The key to move to: a PEM key pair, or a Signer holding it
+   * @returns renewed authentication session or error
+   */
+  static async rotateKey(
+    agentId: string,
+    identity: string,
+    refreshToken: string,
+    currentKey: BTPSigningKey,
+    newKey: BTPSigningKey,
+    agentInfo?: Record<string, string | string[]>,
+    agentOptions?: AuthAgentOptions,
+  ): Promise<AuthRequestResponse> {
+    if (!isValidIdentity(identity)) {
+      return {
+        success: false,
+        error: new BTPErrorException(BTP_ERROR_IDENTITY),
+      };
+    }
+
+    return await this._fetchAuthSession(
+      agentId,
+      { keyPair: currentKey, newKey, identity, authToken: refreshToken, agentInfo },
       'refresh',
       agentOptions,
     );

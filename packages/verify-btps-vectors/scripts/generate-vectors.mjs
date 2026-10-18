@@ -24,6 +24,13 @@ import { canonicalize } from '../src/jcs.mjs';
 import { oaepEncrypt } from '../src/oaep-reference.mjs';
 import { createWebRuntime } from '../src/runtimes/web.mjs';
 import { toBase64, utf8 } from '../src/encoding.mjs';
+import {
+  addresses,
+  deviceKeyProof,
+  documents,
+  signedArtifacts,
+  timeWindow,
+} from './protocol-vectors.mjs';
 
 const VECTORS_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -32,7 +39,7 @@ const VECTORS_DIR = path.resolve(
 const force = process.argv.includes('--force');
 
 const TEST_ONLY =
-  'TEST-ONLY key generated locally for the BTPS golden vectors (EBA-110). Never use it for anything else.';
+  'TEST-ONLY key generated locally for the BTPS golden vectors. Never use it for anything else.';
 
 function newKeyPair() {
   const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
@@ -115,9 +122,8 @@ function selectors() {
   const receiver = readVector('oaep-wrap.vector.json');
   return {
     item: 6,
-    tickets: ['EBA-116', 'EBA-117'],
     description:
-      'The sender rotated its signing key from btps1 to btps2 and kept the old key published; the receiver still encrypts on btps1. An artifact must name the sender key it was signed with (signatureSelector) apart from the receiver key it was encrypted to (encryptionSelector). On 367cd09 one `selector` field carries the receiver selector, so a verifier looks up the wrong sender key.',
+      "The sender rotated its signing key from btps1 to btps2 and kept the old key published; the receiver's current key is at btps1. The artifact's selector must name the sender's signing key (btps2), which the verifier looks up; the document is encrypted to the receiver's key at the selector its host record names. In 1.0, signEncrypt put the receiver's selector in the artifact, so the verifier looked up the sender's rotated-out key.",
     provenance: `${TEST_ONLY} The receiver encryption key is the one in oaep-wrap.vector.json.`,
     sender: {
       identity: 'alice$saas.example',
@@ -148,11 +154,17 @@ function selectors() {
     },
     artifact: {
       type: 'BTPS_DOC',
-      document: { invoiceId: 'INV-6', amountCents: 9900, currency: 'AUD' },
+      document: {
+        type: 'invoice',
+        title: 'INV-6',
+        id: 'INV-6',
+        issuedAt: '2026-01-01T00:00:00.000Z',
+        totalAmount: { amount: 9900, currency: 'AUD' },
+        lineItems: { columns: ['Item', 'Amount'], rows: [{ Item: 'Service', Amount: 9900 }] },
+      },
     },
     expect: {
-      signatureSelector: 'btps2',
-      encryptionSelector: 'btps1',
+      selector: 'btps2',
     },
   };
 }
@@ -185,9 +197,8 @@ function sdkDefects() {
 
   return {
     item: 10,
-    tickets: ['EBA-122'],
     description:
-      'BTPS 1.1 item 10 defects that can be expressed as data. The other item-10 defects (server schema, crossed responses, line length, error codes) are server-path behaviour and are tested by EBA-122 itself.',
+      'BTPS 1.1 item 10 defects that can be expressed as data. The other item-10 defects (server schema, crossed responses, line length, error codes) are server-path behaviour and are tested in the SDK and the e2e journeys.',
     provenance: `${TEST_ONLY} The receiver key is the one in oaep-wrap.vector.json.`,
     gcmTag: {
       receiverKeyVector: 'oaep-wrap.vector.json',
@@ -221,3 +232,47 @@ write('self-held-signature.vector.json', await selfHeldSignature());
 write('oaep-mgf1-sha1.negative.vector.json', mgf1Sha1Negative());
 write('selectors.vector.json', selectors());
 write('sdk-defects.vector.json', sdkDefects());
+
+write('addresses.vectors.json', addresses());
+write('documents.vectors.json', documents());
+write(
+  'signed-artifacts.vector.json',
+  signedArtifacts(readVector('kms-signature.vector.json'), readVector('oaep-wrap.vector.json')),
+);
+write(
+  'device-key-proof.vector.json',
+  deviceKeyProof(readVector('self-held-signature.vector.json')),
+);
+write('time-window.vectors.json', timeWindow());
+
+// The manifest names every vector file with the SHA-256 of its bytes, so a
+// copy of the set can be checked whole. Rewritten on every run.
+const vectorFiles = fs
+  .readdirSync(VECTORS_DIR)
+  .filter((f) => f.endsWith('.json') && f !== 'manifest.json' && f !== 'known-failing.json')
+  .sort();
+const files = Object.fromEntries(
+  vectorFiles.map((f) => [
+    f,
+    crypto
+      .createHash('sha256')
+      .update(fs.readFileSync(path.join(VECTORS_DIR, f)))
+      .digest('hex'),
+  ]),
+);
+fs.writeFileSync(
+  path.join(VECTORS_DIR, 'manifest.json'),
+  `${JSON.stringify(
+    {
+      name: 'btps-golden-vectors',
+      protocol: 'BTPS 1.1',
+      description:
+        'Every file of the BTPS 1.1 golden vector set, with the lowercase hex SHA-256 of its bytes. See test/vectors/README.md.',
+      hashAlgorithm: 'sha256',
+      files,
+    },
+    null,
+    2,
+  )}\n`,
+);
+console.log(`wrote     manifest.json (${vectorFiles.length} files)`);

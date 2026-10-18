@@ -1,7 +1,7 @@
-# btps-server image for examples/btps-nest-app (EBA-166).
+# btps-server image for examples/btps-nest-app.
 #
 # BUILD CONTEXT IS THE REPOSITORY ROOT, not this directory. The app depends on
-# @btps/sdk through `portal:../..` (EBA-156), i.e. the repository root, which a
+# @btps/sdk through `portal:../..`, i.e. the repository root, which a
 # context of "." cannot see. docker-compose.yml sets this up; by hand:
 #
 #   docker build -f examples/btps-nest-app/Dockerfile --target production .
@@ -24,7 +24,7 @@
 # ---------- Stage 1: sdk - build @btps/sdk from source and pack it ----------
 # Debian, not Alpine: the SDK build runs scripts/add-license-header.sh, which
 # needs bash. Only the packed output (/pkg) leaves this stage.
-FROM node:20.11.1-bookworm-slim AS sdk
+FROM node:24.22.0-bookworm-slim AS sdk
 
 WORKDIR /sdk
 
@@ -43,7 +43,7 @@ RUN yarn build \
  && test -f /pkg/dist/index.js
 
 # ---------- Stage 2: builder - install, build and smoke-test the app ----------
-FROM node:20.11.1-alpine AS builder
+FROM node:24.22.0-alpine AS builder
 
 # /repo mirrors the repository layout, so `portal:../..` from the app resolves
 # to /repo, where the packed SDK sits - and the lockfile matches unchanged.
@@ -66,7 +66,7 @@ COPY examples/btps-nest-app/smoke ./smoke
 RUN yarn build && node smoke/sdk-subpaths.mjs
 
 # ---------- Stage 3: prod-deps - production dependencies only ----------
-FROM node:20.11.1-alpine AS prod-deps
+FROM node:24.22.0-alpine AS prod-deps
 
 WORKDIR /repo/examples/btps-nest-app
 COPY --from=sdk /pkg /repo
@@ -80,7 +80,7 @@ RUN yarn workspaces focus --production \
  && cp -R /sdk-pkg node_modules/@btps/sdk
 
 # ---------- Stage 4: production ----------
-FROM node:20.11.1-alpine AS production
+FROM node:24.22.0-alpine AS production
 
 WORKDIR /var/www
 

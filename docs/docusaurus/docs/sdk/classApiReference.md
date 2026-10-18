@@ -17,7 +17,7 @@ The main server class for running a secure, multi-tenant BTPS server over TLS. H
 **Import:**
 
 ```js
-import { BtpsServer } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
 ```
 
 ### constructor
@@ -31,7 +31,8 @@ new BtpsServer(options: BtpsServerOptions)
 **Example:**
 
 ```js
-import { BtpsServer, JsonTrustStore } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
+import { JsonTrustStore } from '@btps/sdk/trust';
 const trustStore = new JsonTrustStore({ connection: './trust.json' });
 const server = new BtpsServer({
   serverIdentity: {
@@ -113,7 +114,11 @@ Registers a handler for specific types of incoming artifacts.
 - **type**: `'Agent' | 'Transporter'` – Type of artifact to handle
 - **handler**: Function to handle the artifact
   - For Agent: `(artifact: BTPAgentArtifact & { respondNow: boolean }, resCtx: ArtifactResCtx) => void`
-  - For Transporter: `(artifact: BTPTransporterArtifact) => void`
+  - For Transporter: `(artifact: BTPTransporterArtifact) => void | Promise<void>`
+
+The server answers a transporter artifact with success only after every Transporter handler has returned, so a handler should return once the artifact is safely stored or queued. If a handler throws, the sender gets an error instead and can send again.
+
+A server with no handler for a type, no `forwardTo` handler and no `before` `onArtifact` middleware refuses artifacts of that type with `BTP_ERROR_ARTIFACT_NOT_ACCEPTED`, and warns once it starts listening. Handlers registered right after `start()` count.
 
 **Example:**
 
@@ -142,7 +147,7 @@ Returns the BTPS protocol version string.
 
 **Returns:**
 
-- `string`: Protocol version (e.g., "1.0.0")
+- `string`: Protocol version (e.g., "1.1.0")
 
 **Example:**
 
@@ -178,7 +183,7 @@ The main client class for sending BTPS artifacts (trust requests, invoices, etc.
 **Import:**
 
 ```js
-import { BtpsClient } from '@btps/sdk';
+import { BtpsClient } from '@btps/sdk/client';
 ```
 
 ### constructor
@@ -192,7 +197,7 @@ new BtpsClient(options: BTPClientOptions)
 **Example:**
 
 ```js
-import { BtpsClient } from '@btps/sdk';
+import { BtpsClient } from '@btps/sdk/client';
 const client = new BtpsClient({
   to: 'billing$yourdomain.com',
   maxRetries: 5,
@@ -230,43 +235,43 @@ client.connect('inbox$vendor.com', (events) => {
 await client.send(artifact, timeoutMs?);
 ```
 
-Sends a pre-signed BTPS artifact to the server. **Note**: The artifact must be pre-signed using `signAndEncrypt` from the crypto module before sending.
+Sends a pre-signed BTPS artifact to the server. **Note**: The artifact must be pre-signed using `signEncrypt` from the crypto module before sending.
 
 - **artifact**: [BTPArtifact](./typesAndInterfaces.md#btpartifact) – Pre-signed artifact to send
-- **timeoutMs**: `number` (optional, default: 5000) – Timeout in milliseconds
+- **timeoutMs**: `number` (optional) – How long to wait for the answer, in milliseconds: the client's `replyTimeoutMs` by default (20000), never below 10000
 - **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
 
 **Example:**
 
 ```js
-import { signAndEncrypt } from '@btps/sdk/crypto';
+import { randomUUID } from 'crypto';
+import { signEncrypt } from '@btps/sdk/crypto';
 
-// First, sign the artifact
-const artifact = {
-  id: 'trust_req_123',
-  type: 'btp_trust_request',
-  issuedAt: new Date().toISOString(),
-  document: {
-    name: 'Your Company Name',
-    email: 'billing@yourdomain.com',
-    reason: 'To send monthly invoices',
-    phone: '+1234567890',
-  },
-};
-
-// Sign the artifact before sending (REQUIRED)
-const signedArtifact = await signAndEncrypt(
-  'billing$yourdomain.com',
+// Sign the artifact before sending (REQUIRED). A trust request is sent
+// unencrypted: there is no trust yet.
+const signedArtifact = await signEncrypt(
+  'client$theirdomain.com',
   { accountName: 'billing', domainName: 'yourdomain.com', pemFiles: { publicKey, privateKey } },
   {
-    type: 'BTPS_DOC',
-    document: artifact,
-    selector: 'btps1',
+    version: '1.1.0',
+    type: 'TRUST_REQ',
+    from: 'billing$yourdomain.com',
+    to: 'client$theirdomain.com',
+    selector: 'btps1', // the selector your own key is published under
+    document: {
+      id: randomUUID(),
+      name: 'Your Company Name',
+      email: 'billing@yourdomain.com',
+      reason: 'To send monthly invoices',
+      phone: '+1234567890',
+    },
   },
+  { signature: { algorithmHash: 'sha256' } },
 );
+if (signedArtifact.error) throw signedArtifact.error;
 
 // Then send the signed artifact
-const res = await client.send(signedArtifact.payload, 10000); // 10 second timeout
+const res = await client.send(signedArtifact.payload);
 if (res.response) {
   console.log('Server response:', res.response);
 } else {
@@ -330,7 +335,7 @@ A specialized client for agent-based operations, extending BtpsClient with agent
 **Import:**
 
 ```js
-import { BtpsAgent } from '@btps/sdk';
+import { BtpsAgent } from '@btps/sdk/client';
 ```
 
 ### constructor
@@ -344,7 +349,7 @@ new BtpsAgent(options: BTPAgentOptions)
 **Example:**
 
 ```js
-import { BtpsAgent } from '@btps/sdk';
+import { BtpsAgent } from '@btps/sdk/client';
 const agent = new BtpsAgent({
   agent: {
     id: 'agent_123',
@@ -355,6 +360,12 @@ const agent = new BtpsAgent({
   maxRetries: 5,
   retryDelayMs: 1000,
   connectionTimeoutMs: 30000,
+});
+
+// Or with the device key held elsewhere: any Signer, such as one over the device's keystore
+const keystoreAgent = new BtpsAgent({
+  agent: { id: 'agent_123', signer: deviceSigner },
+  btpIdentity: 'billing$yourdomain.com',
 });
 ```
 
@@ -369,8 +380,8 @@ Executes an agent command with optional document payload.
 - **actionType**: [AgentAction](./typesAndInterfaces.md#agentaction) – Type of agent action
 - **identity**: `string` – Target BTPS identity
 - **document**: [BtpsAgentDoc](./typesAndInterfaces.md#btpsagentdoc) (optional) – Document payload
-- **options**: [BTPCryptoOptions](./typesAndInterfaces.md#btpcryptooptions) (optional) – Cryptographic options
-- **timeoutMs**: `number` (optional) – Timeout in milliseconds
+- **options**: [BtpsAgentCommandOptions](./typesAndInterfaces.md#btpsagentcommandoptions) (optional) – Cryptographic options, and on `event.send` the required `relatesTo`
+- **timeoutMs**: `number` (optional) – How long to wait for the answer, in milliseconds: the agent's `replyTimeoutMs` by default (20000), never below 10000
 - **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
 
 **Example:**
@@ -394,16 +405,30 @@ const trustRes = await agent.command('trust.request', 'vendor$domain.com', {
 
 // Send artifact
 const sendRes = await agent.command('artifact.send', 'client$domain.com', {
+  type: 'invoice',
   title: 'Invoice #123',
   id: 'inv_123',
   issuedAt: new Date().toISOString(),
-  status: 'unpaid',
-  totalAmount: { value: 100.0, currency: 'USD' },
+  totalAmount: { amount: 10000, currency: 'USD' }, // minor units: 100.00
   lineItems: {
     columns: ['Description', 'Amount'],
-    rows: [{ Description: 'Service', Amount: 100.0 }],
+    rows: [{ Description: 'Service', Amount: 10000 }],
   },
 });
+
+// Lifecycle event: relatesTo is the id of the BTPS_DOC artifact that delivered the invoice
+const eventRes = await agent.command(
+  'event.send',
+  'billing$vendor.com',
+  {
+    type: 'lifecycle_event',
+    id: crypto.randomUUID(),
+    occurredAt: new Date().toISOString(),
+    document: { from: 'billing$vendor.com', id: 'INV-2025-001', sha256: 'lowercase-hex-sha256' },
+    eventType: 'paid',
+  },
+  { signature: { algorithmHash: 'sha256' }, relatesTo: invoiceArtifactId },
+);
 ```
 
 ---
@@ -415,7 +440,7 @@ A connection management and message delivery service that handles direct message
 **Import:**
 
 ```js
-import { BtpsTransporter } from '@btps/sdk';
+import { BtpsTransporter } from '@btps/sdk/client';
 ```
 
 ### constructor
@@ -429,7 +454,7 @@ new BtpsTransporter(options: BTPTransporterOptions)
 **Example:**
 
 ```js
-import { BtpsTransporter } from '@btps/sdk';
+import { BtpsTransporter } from '@btps/sdk/client';
 const transporter = new BtpsTransporter({
   maxConnections: 50,
   connectionTTLSeconds: 300,
@@ -973,6 +998,9 @@ const delegator = new BtpsDelegator({
   privateKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',
   autoInit: true,
 });
+
+// Or with the delegator key held elsewhere, such as a KMS
+const kmsDelegator = new BtpsDelegator({ identity: 'alice$saas.com', signer: kmsSigner });
 ```
 
 ### init
@@ -1147,12 +1175,12 @@ new AbstractIdentityStore(options: StorageStoreOptions)
 ### getPublicKeyRecord
 
 ```ts
-await store.getPublicKeyRecord(identity, selector?)
+await store.getPublicKeyRecord(computedId, selector?)
 ```
 
-Retrieves a public key record for a given identity and selector.
+Retrieves a public key record for a given identity and selector. The server passes the identity's computed id (`computeId(identity)`); the store uses it as the record id as given and never hashes it again.
 
-- **identity**: `string` – Identity to get public key for
+- **computedId**: `string` – The identity's computed id, `computeId(identity)`
 - **selector**: `string` (optional) – Selector for key rotation (defaults to current selector)
 - **Returns**: `Promise<IdentityPubKeyRecord | undefined>` – Public key record if found
 
@@ -1200,13 +1228,13 @@ Retrieves a record by its computed ID.
 ### create
 
 ```ts
-await store.create(record, identity);
+await store.create(record, computedId?);
 ```
 
-Creates a new record with computed ID based on identity.
+Creates a new record under its computed ID.
 
 - **record**: `Omit<T, 'id'>` – Record data without ID
-- **identity**: `string` – Identity to compute ID from
+- **computedId**: `string` (optional) – The record's computed ID
 - **Returns**: `Promise<T>` – Created record with ID
 
 ### update
@@ -1295,13 +1323,13 @@ Retrieves an identity record by its computed ID.
 ### create
 
 ```ts
-await store.create(record, identity);
+await store.create(record, computedId?);
 ```
 
 Creates a new identity record.
 
 - **record**: `Omit<BTPIdentityRecord, 'id'>` – Identity record data without ID
-- **identity**: `string` – Identity string to compute ID from
+- **computedId**: `string` (optional) – The identity's computed ID, `computeId(record.identity)`; computed from `record.identity` when not given
 - **Returns**: `Promise<BTPIdentityRecord>` – Created identity record with ID
 
 ### update
@@ -1330,19 +1358,22 @@ Deletes an identity record.
 ### getPublicKeyRecord
 
 ```ts
-await store.getPublicKeyRecord(identity, selector?)
+await store.getPublicKeyRecord(computedId, selector?)
 ```
 
-Retrieves a public key record for a given identity and selector.
+Retrieves a public key record for a given identity and selector. The server passes the identity's computed id (`computeId(identity)`); the store uses it as the record id as given and never hashes it again.
 
-- **identity**: `string` – Identity to get public key for
+- **computedId**: `string` – The identity's computed id, `computeId(identity)`
 - **selector**: `string` (optional) – Selector for key rotation (defaults to current selector)
 - **Returns**: `Promise<IdentityPubKeyRecord | undefined>` – Public key record if found
 
 **Example:**
 
 ```js
-const publicKeyRecord = await identityStore.getPublicKeyRecord('alice$company.com', 'btps1');
+const publicKeyRecord = await identityStore.getPublicKeyRecord(
+  computeId('alice$company.com'),
+  'btps1',
+);
 if (publicKeyRecord) {
   console.log('Public key:', publicKeyRecord.publicKey);
   console.log('Version:', publicKeyRecord.version);
@@ -1356,10 +1387,10 @@ if (publicKeyRecord) {
 ### constructor
 
 ```ts
-new AbstractTrustStore(options: TrustStoreOptions)
+new AbstractTrustStore(options: StorageStoreOptions)
 ```
 
-- **options**: [TrustStoreOptions](./typesAndInterfaces.md#truststoreoptions) – Trust store configuration
+- **options**: [StorageStoreOptions](./typesAndInterfaces.md#storagestoreoptions) – Trust store configuration
 
 **Example:**
 
@@ -1458,6 +1489,34 @@ const all = await store.getAll();
 const filtered = await store.getAll('receiver-id');
 ```
 
+### isKnownArtifact
+
+```ts
+await store.isKnownArtifact({ artifactId, from, to });
+```
+
+Answer whether an artifact with this id passed between these two identities, in either direction. The server asks this for every `BTPS_EVENT`, using the event's `relatesTo`, and refuses the event unless the answer is `true` (`BTP_ERROR_EVENT_UNRELATED` in the server's context, `BTP_ERROR_TRUST_NOT_ALLOWED` on the wire). Only the platform knows which artifacts it delivered, so every trust store must implement it. A store that always answers `false` accepts no events (see [Lifecycle Event](../protocol/specifications/transporter-artifact.md#4-lifecycle-event-btps_event)).
+
+- **artifactId**: `string` – the event's `relatesTo`: the `id` of the `BTPS_DOC` artifact that delivered the invoice
+- **from**: `string` – the event's sender
+- **to**: `string` – the event's receiver
+- **Returns**: `Promise<boolean>`
+
+**Example:**
+
+```js
+async isKnownArtifact({ artifactId, from, to }) {
+  const count = await this.artifacts.countDocuments({
+    id: artifactId,
+    $or: [
+      { from, to },
+      { from: to, to: from },
+    ],
+  });
+  return count > 0;
+}
+```
+
 ---
 
 ## JsonTrustStore
@@ -1483,10 +1542,10 @@ import { JsonTrustStore } from '@btps/sdk/trust';
 ### constructor
 
 ```ts
-new JsonTrustStore(options: TrustStoreOptions)
+new JsonTrustStore(options: StorageStoreOptions)
 ```
 
-- **options**: [TrustStoreOptions](./typesAndInterfaces.md#truststoreoptions) – Trust store configuration
+- **options**: [StorageStoreOptions](./typesAndInterfaces.md#storagestoreoptions) – Trust store configuration
 
 **Example:**
 
@@ -1582,6 +1641,30 @@ const all = await trustStore.getAll();
 const filtered = await trustStore.getAll('receiver-id');
 ```
 
+### isKnownArtifact
+
+```ts
+await trustStore.isKnownArtifact({ artifactId, from, to });
+```
+
+Always `false`: this store keeps trust records, not artifacts, so a server using it as is accepts no `BTPS_EVENT`. To accept events, extend it and answer from wherever your platform keeps the artifacts it delivered (see [AbstractTrustStore.isKnownArtifact](#isknownartifact)).
+
+**Example:**
+
+```js
+class MyTrustStore extends JsonTrustStore {
+  async isKnownArtifact({ artifactId, from, to }) {
+    // wherever your platform records the artifacts it sends and receives
+    const artifact = await myArtifacts.getById(artifactId);
+    if (!artifact) return false;
+    return (
+      (artifact.from === from && artifact.to === to) ||
+      (artifact.from === to && artifact.to === from)
+    );
+  }
+}
+```
+
 ### flushNow
 
 ```ts
@@ -1636,19 +1719,15 @@ new BTPErrorException(btpError, options?)
 **Example:**
 
 ```js
-import {
-  BTPErrorException,
-  BTP_ERROR_IDENTITY,
-  BTP_ERROR_SELECTOR_NOT_FOUND,
-} from '@btps/sdk/error';
+import { BTPErrorException, BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '@btps/sdk/error';
 throw new BTPErrorException(BTP_ERROR_IDENTITY, {
   cause: 'Invalid format',
   meta: { identity: 'invalid-identity' },
 });
 
 // Key rotation error example
-throw new BTPErrorException(BTP_ERROR_SELECTOR_NOT_FOUND, {
-  cause: 'Selector not found in DNS',
+throw new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
+  cause: 'No key published at this selector',
   meta: { selector: 'btps1', identity: 'alice$example.com' },
 });
 ```

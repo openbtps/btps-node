@@ -6,8 +6,9 @@
  */
 
 import type { BTPTransporterArtifact, BTPDelegation, BTPAttestation } from '../server/types.js';
-import { signBtpPayload } from '../crypto/index.js';
-import type { PemKeys } from '@core/crypto/types.js';
+import { signBtpPayload, signBtpPayloadWithSigner } from '../crypto/index.js';
+import type { BTPSigningKey, PemKeys } from '@core/crypto/types.js';
+import type { Signer } from '@core/crypto/signer-interface.js';
 import { getHostAndSelector, resolvePublicKey } from '@core/utils/index.js';
 import { createSign, createVerify } from 'crypto';
 import { BTP_ERROR_SIG_VERIFICATION, BTPErrorException } from '@core/error/index.js';
@@ -15,11 +16,14 @@ import { BTP_ERROR_SIG_VERIFICATION, BTPErrorException } from '@core/error/index
 /**
  * Delegator configuration options
  */
-export interface BtpsDelegatorOptions {
+export type BtpsDelegatorOptions = {
   identity: string;
-  privateKey: PemKeys['privateKey'];
   autoInit?: boolean; // Optional: disable auto-initialization for testing
-}
+} & (
+  | { privateKey: PemKeys['privateKey'] }
+  // The delegator's private key held elsewhere (a KMS)
+  | { signer: Signer }
+);
 
 /**
  * Production-grade Delegator for BTPS artifacts
@@ -27,10 +31,11 @@ export interface BtpsDelegatorOptions {
  */
 export class BtpsDelegator {
   private readonly identity: string;
-  private readonly privateKey: PemKeys['privateKey'];
+  private readonly key: PemKeys['privateKey'] | Signer;
   private publicKey?: PemKeys['publicKey'];
   private selector: string = 'btps1';
   private isInitialized = false;
+  private ready?: Promise<void>;
 
   /**
    * Initialize the delegator
@@ -38,9 +43,12 @@ export class BtpsDelegator {
    */
   constructor(options: BtpsDelegatorOptions) {
     this.identity = options.identity;
-    this.privateKey = options.privateKey;
+    this.key = 'signer' in options ? options.signer : options.privateKey;
     if (options.autoInit !== false) {
-      this.init();
+      // Kept so delegateArtifact waits for it and reports its failure, rather
+      // than the failure being lost as an unhandled rejection
+      this.ready = this.init();
+      this.ready.catch(() => undefined);
     }
   }
 
@@ -77,7 +85,23 @@ export class BtpsDelegator {
 
     const publicKey = await resolvePublicKey(this.identity, this.selector);
     if (!publicKey) return { isValid: false, publicKey: undefined };
-    return { isValid: this.isKeyPairMatching(this.privateKey, publicKey), publicKey };
+    const isValid =
+      typeof this.key === 'string'
+        ? this.isKeyPairMatching(this.key, publicKey)
+        : await this.isSignerMatching(this.key, publicKey);
+    return { isValid, publicKey };
+  }
+
+  /**
+   * Verify that a Signer signs with the private key matching the public key
+   * @param signer - The Signer holding the private key
+   * @param publicKeyPem - The public key in PEM format
+   * @returns {Promise<boolean>} - True if the keys match, false otherwise
+   */
+  protected async isSignerMatching(signer: Signer, publicKeyPem: string): Promise<boolean> {
+    const message = Buffer.from('btps-key-validation');
+    const signature = await signer.sign(message);
+    return createVerify('sha256').update(message).end().verify(publicKeyPem, signature);
   }
 
   /**
@@ -104,9 +128,10 @@ export class BtpsDelegator {
     artifact: BTPTransporterArtifact,
     onBehalfOf?: {
       identity: string;
-      keyPair: PemKeys;
+      keyPair: BTPSigningKey;
     },
   ): Promise<BTPTransporterArtifact & { delegation: BTPDelegation }> {
+    if (this.ready) await this.ready;
     if (!this.isInitialized || !this.publicKey)
       throw new BTPErrorException({ message: 'Delegator not initialized' });
 
@@ -122,10 +147,7 @@ export class BtpsDelegator {
     const delegation = await this.createDelegation({
       artifact,
       delegatorIdentity: onBehalfOf?.identity ?? this.identity,
-      delegatorKey: {
-        privateKey: onBehalfOf?.keyPair?.privateKey ?? this.privateKey,
-        publicKey: onBehalfOf?.keyPair?.publicKey ?? this.publicKey,
-      },
+      delegatorKey: onBehalfOf?.keyPair ?? this.ownKey(this.publicKey),
       agentId,
       agentPubKey,
       selector,
@@ -133,14 +155,13 @@ export class BtpsDelegator {
 
     if (onBehalfOf) {
       // User key signs delegation, SaaS attests
+      // Signed with the attestor's own key, so it names the attestor's own selector:
+      // the receiver finds the attestor's key under it
       const attestation = await this.createAttestation({
         delegation,
         attestorIdentity: this.identity,
-        attestorKey: {
-          privateKey: this.privateKey,
-          publicKey: this.publicKey,
-        },
-        selector,
+        attestorKey: this.ownKey(this.publicKey),
+        selector: this.selector,
       });
       delegation.attestation = attestation;
     }
@@ -149,12 +170,19 @@ export class BtpsDelegator {
   }
 
   /**
+   * The delegator's own signing key, as createDelegation and createAttestation take it
+   */
+  private ownKey(publicKey: string): BTPSigningKey {
+    return typeof this.key === 'string' ? { privateKey: this.key, publicKey } : this.key;
+  }
+
+  /**
    * Create and sign a delegation
    */
   protected async createDelegation(params: {
     artifact: BTPTransporterArtifact;
     delegatorIdentity: string;
-    delegatorKey: PemKeys;
+    delegatorKey: BTPSigningKey;
     agentId: string;
     agentPubKey: string;
     selector: string;
@@ -170,7 +198,10 @@ export class BtpsDelegator {
         selector: params.selector,
       },
     };
-    const signature = signBtpPayload(delegationPayload, params.delegatorKey);
+    const signature =
+      'sign' in params.delegatorKey
+        ? await signBtpPayloadWithSigner(delegationPayload, params.delegatorKey)
+        : signBtpPayload(delegationPayload, params.delegatorKey);
     return {
       ...delegationPayload.delegation,
       signature,
@@ -183,7 +214,7 @@ export class BtpsDelegator {
   protected async createAttestation(params: {
     delegation: Omit<BTPDelegation, 'attestation'>;
     attestorIdentity: string;
-    attestorKey: PemKeys;
+    attestorKey: BTPSigningKey;
     selector: string;
   }): Promise<BTPAttestation> {
     const issuedAt = new Date().toISOString();
@@ -195,7 +226,10 @@ export class BtpsDelegator {
         selector: params.selector,
       },
     };
-    const signature = signBtpPayload(attestationPayload, params.attestorKey);
+    const signature =
+      'sign' in params.attestorKey
+        ? await signBtpPayloadWithSigner(attestationPayload, params.attestorKey)
+        : signBtpPayload(attestationPayload, params.attestorKey);
     return {
       ...attestationPayload.attestation,
       signature,

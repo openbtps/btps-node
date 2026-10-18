@@ -59,7 +59,8 @@ Sender does a DNS Host and Identity TXT lookup for:
 
   - version
   - host address
-  - selector key for protocol support.
+  - selector key for protocol support
+  - operator: the identity that runs the domain's BTPS server and alone may delegate, attest or answer identity lookups for it.
 
 - `btps1._btps.identity.finance.vendor.com` - Identity lookup retrieves:
   - key type
@@ -191,9 +192,9 @@ This flexibility ensures BTPS can scale from static file hosting to full enterpr
 
 ### Cryptographic Security
 
-- **Key Strength**: Use RSA-2048+ or Ed25519 keys
+- **Key Strength**: Use RSA keys of 2048 bits or more
 - **Key Rotation**: Implement regular key rotation using selectors
-- **Algorithm Selection**: Use SHA-256 for signatures, AES-256-CBC for encryption
+- **Algorithms**: RSASSA-PKCS1-v1_5 with SHA-256 for signatures, AES-256-GCM for documents and RSA-OAEP with SHA-256 for its key ([algorithms](./security/algorithm.md))
 - **Random Generation**: Use cryptographically secure random number generators
 
 ### Network Security

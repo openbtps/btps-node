@@ -19,6 +19,7 @@ import * as crypto from '../core/crypto/index.js';
 import { BTPDocType, BTPServerResponse } from '../core/server/types.js';
 import { BTPAgentOptions } from './types/index.js';
 import { BTP_PROTOCOL_VERSION } from '../core/server/constants/index.js';
+import type { Signer } from '../core/crypto/signer-interface.js';
 
 // --- Mocks ---
 vi.mock('../core/utils/index');
@@ -187,6 +188,51 @@ describe('BtpsAgent', () => {
           btpIdentity: 'invalid-identity',
         });
       }).toThrow(BTPErrorException);
+    });
+  });
+
+  describe('with its key held elsewhere (a Signer)', () => {
+    const signer: Signer = {
+      algorithm: 'RSASSA_PKCS1_V1_5_SHA_256',
+      sign: vi.fn(),
+      getPublicKey: vi.fn(),
+    };
+    const signature = {
+      algorithmHash: 'sha256' as const,
+      value: 'signer-signature',
+      fingerprint: 'signer-fingerprint',
+    };
+
+    it('signs the agent and transporter artifacts through the Signer, never with a PEM key', async () => {
+      mockCrypto.signBtpPayloadWithSigner.mockResolvedValue(signature);
+      const signerAgent = new BtpsAgent({ ...mockOptions, agent: { id: 'agent-1', signer } });
+      vi.spyOn(signerAgent, 'resolveBtpsHostDnsTxt').mockResolvedValue({
+        hostname: 'localhost',
+        port: 3443,
+        selector: 'btps1',
+        version: '1.0.0',
+      });
+      const send = vi.spyOn(signerAgent, 'send').mockResolvedValue({
+        response: undefined,
+        error: undefined,
+      });
+
+      await signerAgent.command('trust.request', 'bob$company.com', {
+        id: 'doc-1',
+        name: 'Test Company',
+        email: 'test@company.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      });
+
+      expect(mockCrypto.signBtpPayloadWithSigner).toHaveBeenCalledTimes(2);
+      expect(mockCrypto.signBtpPayloadWithSigner).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'TRUST_REQ' }),
+        signer,
+      );
+      expect(mockCrypto.signBtpPayload).not.toHaveBeenCalled();
+      expect(send.mock.calls[0]?.[0]).toMatchObject({ agentId: 'agent-1', signature });
+      signerAgent.destroy();
     });
   });
 
@@ -667,9 +713,9 @@ describe('BtpsAgent', () => {
       );
 
       expect(result.error).toBeInstanceOf(BTPErrorException);
-      expect(result.error?.message).toContain(
-        'Could not resolve host and selector for: bob$company.com',
-      );
+      // The sender's own selector cannot be resolved, so nothing is sent.
+      expect(result.error?.code).toBe(BTP_ERROR_RESOLVE_DNS.code);
+      expect(agent.send).not.toHaveBeenCalled();
     });
   });
 
@@ -696,12 +742,12 @@ describe('BtpsAgent', () => {
 
     it('should map artifact.send to BTPS_DOC', async () => {
       const document: BTPDocType = {
+        type: 'invoice',
         title: 'Invoice #INV-001',
         id: 'INV-001',
         issuedAt: '2023-12-31T00:00:00.000Z',
-        status: 'unpaid',
         totalAmount: {
-          value: 100.5,
+          amount: 10050,
           currency: 'USD',
         },
         lineItems: {
@@ -710,7 +756,7 @@ describe('BtpsAgent', () => {
             {
               description: 'Item 1',
               quantity: 1,
-              unitPrice: 100.5,
+              unitPrice: 10050,
             },
           ],
         },
@@ -725,6 +771,53 @@ describe('BtpsAgent', () => {
         }),
         expect.any(Object),
       );
+    });
+
+    it("should map event.send to BTPS_EVENT, carried under the event's own id", async () => {
+      const event: BTPDocType = {
+        type: 'lifecycle_event',
+        id: '7f1c1f0e-3b9a-4c2e-9a51-2f8f0b1d6c11',
+        occurredAt: '2024-01-05T00:00:00.000Z',
+        document: { from: 'bob$company.com', id: 'INV-001', sha256: 'c'.repeat(64) },
+        eventType: 'paid',
+      };
+
+      await agent.command('event.send', 'bob$company.com', event, {
+        signature: { algorithmHash: 'sha256' },
+        relatesTo: 'doc-1',
+      });
+
+      expect(mockCrypto.signBtpPayload).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'BTPS_EVENT', id: event.id, relatesTo: 'doc-1' }),
+        expect.any(Object),
+      );
+    });
+
+    it('should refuse event.send without relatesTo, and relatesTo on any other action', async () => {
+      const event: BTPDocType = {
+        type: 'lifecycle_event',
+        id: '7f1c1f0e-3b9a-4c2e-9a51-2f8f0b1d6c11',
+        occurredAt: '2024-01-05T00:00:00.000Z',
+        document: { from: 'bob$company.com', id: 'INV-001', sha256: 'c'.repeat(64) },
+        eventType: 'paid',
+      };
+      const trustRequest: BTPDocType = {
+        id: 'trust-req-1',
+        name: 'Alice',
+        email: 'alice@example.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      };
+
+      const withoutRelatesTo = await agent.command('event.send', 'bob$company.com', event);
+      const onTrustRequest = await agent.command('trust.request', 'bob$company.com', trustRequest, {
+        signature: { algorithmHash: 'sha256' },
+        relatesTo: 'doc-1',
+      });
+
+      expect(withoutRelatesTo.error?.cause).toContain('options.relatesTo');
+      expect(onTrustRequest.error?.cause).toContain('options.relatesTo');
+      expect(mockCrypto.signBtpPayload).not.toHaveBeenCalled();
     });
   });
 

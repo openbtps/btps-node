@@ -51,6 +51,7 @@ const fakeDnsPlugin = {
  * @property {Record<string, any>} crypto exports of src/core/crypto/index.ts
  * @property {Record<string, any>} utils  exports of src/core/utils/index.ts
  * @property {(records: Record<string, string[]>) => void} setTxtRecords replace the fake DNS zone
+ * @property {Record<string, any>} protocol the protocol rules (see loadProtocol), or `{ unavailable }`
  * @property {string} root the SDK source tree that was loaded
  */
 
@@ -97,8 +98,56 @@ export async function loadSdk(sdkRoot) {
       plugins: [fakeDnsPlugin],
     });
     const mod = await import(pathToFileURL(outfile).href);
-    return { crypto: mod.crypto, utils: mod.utils, setTxtRecords: mod.__setTxtRecords, root };
+    return {
+      crypto: mod.crypto,
+      utils: mod.utils,
+      setTxtRecords: mod.__setTxtRecords,
+      protocol: await loadProtocol(build, root, outDir),
+      root,
+    };
   } finally {
     fs.rmSync(outDir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * The SDK's protocol rules the protocol vectors check: document schemas, the
+ * event envelope rule, the time window, trust ids and the key proof. Bundled
+ * apart, so a tree without them (such as the 1.0 baseline) still runs the
+ * crypto checks; its protocol checks then fail, each saying why.
+ */
+async function loadProtocol(build, root, outDir) {
+  const outfile = path.join(outDir, 'protocol.mjs');
+  try {
+    await build({
+      stdin: {
+        contents: [
+          "export { processBtpDocSchema, lifecycleEventEnvelopeProblem } from './src/core/server/schemas/helpers.ts';",
+          "export { artifactTimeWindowError } from './src/server/libs/artifactTimeWindow.ts';",
+          "export { computeTrustId } from './src/core/trust/trustUtils.ts';",
+          "export { keyProofPayload } from './src/core/authentication/keyProof.ts';",
+        ].join('\n'),
+        resolveDir: root,
+        sourcefile: 'verify-btps-vectors-protocol-entry.mjs',
+        loader: 'js',
+      },
+      absWorkingDir: root,
+      tsconfig: path.join(root, 'tsconfig.json'),
+      bundle: true,
+      platform: 'node',
+      format: 'esm',
+      target: 'node20',
+      outfile,
+      logLevel: 'silent',
+      banner: {
+        js: "import { createRequire as __vbvCreateRequire } from 'node:module'; const require = __vbvCreateRequire(import.meta.url);",
+      },
+      plugins: [fakeDnsPlugin],
+    });
+    return await import(pathToFileURL(outfile).href);
+  } catch (error) {
+    return {
+      unavailable: `this tree has no BTPS 1.1 protocol modules (${error.message.split('\n')[0]})`,
+    };
   }
 }

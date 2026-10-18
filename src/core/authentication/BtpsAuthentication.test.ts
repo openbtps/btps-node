@@ -12,6 +12,11 @@ import { AbstractTrustStore } from '../trust/storage/AbstractTrustStore.js';
 import { BTPTrustRecord } from '../trust/types.js';
 import { BTPErrorException } from '../error/index.js';
 import { getBTPKeyPair } from '../crypto/keygen.js';
+import { PemSigner } from '../crypto/pem-signer.js';
+import { BtpsAgent } from '../../client/btpsAgent.js';
+import { verifySignature } from '../crypto/index.js';
+import { BtpAuthReqDocSchema } from '../server/schemas/btpsDocsSchema.js';
+import { keyProofPayload } from './keyProof.js';
 
 // Mock trust store
 class MockTrustStore extends AbstractTrustStore<BTPTrustRecord> {
@@ -62,6 +67,10 @@ class MockTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   async getByAgentId(agentId: string): Promise<BTPTrustRecord | undefined> {
     const records = Array.from(this.records.values());
     return records.find((record) => record.senderId === agentId);
+  }
+
+  async isKnownArtifact(): Promise<boolean> {
+    return false;
   }
 
   clear(): void {
@@ -234,6 +243,18 @@ describe('BtpsAuthentication', () => {
         // Token should be removed after validation
         const storedToken = await tokenStore.get(agentId, token);
         expect(storedToken).toBeUndefined();
+      });
+
+      it('registers only one of two devices racing with the same code', async () => {
+        const userIdentity = 'alice$saas.com';
+        await auth.storeAuthToken('ONE_CODE', userIdentity, 'admin$saas.com');
+
+        const results = await Promise.all([
+          auth.validateAuthToken(userIdentity, 'ONE_CODE'),
+          auth.validateAuthToken(userIdentity, 'ONE_CODE'),
+        ]);
+
+        expect(results.filter((r) => r.isValid)).toHaveLength(1);
       });
     });
 
@@ -479,6 +500,47 @@ describe('BtpsAuthentication', () => {
       expect(result.data).toBeUndefined();
       expect(result.error).toBeDefined();
     });
+
+    const registeredAgent = async () => {
+      const userIdentity = 'alice$saas.com';
+      const decryptBy = 'admin$saas.com';
+      const { agentId } = await auth.createAgent(
+        { userIdentity, publicKey: mockKeyPair.publicKey, decidedBy: 'admin' },
+        decryptBy,
+      );
+      await tokenStore.store('ONE_REFRESH', agentId, userIdentity, 3600000, decryptBy);
+      return { agentId, decryptBy };
+    };
+
+    it('reissues only once when two refreshes race with the same token', async () => {
+      const { agentId, decryptBy } = await registeredAgent();
+      const options = { publicKey: mockKeyPair.publicKey, decryptBy, decidedBy: 'admin' };
+
+      const results = await Promise.all([
+        auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', options),
+        auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', options),
+      ]);
+
+      expect(results.filter((r) => r.data)).toHaveLength(1);
+    });
+
+    it('puts the token back when the trust update fails, so the device can try again', async () => {
+      const { agentId, decryptBy } = await registeredAgent();
+      const update = vi.spyOn(trustStore, 'update').mockRejectedValueOnce(new Error('store down'));
+
+      const failed = await auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', {
+        decryptBy,
+        decidedBy: 'admin',
+      });
+      const retried = await auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', {
+        decryptBy,
+        decidedBy: 'admin',
+      });
+
+      expect(failed.error).toBeDefined();
+      expect(retried.data).toBeDefined();
+      expect(update).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('Configuration', () => {
@@ -603,5 +665,208 @@ describe('BtpsAuthentication', () => {
         expect(refreshValidation.userIdentity).toBe(userIdentity);
       }
     });
+  });
+
+  describe('authenticate, with the device key held elsewhere (a Signer)', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("signs through the Signer and registers the Signer's public key", async () => {
+      const keys = getBTPKeyPair();
+      const signer = new PemSigner(keys);
+      const command = vi.spyOn(BtpsAgent.prototype, 'command').mockResolvedValue({
+        response: undefined,
+        error: new BTPErrorException({ message: 'stop here' }),
+      });
+
+      await BtpsAuthentication.authenticate('alice$example.com', 'AUTH-TOKEN', signer);
+
+      expect(command).toHaveBeenCalledWith(
+        'auth.request',
+        'alice$example.com',
+        expect.objectContaining({ publicKey: keys.publicKey, authToken: 'AUTH-TOKEN' }),
+      );
+      expect(command.mock.contexts[0]).toMatchObject({ signingKey: signer });
+    });
+  });
+
+  describe('rotateKey', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('signs with the current key, names the new key, and proves it with the new key', async () => {
+      const current = getBTPKeyPair();
+      const next = getBTPKeyPair();
+      const command = vi.spyOn(BtpsAgent.prototype, 'command').mockResolvedValue({
+        response: undefined,
+        error: new BTPErrorException({ message: 'stop here' }),
+      });
+
+      await BtpsAuthentication.rotateKey(
+        'agent-1',
+        'alice$example.com',
+        'REFRESH-TOKEN',
+        current,
+        next,
+      );
+
+      const [action, , document] = command.mock.calls[0] ?? [];
+      expect(action).toBe('auth.refresh');
+      expect(command.mock.contexts[0]).toMatchObject({
+        signingKey: { publicKey: current.publicKey, privateKey: current.privateKey },
+      });
+      const request = BtpAuthReqDocSchema.parse(document);
+      expect(request.publicKey).toBe(next.publicKey);
+      expect(request.keyProof).toBeDefined();
+      const proof = request.keyProof
+        ? verifySignature(
+            keyProofPayload('agent-1', 'alice$example.com', next.publicKey),
+            request.keyProof,
+            next.publicKey,
+          )
+        : undefined;
+      expect(proof?.isValid).toBe(true);
+    });
+
+    it('sends no proof on an ordinary refresh', async () => {
+      const current = getBTPKeyPair();
+      const command = vi.spyOn(BtpsAgent.prototype, 'command').mockResolvedValue({
+        response: undefined,
+        error: new BTPErrorException({ message: 'stop here' }),
+      });
+
+      await BtpsAuthentication.refreshSession('agent-1', 'alice$example.com', 'TOKEN', current);
+
+      const request = BtpAuthReqDocSchema.parse(command.mock.calls[0]?.[2]);
+      expect(request.publicKey).toBe(current.publicKey);
+      expect(request.keyProof).toBeUndefined();
+    });
+  });
+
+  describe("what a device makes of its provider's answer", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    const answered = (response: unknown) => {
+      vi.spyOn(BtpsAgent.prototype, 'command').mockResolvedValue({ response } as never);
+      return BtpsAuthentication.authenticate('alice$example.com', 'CODE', mockKeyPair);
+    };
+    const ok = { ok: true, code: 200, message: 'success' };
+
+    it('signs in with an agent id and a refresh token', async () => {
+      const document = { agentId: 'btps_ag_1', refreshToken: 'r', expiresAt: 'x', decryptBy: 'y' };
+
+      const result = await answered({ type: 'btps_response', status: ok, document });
+
+      expect(result).toMatchObject({ success: true, response: { status: ok, document } });
+    });
+
+    it.each([
+      ['no answer', undefined],
+      ['a refusal', { type: 'btps_error', status: { ok: false, code: 401, message: 'no' } }],
+      ['an answer without a document', { type: 'btps_response', status: ok }],
+      [
+        'an answer without a refresh token',
+        { type: 'btps_response', status: ok, document: { agentId: 'a' } },
+      ],
+    ])('fails on %s', async (_name, response) => {
+      const result = await answered(response);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatchObject({ code: 'BTP_ERROR_AUTHENTICATION_INVALID' });
+    });
+
+    it('fails, rather than throwing, when sending throws', async () => {
+      vi.spyOn(BtpsAgent.prototype, 'command').mockRejectedValue(new Error('socket closed'));
+
+      const result = await BtpsAuthentication.authenticate(
+        'alice$example.com',
+        'CODE',
+        mockKeyPair,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeInstanceOf(BTPErrorException);
+    });
+
+    it.each([
+      [
+        'authenticate',
+        () => BtpsAuthentication.authenticate('not an address', 'CODE', mockKeyPair),
+      ],
+      [
+        'refreshSession',
+        () => BtpsAuthentication.refreshSession('a', 'not an address', 'TOKEN', mockKeyPair),
+      ],
+      [
+        'rotateKey',
+        () =>
+          BtpsAuthentication.rotateKey('a', 'not an address', 'TOKEN', mockKeyPair, mockKeyPair),
+      ],
+    ])('%s refuses an address that is not one, without sending', async (_name, call) => {
+      const command = vi.spyOn(BtpsAgent.prototype, 'command');
+
+      const result = await call();
+
+      expect(result.error).toMatchObject({ code: 'BTP_ERROR_IDENTITY' });
+      expect(command).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('a provider refusing a device', () => {
+    it('refuses a refresh for a device whose record is gone', async () => {
+      await tokenStore.store(
+        'REFRESH',
+        'btps_ag_gone',
+        'alice$example.com',
+        60_000,
+        'alice$example.com',
+      );
+
+      const { data, error } = await auth.validateAndReissueRefreshToken('btps_ag_gone', 'REFRESH', {
+        decidedBy: 'alice',
+        decryptBy: 'alice$example.com',
+      });
+
+      expect(data).toBeUndefined();
+      expect(error?.code).toBe('BTP_ERROR_AUTHENTICATION_INVALID');
+    });
+
+    it('keeps a device for the trust expiry it is given', async () => {
+      const before = Date.now();
+
+      const agent = await auth.createAgent(
+        {
+          userIdentity: 'alice$example.com',
+          publicKey: mockKeyPair.publicKey,
+          decidedBy: 'alice',
+          trustExpiryMs: 1000,
+        },
+        'alice$example.com',
+      );
+      const record = await trustStore.getByAgentId(agent.agentId);
+
+      expect(Date.parse(record!.expiresAt!)).toBeLessThanOrEqual(before + 2000);
+    });
+
+    it.each([
+      ['an auth code', () => auth.validateAuthToken('alice$example.com', 'CODE')],
+      ['a refresh token', () => auth.validateRefreshToken('btps_ag_1', 'REFRESH')],
+    ])(
+      'answers invalid, rather than throwing, when the store fails to read %s',
+      async (_n, call) => {
+        vi.spyOn(tokenStore, 'consume').mockRejectedValue('down');
+        vi.spyOn(tokenStore, 'get').mockRejectedValue('down');
+
+        const result = await call();
+
+        expect(result.isValid).toBe(false);
+        expect('error' in result && result.error).toBeInstanceOf(Error);
+        vi.restoreAllMocks();
+      },
+    );
   });
 });

@@ -6,6 +6,8 @@
  */
 
 import type { BTPCryptoOptions } from '@core/crypto/types.js';
+import type { Signer } from '@core/crypto/signer-interface.js';
+import type { Decrypter } from '@core/crypto/decrypter-interface.js';
 import type { BTPErrorException } from '@core/error/index.js';
 import type { BtpsClient } from 'client/btpsClient.js';
 import type {
@@ -17,7 +19,7 @@ import type {
   BTPServerResponse,
   AgentAction,
 } from 'server/index.js';
-import type { ConnectionOptions } from 'tls';
+import type { ConnectionOptions, TLSSocket } from 'tls';
 
 export interface BTPTransporterMetrics {
   totalConnections: number;
@@ -28,20 +30,34 @@ export interface BTPClientOptions {
   to: string;
   maxRetries?: number;
   retryDelayMs?: number;
+  /** How long to wait to connect, in ms: at least 5000, 5000 by default */
+  connectTimeoutMs?: number;
+  /** How long `send()` waits for the answer, in ms: at least 10000, 20000 by default */
+  replyTimeoutMs?: number;
+  /** Closes the connection after this long with no artifact waiting for an answer, in ms; reconnects on the next send. Off when not set */
   connectionTimeoutMs?: number;
   btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
   host?: string;
   hostSelector?: string;
+  /** With `host`: the identity operating that host, which signs its lookup answers. Otherwise read from DNS (`op`). */
+  hostOperator?: string;
   version?: string;
   port?: number;
   maxQueue?: number;
 }
 
-export type BTPAgent = {
-  id: string;
-  identityKey: string;
-  identityCert: string;
-};
+/** An agent and its device key: a PEM key pair, or a Signer (and Decrypter) holding it elsewhere, such as the device's own keystore. */
+export type BTPAgent =
+  | {
+      id: string;
+      identityKey: string;
+      identityCert: string;
+    }
+  | {
+      id: string;
+      signer: Signer;
+      decrypter?: Decrypter;
+    };
 
 export interface BTPAgentOptions extends Omit<BTPClientOptions, 'to'> {
   agent: BTPAgent;
@@ -60,11 +76,16 @@ export type BtpsAgentDoc =
   | BTPIdsPayload
   | BTPAgentQuery;
 
+export type BtpsAgentCommandOptions = BTPCryptoOptions & {
+  /** Required on `event.send`, refused elsewhere: the id of the `BTPS_DOC` artifact that delivered the invoice. */
+  relatesTo?: string;
+};
+
 export type BtpsAgentCommandParams = {
   actionType: AgentAction;
   to: string;
   document?: BtpsAgentDoc;
-  options?: BTPCryptoOptions;
+  options?: BtpsAgentCommandOptions;
 };
 
 export interface ConnectionStates {
@@ -86,12 +107,22 @@ export type BtpsClientErrorInfo = BTPSRetryInfo & { error: BTPErrorException };
 export interface UpdateBTPClientOptions {
   maxRetries?: number;
   retryDelayMs?: number;
+  connectTimeoutMs?: number;
+  replyTimeoutMs?: number;
   connectionTimeoutMs?: number;
   maxQueue?: number;
 }
 
+/** What the client emits on `connected`. */
+export type BtpsClientConnectedInfo = {
+  identity: string;
+  retries: number;
+  states: ConnectionStates;
+  socket: TLSSocket;
+};
+
 export type BtpsClientEvents = {
-  connected: () => void;
+  connected: (connectedInfo: BtpsClientConnectedInfo) => void;
   end: (endInfo: BtpsClientErrorInfo) => void;
   error: (errorInfo: BtpsClientErrorInfo) => void;
   message: (msg: BTPClientResponse & { validSignature: boolean }) => void;
@@ -101,6 +132,10 @@ export type BtpsClientEvents = {
 export type BTPConnectionInternal = BTPConnection & {
   timeout: NodeJS.Timeout;
   listeners?: BtpsClientEvents;
+  /** Sends waiting for their answer: the connection is never closed while any are */
+  inFlight: number;
+  /** Set by updateConnection; the transporter's own TTL otherwise */
+  ttlSeconds?: number;
 };
 
 export type BTPConnection = {
@@ -149,4 +184,6 @@ export type BtpsHostDnsTxt = {
   hostname: string;
   selector: string;
   port: number;
+  /** The identity operating the host (`op`), when declared */
+  operator?: string;
 };

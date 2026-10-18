@@ -2,11 +2,9 @@
  * SDK conformance checks: the vectors run against @btps/sdk itself, loaded
  * from a source tree (see sdk-loader.mjs).
  *
- * The item-tagged checks are the regression proof the ticket asks for
- * (EBA-110): on the 367cd09 baseline they fail, and the fix tickets turn
- * them green — item 5 → EBA-115, item 6 → EBA-116/EBA-117, item 10 →
- * EBA-122. The untagged ones (KMS interop) already pass on the baseline and
- * must stay passing.
+ * The item-tagged checks are the regression proof for BTPS 1.1 items 5, 6
+ * and 10: they failed on the 1.0 baseline (367cd09), pass on 1.1, and must
+ * stay passing. The untagged ones (KMS interop) passed on the baseline too.
  *
  * Only the SDK's *public* exports are called, and every call that depends on
  * an API shape a fix ticket may change sits in one adapter below, marked.
@@ -21,12 +19,9 @@ const pemToTxtBase64 = (pem) =>
   pem.replace(/-----(BEGIN|END) PUBLIC KEY-----/g, '').replace(/\s+/g, '');
 
 /**
- * ADAPTER — item 6 call shape. On 367cd09 the caller passes one `selector`
- * (the receiver's) in the payload, and `sender` has no selector at all.
- * The sender's selector is offered two ways a 1.1 SDK might read it — on
- * the sender object and in the sender domain's _btps.host record — so the
- * check does not dictate EBA-116's API. If EBA-116 changes how a caller
- * asks for encryption, update this function and say so on EBA-116.
+ * ADAPTER: the signEncrypt call shape. The caller passes its own selector,
+ * the one its signing key is published at, as `selector`; the SDK finds the
+ * receiver's key at the selector the receiver's host record names.
  */
 async function produceItem6Artifact(sdk, vector) {
   const [senderAccount, senderDomain] = vector.sender.identity.split('$');
@@ -42,7 +37,7 @@ async function produceItem6Artifact(sdk, vector) {
   return sdk.crypto.signEncrypt(
     vector.receiver.identity,
     sender,
-    { ...vector.artifact, selector: vector.receiver.hostSelector },
+    { ...vector.artifact, selector: vector.sender.hostSelector },
     {
       signature: { algorithmHash: 'sha256' },
       encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
@@ -140,7 +135,7 @@ export function sdkChecks(sdk, set) {
     },
   );
 
-  // --- Item 5: canonical signing (EBA-115) --------------------------------
+  // --- Item 5: canonical signing ----------------------------------------
   for (const v of [set.managedSignature, set.selfHeldSignature]) {
     const signature = {
       algorithmHash: 'sha256',
@@ -151,7 +146,6 @@ export function sdkChecks(sdk, set) {
       {
         id: `sdk/item-5/${v.custody}/verifySignature-accepts-reordered-payload`,
         item: 5,
-        tickets: ['EBA-115'],
         run() {
           const { isValid, error } = sdkCrypto.verifySignature(
             JSON.parse(v.payloadRaw),
@@ -167,7 +161,6 @@ export function sdkChecks(sdk, set) {
       {
         id: `sdk/item-5/${v.custody}/signBtpPayload-signs-canonical-bytes`,
         item: 5,
-        tickets: ['EBA-115'],
         run() {
           const signed = sdkCrypto.signBtpPayload(JSON.parse(v.payloadRaw), {
             publicKey: v.publicKeyPem,
@@ -184,7 +177,6 @@ export function sdkChecks(sdk, set) {
   checks.push({
     id: 'sdk/item-5/verifySignature-rejects-duplicate-member-names',
     item: 5,
-    tickets: ['EBA-115'],
     run() {
       const v = set.managedSignature;
       const duplicated = '{"amountCents":100,"amountCents":100000,"id":"dup-1"}';
@@ -208,7 +200,7 @@ export function sdkChecks(sdk, set) {
     },
   });
 
-  // --- Item 6: separate signature and encryption selectors (EBA-116/117) --
+  // --- Item 6: the artifact names the sender's selector -------------------
   const item6 = set.selectors;
   let artifactPromise;
   const item6Artifact = () => {
@@ -224,7 +216,6 @@ export function sdkChecks(sdk, set) {
   const item6Check = (name, run) => ({
     id: `sdk/item-6/${name}`,
     item: 6,
-    tickets: item6.tickets,
     run,
   });
 
@@ -232,31 +223,21 @@ export function sdkChecks(sdk, set) {
     item6Check('artifact-names-signature-selector', async () => {
       const artifact = await item6Artifact();
       ensure(
-        artifact.signatureSelector === item6.expect.signatureSelector,
-        `signatureSelector is ${JSON.stringify(artifact.signatureSelector)}, expected "${item6.expect.signatureSelector}" (selector=${JSON.stringify(artifact.selector)})`,
-      );
-    }),
-    item6Check('artifact-names-encryption-selector', async () => {
-      const artifact = await item6Artifact();
-      ensure(
-        artifact.encryptionSelector === item6.expect.encryptionSelector,
-        `encryptionSelector is ${JSON.stringify(artifact.encryptionSelector)}, expected "${item6.expect.encryptionSelector}"`,
+        artifact.selector === item6.expect.selector,
+        `selector is ${JSON.stringify(artifact.selector)}, expected the sender's "${item6.expect.selector}"`,
       );
     }),
     item6Check('signature-verifies-with-sender-key-at-signature-selector', async () => {
       const artifact = await item6Artifact();
-      const selector = artifact.signatureSelector;
-      ensure(
-        typeof selector === 'string',
-        `the artifact does not name the sender's signing key; its one selector (${JSON.stringify(artifact.selector)}) is the receiver's, and the sender key there is the rotated-out one`,
-      );
+      const selector = artifact.selector;
+      ensure(typeof selector === 'string', 'the artifact names no selector');
       const senderKey = await utils.resolvePublicKey(item6.sender.identity, selector);
       ensure(senderKey, `no sender key published at ${selector}`);
       const { signature, ...signed } = artifact;
       const { isValid } = sdkCrypto.verifySignature(signed, signature, senderKey);
       ensure(isValid === true, `signature does not verify with the sender key at ${selector}`);
     }),
-    item6Check('document-decrypts-with-receiver-key-at-encryption-selector', async () => {
+    item6Check('document-decrypts-with-receiver-current-key', async () => {
       const artifact = await item6Artifact();
       ensure(artifact.encryption, 'the document was not encrypted');
       const { data, error } = sdkCrypto.decryptBtpPayload(
@@ -272,13 +253,12 @@ export function sdkChecks(sdk, set) {
     }),
   );
 
-  // --- Item 10: SDK defects expressible as data (EBA-122) -----------------
+  // --- Item 10: SDK defects expressible as data ---------------------------
   const defects = set.sdkDefects;
   for (const c of defects.gcmTag.cases) {
     checks.push({
       id: `sdk/item-10/gcm-tag/${c.name}`,
       item: 10,
-      tickets: defects.tickets,
       run() {
         let result;
         try {
@@ -310,7 +290,6 @@ export function sdkChecks(sdk, set) {
     checks.push({
       id: `sdk/item-10/identity/${c.expect}/${c.input}`,
       item: 10,
-      tickets: defects.tickets,
       run() {
         const parsed = utils.parseIdentity(c.input);
         if (c.expect === 'accept') ensure(parsed, `${c.input} was rejected`);

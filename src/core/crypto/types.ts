@@ -14,6 +14,8 @@ import {
   BTPServerResponse,
   BTPTransporterArtifact,
 } from '@core/server/types.js';
+import type { Signer } from './signer-interface.js';
+import type { Decrypter } from './decrypter-interface.js';
 
 export type EncryptionMode = 'none' | 'standardEncrypt' | '2faEncrypt';
 
@@ -39,6 +41,12 @@ export type PemKeys = {
   publicKey: string;
   privateKey: string;
 };
+
+/** A key that signs: a PEM key pair, or a Signer holding the private key elsewhere (a KMS, a device). */
+export type BTPSigningKey = PemKeys | Signer;
+
+/** A key that decrypts: a PEM private key, or a Decrypter holding it elsewhere (a KMS, a device). */
+export type BTPDecryptionKey = string | Decrypter;
 
 export type BTPCryptoOptions = {
   signature: {

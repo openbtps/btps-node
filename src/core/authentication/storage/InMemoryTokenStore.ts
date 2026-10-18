@@ -5,7 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import { computeTrustId } from '@core/trust/index.js';
+import { computeTrustId } from '@core/trust/trustUtils.js';
 import { TokenStore, BTPsTokenDocument } from '../types.js';
 
 /**
@@ -88,6 +88,21 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
    */
   async remove(agentId: string, token: string): Promise<void> {
     this.tokens.delete(this.makeKey(agentId, token));
+  }
+
+  /**
+   * Take a token once. The read and the delete happen in one synchronous step,
+   * so no other call can take the same token in between.
+   * @param agentId - The agent ID (or the user identity, for an auth token)
+   * @param token - The token to take
+   * @returns The stored token, or undefined when there is none or it has expired
+   */
+  async consume(agentId: string, token: string): Promise<T | undefined> {
+    const key = this.makeKey(agentId, token);
+    const storedToken = this.tokens.get(key);
+    this.tokens.delete(key);
+    if (!storedToken || new Date() > new Date(storedToken.expiresAt)) return undefined;
+    return storedToken;
   }
 
   /**

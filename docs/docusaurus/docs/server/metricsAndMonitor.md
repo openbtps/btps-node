@@ -31,7 +31,7 @@ metrics.onError(new Error('Something went wrong'));
 - Logs received messages, rejections, and errors to the console.
 - Useful for local development, testing, and small-scale deployments.
 
-**Source:** See [`btpsSimpleMetricsTracker.ts`](../../../../src/server/libs/btpsSimpleMetricsTracker.ts)
+**Source:** See [`btpsSimpleMetricsTracker.ts`](https://github.com/openbtps/btps-node/blob/master/src/server/libs/btpsSimpleMetricsTracker.ts)
 
 ## Advanced Metrics: Custom IMetricsTracker
 
@@ -84,17 +84,19 @@ class PrometheusMetricsTracker implements IMetricsTracker {
 ```js
 const metrics = new PrometheusMetricsTracker();
 
-export default [
-  {
-    phase: 'after',
-    step: 'onMessage',
-    handler: async (req, res, next) => {
-      metrics.onMessageReceived(req.from, req.artifact.to);
-      await next();
+export default function createMiddleware() {
+  return [
+    {
+      phase: 'after',
+      step: 'onArtifact',
+      handler: async (req) => {
+        const { from, to } = req.getIdentity();
+        metrics.onMessageReceived(from, to);
+      },
     },
-  },
-  // ...other middleware
-];
+    // ...other middleware
+  ];
+}
 ```
 
 ## Advanced Logging Patterns

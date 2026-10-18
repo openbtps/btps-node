@@ -31,8 +31,9 @@ Extends `AbstractStorageStore` for identity-specific storage (public keys, selec
 
 ```typescript
 abstract class AbstractIdentityStore<T extends BTPIdentityRecord> extends AbstractStorageStore<T> {
+  // computedId: computeId(identity), computed by the server; use it as given
   abstract getPublicKeyRecord(
-    identity: string,
+    computedId: string,
     selector?: string,
   ): Promise<IdentityPubKeyRecord | undefined>;
 }
@@ -86,16 +87,12 @@ const identityStore = new JsonIdentityStore({
 
 ```typescript
 // src/storage/MongoTrustStore.ts
-import {
-  AbstractTrustStore,
-  BTPTrustRecord,
-  TrustStoreOptions,
-  computeTrustId,
-} from '@btps/sdk/trust';
+import { AbstractTrustStore, BTPTrustRecord, computeTrustId } from '@btps/sdk/trust';
+import { StorageStoreOptions } from '@btps/sdk/storage';
 import { MongoClient } from 'mongodb';
 
 export class MongoTrustStore extends AbstractTrustStore<BTPTrustRecord> {
-  constructor(options: TrustStoreOptions) {
+  constructor(options: StorageStoreOptions) {
     super(options);
     // Initialize MongoDB connection and collection
   }
@@ -124,17 +121,24 @@ export class MongoTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   async getAll(receiverId?: string): Promise<BTPTrustRecord[]> {
     // Return all records, optionally filtered by receiverId
   }
+
+  async isKnownArtifact(query: { artifactId: string; from: string; to: string }): Promise<boolean> {
+    // Return true if your platform delivered an artifact with this id between
+    // these two identities, in either direction. Every BTPS_EVENT is refused otherwise
+  }
 }
 ```
 
 **Important**: The `computedId` parameter should be used as the record's `id` field. Do not generate your own IDs for trust records.
+
+**Events**: `isKnownArtifact` is required. Every lifecycle event (`BTPS_EVENT`) names, in `relatesTo`, the `BTPS_DOC` artifact that delivered its invoice, and the server accepts the event only when this method says that artifact passed between the event's two parties. Answer it from wherever your platform records the artifacts it sends and receives. See [Lifecycle Event](../../protocol/specifications/transporter-artifact.md#4-lifecycle-event-btps_event).
 
 ### MongoDB Setup and Usage
 
 ```typescript
 // src/index.ts
 import { MongoClient } from 'mongodb';
-import { BtpsServer } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
 import { MongoTrustStore } from './storage/MongoTrustStore';
 
 // Connect to MongoDB
@@ -277,7 +281,7 @@ export class MongoArtifactStorage implements ArtifactStorage {
 ```typescript
 // src/index.ts
 import { MongoClient } from 'mongodb';
-import { BtpsServer } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
 import { MongoTrustStore } from './storage/MongoTrustStore';
 import { MongoArtifactStorage } from './storage/MongoArtifactStorage';
 
@@ -343,7 +347,9 @@ console.log('🚀 BTPS Server with MongoDB storage running');
 For development and testing, you can use the built-in JSON storage:
 
 ```typescript
-import { BtpsServer, JsonTrustStore, JsonIdentityStore } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
+import { JsonTrustStore } from '@btps/sdk/trust';
+import { JsonIdentityStore } from '@btps/sdk/storage';
 
 const server = new BtpsServer({
   serverIdentity: {
@@ -372,16 +378,12 @@ For SQL databases, here are basic implementations:
 
 ```typescript
 // src/storage/PostgresTrustStore.ts
-import {
-  AbstractTrustStore,
-  BTPTrustRecord,
-  TrustStoreOptions,
-  computeTrustId,
-} from '@btps/sdk/trust';
+import { AbstractTrustStore, BTPTrustRecord, computeTrustId } from '@btps/sdk/trust';
+import { StorageStoreOptions } from '@btps/sdk/storage';
 import { Pool } from 'pg';
 
 export class PostgresTrustStore extends AbstractTrustStore<BTPTrustRecord> {
-  constructor(options: TrustStoreOptions) {
+  constructor(options: StorageStoreOptions) {
     super(options);
     // Initialize PostgreSQL connection pool
     // Setup table schema if needed
@@ -410,6 +412,11 @@ export class PostgresTrustStore extends AbstractTrustStore<BTPTrustRecord> {
 
   async getAll(receiverId?: string): Promise<BTPTrustRecord[]> {
     // Return all records, optionally filtered by receiverId
+  }
+
+  async isKnownArtifact(query: { artifactId: string; from: string; to: string }): Promise<boolean> {
+    // Return true if your platform delivered an artifact with this id between
+    // these two identities, in either direction. Every BTPS_EVENT is refused otherwise
   }
 }
 ```

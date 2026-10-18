@@ -15,7 +15,7 @@ Control artifacts (`BTPControlArtifact`) are designed for simple server control 
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "btps_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
   "action": "PING"
@@ -56,7 +56,7 @@ The `PING` action is used to test server connectivity and responsiveness.
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "btps_ping_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
   "action": "PING"
@@ -67,7 +67,7 @@ The `PING` action is used to test server connectivity and responsiveness.
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -96,7 +96,7 @@ The `QUIT` action is used to gracefully terminate a server session.
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "btps_quit_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
   "action": "QUIT"
@@ -107,7 +107,7 @@ The `QUIT` action is used to gracefully terminate a server session.
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -200,7 +200,7 @@ Control artifacts are ideal for load balancer health checks:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "health_check_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
   "action": "PING"

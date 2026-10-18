@@ -1,14 +1,37 @@
 {
   "name": "@btps/sdk",
-  "version": "1.0.0",
+  "version": "1.1.0",
+  "description": "The reference implementation of BTPS, the Billing Trust Protocol Secure: signed, encrypted, trust-first delivery of invoices and documents between organisations.",
+  "keywords": [
+    "btps",
+    "billing",
+    "invoice",
+    "e-invoicing",
+    "protocol",
+    "trust",
+    "signature",
+    "encryption",
+    "dns"
+  ],
+  "homepage": "https://www.openbtps.org/docs/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/openbtps/btps-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/openbtps/btps-node/issues"
+  },
   "packageManager": "yarn@4.9.2",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "license": "Apache-2.0",
   "author": {
     "name": "Bhupendra Tamang",
-    "email": "personal_here@hotmail.com"
+    "email": "admin@openbtps.org"
   },
   "exports": {
     ".": {
@@ -55,7 +78,9 @@
     "start": "node ./dist/server/index.js",
     "base64": "bash -c 'base64 -i \"$1\" | tr -d \"\\n\"' --",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
+    "test:e2e": "vitest run -c vitest.e2e.config.ts",
+    "test:security": "vitest run -c vitest.security.config.ts",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
     "verify:btps-vectors": "node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs --known-failing test/vectors/known-failing.json",
@@ -91,6 +116,8 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@humanwhocodes/momoa": "^3.3.13",
+    "canonicalize": "^5.1.0",
     "lodash": "^4.17.21",
     "proper-lockfile": "^4.1.2",
     "split2": "^4.2.0",

@@ -121,11 +121,11 @@ const pem = base64ToPem(base64String);
 ### getHostAndSelector
 
 ```ts
-getHostAndSelector(identity: string): Promise<{ host: string; selector: string; version: string } | undefined>
+getHostAndSelector(identity: string): Promise<{ host: string; selector: string; version: string; operator?: string } | undefined>
 ```
 
 **Description:**
-Resolves the BTPS host and selector for a given identity by querying DNS TXT records. This function is used for key rotation support, allowing multiple public keys to be published under different selectors.
+Resolves the BTPS host, selector and operator for a given identity by querying the `_btps.host.<domain>` DNS TXT record. The selector supports key rotation, allowing multiple public keys to be published under different selectors. The operator (`op`) is the identity that may delegate, attest and answer identity lookups for the domain ([The Domain Operator](../protocol/specifications/overview.md#the-domain-operator)).
 
 **Arguments:**
 
@@ -133,14 +133,14 @@ Resolves the BTPS host and selector for a given identity by querying DNS TXT rec
 
 **Returns:**
 
-- `Promise<{ host: string; selector: string; version: string } | undefined>`: Object containing the host URL, current selector, and version, or `undefined` if not found.
+- `Promise<{ host: string; selector: string; version: string; operator?: string } | undefined>`: Object containing the host URL, current selector, version and, when the record declares a valid one, the operator. `undefined` if there is no record: a name DNS does not have is no record, not an error.
 
 **Example:**
 
 ```js
 import { getHostAndSelector } from '@btps/sdk';
 const result = await getHostAndSelector('billing$company.com');
-// result = { host: 'btps://btps.company.com:3443', selector: 'btps1', version: '1.0.0.0' }
+// result = { host: 'btps://btps.company.com:3443', selector: 'btps1', version: '1.1.0', operator: 'admin$company.com' }
 ```
 
 ---
@@ -173,7 +173,7 @@ Resolves DNS TXT records for a specific selector of a BTPS identity and extracts
 ```js
 import { getDnsIdentityParts } from '@btps/sdk';
 const allParts = await getDnsIdentityParts('billing$company.com', 'btps1');
-// Returns: { key: 'abc123', version: '1.0.0', pem: '-----BEGIN PUBLIC KEY-----...' }
+// Returns: { key: 'abc123', version: '1.1.0', pem: '-----BEGIN PUBLIC KEY-----...' }
 
 const justPem = await getDnsIdentityParts('billing$company.com', 'btps1', 'pem');
 // Returns: '-----BEGIN PUBLIC KEY-----...'
@@ -384,15 +384,16 @@ const id = computeId('billing$company.com');
 ### isDelegationAllowed
 
 ```ts
-isDelegationAllowed(artifact: BTPTransporterArtifact): boolean
+isDelegationAllowed(artifact: BTPTransporterArtifact, operator?: string): boolean
 ```
 
 **Description:**
-Checks if an artifact can be delegated based on delegation rules and domain validation.
+Checks whether an artifact's delegator may delegate for its sender: the delegator is the sender itself (`delegation.signedBy === from`), or the operator of the sender's domain. Being on the same domain is not enough. Without an operator, only the sender itself may delegate.
 
 **Arguments:**
 
 - `artifact` (`BTPTransporterArtifact`, required): The artifact to check.
+- `operator` (`string`, optional): The operator of the sender's domain, as `getHostAndSelector(artifact.from)` returns it.
 
 **Returns:**
 
@@ -401,8 +402,9 @@ Checks if an artifact can be delegated based on delegation rules and domain vali
 **Example:**
 
 ```js
-import { isDelegationAllowed } from '@btps/sdk';
-const canDelegate = isDelegationAllowed(artifact);
+import { getHostAndSelector, isDelegationAllowed } from '@btps/sdk';
+const { operator } = (await getHostAndSelector(artifact.from)) ?? {};
+const canDelegate = isDelegationAllowed(artifact, operator);
 ```
 
 ---
@@ -414,13 +416,14 @@ const canDelegate = isDelegationAllowed(artifact);
 ```ts
 signEncrypt<T>(
   to: string | undefined,
-  sender: ParsedIdentity & { pemFiles: PemKeys },
+  sender: ParsedIdentity & ({ pemFiles: PemKeys } | { signer: Signer }),
   payload: {
     document: T;
     selector?: string;
     [key: string]: unknown;
   },
-  options?: BTPCryptoOptions
+  options?: BTPCryptoOptions,
+  lookup?: ReceiverKeyLookup
 ): Promise<BTPCryptoResponse<T>>
 ```
 
@@ -430,12 +433,13 @@ Signs and (optionally) encrypts a BTPS document for secure transmission. Handles
 **Arguments:**
 
 - `to` (`string | undefined`, required): Recipient BTPS identity. If undefined, no encryption is performed.
-- `sender` (`ParsedIdentity & { pemFiles: PemKeys }`, required): Sender identity and PEM key pair.
+- `sender` (`ParsedIdentity & ({ pemFiles: PemKeys } | { signer: Signer })`, required): Sender identity, with its PEM key pair or a [Signer](./typesAndInterfaces.md#signer) holding its key elsewhere.
 - `payload` (object, required): Document and metadata to send.
   - `document` (`T`, required): The document payload.
-  - `selector` (`string`, optional): The selector to use for public key resolution (e.g., 'btps1', 'btps2'). Required for encryption when `to` is provided.
+  - `selector` (`string`, optional): The sender's own selector, the one its signing key is published at (e.g., 'btps2' after a rotation). The receiver uses it to find the key that verifies the signature. The receiver's key for encryption is found at the selector the receiver's own host record names: in DNS first, then, when DNS has none, from the receiver's host, in an answer its domain's operator signed.
   - `[key: string]` (`unknown`): Additional metadata fields.
 - `options` (`BTPCryptoOptions`, optional): Signature and encryption options.
+- `lookup` (`ReceiverKeyLookup`, optional): `{ btpMtsOptions }`, the TLS options for the connection to the receiver's host, used only when DNS has no key.
 
 **Returns:**
 
@@ -470,18 +474,20 @@ const { payload, error } = await signEncrypt(
 decryptVerify<T>(
   senderPubPem: string,
   encryptedPayload: VerifyEncryptedPayload<T>,
-  receiverPrivatePem?: string
+  receiverKey?: BTPDecryptionKey
 ): Promise<BTPCryptoResponse<T>>
 ```
 
 **Description:**
 Verifies the signature and (optionally) decrypts a received BTPS artifact. Ensures authenticity and privacy.
 
+When it decrypts a `BTPS_EVENT`, it also checks the event as the server checks an unencrypted one: a valid lifecycle event, carried under its own `id`, about an invoice between the artifact's `from` and `to`. If not, it returns a `BTP_ERROR_VALIDATION` error and no payload.
+
 **Arguments:**
 
 - `senderPubPem` (`string`, required): Sender's public key (PEM).
 - `encryptedPayload` (`VerifyEncryptedPayload<T>`, required): The received artifact.
-- `receiverPrivatePem` (`string`, optional): Receiver's private key for decryption.
+- `receiverKey` (`string | Decrypter`, optional): Receiver's private key (PEM) for decryption, or a [Decrypter](./typesAndInterfaces.md#decrypter) holding it elsewhere.
 
 **Returns:**
 
@@ -623,6 +629,32 @@ const { data, error } = decryptBtpPayload(encryptedData, encryptionMeta, receive
 
 ---
 
+### decryptBtpPayloadWithDecrypter
+
+```ts
+decryptBtpPayloadWithDecrypter<T = unknown>(
+  payload: unknown = '',
+  encryption: BTPEncryption,
+  decrypter: Decrypter
+): Promise<{ data?: T; error?: BTPErrorException }>
+```
+
+**Description:**
+Decrypts like `decryptBtpPayload`, through a [Decrypter](./typesAndInterfaces.md#decrypter) that holds the receiver's private key elsewhere (a KMS, a device) instead of a PEM key. A failure inside the Decrypter is returned as the error. See [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter).
+
+**Example:**
+
+```js
+import { decryptBtpPayloadWithDecrypter } from '@btps/sdk/crypto';
+const { data, error } = await decryptBtpPayloadWithDecrypter(
+  encryptedData,
+  encryptionMeta,
+  decrypter,
+);
+```
+
+---
+
 ### encryptRSA
 
 ```ts
@@ -730,6 +762,24 @@ Signs a payload using the sender's private key and returns a signature object (a
 ```js
 import { signBtpPayload } from '@btps/sdk/crypto';
 const signature = signBtpPayload({ foo: 'bar' }, { publicKey, privateKey });
+```
+
+---
+
+### signBtpPayloadWithSigner
+
+```ts
+signBtpPayloadWithSigner(payload: unknown = '', signer: Signer): Promise<BTPSignature>
+```
+
+**Description:**
+Signs like `signBtpPayload`, through a [Signer](./typesAndInterfaces.md#signer) that holds the sender's private key elsewhere (a KMS, a device) instead of a PEM key pair. With the same key, the signature is identical to `signBtpPayload`'s. See [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter).
+
+**Example:**
+
+```js
+import { signBtpPayloadWithSigner } from '@btps/sdk/crypto';
+const signature = await signBtpPayloadWithSigner({ foo: 'bar' }, signer);
 ```
 
 ---
@@ -884,6 +934,27 @@ const trustId = computeTrustId('finance$company.com', 'billing$vendor.org');
 
 ---
 
+### computeAgentTrustId
+
+```ts
+computeAgentTrustId(agentId: string, identity: string): string
+```
+
+**Description:**
+Computes the trust record id of a device (agent) registered for an identity: `computeTrustId('agent:' + agentId, identity)`. Device records live in the same trust store as the trust between two identities, and this prefix keeps their ids apart. An identity has no `:`, so no trust id between two identities can ever equal a device's. `BtpsAuthentication` stores and finds device records with it; a trust store needs no change.
+
+**Example:**
+
+```js
+import { computeAgentTrustId } from '@btps/sdk/trust';
+const deviceRecordId = computeAgentTrustId(
+  'btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
+  'alice$saas.com',
+);
+```
+
+---
+
 ### validateTrustResponse
 
 ```ts
@@ -990,6 +1061,8 @@ try {
 
 ## Error Constants (`@btps/sdk/error`)
 
+A constant a server sends carries a `status`: the numeric `status.code` it is answered with, while its `code` goes out as `status.error`. See [Status Codes](../protocol/specifications/responses.md#status-codes) for each status and whether a sender should send again. Middleware can send its own error with a numeric `code` (for example `{ code: 402, message: 'Payment required' }`), which goes out as given. Any other error is treated as internal and answered `500` with `BTP_UNKNOWN_ERROR`, so its detail never reaches the wire.
+
 ### BTP_ERROR_IDENTITY
 
 ```ts
@@ -1061,7 +1134,7 @@ Error constant for trust requests not allowed at this time.
 
 This is also the response a sender receives for a **revoked** trust record: on the wire, revoked and never-trusted produce an identical response body (the same `message`), so a sender who was removed cannot tell their refusal apart from one who was never trusted. The server's own context keeps the precise reason (see `BTP_ERROR_TRUST_REVOKED` below).
 
-The distinction between trust-refusal cases described on this page lives in the response's `status.message` text, not in its numeric `status.code`. Today `status.code` is `500` for this and for every other application-level BTPS error, regardless of which of these constants produced it — a separate, pre-existing gap (`sendBtpsError`'s `typeof error.code === 'number' ? error.code : 500` fallback) tracked by EBA-188, not fixed by the trust-refusal work described here.
+On the wire it is `status.code` `403` with `status.error` `'BTP_ERROR_TRUST_NOT_ALLOWED'`.
 
 ---
 
@@ -1072,7 +1145,7 @@ const BTP_ERROR_TRUST_EXPIRED: BTPError;
 ```
 
 **Description:**
-Error constant for a trust record that was `accepted` and whose `expiresAt` has since passed. A `blocked`, `rejected`, or `pending` record with a past `expiresAt` is reported under its own status instead — it is not "expired". Unlike a revoked or never-existent trust, an expired trust produces its own distinct response `message` on the wire, so a sender can tell the difference and know a request may re-establish trust (see the note on `BTP_ERROR_TRUST_NOT_ALLOWED` above — the numeric `status.code` does not carry this distinction today). An un-upgraded peer that does not recognize this message must still treat it as a refusal (not-allowed), which is why `status.ok` and `status.code` stay identical to a plain not-allowed refusal.
+Error constant for a trust record that was `accepted` and whose `expiresAt` has since passed. A `blocked`, `rejected`, or `pending` record with a past `expiresAt` is reported under its own status instead — it is not "expired". Unlike a revoked or never-existent trust, an expired trust produces its own `status.error` and `message` on the wire, so a sender can tell the difference and know a request may re-establish trust. An un-upgraded peer that does not recognize it must still treat it as a refusal (not-allowed), which is why `status.ok` and `status.code` (`403`) stay identical to a plain not-allowed refusal.
 
 **Properties:**
 
@@ -1094,6 +1167,22 @@ Server-side-only error constant for a trust record with `status: 'revoked'`. Thi
 
 - `code`: `'BTP_ERROR_TRUST_REVOKED'`
 - `message`: `'BTPS trust record has been revoked'`
+
+---
+
+### BTP_ERROR_EVENT_UNRELATED
+
+```ts
+const BTP_ERROR_EVENT_UNRELATED: BTPError;
+```
+
+**Description:**
+Server-side-only error constant for a `BTPS_EVENT` whose `relatesTo` the trust store does not know as an artifact between the event's two parties (see `isKnownArtifact` on [AbstractTrustStore](./classApiReference.md#isknownartifact)). Like a revoked trust, it never reaches the wire: the sender receives `BTP_ERROR_TRUST_NOT_ALLOWED`.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_EVENT_UNRELATED'`
+- `message`: `'Event does not relate to an artifact exchanged between its parties'`
 
 ---
 
@@ -1126,22 +1215,6 @@ Error constant for missing or invalid public key resolution.
 
 - `code`: `'BTP_ERROR_RESOLVE_PUBKEY'`
 - `message`: `'No valid public-key found'`
-
----
-
-### BTP_ERROR_SELECTOR_NOT_FOUND
-
-```ts
-const BTP_ERROR_SELECTOR_NOT_FOUND: BTPError;
-```
-
-**Description:**
-Error constant for missing or invalid selector during DNS resolution. Used when a specific selector cannot be found for key rotation scenarios.
-
-**Properties:**
-
-- `code`: `'BTP_ERROR_SELECTOR_NOT_FOUND'`
-- `message`: `'No valid selector found'`
 
 ---
 
@@ -1334,6 +1407,120 @@ Error constant for socket timeouts.
 
 - `code`: `'BTP_ERROR_SOCKET_TIMEOUT'`
 - `message`: `'Socket timeout. Connection closed'`
+
+---
+
+### BTP_ERROR_AGENT_ID
+
+```ts
+const BTP_ERROR_AGENT_ID: BTPError;
+```
+
+**Description:**
+Error constant for an agent artifact, other than `auth.request`, whose `agentId` is an identity rather than a device id the server issued. It is refused before any key is looked up, so a trusted business cannot sign with its own key and act as one of the receiver's devices.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_AGENT_ID'`
+- `message`: `'An agent id names a registered device, not an identity'`
+
+---
+
+### BTP_ERROR_KEY_ROTATION_PROOF
+
+```ts
+const BTP_ERROR_KEY_ROTATION_PROOF: BTPError;
+```
+
+**Description:**
+Error constant for an `auth.refresh` that names a new device key without a `keyProof` signed by that key, or with one that does not verify. The refresh is refused before the platform's handler runs (see `BtpsAuthentication.rotateKey`).
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_KEY_ROTATION_PROOF'`
+- `message`: `'A new device key needs a proof signed by that key'`
+
+---
+
+### BTP_ERROR_ARTIFACT_TIME_WINDOW
+
+```ts
+const BTP_ERROR_ARTIFACT_TIME_WINDOW: BTPError;
+```
+
+**Description:**
+Error constant for a signed artifact whose `issuedAt` is outside the receiving server's time window (`maxArtifactAgeSeconds`, see [BtpsServerOptions](./typesAndInterfaces.md#btpsserveroptions)). The server sends it with its window appended to the message and keeps the connection open. A genuine sender signs the artifact again, with a new `issuedAt`.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_ARTIFACT_TIME_WINDOW'`
+- `message`: `'Artifact was not issued within the time window of this server'`, sent as for example `'Artifact was not issued within the time window of this server: 300 seconds'`
+
+---
+
+### BTP_ERROR_ARTIFACT_TOO_LARGE
+
+```ts
+const BTP_ERROR_ARTIFACT_TOO_LARGE: BTPError;
+```
+
+**Description:**
+Error constant for an artifact larger than the receiving server's limit (`maxArtifactSizeKb`, see [BtpsServerOptions](./typesAndInterfaces.md#btpsserveroptions)). The server refuses it before reading it in full, sends this error with its limit appended to the message, and closes the connection. A sender that sees it can split its files across further documents that reference the first.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_ARTIFACT_TOO_LARGE'`
+- `message`: `'Artifact exceeds the size limit of this server'`, sent as for example `'Artifact exceeds the size limit of this server: 5120 KB'`
+
+---
+
+### BTP_ERROR_ARTIFACT_NOT_ACCEPTED
+
+```ts
+const BTP_ERROR_ARTIFACT_NOT_ACCEPTED: BTPError;
+```
+
+**Description:**
+Error constant for an artifact the receiving server has nothing to take: no handler registered with `onIncomingArtifact` for its type, no `forwardTo` handler and no `before` `onArtifact` middleware (an `after` step, such as metrics, runs once delivery is done and takes nothing). The server refuses it instead of answering success, and logs a warning, as it also does when it starts without one.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_ARTIFACT_NOT_ACCEPTED'`
+- `message`: `'This server does not accept this kind of artifact'`
+
+---
+
+### BTP_ERROR_VERSION_UNSUPPORTED
+
+```ts
+const BTP_ERROR_VERSION_UNSUPPORTED: BTPError;
+```
+
+**Description:**
+Error constant for an artifact whose `version` the receiving server does not support. A 1.1 server accepts any 1.1.x and refuses 1.0. It is checked before any signature work, and the supported versions are appended to the message.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_VERSION_UNSUPPORTED'`
+- `message`: `'This server does not support the artifact protocol version'`, sent as for example `'This server does not support the artifact protocol version: supports 1.1.0 to 1.1.0'`
+- `status`: `400`
+
+---
+
+### BTP_ERROR_PRIVACY_TYPE
+
+```ts
+const BTP_ERROR_PRIVACY_TYPE: BTPError;
+```
+
+**Description:**
+Error constant for an artifact that does not use the encryption its trust agreed on (`privacyType` on the trust record). An `encrypted` trust refuses an artifact sent in the clear, an `unencrypted` trust refuses an encrypted one, and `mixed` allows either. The required type is appended to the message. Only a sender with an active trust gets this answer.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_PRIVACY_TYPE'`
+- `message`: `'Artifact does not use the encryption its trust requires'`, sent as for example `'Artifact does not use the encryption its trust requires: encrypted'`
+- `status`: `400`
 
 ---
 

@@ -42,8 +42,8 @@ Agent artifacts (`BTPAgentArtifact`) are designed for client-to-server communica
 
 - **id**: Unique message identifier (UUID v4 recommended)
 - **action**: Agent action type (see Supported Actions section)
-- **agentId**: Unique identifier for the authenticated agent
-- **to**: Recipient's BTPS identity address
+- **agentId**: Unique identifier for the authenticated agent: the device id the server issued when the device registered (`btps_ag_…` by default). It is never an identity: on every action but `auth.request`, an `agentId` that is a valid identity is refused before any key is looked up (`BTP_ERROR_AGENT_ID`). The server finds the device's key only under the device's own record id, `computeAgentTrustId(agentId, owner)`, which can never be the id of a trust between two identities, so a trusted business cannot sign with its own key and act as one of the receiver's devices. The owner is the user the device acts for: on a send (`artifact.send`, `event.send`, `trust.request`, `trust.respond`) it is the `from` of the transporter artifact the device signed and carries; on any other action it is `to`. A device that carries an artifact `from` anyone but its own user is refused (`BTP_ERROR_SIG_VERIFICATION`)
+- **to**: Recipient's BTPS identity address. On a send it is the receiver; on an action on the user's own data (`inbox.fetch`, `trust.fetch`, …) it is the user's own address
 - **issuedAt**: ISO 8601 timestamp of message creation
 - **signature**: Cryptographic signature for authenticity
 
@@ -108,6 +108,8 @@ Agent artifacts (`BTPAgentArtifact`) are designed for client-to-server communica
 
 **`artifact.send`** - Used to send artifacts to other organizations.
 
+**`event.send`** - Used to send a lifecycle event (paid, partially paid, disputed, refund requested, refund, response) about an invoice, carried as a `BTPS_EVENT`. The command's options must give `relatesTo`, the `id` of the `BTPS_DOC` artifact that delivered the invoice.
+
 ## Supported Document Types
 
 ### 1. Authentication Request Document (`auth.request`)
@@ -154,6 +156,16 @@ Used to refresh authentication tokens.
 - **identity**: BTPS identity address
 - **authToken**: Refresh token for authentication renewal
 - **publicKey**: Agent's public key in PEM format
+
+**Optional Fields:**
+
+- **keyProof**: Required when `publicKey` is a new key for the device: the new key's signature (`algorithmHash`, `value`, `fingerprint`) over the canonical form of `{ "type": "btps_key_proof", "agentId", "identity", "publicKey" }`
+
+**Signing and Key Changes:**
+
+A refresh is always signed by the device's **current** key, the one the server holds for the agent, even when it names a new one. The refresh token alone is not enough: someone who stole it cannot refresh, or move the device to a key of their own, without the device's current key.
+
+To move a device to a new key, the refresh names the new key in `publicKey` and carries a `keyProof` signed by that new key. The two signatures together show one device holds both keys. A refresh that names a new key without a valid `keyProof` is refused (`BTP_ERROR_KEY_ROTATION_PROOF`) before the platform's handler runs. The SDK does both with `BtpsAuthentication.rotateKey`.
 
 ### 3. Trust Request Document (`trust.request`)
 
@@ -288,7 +300,7 @@ Used to create or update draft documents.
 
 **Required Fields:**
 
-- **type**: Document type (TRUST_REQ, TRUST_RES, BTPS_DOC)
+- **type**: Document type (TRUST_REQ, TRUST_RES, BTPS_DOC, BTPS_EVENT)
 - **document**: Document content matching the specified type
 
 ### 8. IDs Payload Document (`inbox.delete`, `sentbox.delete`, `draft.delete`, `trash.delete`)
@@ -307,16 +319,17 @@ Used to delete multiple documents.
 
 ### 9. Transporter Artifact Document (`artifact.send`)
 
-Used to send transporter artifacts to other organizations.
+Used to send transporter artifacts to other organizations. The device builds and signs the transporter artifact itself, and the agent artifact carries it as its document. Its `type` follows the action: `BTPS_DOC` for `artifact.send`, `BTPS_EVENT` for `event.send`, `TRUST_REQ` for `trust.request` and `TRUST_RES` for `trust.respond`. Its `selector` is the sender's own, from the sender domain's `_btps.host` record. The server checks the carried artifact against the transporter artifact rules, including its document against its type.
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "id": "btps_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
-  "type": "TRUST_REQ",
+  "type": "BTPS_DOC",
   "from": "billing$vendorcorp.com",
   "to": "pay$client.com",
+  "selector": "btps1",
   "document": {
     // Document content
   },
@@ -364,7 +377,7 @@ Agent artifacts support optional encryption using AES-256-GCM:
 
 - **Algorithm**: AES-256-GCM
 - **Encryption Types**: `none`, `standardEncrypt`, `2faEncrypt`
-- **Key Exchange**: RSA-OAEP or ECDH
+- **Key Exchange**: RSA-OAEP with SHA-256
 - **IV**: Random initialization vector
 - **Auth Tag**: GCM authentication tag for integrity
 - **Content**: Base64 encoded encrypted payload

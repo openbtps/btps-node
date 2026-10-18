@@ -16,6 +16,7 @@ import { BtpsClient } from './btpsClient.js';
 import type {
   BTPAgentOptions,
   BTPClientResponse,
+  BtpsAgentCommandOptions,
   BtpsAgentCommandParams,
   BtpsAgentDoc,
 } from './types/index.js';
@@ -31,29 +32,28 @@ import type {
 } from 'server/index.js';
 import type {
   BTPCryptoArtifact,
-  BTPCryptoOptions,
   BTPCryptoResponse,
+  BTPDecryptionKey,
   BTPEncryption,
-  PemKeys,
+  BTPSigningKey,
 } from '@core/crypto/types.js';
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
+import { BtpLifecycleEventSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import { validate } from '@core/utils/validation.js';
-import { AGENT_ACTIONS_REQUIRING_DOCUMENT } from '@core/server/constants/index.js';
-import { encryptBtpPayload, signBtpPayload } from '@core/crypto/index.js';
+import {
+  AGENT_ACTIONS_REQUIRING_DOCUMENT,
+  AGENT_TRANSPORTER_ACTIONS,
+} from '@core/server/constants/index.js';
+import { encryptBtpPayload, signBtpPayload, signBtpPayloadWithSigner } from '@core/crypto/index.js';
 import { randomUUID } from 'crypto';
 import { isValidIdentity } from '@core/utils/index.js';
 
-const mappedTransporterAction = {
-  'trust.request': 'TRUST_REQ',
-  'trust.respond': 'TRUST_RES',
-  'trust.update': 'TRUST_RES',
-  'trust.delete': 'TRUST_RES',
-  'artifact.send': 'BTPS_DOC',
-};
+const mappedTransporterAction = AGENT_TRANSPORTER_ACTIONS;
 
 export class BtpsAgent extends BtpsClient {
   private agentId: string;
-  private readonly keyPair: PemKeys;
+  private readonly signingKey: BTPSigningKey;
+  private readonly decryptionKey?: BTPDecryptionKey;
 
   constructor(agentOptions: BTPAgentOptions) {
     const { agent, btpIdentity, ...restOptions } = agentOptions;
@@ -62,20 +62,22 @@ export class BtpsAgent extends BtpsClient {
       ...restOptions,
     });
 
-    this.keyPair = {
-      publicKey: agent.identityCert,
-      privateKey: agent.identityKey,
-    };
+    if ('signer' in agent) {
+      this.signingKey = agent.signer;
+      this.decryptionKey = agent.decrypter;
+    } else {
+      this.signingKey = {
+        publicKey: agent.identityCert,
+        privateKey: agent.identityKey,
+      };
+      this.decryptionKey = agent.identityKey;
+    }
 
     this.agentId = agent.id;
 
-    if (
-      !agent.id ||
-      !agent.identityKey ||
-      !agent.identityCert ||
-      !btpIdentity ||
-      !isValidIdentity(btpIdentity)
-    ) {
+    const hasKey =
+      'signer' in agent ? Boolean(agent.signer) : Boolean(agent.identityKey && agent.identityCert);
+    if (!agent.id || !hasKey || !btpIdentity || !isValidIdentity(btpIdentity)) {
       throw new BTPErrorException({ message: 'Invalid agent or btpIdentity' });
     }
   }
@@ -136,10 +138,10 @@ export class BtpsAgent extends BtpsClient {
     agentArtifact.version = this.getProtocolVersion();
 
     try {
-      const signature = signBtpPayload(agentArtifact, {
-        publicKey: this.keyPair.publicKey,
-        privateKey: this.keyPair.privateKey,
-      });
+      const signature =
+        'sign' in this.signingKey
+          ? await signBtpPayloadWithSigner(agentArtifact, this.signingKey)
+          : signBtpPayload(agentArtifact, this.signingKey);
       agentArtifact.signature = signature;
 
       return {
@@ -167,7 +169,7 @@ export class BtpsAgent extends BtpsClient {
     }
     // Get the selector for the to identity
     const receiverDnsTxt = options?.encryption
-      ? (await this.resolveIdentity(to, this.options.to, this.keyPair.privateKey)).response
+      ? (await this.resolveIdentity(to, this.options.to, this.decryptionKey)).response
       : await this.resolveBtpsHostDnsTxt(to);
 
     if (!receiverDnsTxt) {
@@ -213,23 +215,38 @@ export class BtpsAgent extends BtpsClient {
       actionType as keyof typeof mappedTransporterAction
     ] as BTPArtifactType;
 
+    // An event travels in an artifact with the event's own id.
+    const event =
+      artifactType === 'BTPS_EVENT' ? BtpLifecycleEventSchema.safeParse(document) : undefined;
+
+    // An artifact names the sender's own selector, the one its key is published at.
+    const senderSelector = (await this.resolveBtpsHostDnsTxt(this.options.to))?.selector;
+    if (!senderSelector) {
+      return await this.buildClientErrorResponse(
+        new BTPErrorException(BTP_ERROR_RESOLVE_DNS, {
+          cause: `Could not resolve the selector of ${this.options.to}`,
+        }),
+      );
+    }
+
     const transporterArtifact: Omit<BTPTransporterArtifact, 'signature'> = {
-      id: randomUUID(),
+      id: event?.success ? event.data.id : randomUUID(),
       issuedAt: new Date().toISOString(),
       version: this.getProtocolVersion(),
       type: artifactType,
       document: encryptedDocument as BTPDocType | string,
       from: this.options.to,
       to: to,
-      selector: receiverDnsTxt.selector,
+      selector: senderSelector,
       encryption: encryption,
+      ...(options?.relatesTo !== undefined && { relatesTo: options.relatesTo }),
     };
 
     try {
-      const signature = signBtpPayload(transporterArtifact, {
-        publicKey: this.keyPair.publicKey,
-        privateKey: this.keyPair.privateKey,
-      });
+      const signature =
+        'sign' in this.signingKey
+          ? await signBtpPayloadWithSigner(transporterArtifact, this.signingKey)
+          : signBtpPayload(transporterArtifact, this.signingKey);
 
       return {
         payload: {
@@ -247,7 +264,7 @@ export class BtpsAgent extends BtpsClient {
     actionType: AgentAction,
     identity: string,
     document?: BtpsAgentDoc,
-    options?: BTPCryptoOptions,
+    options?: BtpsAgentCommandOptions,
     timeoutMs?: number,
   ): Promise<BTPClientResponse> {
     // Validate command parameters using schema

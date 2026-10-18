@@ -9,7 +9,8 @@ import { BtpSignatureSchema, BtpEncryptionSchema, BtpDelegationSchema } from '..
 import { identitySchema } from '../shared.js';
 import { TRANSPORTER_ACTIONS } from '../../constants/index.js';
 import { z } from 'zod';
-import { processBtpDocSchema } from '../helpers.js';
+import { lifecycleEventEnvelopeProblem, processBtpDocSchema } from '../helpers.js';
+import { BtpLifecycleEventSchema } from '../btpsDocsSchema.js';
 
 // Base schema for transporter artifacts
 export const BtpTransporterArtifactBaseSchema = z.object({
@@ -24,11 +25,21 @@ export const BtpTransporterArtifactBaseSchema = z.object({
   document: z.unknown(),
   delegation: BtpDelegationSchema.optional(),
   selector: z.string(),
+  relatesTo: z.string().min(1).optional(),
 });
 
 // Schema for transporter artifacts with document validation
 export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.superRefine(
   (data, ctx) => {
+    // An event names, outside its (possibly encrypted) document, the artifact
+    // that delivered its invoice, so a server can check it without decrypting.
+    if ((data.type === 'BTPS_EVENT') !== (data.relatesTo !== undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'relatesTo is required on a BTPS_EVENT and only there',
+        path: ['relatesTo'],
+      });
+    }
     if (data.encryption) {
       // If encrypted, document must be a string
       if (typeof data.document !== 'string') {
@@ -48,6 +59,14 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
           message: 'Document type does not match the artifact type',
           path: ['document'],
         });
+        return;
+      }
+      if (data.type === 'BTPS_EVENT') {
+        const event = BtpLifecycleEventSchema.safeParse(data.document);
+        const problem = event.success ? lifecycleEventEnvelopeProblem(event.data, data) : undefined;
+        if (problem) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem, path: ['document'] });
+        }
       }
     }
   },

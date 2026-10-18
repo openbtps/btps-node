@@ -20,6 +20,8 @@ btp*.json
 .DS_Store
 client
 !src/client
+!docs/docusaurus/docs/client
+!docs/docusaurus/docs/getting-started/client
 .env*
 *.tgz
 test
@@ -30,6 +32,7 @@ test
 !/test/signer-conformance.test.ts
 !/test/decrypter-conformance.test.ts
 !/test/conventions.test.ts
+!/test/licenseHeaders.test.ts
 !/test/vectors.json
 !/packages/verify-btps-vectors/test/
 coverage

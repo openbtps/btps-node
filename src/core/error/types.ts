@@ -8,6 +8,8 @@
 export type BTPError = {
   code?: string | number;
   message: string;
+  /** The numeric status a server answers this error with (4xx: do not resend as is; 429 and 5xx: resend later) */
+  status?: number;
 };
 
 export type BTPErrorResponse<T = unknown> = {

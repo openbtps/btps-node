@@ -22,7 +22,7 @@ Update your `package.json` to use ES modules:
 ```json
 {
   "name": "btps-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "nodemon --exec node --loader tsx src/index.ts",
@@ -30,10 +30,10 @@ Update your `package.json` to use ES modules:
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@btps/sdk": "^1.0.0"
+    "@btps/sdk": "^1.1.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^24.0.0",
     "nodemon": "^3.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
@@ -52,7 +52,8 @@ npm install
 Create `src/index.ts` with a minimal BTPS server:
 
 ```typescript
-import { BtpsServer, JsonTrustStore } from '@btps/sdk';
+import { BtpsServer } from '@btps/sdk/server';
+import { JsonTrustStore } from '@btps/sdk/trust';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -69,16 +70,12 @@ const serverIdentity = {
   privateKey: readFileSync('./keys/your-server-identity-private.pem', 'utf8'),
 };
 
-// TLS configuration (optional for development)
-const tlsOptions =
-  process.env.USE_TLS === 'true'
-    ? {
-        key: readFileSync('./keys/private.pem'),
-        cert: readFileSync('./keys/cert.pem'),
-        requestCert: false,
-        rejectUnauthorized: false,
-      }
-    : undefined;
+// TLS configuration (required: BTPS only runs over TLS). For development, a
+// self-signed certificate will do; senders then need its CA to connect.
+const tlsOptions = {
+  key: readFileSync('./keys/tls-key.pem', 'utf8'),
+  cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+};
 
 // Create BTPS server
 const server = new BtpsServer({
@@ -87,6 +84,8 @@ const server = new BtpsServer({
   port: 3443,
   tlsOptions,
   connectionTimeoutMs: 30000,
+  maxArtifactSizeKb: 5120, // the largest artifact that can be accepted, in KB (default 5 MB, minimum 1 MB)
+  maxArtifactAgeSeconds: 300, // how far issuedAt may be from this server's clock (default 5 minutes, minimum 60 seconds)
   onError: (error) => {
     console.error('Server Error:', error.message);
   },
@@ -119,6 +118,8 @@ process.on('SIGTERM', () => {
 
 startServer();
 ```
+
+Every server setting's default and minimum, and the field limits every server enforces, are on [Limits](../../protocol/specifications/limits.md).
 
 ## Create Data Directory
 
@@ -190,13 +191,14 @@ Create a simple test client to verify your server is working:
 
 ```typescript
 // test-client.ts
-import { BtpsClient } from '@btps/sdk';
+import { BtpsClient } from '@btps/sdk/client';
 
 const client = new BtpsClient({
   to: 'admin$yourdomain.com', // Target server identity
   maxRetries: 3,
   retryDelayMs: 1000,
-  connectionTimeoutMs: 5000,
+  connectTimeoutMs: 5000, // wait to connect: at least 5000 ms
+  replyTimeoutMs: 20000, // wait for the answer: at least 10000 ms
   host: 'localhost', // For development - overrides DNS lookup
   port: 3443,
   btpMtsOptions: {
@@ -208,13 +210,13 @@ async function testConnection() {
   try {
     // Create a simple control artifact to test connection
     const controlArtifact = {
-      version: '1.0.0.0',
+      version: '1.1.0',
       id: 'test_control_123',
       issuedAt: new Date().toISOString(),
       action: 'QUIT' as const,
     };
 
-    const result = await client.send(controlArtifact, 5000);
+    const result = await client.send(controlArtifact);
 
     if (result.error) {
       console.error('❌ Connection failed:', result.error.message);
@@ -249,7 +251,7 @@ Your basic server now includes:
 - **Middleware Support**: Custom middleware for request processing
 - **Error Handling**: Graceful error management
 - **Graceful Shutdown**: Proper cleanup on exit
-- **Protocol Version**: BTPS 1.0.0 compliance
+- **Protocol Version**: BTPS 1.1.0 compliance
 
 ## Environment Variables
 

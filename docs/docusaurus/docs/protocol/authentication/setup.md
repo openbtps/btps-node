@@ -224,7 +224,7 @@ setInterval(
 
 ```typescript
 import { BtpsAuthentication } from '@btps/sdk/authentication';
-import { generateKeyPair } from '@btps/sdk/crypto';
+import { getBTPKeyPair } from '@btps/sdk/crypto';
 ```
 
 ### **2. Device Registration**
@@ -239,7 +239,7 @@ class BTPSAuthManager {
   async registerDevice(authToken: string, userIdentity: string) {
     try {
       // Generate device keypair
-      this.keyPair = await generateKeyPair();
+      this.keyPair = getBTPKeyPair();
       this.userIdentity = userIdentity;
 
       // Perform authentication

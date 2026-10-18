@@ -10,10 +10,18 @@ import { BtpsServer } from '../btpsServer.js';
 import { BtpsClient } from '../../client/btpsClient.js';
 import { AbstractTrustStore } from '../../core/trust/storage/AbstractTrustStore.js';
 import { BTPTrustRecord } from '../../core/trust/types.js';
+import { computeAgentTrustId, computeTrustId } from '../../core/trust/index.js';
 import { EventEmitter } from 'events';
 import tls, { TlsOptions, TLSSocket } from 'tls';
-import { BTP_PROTOCOL_VERSION } from '../../core/server/constants/index.js';
+import { BTP_PROTOCOL_VERSION, isSupportedVersion } from '../../core/server/constants/index.js';
 import JsonTrustStore from '../../core/trust/storage/JsonTrustStore.js';
+import { AbstractIdentityStore } from '../../core/storage/AbstractIdentityStore.js';
+import type { BTPIdentityRecord, IdentityPubKeyRecord } from '../../core/storage/types.js';
+import { PemSigner } from '../../core/crypto/pem-signer.js';
+import { getFingerprintFromPem, signBtpPayload, verifySignature } from '../../core/crypto/index.js';
+import { pemToBase64 } from '../../core/utils/index.js';
+import { keyProofPayload } from '../../core/authentication/keyProof.js';
+import { generateKeyPairSync } from 'crypto';
 import path from 'path';
 import fs from 'fs/promises';
 import type { BTPRequestCtx, BTPResponseCtx, ProcessedArtifact, BtpsTlsOptions } from '../types.js';
@@ -33,7 +41,19 @@ import {
   BTP_ERROR_TRUST_EXPIRED,
   BTP_ERROR_TRUST_REVOKED,
   BTP_ERROR_TRUST_BLOCKED,
+  BTP_ERROR_EVENT_UNRELATED,
+  BTP_ERROR_ARTIFACT_TOO_LARGE,
+  BTP_ERROR_ARTIFACT_TIME_WINDOW,
+  BTP_ERROR_KEY_ROTATION_PROOF,
+  BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
+  BTP_ERROR_UNKNOWN,
+  BTP_ERROR_SIG_VERIFICATION,
+  BTP_ERROR_RATE_LIMITER,
+  BTP_ERROR_PRIVACY_TYPE,
+  BTP_ERROR_VERSION_UNSUPPORTED,
 } from '../../core/error/index.js';
+import { PassThrough } from 'stream';
+import net from 'net';
 
 const TEST_FILE = path.join(__dirname, 'test-trust-store.json');
 
@@ -60,6 +80,31 @@ class DummyTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   async getAll(): Promise<BTPTrustRecord[]> {
     return [];
   }
+  async isKnownArtifact(): Promise<boolean> {
+    return false;
+  }
+}
+
+// Holds one identity's public key record.
+class OneIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
+  private readonly record: IdentityPubKeyRecord;
+  constructor(record: IdentityPubKeyRecord) {
+    super({ connection: null });
+    this.record = record;
+  }
+  async getPublicKeyRecord() {
+    return this.record;
+  }
+  async getById() {
+    return undefined;
+  }
+  async create(): Promise<BTPIdentityRecord> {
+    throw new Error('not implemented');
+  }
+  async update(): Promise<BTPIdentityRecord> {
+    throw new Error('not implemented');
+  }
+  async delete() {}
 }
 
 describe('BtpsServer', () => {
@@ -427,6 +472,95 @@ describe('BtpsServer', () => {
 
       // We can't directly test the private _forwardArtifact method, but we can verify the method doesn't throw
       expect(handler).toBeDefined();
+    });
+
+    it('refuses a line that names a member twice as invalid JSON', () => {
+      const line = '{"version":"1.0.0","id":"c-1","action":"PING"}';
+      const duplicated = '{"version":"1.0.0","id":"c-1","action":"PING","action":"QUIT"}';
+
+      expect(server['_parseAndValidateArtifact'](line).error).not.toBe('JSON');
+      expect(server['_parseAndValidateArtifact'](duplicated)).toEqual({ error: 'JSON' });
+    });
+
+    describe('a transported artifact is answered only after its handler returns', () => {
+      const data = {
+        type: 'transporter' as const,
+        artifact: { id: 't-1' } as BTPTransporterArtifact,
+      };
+      const process = () =>
+        server['processMessage'](data, {} as BTPResponseCtx, {} as BTPRequestCtx);
+
+      it('waits for an async handler before it carries on', async () => {
+        let stored = false;
+        server.onIncomingArtifact('Transporter', async () => {
+          await new Promise((r) => setTimeout(r, 20));
+          stored = true;
+        });
+
+        await process();
+
+        expect(stored).toBe(true);
+      });
+
+      it('fails when a handler throws, so no success is answered', async () => {
+        server.onIncomingArtifact('Transporter', async () => {
+          throw new Error('queue unavailable');
+        });
+
+        await expect(process()).rejects.toThrow('queue unavailable');
+      });
+    });
+
+    describe('a server with nothing to take an artifact', () => {
+      const socket = () =>
+        ({
+          destroyed: false,
+          writableEnded: false,
+          writable: true,
+          write: vi.fn(),
+          end: vi.fn(),
+          destroy: vi.fn(),
+        }) as unknown as TLSSocket;
+      const process = (s: TLSSocket) =>
+        server['processMessage'](
+          { type: 'transporter', artifact: { id: 't-1' } as BTPTransporterArtifact },
+          { socket: s, reqId: 't-1' } as unknown as BTPResponseCtx,
+          {} as BTPRequestCtx,
+        );
+
+      it('refuses it instead of answering success', async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const s = socket();
+
+        expect(await process(s)).toBe(true);
+
+        const written: BTPServerResponse = JSON.parse((s.write as Mock).mock.calls[0]?.[0]);
+        expect(written.type).toBe('btps_error');
+        expect(written.status.message).toBe(BTP_ERROR_ARTIFACT_NOT_ACCEPTED.message);
+        expect(written.reqId).toBe('t-1');
+      });
+
+      it('takes it when onArtifact middleware delivers it', async () => {
+        server['middlewareManager']['middleware'] = [
+          { phase: 'before', step: 'onArtifact', handler: async () => {} },
+        ];
+        const s = socket();
+
+        expect(await process(s)).toBe(false);
+        expect(s.write).not.toHaveBeenCalled();
+      });
+
+      it('still refuses it when only after-onArtifact middleware, such as metrics, is loaded', async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        server['middlewareManager']['middleware'] = [
+          { phase: 'after', step: 'onArtifact', handler: async () => {} },
+        ];
+        const s = socket();
+
+        expect(await process(s)).toBe(true);
+        const written: BTPServerResponse = JSON.parse((s.write as Mock).mock.calls[0]?.[0]);
+        expect(written.status.error).toBe(BTP_ERROR_ARTIFACT_NOT_ACCEPTED.code);
+      });
     });
   });
 
@@ -834,6 +968,8 @@ export default function () {
       Object.defineProperty(socket, 'destroyed', { value: false, writable: true });
       socket.destroy = vi.fn();
       socket.pipe = vi.fn(() => new EventEmitter()) as unknown as TLSSocket['pipe'];
+      socket.unpipe = vi.fn();
+      socket.resume = vi.fn();
 
       // Mock setTimeout to capture the timeout callback
       let timeoutCallback: (() => void) | undefined;
@@ -848,15 +984,18 @@ export default function () {
       // Verify setTimeout was called
       expect(socket.setTimeout).toHaveBeenCalled();
 
-      // Simulate timeout by calling the captured callback
+      // Simulate timeout by calling the captured callback: the connection
+      // stops reading and closes gently rather than being torn down at once
       if (timeoutCallback) {
         await timeoutCallback();
-        expect(socket.destroy).toHaveBeenCalled();
+        expect(socket.unpipe).toHaveBeenCalled();
+        expect(socket.resume).toHaveBeenCalled();
+        expect(socket.destroy).not.toHaveBeenCalled();
       }
 
-      // Simulate error
+      // Simulate error: a broken socket is still torn down at once
       socket.emit('error', new Error('socket error'));
-      expect(socket.destroy).toHaveBeenCalled();
+      await vi.waitFor(() => expect(socket.destroy).toHaveBeenCalled());
     });
 
     it('handles invalid JSON and validation errors', async () => {
@@ -973,6 +1112,65 @@ export default function () {
         delegation,
       });
       expect(result.isValid).toBe(false);
+    });
+
+    describe("only the sender's domain operator may delegate", () => {
+      const keys = () =>
+        generateKeyPairSync('rsa', {
+          modulusLength: 2048,
+          publicKeyEncoding: { type: 'spki', format: 'pem' },
+          privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+        });
+      const agentKeys = keys();
+      const delegatorKeys = keys();
+
+      // An artifact from alice, signed by a device and delegated by `signedBy`
+      // with `delegatorKeys`, which DNS publishes for `signedBy`.
+      const delegatedBy = async (signedBy: string, operator: string) => {
+        const utils = await import('../../core/utils/index.js');
+        vi.spyOn(utils, 'getHostAndSelector').mockResolvedValue({
+          version: '1.0.0',
+          host: 'btps.saas.test',
+          selector: 'btps1',
+          operator,
+        });
+        vi.spyOn(utils, 'resolvePublicKey').mockResolvedValue(delegatorKeys.publicKey);
+        const unsigned = {
+          version: '1.0.0',
+          id: 'd-1',
+          type: 'BTPS_DOC' as const,
+          from: 'alice$saas.test',
+          to: 'bob$other.test',
+          issuedAt: new Date().toISOString(),
+          encryption: null,
+          document: 'document',
+          selector: 'btps1',
+        };
+        const artifact = { ...unsigned, signature: signBtpPayload(unsigned, agentKeys) };
+        const delegation = {
+          agentId: 'device-1',
+          agentPubKey: agentKeys.publicKey,
+          signedBy,
+          issuedAt: new Date().toISOString(),
+          selector: 'btps1',
+        };
+        const signature = signBtpPayload({ ...artifact, delegation }, delegatorKeys);
+        return server['verifyDelegation']({
+          ...artifact,
+          delegation: { ...delegation, signature },
+        } as BTPTransporterArtifact & { delegation: BTPDelegation });
+      };
+
+      it('refuses another user on the same domain, with a key of her own', async () => {
+        const result = await delegatedBy('mallory$saas.test', 'admin$saas.test');
+
+        expect(result.isValid).toBe(false);
+        expect(String(result.error?.cause)).toContain('is not the operator');
+      });
+
+      it('accepts the operator', async () => {
+        expect((await delegatedBy('admin$saas.test', 'admin$saas.test')).isValid).toBe(true);
+      });
     });
 
     it('covers verifySignature error path (missing pubkey)', async () => {
@@ -1557,6 +1755,8 @@ export default function () {
           id: 'test-trust-id',
           from: 'test-agent',
           to: 'test-to',
+          senderId: 'test-agent',
+          receiverId: 'test-to',
           publicKeyBase64: 'VEVTVF9LRVlfQkFTRTY0',
           publicKeyFingerprint: 'test-fingerprint',
           status: 'active',
@@ -1579,15 +1779,38 @@ export default function () {
             fingerprint: 'test-fingerprint',
           },
           encryption: null,
-          document: {},
+          // A send carries the transporter artifact the device signed, from its own user.
+          document: { from: 'test-owner', to: 'test-to' } as BTPAgentArtifact['document'],
         };
 
         const result = await server['getAgentPublicKey'](artifact);
         expect(result).toBe(
           '-----BEGIN PUBLIC KEY-----\nVEVTVF9LRVlfQkFTRTY0\n-----END PUBLIC KEY-----',
         );
+        // A device's record is looked up under the device id and its owner, never a
+        // trust id between identities, and never under the receiver of a send.
         expect(trustStore.getById).toHaveBeenCalledWith(
-          '8443508bfad3c67ae0c6adc3aab01da86339e11489c209b16c1d217b4de5da6b',
+          computeAgentTrustId('test-agent', 'test-owner'),
+        );
+      });
+
+      it("looks a device up under `to` on an action on its user's own data", async () => {
+        trustStore.getById = vi.fn().mockResolvedValue(null);
+        const artifact = {
+          id: 'test-id',
+          agentId: 'test-agent',
+          action: 'inbox.fetch',
+          to: 'test-owner',
+          issuedAt: new Date().toISOString(),
+          signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
+          encryption: null,
+          document: { limit: 10 },
+        } as BTPAgentArtifact;
+
+        await server['getAgentPublicKey'](artifact);
+
+        expect(trustStore.getById).toHaveBeenCalledWith(
+          computeAgentTrustId('test-agent', 'test-owner'),
         );
       });
 
@@ -1614,11 +1837,13 @@ export default function () {
         expect(result).toBe(null);
       });
 
-      it('should return new public key for refreshing agents with different fingerprint', async () => {
+      it('returns the stored key for a refresh that names a new key: the current key must sign it', async () => {
         const mockTrustRecord = {
           id: 'test-trust-id',
           from: 'test-agent',
           to: 'test-to',
+          senderId: 'test-agent',
+          receiverId: 'test-to',
           publicKeyBase64: 'VEVTVF9LRVlfQkFTRTY0',
           publicKeyFingerprint: 'old-fingerprint',
           status: 'active',
@@ -1655,7 +1880,94 @@ export default function () {
         vi.spyOn(crypto, 'getFingerprintFromPem').mockReturnValue('new-fingerprint');
 
         const result = await server['getAgentPublicKey'](artifact);
-        expect(result).toBe('-----BEGIN PUBLIC KEY-----\nNEW_KEY\n-----END PUBLIC KEY-----');
+        expect(result).not.toContain('NEW_KEY');
+        expect(result).toContain('-----BEGIN PUBLIC KEY-----');
+      });
+    });
+
+    describe('auth.refresh and the device key', () => {
+      const keyPair = () =>
+        generateKeyPairSync('rsa', {
+          modulusLength: 2048,
+          publicKeyEncoding: { type: 'spki', format: 'pem' },
+          privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+        });
+      const current = keyPair();
+      const identity = 'alice$example.com';
+
+      // An auth.refresh naming `publicKey`, signed by `signedBy`.
+      const refresh = (
+        signedBy: { publicKey: string; privateKey: string },
+        publicKey: string,
+        keyProof?: BTPAuthReqDoc['keyProof'],
+      ): BTPAgentArtifact => {
+        const unsigned = {
+          version: '1.0.0',
+          id: 'refresh-1',
+          agentId: 'agent-1',
+          action: 'auth.refresh' as const,
+          to: identity,
+          issuedAt: new Date().toISOString(),
+          encryption: null,
+          document: {
+            identity,
+            authToken: 'refresh-token',
+            publicKey,
+            ...(keyProof && { keyProof }),
+          },
+        };
+        return { ...unsigned, signature: signBtpPayload(unsigned, signedBy) };
+      };
+      const proof = (newKey: { publicKey: string; privateKey: string }, publicKey: string) =>
+        signBtpPayload(keyProofPayload('agent-1', identity, publicKey), newKey);
+
+      beforeEach(() => {
+        trustStore.getById = vi.fn().mockResolvedValue({
+          id: 'trust-id',
+          senderId: 'agent-1',
+          receiverId: identity,
+          status: 'accepted',
+          createdAt: new Date().toISOString(),
+          decidedBy: identity,
+          decidedAt: new Date().toISOString(),
+          publicKeyBase64: pemToBase64(current.publicKey),
+          publicKeyFingerprint: getFingerprintFromPem(current.publicKey),
+          keyHistory: [],
+          privacyType: 'unencrypted',
+        });
+      });
+
+      it('accepts a refresh with the same key, signed by it', async () => {
+        const result = await server['verifyAgentSignature'](refresh(current, current.publicKey));
+        expect(result.isValid).toBe(true);
+      });
+
+      it('refuses a refresh that moves to a new key signed only by that new key: a stolen token is not enough', async () => {
+        const attacker = keyPair();
+        const result = await server['verifyAgentSignature'](
+          refresh(attacker, attacker.publicKey, proof(attacker, attacker.publicKey)),
+        );
+        expect(result.isValid).toBe(false);
+      });
+
+      it('accepts a move to a new key signed by the current key with a proof from the new key', async () => {
+        const next = keyPair();
+        const result = await server['verifyAgentSignature'](
+          refresh(current, next.publicKey, proof(next, next.publicKey)),
+        );
+        expect(result).toEqual({ isValid: true, error: undefined });
+      });
+
+      it('refuses a move to a new key without a proof, or with a proof the new key did not sign', async () => {
+        const next = keyPair();
+        const other = keyPair();
+        for (const keyProof of [undefined, proof(other, next.publicKey)]) {
+          const result = await server['verifyAgentSignature'](
+            refresh(current, next.publicKey, keyProof),
+          );
+          expect(result.isValid).toBe(false);
+          expect(result.error?.code).toBe(BTP_ERROR_KEY_ROTATION_PROOF.code);
+        }
       });
     });
 
@@ -1739,6 +2051,87 @@ export default function () {
       });
     });
 
+    describe('probing for registered devices', () => {
+      const keyPair = () =>
+        generateKeyPairSync('rsa', {
+          modulusLength: 2048,
+          publicKeyEncoding: { type: 'spki', format: 'pem' },
+          privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+        });
+
+      it('answers an unknown device and a wrong key alike', async () => {
+        const deviceKeys = keyPair();
+        const proberKeys = keyPair();
+        const unsigned = {
+          version: '1.0.0',
+          id: 'probe-1',
+          agentId: 'btps_ag_probe',
+          action: 'inbox.fetch' as const,
+          to: 'bob$example.com',
+          issuedAt: new Date().toISOString(),
+          encryption: null,
+          document: { limit: 1 },
+        };
+        const artifact = {
+          ...unsigned,
+          signature: signBtpPayload(unsigned, proberKeys),
+        } as BTPAgentArtifact;
+        const answerWith = async (registeredKey: string | undefined) => {
+          server['getAgentPublicKey'] = vi.fn().mockResolvedValue(registeredKey);
+          return (await server['verifyAgentSignature'](artifact)).error;
+        };
+
+        const unknown = await answerWith(undefined);
+        const registered = await answerWith(deviceKeys.publicKey);
+
+        expect(unknown?.code).toBe(BTP_ERROR_SIG_VERIFICATION.code);
+        expect(registered?.code).toBe(BTP_ERROR_SIG_VERIFICATION.code);
+        expect(registered?.message).toBe(unknown?.message);
+      });
+    });
+
+    describe('what a sender is told about an error', () => {
+      it('sends a BTPS error with its status and its code', () => {
+        expect(server['wireStatus'](BTP_ERROR_RATE_LIMITER)).toEqual({
+          ok: false,
+          code: 429,
+          message: BTP_ERROR_RATE_LIMITER.message,
+          error: BTP_ERROR_RATE_LIMITER.code,
+        });
+      });
+
+      it('keeps the status of an error sent with its limit', () => {
+        const error = new BTPErrorException({
+          ...BTP_ERROR_ARTIFACT_TOO_LARGE,
+          message: `${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 1024 KB`,
+        });
+        expect(server['wireStatus'](error)).toMatchObject({
+          code: 413,
+          error: BTP_ERROR_ARTIFACT_TOO_LARGE.code,
+        });
+      });
+
+      it('sends a numeric code set by middleware as given', () => {
+        expect(server['wireStatus']({ code: 402, message: 'Payment required' })).toEqual({
+          ok: false,
+          code: 402,
+          message: 'Payment required',
+        });
+      });
+
+      it('never sends the detail of an internal error', () => {
+        const status = server['wireStatus'](
+          new BTPErrorException({ code: 'ECONNREFUSED', message: 'connect 10.0.0.5:5432' }),
+        );
+        expect(status).toEqual({
+          ok: false,
+          code: 500,
+          message: BTP_ERROR_UNKNOWN.message,
+          error: BTP_ERROR_UNKNOWN.code,
+        });
+      });
+    });
+
     describe('verifyAgentTrust', () => {
       it('should return trusted for onboarding agents', async () => {
         const artifact: BTPAgentArtifact = {
@@ -1767,6 +2160,8 @@ export default function () {
           id: 'test-trust-id',
           from: 'test-agent',
           to: 'test-to',
+          senderId: 'test-agent',
+          receiverId: 'test-to',
           publicKeyBase64: 'VEVTVF9LRVlfQkFTRTY0',
           publicKeyFingerprint: 'test-fingerprint',
           status: 'active',
@@ -1820,6 +2215,61 @@ export default function () {
         expect(result.isTrusted).toBe(false);
         expect(result.error).toBeInstanceOf(BTPErrorException);
         expect(result.error?.message).toContain('BTPS trust request is not allowed');
+      });
+    });
+
+    describe('verifyEventRelation', () => {
+      const transporter = (
+        type: BTPTransporterArtifact['type'],
+        relatesTo?: string,
+      ): ProcessedArtifact => ({
+        type: 'transporter',
+        artifact: {
+          version: '1.0.0',
+          id: 'event-id',
+          issuedAt: new Date().toISOString(),
+          type,
+          from: 'billing$payer.com',
+          to: 'billing$issuer.com',
+          selector: 'btps1',
+          signature: { algorithmHash: 'sha256', value: 'sig', fingerprint: 'fp' },
+          encryption: null,
+          document: 'encrypted',
+          ...(relatesTo !== undefined && { relatesTo }),
+        },
+      });
+
+      it('passes an artifact that is not an event without asking the store', async () => {
+        const spy = vi.spyOn(trustStore, 'isKnownArtifact');
+        const result = await server['verifyEventRelation'](transporter('BTPS_DOC'));
+        expect(result.isTrusted).toBe(true);
+        expect(spy).not.toHaveBeenCalled();
+      });
+
+      it('accepts an event whose relatesTo the store knows between the two parties', async () => {
+        const spy = vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(true);
+        const result = await server['verifyEventRelation'](transporter('BTPS_EVENT', 'doc-1'));
+        expect(result).toEqual({ isTrusted: true, error: undefined });
+        expect(spy).toHaveBeenCalledWith({
+          artifactId: 'doc-1',
+          from: 'billing$payer.com',
+          to: 'billing$issuer.com',
+        });
+      });
+
+      it('refuses an event whose relatesTo the store does not know', async () => {
+        vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(false);
+        const result = await server['verifyEventRelation'](transporter('BTPS_EVENT', 'doc-1'));
+        expect(result.isTrusted).toBe(false);
+        expect(result.error?.code).toBe(BTP_ERROR_EVENT_UNRELATED.code);
+      });
+
+      it('refuses an event without relatesTo without asking the store', async () => {
+        const spy = vi.spyOn(trustStore, 'isKnownArtifact');
+        const result = await server['verifyEventRelation'](transporter('BTPS_EVENT'));
+        expect(result.isTrusted).toBe(false);
+        expect(result.error?.code).toBe(BTP_ERROR_EVENT_UNRELATED.code);
+        expect(spy).not.toHaveBeenCalled();
       });
     });
 
@@ -1892,7 +2342,152 @@ export default function () {
       });
     });
 
-    describe('trust-refusal error codes (EBA-124)', () => {
+    describe('trust for lifecycle events', () => {
+      // A asked to send to B and B accepted: the store holds A -> B.
+      const biller = 'billing$acme.com';
+      const payer = 'pay$client.com';
+      const outsider = 'someone$else.com';
+
+      const record = (
+        senderId: string,
+        receiverId: string,
+        status: BTPTrustRecord['status'] = 'accepted',
+      ): BTPTrustRecord => ({
+        id: computeTrustId(senderId, receiverId),
+        senderId,
+        receiverId,
+        status,
+        createdAt: new Date().toISOString(),
+        decidedBy: receiverId,
+        decidedAt: new Date().toISOString(),
+        publicKeyBase64: 'key',
+        publicKeyFingerprint: 'fp',
+        keyHistory: [],
+        privacyType: 'unencrypted',
+      });
+      const storeHolding = (...records: BTPTrustRecord[]) => {
+        const byId = new Map(records.map((r) => [r.id, r]));
+        trustStore.getById = vi.fn(async (id: string) => byId.get(id));
+      };
+      const artifact = (type: 'BTPS_EVENT' | 'BTPS_DOC', from: string, to: string) => ({
+        artifact: {
+          version: '1.0.0',
+          id: 'artifact-id',
+          type,
+          from,
+          to,
+          issuedAt: new Date().toISOString(),
+          signature: { algorithmHash: 'sha256' as const, value: 'v', fingerprint: 'f' },
+          encryption: null,
+          document: 'document',
+          selector: 'btps1',
+        },
+        type: 'transporter' as const,
+      });
+
+      it("accepts the payer's event over the biller's own trust to the payer", async () => {
+        storeHolding(record(biller, payer));
+        const result = await server['verifyTrust'](artifact('BTPS_EVENT', payer, biller));
+        expect(result.isTrusted).toBe(true);
+      });
+
+      it("refuses the payer's invoice over that trust: an invoice needs a trust of its own", async () => {
+        storeHolding(record(biller, payer));
+        const result = await server['verifyTrust'](artifact('BTPS_DOC', payer, biller));
+        expect(result.isTrusted).toBe(false);
+      });
+
+      it('refuses an event from a third party with no trust either way', async () => {
+        storeHolding(record(biller, payer));
+        const result = await server['verifyTrust'](artifact('BTPS_EVENT', outsider, biller));
+        expect(result.isTrusted).toBe(false);
+      });
+
+      it("refuses the payer's event once the biller's trust is revoked", async () => {
+        storeHolding(record(biller, payer, 'revoked'));
+        const result = await server['verifyTrust'](artifact('BTPS_EVENT', payer, biller));
+        expect(result.isTrusted).toBe(false);
+      });
+
+      it("accepts the biller's event over its own trust, as before", async () => {
+        storeHolding(record(biller, payer));
+        const result = await server['verifyTrust'](artifact('BTPS_EVENT', biller, payer));
+        expect(result.isTrusted).toBe(true);
+      });
+
+      describe('through the whole pipeline, an event over either trust must still relate to an invoice', () => {
+        const socket = () =>
+          ({
+            destroyed: false,
+            writableEnded: false,
+            writable: true,
+            write: vi.fn(),
+            end: vi.fn(),
+          }) as unknown as TLSSocket;
+        const run = async (sock: TLSSocket) => {
+          const data = {
+            type: 'transporter' as const,
+            artifact: { ...artifact('BTPS_EVENT', payer, biller).artifact, relatesTo: 'doc-1' },
+          };
+          const reqCtx = {
+            socket: sock,
+            startTime: new Date().toISOString(),
+            remoteAddress: '127.0.0.1',
+            data,
+          } as unknown as BTPRequestCtx<'before', 'signatureVerification'>;
+          const resCtx = {
+            socket: sock,
+            startTime: new Date().toISOString(),
+            remoteAddress: '127.0.0.1',
+            reqId: 'test-req-id',
+            data,
+            responseSent: false,
+            sendRes: () => {},
+            sendError: () => {},
+          } as unknown as BTPResponseCtx<'before', 'signatureVerification'>;
+          await server['executeRequestPipeline'](reqCtx, resCtx);
+          return reqCtx;
+        };
+
+        beforeEach(async () => {
+          const utils = await import('../../core/utils/index.js');
+          vi.spyOn(utils, 'resolvePublicKey').mockResolvedValue(
+            '-----BEGIN PUBLIC KEY-----\nTEST\n-----END PUBLIC KEY-----',
+          );
+          const crypto = await import('../../core/crypto/index.js');
+          vi.spyOn(crypto, 'verifySignature').mockReturnValue({ isValid: true });
+        });
+
+        it("refuses the payer's event over the biller's trust when relatesTo is not a known invoice", async () => {
+          storeHolding(record(biller, payer));
+          const isKnown = vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(false);
+          const sock = socket();
+
+          const reqCtx = await run(sock);
+
+          expect(isKnown).toHaveBeenCalledWith({ artifactId: 'doc-1', from: payer, to: biller });
+          expect(reqCtx.isTrusted).toBe(false);
+          expect(reqCtx.error?.code).toBe(BTP_ERROR_EVENT_UNRELATED.code);
+          const written = JSON.parse(
+            (sock.write as Mock).mock.calls[0][0] as string,
+          ) as BTPServerResponse;
+          expect(written.type).toBe('btps_error');
+          expect(written.status.message).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.message);
+        });
+
+        it("accepts the payer's event over the biller's trust when relatesTo is a known invoice", async () => {
+          storeHolding(record(biller, payer));
+          vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(true);
+
+          const reqCtx = await run(socket());
+
+          expect(reqCtx.isTrusted).toBe(true);
+          expect(reqCtx.error).toBeUndefined();
+        });
+      });
+    });
+
+    describe('trust-refusal error codes', () => {
       const PAST = new Date('2020-01-01T00:00:00.000Z').toISOString();
 
       const transporterArtifact = (): BTPTransporterArtifact => ({
@@ -2037,19 +2632,11 @@ export default function () {
         });
       });
 
-      // "Wire error codes" AC: option B (decided 2026-10-06) - expired and
-      // not-allowed/revoked are meant to be distinguishable by a sender.
-      // In the real implementation that distinction lives in `status.message`
-      // only: `status.code` is a coarse bucket (200/404/403/500 - see
-      // BTPStatus, core/server/types.ts) and sendBtpsError's
-      // `typeof error.code === 'number' ? error.code : 500` fallback
-      // (btpsServer.ts:1178) makes it 500 for every BTPError here, since none
-      // of their `code` fields are numbers. These tests assert on the actual
-      // socket.write() payload, not on which BTPError constant the
-      // trust-refusal path happened to pick internally, so that fallback
-      // can't hide behind a pre-serialization spy.
-      // This exercises the trust-refusal path in executeRequestPipeline
-      // (btpsServer.ts, around :543).
+      // Expired is distinguishable by a sender; revoked, blocked and
+      // never-trusted all read as not-allowed. Both are 403, told apart by
+      // `status.error`. These tests assert on the actual socket.write()
+      // payload, not on which BTPError constant the trust-refusal path picked
+      // internally.
       describe('wire error codes (trust-refusal path)', () => {
         const buildMockSocket = () =>
           ({
@@ -2096,6 +2683,50 @@ export default function () {
           vi.spyOn(crypto, 'verifySignature').mockReturnValue({ isValid: true });
         });
 
+        it('refuses an artifact sent in the clear over an encrypted trust', async () => {
+          trustStore.getById = vi.fn().mockResolvedValue(trustRecord({ privacyType: 'encrypted' }));
+          const socket = buildMockSocket();
+          const { reqCtx, resCtx } = buildPipelineCtx(socket, transporterArtifact());
+
+          await server['executeRequestPipeline'](reqCtx, resCtx);
+
+          const written = writtenPayload(socket);
+          expect(written.status).toMatchObject({
+            ok: false,
+            code: 400,
+            message: `${BTP_ERROR_PRIVACY_TYPE.message}: encrypted`,
+            error: BTP_ERROR_PRIVACY_TYPE.code,
+          });
+        });
+
+        it('refuses an encrypted artifact over an unencrypted trust, and takes either over mixed', async () => {
+          const encrypted = {
+            ...transporterArtifact(),
+            encryption: {
+              algorithm: 'aes-256-gcm',
+              encryptedKey: 'k',
+              iv: 'i',
+              type: 'standardEncrypt',
+              authTag: 't',
+            },
+          } as BTPTransporterArtifact;
+          const check = (
+            privacyType: BTPTrustRecord['privacyType'],
+            artifact: BTPTransporterArtifact,
+          ) => {
+            trustStore.getById = vi.fn().mockResolvedValue(trustRecord({ privacyType }));
+            return server['verifyTrust']({ artifact, type: 'transporter' });
+          };
+
+          expect((await check('unencrypted', encrypted)).error?.code).toBe(
+            BTP_ERROR_PRIVACY_TYPE.code,
+          );
+          expect((await check('unencrypted', transporterArtifact())).isTrusted).toBe(true);
+          expect((await check('mixed', encrypted)).isTrusted).toBe(true);
+          expect((await check('mixed', transporterArtifact())).isTrusted).toBe(true);
+          expect((await check('encrypted', encrypted)).isTrusted).toBe(true);
+        });
+
         it('sends a not-allowed refusal on the wire for a never-trusted sender', async () => {
           trustStore.getById = vi.fn().mockResolvedValue(undefined);
           const socket = buildMockSocket();
@@ -2107,6 +2738,28 @@ export default function () {
           expect(written.type).toBe('btps_error');
           expect(written.status.ok).toBe(false);
           expect(written.status.message).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.message);
+        });
+
+        it('refuses a validly signed artifact issued outside the time window, before trust, and keeps the connection', async () => {
+          const getById = vi.fn().mockResolvedValue(trustRecord({}));
+          trustStore.getById = getById;
+          const socket = buildMockSocket();
+          const sixMinutesAgo = new Date(Date.now() - 6 * 60 * 1000).toISOString();
+          const { reqCtx, resCtx } = buildPipelineCtx(socket, {
+            ...transporterArtifact(),
+            issuedAt: sixMinutesAgo,
+          });
+
+          await server['executeRequestPipeline'](reqCtx, resCtx);
+
+          const written = writtenPayload(socket);
+          expect(written.type).toBe('btps_error');
+          expect(written.status.message).toBe(
+            `${BTP_ERROR_ARTIFACT_TIME_WINDOW.message}: 300 seconds`,
+          );
+          expect(reqCtx.error?.code).toBe(BTP_ERROR_ARTIFACT_TIME_WINDOW.code);
+          expect(getById).not.toHaveBeenCalled();
+          expect(socket.end).not.toHaveBeenCalled();
         });
 
         it('sends a distinguishable refusal message on the wire for an expired trust', async () => {
@@ -2123,11 +2776,8 @@ export default function () {
           expect(written.status.ok).toBe(false);
           expect(written.status.message).toBe(BTP_ERROR_TRUST_EXPIRED.message);
           expect(written.status.message).not.toBe(BTP_ERROR_TRUST_NOT_ALLOWED.message);
-          // Not a distinguishing field here - see the describe-block comment
-          // above. Asserted explicitly so a future change to the sendBtpsError
-          // fallback (making `code` error-specific) doesn't silently regress
-          // unnoticed.
-          expect(written.status.code).toBe(500);
+          expect(written.status.code).toBe(403);
+          expect(written.status.error).toBe(BTP_ERROR_TRUST_EXPIRED.code);
         });
 
         it('sends a not-allowed refusal on the wire for a revoked trust', async () => {
@@ -2141,6 +2791,9 @@ export default function () {
           expect(written.type).toBe('btps_error');
           expect(written.status.ok).toBe(false);
           expect(written.status.message).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.message);
+          // A revoked sender reads exactly what a never-trusted one does.
+          expect(written.status.code).toBe(403);
+          expect(written.status.error).toBe(BTP_ERROR_TRUST_NOT_ALLOWED.code);
         });
 
         // Round 1 finding: a blocked/rejected/pending record with a past
@@ -2310,6 +2963,621 @@ export default function () {
           expect(client.states.shouldRetry).toBe(false);
         });
       });
+    });
+  });
+
+  describe('a server key held elsewhere (a Signer)', () => {
+    it('signs an identity lookup answer through the Signer, verifiable with the server key', async () => {
+      const keys = generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      });
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', signer: new PemSigner(keys) },
+        trustStore: new DummyTrustStore(),
+        identityStore: new OneIdentityStore({
+          selector: 'btps1',
+          publicKey: 'identity-public-key',
+          keyType: 'rsa',
+          version: '1.0.0',
+          createdAt: new Date().toISOString(),
+        }),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const sent = vi.fn();
+      server['sendBtpsResponse'] = sent;
+      const socket = {} as TLSSocket;
+
+      await server['handleIdentityLookup'](
+        {
+          version: '1.0.0',
+          id: 'lookup-1',
+          issuedAt: new Date().toISOString(),
+          identity: 'alice$example.com',
+          from: 'bob$other.com',
+          hostSelector: 'btps1',
+        },
+        {
+          req: { socket } as unknown as BTPRequestCtx,
+          res: { socket, reqId: 'req-1' } as unknown as BTPResponseCtx,
+        },
+      );
+
+      const response: BTPServerResponse = sent.mock.calls[0]?.[1];
+      const { signature, ...signed } = response;
+      expect(signed.signedBy).toBe('host$example.com');
+      expect(signature && verifySignature(signed, signature, keys.publicKey).isValid).toBe(true);
+    });
+  });
+
+  describe('artifact size limit', () => {
+    const connect = (server: BtpsServer) => {
+      const input = new PassThrough();
+      const socket = Object.assign(new EventEmitter(), {
+        remoteAddress: '1.2.3.4',
+        destroyed: false,
+        writableEnded: false,
+        writable: true,
+        pipe: <T extends NodeJS.WritableStream>(destination: T) => input.pipe(destination),
+        setTimeout: vi.fn(),
+        write: vi.fn(),
+        end: vi.fn(),
+        destroy: vi.fn(),
+        unpipe: vi.fn(),
+        resume: vi.fn(),
+      }) as unknown as TLSSocket;
+      server['handleConnection'](socket);
+      return { input, socket };
+    };
+    const makeServer = (maxArtifactSizeKb?: number) =>
+      new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        maxArtifactSizeKb,
+      });
+
+    it('refuses an artifact over its limit with the limit in the message, then ends gently', async () => {
+      const { input, socket } = connect(makeServer(2048));
+
+      input.write(Buffer.alloc(2048 * 1024 + 1, 'a'));
+      await vi.waitFor(() => expect(socket.end).toHaveBeenCalled());
+
+      expect(socket.destroy).not.toHaveBeenCalled();
+      expect(socket.write).toHaveBeenCalledTimes(1);
+      const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
+      expect(written.type).toBe('btps_error');
+      expect(written.status.ok).toBe(false);
+      expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 2048 KB`);
+    });
+
+    it('starts with a warning and the 1024 KB minimum when set lower', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const { input, socket } = connect(makeServer(100));
+
+      input.write(Buffer.alloc(1024 * 1024 + 1, 'a'));
+      await vi.waitFor(() => expect(socket.end).toHaveBeenCalled());
+
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('below the 1024 KB minimum'));
+      const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
+      expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 1024 KB`);
+    });
+
+    it('delivers the refusal over a real connection to a sender that is still sending', async () => {
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        maxArtifactSizeKb: 1024,
+        connectionTimeoutMs: 2000,
+      });
+      // TCP, not TLS: losing an answer to a reset happens at the TCP level.
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+
+      try {
+        const answer = await new Promise<string>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const end = received.indexOf('\n');
+            if (end !== -1) resolve(received.slice(0, end));
+          });
+          client.on('error', reject);
+          client.on('close', () => reject(new Error(`closed without an answer: ${received}`)));
+          // Like a sender across a network, it reads the answer some time after
+          // it arrives: a connection reset in between would discard it unread.
+          client.pause();
+          setTimeout(() => client.resume(), 300);
+          // A sender that does not know the limit keeps sending well past it.
+          const chunk = Buffer.alloc(64 * 1024, 'a');
+          let sent = 0;
+          const pump = () => {
+            while (sent < 4 * 1024 * 1024) {
+              sent += chunk.length;
+              if (!client.write(chunk)) {
+                client.once('drain', pump);
+                return;
+              }
+            }
+            client.end();
+          };
+          pump();
+        });
+
+        const written: BTPServerResponse = JSON.parse(answer);
+        expect(written.type).toBe('btps_error');
+        expect(written.status.message).toBe(`${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 1024 KB`);
+      } finally {
+        tcp.close();
+      }
+    });
+  });
+
+  describe('the protocol version', () => {
+    it('refuses a 1.0 artifact before any signature work, naming what it supports', async () => {
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+
+      try {
+        const answer = await new Promise<BTPServerResponse>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const end = received.indexOf('\n');
+            if (end !== -1) {
+              client.end();
+              resolve(JSON.parse(received.slice(0, end)));
+            }
+          });
+          client.on('error', reject);
+          client.write(
+            `{"version":"1.0.0","id":"old","issuedAt":"${new Date().toISOString()}","action":"PING"}\n`,
+          );
+        });
+
+        expect(answer.status).toMatchObject({
+          ok: false,
+          code: 400,
+          error: BTP_ERROR_VERSION_UNSUPPORTED.code,
+          message: `${BTP_ERROR_VERSION_UNSUPPORTED.message}: supports 1.1.0 to 1.1.0`,
+        });
+        expect(answer.reqId).toBe('old');
+        expect(answer.version).toBe('1.1.0');
+      } finally {
+        tcp.close();
+      }
+    });
+
+    it('speaks 1.1, and any 1.1 patch, but not 1.0, 1.2 or a malformed version', () => {
+      expect(isSupportedVersion('1.1.0')).toBe(true);
+      expect(isSupportedVersion('1.1.7')).toBe(true);
+      expect(isSupportedVersion('1.1')).toBe(true);
+      expect(isSupportedVersion('1.0.0')).toBe(false);
+      expect(isSupportedVersion('1.2.0')).toBe(false);
+      expect(isSupportedVersion('1.0.0.0')).toBe(false);
+      expect(isSupportedVersion('v1.1.0')).toBe(false);
+      expect(isSupportedVersion(undefined)).toBe(false);
+    });
+  });
+
+  describe('the idle timeout', () => {
+    it('never closes a connection while one of its requests is handled', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // An idle timeout far below how long the request takes: no minimum applies.
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        connectionTimeoutMs: 100,
+      });
+      expect(warn).not.toHaveBeenCalled();
+      btps['middlewareManager']['middleware'] = [
+        {
+          phase: 'before',
+          step: 'parsing',
+          handler: async () => {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          },
+        },
+      ];
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+
+      try {
+        const answer = await new Promise<BTPServerResponse>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const end = received.indexOf('\n');
+            if (end !== -1) {
+              client.end();
+              resolve(JSON.parse(received.slice(0, end)));
+            }
+          });
+          client.on('error', reject);
+          client.write(
+            `{"version":"${BTP_PROTOCOL_VERSION}","id":"slow","issuedAt":"${new Date().toISOString()}","action":"PING"}\n`,
+          );
+        });
+
+        expect(answer.status.message).toBe('Server is operational');
+        expect(answer.reqId).toBe('slow');
+      } finally {
+        tcp.close();
+      }
+    });
+  });
+
+  describe('several artifacts on one connection', () => {
+    it('answers the next artifact after a middleware answered the one before', async () => {
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        connectionTimeoutMs: 2000,
+      });
+      // A middleware that answers the first artifact itself, as a filter does.
+      btps['middlewareManager']['middleware'] = [
+        {
+          phase: 'before',
+          step: 'parsing',
+          handler: async (req, res) => {
+            if (req.rawPacket?.includes('"first"')) {
+              res.sendRes({
+                ...btps.prepareBtpsResponse({ ok: true, message: 'filtered', code: 200 }),
+                type: 'btps_response',
+              });
+            }
+          },
+        },
+      ];
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+      const issuedAt = new Date().toISOString();
+
+      try {
+        const answers = await new Promise<BTPServerResponse[]>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const lines = received.split('\n').filter(Boolean);
+            if (lines.length === 2) {
+              client.end();
+              resolve(lines.map((l) => JSON.parse(l)));
+            }
+          });
+          client.on('error', reject);
+          setTimeout(() => reject(new Error(`no second answer: ${received}`)), 1000);
+          client.write(
+            `{"version":"${BTP_PROTOCOL_VERSION}","id":"first","issuedAt":"${issuedAt}","action":"PING"}\n`,
+          );
+          setTimeout(
+            () =>
+              client.write(
+                `{"version":"${BTP_PROTOCOL_VERSION}","id":"second","issuedAt":"${issuedAt}","action":"PING"}\n`,
+              ),
+            100,
+          );
+        });
+
+        expect(answers[0]?.status.message).toBe('filtered');
+        expect(answers[1]?.status.message).toBe('Server is operational');
+        expect(answers[1]?.reqId).toBe('second');
+      } finally {
+        tcp.close();
+      }
+    });
+  });
+
+  describe('closing gently after an unexpected error', () => {
+    it('delivers the error to a sender that is still sending its next artifact', async () => {
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        maxArtifactSizeKb: 10240,
+        connectionTimeoutMs: 2000,
+      });
+      btps['_parseAndValidateArtifact'] = vi.fn(() => {
+        throw new Error('unexpected failure');
+      });
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      // TCP, not TLS: losing an answer to a reset happens at the TCP level.
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+
+      try {
+        const answer = await new Promise<string>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const end = received.indexOf('\n');
+            if (end !== -1) resolve(received.slice(0, end));
+          });
+          client.on('error', reject);
+          client.on('close', () => reject(new Error(`closed without an answer: ${received}`)));
+          // Like a sender across a network, it reads the answer some time after
+          // it arrives: a connection reset in between would discard it unread.
+          client.pause();
+          setTimeout(() => client.resume(), 300);
+          // One artifact, then straight on to sending the next, before any answer.
+          client.write('{}\n');
+          const chunk = Buffer.alloc(64 * 1024, 'a');
+          let sent = 0;
+          const pump = () => {
+            while (sent < 4 * 1024 * 1024) {
+              sent += chunk.length;
+              if (!client.write(chunk)) {
+                client.once('drain', pump);
+                return;
+              }
+            }
+            client.end();
+          };
+          pump();
+        });
+
+        const written: BTPServerResponse = JSON.parse(answer);
+        expect(written.type).toBe('btps_error');
+        // Internal detail never reaches the wire.
+        expect(written.status).toMatchObject({
+          code: 500,
+          message: BTP_ERROR_UNKNOWN.message,
+          error: BTP_ERROR_UNKNOWN.code,
+        });
+      } finally {
+        tcp.close();
+      }
+    });
+  });
+
+  describe("a trusted business posing as one of the receiver's devices", () => {
+    const bob = 'bob$example.com';
+    const carol = 'carol$other.com';
+    const keyPair = () =>
+      generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      });
+    const carolKeys = keyPair();
+    const phoneKeys = keyPair();
+    const phoneId = 'btps_ag_7f3a2c1e-0000-4000-8000-000000000001';
+    const record = (id: string, senderId: string, keys: { publicKey: string }): BTPTrustRecord => ({
+      id,
+      senderId,
+      receiverId: bob,
+      status: 'accepted',
+      createdAt: new Date().toISOString(),
+      decidedBy: bob,
+      decidedAt: new Date().toISOString(),
+      publicKeyBase64: pemToBase64(keys.publicKey),
+      publicKeyFingerprint: getFingerprintFromPem(keys.publicKey),
+      keyHistory: [],
+      privacyType: 'unencrypted',
+    });
+    // Bob accepted Carol's trust request, and registered his phone.
+    const records = [
+      record(computeTrustId(carol, bob), carol, carolKeys),
+      record(computeAgentTrustId(phoneId, bob), phoneId, phoneKeys),
+    ];
+
+    // Runs an inbox.fetch from `agentId`, signed with `keys`, through the pipeline.
+    const fetchInbox = async (agentId: string, keys: { publicKey: string; privateKey: string }) => {
+      const store = new DummyTrustStore();
+      store.getById = vi.fn(async (id: string) => records.find((r) => r.id === id));
+      const server = new BtpsServer({
+        serverIdentity: { identity: bob, publicKey: 'pub', privateKey: 'priv' },
+        trustStore: store,
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const delivered = vi.fn();
+      server.onIncomingArtifact('Agent', delivered);
+      const unsigned = {
+        version: '1.0.0',
+        id: `fetch-${agentId}`,
+        issuedAt: new Date().toISOString(),
+        to: bob,
+        action: 'inbox.fetch' as const,
+        agentId,
+        encryption: null,
+        document: { limit: 50 },
+      };
+      const artifact: BTPAgentArtifact = { ...unsigned, signature: signBtpPayload(unsigned, keys) };
+      const socket = {
+        destroyed: false,
+        writableEnded: false,
+        writable: true,
+        write: vi.fn(),
+        end: vi.fn(),
+        destroy: vi.fn(),
+      } as unknown as TLSSocket;
+      const data = { type: 'agent' as const, artifact, respondNow: true };
+      const reqCtx = {
+        socket,
+        startTime: new Date().toISOString(),
+        remoteAddress: '1.2.3.4',
+        data,
+      } as unknown as BTPRequestCtx<'before', 'signatureVerification'>;
+      const resCtx = {
+        socket,
+        startTime: new Date().toISOString(),
+        remoteAddress: '1.2.3.4',
+        reqId: artifact.id,
+        data,
+        responseSent: false,
+        sendRes: () => {},
+        sendError: () => {},
+      } as unknown as BTPResponseCtx<'before', 'signatureVerification'>;
+
+      await server['executeRequestPipeline'](reqCtx, resCtx);
+      return { delivered, socket };
+    };
+
+    it("does not deliver an agent request whose agentId is the business's own identity", async () => {
+      // Carol never registers a device: she signs an inbox.fetch with her own key.
+      const { delivered, socket } = await fetchInbox(carol, carolKeys);
+
+      expect(delivered).not.toHaveBeenCalled();
+      const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
+      expect(written.type).toBe('btps_error');
+    });
+
+    it('does not reach the business record through an agentId that is not an identity either', async () => {
+      // Without the identity check, the device id formula alone keeps her out.
+      const { delivered } = await fetchInbox('carol', carolKeys);
+      expect(delivered).not.toHaveBeenCalled();
+    });
+
+    it("delivers a request from the receiver's registered device, signed by its key", async () => {
+      const { delivered } = await fetchInbox(phoneId, phoneKeys);
+      expect(delivered).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getServerIdentity, which middleware can reach', () => {
+    it('returns the identity and public key, never the private key', () => {
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'PUBLIC', privateKey: 'SECRET' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const identity = server.getServerIdentity();
+      expect(identity).toEqual({ identity: 'host$example.com', publicKey: 'PUBLIC' });
+      expect(JSON.stringify(identity)).not.toContain('SECRET');
+    });
+  });
+
+  describe('control artifacts', () => {
+    const control = async (action: 'PING' | 'QUIT') => {
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const socket = {
+        destroyed: false,
+        writableEnded: false,
+        writable: true,
+        write: vi.fn(),
+        end: vi.fn(),
+        destroy: vi.fn(),
+      } as unknown as TLSSocket;
+      await server['handleControl'](
+        { version: '1.0.0', id: `probe-${action}`, issuedAt: new Date().toISOString(), action },
+        {
+          req: { socket } as unknown as BTPRequestCtx,
+          res: { socket, reqId: `probe-${action}` } as unknown as BTPResponseCtx,
+        },
+      );
+      const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
+      return { written, socket };
+    };
+
+    it('answers PING as operational and keeps the connection open', async () => {
+      const { written, socket } = await control('PING');
+      expect(written.type).toBe('btps_response');
+      expect(written.status).toEqual({ ok: true, code: 200, message: 'Server is operational' });
+      expect(written.reqId).toBe('probe-PING');
+      expect(socket.end).not.toHaveBeenCalled();
+      expect(socket.destroy).not.toHaveBeenCalled();
+    });
+
+    it('answers QUIT and ends the connection', async () => {
+      const { written, socket } = await control('QUIT');
+      expect(written.status).toEqual({ ok: true, code: 200, message: 'bye' });
+      expect(socket.end).toHaveBeenCalled();
+    });
+  });
+
+  describe('identity lookup', () => {
+    it("writes the signed answer to the socket, where the server's response check passes it", async () => {
+      const keys = generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      });
+      const errors: BTPErrorException[] = [];
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', ...keys },
+        trustStore: new DummyTrustStore(),
+        identityStore: new OneIdentityStore({
+          selector: 'btps1',
+          publicKey: 'identity-public-key',
+          keyType: 'rsa',
+          version: '1.0.0',
+          createdAt: new Date().toISOString(),
+        }),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        onError: (error) => errors.push(error),
+      });
+      const socket = {
+        destroyed: false,
+        writableEnded: false,
+        writable: true,
+        write: vi.fn(),
+        end: vi.fn(),
+        destroy: vi.fn(),
+      } as unknown as TLSSocket;
+
+      await server['handleIdentityLookup'](
+        {
+          version: '1.0.0',
+          id: 'lookup-1',
+          issuedAt: new Date().toISOString(),
+          identity: 'alice$example.com',
+          from: 'bob$other.com',
+          hostSelector: 'btps1',
+        },
+        {
+          req: { socket } as unknown as BTPRequestCtx,
+          res: { socket, reqId: 'req-1' } as unknown as BTPResponseCtx,
+        },
+      );
+
+      expect(errors).toEqual([]);
+      expect(socket.destroy).not.toHaveBeenCalled();
+      const written: BTPServerResponse = JSON.parse((socket.write as Mock).mock.calls[0]?.[0]);
+      expect(written.document).toEqual({
+        selector: 'btps1',
+        publicKey: 'identity-public-key',
+        keyType: 'rsa',
+        version: '1.0.0',
+      });
+      const { signature, ...signed } = written;
+      expect(signature && verifySignature(signed, signature, keys.publicKey).isValid).toBe(true);
     });
   });
 

@@ -16,7 +16,7 @@ BTPS server responses (`BTPServerResponse`) are designed to provide consistent, 
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -85,17 +85,35 @@ The status field provides information about the response:
 **Optional Fields:**
 
 - **message**: Human-readable status message
+- **error**: On an error, its BTPS code, for example `BTP_ERROR_TRUST_EXPIRED`. Branch on this, not on `message`. A 1.0 server does not send it.
 
 ### Status Codes
 
-- **200**: Success - Operation completed successfully
-- **400**: Bad Request - Invalid request format or parameters
-- **401**: Unauthorized - Authentication required or failed
-- **403**: Forbidden - Insufficient permissions
-- **404**: Not Found - Resource not found
-- **429**: Too Many Requests - Rate limit exceeded
-- **500**: Internal Server Error - Server processing error
-- **503**: Service Unavailable - Server temporarily unavailable
+The code tells a sender whether to send the same artifact again:
+
+| Code    | Meaning                                                                                                                                                                        | Send again?                   |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
+| **200** | Success                                                                                                                                                                        | –                             |
+| **400** | Bad Request: invalid JSON, validation, canonical JSON, time window, invalid action, not encrypted as the trust requires                                                        | No, not as it is              |
+| **401** | Unauthorized: signature, delegation, attestation, key proof or authentication failed                                                                                           | No, not as it is              |
+| **403** | Forbidden: trust not allowed or expired, an unrelated event, an identity used as an agent id. A trust request while trust is already active, blocked or waiting reads the same | No, until trust changes       |
+| **404** | Not Found: identity lookup found no identity                                                                                                                                   | No                            |
+| **408** | The connection timed out                                                                                                                                                       | Yes                           |
+| **413** | Artifact over the server's size limit                                                                                                                                          | No; split it across documents |
+| **429** | Too Many Requests: rate limit exceeded                                                                                                                                         | Yes, later                    |
+| **500** | Internal Server Error, including a receiving handler that failed                                                                                                               | Yes, later                    |
+| **503** | Service Unavailable: the server accepts no artifact of this kind                                                                                                               | Yes, later                    |
+
+### What an Error Tells the Sender
+
+An error tells a sender what it can fix itself, never what only the receiver knows:
+
+- **Format and crypto errors** are exact: their rules are public, and knowing which check failed does not help anyone forge a signature.
+- **Who exists and who trusts whom** is never told apart. An unknown recipient, a sender never trusted, a revoked trust and a blocked one all answer `BTP_ERROR_TRUST_NOT_ALLOWED`. Only an expired trust has its own code, and only a sender whose signature verified gets that far.
+- **Devices and authentication codes** get one answer each: an unknown device and a wrong device key both answer `BTP_ERROR_SIG_VERIFICATION`, and a wrong or expired code both answer `BTP_ERROR_AUTHENTICATION_INVALID`.
+- **Internal failures** answer `500` with `BTP_UNKNOWN_ERROR` and a generic message, never their own detail.
+
+The receiving server keeps the full reason with the response's `id`, so a sender's operator can quote that `id` to the receiver's operator.
 
 ## Response Types
 
@@ -105,7 +123,7 @@ Used when the operation completes successfully:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -126,11 +144,12 @@ Used when the operation fails:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": false,
     "code": 400,
-    "message": "Invalid request format"
+    "message": "BTPS artifact validation failed",
+    "error": "BTP_ERROR_VALIDATION"
   },
   "id": "btps_response_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
@@ -202,7 +221,7 @@ Response to identity lookup requests:
   "selector": "john1",
   "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
   "keyType": "rsa",
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
 ```
 
@@ -219,7 +238,7 @@ Simple string responses for basic operations:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -284,7 +303,7 @@ Responses can be encrypted for confidentiality:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -313,7 +332,7 @@ Responses can be encrypted for confidentiality:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -352,7 +371,7 @@ Responses can be encrypted for confidentiality:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -365,14 +384,14 @@ Responses can be encrypted for confidentiality:
     "selector": "john1",
     "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
     "keyType": "rsa",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "signature": {
     "algorithmHash": "sha256",
     "value": "base64-encoded-signature",
     "fingerprint": "sha256-base64-fingerprint"
   },
-  "signedBy": "ebilladdress.com",
+  "signedBy": "vendorcorp.com",
   "selector": "btps1"
 }
 ```
@@ -381,11 +400,12 @@ Responses can be encrypted for confidentiality:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": false,
     "code": 404,
-    "message": "Identity not found"
+    "message": "Identity not found",
+    "error": "BTP_ERROR_IDENTITY_NOT_FOUND"
   },
   "id": "btps_response_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
@@ -397,13 +417,7 @@ Responses can be encrypted for confidentiality:
 
 ### Common Error Scenarios
 
-- **400 Bad Request**: Invalid request format or parameters
-- **401 Unauthorized**: Authentication required or failed
-- **403 Forbidden**: Insufficient permissions
-- **404 Not Found**: Resource not found
-- **429 Too Many Requests**: Rate limit exceeded
-- **500 Internal Server Error**: Server processing error
-- **503 Service Unavailable**: Server temporarily unavailable
+See [Status Codes](#status-codes) for each code and whether to send again.
 
 ### Error Response Structure
 
@@ -411,7 +425,7 @@ All error responses follow the same structure:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1.0",
   "status": {
     "ok": false,
     "code": 400,

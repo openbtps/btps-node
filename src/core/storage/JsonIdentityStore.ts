@@ -29,11 +29,12 @@ export class JsonIdentityStore
   }
 
   /**
-   * Creates a new trust record. Fails if one already exists for to/from.
+   * Creates a new identity record. Fails if one already exists.
+   * @param computedId - The record id the server computes (`computeId(identity)`); computed from `record.identity` when not given.
    */
   async create(
     record: Omit<BTPIdentityRecord, 'id'>,
-    identity: string,
+    computedId?: string,
   ): Promise<BTPIdentityRecord> {
     if ('id' in record) {
       throw new BTPErrorException({
@@ -42,11 +43,11 @@ export class JsonIdentityStore
       });
     }
 
-    const id = computeId(identity);
+    const id = computedId ?? computeId(record.identity);
     if (await this.getById(id)) {
       throw new BTPErrorException({
         code: 'INVALID_CONFIG',
-        message: `Record already exists for ${identity}`,
+        message: `Record already exists for ${record.identity}`,
       });
     }
 
@@ -60,15 +61,15 @@ export class JsonIdentityStore
 
   /**
    * Returns the public key for a given identity and selector.
-   * @param identity - The identity to get the public key for.
+   * @param computedId - The record id the server computes (`computeId(identity)`), used as given.
    * @param selector - The selector to get the public key for.
    * @returns The public key for the given identity and selector.
    */
   async getPublicKeyRecord(
-    identity: string,
+    computedId: string,
     selector?: string,
   ): Promise<IdentityPubKeyRecord | undefined> {
-    const record = await super.getById(computeId(identity));
+    const record = await super.getById(computedId);
     if (!record) return undefined;
     const pointer = selector ?? record.currentSelector;
     return record.publicKeys.find((key) => key.selector === pointer);

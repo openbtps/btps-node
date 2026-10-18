@@ -11,7 +11,7 @@ Before setting up your BTPS server, you'll need to ensure your development envir
 
 ### Node.js Version
 
-BTPS requires **Node.js 16 or higher** with ES module support.
+BTPS requires **Node.js 24 or higher** with ES module support.
 
 ```bash
 # Check your Node.js version
@@ -19,8 +19,8 @@ node --version
 
 # If you need to install or update Node.js, use nvm
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-nvm install 20.11.1
-nvm use 20.11.1
+nvm install 24
+nvm use 24
 ```
 
 ### Package Manager
@@ -108,13 +108,13 @@ Value:
 The TXT record should contain key-value pairs separated by semicolons:
 
 ```
-k=rsa;v=1.0.0;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+k=rsa;v=1.1.0;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
 ```
 
 **Parameters:**
 
 - `k`: key type (for key signature and encryption eg: rsa)
-- `v`: BTPS protocol version (currently "1.0.0")
+- `v`: BTPS protocol version (currently "1.1.0")
 - `p`: Base64-encoded public key (without PEM headers)
 
 ## DNS TXT Host and Selector Record
@@ -138,14 +138,15 @@ Value:
 The TXT record should contain key-value pairs separated by semicolons:
 
 ```
-v=1.0.0;u=btps://btps.yourdomain.com:3443;s=btps1
+v=1.1.0;u=btps://btps.yourdomain.com:3443;s=btps1;op=admin$yourdomain.com
 ```
 
 **Parameters:**
 
 - `u`: btps server host running address followed by port. If port is not present default 3443 will be used
-- `v`: BTPS protocol version (currently "1.0.0")
+- `v`: BTPS protocol version (currently "1.1.0")
 - `s`: selector. This is for key rotation feature. This is required
+- `op`: the domain's operator, the identity your BTPS server runs as (its `serverIdentity.identity`). Receivers accept delegations, attestations and identity lookup answers for your domain only from this identity. Required if your server delegates for your users or answers identity lookups. See [The Domain Operator](../../protocol/specifications/overview.md#the-domain-operator).
 
 ### Generate DNS Record
 
@@ -160,7 +161,7 @@ const publicKey = readFileSync('./keys/public.pem', 'utf8');
 const base64Key = pemToBase64(publicKey);
 
 // Create DNS record content
-const dnsRecord = `k=rsa;v=1.0.0;p=${base64Key}`;
+const dnsRecord = `k=rsa;v=1.1.0;p=${base64Key}`;
 
 console.log('DNS TXT Record for: btps1._btps.billing.yourdomain.com');
 console.log('Content:', dnsRecord);
@@ -176,7 +177,7 @@ import { getHostAndSelector, getDnsIdentityParts } from '@btps/sdk';
 // Test host and selector resolution
 const hostInfo = await getHostAndSelector('billing$yourdomain.com');
 console.log('Host Info:', hostInfo);
-// Output: { version: '1.0.0', host: 'btps://btps.yourdomain.com:3443', selector: 'btps1' }
+// Output: { version: '1.1.0', host: 'btps://btps.yourdomain.com:3443', selector: 'btps1', operator: 'admin$yourdomain.com' }
 
 // Test public key resolution
 const publicKey = await getDnsIdentityParts('billing$yourdomain.com', 'btps1', 'pem');
@@ -195,7 +196,7 @@ BTPS identities follow the format: `account$domain.com`
 
 **Rules:**
 
-- Account name: lowercase letters, numbers, hyphens
+- Account name: may contain dots and underscores, as in `pat.doe$company.com`; never `:` or a second `$`
 - Domain: valid domain name
 - Separator: `$` character
 
@@ -226,7 +227,7 @@ With these prerequisites in place, you're ready to:
 
 ```bash
 # Error: SyntaxError: Unexpected token 'export'
-# Solution: Update to Node.js 20.11.1+
+# Solution: Update to Node.js 24 or later
 ```
 
 **DNS Resolution Fails**

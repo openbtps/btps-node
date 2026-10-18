@@ -1,0 +1,2536 @@
+{
+  "description": "What each artifact type's document accepts and refuses (Transporter Artifact specification; field limits on the Limits page). `type` is the artifact type the document travels in. Apply `fill` (a string of `length` characters at `path`, `prefix` and `suffix` included, the rest the letter \"a\") and `repeat` (`times` copies of `item` at `path`) to `document` first. An implementation accepts every \"accept\" case and refuses every \"refuse\" case; `why` says what is wrong.",
+  "cases": [
+    {
+      "name": "trust-request",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "trust-request-full",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000",
+        "displayName": "Acme",
+        "address": "1 Main Street",
+        "message": "Hello",
+        "logoUrl": "https://acme.example/logo.png",
+        "websiteUrl": "https://acme.example",
+        "expiresAt": "2026-10-19T00:00:00.000Z",
+        "privacyType": "encrypted"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "trust-request-no-email",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "expect": "refuse",
+      "why": "email is required"
+    },
+    {
+      "name": "trust-request-bad-email",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "not-an-email",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "expect": "refuse",
+      "why": "not an email"
+    },
+    {
+      "name": "trust-request-bad-privacy",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000",
+        "privacyType": "secret"
+      },
+      "expect": "refuse",
+      "why": "unknown privacyType"
+    },
+    {
+      "name": "trust-request-id-at-limit",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["id"],
+          "length": 100
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "trust-request-id-one-over",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["id"],
+          "length": 101
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 100 characters"
+    },
+    {
+      "name": "trust-request-name-at-limit",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["name"],
+          "length": 200
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "trust-request-name-one-over",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["name"],
+          "length": 201
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 200 characters"
+    },
+    {
+      "name": "trust-request-phone-at-limit",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["phone"],
+          "length": 32
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "trust-request-phone-one-over",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["phone"],
+          "length": 33
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 32 characters"
+    },
+    {
+      "name": "trust-request-reason-at-limit",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["reason"],
+          "length": 2000
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "trust-request-reason-one-over",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["reason"],
+          "length": 2001
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 2000 characters"
+    },
+    {
+      "name": "trust-request-displayName-at-limit",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["displayName"],
+          "length": 200
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "trust-request-displayName-one-over",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["displayName"],
+          "length": 201
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 200 characters"
+    },
+    {
+      "name": "trust-request-address-at-limit",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["address"],
+          "length": 1000
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "trust-request-address-one-over",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["address"],
+          "length": 1001
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 1000 characters"
+    },
+    {
+      "name": "trust-request-message-at-limit",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["message"],
+          "length": 5000
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "trust-request-message-one-over",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["message"],
+          "length": 5001
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 5000 characters"
+    },
+    {
+      "name": "trust-request-email-at-limit",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["email"],
+          "length": 254,
+          "suffix": "@example.com"
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "trust-request-email-one-over",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["email"],
+          "length": 255,
+          "suffix": "@example.com"
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 254 characters"
+    },
+    {
+      "name": "trust-request-logoUrl-at-limit",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["logoUrl"],
+          "length": 2048,
+          "prefix": "https://example.com/"
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "trust-request-logoUrl-one-over",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["logoUrl"],
+          "length": 2049,
+          "prefix": "https://example.com/"
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 2048 characters"
+    },
+    {
+      "name": "trust-request-websiteUrl-at-limit",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["websiteUrl"],
+          "length": 2048,
+          "prefix": "https://example.com/"
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "trust-request-websiteUrl-one-over",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000"
+      },
+      "fill": [
+        {
+          "path": ["websiteUrl"],
+          "length": 2049,
+          "prefix": "https://example.com/"
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 2048 characters"
+    },
+    {
+      "name": "trust-response",
+      "type": "TRUST_RES",
+      "document": {
+        "id": "res-1",
+        "decision": "accepted",
+        "decidedAt": "2026-10-19T00:00:00.000Z",
+        "decidedBy": "bob$client.example"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "trust-response-accepted",
+      "type": "TRUST_RES",
+      "document": {
+        "id": "res-1",
+        "decision": "accepted",
+        "decidedAt": "2026-10-19T00:00:00.000Z",
+        "decidedBy": "bob$client.example"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "trust-response-rejected",
+      "type": "TRUST_RES",
+      "document": {
+        "id": "res-1",
+        "decision": "rejected",
+        "decidedAt": "2026-10-19T00:00:00.000Z",
+        "decidedBy": "bob$client.example"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "trust-response-revoked",
+      "type": "TRUST_RES",
+      "document": {
+        "id": "res-1",
+        "decision": "revoked",
+        "decidedAt": "2026-10-19T00:00:00.000Z",
+        "decidedBy": "bob$client.example"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "trust-response-blocked",
+      "type": "TRUST_RES",
+      "document": {
+        "id": "res-1",
+        "decision": "blocked",
+        "decidedAt": "2026-10-19T00:00:00.000Z",
+        "decidedBy": "bob$client.example"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "trust-response-bad-decision",
+      "type": "TRUST_RES",
+      "document": {
+        "id": "res-1",
+        "decision": "maybe",
+        "decidedAt": "2026-10-19T00:00:00.000Z",
+        "decidedBy": "bob$client.example"
+      },
+      "expect": "refuse",
+      "why": "unknown decision"
+    },
+    {
+      "name": "trust-response-id-at-limit",
+      "type": "TRUST_RES",
+      "document": {
+        "id": "res-1",
+        "decision": "accepted",
+        "decidedAt": "2026-10-19T00:00:00.000Z",
+        "decidedBy": "bob$client.example"
+      },
+      "fill": [
+        {
+          "path": ["id"],
+          "length": 100
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "trust-response-id-one-over",
+      "type": "TRUST_RES",
+      "document": {
+        "id": "res-1",
+        "decision": "accepted",
+        "decidedAt": "2026-10-19T00:00:00.000Z",
+        "decidedBy": "bob$client.example"
+      },
+      "fill": [
+        {
+          "path": ["id"],
+          "length": 101
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 100 characters"
+    },
+    {
+      "name": "trust-response-decidedBy-at-limit",
+      "type": "TRUST_RES",
+      "document": {
+        "id": "res-1",
+        "decision": "accepted",
+        "decidedAt": "2026-10-19T00:00:00.000Z",
+        "decidedBy": "bob$client.example"
+      },
+      "fill": [
+        {
+          "path": ["decidedBy"],
+          "length": 254
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "trust-response-decidedBy-one-over",
+      "type": "TRUST_RES",
+      "document": {
+        "id": "res-1",
+        "decision": "accepted",
+        "decidedAt": "2026-10-19T00:00:00.000Z",
+        "decidedBy": "bob$client.example"
+      },
+      "fill": [
+        {
+          "path": ["decidedBy"],
+          "length": 255
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 254 characters"
+    },
+    {
+      "name": "trust-response-message-at-limit",
+      "type": "TRUST_RES",
+      "document": {
+        "id": "res-1",
+        "decision": "accepted",
+        "decidedAt": "2026-10-19T00:00:00.000Z",
+        "decidedBy": "bob$client.example"
+      },
+      "fill": [
+        {
+          "path": ["message"],
+          "length": 5000
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "trust-response-message-one-over",
+      "type": "TRUST_RES",
+      "document": {
+        "id": "res-1",
+        "decision": "accepted",
+        "decidedAt": "2026-10-19T00:00:00.000Z",
+        "decidedBy": "bob$client.example"
+      },
+      "fill": [
+        {
+          "path": ["message"],
+          "length": 5001
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 5000 characters"
+    },
+    {
+      "name": "invoice",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-full",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "dueAt": "2026-10-19T00:00:00.000Z",
+        "issuer": {
+          "name": "Acme",
+          "identifiers": {
+            "au:abn": "51824753556"
+          }
+        },
+        "paymentLink": {
+          "linkText": "Pay",
+          "url": "https://pay.acme.example/INV-1"
+        },
+        "description": "Website build",
+        "attachments": [
+          {
+            "content": "AA==",
+            "type": "application/pdf",
+            "size": 1,
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "references": [
+          {
+            "type": "correction_of",
+            "from": "billing$vendor.example",
+            "id": "INV-0",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "metadata": {
+          "acme:orderId": "PO-7"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-zero-decimal-currency",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 4997,
+          "currency": "JPY"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-with-status",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "status": "unpaid"
+      },
+      "expect": "refuse",
+      "why": "a field it does not name (1.0 status)"
+    },
+    {
+      "name": "invoice-decimal-money",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 1500.5,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        }
+      },
+      "expect": "refuse",
+      "why": "money not in whole minor units"
+    },
+    {
+      "name": "invoice-unknown-currency",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 1,
+          "currency": "XYZ"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        }
+      },
+      "expect": "refuse",
+      "why": "not an ISO 4217 currency"
+    },
+    {
+      "name": "invoice-bad-attachment-hash",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "attachments": [
+          {
+            "content": "AA==",
+            "type": "application/pdf",
+            "size": 1,
+            "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        ]
+      },
+      "expect": "refuse",
+      "why": "sha256 not lowercase hex"
+    },
+    {
+      "name": "invoice-bad-attachment-type",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "attachments": [
+          {
+            "content": "AA==",
+            "type": "text/html",
+            "size": 1,
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      "expect": "refuse",
+      "why": "attachment type not allowed"
+    },
+    {
+      "name": "invoice-bad-reference-type",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "references": [
+          {
+            "type": "Corrects!",
+            "from": "billing$vendor.example",
+            "id": "INV-0",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      "expect": "refuse",
+      "why": "reference type not a bare or prefixed code"
+    },
+    {
+      "name": "invoice-bad-identifier-key",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "issuer": {
+          "name": "Acme",
+          "identifiers": {
+            "abn": "1"
+          }
+        }
+      },
+      "expect": "refuse",
+      "why": "identifier key not namespaced"
+    },
+    {
+      "name": "invoice-id-at-limit",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        }
+      },
+      "fill": [
+        {
+          "path": ["id"],
+          "length": 100
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-id-one-over",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        }
+      },
+      "fill": [
+        {
+          "path": ["id"],
+          "length": 101
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 100 characters"
+    },
+    {
+      "name": "reference-id-at-limit",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "references": [
+          {
+            "type": "follows",
+            "from": "billing$vendor.example",
+            "id": "INV-0",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      "fill": [
+        {
+          "path": ["references", 0, "id"],
+          "length": 100
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "reference-id-one-over",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "references": [
+          {
+            "type": "follows",
+            "from": "billing$vendor.example",
+            "id": "INV-0",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      "fill": [
+        {
+          "path": ["references", 0, "id"],
+          "length": 101
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 100 characters"
+    },
+    {
+      "name": "reference-type-at-limit",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "references": [
+          {
+            "type": "follows",
+            "from": "billing$vendor.example",
+            "id": "INV-0",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      "fill": [
+        {
+          "path": ["references", 0, "type"],
+          "length": 64
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "reference-type-one-over",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "references": [
+          {
+            "type": "follows",
+            "from": "billing$vendor.example",
+            "id": "INV-0",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      "fill": [
+        {
+          "path": ["references", 0, "type"],
+          "length": 65
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 64 characters"
+    },
+    {
+      "name": "receipt",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "receipt",
+        "title": "Receipt",
+        "id": "REC-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "payment": {
+          "amount": {
+            "amount": 50000,
+            "currency": "AUD"
+          },
+          "paidAt": "2026-10-19T00:00:00.000Z",
+          "method": "bank_transfer"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "receipt-for-invoice",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "receipt",
+        "title": "Receipt",
+        "id": "REC-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "payment": {
+          "amount": {
+            "amount": 50000,
+            "currency": "AUD"
+          },
+          "paidAt": "2026-10-19T00:00:00.000Z",
+          "method": "bank_transfer"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "references": [
+          {
+            "type": "receipt_for",
+            "from": "billing$vendor.example",
+            "id": "INV-1",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "receipt-no-payment",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "receipt",
+        "title": "Receipt",
+        "id": "REC-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        }
+      },
+      "expect": "refuse",
+      "why": "payment is required"
+    },
+    {
+      "name": "receipt-zero-payment",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "receipt",
+        "title": "Receipt",
+        "id": "REC-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "payment": {
+          "amount": {
+            "amount": 0,
+            "currency": "AUD"
+          },
+          "paidAt": "2026-10-19T00:00:00.000Z",
+          "method": "bank_transfer"
+        }
+      },
+      "expect": "refuse",
+      "why": "a payment must be more than zero"
+    },
+    {
+      "name": "receipt-with-dueAt",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "receipt",
+        "title": "Receipt",
+        "id": "REC-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "payment": {
+          "amount": {
+            "amount": 50000,
+            "currency": "AUD"
+          },
+          "paidAt": "2026-10-19T00:00:00.000Z",
+          "method": "bank_transfer"
+        },
+        "dueAt": "2026-10-19T00:00:00.000Z"
+      },
+      "expect": "refuse",
+      "why": "a receipt asks for no payment"
+    },
+    {
+      "name": "receipt-with-paymentLink",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "receipt",
+        "title": "Receipt",
+        "id": "REC-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "payment": {
+          "amount": {
+            "amount": 50000,
+            "currency": "AUD"
+          },
+          "paidAt": "2026-10-19T00:00:00.000Z",
+          "method": "bank_transfer"
+        },
+        "paymentLink": {
+          "linkText": "Pay",
+          "url": "https://pay.example"
+        }
+      },
+      "expect": "refuse",
+      "why": "a receipt asks for no payment"
+    },
+    {
+      "name": "receipt-payment-method-at-limit",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "receipt",
+        "title": "Receipt",
+        "id": "REC-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "payment": {
+          "amount": {
+            "amount": 50000,
+            "currency": "AUD"
+          },
+          "paidAt": "2026-10-19T00:00:00.000Z",
+          "method": "bank_transfer"
+        }
+      },
+      "fill": [
+        {
+          "path": ["payment", "method"],
+          "length": 64
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "receipt-payment-method-one-over",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "receipt",
+        "title": "Receipt",
+        "id": "REC-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "payment": {
+          "amount": {
+            "amount": 50000,
+            "currency": "AUD"
+          },
+          "paidAt": "2026-10-19T00:00:00.000Z",
+          "method": "bank_transfer"
+        }
+      },
+      "fill": [
+        {
+          "path": ["payment", "method"],
+          "length": 65
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 64 characters"
+    },
+    {
+      "name": "receipt-payment-reference-at-limit",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "receipt",
+        "title": "Receipt",
+        "id": "REC-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "payment": {
+          "amount": {
+            "amount": 50000,
+            "currency": "AUD"
+          },
+          "paidAt": "2026-10-19T00:00:00.000Z",
+          "method": "bank_transfer"
+        }
+      },
+      "fill": [
+        {
+          "path": ["payment", "reference"],
+          "length": 100
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "receipt-payment-reference-one-over",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "receipt",
+        "title": "Receipt",
+        "id": "REC-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "payment": {
+          "amount": {
+            "amount": 50000,
+            "currency": "AUD"
+          },
+          "paidAt": "2026-10-19T00:00:00.000Z",
+          "method": "bank_transfer"
+        }
+      },
+      "fill": [
+        {
+          "path": ["payment", "reference"],
+          "length": 101
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 100 characters"
+    },
+    {
+      "name": "payslip",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "payslip",
+        "title": "Payslip",
+        "id": "PAY-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "employee": {
+          "name": "Sam Lee"
+        },
+        "earnings": [
+          {
+            "category": "ordinary",
+            "rate": "48.75",
+            "quantity": "76",
+            "amount": {
+              "amount": 370500,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "deductions": [],
+        "contributions": [
+          {
+            "category": "au:super_guarantee",
+            "amount": {
+              "amount": 44460,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "leave": [
+          {
+            "category": "annual",
+            "description": "Annual Leave",
+            "unit": "hours",
+            "balance": "76.5"
+          }
+        ],
+        "gross": {
+          "amount": 370500,
+          "currency": "AUD"
+        },
+        "net": {
+          "amount": 289000,
+          "currency": "AUD"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "payslip-open-codes",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "payslip",
+        "title": "Payslip",
+        "id": "PAY-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "employee": {
+          "name": "Sam Lee"
+        },
+        "earnings": [
+          {
+            "category": "ordinary",
+            "rate": "48.75",
+            "quantity": "76",
+            "amount": {
+              "amount": 370500,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "deductions": [],
+        "contributions": [
+          {
+            "category": "au:super_guarantee",
+            "amount": {
+              "amount": 44460,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "leave": [
+          {
+            "category": "au:long_service",
+            "description": "Long Service Leave",
+            "unit": "weeks",
+            "balance": "2"
+          },
+          {
+            "category": "acme:wellbeing_day",
+            "unit": "days",
+            "balance": "-1",
+            "accrued": "0.5",
+            "taken": "1"
+          }
+        ],
+        "gross": {
+          "amount": 370500,
+          "currency": "AUD"
+        },
+        "net": {
+          "amount": 289000,
+          "currency": "AUD"
+        },
+        "jurisdiction": "AU"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "payslip-decimal-as-number",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "payslip",
+        "title": "Payslip",
+        "id": "PAY-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "employee": {
+          "name": "Sam Lee"
+        },
+        "earnings": [
+          {
+            "category": "ordinary",
+            "rate": "48.75",
+            "quantity": "76",
+            "amount": {
+              "amount": 370500,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "deductions": [],
+        "contributions": [
+          {
+            "category": "au:super_guarantee",
+            "amount": {
+              "amount": 44460,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "leave": [
+          {
+            "category": "annual",
+            "unit": "hours",
+            "balance": 76.5
+          }
+        ],
+        "gross": {
+          "amount": 370500,
+          "currency": "AUD"
+        },
+        "net": {
+          "amount": 289000,
+          "currency": "AUD"
+        }
+      },
+      "expect": "refuse",
+      "why": "a decimal written as a number, not text"
+    },
+    {
+      "name": "payslip-decimal-comma",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "payslip",
+        "title": "Payslip",
+        "id": "PAY-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "employee": {
+          "name": "Sam Lee"
+        },
+        "earnings": [
+          {
+            "category": "ordinary",
+            "rate": "48,75",
+            "amount": {
+              "amount": 1,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "deductions": [],
+        "contributions": [
+          {
+            "category": "au:super_guarantee",
+            "amount": {
+              "amount": 44460,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "leave": [
+          {
+            "category": "annual",
+            "description": "Annual Leave",
+            "unit": "hours",
+            "balance": "76.5"
+          }
+        ],
+        "gross": {
+          "amount": 370500,
+          "currency": "AUD"
+        },
+        "net": {
+          "amount": 289000,
+          "currency": "AUD"
+        }
+      },
+      "expect": "refuse",
+      "why": "not a decimal"
+    },
+    {
+      "name": "payslip-lowercase-country",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "payslip",
+        "title": "Payslip",
+        "id": "PAY-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "employee": {
+          "name": "Sam Lee"
+        },
+        "earnings": [
+          {
+            "category": "ordinary",
+            "rate": "48.75",
+            "quantity": "76",
+            "amount": {
+              "amount": 370500,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "deductions": [],
+        "contributions": [
+          {
+            "category": "au:super_guarantee",
+            "amount": {
+              "amount": 44460,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "leave": [
+          {
+            "category": "annual",
+            "description": "Annual Leave",
+            "unit": "hours",
+            "balance": "76.5"
+          }
+        ],
+        "gross": {
+          "amount": 370500,
+          "currency": "AUD"
+        },
+        "net": {
+          "amount": 289000,
+          "currency": "AUD"
+        },
+        "jurisdiction": "au"
+      },
+      "expect": "refuse",
+      "why": "not ISO 3166-1 alpha-2"
+    },
+    {
+      "name": "payslip-no-employee",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "payslip",
+        "title": "Payslip",
+        "id": "PAY-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "earnings": [
+          {
+            "category": "ordinary",
+            "rate": "48.75",
+            "quantity": "76",
+            "amount": {
+              "amount": 370500,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "deductions": [],
+        "contributions": [
+          {
+            "category": "au:super_guarantee",
+            "amount": {
+              "amount": 44460,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "leave": [
+          {
+            "category": "annual",
+            "description": "Annual Leave",
+            "unit": "hours",
+            "balance": "76.5"
+          }
+        ],
+        "gross": {
+          "amount": 370500,
+          "currency": "AUD"
+        },
+        "net": {
+          "amount": 289000,
+          "currency": "AUD"
+        }
+      },
+      "expect": "refuse",
+      "why": "employee is required"
+    },
+    {
+      "name": "payslip-code-at-limit",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "payslip",
+        "title": "Payslip",
+        "id": "PAY-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "employee": {
+          "name": "Sam Lee"
+        },
+        "earnings": [
+          {
+            "category": "ordinary",
+            "rate": "48.75",
+            "quantity": "76",
+            "amount": {
+              "amount": 370500,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "deductions": [],
+        "contributions": [
+          {
+            "category": "au:super_guarantee",
+            "amount": {
+              "amount": 44460,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "leave": [
+          {
+            "category": "annual",
+            "description": "Annual Leave",
+            "unit": "hours",
+            "balance": "76.5"
+          }
+        ],
+        "gross": {
+          "amount": 370500,
+          "currency": "AUD"
+        },
+        "net": {
+          "amount": 289000,
+          "currency": "AUD"
+        }
+      },
+      "fill": [
+        {
+          "path": ["earnings", 0, "category"],
+          "length": 64
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "payslip-code-one-over",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "payslip",
+        "title": "Payslip",
+        "id": "PAY-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "employee": {
+          "name": "Sam Lee"
+        },
+        "earnings": [
+          {
+            "category": "ordinary",
+            "rate": "48.75",
+            "quantity": "76",
+            "amount": {
+              "amount": 370500,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "deductions": [],
+        "contributions": [
+          {
+            "category": "au:super_guarantee",
+            "amount": {
+              "amount": 44460,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "leave": [
+          {
+            "category": "annual",
+            "description": "Annual Leave",
+            "unit": "hours",
+            "balance": "76.5"
+          }
+        ],
+        "gross": {
+          "amount": 370500,
+          "currency": "AUD"
+        },
+        "net": {
+          "amount": 289000,
+          "currency": "AUD"
+        }
+      },
+      "fill": [
+        {
+          "path": ["earnings", 0, "category"],
+          "length": 65
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 64 characters"
+    },
+    {
+      "name": "letter",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "letter",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "markdown",
+          "content": "# Welcome\n\nYour plan starts on **1 November**."
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "letter-text",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "letter",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "text",
+          "content": "Plain\ntext"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "letter-html",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "letter",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "html",
+          "content": "<b>x</b>"
+        }
+      },
+      "expect": "refuse",
+      "why": "html is not a letter format"
+    },
+    {
+      "name": "letter-with-money",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "letter",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "markdown",
+          "content": "# Welcome\n\nYour plan starts on **1 November**."
+        },
+        "totalAmount": {
+          "amount": 1,
+          "currency": "AUD"
+        }
+      },
+      "expect": "refuse",
+      "why": "a letter carries no money"
+    },
+    {
+      "name": "letter-title-at-limit",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "letter",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "markdown",
+          "content": "# Welcome\n\nYour plan starts on **1 November**."
+        }
+      },
+      "fill": [
+        {
+          "path": ["title"],
+          "length": 200
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "letter-title-one-over",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "letter",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "markdown",
+          "content": "# Welcome\n\nYour plan starts on **1 November**."
+        }
+      },
+      "fill": [
+        {
+          "path": ["title"],
+          "length": 201
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 200 characters"
+    },
+    {
+      "name": "letter-content-at-limit",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "letter",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "markdown",
+          "content": "# Welcome\n\nYour plan starts on **1 November**."
+        }
+      },
+      "fill": [
+        {
+          "path": ["body", "content"],
+          "length": 100000
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "letter-content-one-over",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "letter",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "markdown",
+          "content": "# Welcome\n\nYour plan starts on **1 November**."
+        }
+      },
+      "fill": [
+        {
+          "path": ["body", "content"],
+          "length": 100001
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 100000 characters"
+    },
+    {
+      "name": "letter-attachments-at-limit",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "letter",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "markdown",
+          "content": "# Welcome\n\nYour plan starts on **1 November**."
+        }
+      },
+      "repeat": [
+        {
+          "path": ["attachments"],
+          "times": 10,
+          "item": {
+            "content": "AA==",
+            "type": "application/pdf",
+            "size": 1,
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "letter-attachments-one-over",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "letter",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "markdown",
+          "content": "# Welcome\n\nYour plan starts on **1 November**."
+        }
+      },
+      "repeat": [
+        {
+          "path": ["attachments"],
+          "times": 11,
+          "item": {
+            "content": "AA==",
+            "type": "application/pdf",
+            "size": 1,
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      ],
+      "expect": "refuse",
+      "why": "more than 10"
+    },
+    {
+      "name": "letter-references-at-limit",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "letter",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "markdown",
+          "content": "# Welcome\n\nYour plan starts on **1 November**."
+        }
+      },
+      "repeat": [
+        {
+          "path": ["references"],
+          "times": 20,
+          "item": {
+            "type": "follows",
+            "from": "billing$vendor.example",
+            "id": "INV-0",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "letter-references-one-over",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "letter",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "markdown",
+          "content": "# Welcome\n\nYour plan starts on **1 November**."
+        }
+      },
+      "repeat": [
+        {
+          "path": ["references"],
+          "times": 21,
+          "item": {
+            "type": "follows",
+            "from": "billing$vendor.example",
+            "id": "INV-0",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      ],
+      "expect": "refuse",
+      "why": "more than 20"
+    },
+    {
+      "name": "document-unknown-type",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "memo",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "markdown",
+          "content": "# Welcome\n\nYour plan starts on **1 November**."
+        }
+      },
+      "expect": "refuse",
+      "why": "unknown document type"
+    },
+    {
+      "name": "event-paid",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "paid"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "event-partially-paid",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "partially_paid",
+        "amount": {
+          "amount": 50000,
+          "currency": "AUD"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "event-disputed",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "disputed",
+        "reason": "amount_wrong"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "event-refund-requested",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "refund_requested"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "event-refund",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "refund",
+        "amount": {
+          "amount": 50000,
+          "currency": "AUD"
+        },
+        "inReplyTo": "1c7e5c6f-6e1b-4d5f-9a54-3b8e4b2a0f12"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "event-response-accepted",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "response",
+        "decision": "accepted",
+        "inReplyTo": "1c7e5c6f-6e1b-4d5f-9a54-3b8e4b2a0f12",
+        "remainingDueDate": "2026-10-19T00:00:00.000Z"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "event-partially-paid-no-amount",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "partially_paid"
+      },
+      "expect": "refuse",
+      "why": "amount is required"
+    },
+    {
+      "name": "event-refund-no-inReplyTo",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "refund",
+        "amount": {
+          "amount": 1,
+          "currency": "AUD"
+        }
+      },
+      "expect": "refuse",
+      "why": "a reply names what it answers"
+    },
+    {
+      "name": "event-paid-with-inReplyTo",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "paid",
+        "inReplyTo": "1c7e5c6f-6e1b-4d5f-9a54-3b8e4b2a0f12"
+      },
+      "expect": "refuse",
+      "why": "only replies carry inReplyTo"
+    },
+    {
+      "name": "event-response-rejected-with-due-date",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "response",
+        "decision": "rejected",
+        "inReplyTo": "1c7e5c6f-6e1b-4d5f-9a54-3b8e4b2a0f12",
+        "remainingDueDate": "2026-10-19T00:00:00.000Z"
+      },
+      "expect": "refuse",
+      "why": "remainingDueDate only on an accepted response"
+    },
+    {
+      "name": "event-unknown-type",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "cancelled"
+      },
+      "expect": "refuse",
+      "why": "unknown event type"
+    },
+    {
+      "name": "event-id-not-uuid",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "evt-1",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "paid"
+      },
+      "expect": "refuse",
+      "why": "id is the carrying artifact id, a UUID"
+    },
+    {
+      "name": "event-message-at-limit",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "paid"
+      },
+      "fill": [
+        {
+          "path": ["message"],
+          "length": 5000
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "event-message-one-over",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "paid"
+      },
+      "fill": [
+        {
+          "path": ["message"],
+          "length": 5001
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 5000 characters"
+    },
+    {
+      "name": "event-reason-at-limit",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "disputed",
+        "reason": "amount_wrong"
+      },
+      "fill": [
+        {
+          "path": ["reason"],
+          "length": 64
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "event-reason-one-over",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "disputed",
+        "reason": "amount_wrong"
+      },
+      "fill": [
+        {
+          "path": ["reason"],
+          "length": 65
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 64 characters"
+    },
+    {
+      "name": "event-document-id-at-limit",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "paid"
+      },
+      "fill": [
+        {
+          "path": ["document", "id"],
+          "length": 100
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "event-document-id-one-over",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "paid"
+      },
+      "fill": [
+        {
+          "path": ["document", "id"],
+          "length": 101
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 100 characters"
+    }
+  ],
+  "eventEnvelope": {
+    "description": "An event travels in a BTPS_EVENT artifact whose `id` is the event's own id, and is about a document sent between the artifact's two parties: `document.from` is the artifact's `from` or `to`.",
+    "event": {
+      "type": "lifecycle_event",
+      "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+      "occurredAt": "2026-10-19T00:00:00.000Z",
+      "document": {
+        "from": "billing$vendor.example",
+        "id": "INV-1",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "eventType": "paid"
+    },
+    "cases": [
+      {
+        "name": "sent-by-the-payer",
+        "envelope": {
+          "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+          "from": "pay$client.example",
+          "to": "billing$vendor.example"
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "sent-by-the-biller",
+        "envelope": {
+          "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+          "from": "billing$vendor.example",
+          "to": "pay$client.example"
+        },
+        "expect": "accept"
+      },
+      {
+        "name": "another-artifact-id",
+        "envelope": {
+          "id": "1c7e5c6f-6e1b-4d5f-9a54-3b8e4b2a0f12",
+          "from": "pay$client.example",
+          "to": "billing$vendor.example"
+        },
+        "expect": "refuse"
+      },
+      {
+        "name": "a-third-party",
+        "envelope": {
+          "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+          "from": "mallory$elsewhere.example",
+          "to": "pay$client.example"
+        },
+        "expect": "refuse"
+      }
+    ]
+  }
+}

@@ -13,10 +13,16 @@ import {
   BtpAgentQuerySchema,
   BtpAgentCreateSchema,
 } from './schema.js';
-import { BTPArtifactType, AgentAction, AgentActionRequiringDocument } from '../types.js';
+import {
+  BTPArtifactType,
+  AgentAction,
+  AgentActionRequiringDocument,
+  BTPLifecycleEvent,
+} from '../types.js';
 import {
   BtpAuthReqDocSchema,
-  BtpInvoiceDocSchema,
+  BtpDocumentSchema,
+  BtpLifecycleEventSchema,
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
 } from './btpsDocsSchema.js';
@@ -28,10 +34,51 @@ export const processBtpDocSchema = (bptArtifactType: BTPArtifactType) => {
     case 'TRUST_REQ':
       return BtpTrustReqDocSchema;
     case 'BTPS_DOC':
-      return BtpInvoiceDocSchema;
+      return BtpDocumentSchema;
+    case 'BTPS_EVENT':
+      return BtpLifecycleEventSchema;
     default:
       return null;
   }
+};
+
+/**
+ * The rules between a lifecycle event and the `BTPS_EVENT` that carries it:
+ * the event's `id` is the artifact's `id`, and the invoice it is about was
+ * sent between the same two parties (`document.from` is the artifact's
+ * `from` or `to`). Returns what is wrong, or undefined.
+ */
+export const lifecycleEventEnvelopeProblem = (
+  event: BTPLifecycleEvent,
+  envelope: { id: string; from: string; to: string },
+): string | undefined => {
+  if (event.id !== envelope.id) return "an event's id must be the id of the artifact carrying it";
+  if (event.document.from !== envelope.from && event.document.from !== envelope.to) {
+    return 'an event may only be about an invoice between its own sender and receiver';
+  }
+  return undefined;
+};
+
+/**
+ * Checks a document that was encrypted as an unencrypted one is checked on
+ * arrival: its type's schema (field limits included), then, for an event, the
+ * rules between it and its envelope. Returns what is wrong, or undefined.
+ */
+export const decryptedDocumentProblem = (
+  document: unknown,
+  envelope: Record<string, unknown>,
+): string | undefined => {
+  const schema = processBtpDocSchema(envelope.type as BTPArtifactType);
+  if (!schema) return undefined;
+  const parsed = schema.safeParse(document);
+  if (!parsed.success) return 'Document type does not match the artifact type';
+  if (envelope.type !== 'BTPS_EVENT') return undefined;
+  const event = parsed.data as BTPLifecycleEvent;
+  const { id, from, to } = envelope;
+  if (typeof id !== 'string' || typeof from !== 'string' || typeof to !== 'string') {
+    return 'an event must travel in an artifact with an id, from and to';
+  }
+  return lifecycleEventEnvelopeProblem(event, { id, from, to });
 };
 
 // Helper function to process document schema based on action type
@@ -41,7 +88,8 @@ export const processBtpDocSchemaForAgent = (actionType: string) => {
     'trust.respond': BtpTrustResDocSchema,
     'trust.update': BtpAgentMutationSchema,
     'trust.delete': BtpIdsPayloadSchema,
-    'artifact.send': BtpInvoiceDocSchema,
+    'artifact.send': BtpDocumentSchema,
+    'event.send': BtpLifecycleEventSchema,
     'auth.request': BtpAuthReqDocSchema,
     'auth.refresh': BtpAuthReqDocSchema,
     'inbox.fetch': BtpAgentQuerySchema,

@@ -27,8 +27,11 @@ export class MiddlewareManager {
     onResponseSent?: (response: BTPServerResponse) => Promise<void> | void;
   } = {};
 
+  private readonly configuredPath: boolean;
+
   constructor(private middlewarePath?: string) {
-    if (isEmpty(middlewarePath)) {
+    this.configuredPath = !isEmpty(middlewarePath);
+    if (!this.configuredPath) {
       this.middlewarePath = `${process.cwd()}/btps.middleware.mjs`;
     }
   }
@@ -41,7 +44,16 @@ export class MiddlewareManager {
 
     const resolvedPath = resolve(this.middlewarePath);
 
-    if (!existsSync(resolvedPath)) return;
+    if (!existsSync(resolvedPath)) {
+      // Middleware is optional, so a missing file never stops the server, but
+      // one the operator named is expected to be there.
+      if (this.configuredPath) {
+        console.warn(
+          `[MiddlewareManager] No middleware file at ${resolvedPath}; the server is running without middleware`,
+        );
+      }
+      return;
+    }
 
     try {
       // Dynamic import of the middleware file
@@ -141,21 +153,6 @@ export class MiddlewareManager {
 
     if (typeof middleware.handler !== 'function') {
       throw new BTPErrorException({ message: 'Middleware must have a handler function' });
-    }
-
-    // Validate that the handler signature matches the expected types for the phase and step
-    try {
-      // This is a runtime check to ensure the handler can be called with the expected parameters
-      // The actual type checking happens at compile time with the generic types
-      if (middleware.handler.length < 3) {
-        throw new BTPErrorException({
-          message: 'Middleware handler must accept at least 3 parameters (req, res, next)',
-        });
-      }
-    } catch (error) {
-      throw new BTPErrorException({
-        message: `Invalid middleware handler signature: ${error}`,
-      });
     }
 
     if (

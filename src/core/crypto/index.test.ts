@@ -5,7 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import crypto from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -15,18 +15,22 @@ import {
   encryptRSA,
   decryptRSA,
   getFingerprintFromPem,
+  encryptBtpPayload,
+  decryptBtpPayload,
+  signBtpPayloadWithSigner,
+  decryptBtpPayloadWithDecrypter,
+  PemSigner,
+  PemDecrypter,
+  type Signer,
+  type SignerPublicKey,
+  type Decrypter,
 } from './index.js';
 import { PemKeys } from './types.js';
-
-/*
- * Expected failures (`it.fails`). Each such test reproduces a defect on
- * baseline 367cd09 and its name says which ticket's fix makes it pass. vitest
- * reports an `it.fails` test as passing while its assertion fails, and as
- * FAILING once the defect is fixed, so the fix ticket must change `it.fails`
- * to `it` in the same change. This is the same ratchet as
- * test/vectors/known-failing.json gives `verify:btps-vectors`.
- */
-const XFAIL_EBA_115 = 'expected failure until EBA-115 lands';
+import {
+  BTP_ERROR_CANONICAL_JSON,
+  BTP_ERROR_DECRYPTION_UNINTENDED,
+  BTP_ERROR_UNSUPPORTED_ENCRYPT,
+} from '../error/constant.js';
 
 interface KmsSignatureVector {
   algorithm: string;
@@ -94,9 +98,9 @@ function genRsaKeyPair(): PemKeys {
   return { publicKey, privateKey };
 }
 
-describe('EBA-115: JCS canonicalization of signed payloads', () => {
-  it.fails(
-    `signs identically regardless of the JS object key insertion order (${XFAIL_EBA_115})`,
+describe('JCS canonicalization of signed payloads', () => {
+  it(
+    'signs identically regardless of the JS object key insertion order',
     () => {
       const keys = genRsaKeyPair();
       const a = signBtpPayload({ to: 'bob$example.com', from: 'alice$example.com', id: '1' }, keys);
@@ -108,8 +112,8 @@ describe('EBA-115: JCS canonicalization of signed payloads', () => {
     },
   );
 
-  it.fails(
-    `verifies a payload signed with a different, but logically identical, key order (${XFAIL_EBA_115})`,
+  it(
+    'verifies a payload signed with a different, but logically identical, key order',
     () => {
       const keys = genRsaKeyPair();
       const signed = signBtpPayload({ b: 2, a: 1 }, keys);
@@ -120,14 +124,31 @@ describe('EBA-115: JCS canonicalization of signed payloads', () => {
   );
 });
 
+describe('a sender whose published key is not a public key', () => {
+  it('is refused as a mismatch that says why, and writes nothing to the console', () => {
+    const keys = genRsaKeyPair();
+    const signed = signBtpPayload({ id: '1' }, keys);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const { isValid, error } = verifySignature({ id: '1' }, signed, 'not a public key');
+
+    expect(isValid).toBe(false);
+    expect(error).toMatchObject({
+      code: 'BTP_ERROR_SIG_MISMATCH',
+      meta: { reason: expect.stringContaining('Invalid PEM') },
+    });
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+});
+
 // The web side signs and verifies the RFC 8785 canonical bytes, as a BTPS 1.1
 // web client must. Both Node-side payloads are deliberately NOT in canonical
 // key order, so these pass only once the SDK also signs canonical bytes, which
-// is EBA-115's fix. (Round 1 had the web side sign JSON.stringify output in a
-// non-canonical order, which no SDK fix could ever make pass.)
-describe('EBA-122: Node and web (WebCrypto) verify each other’s signatures', () => {
-  it.fails(
-    `a signature produced by Node verifies under WebCrypto, even when the payload was rebuilt with different key order (${XFAIL_EBA_115})`,
+// is what canonical signing fixed.
+describe('Node and web (WebCrypto) verify each other’s signatures', () => {
+  it(
+    'a signature produced by Node verifies under WebCrypto, even when the payload was rebuilt with different key order',
     async () => {
       const keys = genRsaKeyPair();
       const nodePayload = { to: 'bob$example.com', from: 'alice$example.com', amountCents: 500 };
@@ -156,8 +177,8 @@ describe('EBA-122: Node and web (WebCrypto) verify each other’s signatures', (
     },
   );
 
-  it.fails(
-    `a signature produced by WebCrypto verifies under Node’s verifySignature (${XFAIL_EBA_115})`,
+  it(
+    'a signature produced by WebCrypto verifies under Node’s verifySignature',
     async () => {
       const keys = genRsaKeyPair();
       const pkcs8Der = crypto
@@ -194,12 +215,12 @@ describe('EBA-122: Node and web (WebCrypto) verify each other’s signatures', (
   );
 });
 
-describe('EBA-116/117/118: interop with a KMS RSASSA_PKCS1_V1_5_SHA_256 signature', () => {
+describe('interop with a KMS RSASSA_PKCS1_V1_5_SHA_256 signature', () => {
   // The vector's signature is over canonicalPayload; payloadRaw is the same
-  // object in a different key order, so verifying it needs EBA-115's canonical
+  // object in a different key order, so verifying it needs canonical
   // verification.
-  it.fails(
-    `verifies a precomputed KMS-style signature against the logically equivalent (differently ordered) payload (${XFAIL_EBA_115})`,
+  it(
+    'verifies a precomputed KMS-style signature against the logically equivalent (differently ordered) payload',
     () => {
       const payload: Record<string, unknown> = JSON.parse(kmsVector.payloadRaw);
 
@@ -224,7 +245,7 @@ describe('EBA-116/117/118: interop with a KMS RSASSA_PKCS1_V1_5_SHA_256 signatur
 // @types/node's RsaPublicKey/RsaPrivateKey either). So "pinned" is shown by
 // behaviour, not by inspecting the options passed. These pass on baseline
 // 367cd09, as the runner's sdk/kms checks do.
-describe('EBA-116/117/118: the OAEP MGF1 digest is pinned to SHA-256', () => {
+describe('the OAEP MGF1 digest is pinned to SHA-256', () => {
   it('decryptRSA refuses a wrap made with OAEP-SHA-256 and MGF1-SHA-1', () => {
     expect(oaepMgf1Sha1Vector.mgf1Algorithm).toBe('SHA_1');
     expect(() =>
@@ -255,7 +276,7 @@ describe('EBA-116/117/118: the OAEP MGF1 digest is pinned to SHA-256', () => {
   });
 });
 
-describe('EBA-116/117/118: SDK RSA-OAEP wrap/unwrap interop with KMS RSAES_OAEP_SHA_256', () => {
+describe('SDK RSA-OAEP wrap/unwrap interop with KMS RSAES_OAEP_SHA_256', () => {
   it('a key wrapped by the SDK’s encryptRSA unwraps under explicit KMS-equivalent OAEP params', () => {
     const keys = genRsaKeyPair();
     const aesKey = crypto.randomBytes(32);
@@ -282,5 +303,166 @@ describe('EBA-116/117/118: SDK RSA-OAEP wrap/unwrap interop with KMS RSAES_OAEP_
     );
 
     expect(unwrapped.toString('base64')).toBe(oaepVector.plaintextKeyBase64);
+  });
+});
+
+describe('decryptBtpPayload reads the decrypted document strictly', () => {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  const opened = (plaintext: string) => {
+    const { data, encryption } = encryptBtpPayload(plaintext, publicKey);
+    return decryptBtpPayload(data, encryption, privateKey);
+  };
+
+  it('returns a document without duplicate member names', () => {
+    const result = opened('{"amount":100,"currency":"AUD"}');
+    expect(result.error).toBeUndefined();
+    expect(result.data).toEqual({ amount: 100, currency: 'AUD' });
+  });
+
+  it('refuses a document with a duplicate member name, at any depth', () => {
+    for (const plaintext of [
+      '{"amount":100,"amount":1}',
+      '{"totalAmount":{"amount":100,"amount":1}}',
+    ]) {
+      const result = opened(plaintext);
+      expect(result.data).toBeUndefined();
+      expect(result.error?.code).toBe(BTP_ERROR_CANONICAL_JSON.code);
+    }
+  });
+});
+
+describe('a key held elsewhere: Signer and Decrypter', () => {
+  const keys = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  const payload = { to: 'bob$example.com', from: 'alice$example.com', id: '1' };
+
+  // A key holder written by a platform: its methods live on the prototype only.
+  class RemoteSigner implements Signer {
+    readonly algorithm = 'RSASSA_PKCS1_V1_5_SHA_256' as const;
+    async sign(data: Uint8Array): Promise<Uint8Array> {
+      return crypto.sign('sha256', Buffer.from(data), keys.privateKey);
+    }
+    async getPublicKey(): Promise<SignerPublicKey> {
+      return { publicKey: keys.publicKey, fingerprint: getFingerprintFromPem(keys.publicKey) };
+    }
+  }
+
+  it('signs exactly as signBtpPayload does with the same key', async () => {
+    const withSigner = await signBtpPayloadWithSigner(payload, new PemSigner(keys));
+    expect(withSigner).toEqual(signBtpPayload(payload, keys));
+    expect(await signBtpPayloadWithSigner(payload, new RemoteSigner())).toEqual(withSigner);
+    expect(verifySignature(payload, withSigner, keys.publicKey).isValid).toBe(true);
+  });
+
+  it('decrypts exactly as decryptBtpPayload does with the same key', async () => {
+    const { data, encryption } = encryptBtpPayload(
+      { amount: 100, currency: 'AUD' },
+      keys.publicKey,
+    );
+
+    const result = await decryptBtpPayloadWithDecrypter(
+      data,
+      encryption,
+      new PemDecrypter({ privateKey: keys.privateKey }),
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.data).toEqual(decryptBtpPayload(data, encryption, keys.privateKey).data);
+  });
+
+  it('refuses a decrypted document with a duplicate member name', async () => {
+    const { data, encryption } = encryptBtpPayload('{"amount":100,"amount":1}', keys.publicKey);
+
+    const result = await decryptBtpPayloadWithDecrypter(
+      data,
+      encryption,
+      new PemDecrypter({ privateKey: keys.privateKey }),
+    );
+
+    expect(result.data).toBeUndefined();
+    expect(result.error?.code).toBe(BTP_ERROR_CANONICAL_JSON.code);
+  });
+
+  it('reports an artifact encrypted to another key as not intended for this receiver', async () => {
+    const other = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    const { data, encryption } = encryptBtpPayload({ amount: 100 }, other.publicKey);
+
+    const result = await decryptBtpPayloadWithDecrypter(
+      data,
+      encryption,
+      new PemDecrypter({ privateKey: keys.privateKey }),
+    );
+
+    expect(result.data).toBeUndefined();
+    expect(result.error?.code).toBe(BTP_ERROR_DECRYPTION_UNINTENDED.code);
+  });
+
+  it('reports either error OpenSSL gives for another key as not intended for this receiver', async () => {
+    const { data, encryption } = encryptBtpPayload({ amount: 100 }, keys.publicKey);
+
+    for (const code of [
+      'ERR_OSSL_RSA_OAEP_DECODING_ERROR',
+      'ERR_OSSL_RSA_DATA_TOO_LARGE_FOR_MODULUS',
+    ]) {
+      const wrongKey: Decrypter = {
+        algorithm: 'aes-256-gcm',
+        decrypt: async () => {
+          throw Object.assign(new Error('openssl'), { code });
+        },
+      };
+
+      const result = await decryptBtpPayloadWithDecrypter(data, encryption, wrongKey);
+
+      expect(result.error?.code).toBe(BTP_ERROR_DECRYPTION_UNINTENDED.code);
+    }
+  });
+
+  it('returns the error of a key holder that fails, without a document', async () => {
+    const failing: Decrypter = {
+      algorithm: 'aes-256-gcm',
+      decrypt: async () => {
+        throw new Error('key holder unavailable');
+      },
+    };
+    const { data, encryption } = encryptBtpPayload({ amount: 100 }, keys.publicKey);
+
+    const result = await decryptBtpPayloadWithDecrypter(data, encryption, failing);
+
+    expect(result.data).toBeUndefined();
+    expect(result.error?.message).toBe('key holder unavailable');
+  });
+});
+
+describe('the smallest key the SDK encrypts to', () => {
+  const rsa = (modulusLength: number) =>
+    crypto.generateKeyPairSync('rsa', {
+      modulusLength,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+
+  it('refuses to encrypt to an RSA key below 2048 bits', () => {
+    expect(() => encryptBtpPayload({ amount: 100 }, rsa(1024).publicKey)).toThrow(
+      expect.objectContaining({ code: BTP_ERROR_UNSUPPORTED_ENCRYPT.code }),
+    );
+  });
+
+  it('encrypts to a 2048-bit key and larger', () => {
+    for (const bits of [2048, 3072]) {
+      expect(encryptBtpPayload({ amount: 100 }, rsa(bits).publicKey).data).toEqual(
+        expect.any(String),
+      );
+    }
   });
 });

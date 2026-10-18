@@ -16,14 +16,7 @@ import { describe, expect, it } from 'vitest';
 const SRC = fileURLToPath(new URL('../src', import.meta.url));
 
 const TOP_LEVEL = ['client', 'core', 'server', 'index.ts'];
-const TOP_LEVEL_EXCEPTIONS = [
-  'signer-interface.ts',
-  'pem-signer.ts',
-  'kms-signer.ts',
-  'decrypter-interface.ts',
-  'pem-decrypter.ts',
-  'kms-decrypter.ts',
-];
+const TOP_LEVEL_EXCEPTIONS: string[] = [];
 
 const CORE_AREAS = [
   'authentication',
@@ -44,7 +37,7 @@ const SCHEMA_PLACES = ['core/server/schemas/', 'client/libs/schema.ts'];
 const SCHEMA_NAME_EXCEPTIONS = ['identitySchema', 'processBtpDocSchema'];
 
 // Files that throw something other than BTPErrorException.
-const PLAIN_THROW_EXCEPTIONS = ['pem-decrypter.ts'];
+const PLAIN_THROW_EXCEPTIONS: string[] = [];
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

@@ -123,7 +123,7 @@ A delegated artifact is a standard BTPS artifact with an additional `delegation`
 
 ```json
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "issuedAt": "2025-01-15T10:30:00Z",
   "id": "msg_123",
   "type": "BTPS_DOC",
@@ -133,7 +133,7 @@ A delegated artifact is a standard BTPS artifact with an additional `delegation`
     "title": "Monthly Service Invoice",
     "id": "INV-2025-001",
     "totalAmount": {
-      "value": 1500.0,
+      "amount": 150000,
       "currency": "USD"
     }
   },
@@ -186,6 +186,12 @@ A delegated artifact is a standard BTPS artifact with an additional `delegation`
 
 The BtpsServer performs verification in the following order:
 
+#### **Step 0: Operator Check**
+
+- Resolve `_btps.host.<domain of from>` and read its operator (`op`)
+- Accept the delegation only if `delegation.signedBy` is that operator, or the sender itself (`delegation.signedBy === artifact.from`)
+- Reject it otherwise, including when the domain declares no operator. Another address on the same domain is not enough: it can hold a key of its own. See [The Domain Operator](../specifications/overview.md#the-domain-operator)
+
 #### **Step 1: Attestation Requirement Check**
 
 - Determine if `delegation.signedBy === artifact.from`
@@ -194,6 +200,7 @@ The BtpsServer performs verification in the following order:
 
 #### **Step 2: Attestation Verification (if present)**
 
+- Reject unless `attestation.signedBy` is the operator of the domain of `from`
 - Resolve attestor's public key via DNS
 - Verify attestation signature against delegation metadata
 - Reject if verification fails
@@ -213,30 +220,42 @@ The BtpsServer performs verification in the following order:
 
 ### **DNS Resolution Requirements**
 
+#### **The Sender Domain's Operator**
+
+```bash
+# Resolve the sender domain's host record
+dig TXT _btps.host.saas.com
+
+# Expected response
+_btps.host.saas.com. 300 IN TXT "v=1.1.0; u=btps.saas.com:3443; s=btps1; op=admin$saas.com"
+```
+
 #### **Delegator Public Key**
 
 ```bash
-# Resolve delegator identity
-dig TXT alice.btps.saas.com
+# Resolve delegator identity (the operator)
+dig TXT btps1._btps.identity.admin.saas.com
 
 # Expected response
-alice.btps.saas.com. 300 IN TXT "p=...delegator_public_key..."
+btps1._btps.identity.admin.saas.com. 300 IN TXT "v=1.1.0; k=rsa; p=...delegator_public_key..."
 ```
 
 #### **Attestor Public Key (if attestation present)**
 
 ```bash
-# Resolve attestor identity
-dig TXT admin.btps.saas.com
+# Resolve attestor identity (the operator of the custom domain)
+dig TXT btps1._btps.identity.admin.saas.com
 
 # Expected response
-admin.btps.saas.com. 300 IN TXT "p=...attestor_public_key..."
+btps1._btps.identity.admin.saas.com. 300 IN TXT "v=1.1.0; k=rsa; p=...attestor_public_key..."
 ```
 
 ### **Error Conditions**
 
 | Error Condition                   | Error Code                              | Description                                   |
 | --------------------------------- | --------------------------------------- | --------------------------------------------- |
+| Delegator is not the operator     | `BTP_ERROR_DELEGATION_INVALID`          | `signedBy` is not the sender domain's `op`    |
+| Attestor is not the operator      | `BTP_ERROR_ATTESTATION_VERIFICATION`    | `attestation.signedBy` is not the `op`        |
 | Missing attestation when required | `BTP_ERROR_DELEGATION_INVALID`          | Custom domain delegation requires attestation |
 | Delegator public key not found    | `BTP_ERROR_RESOLVE_PUBKEY`              | DNS resolution failed for delegator           |
 | Attestor public key not found     | `BTP_ERROR_RESOLVE_PUBKEY`              | DNS resolution failed for attestor            |

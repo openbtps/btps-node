@@ -8,10 +8,12 @@
 /**
  * Default BTPS Server Middleware Configuration
  *
- * This file provides a default set of middleware for the BtpsServer.
- * These are used when no external middleware file is specified.
+ * A ready-made set of middleware a provider can include from its own
+ * middleware file: rate limiting by address and by identity, and metrics.
+ * The server never loads it by itself; filtering and limiting are the
+ * provider's choice.
  */
-import { BTPError } from '@core/error/types.js';
+import { BTP_ERROR_RATE_LIMITER } from '@core/error/constant.js';
 import { MiddlewareDefinitionArray } from '../types.js';
 import { BtpsSimpleRateLimiter } from './btpsSimpleRateLimiter.js';
 import { BtpsSimpleMetricsTracker } from './btpsSimpleMetricsTracker.js';
@@ -36,25 +38,24 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
       },
       handler: async (req, res, next) => {
         if (!(await rateLimiter.isAllowed(req.remoteAddress, 'ipAddress'))) {
-          const error: BTPError = { code: 429, message: 'Too many requests' };
           metrics.onMessageRejected(req.remoteAddress, '', 'Rate limit exceeded');
-          return res.sendError(error);
+          return res.sendError(BTP_ERROR_RATE_LIMITER);
         }
         await next();
       },
     },
 
-    // Identity-based rate limiting (after parsing)
+    // Parsing metrics (after parsing)
     {
       phase: 'after',
       step: 'parsing',
       priority: 1,
       config: {
-        name: 'default-identity-rate-limiter',
+        name: 'default-parsing-metrics-tracker',
         enabled: true,
       },
       handler: async (req, res, next) => {
-        const { data, error, remoteAddress, getIdentity } = req;
+        const { data, error, getIdentity } = req;
         const { to, from } = getIdentity();
         if (!data) return; // Returning here only skips further middleware; the main server will handle the error response.
         if (error) {
@@ -69,34 +70,33 @@ export function createDefaultMiddleware(): MiddlewareDefinitionArray {
 
           return;
         }
-
-        // artifact is guaranteed to be present after this point
-        if (!(await rateLimiter.isAllowed(from, 'fromIdentity'))) {
-          const error: BTPError = { code: 429, message: 'Too many requests' };
-          metrics.onMessageRejected(remoteAddress, to, 'Rate limit exceeded');
-          return res.sendError(error); // Stop flow, response sent
-        }
         await next();
       },
     },
 
-    // Identity-based rate limiting (after signature verification)
+    // Identity-based rate limiting (after signature verification). Counted only
+    // once the signature proves the sender: before that `from` is a claim, and
+    // anyone could spend another identity's allowance by naming it.
     {
       phase: 'after',
       step: 'signatureVerification',
       priority: 1,
       config: {
-        name: 'default-signature-metrics-tracker',
+        name: 'default-identity-rate-limiter',
         enabled: true,
       },
       handler: async (req, res, next) => {
-        const { error, getIdentity } = req;
+        const { error, remoteAddress, getIdentity } = req;
         const { to, from } = getIdentity();
         if (error) {
           metrics.onMessageRejected(from, to, error.message);
           metrics.onError(error);
           // Returning here only skips further middleware; the main server will handle the error response.
           return;
+        }
+        if (!(await rateLimiter.isAllowed(from, 'fromIdentity'))) {
+          metrics.onMessageRejected(remoteAddress, to, 'Rate limit exceeded');
+          return res.sendError(BTP_ERROR_RATE_LIMITER); // Stop flow, response sent
         }
         await next();
       },

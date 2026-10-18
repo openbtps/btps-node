@@ -1,0 +1,38 @@
+# ci/docs - builds the documentation site (docs/docusaurus) on every pull
+# request. docusaurus.config.ts throws on a broken link, anchor or Markdown
+# link, so a page that links to nothing, or a moved heading, fails the check.
+# Its own workflow, apart from ci.yml: the site has its own npm lockfile and
+# needs nothing from the SDK build.
+#
+# Runs on pull_request from forks with contents: read and no secrets. Pins
+# match ci.yml.
+name: Docs
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  docs:
+    name: ci/docs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Install docs dependencies
+        working-directory: docs/docusaurus
+        run: npm ci
+      - name: Build the docs site
+        working-directory: docs/docusaurus
+        run: npm run build
