@@ -70,16 +70,12 @@ const serverIdentity = {
   privateKey: readFileSync('./keys/your-server-identity-private.pem', 'utf8'),
 };
 
-// TLS configuration (optional for development)
-const tlsOptions =
-  process.env.USE_TLS === 'true'
-    ? {
-        key: readFileSync('./keys/private.pem'),
-        cert: readFileSync('./keys/cert.pem'),
-        requestCert: false,
-        rejectUnauthorized: false,
-      }
-    : undefined;
+// TLS configuration (required: BTPS only runs over TLS). For development, a
+// self-signed certificate will do; senders then need its CA to connect.
+const tlsOptions = {
+  key: readFileSync('./keys/tls-key.pem', 'utf8'),
+  cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+};
 
 // Create BTPS server
 const server = new BtpsServer({
