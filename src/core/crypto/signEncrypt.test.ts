@@ -123,6 +123,18 @@ describe('signEncrypt', () => {
     );
   });
 
+  it('refuses a document over a field limit before encrypting it, since no server could read it', async () => {
+    const tooLong = { ...payload, document: { ...payload.document, reason: 'a'.repeat(2001) } };
+    const result = await signEncrypt('receiver$example.com', sender, tooLong, {
+      signature: { algorithmHash: 'sha256' },
+      encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+    });
+
+    expect(result.payload).toBeUndefined();
+    expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+    expect(mockCrypto.encryptBtpPayload).not.toHaveBeenCalled();
+  });
+
   it('should handle payloads that do not require encryption', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await signEncrypt('receiver$example.com', sender, payload as any);

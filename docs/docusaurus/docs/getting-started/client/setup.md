@@ -118,6 +118,8 @@ async initialize(userConfig: UserConfig) {
 }
 ```
 
+Every timeout, its minimum and the other client limits are on [Limits](../../protocol/specifications/limits.md#client-and-transporter-settings).
+
 ## 4. Basic Usage Examples
 
 ### Querying Inboxes (All Users)

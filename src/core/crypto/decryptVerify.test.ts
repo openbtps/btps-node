@@ -37,6 +37,7 @@ describe('decryptVerify', () => {
       type: 'TRUST_REQ',
       issuedAt: '2023-01-01T00:00:00Z',
       document: {
+        id: 'req-1',
         name: 'test',
         email: 'test@test.com',
         phone: '1234567890',
@@ -64,16 +65,14 @@ describe('decryptVerify', () => {
     };
 
     mockCrypto.verifySignature.mockReturnValue({ isValid: true });
-    mockCrypto.decryptBtpPayload.mockReturnValue({
-      data: { name: 'test', email: 'test@test.com', phone: '1234567890', reason: 'test' },
-    });
+    mockCrypto.decryptBtpPayload.mockReturnValue({ data: encryptedPayload.document });
 
     const result = await decryptVerify(senderPubPem, encryptedStringPayload, privateKey);
 
     expect(result.error).toBeUndefined();
     expect(result.payload).toEqual({
       ...encryptedStringPayload,
-      document: { name: 'test', email: 'test@test.com', phone: '1234567890', reason: 'test' },
+      document: encryptedPayload.document,
     });
     expect(mockCrypto.verifySignature).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -152,14 +151,14 @@ describe('decryptVerify', () => {
     };
 
     mockCrypto.verifySignature.mockReturnValue({ isValid: true });
-    mockCrypto.decryptBtpPayload.mockReturnValue({ data: { decrypted: 'data' } });
+    mockCrypto.decryptBtpPayload.mockReturnValue({ data: encryptedPayload.document });
 
     const result = await decryptVerify(senderPubPem, encryptedStringPayload, privateKey);
 
     expect(result.error).toBeUndefined();
     expect(result.payload).toEqual({
       ...encryptedStringPayload,
-      document: { decrypted: 'data' },
+      document: encryptedPayload.document,
     });
     expect(mockCrypto.decryptBtpPayload).toHaveBeenCalledWith(
       'encrypted-string-data',
@@ -217,10 +216,45 @@ describe('decryptVerify', () => {
       expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
     });
 
-    it('leaves other decrypted artifact types unchecked, as before', async () => {
-      const result = await opened({ decrypted: 'data' }, { ...carried(), type: 'BTPS_DOC' });
+    it('is refused when its message is over the limit', async () => {
+      const result = await opened({ ...event, message: 'a'.repeat(5001) });
+      expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+    });
+  });
+
+  describe('a decrypted document of another type', () => {
+    const request = {
+      id: 'req-1',
+      name: 'Acme',
+      email: 'billing@acme.com',
+      reason: 'invoices',
+      phone: '+61 400 000 000',
+    };
+    const opened = async (decrypted: unknown, type = 'TRUST_REQ') => {
+      mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+      mockCrypto.decryptBtpPayload.mockReturnValue({ data: decrypted });
+      return decryptVerify(
+        senderPubPem,
+        { ...encryptedPayload, type, document: 'encrypted' } as VerifyEncryptedPayload<string>,
+        privateKey,
+      );
+    };
+
+    it('is returned when it matches its type', async () => {
+      const result = await opened(request);
       expect(result.error).toBeUndefined();
-      expect(result.payload?.document).toEqual({ decrypted: 'data' });
+      expect(result.payload?.document).toEqual(request);
+    });
+
+    it('is refused when a field is over its limit, as it would be unencrypted', async () => {
+      const result = await opened({ ...request, reason: 'a'.repeat(2001) });
+      expect(result.payload).toBeUndefined();
+      expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+    });
+
+    it('is refused when it is not its type', async () => {
+      const result = await opened({ decrypted: 'data' }, 'BTPS_DOC');
+      expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
     });
   });
 
@@ -299,12 +333,14 @@ describe('decryptVerify', () => {
       document: 'encrypted-string-data',
     };
     mockCrypto.verifySignature.mockReturnValue({ isValid: true });
-    mockCrypto.decryptBtpPayloadWithDecrypter.mockResolvedValue({ data: { decrypted: 'data' } });
+    mockCrypto.decryptBtpPayloadWithDecrypter.mockResolvedValue({
+      data: encryptedPayload.document,
+    });
 
     const result = await decryptVerify(senderPubPem, encryptedStringPayload, decrypter);
 
     expect(result.error).toBeUndefined();
-    expect(result.payload?.document).toEqual({ decrypted: 'data' });
+    expect(result.payload?.document).toEqual(encryptedPayload.document);
     expect(mockCrypto.decryptBtpPayloadWithDecrypter).toHaveBeenCalledWith(
       'encrypted-string-data',
       encryptedStringPayload.encryption,

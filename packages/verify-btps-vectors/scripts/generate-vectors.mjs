@@ -147,7 +147,14 @@ function selectors() {
     },
     artifact: {
       type: 'BTPS_DOC',
-      document: { invoiceId: 'INV-6', amountCents: 9900, currency: 'AUD' },
+      document: {
+        type: 'invoice',
+        title: 'INV-6',
+        id: 'INV-6',
+        issuedAt: '2026-01-01T00:00:00.000Z',
+        totalAmount: { amount: 9900, currency: 'AUD' },
+        lineItems: { columns: ['Item', 'Amount'], rows: [{ Item: 'Service', Amount: 9900 }] },
+      },
     },
     expect: {
       selector: 'btps2',

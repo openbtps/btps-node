@@ -53,6 +53,8 @@ An address has exactly one separator, and:
 - **The domain** follows DNS's rules: at least two labels separated by `.`, each label letters, digits and `-` (1 to 63 characters, not starting or ending with `-`), up to 253 characters in all. An international domain is written in its `xn--` form, e.g. `billing$xn--bcher-kva.example` for `bücher.example`.
 - **Letters compare without case**, as in DNS: `Billing$Vendor.com` is the same address as `billing$vendor.com`.
 
+Every limit in the protocol, addresses included, is listed on [Limits](./limits.md).
+
 So `alice$saas.example$evil.example`, `alice$$saas.example`, `alice:x$saas.example` and `bіlling$vendor.com` (with a Cyrillic `і`) are all refused. No character can pass for another, and no `:` can appear: a trust id is a hash of `from:to`, so a `:` could make two pairs share an id, and a device's record id starts with `agent:`, which no address can then imitate (see the agent artifact's `agentId`).
 
 ---

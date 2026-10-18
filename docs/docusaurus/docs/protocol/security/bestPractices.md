@@ -30,7 +30,10 @@ Before an artifact reaches your handler, `BtpsServer` refuses:
 - an artifact signed outside the time window (5 minutes by default, `maxArtifactAgeSeconds`);
 - an artifact without an active trust, and one sent in the clear over a trust that requires encryption;
 - an address with a second separator or a `:`;
-- a line larger than the server's limit, and one that is not strict JSON.
+- a line larger than the server's limit, and one that is not strict JSON;
+- a document with a field over its limit.
+
+Every limit is listed on [Limits](../specifications/limits.md).
 
 A refusal never tells a stranger what only the receiver knows. A trust that was never made, is pending, rejected, revoked or blocked all read `BTP_ERROR_TRUST_NOT_ALLOWED`. An unknown device and a registered device's id signed with the wrong key read the same, and no refusal carries internal detail.
 

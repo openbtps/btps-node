@@ -7,7 +7,13 @@
 
 import { randomUUID } from 'crypto';
 import type { ConnectionOptions } from 'tls';
-import { BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '@core/error/constant.js';
+import {
+  BTP_ERROR_IDENTITY,
+  BTP_ERROR_RESOLVE_PUBKEY,
+  BTP_ERROR_VALIDATION,
+} from '@core/error/constant.js';
+import { processBtpDocSchema } from '@core/server/schemas/helpers.js';
+import type { BTPArtifactType } from '@core/server/types.js';
 import { signBtpPayload, signBtpPayloadWithSigner, encryptBtpPayload } from './index.js';
 import type { Signer } from './signer-interface.js';
 import {
@@ -82,6 +88,15 @@ export const signEncrypt = async <T = unknown>(
   let encryptedDoc: string | T = document;
 
   if (to && !isEmpty(options?.encryption)) {
+    // Once encrypted, no server can read the document, so it is checked here.
+    const docSchema = processBtpDocSchema(restPayload.type as BTPArtifactType);
+    if (docSchema && !docSchema.safeParse(document).success) {
+      return genEncryptError(
+        new BTPErrorException(BTP_ERROR_VALIDATION, {
+          cause: 'Document type does not match the artifact type',
+        }),
+      );
+    }
     const parsedReceiver = parseIdentity(to);
     if (!parsedReceiver) return genEncryptError(new BTPErrorException(BTP_ERROR_IDENTITY));
     const receiverHost = await getHostAndSelector(to);
