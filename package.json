@@ -31,7 +31,7 @@
   "license": "Apache-2.0",
   "author": {
     "name": "Bhupendra Tamang",
-    "email": "personal_here@hotmail.com"
+    "email": "admin@openbtps.org"
   },
   "exports": {
     ".": {
