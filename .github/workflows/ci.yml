@@ -142,6 +142,16 @@ jobs:
             await import('@btps/sdk');
             console.log('import @btps/sdk OK from ' + resolved);
           "
+      - name: Type-check every entry point against the installed tarball
+        run: |
+          cd "$RUNNER_TEMP/pack-smoke"
+          npm install --no-audit --no-fund typescript@5.8.3 @types/node@24.0.3
+          for entry in '' /server /server/core /client /crypto /trust /authentication /delegation /error /storage; do
+            echo "export * as m$(echo "$entry" | tr -c 'a-z\n' '_') from '@btps/sdk$entry';"
+          done > index.mts
+          echo '{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","strict":true,"skipLibCheck":false,"noEmit":true,"types":["node"]},"files":["index.mts"]}' > tsconfig.json
+          cat index.mts
+          npx tsc -p .
 
   test:
     name: ci/test
