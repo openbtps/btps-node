@@ -58,6 +58,8 @@ export interface BtpsServerOptions {
   maxArtifactSizeKb?: number;
   /** How far an artifact's issuedAt may be from this server's clock, in seconds, either way. Default 300 (5 minutes), minimum 60. */
   maxArtifactAgeSeconds?: number;
+  /** How many requests one connection may have handled at once; at the limit the server stops reading it until one finishes. Default 32, minimum 1. */
+  maxInFlightPerConnection?: number;
 }
 
 // Middleware Types

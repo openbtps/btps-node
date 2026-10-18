@@ -38,7 +38,7 @@ import type {
   BTPTransporterArtifact,
 } from '../../src/core/server/types.js';
 import type { BTPClientResponse } from '../../src/client/types/index.js';
-import type { MiddlewareDefinition } from '../../src/server/types.js';
+import type { BtpsServerOptions, MiddlewareDefinition } from '../../src/server/types.js';
 import { zone } from './zone.js';
 
 export type Keys = { publicKey: string; privateKey: string };
@@ -137,7 +137,10 @@ export type Provider = Awaited<ReturnType<typeof startProvider>>;
  * A BTPS provider on its own domain: a BtpsServer over TLS run by its operator
  * (`admin$<domain>`), with its host and operator key published.
  */
-export async function startProvider(domain: string, options: { selector?: string } = {}) {
+export async function startProvider(
+  domain: string,
+  options: { selector?: string; server?: Partial<BtpsServerOptions> } = {},
+) {
   const selector = options.selector ?? 'btps1';
   const operator = `admin$${domain}`;
   const operatorKeys = newKeys();
@@ -154,6 +157,7 @@ export async function startProvider(domain: string, options: { selector?: string
     port,
     tlsOptions: { key: tlsFiles.key, cert: tlsFiles.cert },
     connectionTimeoutMs: 5000,
+    ...options.server,
   });
 
   // What the platform does with what arrives: keep it, and record trust.

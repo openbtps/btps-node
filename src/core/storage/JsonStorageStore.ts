@@ -28,6 +28,8 @@ export class JsonStorageStore<T extends BTPStorageRecord> extends AbstractStorag
   protected hasEntity: boolean = false;
   protected writeDebounced: () => void;
   protected lastChangedMtime: number = 0;
+  // Read from the file once; an empty store is not a reason to read it again.
+  protected loaded: boolean = false;
 
   constructor(options: StorageStoreOptions) {
     super(options);
@@ -85,6 +87,7 @@ export class JsonStorageStore<T extends BTPStorageRecord> extends AbstractStorag
       const key = r.id;
       this.recordMap.set(key, r);
     }
+    this.loaded = true;
   }
 
   /**
@@ -119,7 +122,7 @@ export class JsonStorageStore<T extends BTPStorageRecord> extends AbstractStorag
    * Retrieves a record by its ID.
    */
   async getById(computedId: string): Promise<T | undefined> {
-    if (this.recordMap.size === 0) await this.init();
+    if (!this.loaded) await this.init();
     await this.reloadIfChanged();
     return this.recordMap.get(computedId) as T | undefined;
   }
@@ -173,7 +176,7 @@ export class JsonStorageStore<T extends BTPStorageRecord> extends AbstractStorag
    * Deletes a storage record for a given identity.
    */
   async delete(computedId: string): Promise<void> {
-    if (this.recordMap.size === 0) await this.init();
+    if (!this.loaded) await this.init();
     if (this.recordMap.delete(computedId)) {
       this.dirty = true;
       this.writeDebounced();
