@@ -20,6 +20,7 @@ const sidebars: SidebarsConfig = {
       id: 'introduction',
       label: 'BTPS Introduction',
     },
+    'roadmap',
     {
       type: 'category',
       label: 'Getting Started',

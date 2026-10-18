@@ -144,6 +144,11 @@ const config: Config = {
             label: 'Docs',
           },
           {
+            to: '/docs/roadmap',
+            label: 'Roadmap',
+            position: 'left',
+          },
+          {
             href: 'https://github.com/openbtps/btps-node',
             label: 'GitHub',
             position: 'right',
