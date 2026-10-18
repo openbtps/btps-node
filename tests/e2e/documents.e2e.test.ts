@@ -25,7 +25,10 @@ import {
   artifactFrom,
   deliver,
   invoiceDocument,
+  letterDocument,
   open,
+  payslipDocument,
+  receiptDocument,
   recordTrust,
   sendRaw,
   startProvider,
@@ -104,40 +107,12 @@ describe('journey: an invoice, then whether it was paid', () => {
   });
 
   it('delivers a receipt for the invoice, a payslip and a letter, each opened intact', async () => {
-    const issuedAt = '2026-10-19T00:00:00.000Z';
-    const aud = (amount: number) => ({ amount, currency: 'AUD' });
     const documents = [
-      {
-        type: 'receipt',
-        title: 'Receipt',
-        id: 'REC-001',
-        issuedAt,
-        totalAmount: aud(150000),
-        payment: { amount: aud(50000), paidAt: issuedAt, method: 'bank_transfer' },
+      receiptDocument({
         references: [{ type: 'receipt_for', ...reference(invoice, vendor.identity) }],
-      },
-      {
-        type: 'payslip',
-        title: 'Payslip',
-        id: 'PAY-001',
-        issuedAt,
-        employee: { name: 'Sam' },
-        earnings: [{ category: 'ordinary', rate: '48.75', quantity: '38', amount: aud(185250) }],
-        deductions: [],
-        contributions: [{ amount: aud(22230) }],
-        leave: [
-          { category: 'annual', description: 'Annual Leave', unit: 'hours', balance: '76.5' },
-        ],
-        gross: aud(185250),
-        net: aud(148250),
-      },
-      {
-        type: 'letter',
-        title: 'Your new plan',
-        id: 'LET-001',
-        issuedAt,
-        body: { format: 'markdown', content: '# Welcome\n\nYour plan starts on **1 November**.' },
-      },
+      }),
+      payslipDocument(),
+      letterDocument(),
     ];
 
     for (const document of documents) {
