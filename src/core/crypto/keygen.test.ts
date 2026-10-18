@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as keygenModule from './keygen';
+import * as keygenModule from './keygen.js';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 

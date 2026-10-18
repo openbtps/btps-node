@@ -1,5 +1,12 @@
 {
   "extends": "./tsconfig.json", // This links it to your main config
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "emitDeclarationOnly": true
+  },
   "include": ["src"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts", "**/test/**", "examples"] // Standard exclusions
 }

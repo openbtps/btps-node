@@ -91,7 +91,6 @@ describe('BtpsAuthentication', () => {
     auth = new BtpsAuthentication({
       trustStore,
       tokenStore,
-      refreshTokenStore: tokenStore, // Use same store for both
     });
   });
 
@@ -548,7 +547,6 @@ describe('BtpsAuthentication', () => {
       const auth = new BtpsAuthentication({
         trustStore,
         tokenStore,
-        refreshTokenStore: tokenStore,
       });
 
       // Test that default configuration is applied
@@ -566,7 +564,6 @@ describe('BtpsAuthentication', () => {
       const auth = new BtpsAuthentication({
         trustStore,
         tokenStore,
-        refreshTokenStore: tokenStore,
         tokenConfig: customConfig,
       });
 
@@ -588,7 +585,6 @@ describe('BtpsAuthentication', () => {
       const auth = new BtpsAuthentication({
         trustStore: mockTrustStore,
         tokenStore,
-        refreshTokenStore: tokenStore,
       });
 
       const options = {
@@ -613,7 +609,6 @@ describe('BtpsAuthentication', () => {
       const auth = new BtpsAuthentication({
         trustStore,
         tokenStore: mockTokenStore,
-        refreshTokenStore: mockTokenStore,
       });
 
       const decryptBy = 'admin$saas.com';

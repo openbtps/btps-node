@@ -6,10 +6,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { decryptVerify } from './decryptVerify';
-import * as cryptoIndex from './index';
+import { decryptVerify } from './decryptVerify.js';
+import * as cryptoIndex from './index.js';
 import { BTPErrorException } from '../error/index.js';
-import { VerifyEncryptedPayload } from './types';
+import { VerifyEncryptedPayload } from './types.js';
 import { BTPTrustReqDoc } from '../trust/types.js';
 import type { Decrypter } from './decrypter-interface.js';
 
@@ -44,15 +44,16 @@ describe('decryptVerify', () => {
         reason: 'test',
       },
       signature: {
-        algorithm: 'sha256',
+        algorithmHash: 'sha256',
         fingerprint: 'fingerprint',
         value: 'signature-value',
       },
       encryption: {
-        algorithm: 'aes-256-cbc',
+        algorithm: 'aes-256-gcm',
         encryptedKey: 'encrypted-key',
         iv: 'iv-value',
         type: 'standardEncrypt',
+        authTag: 'auth-tag',
       },
     };
   });
@@ -82,10 +83,11 @@ describe('decryptVerify', () => {
         issuedAt: '2023-01-01T00:00:00Z',
         document: 'encrypted-string-data',
         encryption: {
-          algorithm: 'aes-256-cbc',
+          algorithm: 'aes-256-gcm',
           encryptedKey: 'encrypted-key',
           iv: 'iv-value',
           type: 'standardEncrypt',
+          authTag: 'auth-tag',
         },
       }),
       encryptedStringPayload.signature,
@@ -266,11 +268,12 @@ describe('decryptVerify', () => {
         agentPubKey: 'agent-public-key',
         signedBy: 'delegator$example.com',
         signature: {
-          algorithm: 'sha256',
+          algorithmHash: 'sha256',
           value: 'delegation-sig',
           fingerprint: 'delegation-fp',
         },
         issuedAt: '2023-01-01T00:00:00Z',
+        selector: 'btps1',
       },
     };
 

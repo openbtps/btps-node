@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach, type Mock } from 'vitest';
 import { BtpsServerRegistry, BtpsServerSingletonFactory } from '../libs/btpsFactory.js';
 import { BtpsServer } from '../btpsServer.js';
+import type { BtpsServerOptions } from '../types.js';
 import { AbstractTrustStore } from '../../core/trust/storage/AbstractTrustStore.js';
 import { BTPTrustRecord } from '../../core/trust/types.js';
 import { EventEmitter } from 'events';
@@ -41,6 +42,12 @@ class DummyTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   }
 }
 
+const serverOptions = (trustStore: DummyTrustStore): BtpsServerOptions => ({
+  trustStore,
+  serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+  tlsOptions: { key: 'test-key', cert: 'test-cert' },
+});
+
 describe('BtpsServerRegistry', () => {
   let serverA: BtpsServer;
   let serverB: BtpsServer;
@@ -65,8 +72,8 @@ describe('BtpsServerRegistry', () => {
       },
     );
 
-    serverA = new BtpsServer({ trustStore });
-    serverB = new BtpsServer({ trustStore });
+    serverA = new BtpsServer(serverOptions(trustStore));
+    serverB = new BtpsServer(serverOptions(trustStore));
     BtpsServerRegistry.clear();
   });
 
@@ -112,6 +119,8 @@ describe('BtpsServerSingletonFactory', () => {
   let trustStore: DummyTrustStore;
   beforeEach(() => {
     trustStore = new DummyTrustStore();
+    // The test key and cert are not real PEMs; a server with no TLS options stands in.
+    vi.spyOn(tls, 'createServer').mockImplementation(() => new tls.Server({}));
     BtpsServerSingletonFactory.reset();
   });
   afterEach(() => {
@@ -119,15 +128,15 @@ describe('BtpsServerSingletonFactory', () => {
   });
 
   it('returns the same instance for multiple create calls', () => {
-    const s1 = BtpsServerSingletonFactory.create({ trustStore });
-    const s2 = BtpsServerSingletonFactory.create({ trustStore });
+    const s1 = BtpsServerSingletonFactory.create(serverOptions(trustStore));
+    const s2 = BtpsServerSingletonFactory.create(serverOptions(trustStore));
     expect(s1).toBe(s2);
   });
 
   it('reset allows a new instance to be created', () => {
-    const s1 = BtpsServerSingletonFactory.create({ trustStore });
+    const s1 = BtpsServerSingletonFactory.create(serverOptions(trustStore));
     BtpsServerSingletonFactory.reset();
-    const s2 = BtpsServerSingletonFactory.create({ trustStore });
+    const s2 = BtpsServerSingletonFactory.create(serverOptions(trustStore));
     expect(s1).not.toBe(s2);
   });
 });

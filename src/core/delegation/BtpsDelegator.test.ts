@@ -6,9 +6,9 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { BtpsDelegator } from './BtpsDelegator';
+import { BtpsDelegator } from './BtpsDelegator.js';
 import type { PemKeys } from '../crypto/types.js';
-import type { BTPTransporterArtifact } from '../server/types.js';
+import type { BTPDelegation, BTPTransporterArtifact } from '../server/types.js';
 import * as utils from '../utils/index.js';
 import * as crypto from '../crypto/index.js';
 import { BTPErrorException } from '../error/index.js';
@@ -40,7 +40,7 @@ const artifact: BTPTransporterArtifact = {
   type: 'BTPS_DOC',
   version: '1.0.0',
   issuedAt: '2024-01-01T00:00:00.000Z',
-  document: {},
+  document: 'encrypted-document',
   signature: {
     algorithmHash: 'sha256',
     value: 'sig',
@@ -70,6 +70,7 @@ describe('BtpsDelegator', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetHostAndSelector.mockResolvedValue({
+      version: '1.1.0',
       host: 'btps://btps.platform.com:3443',
       selector: 'btps1',
     });
@@ -225,7 +226,7 @@ describe('BtpsDelegator', () => {
       );
     });
     it('should create and sign attestation', async () => {
-      const delegation = {
+      const delegation: Omit<BTPDelegation, 'attestation'> = {
         agentId: agentId,
         agentPubKey: agentPubKey,
         signedBy: 'user456$customdomain.com',
