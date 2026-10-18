@@ -166,6 +166,8 @@ jobs:
         run: npm install -g corepack@0.34.7 && corepack enable
       - name: Install root dependencies
         run: yarn install --immutable
+      - name: yarn typecheck (source and tests; vitest does not type-check)
+        run: yarn typecheck
       - name: Install example dependencies (root vitest collects its specs)
         working-directory: examples/btps-nest-app
         run: yarn install --immutable

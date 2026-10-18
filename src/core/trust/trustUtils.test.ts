@@ -14,7 +14,7 @@ import {
   canRetryTrust,
   AbstractTrustStore,
 } from './index.js';
-import { BTPTrustRecord } from './types';
+import { BTPTrustRecord } from './types.js';
 
 const now = new Date();
 const past = new Date('2025-06-24T03:20:18.290Z');

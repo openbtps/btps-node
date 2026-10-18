@@ -6,12 +6,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { signEncrypt } from './signEncrypt';
-import * as cryptoIndex from './index';
+import { signEncrypt } from './signEncrypt.js';
+import * as cryptoIndex from './index.js';
 import * as utils from '../utils/index.js';
 import { BTPErrorException } from '../error/index.js';
 import { BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '../error/constant.js';
-import { PemKeys } from './types';
+import { BTPCryptoResponse, PemKeys } from './types.js';
 import { ParsedIdentity } from '../utils/types.js';
 import { BTPTrustReqDoc } from '../trust/types.js';
 import type { Signer } from './signer-interface.js';
@@ -41,6 +41,10 @@ vi.mock('../../client/btpsClient.js', () => ({
 
 const mockCrypto = vi.mocked(cryptoIndex);
 const mockUtils = vi.mocked(utils);
+
+// signEncrypt returns a transporter artifact; only that member of the payload union has a selector.
+const selectorOf = <T>(payload: BTPCryptoResponse<T>['payload']): string | undefined =>
+  payload && 'selector' in payload ? payload.selector : undefined;
 
 describe('signEncrypt', () => {
   let sender: ParsedIdentity & { pemFiles: PemKeys };
@@ -113,7 +117,7 @@ describe('signEncrypt', () => {
       encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
     });
 
-    expect(result.payload?.selector).toBe('btps1');
+    expect(selectorOf(result.payload)).toBe('btps1');
     expect(mockUtils.getHostAndSelector).toHaveBeenCalledWith('receiver$example.com');
     expect(mockUtils.resolvePublicKey).toHaveBeenCalledWith('receiver$example.com', 'receiver-key-1');
     expect(mockCrypto.encryptBtpPayload).toHaveBeenCalledWith(
@@ -312,8 +316,8 @@ describe('Key Rotation Integration Tests', () => {
 
     expect(result.error).toBeUndefined();
     expect(result.payload).toBeDefined();
-    expect(result.payload.signature).toBeDefined();
-    expect(result.payload.selector).toBe(oldSelector);
+    expect(result.payload?.signature).toBeDefined();
+    expect(selectorOf(result.payload)).toBe(oldSelector);
   });
 
   it('should sign artifact with new selector and verify with new public key after rotation', async () => {
@@ -370,8 +374,8 @@ describe('Key Rotation Integration Tests', () => {
 
     expect(result.error).toBeUndefined();
     expect(result.payload).toBeDefined();
-    expect(result.payload.signature).toBeDefined();
-    expect(result.payload.selector).toBe(newSelector);
+    expect(result.payload?.signature).toBeDefined();
+    expect(selectorOf(result.payload)).toBe(newSelector);
   });
 
   it('should handle verification of artifact signed with old selector after rotation', async () => {
