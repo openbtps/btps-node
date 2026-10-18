@@ -18,13 +18,16 @@ import { BtpsAgent } from '../../src/client/btpsAgent.js';
 import { BtpsDelegator } from '../../src/core/delegation/BtpsDelegator.js';
 import { AGENT_TRANSPORTER_ACTIONS } from '../../src/core/server/constants/index.js';
 import type { BTPAuthReqDoc, BTPTransporterArtifact } from '../../src/core/server/types.js';
-import type { BTPInvoiceDoc } from '../../src/server/types.js';
+import type { BTPDocument, BTPInvoiceDoc } from '../../src/server/types.js';
 import { BTP_ERROR_AGENT_ID, BTP_ERROR_SIG_VERIFICATION } from '../../src/core/error/index.js';
 import {
   addUser,
   deliver,
   invoiceDocument,
+  letterDocument,
   newKeys,
+  payslipDocument,
+  receiptDocument,
   recordTrust,
   senderTls,
   startProvider,
@@ -171,17 +174,52 @@ describe('journey: a user registers a phone', () => {
     expect(response?.status).toMatchObject({ ok: true, code: 200 });
   });
 
-  it('sends an invoice to someone at another provider, who receives it as from the user', async () => {
+  it('sends an invoice, a receipt, a payslip and a letter to someone at another provider, who receives each intact from the user', async () => {
+    const documents = [
+      invoiceDocument({ id: 'INV-PHONE' }),
+      receiptDocument({ id: 'REC-PHONE' }),
+      payslipDocument({ id: 'PAY-PHONE' }),
+      letterDocument({ id: 'LET-PHONE' }),
+    ];
+
+    for (const document of documents) {
+      const { response, error } = await phone(agentId, deviceKeys, user.identity).command(
+        'artifact.send',
+        receiver.identity,
+        document as BTPDocument,
+      );
+
+      expect(error).toBeUndefined();
+      expect(response?.status).toMatchObject({ ok: true, code: 200 });
+      const arrived = elsewhere.inbox.find(
+        (a) => (a.document as { id?: string }).id === document.id,
+      );
+      expect(arrived).toMatchObject({
+        from: user.identity,
+        to: receiver.identity,
+        type: 'BTPS_DOC',
+      });
+      expect(arrived?.document).toEqual(document);
+    }
+  });
+
+  it('refuses a document of no known shape before it leaves the phone', async () => {
+    const htmlLetter = letterDocument({
+      id: 'LET-HTML',
+      body: { format: 'html', content: '<b>hi</b>' },
+    });
+
     const { response, error } = await phone(agentId, deviceKeys, user.identity).command(
       'artifact.send',
       receiver.identity,
-      invoiceDocument({ id: 'INV-PHONE' }) as BTPInvoiceDoc,
+      htmlLetter as BTPDocument,
     );
 
-    expect(error).toBeUndefined();
-    expect(response?.status).toMatchObject({ ok: true, code: 200 });
-    const arrived = elsewhere.inbox.find((a) => (a.document as { id?: string }).id === 'INV-PHONE');
-    expect(arrived).toMatchObject({ from: user.identity, to: receiver.identity, type: 'BTPS_DOC' });
+    expect(response).toBeUndefined();
+    expect(error?.code).toBe('BTP_ERROR_VALIDATION');
+    expect(elsewhere.inbox.some((a) => (a.document as { id?: string }).id === 'LET-HTML')).toBe(
+      false,
+    );
   });
 
   it('sends a trust request to someone it has no trust with yet', async () => {

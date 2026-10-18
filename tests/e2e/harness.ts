@@ -356,3 +356,39 @@ export const invoiceDocument = (overrides: Record<string, unknown> = {}) => ({
   },
   ...overrides,
 });
+
+const aud = (amount: number) => ({ amount, currency: 'AUD' });
+
+export const receiptDocument = (overrides: Record<string, unknown> = {}) => ({
+  type: 'receipt',
+  title: 'Receipt',
+  id: 'REC-001',
+  issuedAt: '2026-10-19T00:00:00.000Z',
+  totalAmount: aud(150000),
+  payment: { amount: aud(50000), paidAt: '2026-10-19T00:00:00.000Z', method: 'bank_transfer' },
+  ...overrides,
+});
+
+export const payslipDocument = (overrides: Record<string, unknown> = {}) => ({
+  type: 'payslip',
+  title: 'Payslip',
+  id: 'PAY-001',
+  issuedAt: '2026-10-19T00:00:00.000Z',
+  employee: { name: 'Sam' },
+  earnings: [{ category: 'ordinary', rate: '48.75', quantity: '38', amount: aud(185250) }],
+  deductions: [],
+  contributions: [{ amount: aud(22230) }],
+  leave: [{ category: 'annual', description: 'Annual Leave', unit: 'hours', balance: '76.5' }],
+  gross: aud(185250),
+  net: aud(148250),
+  ...overrides,
+});
+
+export const letterDocument = (overrides: Record<string, unknown> = {}) => ({
+  type: 'letter',
+  title: 'Your new plan',
+  id: 'LET-001',
+  issuedAt: '2026-10-19T00:00:00.000Z',
+  body: { format: 'markdown', content: '# Welcome\n\nYour plan starts on **1 November**.' },
+  ...overrides,
+});
