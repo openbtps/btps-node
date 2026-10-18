@@ -34,8 +34,10 @@ BTPS uses DNS TXT records to publish multiple public keys under different select
 Selectors can be any meaningful identifier and follow this naming pattern:
 
 ```
-<selector>._btps.identity.<identity>.<domain>
+<selector>._btps.identity.<account>.<domain>
 ```
+
+`<account>` is the part of the address before `$`: `billing$vendorcorp.com` publishes at `<selector>._btps.identity.billing.vendorcorp.com`.
 
 **Examples:**
 
@@ -126,9 +128,11 @@ graph TD
 **Key Steps:**
 
 1. **Publish New Public Key Record**: Create DNS TXT record for new selector
-2. **Update Selector Resolution Record**: Modify `_btps.<identity>.<domain>` to point to new selector
+2. **Update Selector Resolution Record**: Change `s=` in `_btps.host.<domain>` to the new selector
 3. **Test Resolution**: Verify both records resolve correctly
 4. **Gradual Migration**: Start using new selector while maintaining old one
+
+`s=` is domain-wide: senders use it as their own selector and receivers look up keys under it for every address on the domain. Publish a key under the new selector for **every** identity on the domain before changing `s=`. Keep the old selector's records until artifacts signed with it can no longer arrive: a receiver verifies each artifact with the key at the selector it names.
 
 ## Preparation for Key Rotation
 

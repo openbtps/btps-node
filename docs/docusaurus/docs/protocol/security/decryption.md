@@ -10,9 +10,9 @@ BTPS ensures that only the intended recipient can decrypt and verify the authent
 ## Decryption & Verification Workflow
 
 1. **Artifact Reception:** BTPS server receives the BTPS Artifact from sender.
-2. **Artifact Validation:** BTPS server validates the artifact structure and format.
-3. **Signature Verification:** BTPS server verifies the sender's digital signature using the sender's public key (from DNS or .well-known).
-4. **Forward to Receiver:** BTPS server forwards the verified artifact to the receiver's inbox endpoint.
+2. **Artifact Validation:** BTPS server checks the artifact's size, structure, format and protocol version.
+3. **Signature Verification:** BTPS server verifies the sender's digital signature using the sender's public key from DNS, then the time window, trust and privacy type.
+4. **Forward to Receiver:** BTPS server hands the verified artifact to the receiver's handler, and answers the sender once the handler returns.
 5. **Receiver Processing:** Receiver obtains the BTPS Artifact from their inbox endpoint.
 6. **Key Decryption:** If the artifact is encrypted, receiver decrypts the AES key using their private RSA key.
 7. **Payload Decryption:** If encrypted, receiver decrypts the payload using the AES key and IV. If not encrypted, the payload is used as-is.
@@ -28,7 +28,7 @@ BTPS ensures that only the intended recipient can decrypt and verify the authent
   3. Verify the artifact's signature using the sender's public key.
   4. If the artifact's `encryption` field is present, decrypt the AES key and then the payload.
   5. If the artifact is unencrypted (`encryption` is null), use the payload as-is after signature verification.
-  6. If it decrypted a lifecycle event (`BTPS_EVENT`), check it as the server checks an unencrypted one on arrival: it must be a valid lifecycle event, its `id` must be the artifact's `id`, and the invoice it names must be between the artifact's `from` and `to`. Otherwise it returns a `BTP_ERROR_VALIDATION` error and no payload.
+  6. Check what it decrypted as the server checks an unencrypted artifact on arrival: a document must match its type's schema and field limits; a lifecycle event (`BTPS_EVENT`) must be a valid lifecycle event, its `id` must be the artifact's `id`, and the invoice it names must be between the artifact's `from` and `to`. Otherwise it returns a `BTP_ERROR_VALIDATION` error and no payload.
   7. Return the verified and decrypted (or plain) document for further processing.
 
 The server cannot read an encrypted event, so this is where it is checked. A platform that decrypts with `decryptBtpPayload` directly skips this check; use `decryptVerify` to receive events.
@@ -46,18 +46,20 @@ sequenceDiagram
     participant Receiver
 
     Sender->>BTPS Server: Send BTPS Artifact
-    BTPS Server->>BTPS Server: Parse & Validate artifact structure
+    BTPS Server->>BTPS Server: Size, structure and version checks
     BTPS Server->>BTPS Server: Verify signature (Sender's public key)
-    BTPS Server->>Receiver: Forward verified artifact to inbox
+    BTPS Server->>BTPS Server: Time window, trust and privacy type
+    BTPS Server->>Receiver: Hand to the receiver's handler (refused if there is none)
+    BTPS Server-->>Sender: Success, once the handler returns
 
-    Receiver->>Receiver: Receive artifact from inbox
+    Receiver->>Receiver: decryptVerify: verify the signature again
     alt Encrypted artifact
         Receiver->>Receiver: Decrypt AES key (Receiver's private key)
         Receiver->>Receiver: Decrypt payload (AES-256-GCM)
     else Unencrypted artifact
         Receiver->>Receiver: Views plain payload
     end
-    Receiver->>Receiver: Further document validation per business logic
+    Receiver->>Receiver: Check the document: schema and field limits (BTP_ERROR_VALIDATION)
     Receiver->>Receiver: Perform business logic validation
     Receiver->>Receiver: Process document per business logic
 ```

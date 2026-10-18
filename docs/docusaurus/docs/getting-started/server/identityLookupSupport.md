@@ -22,7 +22,7 @@ When enabled, your BTPS server can respond to identity lookup requests and provi
 Traditional BTPS relies on DNS TXT records for public key discovery:
 
 ```
-_btps1._btps.identity.user.domain.com
+btps1._btps.identity.user.domain.com
 ```
 
 **Challenges for SaaS Platforms:**
@@ -169,19 +169,25 @@ sequenceDiagram
     participant IS as Identity Store
     participant U as User
 
-    C->>DNS: 1. Query DNS for saas.com<br/>_btps1._btps.identity.saas.com
-    DNS-->>C: 2. Return SaaS public key & endpoint
+    C->>DNS: 1. TXT _btps.host.saas.com
+    DNS-->>C: 2. Host (u=), selector (s=), operator (op=admin$saas.com)
+    C->>DNS: 3. TXT btps1._btps.identity.alice.saas.com
+    DNS-->>C: 4. No record (if there is one, the client uses it and stops here)
 
-    C->>S: 3. Identity Lookup Request<br/>{identity: "alice$saas.com"}
-    S->>IS: 4. Query identity store for alice
-    IS-->>S: 5. Return alice's public key record
-    S->>S: 6. Sign response with SaaS private key
-    S-->>C: 7. Identity Response<br/>{document: alice's public key,<br/>signedBy: "admin$saas.com"}
+    Note over C: No key in DNS: ask the host.<br/>No op= means BTP_ERROR_IDENTITY_NOT_FOUND
+    C->>S: 5. Identity Lookup Request<br/>{identity: "alice$saas.com"}
+    S->>IS: 6. Query identity store for alice
+    IS-->>S: 7. Return alice's public key record
+    S->>S: 8. Sign response as the operator identity
+    S-->>C: 9. Identity Response<br/>{document: alice's public key,<br/>signedBy: "admin$saas.com"}
 
-    C->>C: 8. Verify SaaS signature using DNS public key
-    C->>C: 9. Encrypt document using alice's public key
-    C->>S: 10. Send encrypted document
-    S->>U: 11. Deliver to alice
+    C->>C: 10. Refuse unless signedBy equals op=
+    C->>DNS: 11. Operator's key, at its selector
+    DNS-->>C: 12. admin$saas.com public key
+    C->>C: 13. Verify the response signature
+    C->>C: 14. Encrypt the document to alice's key, then sign it
+    C->>S: 15. Send the artifact
+    S->>U: 16. After its checks, the server's handler delivers to alice
 ```
 
 ### Response Structure

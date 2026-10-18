@@ -34,12 +34,12 @@ flowchart LR
 
   %% Trust Response
   A3 --> B1[Sender<br/>1. Receive BTPS Artifact<br/>2. Store Trust Status]
-  A3 --> B2[Receiver<br/>1. Create Trust Response<br/>2. Create BTPS Artifact<br/>3. Sign & Encrypt<br/>4. Send]
+  A3 --> B2[Receiver<br/>1. Create Trust Response<br/>2. Create BTPS Artifact<br/>3. Encrypt & Sign<br/>4. Send]
 
   B2 --> B1
 
   %% BTPS Artifact Sending
-  B3[Sender<br/>1. Create Document<br/>2. Create BTPS Artifact<br/>3. Sign & Encrypt<br/>4. Send] --> B4[Receiver<br/>1. Identity Verify<br/>2. Trust Verify<br/>3. Artifact Validate<br/>4. Extract Document<br/>5. Process]
+  B3[Sender<br/>1. Create Document<br/>2. Create BTPS Artifact<br/>3. Encrypt & Sign<br/>4. Send] --> B4[Receiver<br/>1. Artifact Validate<br/>2. Identity Verify<br/>3. Trust Verify<br/>4. Decrypt & Check Document<br/>5. Process]
 
   %% Linking sender and receiver for main message flow
   A1 --> B3
@@ -60,6 +60,7 @@ flowchart LR
   "type": "TRUST_REQ",
   "from": "billing$vendorcorp.com",
   "to": "pay$client.com",
+  "selector": "btps1",
   "document": {
     // BTPS Document content goes here can be string if encrypted
   },
@@ -122,20 +123,25 @@ sequenceDiagram
     participant DNS as DNS Server
     participant R as Receiver
 
-    S->>DNS: Publishes TXT record & endpoint for sender
-    R->>DNS: Publishes TXT record & endpoint for sender
-    S->>DNS: Query TXT record for receiver
-    DNS->>S: Return public key & endpoint
-    S->>S: Validate DNS response
-    S->>S: Store receiver's public key
+    S->>DNS: Publishes TXT records for sender
+    R->>DNS: Publishes TXT records for receiver
+    S->>DNS: Query _btps.host of the receiver's domain
+    DNS->>S: Return endpoint (u=), selector (s=), operator (op=)
+    S->>DNS: Query the receiver's key at selector._btps.identity.account.domain
+    DNS->>S: Return receiver's public key
+    alt No key in DNS
+        S->>R: Identity lookup at the receiver's host
+        R->>S: Public key, signed by the domain's operator (op=)
+        S->>S: Refuse unless signed by op=, then verify
+    end
 ```
 
 **Steps:**
 
-1. **DNS Lookup**: Sender queries receiver's DNS TXT record
-2. **Key Extraction**: Extract public key and server endpoint from TXT record
-3. **Validation**: Verify DNS response integrity and format
-4. **Storage**: Store receiver's public key for future use
+1. **Host Lookup**: Sender reads the receiver domain's `_btps.host` record: its BTPS server, key selector and operator
+2. **Key Lookup**: Sender reads the receiver's public key at `<selector>._btps.identity.<account>.<domain>`
+3. **Fallback**: If DNS has no key, the sender asks the receiver's host, and accepts the answer only when the domain's operator signed it
+4. **No caching by the SDK**: `signEncrypt` looks the key up on every call; cache it yourself if you need to
 
 **DNS TXT Record Format:**
 
@@ -159,25 +165,23 @@ sequenceDiagram
 
     S->>S: Create trust request document
     S->>S: Create BTPS artifact with document
-    S->>S: Sign artifact with private key
-    S->>S: Optionally encrypt artifact with receiver's public key
+    S->>S: Optionally encrypt the document to the receiver's public key
+    S->>S: Sign the artifact with its own private key
+    S->>S: Store its own trust record (pending)
     S->>R: Send BTPS artifact
 
-    R->>R: Verify sender signature
-    R->>R: Extract trust request document
-    R->>R: Check existing trust records
-    R->>R: Create trust record (pending)
-    R->>R: Set retryAfterDate (anti-spam)
-
-    R->>R: Decrypt BTPS request artifact
-    R->>R: Review trust request document
+    R->>R: Check size, version, signature and time window
+    R->>R: Check existing trust: refuse if active, blocked or before retryAfterDate
+    R->>R: Hand to the receiver's handler
+    R->>R: Decrypt (if encrypted) and check the trust request document
+    R->>R: Create trust record (pending), set retryAfterDate (anti-spam)
     R->>R: Make decision (accept/reject/block)
     R->>R: Update trust record status
 
     R->>R: Create trust response document
-    R->>R: Create BTPS artifact with response
+    R->>R: Create BTPS artifact, encrypt (optional) and sign
     R->>S: Send BTPS artifact
-    S->>S: Extract trust response document
+    S->>S: Server checks the signature and accepts only against its pending record
     S->>S: Store trust status
 ```
 
@@ -185,18 +189,18 @@ sequenceDiagram
 
 1. **Document Creation**: Sender creates trust request document with business details
 2. **Artifact Creation**: Sender creates BTPS artifact containing the document
-3. **Cryptographic Signing**: BTPS artifact signed with sender's private key
-4. **Encryption**: BTPS artifact encrypted with receiver's public key
-5. **Transmission**: Encrypted BTPS artifact sent to receiver's BTPS server
-6. **Decryption**: Receiver decrypts BTPS artifact
-7. **Verification**: Receiver verifies sender's identity via signature
-8. **Document Extraction**: Receiver extracts trust request document from artifact
+3. **Encryption**: Optionally, the document is encrypted with the receiver's public key
+4. **Cryptographic Signing**: BTPS artifact, including any ciphertext, signed with the sender's private key
+5. **Transmission**: BTPS artifact sent to receiver's BTPS server; the sender keeps a `pending` record of its request
+6. **Server Checks**: Receiver's server checks size, version, the sender's signature and the time window
+7. **Trust Check**: A request is refused while trust is already active, blocked, or before `retryAfterDate`; the sender sees `BTP_ERROR_TRUST_NOT_ALLOWED`
+8. **Decryption**: Receiver decrypts the document with its own private key, if it was encrypted
 9. **Trust Record Creation**: Receiver creates trust record with `pending` status
 10. **Anti-Spam Protection**: `retryAfterDate` set (recommended: 24 hours)
 11. **Decision Process**: Receiver reviews trust request document and makes decision
 12. **Response Creation**: Receiver creates trust response document
-13. **Response Artifact**: Receiver creates BTPS artifact with response document
-14. **Response Transmission**: Trust response BTPS artifact sent back to sender
+13. **Response Artifact**: Receiver creates, optionally encrypts, and signs the BTPS artifact
+14. **Response Transmission**: Trust response sent back to the sender's server, which accepts it only if it holds a `pending` record for that request
 15. **Storage**: Both parties store trust relationship status
 
 **Trust Response Types:**
@@ -216,39 +220,39 @@ sequenceDiagram
     participant S as Sender
     participant R as Receiver
 
-    S->>S: Create business document (invoice, etc.)
-    S->>S: Create BTPS artifact with document
-    S->>S: Sign BTPS artifact with private key
-    S->>S: Optionally encrypt BTPS artifact based on privacy type
-    S->>R: Send encrypted BTPS artifact
+    S->>S: Create business document (invoice, receipt, payslip, letter)
+    S->>S: Check the document against its type's schema and field limits
+    S->>S: Optionally encrypt the document based on privacy type
+    S->>S: Sign the BTPS artifact with its own private key
+    S->>R: Send BTPS artifact
 
-    R->>R: Verify sender signature
-    R->>R: Check trust relationship
-    R->>R: Extract document from artifact
-    R->>R: Validate document format
-    R->>R: Process document
+    R->>R: Server: size, format (a plain document is checked here), version
+    R->>R: Server: verify sender signature, time window
+    R->>R: Server: check trust relationship and privacy type
+    R->>R: Server: hand to the receiver's handler, then answer the sender
     R->>R: Store in inbox
-    R->>R: Decrypt encrypted BTPS artifact
+    R->>R: Receiver (decryptVerify): verify the signature, decrypt, check the document
     R->>R: Reads and actions BTPS artifact
 ```
 
 **Document Exchange Flow:**
 
-1. **Document Creation**: Sender creates business document (invoice, trust request, etc.)
-2. **Artifact Creation**: Sender creates BTPS artifact containing the document
-3. **Cryptographic Signing**: BTPS artifact signed with sender's private key
-4. **Encryption**: BTPS artifact encrypted based on agreed privacy type:
+1. **Document Creation**: Sender creates business document (invoice, receipt, payslip or letter)
+2. **Document Check**: The sender's SDK checks it against its type's schema and field limits before encrypting
+3. **Encryption**: Document encrypted based on agreed privacy type:
    - **`unencrypted`**: No encryption (public documents)
    - **`encrypted`**: Full end-to-end encryption (sensitive documents)
-   - **`mixed`**: Selective encryption based on document type
-5. **Transmission**: Encrypted BTPS artifact sent to receiver's BTPS server
-6. **Decryption**: Receiver decrypts BTPS artifact
-7. **Identity Verification**: Receiver verifies sender's cryptographic identity
-8. **Trust Verification**: Receiver checks if sender is trusted
-9. **Document Extraction**: Receiver extracts document from BTPS artifact
-10. **Document Validation**: Receiver validates document format and content
-11. **Processing**: Document processed and delivered to receiver's application
-12. **Storage**: Document stored in receiver's inbox system
+   - **`mixed`**: Either is accepted
+4. **Cryptographic Signing**: BTPS artifact, including any ciphertext, signed with the sender's private key
+5. **Transmission**: BTPS artifact sent to receiver's BTPS server
+6. **Server Checks**: Size, format and version, then the sender's signature and the time window
+7. **Trust Verification**: Receiver's server checks the sender is trusted and sent with the agreed privacy type
+8. **Hand-over**: The artifact goes to the receiver's handler; the sender gets its answer once the handler returns
+9. **Storage**: Document stored in receiver's inbox system
+10. **Decryption**: The receiver verifies the signature again, decrypts with its own private key, and checks the document (`decryptVerify`)
+11. **Processing**: Document processed by the receiver's application
+
+The server never decrypts: a document sent in the clear is checked at the server, an encrypted one only by the receiver after decrypting.
 
 ---
 
@@ -258,41 +262,73 @@ sequenceDiagram
 
 ```mermaid
 graph TD
-    A[Receive BTPS Artifact] --> B[Validate Artifact Format]
-    B --> C[Extract Sender Identity]
-    C --> D[Query DNS TXT Record]
+    A[Receive BTPS Artifact] --> A2{Within maxArtifactSizeKb?}
+    A2 -->|No| X1[Reject: ARTIFACT_TOO_LARGE]
+    A2 -->|Yes| B[Validate Artifact Format]
+    B --> B2{Version supported?}
+    B2 -->|No| X2[Reject: VERSION_UNSUPPORTED]
+    B2 -->|Yes| C[Extract Sender Identity]
+    C --> C2{Delegated?}
+    C2 -->|Yes| C3[Verify the delegation chain, see Delegation]
+    C2 -->|No| D["Query DNS: artifact.selector._btps.identity of the sender"]
     D --> E[Get Public Key]
     E --> F[Verify Artifact Signature]
+    C3 --> G
     F --> G{Signature Valid?}
-    G -->|Yes| H[Identity Verified]
-    G -->|No| I[Reject Artifact]
+    G -->|No| I[Reject: RESOLVE_PUBKEY, SIG_MISMATCH or SIG_VERIFICATION]
+    G -->|Yes| W{issuedAt within the time window?}
+    W -->|No| X3[Reject: ARTIFACT_TIME_WINDOW]
+    W -->|Yes| H[Identity Verified]
 ```
 
 ### Trust Verification
 
 ```mermaid
 graph TD
-    A[Identity Verified] --> B[Lookup Trust Record]
-    B --> C{Trust Record Exists?}
-    C -->|No| D[Reject - No Trust]
-    C -->|Yes| E[Check Trust Status]
-    E --> F{Status = Accepted?}
-    F -->|Yes| G[Trust Verified]
-    F -->|No| H[Reject - Trust Not Active]
+    A[Identity Verified] --> T{Artifact type}
+    T -->|TRUST_REQ| R1{Trust active, blocked, or before retryAfterDate?}
+    R1 -->|Yes| H[Reject - TRUST_NOT_ALLOWED]
+    R1 -->|No| G[Trust Verified]
+    T -->|TRUST_RES| S1{Requester holds a pending record for this pair?}
+    S1 -->|No| H
+    S1 -->|Yes| G
+    T -->|BTPS_DOC or BTPS_EVENT| B[Lookup Trust Record]
+    B --> F{Accepted and not expired?}
+    F -->|No, an event| E1{Receiver's own trust to the sender active?}
+    E1 -->|Yes| P
+    E1 -->|No| RF{Record expired?}
+    F -->|No, a document| RF
+    RF -->|Yes| X[Reject - TRUST_EXPIRED]
+    RF -->|No| H
+    F -->|Yes| P{Sent as the trust's privacyType requires?}
+    P -->|No| PX[Reject - PRIVACY_TYPE]
+    P -->|Yes| EV{An event: relatesTo an artifact of this pair?}
+    EV -->|No| H
+    EV -->|Yes, or a document| G
+    G --> HD{A handler takes it?}
+    HD -->|No| NA[Reject - ARTIFACT_NOT_ACCEPTED]
+    HD -->|Yes| OK[Handed over; success sent once the handler returns]
 ```
 
 ### Document Validation
 
 ```mermaid
 graph TD
-    A[Trust Verified] --> B[Extract Document from Artifact]
-    B --> C[Validate Document Format]
-    C --> D[Check Required Fields]
-    D --> E[Validate Business Logic]
-    E --> F{All Valid?}
-    F -->|Yes| G[Process Document]
-    F -->|No| H[Reject - Invalid Document]
+    A[Artifact received] --> B{Document encrypted?}
+    B -->|No| C[Server checks it at parse, before the signature: schema for its type and field limits]
+    C --> F{Valid?}
+    F -->|No| H[Reject - VALIDATION]
+    F -->|Yes| G[Continue to signature and trust]
+    B -->|Yes| D[Server cannot read it: passes it on]
+    D --> E[Receiver's decryptVerify: verify, decrypt, then the same schema and limits]
+    E --> F2{Valid?}
+    F2 -->|No| H2[Receiver refuses the document - VALIDATION]
+    F2 -->|Yes| P[Process Document and validate business logic]
 ```
+
+The rules are the same at every provider: the sender's SDK checks a document before encrypting it, and the receiver's after decrypting it.
+
+On the wire, a trust refusal reads `BTP_ERROR_TRUST_NOT_ALLOWED`, except an expired trust (`BTP_ERROR_TRUST_EXPIRED`) and a privacy-type mismatch (`BTP_ERROR_PRIVACY_TYPE`). The server keeps the precise reason for its own logs.
 
 ---
 
@@ -318,6 +354,7 @@ Receiver → Sender: Trust Response BTPS Artifact
   "type": "TRUST_REQ",
   "from": "billing$vendor.com",
   "to": "pay$client.com",
+  "selector": "btps1",
   "document": {
     "id": "uniqueUuid",
     "name": "Vendor Corp",
@@ -349,6 +386,7 @@ Receiver → Sender: Trust Response BTPS Artifact
   "type": "TRUST_RES",
   "from": "pay$client.com",
   "to": "billing$vendor.com",
+  "selector": "btps1",
   "document": {
     "id": "uniqueUuid",
     "decision": "accepted",
@@ -379,9 +417,12 @@ Sender → Receiver: Invoice BTPS Artifact
   "type": "BTPS_DOC",
   "from": "billing$vendor.com",
   "to": "pay$client.com",
+  "selector": "btps1",
   "document": {
+    "type": "invoice",
     "title": "Monthly Service Invoice",
     "id": "INV-2025-001",
+    "issuedAt": "2025-01-15T10:30:00Z",
     "totalAmount": {
       "amount": 150000,
       "currency": "USD"

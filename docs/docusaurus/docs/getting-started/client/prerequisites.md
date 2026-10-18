@@ -98,8 +98,8 @@ graph TB
     B -->|"Commands"| G
     C -->|"Artifacts"| I
     F -->|"Artifacts"| I
-    H -->|"Public Keys"| C
-    H -->|"Public Keys"| F
+    H -->|"Host and selector (_btps.host)"| C
+    H -->|"Host and selector (_btps.host)"| F
     D -->|"Pre-signed Artifacts"| J
 ```
 
@@ -142,8 +142,8 @@ sequenceDiagram
     participant Server as BTPS Server
 
     App->>Agent: Create with btpIdentity & agent
-    Agent->>Server: auth.request command
-    Server->>Agent: auth.response
+    Agent->>Server: auth.request, signed by the device key, with the one-time code
+    Server->>Agent: Response: agentId, refreshToken, expiresAt
     App->>Agent: Use for commands
 ```
 
@@ -174,10 +174,10 @@ sequenceDiagram
 
     Note over App,Recipient: BYOK Users - Direct Delivery (Bypasses SaaS)
     App->>Transporter: Send pre-signed artifact
-    Transporter->>DNS: Resolve recipient
-    DNS->>Transporter: Public key & endpoint
+    Transporter->>DNS: Resolve recipient's _btps.host
+    DNS->>Transporter: Host and selector
     Transporter->>Recipient: Deliver artifact
-    Recipient->>Transporter: Acknowledgment
+    Recipient->>Transporter: Answer, once the recipient's handler has taken it
 ```
 
 ## System Requirements

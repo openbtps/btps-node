@@ -5,7 +5,7 @@ sidebar_label: Revocation
 
 # BTPS Delegation Revocation
 
-BTPS delegation revocation provides real-time control over device access by removing delegation records from DNS. This ensures immediate security when devices are lost, compromised, or no longer needed.
+BTPS delegation revocation provides real-time control over device access by removing the device's record at its provider. This ensures immediate security when devices are lost, compromised, or no longer needed.
 
 ## 🎯 Purpose
 
@@ -33,9 +33,12 @@ sequenceDiagram
 
     User->>SaaS Portal: Revoke Device Agent
     SaaS Portal->>SaaS Portal: Validate User Permissions
-    SaaS Portal->>SaaS Portal: Removes the Device Agent
-    Device->>BTPS Server: Reject Message (if sent)
+    SaaS Portal->>SaaS Portal: Remove the device record and its refresh token
+    Device Agent->>BTPS Server: Any later message or refresh
+    BTPS Server-->>Device Agent: Refused: BTP_ERROR_SIG_VERIFICATION (device unknown)
 ```
+
+If the portal keeps the record but marks it revoked or lets it expire, the refusal is `BTP_ERROR_TRUST_NOT_ALLOWED` instead.
 
 ### Process Flow (Fully Managed Users)
 
@@ -57,7 +60,7 @@ This process provides immediate security control for SaaS-managed users, where a
 
 ### 🔄 Revocation Flow Overview (Partially managed Users)
 
-This flow applies for these users. Generally removing or updating DNS TXT record will be enough to stop the message. But We recommend to follow through all the steps as even though message cannot be sent, unwanted users can still able to view and read any incoming messages since authentication will still work until the expiry of the refresh token which can take days. Therefore, always remove the added device or refresh token via SaaS portal
+This flow applies for these users. A device has no DNS record of its own: it is a record at the SaaS, and its key travels inside each delegation. Revoking one device is therefore always done at the SaaS portal, which removes the device record and its refresh token. Changing DNS (the domain's `op=` operator, or the identity's key) stops every delegated send for that identity, from every device, so use it only to cut the SaaS off entirely.
 
 - Users with Custom domain with Keys managed by SaaS
 - E2E Users who manages their own Key with Custom domain and only inbox managed by SaaS
@@ -70,28 +73,32 @@ sequenceDiagram
     participant BTPS Server
     participant Device Agent
 
-    User->>DNS: Revoke or updates DNS TXT record (This will suffice but recommended to follow extra steps)
     User->>SaaS Portal: Revoke Device Agent
     SaaS Portal->>SaaS Portal: Validate User Permissions
-    SaaS Portal->>SaaS Portal: Removes the Device Agent
-    Device->>BTPS Server: Reject Message (if sent)
+    SaaS Portal->>SaaS Portal: Remove the device record and its refresh token
+    Device Agent->>BTPS Server: Any later message or refresh
+    BTPS Server-->>Device Agent: Refused: BTP_ERROR_SIG_VERIFICATION (device unknown)
+    opt Cut the SaaS off entirely
+        User->>DNS: Remove the SaaS as op= operator, or change the identity's key
+        Note over DNS,BTPS Server: Every delegated send for the identity now fails at receivers
+    end
 ```
 
 ### Process Flow (Partially Managed Users)
 
 The revocation process for partially managed users (such as those with custom domains or E2E users) follows these steps:
 
-1. **DNS Record Update**: The user revokes or updates the relevant DNS TXT record for the device. This action alone is often sufficient to prevent further message delivery to the device, as the device will no longer be recognized as a valid delegate.
+1. **SaaS Portal Revocation**: The user initiates device revocation through the SaaS portal, so that the device's record and refresh token are removed. Without this, the device can still authenticate and read messages until its record expires.
 
-2. **SaaS Portal Revocation**: The user also initiates device revocation through the SaaS portal, ensuring that any active sessions or refresh tokens associated with the device are invalidated. This step is important because, even if message delivery is blocked, the device may still be able to authenticate and access messages until its token expires.
+2. **Permission Validation**: The SaaS portal validates the user's permissions to perform the revocation, checking roles and device ownership as needed.
 
-3. **Permission Validation**: The SaaS portal validates the user's permissions to perform the revocation, checking roles and device ownership as needed.
+3. **Device Removal**: The SaaS portal removes the device agent from its records, revokes tokens, and updates any internal delegation or access lists.
 
-4. **Device Removal**: The SaaS portal removes the device agent from its records, revokes tokens, and updates any internal delegation or access lists.
+4. **Message Rejection**: If the revoked device attempts to send messages after these steps, the BTPS server refuses them, because it no longer has a record for the device.
 
-5. **Message Rejection**: If the revoked device attempts to send messages after these steps, the BTPS server will reject them, as the device is no longer authorized either via DNS or SaaS records.
+5. **Optional, DNS**: To stop the SaaS sending for the identity at all, remove it as the domain's `op=` operator or change the identity's key. This affects every device, not one.
 
-This comprehensive process ensures that both DNS-based and SaaS-managed controls are enforced, providing strong security even for users who manage their own keys or domains.
+This keeps per-device revocation at the SaaS, where the device records live, and DNS for the domain-wide decision of who may send on the identity's behalf.
 
 ## 🛡️ Security Best Practices
 

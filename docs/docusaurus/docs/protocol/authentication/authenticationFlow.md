@@ -27,18 +27,23 @@ sequenceDiagram
     SaaS Portal->>User: Display Token/QR Code
     User->>BTPS App: Enter Token
     BTPS App->>BTPS App: Generate Device Keypair
-    BTPS App->>BTPS Server: auth.request
+    BTPS App->>BTPS Server: auth.request, signed by the new key
+    BTPS Server->>BTPS Server: Verify the signature against the request's public key
     BTPS Server->>BtpsAuthentication: Validate Token
-    BtpsAuthentication->>Token Store: Retrieve & Validate
-    BtpsAuthentication->>Trust Store: Create Agent Record
+    BtpsAuthentication->>Token Store: Take the token (once only)
+    BtpsAuthentication->>Trust Store: Create the device record (agent: id)
+    BtpsAuthentication->>Token Store: Store the refresh token
     BtpsAuthentication->>BTPS Server: Auth Response
-    BTPS Server->>BTPS App: Success + Refresh Token
+    BTPS Server->>BTPS App: agentId, refreshToken, expiresAt, decryptBy
 
-    Note over User,Token Store: Session Refresh Flow
-    BTPS App->>BTPS Server: auth.refresh
+    Note over User,Token Store: Session Refresh Flow (before expiresAt)
+    BTPS App->>BTPS Server: auth.refresh, signed by the device's current key
+    BTPS Server->>Trust Store: Find the device record
+    BTPS Server->>BTPS Server: Verify the signature, any new-key proof, and that the record is active
     BTPS Server->>BtpsAuthentication: Validate Refresh Token
-    BtpsAuthentication->>Trust Store: Verify Agent
-    BtpsAuthentication->>BtpsAuthentication: Generate New Token
+    BtpsAuthentication->>Token Store: Take the refresh token (once only)
+    BtpsAuthentication->>Trust Store: Update the record: expiry, and the key if rotated
+    BtpsAuthentication->>Token Store: Store a new refresh token
     BtpsAuthentication->>BTPS Server: New Refresh Token
     BTPS Server->>BTPS App: Updated Session
 ```
@@ -472,21 +477,23 @@ graph TD
     C --> D[Display Token]
     D --> E[User Enters Token]
     E --> F[Generate Keypair]
-    F --> G[Send auth.request]
-    G --> H[Validate Token]
+    F --> G[Send auth.request, signed by the new key]
+    G --> G2[Server verifies the signature]
+    G2 --> H[Take the token, once only]
     H --> I[Create Agent]
-    I --> J[Store Trust Record]
+    I --> J[Store the device record]
     J --> K[Generate Refresh Token]
     K --> L[Send Response]
     L --> M[Store Credentials]
     M --> N[Session Active]
 
-    N --> O[Periodic Refresh]
-    O --> P[Send auth.refresh]
-    P --> Q[Validate Agent]
-    Q --> R[Generate New Token]
-    R --> S[Update Trust Record]
-    S --> T[Send Response]
+    N --> O[Refresh before expiresAt]
+    O --> P[Send auth.refresh, signed by the current key]
+    P --> Q[Verify the signature and that the device is active]
+    Q --> Q2[Take the refresh token, once only]
+    Q2 --> S[Update the device record]
+    S --> R[Generate New Token]
+    R --> T[Send Response]
     T --> U[Update Credentials]
     U --> N
 ```
@@ -495,18 +502,24 @@ graph TD
 
 ```mermaid
 graph TD
-    A[Authentication Request] --> B{Token Valid?}
+    A[Authentication Request] --> A1{Signed by the request's public key?}
+    A1 -->|No| A2[BTP_ERROR_SIG_VERIFICATION]
+    A1 -->|Yes| B{Token Valid and unused?}
     B -->|No| C[Return Error]
     B -->|Yes| D{Agent Creation Success?}
     D -->|No| E[Return Error]
     D -->|Yes| F[Return Success]
 
-    G[Refresh Request] --> H{Agent Active?}
-    H -->|No| I[Return Error]
-    H -->|Yes| J{Key Match?}
-    J -->|No| K[Return Error]
-    J -->|Yes| L{Token Generation Success?}
-    L -->|No| M[Return Error]
+    G[Refresh Request] --> G1{Agent id is not an identity?}
+    G1 -->|No| G2[BTP_ERROR_AGENT_ID]
+    G1 -->|Yes| J{Device found, signed by its current key?}
+    J -->|No| K[BTP_ERROR_SIG_VERIFICATION]
+    J -->|Yes| P{New key named: valid proof?}
+    P -->|No| P2[BTP_ERROR_KEY_ROTATION_PROOF]
+    P -->|Yes, or no new key| H{Device record active?}
+    H -->|No| I[BTP_ERROR_TRUST_NOT_ALLOWED]
+    H -->|Yes| L{Refresh token valid and unused?}
+    L -->|No| M[BTP_ERROR_AUTHENTICATION_INVALID]
     L -->|Yes| N[Return Success]
 ```
 

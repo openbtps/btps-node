@@ -21,7 +21,7 @@ Identity records serve as a centralized, secure way for SaaS platforms to publis
 In the standard BTPS protocol, public keys are discovered through DNS TXT records:
 
 ```
-_btps1._btps.identity.user.domain.com
+btps1._btps.identity.user.domain.com
 ```
 
 **Challenges for SaaS Platforms:**
@@ -58,19 +58,25 @@ sequenceDiagram
 
     Note over SA,RB: Custom Domain Sender to SaaS Receiver Flow
 
-    SA->>DNS: 1. Query DNS for saas.com<br/>_btps1._btps.identity.saas.com
-    DNS-->>SA: 2. Return SaaS public key & endpoint
+    SA->>DNS: 1. TXT _btps.host.saas.com
+    DNS-->>SA: 2. Host (u=), selector (s=), operator (op=admin$saas.com)
+    SA->>DNS: 3. TXT btps1._btps.identity.alice.saas.com
+    DNS-->>SA: 4. No record (if there is one, the sender uses it and stops here)
 
-    SA->>SS: 3. Identity Lookup Request<br/>{identity: "alice$saas.com"}
-    SS->>IS: 4. Query identity store for alice
-    IS-->>SS: 5. Return alice's public key record
-    SS->>SS: 6. Sign response with SaaS private key
-    SS-->>SA: 7. Identity Response<br/>{document: alice's public key,<br/>signedBy: "admin$saas.com"}
+    SA->>SS: 5. Identity Lookup Request<br/>{identity: "alice$saas.com"}
+    SS->>IS: 6. Query identity store for alice
+    IS-->>SS: 7. Return alice's public key record
+    SS->>SS: 8. Sign response as the operator identity
+    SS-->>SA: 9. Identity Response<br/>{document: alice's public key,<br/>signedBy: "admin$saas.com"}
 
-    SA->>SA: 8. Verify SaaS signature using DNS public key
-    SA->>SA: 9. Encrypt document using alice's public key
-    SA->>SS: 10. Send encrypted document
-    SS->>RB: 11. Deliver to alice
+    SA->>SA: 10. Refuse unless signedBy equals op=
+    SA->>DNS: 11. Operator's key, at its selector
+    DNS-->>SA: 12. admin$saas.com public key
+    SA->>SA: 13. Verify the response signature
+    SA->>SA: 14. Encrypt the document to alice's key, then sign it
+    SA->>SS: 15. Send the artifact
+    SS->>SS: 16. Size, version, signature, time window, trust
+    SS->>RB: 17. Hand to the handler, which delivers to alice
 ```
 
 ### Delegation Flow (SaaS Sender to Custom Domain Receiver)
@@ -86,35 +92,41 @@ sequenceDiagram
 
     Note over SA,CRS: SaaS Sender with Delegation to Custom Receiver
 
-    SA->>SS: 1. Identity Lookup Request<br/>{identity: "receiver$custom.com"}
-    SS->>DNS: 2. Query DNS for custom.com<br/>_btps1._btps.identity.custom.com
-    DNS-->>SS: 3. Return custom domain public key & endpoint
-    SS-->>SA: 4. Identity Response with receiver's public key
+    SA->>DNS: 1. TXT _btps.host.custom.com, then<br/>btps1._btps.identity.receiver.custom.com
+    DNS-->>SA: 2. Receiver's public key<br/>(if absent: identity lookup at custom.com's host,<br/>accepted only if signed by custom.com's op=)
 
-    SA->>SA: 5. Verify SaaS signature using DNS public key
-    SA->>SA: 6. Encrypt document using receiver's public key
-    SA->>SA: 7. Sign document with bob's device private key
-    SA->>SS: 8. Send signed artifact to SaaS server
+    SA->>SA: 3. Encrypt document using receiver's public key
+    SA->>SA: 4. Sign the artifact with bob's device private key
+    SA->>SS: 5. artifact.send to bob's own SaaS server
 
-    SS->>SS: 9. Detect SaaS-managed sender
-    SS->>SS: 10. Add delegation to artifact<br/>{agentId: "bob_device_123",<br/>agentPubKey: bob's public key,<br/>signedBy: "admin$saas.com"}
-    SS->>SS: 11. Sign delegation with SaaS private key
-    SS->>CRS: 12. Forward artifact with delegation
+    SS->>SS: 6. Find bob's device, verify its signature, check it is active
+    SS->>SS: 7. Add delegation to artifact<br/>{agentId: "bob_device_123",<br/>agentPubKey: the device's public key,<br/>signedBy: "admin$saas.com"}
+    SS->>SS: 8. Sign delegation with the operator's private key
+    SS->>CRS: 9. Forward artifact with delegation
 
-    CRS->>DNS: 13. Verify delegation signature<br/>using admin$saas.com DNS public key
-    CRS->>CRS: 14. Verify document signature<br/>using bob's public key from delegation
-    CRS->>CR: 15. Deliver verified document to receiver
+    CRS->>DNS: 10. TXT _btps.host.saas.com
+    DNS-->>CRS: 11. op=admin$saas.com
+    CRS->>CRS: 12. signedBy must be that operator
+    CRS->>DNS: 13. admin$saas.com public key
+    CRS->>CRS: 14. Verify delegation signature
+    CRS->>CRS: 15. Verify document signature<br/>using the device key from the delegation
+    CRS->>CRS: 16. Time window and trust
+    CRS->>CR: 17. Deliver verified document to receiver
 ```
 
 ### Verification Chain Flow
 
 ```mermaid
 flowchart TD
-    A[Document with Delegation] --> B{signedBy is the sender domain's op?}
-    B -->|No| E2[❌ Delegation Not Allowed]
-    B -->|Yes| C[Lookup signedBy DNS]
+    A[Document with Delegation] --> B0[Read op= from the sender domain's _btps.host]
+    B0 --> B{signedBy is op=, or the sender itself?}
+    B -->|Neither| E2[❌ Delegation Not Allowed]
+    B -->|The sender itself| AT{Attestation signed by op= and valid?}
+    AT -->|No| E3[❌ Delegation Invalid]
+    AT -->|Yes| C
+    B -->|op=| C[Lookup signedBy DNS]
     C --> D{Valid DNS Record?}
-    D -->|No| E[❌ Delegation Invalid]
+    D -->|No| E[❌ RESOLVE_PUBKEY]
     D -->|Yes| F[Get signedBy Public Key]
     F --> G[Verify Delegation Signature]
     G --> H{Signature Valid?}
@@ -125,17 +137,13 @@ flowchart TD
     L -->|No| M[❌ Document Signature Invalid]
     L -->|Yes| N[✅ Document Verified]
 
-    O[Encrypted Document] --> P{Need Decryption?}
+    O[Delivered Document] --> P{Encrypted?}
     P -->|No| Q[✅ Document Ready]
-    P -->|Yes| R[Identity Lookup]
-    R --> S{Identity Found?}
-    S -->|No| T[❌ Identity Not Found]
-    S -->|Yes| U[Verify Response Signature]
-    U --> V{Response Signature Valid?}
-    V -->|No| W[❌ Response Signature Invalid]
-    V -->|Yes| X[Extract Public Key]
-    X --> Y[Decrypt Document]
-    Y --> Z[✅ Document Decrypted]
+    P -->|Yes| R[Receiver's decryptVerify: verify the signature]
+    R --> Y[Decrypt with the receiver's own private key]
+    Y --> S2{Document matches its type's schema and limits?}
+    S2 -->|No| T[❌ VALIDATION]
+    S2 -->|Yes| Z[✅ Document Decrypted]
 ```
 
 ---

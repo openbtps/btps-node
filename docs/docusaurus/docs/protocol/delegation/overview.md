@@ -29,14 +29,19 @@ sequenceDiagram
     participant Receiver BTPS
     participant Recipient
 
-    Agent->>Sender BTPS: Send delegated message
-    Sender BTPS->>Sender BTPS: Verify agent signature
-    Sender BTPS->>Sender BTPS: Add delegation signature
+    Agent->>Sender BTPS: Send an artifact the agent built and signed
+    Sender BTPS->>Sender BTPS: Verify agent signature (device found under the artifact's from)
+    Sender BTPS->>Sender BTPS: Add delegation signature (and attestation, for a custom domain)
     Sender BTPS->>Receiver BTPS: Deliver with delegation
-    Receiver BTPS->>DNS: Query delegation records
+    Receiver BTPS->>DNS: TXT _btps.host of the sender's domain
+    DNS->>Receiver BTPS: Operator (op=)
+    Receiver BTPS->>Receiver BTPS: Delegator must be the operator, or the sender with the operator's attestation
+    Receiver BTPS->>Receiver BTPS: Verify the attestation, if there is one
+    Receiver BTPS->>DNS: Delegator's key at its selector
     DNS->>Receiver BTPS: Return delegator public key
     Receiver BTPS->>Receiver BTPS: Verify delegation signature
-    Receiver BTPS->>Receiver BTPS: Verify agent signature
+    Receiver BTPS->>Receiver BTPS: Verify agent signature with the delegation's agentPubKey
+    Receiver BTPS->>Receiver BTPS: Time window and trust checks
     Receiver BTPS->>Recipient: Deliver message
 ```
 

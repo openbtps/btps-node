@@ -11,13 +11,14 @@ The **BTPS Transporter** (`BtpsTransporter`) is a connection management and mess
 
 ```mermaid
 graph TD
-    A[Sender App] --> B[BtpsTransporter]
+    G[Key Management] --> S[signEncrypt]
+    S -->|Signed artifact| A[Sender App]
+    A --> B[BtpsTransporter]
     B --> C[Recipient BTPS Server]
     C --> D[Recipient Inbox]
 
     E[SaaS Platform] -.->|Offline| B
-    F[DNS Resolution] --> B
-    G[Key Management] --> B
+    F["DNS Resolution (_btps.host)"] --> B
 ```
 
 **Key Characteristics:**
@@ -72,13 +73,13 @@ sequenceDiagram
     participant Inbox as Recipient Inbox
 
     App->>Transporter: Send Signed Artifact
-    Transporter->>DNS: Resolve Recipient Identity
+    Transporter->>DNS: Resolve the recipient's _btps.host
     DNS->>Transporter: Return Server Endpoint
-    Transporter->>Receiver: Establish TLS Connection
+    Transporter->>Receiver: Establish TLS Connection (or reuse one from the pool)
     Transporter->>Receiver: Send Signed Artifact
-    Receiver->>Receiver: Verify Signature & Trust
-    Receiver->>Inbox: Forward to Recipient Inbox
-    Receiver->>Transporter: Return Delivery Acknowledgment
+    Receiver->>Receiver: Check size, version, signature, time window and trust
+    Receiver->>Inbox: Hand to the recipient's handler
+    Receiver->>Transporter: Return Delivery Acknowledgment, once the handler returns (refused if there is none)
     Transporter->>App: Return Response
 ```
 

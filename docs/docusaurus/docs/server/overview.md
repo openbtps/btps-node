@@ -25,13 +25,13 @@ BTPS is a federated protocol for secure, trust-based document exchange. The serv
 
 ```mermaid
 graph TD
-  Client["Client (Sender)"] -- "TLS, Signed & Encrypted" --> Server["BTPS Server"]
-  Server -- "Forward to Inbox/Webhook" --> Inbox["Inbox (SaaS or Self-Hosted)"]
+  Client["Client (Sender)"] -- "TLS, encrypted then signed" --> Server["BTPS Server"]
+  Server -- "Your handler: onIncomingArtifact or forwardTo" --> Inbox["Inbox (SaaS or Self-Hosted)"]
 ```
 
-- **Client:** Signs, encrypts, and sends documents
-- **Server:** Verifies trust, validates, and routes documents
-- **Inbox:** Final destination for processing and storage
+- **Client:** Encrypts, signs, and sends documents
+- **Server:** Checks size, version, signature, time window and trust, then hands the artifact to your handler; it answers the sender only after the handler returns, and refuses an artifact no handler takes
+- **Inbox:** Final destination for processing and storage; the receiver decrypts with its own key
 
 ## Core Features
 
@@ -63,13 +63,14 @@ const server = new BtpsServer({
 
 ```mermaid
 graph TD
-  S["Sender"] -- "DNS TXT + .well-known" --> R["Receiver (BTPS Server)"]
-  R -- "Verify + Trust Request" --> S
-  S -- "Sign + Encrypt" --> P["POST to Receiver Inbox"]
-  R -- "Trust Accept" --> P
+  S["Sender"] -- "1\. DNS: _btps.host and the receiver's key" --> R["Receiver (BTPS Server)"]
+  S -- "2\. Trust request, signed" --> R
+  R -- "3\. Trust response, signed" --> S
+  S -- "4\. Document, encrypted then signed" --> R
+  R -- "5\. After its checks, to your handler" --> P["Receiver's inbox"]
 ```
 
-- **Identity Discovery:** DNS TXT records and .well-known endpoints
+- **Identity Discovery:** DNS TXT records, or an operator-signed identity lookup at the host
 - **Trust Establishment:** Explicit, directional trust relationships
 - **Secure Exchange:** Signed and encrypted artifacts
 - **Document Processing:** Extraction and validation of business documents
