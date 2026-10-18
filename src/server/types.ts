@@ -22,6 +22,11 @@ import { BTPErrorException } from '@core/error/index.js';
 import { BTPIdentityRecord } from '@core/storage/types.js';
 import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 import type { Signer } from '@core/crypto/signer-interface.js';
+import type { z } from 'zod';
+import type {
+  BtpLetterDocSchema,
+  BtpPayslipDocSchema,
+} from '@core/server/schemas/btpsDocsSchema.js';
 
 export interface BtpsTlsOptions extends TlsOptions {
   cert: string;
@@ -298,3 +303,25 @@ export interface BTPInvoiceDoc {
   };
   metadata?: Record<string, unknown>; // the sending platform's own data
 }
+
+/** Proof of a payment: the invoice without what asks for payment, plus `payment`. */
+export interface BTPReceiptDoc
+  extends Omit<BTPInvoiceDoc, 'type' | 'dueAt' | 'paymentLink' | 'lineItems'> {
+  type: 'receipt';
+  lineItems?: BTPInvoiceDoc['lineItems'];
+  payment: {
+    amount: BTPInvoiceDoc['totalAmount']; // less than totalAmount on a partial receipt
+    paidAt: string; // ISO format
+    method?: string; // `card`, `bank_transfer`, `cash`, or a prefixed code
+    reference?: string;
+  };
+}
+
+/** A payslip: earnings, deductions, contributions and leave, each named by an open code. */
+export type BTPPayslipDoc = z.infer<typeof BtpPayslipDocSchema>;
+
+/** A letter: a title and one body, `text` or `markdown`. */
+export type BTPLetterDoc = z.infer<typeof BtpLetterDocSchema>;
+
+/** What a `BTPS_DOC` carries. */
+export type BTPDocument = BTPInvoiceDoc | BTPReceiptDoc | BTPPayslipDoc | BTPLetterDoc;

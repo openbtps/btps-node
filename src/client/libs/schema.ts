@@ -18,7 +18,7 @@ import { identitySchema } from '@core/server/schemas/shared.js';
 import { validateAgentDocument } from '@core/server/schemas/helpers.js';
 import {
   BtpAuthReqDocSchema,
-  BtpInvoiceDocSchema,
+  BtpDocumentSchema,
   BtpLifecycleEventSchema,
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
@@ -31,7 +31,7 @@ export const BtpsAgentCommandDocumentSchema = z
   .union([
     BtpTrustReqDocSchema,
     BtpTrustResDocSchema,
-    BtpInvoiceDocSchema,
+    BtpDocumentSchema,
     BtpLifecycleEventSchema,
     BtpAuthReqDocSchema,
     BtpAgentQuerySchema,

@@ -80,14 +80,41 @@ has a limit.
 
 ### Documents (`BTPS_DOC`)
 
-Only identifiers are limited. A document's content (line items, description,
-attachments) is bounded by the [artifact size](#artifact-size) alone.
+Every document type, invoice, receipt, payslip and letter, limits its
+identifiers. Its content (line items, description, attachments) is bounded by
+the [artifact size](#artifact-size) unless listed below.
 
 | Field               | Limit |
 | ------------------- | ----: |
 | `id`                |   100 |
 | `references[].id`   |   100 |
 | `references[].type` |    64 |
+
+### Receipt
+
+| Field               | Limit |
+| ------------------- | ----: |
+| `payment.method`    |    64 |
+| `payment.reference` |   100 |
+
+### Payslip
+
+Every code in a payslip has the same limit: the `category` of an earning,
+deduction, contribution or leave, a leave `unit`, `rateUnit`, and
+`payRate.unit`.
+
+| Field  | Limit |
+| ------ | ----: |
+| a code |    64 |
+
+### Letter
+
+| Field          |                  Limit |
+| -------------- | ---------------------: |
+| `title`        |                    200 |
+| `body.content` |                100,000 |
+| `attachments`  | 10 (count, not length) |
+| `references`   | 20 (count, not length) |
 
 ### Encrypted documents
 
@@ -110,6 +137,7 @@ import { BTPS_FIELD_LIMITS } from '@btps/sdk/server';
 
 BTPS_FIELD_LIMITS.trustRequest.reason; // 2000
 BTPS_FIELD_LIMITS.documentId; // 100
+BTPS_FIELD_LIMITS.letter.content; // 100000
 ```
 
 ## Receiver settings
@@ -169,8 +197,8 @@ The exported values are `DEFAULT_CONNECT_TIMEOUT_MS`, `MIN_CONNECT_TIMEOUT_MS`,
   off unless it turns them on. See
   [Defending your provider](../security/bestPractices.md#defending-your-provider).
 - **How many trust requests or documents an identity may receive.**
-- **A document's content** beyond its identifiers, other than the artifact
-  size.
+- **A document's content** beyond the fields listed above, other than the
+  artifact size.
 
 ## Being stricter
 

@@ -10,7 +10,18 @@ import { CURRENCY_CODES } from '../constants/currency.js';
 import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
 import { BtpSignatureSchema, identitySchema } from './shared.js';
 
-const { trustRequest, trustResponse, event, documentId, referenceType } = BTPS_FIELD_LIMITS;
+const { trustRequest, trustResponse, event, receipt, payslip, letter, documentId, referenceType } =
+  BTPS_FIELD_LIMITS;
+
+/** A bare or prefixed code: `ordinary`, `au:penalty`. */
+const codeSchema = (max: number) =>
+  z
+    .string()
+    .max(max)
+    .regex(/^[a-z0-9_]+(:[a-z0-9_]+)?$/, 'must be a bare or prefixed code');
+
+/** A decimal written as text, never as a float: `'48.75'`, `'-2'`. */
+const decimalText = z.string().regex(/^-?\d+(\.\d+)?$/, 'must be a decimal written as text');
 
 /** A SHA-256, written in lowercase hex. */
 const sha256Hex = z.string().regex(/^[0-9a-f]{64}$/, 'must be a SHA-256 in lowercase hex');
@@ -35,14 +46,11 @@ const BtpMoneySchema = z.object({
 
 /**
  * A link to another signed document. `type` is `correction_of`, `credits`,
- * `instalment_of` or `follows`, or a platform's own code under a prefix
- * (`acme:supersedes`).
+ * `instalment_of`, `follows` or `receipt_for`, or a platform's own code under
+ * a prefix (`acme:supersedes`).
  */
 export const BtpDocReferenceSchema = z.object({
-  type: z
-    .string()
-    .max(referenceType)
-    .regex(/^[a-z0-9_]+(:[a-z0-9_]+)?$/, 'must be a bare or prefixed code'),
+  type: codeSchema(referenceType),
   from: identitySchema,
   id: z.string().min(1).max(documentId),
   sha256: sha256Hex,
@@ -84,6 +92,22 @@ export const BtpTrustResDocSchema = z.object({
   privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']).optional(),
 });
 
+const BtpLineItemsSchema = z.object({
+  columns: z.array(z.string()),
+  // A money cell is integer minor units; a decimal (e.g. a quantity) is written as text.
+  rows: z.array(z.record(z.union([z.string(), z.number().int().safe()]))),
+});
+
+/** Who issued a document: the biller, the seller, the employer. */
+const BtpIssuerSchema = z.object({
+  name: z.string(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  // Company and tax ids by namespaced key, for any country: { "au:abn": "51824753556" }.
+  identifiers: z.record(z.string().regex(/^[a-z0-9_]+:[a-z0-9_]+$/), z.string()).optional(),
+});
+
 /**
  * The 1.1 invoice: the 1.0 invoice with money in integer minor units, no
  * status (a status comes from lifecycle events), several attachments, and
@@ -98,21 +122,8 @@ export const BtpInvoiceDocSchema = z
     issuedAt: z.string().datetime(),
     dueAt: z.string().datetime().optional(),
     totalAmount: BtpMoneySchema,
-    lineItems: z.object({
-      columns: z.array(z.string()),
-      // A money cell is integer minor units; a decimal (e.g. a quantity) is written as text.
-      rows: z.array(z.record(z.union([z.string(), z.number().int().safe()]))),
-    }),
-    issuer: z
-      .object({
-        name: z.string(),
-        email: z.string().email().optional(),
-        phone: z.string().optional(),
-        address: z.string().optional(),
-        // Company and tax ids by namespaced key, for any country: { "au:abn": "51824753556" }.
-        identifiers: z.record(z.string().regex(/^[a-z0-9_]+:[a-z0-9_]+$/), z.string()).optional(),
-      })
-      .optional(),
+    lineItems: BtpLineItemsSchema,
+    issuer: BtpIssuerSchema.optional(),
     paymentLink: z
       .object({
         linkText: z.string(),
@@ -133,6 +144,148 @@ export const BtpInvoiceDocSchema = z
     metadata: z.record(z.unknown()).optional(),
   })
   .strict();
+
+/** Money in minor units, more than zero. */
+const BtpPositiveMoneySchema = BtpMoneySchema.extend({
+  amount: z.number().int().safe().positive(),
+});
+
+/**
+ * A receipt: proof that a payment was made. The invoice, without what asks
+ * for payment (`dueAt`, `paymentLink`), with a required `payment` and
+ * optional line items. It is partial when the payment is less than
+ * `totalAmount`. It may name the invoice it pays (`receipt_for`) or stand
+ * alone, as for a sale that had no invoice. A receiver never shows it as
+ * something to pay.
+ */
+export const BtpReceiptDocSchema = BtpInvoiceDocSchema.omit({ dueAt: true, paymentLink: true })
+  .extend({
+    type: z.literal('receipt'),
+    lineItems: BtpLineItemsSchema.optional(),
+    payment: z.object({
+      amount: BtpPositiveMoneySchema,
+      paidAt: z.string().datetime(),
+      // `card`, `bank_transfer`, `cash`, or a platform's own code under a prefix.
+      method: codeSchema(receipt.paymentMethod).optional(),
+      reference: z.string().max(receipt.paymentReference).optional(),
+    }),
+  })
+  .strict();
+
+const payslipCode = codeSchema(payslip.code);
+
+/**
+ * A payslip. Earnings, deductions, contributions and leave are named by open
+ * codes (`ordinary`, `au:penalty`, `annual`, `au:long_service`), so a new
+ * allowance or a new country needs no protocol change; `description` is the
+ * name the employer prints. Rates, quantities and leave balances are decimals
+ * written as text. The protocol carries the amounts and never adds them up.
+ */
+export const BtpPayslipDocSchema = z
+  .object({
+    type: z.literal('payslip'),
+    title: z.string(),
+    id: z.string().max(documentId),
+    issuedAt: z.string().datetime(),
+    issuer: BtpIssuerSchema.optional(), // the employer
+    employee: z.object({
+      name: z.string(),
+      employeeId: z.string().optional(),
+      payBasis: z.enum(['hourly', 'salaried']).optional(),
+    }),
+    jurisdiction: z
+      .string()
+      .regex(/^[A-Z]{2}$/, 'must be an ISO 3166-1 alpha-2 code')
+      .optional(),
+    payPeriod: z.object({ start: z.string().datetime(), end: z.string().datetime() }).optional(),
+    payDate: z.string().datetime().optional(),
+    payRate: z
+      .object({ amount: BtpMoneySchema, unit: payslipCode, asAt: z.string().datetime() })
+      .optional(),
+    earnings: z.array(
+      z.object({
+        category: payslipCode,
+        description: z.string().optional(),
+        rate: decimalText.optional(),
+        rateUnit: payslipCode.optional(),
+        quantity: decimalText.optional(),
+        amount: BtpMoneySchema,
+      }),
+    ),
+    deductions: z.array(
+      z.object({
+        category: payslipCode,
+        description: z.string().optional(),
+        amount: BtpMoneySchema,
+        payee: z.object({ name: z.string(), accountRef: z.string().optional() }).optional(),
+      }),
+    ),
+    // Retirement contributions (superannuation); a fund may not be assigned yet.
+    contributions: z.array(
+      z.object({
+        category: payslipCode.optional(),
+        amount: BtpMoneySchema,
+        fund: z
+          .object({
+            name: z.string().optional(),
+            memberNumber: z.string().optional(),
+            accountRef: z.string().optional(),
+          })
+          .optional(),
+      }),
+    ),
+    leave: z
+      .array(
+        z.object({
+          category: payslipCode,
+          description: z.string().optional(),
+          unit: payslipCode, // `hours`, `days`, `weeks`
+          balance: decimalText,
+          accrued: decimalText.optional(),
+          taken: decimalText.optional(),
+        }),
+      )
+      .optional(),
+    taxWithheld: BtpMoneySchema.optional(),
+    gross: BtpMoneySchema,
+    net: BtpMoneySchema,
+    yearToDate: z.record(BtpMoneySchema).optional(),
+    attachments: z.array(BtpAttachmentSchema).optional(),
+    references: z.array(BtpDocReferenceSchema).optional(),
+    metadata: z.record(z.unknown()).optional(),
+  })
+  .strict();
+
+/**
+ * A letter: anything from a notice to an agreement. The body is one format:
+ * `text`, shown exactly as written, or `markdown`, CommonMark with raw HTML
+ * off, which a receiver renders without inline images and with https links
+ * only. There is no HTML body.
+ */
+export const BtpLetterDocSchema = z
+  .object({
+    type: z.literal('letter'),
+    title: z.string().max(letter.title),
+    id: z.string().max(documentId),
+    issuedAt: z.string().datetime(),
+    body: z.object({
+      format: z.enum(['text', 'markdown']),
+      content: z.string().max(letter.content),
+    }),
+    issuer: BtpIssuerSchema.optional(),
+    attachments: z.array(BtpAttachmentSchema).max(letter.attachments).optional(),
+    references: z.array(BtpDocReferenceSchema).max(letter.references).optional(),
+    metadata: z.record(z.unknown()).optional(),
+  })
+  .strict();
+
+/** What a `BTPS_DOC` carries: an invoice, a receipt, a payslip or a letter, by its `type`. */
+export const BtpDocumentSchema = z.discriminatedUnion('type', [
+  BtpInvoiceDocSchema,
+  BtpReceiptDocSchema,
+  BtpPayslipDocSchema,
+  BtpLetterDocSchema,
+]);
 
 /*
  * A lifecycle event: what a `BTPS_EVENT` carries. The payer proposes (paid,
@@ -171,10 +324,7 @@ export const BtpLifecycleEventSchema = z
         ...lifecycleEventFields,
         eventType: z.literal('disputed'),
         // `rejected`, `amount_wrong`, `not_as_agreed`, or a platform's own code under a prefix.
-        reason: z
-          .string()
-          .max(event.reason)
-          .regex(/^[a-z0-9_]+(:[a-z0-9_]+)?$/, 'must be a bare or prefixed code'),
+        reason: codeSchema(event.reason),
       })
       .strict(),
     z.object({ ...lifecycleEventFields, eventType: z.literal('refund_requested') }).strict(),
@@ -240,6 +390,6 @@ export const BtpAgentQueryDocSchema = z.object({
 export const BtpDocSchema = z.union([
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
-  BtpInvoiceDocSchema,
+  BtpDocumentSchema,
   BtpLifecycleEventSchema,
 ]);

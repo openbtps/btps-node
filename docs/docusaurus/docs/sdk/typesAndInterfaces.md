@@ -704,7 +704,7 @@ A link to another signed document, such as a corrected invoice naming the invoic
 
 ```ts
 interface BTPDocReference {
-  type: string; // correction_of | credits | instalment_of | follows | a prefixed code
+  type: string; // correction_of | credits | instalment_of | follows | receipt_for | a prefixed code
   from: string;
   id: string;
   sha256: string; // lowercase hex
@@ -749,6 +749,24 @@ interface BTPInvoiceDoc {
     data: Record<string, unknown>;
   };
   metadata?: Record<string, unknown>;
+}
+```
+
+### BTPReceiptDoc
+
+Proof of a payment: the invoice without what asks for payment, plus `payment`. It is partial when `payment.amount` is less than `totalAmount`.
+
+```ts
+interface BTPReceiptDoc
+  extends Omit<BTPInvoiceDoc, 'type' | 'dueAt' | 'paymentLink' | 'lineItems'> {
+  type: 'receipt';
+  lineItems?: BTPInvoiceDoc['lineItems'];
+  payment: {
+    amount: BTPInvoiceDoc['totalAmount']; // more than zero
+    paidAt: string; // ISO format
+    method?: string; // card | bank_transfer | cash | a prefixed code
+    reference?: string;
+  };
 }
 ```
 
@@ -1412,8 +1430,11 @@ interface BTPAgentQuery {
 Generic document type.
 
 ```ts
-type BTPDocType = BTPInvoiceDoc | BTPLifecycleEvent | BTPTrustReqDoc | BTPTrustResDoc;
+type BTPDocument = BTPInvoiceDoc | BTPReceiptDoc | BTPPayslipDoc | BTPLetterDoc; // what a BTPS_DOC carries
+type BTPDocType = BTPDocument | BTPLifecycleEvent | BTPTrustReqDoc | BTPTrustResDoc;
 ```
+
+`BTPPayslipDoc` and `BTPLetterDoc` are inferred from their schemas; their fields are in the Transporter Artifact specification.
 
 ### BTPStringQueryFilter
 

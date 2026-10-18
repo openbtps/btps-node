@@ -21,7 +21,7 @@ import {
 } from '../types.js';
 import {
   BtpAuthReqDocSchema,
-  BtpInvoiceDocSchema,
+  BtpDocumentSchema,
   BtpLifecycleEventSchema,
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
@@ -34,7 +34,7 @@ export const processBtpDocSchema = (bptArtifactType: BTPArtifactType) => {
     case 'TRUST_REQ':
       return BtpTrustReqDocSchema;
     case 'BTPS_DOC':
-      return BtpInvoiceDocSchema;
+      return BtpDocumentSchema;
     case 'BTPS_EVENT':
       return BtpLifecycleEventSchema;
     default:
@@ -88,7 +88,7 @@ export const processBtpDocSchemaForAgent = (actionType: string) => {
     'trust.respond': BtpTrustResDocSchema,
     'trust.update': BtpAgentMutationSchema,
     'trust.delete': BtpIdsPayloadSchema,
-    'artifact.send': BtpInvoiceDocSchema,
+    'artifact.send': BtpDocumentSchema,
     'event.send': BtpLifecycleEventSchema,
     'auth.request': BtpAuthReqDocSchema,
     'auth.refresh': BtpAuthReqDocSchema,
