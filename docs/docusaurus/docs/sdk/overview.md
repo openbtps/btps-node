@@ -21,7 +21,7 @@ yarn add @btps/sdk
 
 ## ⚠️ Node.js Compatibility
 
-This package is **ESM-only** and requires **Node.js ≥ 16**.
+This package is **ESM-only** and requires **Node.js ≥ 24**.
 
 - ✅ Works with `import` in ESM projects (`"type": "module"` or `.mjs`)
 - ❌ Does **not** support `require()` in CommonJS projects
@@ -29,9 +29,9 @@ This package is **ESM-only** and requires **Node.js ≥ 16**.
 If you're using CommonJS and still want to consume this SDK, use dynamic `import()`:
 
 ```js
-// CommonJS workaround (Node 16+)
+// CommonJS workaround
 (async () => {
-  const { default: JsonTrustStore } = await import('@btps/sdk/trust');
+  const { JsonTrustStore } = await import('@btps/sdk/trust');
   const store = new JsonTrustStore({ ... });
 })();
 ```
