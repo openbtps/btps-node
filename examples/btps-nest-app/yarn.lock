@@ -1021,17 +1021,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nestjs/microservices@npm:^10.4.20":
-  version: 10.4.20
-  resolution: "@nestjs/microservices@npm:10.4.20"
+"@nestjs/microservices@npm:^11.2.5":
+  version: 11.2.5
+  resolution: "@nestjs/microservices@npm:11.2.5"
   dependencies:
     iterare: "npm:1.2.1"
     tslib: "npm:2.8.1"
   peerDependencies:
     "@grpc/grpc-js": "*"
-    "@nestjs/common": ^10.0.0
-    "@nestjs/core": ^10.0.0
-    "@nestjs/websockets": ^10.0.0
+    "@nestjs/common": ^11.0.0
+    "@nestjs/core": ^11.0.0
+    "@nestjs/websockets": ^11.0.0
     amqp-connection-manager: "*"
     amqplib: "*"
     cache-manager: "*"
@@ -1060,7 +1060,7 @@ __metadata:
       optional: true
     nats:
       optional: true
-  checksum: 10c0/e4ecdad43724b20eed0ab699009fec3878dfd3bef715c42d5b9b8a94767e13ba6454555fda894339f89fe7ecd11304271735704a0cfcf35d9798b6c31b644d56
+  checksum: 10c0/b8e2219504d8148faa5df2adaafa4c9abd312a0cceda0061e13634c801d9d592716d3ea50c9233074a16d2c079f94d092d83ff12a58008fe0dc6862e939435a4
   languageName: node
   linkType: hard
 
@@ -2257,7 +2257,7 @@ __metadata:
     "@nestjs/common": "npm:^10.0.0"
     "@nestjs/config": "npm:^3.0.0"
     "@nestjs/core": "npm:^10.0.0"
-    "@nestjs/microservices": "npm:^10.4.20"
+    "@nestjs/microservices": "npm:^11.2.5"
     "@nestjs/mongoose": "npm:^10.0.0"
     "@nestjs/platform-express": "npm:^10.0.0"
     "@nestjs/schematics": "npm:^10.0.0"
