@@ -4,6 +4,27 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] — 1.1.1
+
+A patch release: the protocol and the API are unchanged.
+
+### Fixed
+
+- **The package is about 3.8 MB smaller.** It no longer ships type
+  declarations that no entry point can reach: the exports map lets a project
+  import only the entry points, so those files were never read. The
+  declarations every entry point needs are all still included, and CI now
+  type-checks each entry point against the packed package.
+
+### Corrected
+
+- The 1.1.0 notes said every trust refusal reads `BTP_ERROR_TRUST_NOT_ALLOWED`.
+  Two stay distinct on the wire: an expired trust reads
+  `BTP_ERROR_TRUST_EXPIRED`, and an artifact sent without the encryption the
+  trust requires reads `BTP_ERROR_PRIVACY_TYPE`. Every other refusal, including
+  a trust that was never made, is pending, rejected, revoked or blocked, reads
+  `BTP_ERROR_TRUST_NOT_ALLOWED`.
+
 ## [1.1.0] — 2026-10-18 (alpha)
 
 BTPS 1.1 is the alpha release of the protocol: 1.2 is planned as the beta and

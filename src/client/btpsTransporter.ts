@@ -27,7 +27,7 @@ import {
   BTP_TRANSPORTER_DEFAULT_MAX_CONNECTIONS,
   BTP_TRANSPORTER_ERROR_CONNECTION_ALREADY_EXISTS,
   BTP_TRANSPORTER_ERROR_MAX_CONNECTIONS_REACHED,
-} from './constants.ts/index.js';
+} from './constants/index.js';
 import { BtpTransporterArtifactSchema } from '@core/server/schemas/artifacts/transporterSchema.js';
 import { validate } from '@core/utils/validation.js';
 import { EventEmitter } from 'events';

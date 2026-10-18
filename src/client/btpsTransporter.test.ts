@@ -15,7 +15,7 @@ import {
   BTP_TRANSPORTER_DEFAULT_CONNECTION_TTL_SECONDS,
   BTP_TRANSPORTER_ERROR_CONNECTION_ALREADY_EXISTS,
   BTP_TRANSPORTER_ERROR_MAX_CONNECTIONS_REACHED,
-} from './constants.ts/index.js';
+} from './constants/index.js';
 import { BTP_PROTOCOL_VERSION } from 'server/index.js';
 import type {
   BTPClientOptions,
