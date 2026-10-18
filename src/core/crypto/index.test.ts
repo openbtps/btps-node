@@ -5,7 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import crypto from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -122,6 +122,24 @@ describe('JCS canonicalization of signed payloads', () => {
       expect(isValid).toBe(true);
     },
   );
+});
+
+describe('a sender whose published key is not a public key', () => {
+  it('is refused as a mismatch that says why, and writes nothing to the console', () => {
+    const keys = genRsaKeyPair();
+    const signed = signBtpPayload({ id: '1' }, keys);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const { isValid, error } = verifySignature({ id: '1' }, signed, 'not a public key');
+
+    expect(isValid).toBe(false);
+    expect(error).toMatchObject({
+      code: 'BTP_ERROR_SIG_MISMATCH',
+      meta: { reason: expect.stringContaining('Invalid PEM') },
+    });
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
 });
 
 // The web side signs and verifies the RFC 8785 canonical bytes, as a BTPS 1.1

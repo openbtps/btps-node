@@ -106,6 +106,10 @@ of an exchange must upgrade together.
 
 ### Fixed
 
+- A sender whose published key is not a public key no longer writes a
+  console line for every artifact it signs. The refusal
+  (`BTP_ERROR_SIG_MISMATCH`) says why in `meta.reason`.
+
 - A JSON store with no records no longer reads its file again on every
   lookup.
 

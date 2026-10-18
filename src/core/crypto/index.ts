@@ -297,15 +297,16 @@ export const verifySignature = (
     };
   }
 
-  let senderFingerprint;
+  let senderFingerprint: string | undefined;
+  // A sender's published key that is not a public key is refused below as a
+  // mismatch, saying why, rather than logged once per artifact it signs.
+  let keyProblem: string | undefined;
   try {
     senderFingerprint = getFingerprintFromPem(senderPubKey, signature.algorithmHash);
   } catch (error) {
-    const err =
-      error instanceof Error
-        ? new BTPErrorException({ code: 500, message: error.message })
-        : new BTPErrorException(BTP_ERROR_SIG_MISMATCH);
-    console.error('[BTPS Error]::[Fingerprint] - getFingerprintFromPem', err.toJSON());
+    const reason = error instanceof BTPErrorException ? error.meta?.reason : undefined;
+    keyProblem =
+      typeof reason === 'string' ? reason : error instanceof Error ? error.message : String(error);
   }
 
   if (senderFingerprint !== signature.fingerprint) {
@@ -315,6 +316,7 @@ export const verifySignature = (
         meta: {
           expected: senderFingerprint,
           actual: signature.fingerprint,
+          ...(keyProblem !== undefined && { reason: keyProblem }),
         },
       }),
     };
