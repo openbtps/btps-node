@@ -12,6 +12,10 @@ export {
   MIN_MAX_ARTIFACT_AGE_SECONDS,
 } from './artifactTimeWindow.js';
 export { DEFAULT_CONNECTION_TIMEOUT_MS } from './connectionTimeout.js';
+export {
+  DEFAULT_MAX_IN_FLIGHT_PER_CONNECTION,
+  MIN_MAX_IN_FLIGHT_PER_CONNECTION,
+} from './inFlightLimit.js';
 export * from './btpsFactory.js';
 export * from './btpsLightweightFactory.js';
 export * from './btpsRegistry.js';

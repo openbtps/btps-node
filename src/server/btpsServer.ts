@@ -103,6 +103,7 @@ import {
   resolveMaxArtifactAgeSeconds,
 } from './libs/artifactTimeWindow.js';
 import { resolveConnectionTimeoutMs } from './libs/connectionTimeout.js';
+import { resolveMaxInFlightPerConnection } from './libs/inFlightLimit.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
 import { BtpAuthReqDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
@@ -123,6 +124,7 @@ export class BtpsServer {
   private readonly middlewareManager: MiddlewareManager;
   private readonly connectionTimeoutMs: number;
   private readonly maxArtifactSizeKb: number;
+  private readonly maxInFlightPerConnection: number;
   private readonly maxArtifactAgeSeconds: number;
   private readonly dependencies: {
     trustStore: AbstractTrustStore<BTPTrustRecord>;
@@ -147,6 +149,9 @@ export class BtpsServer {
     this.identityStore = options.identityStore;
     this.connectionTimeoutMs = resolveConnectionTimeoutMs(options.connectionTimeoutMs);
     this.maxArtifactSizeKb = resolveMaxArtifactSizeKb(options.maxArtifactSizeKb);
+    this.maxInFlightPerConnection = resolveMaxInFlightPerConnection(
+      options.maxInFlightPerConnection,
+    );
     this.maxArtifactAgeSeconds = resolveMaxArtifactAgeSeconds(options.maxArtifactAgeSeconds);
     this.middlewareManager = new MiddlewareManager(options.middlewarePath);
     this.dependencies = {
@@ -330,6 +335,8 @@ export class BtpsServer {
       parseReq.rawPacket = line;
 
       inFlight++;
+      // At the limit, read no more lines until one finishes: TCP then slows the sender.
+      if (inFlight >= this.maxInFlightPerConnection) stream.pause();
       try {
         // Execute before parsing middleware
         const beforeParseMiddleware = this.middlewareManager.getMiddleware('before', 'parsing');
@@ -431,6 +438,7 @@ export class BtpsServer {
         );
       } finally {
         inFlight--;
+        if (stream.isPaused() && !stream.destroyed) stream.resume();
       }
     });
 

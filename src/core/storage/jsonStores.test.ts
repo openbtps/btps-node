@@ -5,7 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import { describe, it, expect, afterAll } from 'vitest';
+import { describe, it, expect, afterAll, vi } from 'vitest';
 import { mkdtempSync, rmSync } from 'fs';
 import os from 'os';
 import path from 'path';
@@ -59,6 +59,18 @@ describe('the JSON stores', () => {
 
     await expect(store.create(record)).rejects.toThrow(/already exists/);
     await expect(store.create({ ...record, id: 'x' } as never)).rejects.toThrow(/id/);
+  });
+
+  it('does not read its file again for each lookup while it has no records', async () => {
+    const store = kept(new JsonTrustStore({ connection: file(), entityName: 'trusted_sender' }));
+    const init = vi.spyOn(store as unknown as { init(): Promise<void> }, 'init');
+    await store.getById('first');
+    const readsAfterFirstLookup = init.mock.calls.length;
+
+    for (let i = 0; i < 5; i++) await store.getById(`unknown-${i}`);
+    await store.getAll();
+
+    expect(init).toHaveBeenCalledTimes(readsAfterFirstLookup);
   });
 
   it('JsonTrustStore creates once per pair, refuses a record with an id, and knows no artifacts', async () => {

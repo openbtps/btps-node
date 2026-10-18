@@ -25,6 +25,8 @@ const entryPoints: Array<[string, () => Promise<Record<string, unknown>>, string
       'DEFAULT_MAX_ARTIFACT_AGE_SECONDS',
       'MIN_MAX_ARTIFACT_AGE_SECONDS',
       'DEFAULT_CONNECTION_TIMEOUT_MS',
+      'DEFAULT_MAX_IN_FLIGHT_PER_CONNECTION',
+      'MIN_MAX_IN_FLIGHT_PER_CONNECTION',
       'BtpsServerRegistry',
       'BtpsServerSingletonFactory',
       'BtpsServerLightweightFactory',

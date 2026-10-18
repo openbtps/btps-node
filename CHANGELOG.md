@@ -79,8 +79,11 @@ of an exchange must upgrade together.
 - **Identity lookup through the host,** for an address whose key is not in
   DNS, answered and signed by the domain's operator.
 - **Server guards:** a maximum artifact size (`maxArtifactSizeKb`, 5 MB by
-  default) and a time window for `issuedAt` (`maxArtifactAgeSeconds`,
-  5 minutes by default).
+  default), a time window for `issuedAt` (`maxArtifactAgeSeconds`,
+  5 minutes by default), and a limit on requests handled at once per
+  connection (`maxInFlightPerConnection`, 32 by default). At that limit the
+  server reads no more from the connection until one finishes, so a sender
+  that does not wait for answers is slowed instead of filling its memory.
 - **`privacyType` is enforced:** a plain artifact over a trust that requires
   encryption is refused (`BTP_ERROR_PRIVACY_TYPE`).
 - **`sentbox.fetch` and `sentbox.delete`** agent actions.
@@ -96,6 +99,9 @@ of an exchange must upgrade together.
   (`ci/docs`).
 
 ### Fixed
+
+- A JSON store with no records no longer reads its file again on every
+  lookup.
 
 - A client bundle no longer carries the server. `@btps/sdk/client` imported
   the server entry for one constant, and `@btps/sdk/authentication` reached
