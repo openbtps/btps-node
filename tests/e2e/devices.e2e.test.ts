@@ -6,18 +6,26 @@
  */
 
 // Journey: a user registers a phone with a one-time code from their provider,
-// the phone reads the inbox, then moves to a new key. A code works once; a
-// device the provider never registered is refused.
+// the phone reads the inbox, sends an invoice and a trust request that its
+// provider delegates and delivers, then moves to a new key. A code works once;
+// a device the provider never registered is refused, and so is a phone
+// sending as someone other than its user.
 
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { BtpsAuthentication } from '../../src/core/authentication/BtpsAuthentication.js';
 import { InMemoryTokenStore } from '../../src/core/authentication/storage/InMemoryTokenStore.js';
 import { BtpsAgent } from '../../src/client/btpsAgent.js';
-import type { BTPAuthReqDoc } from '../../src/core/server/types.js';
+import { BtpsDelegator } from '../../src/core/delegation/BtpsDelegator.js';
+import { AGENT_TRANSPORTER_ACTIONS } from '../../src/core/server/constants/index.js';
+import type { BTPAuthReqDoc, BTPTransporterArtifact } from '../../src/core/server/types.js';
+import type { BTPInvoiceDoc } from '../../src/server/types.js';
 import { BTP_ERROR_AGENT_ID, BTP_ERROR_SIG_VERIFICATION } from '../../src/core/error/index.js';
 import {
   addUser,
+  deliver,
+  invoiceDocument,
   newKeys,
+  recordTrust,
   senderTls,
   startProvider,
   type Keys,
@@ -38,7 +46,9 @@ const phone = (id: string, keys: Keys, identity: string) =>
 
 describe('journey: a user registers a phone', () => {
   let host: Provider;
+  let elsewhere: Provider;
   let user: User;
+  let receiver: User;
   let auth: BtpsAuthentication;
   const deviceKeys = newKeys();
   let agentId = '';
@@ -47,9 +57,20 @@ describe('journey: a user registers a phone', () => {
   beforeAll(async () => {
     host = await startProvider('saas.test');
     user = await addUser(host, 'alice');
+    elsewhere = await startProvider('elsewhere.test');
+    receiver = await addUser(elsewhere, 'bob');
+    // Bob accepted Alice's trust earlier, so her invoices are delivered.
+    await recordTrust(elsewhere.trustStore, user.identity, receiver.identity, 'accepted', {
+      privacyType: 'mixed',
+    });
     auth = new BtpsAuthentication({
       trustStore: host.trustStore,
       tokenStore: new InMemoryTokenStore(),
+    });
+    // The provider sends for its users' devices as its domain's operator.
+    const delegator = new BtpsDelegator({
+      identity: host.operator,
+      privateKey: host.operatorKeys.privateKey,
     });
     // The provider's device sign-in, as a platform writes it around the SDK.
     host.server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
@@ -85,10 +106,24 @@ describe('journey: a user registers a phone', () => {
         return data ? answer(data) : refuse();
       }
       if (artifact.action === 'inbox.fetch') return answer({ results: [] });
+      if (artifact.action in AGENT_TRANSPORTER_ACTIONS) {
+        // The phone signed the artifact; the provider delegates it and delivers it.
+        const delegated = await delegator.delegateArtifact(
+          artifact.agentId,
+          deviceKeys.publicKey,
+          artifact.document as BTPTransporterArtifact,
+        );
+        const { response } = await deliver(delegated);
+        if (response?.status.ok) return answer(undefined);
+        return resCtx.sendError({ code: 502, message: 'The receiver refused it' });
+      }
     });
   });
 
-  afterAll(() => host.stop());
+  afterAll(() => {
+    host.stop();
+    elsewhere.stop();
+  });
 
   it('registers the phone with a one-time code', async () => {
     const code = BtpsAuthentication.generateAuthToken(user.identity);
@@ -134,6 +169,52 @@ describe('journey: a user registers a phone', () => {
 
     expect(error).toBeUndefined();
     expect(response?.status).toMatchObject({ ok: true, code: 200 });
+  });
+
+  it('sends an invoice to someone at another provider, who receives it as from the user', async () => {
+    const { response, error } = await phone(agentId, deviceKeys, user.identity).command(
+      'artifact.send',
+      receiver.identity,
+      invoiceDocument({ id: 'INV-PHONE' }) as BTPInvoiceDoc,
+    );
+
+    expect(error).toBeUndefined();
+    expect(response?.status).toMatchObject({ ok: true, code: 200 });
+    const arrived = elsewhere.inbox.find((a) => (a.document as { id?: string }).id === 'INV-PHONE');
+    expect(arrived).toMatchObject({ from: user.identity, to: receiver.identity, type: 'BTPS_DOC' });
+  });
+
+  it('sends a trust request to someone it has no trust with yet', async () => {
+    const { response, error } = await phone(agentId, deviceKeys, user.identity).command(
+      'trust.request',
+      'carol$elsewhere.test',
+      {
+        id: 'req-phone',
+        name: 'Alice',
+        email: 'alice@saas.test',
+        reason: 'To send you invoices',
+        phone: '+61 400 000 000',
+      },
+    );
+
+    expect(error).toBeUndefined();
+    expect(response?.status).toMatchObject({ ok: true, code: 200 });
+    expect(elsewhere.inbox.some((a) => a.type === 'TRUST_REQ' && a.from === user.identity)).toBe(
+      true,
+    );
+  });
+
+  it("refuses the user's phone sending as someone else", async () => {
+    const { response } = await phone(agentId, deviceKeys, 'mallory$saas.test').command(
+      'artifact.send',
+      receiver.identity,
+      invoiceDocument({ id: 'INV-MALLORY' }) as BTPInvoiceDoc,
+    );
+
+    expect(response?.status).toMatchObject({ code: 401, error: BTP_ERROR_SIG_VERIFICATION.code });
+    expect(elsewhere.inbox.some((a) => (a.document as { id?: string }).id === 'INV-MALLORY')).toBe(
+      false,
+    );
   });
 
   it('refuses a device the provider never registered', async () => {
