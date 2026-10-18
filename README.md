@@ -191,6 +191,37 @@ Its source is in [`docs/docusaurus`](docs/docusaurus/docs).
   [API](https://www.openbtps.org/docs/sdk/api-references),
   [types](https://www.openbtps.org/docs/sdk/types-and-interfaces)
 
+## Repository layout
+
+```text
+src/
+├── server/                 BtpsServer: guards, middleware, settings
+├── client/                 BtpsClient, BtpsTransporter, BtpsAgent
+└── core/
+    ├── crypto/             signing, encryption, canonical JSON, Signer and Decrypter
+    ├── trust/              trust records, rules and stores
+    ├── authentication/     device registration, refresh and key rotation
+    ├── delegation/         BtpsDelegator
+    ├── server/             document schemas, limits and protocol constants
+    ├── storage/            identity and storage stores
+    ├── error/              BTPErrorException and the error codes
+    └── utils/              addresses and DNS
+tests/
+├── e2e/                    journeys between real servers over TLS
+└── security/               attacks, spoofing, flooding and probing
+test/vectors/               the golden vectors
+packages/
+└── verify-btps-vectors/    the golden-vector runner (Node, WebCrypto and the SDK)
+docs/docusaurus/            the documentation site, published at openbtps.org/docs
+examples/
+├── btps-nest-app/          a provider built on NestJS, built and run in CI
+├── btps-server-app/        an earlier server example, not yet updated for 1.1
+└── btps-client-app/        an earlier client example, not yet updated for 1.1
+```
+
+Where new code goes, and what it is called, is set out in
+[AGENTS.md](AGENTS.md).
+
 ## Implementing BTPS in another language
 
 BTPS is a protocol, not this SDK. The
