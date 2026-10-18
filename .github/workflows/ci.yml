@@ -29,7 +29,8 @@
 #                @btps/sdk cannot be imported in the production stage, so a
 #                green run covers criteria 1 and 2 too. It only builds the
 #                image: nothing is pushed and no container is started.
-# ci/test      - The root `yarn test` (vitest run, the unit suite).
+# ci/test      - The root `yarn test` (vitest run --coverage, the unit suite). It
+#                fails when coverage is under the minimums in vitest.config.ts.
 #                Root vitest also collects examples/btps-nest-app/src/*.spec.ts,
 #                and database.module.spec.ts imports @nestjs/testing from the
 #                example's node_modules, so the example is installed first.

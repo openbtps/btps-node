@@ -744,4 +744,129 @@ describe('BtpsAuthentication', () => {
       expect(request.keyProof).toBeUndefined();
     });
   });
+
+  describe("what a device makes of its provider's answer", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    const answered = (response: unknown) => {
+      vi.spyOn(BtpsAgent.prototype, 'command').mockResolvedValue({ response } as never);
+      return BtpsAuthentication.authenticate('alice$example.com', 'CODE', mockKeyPair);
+    };
+    const ok = { ok: true, code: 200, message: 'success' };
+
+    it('signs in with an agent id and a refresh token', async () => {
+      const document = { agentId: 'btps_ag_1', refreshToken: 'r', expiresAt: 'x', decryptBy: 'y' };
+
+      const result = await answered({ type: 'btps_response', status: ok, document });
+
+      expect(result).toMatchObject({ success: true, response: { status: ok, document } });
+    });
+
+    it.each([
+      ['no answer', undefined],
+      ['a refusal', { type: 'btps_error', status: { ok: false, code: 401, message: 'no' } }],
+      ['an answer without a document', { type: 'btps_response', status: ok }],
+      [
+        'an answer without a refresh token',
+        { type: 'btps_response', status: ok, document: { agentId: 'a' } },
+      ],
+    ])('fails on %s', async (_name, response) => {
+      const result = await answered(response);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatchObject({ code: 'BTP_ERROR_AUTHENTICATION_INVALID' });
+    });
+
+    it('fails, rather than throwing, when sending throws', async () => {
+      vi.spyOn(BtpsAgent.prototype, 'command').mockRejectedValue(new Error('socket closed'));
+
+      const result = await BtpsAuthentication.authenticate(
+        'alice$example.com',
+        'CODE',
+        mockKeyPair,
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeInstanceOf(BTPErrorException);
+    });
+
+    it.each([
+      [
+        'authenticate',
+        () => BtpsAuthentication.authenticate('not an address', 'CODE', mockKeyPair),
+      ],
+      [
+        'refreshSession',
+        () => BtpsAuthentication.refreshSession('a', 'not an address', 'TOKEN', mockKeyPair),
+      ],
+      [
+        'rotateKey',
+        () =>
+          BtpsAuthentication.rotateKey('a', 'not an address', 'TOKEN', mockKeyPair, mockKeyPair),
+      ],
+    ])('%s refuses an address that is not one, without sending', async (_name, call) => {
+      const command = vi.spyOn(BtpsAgent.prototype, 'command');
+
+      const result = await call();
+
+      expect(result.error).toMatchObject({ code: 'BTP_ERROR_IDENTITY' });
+      expect(command).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('a provider refusing a device', () => {
+    it('refuses a refresh for a device whose record is gone', async () => {
+      await tokenStore.store(
+        'REFRESH',
+        'btps_ag_gone',
+        'alice$example.com',
+        60_000,
+        'alice$example.com',
+      );
+
+      const { data, error } = await auth.validateAndReissueRefreshToken('btps_ag_gone', 'REFRESH', {
+        decidedBy: 'alice',
+        decryptBy: 'alice$example.com',
+      });
+
+      expect(data).toBeUndefined();
+      expect(error?.code).toBe('BTP_ERROR_AUTHENTICATION_INVALID');
+    });
+
+    it('keeps a device for the trust expiry it is given', async () => {
+      const before = Date.now();
+
+      const agent = await auth.createAgent(
+        {
+          userIdentity: 'alice$example.com',
+          publicKey: mockKeyPair.publicKey,
+          decidedBy: 'alice',
+          trustExpiryMs: 1000,
+        },
+        'alice$example.com',
+      );
+      const record = await trustStore.getByAgentId(agent.agentId);
+
+      expect(Date.parse(record!.expiresAt!)).toBeLessThanOrEqual(before + 2000);
+    });
+
+    it.each([
+      ['an auth code', () => auth.validateAuthToken('alice$example.com', 'CODE')],
+      ['a refresh token', () => auth.validateRefreshToken('btps_ag_1', 'REFRESH')],
+    ])(
+      'answers invalid, rather than throwing, when the store fails to read %s',
+      async (_n, call) => {
+        vi.spyOn(tokenStore, 'consume').mockRejectedValue('down');
+        vi.spyOn(tokenStore, 'get').mockRejectedValue('down');
+
+        const result = await call();
+
+        expect(result.isValid).toBe(false);
+        expect('error' in result && result.error).toBeInstanceOf(Error);
+        vi.restoreAllMocks();
+      },
+    );
+  });
 });
