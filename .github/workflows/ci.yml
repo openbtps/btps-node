@@ -13,7 +13,7 @@
 #                ts-jest compiles to CommonJS and the SDK's exports map has
 #                only an "import" condition, so a jest spec cannot prove the
 #                app loads the SDK at runtime. Before the root build it runs
-#                the packaging checks (tests/eba-156, scoped), so its
+#                the packaging checks (tests/packaging, scoped), so its
 #                portal-checksum gate is enforced on every PR.
 # pack-smoke   - Proves the artifact a consumer would
 #                receive: `yarn pack` at the root, install the tarball in an
@@ -44,7 +44,7 @@
 #
 # ci/test, ci/vectors, ci/e2e and ci/security are required status checks, matched by
 # name, so renaming any of them breaks the rule. example-app stays the
-# first job: tests/eba-156/ci-workflow.test.mjs finds "the example job" as
+# first job: tests/packaging/ci-workflow.test.mjs finds "the example job" as
 # the first one that works in examples/btps-nest-app.
 #
 # This workflow runs on pull_request from forks with contents: read and no
@@ -86,7 +86,7 @@ jobs:
       - name: Install root dependencies
         run: yarn install --immutable
       - name: Packaging checks (portal checksum gate, dependency spec, workflow shape)
-        run: yarn vitest run tests/eba-156
+        run: yarn vitest run tests/packaging
       - name: Build @btps/sdk (main points at dist)
         run: yarn build
       - name: Install example dependencies

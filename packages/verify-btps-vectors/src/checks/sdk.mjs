@@ -2,11 +2,9 @@
  * SDK conformance checks: the vectors run against @btps/sdk itself, loaded
  * from a source tree (see sdk-loader.mjs).
  *
- * The item-tagged checks are the regression proof the ticket asks for
- * (EBA-110): on the 367cd09 baseline they fail, and the fix tickets turn
- * them green — item 5 → EBA-115, item 6 → EBA-116/EBA-117, item 10 →
- * EBA-122. The untagged ones (KMS interop) already pass on the baseline and
- * must stay passing.
+ * The item-tagged checks are the regression proof for BTPS 1.1 items 5, 6
+ * and 10: they failed on the 1.0 baseline (367cd09), pass on 1.1, and must
+ * stay passing. The untagged ones (KMS interop) passed on the baseline too.
  *
  * Only the SDK's *public* exports are called, and every call that depends on
  * an API shape a fix ticket may change sits in one adapter below, marked.
@@ -137,7 +135,7 @@ export function sdkChecks(sdk, set) {
     },
   );
 
-  // --- Item 5: canonical signing (EBA-115) --------------------------------
+  // --- Item 5: canonical signing ----------------------------------------
   for (const v of [set.managedSignature, set.selfHeldSignature]) {
     const signature = {
       algorithmHash: 'sha256',
@@ -148,7 +146,6 @@ export function sdkChecks(sdk, set) {
       {
         id: `sdk/item-5/${v.custody}/verifySignature-accepts-reordered-payload`,
         item: 5,
-        tickets: ['EBA-115'],
         run() {
           const { isValid, error } = sdkCrypto.verifySignature(
             JSON.parse(v.payloadRaw),
@@ -164,7 +161,6 @@ export function sdkChecks(sdk, set) {
       {
         id: `sdk/item-5/${v.custody}/signBtpPayload-signs-canonical-bytes`,
         item: 5,
-        tickets: ['EBA-115'],
         run() {
           const signed = sdkCrypto.signBtpPayload(JSON.parse(v.payloadRaw), {
             publicKey: v.publicKeyPem,
@@ -181,7 +177,6 @@ export function sdkChecks(sdk, set) {
   checks.push({
     id: 'sdk/item-5/verifySignature-rejects-duplicate-member-names',
     item: 5,
-    tickets: ['EBA-115'],
     run() {
       const v = set.managedSignature;
       const duplicated = '{"amountCents":100,"amountCents":100000,"id":"dup-1"}';
@@ -221,7 +216,6 @@ export function sdkChecks(sdk, set) {
   const item6Check = (name, run) => ({
     id: `sdk/item-6/${name}`,
     item: 6,
-    tickets: item6.tickets,
     run,
   });
 
@@ -259,13 +253,12 @@ export function sdkChecks(sdk, set) {
     }),
   );
 
-  // --- Item 10: SDK defects expressible as data (EBA-122) -----------------
+  // --- Item 10: SDK defects expressible as data ---------------------------
   const defects = set.sdkDefects;
   for (const c of defects.gcmTag.cases) {
     checks.push({
       id: `sdk/item-10/gcm-tag/${c.name}`,
       item: 10,
-      tickets: defects.tickets,
       run() {
         let result;
         try {
@@ -297,7 +290,6 @@ export function sdkChecks(sdk, set) {
     checks.push({
       id: `sdk/item-10/identity/${c.expect}/${c.input}`,
       item: 10,
-      tickets: defects.tickets,
       run() {
         const parsed = utils.parseIdentity(c.input);
         if (c.expect === 'accept') ensure(parsed, `${c.input} was rejected`);

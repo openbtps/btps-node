@@ -1,4 +1,4 @@
-// EBA-156 acceptance criterion 1: before relying on a `portal:` link (Option A)
+// Before relying on a `portal:` link (Option A)
 // to resolve @btps/sdk reproducibly, verify whether Yarn 4.9.2 writes a
 // `checksum:` field for portal: entries in the lockfile.
 //
@@ -10,10 +10,10 @@
 // clones. That would make Option A exactly as unreproducible as the
 // gitignored package.tgz it's meant to replace.
 //
-// The ticket is explicit about what a positive finding means: "If they do,
-// Option A fails — stop, say so on EBA-156, and return to Bhupendra; do not
-// switch to Option B." This test is that gate, not just a sanity check — a
-// failure here means stop and escalate, not patch the code and re-run.
+// A positive finding means Option A fails: stop and raise it with the
+// maintainers; do not switch to Option B. This test is that gate, not just a
+// sanity check — a failure here means stop and escalate, not patch the code
+// and re-run.
 //
 // No YAML/lockfile parser is a project dependency (see ci-workflow.test.mjs),
 // so this reads the lockfile as text, the same way.
@@ -26,9 +26,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const NEST_APP = path.join(ROOT, 'examples/btps-nest-app');
 
 const STOP_MESSAGE =
-  'EBA-156 criterion 1: portal: entries carry a checksum under this Yarn version. ' +
-  'Per the ticket, Option A fails — STOP, record this on EBA-156, and return to ' +
-  'Bhupendra. Do not switch to Option B.';
+  'portal: entries carry a checksum under this Yarn version, so Option A fails. ' +
+  'STOP and raise it with the maintainers. Do not switch to Option B.';
 
 function readPackageManager(pkgJsonPath) {
   const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
@@ -52,9 +51,9 @@ function entryBlock(lockfileText, headerPredicate) {
   return lines.slice(headerIndex, end).join('\n');
 }
 
-describe('EBA-156 criterion 1: Yarn 4.9.2 portal: checksum gate', () => {
+describe('Yarn 4.9.2 portal: checksum gate', () => {
   it('pins the Yarn version this finding is valid for', () => {
-    // If this ever changes, criterion 1 needs re-verification under the new
+    // If this ever changes, the finding needs re-verification under the new
     // version before anyone trusts the assertions below.
     expect(readPackageManager(path.join(ROOT, 'package.json'))).toBe('yarn@4.9.2');
     expect(readPackageManager(path.join(NEST_APP, 'package.json'))).toBe('yarn@4.9.2');

@@ -1,4 +1,4 @@
-// EBA-166 acceptance criterion: "CI builds the image". Today
+// Requirement: "CI builds the image". Before this check
 // .github/workflows/ci.yml never invokes `docker build` or
 // `docker compose build` anywhere — the btps-server image (built from
 // examples/btps-nest-app/Dockerfile) is never exercised in CI, so the
@@ -6,8 +6,8 @@
 // portal:../..-linked @btps/sdk at the repository root) would keep
 // regressing silently.
 //
-// Same approach as tests/eba-156/ci-workflow.test.mjs and
-// tests/eba-152/ci-pipeline.test.mjs: no YAML parser is a project
+// Same approach as tests/packaging/ci-workflow.test.mjs and
+// tests/ci-pipeline/ci-pipeline.test.mjs: no YAML parser is a project
 // dependency, so jobs/steps are isolated with small indentation-based
 // splitters rather than adding one just for this test.
 import fs from 'node:fs';
@@ -56,8 +56,8 @@ function allRunLines() {
 }
 
 describe('CI: the btps-server Docker image (examples/btps-nest-app) is built', () => {
-  // EBA-166 acceptance criterion "CI builds the image" (the docker-image job
-  // in .github/workflows/ci.yml). Without that step, the breakage this ticket
+  // Requirement "CI builds the image" (the docker-image job
+  // in .github/workflows/ci.yml). Without that step, the breakage this check
   // fixes (build context "." could not reach the portal:../..-linked
   // @btps/sdk at the repository root) would never be exercised by CI and
   // could come back without anyone noticing. This checks the workflow's

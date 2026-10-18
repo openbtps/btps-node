@@ -1,4 +1,4 @@
-// EBA-156: real end-to-end checks that run actual `yarn`/`npm` processes.
+// Real end-to-end checks that run actual `yarn`/`npm` processes.
 //
 // These are slower and, for the pack-smoke install step, network-dependent
 // (installing the example app's real dependency tree touches the registry).
@@ -16,7 +16,7 @@
 // example app's dependencies and hit the registry, so a plain `yarn test`
 // skips them. Run them deliberately with:
 //
-//   BTPS_INTEGRATION=1 yarn vitest run tests/eba-156/install-and-pack.integration.test.mjs
+//   BTPS_INTEGRATION=1 yarn vitest run tests/packaging/install-and-pack.integration.test.mjs
 //
 // CI does not set the flag: .github/workflows/ci.yml runs the same steps
 // natively (example-app and pack-smoke jobs), on a fresh checkout.
@@ -40,7 +40,7 @@ function run(cmd, args, cwd) {
   return { status: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
 
-integration('fresh-clone install (EBA-156 acceptance criterion 2)', () => {
+integration('fresh-clone install', () => {
   it(
     'root `yarn build`, then `yarn install --immutable` in examples/btps-nest-app, exits 0',
     () => {
@@ -58,7 +58,7 @@ integration('fresh-clone install (EBA-156 acceptance criterion 2)', () => {
   );
 });
 
-integration('pack smoke (EBA-156 acceptance criterion 4)', () => {
+integration('pack smoke', () => {
   it(
     'yarn pack at the root produces a tarball that installs (without --immutable) and imports as @btps/sdk',
     () => {

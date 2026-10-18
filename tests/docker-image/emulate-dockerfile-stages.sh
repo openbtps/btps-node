@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# EBA-166: a no-Docker stand-in for the btps-server image build, for machines
+# A no-Docker stand-in for the btps-server image build, for machines
 # without a Docker daemon. It replays every RUN step of
 # examples/btps-nest-app/Dockerfile, in order, on a `git archive` export of
 # HEAD (a fresh-clone stand-in), copying the same paths each COPY names.
@@ -12,7 +12,7 @@
 # The acceptance signal is a real `docker build` (docker-build.integration
 # .test.mjs, or the CI step).
 #
-#   bash tests/eba-166/emulate-dockerfile-stages.sh <empty-workdir>
+#   bash tests/docker-image/emulate-dockerfile-stages.sh <empty-workdir>
 set -euo pipefail
 W=${1:?usage: $0 <empty-workdir>}; mkdir -p "$W"; W=$(cd "$W" && pwd)
 SRC=$(git rev-parse --show-toplevel)
