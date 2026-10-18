@@ -17,6 +17,7 @@
   <a href="https://www.openbtps.org/docs/"><strong>Documentation</strong></a> ·
   <a href="https://www.openbtps.org/docs/getting-started/installation">Getting started</a> ·
   <a href="https://www.openbtps.org/docs/protocol/overview">Protocol</a> ·
+  <a href="https://www.openbtps.org/docs/roadmap">Roadmap</a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
@@ -42,8 +43,9 @@ looks the same as a real one. BTPS replaces that with a protocol in which:
 
 **1.1 is the alpha release.** The protocol and this SDK are usable and
 tested, and may still change before the general release: 1.2 is planned as
-the beta and 1.3 as the general release. Changes are listed in the
-[changelog](CHANGELOG.md). A 1.1 server refuses artifacts of another
+the beta and 1.3 as the general release. What 1.2 is planned to bring is
+on the [roadmap](https://www.openbtps.org/docs/roadmap); changes are listed
+in the [changelog](CHANGELOG.md). A 1.1 server refuses artifacts of another
 protocol version, so both sides of an exchange upgrade together.
 
 ## Features
