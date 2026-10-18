@@ -16,28 +16,28 @@ BTPS is designed as a federated, open protocol. Here's a visual overview:
 
 ```mermaid
 graph TD
-  S["Sender"] -- "1\. Resolve DNS TXT + .well-known" --> R["Receiver"]
-  S -- "2\. Sign + Trust Request" --> R
-  R -- "3\. Resolve DNS TXT + Verify + Trust Accept" --> S
-  S -- "4\. Sign + Encrypt" --> R
-  R -- "5\. Inbox delivery" --> P["POST to Receiver Inbox"]
+  S["Sender"] -- "1\. Look up the receiver in DNS: host, selector, public key" --> R["Receiver's BTPS server"]
+  S -- "2\. Trust request, signed, over TLS" --> R
+  R -- "3\. Trust response, signed by the receiver" --> S
+  S -- "4\. Document: encrypted, then signed" --> R
+  R -- "5\. Checked, then handed to the receiver's handler" --> P["Receiver's inbox"]
 ```
 
 Or, as ASCII:
 
 ```
-┌────────────┐      DNS TXT + .well-known       ┌─────────────┐
-│            │  ─────────────────────────────▶  │             │
-│            │     (Sign + Trust Request)       │             │
-│  Sender    │  ─────────────────────────────▶  │  Receiver   │ ────▶ Inbox
-│            │     (Verify + Trust Accept)      │             │
-└────────────┘ ◀─────────────────────────────── └─────────────┘
-       │                                               ▲
-       ▼                                               │
-    [Sign + Encrypt]                                   │
-       │                                               │
-       └───────────────────────────────────────────────┘
+┌────────────┐  1. DNS: _btps.host + public key  ┌──────────────────┐
+│            │  ─────────────────────────────▶   │                  │
+│            │  2. Trust request (signed)        │                  │
+│  Sender    │  ─────────────────────────────▶   │  Receiver's      │ ──▶ Inbox
+│            │  3. Trust response (signed)       │  BTPS server     │  (5. after
+│            │  ◀─────────────────────────────   │                  │   its checks)
+│            │  4. Document (encrypted + signed) │                  │
+│            │  ─────────────────────────────▶   │                  │
+└────────────┘                                   └──────────────────┘
 ```
+
+Every message travels over TLS, one JSON artifact per line; there is no HTTP. If the receiver's key is not in DNS, the sender asks the receiver's host instead, and accepts the answer only when the domain's operator signed it.
 
 ## What is BTPS?
 
@@ -48,7 +48,7 @@ BTPS is a next-generation protocol for exchanging billing and financial document
 - **Email-like addressing:** Use familiar addresses like `billing$vendorcorp.com` to send and receive documents
 - **Trust-based delivery:** Only approved senders can deliver bills/invoices to your platform—no more spam or fraud
 - **Cryptographic security:** Every message is signed, encrypted, and verifiable end-to-end
-- **Automated onboarding:** DNS and `.well-known` records make trust establishment and key rotation seamless
+- **Automated onboarding:** DNS records make trust establishment and key rotation seamless
 - **Open and extensible:** Integrate with any backend, database, or workflow using the open SDK
 
 ## Why BTPS?
@@ -79,7 +79,7 @@ BTPS provides:
 ## 🔒 How Does BTPS Work?
 
 1. **Identity & Discovery:**
-   - Every participant publishes a DNS TXT record and optional `.well-known` trust file, advertising their public key and inbox endpoint.
+   - Every domain publishes a `_btps.host` DNS TXT record (its BTPS server, key selector and operator), and each identity's public key in DNS, or through its host's identity lookup.
    - Addresses look like `username$domain.com` (e.g., `billing$vendorcorp.com`).
 2. **Trust Establishment:**
    - Senders must request trust from receivers before sending business documents.
@@ -88,7 +88,7 @@ BTPS provides:
    - All messages are signed and encrypted using strong cryptography: RSA-2048 or larger keys, AES-256-GCM and SHA-256 ([algorithms](./protocol/security/algorithm.md)).
    - Servers verify sender identity, trust status, and document integrity before accepting any message.
 4. **Key Rotation & Revocation:**
-   - Key changes are managed via DNS and `.well-known` records. Trust can be revoked or expired at any time.
+   - Key changes are managed via DNS records. Trust can be revoked or expired at any time.
 5. **Extensible & Auditable:**
    - Plug in custom trust stores (file, SQL, NoSQL, cloud), middleware, and integrations (webhooks, metrics, etc.).
    - All trust and message operations are logged for audit and compliance.
@@ -150,7 +150,7 @@ BTPS enables a thriving ecosystem of tools, extensions, and modules:
 Every participant publishes:
 
 - **DNS TXT records** with their public key and protocol support
-- **`.well-known` trust files** for trust relationship management
+- **Pluggable trust stores** (a JSON file or your database) for trust relationship management
 - **Inbox endpoints** for receiving messages
 
 ### 2. Trust Establishment
@@ -180,11 +180,11 @@ Every participant publishes:
 
 ```mermaid
 graph TD
-    A[Trust Request] --> B[DNS Verification]
-    B --> C[Trust Decision]
-    C --> D[Trust Storage]
-    D --> E[Document Exchange]
-    E --> F[Audit Logging]
+    A[Trust Request, signed by the sender] --> B[Receiver verifies the signature against the sender's DNS key]
+    B --> C[Receiver decides: accept, reject or block]
+    C --> D[Trust Response, signed by the receiver]
+    D --> E[Documents: invoices, receipts, payslips, letters]
+    E --> F[Lifecycle events: paid, disputed, refunded]
 ```
 
 ## Architecture Components
@@ -204,7 +204,7 @@ graph TD
 
 > Provides decentralized, DNS-based identity management and public key distribution, enabling secure onboarding and ongoing verification of all participants.
 
-- **DNS-based identity resolution:** Uses DNS TXT records and `.well-known` endpoints to publish and discover public keys and inbox endpoints. Enables decentralized, federated identity management without a central authority.
+- **DNS-based identity resolution:** Uses DNS TXT records to publish and discover public keys and BTPS server endpoints, with an operator-signed identity lookup at the host when a key is not in DNS. Enables decentralized, federated identity management without a central authority.
 - **Public key distribution via DNS TXT records:** Ensures that public keys are easily discoverable and verifiable by any party, supporting secure onboarding and key rotation.
 - **Key rotation and management:** Allows organizations to rotate cryptographic keys regularly for forward secrecy and to respond to key compromise. Key history is maintained for audit and compliance.
 - **Identity verification procedures:** Provides mechanisms for verifying the authenticity of sender and receiver identities using cryptographic proofs and DNS-based validation.

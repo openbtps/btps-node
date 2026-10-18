@@ -36,31 +36,36 @@ sequenceDiagram
     SaaS Portal->>User: Generate Temp Token
     User->>BTPS App (Agent): Enter Token/Scan QR
     BTPS App (Agent)->>BTPS App (Agent): Generate Keypair
-    BTPS App (Agent)->>BTPS Server: btps_auth_request
+    BTPS App (Agent)->>BTPS Server: auth.request, signed by the new key
+    BTPS Server->>BTPS Server: Verify the signature against the request's public key
     BTPS Server->>SaaS Auth: Forward Request
-    SaaS Auth->>SaaS Auth: Registers and stores device public key
-    SaaS Auth->>BTPS Server: Return Tokens
+    SaaS Auth->>SaaS Auth: Take the code (once only), store the device record and public key
+    SaaS Auth->>BTPS Server: agentId, refreshToken, expiresAt, decryptBy
     BTPS Server->>BTPS App (Agent): Authentication Success
 
     Note over BTPS App (Agent),Receiver: Message Sending Flow
-    BTPS App (Agent)->>BTPS Server: Send BTPS Message
-    BTPS Server->>SaaS Auth: Verify Device and Signature
-    SaaS Auth->>SaaS Auth: Signs Delegation (no attestation needed)
+    BTPS App (Agent)->>BTPS App (Agent): Build and sign the artifact: from = alice, to = the receiver
+    BTPS App (Agent)->>BTPS Server: artifact.send carrying it
+    BTPS Server->>BTPS Server: Find the device under the artifact's from, verify its signature, check the record is active
+    BTPS Server->>SaaS Auth: Hand over the device's artifact
+    SaaS Auth->>SaaS Auth: Signs Delegation as the domain's operator (no attestation needed)
     SaaS Auth->>BTPS Transporter: Queue and Forward Artifacts
     BTPS Transporter->>Receiver: Deliver Artifact
-    Receiver->>DNS: Query SaaS delegation records
+    Receiver->>DNS: TXT _btps.host.saas.com
+    DNS->>Receiver: op= names the SaaS identity
+    Receiver->>DNS: The SaaS identity's key at its selector
     DNS->>Receiver: Return SaaS public key
-    Receiver->>Receiver: Verify Delegation & Agent Signatures
+    Receiver->>Receiver: Verify Delegation & Agent Signatures, then time window and trust
     Receiver->>Receiver: Deliver to inbox
 ```
 
 ### **Key Characteristics**
 
 - **Domain**: Uses SaaS domain (e.g., `alice$saas.com`)
-- **Key Management**: SaaS manages all keys and delegation records
-- **Attestation**: Not required (delegator ≠ artifact sender)
-- **DNS Records**: SaaS publishes delegation records in DNS
-- **Revocation**: Through SaaS portal (immediate removal from DNS)
+- **Key Management**: SaaS manages all keys and device records
+- **Attestation**: Not required (delegator ≠ artifact sender; the delegator is the domain's operator)
+- **DNS Records**: `_btps.host.saas.com` names the SaaS identity as `op=`, and the SaaS publishes that identity's key
+- **Revocation**: Through SaaS portal (removes the device record and its refresh token)
 
 ## 🔄 Custom Domain Users Flow
 
@@ -82,23 +87,30 @@ sequenceDiagram
     SaaS Portal->>User: Generate Temp Token
     User->>BTPS App (Agent): Enter Token/Scan QR
     BTPS App (Agent)->>BTPS App (Agent): Generate Keypair
-    BTPS App (Agent)->>BTPS Server: btps_auth_request
+    BTPS App (Agent)->>BTPS Server: auth.request, signed by the new key
+    BTPS Server->>BTPS Server: Verify the signature against the request's public key
     BTPS Server->>SaaS Auth: Forward Request
-    SaaS Auth->>SaaS Auth: Registers and stores device public key
-    SaaS Auth->>BTPS Server: Return Tokens
+    SaaS Auth->>SaaS Auth: Take the code (once only), store the device record and public key
+    SaaS Auth->>BTPS Server: agentId, refreshToken, expiresAt, decryptBy
     BTPS Server->>BTPS App (Agent): Authentication Success
 
     Note over BTPS App (Agent),Receiver: Message Sending Flow (Attestation Required)
-    BTPS App (Agent)->>BTPS Server: Send BTPS Message
-    BTPS Server->>SaaS Auth: Verify Device and Signature
-    SaaS Auth->>SaaS Auth: Signs Delegation + Attestation (required)
+    BTPS App (Agent)->>BTPS App (Agent): Build and sign the artifact: from = alice, to = the receiver
+    BTPS App (Agent)->>BTPS Server: artifact.send carrying it
+    BTPS Server->>BTPS Server: Find the device under the artifact's from, verify its signature, check the record is active
+    BTPS Server->>SaaS Auth: Hand over the device's artifact
+    SaaS Auth->>SaaS Auth: Signs Delegation as alice + Attestation as the operator (required)
     SaaS Auth->>BTPS Transporter: Queue and Forward Artifacts
     BTPS Transporter->>Receiver: Deliver Artifact
-    Receiver->>DNS: Query custom domain delegation records
-    DNS->>Receiver: Return custom domain public key
-    Receiver->>DNS: Query SaaS attestation records
+    Receiver->>DNS: TXT _btps.host.enterprise.com
+    DNS->>Receiver: op= names the SaaS identity
+    Receiver->>Receiver: Delegator is the sender, so the attestation must be signed by op=
+    Receiver->>DNS: The SaaS identity's key at its selector
     DNS->>Receiver: Return SaaS attestor public key
-    Receiver->>Receiver: Verify Delegation, Attestation & Agent Signatures
+    Receiver->>Receiver: Verify Attestation
+    Receiver->>DNS: alice's key at its selector
+    DNS->>Receiver: Return custom domain public key
+    Receiver->>Receiver: Verify Delegation & Agent Signatures, then time window and trust
     Receiver->>Receiver: Deliver to inbox
 ```
 
@@ -106,9 +118,9 @@ sequenceDiagram
 
 - **Domain**: Uses custom domain (e.g., `alice$enterprise.com`)
 - **Key Management**: SaaS manages keys but publishes under custom domain
-- **Attestation**: Required (delegator = artifact sender)
-- **DNS Records**: Custom domain publishes delegation, SaaS publishes attestation
-- **Revocation**: Through SaaS portal (immediate removal from DNS)
+- **Attestation**: Required (delegator = artifact sender), signed by the domain's `op=` operator
+- **DNS Records**: `_btps.host.enterprise.com` names the SaaS identity as `op=`; the custom domain publishes alice's key, the SaaS publishes its own
+- **Revocation**: Through SaaS portal (removes the device record and its refresh token)
 
 ## 🔄 E2E Users Flow (BYOK)
 
@@ -130,17 +142,18 @@ sequenceDiagram
     User->>DNS: Publishes DNS TXT under their domain
     User->>BTPS App (Agent & Transporter): Enter Token/Scan QR
     BTPS App (Agent & Transporter)->>BTPS App (Agent & Transporter): Generate Keypair
-    BTPS App (Agent & Transporter)->>BTPS Server: btps_auth_request
+    BTPS App (Agent & Transporter)->>BTPS Server: auth.request, signed by the new key
+    BTPS Server->>BTPS Server: Verify the signature against the request's public key
     BTPS Server->>SaaS Auth: Forward Request
-    SaaS Auth->>SaaS Auth: Registers and stores device public key
-    SaaS Auth->>BTPS Server: Return Tokens
+    SaaS Auth->>SaaS Auth: Take the code (once only), store the device record and public key
+    SaaS Auth->>BTPS Server: agentId, refreshToken, expiresAt, decryptBy
     BTPS Server->>BTPS App (Agent & Transporter): Authentication Success
 
     Note over BTPS App (Agent & Transporter),Receiver: Message Sending Flow (No Delegation Needed)
     BTPS App (Agent & Transporter)->>Receiver: Send BTPS Message Directly
-    Receiver->>DNS: Query user's domain for public key
+    Receiver->>DNS: The user's key at the artifact's selector
     DNS->>Receiver: Return user's public key
-    Receiver->>Receiver: Verify User Signature
+    Receiver->>Receiver: Verify User Signature, then time window and trust
     Receiver->>Receiver: Deliver to inbox (SaaS managed or user managed)
 ```
 
@@ -222,28 +235,36 @@ The receiver performs direct verification:
 ### **SaaS Identity Users**
 
 ```bash
-# Resolve SaaS delegation records
-dig TXT _btps1.identity.admin.saas.com
+# The sender's domain names its operator
+dig TXT _btps.host.saas.com
+# Returns: v=1.1.0;u=btps.saas.com:3443;s=btps1;op=admin$saas.com
+
+# The operator's key, which signed the delegation
+dig TXT btps1._btps.identity.admin.saas.com
 # Returns: SaaS public key for delegation verification
 ```
 
 ### **Custom Domain Users**
 
 ```bash
-# Resolve custom domain delegation records
-dig TXT _btps1.identity.alice.btps.enterprise.com
+# The custom domain names the SaaS as its operator
+dig TXT _btps.host.enterprise.com
+# Returns: v=1.1.0;u=btps.saas.com:3443;s=btps1;op=admin$saas.com
+
+# The sender's own key, which signed the delegation
+dig TXT btps1._btps.identity.alice.enterprise.com
 # Returns: Custom domain public key for delegation verification
 
-# Resolve SaaS attestation records
-dig TXT _btps1.identity.admin.btps.saas.com
+# The operator's key, which signed the attestation
+dig TXT btps1._btps.identity.admin.saas.com
 # Returns: SaaS public key for attestation verification
 ```
 
 ### **E2E Users**
 
 ```bash
-# Resolve user's own domain records
-dig TXT _btps1.identity.alice.btps.mye2e.com
+# The user's own key, at the selector the artifact names
+dig TXT btps1._btps.identity.alice.mye2e.com
 # Returns: User's public key for direct verification
 ```
 

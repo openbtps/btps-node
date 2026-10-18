@@ -15,28 +15,31 @@ sequenceDiagram
     participant DNS
     participant Receiving BTPS Server
     participant Receiver
-    Sender->>DNS: Query TXT record for receiver
-    DNS-->>Sender: Return public key & endpoint
-    Sender->>Sender: Validate & store public key
-    Sender->>Receiving BTPS Server: Send BTPS Artifact (signed & encrypted or plain)
-    Receiving BTPS Server->>Receiving BTPS Server: Parse and validates BTPS Artifact
-    Receiving BTPS Server->>DNS: Query TXT record of sender
+    Sender->>DNS: Query _btps.host and the receiver's key record
+    DNS-->>Sender: Return endpoint, selector and public key
+    Note over Sender,DNS: No key in DNS: ask the receiver's host,<br/>accept only an answer signed by the domain's operator
+    Sender->>Sender: Check the document, encrypt it (unless plain), then sign
+    Sender->>Receiving BTPS Server: Send BTPS Artifact (encrypted and signed, or plain and signed)
+    Receiving BTPS Server->>Receiving BTPS Server: Size, format and version checks
+    Receiving BTPS Server->>DNS: Sender's key at the artifact's selector
     DNS-->>Receiving BTPS Server: Return public key
-    Receiving BTPS Server->>Receiving BTPS Server: Verifies the sender signature, trust status and identity
-    Receiving BTPS Server->>Receiver: Forwards to receiver's inbox
+    Receiving BTPS Server->>Receiving BTPS Server: Verify the signature, time window, trust and privacy type
+    Receiving BTPS Server->>Receiver: Hands to the receiver's handler (refused if there is none)
+    Receiving BTPS Server-->>Sender: Success, once the handler returns
+    Receiver->>Receiver: decryptVerify: verify the signature
     alt Encrypted
         Receiver->>Receiver: Decrypt AES key & payload
     else Unencrypted
         Receiver->>Receiver: Use plain payload
     end
-    Receiver->>Receiver: Parse, process and action the document
+    Receiver->>Receiver: Check the document, then process and action it
 ```
 
 ## Key Features
 
 - **End-to-End Encryption:** All messages are encrypted from sender to receiver, unless the trust record specifies unencrypted communication.
 - **Algorithms:** RSA-2048 or larger keys, AES-256-GCM, RSA-OAEP and SHA-256 signatures over the canonical form ([algorithms](./algorithm.md)).
-- **Key Exchange:** Public keys are discovered via DNS and `.well-known` endpoints.
+- **Key Exchange:** Public keys are discovered via DNS, or through an identity lookup at the host signed by the domain's operator.
 - **Message Signing:** Every message is signed by the sender and verified by the receiver.
 - **Forward Secrecy:** Key rotation and revocation are supported for ongoing security.
 
@@ -48,11 +51,11 @@ sequenceDiagram
 
 ## High-Level Workflow
 
-1. **Key Discovery:** Sender retrieves the receiver's public key from DNS or `.well-known`.
-2. **Message Signing:** Sender signs the message with their private key.
-3. **Encryption:** Message is encrypted using the receiver's public key (asymmetric) or a negotiated symmetric key, unless trust record allows unencrypted.
-4. **Transmission:** Encrypted (or plain) message is sent to the receiver's inbox endpoint.
-5. **Decryption & Verification:** Receiver decrypts the message (if encrypted) and verifies the sender's signature.
+1. **Key Discovery:** Sender retrieves the receiver's public key from DNS, or from the receiver's host when it is not in DNS.
+2. **Encryption:** The document is encrypted with a fresh AES-256-GCM key, itself encrypted to the receiver's public key (RSA-OAEP), unless the trust record allows unencrypted.
+3. **Message Signing:** Sender signs the artifact, including any ciphertext, with their private key.
+4. **Transmission:** Encrypted (or plain) message is sent to the receiver's BTPS server, which verifies the signature and trust before handing it over.
+5. **Verification & Decryption:** Receiver verifies the sender's signature, then decrypts the message (if encrypted) and checks the document.
 
 ## Security Guarantees
 

@@ -28,15 +28,16 @@ The **BTPS Client SDK** (`BtpsClient`) enables you to send secure, trust-based b
 
 ```mermaid
 graph TD
-  A["BtpsClient (Sender)"] -- "DNS TXT Lookup" --> B["BTPS Server (Receiver)"]
-  A -- "Sign + Encrypt" --> C["TLS Message Send"]
+  S["signEncrypt (your code)"] -- "Signed artifact" --> A["BtpsClient (Sender)"]
+  A -- "DNS TXT lookup of _btps.host" --> B["BTPS Server (Receiver)"]
+  A -- "Validate and queue" --> C["TLS Message Send"]
   C -- "Artifact Delivered" --> B
   B -- "Response" --> A
 ```
 
-- **Step 1:** Client looks up recipient's BTPS server and public key via DNS
-- **Step 2:** Client signs and encrypts the message
-- **Step 3:** Message is sent over a secure TLS connection
+- **Step 1:** Your code encrypts and signs the document with `signEncrypt`; `BtpsClient` does not sign or encrypt
+- **Step 2:** Client looks up the recipient's BTPS server (host and selector) in the `_btps.host` DNS record
+- **Step 3:** Client checks the artifact's shape and sends it over a secure TLS connection
 - **Step 4:** Server verifies, processes, and responds
 
 ## Use Cases

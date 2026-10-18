@@ -47,7 +47,7 @@ graph TB
 
     subgraph "Sender BTPS Server"
         C["BtpsServer<br>Command Processor"]
-        D["BtpsTransporter<br>Message Delivery"]
+        D["BtpsTransporter<br>Message Delivery<br>(called by your handler)"]
     end
 
     subgraph "External Systems"
@@ -68,12 +68,13 @@ graph TB
     C -->|"2b. Data Queries"| E
 
     %% BtpsTransporter delivers to recipients
-    D -->|"3\. DNS Resolution"| F
+    D -->|"3a. DNS Resolution"| F
     D -->|"4\. Deliver Message"| G
     G -->|"5\. Process Message"| H
 
-    %% SaaS responds with data
-    E -->|"3\. Return Data"| B
+    %% SaaS returns data to the server, which answers the agent
+    E -->|"3b. Return Data"| C
+    C -->|"Response"| B
 
     %% Styling
     classDef baseClass fill:#e1f5fe,stroke:#01579b,stroke-width:2px

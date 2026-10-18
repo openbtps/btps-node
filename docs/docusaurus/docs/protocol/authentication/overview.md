@@ -48,10 +48,10 @@ graph TB
     
     Portal -->|Generate Token| AuthService
     AuthService -->|Store Token| TokenStore
-    BtpsApp -->|auth.request| BtpsServer
-    BtpsServer -->|Event| EventHandler
-    EventHandler -->|Validate| AuthService
-    AuthService -->|Create Agent| TrustStore
+    BtpsApp -->|auth.request, signed by the device key| BtpsServer
+    BtpsServer -->|Signature verified, then Event| EventHandler
+    EventHandler -->|Validate: code taken once| AuthService
+    AuthService -->|Create device record, agent: id| TrustStore
     AuthService -->|Response| BtpsServer
     BtpsServer -->|Success| BtpsApp
 ```
@@ -67,20 +67,24 @@ sequenceDiagram
     participant BtpsAuthentication
     participant BTPS Server
     participant BTPS App
+    participant Token Store
     participant Trust Store
 
     User->>SaaS Portal: Login & Add Device
     SaaS Portal->>BtpsAuthentication: Generate Auth Token
-    BtpsAuthentication->>BtpsAuthentication: Store Token
+    BtpsAuthentication->>Token Store: Store Token
     SaaS Portal->>User: Display Token/QR Code
     User->>BTPS App: Enter Token
     BTPS App->>BTPS App: Generate Keypair
-    BTPS App->>BTPS Server: auth.request
+    BTPS App->>BTPS Server: auth.request, signed by the new key
+    BTPS Server->>BTPS Server: Verify the signature against the request's public key
     BTPS Server->>BtpsAuthentication: Validate Token
+    BtpsAuthentication->>Token Store: Take the token (once only)
     BtpsAuthentication->>BtpsAuthentication: Create Agent
-    BtpsAuthentication->>Trust Store: Store Trust Record
+    BtpsAuthentication->>Trust Store: Store the device record (agent: id, kept apart from identity trust)
+    BtpsAuthentication->>Token Store: Store the refresh token
     BtpsAuthentication->>BTPS Server: Auth Response
-    BTPS Server->>BTPS App: Success + Refresh Token
+    BTPS Server->>BTPS App: agentId, refreshToken, expiresAt, decryptBy
 ```
 
 ### **2. Session Refresh Flow**
@@ -90,12 +94,18 @@ sequenceDiagram
     participant BTPS App
     participant BTPS Server
     participant BtpsAuthentication
+    participant Token Store
     participant Trust Store
 
-    BTPS App->>BTPS Server: auth.refresh
+    BTPS App->>BTPS Server: auth.refresh, signed by the device's current key
+    BTPS Server->>Trust Store: Find the device record
+    BTPS Server->>BTPS Server: Verify the signature with the recorded key
+    BTPS Server->>BTPS Server: New key named? Check its proof (BTP_ERROR_KEY_ROTATION_PROOF)
+    BTPS Server->>BTPS Server: Device record active? (else BTP_ERROR_TRUST_NOT_ALLOWED)
     BTPS Server->>BtpsAuthentication: Validate Refresh Token
-    BtpsAuthentication->>Trust Store: Verify Agent
-    BtpsAuthentication->>BtpsAuthentication: Generate New Token
+    BtpsAuthentication->>Token Store: Take the refresh token (once only)
+    BtpsAuthentication->>Trust Store: Update the record: expiry, and the key if rotated
+    BtpsAuthentication->>Token Store: Store a new refresh token
     BtpsAuthentication->>BTPS Server: New Refresh Token
     BTPS Server->>BTPS App: Updated Session
 ```

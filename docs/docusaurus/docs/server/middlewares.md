@@ -61,20 +61,38 @@ Middleware can be registered for specific **phases** and **steps** in the reques
 
 ```mermaid
 flowchart TD
-  A[Incoming TLS Connection] --> B[before:parsing]
+  A[Incoming TLS line] --> S{Size within maxArtifactSizeKb?}
+  S -- no --> X1[BTP_ERROR_ARTIFACT_TOO_LARGE]
+  S -- yes --> B[before:parsing]
   B --> C[Parse & Validate]
   C --> D[after:parsing]
-  D --> E[before:signatureVerification]
+  D --> V{Version supported?}
+  V -- no --> X2[BTP_ERROR_VERSION_UNSUPPORTED]
+  V -- yes --> T{control or identityLookup?}
+  T -- yes --> Y[Answered here; no later phase runs]
+  T -- no --> E[before:signatureVerification]
   E --> F[Verify Signature]
   F --> G[after:signatureVerification]
-  G --> H[before:trustVerification]
+  G --> F2{Signature valid?}
+  F2 -- no --> X3[A signature error, e.g. BTP_ERROR_SIG_VERIFICATION]
+  F2 -- yes --> W{issuedAt within maxArtifactAgeSeconds?}
+  W -- no --> X4[BTP_ERROR_ARTIFACT_TIME_WINDOW]
+  W -- yes --> H[before:trustVerification]
   H --> I[Verify Trust]
   I --> J[after:trustVerification]
-  J --> K[before:onArtifact]
-  K --> L[Hand Over the Artifact]
-  L --> M[after:onArtifact]
+  J --> I2{Trusted?}
+  I2 -- no --> X5[BTP_ERROR_TRUST_NOT_ALLOWED, TRUST_EXPIRED or PRIVACY_TYPE]
+  I2 -- yes --> K[before:onArtifact]
+  K --> L{A handler, forwardTo or before:onArtifact middleware?}
+  L -- no --> X6[BTP_ERROR_ARTIFACT_NOT_ACCEPTED]
+  L -- yes --> L2[Hand Over the Artifact]
+  L2 --> M[after:onArtifact]
   M --> N[Send Response]
 ```
+
+A middleware that sends a response itself stops processing at that point. If you include the default middleware, it rate-limits by IP at `before:parsing` and by identity at `after:signatureVerification`; without it there is no rate limit.
+
+The server also limits how many requests one connection may have in progress (`maxInFlightPerConnection`, 32 by default): at the limit it stops reading from that connection until one finishes.
 
 ## Middleware Types & Structure
 

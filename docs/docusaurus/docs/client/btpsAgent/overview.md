@@ -29,21 +29,19 @@ The **BTPS Agent** (`BtpsAgent`) is a specialized client class that extends `Btp
 ```mermaid
 graph TD
     A["BtpsAgent"] -->|"1\. Connect to Server"| B["BTPS Server"]
-    A -->|"2\. Send Agent Command"| B
-    B -->|"3\. Process Command"| C["Server Logic"]
-    C -->|"4a. Create Transporter"| D["BtpsTransporter"]
-    C -->|"4b. Return Data"| A
-    D -->|"5\. Deliver Artifact"| E["Recipient"]
-    E -->|"6\. Response"| D
-    D -->|"7\. Forward Response"| B
-    B -->|"8\. Return Response"| A
+    A -->|"2\. Send Agent Command (a send carries an artifact the agent built and signed)"| B
+    B -->|"3\. Verify the device, then process"| C["Server Logic"]
+    C -->|"4a. Immediate command: return data"| B
+    B -->|"4b. Response"| A
+    C -->|"5\. Send command: delegate on the device's behalf"| D["BtpsTransporter"]
+    D -->|"6\. Deliver Artifact, separately"| E["Recipient"]
 
     subgraph "Agent Commands"
-        F["system.ping"]
-        G["auth.request"]
-        H["trust.request"]
-        I["trust.respond"]
-        J["artifact.send"]
+        F["Send: artifact.send, event.send, trust.request, trust.respond"]
+        G["Auth: auth.request, auth.refresh"]
+        H["Trust records: trust.fetch, trust.update, trust.delete"]
+        I["Mailboxes: inbox, outbox, sentbox, draft, trash"]
+        J["system.ping"]
     end
 
     A --> F
@@ -70,7 +68,7 @@ graph TD
 1. **Connection**: BtpsAgent establishes a secure TLS connection to the BTPS server
 2. **Command Execution**: Sends agent command with optional document payload
 3. **Server Processing**: Server validates, processes, and routes the command
-4. **Response Handling**: Agent receives and processes server responses
+4. **Response Handling**: Agent receives and processes server responses. For a send command, the response says the server accepted the artifact; delivery to the recipient happens afterwards, and the recipient's answer does not come back on this connection
 5. **Error Management**: Comprehensive error handling for all failure scenarios
 
 ## Supported Commands

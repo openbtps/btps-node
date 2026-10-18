@@ -15,39 +15,39 @@ BTPS (Billing Trust Protocol Secure) is a trust-based, cryptographically verifia
 
 ```mermaid
 graph TD
-  S["Sender"] -- "1\. Resolve DNS TXT + .well-known" --> R["Receiver"]
-  S -- "2\. Sign + Trust Request" --> R
-  R -- "3\. Resolve DNS TXT + Verify + Trust Accept" --> S
-  S -- "4\. Sign + Encrypt" --> R
-  R -- "5\. Inbox delivery" --> P["POST to Receiver Inbox"]
+  S["Sender"] -- "1\. Look up the receiver in DNS: host, selector, public key" --> R["Receiver's BTPS server"]
+  S -- "2\. Trust request, signed, over TLS" --> R
+  R -- "3\. Trust response, signed by the receiver" --> S
+  S -- "4\. Document: encrypted, then signed" --> R
+  R -- "5\. Checked, then handed to the receiver's handler" --> P["Receiver's inbox"]
 ```
 
 Or, as ASCII:
 
 ```
-┌────────────┐      DNS TXT + .well-known       ┌─────────────┐
-│            │  ─────────────────────────────▶  │             │
-│            │     (Sign + Trust Request)       │             │
-│  Sender    │  ─────────────────────────────▶  │  Receiver   │ ────▶ Inbox
-│            │     (Verify + Trust Accept)      │             │
-└────────────┘ ◀─────────────────────────────── └─────────────┘
-       │                                               ▲
-       ▼                                               │
-    [Sign + Encrypt]                                   │
-       │                                               │
-       └───────────────────────────────────────────────┘
+┌────────────┐  1. DNS: _btps.host + public key  ┌──────────────────┐
+│            │  ─────────────────────────────▶   │                  │
+│            │  2. Trust request (signed)        │                  │
+│  Sender    │  ─────────────────────────────▶   │  Receiver's      │ ──▶ Inbox
+│            │  3. Trust response (signed)       │  BTPS server     │  (5. after
+│            │  ◀─────────────────────────────   │                  │   its checks)
+│            │  4. Document (encrypted + signed) │                  │
+│            │  ─────────────────────────────▶   │                  │
+└────────────┘                                   └──────────────────┘
 ```
+
+Every message travels over TLS, one JSON artifact per line; there is no HTTP. If the receiver's key is not in DNS, the sender asks the receiver's host instead, and accepts the answer only when the domain's operator signed it.
 
 ## Key Concepts
 
-| Concept             | Description                                                       |
-| ------------------- | ----------------------------------------------------------------- |
-| `btps-address`      | Like email, but uses `$`: e.g. `finance$company.com`              |
-| DNS Discovery       | TXT records used to verify public keys and protocol support       |
-| `.well-known` Trust | Trust records published at `/.well-known/btps-trust.json`         |
-| Consent Handshake   | Sender must initiate a trust request, and be approved             |
-| Signed Delivery     | All messages are signed + encrypted using public key cryptography |
-| Inbox               | Self-hosted or SaaS-based inbox endpoints handle delivery         |
+| Concept           | Description                                                       |
+| ----------------- | ----------------------------------------------------------------- |
+| `btps-address`    | Like email, but uses `$`: e.g. `finance$company.com`              |
+| DNS Discovery     | TXT records used to verify public keys and protocol support       |
+| Trust Store       | Each server keeps its own trust records; they are never published |
+| Consent Handshake | Sender must initiate a trust request, and be approved             |
+| Signed Delivery   | All messages are signed + encrypted using public key cryptography |
+| Inbox             | Self-hosted or SaaS-based inbox endpoints handle delivery         |
 
 ## Protocol Flow: Step by Step
 
@@ -86,7 +86,7 @@ Only after trust is established can sender post signed+encrypted messages to rec
 
 ### 5. Revocation
 
-Receiver can revoke trust any time by updating `.well-known/btps-trust.json` or trust storage eg: database. Only trust with dual binding records are need to approved by both parties (Future additions)
+Receiver can revoke trust any time by updating the record in its own trust store (a JSON file or a database). Only trust with dual binding records are need to approved by both parties (Future additions)
 
 ## Goals
 
@@ -177,13 +177,13 @@ Sending and receiving bills, whether via email or online systems, involves numer
 
 By addressing these core pain points with modern, secure, and user-centered SaaS solutions, organizations can transform their billing processes from a source of frustration into a competitive advantage.
 
-## Trust via `.well-known` for Lightweight and Self Hosting
+## File-based Trust for Lightweight and Self Hosting
 
-The `.well-known` directory is designed for simple or self-hosted BTPS servers. By default, trust records are stored as a JSON file (`btps-trust.json`) inside the `.well-known` directory. This approach is ideal for small vendors or those who want zero-infrastructure, file-based trust management.
+For simple or self-hosted BTPS servers, `JsonTrustStore` keeps trust records in a JSON file on the server, at a path you choose (the example server uses `.well-known/btps-trust.json`). The file is the server's private storage: it is never served or published, and no other party reads it. This approach is ideal for small vendors or those who want zero-infrastructure, file-based trust management.
 
 For larger organizations or advanced deployments, BTPS supports pluggable trust storage. You can implement your own TrustStore backend by extending the `AbstractTrustStore` class provided by the SDK. This allows you to connect to any database system you prefer (e.g., MongoDB, SQL, cloud storage) by implementing the required methods for trust management.
 
-- **Simple/self-hosted:** Use `.well-known/btps-trust.json` (default)
+- **Simple/self-hosted:** Use `JsonTrustStore` with a local JSON file
 - **Enterprise/advanced:** Implement a custom TrustStore (e.g., database-backed) by extending `AbstractTrustStore`
 
 This flexibility ensures BTPS can scale from static file hosting to full enterprise integration.

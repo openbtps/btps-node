@@ -10,7 +10,7 @@ Following security best practices is critical for maintaining the integrity and 
 
 ## Best Practices & Compliance in BTPS
 
-- **Key Rotation:** Rotate cryptographic keys regularly and update DNS/.well-known records promptly.
+- **Key Rotation:** Rotate cryptographic keys regularly and update DNS records promptly.
 - **Private Key Protection:** Never share private keys; store them securely (e.g., HSM, encrypted disk).
 - **Strong Algorithms:** Use only strong, industry-standard algorithms (e.g., AES-256-GCM, RSA-2048+, SHA-256).
 - **Signature Verification:** Always verify digital signatures before processing any message.

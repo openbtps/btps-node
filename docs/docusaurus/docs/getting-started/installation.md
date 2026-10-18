@@ -15,11 +15,13 @@ BTPS (Billing Trust Protocol Secure) is a federated system that enables secure, 
 │   Agent     │                        │             │                  │                 │
 │ Transporter │    Document Messages   │ • Receives  │    Forward to    │  • SaaS or      │
 │             │  ──► (over TLS) ─────► │ • Verifies  │ ──► Inbox ─────► │    Self-Hosted  │
-│ • Sends     │                        │ • Forwards  │                  │                 │
+│ • Encrypts  │                        │ • Forwards  │                  │                 │
 │ • Signs     │                        │             │                  │                 │
-│ • Encrypts  │                        │             │                  │                 │
+│ • Sends     │                        │             │                  │                 │
 └─────────────┘                        └─────────────┘                  └─────────────────┘
 ```
+
+Your code encrypts and signs a document with `signEncrypt`; the agent or transporter then sends the signed artifact. The transporter itself holds no keys.
 
 ## Getting Started
 

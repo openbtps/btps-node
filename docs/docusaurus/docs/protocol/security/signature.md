@@ -18,10 +18,10 @@ BTPS uses digital signatures to ensure the authenticity and integrity of every m
 5. **Signature Attachment:** The signature and fingerprint are attached to the artifact as the `signature` field.
 
 ### Verification (Receiver Side)
-1. **Sender Identity Resolution:** The receiver parses the sender's identity and retrieves the sender's public key (from DNS or .well-known).
-2. **Hashing:** The receiver computes a SHA-256 hash of the received artifact (excluding the signature field).
+1. **Sender Identity Resolution:** The receiver parses the sender's identity and retrieves the sender's public key from DNS, at the selector the artifact names (`<selector>._btps.identity.<account>.<domain>`).
+2. **Canonical Form:** The receiver serialises the received artifact, without its `signature`, in the same JCS canonical form.
 3. **Fingerprint Validation:** The receiver computes the fingerprint of the sender's public key and compares it to the artifact's fingerprint.
-4. **Signature Verification:** The receiver verifies the signature using the sender's public key and the computed hash.
+4. **Signature Verification:** The receiver verifies the signature over those canonical bytes with the sender's public key (RSASSA-PKCS1-v1_5, SHA-256).
 5. **Result:** If the signature is valid and the fingerprint matches, the artifact is accepted as authentic; otherwise, it is rejected.
 
 ## Sequence Diagram
@@ -30,12 +30,13 @@ BTPS uses digital signatures to ensure the authenticity and integrity of every m
 sequenceDiagram
     participant Sender
     participant Receiver
-    Sender->>Sender: Prepare artifact & hash (SHA-256)
-    Sender->>Sender: Sign hash (private key)
+    Sender->>Sender: Prepare artifact without signature
+    Sender->>Sender: Canonical form (JCS, RFC 8785)
+    Sender->>Sender: Sign the bytes: RSASSA-PKCS1-v1_5 with SHA-256 (private key)
     Sender->>Sender: Attach signature & fingerprint
     Sender->>Receiver: Send signed artifact
-    Receiver->>Receiver: Retrieve sender's public key
-    Receiver->>Receiver: Hash artifact (SHA-256)
+    Receiver->>Receiver: Retrieve sender's public key at the artifact's selector
+    Receiver->>Receiver: Canonical form of the artifact without signature
     Receiver->>Receiver: Validate fingerprint
     Receiver->>Receiver: Verify signature
     Receiver->>Receiver: Accept or reject artifact
@@ -54,6 +55,6 @@ sequenceDiagram
 ```
 
 ## Notes
-- The signature covers the entire artifact (excluding the signature field and version itself).
+- The signature covers the entire artifact except the `signature` field, including `version`, `selector` and any ciphertext.
 - The fingerprint ensures the correct public key is used for verification.
 - If signature verification fails, the artifact is rejected and an error is logged. 

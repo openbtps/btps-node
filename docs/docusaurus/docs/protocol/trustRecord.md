@@ -22,18 +22,22 @@ Trust records are the core data structures that maintain the state and history o
 | (billing$vendor)  |                                  |  (finance$vendor)  |
 +-------------------+                                  +--------------------+
          |                                                      |
-         | 2. Receiver checks sender's DNS record & public key   |
-         |----------------------------------------------------->|
+         |                     2. Receiver's server verifies    |
+         |                        the request's signature with  |
+         |                        the sender's key from DNS     |
          |                                                      |
          | 3. Receiver approves, rejects, or blocks sender      |
+         |    and sends a signed trust response                 |
          |<-----------------------------------------------------|
          |                                                      |
-         | 4. If approved, sender is added to trust list        |
-         |<-----------------------------------------------------|
+         | 4. Sender's server accepts the response only if it   |
+         |    holds a pending record for this request           |
          |                                                      |
-         | 5. Sender can now send business documents securely   |
+         | 5. If approved, sender can send business documents   |
          |----------------------------------------------------->|
 ```
+
+The receiver's server refuses a trust request while trust between the pair is already active, blocked, or before its `retryAfterDate`; the sender sees `BTP_ERROR_TRUST_NOT_ALLOWED`.
 
 ## Trust Record Structure
 
@@ -137,12 +141,13 @@ pending → rejected    (Trust denied)
 pending → blocked     (Sender blocked)
 accepted → revoked    (Trust terminated)
 rejected → pending    (New request after retry period)
+revoked  → pending    (New request after retry period)
 ```
 
 **Important Rules:**
 
 - Only one trust record can exist per sender-receiver pair
-- New trust requests are blocked if any trust record exists (regardless of status)
+- A new trust request is refused while trust is active, blocked, or before `retryAfterDate`; after a rejection or revocation it is allowed once that date has passed
 - Trust decisions are final until manually changed by the receiver
 - Blocked senders cannot send new trust requests
 
@@ -262,7 +267,7 @@ BTPS supports three privacy levels for document exchange:
 ### 1. **Creation Phase**
 
 ```
-Trust Request → Identity Verification → Decision → Record Creation
+Trust Request (sender keeps a pending record) → Identity Verification → Pending Record at the receiver → Decision → Trust Response → Status at both sides
 ```
 
 ### 2. **Active Phase**

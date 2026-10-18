@@ -15,28 +15,29 @@ sequenceDiagram
     participant Admin
     participant DNS
     Admin->>Admin: Generate new key pair
-    Admin->>DNS: Update DNS TXT with new public key
+    Admin->>DNS: Publish the new public key under a new selector
     DNS-->>Admin: Confirm update
-    Admin->>Admin: Retain old key for grace period
-    Admin->>Admin: Remove old key after grace period
+    Admin->>DNS: Change s= in _btps.host to the new selector
+    Admin->>Admin: Retain old key and its record for grace period
+    Admin->>DNS: Remove the old selector's record after grace period
 ``` 
 
 ## Key Generation
 - Keys are generated using strong, industry-standard algorithms (RSA, 2048 bits or more).
 - Keys are stored in PEM format for compatibility and portability.
-- Public keys are published via DNS TXT records or .well-known endpoints for discovery.
+- Public keys are published via DNS TXT records, or served by the host's identity lookup, for discovery.
 
 ## Key Rotation
 - Keys should be rotated regularly to maintain forward secrecy.
 - When rotating keys:
   1. Generate a new key pair.
-  2. Update the DNS TXT record or .well-known endpoint with the new public key.
+  2. Publish the new public key under a new selector, then change `s=` in `_btps.host` to it. Don't overwrite the old selector's record: receivers verify each artifact with the key at the selector it names. See [Key Rotation](../keyRotation.md).
   3. Notify trusted parties if required.
   4. Retain the old key for a grace period to allow in-flight messages to be decrypted.
 - BTPS maintains a key history for audit and compliance.
 
 ## Key Revocation
-- If a key is compromised, immediately revoke it by removing it from DNS/.well-known and updating trust records.
+- If a key is compromised, immediately revoke it by removing its record from DNS and updating trust records.
 - Notify all trusted parties of the revocation.
 - Update trust relationships to require re-establishment with the new key.
 

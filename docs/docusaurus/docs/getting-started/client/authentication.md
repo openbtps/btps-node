@@ -25,22 +25,25 @@ sequenceDiagram
     participant Server as BTPS Server
     participant Store as Session Store
 
-    App->>Agent: auth.request
-    Agent->>Server: Send auth request
-    Server->>Agent: auth.response (tokens)
-    Agent->>Store: Store session
+    App->>Agent: auth.request with the one-time code
+    Agent->>Server: auth.request, signed by the device key
+    Server->>Server: Verify the signature, take the code (once only)
+    Server->>Agent: Response: agentId, refreshToken, expiresAt, decryptBy
+    App->>Store: Store session
     App->>Agent: Use for commands
 
-    Note over App,Store: Token expires
-    App->>Agent: Command (fails)
-    Agent->>Store: Check session
-    Store->>Agent: Session expired
+    Note over App,Store: Before expiresAt
+    App->>Store: Check session
+    Store->>App: Refresh due
     App->>Agent: auth.refresh
-    Agent->>Server: Refresh request
-    Server->>Agent: New tokens
-    Agent->>Store: Update session
-    App->>Agent: Retry command
+    Agent->>Server: Refresh request, signed by the device's current key
+    Server->>Server: Verify, take the refresh token (once only)
+    Server->>Agent: New refreshToken and expiresAt
+    App->>Store: Update session
+    App->>Agent: Continue with commands
 ```
+
+Refresh before `expiresAt`: once the device record has expired, a refresh is refused (`BTP_ERROR_TRUST_NOT_ALLOWED`) and the device must register again with a new code. Each refresh token works once; the response carries the next one. A refresh may also move the device to a new key, with a proof signed by that key (`BtpsAuthentication.rotateKey`).
 
 ## 1. Using BtpsAuthentication with InMemoryAuthSessionStore
 
