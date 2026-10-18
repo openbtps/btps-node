@@ -4,7 +4,7 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
-## [1.1.0] — Unreleased (alpha)
+## [1.1.0] — 2026-10-18 (alpha)
 
 BTPS 1.1 is the alpha release of the protocol: 1.2 is planned as the beta and
 1.3 as the general release. A 1.1 server refuses 1.0 artifacts, so both sides
@@ -142,4 +142,4 @@ of an exchange must upgrade together.
 - The default middleware counts an identity's rate limit after signature
   verification. Rate limiting is off unless a provider enables it.
 
-[1.1.0]: https://github.com/openbtps/btps-node/compare/master...release/1.1
+[1.1.0]: https://github.com/openbtps/btps-node/releases/tag/v1.1.0
