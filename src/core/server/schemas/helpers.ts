@@ -60,21 +60,25 @@ export const lifecycleEventEnvelopeProblem = (
 };
 
 /**
- * Checks a decrypted `BTPS_EVENT` document as an unencrypted one is checked on
- * arrival: the event schema, then the rules between it and its envelope.
- * Returns what is wrong, or undefined.
+ * Checks a document that was encrypted as an unencrypted one is checked on
+ * arrival: its type's schema (field limits included), then, for an event, the
+ * rules between it and its envelope. Returns what is wrong, or undefined.
  */
-export const decryptedEventProblem = (
+export const decryptedDocumentProblem = (
   document: unknown,
   envelope: Record<string, unknown>,
 ): string | undefined => {
-  const event = BtpLifecycleEventSchema.safeParse(document);
-  if (!event.success) return 'Document type does not match the artifact type';
+  const schema = processBtpDocSchema(envelope.type as BTPArtifactType);
+  if (!schema) return undefined;
+  const parsed = schema.safeParse(document);
+  if (!parsed.success) return 'Document type does not match the artifact type';
+  if (envelope.type !== 'BTPS_EVENT') return undefined;
+  const event = parsed.data as BTPLifecycleEvent;
   const { id, from, to } = envelope;
   if (typeof id !== 'string' || typeof from !== 'string' || typeof to !== 'string') {
     return 'an event must travel in an artifact with an id, from and to';
   }
-  return lifecycleEventEnvelopeProblem(event.data, { id, from, to });
+  return lifecycleEventEnvelopeProblem(event, { id, from, to });
 };
 
 // Helper function to process document schema based on action type

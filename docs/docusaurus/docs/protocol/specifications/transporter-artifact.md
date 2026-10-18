@@ -82,6 +82,8 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
 
 ## Supported Document Types
 
+Each document type's field limits are on [Limits](./limits.md#document-fields).
+
 ### 1. Trust Request Document (`TRUST_REQ`)
 
 Used to establish trust relationships between organizations.

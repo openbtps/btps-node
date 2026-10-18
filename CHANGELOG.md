@@ -41,6 +41,13 @@ of an exchange must upgrade together.
   code in `status.error`. A refusal never tells the sender what only the
   receiver knows: a trust that was never made, is pending, rejected, revoked or
   blocked all read `BTP_ERROR_TRUST_NOT_ALLOWED`.
+- **Field limits.** Trust requests, trust responses and lifecycle events have
+  a longest length for each text field, and every document's `id` and
+  references are limited, the same at every provider
+  (`BTP_ERROR_VALIDATION`). An encrypted document is checked by the sender's
+  SDK before encrypting and by the receiver's after decrypting. The numbers
+  are exported as `BTPS_FIELD_LIMITS`. Every limit is listed on the new
+  Limits page of the protocol docs.
 - **`trust.update` and `trust.delete`** edit the user's own trust records at
   their provider and send nothing to the other side.
 - **`BtpsTransporter.getConnectionTTLSeconds()`** returns seconds (it returned

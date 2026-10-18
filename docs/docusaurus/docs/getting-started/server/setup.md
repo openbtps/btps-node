@@ -123,6 +123,8 @@ process.on('SIGTERM', () => {
 startServer();
 ```
 
+Every server setting's default and minimum, and the field limits every server enforces, are on [Limits](../../protocol/specifications/limits.md).
+
 ## Create Data Directory
 
 ```bash

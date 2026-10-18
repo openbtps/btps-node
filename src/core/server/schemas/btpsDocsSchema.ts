@@ -7,7 +7,10 @@
 
 import { z } from 'zod';
 import { CURRENCY_CODES } from '../constants/currency.js';
+import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
 import { BtpSignatureSchema, identitySchema } from './shared.js';
+
+const { trustRequest, trustResponse, event, documentId, referenceType } = BTPS_FIELD_LIMITS;
 
 /** A SHA-256, written in lowercase hex. */
 const sha256Hex = z.string().regex(/^[0-9a-f]{64}$/, 'must be a SHA-256 in lowercase hex');
@@ -36,9 +39,12 @@ const BtpMoneySchema = z.object({
  * (`acme:supersedes`).
  */
 export const BtpDocReferenceSchema = z.object({
-  type: z.string().regex(/^[a-z0-9_]+(:[a-z0-9_]+)?$/, 'must be a bare or prefixed code'),
+  type: z
+    .string()
+    .max(referenceType)
+    .regex(/^[a-z0-9_]+(:[a-z0-9_]+)?$/, 'must be a bare or prefixed code'),
   from: identitySchema,
-  id: z.string().min(1),
+  id: z.string().min(1).max(documentId),
   sha256: sha256Hex,
 });
 
@@ -53,28 +59,28 @@ export const BtpStringQueryFilterSchema = z.object({
 });
 
 export const BtpTrustReqDocSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  email: z.string().email(),
-  reason: z.string(),
-  phone: z.string(),
-  address: z.string().optional(),
-  logoUrl: z.string().url().optional(),
-  displayName: z.string().optional(),
-  websiteUrl: z.string().url().optional(),
-  message: z.string().optional(),
+  id: z.string().max(trustRequest.id),
+  name: z.string().max(trustRequest.name),
+  email: z.string().max(trustRequest.email).email(),
+  reason: z.string().max(trustRequest.reason),
+  phone: z.string().max(trustRequest.phone),
+  address: z.string().max(trustRequest.address).optional(),
+  logoUrl: z.string().max(trustRequest.logoUrl).url().optional(),
+  displayName: z.string().max(trustRequest.displayName).optional(),
+  websiteUrl: z.string().max(trustRequest.websiteUrl).url().optional(),
+  message: z.string().max(trustRequest.message).optional(),
   expiresAt: z.string().datetime().optional(),
   privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']).optional(),
 });
 
 export const BtpTrustResDocSchema = z.object({
-  id: z.string(),
+  id: z.string().max(trustResponse.id),
   decision: z.enum(['accepted', 'rejected', 'revoked', 'blocked']),
   decidedAt: z.string().datetime(),
-  decidedBy: z.string(),
+  decidedBy: z.string().max(trustResponse.decidedBy),
   expiresAt: z.string().datetime().optional(),
   retryAfterDate: z.string().datetime().optional(),
-  message: z.string().optional(),
+  message: z.string().max(trustResponse.message).optional(),
   privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']).optional(),
 });
 
@@ -88,7 +94,7 @@ export const BtpInvoiceDocSchema = z
   .object({
     type: z.literal('invoice'),
     title: z.string(),
-    id: z.string(), // the invoice number, unique per sender
+    id: z.string().max(documentId), // the invoice number, unique per sender
     issuedAt: z.string().datetime(),
     dueAt: z.string().datetime().optional(),
     totalAmount: BtpMoneySchema,
@@ -142,7 +148,7 @@ const lifecycleEventFields = {
   // The invoice the event is about.
   document: BtpDocReferenceSchema.omit({ type: true }),
   // Free text for the other party.
-  message: z.string().optional(),
+  message: z.string().max(event.message).optional(),
 };
 
 /** An amount an event states: money in minor units, more than zero. */
@@ -165,7 +171,10 @@ export const BtpLifecycleEventSchema = z
         ...lifecycleEventFields,
         eventType: z.literal('disputed'),
         // `rejected`, `amount_wrong`, `not_as_agreed`, or a platform's own code under a prefix.
-        reason: z.string().regex(/^[a-z0-9_]+(:[a-z0-9_]+)?$/, 'must be a bare or prefixed code'),
+        reason: z
+          .string()
+          .max(event.reason)
+          .regex(/^[a-z0-9_]+(:[a-z0-9_]+)?$/, 'must be a bare or prefixed code'),
       })
       .strict(),
     z.object({ ...lifecycleEventFields, eventType: z.literal('refund_requested') }).strict(),

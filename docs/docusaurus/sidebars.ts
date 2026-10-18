@@ -70,6 +70,7 @@ const sidebars: SidebarsConfig = {
           label: 'Specifications',
           items: [
             'protocol/specifications/overview',
+            'protocol/specifications/limits',
             'protocol/specifications/artifacts',
             'protocol/specifications/transporter-artifact',
             'protocol/specifications/agent-artifact',
