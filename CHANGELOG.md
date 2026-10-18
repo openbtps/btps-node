@@ -55,6 +55,15 @@ of an exchange must upgrade together.
 
 ### Added
 
+- **Receipts, payslips and letters.** A `BTPS_DOC` now carries an `invoice`,
+  a `receipt`, a `payslip` or a `letter`, by its `type`.
+
+  - A receipt is the invoice without `dueAt` and `paymentLink`, with a
+    required `payment`; it may name the invoice it pays (`receipt_for`).
+  - A payslip lists earnings, deductions, contributions and leave, each by an
+    open code, with decimals written as text.
+  - A letter has a title and one body, `text` or `markdown`, and no money.
+
 - **Lifecycle events (`BTPS_EVENT`):** `paid`, `partially_paid`, `disputed`,
   `refund_requested`, `refund` and `response`. Each names the invoice it is
   about (`document` and the `relatesTo` artifact id). Replies carry

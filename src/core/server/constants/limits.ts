@@ -33,6 +33,20 @@ export const BTPS_FIELD_LIMITS = {
     message: 5000,
     reason: 64,
   },
+  receipt: {
+    paymentMethod: 64,
+    paymentReference: 100,
+  },
+  payslip: {
+    // Every code in a payslip: categories, units and leave kinds.
+    code: 64,
+  },
+  letter: {
+    title: 200,
+    content: 100000,
+    attachments: 10,
+    references: 20,
+  },
   // A document's own id, and the id of a document it references.
   documentId: 100,
   referenceType: 64,

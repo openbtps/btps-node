@@ -156,7 +156,14 @@ Used to accept, reject, or block trust requests.
 
 ### 3. BTPS Document (`BTPS_DOC`)
 
-Generic BTPS documents, most commonly invoices. An invoice is `"type": "invoice"`.
+A document's `type` says which kind it is:
+
+- **`invoice`**: asks for payment. The receiver may show it as a bill.
+- **`receipt`**: proves a payment was made (see [Receipt](#receipt)).
+- **`payslip`**: an employee's pay for a period (see [Payslip](#payslip)).
+- **`letter`**: anything else, from a notice to an agreement (see [Letter](#letter)).
+
+The invoice is described first; the others share its money, attachments and references.
 
 ```json
 {
@@ -301,12 +308,144 @@ A document can point to other signed documents, for example a corrected invoice 
 ]
 ```
 
-- **type**: What the link means: `correction_of` (a corrected invoice names the one it corrects), `credits` (a credit note names the invoice it credits), `instalment_of` (one payment of several names its invoice), `follows` (the next document in a series), or a platform's own code under a prefix, such as `acme:supersedes`
+- **type**: What the link means: `correction_of` (a corrected invoice names the one it corrects), `credits` (a credit note names the invoice it credits), `instalment_of` (one payment of several names its invoice), `follows` (the next document in a series), `receipt_for` (a receipt names the invoice it pays), or a platform's own code under a prefix, such as `acme:supersedes`
 - **from**: The identity that sent the referenced document
 - **id**: The referenced document's `id`
 - **sha256**: SHA-256 of the referenced document's signed transporter artifact in its RFC 8785 canonical form, written as 64 lowercase hex characters, so the link names one exact version of that document
 
 Whether the referenced document exists is for the receiving platform to check; the protocol carries the link.
+
+#### Receipt
+
+Proof that a payment was made. It is the invoice without what asks for payment (`dueAt` and `paymentLink`), with a required `payment`, and its `lineItems` are optional.
+
+```json
+{
+  "type": "receipt",
+  "title": "Receipt #REC-2025-001",
+  "id": "REC-2025-001",
+  "issuedAt": "2025-02-01T09:00:00Z",
+  "totalAmount": { "amount": 150000, "currency": "USD" },
+  "payment": {
+    "amount": { "amount": 50000, "currency": "USD" },
+    "paidAt": "2025-02-01T08:55:00Z",
+    "method": "bank_transfer",
+    "reference": "TXN-88213"
+  },
+  "references": [
+    {
+      "type": "receipt_for",
+      "from": "billing$acme.com",
+      "id": "INV-2025-001",
+      "sha256": "lowercase-hex-sha256"
+    }
+  ]
+}
+```
+
+- **payment.amount**: What was paid, more than zero. Less than `totalAmount` makes it a receipt for a part payment.
+- **payment.paidAt**: When it was paid.
+- **payment.method**: Optional: `card`, `bank_transfer`, `cash`, or a platform's own code under a prefix.
+- **payment.reference**: Optional: the payment's own reference, such as a bank transaction id.
+- **references**: `receipt_for` names the invoice it pays. A receipt for a sale with no invoice, such as a shop purchase, has none.
+
+A receiver never shows a receipt as something to pay. An invoice's status still comes from lifecycle events; a receipt is the issuer's formal proof, which it may send after accepting a `paid` or `partially_paid` event, or on its own.
+
+#### Payslip
+
+An employee's pay for a period. Earnings, deductions, contributions and leave are each named by an open code, a bare or prefixed code like `ordinary`, `au:penalty` or `acme:wellbeing_day`, so a new allowance or a new country needs no protocol change. `description` is the name the employer prints, and is what a receiver shows.
+
+```json
+{
+  "type": "payslip",
+  "title": "Payslip, 1–14 October 2025",
+  "id": "PAY-2025-041",
+  "issuedAt": "2025-10-15T00:00:00Z",
+  "issuer": { "name": "Acme Pty Ltd", "identifiers": { "au:abn": "51824753556" } },
+  "employee": { "name": "Sam Lee", "employeeId": "E-1042", "payBasis": "hourly" },
+  "jurisdiction": "AU",
+  "payPeriod": { "start": "2025-10-01T00:00:00Z", "end": "2025-10-14T23:59:59Z" },
+  "payDate": "2025-10-15T00:00:00Z",
+  "earnings": [
+    {
+      "category": "ordinary",
+      "description": "Ordinary hours",
+      "rate": "48.75",
+      "rateUnit": "hour",
+      "quantity": "76",
+      "amount": { "amount": 370500, "currency": "AUD" }
+    }
+  ],
+  "deductions": [
+    {
+      "category": "salary_sacrifice",
+      "amount": { "amount": 20000, "currency": "AUD" },
+      "payee": { "name": "Acme Super Fund", "accountRef": "SF-221" }
+    }
+  ],
+  "contributions": [
+    {
+      "category": "au:super_guarantee",
+      "amount": { "amount": 44460, "currency": "AUD" },
+      "fund": { "name": "Acme Super Fund", "memberNumber": "M-90011" }
+    }
+  ],
+  "leave": [
+    {
+      "category": "annual",
+      "description": "Annual Leave",
+      "unit": "hours",
+      "balance": "76.5",
+      "accrued": "5.85",
+      "taken": "0"
+    },
+    {
+      "category": "sick",
+      "description": "Personal/Carer's Leave",
+      "unit": "hours",
+      "balance": "40"
+    }
+  ],
+  "taxWithheld": { "amount": 81500, "currency": "AUD" },
+  "gross": { "amount": 370500, "currency": "AUD" },
+  "net": { "amount": 269000, "currency": "AUD" },
+  "yearToDate": { "gross": { "amount": 2593500, "currency": "AUD" } }
+}
+```
+
+**Required:** `type`, `title`, `id`, `issuedAt`, `employee` (with `name`), `earnings`, `deductions`, `contributions` (each may be empty), `gross`, `net`.
+
+**Optional:** `issuer` (the employer), `jurisdiction` (ISO 3166-1 alpha-2, e.g. `AU`), `payPeriod`, `payDate`, `payRate` (`amount`, `unit` such as `annual`, `asAt`), `leave`, `taxWithheld`, `yearToDate`, `attachments`, `references`, `metadata`.
+
+- **Decimals are text.** `rate`, `quantity` and a leave `balance`, `accrued` or `taken` are decimals written as text (`"48.75"`), never as numbers. Every amount of money is minor units.
+- **Leave** lists each kind the employer tracks, in its `unit` (`hours`, `days`, `weeks`). A balance may be negative where an employer allows it. Leave taken and paid in the period also appears as an earnings line, as payslips print it.
+- **The protocol carries the numbers and never adds them up.** Whether `gross` and `net` match the lines is for the platforms to check, as with an invoice's total.
+
+#### Letter
+
+Anything else: a notice, a statement, a plan change, an agreement. It has a title and one body, and no money.
+
+```json
+{
+  "type": "letter",
+  "title": "Your new plan",
+  "id": "LET-2025-007",
+  "issuedAt": "2025-10-20T00:00:00Z",
+  "body": {
+    "format": "markdown",
+    "content": "# Welcome\n\nYour plan changes on **1 November**. The terms are attached."
+  },
+  "issuer": { "name": "Acme Telco" },
+  "attachments": []
+}
+```
+
+- **body.format** is `text` or `markdown`, one per letter, never mixed.
+- **`text`** is shown exactly as written.
+- **`markdown`** is CommonMark with raw HTML off. A receiver renders it without inline images and follows only `https` links. There is no HTML body: an HTML body would need sanitising by every receiver, and a mistake in that is a vulnerability.
+- **Optional:** `issuer`, `attachments` (up to 10), `references` (up to 20), `metadata`.
+
+Each document type's limits are on [Limits](./limits.md#document-fields).
 
 ### 4. Lifecycle Event (`BTPS_EVENT`)
 
