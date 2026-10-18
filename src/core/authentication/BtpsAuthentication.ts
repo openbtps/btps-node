@@ -11,7 +11,7 @@ import type { BTPAgentOptions } from '../../client/types/index.js';
 import type { BTPAuthReqDoc, BTPAuthResDoc } from '@core/server/types.js';
 import type { BTPTrustRecord } from '@core/trust/types.js';
 import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
-import { computeAgentTrustId } from '@core/trust/index.js';
+import { computeAgentTrustId } from '@core/trust/trustUtils.js';
 import {
   generateUserToken,
   getFingerprintFromPem,

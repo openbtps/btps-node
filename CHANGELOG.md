@@ -97,6 +97,13 @@ of an exchange must upgrade together.
 
 ### Fixed
 
+- A client bundle no longer carries the server. `@btps/sdk/client` imported
+  the server entry for one constant, and `@btps/sdk/authentication` reached
+  the JSON file stores through the trust barrel, so a phone or browser app
+  bundled `BtpsServer`, its middleware loader and file locking. The trust
+  rules now live apart from the file store; `@btps/sdk/trust` exports the same
+  names.
+
 - A device can send. Its `artifact.send`, `event.send`, `trust.request` and
   `trust.respond`, addressed to someone else, were refused as a signature
   failure, because the server looked the device up under the receiver. It is

@@ -5,7 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import { computeTrustId } from '@core/trust/index.js';
+import { computeTrustId } from '@core/trust/trustUtils.js';
 import { TokenStore, BTPsTokenDocument } from '../types.js';
 
 /**
