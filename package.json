@@ -1,6 +1,6 @@
 {
   "name": "@btps/sdk",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "The reference implementation of BTPS, the Billing Trust Protocol Secure: signed, encrypted, trust-first delivery of invoices and documents between organisations.",
   "keywords": [
     "btps",
