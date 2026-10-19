@@ -4,6 +4,29 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+A patch: the protocol and the API are unchanged.
+
+### Fixed
+
+- **A client or transporter can keep sending after a server ends the
+  connection.** The next send used the ended connection and failed with
+  `BTP_ERROR_CONNECTION_CLOSED`. It now makes a new one. A `BtpsTransporter`
+  keeping one connection per receiver depends on this.
+- **An answer is not lost when the server ends the connection right after
+  writing it**, as a rate limit does. Sends waiting on a connection are failed
+  only once the lines already received have been read.
+- **A connection's end fails only the sends written to it.** An older
+  connection closing late used to fail the sends waiting on the newer one.
+- **Sends made while the client is connecting each go out once**, on the
+  connection being made. Before, they waited for an earlier answer, and one
+  could be written twice.
+- **`maxRetries` retries the connection, as documented.** A retry used to
+  reconnect without sending what was waiting, which then timed out. Each new
+  connection has its own tries, and an error event's `willRetry` says whether
+  another follows.
+
 ## [1.1.1] — 2026-10-19 (alpha)
 
 A patch release: the protocol and the API are unchanged.

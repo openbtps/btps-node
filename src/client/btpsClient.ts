@@ -60,6 +60,11 @@ import {
   MIN_REPLY_TIMEOUT_MS,
   resolveTimeoutMs,
 } from './libs/timeouts.js';
+
+type SocketResult =
+  | { socket: TLSSocket; error: undefined }
+  | { socket: undefined; error: BTPErrorException };
+
 export class BtpsClient {
   protected socket?: TLSSocket;
   protected emitter: EventEmitter = new EventEmitter();
@@ -78,8 +83,14 @@ export class BtpsClient {
       artifact: BTPArtifact;
       resolve: (v: BTPClientResponse) => void;
       timeout: NodeJS.Timeout;
+      /** The connection it was written to: only that connection's end can answer it. */
+      socket?: TLSSocket;
     }
   >();
+  /** The connection being made, which every send waiting for one shares. */
+  protected connecting?: Promise<SocketResult>;
+  /** Lines being read: a connection that ends waits for them, so an answer that came first is not lost. */
+  protected reading = new Set<Promise<void>>();
 
   protected connectTimeoutMs: number;
   protected replyTimeoutMs: number;
@@ -106,35 +117,64 @@ export class BtpsClient {
     );
   }
 
-  protected async getSocket(): Promise<
-    | {
-        socket: TLSSocket;
-        error: undefined;
-      }
-    | {
-        socket: undefined;
-        error: BTPErrorException;
-      }
-  > {
-    if (this.socket && !this.socket.destroyed) return { socket: this.socket, error: undefined };
-
-    if (this.states.isConnecting) {
-      const error = new BTPErrorException({ message: 'already connecting' });
-      this.emitError({
-        error,
-        ...this.getRetryInfo(error),
-      });
-      return {
-        socket: undefined,
-        error,
-      };
+  /**
+   * The open connection, or a new one. A connection the server has ended, or
+   * that failed, is never written to again: the next send makes a new one.
+   * Sends that arrive while one is being made wait for that one.
+   */
+  protected async getSocket(): Promise<SocketResult> {
+    if (this.socket && this.isOpen(this.socket)) {
+      // A server that ends a connection does so just after its last answer: that end is let in first.
+      await new Promise((resolve) => setImmediate(resolve));
     }
+    const current = this.socket;
+    if (current && this.isOpen(current)) return { socket: current, error: undefined };
+    if (current) {
+      this.socket = undefined;
+      current.destroy();
+    }
+    this.connecting ??= this.connect().finally(() => {
+      this.connecting = undefined;
+    });
+    return this.connecting;
+  }
 
+  protected isOpen(socket: TLSSocket): boolean {
+    return this.states.isConnected && !socket.destroyed && !socket.writableEnded;
+  }
+
+  /** Connects, trying again `maxRetries` times, `retryDelayMs` apart, when a try fails in a way worth retrying. */
+  protected async connect(): Promise<SocketResult> {
     this.states.isConnecting = true;
+    // Each new connection has its own tries: what an earlier one was told does not stop this one.
+    this.retries = 0;
+    this.states.shouldRetry = true;
+    for (;;) {
+      const result = await this.connectOnce();
+      if (result.socket && this.states.isDestroyed) {
+        // Destroyed while connecting: what was made is not kept.
+        result.socket.destroy();
+        this.socket = undefined;
+        return {
+          socket: undefined,
+          error: new BTPErrorException({ message: 'BtpsClient instance is destroyed' }),
+        };
+      }
+      if (result.socket) return result;
+      const info = this.getRetryInfo(result.error);
+      this.emitError({ ...info, error: result.error });
+      if (!info.willRetry) {
+        this.states.isConnecting = false;
+        return result;
+      }
+      this.retries++;
+      await new Promise((resolve) => setTimeout(resolve, this.options.retryDelayMs ?? 1000));
+    }
+  }
 
+  protected async connectOnce(): Promise<SocketResult> {
     const btpHostDnsConfig = await this.resolveBtpsHostDnsTxt(this.options.to);
     if (!btpHostDnsConfig) {
-      this.states.isConnecting = false;
       const error = new BTPErrorException({
         message: `DNS resolution failed for ${this.options.to}`,
       });
@@ -150,6 +190,7 @@ export class BtpsClient {
     };
 
     return new Promise((resolve) => {
+      let settled = false;
       // A receiver that is down costs a sender only this long per attempt.
       const connectTimer = setTimeout(() => {
         sock.destroy(
@@ -160,6 +201,7 @@ export class BtpsClient {
       }, this.connectTimeoutMs);
       const sock = tls.connect(tlsOptions, () => {
         clearTimeout(connectTimer);
+        settled = true;
         this.states.isConnected = true;
         this.states.isConnecting = false;
         sock.ref(); // keep process alive on connect
@@ -173,8 +215,20 @@ export class BtpsClient {
         });
         resolve({ socket: sock, error: undefined });
       });
-      sock.once('close', () => clearTimeout(connectTimer));
-      this.attachListeners(sock, this.options.to);
+      // A connection that fails before it is made answers this try, not the client.
+      const failed = (err: unknown) => {
+        clearTimeout(connectTimer);
+        if (settled) return;
+        settled = true;
+        resolve({ socket: undefined, error: transformToBTPErrorException(err) });
+      };
+      sock.once('error', failed);
+      sock.once('close', () =>
+        failed(
+          new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, { cause: 'closed while connecting' }),
+        ),
+      );
+      this.attachListeners(sock);
       const idleMs = this.options.connectionTimeoutMs;
       if (idleMs) {
         // An idle connection is closed, never one with an artifact waiting for
@@ -190,58 +244,76 @@ export class BtpsClient {
     });
   }
 
-  protected attachListeners(socket: TLSSocket, receiverId: string) {
-    socket.pipe(split2()).on('data', (line: string) => this.onData(line));
+  /**
+   * A connection's events concern that connection: the sends written to it,
+   * and the client's state only while it is the current one. An older
+   * connection closing late leaves a newer one alone.
+   */
+  protected attachListeners(socket: TLSSocket) {
+    socket.pipe(split2()).on('data', (line: string) => void this.onData(line));
 
     socket.on('drain', () => {
       void this.flushBackpressure();
     });
 
-    const onSocketError = (err: unknown) => {
-      const error = transformToBTPErrorException(err);
-      const info = this.getRetryInfo(error);
-      const errorInfo = { ...info, error };
-      this.states.isConnecting = false;
-      this.states.isConnected = false;
-      this.emitError(errorInfo);
-
-      if (info.willRetry) {
-        this.retryConnect(receiverId);
-      } else {
-        this.resolveError(error);
+    // Nothing more can arrive on it: once the lines already received are read, what still waits on it fails.
+    const over = (error: BTPErrorException) => {
+      if (this.socket === socket) {
+        this.states.isConnected = false;
+        this.states.isConnecting = false;
+        // What was not yet written was for this connection: the next one never sends it.
+        this.backpressureQueue = [];
       }
+      void Promise.allSettled([...this.reading]).then(() => this.failSendsOn(socket, error));
     };
 
-    socket.on('error', onSocketError);
+    socket.on('error', (err: unknown) => {
+      const error = transformToBTPErrorException(err);
+      // Before it was made, the try that made it reports it (connectOnce).
+      if (this.socket === socket) this.emitError({ ...this.getRetryInfo(error), error });
+      over(error);
+    });
 
     socket.on('end', () => {
-      this.states.isConnected = false;
-      this.states.isConnecting = false;
-      const info = this.getRetryInfo();
       const error = new BTPErrorException(BTP_ERROR_CONNECTION_ENDED);
-      this.emitter.emit('end', {
-        ...info,
-        error,
-      });
-      if (!info.willRetry) {
-        this.retryConnect(receiverId);
-      } else {
-        this.resolveError(error);
-      }
+      if (this.socket === socket) this.emitter.emit('end', { ...this.getRetryInfo(), error });
+      over(error);
     });
 
     socket.on('close', () => {
-      // Reject all in-flight
-      const err = new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, {
+      const error = new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, {
         cause: 'connection closed',
       });
-      const info = this.getRetryInfo(err);
-      this.emitter.emit('end', { ...info, error: err });
-      this.resolveError(err);
+      if (this.socket === socket) {
+        this.emitter.emit('end', { ...this.getRetryInfo(error), error });
+        this.socket = undefined;
+      }
+      over(error);
     });
   }
 
+  /** Answers every send written to `socket` that is still waiting, with `error`. */
+  protected failSendsOn(socket: TLSSocket, error: BTPErrorException) {
+    for (const [id, pending] of this.queue) {
+      if (pending.socket !== socket) continue;
+      clearTimeout(pending.timeout);
+      this.queue.delete(id);
+      pending.resolve({ response: undefined, error });
+    }
+    this.unrefSocketIfNoQueue();
+  }
+
   protected async onData(line: string) {
+    const read = this.readLine(line);
+    this.reading.add(read);
+    try {
+      await read;
+    } finally {
+      this.reading.delete(read);
+    }
+  }
+
+  protected async readLine(line: string) {
     if (!line.trim()) return;
 
     try {
@@ -265,7 +337,7 @@ export class BtpsClient {
           response: validSignature ? msg : undefined,
           error: !validSignature ? error : undefined,
         });
-        this.pumpNextQueue();
+        this.unrefSocketIfNoQueue();
       } else {
         this.emitter.emit('message', { response: msg, validSignature, error });
       }
@@ -273,20 +345,6 @@ export class BtpsClient {
       const err = new SyntaxError(`Invalid JSON: ${e}`);
       this.states.shouldRetry = false;
       this.emitError({ error: err, ...this.getRetryInfo(err) });
-    }
-  }
-
-  protected pumpNextQueue() {
-    if (this.queue.size && this.states.isConnected) {
-      const firstJob = this.queue.values().next().value;
-      if (firstJob) {
-        this.sendArtifact(firstJob.artifact, {
-          resolve: firstJob.resolve,
-          timeout: firstJob.timeout,
-        });
-      }
-    } else {
-      this.unrefSocketIfNoQueue();
     }
   }
 
@@ -319,35 +377,6 @@ export class BtpsClient {
     } finally {
       this.states.isDraining = false;
     }
-  }
-
-  /**
-   * Retry the connection to the server
-   * @param receiverId - The identity of the receiver
-   */
-  protected retryConnect(receiverId: string) {
-    const maxRetries = this.options.maxRetries ?? 5;
-    const delay = this.options.retryDelayMs ?? 1000;
-    if (this.retries >= maxRetries) return;
-
-    this.retries++;
-    setTimeout(() => {
-      void this.getSocket().catch((err) => {
-        /* next error will schedule again */
-      });
-    }, delay);
-  }
-
-  /**
-   * Resolve the error
-   * @param error - The error to resolve
-   * @returns The error info
-   */
-  protected resolveError(error?: BTPErrorException) {
-    this.states.isConnected = false;
-    this.states.isConnecting = false;
-    this.socket = undefined;
-    this.cleanupQueue(error);
   }
 
   /**
@@ -603,34 +632,28 @@ export class BtpsClient {
 
     this.queue.set(id, { artifact, resolve, timeout });
 
-    if (this.states.isConnecting) {
-      /* If the client is connecting, do not dispatch the artifact */
-      return;
-    }
-
+    // Every send waiting for the same connection is given the same answer: each settles its own.
     const { socket, error } = await this.getSocket();
+    const pending = this.queue.get(id);
+    // Timed out, or the client was destroyed, while connecting.
+    if (!pending) return;
 
-    if (error && !this.states.isConnecting) {
+    if (error) {
       this.queue.delete(id);
       clearTimeout(timeout);
       resolve({
         response: undefined,
         error,
       });
-
-      if (this.queue.size) {
-        this.cleanupQueue(
-          new BTPErrorException({ message: 'socket could not be established.' }, { cause: error }),
-        );
-      }
       // Unref socket if no more pending requests
       this.unrefSocketIfNoQueue();
       return;
     }
 
     // Keep process alive while there are pending requests
-    socket?.ref();
-    if (socket) this.sendArtifact(artifact, { resolve, timeout });
+    socket.ref();
+    pending.socket = socket;
+    this.sendArtifact(artifact, { resolve, timeout });
   }
 
   /**
