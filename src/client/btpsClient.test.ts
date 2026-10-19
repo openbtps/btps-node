@@ -1040,6 +1040,60 @@ describe('BtpsClient', () => {
     });
   });
 
+  describe('a connection that ends', () => {
+    const fakeSocket = () => {
+      const socket = Object.assign(new EventEmitter(), {
+        destroyed: false,
+        writableEnded: false,
+        pipe: vi.fn().mockReturnValue(new EventEmitter()),
+        unref: vi.fn(),
+        destroy: vi.fn(),
+      });
+      return socket as unknown as tls.TLSSocket & EventEmitter;
+    };
+    const waitingOn = (id: string, socket: tls.TLSSocket) => {
+      const resolve = vi.fn();
+      client['queue'].set(id, {
+        artifact: { id } as BTPArtifact,
+        resolve,
+        timeout: setTimeout(() => {}, 0),
+        socket,
+      });
+      return resolve;
+    };
+
+    it('fails only the sends written to it: an older connection closing late leaves the current one alone', async () => {
+      const older = fakeSocket();
+      const current = fakeSocket();
+      client['attachListeners'](older);
+      client['attachListeners'](current);
+      client['socket'] = current;
+      client['states'].isConnected = true;
+      const lost = waitingOn('on-older', older);
+      const kept = waitingOn('on-current', current);
+
+      older.emit('close');
+      await vi.waitFor(() => expect(lost).toHaveBeenCalled());
+
+      expect(lost.mock.calls[0]?.[0].error.code).toBe(BTP_ERROR_CONNECTION_CLOSED.code);
+      expect(kept).not.toHaveBeenCalled();
+      expect(client['queue'].has('on-current')).toBe(true);
+      expect(client['socket']).toBe(current);
+      expect(client['states'].isConnected).toBe(true);
+    });
+
+    it('is not written to again once the server has ended it', () => {
+      const ended = fakeSocket();
+      client['attachListeners'](ended);
+      client['socket'] = ended;
+      client['states'].isConnected = true;
+
+      ended.emit('end');
+
+      expect(client['isOpen'](ended)).toBe(false);
+    });
+  });
+
   describe('errors with nobody listening', () => {
     it('logs an unreadable line instead of throwing an unheard error event', async () => {
       const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
