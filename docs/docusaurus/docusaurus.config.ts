@@ -284,6 +284,15 @@ const config: Config = {
         hashed: true,
         highlightSearchTermsOnTargetPage: true,
         explicitSearchResultPath: true,
+        // The results page can narrow to one section; the search box searches them all (src/theme/SearchBar).
+        searchContextByPaths: [
+          { label: 'Getting started', path: 'docs/getting-started' },
+          { label: 'Protocol', path: 'docs/protocol' },
+          { label: 'SDK', path: 'docs/sdk' },
+          { label: 'Server', path: 'docs/server' },
+          { label: 'Client', path: 'docs/client' },
+        ],
+        useAllContextsWithNoSearchContext: true,
       },
     ],
   ],
