@@ -148,6 +148,11 @@ const config: Config = {
             label: 'Roadmap',
             position: 'left',
           },
+          // After the menu, filling the space up to the right-hand links (src/css/custom.css).
+          {
+            type: 'search',
+            position: 'left',
+          },
           {
             href: 'https://github.com/openbtps/btps-node',
             label: 'GitHub',
@@ -272,14 +277,33 @@ const config: Config = {
     } satisfies Preset.ThemeConfig,
 
   // Mermaid plugin configuration
-  themes: ['@docusaurus/theme-mermaid'],
+  themes: [
+    '@docusaurus/theme-mermaid',
+    // Search built into the site at build time and run in the browser: no outside service, nothing sent anywhere.
+    [
+      '@easyops-cn/docusaurus-search-local',
+      {
+        docsRouteBasePath: 'docs',
+        indexBlog: false,
+        language: ['en'],
+        hashed: true,
+        highlightSearchTermsOnTargetPage: true,
+        explicitSearchResultPath: true,
+        // The results page can narrow to one section; the search box searches them all (src/theme/SearchBar).
+        searchContextByPaths: [
+          { label: 'Getting started', path: 'docs/getting-started' },
+          { label: 'Protocol', path: 'docs/protocol' },
+          { label: 'SDK', path: 'docs/sdk' },
+          { label: 'Server', path: 'docs/server' },
+          { label: 'Client', path: 'docs/client' },
+        ],
+        useAllContextsWithNoSearchContext: true,
+      },
+    ],
+  ],
   markdown: {
     mermaid: true,
   },
-
-  plugins: [
-    // Remove docusaurus-search-local plugin
-  ],
 } satisfies Config;
 
 export default config;

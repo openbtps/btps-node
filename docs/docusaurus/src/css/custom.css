@@ -35,3 +35,34 @@ html[data-theme='dark'] {
 [data-theme='dark'] .footer {
   background-color: #232526;
 }
+
+/* The search box sits after the menu and fills the space up to the right-hand links, centred. */
+@media (min-width: 997px) {
+  .theme-layout-navbar-left {
+    flex: 1;
+  }
+
+  .theme-layout-navbar-left > :has(> .navbar__search) {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    padding: 0 1.5rem;
+  }
+
+  .theme-layout-navbar-left .navbar__search {
+    flex: 1;
+    max-width: 640px;
+    margin-left: 0;
+    --search-local-modal-width: 100%;
+  }
+
+  /* Once focused, the input is inside the autocomplete's own wrapper, which must fill the box too. */
+  .theme-layout-navbar-left .navbar__search > :has(> .navbar__search-input) {
+    display: block;
+    width: 100%;
+  }
+
+  .theme-layout-navbar-left .navbar__search-input {
+    width: 100%;
+  }
+}

@@ -1,3 +1,9 @@
+declare module '@theme-original/SearchBar' {
+  import type { ReactElement } from 'react';
+
+  export default function SearchBar(props: Record<string, unknown>): ReactElement;
+}
+
 declare module '@theme/Heading' {
   import type { ComponentProps, ReactElement } from 'react';
 
