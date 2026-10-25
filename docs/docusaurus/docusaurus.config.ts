@@ -148,6 +148,11 @@ const config: Config = {
             label: 'Roadmap',
             position: 'left',
           },
+          // After the menu, filling the space up to the right-hand links (src/css/custom.css).
+          {
+            type: 'search',
+            position: 'left',
+          },
           {
             href: 'https://github.com/openbtps/btps-node',
             label: 'GitHub',
