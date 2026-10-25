@@ -272,14 +272,32 @@ const config: Config = {
     } satisfies Preset.ThemeConfig,
 
   // Mermaid plugin configuration
-  themes: ['@docusaurus/theme-mermaid'],
+  themes: [
+    '@docusaurus/theme-mermaid',
+    // Search built into the site at build time and run in the browser: no outside service, nothing sent anywhere.
+    [
+      '@easyops-cn/docusaurus-search-local',
+      {
+        docsRouteBasePath: 'docs',
+        indexBlog: false,
+        language: ['en'],
+        hashed: true,
+        highlightSearchTermsOnTargetPage: true,
+        explicitSearchResultPath: true,
+        searchContextByPaths: [
+          'docs/getting-started',
+          'docs/protocol',
+          'docs/sdk',
+          'docs/server',
+          'docs/client',
+        ],
+        useAllContextsWithNoSearchContext: true,
+      },
+    ],
+  ],
   markdown: {
     mermaid: true,
   },
-
-  plugins: [
-    // Remove docusaurus-search-local plugin
-  ],
 } satisfies Config;
 
 export default config;
