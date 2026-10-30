@@ -142,6 +142,48 @@ describe('BtpServerResponseSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  describe('a trust.fetch answer listing trust records', () => {
+    const trustRecord = {
+      id: 'fb275f18c0d1',
+      createdAt: '2025-01-01T00:00:00.000Z',
+      senderId: 'billing$vendor.com',
+      receiverId: 'billing$yourdomain.com',
+      status: 'accepted',
+      decidedBy: 'billing$yourdomain.com',
+      decidedAt: '2025-01-02T00:00:00.000Z',
+      publicKeyBase64: 'cHVibGljLWtleQ==',
+      publicKeyFingerprint: 'c'.repeat(64),
+      keyHistory: [
+        {
+          fingerprint: 'b'.repeat(64),
+          firstSeen: '2024-06-01T00:00:00.000Z',
+          lastSeen: '2025-01-01T00:00:00.000Z',
+        },
+      ],
+      privacyType: 'encrypted',
+    };
+    const answerWith = (artifact: unknown) => ({
+      version: '1.0.0',
+      status: { ok: true, code: 200 },
+      id: '123e4567-e89b-12d3-a456-426614174000',
+      issuedAt: '2025-01-01T00:00:00.000Z',
+      type: 'btps_response' as const,
+      document: { results: [{ artifact, meta: { status: 'accepted' } }] },
+    });
+
+    it('is valid', () => {
+      expect(validate(BtpServerResponseSchema, answerWith(trustRecord)).success).toBe(true);
+    });
+
+    it('is refused when a record is not a trust record', () => {
+      const unknownStatus = { ...trustRecord, status: 'maybe' };
+      const noKey = { ...trustRecord, publicKeyBase64: undefined };
+
+      expect(validate(BtpServerResponseSchema, answerWith(unknownStatus)).success).toBe(false);
+      expect(validate(BtpServerResponseSchema, answerWith(noKey)).success).toBe(false);
+    });
+  });
+
   it('should validate a signed identity lookup answer', () => {
     const identityAnswer = {
       version: '1.0.0',

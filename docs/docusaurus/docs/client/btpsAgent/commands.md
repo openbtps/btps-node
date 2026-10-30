@@ -1201,6 +1201,8 @@ Lists your trust requests, received and sent, with optional filtering and pagina
 
 A pending request is answered with `trust.respond`; an accepted one is revoked or blocked with `trust.update`, using `meta.trustId`.
 
+Since 1.1.3, a provider may instead answer with the trust records themselves (`BTPTrustRecord`): each entry's `artifact` is then the record, with its `senderId`, `receiverId`, `status`, `decidedAt` and `privacyType`, and its `id` is what `trust.update` takes. Read such an answer as `BTPQueryResult<BTPTrustRecord>`. One answer may mix both kinds: a request's artifact has `type: 'TRUST_REQ'`, and a trust record has no `type`.
+
 **Example:**
 
 ```js

@@ -42,9 +42,37 @@ export const BtpDeliveryFailureArtifactSchema = z.object({
   to: identitySchema,
 });
 
+// Schema for BTPTrustRecord: what `trust.fetch` may answer with, in place of the request's artifact
+export const BtpTrustRecordSchema = z.object({
+  id: z.string(),
+  createdAt: z.string().datetime(),
+  senderId: identitySchema,
+  receiverId: identitySchema,
+  status: z.enum(['accepted', 'rejected', 'revoked', 'pending', 'blocked']),
+  decidedBy: z.string(),
+  decidedAt: z.string().datetime(),
+  expiresAt: z.string().datetime().optional(),
+  publicKeyBase64: z.string(),
+  publicKeyFingerprint: z.string(),
+  keyHistory: z.array(
+    z.object({
+      fingerprint: z.string(),
+      firstSeen: z.string().datetime(),
+      lastSeen: z.string().datetime(),
+    }),
+  ),
+  privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']),
+  retryAfterDate: z.string().datetime().optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
 // Schema for BTPQueryResultEntry
 export const BtpQueryResultEntrySchema = z.object({
-  artifact: z.union([BtpTransporterArtifactSchema, BtpDeliveryFailureArtifactSchema]),
+  artifact: z.union([
+    BtpTransporterArtifactSchema,
+    BtpDeliveryFailureArtifactSchema,
+    BtpTrustRecordSchema,
+  ]),
   meta: z
     .object({
       seen: z.boolean().optional(),
