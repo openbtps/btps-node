@@ -10,6 +10,10 @@ import { BtpSignatureSchema, BtpEncryptionSchema } from './schema.js';
 import { identitySchema } from './shared.js';
 import { BtpAuthResDocSchema, BtpIdentityResDocSchema } from './btpsDocsSchema.js';
 import { BtpTransporterArtifactSchema } from './artifacts/transporterSchema.js';
+import { boundedArray, boundedRecord } from './bounded.js';
+import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
+
+const { query, trustRecord, recordKeys } = BTPS_FIELD_LIMITS;
 
 // Schema for BTPStatus
 export const BtpStatusSchema = z.object({
@@ -54,16 +58,17 @@ export const BtpTrustRecordSchema = z.object({
   expiresAt: z.string().datetime().optional(),
   publicKeyBase64: z.string(),
   publicKeyFingerprint: z.string(),
-  keyHistory: z.array(
+  keyHistory: boundedArray(
     z.object({
       fingerprint: z.string(),
       firstSeen: z.string().datetime(),
       lastSeen: z.string().datetime(),
     }),
+    trustRecord.keyHistory,
   ),
   privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']),
   retryAfterDate: z.string().datetime().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: boundedRecord(z.unknown(), recordKeys).optional(),
 });
 
 // Schema for BTPQueryResultEntry
@@ -84,7 +89,7 @@ export const BtpQueryResultEntrySchema = z.object({
 
 // Schema for BTPQueryResult
 export const BtpQueryResultSchema = z.object({
-  results: z.array(BtpQueryResultEntrySchema),
+  results: boundedArray(BtpQueryResultEntrySchema, query.results),
   cursor: z.string().optional(),
   total: z.number().optional(),
   hasNext: z.boolean().optional(),
