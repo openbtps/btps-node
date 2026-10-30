@@ -215,6 +215,13 @@ export const BTP_ERROR_ARTIFACT_NOT_ACCEPTED: BTPError = {
   status: 503,
 };
 
+/** For a store (trust, identity) to throw when it is briefly unreachable: the sender may send again later. */
+export const BTP_ERROR_TEMPORARILY_UNAVAILABLE: BTPError = {
+  code: 'BTP_ERROR_TEMPORARILY_UNAVAILABLE',
+  message: 'The server cannot take this artifact right now. Send it again later',
+  status: 503,
+};
+
 export const BTP_ERROR_SOCKET_TIMEOUT: BTPError = {
   code: 'BTP_ERROR_SOCKET_TIMEOUT',
   message: 'Socket timeout. Connection closed',

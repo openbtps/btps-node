@@ -230,7 +230,7 @@ export class BtpsAgent extends BtpsClient {
     }
 
     const transporterArtifact: Omit<BTPTransporterArtifact, 'signature'> = {
-      id: event?.success ? event.data.id : randomUUID(),
+      id: event?.success ? event.data.id : (options?.id ?? randomUUID()),
       issuedAt: new Date().toISOString(),
       version: this.getProtocolVersion(),
       type: artifactType,

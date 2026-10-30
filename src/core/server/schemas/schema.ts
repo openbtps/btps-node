@@ -9,6 +9,8 @@ import { z } from 'zod';
 import { AGENT_ACTIONS, TRANSPORTER_ACTIONS } from '../constants/index.js';
 import { BtpAgentQueryDocSchema, BtpDocSchema } from './btpsDocsSchema.js';
 import { BtpSignatureSchema, identitySchema } from './shared.js';
+import { boundedArray } from './bounded.js';
+import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
 
 // Schema for BTPCryptoOptions
 export const BtpCryptoOptionsSchema = z.object({
@@ -97,5 +99,5 @@ export const BtpAgentCreateSchema = z.object({
 
 // Schema for BTPAgentDeleteCancel
 export const BtpIdsPayloadSchema = z.object({
-  ids: z.array(z.string()),
+  ids: boundedArray(z.string(), BTPS_FIELD_LIMITS.ids),
 });

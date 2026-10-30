@@ -41,12 +41,13 @@ describe('identity lookup through the host', () => {
 
   // DNS for saas.test: a host record naming its operator, the operator's key,
   // and no record for bob's own key.
-  const dnsFor = (operator: string) =>
+  const dnsFor = (operator: string, operatorKeyDelayMs = 0) =>
     vi.mocked(resolveTxt).mockImplementation(async (name: string) => {
       if (name === '_btps.host.saas.test') {
         return [[`v=1.0.0; u=127.0.0.1:${port}; s=btps1; op=${operator}`]];
       }
       if (name === 'btps1._btps.identity.admin.saas.test') {
+        await new Promise((resolve) => setTimeout(resolve, operatorKeyDelayMs));
         return [[`k=rsa; v=1.0.0; p=${pemToBase64(operatorKeys.publicKey)}`]];
       }
       throw Object.assign(new Error(`queryTxt ENOTFOUND ${name}`), { code: 'ENOTFOUND' });
@@ -97,6 +98,17 @@ describe('identity lookup through the host', () => {
 
   it("returns the key the domain's operator answers with", async () => {
     dnsFor('admin$saas.test');
+    const client = new BtpsClient({ to: 'bob$saas.test', connectionTimeoutMs: 2000 });
+
+    const { response, error } = await client.resolveIdentity('bob$saas.test', 'alice$other.test');
+
+    expect(error).toBeUndefined();
+    expect(response?.publicKey).toBe(bobKeys.publicKey);
+  });
+
+  it('keeps the answer when the host closes the connection while it is being verified', async () => {
+    // The host ends the connection as it answers; the operator's key arrives after that.
+    dnsFor('admin$saas.test', 200);
     const client = new BtpsClient({ to: 'bob$saas.test', connectionTimeoutMs: 2000 });
 
     const { response, error } = await client.resolveIdentity('bob$saas.test', 'alice$other.test');

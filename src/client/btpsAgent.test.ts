@@ -273,6 +273,20 @@ describe('BtpsAgent', () => {
       expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
     });
 
+    it('refuses a document with a list over its limit, before signing or sending it', async () => {
+      const result = await agent.command('artifact.send', 'bob$company.com', {
+        type: 'invoice',
+        title: 'Invoice',
+        id: 'INV-1',
+        issuedAt: '2025-01-01T00:00:00.000Z',
+        totalAmount: { amount: 100, currency: 'AUD' },
+        lineItems: { columns: ['a'], rows: Array.from({ length: 10001 }, () => ({ a: 1 })) },
+      });
+
+      expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
+      expect(mockCrypto.signBtpPayload).not.toHaveBeenCalled();
+    });
+
     it('should reject missing document for trust.request', async () => {
       const result = await agent.command('trust.request', 'bob$company.com');
 
@@ -818,6 +832,75 @@ describe('BtpsAgent', () => {
       expect(withoutRelatesTo.error?.cause).toContain('options.relatesTo');
       expect(onTrustRequest.error?.cause).toContain('options.relatesTo');
       expect(mockCrypto.signBtpPayload).not.toHaveBeenCalled();
+    });
+
+    describe('options.id', () => {
+      const trustRequest: BTPDocType = {
+        id: 'trust-req-1',
+        name: 'Alice',
+        email: 'alice@example.com',
+        reason: 'Business partnership',
+        phone: '+1234567890',
+      };
+      const event: BTPDocType = {
+        type: 'lifecycle_event',
+        id: '7f1c1f0e-3b9a-4c2e-9a51-2f8f0b1d6c11',
+        occurredAt: '2024-01-05T00:00:00.000Z',
+        document: { from: 'bob$company.com', id: 'INV-001', sha256: 'c'.repeat(64) },
+        eventType: 'paid',
+      };
+      const givenId = '3d6f0a52-8c4b-4e7a-b1f2-6a9e0c7d5b18';
+
+      it('sends the artifact under the id given', async () => {
+        await agent.command('trust.request', 'bob$company.com', trustRequest, {
+          signature: { algorithmHash: 'sha256' },
+          id: givenId,
+        });
+
+        expect(mockCrypto.signBtpPayload).toHaveBeenCalledWith(
+          expect.objectContaining({ id: givenId }),
+          expect.any(Object),
+        );
+      });
+
+      it('sends under a new id when none is given', async () => {
+        await agent.command('trust.request', 'bob$company.com', trustRequest);
+
+        const artifact = mockCrypto.signBtpPayload.mock.calls[0]?.[0] as { id: string } | undefined;
+        expect(artifact?.id).toMatch(/^[0-9a-f-]{36}$/);
+        expect(artifact?.id).not.toBe(givenId);
+      });
+
+      it('refuses an id that is not a UUID', async () => {
+        const result = await agent.command('trust.request', 'bob$company.com', trustRequest, {
+          signature: { algorithmHash: 'sha256' },
+          id: 'not-a-uuid',
+        });
+
+        expect(result.error?.cause).toContain('options.id');
+        expect(mockCrypto.signBtpPayload).not.toHaveBeenCalled();
+      });
+
+      it("accepts the event's own id on event.send and refuses any other", async () => {
+        await agent.command('event.send', 'bob$company.com', event, {
+          signature: { algorithmHash: 'sha256' },
+          relatesTo: 'doc-1',
+          id: event.id,
+        });
+        expect(mockCrypto.signBtpPayload).toHaveBeenCalledWith(
+          expect.objectContaining({ id: event.id }),
+          expect.any(Object),
+        );
+        mockCrypto.signBtpPayload.mockClear();
+
+        const result = await agent.command('event.send', 'bob$company.com', event, {
+          signature: { algorithmHash: 'sha256' },
+          relatesTo: 'doc-1',
+          id: givenId,
+        });
+        expect(result.error?.cause).toContain('options.id');
+        expect(mockCrypto.signBtpPayload).not.toHaveBeenCalled();
+      });
     });
   });
 

@@ -46,6 +46,7 @@ import {
   BTP_ERROR_ARTIFACT_TIME_WINDOW,
   BTP_ERROR_KEY_ROTATION_PROOF,
   BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
+  BTP_ERROR_TEMPORARILY_UNAVAILABLE,
   BTP_ERROR_UNKNOWN,
   BTP_ERROR_SIG_VERIFICATION,
   BTP_ERROR_RATE_LIMITER,
@@ -3294,22 +3295,38 @@ export default function () {
         tcp.close();
       }
     });
-  });
 
-  describe('closing gently after an unexpected error', () => {
-    it('delivers the error to a sender that is still sending its next artifact', async () => {
+    it('gives each artifact the sender it names, not the first sender on the connection', async () => {
       const btps = new BtpsServer({
         serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
         trustStore: new DummyTrustStore(),
         tlsOptions: { key: 'test-key', cert: 'test-cert' },
-        maxArtifactSizeKb: 10240,
         connectionTimeoutMs: 2000,
       });
-      btps['_parseAndValidateArtifact'] = vi.fn(() => {
-        throw new Error('unexpected failure');
+      // Each line parses to an artifact from the sender the line names.
+      btps['_parseAndValidateArtifact'] = vi.fn((line: string) => {
+        const { id, from } = JSON.parse(line) as { id: string; from: string };
+        return {
+          data: {
+            type: 'transporter',
+            artifact: { id, from, to: 'bob$example.com', version: BTP_PROTOCOL_VERSION },
+          },
+        } as never;
       });
-      vi.spyOn(console, 'error').mockImplementation(() => {});
-      // TCP, not TLS: losing an answer to a reset happens at the TCP level.
+      const seen: { to?: string; from?: string }[] = [];
+      btps['middlewareManager']['middleware'] = [
+        {
+          phase: 'after',
+          step: 'parsing',
+          handler: async (req, res) => {
+            seen.push(req.getIdentity());
+            res.sendRes({
+              ...btps.prepareBtpsResponse({ ok: true, message: 'seen', code: 200 }),
+              type: 'btps_response',
+            });
+          },
+        },
+      ];
       const tcp = net.createServer((socket) =>
         btps['handleConnection'](socket as unknown as TLSSocket),
       );
@@ -3318,48 +3335,112 @@ export default function () {
       const port = typeof address === 'object' && address ? address.port : 0;
 
       try {
-        const answer = await new Promise<string>((resolve, reject) => {
+        await new Promise<void>((resolve, reject) => {
           const client = net.connect(port, '127.0.0.1');
           let received = '';
           client.on('data', (data) => {
             received += data;
-            const end = received.indexOf('\n');
-            if (end !== -1) resolve(received.slice(0, end));
+            if (received.split('\n').filter(Boolean).length === 2) {
+              client.end();
+              resolve();
+            }
           });
           client.on('error', reject);
-          client.on('close', () => reject(new Error(`closed without an answer: ${received}`)));
-          // Like a sender across a network, it reads the answer some time after
-          // it arrives: a connection reset in between would discard it unread.
-          client.pause();
-          setTimeout(() => client.resume(), 300);
-          // One artifact, then straight on to sending the next, before any answer.
-          client.write('{}\n');
-          const chunk = Buffer.alloc(64 * 1024, 'a');
-          let sent = 0;
-          const pump = () => {
-            while (sent < 4 * 1024 * 1024) {
-              sent += chunk.length;
-              if (!client.write(chunk)) {
-                client.once('drain', pump);
-                return;
-              }
-            }
-            client.end();
-          };
-          pump();
+          setTimeout(() => reject(new Error(`no second answer: ${received}`)), 1000);
+          client.write(`{"id":"first","from":"alice$example.com"}\n`);
+          setTimeout(() => client.write(`{"id":"second","from":"carol$example.com"}\n`), 100);
         });
 
-        const written: BTPServerResponse = JSON.parse(answer);
-        expect(written.type).toBe('btps_error');
-        // Internal detail never reaches the wire.
-        expect(written.status).toMatchObject({
-          code: 500,
-          message: BTP_ERROR_UNKNOWN.message,
-          error: BTP_ERROR_UNKNOWN.code,
+        expect(seen).toEqual([
+          { to: 'bob$example.com', from: 'alice$example.com' },
+          { to: 'bob$example.com', from: 'carol$example.com' },
+        ]);
+      } finally {
+        tcp.close();
+      }
+    });
+  });
+
+  describe('an unexpected error on one artifact', () => {
+    const issuedAt = new Date().toISOString();
+    const ping = (id: string) =>
+      `{"version":"${BTP_PROTOCOL_VERSION}","id":"${id}","issuedAt":"${issuedAt}","action":"PING"}\n`;
+
+    // Sends each line in turn and collects the first `count` answers, or rejects if the connection closes first.
+    const exchange = async (btps: BtpsServer, lines: string[], count: number) => {
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+      try {
+        return await new Promise<BTPServerResponse[]>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const answers = received.split('\n').filter(Boolean);
+            if (answers.length === count) {
+              client.end();
+              resolve(answers.map((a) => JSON.parse(a)));
+            }
+          });
+          client.on('error', reject);
+          client.on('close', () => reject(new Error(`closed after: ${received}`)));
+          setTimeout(() => reject(new Error(`no answers: ${received}`)), 1000);
+          lines.forEach((line, i) => setTimeout(() => client.write(line), i * 100));
         });
       } finally {
         tcp.close();
       }
+    };
+
+    it('answers that artifact and keeps the connection for the next', async () => {
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        connectionTimeoutMs: 2000,
+      });
+      const parse = btps['_parseAndValidateArtifact'].bind(btps);
+      btps['_parseAndValidateArtifact'] = vi.fn((line: string) => {
+        if (line.includes('"first"')) throw new Error('unexpected failure');
+        return parse(line);
+      });
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const answers = await exchange(btps, [ping('first'), ping('second')], 2);
+
+      expect(answers[0]?.type).toBe('btps_error');
+      // Internal detail never reaches the wire.
+      expect(answers[0]?.status).toMatchObject({
+        code: 500,
+        message: BTP_ERROR_UNKNOWN.message,
+        error: BTP_ERROR_UNKNOWN.code,
+      });
+      expect(answers[1]?.reqId).toBe('second');
+      expect(answers[1]?.status.message).toBe('Server is operational');
+    });
+
+    it('passes on a store that is briefly unavailable as 503, to send again later', async () => {
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        connectionTimeoutMs: 2000,
+      });
+      btps['_parseAndValidateArtifact'] = vi.fn(() => {
+        throw new BTPErrorException(BTP_ERROR_TEMPORARILY_UNAVAILABLE);
+      });
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const [answer] = await exchange(btps, [ping('first')], 1);
+
+      expect(answer?.status).toMatchObject({
+        code: 503,
+        error: BTP_ERROR_TEMPORARILY_UNAVAILABLE.code,
+      });
     });
   });
 
@@ -3578,6 +3659,81 @@ export default function () {
       });
       const { signature, ...signed } = written;
       expect(signature && verifySignature(signed, signature, keys.publicKey).isValid).toBe(true);
+    });
+
+    it('answers an error when the identity store throws, leaving no rejection unhandled', async () => {
+      class FailingIdentityStore extends OneIdentityStore {
+        override async getPublicKeyRecord(): Promise<IdentityPubKeyRecord> {
+          throw new Error('store unavailable');
+        }
+      }
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        identityStore: new FailingIdentityStore({
+          selector: 'btps1',
+          publicKey: 'identity-public-key',
+          keyType: 'rsa',
+          version: '1.0.0',
+          createdAt: new Date().toISOString(),
+        }),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        connectionTimeoutMs: 2000,
+      });
+      server['_parseAndValidateArtifact'] = vi.fn(
+        () =>
+          ({
+            data: {
+              type: 'identityLookup',
+              artifact: {
+                version: BTP_PROTOCOL_VERSION,
+                id: 'lookup-1',
+                issuedAt: new Date().toISOString(),
+                identity: 'alice$example.com',
+                from: 'bob$other.com',
+                hostSelector: 'btps1',
+              },
+            },
+          }) as never,
+      );
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      const unhandled: unknown[] = [];
+      const onUnhandled = (reason: unknown) => unhandled.push(reason);
+      process.on('unhandledRejection', onUnhandled);
+      const tcp = net.createServer((socket) =>
+        server['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+
+      try {
+        const answer = await new Promise<string>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const end = received.indexOf('\n');
+            if (end !== -1) {
+              client.end();
+              resolve(received.slice(0, end));
+            }
+          });
+          client.on('error', reject);
+          setTimeout(() => reject(new Error(`no answer: ${received}`)), 1000);
+          client.write('{}\n');
+        });
+        await new Promise((resolve) => setImmediate(resolve));
+
+        const written: BTPServerResponse = JSON.parse(answer);
+        expect(written.type).toBe('btps_error');
+        expect(written.reqId).toBe('lookup-1');
+        expect(written.status.code).toBe(500);
+        expect(unhandled).toEqual([]);
+      } finally {
+        process.off('unhandledRejection', onUnhandled);
+        tcp.close();
+      }
     });
   });
 

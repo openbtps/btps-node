@@ -5,8 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import crypto, { constants, createHash, randomBytes } from 'crypto';
-import { performance } from 'perf_hooks';
+import crypto, { constants } from 'crypto';
 import {
   BTPCryptoOptions,
   BTPEncryption,
@@ -22,9 +21,12 @@ import {
   BTP_ERROR_SIG_MISMATCH,
   BTP_ERROR_SIG_VERIFICATION,
   BTP_ERROR_UNKNOWN,
+  BTP_ERROR_VALIDATION,
 } from '@core/error/constant.js';
 
 import { BTPErrorException } from '@core/error/index.js';
+import { processBtpDocSchema } from '@core/server/schemas/helpers.js';
+import type { BTPArtifactType } from '@core/server/types.js';
 import { assertStrictJson, canonicalize, canonicalizeValue } from './jcs.js';
 import { assertFullLengthAuthTag } from './pem-decrypter.js';
 import type { Signer } from './signer-interface.js';
@@ -40,6 +42,26 @@ export * from './decrypter-interface.js';
 export * from './pem-signer.js';
 export * from './pem-decrypter.js';
 
+/**
+ * With a document type, a document that is not one of that type (its schema,
+ * field limits included), as an error. Without one, nothing is checked.
+ */
+const documentTypeError = (document: unknown, documentType?: BTPArtifactType) => {
+  if (!documentType) return undefined;
+  const parsed = processBtpDocSchema(documentType)?.safeParse(document);
+  if (!parsed || parsed.success) return undefined;
+  return new BTPErrorException(BTP_ERROR_VALIDATION, {
+    cause: `Document is not a valid ${documentType} document`,
+    meta: { issues: parsed.error.issues },
+  });
+};
+
+/**
+ * Encrypts a document to the receiver's key. Given `documentType`, the
+ * document is checked against that type first, and an invalid one throws
+ * `BTP_ERROR_VALIDATION`. Without it, nothing is checked: a direct caller
+ * validates the document itself. `signEncrypt` and the clients always do.
+ */
 export const encryptBtpPayload = (
   payload: unknown = '',
   receiverPubPem: string,
@@ -47,7 +69,10 @@ export const encryptBtpPayload = (
     algorithm: 'aes-256-gcm',
     mode: 'standardEncrypt',
   },
+  documentType?: BTPArtifactType,
 ) => {
+  const invalid = documentTypeError(payload, documentType);
+  if (invalid) throw invalid;
   const aesKey = crypto.randomBytes(32); // 256-bit AES key
   const iv = crypto.randomBytes(12); // 96-bit IV (recommended for GCM)
   const algorithm: EncryptionAlgorithmType = options.algorithm;
@@ -72,10 +97,17 @@ export const encryptBtpPayload = (
   };
 };
 
+/**
+ * Decrypts a document with the receiver's key. Given `documentType`, the
+ * decrypted document is checked against that type, and an invalid one is
+ * returned as a `BTP_ERROR_VALIDATION` error. Without it, nothing is checked:
+ * a direct caller validates the document itself. `decryptVerify` always does.
+ */
 export const decryptBtpPayload = <T = unknown>(
   payload: unknown = '',
   encryption: BTPEncryption,
   receiverPrivPem: string,
+  documentType?: BTPArtifactType,
 ): { data?: T; error?: BTPErrorException } => {
   if (encryption.algorithm !== 'aes-256-gcm') {
     return {
@@ -107,10 +139,10 @@ export const decryptBtpPayload = <T = unknown>(
     decryptedPayload += decipher.final('utf8');
     assertStrictJson(decryptedPayload);
 
-    return {
-      data: JSON.parse(decryptedPayload),
-      error: undefined,
-    };
+    const data = JSON.parse(decryptedPayload);
+    const invalid = documentTypeError(data, documentType);
+    if (invalid) return { data: undefined, error: invalid };
+    return { data, error: undefined };
   } catch (err: unknown) {
     return { data: undefined, error: decryptionError(err) };
   }
@@ -124,6 +156,7 @@ export const decryptBtpPayloadWithDecrypter = async <T = unknown>(
   payload: unknown = '',
   encryption: BTPEncryption,
   decrypter: Decrypter,
+  documentType?: BTPArtifactType,
 ): Promise<{ data?: T; error?: BTPErrorException }> => {
   if (encryption.algorithm !== 'aes-256-gcm') {
     return {
@@ -143,10 +176,10 @@ export const decryptBtpPayloadWithDecrypter = async <T = unknown>(
     const decryptedPayload = Buffer.from(plaintext).toString('utf8');
     assertStrictJson(decryptedPayload);
 
-    return {
-      data: JSON.parse(decryptedPayload),
-      error: undefined,
-    };
+    const data = JSON.parse(decryptedPayload);
+    const invalid = documentTypeError(data, documentType);
+    if (invalid) return { data: undefined, error: invalid };
+    return { data, error: undefined };
   } catch (err: unknown) {
     return { data: undefined, error: decryptionError(err) };
   }
@@ -362,21 +395,11 @@ export function generateUserToken(
     throw new BTPErrorException({ message: 'Token length must be between 8 and 24 characters.' });
   }
 
-  // Combine identity + high-resolution timestamp + entropy
-  const entropyInput = userIdentity + performance.now().toString() + randomBytes(4).toString('hex');
+  // Every character drawn on its own from the operating system's random source, without bias: 12 characters from
+  // the default 32 are 60 bits. The identity and a timestamp add nothing an attacker does not know, so neither is
+  // used; `userIdentity` stays in the signature for the callers that pass it.
+  let token = '';
+  for (let i = 0; i < length; i++) token += charactersFrom[crypto.randomInt(charactersFrom.length)];
 
-  const hash = createHash('sha256');
-  hash.update(entropyInput);
-  const digest = hash.digest();
-
-  // Use a safe slice of the digest
-  const sliced = new Uint8Array(digest).slice(0, length);
-
-  // Map bytes to characters from the alphabet
-  const token = Array.from(sliced)
-    .map((byte) => charactersFrom[byte % charactersFrom.length])
-    .join('')
-    .toUpperCase(); // normalize casing
-
-  return token;
+  return token.toUpperCase(); // normalize casing
 }

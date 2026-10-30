@@ -274,20 +274,23 @@ export class BtpsServer {
     });
     socket.pipe(sizeGuard);
     const stream = sizeGuard.pipe(split2());
-    let fromIdentity: string | undefined = undefined;
-    let toIdentity: string | undefined = undefined;
-
-    const identityRef = {
-      update: (to: string, from: string) => {
-        toIdentity = to;
-        fromIdentity = from;
-      },
-      get: () => ({ to: toIdentity, from: fromIdentity }),
+    const createIdentityRef = () => {
+      let toIdentity: string | undefined = undefined;
+      let fromIdentity: string | undefined = undefined;
+      return {
+        update: (to: string, from: string) => {
+          toIdentity = to;
+          fromIdentity = from;
+        },
+        get: () => ({ to: toIdentity, from: fromIdentity }),
+      };
     };
+    // Who an error that belongs to no one line (a timeout, a socket error) is about: the last line's sender.
+    const connectionIdentity = createIdentityRef();
 
     // Each line is its own request: a connection carries several, and they may
-    // be in flight at once, so none may see another's data, id or answer.
-    const createContexts = () => {
+    // be in flight at once, so none may see another's data, id, sender or answer.
+    const createContexts = (identityRef = connectionIdentity) => {
       const context: BTPContext = {
         socket,
         remoteAddress: ipAddress,
@@ -331,7 +334,8 @@ export class BtpsServer {
     stream.on('data', async (line: string) => {
       if (!line.trim()) return;
 
-      const { reqCtx: parseReq, resCtx: parseRes } = createContexts();
+      const lineIdentity = createIdentityRef();
+      const { reqCtx: parseReq, resCtx: parseRes } = createContexts(lineIdentity);
       parseReq.rawPacket = line;
 
       inFlight++;
@@ -374,8 +378,8 @@ export class BtpsServer {
         parseReq.error = parseErrException;
 
         // Get identity info from the artifact
-        parseReq.getIdentity = identityRef.get;
-        await this.updateIdentityInfo(data, identityRef, ipAddress);
+        const { to, from } = await this.updateIdentityInfo(data, lineIdentity, ipAddress);
+        connectionIdentity.update(to, from);
 
         const afterParseResponseSent = await this.executeMiddleware(
           this.middlewareManager.getMiddleware('after', 'parsing'),
@@ -403,15 +407,16 @@ export class BtpsServer {
           );
         }
 
+        // Awaited, so a failure is caught below and answered, and the line stays in flight until it is.
         if (data.type === 'control') {
-          return this.handleControl(data.artifact, {
+          return await this.handleControl(data.artifact, {
             req: parseReq,
             res: parseRes,
           });
         }
 
         if (data.type === 'identityLookup') {
-          return this.handleIdentityLookup(data.artifact, {
+          return await this.handleIdentityLookup(data.artifact, {
             req: parseReq,
             res: parseRes,
           });
@@ -428,13 +433,15 @@ export class BtpsServer {
         errorReq.error = error;
 
         console.error('[BtpsServer] Error', error.toJSON());
+        // The failure is this line's alone: answer it and keep the connection, and the other
+        // artifacts in flight on it. Only framing, socket, size and timeout failures end it.
         return await this.handleOnSocketError(
           error,
           {
             req: errorReq,
             res: parseRes,
           },
-          'end',
+          'answer',
         );
       } finally {
         inFlight--;
@@ -1453,7 +1460,8 @@ export class BtpsServer {
    *
    * @param error The encountered error
    * @param socket The TLS socket associated with the connection
-   * @param action 'destroy' (the default) tears the socket down at once; 'end' sends the error and closes gently
+   * @param action 'destroy' (the default) tears the socket down at once; 'end' sends the error and closes gently;
+   * 'answer' sends the error and leaves the connection open
    */
   private async handleOnSocketError(
     error: BTPErrorException,
@@ -1461,7 +1469,7 @@ export class BtpsServer {
       req: BTPRequestCtx;
       res: BTPResponseCtx;
     },
-    action: BtpsErrorAction = 'destroy',
+    action: BtpsErrorAction | 'answer' = 'destroy',
   ) {
     const { req, res } = context;
     // Closing gently: read no more artifacts, but keep draining what the peer
@@ -1480,7 +1488,7 @@ export class BtpsServer {
     );
 
     this.onError?.(error);
-    this.sendBtpsError(req.socket, error, res.reqId, action);
+    this.sendBtpsError(req.socket, error, res.reqId, action === 'answer' ? undefined : action);
     if (action === 'destroy' && !req.socket.destroyed) {
       req.socket.destroy(); // Immediate teardown to prevent further resource usage
     }

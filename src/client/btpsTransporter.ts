@@ -231,7 +231,7 @@ export class BtpsTransporter {
    * @description The timeout is the timeout for the connection
    */
   protected createConnectionTimeout(connectionId: string, ttlSeconds?: number): NodeJS.Timeout {
-    return setTimeout(
+    const timeout = setTimeout(
       () => {
         const connection = this.connections.get(connectionId);
         // Idle only: a connection with a send waiting is given another TTL
@@ -243,6 +243,9 @@ export class BtpsTransporter {
       },
       (ttlSeconds ?? this.connectionTTLSeconds) * 1000,
     );
+    // An idle connection's timer never keeps a process alive: one with a send waiting does, through its socket.
+    timeout.unref();
+    return timeout;
   }
 
   /** Marks a connection used now, so its TTL counts from this moment. */

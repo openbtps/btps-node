@@ -568,7 +568,8 @@ const { publicKey, privateKey, fingerprint } = getBTPKeyPair({
 encryptBtpPayload(
   payload: unknown = '',
   receiverPubPem: string,
-  options?: BTPCryptoOptions['encryption']
+  options?: BTPCryptoOptions['encryption'],
+  documentType?: BTPArtifactType
 ): { data: string; encryption: BTPEncryption }
 ```
 
@@ -580,6 +581,7 @@ Encrypts a payload using AES-256-GCM and the recipient's public key. Returns the
 - `payload` (`unknown`, required): The data to encrypt (defaults to empty string).
 - `receiverPubPem` (`string`, required): Recipient's public key (PEM).
 - `options` (`BTPCryptoOptions['encryption']`, optional): Encryption algorithm and mode.
+- `documentType` (`BTPArtifactType`, optional, since 1.1.3): The artifact type the document travels as, for example `'BTPS_DOC'`. Given one, the document is checked against that type first, [limits](../protocol/specifications/limits.md) included, and an invalid one throws `BTP_ERROR_VALIDATION`. Without one, nothing is checked, and a direct caller checks the document itself; `signEncrypt` and the clients always check.
 
 **Returns:**
 
@@ -603,7 +605,8 @@ const encrypted = encryptBtpPayload({ foo: 'bar' }, receiverPublicKeyPem, {
 decryptBtpPayload<T = unknown>(
   payload: unknown = '',
   encryption: BTPEncryption,
-  receiverPrivPem: string
+  receiverPrivPem: string,
+  documentType?: BTPArtifactType
 ): { data?: T; error?: BTPErrorException }
 ```
 
@@ -615,6 +618,7 @@ Decrypts an AES-256-GCM encrypted payload using the receiver's private key and t
 - `payload` (`unknown`, required): The encrypted data to decrypt (base64 string or object, defaults to empty string).
 - `encryption` (`BTPEncryption`, required): Encryption metadata (algorithm, key, iv, type).
 - `receiverPrivPem` (`string`, required): Receiver's private key (PEM).
+- `documentType` (`BTPArtifactType`, optional, since 1.1.3): The artifact type the document travelled as. Given one, the decrypted document is checked against that type, [limits](../protocol/specifications/limits.md) included, and an invalid one is returned as a `BTP_ERROR_VALIDATION` error. Without one, nothing is checked, and a direct caller checks the document itself; `decryptVerify` always checks.
 
 **Returns:**
 
@@ -635,12 +639,13 @@ const { data, error } = decryptBtpPayload(encryptedData, encryptionMeta, receive
 decryptBtpPayloadWithDecrypter<T = unknown>(
   payload: unknown = '',
   encryption: BTPEncryption,
-  decrypter: Decrypter
+  decrypter: Decrypter,
+  documentType?: BTPArtifactType
 ): Promise<{ data?: T; error?: BTPErrorException }>
 ```
 
 **Description:**
-Decrypts like `decryptBtpPayload`, through a [Decrypter](./typesAndInterfaces.md#decrypter) that holds the receiver's private key elsewhere (a KMS, a device) instead of a PEM key. A failure inside the Decrypter is returned as the error. See [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter).
+Decrypts like `decryptBtpPayload`, through a [Decrypter](./typesAndInterfaces.md#decrypter) that holds the receiver's private key elsewhere (a KMS, a device) instead of a PEM key, and checks the document against `documentType` the same way when given one. A failure inside the Decrypter is returned as the error. See [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter).
 
 **Example:**
 
@@ -1487,6 +1492,23 @@ Error constant for an artifact the receiving server has nothing to take: no hand
 
 - `code`: `'BTP_ERROR_ARTIFACT_NOT_ACCEPTED'`
 - `message`: `'This server does not accept this kind of artifact'`
+
+---
+
+### BTP_ERROR_TEMPORARILY_UNAVAILABLE
+
+```ts
+const BTP_ERROR_TEMPORARILY_UNAVAILABLE: BTPError;
+```
+
+**Description:**
+Error constant for a trust or identity store to throw when it is briefly unreachable, such as a database failing over. The server answers it as `503`, so the sender sends the same artifact again later, instead of the `500` an unexpected error gets. Like every error on one artifact, it leaves the connection open for the others.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_TEMPORARILY_UNAVAILABLE'`
+- `message`: `'The server cannot take this artifact right now. Send it again later'`
+- `status`: `503`
 
 ---
 

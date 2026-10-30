@@ -79,6 +79,12 @@ export type BtpsAgentDoc =
 export type BtpsAgentCommandOptions = BTPCryptoOptions & {
   /** Required on `event.send`, refused elsewhere: the id of the `BTPS_DOC` artifact that delivered the invoice. */
   relatesTo?: string;
+  /**
+   * The id of the artifact the command sends, a UUID. Sending the same document again after a lost answer under
+   * the same id lets the receiver keep it once. Without it, a new id. An event always travels under its own id, so
+   * on `event.send` it may only be that id.
+   */
+  id?: string;
 };
 
 export type BtpsAgentCommandParams = {

@@ -1515,6 +1515,8 @@ interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFailureArt
 }
 ```
 
+`artifact` may also be a `BTPTrustRecord`, in an answer to `trust.fetch` (since 1.1.3); such an answer is typed `BTPQueryResult<BTPTrustRecord>`.
+
 ### BTPQueryResult
 
 Query result with pagination.

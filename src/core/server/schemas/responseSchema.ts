@@ -10,6 +10,10 @@ import { BtpSignatureSchema, BtpEncryptionSchema } from './schema.js';
 import { identitySchema } from './shared.js';
 import { BtpAuthResDocSchema, BtpIdentityResDocSchema } from './btpsDocsSchema.js';
 import { BtpTransporterArtifactSchema } from './artifacts/transporterSchema.js';
+import { boundedArray, boundedRecord } from './bounded.js';
+import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
+
+const { query, trustRecord, recordKeys } = BTPS_FIELD_LIMITS;
 
 // Schema for BTPStatus
 export const BtpStatusSchema = z.object({
@@ -42,9 +46,44 @@ export const BtpDeliveryFailureArtifactSchema = z.object({
   to: identitySchema,
 });
 
+// Schema for BTPTrustRecord: what `trust.fetch` may answer with, in place of the request's artifact
+export const BtpTrustRecordSchema = z
+  .object({
+    id: z.string(),
+    createdAt: z.string().datetime(),
+    senderId: identitySchema,
+    receiverId: identitySchema,
+    status: z.enum(['accepted', 'rejected', 'revoked', 'pending', 'blocked']),
+    // A pending trust is not decided yet: a store gives it an empty decidedBy and decidedAt.
+    decidedBy: z.string(),
+    decidedAt: z.union([z.string().datetime(), z.literal('')]),
+    expiresAt: z.string().datetime().optional(),
+    publicKeyBase64: z.string(),
+    publicKeyFingerprint: z.string(),
+    keyHistory: boundedArray(
+      z.object({
+        fingerprint: z.string(),
+        firstSeen: z.string().datetime(),
+        lastSeen: z.string().datetime(),
+      }),
+      trustRecord.keyHistory,
+    ),
+    privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']),
+    retryAfterDate: z.string().datetime().optional(),
+    metadata: boundedRecord(z.unknown(), recordKeys).optional(),
+  })
+  .refine((record) => record.status === 'pending' || record.decidedAt !== '', {
+    message: 'only a pending trust has no decidedAt',
+    path: ['decidedAt'],
+  });
+
 // Schema for BTPQueryResultEntry
 export const BtpQueryResultEntrySchema = z.object({
-  artifact: z.union([BtpTransporterArtifactSchema, BtpDeliveryFailureArtifactSchema]),
+  artifact: z.union([
+    BtpTransporterArtifactSchema,
+    BtpDeliveryFailureArtifactSchema,
+    BtpTrustRecordSchema,
+  ]),
   meta: z
     .object({
       seen: z.boolean().optional(),
@@ -56,7 +95,7 @@ export const BtpQueryResultEntrySchema = z.object({
 
 // Schema for BTPQueryResult
 export const BtpQueryResultSchema = z.object({
-  results: z.array(BtpQueryResultEntrySchema),
+  results: boundedArray(BtpQueryResultEntrySchema, query.results),
   cursor: z.string().optional(),
   total: z.number().optional(),
   hasNext: z.boolean().optional(),

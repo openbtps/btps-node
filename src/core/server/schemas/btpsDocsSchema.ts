@@ -9,9 +9,27 @@ import { z } from 'zod';
 import { CURRENCY_CODES } from '../constants/currency.js';
 import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
 import { BtpSignatureSchema, identitySchema } from './shared.js';
+import { boundedArray, boundedRecord } from './bounded.js';
 
-const { trustRequest, trustResponse, event, receipt, payslip, letter, documentId, referenceType } =
-  BTPS_FIELD_LIMITS;
+const {
+  trustRequest,
+  trustResponse,
+  event,
+  receipt,
+  payslip,
+  letter,
+  attachments,
+  references,
+  lineItems,
+  query,
+  agentInfoValues,
+  recordKeys,
+  documentId,
+  referenceType,
+} = BTPS_FIELD_LIMITS;
+
+/** The sending platform's own data: carried and signed, never read by the protocol. */
+const metadataSchema = boundedRecord(z.unknown(), recordKeys);
 
 /** A bare or prefixed code: `ordinary`, `au:penalty`. */
 const codeSchema = (max: number) =>
@@ -59,10 +77,10 @@ export const BtpDocReferenceSchema = z.object({
 // Schema for BTPStringQueryFilter
 export const BtpStringQueryFilterSchema = z.object({
   like: z.string().optional(),
-  in: z.array(z.string()).optional(),
+  in: boundedArray(z.string(), query.in).optional(),
   eq: z.string().optional(),
   ne: z.string().optional(),
-  notIn: z.array(z.string()).optional(),
+  notIn: boundedArray(z.string(), query.notIn).optional(),
   notLike: z.string().optional(),
 });
 
@@ -93,9 +111,12 @@ export const BtpTrustResDocSchema = z.object({
 });
 
 const BtpLineItemsSchema = z.object({
-  columns: z.array(z.string()),
+  columns: boundedArray(z.string(), lineItems.columns),
   // A money cell is integer minor units; a decimal (e.g. a quantity) is written as text.
-  rows: z.array(z.record(z.union([z.string(), z.number().int().safe()]))),
+  rows: boundedArray(
+    boundedRecord(z.union([z.string(), z.number().int().safe()]), lineItems.columns),
+    lineItems.rows,
+  ),
 });
 
 /** Who issued a document: the biller, the seller, the employer. */
@@ -105,7 +126,11 @@ const BtpIssuerSchema = z.object({
   phone: z.string().optional(),
   address: z.string().optional(),
   // Company and tax ids by namespaced key, for any country: { "au:abn": "51824753556" }.
-  identifiers: z.record(z.string().regex(/^[a-z0-9_]+:[a-z0-9_]+$/), z.string()).optional(),
+  identifiers: boundedRecord(
+    z.string(),
+    recordKeys,
+    z.string().regex(/^[a-z0-9_]+:[a-z0-9_]+$/),
+  ).optional(),
 });
 
 /**
@@ -131,17 +156,16 @@ export const BtpInvoiceDocSchema = z
       })
       .optional(),
     description: z.string().optional(),
-    attachments: z.array(BtpAttachmentSchema).optional(),
+    attachments: boundedArray(BtpAttachmentSchema, attachments).optional(),
     // Links to other documents, e.g. the invoice a corrected one replaces (`correction_of`).
-    references: z.array(BtpDocReferenceSchema).optional(),
+    references: boundedArray(BtpDocReferenceSchema, references).optional(),
     template: z
       .object({
         name: z.string(),
-        data: z.record(z.unknown()),
+        data: boundedRecord(z.unknown(), recordKeys),
       })
       .optional(),
-    // The sending platform's own data: carried and signed, never read by the protocol.
-    metadata: z.record(z.unknown()).optional(),
+    metadata: metadataSchema.optional(),
   })
   .strict();
 
@@ -202,7 +226,7 @@ export const BtpPayslipDocSchema = z
     payRate: z
       .object({ amount: BtpMoneySchema, unit: payslipCode, asAt: z.string().datetime() })
       .optional(),
-    earnings: z.array(
+    earnings: boundedArray(
       z.object({
         category: payslipCode,
         description: z.string().optional(),
@@ -211,17 +235,19 @@ export const BtpPayslipDocSchema = z
         quantity: decimalText.optional(),
         amount: BtpMoneySchema,
       }),
+      payslip.earnings,
     ),
-    deductions: z.array(
+    deductions: boundedArray(
       z.object({
         category: payslipCode,
         description: z.string().optional(),
         amount: BtpMoneySchema,
         payee: z.object({ name: z.string(), accountRef: z.string().optional() }).optional(),
       }),
+      payslip.deductions,
     ),
     // Retirement contributions (superannuation); a fund may not be assigned yet.
-    contributions: z.array(
+    contributions: boundedArray(
       z.object({
         category: payslipCode.optional(),
         amount: BtpMoneySchema,
@@ -233,26 +259,26 @@ export const BtpPayslipDocSchema = z
           })
           .optional(),
       }),
+      payslip.contributions,
     ),
-    leave: z
-      .array(
-        z.object({
-          category: payslipCode,
-          description: z.string().optional(),
-          unit: payslipCode, // `hours`, `days`, `weeks`
-          balance: decimalText,
-          accrued: decimalText.optional(),
-          taken: decimalText.optional(),
-        }),
-      )
-      .optional(),
+    leave: boundedArray(
+      z.object({
+        category: payslipCode,
+        description: z.string().optional(),
+        unit: payslipCode, // `hours`, `days`, `weeks`
+        balance: decimalText,
+        accrued: decimalText.optional(),
+        taken: decimalText.optional(),
+      }),
+      payslip.leave,
+    ).optional(),
     taxWithheld: BtpMoneySchema.optional(),
     gross: BtpMoneySchema,
     net: BtpMoneySchema,
-    yearToDate: z.record(BtpMoneySchema).optional(),
-    attachments: z.array(BtpAttachmentSchema).optional(),
-    references: z.array(BtpDocReferenceSchema).optional(),
-    metadata: z.record(z.unknown()).optional(),
+    yearToDate: boundedRecord(BtpMoneySchema, recordKeys).optional(),
+    attachments: boundedArray(BtpAttachmentSchema, attachments).optional(),
+    references: boundedArray(BtpDocReferenceSchema, references).optional(),
+    metadata: metadataSchema.optional(),
   })
   .strict();
 
@@ -273,9 +299,9 @@ export const BtpLetterDocSchema = z
       content: z.string().max(letter.content),
     }),
     issuer: BtpIssuerSchema.optional(),
-    attachments: z.array(BtpAttachmentSchema).max(letter.attachments).optional(),
-    references: z.array(BtpDocReferenceSchema).max(letter.references).optional(),
-    metadata: z.record(z.unknown()).optional(),
+    attachments: boundedArray(BtpAttachmentSchema, letter.attachments).optional(),
+    references: boundedArray(BtpDocReferenceSchema, letter.references).optional(),
+    metadata: metadataSchema.optional(),
   })
   .strict();
 
@@ -360,7 +386,10 @@ export const BtpAuthReqDocSchema = z.object({
   identity: identitySchema,
   authToken: z.string(),
   publicKey: z.string(),
-  agentInfo: z.record(z.union([z.string(), z.array(z.string())])).optional(),
+  agentInfo: boundedRecord(
+    z.union([z.string(), boundedArray(z.string(), agentInfoValues)]),
+    recordKeys,
+  ).optional(),
   keyProof: BtpSignatureSchema.optional(),
 });
 

@@ -21,6 +21,7 @@ import {
   decryptBtpPayloadWithDecrypter,
   PemSigner,
   PemDecrypter,
+  generateUserToken,
   type Signer,
   type SignerPublicKey,
   type Decrypter,
@@ -30,6 +31,7 @@ import {
   BTP_ERROR_CANONICAL_JSON,
   BTP_ERROR_DECRYPTION_UNINTENDED,
   BTP_ERROR_UNSUPPORTED_ENCRYPT,
+  BTP_ERROR_VALIDATION,
 } from '../error/constant.js';
 
 interface KmsSignatureVector {
@@ -335,6 +337,60 @@ describe('decryptBtpPayload reads the decrypted document strictly', () => {
   });
 });
 
+describe('the low-level encrypt and decrypt check a document only when given its type', () => {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  const trustRequest = {
+    id: 'trust-req-1',
+    name: 'Alice',
+    email: 'alice@example.com',
+    reason: 'Business partnership',
+    phone: '+1234567890',
+  };
+  // One field over its limit: the protocol refuses it.
+  const overLimit = { ...trustRequest, reason: 'r'.repeat(2001) };
+
+  it('encrypts a valid document of its type, and refuses an invalid one', () => {
+    const mode = { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' } as const;
+    expect(() => encryptBtpPayload(trustRequest, publicKey, mode, 'TRUST_REQ')).not.toThrow();
+    expect(() => encryptBtpPayload(overLimit, publicKey, mode, 'TRUST_REQ')).toThrow(
+      expect.objectContaining({ code: BTP_ERROR_VALIDATION.code }),
+    );
+  });
+
+  it('without a type, encrypts and decrypts any document, as before', () => {
+    const { data, encryption } = encryptBtpPayload(overLimit, publicKey);
+    expect(decryptBtpPayload(data, encryption, privateKey).data).toEqual(overLimit);
+  });
+
+  it('refuses a decrypted document that is not of its type, with a key or a Decrypter', async () => {
+    const { data, encryption } = encryptBtpPayload(overLimit, publicKey);
+
+    const withKey = decryptBtpPayload(data, encryption, privateKey, 'TRUST_REQ');
+    const withDecrypter = await decryptBtpPayloadWithDecrypter(
+      data,
+      encryption,
+      new PemDecrypter({ privateKey }),
+      'TRUST_REQ',
+    );
+
+    for (const result of [withKey, withDecrypter]) {
+      expect(result.data).toBeUndefined();
+      expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
+    }
+  });
+
+  it('decrypts a valid document of its type', () => {
+    const { data, encryption } = encryptBtpPayload(trustRequest, publicKey);
+    const result = decryptBtpPayload(data, encryption, privateKey, 'TRUST_REQ');
+    expect(result.error).toBeUndefined();
+    expect(result.data).toEqual(trustRequest);
+  });
+});
+
 describe('a key held elsewhere: Signer and Decrypter', () => {
   const keys = crypto.generateKeyPairSync('rsa', {
     modulusLength: 2048,
@@ -464,5 +520,36 @@ describe('the smallest key the SDK encrypts to', () => {
         expect.any(String),
       );
     }
+  });
+});
+
+describe('generateUserToken draws every character from the random source', () => {
+  it('asks the random source once per character, over the whole alphabet', () => {
+    const draws = vi.spyOn(crypto, 'randomInt');
+    try {
+      const token = generateUserToken('alice$saas.com', 12);
+      expect(token).toHaveLength(12);
+      expect(draws).toHaveBeenCalledTimes(12);
+      for (const [range] of draws.mock.calls) expect(range).toBe(32);
+    } finally {
+      draws.mockRestore();
+    }
+  });
+
+  it('gives the same identity at the same moment a different token each time', () => {
+    // It once drew 4 random bytes and hashed them with the identity and a timer: about 32 bits.
+    const tokens = new Set(Array.from({ length: 2000 }, () => generateUserToken('alice$saas.com')));
+    expect(tokens.size).toBe(2000);
+  });
+
+  it('uses every character of the alphabet, without bias towards its start', () => {
+    const counts = new Map<string, number>();
+    for (let i = 0; i < 4000; i++) {
+      for (const ch of generateUserToken('alice$saas.com', 8, 'ABCDEFGHIJKLMNOP'))
+        counts.set(ch, (counts.get(ch) ?? 0) + 1);
+    }
+    expect(counts.size).toBe(16);
+    // 32,000 draws over 16 characters: 2,000 each expected; a biased or broken draw is far outside this.
+    for (const n of counts.values()) expect(n).toBeGreaterThan(1700);
   });
 });
