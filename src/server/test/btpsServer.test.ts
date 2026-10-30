@@ -3643,6 +3643,81 @@ export default function () {
       const { signature, ...signed } = written;
       expect(signature && verifySignature(signed, signature, keys.publicKey).isValid).toBe(true);
     });
+
+    it('answers an error when the identity store throws, leaving no rejection unhandled', async () => {
+      class FailingIdentityStore extends OneIdentityStore {
+        override async getPublicKeyRecord(): Promise<IdentityPubKeyRecord> {
+          throw new Error('store unavailable');
+        }
+      }
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        identityStore: new FailingIdentityStore({
+          selector: 'btps1',
+          publicKey: 'identity-public-key',
+          keyType: 'rsa',
+          version: '1.0.0',
+          createdAt: new Date().toISOString(),
+        }),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        connectionTimeoutMs: 2000,
+      });
+      server['_parseAndValidateArtifact'] = vi.fn(
+        () =>
+          ({
+            data: {
+              type: 'identityLookup',
+              artifact: {
+                version: BTP_PROTOCOL_VERSION,
+                id: 'lookup-1',
+                issuedAt: new Date().toISOString(),
+                identity: 'alice$example.com',
+                from: 'bob$other.com',
+                hostSelector: 'btps1',
+              },
+            },
+          }) as never,
+      );
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      const unhandled: unknown[] = [];
+      const onUnhandled = (reason: unknown) => unhandled.push(reason);
+      process.on('unhandledRejection', onUnhandled);
+      const tcp = net.createServer((socket) =>
+        server['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+
+      try {
+        const answer = await new Promise<string>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const end = received.indexOf('\n');
+            if (end !== -1) {
+              client.end();
+              resolve(received.slice(0, end));
+            }
+          });
+          client.on('error', reject);
+          setTimeout(() => reject(new Error(`no answer: ${received}`)), 1000);
+          client.write('{}\n');
+        });
+        await new Promise((resolve) => setImmediate(resolve));
+
+        const written: BTPServerResponse = JSON.parse(answer);
+        expect(written.type).toBe('btps_error');
+        expect(written.reqId).toBe('lookup-1');
+        expect(written.status.code).toBe(500);
+        expect(unhandled).toEqual([]);
+      } finally {
+        process.off('unhandledRejection', onUnhandled);
+        tcp.close();
+      }
+    });
   });
 
   describe('Key Rotation Integration', () => {

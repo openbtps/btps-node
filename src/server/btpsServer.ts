@@ -407,15 +407,16 @@ export class BtpsServer {
           );
         }
 
+        // Awaited, so a failure is caught below and answered, and the line stays in flight until it is.
         if (data.type === 'control') {
-          return this.handleControl(data.artifact, {
+          return await this.handleControl(data.artifact, {
             req: parseReq,
             res: parseRes,
           });
         }
 
         if (data.type === 'identityLookup') {
-          return this.handleIdentityLookup(data.artifact, {
+          return await this.handleIdentityLookup(data.artifact, {
             req: parseReq,
             res: parseRes,
           });
