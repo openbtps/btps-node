@@ -273,6 +273,20 @@ describe('BtpsAgent', () => {
       expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
     });
 
+    it('refuses a document with a list over its limit, before signing or sending it', async () => {
+      const result = await agent.command('artifact.send', 'bob$company.com', {
+        type: 'invoice',
+        title: 'Invoice',
+        id: 'INV-1',
+        issuedAt: '2025-01-01T00:00:00.000Z',
+        totalAmount: { amount: 100, currency: 'AUD' },
+        lineItems: { columns: ['a'], rows: Array.from({ length: 10001 }, () => ({ a: 1 })) },
+      });
+
+      expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
+      expect(mockCrypto.signBtpPayload).not.toHaveBeenCalled();
+    });
+
     it('should reject missing document for trust.request', async () => {
       const result = await agent.command('trust.request', 'bob$company.com');
 

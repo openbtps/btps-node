@@ -139,6 +139,28 @@ describe('signEncrypt', () => {
     expect(mockCrypto.encryptBtpPayload).not.toHaveBeenCalled();
   });
 
+  it('refuses a list over its limit before encrypting it', async () => {
+    const overLimit = {
+      type: 'BTPS_DOC',
+      selector: 'btps1',
+      document: {
+        type: 'invoice',
+        title: 'Invoice',
+        id: 'INV-1',
+        issuedAt: '2025-01-01T00:00:00.000Z',
+        totalAmount: { amount: 100, currency: 'AUD' },
+        lineItems: { columns: ['a'], rows: Array.from({ length: 10001 }, () => ({ a: 1 })) },
+      },
+    };
+    const result = await signEncrypt('receiver$example.com', sender, overLimit, {
+      signature: { algorithmHash: 'sha256' },
+      encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+    });
+
+    expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+    expect(mockCrypto.encryptBtpPayload).not.toHaveBeenCalled();
+  });
+
   it('should handle payloads that do not require encryption', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await signEncrypt('receiver$example.com', sender, payload as any);

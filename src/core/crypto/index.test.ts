@@ -31,6 +31,7 @@ import {
   BTP_ERROR_CANONICAL_JSON,
   BTP_ERROR_DECRYPTION_UNINTENDED,
   BTP_ERROR_UNSUPPORTED_ENCRYPT,
+  BTP_ERROR_VALIDATION,
 } from '../error/constant.js';
 
 interface KmsSignatureVector {
@@ -333,6 +334,60 @@ describe('decryptBtpPayload reads the decrypted document strictly', () => {
       expect(result.data).toBeUndefined();
       expect(result.error?.code).toBe(BTP_ERROR_CANONICAL_JSON.code);
     }
+  });
+});
+
+describe('the low-level encrypt and decrypt check a document only when given its type', () => {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  const trustRequest = {
+    id: 'trust-req-1',
+    name: 'Alice',
+    email: 'alice@example.com',
+    reason: 'Business partnership',
+    phone: '+1234567890',
+  };
+  // One field over its limit: the protocol refuses it.
+  const overLimit = { ...trustRequest, reason: 'r'.repeat(2001) };
+
+  it('encrypts a valid document of its type, and refuses an invalid one', () => {
+    const mode = { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' } as const;
+    expect(() => encryptBtpPayload(trustRequest, publicKey, mode, 'TRUST_REQ')).not.toThrow();
+    expect(() => encryptBtpPayload(overLimit, publicKey, mode, 'TRUST_REQ')).toThrow(
+      expect.objectContaining({ code: BTP_ERROR_VALIDATION.code }),
+    );
+  });
+
+  it('without a type, encrypts and decrypts any document, as before', () => {
+    const { data, encryption } = encryptBtpPayload(overLimit, publicKey);
+    expect(decryptBtpPayload(data, encryption, privateKey).data).toEqual(overLimit);
+  });
+
+  it('refuses a decrypted document that is not of its type, with a key or a Decrypter', async () => {
+    const { data, encryption } = encryptBtpPayload(overLimit, publicKey);
+
+    const withKey = decryptBtpPayload(data, encryption, privateKey, 'TRUST_REQ');
+    const withDecrypter = await decryptBtpPayloadWithDecrypter(
+      data,
+      encryption,
+      new PemDecrypter({ privateKey }),
+      'TRUST_REQ',
+    );
+
+    for (const result of [withKey, withDecrypter]) {
+      expect(result.data).toBeUndefined();
+      expect(result.error?.code).toBe(BTP_ERROR_VALIDATION.code);
+    }
+  });
+
+  it('decrypts a valid document of its type', () => {
+    const { data, encryption } = encryptBtpPayload(trustRequest, publicKey);
+    const result = decryptBtpPayload(data, encryption, privateKey, 'TRUST_REQ');
+    expect(result.error).toBeUndefined();
+    expect(result.data).toEqual(trustRequest);
   });
 });
 

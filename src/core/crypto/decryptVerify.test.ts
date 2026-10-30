@@ -258,6 +258,20 @@ describe('decryptVerify', () => {
       const result = await opened({ decrypted: 'data' }, 'BTPS_DOC');
       expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
     });
+
+    it('is refused when a list is over its limit', async () => {
+      const invoice = {
+        type: 'invoice',
+        title: 'Invoice',
+        id: 'INV-1',
+        issuedAt: '2025-01-01T00:00:00.000Z',
+        totalAmount: { amount: 100, currency: 'AUD' },
+        lineItems: { columns: ['a'], rows: Array.from({ length: 10001 }, () => ({ a: 1 })) },
+      };
+      const result = await opened(invoice, 'BTPS_DOC');
+      expect(result.payload).toBeUndefined();
+      expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+    });
   });
 
   it('should handle payloads with delegation', async () => {
