@@ -21,6 +21,7 @@ import {
   decryptBtpPayloadWithDecrypter,
   PemSigner,
   PemDecrypter,
+  generateUserToken,
   type Signer,
   type SignerPublicKey,
   type Decrypter,
@@ -464,5 +465,36 @@ describe('the smallest key the SDK encrypts to', () => {
         expect.any(String),
       );
     }
+  });
+});
+
+describe('generateUserToken draws every character from the random source', () => {
+  it('asks the random source once per character, over the whole alphabet', () => {
+    const draws = vi.spyOn(crypto, 'randomInt');
+    try {
+      const token = generateUserToken('alice$saas.com', 12);
+      expect(token).toHaveLength(12);
+      expect(draws).toHaveBeenCalledTimes(12);
+      for (const [range] of draws.mock.calls) expect(range).toBe(32);
+    } finally {
+      draws.mockRestore();
+    }
+  });
+
+  it('gives the same identity at the same moment a different token each time', () => {
+    // It once drew 4 random bytes and hashed them with the identity and a timer: about 32 bits.
+    const tokens = new Set(Array.from({ length: 2000 }, () => generateUserToken('alice$saas.com')));
+    expect(tokens.size).toBe(2000);
+  });
+
+  it('uses every character of the alphabet, without bias towards its start', () => {
+    const counts = new Map<string, number>();
+    for (let i = 0; i < 4000; i++) {
+      for (const ch of generateUserToken('alice$saas.com', 8, 'ABCDEFGHIJKLMNOP'))
+        counts.set(ch, (counts.get(ch) ?? 0) + 1);
+    }
+    expect(counts.size).toBe(16);
+    // 32,000 draws over 16 characters: 2,000 each expected; a biased or broken draw is far outside this.
+    for (const n of counts.values()) expect(n).toBeGreaterThan(1700);
   });
 });

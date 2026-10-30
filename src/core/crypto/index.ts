@@ -5,8 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import crypto, { constants, createHash, randomBytes } from 'crypto';
-import { performance } from 'perf_hooks';
+import crypto, { constants } from 'crypto';
 import {
   BTPCryptoOptions,
   BTPEncryption,
@@ -362,21 +361,11 @@ export function generateUserToken(
     throw new BTPErrorException({ message: 'Token length must be between 8 and 24 characters.' });
   }
 
-  // Combine identity + high-resolution timestamp + entropy
-  const entropyInput = userIdentity + performance.now().toString() + randomBytes(4).toString('hex');
+  // Every character drawn on its own from the operating system's random source, without bias: 12 characters from
+  // the default 32 are 60 bits. The identity and a timestamp add nothing an attacker does not know, so neither is
+  // used; `userIdentity` stays in the signature for the callers that pass it.
+  let token = '';
+  for (let i = 0; i < length; i++) token += charactersFrom[crypto.randomInt(charactersFrom.length)];
 
-  const hash = createHash('sha256');
-  hash.update(entropyInput);
-  const digest = hash.digest();
-
-  // Use a safe slice of the digest
-  const sliced = new Uint8Array(digest).slice(0, length);
-
-  // Map bytes to characters from the alphabet
-  const token = Array.from(sliced)
-    .map((byte) => charactersFrom[byte % charactersFrom.length])
-    .join('')
-    .toUpperCase(); // normalize casing
-
-  return token;
+  return token.toUpperCase(); // normalize casing
 }
