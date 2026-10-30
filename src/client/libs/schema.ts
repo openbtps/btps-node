@@ -46,7 +46,10 @@ export const BtpsAgentCommandSchema = z.object({
   actionType: BtpsAgentActionTypeSchema,
   to: identitySchema,
   document: BtpsAgentCommandDocumentSchema.optional(),
-  options: BtpCryptoOptionsSchema.extend({ relatesTo: z.string().min(1).optional() }).optional(),
+  options: BtpCryptoOptionsSchema.extend({
+    relatesTo: z.string().min(1).optional(),
+    id: z.string().uuid().optional(),
+  }).optional(),
 });
 
 // Schema for validating the complete command call - use server's validation logic
@@ -56,7 +59,21 @@ export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
     message: 'Document is required for this action type or document format is invalid',
     path: ['document'],
   },
-).refine((data) => (data.actionType === 'event.send') === (data.options?.relatesTo !== undefined), {
-  message: 'options.relatesTo is required on event.send and only there',
-  path: ['options', 'relatesTo'],
-});
+)
+  .refine(
+    (data) => (data.actionType === 'event.send') === (data.options?.relatesTo !== undefined),
+    {
+      message: 'options.relatesTo is required on event.send and only there',
+      path: ['options', 'relatesTo'],
+    },
+  )
+  .refine(
+    (data) =>
+      data.actionType !== 'event.send' ||
+      data.options?.id === undefined ||
+      data.options.id === (data.document as { id?: unknown } | undefined)?.id,
+    {
+      message: 'an event travels under its own id: options.id may only be that id',
+      path: ['options', 'id'],
+    },
+  );
