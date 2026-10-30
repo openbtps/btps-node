@@ -190,6 +190,18 @@ describe('BtpsTransporter', () => {
         expect(transporter.getTotalConnections()).toBe(1);
       });
 
+      it('never keeps a process alive with an idle connection timer', () => {
+        // Without unref() a process that ends without destroy() waits out the TTL (300 s by default).
+        class TimerTransporter extends BtpsTransporter {
+          timerFor(id: string): NodeJS.Timeout {
+            return this.createConnectionTimeout(id, 300);
+          }
+        }
+        const timer = new TimerTransporter({ maxConnections: 1 }).timerFor('alice$example.com');
+        expect(timer.hasRef()).toBe(false);
+        clearTimeout(timer);
+      });
+
       it('should throw error for invalid identity', async () => {
         try {
           await transporter.registerConnection('invalid-identity');
