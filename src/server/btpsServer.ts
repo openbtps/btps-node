@@ -433,13 +433,15 @@ export class BtpsServer {
         errorReq.error = error;
 
         console.error('[BtpsServer] Error', error.toJSON());
+        // The failure is this line's alone: answer it and keep the connection, and the other
+        // artifacts in flight on it. Only framing, socket, size and timeout failures end it.
         return await this.handleOnSocketError(
           error,
           {
             req: errorReq,
             res: parseRes,
           },
-          'end',
+          'answer',
         );
       } finally {
         inFlight--;
@@ -1458,7 +1460,8 @@ export class BtpsServer {
    *
    * @param error The encountered error
    * @param socket The TLS socket associated with the connection
-   * @param action 'destroy' (the default) tears the socket down at once; 'end' sends the error and closes gently
+   * @param action 'destroy' (the default) tears the socket down at once; 'end' sends the error and closes gently;
+   * 'answer' sends the error and leaves the connection open
    */
   private async handleOnSocketError(
     error: BTPErrorException,
@@ -1466,7 +1469,7 @@ export class BtpsServer {
       req: BTPRequestCtx;
       res: BTPResponseCtx;
     },
-    action: BtpsErrorAction = 'destroy',
+    action: BtpsErrorAction | 'answer' = 'destroy',
   ) {
     const { req, res } = context;
     // Closing gently: read no more artifacts, but keep draining what the peer
@@ -1485,7 +1488,7 @@ export class BtpsServer {
     );
 
     this.onError?.(error);
-    this.sendBtpsError(req.socket, error, res.reqId, action);
+    this.sendBtpsError(req.socket, error, res.reqId, action === 'answer' ? undefined : action);
     if (action === 'destroy' && !req.socket.destroyed) {
       req.socket.destroy(); // Immediate teardown to prevent further resource usage
     }

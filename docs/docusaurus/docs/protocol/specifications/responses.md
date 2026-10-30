@@ -102,7 +102,7 @@ The code tells a sender whether to send the same artifact again:
 | **413** | Artifact over the server's size limit                                                                                                                                          | No; split it across documents |
 | **429** | Too Many Requests: rate limit exceeded                                                                                                                                         | Yes, later                    |
 | **500** | Internal Server Error, including a receiving handler that failed                                                                                                               | Yes, later                    |
-| **503** | Service Unavailable: the server accepts no artifact of this kind                                                                                                               | Yes, later                    |
+| **503** | Service Unavailable: the server accepts no artifact of this kind, or it is briefly unable to take one (`BTP_ERROR_TEMPORARILY_UNAVAILABLE`)                                    | Yes, later                    |
 
 ### What an Error Tells the Sender
 

@@ -325,5 +325,7 @@ The waits are a ceiling, not a hold: a receiver that answers in milliseconds kee
 - Artifact issued outside the server's time window: Reject with the window in the message (`BTP_ERROR_ARTIFACT_TIME_WINDOW`, for example `Artifact was not issued within the time window of this server: 300 seconds`), keeping the connection open
 - Artifact over the server's size limit: Reject with the limit in the message (`BTP_ERROR_ARTIFACT_TOO_LARGE`, for example `Artifact exceeds the size limit of this server: 5120 KB`) and close the connection
 - Server errors: Return 500 Internal Server Error, with a generic message and never the error's own detail
+- A store briefly unreachable: Return 503 (`BTP_ERROR_TEMPORARILY_UNAVAILABLE`), so the sender sends again later
 - Rate limiting: Return 429 Too Many Requests
+- An error on one artifact is that artifact's alone: the receiver answers it and keeps the connection, and every other artifact in flight on it. Only the connection's own failures end it: unreadable framing, a socket error, the size limit, the idle timeout
 - Every error carries its BTPS code in `status.error`; see [Status Codes](./responses.md#status-codes) for each code, whether to send again, and what an error never reveals

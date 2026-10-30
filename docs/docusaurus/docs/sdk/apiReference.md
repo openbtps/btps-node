@@ -1490,6 +1490,23 @@ Error constant for an artifact the receiving server has nothing to take: no hand
 
 ---
 
+### BTP_ERROR_TEMPORARILY_UNAVAILABLE
+
+```ts
+const BTP_ERROR_TEMPORARILY_UNAVAILABLE: BTPError;
+```
+
+**Description:**
+Error constant for a trust or identity store to throw when it is briefly unreachable, such as a database failing over. The server answers it as `503`, so the sender sends the same artifact again later, instead of the `500` an unexpected error gets. Like every error on one artifact, it leaves the connection open for the others.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_TEMPORARILY_UNAVAILABLE'`
+- `message`: `'The server cannot take this artifact right now. Send it again later'`
+- `status`: `503`
+
+---
+
 ### BTP_ERROR_VERSION_UNSUPPORTED
 
 ```ts
