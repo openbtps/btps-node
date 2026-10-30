@@ -274,20 +274,23 @@ export class BtpsServer {
     });
     socket.pipe(sizeGuard);
     const stream = sizeGuard.pipe(split2());
-    let fromIdentity: string | undefined = undefined;
-    let toIdentity: string | undefined = undefined;
-
-    const identityRef = {
-      update: (to: string, from: string) => {
-        toIdentity = to;
-        fromIdentity = from;
-      },
-      get: () => ({ to: toIdentity, from: fromIdentity }),
+    const createIdentityRef = () => {
+      let toIdentity: string | undefined = undefined;
+      let fromIdentity: string | undefined = undefined;
+      return {
+        update: (to: string, from: string) => {
+          toIdentity = to;
+          fromIdentity = from;
+        },
+        get: () => ({ to: toIdentity, from: fromIdentity }),
+      };
     };
+    // Who an error that belongs to no one line (a timeout, a socket error) is about: the last line's sender.
+    const connectionIdentity = createIdentityRef();
 
     // Each line is its own request: a connection carries several, and they may
-    // be in flight at once, so none may see another's data, id or answer.
-    const createContexts = () => {
+    // be in flight at once, so none may see another's data, id, sender or answer.
+    const createContexts = (identityRef = connectionIdentity) => {
       const context: BTPContext = {
         socket,
         remoteAddress: ipAddress,
@@ -331,7 +334,8 @@ export class BtpsServer {
     stream.on('data', async (line: string) => {
       if (!line.trim()) return;
 
-      const { reqCtx: parseReq, resCtx: parseRes } = createContexts();
+      const lineIdentity = createIdentityRef();
+      const { reqCtx: parseReq, resCtx: parseRes } = createContexts(lineIdentity);
       parseReq.rawPacket = line;
 
       inFlight++;
@@ -374,8 +378,8 @@ export class BtpsServer {
         parseReq.error = parseErrException;
 
         // Get identity info from the artifact
-        parseReq.getIdentity = identityRef.get;
-        await this.updateIdentityInfo(data, identityRef, ipAddress);
+        const { to, from } = await this.updateIdentityInfo(data, lineIdentity, ipAddress);
+        connectionIdentity.update(to, from);
 
         const afterParseResponseSent = await this.executeMiddleware(
           this.middlewareManager.getMiddleware('after', 'parsing'),

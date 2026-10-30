@@ -3294,6 +3294,70 @@ export default function () {
         tcp.close();
       }
     });
+
+    it('gives each artifact the sender it names, not the first sender on the connection', async () => {
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        connectionTimeoutMs: 2000,
+      });
+      // Each line parses to an artifact from the sender the line names.
+      btps['_parseAndValidateArtifact'] = vi.fn((line: string) => {
+        const { id, from } = JSON.parse(line) as { id: string; from: string };
+        return {
+          data: {
+            type: 'transporter',
+            artifact: { id, from, to: 'bob$example.com', version: BTP_PROTOCOL_VERSION },
+          },
+        } as never;
+      });
+      const seen: { to?: string; from?: string }[] = [];
+      btps['middlewareManager']['middleware'] = [
+        {
+          phase: 'after',
+          step: 'parsing',
+          handler: async (req, res) => {
+            seen.push(req.getIdentity());
+            res.sendRes({
+              ...btps.prepareBtpsResponse({ ok: true, message: 'seen', code: 200 }),
+              type: 'btps_response',
+            });
+          },
+        },
+      ];
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            if (received.split('\n').filter(Boolean).length === 2) {
+              client.end();
+              resolve();
+            }
+          });
+          client.on('error', reject);
+          setTimeout(() => reject(new Error(`no second answer: ${received}`)), 1000);
+          client.write(`{"id":"first","from":"alice$example.com"}\n`);
+          setTimeout(() => client.write(`{"id":"second","from":"carol$example.com"}\n`), 100);
+        });
+
+        expect(seen).toEqual([
+          { to: 'bob$example.com', from: 'alice$example.com' },
+          { to: 'bob$example.com', from: 'carol$example.com' },
+        ]);
+      } finally {
+        tcp.close();
+      }
+    });
   });
 
   describe('closing gently after an unexpected error', () => {
