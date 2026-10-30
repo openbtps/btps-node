@@ -4,6 +4,58 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.3] — 2026-10-30 (alpha)
+
+A patch release. Every document a compliant sender sent before is still
+valid; what is new only adds.
+
+### Security
+
+- **A crafted document can no longer exhaust a receiver's memory**
+  (GHSA-mrhx-c7xc-m3w5, in zod 3). zod makes one issue for every invalid
+  entry of a list, with no cap, and keeps reading after a `.max()` fails: one
+  5 MB document cost 2 GB to check. Every list and record in a document now
+  has a protocol limit, far above any real document, and is checked before
+  zod reads inside it. Over its limit, a list is refused with one issue; a
+  list of more than 100 entries stops at its first invalid entry. Both crafted
+  documents now cost one issue and under a megabyte. The limits are on the
+  [Limits](https://www.openbtps.org/docs/protocol/specifications/limits) page and
+  in `BTPS_FIELD_LIMITS`.
+- **`generateUserToken` draws every character from a secure random source**,
+  about 60 bits for a 12-character token, where it had about 32.
+
+### Added
+
+- `encryptBtpPayload`, `decryptBtpPayload` and
+  `decryptBtpPayloadWithDecrypter` take an optional document type. Given one,
+  they check the document against it, limits included. Without one they
+  behave as before.
+- `BtpsAgent.command` takes `options.id`, a UUID: the artifact is sent under
+  it, so a document sent again after a lost answer keeps its id. On
+  `event.send` it may only be the event's own id.
+- `trust.fetch` may answer with trust records (`BTPTrustRecord`), which now
+  have a schema, as well as with the requests' `TRUST_REQ` artifacts.
+- `BTP_ERROR_TEMPORARILY_UNAVAILABLE` (503), for a trust or identity store to
+  throw when it is briefly unreachable, so a sender sends again later.
+
+### Fixed
+
+- **An error on one artifact no longer ends its connection**, and every other
+  artifact in flight on it. The server answers that artifact's error and
+  keeps the connection; only framing, socket, size and timeout failures end
+  it.
+- **Each artifact on a connection is attributed to its own sender.**
+  `getIdentity()` returned the first artifact's sender for every later one,
+  in middleware, rate limits and logs.
+- **An identity lookup whose store throws is answered with an error**, where
+  it was left unanswered as an unhandled rejection.
+- **A client keeps an identity lookup's answer when the host closes the
+  connection first**, as it does right after answering. The lookup failed
+  with `BTP_ERROR_CONNECTION_CLOSED` whenever the close arrived while the
+  answer was being verified.
+- **A `BtpsTransporter`'s idle connections no longer keep a process alive**
+  for up to five minutes after its work is done.
+
 ## [1.1.2] — 2026-10-19 (alpha)
 
 A patch release: the protocol and the API are unchanged.
@@ -190,6 +242,7 @@ of an exchange must upgrade together.
 - The default middleware counts an identity's rate limit after signature
   verification. Rate limiting is off unless a provider enables it.
 
+[1.1.3]: https://github.com/openbtps/btps-node/releases/tag/v1.1.3
 [1.1.2]: https://github.com/openbtps/btps-node/releases/tag/v1.1.2
 [1.1.1]: https://github.com/openbtps/btps-node/releases/tag/v1.1.1
 [1.1.0]: https://github.com/openbtps/btps-node/releases/tag/v1.1.0

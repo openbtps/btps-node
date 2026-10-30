@@ -81,8 +81,9 @@ has a limit.
 ### Documents (`BTPS_DOC`)
 
 Every document type, invoice, receipt, payslip and letter, limits its
-identifiers. Its content (line items, description, attachments) is bounded by
-the [artifact size](#artifact-size) unless listed below.
+identifiers. How many entries its lists may have is under
+[Lists and records](#lists-and-records). Its other content, such as a
+description, is bounded by the [artifact size](#artifact-size).
 
 | Field               | Limit |
 | ------------------- | ----: |
@@ -109,12 +110,44 @@ deduction, contribution or leave, a leave `unit`, `rateUnit`, and
 
 ### Letter
 
-| Field          |                  Limit |
-| -------------- | ---------------------: |
-| `title`        |                    200 |
-| `body.content` |                100,000 |
-| `attachments`  | 10 (count, not length) |
-| `references`   | 20 (count, not length) |
+| Field          |   Limit |
+| -------------- | ------: |
+| `title`        |     200 |
+| `body.content` | 100,000 |
+
+## Lists and records
+
+How many entries a list may have, and how many keys a record. These are
+counts, not lengths. They are far above any real document, and are there so
+that no message, however crafted, costs a receiver more than a bounded
+amount of memory to check. Since 1.1.3.
+
+| Field                                                      |    Limit |
+| ---------------------------------------------------------- | -------: |
+| `lineItems.rows` (invoice, receipt)                        |   10,000 |
+| `lineItems.columns`                                        |       50 |
+| cells in one `lineItems` row                               |       50 |
+| `attachments` (invoice, receipt, payslip)                  |       10 |
+| `references` (invoice, receipt, payslip)                   |       20 |
+| `attachments` (letter)                                     |       10 |
+| `references` (letter)                                      |       20 |
+| payslip `earnings`, `deductions`, `contributions`, `leave` | 200 each |
+| query filter `in`, `notIn`                                 |    1,000 |
+| agent `ids` (to delete, cancel or mark seen)               |    1,000 |
+| query `results` (one page)                                 |    1,000 |
+| a trust record's `keyHistory`                              |    1,000 |
+| `agentInfo` list values                                    |       50 |
+| keys of any record                                         |      100 |
+
+A record is any object whose keys the sender chooses: `metadata`,
+`issuer.identifiers`, a payslip's `yearToDate`, `template.data` and
+`agentInfo`.
+
+A list over its limit is refused with one issue naming it, before any entry
+in it is read. A list of more than 100 entries is checked one entry at a
+time, and the check stops at the first invalid entry, naming where it is, for
+example `lineItems.rows[4812].c3`. A shorter list is checked whole, and every
+invalid entry is reported.
 
 ### Encrypted documents
 
@@ -127,6 +160,12 @@ read it:
 
 The servers in between see only ciphertext, which the artifact size bounds.
 
+`signEncrypt`, `decryptVerify`, `BtpsClient`, `BtpsTransporter` and
+`BtpsAgent` always check. The low-level `encryptBtpPayload` and
+`decryptBtpPayload` check only when given the document's artifact type as
+their last argument, for example `'BTPS_DOC'`; a direct caller that does not
+give one checks the document itself.
+
 ### In code
 
 The same numbers are exported, so a platform can set its form fields from
@@ -138,6 +177,7 @@ import { BTPS_FIELD_LIMITS } from '@btps/sdk/server';
 BTPS_FIELD_LIMITS.trustRequest.reason; // 2000
 BTPS_FIELD_LIMITS.documentId; // 100
 BTPS_FIELD_LIMITS.letter.content; // 100000
+BTPS_FIELD_LIMITS.lineItems.rows; // 10000
 ```
 
 ## Receiver settings
