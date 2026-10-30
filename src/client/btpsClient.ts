@@ -932,15 +932,24 @@ export class BtpsClient {
         socket.write(JSON.stringify(identityLookupRequest) + '\n');
 
         let received = '';
+        // Once the whole answer is read, the host closing the connection no longer fails the lookup.
+        let answerRead = false;
         socket.on('data', async (chunk) => {
           received += chunk.toString();
           const end = received.indexOf('\n');
           if (end === -1) return;
           socket.removeAllListeners('data');
+          answerRead = true;
+          try {
+            await verifyAnswer(received.slice(0, end));
+          } catch (error) {
+            fail(transformToBTPErrorException(error));
+          }
+        });
 
+        const verifyAnswer = async (line: string) => {
           let msg: BTPServerResponse;
           try {
-            const line = received.slice(0, end);
             assertStrictJson(line);
             msg = JSON.parse(line);
           } catch (error) {
@@ -1023,11 +1032,16 @@ export class BtpsClient {
             },
             error: undefined,
           });
+        };
+        socket.on('error', (err) => {
+          if (!answerRead) fail(transformToBTPErrorException(err));
         });
-        socket.on('error', (err) => fail(transformToBTPErrorException(err)));
-        socket.on('close', () =>
-          fail(new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, { cause: 'connection closed' })),
-        );
+        socket.on('close', () => {
+          if (!answerRead)
+            fail(
+              new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, { cause: 'connection closed' }),
+            );
+        });
       });
     } catch (error) {
       return await this.buildClientErrorResponse(transformToBTPErrorException(error));
