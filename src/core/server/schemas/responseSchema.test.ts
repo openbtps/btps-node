@@ -182,6 +182,20 @@ describe('BtpServerResponseSchema', () => {
       expect(validate(BtpServerResponseSchema, answerWith(unknownStatus)).success).toBe(false);
       expect(validate(BtpServerResponseSchema, answerWith(noKey)).success).toBe(false);
     });
+
+    it('takes a pending trust, not yet decided, and only a pending one, without a decision', () => {
+      const undecided = { decidedBy: '', decidedAt: '' };
+
+      expect(
+        validate(
+          BtpServerResponseSchema,
+          answerWith({ ...trustRecord, ...undecided, status: 'pending' }),
+        ).success,
+      ).toBe(true);
+      expect(
+        validate(BtpServerResponseSchema, answerWith({ ...trustRecord, ...undecided })).success,
+      ).toBe(false);
+    });
   });
 
   it('should validate a signed identity lookup answer', () => {

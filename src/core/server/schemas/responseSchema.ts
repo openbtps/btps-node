@@ -47,29 +47,35 @@ export const BtpDeliveryFailureArtifactSchema = z.object({
 });
 
 // Schema for BTPTrustRecord: what `trust.fetch` may answer with, in place of the request's artifact
-export const BtpTrustRecordSchema = z.object({
-  id: z.string(),
-  createdAt: z.string().datetime(),
-  senderId: identitySchema,
-  receiverId: identitySchema,
-  status: z.enum(['accepted', 'rejected', 'revoked', 'pending', 'blocked']),
-  decidedBy: z.string(),
-  decidedAt: z.string().datetime(),
-  expiresAt: z.string().datetime().optional(),
-  publicKeyBase64: z.string(),
-  publicKeyFingerprint: z.string(),
-  keyHistory: boundedArray(
-    z.object({
-      fingerprint: z.string(),
-      firstSeen: z.string().datetime(),
-      lastSeen: z.string().datetime(),
-    }),
-    trustRecord.keyHistory,
-  ),
-  privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']),
-  retryAfterDate: z.string().datetime().optional(),
-  metadata: boundedRecord(z.unknown(), recordKeys).optional(),
-});
+export const BtpTrustRecordSchema = z
+  .object({
+    id: z.string(),
+    createdAt: z.string().datetime(),
+    senderId: identitySchema,
+    receiverId: identitySchema,
+    status: z.enum(['accepted', 'rejected', 'revoked', 'pending', 'blocked']),
+    // A pending trust is not decided yet: a store gives it an empty decidedBy and decidedAt.
+    decidedBy: z.string(),
+    decidedAt: z.union([z.string().datetime(), z.literal('')]),
+    expiresAt: z.string().datetime().optional(),
+    publicKeyBase64: z.string(),
+    publicKeyFingerprint: z.string(),
+    keyHistory: boundedArray(
+      z.object({
+        fingerprint: z.string(),
+        firstSeen: z.string().datetime(),
+        lastSeen: z.string().datetime(),
+      }),
+      trustRecord.keyHistory,
+    ),
+    privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']),
+    retryAfterDate: z.string().datetime().optional(),
+    metadata: boundedRecord(z.unknown(), recordKeys).optional(),
+  })
+  .refine((record) => record.status === 'pending' || record.decidedAt !== '', {
+    message: 'only a pending trust has no decidedAt',
+    path: ['decidedAt'],
+  });
 
 // Schema for BTPQueryResultEntry
 export const BtpQueryResultEntrySchema = z.object({
