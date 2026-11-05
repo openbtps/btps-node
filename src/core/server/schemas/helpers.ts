@@ -7,7 +7,9 @@
 
 import {
   AGENT_ACTIONS_REQUIRING_DOCUMENT,
+  AGENT_TRANSPORTER_ACTIONS,
   MIN_SUPPORTED_VERSION,
+  artifactVersion,
   isVersionBelow,
 } from '../constants/index.js';
 import { z } from 'zod';
@@ -222,9 +224,17 @@ export const validateAgentDocument = (
     return false;
   }
 
-  // If document is provided, validate it against the appropriate schema for the action type
+  // If document is provided, validate it against the appropriate schema for the action type.
+  // A document a device sends is checked under the version it will be stamped with, so what
+  // 1.1 can say goes as 1.1 says it.
   if (document) {
-    const expectedSchema = processBtpDocSchemaForAgent(action);
+    const sendsAs =
+      action in AGENT_TRANSPORTER_ACTIONS
+        ? AGENT_TRANSPORTER_ACTIONS[action as keyof typeof AGENT_TRANSPORTER_ACTIONS]
+        : undefined;
+    const expectedSchema = sendsAs
+      ? processBtpDocSchema(sendsAs, artifactVersion({ type: sendsAs, document }))
+      : processBtpDocSchemaForAgent(action);
     if (expectedSchema) {
       const documentValidation = expectedSchema.safeParse(document);
       if (!documentValidation.success) {

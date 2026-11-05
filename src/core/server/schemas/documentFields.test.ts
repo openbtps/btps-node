@@ -17,6 +17,8 @@ import { generateKeyPairSync } from 'crypto';
 import { BtpTransporterArtifactSchema } from './artifacts/transporterSchema.js';
 import { decryptedDocumentProblem } from './helpers.js';
 import { BtpsAgent } from '../../../client/btpsAgent.js';
+import { BtpsAgentCommandCallSchema } from '../../../client/libs/schema.js';
+import { artifactVersion } from '../constants/index.js';
 import type { BTPInvoiceDoc } from '../../../server/types.js';
 
 const issuedAt = new Date().toISOString();
@@ -131,5 +133,44 @@ describe('what a device stamps', () => {
     expect(error).toBeUndefined();
     expect(payload?.version).toBe('1.2.0');
     expect(payload?.document).toMatchObject({ version: '1.2.0' });
+  });
+});
+
+describe('what a 1.1 device could send, sent from a 1.2 device', () => {
+  const sendable = (document: object) =>
+    BtpsAgentCommandCallSchema.safeParse({
+      actionType: 'artifact.send',
+      to: 'pay$client.example',
+      document,
+    }).success;
+  const longNote = { ...invoice, description: 'a'.repeat(5001) };
+  const ownTemplate = {
+    ...invoice,
+    template: {
+      name: 'acme/classic',
+      data: { logo: 'acme.png', version: 'latest', sha256: 'ABC' },
+    },
+  };
+
+  it('is sent as 1.1 says it: a plain note over 5000 characters, and a template of its own shape', () => {
+    expect(sendable(longNote)).toBe(true);
+    expect(sendable(ownTemplate)).toBe(true);
+    expect(artifactVersion({ type: 'BTPS_DOC', document: longNote })).toBe('1.1.0');
+    expect(artifactVersion({ type: 'BTPS_DOC', document: ownTemplate })).toBe('1.1.0');
+  });
+
+  it('is refused once it uses what 1.2 adds, which brings 1.2 rules with it', () => {
+    expect(sendable({ ...longNote, discount: { amount: 500 } })).toBe(false);
+    expect(sendable({ ...ownTemplate, discount: { amount: 500 } })).toBe(false);
+  });
+
+  it('is kept in a draft as 1.1 says it', () => {
+    const draft = BtpsAgentCommandCallSchema.safeParse({
+      actionType: 'draft.create',
+      to: 'billing$vendor.example',
+      document: { type: 'BTPS_DOC', document: ownTemplate },
+    });
+
+    expect(draft.success).toBe(true);
   });
 });

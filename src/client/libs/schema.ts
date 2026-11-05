@@ -16,23 +16,15 @@ import {
 } from '@core/server/schemas/schema.js';
 import { identitySchema } from '@core/server/schemas/shared.js';
 import { validateAgentDocument } from '@core/server/schemas/helpers.js';
-import {
-  BtpAuthReqDocSchema,
-  BtpDocumentSchema,
-  BtpLifecycleEventSchema,
-  BtpTrustReqDocSchema,
-  BtpTrustResDocSchema,
-} from '@core/server/schemas/btpsDocsSchema.js';
+import { BtpAuthReqDocSchema, BtpDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
 
 // Use the server's document schema directly
 export const BtpsAgentOptionsSchema = BtpCryptoOptionsSchema.optional();
 
+// Any document of either version; the refine below checks it under the version it is stamped with.
 export const BtpsAgentCommandDocumentSchema = z
   .union([
-    BtpTrustReqDocSchema,
-    BtpTrustResDocSchema,
-    BtpDocumentSchema,
-    BtpLifecycleEventSchema,
+    BtpDocSchema,
     BtpAuthReqDocSchema,
     BtpAgentQuerySchema,
     BtpAgentMutationSchema,

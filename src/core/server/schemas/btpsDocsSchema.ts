@@ -589,9 +589,18 @@ export const BtpAgentQueryDocSchema = z.object({
   to: BtpStringQueryFilterSchema.optional(),
 });
 
+/**
+ * Any document, as a draft or an edit holds it. A draft carries no version,
+ * so it takes what 1.2 says and what 1.1 says alike; it is checked under its
+ * version when it is sent.
+ */
 export const BtpDocSchema = z.union([
   BtpTrustReqDocSchema,
   BtpTrustResDocSchema,
   BtpDocumentSchema,
   BtpLifecycleEventSchema,
+  BtpTrustReqDocV1_1Schema,
+  BtpTrustResDocV1_1Schema,
+  BtpDocumentV1_1Schema,
+  BtpLifecycleEventV1_1Schema,
 ]);

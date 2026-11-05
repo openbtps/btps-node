@@ -46,7 +46,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   (`BTPTemplate`), and a letter or payslip may name a template.
 - Every 1.2 document rule applies under `1.2.0` only: a document valid in 1.1
   reads exactly as before in a `1.1.0` artifact. The schemas 1.1 reads with are
-  kept beside the newest (`Btp…V1_1Schema`).
+  kept beside the newest (`Btp…V1_1Schema`). A device checks what it sends
+  under the version it will stamp it with, so it sends whatever a 1.1 device
+  could; a draft or edit takes either version's shape.
 
 ### Changed
 
