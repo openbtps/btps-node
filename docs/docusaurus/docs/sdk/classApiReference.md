@@ -147,7 +147,7 @@ Returns the BTPS protocol version string.
 
 **Returns:**
 
-- `string`: Protocol version (e.g., "1.1.0")
+- `string`: Protocol version (e.g., "1.2.0"). Every answer the server sends carries it, whatever the version of what it answers.
 
 **Example:**
 
@@ -285,7 +285,7 @@ if (res.response) {
 const version = client.getProtocolVersion();
 ```
 
-Returns the BTPS protocol version string.
+Returns the newest BTPS protocol version this SDK speaks. It does not decide what an artifact is stamped with: an artifact is stamped `1.1.0` whenever everything in it can be said in 1.1, and `1.2.0` only when it uses something 1.2 adds (`artifactVersion`).
 
 **Returns:**
 
@@ -296,6 +296,29 @@ Returns the BTPS protocol version string.
 ```js
 const version = client.getProtocolVersion();
 console.log('BTPS Protocol Version:', version);
+```
+
+### getServerVersion
+
+```ts
+const { version, error } = await client.getServerVersion();
+```
+
+The protocol version the server speaks, from its answer to a `PING`. The `PING` is stamped `1.1.0`, so every 1.1 and 1.2 server answers it. Use it to learn before sending whether a receiver takes what 1.2 adds; DNS `v=` is a hint only.
+
+`resolveIdentity` gives the same fact as `serverVersion` when it asked the address's host, from the host's signed answer. Its `version` is the key record's.
+
+**Returns:**
+
+- `Promise<{ version: string; error: undefined } | { version: undefined; error: BTPErrorException }>`
+
+**Example:**
+
+```js
+const { version, error } = await client.getServerVersion();
+if (!error && version.startsWith('1.1.')) {
+  // The receiver speaks only 1.1: send it nothing 1.2 adds.
+}
 ```
 
 ### end

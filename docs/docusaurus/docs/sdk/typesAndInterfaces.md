@@ -1568,7 +1568,22 @@ interface BTPDeliveryFailureArtifact {
 Server response document types.
 
 ```ts
-type BTPServerResDocs = BTPAuthResDoc | BTPQueryResult | string;
+type BTPServerResDocs =
+  | BTPAuthResDoc
+  | BTPQueryResult
+  | BTPIdentityResDoc
+  | BTPCreatedResDoc
+  | string;
+```
+
+### BTPCreatedResDoc
+
+Since 1.2. "Created, with this id": the answer to a command that makes something, such as `draft.create`. It holds `id` (up to 100 characters) and nothing else, so no other answer is read as one because it has an `id`.
+
+```ts
+interface BTPCreatedResDoc {
+  id: string;
+}
 ```
 
 ### AgentAction
