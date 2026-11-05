@@ -54,7 +54,7 @@ export interface BTPTrustReqDoc {
   logoUrl?: string; // @optional Business or requesting party's logo or public image
   displayName?: string; // @optional Display name or profile name of the requesting party
   websiteUrl?: string; // @optional website address url of the requesting party
-  message?: string; // @optional message from the requesting party
+  message?: string | { format: 'text' | 'markdown'; content: string }; // @optional message from the requesting party; a note with a format since 1.2
   expiresAt?: string; // @optional expiry date and time for the trust to last in ISO Format
   privacyType?: BTPEncryptionType; // @optional Privacy type to be upheld for communicating for this trust
 }
@@ -66,6 +66,6 @@ export interface BTPTrustResDoc {
   decidedBy: string;
   expiresAt?: string;
   retryAfterDate?: string;
-  message?: string;
+  message?: string | { format: 'text' | 'markdown'; content: string }; // a note with a format since 1.2
   privacyType?: BTPEncryptionType;
 }

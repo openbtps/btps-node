@@ -31,6 +31,7 @@ import {
   documents12,
   eventChain,
   signedArtifacts,
+  templates,
   timeWindow,
   versions,
 } from './protocol-vectors.mjs';
@@ -250,6 +251,7 @@ write('time-window.vectors.json', timeWindow());
 write('versions.vectors.json', versions());
 write('documents-1.2.vectors.json', documents12());
 write('event-chain.vectors.json', eventChain());
+write('templates.vectors.json', templates());
 
 // The manifest names every vector file with the SHA-256 of its bytes, so a
 // copy of the set can be checked whole. Rewritten on every run.
