@@ -12,6 +12,8 @@ import {
   getBtpAddressParts,
   getDnsIdentityParts,
   getHostAndSelector,
+  isBtpsAgentArtifact,
+  isBtpsTransportArtifact,
   isValidIdentity,
   resolvePublicKey,
 } from '@core/utils/index.js';
@@ -36,16 +38,23 @@ import {
   BTP_ERROR_SOCKET_TIMEOUT,
   BTP_ERROR_TIMEOUT,
   BTP_ERROR_VALIDATION,
+  BTP_ERROR_VERSION_UNSUPPORTED,
   BTPErrorException,
   transformToBTPErrorException,
 } from '@core/error/index.js';
 import type {
   BTPArtifact,
+  BTPControlArtifact,
   BTPIdentityLookupRequest,
   BTPIdentityResDoc,
   BTPServerResponse,
 } from '@core/server/types.js';
-import { BTP_PROTOCOL_VERSION } from '@core/server/constants/index.js';
+import {
+  BTP_PROTOCOL_VERSION,
+  MIN_SUPPORTED_VERSION,
+  artifactVersion,
+  isVersionBelow,
+} from '@core/server/constants/index.js';
 import { randomUUID } from 'crypto';
 import isEmpty from 'lodash/isEmpty.js';
 import { BTPCryptoResponse, BTPDecryptionKey, VerifyEncryptedPayload } from '@core/crypto/types.js';
@@ -335,7 +344,7 @@ export class BtpsClient {
         clearTimeout(timeout);
         resolve({
           response: validSignature ? msg : undefined,
-          error: !validSignature ? error : undefined,
+          error: !validSignature ? error : this.versionRefusal(msg),
         });
         this.unrefSocketIfNoQueue();
       } else {
@@ -762,7 +771,69 @@ export class BtpsClient {
         }),
       };
     }
+    const understamped = this.understamped(artifact);
+    if (understamped) {
+      return {
+        isValid: false,
+        error: new BTPErrorException(BTP_ERROR_VALIDATION, { cause: understamped }),
+      };
+    }
     return { isValid: true, error: undefined };
+  }
+
+  /**
+   * Why an artifact is stamped lower than it needs, or undefined. One that uses
+   * what 1.2 adds under 1.1.0 would be read by a 1.1 receiver as something
+   * else, and an agent artifact needs its server to speak what it carries.
+   */
+  protected understamped(artifact: BTPArtifact): string | undefined {
+    const carried = isBtpsAgentArtifact(artifact) ? artifact.document : undefined;
+    const transporter = isBtpsTransportArtifact(carried) ? carried : artifact;
+    if (!isBtpsTransportArtifact(transporter)) return undefined;
+    const needed = artifactVersion({ ...transporter });
+    if (isVersionBelow(transporter.version, needed)) {
+      return `stamped ${transporter.version}, but it uses what ${needed} adds`;
+    }
+    if (transporter !== artifact && isVersionBelow(artifact.version, transporter.version)) {
+      return `an agent artifact stamped ${artifact.version} carries one stamped ${transporter.version}`;
+    }
+    return undefined;
+  }
+
+  /**
+   * A receiver's refusal of the artifact's version, as an error naming the
+   * version the receiver speaks (the version of its answer), so a sender can
+   * decide what to send it instead. Undefined for any other answer.
+   */
+  protected versionRefusal(msg: BTPServerResponse): BTPErrorException | undefined {
+    if (msg.type !== 'btps_error' || msg.status?.error !== BTP_ERROR_VERSION_UNSUPPORTED.code) {
+      return undefined;
+    }
+    return new BTPErrorException(BTP_ERROR_VERSION_UNSUPPORTED, {
+      cause: msg.status.message,
+      meta: { receiverVersion: msg.version },
+    });
+  }
+
+  /**
+   * The protocol version the server speaks, from its answer to a PING. The
+   * PING is stamped 1.1.0, so every 1.1 and 1.2 server answers it.
+   */
+  async getServerVersion(): Promise<
+    { version: string; error: undefined } | { version: undefined; error: BTPErrorException }
+  > {
+    const ping: BTPControlArtifact = {
+      version: MIN_SUPPORTED_VERSION,
+      id: randomUUID(),
+      issuedAt: new Date().toISOString(),
+      action: 'PING',
+    };
+    const { response, error } = await this.send(ping);
+    if (response?.version) return { version: response.version, error: undefined };
+    return {
+      version: undefined,
+      error: error ?? new BTPErrorException(BTP_ERROR_VALIDATION, { cause: 'no answer to PING' }),
+    };
   }
 
   /**
@@ -843,6 +914,8 @@ export class BtpsClient {
           hostname: string;
           port: number;
           version: string;
+          /** When the host answered: the protocol version its server speaks, from its signed answer. */
+          serverVersion?: string;
         };
         error: undefined;
       }
@@ -925,7 +998,8 @@ export class BtpsClient {
           identity,
           from,
           hostSelector: selector,
-          version: BTP_PROTOCOL_VERSION,
+          // A lookup says nothing 1.2 adds, so every 1.1 and 1.2 host answers it.
+          version: MIN_SUPPORTED_VERSION,
           id: randomUUID(),
           issuedAt: new Date().toISOString(),
         };
@@ -1029,6 +1103,7 @@ export class BtpsClient {
               hostname,
               port,
               version,
+              serverVersion: msg.version,
             },
             error: undefined,
           });

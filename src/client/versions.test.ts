@@ -8,7 +8,7 @@
 /*
  * BTPS 1.2 versioning, as a sender sees it. A 1.1 and a 1.2 provider always
  * talk: anything 1.1 can say is stamped 1.1.0, and a sender is told plainly
- * when a receiver speaks only 1.1. The `it.fails` cases pass once 1.2 lands.
+ * when a receiver speaks only 1.1.
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -47,7 +47,7 @@ const answerTo = async (client: BtpsClient, id: string, line: object) => {
 describe('a sender and a receiver that speaks only 1.1', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it.fails('is told the receiver supports only 1.1, from the version of its refusal', async () => {
+  it('is told the receiver supports only 1.1, from the version of its refusal', async () => {
     const client = new BtpsClient({ to: 'bob$example.com' });
     const { error } = await answerTo(client, 'req-1', {
       version: '1.1.0',
@@ -68,29 +68,50 @@ describe('a sender and a receiver that speaks only 1.1', () => {
     expect(error?.meta).toMatchObject({ receiverVersion: '1.1.0' });
   });
 
-  it.fails(
-    'can learn a server version before sending, with a PING every version answers',
-    async () => {
-      const client = new BtpsClient({ to: 'bob$example.com' });
-      const send = vi.spyOn(client, 'send').mockResolvedValue({
-        response: {
-          version: '1.2.0',
-          id: 'answer-1',
-          issuedAt,
-          type: 'btps_response',
-          status: { ok: true, code: 200 },
-        },
-      });
-      const getServerVersion: unknown = Reflect.get(client, 'getServerVersion');
+  it('can learn a server version before sending, with a PING every version answers', async () => {
+    const client = new BtpsClient({ to: 'bob$example.com' });
+    const send = vi.spyOn(client, 'send').mockResolvedValue({
+      response: {
+        version: '1.2.0',
+        id: 'answer-1',
+        issuedAt,
+        type: 'btps_response',
+        status: { ok: true, code: 200 },
+      },
+    });
+    const { version, error } = await client.getServerVersion();
+    client.destroy();
 
-      expect(typeof getServerVersion).toBe('function');
-      const version = await (getServerVersion as () => Promise<string>).call(client);
-      client.destroy();
+    expect(error).toBeUndefined();
+    expect(version).toBe('1.2.0');
+    expect(send.mock.calls[0]?.[0]).toMatchObject({ action: 'PING', version: '1.1.0' });
+  });
 
-      expect(version).toBe('1.2.0');
-      expect(send.mock.calls[0]?.[0]).toMatchObject({ action: 'PING', version: '1.1.0' });
-    },
-  );
+  it('is told when a server gives no version', async () => {
+    const client = new BtpsClient({ to: 'bob$example.com' });
+    vi.spyOn(client, 'send').mockResolvedValue({ response: undefined });
+    const { version, error } = await client.getServerVersion();
+    client.destroy();
+
+    expect(version).toBeUndefined();
+    expect(error).toBeDefined();
+  });
+
+  it('takes any other answer as it is, with no error', async () => {
+    const client = new BtpsClient({ to: 'bob$example.com' });
+    const { response, error } = await answerTo(client, 'req-2', {
+      version: '1.2.0',
+      id: 'answer-2',
+      issuedAt,
+      type: 'btps_error',
+      reqId: 'req-2',
+      status: { ok: false, code: 403, error: 'BTP_ERROR_TRUST_NOT_ALLOWED' },
+    });
+    client.destroy();
+
+    expect(error).toBeUndefined();
+    expect(response?.status.error).toBe('BTP_ERROR_TRUST_NOT_ALLOWED');
+  });
 });
 
 describe('what a device stamps', () => {

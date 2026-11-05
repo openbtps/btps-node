@@ -791,6 +791,20 @@ export function versions() {
       ),
       stamped('trust-request', { ...doc(base.trustRequest), type: 'TRUST_REQ' }, V11),
       stamped('paid-event', event(base.event), V11),
+      // A lookup and a control artifact say nothing 1.2 adds, so every 1.1 and 1.2 server answers them.
+      stamped(
+        'identity-lookup',
+        {
+          id: 'lookup-1',
+          issuedAt: ISSUED_AT,
+          identity: 'pay$client.example',
+          from: 'billing$vendor.example',
+          hostSelector: 'btps1',
+        },
+        V11,
+      ),
+      stamped('ping', { id: 'ping-1', issuedAt: ISSUED_AT, action: 'PING' }, V11),
+      stamped('quit', { id: 'quit-1', issuedAt: ISSUED_AT, action: 'QUIT' }, V11),
       stamped(
         'encrypted-document',
         doc('ciphertext', {

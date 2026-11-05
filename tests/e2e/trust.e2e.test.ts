@@ -56,7 +56,7 @@ describe('journey: trust between two businesses', () => {
 
   it('each side discovers the other through its published records', async () => {
     expect(await getHostAndSelector(client.identity)).toEqual({
-      version: '1.1.0',
+      version: '1.2.0',
       host: `localhost:${clientHost.port}`,
       selector: 'btps1',
       operator: 'admin$client.test',

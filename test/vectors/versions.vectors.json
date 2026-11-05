@@ -209,6 +209,35 @@
       "expect": "1.1.0"
     },
     {
+      "name": "identity-lookup",
+      "artifact": {
+        "id": "lookup-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "identity": "pay$client.example",
+        "from": "billing$vendor.example",
+        "hostSelector": "btps1"
+      },
+      "expect": "1.1.0"
+    },
+    {
+      "name": "ping",
+      "artifact": {
+        "id": "ping-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "action": "PING"
+      },
+      "expect": "1.1.0"
+    },
+    {
+      "name": "quit",
+      "artifact": {
+        "id": "quit-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "action": "QUIT"
+      },
+      "expect": "1.1.0"
+    },
+    {
       "name": "encrypted-document",
       "artifact": {
         "type": "BTPS_DOC",

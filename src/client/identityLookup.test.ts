@@ -106,6 +106,16 @@ describe('identity lookup through the host', () => {
     expect(response?.publicKey).toBe(bobKeys.publicKey);
   });
 
+  it("tells the version the host's server speaks, apart from DNS's v=, which is only a hint", async () => {
+    dnsFor('admin$saas.test');
+    const client = new BtpsClient({ to: 'bob$saas.test', connectionTimeoutMs: 2000 });
+
+    const { response } = await client.resolveIdentity('bob$saas.test', 'alice$other.test');
+
+    expect(response?.serverVersion).toBe('1.2.0');
+    expect(response?.version).toBe('1.0.0');
+  });
+
   it('keeps the answer when the host closes the connection while it is being verified', async () => {
     // The host ends the connection as it answers; the operator's key arrives after that.
     dnsFor('admin$saas.test', 200);

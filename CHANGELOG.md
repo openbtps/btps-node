@@ -4,6 +4,30 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] — 1.2.0
+
+### Added
+
+- **BTPS 1.2 speaks 1.1 and 1.2.** A 1.2 server takes any 1.1.x and 1.2.x
+  artifact. A 1.2 sender stamps an artifact `1.1.0` whenever everything in it
+  can be said in 1.1 (`artifactVersion`), and `1.2.0` only when it uses
+  something 1.2 adds, so a 1.1 and a 1.2 provider always talk. Identity
+  lookups and control artifacts are always `1.1.0`.
+- `BtpsClient.getServerVersion()`: the version a server speaks, from its
+  answer to a `PING` that every 1.1 and 1.2 server answers.
+- `resolveIdentity` also returns `serverVersion` when the address's host
+  answered: the version its server speaks, from its signed answer.
+
+### Changed
+
+- A receiver's refusal of an artifact's version reaches the sender as a
+  `BTP_ERROR_VERSION_UNSUPPORTED` error with `receiverVersion`, the version
+  the receiver speaks, beside its answer. `send` now returns both `response`
+  and `error` for it, where 1.1 returned the response with no error: a caller
+  that checks `error` first now takes that path.
+- A client refuses to send an artifact stamped lower than what it uses, and an
+  agent artifact stamped lower than the artifact it carries.
+
 ## [1.1.3] — 2026-10-30 (alpha)
 
 A patch release. Every document a compliant sender sent before is still

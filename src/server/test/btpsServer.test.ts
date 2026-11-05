@@ -3157,21 +3157,24 @@ export default function () {
           ok: false,
           code: 400,
           error: BTP_ERROR_VERSION_UNSUPPORTED.code,
-          message: `${BTP_ERROR_VERSION_UNSUPPORTED.message}: supports 1.1.0 to 1.1.0`,
+          message: `${BTP_ERROR_VERSION_UNSUPPORTED.message}: supports 1.1.0 to 1.2.0`,
         });
         expect(answer.reqId).toBe('old');
-        expect(answer.version).toBe('1.1.0');
+        // The server's own version: what a sender reads to know what it speaks.
+        expect(answer.version).toBe('1.2.0');
       } finally {
         tcp.close();
       }
     });
 
-    it('speaks 1.1, and any 1.1 patch, but not 1.0, 1.2 or a malformed version', () => {
+    it('speaks 1.1 and 1.2, and any patch of them, but not 1.0, 1.3 or a malformed version', () => {
       expect(isSupportedVersion('1.1.0')).toBe(true);
       expect(isSupportedVersion('1.1.7')).toBe(true);
       expect(isSupportedVersion('1.1')).toBe(true);
+      expect(isSupportedVersion('1.2.0')).toBe(true);
+      expect(isSupportedVersion('1.2.3')).toBe(true);
       expect(isSupportedVersion('1.0.0')).toBe(false);
-      expect(isSupportedVersion('1.2.0')).toBe(false);
+      expect(isSupportedVersion('1.3.0')).toBe(false);
       expect(isSupportedVersion('1.0.0.0')).toBe(false);
       expect(isSupportedVersion('v1.1.0')).toBe(false);
       expect(isSupportedVersion(undefined)).toBe(false);

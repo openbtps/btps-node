@@ -43,6 +43,7 @@ import { validate } from '@core/utils/validation.js';
 import {
   AGENT_ACTIONS_REQUIRING_DOCUMENT,
   AGENT_TRANSPORTER_ACTIONS,
+  artifactVersion,
 } from '@core/server/constants/index.js';
 import { encryptBtpPayload, signBtpPayload, signBtpPayloadWithSigner } from '@core/crypto/index.js';
 import { randomUUID } from 'crypto';
@@ -110,6 +111,8 @@ export class BtpsAgent extends BtpsClient {
       agentArtifact.document = providedDocument as BTPAgentDocument;
     }
 
+    // An agent artifact that carries a transporter artifact needs a server of that one's version.
+    let carriedVersion: string | undefined;
     const needForTransport = Object.keys(mappedTransporterAction).includes(actionType);
     if (needForTransport) {
       const { payload: transporterPayload, error: transporterError } =
@@ -123,6 +126,7 @@ export class BtpsAgent extends BtpsClient {
       }
       if (transporterPayload) {
         agentArtifact.document = transporterPayload as BTPTransporterArtifact;
+        carriedVersion = transporterPayload.version;
       }
     }
 
@@ -135,7 +139,7 @@ export class BtpsAgent extends BtpsClient {
     agentArtifact.encryption = null;
     agentArtifact.id = randomUUID();
     agentArtifact.issuedAt = new Date().toISOString();
-    agentArtifact.version = this.getProtocolVersion();
+    agentArtifact.version = carriedVersion ?? artifactVersion({ document: agentArtifact.document });
 
     try {
       const signature =
@@ -232,7 +236,8 @@ export class BtpsAgent extends BtpsClient {
     const transporterArtifact: Omit<BTPTransporterArtifact, 'signature'> = {
       id: event?.success ? event.data.id : (options?.id ?? randomUUID()),
       issuedAt: new Date().toISOString(),
-      version: this.getProtocolVersion(),
+      // From the document as written, before it is encrypted.
+      version: artifactVersion({ type: artifactType, document }),
       type: artifactType,
       document: encryptedDocument as BTPDocType | string,
       from: this.options.to,
