@@ -136,6 +136,9 @@ export class BtpsServer {
   private readonly maxArtifactSizeKb: number;
   private readonly maxInFlightPerConnection: number;
   private readonly maxArtifactAgeSeconds: number;
+  private readonly signAnswers: boolean;
+  /** With signAnswers: each connection's last answer, which the next waits for. */
+  private readonly answersOnSocket = new WeakMap<TLSSocket, Promise<void>>();
   private readonly dependencies: {
     trustStore: AbstractTrustStore<BTPTrustRecord>;
     identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
@@ -163,6 +166,15 @@ export class BtpsServer {
       options.maxInFlightPerConnection,
     );
     this.maxArtifactAgeSeconds = resolveMaxArtifactAgeSeconds(options.maxArtifactAgeSeconds);
+    this.signAnswers = options.signAnswers === true;
+    // Signing every answer is asked for, and without a selector no device could check one.
+    if (this.signAnswers && !options.serverIdentity.selector) {
+      throw new BTPErrorException({
+        code: 'INVALID_CONFIG',
+        message:
+          'signAnswers needs serverIdentity.selector: the selector the key is published under',
+      });
+    }
     this.middlewareManager = new MiddlewareManager(options.middlewarePath);
     this.dependencies = {
       trustStore: this.trustStore,
@@ -1636,6 +1648,52 @@ export class BtpsServer {
       return;
     }
 
+    if (!this.signAnswers) {
+      this.writeAnswer(socket, artifact, action);
+      return;
+    }
+    // Signed as this server, after its reqId is set. Signing may take time (a KMS), so each
+    // answer on a connection goes out after every earlier one, and so does any close it asks
+    // for: a later answer that ends the connection never drops an earlier one still signing.
+    // An answer that fails is reported, and the ones after it still go out.
+    const earlier = this.answersOnSocket.get(socket) ?? Promise.resolve();
+    const answer = earlier
+      .then(async () => {
+        const signed = artifact.signature ? artifact : await this.signAnswer(artifact);
+        this.writeAnswer(socket, signed, action);
+      })
+      .catch((err: unknown) => this.onError?.(transformToBTPErrorException(err)));
+    this.answersOnSocket.set(socket, answer);
+  }
+
+  /**
+   * The answer signed as this server, under its own selector, so a device that
+   * requires its server's signature can read it, a refusal included. Unsigned
+   * when signing fails, which the failure reports to onError.
+   */
+  private async signAnswer(artifact: BTPServerResponse): Promise<BTPServerResponse> {
+    const unsigned: BTPServerResponse = {
+      ...artifact,
+      signedBy: this.serverIdentity.identity,
+      selector: this.serverIdentity.selector,
+    };
+    try {
+      const signature =
+        'signer' in this.serverIdentity
+          ? await signBtpPayloadWithSigner(unsigned, this.serverIdentity.signer)
+          : signBtpPayload(unsigned, {
+              publicKey: this.serverIdentity.publicKey,
+              privateKey: this.serverIdentity.privateKey,
+            });
+      return { ...unsigned, signature };
+    } catch (error) {
+      this.onError?.(transformToBTPErrorException(error));
+      return artifact;
+    }
+  }
+
+  private writeAnswer(socket: TLSSocket, artifact: BTPServerResponse, action?: BtpsErrorAction) {
+    if (socket.destroyed || socket.writableEnded || !socket.writable) return;
     try {
       socket.write(JSON.stringify(artifact) + '\n');
       this.middlewareManager.onResponseSent(artifact);

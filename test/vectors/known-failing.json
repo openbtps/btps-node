@@ -2,31 +2,7 @@
   "description": "Checks that fail on the BTPS 1.2 baseline (release 1.1.3) because the 1.2 rule they prove is not built yet; each value names the 1.2 change that makes it pass. `verify-btps-vectors --known-failing test/vectors/known-failing.json` passes only while the failing set is exactly this list, so each change must remove its own entries in the same pull request that makes them pass. The list is empty again before 1.2 is released.",
   "baseline": "5b5dafbfecefd845b94d2a2b347b19b588f73f2e",
   "checks": {
-    "sdk/protocol/versions/stamped/invoice-note-with-a-format": "Note formats",
-    "sdk/protocol/versions/stamped/event-message-with-a-format": "Note formats",
-    "sdk/protocol/versions/stamped/invoice-discount": "Discounts",
-    "sdk/protocol/versions/stamped/receipt-discount": "Discounts",
-    "sdk/protocol/versions/stamped/letter-template": "Templates by reference",
     "sdk/protocol/versions/stamped/document-type": "Trust permissions: documentType",
-    "sdk/protocol/versions/stamped/trust-request-permissions": "Trust permissions",
-    "sdk/protocol/documents-1.2/invoice-note-markdown": "Note formats",
-    "sdk/protocol/documents-1.2/invoice-note-text": "Note formats",
-    "sdk/protocol/documents-1.2/invoice-note-at-limit": "Note formats",
-    "sdk/protocol/documents-1.2/invoice-plain-note-one-over": "Note formats",
-    "sdk/protocol/documents-1.2/receipt-note-markdown": "Note formats",
-    "sdk/protocol/documents-1.2/event-message-markdown": "Note formats",
-    "sdk/protocol/documents-1.2/trust-request-message-markdown": "Note formats",
-    "sdk/protocol/documents-1.2/trust-response-message-markdown": "Note formats",
-    "sdk/protocol/documents-1.2/invoice-discount-amount": "Discounts",
-    "sdk/protocol/documents-1.2/invoice-discount-percent": "Discounts",
-    "sdk/protocol/documents-1.2/invoice-discount-whole-percent": "Discounts",
-    "sdk/protocol/documents-1.2/receipt-discount": "Discounts",
-    "sdk/protocol/documents-1.2/invoice-negative-line-discount": "Discounts",
-    "sdk/protocol/documents-1.2/invoice-template-sha256-not-hex": "Templates by reference",
-    "sdk/protocol/documents-1.2/invoice-template-source-not-https": "Templates by reference",
-    "sdk/protocol/documents-1.2/invoice-template-version-not-semver": "Templates by reference",
-    "sdk/protocol/documents-1.2/invoice-template-logo-not-https": "Templates by reference",
-    "sdk/protocol/documents-1.2/letter-template": "Templates by reference",
-    "sdk/protocol/documents-1.2/payslip-template": "Templates by reference"
+    "sdk/protocol/versions/stamped/trust-request-permissions": "Trust permissions"
   }
 }

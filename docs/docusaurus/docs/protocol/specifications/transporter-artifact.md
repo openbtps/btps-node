@@ -142,7 +142,7 @@ Used to establish trust relationships between organizations.
 - **logoUrl**: Company logo URL
 - **displayName**: Display name for UI
 - **websiteUrl**: Company website
-- **message**: Custom message to recipient
+- **message**: Custom message to recipient: a note, with a format since 1.2 (see Notes)
 - **expiresAt**: Trust expiration date (ISO format)
 - **privacyType**: Privacy level (unencrypted, encrypted, mixed)
 
@@ -174,7 +174,7 @@ Used to accept, reject, or block trust requests.
 
 - **expiresAt**: Trust expiration date (ISO format)
 - **retryAfterDate**: Date after which retry is allowed (ISO format)
-- **message**: Custom message to sender
+- **message**: Custom message to sender: a note, with a format since 1.2 (see Notes)
 - **privacyType**: Agreed privacy level (unencrypted, encrypted, mixed). The receiver enforces it on every artifact sent over the trust: `encrypted` refuses one sent in the clear, `unencrypted` refuses an encrypted one, and `mixed` allows either. A refused artifact is answered `BTP_ERROR_PRIVACY_TYPE` (400).
 
 ### 3. BTPS Document (`BTPS_DOC`)
@@ -256,11 +256,26 @@ The invoice is described first; the others share its money, attachments and refe
 - **dueAt**: Payment due date (ISO format)
 - **issuer**: Document issuer information, with an optional `address` and `identifiers` (company and tax ids by namespaced key, e.g. `au:abn`)
 - **paymentLink**: Payment link information
-- **description**: Document description
+- **description**: A note for the other party (see Notes)
+- **discount** (1.2, invoice and receipt): A discount on the whole document, applied before tax (see Discounts)
 - **attachments**: Files carried with the document (see Attachments)
 - **references**: Links to other signed documents (see References)
-- **template**: Document template and data
+- **template**: The document's template, by reference (see Templates); on a letter or payslip since 1.2
 - **metadata**: The sending platform's own data; carried and signed, never read by the protocol
+
+**Notes (since 1.2):**
+
+A person's note says how it is written: `{ "format": "text" | "markdown", "content": "…" }`, as a letter's body does (CommonMark, raw HTML off). This is an invoice's and a receipt's `description`, an event's `message`, and a trust request's or response's `message`. A plain string, as in 1.1, is still taken and read as `text`. In a `1.2.0` artifact a note's content is at most 5,000 characters; in a `1.1.0` artifact a note is a string and reads exactly as in 1.1.
+
+**Discounts (since 1.2):**
+
+- On the whole invoice or receipt: `discount` is `{ "amount": 500 }`, a positive whole number in the minor units of the document's currency, or `{ "percent": 1000 }`, whole basis points from 1 to 10,000 (1,000 is 10%). Never both. It is applied before tax.
+- On a line: a `discount` column, whose cell is an amount in minor units of at least 0. 1.1 already carries such a column, so it is taken under `1.1.0` as 1.1 had it.
+- Rounding is each platform's own; the protocol fixes only how money is written.
+
+**Templates (by reference):**
+
+`template` is `{ "name": "acme/classic-invoice", "data": { … } }`. Since 1.2, in a `1.2.0` artifact, `data`'s named fields are each optional but well formed when present: `version` (a semantic version), `sha256` (64 lowercase hex characters), `source` (an https address, always with its `sha256`), and `logo: { sha256, source }`. Other keys stay the provider's. Under `1.1.0`, `data` is free, as in 1.1. A receiving platform draws the document with the template only when the template's fingerprint matches `sha256`; anything that fails falls back to the standard view. Since 1.2 a letter and a payslip may name a template too. The template file's own format, and what a template must never do, are on [Templates](./templates.md).
 
 A document carries no status: whether an invoice is paid, partly paid, disputed or refunded comes from the lifecycle events exchanged about it. The schema is strict, so a field it does not name (such as 1.0's `status`) is refused.
 
@@ -535,7 +550,7 @@ Several partial payments are allowed; the remaining amount keeps going down. The
 - **inReplyTo**: The `id` of the event this one answers, or on a `withdrawn` the proposal it takes back
 - **follows** (1.2): On a proposal sent again after a withdrawal, the `id` of that `withdrawn`
 - **remainingDueDate**: Only on an accepted `response` to a `partially_paid`: the agreed date for the rest (ISO format)
-- **message**: Free text for the other party
+- **message**: Free text for the other party: a note, with a format since 1.2 (see Notes)
 
 **Replies and Tracing:**
 

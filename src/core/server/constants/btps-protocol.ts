@@ -57,6 +57,22 @@ const USES_1_2: ((artifact: BTPVersionedArtifact) => boolean)[] = [
   },
   // A sync, naming the send it copies.
   (artifact) => artifact.syncOf !== undefined,
+  // A note that says how it is written: 1.1 notes are plain strings.
+  (artifact) => {
+    const document = documentOf(artifact);
+    const isNote = (value: unknown) => typeof value === 'object' && value !== null;
+    return document !== undefined && (isNote(document.description) || isNote(document.message));
+  },
+  // A discount on a whole invoice or receipt. A line's `discount` column 1.1 already carries.
+  (artifact) => documentOf(artifact)?.discount !== undefined,
+  // A template on a letter or payslip. An invoice's or receipt's 1.1 already carries.
+  (artifact) => {
+    const document = documentOf(artifact);
+    return (
+      (document?.type === 'letter' || document?.type === 'payslip') &&
+      document.template !== undefined
+    );
+  },
 ];
 
 /**

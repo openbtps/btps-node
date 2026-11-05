@@ -82,14 +82,18 @@ has a limit.
 
 Every document type, invoice, receipt, payslip and letter, limits its
 identifiers. How many entries its lists may have is under
-[Lists and records](#lists-and-records). Its other content, such as a
-description, is bounded by the [artifact size](#artifact-size).
+[Lists and records](#lists-and-records). Its other content is bounded by the
+[artifact size](#artifact-size), except, since 1.2 and in a `1.2.0` artifact
+only, an invoice's or receipt's description and a template's https sources.
+Under `1.1.0` a description has no limit of its own, as in 1.1.
 
-| Field               | Limit |
-| ------------------- | ----: |
-| `id`                |   100 |
-| `references[].id`   |   100 |
-| `references[].type` |    64 |
+| Field                                        | Limit |
+| -------------------------------------------- | ----: |
+| `id`                                         |   100 |
+| `references[].id`                            |   100 |
+| `references[].type`                          |    64 |
+| `description` (or its `content`), 1.2.0 only | 5,000 |
+| `template.data.source`, `logo.source`, 1.2.0 | 2,048 |
 
 ### Receipt
 

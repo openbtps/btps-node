@@ -17,6 +17,7 @@ keys
 certs
 .well-known
 btp*.json
+!docs/docusaurus/static/schemas/btps-template.schema.json
 .DS_Store
 client
 !src/client
@@ -33,6 +34,7 @@ test
 !/test/decrypter-conformance.test.ts
 !/test/conventions.test.ts
 !/test/licenseHeaders.test.ts
+!/test/templates.test.ts
 !/test/vectors.json
 !/packages/verify-btps-vectors/test/
 coverage

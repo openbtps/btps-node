@@ -19,8 +19,9 @@ Configuration options for the BTPS server.
 ```ts
 interface BtpsServerOptions {
   serverIdentity:
-    | { identity: string; publicKey: string; privateKey: string }
-    | { identity: string; signer: Signer };
+    | { identity: string; publicKey: string; privateKey: string; selector?: string }
+    | { identity: string; signer: Signer; selector?: string };
+  signAnswers?: boolean;
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   port?: number;
@@ -35,7 +36,8 @@ interface BtpsServerOptions {
 
 **Properties:**
 
-- `serverIdentity`: Required server identity: its identity, with its PEM public and private key, or with a `signer` holding the key elsewhere, such as a KMS (see [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter))
+- `serverIdentity`: Required server identity: its identity, with its PEM public and private key, or with a `signer` holding the key elsewhere, such as a KMS (see [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter)). Since 1.2, `selector` is the selector its key is published under; `signAnswers` needs it
+- `signAnswers`: Optional, since 1.2. Signs every answer, errors included, as `serverIdentity` under its `selector`, after the answer's `reqId` is set, so a device that requires its server's signature (`requireSignedBy`) can read it. Off by default. Sign as an identity of the server's own, such as `server$<domain>`, never with a key of the domain's operator: an operator key on an internet-facing server would let whoever took it delegate and attest for every address on the domain
 - `trustStore`: Required trust store instance for managing trust records
 - `identityStore`: Optional identity store instance for managing identity records
 - `port`: Optional port number (default: 3443)
@@ -66,6 +68,7 @@ interface BTPClientOptions {
   host?: string;
   hostSelector?: string;
   hostOperator?: string;
+  requireSignedBy?: { identity: string; selector: string };
   version?: string;
   port?: number;
   maxQueue?: number;
@@ -84,6 +87,7 @@ interface BTPClientOptions {
 - `host`: Optional custom host override
 - `hostSelector`: Optional DNS selector for key management (default: 'btps1')
 - `hostOperator`: Optional, with `host`: the identity operating that host, which must sign its identity lookup answers. Without `host`, the operator comes from DNS (`op` in `_btps.host`)
+- `requireSignedBy`: Optional, since 1.2. Takes no answer but one signed by this identity under this selector, as a provider's own app expects of its server (for example `server$saas.example` under `server1`); an unsigned answer, or one by any other signer, is refused before any key is looked up. The signer's identity compares without case; its selector exactly. The provider's server signs its answers with `signAnswers`. It applies to answers on this client's own connection, a device's commands to its provider: `resolveIdentity` looks a receiver's key up on a connection of its own and checks that the answer is signed by the domain's operator instead, so the pin never stands in the way of a lookup. An identity-lookup answer that arrives on the pinned connection itself is refused
 - `version`: Optional protocol version (default: '1.1.0')
 - `port`: Optional custom port override
 - `maxQueue`: Optional maximum queue size for request handling (default: 100)
@@ -749,14 +753,45 @@ interface BTPInvoiceDoc {
     linkText: string;
     url: string;
   };
-  description?: string;
+  description?: BTPNote; // a note with a format since 1.2; a plain string as in 1.1
+  discount?: BTPDiscount; // 1.2: a discount on the whole invoice, before tax
   attachments?: BTPAttachment[];
   references?: BTPDocReference[];
-  template?: {
-    name: string;
-    data: Record<string, unknown>;
-  };
+  template?: BTPTemplate;
   metadata?: Record<string, unknown>;
+}
+```
+
+### BTPNote
+
+A person's note. Since 1.2 it says how it is written, as a letter's body does; a plain string, as in 1.1, is read as `text`. In a `1.2.0` artifact its content is at most 5,000 characters.
+
+```ts
+type BTPNote = string | { format: 'text' | 'markdown'; content: string };
+```
+
+### BTPDiscount
+
+Since 1.2. A discount on a whole invoice or receipt, before tax: an amount in minor units of its currency, or whole basis points from 1 to 10,000.
+
+```ts
+type BTPDiscount = { amount: number } | { percent: number };
+```
+
+### BTPTemplate
+
+A document's template, by reference. Since 1.2, in a `1.2.0` artifact, the named `data` fields are each optional but well formed when present, and a `source` always comes with its `sha256`; other keys stay the provider's. The template file itself is specified on [Templates](../protocol/specifications/templates.md).
+
+```ts
+interface BTPTemplate {
+  name: string;
+  data: {
+    version?: string; // a semantic version
+    sha256?: string; // lowercase hex
+    source?: string; // an https address, always with its sha256
+    logo?: { sha256: string; source: string };
+    [key: string]: unknown;
+  };
 }
 ```
 
@@ -802,7 +837,7 @@ interface BTPLifecycleEvent {
   inReplyTo?: string; // refund, response: the id of the event answered; withdrawn: the proposal taken back
   follows?: string; // 1.2, on a proposal sent again: the id of the withdrawn it follows
   remainingDueDate?: string; // an accepted response to a partially_paid
-  message?: string; // free text for the other party
+  message?: BTPNote; // free text for the other party; a note with a format since 1.2
 }
 ```
 
@@ -1262,7 +1297,7 @@ interface BTPTrustReqDoc {
   logoUrl?: string;
   displayName?: string;
   websiteUrl?: string;
-  message?: string;
+  message?: BTPNote; // a note with a format since 1.2
   expiresAt?: string;
   privacyType?: BTPEncryptionType;
 }
@@ -1280,7 +1315,7 @@ interface BTPTrustResDoc {
   decidedBy: string;
   expiresAt?: string;
   retryAfterDate?: string;
-  message?: string;
+  message?: BTPNote; // a note with a format since 1.2
   privacyType?: BTPEncryptionType;
 }
 ```
