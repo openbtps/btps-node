@@ -37,4 +37,11 @@ export interface Decrypter {
   /** Decrypts `request` and returns the plaintext bytes, or rejects if the
    * key-wrap fails to unwrap or the AEAD tag check fails. */
   decrypt(request: DecryptRequest): Promise<Uint8Array>;
+
+  /**
+   * Since 1.2, optional: unwraps an RSA-OAEP-wrapped AES-256 content key and
+   * returns it, so a provider can wrap it again to one of its user's devices
+   * (`wrapForAgent`). A KMS decrypter makes the same call inside `decrypt`.
+   */
+  unwrapKey?(encryptedKey: Uint8Array): Promise<Uint8Array>;
 }
