@@ -29,83 +29,96 @@ In a `1.2.0` artifact, a `source` always comes with its `sha256`, and a `logo` w
 
 ## The template file
 
-A template is a JSON file that changes only **style, order and layout**. It refers to the document's own sections by name, to place them and style them, and it carries no text, number or value of its own: no wording, no labels, nothing a reader could mistake for the document's content. The receiver's provider writes every label. Its format is the JSON Schema [`btps-template.schema.json`](pathname:///schemas/btps-template.schema.json), published with these docs, and the [golden vectors](./golden-vectors.md) (`templates.vectors.json`) show what it accepts and refuses.
+A template is a JSON file that says how a document looks, never what it says. It never carries or changes the content of the document's own fields: no amount, total, tax, date, party, payee, payment detail, document id or note. It hides nothing, and leaves the sender's verification as the receiver shows it. Its own words are presentation only: labels in place of the provider's default wording, and static terms and footer text.
+
+The format is the JSON Schema [`btps-template.schema.json`](pathname:///schemas/btps-template.schema.json), published with these docs, together with the two rules under [Beyond the schema](#beyond-the-schema). The [golden vectors](./golden-vectors.md) (`templates.vectors.json`) show what it accepts and refuses. This is format `1`:
 
 ```json
 {
-  "format": "btps-template/1",
-  "name": "acme/classic-invoice",
-  "version": "1.2.0",
-  "documentTypes": ["invoice", "receipt"],
-  "layout": {
-    "sections": [
-      "header",
-      "issuer",
-      "details",
-      "lineItems",
-      "discount",
-      "totals",
-      "payment",
-      "footer"
-    ]
-  },
-  "colours": {
-    "text": "#172b4d",
+  "format": 1,
+  "kinds": ["invoice", "receipt"],
+  "page": {
+    "font": "source-serif-4",
+    "size": "normal",
+    "density": "comfortable",
     "background": "#ffffff",
-    "primary": "#0747a6",
-    "accent": "#36b37e"
+    "text": "#1f2933",
+    "muted": "#52606d",
+    "accent": "#0b6e4f"
   },
-  "fonts": { "body": "sans-serif", "heading": "serif", "numbers": "monospace" },
-  "styles": {
-    "header": { "colour": "primary", "font": "heading", "size": "large", "weight": "bold" },
-    "totals": { "font": "numbers", "weight": "bold", "align": "end", "border": "thin" },
-    "footer": { "colour": "muted", "size": "small", "spacing": "roomy" }
-  },
-  "logo": { "position": "left", "size": "medium" }
+  "logo": { "position": "top-left", "size": "medium" },
+  "sections": [
+    "header",
+    "totals",
+    "details",
+    "parties",
+    "lines",
+    "payment",
+    "notes",
+    "terms",
+    "footer"
+  ],
+  "labels": { "title": "Tax invoice", "to": "Bill to", "amountDue": "Amount due" },
+  "lines": { "style": "striped", "header": "accent" },
+  "totals": { "style": "accent" },
+  "text": {
+    "terms": "Payment within 14 days.\nThank you for your business.",
+    "footer": "Kauri Studio"
+  }
 }
 ```
 
-| Field           | What it says                                                                                                              |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `format`        | `btps-template/1`                                                                                                         |
-| `name`          | `owner/template`, lowercase letters, digits and `-`                                                                       |
-| `version`       | A semantic version: the one the document's `template.data.version` names                                                  |
-| `documentTypes` | The document types it is for: `invoice`, `receipt`, `payslip`, `letter`                                                   |
-| `layout`        | `sections`: the order the document's own sections are placed in, each once, from the list below                           |
-| `colours`       | The palette: `text`, `background`, `primary`, `accent`, `muted`, each `#rrggbb`                                           |
-| `fonts`         | `body`, `heading`, `numbers`, each from a fixed list: `sans-serif`, `serif`, `monospace`, `system-ui`                     |
-| `styles`        | How a section looks, by the section's name (below)                                                                        |
-| `logo`          | Where the sender's own logo goes and how big: `position` (`left`, `centre`, `right`), `size` (`small`, `medium`, `large`) |
+| Field      | What it says                                                                                                                                                                                        |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `format`   | `1`. A later format adds fields under a new number, never as a key an older renderer would ignore                                                                                                   |
+| `kinds`    | The document types it is for: `invoice`, `receipt`. A letter or payslip may name a template, but format 1 has none for them, so they are shown in the standard view until a later format adds them  |
+| `page`     | `font`, from a fixed list (below); `size` (`small`, `normal`, `large`); `density` (`compact`, `comfortable`); and the colours `background`, `text`, `muted`, `accent`, each `#rrggbb` in lower case |
+| `logo`     | Where the sender's own logo goes and how big: `position` (`top-left`, `top-center`, `top-right`, `none`) and `size` (`small`, `medium`, `large`)                                                    |
+| `sections` | The order the document's sections are shown in, each at most once (below)                                                                                                                           |
+| `labels`   | Wording in place of the provider's default, by key (below): plain words of 1 to 40 characters                                                                                                       |
+| `lines`    | How line items are drawn: `style` (`plain`, `striped`, `boxed`) and `header` (`plain`, `accent`)                                                                                                    |
+| `totals`   | How the totals are drawn: `style` (`plain`, `boxed`, `accent`)                                                                                                                                      |
+| `text`     | Static `terms` (at most 2,000 characters) and `footer` (at most 300), plain words. Each is required when `sections` lists it                                                                        |
 
-A section's style is made of tokens only, each from a fixed list:
+- **Fonts:** `geist`, `source-serif-4`, `atkinson-hyperlegible-next`, `geist-mono`. All four are open-licence, so a receiver draws them from its own copy and fetches nothing.
+- **Sections:** `header`, `parties`, `details`, `lines`, `totals`, `payment`, `notes`, `terms`, `footer`. The first seven carry signed fields, and every template shows all seven.
+- **Label keys:** `title`, `from`, `to`, `number`, `issued`, `due`, `description`, `quantity`, `unitPrice`, `tax`, `lineTotal`, `subtotal`, `taxTotal`, `total`, `amountDue`, `paid`, `notes`, `payment`.
 
-| Style        | Tokens                                               |
-| ------------ | ---------------------------------------------------- |
-| `colour`     | `text`, `primary`, `accent`, `muted` (the palette's) |
-| `background` | `background`, `primary`, `accent`, `muted`           |
-| `font`       | `body`, `heading`, `numbers` (the template's fonts)  |
-| `size`       | `small`, `normal`, `large`                           |
-| `weight`     | `normal`, `bold`                                     |
-| `align`      | `start`, `centre`, `end`                             |
-| `spacing`    | `compact`, `normal`, `roomy`                         |
-| `border`     | `none`, `thin`, `thick`                              |
+Every key a template may hold is named in the schema, and any other key is refused.
 
-Sections: `header`, `issuer`, `details`, `lineItems`, `totals`, `discount`, `payment`, `description`, `body`, `earnings`, `deductions`, `contributions`, `leave`, `attachments`, `references`, `footer`.
+### A template's own words
 
-Every key a template may hold is named in the schema, every value is a colour or a token from a fixed list, and anything else is refused.
+A template's labels, terms and footer are printed on every document drawn with it, whoever sent it. So they are plain words only:
+
+- no markup, and no control, hidden or direction-changing character;
+- no run of four or more digits (an account, BSB or phone number), so `Payment within 14 days` is fine and `BSB 062-000` is not;
+- no web, email or BTPS address.
+
+No payment detail can come from a template.
+
+### Beyond the schema
+
+Two more rules, which a JSON Schema cannot say:
+
+- **Contrast.** `page.text` and `page.muted` contrast with `page.background` at least 4.5:1, and `page.accent` at least 3:1, as WCAG 2 AA measures it.
+- **Size.** A template is at most 16 KiB as JSON.
 
 ### What a template never does
 
-- **Carry or change a value or any content.** It holds no amount, payee, payment link, text, number or label of its own, and it changes none of the document's: every value and every word shown comes from the signed document or from the receiver's provider.
-- **Hide a field.** It cannot hide, omit or truncate a field, or reorder what is inside a value. Every signed field is shown: a section the document has content for but the template does not place is shown after the placed ones, in a default position. A section the document has no content for is not shown.
+- **Carry or change a value.** It holds no amount, total, tax, date, party, payee, payment detail, document id or note, and has no field that could change one. Every value shown comes from the signed document.
+- **Hide a field.** Every section that carries signed fields is listed, so all of them are shown. A template cannot hide, truncate or reorder what is inside a value.
 - **Fetch anything.** It names no address: fonts are from the fixed list, and the logo is the sender's own, named by the document (`template.data.logo`) and checked by its fingerprint. The template says only where the logo goes and how big.
 - **Run anything.** It holds no script, style sheet or markup.
+
+### Its fingerprint
+
+A template's `sha256`, the one `template.data.sha256` names, is the lowercase hex SHA-256 of its [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) canonical form: the same canonical JSON that artifacts are signed over. So the same template has one fingerprint however it is spaced or ordered. The vectors give one template, its canonical form and its fingerprint.
 
 ## The receiving side
 
 When and how a template is fetched is each provider's own: it fetches when it can read the document, on arrival for a readable one, or when its user first views it for one only the user can open. What the protocol fixes is safety:
 
-- **Draw only what matches.** A provider draws a template only from bytes whose SHA-256 is `sha256` and that are a valid template for the document's type.
+- **Draw only what matches.** A provider draws a template only when its fingerprint is `sha256` and it is a valid template for the document's type.
 - **The logo too.** It draws the logo only if its bytes match `logo.sha256` and are a PNG, JPEG or WebP image.
 - **Fall back.** On any failure (no answer, a mismatch, an invalid file, a document type the template is not for) it shows the standard view. The signed document is always shown in full, so nothing depends on how long a template stays available.
 

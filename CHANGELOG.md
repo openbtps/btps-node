@@ -47,8 +47,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   payslip may name a template. The template file's format is specified on the
   new Templates page, with a JSON Schema published with the docs
   (`schemas/btps-template.schema.json`) and golden vectors
-  (`templates.vectors.json`): a declarative layout that never carries a value,
-  hides a field, fetches anything or runs script. The SDK renders nothing.
+  (`templates.vectors.json`). Format 1 says how an invoice or receipt looks,
+  never what it says: it never carries or changes a value, hides no section
+  with signed fields, fetches nothing and runs nothing, and its labels, terms
+  and footer are plain words with no payment detail. Its fingerprint is the
+  SHA-256 of its RFC 8785 canonical form. The SDK renders nothing.
 - Every 1.2 document rule applies under `1.2.0` only: a document valid in 1.1
   reads exactly as before in a `1.1.0` artifact. The schemas 1.1 reads with are
   kept beside the newest (`Btp…V1_1Schema`). A device checks what it sends
