@@ -296,14 +296,35 @@ export interface BTPInvoiceDoc {
     linkText: string;
     url: string; // should be HTTPS
   };
-  description?: string;
+  description?: BTPNote; // a note with a format since 1.2; a plain string as in 1.1
+  /** Since 1.2: a discount on the whole invoice, before tax */
+  discount?: BTPDiscount;
   attachments?: BTPAttachment[];
   references?: BTPDocReference[];
-  template?: {
-    name: string;
-    data: Record<string, unknown>;
-  };
+  template?: BTPTemplate;
   metadata?: Record<string, unknown>; // the sending platform's own data
+}
+
+/**
+ * A person's note. Since 1.2 it says how it is written, `text` or `markdown`
+ * (CommonMark, raw HTML off), as a letter's body does; a 1.1 note is a plain
+ * string, read as `text`.
+ */
+export type BTPNote = string | { format: 'text' | 'markdown'; content: string };
+
+/** Since 1.2: a discount before tax, an amount in minor units of the currency or whole basis points (1 to 10000). */
+export type BTPDiscount = { amount: number } | { percent: number };
+
+/** A template by reference. Since 1.2 its named data fields, each optional, are well formed when present. */
+export interface BTPTemplate {
+  name: string;
+  data: {
+    version?: string; // a semantic version
+    sha256?: string; // lowercase hex
+    source?: string; // an https address, always with its sha256
+    logo?: { sha256: string; source: string };
+    [key: string]: unknown;
+  };
 }
 
 /** Proof of a payment: the invoice without what asks for payment, plus `payment`. */
