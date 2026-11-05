@@ -1,5 +1,5 @@
 {
-  "description": "The BTPS 1.2 template file, format 1 (Templates page; JSON Schema at docs/docusaurus/static/schemas/btps-template.schema.json, published with the docs site as schemas/btps-template.schema.json). A template says how a document looks, never what it says: it never carries or changes a value of the document, hides no section with signed fields, names nothing to fetch and runs nothing; its own words are labels from a fixed set and static terms and footer text, each plain words with no digit run of four or more and no web, email or BTPS address. An implementation accepts every \"accept\" template and refuses every \"refuse\" one; `check` is the rule that refuses it: \"schema\" for the JSON Schema, \"contrast\" for the WCAG AA contrast of `page.text` and `page.muted` (4.5:1) and `page.accent` (3:1) against `page.background`. `fingerprint` is a template's RFC 8785 canonical form and the lowercase hex SHA-256 of it, which `template.data.sha256` names.",
+  "description": "The BTPS 1.2 template file, formats 1 and 2 (Templates page; JSON Schema at docs/docusaurus/static/schemas/btps-template.schema.json, published with the docs site as schemas/btps-template.schema.json). A template says how a document looks, never what it says: it never carries or changes a value of the document, hides no section with signed fields, names nothing to fetch and runs nothing; its own words are labels from a fixed set and static terms and footer text, each plain words with no digit run of four or more and no web, email or BTPS address. Format 1 is for invoices and receipts. Format 2 is format 1 for them, plus payslips (sections and labels of their own) and letters (the page, a letterhead placing every one of the sender's own fields, and a footer with a sign-off and signature slots, whose values come from the document; never the body). An implementation accepts every \"accept\" template and refuses every \"refuse\" one; `check` is the rule that refuses it: \"schema\" for the JSON Schema, \"contrast\" for the WCAG AA contrast of `page.text` and `page.muted` (4.5:1) and `page.accent` (3:1) against `page.background`. `fingerprint` is a template's RFC 8785 canonical form and the lowercase hex SHA-256 of it, which `template.data.sha256` names.",
   "fingerprint": {
     "template": {
       "format": 1,
@@ -226,7 +226,7 @@
     {
       "name": "a-later-format",
       "template": {
-        "format": 2,
+        "format": 3,
         "kinds": ["invoice", "receipt"],
         "page": {
           "font": "source-serif-4",
@@ -271,7 +271,7 @@
       },
       "expect": "refuse",
       "check": "schema",
-      "why": "this is format 1"
+      "why": "formats 1 and 2 are the ones there are"
     },
     {
       "name": "an-unknown-key",
@@ -2022,6 +2022,773 @@
       "expect": "refuse",
       "check": "contrast",
       "why": "the accent contrasts 3:1 with the background"
+    },
+    {
+      "name": "format-2-invoice",
+      "template": {
+        "format": 2,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "format-2-payslip",
+      "template": {
+        "format": 2,
+        "kinds": ["payslip"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "parties",
+          "period",
+          "earnings",
+          "deductions",
+          "contributions",
+          "leave",
+          "totals",
+          "footer"
+        ],
+        "labels": {
+          "title": "Payslip",
+          "net": "Net pay",
+          "employer": "Employer"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "format-2-letter",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "format-2-letter-without-a-footer",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-payslip-with-a-signed-section-left-out",
+      "template": {
+        "format": 2,
+        "kinds": ["payslip"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": ["header", "parties", "period", "earnings", "contributions", "leave", "totals"],
+        "labels": {
+          "title": "Payslip",
+          "net": "Net pay",
+          "employer": "Employer"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "every section with signed fields is shown"
+    },
+    {
+      "name": "a-payslip-with-an-invoice-section",
+      "template": {
+        "format": 2,
+        "kinds": ["payslip"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "parties",
+          "period",
+          "earnings",
+          "deductions",
+          "contributions",
+          "leave",
+          "totals",
+          "lines"
+        ],
+        "labels": {
+          "title": "Payslip",
+          "net": "Net pay",
+          "employer": "Employer"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a payslip's sections are its own groups"
+    },
+    {
+      "name": "a-payslip-with-an-invoice-label",
+      "template": {
+        "format": 2,
+        "kinds": ["payslip"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "parties",
+          "period",
+          "earnings",
+          "deductions",
+          "contributions",
+          "leave",
+          "totals",
+          "footer"
+        ],
+        "labels": {
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a payslip's labels are its own keys"
+    },
+    {
+      "name": "a-payslip-in-format-1",
+      "template": {
+        "format": 1,
+        "kinds": ["payslip"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "parties",
+          "period",
+          "earnings",
+          "deductions",
+          "contributions",
+          "leave",
+          "totals",
+          "footer"
+        ],
+        "labels": {
+          "title": "Payslip",
+          "net": "Net pay",
+          "employer": "Employer"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "format 1 has no payslip"
+    },
+    {
+      "name": "a-payslip-and-an-invoice-in-one",
+      "template": {
+        "format": 2,
+        "kinds": ["payslip", "invoice"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "parties",
+          "period",
+          "earnings",
+          "deductions",
+          "contributions",
+          "leave",
+          "totals",
+          "footer"
+        ],
+        "labels": {
+          "title": "Payslip",
+          "net": "Net pay",
+          "employer": "Employer"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a payslip template is for payslips only"
+    },
+    {
+      "name": "a-letter-that-styles-the-body",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        },
+        "body": {
+          "font": "geist-mono",
+          "size": "large"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a letter template never touches the body: it is the sender's own"
+    },
+    {
+      "name": "a-letter-that-reorders-the-body",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        },
+        "sections": ["header", "body", "footer"]
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a letter template has no sections"
+    },
+    {
+      "name": "a-letter-hiding-an-issuer-field",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "the letterhead places every one of the sender's own fields"
+    },
+    {
+      "name": "a-letter-with-an-issuer-field-twice",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "name", "address", "email", "phone"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "each field once"
+    },
+    {
+      "name": "a-letter-with-a-value-in-its-letterhead",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start",
+          "name": "Kauri Studio"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "the letterhead places the document's fields, never values of its own"
+    },
+    {
+      "name": "a-letter-sign-off-with-a-phone-number",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Call 02 9999 0000",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "the sign-off is plain words: no run of four or more digits"
+    },
+    {
+      "name": "a-letter-unknown-slot",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.stamp"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "slots are a fixed list"
+    },
+    {
+      "name": "a-letter-with-a-signature-value-of-its-own",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start",
+            "name": "Jo Bloggs"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "signature values come from the document, never the template"
+    },
+    {
+      "name": "a-letter-with-a-drawn-signature-as-svg",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start",
+            "svg": "<svg/>"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a template holds no markup, and no signature"
+    },
+    {
+      "name": "a-letter-in-the-signature-font",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "caveat",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "the script font is for the typed signature only"
+    },
+    {
+      "name": "a-letter-in-format-1",
+      "template": {
+        "format": 1,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "format 1 has no letter"
     }
   ]
 }

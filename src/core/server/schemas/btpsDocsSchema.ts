@@ -244,29 +244,111 @@ const semver = z
   .string()
   .regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/, 'must be a semantic version');
 
+const { signature } = BTPS_FIELD_LIMITS;
+
+// Characters that make text read differently from how it is stored: direction overrides and isolates, zero-width ones.
+const HIDDEN = new Set([
+  0x200b, 0x200c, 0x200d, 0x200e, 0x200f, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067,
+  0x2068, 0x2069, 0xfeff,
+]);
+const isPlainText = (text: string): boolean =>
+  [...text].every((char) => {
+    const code = char.codePointAt(0) ?? 0;
+    return code >= 0x20 && code !== 0x7f && char !== '<' && char !== '>' && !HIDDEN.has(code);
+  });
+
+/** Text a sender signs with: printable, with no markup and no control, hidden or direction-changing character. */
+const signatureText = z
+  .string()
+  .min(1)
+  .max(signature.text)
+  .refine(isPlainText, 'must be plain text');
+
+/**
+ * A drawn signature as data, never markup: strokes of integer points
+ * `[x, y, x, y, …]` on a canvas `width` by `height`, which a receiver draws itself.
+ */
+const drawnSignature = z
+  .object({
+    strokes: z
+      .array(
+        z
+          .array(z.number().int().min(0))
+          .min(2)
+          .max(signature.strokePoints * 2),
+      )
+      .min(1)
+      .max(signature.strokes),
+  })
+  .strict()
+  .superRefine(({ strokes }, ctx) => {
+    let points = 0;
+    strokes.forEach((stroke, index) => {
+      points += stroke.length / 2;
+      const onCanvas = stroke.every((value, at) =>
+        at % 2 === 0 ? value <= signature.width : value <= signature.height,
+      );
+      if (stroke.length % 2 !== 0 || !onCanvas) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `each stroke is x, y pairs on a ${signature.width} by ${signature.height} canvas`,
+          path: ['strokes', index],
+        });
+      }
+    });
+    if (points > signature.points) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `a drawn signature has at most ${signature.points} points`,
+        path: ['strokes'],
+      });
+    }
+  });
+
+/**
+ * Since 1.2, under 1.2.0, on a letter's template only: the values its slots
+ * show, from the sender, signed with the document. Slot names are a fixed list,
+ * none of them a document field.
+ */
+const BtpTemplateValuesSchema = z
+  .object({
+    'signature.typed': signatureText.optional(),
+    'signature.name': signatureText.optional(),
+    'signature.title': signatureText.optional(),
+    'signature.drawn': drawnSignature.optional(),
+  })
+  .strict();
+
 /**
  * A template by reference: its name and data. The named data fields, each
  * optional, are well formed when present; other keys stay the provider's. A
  * `source` comes with its `sha256`, as a logo's does: the fingerprint is what
  * makes it trustworthy, so a receiver never draws whatever an address serves.
+ * Only a letter's template carries `values`.
  */
-const BtpTemplateSchema = z.object({
-  name: z.string(),
-  data: boundedRecord(z.unknown(), recordKeys).pipe(
-    z
-      .object({
-        version: semver.optional(),
-        sha256: sha256Hex.optional(),
-        source: httpsUrl.optional(),
-        logo: z.object({ sha256: sha256Hex, source: httpsUrl }).strict().optional(),
-      })
-      .catchall(z.unknown())
-      .refine((data) => data.source === undefined || data.sha256 !== undefined, {
-        message: 'a source comes with the sha256 of what it serves',
-        path: ['sha256'],
-      }),
-  ),
-});
+const templateSchema = (withValues: boolean) =>
+  z.object({
+    name: z.string(),
+    data: boundedRecord(z.unknown(), recordKeys).pipe(
+      z
+        .object({
+          version: semver.optional(),
+          sha256: sha256Hex.optional(),
+          source: httpsUrl.optional(),
+          logo: z.object({ sha256: sha256Hex, source: httpsUrl }).strict().optional(),
+          values: withValues
+            ? BtpTemplateValuesSchema.optional()
+            : z.undefined({ invalid_type_error: 'values are only on a letter template' }),
+        })
+        .catchall(z.unknown())
+        .refine((data) => data.source === undefined || data.sha256 !== undefined, {
+          message: 'a source comes with the sha256 of what it serves',
+          path: ['sha256'],
+        }),
+    ),
+  });
+const BtpTemplateSchema = templateSchema(false);
+const BtpLetterTemplateSchema = templateSchema(true);
 
 /** A discount on a whole document, before tax: an amount in its currency's minor units, or whole basis points. */
 const BtpDiscountSchema = z.union([
@@ -418,7 +500,7 @@ export const BtpPayslipDocSchema = BtpPayslipDocV1_1Schema.extend({
 
 /** A letter, which since 1.2 may name a template. */
 export const BtpLetterDocSchema = BtpLetterDocV1_1Schema.extend({
-  template: BtpTemplateSchema.optional(),
+  template: BtpLetterTemplateSchema.optional(),
 }).strict();
 
 /** What a 1.1.0 `BTPS_DOC` carries, as 1.1 reads it. */

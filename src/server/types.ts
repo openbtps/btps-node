@@ -334,8 +334,21 @@ export interface BTPTemplate {
     sha256?: string; // lowercase hex
     source?: string; // an https address, always with its sha256
     logo?: { sha256: string; source: string };
+    values?: BTPTemplateValues; // since 1.2, a letter's template only
     [key: string]: unknown;
   };
+}
+
+/**
+ * Since 1.2: what a letter template's signature slots show, from the sender and
+ * signed with the document. A drawn signature is integer strokes, `[x, y, x, y, …]`,
+ * on a canvas 1000 by 300: data a receiver draws itself, never markup.
+ */
+export interface BTPTemplateValues {
+  'signature.typed'?: string;
+  'signature.name'?: string;
+  'signature.title'?: string;
+  'signature.drawn'?: { strokes: number[][] };
 }
 
 /** Proof of a payment: the invoice without what asks for payment, plus `payment`. */
