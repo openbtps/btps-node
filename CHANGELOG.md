@@ -57,6 +57,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   kept beside the newest (`Btp…V1_1Schema`). A device checks what it sends
   under the version it will stamp it with, so it sends whatever a 1.1 device
   could; a draft or edit takes either version's shape.
+- **Signed answers, and a device that requires them.** A server with
+  `signAnswers` signs every answer, errors included, as `serverIdentity` under
+  its new `selector`. A client with `requireSignedBy: { identity, selector }`
+  takes no answer but one signed by that signer under that selector, and
+  refuses any other before it looks up a key.
 
 ### Changed
 
