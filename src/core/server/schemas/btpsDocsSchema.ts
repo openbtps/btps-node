@@ -42,7 +42,7 @@ const codeSchema = (max: number) =>
 const decimalText = z.string().regex(/^-?\d+(\.\d+)?$/, 'must be a decimal written as text');
 
 /** A SHA-256, written in lowercase hex. */
-const sha256Hex = z.string().regex(/^[0-9a-f]{64}$/, 'must be a SHA-256 in lowercase hex');
+export const sha256Hex = z.string().regex(/^[0-9a-f]{64}$/, 'must be a SHA-256 in lowercase hex');
 
 /**
  * A file carried in a document. `size` (bytes) and `sha256` are what the

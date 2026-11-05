@@ -84,7 +84,7 @@ export const lifecycleEventChainReference = (event: BTPLifecycleEvent): string |
   return 'follows' in event ? event.follows : undefined;
 };
 
-const sameIdentity = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+export const sameIdentity = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
 /** Whether two events are about the same invoice. */
 const sameDocument = (a: { from: string; id: string }, b: { from: string; id: string }) =>

@@ -32,6 +32,15 @@ versions follow [Semantic Versioning](https://semver.org/).
   the sender which rule it broke. `lifecycleEventChainProblem` and
   `lifecycleEventSenderProblem` (`@btps/sdk/server`) let a platform check an
   encrypted event the same way once it has opened it.
+- **Sync.** A device's sync is an `artifact.send` to the user's own address
+  that names the send it copies on its envelope, `syncOf: { id, sha256 }`
+  (`BtpsAgentCommandOptions.syncOf`; `syncOfArtifact` computes it). It is only
+  from and to the same address, only in `1.2.0` artifacts, and only inside a
+  device's `artifact.send`: a server refuses one sent to it directly
+  (`BTP_ERROR_SYNC_NOT_ALLOWED`).
+- `meta.delivery` on a sentbox result: a send's outcome by its provider's own
+  record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
+  (`BTPDelivery`).
 
 ### Changed
 

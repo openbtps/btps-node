@@ -25,6 +25,7 @@ export const VECTOR_FILES = Object.freeze({
   versions: 'versions.vectors.json',
   documents12: 'documents-1.2.vectors.json',
   eventChain: 'event-chain.vectors.json',
+  sync: 'sync.vectors.json',
   manifest: 'manifest.json',
 });
 
@@ -127,6 +128,14 @@ export function loadVectorSet(dir) {
   requireFields(VECTOR_FILES.eventChain, set.eventChain, ['cases']);
   for (const c of set.eventChain.cases) {
     requireFields(VECTOR_FILES.eventChain, c, ['name', 'event', 'envelope', 'named', 'expect']);
+  }
+  requireFields(VECTOR_FILES.sync, set.sync, ['hash', 'envelopes', 'delivery']);
+  requireFields(VECTOR_FILES.sync, set.sync.hash, ['sent', 'syncOf']);
+  for (const c of set.sync.envelopes) {
+    requireFields(VECTOR_FILES.sync, c, ['name', 'artifact', 'expect']);
+  }
+  for (const c of set.sync.delivery) {
+    requireFields(VECTOR_FILES.sync, c, ['name', 'entry', 'expect']);
   }
   requireFields(VECTOR_FILES.manifest, set.manifest, ['hashAlgorithm', 'files']);
 

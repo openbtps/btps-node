@@ -256,15 +256,23 @@ type BtpsAgentDoc = BTPDocType | BTPAuthReqDoc | BTPAgentMutation | BTPIdsPayloa
 
 ### BtpsAgentCommandOptions
 
-Options for `BtpsAgent.command`: the [BTPCryptoOptions](#btpcryptooptions), plus `relatesTo` for events.
+Options for `BtpsAgent.command`: the [BTPCryptoOptions](#btpcryptooptions), plus `relatesTo` for events and, since 1.2, `syncOf` for a sync.
 
 ```ts
 type BtpsAgentCommandOptions = BTPCryptoOptions & {
   relatesTo?: string;
+  id?: string;
+  syncOf?: BTPSyncOf; // since 1.2
 };
+
+interface BTPSyncOf {
+  id: string; // the sent artifact's id
+  sha256: string; // lowercase hex SHA-256 of the sent artifact's RFC 8785 form
+}
 ```
 
 - `relatesTo`: Required on `event.send` and refused on every other action: the `id` of the `BTPS_DOC` artifact that delivered the invoice the event is about. It is set on the `BTPS_EVENT` envelope, outside the encrypted document, so the receiving server can check it without decrypting
+- `syncOf`: Since 1.2, on `artifact.send` to the device's own address only, and refused elsewhere: this send is a sync, the user's own copy of the send it names. `syncOfArtifact(sentArtifact)` gives it. It is set on the envelope and stamps the artifact `1.2.0`. See [Sync](../protocol/specifications/transporter-artifact.md#sync)
 
 ### BTPConnection
 
@@ -1321,6 +1329,7 @@ interface BTPTransporterArtifact {
   delegation?: BTPDelegation;
   selector: string; // Selector used for public key resolution (e.g., 'btps1', 'btps2')
   relatesTo?: string; // BTPS_EVENT only, and required there: the id of the BTPS_DOC artifact that delivered the invoice
+  syncOf?: BTPSyncOf; // since 1.2, a sync only: from and to the same address, inside a device's artifact.send
 }
 ```
 
@@ -1531,10 +1540,19 @@ interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFailureArt
   meta?: {
     seen?: boolean;
     seenAt?: string;
+    delivery?: BTPDelivery; // since 1.2, on a sentbox result
     [key: string]: unknown;
   };
 }
+
+interface BTPDelivery {
+  status: 'pending' | 'delivered' | 'failed';
+  code?: string; // the BTPS error code of a failure
+  at: string; // when it reached this status
+}
 ```
+
+`delivery` (since 1.2) is a send's outcome by its sender's provider's own record, with no receipt from the receiver. No other key is allowed in it.
 
 `artifact` may also be a `BTPTrustRecord`, in an answer to `trust.fetch` (since 1.1.3); such an answer is typed `BTPQueryResult<BTPTrustRecord>`.
 

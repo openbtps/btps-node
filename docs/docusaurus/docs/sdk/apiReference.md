@@ -789,6 +789,24 @@ const signature = await signBtpPayloadWithSigner({ foo: 'bar' }, signer);
 
 ---
 
+### syncOfArtifact
+
+```ts
+syncOfArtifact(artifact: { id: string }): { id: string; sha256: string }
+```
+
+**Description:**
+Since 1.2. What a sync names of the send it copies (`syncOf`): the sent artifact's `id`, and the lowercase hex SHA-256 of its RFC 8785 canonical form, signature included. See [Sync](../protocol/specifications/transporter-artifact.md#sync).
+
+**Example:**
+
+```js
+import { syncOfArtifact } from '@btps/sdk/crypto';
+const syncOf = syncOfArtifact(sentArtifact);
+```
+
+---
+
 ### verifySignature
 
 ```ts
@@ -1461,6 +1479,22 @@ Error constant for an `auth.refresh` that names a new device key without a `keyP
 
 - `code`: `'BTP_ERROR_KEY_ROTATION_PROOF'`
 - `message`: `'A new device key needs a proof signed by that key'`
+
+---
+
+### BTP_ERROR_SYNC_NOT_ALLOWED
+
+```ts
+const BTP_ERROR_SYNC_NOT_ALLOWED: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a transporter artifact with `syncOf` sent to a server directly. A sync comes only inside an `artifact.send` from a live device of its own address, so a server refuses one sent any other way before its signature is checked.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_SYNC_NOT_ALLOWED'`
+- `message`: `"A sync comes only from a device of its own address, inside that device's artifact.send"`
 
 ---
 

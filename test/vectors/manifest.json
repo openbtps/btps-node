@@ -17,6 +17,7 @@
     "selectors.vector.json": "28765364e5825e132adac1dd40e26c08204b22be37a0c3980f6224bb660f44b6",
     "self-held-signature.vector.json": "ecf0b6725fb06f43176f3e803bdcac18142e3644c61bac53a5ea69e0142c045f",
     "signed-artifacts.vector.json": "5876fb3439adac0559110aaa8636cf983624728592587c41af161cfe65877ea7",
+    "sync.vectors.json": "9824a6f90d052606ce97ba8b7d8e4cbc12c7df959acb5264dc71007779424dee",
     "time-window.vectors.json": "9135f8c26d7bdbb3bd35e349e01af599f127d950a030d58134d6591944d2ee57",
     "versions.vectors.json": "f66b6f235ed4db16c3b344d4bfd8878fed904c7671d836d0fb3175e322ad8710"
   }

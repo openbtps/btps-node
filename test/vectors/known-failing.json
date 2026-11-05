@@ -7,7 +7,6 @@
     "sdk/protocol/versions/stamped/invoice-discount": "Discounts",
     "sdk/protocol/versions/stamped/receipt-discount": "Discounts",
     "sdk/protocol/versions/stamped/letter-template": "Templates by reference",
-    "sdk/protocol/versions/stamped/sync": "Sync: syncOf",
     "sdk/protocol/versions/stamped/document-type": "Trust permissions: documentType",
     "sdk/protocol/versions/stamped/trust-request-permissions": "Trust permissions",
     "sdk/protocol/documents-1.2/invoice-note-markdown": "Note formats",

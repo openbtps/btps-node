@@ -1309,3 +1309,117 @@ export function eventChain() {
     ],
   };
 }
+
+/** BTPS 1.2 sync: a sync's envelope, how it names the send it copies, and a send's outcome. */
+export function sync() {
+  const user = 'alice$saas.example';
+  const encrypted = {
+    algorithm: 'aes-256-gcm',
+    encryptedKey: 'AA==',
+    iv: 'AA==',
+    authTag: 'AA==',
+    type: 'standardEncrypt',
+  };
+  const sent = {
+    version: V11,
+    issuedAt: ISSUED_AT,
+    id: '6f1d2c3b-4a59-4e8f-9b7a-1c2d3e4f5a6b',
+    type: 'BTPS_DOC',
+    from: user,
+    to: 'pay$client.example',
+    selector: 'btps1',
+    signature: { algorithmHash: 'sha256', value: 'AA==', fingerprint: 'AA==' },
+    encryption: encrypted,
+    document: 'ciphertext-to-the-receiver',
+  };
+  const syncOf = {
+    id: sent.id,
+    sha256: crypto.createHash('sha256').update(canonicalizeValue(sent), 'utf8').digest('hex'),
+  };
+  const sync = {
+    ...sent,
+    version: V12,
+    id: '0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d',
+    to: user,
+    document: 'ciphertext-to-the-user',
+    syncOf,
+  };
+  const envelope = (name, artifact, expect, why) => ({
+    name,
+    artifact,
+    expect,
+    ...(why && { why }),
+  });
+  const entry = (name, delivery, expect, why) => ({
+    name,
+    entry: { artifact: sent, meta: { delivery } },
+    expect,
+    ...(why && { why }),
+  });
+  return {
+    description:
+      "BTPS 1.2 sync. A device's sync is an artifact.send to the user's own address whose transporter envelope names the send it copies: `syncOf: { id, sha256 }`, the sent artifact's id and the lowercase hex SHA-256 of its RFC 8785 form, signature included. `syncOf` is only on an artifact from and to the same address (compared without case), and only in a `1.2.0` artifact. `hash` is a sent artifact and the `syncOf` that names it. A provider refuses a sync sent to it directly (`BTP_ERROR_SYNC_NOT_ALLOWED`): it comes only inside its own device's artifact.send. `delivery` cases are sentbox result entries whose `meta.delivery` is the provider's own record of a send: `status` pending, delivered or failed, an optional BTPS error `code`, and `at`, always.",
+    hash: { sent, syncOf },
+    envelopes: [
+      envelope('sync', sync, 'accept'),
+      envelope('sync-address-in-another-case', { ...sync, from: 'Alice$SaaS.example' }, 'accept'),
+      envelope(
+        'sync-to-another-address',
+        { ...sync, to: 'pay$client.example' },
+        'refuse',
+        "a sync is to the sender's own address",
+      ),
+      envelope(
+        'sync-under-1-1',
+        { ...sync, version: V11 },
+        'refuse',
+        'syncOf is only in a 1.2.0 artifact',
+      ),
+      envelope(
+        'sync-hash-not-lowercase-hex',
+        { ...sync, syncOf: { ...syncOf, sha256: syncOf.sha256.toUpperCase() } },
+        'refuse',
+        'the SHA-256 is lowercase hex',
+      ),
+      envelope(
+        'sync-without-an-id',
+        { ...sync, syncOf: { sha256: syncOf.sha256 } },
+        'refuse',
+        'syncOf names the id of the send',
+      ),
+      envelope(
+        'sync-with-more',
+        { ...sync, syncOf: { ...syncOf, delivered: true } },
+        'refuse',
+        'syncOf holds its id and sha256 only',
+      ),
+    ],
+    delivery: [
+      entry('pending', { status: 'pending', at: ISSUED_AT }, 'accept'),
+      entry('delivered', { status: 'delivered', at: ISSUED_AT }, 'accept'),
+      entry(
+        'failed-with-its-code',
+        { status: 'failed', code: 'BTP_ERROR_TRUST_NOT_ALLOWED', at: ISSUED_AT },
+        'accept',
+      ),
+      entry(
+        'another-status',
+        { status: 'lost', at: ISSUED_AT },
+        'refuse',
+        'status is one of three',
+      ),
+      entry(
+        'without-when',
+        { status: 'failed', code: 'BTP_ERROR_TRUST_NOT_ALLOWED' },
+        'refuse',
+        'a delivery always says when',
+      ),
+      entry(
+        'with-more',
+        { status: 'delivered', at: ISSUED_AT, seenBy: 'pay$client.example' },
+        'refuse',
+        'a delivery holds status, code and at only: no receipt from the receiver',
+      ),
+    ],
+  };
+}

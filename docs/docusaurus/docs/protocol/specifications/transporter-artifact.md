@@ -79,6 +79,29 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
 - **encryption**: Encryption details (null for unencrypted messages)
 - **delegation**: Delegation information for agent-based operations
 - **relatesTo**: Required on a `BTPS_EVENT` and refused on every other type: the `id` of the `BTPS_DOC` artifact that delivered the invoice the event is about (see Lifecycle Event)
+- **syncOf**: Since 1.2, on a sync only: the send it copies (see [Sync](#sync))
+
+## Sync
+
+Since 1.2. A user's devices keep the same sent items through a **sync**: after a device sends, it sends the user's own copy of that send to the user's own address, so the provider files it among the user's sent items and every other device of the user can fetch it. A sync is an ordinary `artifact.send` whose transporter artifact is from and to the same address, with its document encrypted to the user's own key, and which names the send it copies on its envelope:
+
+```json
+{
+  "from": "alice$saas.example",
+  "to": "alice$saas.example",
+  "syncOf": {
+    "id": "6f1d2c3b-4a59-4e8f-9b7a-1c2d3e4f5a6b",
+    "sha256": "lowercase-hex-sha256-of-the-sent-artifact"
+  }
+}
+```
+
+- `id` is the sent artifact's id. `sha256` is the lowercase hex SHA-256 of the sent artifact's RFC 8785 canonical form, signature included (`syncOfArtifact` in `@btps/sdk/crypto` computes both).
+- Like the rest of the envelope it is signed and stays readable, so the provider files the sync without opening it, and never delivers it anywhere.
+- `syncOf` is only on an artifact whose `from` and `to` are the same address (compared without case), and only in a `1.2.0` artifact; it stamps the artifact `1.2.0`.
+- **Only the user's own device sends one.** A provider takes a sync only inside an `artifact.send` from a live device of that address. A transporter artifact with `syncOf` sent to a server directly, by any server, is refused before its signature is checked (`BTP_ERROR_SYNC_NOT_ALLOWED`).
+
+How a send went is the provider's own record, read from the user's sent items: see `delivery` under [Responses](./responses.md).
 
 ## Supported Document Types
 
