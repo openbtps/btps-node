@@ -8,8 +8,7 @@
 /*
  * BTPS 1.2: an implementor that takes errors into its own logs, through the
  * onError option or onError middleware, is not also written to by
- * console.error. With neither, the server writes as 1.1 does. The `it.fails`
- * cases pass once 1.2 lands.
+ * console.error. With neither, the server writes as 1.1 does.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -84,7 +83,7 @@ describe("an artifact's unexpected failure", () => {
     expect(consoleError).toHaveBeenCalledWith('[BtpsServer] Error', expect.anything());
   });
 
-  it.fails('is not written to console.error when the onError option is set', async () => {
+  it('is not written to console.error when the onError option is set', async () => {
     const onError = vi.fn();
     const answer = await exchange(failingServer({ onError }));
 
@@ -93,17 +92,19 @@ describe("an artifact's unexpected failure", () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
-  it.fails('is not written to console.error when onError middleware is loaded', async () => {
-    const server = failingServer();
-    const handler = vi.fn();
-    const middleware: MiddlewareDefinition<'before', 'onError'>[] = [
-      { phase: 'before', step: 'onError', handler },
-    ];
-    server['middlewareManager']['middleware'] = middleware as MiddlewareDefinition[];
-    const answer = await exchange(server);
+  for (const phase of ['before', 'after'] as const) {
+    it(`is not written to console.error when ${phase} onError middleware is loaded`, async () => {
+      const server = failingServer();
+      const handler = vi.fn();
+      const middleware: MiddlewareDefinition<typeof phase, 'onError'>[] = [
+        { phase, step: 'onError', handler },
+      ];
+      server['middlewareManager']['middleware'] = middleware as MiddlewareDefinition[];
+      const answer = await exchange(server);
 
-    expect(answer.type).toBe('btps_error');
-    expect(handler).toHaveBeenCalled();
-    expect(consoleError).not.toHaveBeenCalled();
-  });
+      expect(answer.type).toBe('btps_error');
+      expect(handler).toHaveBeenCalled();
+      expect(consoleError).not.toHaveBeenCalled();
+    });
+  }
 });

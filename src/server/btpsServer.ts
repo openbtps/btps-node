@@ -432,7 +432,7 @@ export class BtpsServer {
         const errorReq = parseReq as BTPRequestCtx<'before', 'onError'>;
         errorReq.error = error;
 
-        console.error('[BtpsServer] Error', error.toJSON());
+        if (!this.takesErrors()) console.error('[BtpsServer] Error', error.toJSON());
         // The failure is this line's alone: answer it and keep the connection, and the other
         // artifacts in flight on it. Only framing, socket, size and timeout failures end it.
         return await this.handleOnSocketError(
@@ -1326,6 +1326,19 @@ export class BtpsServer {
       this.emitter.listenerCount(type === 'agent' ? 'agentArtifact' : 'transporterArtifact') > 0 ||
       this.handlerFn !== null ||
       this.middlewareManager.getMiddleware('before', 'onArtifact').length > 0
+    );
+  }
+
+  /**
+   * Whether the implementor takes errors into its own logs, through the
+   * onError option or onError middleware. Then the server does not also write
+   * them to console.error.
+   */
+  private takesErrors(): boolean {
+    return (
+      this.onError !== undefined ||
+      this.middlewareManager.getMiddleware('before', 'onError').length > 0 ||
+      this.middlewareManager.getMiddleware('after', 'onError').length > 0
     );
   }
 

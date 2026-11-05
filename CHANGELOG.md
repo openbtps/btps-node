@@ -33,6 +33,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   as a generic `btps_error` against its request's `reqId`, and the connection
   stays open. It was closed without an answer, which a device saw only as
   "Connection closed". The server still reports it to `onError`.
+- A server whose implementor takes errors, through the `onError` option or
+  `onError` middleware, no longer also writes each failed artifact to
+  `console.error`. With neither, it writes as before.
 
 ## [1.1.3] — 2026-10-30 (alpha)
 
