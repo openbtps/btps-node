@@ -130,6 +130,9 @@ async function loadProtocol(build, root, outDir) {
           // A namespace, so a rule the SDK does not have yet is missing rather than a build error.
           "export * as versions from './src/core/server/constants/btps-protocol.ts';",
           "export { keyProofPayload } from './src/core/authentication/keyProof.ts';",
+          // Namespaces, so a rule the SDK does not have yet is missing rather than a build error.
+          "export * as transporter from './src/core/server/schemas/artifacts/transporterSchema.ts';",
+          "export * as responses from './src/core/server/schemas/responseSchema.ts';",
         ].join('\n'),
         resolveDir: root,
         sourcefile: 'verify-btps-vectors-protocol-entry.mjs',

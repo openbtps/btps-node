@@ -52,6 +52,7 @@ import {
   BTP_ERROR_RATE_LIMITER,
   BTP_ERROR_PRIVACY_TYPE,
   BTP_ERROR_VERSION_UNSUPPORTED,
+  BTP_ERROR_SYNC_NOT_ALLOWED,
 } from '../../core/error/index.js';
 import { PassThrough } from 'stream';
 import net from 'net';
@@ -3162,6 +3163,67 @@ export default function () {
         expect(answer.reqId).toBe('old');
         // The server's own version: what a sender reads to know what it speaks.
         expect(answer.version).toBe('1.2.0');
+      } finally {
+        tcp.close();
+      }
+    });
+
+    it('refuses a sync sent to it directly, by any server, before any signature work', async () => {
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const verify = vi.spyOn(btps as never, 'verifySignature');
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+      const sync = {
+        version: '1.2.0',
+        issuedAt: new Date().toISOString(),
+        id: 'sync-1',
+        type: 'BTPS_DOC',
+        from: 'alice$example.com',
+        to: 'alice$example.com',
+        selector: 'btps1',
+        signature: { algorithmHash: 'sha256', value: 'AA==', fingerprint: 'AA==' },
+        encryption: {
+          algorithm: 'aes-256-gcm',
+          encryptedKey: 'AA==',
+          iv: 'AA==',
+          authTag: 'AA==',
+          type: 'standardEncrypt',
+        },
+        document: 'ciphertext',
+        syncOf: { id: 'artifact-1', sha256: 'a'.repeat(64) },
+      };
+
+      try {
+        const answer = await new Promise<BTPServerResponse>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const end = received.indexOf('\n');
+            if (end !== -1) {
+              client.end();
+              resolve(JSON.parse(received.slice(0, end)));
+            }
+          });
+          client.on('error', reject);
+          client.write(`${JSON.stringify(sync)}\n`);
+        });
+
+        expect(answer.status).toMatchObject({
+          ok: false,
+          code: 403,
+          error: BTP_ERROR_SYNC_NOT_ALLOWED.code,
+        });
+        expect(answer.reqId).toBe('sync-1');
+        expect(verify).not.toHaveBeenCalled();
       } finally {
         tcp.close();
       }

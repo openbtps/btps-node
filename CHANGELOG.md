@@ -72,6 +72,15 @@ versions follow [Semantic Versioning](https://semver.org/).
   its new `selector`. A client with `requireSignedBy: { identity, selector }`
   takes no answer but one signed by that signer under that selector, and
   refuses any other before it looks up a key.
+- **Sync.** A device's sync is an `artifact.send` to the user's own address
+  that names the send it copies on its envelope, `syncOf: { id, sha256 }`
+  (`BtpsAgentCommandOptions.syncOf`; `syncOfArtifact` computes it). It is only
+  from and to the same address, only in `1.2.0` artifacts, and only inside a
+  device's `artifact.send`: a server refuses one sent to it directly
+  (`BTP_ERROR_SYNC_NOT_ALLOWED`).
+- `meta.delivery` on a sentbox result: a send's outcome by its provider's own
+  record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
+  (`BTPDelivery`).
 - **Device-key theft signals.** With a token store that has the new, optional
   `isConsumed`, a refresh token used a second time, which only a copy of it can
   do, revokes the device and fires `refreshTokenReused`. Without it, a second

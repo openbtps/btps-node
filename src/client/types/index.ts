@@ -17,6 +17,7 @@ import type {
   BTPIdsPayload,
   BTPAuthReqDoc,
   BTPServerResponse,
+  BTPSyncOf,
   AgentAction,
 } from 'server/index.js';
 import type { ConnectionOptions, TLSSocket } from 'tls';
@@ -85,6 +86,11 @@ export type BtpsAgentDoc =
 export type BtpsAgentCommandOptions = BTPCryptoOptions & {
   /** Required on `event.send`, refused elsewhere: the id of the `BTPS_DOC` artifact that delivered the invoice. */
   relatesTo?: string;
+  /**
+   * Since 1.2, on `artifact.send` to the device's own address only: this send is a sync, the user's own copy of
+   * the send it names, by the sent artifact's id and the SHA-256 of its RFC 8785 form (`syncOfArtifact`).
+   */
+  syncOf?: BTPSyncOf;
   /**
    * The id of the artifact the command sends, a UUID. Sending the same document again after a lost answer under
    * the same id lets the receiver keep it once. Without it, a new id. An event always travels under its own id, so
