@@ -6,8 +6,9 @@
  */
 
 import { randomUUID, randomBytes } from 'crypto';
+import { EventEmitter } from 'events';
 import { BtpsAgent } from '../../client/btpsAgent.js';
-import type { BTPAgentOptions } from '../../client/types/index.js';
+import type { BTPAgentOptions, TypedEventEmitter } from '../../client/types/index.js';
 import type { BTPAuthReqDoc, BTPAuthResDoc } from '@core/server/types.js';
 import type { BTPTrustRecord } from '@core/trust/types.js';
 import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
@@ -29,10 +30,16 @@ import type {
   CreateAgentOptions,
   TokenConfig,
   AuthAgentOptions,
+  BTPsTokenDocument,
+  BtpsAuthenticationEvents,
 } from './types.js';
 
 import { isValidIdentity, pemToBase64 } from '@core/utils/index.js';
-import { BTP_ERROR_AUTHENTICATION_INVALID, BTP_ERROR_IDENTITY } from '@core/error/constant.js';
+import {
+  BTP_ERROR_AUTHENTICATION_INVALID,
+  BTP_ERROR_IDENTITY,
+  BTP_ERROR_KEY_TOO_OLD,
+} from '@core/error/constant.js';
 import { BTPErrorException, transformToBTPErrorException } from '@core/error/index.js';
 import type { SetRequired } from 'server/index.js';
 
@@ -43,10 +50,16 @@ const DEFAULT_TOKEN_CONFIG: TokenConfig = {
   refreshTokenExpiryMs: 7 * 24 * 60 * 60 * 1000, // 7 days
 } as const;
 
+/** When a device's current key came into use: when the key before it was retired, or when it registered. */
+const currentKeySince = (record: BTPTrustRecord): string =>
+  record.keyHistory?.at(-1)?.lastSeen ?? record.createdAt;
+
 export class BtpsAuthentication {
   private readonly tokenConfig: Required<TokenConfig>;
   private readonly trustStore: AbstractTrustStore<BTPTrustRecord>;
   private readonly tokenStore: TokenStore;
+  private readonly maxKeyAgeMs?: number;
+  private readonly emitter = new EventEmitter();
 
   /**
    * Private constructor - use factory methods instead
@@ -59,6 +72,78 @@ export class BtpsAuthentication {
     } as Required<TokenConfig>;
     this.trustStore = config.trustStore;
     this.tokenStore = config.tokenStore;
+    this.maxKeyAgeMs = config.maxKeyAgeMs;
+    if (!this.tokenStore.isConsumed) {
+      console.warn(
+        '[BtpsAuthentication] Warning: the token store has no isConsumed, so a refresh token used a second time is refused but not detected as theft: the device is not revoked and refreshTokenReused does not fire.',
+      );
+    }
+  }
+
+  /**
+   * Since 1.2: listen for `keyRotated` and `refreshTokenReused`.
+   * @param event - The event to listen to
+   * @param listener - The listener function
+   */
+  on: TypedEventEmitter<BtpsAuthenticationEvents>['on'] = (event, listener) => {
+    this.emitter.on(event, listener);
+  };
+
+  /**
+   * @param event - The event to stop listening to
+   * @param listener - The listener function
+   */
+  off: TypedEventEmitter<BtpsAuthenticationEvents>['off'] = (event, listener) => {
+    this.emitter.off(event, listener);
+  };
+
+  /**
+   * Put a taken refresh token back for what is left of its life, so the device
+   * can try again rather than register anew.
+   */
+  private async restoreRefreshToken(storedToken: BTPsTokenDocument, refreshToken: string) {
+    const remainingMs = new Date(storedToken.expiresAt).getTime() - Date.now();
+    if (remainingMs <= 0) return;
+    await this.tokenStore.store(
+      refreshToken,
+      storedToken.agentId,
+      storedToken.userIdentity,
+      remainingMs,
+      storedToken.decryptBy,
+      storedToken.metadata,
+    );
+  }
+
+  /**
+   * A refresh token used a second time: only a copy of it can do that, so the
+   * device is revoked, and whoever holds its newer token is refused too.
+   */
+  private async refuseReusedRefreshToken(
+    agentId: string,
+    refreshToken: string,
+    consumedToken: BTPsTokenDocument,
+  ): Promise<BTPErrorException> {
+    const identity = consumedToken.userIdentity;
+    const computedId = computeAgentTrustId(agentId, identity);
+    const at = new Date().toISOString();
+    try {
+      const trustRecord = await this.trustStore.getById(computedId);
+      if (trustRecord) {
+        await this.trustStore.update(computedId, { status: 'revoked', decidedAt: at });
+      }
+      this.emitter.emit('refreshTokenReused', {
+        agentId,
+        identity,
+        fingerprint: trustRecord?.publicKeyFingerprint,
+        at,
+      });
+    } catch (error) {
+      return transformToBTPErrorException(error);
+    }
+    return new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
+      cause: 'Refresh token used a second time: the device is revoked',
+      meta: { agentId, refreshToken },
+    });
   }
 
   /**
@@ -308,6 +393,13 @@ export class BtpsAuthentication {
     const storedToken = await this.tokenStore.consume(agentId, refreshToken);
 
     if (!storedToken) {
+      const consumedToken = await this.tokenStore.isConsumed?.(agentId, refreshToken);
+      if (consumedToken) {
+        return {
+          data: undefined,
+          error: await this.refuseReusedRefreshToken(agentId, refreshToken, consumedToken),
+        };
+      }
       return {
         data: undefined,
         error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
@@ -330,6 +422,37 @@ export class BtpsAuthentication {
       };
     }
 
+    if (trustRecord.status === 'revoked' || trustRecord.status === 'blocked') {
+      return {
+        data: undefined,
+        error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
+          cause: `Device ${agentId} is ${trustRecord.status}`,
+          meta: { agentId, userIdentity },
+        }),
+      };
+    }
+
+    const { agentInfo, decidedBy, privacyType, publicKey } = options;
+    const previousFingerprint = trustRecord.publicKeyFingerprint;
+    const currentFingerprint = publicKey ? getFingerprintFromPem(publicKey, 'sha256') : undefined;
+    const rotates = currentFingerprint !== undefined && currentFingerprint !== previousFingerprint;
+    const keySince = currentKeySince(trustRecord);
+
+    if (
+      !rotates &&
+      this.maxKeyAgeMs !== undefined &&
+      Date.now() - new Date(keySince).getTime() > this.maxKeyAgeMs
+    ) {
+      // The device may still move to a new key with this same token.
+      await this.restoreRefreshToken(storedToken, refreshToken);
+      return {
+        data: undefined,
+        error: new BTPErrorException(BTP_ERROR_KEY_TOO_OLD, {
+          meta: { agentId, keySince, maxKeyAgeMs: this.maxKeyAgeMs },
+        }),
+      };
+    }
+
     const patch: SetRequired<Partial<BTPTrustRecord>, 'expiresAt'> = {
       ...trustRecord,
       expiresAt: new Date(
@@ -337,48 +460,33 @@ export class BtpsAuthentication {
       ).toISOString(),
     };
 
-    const { agentInfo, decidedBy, privacyType, publicKey } = options;
     patch.metadata = {
       agentInfo: agentInfo ?? trustRecord.metadata?.agentInfo ?? {},
     };
 
-    if (publicKey) {
-      const previousFingerprint = trustRecord.publicKeyFingerprint;
-      const currentFingerprint = getFingerprintFromPem(publicKey, 'sha256');
-      if (previousFingerprint !== currentFingerprint) {
-        // rotate the keys but keep the history to trace
-        patch.keyHistory = trustRecord.keyHistory || [];
-        patch.keyHistory.push({
-          fingerprint: previousFingerprint,
-          firstSeen: trustRecord.decidedAt,
-          lastSeen: new Date().toISOString(),
-        });
-        patch.publicKeyBase64 = pemToBase64(publicKey);
-        patch.publicKeyFingerprint = currentFingerprint;
-      }
+    const now = new Date().toISOString();
+    if (publicKey && currentFingerprint && rotates) {
+      // rotate the keys but keep the history to trace
+      patch.keyHistory = trustRecord.keyHistory || [];
+      patch.keyHistory.push({
+        fingerprint: previousFingerprint,
+        firstSeen: keySince,
+        lastSeen: now,
+      });
+      patch.publicKeyBase64 = pemToBase64(publicKey);
+      patch.publicKeyFingerprint = currentFingerprint;
     }
 
     patch.decidedBy = decidedBy;
     patch.privacyType = privacyType ?? patch.privacyType;
     patch.status = 'accepted';
-    patch.decidedAt = new Date().toISOString();
+    patch.decidedAt = now;
 
     try {
       await this.trustStore.update(computedId, patch);
     } catch (error) {
-      // Usually passing: put the token back for what is left of its life, so
-      // the device can try again rather than register anew.
-      const remainingMs = new Date(storedToken.expiresAt).getTime() - Date.now();
-      if (remainingMs > 0) {
-        await this.tokenStore.store(
-          refreshToken,
-          agentId,
-          userIdentity,
-          remainingMs,
-          storedToken.decryptBy,
-          storedToken.metadata,
-        );
-      }
+      // Usually passing: the device can try again rather than register anew.
+      await this.restoreRefreshToken(storedToken, refreshToken);
       return {
         data: undefined,
         error: transformToBTPErrorException(error),
@@ -395,6 +503,16 @@ export class BtpsAuthentication {
       options.decryptBy,
       { agentInfo },
     );
+
+    if (rotates && currentFingerprint) {
+      this.emitter.emit('keyRotated', {
+        agentId,
+        identity: userIdentity,
+        previousFingerprint,
+        fingerprint: currentFingerprint,
+        at: now,
+      });
+    }
 
     return {
       data: {

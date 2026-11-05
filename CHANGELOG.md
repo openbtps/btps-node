@@ -32,8 +32,22 @@ versions follow [Semantic Versioning](https://semver.org/).
   the sender which rule it broke. `lifecycleEventChainProblem` and
   `lifecycleEventSenderProblem` (`@btps/sdk/server`) let a platform check an
   encrypted event the same way once it has opened it.
+- **Device-key theft signals.** With a token store that has the new, optional
+  `isConsumed`, a refresh token used a second time, which only a copy of it can
+  do, revokes the device and fires `refreshTokenReused`. Without it, a second
+  use is refused as in 1.1, and `BtpsAuthentication` warns once.
+  `InMemoryTokenStore` has it. `auth.on('keyRotated', …)` tells a listener
+  when a device moves to a new key.
+- **A maximum key age** (`maxKeyAgeMs`, off by default): a refresh signed by an
+  older device key is refused with `BTP_ERROR_KEY_TOO_OLD`, and the device
+  moves to a new key with the same refresh token.
 
 ### Changed
+
+- A refresh never makes a revoked or blocked device accepted again.
+- `keyHistory[].firstSeen` is when the retired key came into use (when the key
+  before it was retired, or when the device registered). It was the time of
+  the key's last refresh.
 
 - A receiver's refusal of an artifact's version reaches the sender as a
   `BTP_ERROR_VERSION_UNSUPPORTED` error with `receiverVersion`, the version
