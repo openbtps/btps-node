@@ -691,6 +691,22 @@ export class BtpsClient {
     msg: BTPServerResponse,
   ): Promise<{ isValid: true; error: undefined } | { isValid: false; error: BTPErrorException }> {
     const { signature, signedBy, selector } = msg;
+    // A client that requires its server's signature takes no answer but one signed by that
+    // signer under that selector, and refuses any other before it looks up a key.
+    const required = this.options.requireSignedBy;
+    if (
+      required &&
+      (!signature || signedBy !== required.identity || selector !== required.selector)
+    ) {
+      return {
+        isValid: false,
+        error: new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
+          cause: signature
+            ? `the answer is signed by ${signedBy} under ${selector}, not by ${required.identity} under ${required.selector}`
+            : `the answer is not signed, and ${required.identity} must sign every answer`,
+        }),
+      };
+    }
     /* If the message is not signed, no need to decrypt and verify as it is system message */
     if (!msg.signature) {
       return {

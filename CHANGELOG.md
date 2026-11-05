@@ -32,6 +32,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   the sender which rule it broke. `lifecycleEventChainProblem` and
   `lifecycleEventSenderProblem` (`@btps/sdk/server`) let a platform check an
   encrypted event the same way once it has opened it.
+- **Signed answers, and a device that requires them.** A server with
+  `signAnswers` signs every answer, errors included, as `serverIdentity` under
+  its new `selector`. A client with `requireSignedBy: { identity, selector }`
+  takes no answer but one signed by that signer under that selector, and
+  refuses any other before it looks up a key.
 
 ### Changed
 

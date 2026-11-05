@@ -135,6 +135,7 @@ export class BtpsServer {
   private readonly maxArtifactSizeKb: number;
   private readonly maxInFlightPerConnection: number;
   private readonly maxArtifactAgeSeconds: number;
+  private readonly signAnswers: boolean;
   private readonly dependencies: {
     trustStore: AbstractTrustStore<BTPTrustRecord>;
     identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
@@ -162,6 +163,15 @@ export class BtpsServer {
       options.maxInFlightPerConnection,
     );
     this.maxArtifactAgeSeconds = resolveMaxArtifactAgeSeconds(options.maxArtifactAgeSeconds);
+    this.signAnswers = options.signAnswers === true;
+    // Signing every answer is asked for, and without a selector no device could check one.
+    if (this.signAnswers && !options.serverIdentity.selector) {
+      throw new BTPErrorException({
+        code: 'INVALID_CONFIG',
+        message:
+          'signAnswers needs serverIdentity.selector: the selector the key is published under',
+      });
+    }
     this.middlewareManager = new MiddlewareManager(options.middlewarePath);
     this.dependencies = {
       trustStore: this.trustStore,
@@ -1629,6 +1639,42 @@ export class BtpsServer {
       return;
     }
 
+    // Signed as this server, after its reqId is set, when it signs every answer.
+    if (this.signAnswers && !artifact.signature) {
+      void this.signAnswer(artifact).then((signed) => this.writeAnswer(socket, signed, action));
+      return;
+    }
+    this.writeAnswer(socket, artifact, action);
+  }
+
+  /**
+   * The answer signed as this server, under its own selector, so a device that
+   * requires its server's signature can read it, a refusal included. Unsigned
+   * when signing fails, which the failure reports to onError.
+   */
+  private async signAnswer(artifact: BTPServerResponse): Promise<BTPServerResponse> {
+    const unsigned: BTPServerResponse = {
+      ...artifact,
+      signedBy: this.serverIdentity.identity,
+      selector: this.serverIdentity.selector,
+    };
+    try {
+      const signature =
+        'signer' in this.serverIdentity
+          ? await signBtpPayloadWithSigner(unsigned, this.serverIdentity.signer)
+          : signBtpPayload(unsigned, {
+              publicKey: this.serverIdentity.publicKey,
+              privateKey: this.serverIdentity.privateKey,
+            });
+      return { ...unsigned, signature };
+    } catch (error) {
+      this.onError?.(transformToBTPErrorException(error));
+      return artifact;
+    }
+  }
+
+  private writeAnswer(socket: TLSSocket, artifact: BTPServerResponse, action?: BtpsErrorAction) {
+    if (socket.destroyed || socket.writableEnded || !socket.writable) return;
     try {
       socket.write(JSON.stringify(artifact) + '\n');
       this.middlewareManager.onResponseSent(artifact);

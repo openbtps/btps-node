@@ -34,17 +34,28 @@ export interface BtpsTlsOptions extends TlsOptions {
 }
 
 export interface BtpsServerOptions {
-  /** The server's own key, as a PEM key pair or a Signer holding it elsewhere (a KMS). */
+  /**
+   * The server's own key, as a PEM key pair or a Signer holding it elsewhere (a KMS).
+   * `selector` (since 1.2) is the selector its key is published under; `signAnswers` needs it.
+   */
   serverIdentity:
     | {
         identity: string;
         publicKey: string;
         privateKey: string;
+        selector?: string;
       }
     | {
         identity: string;
         signer: Signer;
+        selector?: string;
       };
+  /**
+   * Since 1.2: sign every answer, errors included, as `serverIdentity` under its `selector`, so a
+   * device that requires its server's signature (`requireSignedBy`) can read it. Off by default.
+   * Never sign with a key of the domain's operator: use an identity of its own, such as `server$<domain>`.
+   */
+  signAnswers?: boolean;
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tlsOptions: BtpsTlsOptions;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;

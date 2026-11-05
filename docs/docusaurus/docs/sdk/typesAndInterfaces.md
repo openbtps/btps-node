@@ -19,8 +19,9 @@ Configuration options for the BTPS server.
 ```ts
 interface BtpsServerOptions {
   serverIdentity:
-    | { identity: string; publicKey: string; privateKey: string }
-    | { identity: string; signer: Signer };
+    | { identity: string; publicKey: string; privateKey: string; selector?: string }
+    | { identity: string; signer: Signer; selector?: string };
+  signAnswers?: boolean;
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   port?: number;
@@ -35,7 +36,8 @@ interface BtpsServerOptions {
 
 **Properties:**
 
-- `serverIdentity`: Required server identity: its identity, with its PEM public and private key, or with a `signer` holding the key elsewhere, such as a KMS (see [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter))
+- `serverIdentity`: Required server identity: its identity, with its PEM public and private key, or with a `signer` holding the key elsewhere, such as a KMS (see [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter)). Since 1.2, `selector` is the selector its key is published under; `signAnswers` needs it
+- `signAnswers`: Optional, since 1.2. Signs every answer, errors included, as `serverIdentity` under its `selector`, after the answer's `reqId` is set, so a device that requires its server's signature (`requireSignedBy`) can read it. Off by default. Sign as an identity of the server's own, such as `server$<domain>`, never with a key of the domain's operator: an operator key on an internet-facing server would let whoever took it delegate and attest for every address on the domain
 - `trustStore`: Required trust store instance for managing trust records
 - `identityStore`: Optional identity store instance for managing identity records
 - `port`: Optional port number (default: 3443)
@@ -66,6 +68,7 @@ interface BTPClientOptions {
   host?: string;
   hostSelector?: string;
   hostOperator?: string;
+  requireSignedBy?: { identity: string; selector: string };
   version?: string;
   port?: number;
   maxQueue?: number;
@@ -84,6 +87,7 @@ interface BTPClientOptions {
 - `host`: Optional custom host override
 - `hostSelector`: Optional DNS selector for key management (default: 'btps1')
 - `hostOperator`: Optional, with `host`: the identity operating that host, which must sign its identity lookup answers. Without `host`, the operator comes from DNS (`op` in `_btps.host`)
+- `requireSignedBy`: Optional, since 1.2. Takes no answer but one signed by this identity under this selector, as a provider's own app expects of its server (for example `server$saas.example` under `server1`); an unsigned answer, or one by any other signer, is refused before any key is looked up. The provider's server signs its answers with `signAnswers`
 - `version`: Optional protocol version (default: '1.1.0')
 - `port`: Optional custom port override
 - `maxQueue`: Optional maximum queue size for request handling (default: 100)

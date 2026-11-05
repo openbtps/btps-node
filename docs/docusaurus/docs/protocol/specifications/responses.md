@@ -293,6 +293,8 @@ Responses can be digitally signed for authenticity:
 - **signedBy**: Identity that signed the response
 - **selector**: DNS selector for key management
 
+**Every answer signed (since 1.2).** A server may sign every answer it sends, errors included, as its own identity under its own selector, over the whole answer with its `reqId`. A device that requires it takes no other answer: an unsigned one, or one signed by anyone but the signer its provider's own app expects, is refused before any key is looked up. A provider signs as an identity of its own, such as `server$<domain>`, never with a key of the domain's operator: the operator's key delegates and attests for every address on the domain, and an internet-facing server is where a key is most exposed.
+
 ### Encryption
 
 Responses can be encrypted for confidentiality:
