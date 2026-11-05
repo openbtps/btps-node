@@ -32,6 +32,13 @@ versions follow [Semantic Versioning](https://semver.org/).
   the sender which rule it broke. `lifecycleEventChainProblem` and
   `lifecycleEventSenderProblem` (`@btps/sdk/server`) let a platform check an
   encrypted event the same way once it has opened it.
+- **A device reads encrypted documents with its own key.** A query result may
+  carry `agentKey: { key, fingerprint, wrappedAt }`: the artifact's content key
+  wrapped again to the device that asked, by `wrapForAgent`
+  (`@btps/sdk/server`). The artifact is untouched, so its signature still
+  verifies. `BtpsAgent.openResult` checks the key is its own, verifies the
+  sender, and decrypts. A `Decrypter` gains the optional `unwrapKey`, which
+  `PemDecrypter` has, and `decryptVerify` an optional `contentKey`.
 
 ### Changed
 

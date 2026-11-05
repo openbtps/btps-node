@@ -16,10 +16,17 @@ const genDecryptError = (error: BTPErrorException) => ({
   error,
 });
 
+/**
+ * Verifies an artifact's signature, then decrypts its document and checks it.
+ * Since 1.2, `contentKey` is the document's content key wrapped to the
+ * receiver's own key instead of the envelope's (a device's `agentKey.key`): the
+ * signature is checked over the artifact as sent, and only the decryption uses it.
+ */
 export const decryptVerify = async <T = unknown>(
   senderPubPem: string,
   encryptedPayload: VerifyEncryptedPayload<T>,
   receiverKey?: BTPDecryptionKey,
+  contentKey?: string,
 ): Promise<BTPCryptoResponse<T>> => {
   const { signature, delegation, ...restEncryptedPayload } = encryptedPayload;
 
@@ -42,10 +49,14 @@ export const decryptVerify = async <T = unknown>(
     !isEmpty(encryption) && hasReceiverKey && !isEmpty(document) && typeof document === 'string';
   let decrypted: { data?: unknown; error?: BTPErrorException } = { data: document };
   if (needsDecryption && receiverKey !== undefined) {
+    const wrapped =
+      contentKey !== undefined && encryption
+        ? { ...encryption, encryptedKey: contentKey }
+        : encryption;
     decrypted =
       typeof receiverKey === 'string'
-        ? decryptBtpPayload(document, encryption, receiverKey)
-        : await decryptBtpPayloadWithDecrypter(document, encryption, receiverKey);
+        ? decryptBtpPayload(document, wrapped, receiverKey)
+        : await decryptBtpPayloadWithDecrypter(document, wrapped, receiverKey);
   }
   const { data: decryptedData, error: decryptionErrors } = decrypted;
 

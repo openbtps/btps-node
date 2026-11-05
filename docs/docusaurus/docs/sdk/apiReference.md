@@ -474,7 +474,8 @@ const { payload, error } = await signEncrypt(
 decryptVerify<T>(
   senderPubPem: string,
   encryptedPayload: VerifyEncryptedPayload<T>,
-  receiverKey?: BTPDecryptionKey
+  receiverKey?: BTPDecryptionKey,
+  contentKey?: string
 ): Promise<BTPCryptoResponse<T>>
 ```
 
@@ -488,6 +489,7 @@ When it decrypts a `BTPS_EVENT`, it also checks the event as the server checks a
 - `senderPubPem` (`string`, required): Sender's public key (PEM).
 - `encryptedPayload` (`VerifyEncryptedPayload<T>`, required): The received artifact.
 - `receiverKey` (`string | Decrypter`, optional): Receiver's private key (PEM) for decryption, or a [Decrypter](./typesAndInterfaces.md#decrypter) holding it elsewhere.
+- `contentKey` (`string`, optional, since 1.2): the document's content key wrapped to `receiverKey`, in place of the envelope's `encryptedKey`: a device's `agentKey.key`. The signature is still checked over the artifact as sent. `BtpsAgent.openResult` passes it.
 
 **Returns:**
 
@@ -854,6 +856,37 @@ Generate a short, high-entropy, user-specific onboarding token. Suitable for cop
 import { generateUserToken } from '@btps/sdk/crypto';
 const token = generateUserToken('alice$btps.com', 12);
 // Returns: "ABC123DEF456"
+```
+
+---
+
+## Server helpers (`@btps/sdk/server`)
+
+### wrapForAgent
+
+```ts
+wrapForAgent(
+  artifact: Pick<BTPTransporterArtifact, 'encryption'>,
+  identityKey: BTPDecryptionKey,
+  device: Pick<BTPTrustRecord, 'publicKeyBase64' | 'publicKeyFingerprint'>
+): Promise<BTPAgentKey>
+```
+
+**Description:**
+Since 1.2. Builds a query result's `agentKey`. It unwraps an encrypted artifact's AES content key with the identity's key, and wraps it again with RSA-OAEP / SHA-256 to the key the device's record holds now, naming that key's fingerprint. The artifact is untouched. It throws `BTP_ERROR_UNSUPPORTED_ENCRYPT` for an unencrypted artifact, or for a `Decrypter` without `unwrapKey`. See [A device's own key to an encrypted document](../protocol/security/keyManagement.md#a-devices-own-key-to-an-encrypted-document).
+
+**Example:**
+
+```js
+import { wrapForAgent } from '@btps/sdk/server';
+// In the provider's inbox.fetch handler, for the device that asked:
+const results = await Promise.all(
+  entries.map(async (entry) =>
+    entry.artifact.encryption
+      ? { ...entry, agentKey: await wrapForAgent(entry.artifact, identityDecrypter, deviceRecord) }
+      : entry,
+  ),
+);
 ```
 
 ---

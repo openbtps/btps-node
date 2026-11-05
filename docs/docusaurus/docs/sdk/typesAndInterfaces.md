@@ -1119,6 +1119,7 @@ Decrypts a document for an identity while its private key stays elsewhere. `PemD
 interface Decrypter {
   readonly algorithm: 'aes-256-gcm';
   decrypt(request: DecryptRequest): Promise<Uint8Array>; // the plaintext
+  unwrapKey?(encryptedKey: Uint8Array): Promise<Uint8Array>; // since 1.2, optional: the AES key itself
 }
 
 interface DecryptRequest {
@@ -1129,6 +1130,8 @@ interface DecryptRequest {
   additionalData?: Uint8Array;
 }
 ```
+
+`unwrapKey` (since 1.2, optional) returns the RSA-OAEP-unwrapped AES key itself, so a provider can wrap it again to one of its user's devices (`wrapForAgent`). `PemDecrypter` has it. A KMS decrypter makes the same call inside `decrypt`.
 
 ### BTPSigningKey and BTPDecryptionKey
 
@@ -1533,8 +1536,17 @@ interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFailureArt
     seenAt?: string;
     [key: string]: unknown;
   };
+  agentKey?: BTPAgentKey; // since 1.2
+}
+
+interface BTPAgentKey {
+  key: string; // the content key, wrapped with RSA-OAEP / SHA-256 to the device's key, base64
+  fingerprint: string; // the device key it is wrapped to, as the device's record holds it
+  wrappedAt: string; // ISO 8601
 }
 ```
+
+`agentKey` (since 1.2): an encrypted artifact's content key, wrapped again by the provider to the device that asked (`wrapForAgent`), so the device opens the document with its own key (`BtpsAgent.openResult`). The artifact is untouched, so its signature still verifies. No other key is allowed in it.
 
 `artifact` may also be a `BTPTrustRecord`, in an answer to `trust.fetch` (since 1.1.3); such an answer is typed `BTPQueryResult<BTPTrustRecord>`.
 

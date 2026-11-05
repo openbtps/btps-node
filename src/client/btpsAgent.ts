@@ -8,6 +8,7 @@
 import {
   BTPErrorException,
   BTP_ERROR_RESOLVE_DNS,
+  BTP_ERROR_RESOLVE_PUBKEY,
   BTP_ERROR_UNSUPPORTED_ENCRYPT,
   BTP_ERROR_VALIDATION,
   transformToBTPErrorException,
@@ -29,6 +30,7 @@ import type {
   BTPIdentityResDoc,
   AgentAction,
   BTPAgentDocument,
+  BTPQueryResultEntry,
 } from 'server/index.js';
 import type {
   BTPCryptoArtifact,
@@ -45,9 +47,15 @@ import {
   AGENT_TRANSPORTER_ACTIONS,
   artifactVersion,
 } from '@core/server/constants/index.js';
-import { encryptBtpPayload, signBtpPayload, signBtpPayloadWithSigner } from '@core/crypto/index.js';
+import {
+  decryptVerify,
+  encryptBtpPayload,
+  getFingerprintFromPem,
+  signBtpPayload,
+  signBtpPayloadWithSigner,
+} from '@core/crypto/index.js';
 import { randomUUID } from 'crypto';
-import { isValidIdentity } from '@core/utils/index.js';
+import { isValidIdentity, resolvePublicKey } from '@core/utils/index.js';
 
 const mappedTransporterAction = AGENT_TRANSPORTER_ACTIONS;
 
@@ -300,6 +308,54 @@ export class BtpsAgent extends BtpsClient {
     }
 
     return this.send(payload as BTPAgentArtifact, timeoutMs);
+  }
+
+  /**
+   * Since 1.2: opens an encrypted query result with this device's own key,
+   * through the `agentKey` its provider wrapped for it. The sender's signature
+   * is checked over the artifact as sent, and the document as any decrypted one is.
+   * @param entry - A query result entry with `agentKey`
+   * @returns The artifact with its document decrypted, or the reason it could not be opened
+   */
+  async openResult(entry: BTPQueryResultEntry): Promise<BTPCryptoResponse<BTPDocType | string>> {
+    const { artifact, agentKey } = entry;
+    const refuse = (cause: string, error = BTP_ERROR_UNSUPPORTED_ENCRYPT) => ({
+      payload: undefined,
+      error: new BTPErrorException(error, { cause }),
+    });
+    if (!agentKey) return refuse('The result has no agentKey for this device');
+    if (!this.decryptionKey) return refuse('This device holds no key to decrypt with');
+    if (!('selector' in artifact) || !artifact.encryption) {
+      return refuse('Only an encrypted transporter artifact is opened with an agentKey');
+    }
+
+    const ownPublicKey =
+      'sign' in this.signingKey
+        ? (await this.signingKey.getPublicKey()).publicKey
+        : this.signingKey.publicKey;
+    if (getFingerprintFromPem(ownPublicKey) !== agentKey.fingerprint) {
+      return refuse(
+        `The agentKey is wrapped to the device key ${agentKey.fingerprint}, not the one this device holds: finish moving to the new key first`,
+      );
+    }
+
+    const senderPublicKey = await resolvePublicKey(artifact.from, artifact.selector);
+    if (!senderPublicKey) {
+      return refuse(
+        `No key for ${artifact.from} at ${artifact.selector}`,
+        BTP_ERROR_RESOLVE_PUBKEY,
+      );
+    }
+    try {
+      return await decryptVerify<BTPDocType | string>(
+        senderPublicKey,
+        { ...artifact },
+        this.decryptionKey,
+        agentKey.key,
+      );
+    } catch (error) {
+      return { payload: undefined, error: transformToBTPErrorException(error) };
+    }
   }
 
   destroy(soft: boolean = false) {

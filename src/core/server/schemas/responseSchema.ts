@@ -95,6 +95,15 @@ export const BtpQueryResultEntrySchema = z.object({
     })
     .catchall(z.unknown())
     .optional(),
+  // Since 1.2: the content key wrapped again to the device that asked.
+  agentKey: z
+    .object({
+      key: z.string().min(1),
+      fingerprint: z.string().min(1),
+      wrappedAt: z.string().datetime(),
+    })
+    .strict()
+    .optional(),
 });
 
 // Schema for BTPQueryResult

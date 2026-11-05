@@ -212,6 +212,22 @@ Response to query requests (inbox, outbox, etc.):
 - **total**: Total number of results
 - **hasNext**: Boolean indicating if more results are available
 
+**`agentKey`** (since 1.2, beside an entry's `artifact` and `meta`): an encrypted artifact's AES content key, which the provider has wrapped again with RSA-OAEP / SHA-256 to the key of the device that asked. The device reads the document with its own key, never the identity's. The artifact is untouched, so the sender's signature still verifies.
+
+```json
+{
+  "agentKey": {
+    "key": "base64-wrapped-key",
+    "fingerprint": "device-key-fingerprint",
+    "wrappedAt": "2026-11-06T09:30:00.000Z"
+  }
+}
+```
+
+- `fingerprint` is the device key it is wrapped to, as the device's record holds it. A provider always wraps to the key the record holds now, so a device that has not finished moving to a new key can tell the wrap is not for the key it holds.
+- No other key is allowed in `agentKey`.
+- A 1.1 client ignores it.
+
 ### 3. Identity Response Document (`BTPIdentityResDoc`)
 
 Response to identity lookup requests:

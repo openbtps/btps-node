@@ -454,6 +454,27 @@ const eventRes = await agent.command(
 );
 ```
 
+### openResult
+
+```ts
+await agent.openResult(entry);
+```
+
+Since 1.2. Opens an encrypted query result with this device's own key, through the `agentKey` its provider wrapped for it (`wrapForAgent`).
+
+- It refuses an `agentKey` wrapped to a key other than the one this device holds, before anything is looked up: that is a device that has not finished moving to a new key.
+- It then verifies the sender's signature over the artifact as sent, and decrypts and checks the document as `decryptVerify` does.
+
+- **entry**: [BTPQueryResultEntry](./typesAndInterfaces.md#btpqueryresultentry) – A result with `agentKey`
+- **Returns**: `Promise<BTPCryptoResponse<BTPDocType | string>>` – The artifact with its document decrypted, or the error
+
+```js
+const { response } = await agent.command('inbox.fetch', 'alice$saas.com');
+for (const entry of response?.document?.results ?? []) {
+  const { payload, error } = await agent.openResult(entry);
+}
+```
+
 ---
 
 ## BtpsTransporter
