@@ -76,4 +76,8 @@ export const BTPS_FIELD_LIMITS = {
   // A document's own id, and the id of a document it references.
   documentId: 100,
   referenceType: 64,
+  // Since 1.2, under 1.2.0: an invoice's or receipt's description, as long as an event's message.
+  note: 5000,
+  // Since 1.2: a template's or logo's https source, as long as a logo or website address.
+  url: 2048,
 } as const;

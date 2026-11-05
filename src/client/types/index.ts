@@ -41,6 +41,12 @@ export interface BTPClientOptions {
   hostSelector?: string;
   /** With `host`: the identity operating that host, which signs its lookup answers. Otherwise read from DNS (`op`). */
   hostOperator?: string;
+  /**
+   * Since 1.2: take no answer but one signed by this identity under this selector, as a provider's
+   * own app expects of its server (for example `server$saas.example` under `server1`). Unsigned
+   * answers, and those of any other signer, are refused. Off when not set.
+   */
+  requireSignedBy?: { identity: string; selector: string };
   version?: string;
   port?: number;
   maxQueue?: number;

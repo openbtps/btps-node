@@ -19,8 +19,9 @@ Configuration options for the BTPS server.
 ```ts
 interface BtpsServerOptions {
   serverIdentity:
-    | { identity: string; publicKey: string; privateKey: string }
-    | { identity: string; signer: Signer };
+    | { identity: string; publicKey: string; privateKey: string; selector?: string }
+    | { identity: string; signer: Signer; selector?: string };
+  signAnswers?: boolean;
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   port?: number;
@@ -35,7 +36,8 @@ interface BtpsServerOptions {
 
 **Properties:**
 
-- `serverIdentity`: Required server identity: its identity, with its PEM public and private key, or with a `signer` holding the key elsewhere, such as a KMS (see [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter))
+- `serverIdentity`: Required server identity: its identity, with its PEM public and private key, or with a `signer` holding the key elsewhere, such as a KMS (see [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter)). Since 1.2, `selector` is the selector its key is published under; `signAnswers` needs it
+- `signAnswers`: Optional, since 1.2. Signs every answer, errors included, as `serverIdentity` under its `selector`, after the answer's `reqId` is set, so a device that requires its server's signature (`requireSignedBy`) can read it. Off by default. Sign as an identity of the server's own, such as `server$<domain>`, never with a key of the domain's operator: an operator key on an internet-facing server would let whoever took it delegate and attest for every address on the domain
 - `trustStore`: Required trust store instance for managing trust records
 - `identityStore`: Optional identity store instance for managing identity records
 - `port`: Optional port number (default: 3443)
@@ -66,6 +68,7 @@ interface BTPClientOptions {
   host?: string;
   hostSelector?: string;
   hostOperator?: string;
+  requireSignedBy?: { identity: string; selector: string };
   version?: string;
   port?: number;
   maxQueue?: number;
@@ -84,6 +87,7 @@ interface BTPClientOptions {
 - `host`: Optional custom host override
 - `hostSelector`: Optional DNS selector for key management (default: 'btps1')
 - `hostOperator`: Optional, with `host`: the identity operating that host, which must sign its identity lookup answers. Without `host`, the operator comes from DNS (`op` in `_btps.host`)
+- `requireSignedBy`: Optional, since 1.2. Takes no answer but one signed by this identity under this selector, as a provider's own app expects of its server (for example `server$saas.example` under `server1`); an unsigned answer, or one by any other signer, is refused before any key is looked up. The signer's identity compares without case; its selector exactly. The provider's server signs its answers with `signAnswers`. It applies to answers on this client's own connection, a device's commands to its provider: `resolveIdentity` looks a receiver's key up on a connection of its own and checks that the answer is signed by the domain's operator instead, so the pin never stands in the way of a lookup. An identity-lookup answer that arrives on the pinned connection itself is refused
 - `version`: Optional protocol version (default: '1.1.0')
 - `port`: Optional custom port override
 - `maxQueue`: Optional maximum queue size for request handling (default: 100)
@@ -343,6 +347,7 @@ interface ServerAuthConfig {
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tokenStore: TokenStore;
   tokenConfig?: TokenConfig;
+  maxKeyAgeMs?: number; // since 1.2
 }
 ```
 
@@ -351,6 +356,7 @@ interface ServerAuthConfig {
 - `trustStore`: Required trust store for managing trust records
 - `tokenStore`: Required token store for managing authentication tokens
 - `tokenConfig`: Optional token configuration
+- `maxKeyAgeMs`: Since 1.2, optional and off by default. The oldest a device key may be: a refresh signed by an older key is refused with `BTP_ERROR_KEY_TOO_OLD`, and the device moves to a new key with the same refresh token. The age runs from when the key came into use (the newest `keyHistory` entry's `lastSeen`, else the record's `createdAt`).
 
 ### TokenConfig
 
@@ -741,14 +747,45 @@ interface BTPInvoiceDoc {
     linkText: string;
     url: string;
   };
-  description?: string;
+  description?: BTPNote; // a note with a format since 1.2; a plain string as in 1.1
+  discount?: BTPDiscount; // 1.2: a discount on the whole invoice, before tax
   attachments?: BTPAttachment[];
   references?: BTPDocReference[];
-  template?: {
-    name: string;
-    data: Record<string, unknown>;
-  };
+  template?: BTPTemplate;
   metadata?: Record<string, unknown>;
+}
+```
+
+### BTPNote
+
+A person's note. Since 1.2 it says how it is written, as a letter's body does; a plain string, as in 1.1, is read as `text`. In a `1.2.0` artifact its content is at most 5,000 characters.
+
+```ts
+type BTPNote = string | { format: 'text' | 'markdown'; content: string };
+```
+
+### BTPDiscount
+
+Since 1.2. A discount on a whole invoice or receipt, before tax: an amount in minor units of its currency, or whole basis points from 1 to 10,000.
+
+```ts
+type BTPDiscount = { amount: number } | { percent: number };
+```
+
+### BTPTemplate
+
+A document's template, by reference. Since 1.2, in a `1.2.0` artifact, the named `data` fields are each optional but well formed when present, and a `source` always comes with its `sha256`; other keys stay the provider's. The template file itself is specified on [Templates](../protocol/specifications/templates.md).
+
+```ts
+interface BTPTemplate {
+  name: string;
+  data: {
+    version?: string; // a semantic version
+    sha256?: string; // lowercase hex
+    source?: string; // an https address, always with its sha256
+    logo?: { sha256: string; source: string };
+    [key: string]: unknown;
+  };
 }
 ```
 
@@ -794,7 +831,7 @@ interface BTPLifecycleEvent {
   inReplyTo?: string; // refund, response: the id of the event answered; withdrawn: the proposal taken back
   follows?: string; // 1.2, on a proposal sent again: the id of the withdrawn it follows
   remainingDueDate?: string; // an accepted response to a partially_paid
-  message?: string; // free text for the other party
+  message?: BTPNote; // free text for the other party; a note with a format since 1.2
 }
 ```
 
@@ -919,6 +956,33 @@ interface ServerAuthConfig {
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tokenStore: TokenStore;
   tokenConfig?: TokenConfig;
+  maxKeyAgeMs?: number; // since 1.2: the oldest a device key may be
+}
+```
+
+### BtpsAuthenticationEvents
+
+Since 1.2: what `auth.on(…)` tells its listeners.
+
+```ts
+type BtpsAuthenticationEvents = {
+  keyRotated: (info: BTPKeyRotatedInfo) => void;
+  refreshTokenReused: (info: BTPRefreshTokenReusedInfo) => void; // the device was revoked
+};
+
+interface BTPKeyRotatedInfo {
+  agentId: string;
+  identity: string;
+  previousFingerprint: string;
+  fingerprint: string;
+  at: string; // ISO 8601
+}
+
+interface BTPRefreshTokenReusedInfo {
+  agentId: string;
+  identity: string;
+  fingerprint?: string; // the revoked device's key, when its record was found
+  at: string; // ISO 8601
 }
 ```
 
@@ -979,9 +1043,12 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
   get(agentId: string, token: string): Promise<T | undefined>;
   remove(agentId: string, token: string): Promise<void>;
   consume(agentId: string, token: string): Promise<T | undefined>; // read and remove in one atomic step
+  isConsumed?(agentId: string, token: string): Promise<T | undefined>; // since 1.2, optional
   cleanup(): Promise<void>;
 }
 ```
+
+`isConsumed` (since 1.2) returns a token `consume` took, as it was, until it would have expired; storing the token again clears it. With it, a refresh token used a second time revokes the device and fires `refreshTokenReused`. Without it, a second use is refused as in 1.1.
 
 ### AuthSessionStore
 
@@ -1214,10 +1281,12 @@ History record for public key usage.
 ```ts
 interface KeyHistory {
   fingerprint: string;
-  firstSeen: string;
-  lastSeen: string;
+  firstSeen: string; // when the key came into use
+  lastSeen: string; // when it was retired
 }
 ```
+
+Since 1.2, `firstSeen` is when the retired key came into use: when the key before it was retired, or when the device registered. Before 1.2 it was the time of the key's last refresh.
 
 ### BTPTrustRecord
 
@@ -1257,7 +1326,7 @@ interface BTPTrustReqDoc {
   logoUrl?: string;
   displayName?: string;
   websiteUrl?: string;
-  message?: string;
+  message?: BTPNote; // a note with a format since 1.2
   expiresAt?: string;
   privacyType?: BTPEncryptionType;
 }
@@ -1275,7 +1344,7 @@ interface BTPTrustResDoc {
   decidedBy: string;
   expiresAt?: string;
   retryAfterDate?: string;
-  message?: string;
+  message?: BTPNote; // a note with a format since 1.2
   privacyType?: BTPEncryptionType;
 }
 ```

@@ -1517,6 +1517,22 @@ Error constant for an `auth.refresh` that names a new device key without a `keyP
 
 ---
 
+### BTP_ERROR_KEY_TOO_OLD
+
+```ts
+const BTP_ERROR_KEY_TOO_OLD: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a refresh signed by a device key older than the server's `maxKeyAgeMs`. The refresh token stays usable, so the device moves to a new key with it (`BtpsAuthentication.rotateKey`).
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_KEY_TOO_OLD'`
+- `message`: `'This device key is older than the server allows. Move to a new key first'`
+
+---
+
 ### BTP_ERROR_ARTIFACT_TIME_WINDOW
 
 ```ts

@@ -34,17 +34,28 @@ export interface BtpsTlsOptions extends TlsOptions {
 }
 
 export interface BtpsServerOptions {
-  /** The server's own key, as a PEM key pair or a Signer holding it elsewhere (a KMS). */
+  /**
+   * The server's own key, as a PEM key pair or a Signer holding it elsewhere (a KMS).
+   * `selector` (since 1.2) is the selector its key is published under; `signAnswers` needs it.
+   */
   serverIdentity:
     | {
         identity: string;
         publicKey: string;
         privateKey: string;
+        selector?: string;
       }
     | {
         identity: string;
         signer: Signer;
+        selector?: string;
       };
+  /**
+   * Since 1.2: sign every answer, errors included, as `serverIdentity` under its `selector`, so a
+   * device that requires its server's signature (`requireSignedBy`) can read it. Off by default.
+   * Never sign with a key of the domain's operator: use an identity of its own, such as `server$<domain>`.
+   */
+  signAnswers?: boolean;
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tlsOptions: BtpsTlsOptions;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
@@ -296,14 +307,35 @@ export interface BTPInvoiceDoc {
     linkText: string;
     url: string; // should be HTTPS
   };
-  description?: string;
+  description?: BTPNote; // a note with a format since 1.2; a plain string as in 1.1
+  /** Since 1.2: a discount on the whole invoice, before tax */
+  discount?: BTPDiscount;
   attachments?: BTPAttachment[];
   references?: BTPDocReference[];
-  template?: {
-    name: string;
-    data: Record<string, unknown>;
-  };
+  template?: BTPTemplate;
   metadata?: Record<string, unknown>; // the sending platform's own data
+}
+
+/**
+ * A person's note. Since 1.2 it says how it is written, `text` or `markdown`
+ * (CommonMark, raw HTML off), as a letter's body does; a 1.1 note is a plain
+ * string, read as `text`.
+ */
+export type BTPNote = string | { format: 'text' | 'markdown'; content: string };
+
+/** Since 1.2: a discount before tax, an amount in minor units of the currency or whole basis points (1 to 10000). */
+export type BTPDiscount = { amount: number } | { percent: number };
+
+/** A template by reference. Since 1.2 its named data fields, each optional, are well formed when present. */
+export interface BTPTemplate {
+  name: string;
+  data: {
+    version?: string; // a semantic version
+    sha256?: string; // lowercase hex
+    source?: string; // an https address, always with its sha256
+    logo?: { sha256: string; source: string };
+    [key: string]: unknown;
+  };
 }
 
 /** Proof of a payment: the invoice without what asks for payment, plus `payment`. */

@@ -32,6 +32,45 @@ versions follow [Semantic Versioning](https://semver.org/).
   the sender which rule it broke. `lifecycleEventChainProblem` and
   `lifecycleEventSenderProblem` (`@btps/sdk/server`) let a platform check an
   encrypted event the same way once it has opened it.
+- **Notes say how they are written.** An invoice's and receipt's
+  `description`, an event's `message`, and a trust request's or response's
+  `message` may be `{ format: 'text' | 'markdown', content }` (`BTPNote`); a
+  plain string is still taken, read as `text`. In a `1.2.0` artifact a note's
+  content is at most 5,000 characters.
+- **Discounts.** An invoice or receipt may carry `discount`, `{ amount }` in
+  minor units or `{ percent }` in whole basis points (1 to 10,000), applied
+  before tax (`BTPDiscount`). In a `1.2.0` artifact a line's `discount` cell is
+  an amount of at least 0.
+- **Templates by reference.** In a `1.2.0` artifact a template's named `data`
+  fields (`version`, `sha256`, `source`, `logo`) are well formed when present
+  (`BTPTemplate`), a `source` always comes with its `sha256`, and a letter or
+  payslip may name a template. The template file's format is specified on the
+  new Templates page, with a JSON Schema published with the docs
+  (`schemas/btps-template.schema.json`) and golden vectors
+  (`templates.vectors.json`). Format 1 says how an invoice or receipt looks,
+  never what it says: it never carries or changes a value, hides no section
+  with signed fields, fetches nothing and runs nothing, and its labels, terms
+  and footer are plain words with no payment detail. Its fingerprint is the
+  SHA-256 of its RFC 8785 canonical form. The SDK renders nothing.
+- Every 1.2 document rule applies under `1.2.0` only: a document valid in 1.1
+  reads exactly as before in a `1.1.0` artifact. The schemas 1.1 reads with are
+  kept beside the newest (`Btp…V1_1Schema`). A device checks what it sends
+  under the version it will stamp it with, so it sends whatever a 1.1 device
+  could; a draft or edit takes either version's shape.
+- **Signed answers, and a device that requires them.** A server with
+  `signAnswers` signs every answer, errors included, as `serverIdentity` under
+  its new `selector`. A client with `requireSignedBy: { identity, selector }`
+  takes no answer but one signed by that signer under that selector, and
+  refuses any other before it looks up a key.
+- **Device-key theft signals.** With a token store that has the new, optional
+  `isConsumed`, a refresh token used a second time, which only a copy of it can
+  do, revokes the device and fires `refreshTokenReused`. Without it, a second
+  use is refused as in 1.1, and `BtpsAuthentication` warns once.
+  `InMemoryTokenStore` has it. `auth.on('keyRotated', …)` tells a listener
+  when a device moves to a new key.
+- **A maximum key age** (`maxKeyAgeMs`, off by default): a refresh signed by an
+  older device key is refused with `BTP_ERROR_KEY_TOO_OLD`, and the device
+  moves to a new key with the same refresh token.
 - **A device reads encrypted documents with its own key.** A query result may
   carry `agentKey: { key, fingerprint, wrappedAt }`: the artifact's content key
   wrapped again to the device that asked, by `wrapForAgent`
@@ -48,7 +87,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 - `decryptVerify` refuses every signature that does not verify. Before, one
   that failed without an error object went on to be decrypted.
-
+- A refresh never makes a revoked or blocked device accepted again.
+- `keyHistory[].firstSeen` is when the retired key came into use (when the key
+  before it was retired, or when the device registered). It was the time of
+  the key's last refresh.
 - A receiver's refusal of an artifact's version reaches the sender as a
   `BTP_ERROR_VERSION_UNSUPPORTED` error with `receiverVersion`, the version
   the receiver speaks, beside its answer. `send` now returns both `response`

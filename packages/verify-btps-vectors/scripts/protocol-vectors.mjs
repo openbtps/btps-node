@@ -1132,6 +1132,25 @@ export function documents12() {
       v12,
     ),
     refuse(
+      'invoice-template-source-without-sha256',
+      'BTPS_DOC',
+      { ...inv, template: template({ source: templateData.source }) },
+      'a source comes with the sha256 of what it serves',
+      v12,
+    ),
+    accept(
+      'invoice-template-sha256-without-source',
+      'BTPS_DOC',
+      { ...inv, template: template({ sha256: SHA }) },
+      v12,
+    ),
+    accept(
+      'invoice-template-source-without-sha256-under-1-1',
+      'BTPS_DOC',
+      { ...inv, template: template({ source: templateData.source }) },
+      v11,
+    ),
+    refuse(
       'invoice-template-sha256-not-hex',
       'BTPS_DOC',
       { ...inv, template: template({ ...templateData, sha256: 'ABC' }) },
@@ -1306,6 +1325,228 @@ export function eventChain() {
         'follows names a withdrawn',
       ),
       chain('proposal-without-follows', base.event, null, 'accept'),
+    ],
+  };
+}
+
+/** The 1.2 template file, format 1: what a template may say, and each thing it must never do. */
+export function templates() {
+  const signed = ['header', 'parties', 'details', 'lines', 'totals', 'payment', 'notes'];
+  const full = {
+    format: 1,
+    kinds: ['invoice', 'receipt'],
+    page: {
+      font: 'source-serif-4',
+      size: 'normal',
+      density: 'comfortable',
+      background: '#ffffff',
+      text: '#1f2933',
+      muted: '#52606d',
+      accent: '#0b6e4f',
+    },
+    logo: { position: 'top-left', size: 'medium' },
+    sections: [
+      'header',
+      'totals',
+      'details',
+      'parties',
+      'lines',
+      'payment',
+      'notes',
+      'terms',
+      'footer',
+    ],
+    labels: { title: 'Tax invoice', to: 'Bill to', amountDue: 'Amount due' },
+    lines: { style: 'striped', header: 'accent' },
+    totals: { style: 'accent' },
+    text: {
+      terms: 'Payment within 14 days.\nThank you for your business.',
+      footer: 'Kauri Studio',
+    },
+  };
+  const minimal = { ...full, kinds: ['invoice'], sections: signed, labels: {}, text: undefined };
+  const accept = (name, template) => ({ name, template, expect: 'accept' });
+  const refuse = (name, template, why, check = 'schema') => ({
+    name,
+    template,
+    expect: 'refuse',
+    check,
+    why,
+  });
+  const page = (more) => ({ ...full, page: { ...full.page, ...more } });
+  const labels = (more) => ({ ...full, labels: { ...full.labels, ...more } });
+  const text = (more) => ({ ...full, text: { ...full.text, ...more } });
+  return {
+    description:
+      'The BTPS 1.2 template file, format 1 (Templates page; JSON Schema at docs/docusaurus/static/schemas/btps-template.schema.json, published with the docs site as schemas/btps-template.schema.json). A template says how a document looks, never what it says: it never carries or changes a value of the document, hides no section with signed fields, names nothing to fetch and runs nothing; its own words are labels from a fixed set and static terms and footer text, each plain words with no digit run of four or more and no web, email or BTPS address. An implementation accepts every "accept" template and refuses every "refuse" one; `check` is the rule that refuses it: "schema" for the JSON Schema, "contrast" for the WCAG AA contrast of `page.text` and `page.muted` (4.5:1) and `page.accent` (3:1) against `page.background`. `fingerprint` is a template\'s RFC 8785 canonical form and the lowercase hex SHA-256 of it, which `template.data.sha256` names.',
+    fingerprint: {
+      template: full,
+      canonical: canonicalizeValue(full),
+      sha256: crypto.createHash('sha256').update(canonicalizeValue(full), 'utf8').digest('hex'),
+    },
+    cases: [
+      accept('full', full),
+      accept('minimal', minimal),
+      accept(
+        'short-numbers-in-words',
+        text({ terms: 'Payment within 14 days.\nLate fees: 2% a month.' }),
+      ),
+      accept('label-at-40-characters', labels({ title: 'x'.repeat(40) })),
+      refuse('a-later-format', { ...full, format: 2 }, 'this is format 1'),
+      refuse('an-unknown-key', { ...full, script: 'alert(1)' }, 'unknown keys are refused'),
+      refuse(
+        'an-amount',
+        { ...full, total: { amount: 100, currency: 'AUD' } },
+        'a template never carries or changes an amount',
+      ),
+      refuse(
+        'a-party',
+        { ...full, to: 'pay$client.example' },
+        'a template never carries or changes who a document is from or to',
+      ),
+      refuse(
+        'a-payment-value',
+        { ...full, payment: { bsb: '062-000', account: '12345678' } },
+        'a template never carries or changes how to pay',
+      ),
+      refuse(
+        'a-label-that-is-a-value',
+        labels({ amount: '999' }),
+        'labels are from a fixed set of keys, none of them a value',
+      ),
+      refuse(
+        'a-section-with-signed-fields-left-out',
+        { ...full, sections: ['header', 'parties', 'details', 'lines', 'totals', 'notes'] },
+        'every section with signed fields is shown',
+      ),
+      refuse('a-hidden-list', { ...full, hidden: ['totals'] }, 'a template never hides a section'),
+      refuse(
+        'a-section-twice',
+        { ...full, sections: [...signed, 'notes'] },
+        'each section at most once',
+      ),
+      refuse(
+        'an-unknown-section',
+        { ...full, sections: [...signed, 'popup'] },
+        'sections are from a fixed list',
+      ),
+      refuse(
+        'terms-shown-with-none-given',
+        { ...full, text: { footer: 'Kauri Studio' } },
+        'a template that shows terms gives them',
+      ),
+      refuse(
+        'a-footer-shown-with-none-given',
+        { ...full, text: { terms: 'Thank you.' } },
+        'a template that shows a footer gives it',
+      ),
+      refuse(
+        'a-font-outside-the-list',
+        page({ font: 'Comic Sans' }),
+        'fonts are from a fixed list',
+      ),
+      refuse(
+        'a-font-to-fetch',
+        page({ font: 'https://fonts.example/a.woff2' }),
+        'a template never fetches anything',
+      ),
+      refuse(
+        'a-colour-that-is-a-url',
+        page({ background: 'url(https://x.example/a.png)' }),
+        'colours are #rrggbb',
+      ),
+      refuse('a-colour-in-upper-case', page({ text: '#1F2933' }), 'colours are lower-case #rrggbb'),
+      refuse(
+        'a-logo-to-fetch',
+        { ...full, logo: { ...full.logo, url: 'https://dev.example/logo.png' } },
+        "the logo is the sender's own, from the document: the template says only where and how big",
+      ),
+      refuse(
+        'a-logo-size-in-pixels',
+        { ...full, logo: { position: 'top-left', size: 64 } },
+        'sizes are tokens',
+      ),
+      refuse(
+        'a-kind-without-a-format-yet',
+        { ...full, kinds: ['letter'] },
+        'format 1 is for invoices and receipts',
+      ),
+      refuse(
+        'a-label-too-long',
+        labels({ title: 'x'.repeat(41) }),
+        'a label is 1 to 40 characters',
+      ),
+      refuse('an-empty-label', labels({ title: '' }), 'a label is 1 to 40 characters'),
+      refuse(
+        'a-label-that-is-markup',
+        labels({ title: '<b>Invoice</b>' }),
+        'plain words, no markup',
+      ),
+      refuse(
+        'a-label-with-a-digit-run',
+        labels({ title: 'Invoice 10042' }),
+        'no run of four or more digits',
+      ),
+      refuse(
+        'a-label-with-an-email-address',
+        labels({ payment: 'Pay pay@x.example' }),
+        'no email address',
+      ),
+      refuse('a-label-with-a-hidden-character', labels({ to: 'Bill​to' }), 'no hidden character'),
+      refuse(
+        'terms-with-bank-details',
+        text({ terms: 'Pay to BSB 062-000 account 1234 5678' }),
+        'no run of four or more digits',
+      ),
+      refuse(
+        'terms-with-a-btps-address',
+        text({ terms: 'Send to pay$kauri.example' }),
+        'no BTPS address',
+      ),
+      refuse('terms-with-a-url', text({ terms: 'Pay at https://pay.example/x' }), 'no web address'),
+      refuse(
+        'a-footer-with-a-phone-number',
+        text({ footer: 'Call 02 9999 0000' }),
+        'no run of four or more digits',
+      ),
+      refuse(
+        'a-footer-with-a-web-address',
+        text({ footer: 'Pay at www.pay.example' }),
+        'no web address',
+      ),
+      refuse(
+        'a-footer-that-reads-backwards',
+        text({ footer: 'Kauri ‮oiduts' }),
+        'no direction-changing character',
+      ),
+      refuse(
+        'a-footer-with-a-control-character',
+        text({ footer: 'Kauri\u0007Studio' }),
+        'no control character',
+      ),
+      refuse(
+        'a-footer-too-long',
+        text({ footer: 'x'.repeat(301) }),
+        'a footer is at most 300 characters',
+      ),
+      refuse(
+        'text-that-cannot-be-read',
+        page({ text: '#eeeeee' }),
+        'text contrasts 4.5:1 with the background',
+        'contrast',
+      ),
+      refuse(
+        'muted-text-that-cannot-be-read',
+        page({ muted: '#dddddd' }),
+        'muted text contrasts 4.5:1 with the background',
+        'contrast',
+      ),
+      refuse(
+        'an-accent-that-cannot-be-seen',
+        page({ accent: '#f5f5f5' }),
+        'the accent contrasts 3:1 with the background',
+        'contrast',
+      ),
     ],
   };
 }
