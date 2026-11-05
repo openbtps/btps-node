@@ -1648,11 +1648,14 @@ export class BtpsServer {
     // Signed as this server, after its reqId is set. Signing may take time (a KMS), so each
     // answer on a connection goes out after every earlier one, and so does any close it asks
     // for: a later answer that ends the connection never drops an earlier one still signing.
+    // An answer that fails is reported, and the ones after it still go out.
     const earlier = this.answersOnSocket.get(socket) ?? Promise.resolve();
-    const answer = earlier.then(async () => {
-      const signed = artifact.signature ? artifact : await this.signAnswer(artifact);
-      this.writeAnswer(socket, signed, action);
-    });
+    const answer = earlier
+      .then(async () => {
+        const signed = artifact.signature ? artifact : await this.signAnswer(artifact);
+        this.writeAnswer(socket, signed, action);
+      })
+      .catch((err: unknown) => this.onError?.(transformToBTPErrorException(err)));
     this.answersOnSocket.set(socket, answer);
   }
 

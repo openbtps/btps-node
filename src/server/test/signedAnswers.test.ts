@@ -158,6 +158,33 @@ describe("a server's signed answers", () => {
 
     expect(lines.map((line) => JSON.parse(line).reqId)).toEqual(['first', 'second']);
   });
+
+  it('still go out after one fails, which is reported', async () => {
+    const onError = vi.fn();
+    const server = new BtpsServer(options({ onError }));
+    const signAnswer = server['signAnswer'].bind(server);
+    vi.spyOn(server as unknown as { signAnswer: typeof signAnswer }, 'signAnswer')
+      .mockRejectedValueOnce(new Error('signing threw'))
+      .mockImplementation(signAnswer);
+    const lines: string[] = [];
+    const socket = {
+      destroyed: false,
+      writableEnded: false,
+      writable: true,
+      write: (line: string) => lines.push(line) > 0,
+      destroy: vi.fn(),
+      end: vi.fn(),
+    } as unknown as TLSSocket;
+
+    server['sendBtpsResponse'](socket, { ...unsignedAnswer, reqId: 'first' });
+    server['sendBtpsResponse'](socket, { ...unsignedAnswer, reqId: 'second' });
+    await vi.waitFor(() => expect(lines).toHaveLength(1));
+
+    expect(JSON.parse(lines[0] ?? 'null').reqId).toBe('second');
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('signing threw') }),
+    );
+  });
 });
 
 describe('a device that requires its server to sign', () => {
