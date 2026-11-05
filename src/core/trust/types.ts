@@ -11,6 +11,15 @@ export type BTPTrustStatus = 'accepted' | 'rejected' | 'revoked' | 'pending' | '
 export type BTPTrustDecisionType = Exclude<BTPTrustStatus, 'pending'>;
 export type BTPEncryptionType = 'unencrypted' | 'encrypted' | 'mixed';
 
+/** What a platform holds of a lifecycle event between two parties, as its store's `getEvent` answers. */
+export type BTPEventFacts = {
+  eventType: string;
+  /** Who sent it */
+  from: string;
+  /** A proposal is open until it is answered or withdrawn; any other event is answered. */
+  state: 'open' | 'answered' | 'withdrawn';
+};
+
 export type KeyHistory = {
   // happens due to pub and priv key rolling update
   fingerprint: string; // previous public fingerPrint

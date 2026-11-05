@@ -38,8 +38,24 @@ export const isVersionBelow = (version: string, than: string): boolean => {
 /** An artifact before it is signed: its type, its document, and the rest of its envelope. */
 export type BTPVersionedArtifact = { type?: string; document?: unknown; [key: string]: unknown };
 
+/** A document read as a record, or undefined when it is not one (an encrypted document is a string). */
+const documentOf = (artifact: BTPVersionedArtifact): Record<string, unknown> | undefined =>
+  typeof artifact.document === 'object' && artifact.document !== null
+    ? (artifact.document as Record<string, unknown>)
+    : undefined;
+
 /** Whether an artifact uses something only 1.2 has. Each 1.2 addition adds its own test. */
-const USES_1_2: ((artifact: BTPVersionedArtifact) => boolean)[] = [];
+const USES_1_2: ((artifact: BTPVersionedArtifact) => boolean)[] = [
+  // The withdrawn event, and a proposal that follows one.
+  (artifact) => {
+    const event = documentOf(artifact);
+    return (
+      artifact.type === 'BTPS_EVENT' &&
+      event !== undefined &&
+      (event.eventType === 'withdrawn' || event.follows !== undefined)
+    );
+  },
+];
 
 /**
  * The version an artifact is stamped with: 1.1.0 whenever everything in it can

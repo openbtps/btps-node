@@ -85,6 +85,17 @@ export const BTP_ERROR_EVENT_UNRELATED: BTPError = {
   status: 400,
 };
 
+/**
+ * Since 1.2: a `withdrawn` that does not take back its sender's own open
+ * proposal, or a `follows` that names no `withdrawn`. It concerns the
+ * sender's own events, so the sender is told which.
+ */
+export const BTP_ERROR_EVENT_CHAIN: BTPError = {
+  code: 'BTP_ERROR_EVENT_CHAIN',
+  message: 'Event names an earlier event it cannot follow or withdraw',
+  status: 400,
+};
+
 export const BTP_ERROR_RESOLVE_DNS: BTPError = {
   code: 'BTP_ERROR_RESOLVE_DNS',
   message: 'No valid DNS record found',

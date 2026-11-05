@@ -184,5 +184,14 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
         else ensure(!success, `accepted under ${c.version}; expected it refused: ${c.why}`);
       }),
     ),
+    ...set.eventChain.cases.map((c) =>
+      check(`event-chain/${c.name}`, () => {
+        const { lifecycleEventChainProblem } = rules.helpers;
+        ensure(typeof lifecycleEventChainProblem === 'function', 'the SDK has no event chain rule');
+        const problem = lifecycleEventChainProblem(c.event, c.envelope, c.named ?? undefined);
+        if (c.expect === 'accept') ensure(problem === undefined, `refused: ${problem}`);
+        else ensure(problem !== undefined, `accepted; expected it refused: ${c.why}`);
+      }),
+    ),
   ];
 }

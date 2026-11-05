@@ -19,6 +19,16 @@ versions follow [Semantic Versioning](https://semver.org/).
   answered: the version its server speaks, from its signed answer.
 - A "created, with this id" answer, `{ id }` (`BTPCreatedResDoc`), so
   `draft.create` can return the new draft's id.
+- **The `withdrawn` event.** The sender of an unanswered proposal takes it
+  back with `withdrawn`, naming it in `inReplyTo`; a proposal sent again names
+  the `withdrawn` it follows in `follows`. Both travel only in `1.2.0`
+  artifacts; under `1.1.0` an event is read exactly as 1.1 reads it
+  (`processBtpDocSchema` now takes the artifact's version).
+- `BTP_ERROR_EVENT_CHAIN`: a server whose trust store has the new, optional
+  `getEvent` refuses a `withdrawn` that does not take back its sender's own
+  open proposal, and a `follows` that names no `withdrawn`, and tells the
+  sender which. `lifecycleEventChainProblem` (`@btps/sdk/server`) lets a
+  platform check an encrypted event the same way once it has opened it.
 
 ### Changed
 

@@ -36,6 +36,7 @@ import {
   BTP_ERROR_UNKNOWN,
   BTP_ERROR_INVALID_ACTION,
   BTP_ERROR_EVENT_UNRELATED,
+  BTP_ERROR_EVENT_CHAIN,
   BTP_ERROR_KEY_ROTATION_PROOF,
   BTP_ERROR_AGENT_ID,
   BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
@@ -106,7 +107,14 @@ import { resolveConnectionTimeoutMs } from './libs/connectionTimeout.js';
 import { resolveMaxInFlightPerConnection } from './libs/inFlightLimit.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
-import { BtpAuthReqDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
+import {
+  BtpAuthReqDocSchema,
+  BtpLifecycleEventSchema,
+} from '@core/server/schemas/btpsDocsSchema.js';
+import {
+  lifecycleEventChainProblem,
+  lifecycleEventChainReference,
+} from '@core/server/schemas/helpers.js';
 import { keyProofPayload } from '@core/authentication/keyProof.js';
 import type { BTPIdentityRecord } from '@core/storage/types.js';
 import type { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
@@ -674,12 +682,14 @@ export class BtpsServer {
       // wire only distinguishes expired from everything else, so an
       // un-upgraded 1.0 peer still just sees "not allowed" for a revoked or
       // never-trusted sender. A sender with an active trust is also told when
-      // it did not encrypt as that trust requires.
+      // it did not encrypt as that trust requires, or when an event's chain
+      // is wrong: both concern only what the sender itself sent.
       const refusal = reqCtx.error;
+      const toldExactly = [BTP_ERROR_PRIVACY_TYPE.code, BTP_ERROR_EVENT_CHAIN.code];
       const wireError =
         refusal?.code === BTP_ERROR_TRUST_EXPIRED.code
           ? BTP_ERROR_TRUST_EXPIRED
-          : refusal && refusal.code === BTP_ERROR_PRIVACY_TYPE.code
+          : refusal && toldExactly.includes(refusal.code)
             ? refusal
             : BTP_ERROR_TRUST_NOT_ALLOWED;
       return this.sendBtpsError(resCtx.socket, wireError, resCtx.reqId);
@@ -1163,14 +1173,41 @@ export class BtpsServer {
     const isKnown =
       relatesTo !== undefined &&
       (await this.trustStore.isKnownArtifact({ artifactId: relatesTo, from, to }));
-    if (isKnown) return { isTrusted: true, error: undefined };
+    if (!isKnown) {
+      return {
+        isTrusted: false,
+        error: new BTPErrorException(BTP_ERROR_EVENT_UNRELATED, {
+          cause: `no artifact ${relatesTo} between ${from} and ${to}`,
+          meta: { relatesTo, from, to },
+        }),
+      };
+    }
+    const problem = await this.eventChainProblem(data.artifact);
+    if (!problem) return { isTrusted: true, error: undefined };
     return {
       isTrusted: false,
-      error: new BTPErrorException(BTP_ERROR_EVENT_UNRELATED, {
-        cause: `no artifact ${relatesTo} between ${from} and ${to}`,
-        meta: { relatesTo, from, to },
-      }),
+      error: new BTPErrorException(
+        { ...BTP_ERROR_EVENT_CHAIN, message: `${BTP_ERROR_EVENT_CHAIN.message}: ${problem}` },
+        { meta: { from, to } },
+      ),
     };
+  }
+
+  /**
+   * What is wrong with an event's chain: a `withdrawn` that does not take back
+   * its sender's own open proposal, or a `follows` that names no `withdrawn`.
+   * Checked when the event can be read and the store can say what it holds
+   * (`getEvent`); an encrypted event is its platform's to check once opened.
+   */
+  private async eventChainProblem(artifact: BTPTransporterArtifact): Promise<string | undefined> {
+    if (artifact.encryption || !this.trustStore.getEvent) return undefined;
+    const parsed = BtpLifecycleEventSchema.safeParse(artifact.document);
+    if (!parsed.success) return undefined;
+    const named = lifecycleEventChainReference(parsed.data);
+    if (named === undefined) return undefined;
+    const { from, to } = artifact;
+    const facts = await this.trustStore.getEvent({ id: named, from, to });
+    return lifecycleEventChainProblem(parsed.data, { from }, facts);
   }
 
   /**
@@ -1641,6 +1678,11 @@ export class BtpsServer {
         if (!this.acceptsArtifacts(type)) {
           console.warn(`[BtpsServer] Warning: ${this.noHandlerWarning(type)}`);
         }
+      }
+      if (!this.trustStore.getEvent) {
+        console.warn(
+          "[BtpsServer] Warning: the trust store has no getEvent, so this server does not check that a withdrawn event takes back its sender's own open proposal, or what a proposal's follows names. The platform checks them (lifecycleEventChainProblem).",
+        );
       }
     });
   }

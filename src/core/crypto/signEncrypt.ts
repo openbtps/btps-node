@@ -89,7 +89,8 @@ export const signEncrypt = async <T = unknown>(
 
   if (to && !isEmpty(options?.encryption)) {
     // Once encrypted, no server can read the document, so it is checked here.
-    const docSchema = processBtpDocSchema(restPayload.type as BTPArtifactType);
+    const version = typeof restPayload.version === 'string' ? restPayload.version : undefined;
+    const docSchema = processBtpDocSchema(restPayload.type as BTPArtifactType, version);
     if (docSchema && !docSchema.safeParse(document).success) {
       return genEncryptError(
         new BTPErrorException(BTP_ERROR_VALIDATION, {

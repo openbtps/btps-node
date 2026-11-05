@@ -6,8 +6,9 @@
   "files": {
     "addresses.vectors.json": "cea6afc30d9a91aaa5d1310c3b5d0ec3981304cf66e3a2a3e53333ebecab6bab",
     "device-key-proof.vector.json": "ef08791a6eac8df8540b57c112634d9feda8b82461bcd0737175bf0e9cbf4805",
-    "documents-1.2.vectors.json": "213340c911510d192289142975d6c52d6d04c9b61f8e2eb8dcc9837b459320b4",
+    "documents-1.2.vectors.json": "5cd9c15a8c4bf333564537942198d051addef680ef5363ee4c6e6bbcd3581217",
     "documents.vectors.json": "722ae0a2abeae2999484a04834a0f8ca2b4f673dac71746c0e6ed4014c3e248f",
+    "event-chain.vectors.json": "1406c50d3e7a96a4a8610106feaf7ba16ba1f57f48e9d1dfe9197bbeada2d041",
     "jcs.vectors.json": "aac34bc0a6b879a317aca1804f71228f1e0e06a7df4ca138ab4750a4628461d6",
     "kms-signature.vector.json": "2ec980707588c541d260250dc8343bd84b86777835293cde0bd8e014d54b11de",
     "oaep-mgf1-sha1.negative.vector.json": "2275824847c6b90f40ba02879734e4ff3ad46a526e8eb74592c1036861352f41",

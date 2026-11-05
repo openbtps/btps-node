@@ -1540,6 +1540,33 @@ async isKnownArtifact({ artifactId, from, to }) {
 }
 ```
 
+### getEvent
+
+```ts
+await store.getEvent?.({ id, from, to });
+```
+
+Optional, since 1.2. What the platform holds of the lifecycle event with this `id` between these two identities, in either direction, or `undefined` when it holds none. With it, the server checks an unencrypted `withdrawn` (it takes back its own sender's open proposal) and a proposal's `follows` (it names a `withdrawn`), and refuses one that breaks the rule with `BTP_ERROR_EVENT_CHAIN`. Without it, the server warns once at start and the platform checks them, with `lifecycleEventChainProblem` from `@btps/sdk/server`, as it does for an encrypted event once opened.
+
+- **id**: `string` – the earlier event the new one names: a `withdrawn`'s `inReplyTo`, or a proposal's `follows`
+- **from**, **to**: `string` – the new event's sender and receiver
+- **Returns**: `Promise<BTPEventFacts | undefined>`: `{ eventType, from, state }`, where `from` is who sent that event and `state` is `open` (a proposal not yet answered or withdrawn), `answered` or `withdrawn`
+
+**Example:**
+
+```js
+async getEvent({ id, from, to }) {
+  const event = await this.events.findOne({
+    id,
+    $or: [
+      { from, to },
+      { from: to, to: from },
+    ],
+  });
+  return event ? { eventType: event.eventType, from: event.from, state: event.state } : undefined;
+}
+```
+
 ---
 
 ## JsonTrustStore

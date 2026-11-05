@@ -29,6 +29,7 @@ import {
   deviceKeyProof,
   documents,
   documents12,
+  eventChain,
   signedArtifacts,
   timeWindow,
   versions,
@@ -248,6 +249,7 @@ write(
 write('time-window.vectors.json', timeWindow());
 write('versions.vectors.json', versions());
 write('documents-1.2.vectors.json', documents12());
+write('event-chain.vectors.json', eventChain());
 
 // The manifest names every vector file with the SHA-256 of its bytes, so a
 // copy of the set can be checked whole. Rewritten on every run.

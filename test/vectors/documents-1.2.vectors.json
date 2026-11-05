@@ -114,6 +114,70 @@
       "expect": "accept"
     },
     {
+      "name": "paid-following-a-withdrawal",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "paid",
+        "follows": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "partially-paid-following-a-withdrawal",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "partially_paid",
+        "amount": {
+          "amount": 500,
+          "currency": "AUD"
+        },
+        "follows": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "refund-with-follows",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "refund",
+        "amount": {
+          "amount": 1,
+          "currency": "AUD"
+        },
+        "inReplyTo": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c",
+        "follows": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "only a proposal follows a withdrawal"
+    },
+    {
       "name": "follows-not-an-event-id",
       "type": "BTPS_EVENT",
       "document": {

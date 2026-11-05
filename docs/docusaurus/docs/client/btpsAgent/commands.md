@@ -474,7 +474,7 @@ command('event.send', to: string, document: BTPLifecycleEvent, options: BtpsAgen
 ```
 
 **Description:**
-Sends a lifecycle event about an invoice: the payer proposes `paid`, `partially_paid`, `disputed` or `refund_requested`; the biller answers with a `response` or a `refund`. An invoice's status comes from accepted events.
+Sends a lifecycle event about an invoice: the payer proposes `paid`, `partially_paid`, `disputed` or `refund_requested`; the biller answers with a `response` or a `refund`. An invoice's status comes from accepted events. Since 1.2, the sender of an unanswered proposal can take it back with `withdrawn` (`inReplyTo`: the proposal), and propose again later with `follows` naming that `withdrawn`. The agent stamps such an event `1.2.0`, so only a 1.2 receiver takes it.
 
 **Arguments:**
 

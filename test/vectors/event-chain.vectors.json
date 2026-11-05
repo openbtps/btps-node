@@ -1,0 +1,242 @@
+{
+  "description": "The BTPS 1.2 event chain. `event` is sent by `envelope.from`; `named` is what the receiving platform holds of the event it names (`inReplyTo` on a withdrawn, `follows` on a proposal) between the same two parties, or null when it holds none. A withdrawn takes back its own sender's proposal (paid, partially_paid, disputed or refund_requested) while it is open; a proposal sent again follows a withdrawn. An implementation accepts every \"accept\" case and refuses every \"refuse\" case; `why` says what is wrong.",
+  "cases": [
+    {
+      "name": "withdrawn-own-open-proposal",
+      "event": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "withdrawn",
+        "inReplyTo": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "envelope": {
+        "from": "pay$client.example"
+      },
+      "named": {
+        "eventType": "disputed",
+        "from": "pay$client.example",
+        "state": "open"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "withdrawn-names-no-event",
+      "event": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "withdrawn",
+        "inReplyTo": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "envelope": {
+        "from": "pay$client.example"
+      },
+      "named": null,
+      "expect": "refuse",
+      "why": "no event between the same two parties"
+    },
+    {
+      "name": "withdrawn-names-a-response",
+      "event": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "withdrawn",
+        "inReplyTo": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "envelope": {
+        "from": "pay$client.example"
+      },
+      "named": {
+        "eventType": "response",
+        "from": "pay$client.example",
+        "state": "answered"
+      },
+      "expect": "refuse",
+      "why": "only a proposal can be withdrawn"
+    },
+    {
+      "name": "withdrawn-names-the-other-party-proposal",
+      "event": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "withdrawn",
+        "inReplyTo": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "envelope": {
+        "from": "pay$client.example"
+      },
+      "named": {
+        "eventType": "disputed",
+        "from": "billing$vendor.example",
+        "state": "open"
+      },
+      "expect": "refuse",
+      "why": "only its sender can withdraw a proposal"
+    },
+    {
+      "name": "withdrawn-names-an-answered-proposal",
+      "event": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "withdrawn",
+        "inReplyTo": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "envelope": {
+        "from": "pay$client.example"
+      },
+      "named": {
+        "eventType": "disputed",
+        "from": "pay$client.example",
+        "state": "answered"
+      },
+      "expect": "refuse",
+      "why": "an answered proposal stays as answered"
+    },
+    {
+      "name": "withdrawn-names-a-withdrawn-proposal",
+      "event": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "withdrawn",
+        "inReplyTo": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "envelope": {
+        "from": "pay$client.example"
+      },
+      "named": {
+        "eventType": "paid",
+        "from": "pay$client.example",
+        "state": "withdrawn"
+      },
+      "expect": "refuse",
+      "why": "a proposal is withdrawn once"
+    },
+    {
+      "name": "proposal-follows-a-withdrawn",
+      "event": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "disputed",
+        "reason": "amount_wrong",
+        "follows": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "envelope": {
+        "from": "pay$client.example"
+      },
+      "named": {
+        "eventType": "withdrawn",
+        "from": "pay$client.example",
+        "state": "answered"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "proposal-follows-no-event",
+      "event": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "disputed",
+        "reason": "amount_wrong",
+        "follows": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "envelope": {
+        "from": "pay$client.example"
+      },
+      "named": null,
+      "expect": "refuse",
+      "why": "follows names no event between the same two parties"
+    },
+    {
+      "name": "proposal-follows-a-proposal",
+      "event": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "disputed",
+        "reason": "amount_wrong",
+        "follows": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "envelope": {
+        "from": "pay$client.example"
+      },
+      "named": {
+        "eventType": "disputed",
+        "from": "pay$client.example",
+        "state": "open"
+      },
+      "expect": "refuse",
+      "why": "follows names a withdrawn"
+    },
+    {
+      "name": "proposal-without-follows",
+      "event": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "paid"
+      },
+      "envelope": {
+        "from": "pay$client.example"
+      },
+      "named": null,
+      "expect": "accept"
+    }
+  ]
+}
