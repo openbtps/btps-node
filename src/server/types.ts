@@ -22,6 +22,7 @@ import { BTPErrorException } from '@core/error/index.js';
 import { BTPIdentityRecord } from '@core/storage/types.js';
 import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 import type { Signer } from '@core/crypto/signer-interface.js';
+import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 import type { z } from 'zod';
 import type {
   BtpLetterDocSchema,
@@ -56,6 +57,11 @@ export interface BtpsServerOptions {
    * Never sign with a key of the domain's operator: use an identity of its own, such as `server$<domain>`.
    */
   signAnswers?: boolean;
+  /**
+   * Since 1.2: finds every key this server checks a signature with (a sender's, a delegator's,
+   * an attestor's), so a provider can cache them. Without it, each is looked up in DNS, as before.
+   */
+  keyResolver?: BtpsKeyResolver;
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tlsOptions: BtpsTlsOptions;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;

@@ -439,7 +439,7 @@ Signs and (optionally) encrypts a BTPS document for secure transmission. Handles
   - `selector` (`string`, optional): The sender's own selector, the one its signing key is published at (e.g., 'btps2' after a rotation). The receiver uses it to find the key that verifies the signature. The receiver's key for encryption is found at the selector the receiver's own host record names: in DNS first, then, when DNS has none, from the receiver's host, in an answer its domain's operator signed.
   - `[key: string]` (`unknown`): Additional metadata fields.
 - `options` (`BTPCryptoOptions`, optional): Signature and encryption options.
-- `lookup` (`ReceiverKeyLookup`, optional): `{ btpMtsOptions }`, the TLS options for the connection to the receiver's host, used only when DNS has no key.
+- `lookup` (`ReceiverKeyLookup`, optional): `{ btpMtsOptions, keyResolver }`. `btpMtsOptions` is the TLS options for the connection to the receiver's host, used only when DNS has no key. Since 1.2, `keyResolver` ([BtpsKeyResolver](./typesAndInterfaces.md#btpskeyresolver)) is asked for the receiver's key (`encrypt`) in place of DNS, and the host is still asked when it has none.
 
 **Returns:**
 

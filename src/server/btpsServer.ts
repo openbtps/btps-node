@@ -97,6 +97,7 @@ import {
   verifyDelegation,
   verifyTransporterSignature,
 } from '@core/delegation/verifyTransporterSignature.js';
+import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 import { artifactSizeGuard, resolveMaxArtifactSizeKb } from './libs/artifactSizeGuard.js';
 import {
   artifactTimeWindowError,
@@ -135,6 +136,7 @@ export class BtpsServer {
   private readonly maxInFlightPerConnection: number;
   private readonly maxArtifactAgeSeconds: number;
   private readonly signAnswers: boolean;
+  private readonly keyResolver?: BtpsKeyResolver;
   /** With signAnswers: each connection's last answer, which the next waits for. */
   private readonly answersOnSocket = new WeakMap<TLSSocket, Promise<void>>();
   private readonly dependencies: {
@@ -165,6 +167,7 @@ export class BtpsServer {
     );
     this.maxArtifactAgeSeconds = resolveMaxArtifactAgeSeconds(options.maxArtifactAgeSeconds);
     this.signAnswers = options.signAnswers === true;
+    this.keyResolver = options.keyResolver;
     // Signing every answer is asked for, and without a selector no device could check one.
     if (this.signAnswers && !options.serverIdentity.selector) {
       throw new BTPErrorException({
@@ -979,7 +982,7 @@ export class BtpsServer {
   private async verifyAttestation(
     delegation: Omit<BTPDelegation, 'attestation'> & { attestation: BTPAttestation },
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
-    return verifyAttestation(delegation);
+    return verifyAttestation(delegation, this.keyResolver);
   }
 
   /**
@@ -1027,7 +1030,7 @@ export class BtpsServer {
     },
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
     // Shared with BtpsAgent.openResult, so the two never check a delegation differently.
-    return verifyDelegation(artifactWithDelegation);
+    return verifyDelegation(artifactWithDelegation, this.keyResolver);
   }
 
   /**
@@ -1039,7 +1042,7 @@ export class BtpsServer {
     const { artifact, type } = data;
     if (type === 'agent') return this.verifyAgentSignature(artifact);
 
-    const { isValid, error } = await verifyTransporterSignature(artifact);
+    const { isValid, error } = await verifyTransporterSignature(artifact, this.keyResolver);
     return { isValid, error };
   }
 

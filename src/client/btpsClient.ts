@@ -687,6 +687,13 @@ export class BtpsClient {
     return nonRetrayableError.some((m) => message.includes(m));
   }
 
+  /** A signature key: from the keyResolver when one is given, else from DNS, as without one. */
+  protected signatureKey(identity: string, selector: string): Promise<string | undefined> {
+    return this.options.keyResolver
+      ? this.options.keyResolver.resolvePublicKey(identity, selector, 'verify')
+      : resolvePublicKey(identity, selector);
+  }
+
   protected async verifyServerMessage(
     msg: BTPServerResponse,
   ): Promise<{ isValid: true; error: undefined } | { isValid: false; error: BTPErrorException }> {
@@ -720,7 +727,7 @@ export class BtpsClient {
       let senderPubPem: string | undefined;
       let error: BTPErrorException | undefined;
       try {
-        senderPubPem = await resolvePublicKey(signedBy, selector);
+        senderPubPem = await this.signatureKey(signedBy, selector);
         if (!senderPubPem) {
           error = new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
             cause: `Failed to resolve public key for identity: ${signedBy} and selector: ${selector}`,
@@ -969,8 +976,22 @@ export class BtpsClient {
     }
 
     try {
+      // Since 1.2: a keyResolver is asked first, in place of DNS; the host is still asked after it.
+      const resolved = await this.options.keyResolver?.resolvePublicKey(
+        identity,
+        selector,
+        'encrypt',
+      );
+      if (resolved) {
+        return {
+          response: { keyType: 'rsa', publicKey: resolved, selector, version, hostname, port },
+          error: undefined,
+        };
+      }
       /* try resolving the identity from the host dns config */
-      const dnsIdentityParts = await getDnsIdentityParts(identity, selector);
+      const dnsIdentityParts = this.options.keyResolver
+        ? undefined
+        : await getDnsIdentityParts(identity, selector);
       /* If the identity is resolved from the dns config, return the identity */
       if (dnsIdentityParts && typeof dnsIdentityParts === 'object') {
         const { key, version, pem } = dnsIdentityParts;
@@ -1079,7 +1100,7 @@ export class BtpsClient {
             return;
           }
 
-          const hostPubPem = await resolvePublicKey(signedBy, signedWith);
+          const hostPubPem = await this.signatureKey(signedBy, signedWith);
           if (!hostPubPem) {
             fail(
               new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {

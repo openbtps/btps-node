@@ -22,6 +22,7 @@ interface BtpsServerOptions {
     | { identity: string; publicKey: string; privateKey: string; selector?: string }
     | { identity: string; signer: Signer; selector?: string };
   signAnswers?: boolean;
+  keyResolver?: BtpsKeyResolver; // since 1.2
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   port?: number;
@@ -38,6 +39,7 @@ interface BtpsServerOptions {
 
 - `serverIdentity`: Required server identity: its identity, with its PEM public and private key, or with a `signer` holding the key elsewhere, such as a KMS (see [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter)). Since 1.2, `selector` is the selector its key is published under; `signAnswers` needs it
 - `signAnswers`: Optional, since 1.2. Signs every answer, errors included, as `serverIdentity` under its `selector`, after the answer's `reqId` is set, so a device that requires its server's signature (`requireSignedBy`) can read it. Off by default. Sign as an identity of the server's own, such as `server$<domain>`, never with a key of the domain's operator: an operator key on an internet-facing server would let whoever took it delegate and attest for every address on the domain
+- `keyResolver`: Optional, since 1.2. Finds every key the server checks a signature with (a sender's, a delegator's, an attestor's), so a provider can cache them; see [BtpsKeyResolver](#btpskeyresolver). Without it, each is looked up in DNS, as before
 - `trustStore`: Required trust store instance for managing trust records
 - `identityStore`: Optional identity store instance for managing identity records
 - `port`: Optional port number (default: 3443)
@@ -69,6 +71,7 @@ interface BTPClientOptions {
   hostSelector?: string;
   hostOperator?: string;
   requireSignedBy?: { identity: string; selector: string };
+  keyResolver?: BtpsKeyResolver; // since 1.2
   version?: string;
   port?: number;
   maxQueue?: number;
@@ -88,6 +91,7 @@ interface BTPClientOptions {
 - `hostSelector`: Optional DNS selector for key management (default: 'btps1')
 - `hostOperator`: Optional, with `host`: the identity operating that host, which must sign its identity lookup answers. Without `host`, the operator comes from DNS (`op` in `_btps.host`)
 - `requireSignedBy`: Optional, since 1.2. Takes no answer but one signed by this identity under this selector, as a provider's own app expects of its server (for example `server$saas.example` under `server1`); an unsigned answer, or one by any other signer, is refused before any key is looked up. The signer's identity compares without case; its selector exactly. The provider's server signs its answers with `signAnswers`. It applies to answers on this client's own connection, a device's commands to its provider: `resolveIdentity` looks a receiver's key up on a connection of its own and checks that the answer is signed by the domain's operator instead, so the pin never stands in the way of a lookup. An identity-lookup answer that arrives on the pinned connection itself is refused
+- `keyResolver`: Optional, since 1.2. Finds the keys the client checks and encrypts with: an answer's signer (`verify`), and in `resolveIdentity` the receiver's key (`encrypt`), asked in place of DNS, with the receiver's host still asked after it. `BtpsAgent` and `BtpsTransporter` take it too. See [BtpsKeyResolver](#btpskeyresolver)
 - `version`: Optional protocol version (default: '1.1.0')
 - `port`: Optional custom port override
 - `maxQueue`: Optional maximum queue size for request handling (default: 100)
@@ -476,6 +480,7 @@ Configuration options for BTPS delegator.
 type BtpsDelegatorOptions = {
   identity: string;
   autoInit?: boolean;
+  keyResolver?: BtpsKeyResolver; // since 1.2
 } & ({ privateKey: string } | { signer: Signer });
 ```
 
@@ -485,6 +490,7 @@ type BtpsDelegatorOptions = {
 - `privateKey`: The delegator private key in PEM format, or
 - `signer`: A [Signer](#signer) holding the delegator key elsewhere, such as a KMS
 - `autoInit`: Optional flag to disable auto-initialization (default: true)
+- `keyResolver`: Optional, since 1.2. Finds the delegator's own published key, which it checks its key against (`verify`). Without it, DNS, as before. See [BtpsKeyResolver](#btpskeyresolver)
 
 ---
 
@@ -1208,6 +1214,43 @@ interface DecryptRequest {
 
 `unwrapKey` (since 1.2, optional) returns the RSA-OAEP-unwrapped AES key itself, so a provider can wrap it again to one of its user's devices (`wrapForAgent`). `PemDecrypter` has it. A KMS decrypter makes the same call inside `decrypt`.
 
+### BtpsKeyResolver
+
+Since 1.2. Finds the public keys BTPS checks and encrypts with, so a provider can put its own cache in front of every lookup. BTPS itself caches nothing. It is the `keyResolver` option of `BtpsServer`, `BtpsClient` (and so `BtpsAgent` and `BtpsTransporter`) and `BtpsDelegator`, and of `signEncrypt`'s `lookup`. It only finds keys: every signature, time window and delegation rule stays inside BTPS, so a resolver cannot loosen any of them.
+
+```ts
+type BTPKeyUse = 'verify' | 'encrypt';
+
+interface BtpsKeyResolver {
+  resolvePublicKey(identity: string, selector: string, use: BTPKeyUse): Promise<string | undefined>; // a PEM key
+}
+```
+
+- `verify`: a signature key (a sender's, a delegator's, an attestor's, the signer of an answer). Without a resolver it is looked up in DNS only.
+- `encrypt`: a receiver's key. Without a resolver it is looked up in DNS, then from the receiver's host. With one, the resolver is asked in place of DNS, and the host is still asked when it has no key.
+- `_btps.host` records are not keys and stay outside the resolver. A local caching DNS resolver covers them.
+
+`createDefaultKeyResolver({ from?, btpMtsOptions? })` (`@btps/sdk/crypto`) is the lookup BTPS does without one, to wrap. Its `encrypt` asks the receiver's host only when given `from`, the sender's own identity. A cache in front of it:
+
+```ts
+import { createDefaultKeyResolver, type BtpsKeyResolver } from '@btps/sdk/crypto';
+
+const lookup = createDefaultKeyResolver({ from: 'billing$saas.example' });
+const keys = new Map<string, { pem: string | undefined; until: number }>();
+const keyResolver: BtpsKeyResolver = {
+  async resolvePublicKey(identity, selector, use) {
+    const name = `${use}:${identity.toLowerCase()}:${selector}`;
+    const held = keys.get(name);
+    if (held && held.until > Date.now()) return held.pem;
+    const pem = await lookup.resolvePublicKey(identity, selector, use);
+    keys.set(name, { pem, until: Date.now() + 5 * 60_000 }); // as long as the provider chooses
+    return pem;
+  },
+};
+```
+
+A cached key outlives a rotation by up to the time it is kept, so keep it no longer than a sender's key is expected to stay published after it rotates.
+
 ### BTPSigningKey and BTPDecryptionKey
 
 A key as the SDK takes it: a PEM key, or a key held elsewhere.
@@ -1240,6 +1283,7 @@ Configuration options for the delegator.
 type BtpsDelegatorOptions = {
   identity: string;
   autoInit?: boolean;
+  keyResolver?: BtpsKeyResolver; // since 1.2
 } & ({ privateKey: PemKeys['privateKey'] } | { signer: Signer });
 ```
 

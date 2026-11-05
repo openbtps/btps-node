@@ -350,7 +350,7 @@ export class BtpsAgent extends BtpsClient {
     }
 
     try {
-      const signed = await verifyTransporterSignature(artifact);
+      const signed = await verifyTransporterSignature(artifact, this.options.keyResolver);
       if (!signed.isValid || !signed.signerKey) {
         return {
           payload: undefined,
