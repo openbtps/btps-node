@@ -37,16 +37,23 @@ export class PemDecrypter implements Decrypter {
   async decrypt(request: DecryptRequest): Promise<Uint8Array> {
     assertFullLengthAuthTag(request.authTag);
 
-    const aesKey = crypto.privateDecrypt(
-      {
-        key: this.privateKeyPem,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-        oaepHash: 'sha256',
-      },
-      Buffer.from(request.encryptedKey),
-    );
+    const aesKey = Buffer.from(await this.unwrapKey(request.encryptedKey));
 
     return decryptAesGcm(aesKey, request);
+  }
+
+  /** Since 1.2: the content key itself, unwrapped with RSA-OAEP / SHA-256. */
+  async unwrapKey(encryptedKey: Uint8Array): Promise<Uint8Array> {
+    return new Uint8Array(
+      crypto.privateDecrypt(
+        {
+          key: this.privateKeyPem,
+          padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+          oaepHash: 'sha256',
+        },
+        Buffer.from(encryptedKey),
+      ),
+    );
   }
 }
 

@@ -177,6 +177,22 @@ export interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFai
     delivery?: BTPDelivery;
     [key: string]: unknown;
   };
+  /** Since 1.2: the encrypted artifact's content key, wrapped again to the device that asked (`wrapForAgent`). */
+  agentKey?: BTPAgentKey;
+}
+
+/**
+ * Since 1.2: an encrypted artifact's AES content key wrapped with RSA-OAEP /
+ * SHA-256 to a device's own key, so the device opens the document without the
+ * identity's key. The artifact itself is untouched, so its signature still verifies.
+ */
+export interface BTPAgentKey {
+  /** The wrapped content key, base64 */
+  key: string;
+  /** The fingerprint of the device key it is wrapped to, as the device's record holds it */
+  fingerprint: string;
+  /** When it was wrapped, as an ISO 8601 timestamp */
+  wrappedAt: string;
 }
 
 /**
