@@ -321,6 +321,8 @@ Used to delete multiple documents.
 
 Used to send transporter artifacts to other organizations. The device builds and signs the transporter artifact itself, and the agent artifact carries it as its document. Its `type` follows the action: `BTPS_DOC` for `artifact.send`, `BTPS_EVENT` for `event.send`, `TRUST_REQ` for `trust.request` and `TRUST_RES` for `trust.respond`. Its `selector` is the sender's own, from the sender domain's `_btps.host` record. The server checks the carried artifact against the transporter artifact rules, including its document against its type.
 
+Since 1.2, an `artifact.send` may be a **sync**: its transporter artifact is from and to the device's own address and names the send it copies in `syncOf` (see [Sync](./transporter-artifact.md#sync)). This is the only way a sync reaches a provider: a carried artifact with `syncOf` under any other action is refused.
+
 ```json
 {
   "version": "1.1.0",

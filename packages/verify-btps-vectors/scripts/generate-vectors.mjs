@@ -31,6 +31,7 @@ import {
   documents12,
   eventChain,
   signedArtifacts,
+  sync,
   templates,
   timeWindow,
   versions,
@@ -251,6 +252,7 @@ write('time-window.vectors.json', timeWindow());
 write('versions.vectors.json', versions());
 write('documents-1.2.vectors.json', documents12());
 write('event-chain.vectors.json', eventChain());
+write('sync.vectors.json', sync());
 write('templates.vectors.json', templates());
 
 // The manifest names every vector file with the SHA-256 of its bytes, so a

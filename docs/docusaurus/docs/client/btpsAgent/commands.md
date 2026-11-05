@@ -467,6 +467,30 @@ if (result.error) {
 - Bulk document sending
 - Integration with accounting systems
 
+**Sync (since 1.2):** after a send, the device sends the user's own copy of it to the user's own address, naming the send in `options.syncOf`, so the user's other devices see it among the sent items. Encrypt it to the user's own key. `syncOf` is refused on any other command and to any other address.
+
+The device gives the send its own id (`options.id`), finds that send among `sentbox.fetch`'s results, and names it from there:
+
+```js
+import { randomUUID } from 'crypto';
+import { syncOfArtifact } from '@btps/sdk/crypto';
+
+const id = randomUUID();
+await agent.command('artifact.send', 'client$company.com', invoice, { encryption, id });
+
+// later, when it reads its sent items
+const { response } = await agent.command('sentbox.fetch', 'alice$saas.com', { limit: 50 });
+const sent = response?.document?.results.find((entry) => entry.artifact.id === id)?.artifact;
+if (sent) {
+  await agent.command('artifact.send', 'alice$saas.com', invoice, {
+    encryption,
+    syncOf: syncOfArtifact(sent),
+  });
+}
+```
+
+Each sent item's outcome is there too, as `meta.delivery` (`pending`, `delivered` or `failed`, with `at`).
+
 ### event.send
 
 ```ts
