@@ -26,6 +26,7 @@ const {
   recordKeys,
   documentId,
   referenceType,
+  note,
 } = BTPS_FIELD_LIMITS;
 
 /** The sending platform's own data: carried and signed, never read by the protocol. */
@@ -84,7 +85,19 @@ export const BtpStringQueryFilterSchema = z.object({
   notLike: z.string().optional(),
 });
 
-export const BtpTrustReqDocSchema = z.object({
+/**
+ * A person's note, since 1.2: how it is written, as a letter's body is, `text`
+ * or `markdown` (CommonMark, raw HTML off). A 1.1 note, a plain string, is
+ * still taken and read as `text`, with the same limit.
+ */
+const BtpNoteSchema = (max: number) =>
+  z.union([
+    z.string().max(max),
+    z.object({ format: z.enum(['text', 'markdown']), content: z.string().max(max) }).strict(),
+  ]);
+
+/** A trust request as 1.1 reads it: what a 1.1.0 `TRUST_REQ` may carry. */
+export const BtpTrustReqDocV1_1Schema = z.object({
   id: z.string().max(trustRequest.id),
   name: z.string().max(trustRequest.name),
   email: z.string().max(trustRequest.email).email(),
@@ -99,7 +112,13 @@ export const BtpTrustReqDocSchema = z.object({
   privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']).optional(),
 });
 
-export const BtpTrustResDocSchema = z.object({
+/** A trust request, its `message` a note since 1.2. */
+export const BtpTrustReqDocSchema = BtpTrustReqDocV1_1Schema.extend({
+  message: BtpNoteSchema(trustRequest.message).optional(),
+});
+
+/** A trust response as 1.1 reads it: what a 1.1.0 `TRUST_RES` may carry. */
+export const BtpTrustResDocV1_1Schema = z.object({
   id: z.string().max(trustResponse.id),
   decision: z.enum(['accepted', 'rejected', 'revoked', 'blocked']),
   decidedAt: z.string().datetime(),
@@ -108,6 +127,11 @@ export const BtpTrustResDocSchema = z.object({
   retryAfterDate: z.string().datetime().optional(),
   message: z.string().max(trustResponse.message).optional(),
   privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']).optional(),
+});
+
+/** A trust response, its `message` a note since 1.2. */
+export const BtpTrustResDocSchema = BtpTrustResDocV1_1Schema.extend({
+  message: BtpNoteSchema(trustResponse.message).optional(),
 });
 
 const BtpLineItemsSchema = z.object({
@@ -137,9 +161,10 @@ const BtpIssuerSchema = z.object({
  * The 1.1 invoice: the 1.0 invoice with money in integer minor units, no
  * status (a status comes from lifecycle events), several attachments, and
  * optional issuer address and identifiers, references and metadata. Strict:
- * a field it does not name, such as 1.0's `status`, is refused.
+ * a field it does not name, such as 1.0's `status`, is refused. What a 1.1.0
+ * `BTPS_DOC` may carry as an invoice.
  */
-export const BtpInvoiceDocSchema = z
+export const BtpInvoiceDocV1_1Schema = z
   .object({
     type: z.literal('invoice'),
     title: z.string(),
@@ -180,20 +205,94 @@ const BtpPositiveMoneySchema = BtpMoneySchema.extend({
  * optional line items. It is partial when the payment is less than
  * `totalAmount`. It may name the invoice it pays (`receipt_for`) or stand
  * alone, as for a sale that had no invoice. A receiver never shows it as
- * something to pay.
+ * something to pay. As 1.1 reads it.
  */
+const receiptFields = {
+  type: z.literal('receipt'),
+  lineItems: BtpLineItemsSchema.optional(),
+  payment: z.object({
+    amount: BtpPositiveMoneySchema,
+    paidAt: z.string().datetime(),
+    // `card`, `bank_transfer`, `cash`, or a platform's own code under a prefix.
+    method: codeSchema(receipt.paymentMethod).optional(),
+    reference: z.string().max(receipt.paymentReference).optional(),
+  }),
+};
+export const BtpReceiptDocV1_1Schema = BtpInvoiceDocV1_1Schema.omit({
+  dueAt: true,
+  paymentLink: true,
+})
+  .extend(receiptFields)
+  .strict();
+
+/*
+ * What 1.2 adds to documents, under 1.2.0 only: a note says how it is written;
+ * an invoice or receipt may carry a discount; a line's `discount` cell is an
+ * amount of at least 0; a template's named data fields are well formed when
+ * present; and letters and payslips may name a template too.
+ */
+
+/** An https address, as long as a logo or website address may be. */
+const httpsUrl = z
+  .string()
+  .max(BTPS_FIELD_LIMITS.url)
+  .url()
+  .refine((url) => url.startsWith('https://'), 'must be an https URL');
+
+/** A version as semantic versioning writes it: `1.2.0`, `2.0.0-beta.1`. */
+const semver = z
+  .string()
+  .regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/, 'must be a semantic version');
+
+/**
+ * A template by reference: its name and data. The named data fields, each
+ * optional, are well formed when present; other keys stay the provider's.
+ */
+const BtpTemplateSchema = z.object({
+  name: z.string(),
+  data: boundedRecord(z.unknown(), recordKeys).pipe(
+    z
+      .object({
+        version: semver.optional(),
+        sha256: sha256Hex.optional(),
+        source: httpsUrl.optional(),
+        logo: z.object({ sha256: sha256Hex, source: httpsUrl }).strict().optional(),
+      })
+      .catchall(z.unknown()),
+  ),
+});
+
+/** A discount on a whole document, before tax: an amount in its currency's minor units, or whole basis points. */
+const BtpDiscountSchema = z.union([
+  z.object({ amount: z.number().int().safe().positive() }).strict(),
+  z.object({ percent: z.number().int().min(1).max(10000) }).strict(),
+]);
+
+/** Line items whose `discount` cells, when a row has one, are amounts in minor units of at least 0. */
+const BtpDiscountedLineItemsSchema = BtpLineItemsSchema.refine(
+  ({ rows }) =>
+    rows.every(
+      (row) =>
+        row.discount === undefined || (typeof row.discount === 'number' && row.discount >= 0),
+    ),
+  { message: 'a line discount is an integer of at least 0', path: ['rows'] },
+);
+
+const documentFields1_2 = {
+  description: BtpNoteSchema(note).optional(),
+  discount: BtpDiscountSchema.optional(),
+  template: BtpTemplateSchema.optional(),
+};
+
+/** An invoice: what a `BTPS_DOC` may carry as one, 1.2's fields included. */
+export const BtpInvoiceDocSchema = BtpInvoiceDocV1_1Schema.extend({
+  ...documentFields1_2,
+  lineItems: BtpDiscountedLineItemsSchema,
+}).strict();
+
+/** A receipt, 1.2's fields included. */
 export const BtpReceiptDocSchema = BtpInvoiceDocSchema.omit({ dueAt: true, paymentLink: true })
-  .extend({
-    type: z.literal('receipt'),
-    lineItems: BtpLineItemsSchema.optional(),
-    payment: z.object({
-      amount: BtpPositiveMoneySchema,
-      paidAt: z.string().datetime(),
-      // `card`, `bank_transfer`, `cash`, or a platform's own code under a prefix.
-      method: codeSchema(receipt.paymentMethod).optional(),
-      reference: z.string().max(receipt.paymentReference).optional(),
-    }),
-  })
+  .extend({ ...receiptFields, lineItems: BtpDiscountedLineItemsSchema.optional() })
   .strict();
 
 const payslipCode = codeSchema(payslip.code);
@@ -204,8 +303,9 @@ const payslipCode = codeSchema(payslip.code);
  * allowance or a new country needs no protocol change; `description` is the
  * name the employer prints. Rates, quantities and leave balances are decimals
  * written as text. The protocol carries the amounts and never adds them up.
+ * As 1.1 reads it.
  */
-export const BtpPayslipDocSchema = z
+export const BtpPayslipDocV1_1Schema = z
   .object({
     type: z.literal('payslip'),
     title: z.string(),
@@ -286,9 +386,9 @@ export const BtpPayslipDocSchema = z
  * A letter: anything from a notice to an agreement. The body is one format:
  * `text`, shown exactly as written, or `markdown`, CommonMark with raw HTML
  * off, which a receiver renders without inline images and with https links
- * only. There is no HTML body.
+ * only. There is no HTML body. As 1.1 reads it.
  */
-export const BtpLetterDocSchema = z
+export const BtpLetterDocV1_1Schema = z
   .object({
     type: z.literal('letter'),
     title: z.string().max(letter.title),
@@ -304,6 +404,24 @@ export const BtpLetterDocSchema = z
     metadata: metadataSchema.optional(),
   })
   .strict();
+
+/** A payslip, which since 1.2 may name a template. */
+export const BtpPayslipDocSchema = BtpPayslipDocV1_1Schema.extend({
+  template: BtpTemplateSchema.optional(),
+}).strict();
+
+/** A letter, which since 1.2 may name a template. */
+export const BtpLetterDocSchema = BtpLetterDocV1_1Schema.extend({
+  template: BtpTemplateSchema.optional(),
+}).strict();
+
+/** What a 1.1.0 `BTPS_DOC` carries, as 1.1 reads it. */
+export const BtpDocumentV1_1Schema = z.discriminatedUnion('type', [
+  BtpInvoiceDocV1_1Schema,
+  BtpReceiptDocV1_1Schema,
+  BtpPayslipDocV1_1Schema,
+  BtpLetterDocV1_1Schema,
+]);
 
 /** What a `BTPS_DOC` carries: an invoice, a receipt, a payslip or a letter, by its `type`. */
 export const BtpDocumentSchema = z.discriminatedUnion('type', [
@@ -406,18 +524,22 @@ export const BtpLifecycleEventV1_1Schema = z
  */
 const follows = { follows: z.string().uuid().optional() };
 
+/** Since 1.2 an event's message is a note, which says how it is written. */
+const message = { message: BtpNoteSchema(event.message).optional() };
+
 /** A lifecycle event: what a `BTPS_EVENT` carries, 1.2's events included. */
 export const BtpLifecycleEventSchema = z
   .discriminatedUnion('eventType', [
-    paidEvent.extend(follows),
-    partiallyPaidEvent.extend(follows),
-    disputedEvent.extend(follows),
-    refundRequestedEvent.extend(follows),
-    refundEvent,
-    responseEvent,
+    paidEvent.extend({ ...follows, ...message }),
+    partiallyPaidEvent.extend({ ...follows, ...message }),
+    disputedEvent.extend({ ...follows, ...message }),
+    refundRequestedEvent.extend({ ...follows, ...message }),
+    refundEvent.extend(message),
+    responseEvent.extend(message),
     z
       .object({
         ...lifecycleEventFields,
+        ...message,
         eventType: z.literal('withdrawn'),
         inReplyTo: z.string().uuid(), // the sender's own unanswered proposal
       })

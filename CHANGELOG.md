@@ -32,6 +32,21 @@ versions follow [Semantic Versioning](https://semver.org/).
   the sender which rule it broke. `lifecycleEventChainProblem` and
   `lifecycleEventSenderProblem` (`@btps/sdk/server`) let a platform check an
   encrypted event the same way once it has opened it.
+- **Notes say how they are written.** An invoice's and receipt's
+  `description`, an event's `message`, and a trust request's or response's
+  `message` may be `{ format: 'text' | 'markdown', content }` (`BTPNote`); a
+  plain string is still taken, read as `text`. In a `1.2.0` artifact a note's
+  content is at most 5,000 characters.
+- **Discounts.** An invoice or receipt may carry `discount`, `{ amount }` in
+  minor units or `{ percent }` in whole basis points (1 to 10,000), applied
+  before tax (`BTPDiscount`). In a `1.2.0` artifact a line's `discount` cell is
+  an amount of at least 0.
+- **Templates by reference.** In a `1.2.0` artifact a template's named `data`
+  fields (`version`, `sha256`, `source`, `logo`) are well formed when present
+  (`BTPTemplate`), and a letter or payslip may name a template.
+- Every 1.2 document rule applies under `1.2.0` only: a document valid in 1.1
+  reads exactly as before in a `1.1.0` artifact. The schemas 1.1 reads with are
+  kept beside the newest (`Btp…V1_1Schema`).
 
 ### Changed
 

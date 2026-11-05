@@ -26,10 +26,13 @@ import {
 import {
   BtpAuthReqDocSchema,
   BtpDocumentSchema,
+  BtpDocumentV1_1Schema,
   BtpLifecycleEventSchema,
   BtpLifecycleEventV1_1Schema,
   BtpTrustReqDocSchema,
+  BtpTrustReqDocV1_1Schema,
   BtpTrustResDocSchema,
+  BtpTrustResDocV1_1Schema,
 } from './btpsDocsSchema.js';
 import { BTPEncryption } from '@core/crypto/types.js';
 import type { BTPEventFacts } from '@core/trust/types.js';
@@ -46,11 +49,11 @@ export const processBtpDocSchema = (
   const before1_2 = isVersionBelow(version, '1.2.0');
   switch (bptArtifactType) {
     case 'TRUST_RES':
-      return BtpTrustResDocSchema;
+      return before1_2 ? BtpTrustResDocV1_1Schema : BtpTrustResDocSchema;
     case 'TRUST_REQ':
-      return BtpTrustReqDocSchema;
+      return before1_2 ? BtpTrustReqDocV1_1Schema : BtpTrustReqDocSchema;
     case 'BTPS_DOC':
-      return BtpDocumentSchema;
+      return before1_2 ? BtpDocumentV1_1Schema : BtpDocumentSchema;
     case 'BTPS_EVENT':
       return before1_2 ? BtpLifecycleEventV1_1Schema : BtpLifecycleEventSchema;
     default:
