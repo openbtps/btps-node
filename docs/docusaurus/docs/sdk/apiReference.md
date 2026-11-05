@@ -1519,12 +1519,14 @@ const BTP_ERROR_VERSION_UNSUPPORTED: BTPError;
 ```
 
 **Description:**
-Error constant for an artifact whose `version` the receiving server does not support. A 1.1 server accepts any 1.1.x and refuses 1.0. It is checked before any signature work, and the supported versions are appended to the message.
+Error constant for an artifact whose `version` the receiving server does not support. A 1.2 server accepts any 1.1.x and 1.2.x, and a 1.1 server only 1.1.x; both refuse 1.0. It is checked before any signature work, and the supported versions are appended to the message.
+
+A 1.2 client turns such a refusal into this error, with `meta.receiverVersion` set to the version of the receiver's answer: the version the receiver speaks. `send` then returns the error and the answer together. Identity lookups and `PING` are always stamped `1.1.0`, so every 1.1 and 1.2 server answers them.
 
 **Properties:**
 
 - `code`: `'BTP_ERROR_VERSION_UNSUPPORTED'`
-- `message`: `'This server does not support the artifact protocol version'`, sent as for example `'This server does not support the artifact protocol version: supports 1.1.0 to 1.1.0'`
+- `message`: `'This server does not support the artifact protocol version'`, sent as for example `'This server does not support the artifact protocol version: supports 1.1.0 to 1.2.0'` (a 1.1 server says `supports 1.1.0 to 1.1.0`)
 - `status`: `400`
 
 ---
