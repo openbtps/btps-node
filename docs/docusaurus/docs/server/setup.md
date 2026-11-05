@@ -37,13 +37,13 @@ BTPS requires a trust store to manage trust relationships. There are two main op
 
 The `BtpsServer` class accepts the following options:
 
-| Option           | Type         | Description                                                      |
-| ---------------- | ------------ | ---------------------------------------------------------------- |
-| `port`           | `number`     | Port to listen on (default: 3443)                                |
-| `trustStore`     | `TrustStore` | Trust store instance (see above)                                 |
-| `middlewarePath` | `string`     | Path to middleware file (optional, default: btps.middleware.mjs) |
-| `onError`        | `function`   | Optional error handler callback                                  |
-| `options`        | `object`     | TLS options (certs, keys, etc.)                                  |
+| Option           | Type         | Description                                                                                                         |
+| ---------------- | ------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `port`           | `number`     | Port to listen on (default: 3443)                                                                                   |
+| `trustStore`     | `TrustStore` | Trust store instance (see above)                                                                                    |
+| `middlewarePath` | `string`     | Path to middleware file (optional, default: btps.middleware.mjs)                                                    |
+| `onError`        | `function`   | Optional error handler callback. When set, the server no longer also writes each failed artifact to `console.error` |
+| `options`        | `object`     | TLS options (certs, keys, etc.)                                                                                     |
 
 **Example:**
 

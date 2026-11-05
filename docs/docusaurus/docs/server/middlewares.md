@@ -228,7 +228,7 @@ export default function createMiddleware(dependencies) {
 ## Debugging Middleware
 
 - Add logging to each handler to trace execution.
-- Use the `onError` phase to catch and log errors.
+- Use the `onError` phase to catch and log errors. With `onError` middleware loaded (`before` or `after`), or the server's `onError` option set, the server no longer also writes each failed artifact to `console.error`: those errors are yours to log.
 - Test middleware with known-good and known-bad artifacts.
 - Use health checks and metrics to monitor server readiness and performance.
 
