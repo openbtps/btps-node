@@ -1230,26 +1230,31 @@ interface BtpsKeyResolver {
 - `encrypt`: a receiver's key. Without a resolver it is looked up in DNS, then from the receiver's host. With one, the resolver is asked in place of DNS, and the host is still asked when it has no key.
 - `_btps.host` records are not keys and stay outside the resolver. A local caching DNS resolver covers them.
 
-`createDefaultKeyResolver({ from?, btpMtsOptions? })` (`@btps/sdk/crypto`) is the lookup BTPS does without one, to wrap. Its `encrypt` asks the receiver's host only when given `from`, the sender's own identity. A cache in front of it:
+`createDefaultKeyResolver({ from?, btpMtsOptions? })` (`@btps/sdk/crypto`) is the lookup BTPS does without one, to wrap. Its `encrypt` asks the receiver's host only when given `from`, the sender's own identity.
+
+A cache in front of DNS. Without `from` it never asks a host: BTPS asks the receiver's host itself after the resolver has no key, so wrapping DNS alone is enough.
 
 ```ts
 import { createDefaultKeyResolver, type BtpsKeyResolver } from '@btps/sdk/crypto';
 
-const lookup = createDefaultKeyResolver({ from: 'billing$saas.example' });
-const keys = new Map<string, { pem: string | undefined; until: number }>();
+const lookup = createDefaultKeyResolver();
+const keys = new Map<string, { pem: string; until: number }>();
 const keyResolver: BtpsKeyResolver = {
   async resolvePublicKey(identity, selector, use) {
     const name = `${use}:${identity.toLowerCase()}:${selector}`;
     const held = keys.get(name);
     if (held && held.until > Date.now()) return held.pem;
     const pem = await lookup.resolvePublicKey(identity, selector, use);
-    keys.set(name, { pem, until: Date.now() + 5 * 60_000 }); // as long as the provider chooses
+    // A miss is not kept: a key published a moment later is found on the next lookup.
+    if (pem) keys.set(name, { pem, until: Date.now() + 5 * 60_000 }); // as long as the provider chooses
     return pem;
   },
 };
 ```
 
-A cached key outlives a rotation by up to the time it is kept, so keep it no longer than a sender's key is expected to stay published after it rotates.
+- **Keys outlive rotations.** A cached key outlives a rotation by up to the time it is kept, so keep it no longer than a sender's key is expected to stay published after it rotates.
+- **Don't cache a miss for long, or at all.** Otherwise a key published after the lookup stays "not found" for as long as the miss is kept.
+- **With `from`, a miss asks the host twice.** Wrapping `createDefaultKeyResolver({ from })` makes the resolver ask the receiver's host itself, and then BTPS asks it again when the resolver returns nothing. A receiver whose key is in neither place is then asked twice.
 
 ### BTPSigningKey and BTPDecryptionKey
 
