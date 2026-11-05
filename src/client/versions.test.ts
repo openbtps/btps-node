@@ -8,7 +8,7 @@
 /*
  * BTPS 1.2 versioning, as a sender sees it. A 1.1 and a 1.2 provider always
  * talk: anything 1.1 can say is stamped 1.1.0, and a sender is told plainly
- * when a receiver speaks only 1.1. The `it.fails` cases pass once 1.2 lands.
+ * when a receiver speaks only 1.1.
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
