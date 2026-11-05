@@ -1562,7 +1562,16 @@ export class BtpsServer {
         meta: { validationErrors: validationResult.error.errors, response: artifact },
       });
       this.onError?.(error);
-      if (!socket.destroyed) socket.destroy();
+      // A wrong answer is the provider's: its sender is told so against its
+      // request, and the connection stays. Only the generic error itself failing ends it.
+      const isGenericError =
+        artifact.type === 'btps_error' && artifact.status?.error === BTP_ERROR_UNKNOWN.code;
+      if (isGenericError) {
+        if (!socket.destroyed) socket.destroy();
+        return;
+      }
+      const reqId = typeof artifact.reqId === 'string' ? artifact.reqId : undefined;
+      this.sendBtpsError(socket, BTP_ERROR_UNKNOWN, reqId, action);
       return;
     }
 

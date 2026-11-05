@@ -199,7 +199,17 @@ export interface BTPDeliveryFailureArtifact {
 
 export type BTPIdentityResDoc = Omit<IdentityPubKeyRecord, 'createdAt'>;
 
-export type BTPServerResDocs = BTPAuthResDoc | BTPQueryResult | BTPIdentityResDoc | string;
+/** "Created, with this id": the answer to a command that makes something, such as `draft.create`. */
+export interface BTPCreatedResDoc {
+  id: string;
+}
+
+export type BTPServerResDocs =
+  | BTPAuthResDoc
+  | BTPQueryResult
+  | BTPIdentityResDoc
+  | BTPCreatedResDoc
+  | string;
 
 export type BTPServerResponse<T = BTPServerResDocs> = {
   version: string;

@@ -17,6 +17,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   answer to a `PING` that every 1.1 and 1.2 server answers.
 - `resolveIdentity` also returns `serverVersion` when the address's host
   answered: the version its server speaks, from its signed answer.
+- A "created, with this id" answer, `{ id }` (`BTPCreatedResDoc`), so
+  `draft.create` can return the new draft's id.
 
 ### Changed
 
@@ -27,6 +29,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   that checks `error` first now takes that path.
 - A client refuses to send an artifact stamped lower than what it uses, and an
   agent artifact stamped lower than the artifact it carries.
+- An answer a provider builds in a shape no answer allows reaches its sender
+  as a generic `btps_error` against its request's `reqId`, and the connection
+  stays open. It was closed without an answer, which a device saw only as
+  "Connection closed". The server still reports it to `onError`.
 
 ## [1.1.3] — 2026-10-30 (alpha)
 
