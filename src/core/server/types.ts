@@ -144,6 +144,14 @@ export interface BTPTransporterArtifact extends BTPGenericArtifact<BTPDocType | 
   selector: string;
   /** On a BTPS_EVENT only: the id of the BTPS_DOC artifact that delivered the invoice it is about. */
   relatesTo?: string;
+  /** Since 1.2, on a sync only (from equals to, inside a device's artifact.send): the send it copies. */
+  syncOf?: BTPSyncOf;
+}
+
+/** Since 1.2: the send a sync copies, by the sent artifact's id and the lowercase hex SHA-256 of its RFC 8785 form. */
+export interface BTPSyncOf {
+  id: string;
+  sha256: string;
 }
 
 export type BTPArtifact =
@@ -165,6 +173,8 @@ export interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFai
   meta?: {
     seen?: boolean;
     seenAt?: string;
+    /** Since 1.2, on a sentbox result: what became of the send, by the provider's own record. */
+    delivery?: BTPDelivery;
     [key: string]: unknown;
   };
   /** Since 1.2: the encrypted artifact's content key, wrapped again to the device that asked (`wrapForAgent`). */
@@ -183,6 +193,17 @@ export interface BTPAgentKey {
   fingerprint: string;
   /** When it was wrapped, as an ISO 8601 timestamp */
   wrappedAt: string;
+}
+
+/**
+ * Since 1.2: a send's outcome as its sender's provider knows it, with no receipt
+ * from the receiver. `code` is the BTPS error code of a failure.
+ */
+export interface BTPDelivery {
+  status: 'pending' | 'delivered' | 'failed';
+  code?: string;
+  /** When it reached this status, as an ISO 8601 timestamp */
+  at: string;
 }
 
 export interface BTPQueryResult<T = BTPTransporterArtifact | BTPDeliveryFailureArtifact> {

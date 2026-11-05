@@ -212,6 +212,26 @@ Response to query requests (inbox, outbox, etc.):
 - **total**: Total number of results
 - **hasNext**: Boolean indicating if more results are available
 
+An entry's `meta` may hold any other keys a provider adds. Three are named: `seen` and `seenAt`, and since 1.2 `delivery`.
+
+**`delivery`** (since 1.2, on a `sentbox.fetch` result): what became of a send, by the sender's own provider's record. There is no receipt from the receiver.
+
+```json
+{
+  "delivery": {
+    "status": "failed",
+    "code": "BTP_ERROR_TRUST_NOT_ALLOWED",
+    "at": "2026-11-06T09:30:00.000Z"
+  }
+}
+```
+
+- `status`: `pending`, `delivered` or `failed`.
+- `code`: optional, the BTPS error code of a failure.
+- `at`: when it reached that status, always given.
+
+No other key is allowed in `delivery`. A device reads it from `sentbox.fetch` from time to time, matching the ids of the sends it holds, rather than asking again and again whether a send has gone.
+
 **`agentKey`** (since 1.2, beside an entry's `artifact` and `meta`): an encrypted artifact's AES content key, which the provider has wrapped again with RSA-OAEP / SHA-256 to the key of the device that asked. The device reads the document with its own key, never the identity's. The artifact is untouched, so the sender's signature still verifies.
 
 ```json

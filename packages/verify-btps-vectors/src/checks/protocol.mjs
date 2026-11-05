@@ -193,5 +193,32 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
         else ensure(problem !== undefined, `accepted; expected it refused: ${c.why}`);
       }),
     ),
+    check('sync/hash', () => {
+      const { syncOfArtifact } = sdk.crypto;
+      ensure(typeof syncOfArtifact === 'function', 'the SDK has no syncOfArtifact');
+      const named = syncOfArtifact(set.sync.hash.sent);
+      ensure(
+        named.id === set.sync.hash.syncOf.id && named.sha256 === set.sync.hash.syncOf.sha256,
+        'the SDK names the send by another id or hash',
+      );
+    }),
+    ...set.sync.envelopes.map((c) =>
+      check(`sync/envelope/${c.name}`, () => {
+        const schema = rules.transporter.BtpTransporterArtifactSchema;
+        ensure(schema !== undefined, 'the SDK has no transporter schema');
+        const { success } = schema.safeParse(c.artifact);
+        if (c.expect === 'accept') ensure(success, 'refused; expected it accepted');
+        else ensure(!success, `accepted; expected it refused: ${c.why}`);
+      }),
+    ),
+    ...set.sync.delivery.map((c) =>
+      check(`sync/delivery/${c.name}`, () => {
+        const schema = rules.responses.BtpQueryResultEntrySchema;
+        ensure(schema !== undefined, 'the SDK has no query result schema');
+        const { success } = schema.safeParse(c.entry);
+        if (c.expect === 'accept') ensure(success, 'refused; expected it accepted');
+        else ensure(!success, `accepted; expected it refused: ${c.why}`);
+      }),
+    ),
   ];
 }

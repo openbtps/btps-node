@@ -17,6 +17,7 @@ import {
 import { identitySchema } from '@core/server/schemas/shared.js';
 import { validateAgentDocument } from '@core/server/schemas/helpers.js';
 import { BtpAuthReqDocSchema, BtpDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
+import { BtpSyncOfSchema } from '@core/server/schemas/artifacts/transporterSchema.js';
 
 // Use the server's document schema directly
 export const BtpsAgentOptionsSchema = BtpCryptoOptionsSchema.optional();
@@ -42,6 +43,7 @@ export const BtpsAgentCommandSchema = z.object({
   options: BtpCryptoOptionsSchema.extend({
     relatesTo: z.string().min(1).optional(),
     id: z.string().uuid().optional(),
+    syncOf: BtpSyncOfSchema.optional(),
   }).optional(),
 });
 
@@ -60,6 +62,10 @@ export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
       path: ['options', 'relatesTo'],
     },
   )
+  .refine((data) => data.options?.syncOf === undefined || data.actionType === 'artifact.send', {
+    message: 'options.syncOf is only on artifact.send',
+    path: ['options', 'syncOf'],
+  })
   .refine(
     (data) =>
       data.actionType !== 'event.send' ||

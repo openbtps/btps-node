@@ -180,6 +180,13 @@ export class BtpsAgent extends BtpsClient {
         }),
       );
     }
+    if (options?.syncOf !== undefined && to.toLowerCase() !== this.options.to.toLowerCase()) {
+      return await this.buildClientErrorResponse(
+        new BTPErrorException(BTP_ERROR_VALIDATION, {
+          cause: `A sync goes to the device's own address, ${this.options.to}, not ${to}`,
+        }),
+      );
+    }
     // Get the selector for the to identity
     const receiverDnsTxt = options?.encryption
       ? (await this.resolveIdentity(to, this.options.to, this.decryptionKey)).response
@@ -246,7 +253,7 @@ export class BtpsAgent extends BtpsClient {
       id: event?.success ? event.data.id : (options?.id ?? randomUUID()),
       issuedAt: new Date().toISOString(),
       // From the document as written, before it is encrypted.
-      version: artifactVersion({ type: artifactType, document }),
+      version: artifactVersion({ type: artifactType, document, syncOf: options?.syncOf }),
       type: artifactType,
       document: encryptedDocument as BTPDocType | string,
       from: this.options.to,
@@ -254,6 +261,7 @@ export class BtpsAgent extends BtpsClient {
       selector: senderSelector,
       encryption: encryption,
       ...(options?.relatesTo !== undefined && { relatesTo: options.relatesTo }),
+      ...(options?.syncOf !== undefined && { syncOf: options.syncOf }),
     };
 
     try {

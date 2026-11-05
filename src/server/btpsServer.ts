@@ -38,6 +38,7 @@ import {
   BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
   BTP_ERROR_PRIVACY_TYPE,
   BTP_ERROR_VERSION_UNSUPPORTED,
+  BTP_ERROR_SYNC_NOT_ALLOWED,
 } from '@core/error/constant.js';
 import {
   assertStrictJson,
@@ -424,6 +425,12 @@ export class BtpsServer {
             },
             parseRes.reqId,
           );
+        }
+
+        // A sync is filed by its own address's provider, from that address's own device: one
+        // sent here directly, by any server, is refused before its signature is checked.
+        if (data.type === 'transporter' && data.artifact.syncOf !== undefined) {
+          return this.sendBtpsError(socket, BTP_ERROR_SYNC_NOT_ALLOWED, parseRes.reqId);
         }
 
         // Awaited, so a failure is caught below and answered, and the line stays in flight until it is.

@@ -55,6 +55,8 @@ const USES_1_2: ((artifact: BTPVersionedArtifact) => boolean)[] = [
       (event.eventType === 'withdrawn' || event.follows !== undefined)
     );
   },
+  // A sync, naming the send it copies.
+  (artifact) => artifact.syncOf !== undefined,
   // A note that says how it is written: 1.1 notes are plain strings.
   (artifact) => {
     const document = documentOf(artifact);

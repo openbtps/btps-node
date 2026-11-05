@@ -92,6 +92,15 @@ export const BtpQueryResultEntrySchema = z.object({
     .object({
       seen: z.boolean().optional(),
       seenAt: z.string().datetime().optional(),
+      // Since 1.2: a send's outcome, as its sender's provider knows it.
+      delivery: z
+        .object({
+          status: z.enum(['pending', 'delivered', 'failed']),
+          code: z.string().min(1).optional(),
+          at: z.string().datetime(),
+        })
+        .strict()
+        .optional(),
     })
     .catchall(z.unknown())
     .optional(),

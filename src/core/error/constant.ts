@@ -191,6 +191,13 @@ export const BTP_ERROR_AGENT_ID: BTPError = {
   status: 403,
 };
 
+/** Since 1.2: a sync that did not come from a device of its own address. */
+export const BTP_ERROR_SYNC_NOT_ALLOWED: BTPError = {
+  code: 'BTP_ERROR_SYNC_NOT_ALLOWED',
+  message: "A sync comes only from a device of its own address, inside that device's artifact.send",
+  status: 403,
+};
+
 export const BTP_ERROR_KEY_ROTATION_PROOF: BTPError = {
   code: 'BTP_ERROR_KEY_ROTATION_PROOF',
   message: 'A new device key needs a proof signed by that key',
