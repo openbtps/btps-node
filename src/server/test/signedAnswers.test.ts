@@ -20,7 +20,7 @@ import tls, { type TLSSocket } from 'tls';
 import { BtpsServer } from '../btpsServer.js';
 import { BtpsClient } from '../../client/btpsClient.js';
 import JsonTrustStore from '@core/trust/storage/JsonTrustStore.js';
-import { signBtpPayload, verifySignature } from '@core/crypto/index.js';
+import { PemSigner, signBtpPayload, verifySignature } from '@core/crypto/index.js';
 import { pemToBase64 } from '@core/utils/index.js';
 import type { BtpsServerOptions } from '../types.js';
 import type { BTPServerResponse } from '../index.js';
@@ -119,6 +119,45 @@ describe("a server's signed answers", () => {
 
     expect(() => new BtpsServer(options({ serverIdentity: identity }))).toThrow(/selector/);
   });
+
+  it('go out in order, and a close waits for them, however long a signature takes', async () => {
+    // A signer whose first signature comes back after its second.
+    const signer = new PemSigner({ publicKey: keys.publicKey, privateKey: keys.privateKey });
+    let calls = 0;
+    const slowFirst = {
+      algorithm: signer.algorithm,
+      getPublicKey: () => signer.getPublicKey(),
+      sign: async (data: Uint8Array) => {
+        calls++;
+        if (calls === 1) await new Promise((resolve) => setTimeout(resolve, 50));
+        return signer.sign(data);
+      },
+    };
+    const server = new BtpsServer(
+      options({
+        serverIdentity: { identity: 'server$saas.example', signer: slowFirst, selector: 'server1' },
+      }),
+    );
+    const lines: string[] = [];
+    const socket = {
+      destroyed: false,
+      writableEnded: false,
+      writable: true,
+      write: (line: string) => lines.push(line) > 0,
+      destroy: vi.fn(),
+      end: vi.fn(() => {
+        socket.writableEnded = true;
+        socket.writable = false;
+      }),
+    };
+    const tlsSocket = socket as unknown as TLSSocket;
+
+    server['sendBtpsResponse'](tlsSocket, { ...unsignedAnswer, reqId: 'first' });
+    server['sendBtpsResponse'](tlsSocket, { ...unsignedAnswer, reqId: 'second' }, 'end');
+    await vi.waitFor(() => expect(socket.end).toHaveBeenCalled());
+
+    expect(lines.map((line) => JSON.parse(line).reqId)).toEqual(['first', 'second']);
+  });
 });
 
 describe('a device that requires its server to sign', () => {
@@ -169,5 +208,42 @@ describe('a device that requires its server to sign', () => {
 
     expect(isValid).toBe(true);
     expect(dns).toHaveBeenCalledWith('server1._btps.identity.server.saas.example');
+  });
+
+  it('compares the signer without case, as every identity, and its selector exactly', async () => {
+    dns.mockResolvedValue([[`k=rsa; v=1.2.0; p=${pemToBase64(keys.publicKey)}`]]);
+    const unsigned = { ...unsignedAnswer, signedBy: 'Server$SaaS.example', selector: 'server1' };
+    const client = device();
+    const signed = { ...unsigned, signature: signBtpPayload(unsigned, keys) };
+    const { isValid } = await client['verifyServerMessage'](signed);
+    const otherSelector = { ...unsigned, selector: 'SERVER1' };
+    const { isValid: underAnother } = await client['verifyServerMessage']({
+      ...otherSelector,
+      signature: signBtpPayload(otherSelector, keys),
+    });
+    client.destroy();
+
+    expect(isValid).toBe(true);
+    expect(underAnother).toBe(false);
+  });
+
+  it("refuses an identity-lookup answer, signed by the domain's operator, on its own connection", async () => {
+    // Receiver keys are looked up by resolveIdentity, on a connection of its own that checks the
+    // operator instead, so the pin never stands in the way of a lookup.
+    const unsigned = {
+      ...unsignedAnswer,
+      signedBy: 'admin$saas.example',
+      selector: 'btps1',
+      document: { selector: 'btps1', publicKey: 'key', keyType: 'rsa' as const, version: '1.2.0' },
+    };
+    const client = device();
+    const { isValid } = await client['verifyServerMessage']({
+      ...unsigned,
+      signature: signBtpPayload(unsigned, keys),
+    });
+    client.destroy();
+
+    expect(isValid).toBe(false);
+    expect(dns).not.toHaveBeenCalled();
   });
 });

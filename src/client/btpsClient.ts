@@ -694,10 +694,11 @@ export class BtpsClient {
     // A client that requires its server's signature takes no answer but one signed by that
     // signer under that selector, and refuses any other before it looks up a key.
     const required = this.options.requireSignedBy;
-    if (
-      required &&
-      (!signature || signedBy !== required.identity || selector !== required.selector)
-    ) {
+    // An identity compares without case, as everywhere in BTPS; a selector exactly.
+    const isRequiredSigner =
+      signedBy?.toLowerCase() === required?.identity.toLowerCase() &&
+      selector === required?.selector;
+    if (required && (!signature || !isRequiredSigner)) {
       return {
         isValid: false,
         error: new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {

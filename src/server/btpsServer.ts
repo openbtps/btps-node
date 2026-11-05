@@ -136,6 +136,8 @@ export class BtpsServer {
   private readonly maxInFlightPerConnection: number;
   private readonly maxArtifactAgeSeconds: number;
   private readonly signAnswers: boolean;
+  /** With signAnswers: each connection's last answer, which the next waits for. */
+  private readonly answersOnSocket = new WeakMap<TLSSocket, Promise<void>>();
   private readonly dependencies: {
     trustStore: AbstractTrustStore<BTPTrustRecord>;
     identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
@@ -1639,12 +1641,19 @@ export class BtpsServer {
       return;
     }
 
-    // Signed as this server, after its reqId is set, when it signs every answer.
-    if (this.signAnswers && !artifact.signature) {
-      void this.signAnswer(artifact).then((signed) => this.writeAnswer(socket, signed, action));
+    if (!this.signAnswers) {
+      this.writeAnswer(socket, artifact, action);
       return;
     }
-    this.writeAnswer(socket, artifact, action);
+    // Signed as this server, after its reqId is set. Signing may take time (a KMS), so each
+    // answer on a connection goes out after every earlier one, and so does any close it asks
+    // for: a later answer that ends the connection never drops an earlier one still signing.
+    const earlier = this.answersOnSocket.get(socket) ?? Promise.resolve();
+    const answer = earlier.then(async () => {
+      const signed = artifact.signature ? artifact : await this.signAnswer(artifact);
+      this.writeAnswer(socket, signed, action);
+    });
+    this.answersOnSocket.set(socket, answer);
   }
 
   /**
