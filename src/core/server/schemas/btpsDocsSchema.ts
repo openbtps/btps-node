@@ -246,7 +246,9 @@ const semver = z
 
 /**
  * A template by reference: its name and data. The named data fields, each
- * optional, are well formed when present; other keys stay the provider's.
+ * optional, are well formed when present; other keys stay the provider's. A
+ * `source` comes with its `sha256`, as a logo's does: the fingerprint is what
+ * makes it trustworthy, so a receiver never draws whatever an address serves.
  */
 const BtpTemplateSchema = z.object({
   name: z.string(),
@@ -258,7 +260,11 @@ const BtpTemplateSchema = z.object({
         source: httpsUrl.optional(),
         logo: z.object({ sha256: sha256Hex, source: httpsUrl }).strict().optional(),
       })
-      .catchall(z.unknown()),
+      .catchall(z.unknown())
+      .refine((data) => data.source === undefined || data.sha256 !== undefined, {
+        message: 'a source comes with the sha256 of what it serves',
+        path: ['sha256'],
+      }),
   ),
 });
 

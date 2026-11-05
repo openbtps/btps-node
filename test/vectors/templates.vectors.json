@@ -1,0 +1,422 @@
+{
+  "description": "The BTPS 1.2 template format (Templates page; JSON Schema at docs/docusaurus/static/schemas/btps-template.schema.json, published with the docs site as schemas/btps-template.schema.json). A template changes only style, order and layout: it places the document's own sections by name and styles them with fixed tokens, and says where the sender's own logo goes and how big. It carries no text, number or value of its own, no label or wording, hides no field, fetches nothing and runs no script. An implementation accepts every \"accept\" template and refuses every \"refuse\" one; `why` says what is wrong.",
+  "cases": [
+    {
+      "name": "minimal",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "full",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice", "receipt"],
+        "layout": {
+          "sections": [
+            "header",
+            "issuer",
+            "details",
+            "lineItems",
+            "discount",
+            "totals",
+            "payment",
+            "footer"
+          ]
+        },
+        "colours": {
+          "text": "#172b4d",
+          "background": "#ffffff",
+          "primary": "#0747a6",
+          "accent": "#36b37e"
+        },
+        "fonts": {
+          "body": "sans-serif",
+          "heading": "serif",
+          "numbers": "monospace"
+        },
+        "styles": {
+          "header": {
+            "colour": "primary",
+            "font": "heading",
+            "size": "large",
+            "weight": "bold"
+          },
+          "totals": {
+            "font": "numbers",
+            "weight": "bold",
+            "align": "end",
+            "border": "thin"
+          },
+          "footer": {
+            "colour": "muted",
+            "size": "small",
+            "spacing": "roomy"
+          }
+        },
+        "logo": {
+          "position": "left",
+          "size": "medium"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "letter",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["letter"],
+        "layout": {
+          "sections": ["header", "body", "footer"]
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "an-amount",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "totalAmount": {
+          "amount": 100,
+          "currency": "AUD"
+        }
+      },
+      "expect": "refuse",
+      "why": "a template never carries an amount"
+    },
+    {
+      "name": "a-payee",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "payee": {
+          "name": "Mallory",
+          "account": "123"
+        }
+      },
+      "expect": "refuse",
+      "why": "a template never names a payee"
+    },
+    {
+      "name": "a-payment-link",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "paymentLink": "https://pay.example/x"
+      },
+      "expect": "refuse",
+      "why": "a template never overrides how to pay"
+    },
+    {
+      "name": "a-script",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "script": "alert(1)"
+      },
+      "expect": "refuse",
+      "why": "a template never runs script"
+    },
+    {
+      "name": "a-hidden-section",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header"],
+          "hidden": ["totals"]
+        }
+      },
+      "expect": "refuse",
+      "why": "a template never hides a field"
+    },
+    {
+      "name": "an-unknown-section",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "popup"]
+        }
+      },
+      "expect": "refuse",
+      "why": "sections are from a fixed list"
+    },
+    {
+      "name": "a-section-twice",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "header"]
+        }
+      },
+      "expect": "refuse",
+      "why": "each section once"
+    },
+    {
+      "name": "a-font-outside-the-list",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "fonts": {
+          "body": "Comic Sans MS"
+        }
+      },
+      "expect": "refuse",
+      "why": "fonts are from a fixed list"
+    },
+    {
+      "name": "a-font-to-fetch",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "fonts": {
+          "body": "https://fonts.example/a.woff2"
+        }
+      },
+      "expect": "refuse",
+      "why": "a template never fetches anything"
+    },
+    {
+      "name": "a-logo-to-fetch",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "logo": {
+          "source": "https://logos.example/a.png"
+        }
+      },
+      "expect": "refuse",
+      "why": "the logo is the sender's own, from the document"
+    },
+    {
+      "name": "a-colour-not-hex",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "colours": {
+          "text": "red"
+        }
+      },
+      "expect": "refuse",
+      "why": "colours are #rrggbb"
+    },
+    {
+      "name": "a-label-override",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "labels": {
+          "totals": "Amount due"
+        }
+      },
+      "expect": "refuse",
+      "why": "a template carries no wording: the receiver's provider writes every label"
+    },
+    {
+      "name": "literal-text",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "styles": {
+          "footer": {
+            "text": "Thank you for your business"
+          }
+        }
+      },
+      "expect": "refuse",
+      "why": "a template carries no text of its own"
+    },
+    {
+      "name": "a-literal-number",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "styles": {
+          "totals": {
+            "size": 14
+          }
+        }
+      },
+      "expect": "refuse",
+      "why": "a template carries no number of its own: sizes are tokens"
+    },
+    {
+      "name": "a-logo-size-in-pixels",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "logo": {
+          "position": "left",
+          "maxHeight": 64
+        }
+      },
+      "expect": "refuse",
+      "why": "the logo size is a token"
+    },
+    {
+      "name": "a-field-marked-hidden",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "styles": {
+          "totals": {
+            "hidden": true
+          }
+        }
+      },
+      "expect": "refuse",
+      "why": "a template never hides a field"
+    },
+    {
+      "name": "a-style-for-no-section",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "styles": {
+          "payee": {
+            "weight": "bold"
+          }
+        }
+      },
+      "expect": "refuse",
+      "why": "a style names one of the document sections"
+    },
+    {
+      "name": "a-style-value-outside-the-list",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        },
+        "styles": {
+          "header": {
+            "align": "justify"
+          }
+        }
+      },
+      "expect": "refuse",
+      "why": "style values are from fixed lists"
+    },
+    {
+      "name": "another-format",
+      "template": {
+        "format": "html",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["invoice"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        }
+      },
+      "expect": "refuse",
+      "why": "the format is btps-template/1"
+    },
+    {
+      "name": "an-unknown-document-type",
+      "template": {
+        "format": "btps-template/1",
+        "name": "acme/classic-invoice",
+        "version": "1.2.0",
+        "documentTypes": ["contract"],
+        "layout": {
+          "sections": ["header", "lineItems", "totals"]
+        }
+      },
+      "expect": "refuse",
+      "why": "a template is for invoices, receipts, payslips or letters"
+    }
+  ]
+}

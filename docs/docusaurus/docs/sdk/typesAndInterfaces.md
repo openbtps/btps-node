@@ -768,7 +768,7 @@ type BTPDiscount = { amount: number } | { percent: number };
 
 ### BTPTemplate
 
-A document's template, by reference. Since 1.2, in a `1.2.0` artifact, the named `data` fields are each optional but well formed when present; other keys stay the provider's.
+A document's template, by reference. Since 1.2, in a `1.2.0` artifact, the named `data` fields are each optional but well formed when present, and a `source` always comes with its `sha256`; other keys stay the provider's. The template file itself is specified on [Templates](../protocol/specifications/templates.md).
 
 ```ts
 interface BTPTemplate {
@@ -776,7 +776,7 @@ interface BTPTemplate {
   data: {
     version?: string; // a semantic version
     sha256?: string; // lowercase hex
-    source?: string; // an https address
+    source?: string; // an https address, always with its sha256
     logo?: { sha256: string; source: string };
     [key: string]: unknown;
   };

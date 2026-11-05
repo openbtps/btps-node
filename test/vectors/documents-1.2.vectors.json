@@ -1088,6 +1088,100 @@
       "expect": "accept"
     },
     {
+      "name": "invoice-template-source-without-sha256",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "template": {
+          "name": "acme/classic",
+          "data": {
+            "source": "https://templates.example/acme/classic-invoice@1.2.0"
+          }
+        }
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "a source comes with the sha256 of what it serves"
+    },
+    {
+      "name": "invoice-template-sha256-without-source",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "template": {
+          "name": "acme/classic",
+          "data": {
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-template-source-without-sha256-under-1-1",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "template": {
+          "name": "acme/classic",
+          "data": {
+            "source": "https://templates.example/acme/classic-invoice@1.2.0"
+          }
+        }
+      },
+      "version": "1.1.0",
+      "expect": "accept"
+    },
+    {
       "name": "invoice-template-sha256-not-hex",
       "type": "BTPS_DOC",
       "document": {

@@ -106,8 +106,18 @@ describe('a template', () => {
     const own = template({ source: 'http://templates.example/a', accent: 'blue' });
     expect(takes('1.2.0', { ...invoice, template: own })).toBe(false);
     expect(takes('1.1.0', { ...invoice, template: own })).toBe(true);
-    const named = template({ source: 'https://templates.example/a', accent: 'blue' });
+    const sha256 = 'a'.repeat(64);
+    const named = template({ source: 'https://templates.example/a', sha256, accent: 'blue' });
     expect(takes('1.2.0', { ...invoice, template: named })).toBe(true);
+  });
+
+  it('has its source fingerprinted under 1.2.0: a source never comes without its sha256', () => {
+    const source = 'https://templates.example/a';
+    expect(takes('1.2.0', { ...invoice, template: template({ source }) })).toBe(false);
+    expect(takes('1.2.0', { ...invoice, template: template({ sha256: 'a'.repeat(64) }) })).toBe(
+      true,
+    );
+    expect(takes('1.1.0', { ...invoice, template: template({ source }) })).toBe(true);
   });
 });
 

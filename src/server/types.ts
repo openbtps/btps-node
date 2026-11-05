@@ -321,7 +321,7 @@ export interface BTPTemplate {
   data: {
     version?: string; // a semantic version
     sha256?: string; // lowercase hex
-    source?: string; // an https address
+    source?: string; // an https address, always with its sha256
     logo?: { sha256: string; source: string };
     [key: string]: unknown;
   };

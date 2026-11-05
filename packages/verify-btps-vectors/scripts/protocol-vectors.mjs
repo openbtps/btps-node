@@ -1132,6 +1132,25 @@ export function documents12() {
       v12,
     ),
     refuse(
+      'invoice-template-source-without-sha256',
+      'BTPS_DOC',
+      { ...inv, template: template({ source: templateData.source }) },
+      'a source comes with the sha256 of what it serves',
+      v12,
+    ),
+    accept(
+      'invoice-template-sha256-without-source',
+      'BTPS_DOC',
+      { ...inv, template: template({ sha256: SHA }) },
+      v12,
+    ),
+    accept(
+      'invoice-template-source-without-sha256-under-1-1',
+      'BTPS_DOC',
+      { ...inv, template: template({ source: templateData.source }) },
+      v11,
+    ),
+    refuse(
       'invoice-template-sha256-not-hex',
       'BTPS_DOC',
       { ...inv, template: template({ ...templateData, sha256: 'ABC' }) },
@@ -1306,6 +1325,144 @@ export function eventChain() {
         'follows names a withdrawn',
       ),
       chain('proposal-without-follows', base.event, null, 'accept'),
+    ],
+  };
+}
+
+/** The 1.2 template format: what a template file may say, and each thing it must never do. */
+export function templates() {
+  const minimal = {
+    format: 'btps-template/1',
+    name: 'acme/classic-invoice',
+    version: '1.2.0',
+    documentTypes: ['invoice'],
+    layout: { sections: ['header', 'lineItems', 'totals'] },
+  };
+  const full = {
+    ...minimal,
+    documentTypes: ['invoice', 'receipt'],
+    layout: {
+      sections: [
+        'header',
+        'issuer',
+        'details',
+        'lineItems',
+        'discount',
+        'totals',
+        'payment',
+        'footer',
+      ],
+    },
+    colours: { text: '#172b4d', background: '#ffffff', primary: '#0747a6', accent: '#36b37e' },
+    fonts: { body: 'sans-serif', heading: 'serif', numbers: 'monospace' },
+    styles: {
+      header: { colour: 'primary', font: 'heading', size: 'large', weight: 'bold' },
+      totals: { font: 'numbers', weight: 'bold', align: 'end', border: 'thin' },
+      footer: { colour: 'muted', size: 'small', spacing: 'roomy' },
+    },
+    logo: { position: 'left', size: 'medium' },
+  };
+  const accept = (name, template) => ({ name, template, expect: 'accept' });
+  const refuse = (name, template, why) => ({ name, template, expect: 'refuse', why });
+  return {
+    description:
+      'The BTPS 1.2 template format (Templates page; JSON Schema at docs/docusaurus/static/schemas/btps-template.schema.json, published with the docs site as schemas/btps-template.schema.json). A template changes only style, order and layout: it places the document\'s own sections by name and styles them with fixed tokens, and says where the sender\'s own logo goes and how big. It carries no text, number or value of its own, no label or wording, hides no field, fetches nothing and runs no script. An implementation accepts every "accept" template and refuses every "refuse" one; `why` says what is wrong.',
+    cases: [
+      accept('minimal', minimal),
+      accept('full', full),
+      accept('letter', {
+        ...minimal,
+        documentTypes: ['letter'],
+        layout: { sections: ['header', 'body', 'footer'] },
+      }),
+      refuse(
+        'an-amount',
+        { ...minimal, totalAmount: { amount: 100, currency: 'AUD' } },
+        'a template never carries an amount',
+      ),
+      refuse(
+        'a-payee',
+        { ...minimal, payee: { name: 'Mallory', account: '123' } },
+        'a template never names a payee',
+      ),
+      refuse(
+        'a-payment-link',
+        { ...minimal, paymentLink: 'https://pay.example/x' },
+        'a template never overrides how to pay',
+      ),
+      refuse('a-script', { ...minimal, script: 'alert(1)' }, 'a template never runs script'),
+      refuse(
+        'a-hidden-section',
+        { ...minimal, layout: { sections: ['header'], hidden: ['totals'] } },
+        'a template never hides a field',
+      ),
+      refuse(
+        'an-unknown-section',
+        { ...minimal, layout: { sections: ['header', 'popup'] } },
+        'sections are from a fixed list',
+      ),
+      refuse(
+        'a-section-twice',
+        { ...minimal, layout: { sections: ['header', 'header'] } },
+        'each section once',
+      ),
+      refuse(
+        'a-font-outside-the-list',
+        { ...minimal, fonts: { body: 'Comic Sans MS' } },
+        'fonts are from a fixed list',
+      ),
+      refuse(
+        'a-font-to-fetch',
+        { ...minimal, fonts: { body: 'https://fonts.example/a.woff2' } },
+        'a template never fetches anything',
+      ),
+      refuse(
+        'a-logo-to-fetch',
+        { ...minimal, logo: { source: 'https://logos.example/a.png' } },
+        "the logo is the sender's own, from the document",
+      ),
+      refuse('a-colour-not-hex', { ...minimal, colours: { text: 'red' } }, 'colours are #rrggbb'),
+      refuse(
+        'a-label-override',
+        { ...minimal, labels: { totals: 'Amount due' } },
+        "a template carries no wording: the receiver's provider writes every label",
+      ),
+      refuse(
+        'literal-text',
+        { ...minimal, styles: { footer: { text: 'Thank you for your business' } } },
+        'a template carries no text of its own',
+      ),
+      refuse(
+        'a-literal-number',
+        { ...minimal, styles: { totals: { size: 14 } } },
+        'a template carries no number of its own: sizes are tokens',
+      ),
+      refuse(
+        'a-logo-size-in-pixels',
+        { ...minimal, logo: { position: 'left', maxHeight: 64 } },
+        'the logo size is a token',
+      ),
+      refuse(
+        'a-field-marked-hidden',
+        { ...minimal, styles: { totals: { hidden: true } } },
+        'a template never hides a field',
+      ),
+      refuse(
+        'a-style-for-no-section',
+        { ...minimal, styles: { payee: { weight: 'bold' } } },
+        'a style names one of the document sections',
+      ),
+      refuse(
+        'a-style-value-outside-the-list',
+        { ...minimal, styles: { header: { align: 'justify' } } },
+        'style values are from fixed lists',
+      ),
+      refuse('another-format', { ...minimal, format: 'html' }, 'the format is btps-template/1'),
+      refuse(
+        'an-unknown-document-type',
+        { ...minimal, documentTypes: ['contract'] },
+        'a template is for invoices, receipts, payslips or letters',
+      ),
     ],
   };
 }

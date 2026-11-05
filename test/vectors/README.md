@@ -38,6 +38,7 @@ says in its `description` how to read its cases.
 | `versions.vectors.json`        | BTPS 1.2: the versions a 1.2 implementation takes and refuses, and the version it stamps each artifact with: 1.1.0 for anything 1.1 can say, 1.2.0 only for what 1.2 adds                                                    |
 | `documents-1.2.vectors.json`   | BTPS 1.2: the 1.2 document rules (the withdrawn event, note formats, discounts, templates by reference), each under the version it applies to, and the 1.1 documents they must leave valid under 1.1.0                       |
 | `event-chain.vectors.json`     | BTPS 1.2: each `withdrawn` and `follows` against what the receiver holds of the event it names: its own sender's open proposal, the other party's, an answered one, none                                                     |
+| `templates.vectors.json`       | BTPS 1.2: template files to accept and to refuse against the template JSON Schema (`docs/docusaurus/static/schemas/btps-template.schema.json`), checked by `test/templates.test.ts`                                          |
 | `manifest.json`                | every file above with the SHA-256 of its bytes, so a copy of the set can be checked whole                                                                                                                                    |
 
 While 1.2 is built, the 1.2 checks that fail are listed in `known-failing.json`, each with

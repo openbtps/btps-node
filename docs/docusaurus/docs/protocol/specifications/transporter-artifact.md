@@ -252,7 +252,7 @@ A person's note says how it is written: `{ "format": "text" | "markdown", "conte
 
 **Templates (by reference):**
 
-`template` is `{ "name": "acme/classic-invoice", "data": { … } }`. Since 1.2, in a `1.2.0` artifact, `data`'s named fields are each optional but well formed when present: `version` (a semantic version), `sha256` (64 lowercase hex characters), `source` (an https address), and `logo: { sha256, source }`. Other keys stay the provider's. Under `1.1.0`, `data` is free, as in 1.1. A receiving platform fetches `source` once on arrival, checks it against `sha256`, and draws the document with it; anything that fails falls back to the standard view. Since 1.2 a letter and a payslip may name a template too.
+`template` is `{ "name": "acme/classic-invoice", "data": { … } }`. Since 1.2, in a `1.2.0` artifact, `data`'s named fields are each optional but well formed when present: `version` (a semantic version), `sha256` (64 lowercase hex characters), `source` (an https address, always with its `sha256`), and `logo: { sha256, source }`. Other keys stay the provider's. Under `1.1.0`, `data` is free, as in 1.1. A receiving platform draws the document with the template only from bytes that match `sha256`; anything that fails falls back to the standard view. Since 1.2 a letter and a payslip may name a template too. The template file's own format, and what a template must never do, are on [Templates](./templates.md).
 
 A document carries no status: whether an invoice is paid, partly paid, disputed or refunded comes from the lifecycle events exchanged about it. The schema is strict, so a field it does not name (such as 1.0's `status`) is refused.
 

@@ -43,7 +43,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   an amount of at least 0.
 - **Templates by reference.** In a `1.2.0` artifact a template's named `data`
   fields (`version`, `sha256`, `source`, `logo`) are well formed when present
-  (`BTPTemplate`), and a letter or payslip may name a template.
+  (`BTPTemplate`), a `source` always comes with its `sha256`, and a letter or
+  payslip may name a template. The template file's format is specified on the
+  new Templates page, with a JSON Schema published with the docs
+  (`schemas/btps-template.schema.json`) and golden vectors
+  (`templates.vectors.json`): a declarative layout that never carries a value,
+  hides a field, fetches anything or runs script. The SDK renders nothing.
 - Every 1.2 document rule applies under `1.2.0` only: a document valid in 1.1
   reads exactly as before in a `1.1.0` artifact. The schemas 1.1 reads with are
   kept beside the newest (`Btp…V1_1Schema`). A device checks what it sends
