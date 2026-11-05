@@ -22,7 +22,8 @@ import { BtpAuthReqDocSchema, BtpDocSchema } from '@core/server/schemas/btpsDocs
 export const BtpsAgentOptionsSchema = BtpCryptoOptionsSchema.optional();
 
 // Any document of either version; the refine below checks it under the version it is stamped with.
-export const BtpsAgentCommandDocumentSchema = z
+// Typed as unknown: the union of both versions' documents is too large a type to declare.
+export const BtpsAgentCommandDocumentSchema: z.ZodType<unknown> = z
   .union([
     BtpDocSchema,
     BtpAuthReqDocSchema,
