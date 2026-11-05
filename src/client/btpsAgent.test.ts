@@ -18,7 +18,6 @@ import * as utils from '../core/utils/index.js';
 import * as crypto from '../core/crypto/index.js';
 import { BTPDocType, BTPServerResponse } from '../core/server/types.js';
 import { BTPAgentOptions } from './types/index.js';
-import { BTP_PROTOCOL_VERSION } from '../core/server/constants/index.js';
 import type { Signer } from '../core/crypto/signer-interface.js';
 
 // --- Mocks ---
@@ -625,7 +624,8 @@ describe('BtpsAgent', () => {
           agentId: 'test-agent-123',
           to: 'bob$company.com',
           document: expect.any(Object),
-          version: BTP_PROTOCOL_VERSION,
+          // A trust request 1.1 can say: stamped 1.1.0, so a 1.1 provider takes it.
+          version: '1.1.0',
         }),
         expect.any(Object),
       );
@@ -953,7 +953,8 @@ describe('BtpsAgent', () => {
           agentId: 'test-agent-123',
           to: 'bob$company.com',
           document: expect.any(Object),
-          version: BTP_PROTOCOL_VERSION,
+          // A trust request 1.1 can say: stamped 1.1.0, so a 1.1 provider takes it.
+          version: '1.1.0',
         }),
         expect.any(Object),
       );
@@ -1035,7 +1036,8 @@ describe('BtpsAgent', () => {
           agentId: 'test-agent-123',
           to: 'bob$company.com',
           document: expect.any(Object),
-          version: BTP_PROTOCOL_VERSION,
+          // A trust request 1.1 can say: stamped 1.1.0, so a 1.1 provider takes it.
+          version: '1.1.0',
         }),
         expect.any(Object),
       );

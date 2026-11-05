@@ -295,13 +295,14 @@ These are used for notifying the agent or client related to delivery failure. No
 - Must refuse an artifact larger than its own limit before reading any more of it, answer with the limit in the error message, and close the connection gently: send the answer, then end the connection while ignoring whatever else the sender is still sending. Tearing the connection down at once would reset it, and a sender still sending could lose the answer unread.
 - Must close the same gentle way after any other error that ends a connection while it still works (an unexpected failure, an idle timeout): stop reading artifacts, keep draining, send the error, then end. A sender may already be sending its next artifact. Only a connection that is already broken is torn down at once Each server chooses its limit (`maxArtifactSizeKb` in the SDK): 5120 KB (5 MB) by default, at least 1024 KB (1 MB), with no maximum. 1 KB is 1024 bytes, and the size is the artifact's line in bytes
 
-- Must refuse an artifact of a protocol version it does not support, before any signature work, with `BTP_ERROR_VERSION_UNSUPPORTED` (400) naming the versions it supports. Versions compare by major and minor: a 1.1 server accepts any 1.1.x and refuses 1.0. A server advertises its version as `v` in `_btps.host`
+- Must refuse an artifact of a protocol version it does not support, before any signature work, with `BTP_ERROR_VERSION_UNSUPPORTED` (400) naming the versions it supports. Versions compare by major and minor: a 1.2 server accepts any 1.1.x and 1.2.x and refuses 1.0; a 1.1 server accepts only 1.1.x. Every answer carries the version the server speaks, its own, whatever the version of what it answers. A server advertises its version as `v` in `_btps.host`, which is a hint only: a sender learns what a server speaks from the version of its answers
 - Must answer success only once the artifact has been handed over: to the platform's handler or queue, which returned. Success means **received**: the receiving platform has the artifact. It does not mean the document was opened or could be decrypted. A BTPS server only verifies signatures and never decrypts; an encrypted document is the receiving platform's to open, when its user views it. A platform that later finds a document unreadable deals with it itself, as an email provider does with an unreadable attachment.
 
 ### Client Requirements
 
 - Must generate unique message IDs
 - Must sign all outgoing messages
+- Must stamp an artifact `1.1.0` when everything in it can be said in 1.1, and `1.2.0` only when it uses something 1.2 adds, so a 1.1 receiver takes everything a 1.1 sender could have sent. An identity lookup and a control artifact carry nothing from 1.2, so they are always `1.1.0`, and every 1.1 and 1.2 server answers them. To learn what a receiver speaks before sending, a sender can send it a `PING` and read the version of the answer; a receiver that refuses a version says which versions it supports
 - may encrypt sensitive documents
 - Must handle trust establishment before sending invoices
 - Must implement retry logic for failed deliveries
