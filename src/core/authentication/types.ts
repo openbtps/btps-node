@@ -66,7 +66,7 @@ export interface BTPRefreshTokenReusedInfo {
 
 /**
  * Since 1.2, what BtpsAuthentication tells its listeners. With none attached,
- * nothing happens. A listener runs inside the refresh, so it must not throw.
+ * nothing happens. A listener that throws is warned about and never breaks a refresh.
  */
 export type BtpsAuthenticationEvents = {
   keyRotated: (info: BTPKeyRotatedInfo) => void;

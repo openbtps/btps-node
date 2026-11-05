@@ -513,7 +513,7 @@ Since 1.2, a refresh is refused when:
 
 ### **on / off**
 
-Since 1.2. Listens for what happens to a device's keys. With no listener attached, nothing happens. A listener runs inside the refresh, so it must not throw.
+Since 1.2. Listens for what happens to a device's keys. With no listener attached, nothing happens. A listener that throws is warned about (`console.warn`) and never breaks the refresh or stops the other listeners.
 
 ```typescript
 auth.on('keyRotated', ({ agentId, identity, previousFingerprint, fingerprint, at }) => {

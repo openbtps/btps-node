@@ -203,6 +203,39 @@ describe("a device key's history", () => {
     expect(record?.status).toBe('accepted');
     expect(reused).not.toHaveBeenCalled();
   });
+
+  it('never lets a listener that throws break a refresh or stop the other listeners', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const rotated = vi.fn();
+    const reused = vi.fn();
+    auth.on('keyRotated', () => {
+      throw new Error('listener broke');
+    });
+    auth.on('keyRotated', rotated);
+    auth.on('refreshTokenReused', () => {
+      throw new Error('listener broke');
+    });
+    auth.on('refreshTokenReused', reused);
+
+    vi.setSystemTime(new Date(registeredAt));
+    const { agentId, refreshToken } = await auth.createAgent(
+      { userIdentity: identity, publicKey: getBTPKeyPair().publicKey, decidedBy: identity },
+      identity,
+    );
+    const options = { decidedBy: identity, decryptBy: identity };
+    const moved = await auth.validateAndReissueRefreshToken(agentId, refreshToken, {
+      ...options,
+      publicKey: getBTPKeyPair().publicKey,
+    });
+    const again = await auth.validateAndReissueRefreshToken(agentId, refreshToken, options);
+
+    expect(moved.data?.refreshToken).toBeDefined();
+    expect(rotated).toHaveBeenCalledOnce();
+    expect(again.error?.cause).toMatch(/revoked/);
+    expect(reused).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
 });
 
 describe('a token store without isConsumed', () => {

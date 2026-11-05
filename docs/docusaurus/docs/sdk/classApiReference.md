@@ -843,7 +843,7 @@ auth.on('keyRotated', listener);
 auth.on('refreshTokenReused', listener);
 ```
 
-Since 1.2. Listens for a device moving to a new key, and for a refresh token used a second time (the device is then revoked). See [BtpsAuthenticationEvents](./typesAndInterfaces.md#btpsauthenticationevents). With no listener attached, nothing happens; a listener must not throw.
+Since 1.2. Listens for a device moving to a new key, and for a refresh token used a second time (the device is then revoked). See [BtpsAuthenticationEvents](./typesAndInterfaces.md#btpsauthenticationevents). With no listener attached, nothing happens; a listener that throws is warned about and never breaks the refresh.
 
 ### storeAuthToken
 

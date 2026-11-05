@@ -98,6 +98,23 @@ export class BtpsAuthentication {
   };
 
   /**
+   * Tell every listener, each on its own: one that throws is warned about and
+   * never stops the others or the refresh, whose state is already stored.
+   */
+  private tell<K extends keyof BtpsAuthenticationEvents>(
+    event: K,
+    info: Parameters<BtpsAuthenticationEvents[K]>[0],
+  ) {
+    for (const listener of this.emitter.listeners(event)) {
+      try {
+        (listener as (info: Parameters<BtpsAuthenticationEvents[K]>[0]) => void)(info);
+      } catch (error) {
+        console.warn(`[BtpsAuthentication] Warning: a ${event} listener threw:`, error);
+      }
+    }
+  }
+
+  /**
    * Put a taken refresh token back for what is left of its life, so the device
    * can try again rather than register anew.
    */
@@ -131,7 +148,7 @@ export class BtpsAuthentication {
       if (trustRecord) {
         await this.trustStore.update(computedId, { status: 'revoked', decidedAt: at });
       }
-      this.emitter.emit('refreshTokenReused', {
+      this.tell('refreshTokenReused', {
         agentId,
         identity,
         fingerprint: trustRecord?.publicKeyFingerprint,
@@ -505,7 +522,7 @@ export class BtpsAuthentication {
     );
 
     if (rotates && currentFingerprint) {
-      this.emitter.emit('keyRotated', {
+      this.tell('keyRotated', {
         agentId,
         identity: userIdentity,
         previousFingerprint,
