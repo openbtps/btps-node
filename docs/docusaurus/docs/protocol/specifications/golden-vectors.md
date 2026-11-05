@@ -17,19 +17,25 @@ cases.
 
 ## What they cover
 
-| File                           | An implementation must                                                                                            |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| `jcs.vectors.json`             | produce the exact canonical bytes (RFC 8785), and refuse what JCS refuses, such as a name given twice             |
-| `addresses.vectors.json`       | accept and refuse each address as stated, and treat each `same` pair as one identity                              |
-| `documents.vectors.json`       | accept and refuse each document of each artifact type, including every [field limit](./limits.md) at and one over |
-| `signed-artifacts.vector.json` | verify two artifacts exactly as they travel, reproduce their canonical forms, and decrypt the encrypted one       |
-| `device-key-proof.vector.json` | reproduce and verify the proof a device sends when it moves to a new key                                          |
-| `time-window.vectors.json`     | accept or refuse an `issuedAt` at, inside and just past the server's window                                       |
-| the signature and OAEP files   | verify RSASSA-PKCS1-v1_5 / SHA-256 signatures, unwrap RSA-OAEP / SHA-256 keys, and refuse an MGF1-SHA-1 wrap      |
-| `manifest.json`                | (for the set itself) every file with the SHA-256 of its bytes, so a copy can be checked whole                     |
+| File                           | An implementation must                                                                                                     |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `jcs.vectors.json`             | produce the exact canonical bytes (RFC 8785), and refuse what JCS refuses, such as a name given twice                      |
+| `addresses.vectors.json`       | accept and refuse each address as stated, and treat each `same` pair as one identity                                       |
+| `documents.vectors.json`       | accept and refuse each document of each artifact type, including every [field limit](./limits.md) at and one over          |
+| `signed-artifacts.vector.json` | verify two artifacts exactly as they travel, reproduce their canonical forms, and decrypt the encrypted one                |
+| `device-key-proof.vector.json` | reproduce and verify the proof a device sends when it moves to a new key                                                   |
+| `time-window.vectors.json`     | accept or refuse an `issuedAt` at, inside and just past the server's window                                                |
+| the signature and OAEP files   | verify RSASSA-PKCS1-v1_5 / SHA-256 signatures, unwrap RSA-OAEP / SHA-256 keys, and refuse an MGF1-SHA-1 wrap               |
+| `versions.vectors.json`        | (1.2) take 1.1.x and 1.2.x and refuse other versions, and stamp each artifact `1.1.0` unless it uses what 1.2 adds         |
+| `documents-1.2.vectors.json`   | (1.2) accept and refuse each 1.2 document rule under the version it applies to, and keep 1.1 documents valid under `1.1.0` |
+| `manifest.json`                | (for the set itself) every file with the SHA-256 of its bytes, so a copy can be checked whole                              |
 
 Every key in them is a test-only key, committed on purpose. Never use one for
 anything else.
+
+While a release is being built, the checks it makes pass that do not pass yet
+are listed in `test/vectors/known-failing.json`, each with the change that
+makes it pass. The list is empty when the release ships.
 
 ## Running them
 
