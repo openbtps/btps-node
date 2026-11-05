@@ -463,7 +463,7 @@ await agent.openResult(entry);
 Since 1.2. Opens an encrypted query result with this device's own key, through the `agentKey` its provider wrapped for it (`wrapForAgent`).
 
 - It refuses an `agentKey` wrapped to a key other than the one this device holds, before anything is looked up: that is a device that has not finished moving to a new key.
-- It then verifies the sender's signature over the artifact as sent, and decrypts and checks the document as `decryptVerify` does.
+- It then checks who signed the artifact as sent, exactly as a server does on arrival (`verifyTransporterSignature`): the sender's own key, or, for an artifact sent through a delegation, the delegation, its attestation, and the delegated agent's signature. Then it decrypts and checks the document as `decryptVerify` does.
 
 - **entry**: [BTPQueryResultEntry](./typesAndInterfaces.md#btpqueryresultentry) – A result with `agentKey`
 - **Returns**: `Promise<BTPCryptoResponse<BTPDocType | string>>` – The artifact with its document decrypted, or the error

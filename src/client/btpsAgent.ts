@@ -8,7 +8,7 @@
 import {
   BTPErrorException,
   BTP_ERROR_RESOLVE_DNS,
-  BTP_ERROR_RESOLVE_PUBKEY,
+  BTP_ERROR_SIG_VERIFICATION,
   BTP_ERROR_UNSUPPORTED_ENCRYPT,
   BTP_ERROR_VALIDATION,
   transformToBTPErrorException,
@@ -55,7 +55,8 @@ import {
   signBtpPayloadWithSigner,
 } from '@core/crypto/index.js';
 import { randomUUID } from 'crypto';
-import { isValidIdentity, resolvePublicKey } from '@core/utils/index.js';
+import { isValidIdentity } from '@core/utils/index.js';
+import { verifyTransporterSignature } from '@core/delegation/verifyTransporterSignature.js';
 
 const mappedTransporterAction = AGENT_TRANSPORTER_ACTIONS;
 
@@ -312,8 +313,9 @@ export class BtpsAgent extends BtpsClient {
 
   /**
    * Since 1.2: opens an encrypted query result with this device's own key,
-   * through the `agentKey` its provider wrapped for it. The sender's signature
-   * is checked over the artifact as sent, and the document as any decrypted one is.
+   * through the `agentKey` its provider wrapped for it. Who signed it is checked
+   * as a server checks it on arrival (a delegation and its attestation too), and
+   * the document as any decrypted one is.
    * @param entry - A query result entry with `agentKey`
    * @returns The artifact with its document decrypted, or the reason it could not be opened
    */
@@ -339,16 +341,16 @@ export class BtpsAgent extends BtpsClient {
       );
     }
 
-    const senderPublicKey = await resolvePublicKey(artifact.from, artifact.selector);
-    if (!senderPublicKey) {
-      return refuse(
-        `No key for ${artifact.from} at ${artifact.selector}`,
-        BTP_ERROR_RESOLVE_PUBKEY,
-      );
-    }
     try {
+      const signed = await verifyTransporterSignature(artifact);
+      if (!signed.isValid || !signed.signerKey) {
+        return {
+          payload: undefined,
+          error: signed.error ?? new BTPErrorException(BTP_ERROR_SIG_VERIFICATION),
+        };
+      }
       return await decryptVerify<BTPDocType | string>(
-        senderPublicKey,
+        signed.signerKey,
         { ...artifact },
         this.decryptionKey,
         agentKey.key,

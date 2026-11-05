@@ -22,15 +22,11 @@ import {
   BTP_ERROR_SIG_VERIFICATION,
   BTP_ERROR_INVALID_JSON,
   BTP_ERROR_VALIDATION,
-  BTP_ERROR_RESOLVE_PUBKEY,
   BTP_ERROR_TRUST_NOT_ALLOWED,
   BTP_ERROR_TRUST_NON_EXISTENT,
   BTP_ERROR_TRUST_EXPIRED,
   BTP_ERROR_TRUST_REVOKED,
   BTP_ERROR_TRUST_BLOCKED,
-  BTP_ERROR_DELEGATION_SIG_VERIFICATION,
-  BTP_ERROR_DELEGATION_INVALID,
-  BTP_ERROR_ATTESTATION_VERIFICATION,
   BTP_ERROR_SOCKET_TIMEOUT,
   BTP_ERROR_IDENTITY_NOT_FOUND,
   BTP_ERROR_UNKNOWN,
@@ -52,12 +48,9 @@ import {
 } from '@core/crypto/index.js';
 import {
   base64ToPem,
-  isDelegationAllowed,
   computeId,
-  getHostAndSelector,
   isBtpsIdentityRequest,
   isBtpsTransportArtifact,
-  resolvePublicKey,
   isBtpsControlArtifact,
   isBtpsAgentArtifact,
   isValidIdentity,
@@ -98,6 +91,11 @@ import type {
 import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { validate } from '@core/utils/validation.js';
 import { MiddlewareManager } from './libs/middlewareManager.js';
+import {
+  verifyAttestation,
+  verifyDelegation,
+  verifyTransporterSignature,
+} from '@core/delegation/verifyTransporterSignature.js';
 import { artifactSizeGuard, resolveMaxArtifactSizeKb } from './libs/artifactSizeGuard.js';
 import {
   artifactTimeWindowError,
@@ -962,30 +960,7 @@ export class BtpsServer {
   private async verifyAttestation(
     delegation: Omit<BTPDelegation, 'attestation'> & { attestation: BTPAttestation },
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
-    const { attestation, ...restDelegation } = delegation;
-    const { signature, ...restAttestation } = attestation;
-
-    const attestorPubKey = await resolvePublicKey(attestation.signedBy, attestation.selector);
-    if (!attestorPubKey) {
-      return {
-        isValid: false,
-        error: new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
-          cause: `Attestor ${attestation.signedBy} public key not found`,
-          meta: { attestation },
-        }),
-      };
-    }
-    const signedMsg = { ...restDelegation, attestation: restAttestation };
-    const { isValid, error } = verifySignature(signedMsg, signature, attestorPubKey);
-    return {
-      isValid,
-      error: error
-        ? new BTPErrorException(BTP_ERROR_ATTESTATION_VERIFICATION, {
-            cause: `Attestation signature verification failed of attestor ${attestation.signedBy}`,
-            meta: { attestation },
-          })
-        : undefined,
-    };
+    return verifyAttestation(delegation);
   }
 
   /**
@@ -1032,104 +1007,8 @@ export class BtpsServer {
       delegation: BTPDelegation;
     },
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
-    // Only the sender itself or its domain's operator may delegate, and only
-    // the operator may attest: the receiver learns who that is from DNS.
-    const operator = (await getHostAndSelector(artifactWithDelegation.from))?.operator;
-
-    /* If the artifact is not allowed to be delegated, return an error */
-    if (!isDelegationAllowed(artifactWithDelegation, operator)) {
-      return {
-        isValid: false,
-        error: new BTPErrorException(BTP_ERROR_DELEGATION_INVALID, {
-          cause: operator
-            ? `Delegation is not allowed: ${artifactWithDelegation.delegation.signedBy} is not the operator of ${artifactWithDelegation.from}'s domain`
-            : `Delegation is not allowed: ${artifactWithDelegation.from}'s domain declares no operator`,
-        }),
-      };
-    }
-    const { delegation, ...restArtifact } = artifactWithDelegation;
-    const isAttestationRequired = delegation.signedBy === artifactWithDelegation.from;
-
-    /* If attestation is required, but not provided, return an error */
-    if (isAttestationRequired && !delegation.attestation) {
-      return {
-        isValid: false,
-        error: new BTPErrorException(BTP_ERROR_DELEGATION_INVALID, {
-          cause:
-            'Custom managed domain delegation requires attestation. Either provide attestation or directly send without delegation via transporter',
-          meta: {
-            delegation,
-            from: artifactWithDelegation.from,
-          },
-        }),
-      };
-    }
-
-    /* If attestation is provided, verify it */
-    if (delegation.attestation) {
-      if (delegation.attestation.signedBy !== operator) {
-        return {
-          isValid: false,
-          error: new BTPErrorException(BTP_ERROR_ATTESTATION_VERIFICATION, {
-            cause: `${delegation.attestation.signedBy} is not the operator of ${artifactWithDelegation.from}'s domain`,
-          }),
-        };
-      }
-      const { isValid, error } = await this.verifyAttestation(
-        delegation as Omit<BTPDelegation, 'attestation'> & { attestation: BTPAttestation },
-      );
-      if (!isValid) return { isValid, error };
-    }
-
-    /* Verify the delegation signature against the delegated artifact which includes the original artifact and signed artifact*/
-    const delegatorPubKey = await resolvePublicKey(delegation.signedBy, delegation.selector);
-    if (!delegatorPubKey) {
-      return {
-        isValid: false,
-        error: new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
-          cause: `Delegator ${delegation.signedBy} public key not found`,
-          meta: { delegation },
-        }),
-      };
-    }
-
-    // The delegation is signed before it is attested: the attestation, added
-    // after and signed over the delegation, is not part of what it signed.
-    const { signature, attestation, ...restDelegation } = delegation;
-    const signedMsg = { ...artifactWithDelegation, delegation: restDelegation };
-
-    /* Verify the delegation signature against the delegated artifact which includes the original artifact and signed artifact*/
-    const { isValid: isValidDelegation } = verifySignature(signedMsg, signature, delegatorPubKey);
-    if (!isValidDelegation) {
-      return {
-        isValid: isValidDelegation,
-        error: new BTPErrorException(BTP_ERROR_DELEGATION_SIG_VERIFICATION, {
-          cause: `Delegation signature verification failed of delegator ${delegation.signedBy}`,
-          meta: {
-            delegation,
-          },
-        }),
-      };
-    }
-
-    /* Finally verify the original artifact signature using the delegation agent public key */
-    const { signature: origSignature, ...origSignedMsg } = restArtifact;
-    const { isValid, error } = verifySignature(
-      origSignedMsg,
-      origSignature,
-      delegation.agentPubKey,
-    );
-    return {
-      isValid,
-      error: error
-        ? new BTPErrorException(BTP_ERROR_DELEGATION_SIG_VERIFICATION, {
-            cause: `Delegated artifact's original artifact signature verification failed of agent ${delegation.agentId}`,
-            meta: {
-              delegation,
-            },
-          })
-        : undefined,
-    };
+    // Shared with BtpsAgent.openResult, so the two never check a delegation differently.
+    return verifyDelegation(artifactWithDelegation);
   }
 
   /**
@@ -1141,21 +1020,8 @@ export class BtpsServer {
     const { artifact, type } = data;
     if (type === 'agent') return this.verifyAgentSignature(artifact);
 
-    // check delegation
-    if (artifact.delegation) {
-      return this.verifyDelegation(
-        artifact as Omit<BTPTransporterArtifact, 'delegation'> & { delegation: BTPDelegation },
-      );
-    }
-
-    const { signature, ...signedMsg } = artifact;
-    const publicKey = await resolvePublicKey(artifact.from, artifact.selector);
-
-    if (!publicKey) {
-      return { isValid: false, error: new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY) };
-    }
-
-    return verifySignature(signedMsg, signature, publicKey);
+    const { isValid, error } = await verifyTransporterSignature(artifact);
+    return { isValid, error };
   }
 
   /**

@@ -24,6 +24,7 @@ import { BtpQueryResultEntrySchema } from '@core/server/schemas/responseSchema.j
 import { pemToBase64 } from '@core/utils/index.js';
 import { wrapForAgent } from '../../server/libs/wrapForAgent.js';
 import { BtpsAgent } from '../../client/btpsAgent.js';
+import { BtpsDelegator } from '../delegation/BtpsDelegator.js';
 import type { BTPTransporterArtifact } from '@core/server/types.js';
 import type { Decrypter } from './decrypter-interface.js';
 
@@ -203,5 +204,85 @@ describe('a provider wrapping a result for a device, and the device opening it',
     const { error } = await agent().openResult({ artifact: sent });
 
     expect(error?.cause).toMatch(/no agentKey/);
+  });
+
+  describe('when the artifact was sent through a delegation', () => {
+    const operator = getBTPKeyPair();
+    const owner = getBTPKeyPair();
+    const senderDevice = getBTPKeyPair();
+    const records: Record<string, string> = {
+      '_btps.host.vendor.example':
+        'v=1.0.0; u=btps.saas.example:3443; s=btps1; op=admin$saas.example',
+      '_btps.host.saas.example':
+        'v=1.0.0; u=btps.saas.example:3443; s=btps1; op=admin$saas.example',
+      'btps1._btps.identity.admin.saas.example': `v=1.0.0; k=rsa; p=${pemToBase64(operator.publicKey)}`,
+      'btps1._btps.identity.billing.vendor.example': `v=1.0.0; k=rsa; p=${pemToBase64(owner.publicKey)}`,
+    };
+    const signedBySenderDevice = {
+      ...unsigned,
+      signature: signBtpPayload(unsigned, senderDevice),
+    } as BTPTransporterArtifact;
+    // Made in each test, once DNS answers: a delegator checks its own identity when it is made.
+    const delegator = () =>
+      new BtpsDelegator({ identity: 'admin$saas.example', privateKey: operator.privateKey });
+    const open = async (delegated: BTPTransporterArtifact) =>
+      agent().openResult({
+        artifact: delegated,
+        agentKey: await wrapForAgent(delegated, identity.privateKey, deviceRecord),
+      });
+
+    beforeEach(() => {
+      dns.mockReset();
+      dns.mockImplementation(async (name: string) => {
+        if (records[name]) return [[records[name]]];
+        throw Object.assign(new Error(`queryTxt ENOTFOUND ${name}`), { code: 'ENOTFOUND' });
+      });
+    });
+
+    it("opens one its sender's provider delegated, signed by the sender's device", async () => {
+      const delegated = await delegator().delegateArtifact(
+        'device-1',
+        senderDevice.publicKey,
+        signedBySenderDevice,
+      );
+
+      const { payload, error } = await open(delegated);
+
+      expect(error).toBeUndefined();
+      expect(payload?.document).toEqual(invoice);
+    });
+
+    it('opens one its sender delegated, attested by its domain operator', async () => {
+      const delegated = await delegator().delegateArtifact(
+        'device-1',
+        senderDevice.publicKey,
+        signedBySenderDevice,
+        { identity: 'billing$vendor.example', keyPair: owner },
+      );
+
+      const { payload, error } = await open(delegated);
+
+      expect(delegated.delegation?.attestation).toBeDefined();
+      expect(error).toBeUndefined();
+      expect(payload?.document).toEqual(invoice);
+    });
+
+    it('refuses one whose delegation signature is wrong, before decrypting', async () => {
+      const delegated = await delegator().delegateArtifact(
+        'device-1',
+        senderDevice.publicKey,
+        signedBySenderDevice,
+      );
+      const delegation = delegated.delegation as NonNullable<BTPTransporterArtifact['delegation']>;
+      const forged = {
+        ...delegated,
+        delegation: { ...delegation, signature: signBtpPayload({ forged: true }, operator) },
+      };
+
+      const { payload, error } = await open(forged);
+
+      expect(payload).toBeUndefined();
+      expect(error?.code).toBe('BTP_ERROR_DELEGATION_SIG_VERIFICATION');
+    });
   });
 });

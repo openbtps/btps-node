@@ -875,6 +875,8 @@ wrapForAgent(
 **Description:**
 Since 1.2. Builds a query result's `agentKey`. It unwraps an encrypted artifact's AES content key with the identity's key, and wraps it again with RSA-OAEP / SHA-256 to the key the device's record holds now, naming that key's fingerprint. The artifact is untouched. It throws `BTP_ERROR_UNSUPPORTED_ENCRYPT` for an unencrypted artifact, or for a `Decrypter` without `unwrapKey`. See [A device's own key to an encrypted document](../protocol/security/keyManagement.md#a-devices-own-key-to-an-encrypted-document).
 
+Wrap only to a device record of the identity whose key unwraps: the device that asked, as the server's agent authentication identified it. `wrapForAgent` cannot check that pairing. Given another identity's device record, it would hand that device this identity's document.
+
 **Example:**
 
 ```js
@@ -888,6 +890,24 @@ const results = await Promise.all(
   ),
 );
 ```
+
+---
+
+### verifyTransporterSignature
+
+```ts
+verifyTransporterSignature(
+  artifact: BTPTransporterArtifact
+): Promise<{ isValid: boolean; error?: BTPErrorException; signerKey?: string }>
+```
+
+**Description:**
+Since 1.2. Who signed a transporter artifact, checked exactly as a `BtpsServer` checks it on arrival:
+
+- **Not delegated:** against the sender's own key from DNS.
+- **Delegated:** the delegation must be allowed, by the sender itself or its domain's operator. It must be attested by the operator when the sender delegates for itself, and signed by its delegator, each against their DNS keys. Then the artifact must be signed by the delegated agent's key.
+
+On success `signerKey` is the key that signed the artifact itself, the one to pass to `decryptVerify`. `BtpsAgent.openResult` uses it, so a device and a server never check a sender differently.
 
 ---
 

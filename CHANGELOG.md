@@ -36,11 +36,18 @@ versions follow [Semantic Versioning](https://semver.org/).
   carry `agentKey: { key, fingerprint, wrappedAt }`: the artifact's content key
   wrapped again to the device that asked, by `wrapForAgent`
   (`@btps/sdk/server`). The artifact is untouched, so its signature still
-  verifies. `BtpsAgent.openResult` checks the key is its own, verifies the
-  sender, and decrypts. A `Decrypter` gains the optional `unwrapKey`, which
+  verifies. `BtpsAgent.openResult` checks the key is its own, checks who signed
+  the artifact as a server does on arrival (a delegation and its attestation
+  too), and decrypts. A `Decrypter` gains the optional `unwrapKey`, which
   `PemDecrypter` has, and `decryptVerify` an optional `contentKey`.
+- `verifyTransporterSignature` (`@btps/sdk/server`): who signed a transporter
+  artifact, checked as a server checks it on arrival. The server and
+  `openResult` share it.
 
 ### Changed
+
+- `decryptVerify` refuses every signature that does not verify. Before, one
+  that failed without an error object went on to be decrypted.
 
 - A receiver's refusal of an artifact's version reaches the sender as a
   `BTP_ERROR_VERSION_UNSUPPORTED` error with `receiverVersion`, the version

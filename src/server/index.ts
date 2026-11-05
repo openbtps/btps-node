@@ -17,4 +17,6 @@ export {
 } from '@core/server/schemas/helpers.js';
 // A provider wraps an encrypted result's content key to the device that asked.
 export { wrapForAgent } from './libs/wrapForAgent.js';
+// Who signed a transporter artifact, checked as this server checks it on arrival.
+export { verifyTransporterSignature } from '@core/delegation/verifyTransporterSignature.js';
 export * from './types.js';

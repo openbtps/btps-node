@@ -70,9 +70,10 @@ A signature made through a `Signer` is byte-for-byte the one `signBtpPayload` ma
 Since 1.2, a device reads an encrypted document with its own key, so the identity's key never reaches the device. When the device fetches its results, its provider unwraps each encrypted artifact's AES content key with the identity's key and wraps it again to the device's registered key. `wrapForAgent` (`@btps/sdk/server`) does this. The result is `agentKey: { key, fingerprint, wrappedAt }` beside the result. The artifact itself is untouched, so the sender's signature still verifies. The device opens it with `BtpsAgent.openResult`, which:
 
 1. checks that `fingerprint` is its own key's;
-2. verifies the sender's signature;
+2. checks who signed the artifact, as a server does on arrival: the sender's own key, or a delegation, its attestation, and the delegated agent's signature (`verifyTransporterSignature`);
 3. decrypts with its own key.
 
+- **Only to the identity's own devices.** The provider wraps only to a device record of the identity whose key unwraps: the device that asked, as the server's agent authentication identified it. `wrapForAgent` cannot check that pairing.
 - **It always wraps to the key the device's record holds now.** A device that has not finished moving to a new key sees from `fingerprint` that the wrap is not for the key it holds.
 - **With a key held elsewhere,** the provider's `Decrypter` needs the optional `unwrapKey`, which returns the unwrapped AES key itself. `PemDecrypter` has it. A KMS decrypter already makes this call (KMS `Decrypt` on the wrapped key) inside `decrypt`, so `unwrapKey` is the same call without the AES step. `wrapForAgent` refuses a `Decrypter` without it.
 

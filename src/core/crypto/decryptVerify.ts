@@ -7,7 +7,7 @@
 import { decryptBtpPayload, decryptBtpPayloadWithDecrypter, verifySignature } from './index.js';
 import { BTPCryptoResponse, BTPDecryptionKey, VerifyEncryptedPayload } from './types.js';
 import { BTPErrorException } from '@core/error/index.js';
-import { BTP_ERROR_VALIDATION } from '@core/error/constant.js';
+import { BTP_ERROR_SIG_VERIFICATION, BTP_ERROR_VALIDATION } from '@core/error/constant.js';
 import { decryptedDocumentProblem } from '@core/server/schemas/helpers.js';
 import isEmpty from 'lodash/isEmpty.js';
 
@@ -36,8 +36,8 @@ export const decryptVerify = async <T = unknown>(
     senderPubPem,
   );
 
-  if (!isValid && sigError) {
-    return genDecryptError(sigError);
+  if (!isValid) {
+    return genDecryptError(sigError ?? new BTPErrorException(BTP_ERROR_SIG_VERIFICATION));
   }
 
   const { encryption, document } = restEncryptedPayload;
