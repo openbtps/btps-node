@@ -125,6 +125,8 @@ async function loadProtocol(build, root, outDir) {
           "export { processBtpDocSchema, lifecycleEventEnvelopeProblem } from './src/core/server/schemas/helpers.ts';",
           "export { artifactTimeWindowError } from './src/server/libs/artifactTimeWindow.ts';",
           "export { computeTrustId } from './src/core/trust/trustUtils.ts';",
+          // A namespace, so a rule the SDK does not have yet is missing rather than a build error.
+          "export * as versions from './src/core/server/constants/btps-protocol.ts';",
           "export { keyProofPayload } from './src/core/authentication/keyProof.ts';",
         ].join('\n'),
         resolveDir: root,

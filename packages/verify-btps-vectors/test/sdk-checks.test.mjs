@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { sdkChecks } from '../src/checks/sdk.mjs';
+import { protocolSdkChecks } from '../src/checks/protocol.mjs';
 import { runChecks } from '../src/runner.mjs';
 import { loadSdk } from '../src/sdk-loader.mjs';
 import { loadVectorSet } from '../src/vectors.mjs';
@@ -22,14 +23,18 @@ describe('SDK checks', () => {
 
   it('on this tree, the SDK fails exactly the checks in test/vectors/known-failing.json', async () => {
     const known = JSON.parse(fs.readFileSync(KNOWN_FAILING, 'utf8'));
-    const results = await runChecks(sdkChecks(await loadSdk(REPO_ROOT), set));
+    const sdk = await loadSdk(REPO_ROOT);
+    const results = await runChecks([
+      ...sdkChecks(sdk, set),
+      ...protocolSdkChecks(sdk, set, set.oaepWrap.privateKeyPem),
+    ]);
     expect(failing(results)).toEqual(Object.keys(known.checks).sort());
   });
 
-  it('every known-failing entry names an item check and what fixes it', () => {
+  it('every known-failing entry names an SDK check and what fixes it', () => {
     const known = JSON.parse(fs.readFileSync(KNOWN_FAILING, 'utf8'));
     for (const [id, fix] of Object.entries(known.checks)) {
-      expect(id).toMatch(/^sdk\/item-(5|6|10)\//);
+      expect(id).toMatch(/^sdk\/(item-(5|6|10)|protocol)\//);
       expect(fix).toMatch(/\S/);
     }
   });

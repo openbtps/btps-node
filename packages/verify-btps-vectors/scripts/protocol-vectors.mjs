@@ -718,3 +718,438 @@ export function timeWindow() {
     ],
   };
 }
+
+/*
+ * BTPS 1.2. A 1.2 rule applies to 1.2.0 artifacts only, so every 1.2 case
+ * names the version of the artifact its document travels in, and a document
+ * valid in 1.1 stays valid under 1.1.0 on a 1.2 server.
+ */
+const V11 = '1.1.0';
+const V12 = '1.2.0';
+const REPLY_TO = '3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c';
+// A note's content: as long as an event's or a trust request's message.
+const NOTE_LIMIT = 5000;
+const note = (content, format = 'markdown') => ({ format, content });
+const under = (version, more = {}) => ({ version, ...more });
+const templateData = {
+  version: '1.2.0',
+  sha256: SHA,
+  source: 'https://templates.example/acme/classic-invoice@1.2.0',
+  logo: { sha256: SHA, source: 'https://templates.example/logos/acme.png' },
+};
+
+/** The versions a 1.2 implementation speaks, and the version it stamps each artifact with. */
+export function versions() {
+  const doc = (document, envelope = {}) => ({
+    type: 'BTPS_DOC',
+    from: 'billing$vendor.example',
+    to: 'pay$client.example',
+    document,
+    encryption: null,
+    ...envelope,
+  });
+  const event = (document) => ({
+    ...doc(document),
+    type: 'BTPS_EVENT',
+    relatesTo: 'artifact-1',
+  });
+  const stamped = (name, artifact, expect) => ({ name, artifact, expect });
+  const withdrawn = { ...base.event, eventType: 'withdrawn', inReplyTo: REPLY_TO };
+  return {
+    description:
+      'A 1.2 implementation speaks 1.1 and 1.2: it takes every artifact stamped 1.1.x or 1.2.x and refuses any other version (BTP_ERROR_VERSION_UNSUPPORTED), compared by major and minor. It stamps an artifact 1.1.0 when everything in it can be said in 1.1, and 1.2.0 only when it uses something 1.2 adds, so a 1.1 receiver takes every artifact a 1.1 sender could have sent. `stamped` gives each artifact before it is signed (an encrypted one by its envelope) and the version it is stamped with.',
+    supported: [
+      { version: '1.1.0', expect: 'accept' },
+      { version: '1.1.9', expect: 'accept' },
+      { version: '1.2.0', expect: 'accept' },
+      { version: '1.2.4', expect: 'accept' },
+      { version: '1.0.0', expect: 'refuse' },
+      { version: '1.3.0', expect: 'refuse' },
+      { version: '2.2.0', expect: 'refuse' },
+      { version: 'v1.2.0', expect: 'refuse' },
+      { version: '', expect: 'refuse' },
+    ],
+    stamped: [
+      stamped('invoice', doc(base.invoice), V11),
+      stamped('invoice-with-a-plain-note', doc({ ...base.invoice, description: 'Thanks' }), V11),
+      // 1.1 already carries a discount as a column and template data as free keys.
+      stamped(
+        'invoice-with-a-discount-column',
+        doc({
+          ...base.invoice,
+          lineItems: {
+            columns: ['Item', 'Amount', 'discount'],
+            rows: [{ Item: 'Website build', Amount: 150000, discount: 5000 }],
+          },
+        }),
+        V11,
+      ),
+      stamped(
+        'invoice-with-template-data',
+        doc({ ...base.invoice, template: { name: 'acme/classic', data: templateData } }),
+        V11,
+      ),
+      stamped('trust-request', { ...doc(base.trustRequest), type: 'TRUST_REQ' }, V11),
+      stamped('paid-event', event(base.event), V11),
+      stamped(
+        'encrypted-document',
+        doc('ciphertext', {
+          encryption: {
+            algorithm: 'aes-256-gcm',
+            encryptedKey: 'AA==',
+            iv: 'AA==',
+            authTag: 'AA==',
+            type: 'standardEncrypt',
+          },
+        }),
+        V11,
+      ),
+      stamped('withdrawn-event', event(withdrawn), V12),
+      stamped(
+        'proposal-following-a-withdrawal',
+        event({ ...base.event, eventType: 'disputed', reason: 'amount_wrong', follows: REPLY_TO }),
+        V12,
+      ),
+      stamped(
+        'invoice-note-with-a-format',
+        doc({ ...base.invoice, description: note('**Thanks**') }),
+        V12,
+      ),
+      stamped(
+        'event-message-with-a-format',
+        event({ ...base.event, message: note('Paid today') }),
+        V12,
+      ),
+      stamped('invoice-discount', doc({ ...base.invoice, discount: { percent: 1000 } }), V12),
+      stamped('receipt-discount', doc({ ...base.receipt, discount: { amount: 500 } }), V12),
+      stamped(
+        'letter-template',
+        doc({ ...base.letter, template: { name: 'acme/letter', data: {} } }),
+        V12,
+      ),
+      stamped(
+        'sync',
+        doc(base.invoice, {
+          from: 'alice$saas.example',
+          to: 'alice$saas.example',
+          syncOf: { id: 'artifact-1', sha256: SHA },
+        }),
+        V12,
+      ),
+      stamped('document-type', doc(base.invoice, { documentType: 'invoice' }), V12),
+      stamped(
+        'trust-request-permissions',
+        {
+          ...doc({
+            ...base.trustRequest,
+            permissions: { send: [{ name: 'send:invoice', required: true }], details: [] },
+          }),
+          type: 'TRUST_REQ',
+        },
+        V12,
+      ),
+    ],
+  };
+}
+
+/** The 1.2 document rules, and the 1.1 documents they must leave as they are. */
+export function documents12() {
+  const inv = base.invoice;
+  const rows = (discount) => ({
+    columns: ['Item', 'Amount', 'discount'],
+    rows: [{ Item: 'Website build', Amount: 150000, discount }],
+  });
+  const withdrawn = { ...base.event, eventType: 'withdrawn', inReplyTo: REPLY_TO };
+  const disputed = { ...base.event, eventType: 'disputed', reason: 'amount_wrong' };
+  const template = (data) => ({ name: 'acme/classic', data });
+  const v12 = under(V12);
+  const v11 = under(V11);
+  const cases = [
+    // The withdrawn event: the payer takes back its own unanswered proposal.
+    accept('withdrawn', 'BTPS_EVENT', withdrawn, v12),
+    refuse(
+      'withdrawn-without-in-reply-to',
+      'BTPS_EVENT',
+      { ...base.event, eventType: 'withdrawn' },
+      'inReplyTo is required',
+      v12,
+    ),
+    refuse(
+      'withdrawn-with-a-reason',
+      'BTPS_EVENT',
+      { ...withdrawn, reason: 'amount_wrong' },
+      'a withdrawn carries nothing beyond the shared fields and inReplyTo',
+      v12,
+    ),
+    refuse('withdrawn-under-1-1', 'BTPS_EVENT', withdrawn, '1.1 has no withdrawn event', v11),
+    accept(
+      'disputed-following-a-withdrawal',
+      'BTPS_EVENT',
+      { ...disputed, follows: REPLY_TO },
+      v12,
+    ),
+    accept(
+      'refund-requested-following-a-withdrawal',
+      'BTPS_EVENT',
+      { ...base.event, eventType: 'refund_requested', follows: REPLY_TO },
+      v12,
+    ),
+    refuse(
+      'follows-not-an-event-id',
+      'BTPS_EVENT',
+      { ...disputed, follows: 'not-a-uuid' },
+      'follows is the id of the withdrawn event',
+      v12,
+    ),
+    refuse(
+      'response-with-follows',
+      'BTPS_EVENT',
+      {
+        ...base.event,
+        eventType: 'response',
+        decision: 'accepted',
+        inReplyTo: REPLY_TO,
+        follows: REPLY_TO,
+      },
+      'only a proposal follows a withdrawal',
+      v12,
+    ),
+    refuse(
+      'follows-under-1-1',
+      'BTPS_EVENT',
+      { ...disputed, follows: REPLY_TO },
+      '1.1 events have no follows',
+      v11,
+    ),
+
+    // A note says how it is written.
+    accept('invoice-note-markdown', 'BTPS_DOC', { ...inv, description: note('**Thanks**') }, v12),
+    accept('invoice-note-text', 'BTPS_DOC', { ...inv, description: note('Thanks', 'text') }, v12),
+    accept('invoice-note-plain-string', 'BTPS_DOC', { ...inv, description: 'Thanks' }, v12),
+    refuse(
+      'invoice-note-html',
+      'BTPS_DOC',
+      { ...inv, description: note('<b>Thanks</b>', 'html') },
+      'a note is text or markdown',
+      v12,
+    ),
+    accept(
+      'invoice-note-at-limit',
+      'BTPS_DOC',
+      { ...inv, description: note('') },
+      {
+        ...v12,
+        fill: [{ path: ['description', 'content'], length: NOTE_LIMIT }],
+      },
+    ),
+    refuse(
+      'invoice-note-one-over',
+      'BTPS_DOC',
+      { ...inv, description: note('') },
+      `longer than ${NOTE_LIMIT} characters`,
+      {
+        ...v12,
+        fill: [{ path: ['description', 'content'], length: NOTE_LIMIT + 1 }],
+      },
+    ),
+    refuse(
+      'invoice-plain-note-one-over',
+      'BTPS_DOC',
+      { ...inv, description: '' },
+      `a plain note is read as text, and longer than ${NOTE_LIMIT} characters`,
+      {
+        ...v12,
+        fill: [{ path: ['description'], length: NOTE_LIMIT + 1 }],
+      },
+    ),
+    refuse(
+      'invoice-note-with-a-format-under-1-1',
+      'BTPS_DOC',
+      { ...inv, description: note('Thanks') },
+      'a 1.1 note is a string',
+      v11,
+    ),
+    accept(
+      'invoice-long-plain-note-under-1-1',
+      'BTPS_DOC',
+      { ...inv, description: '' },
+      {
+        ...v11,
+        fill: [{ path: ['description'], length: NOTE_LIMIT + 1 }],
+      },
+    ),
+    accept(
+      'receipt-note-markdown',
+      'BTPS_DOC',
+      { ...base.receipt, description: note('Paid') },
+      v12,
+    ),
+    accept(
+      'event-message-markdown',
+      'BTPS_EVENT',
+      { ...base.event, message: note('Paid **today**') },
+      v12,
+    ),
+    refuse(
+      'event-message-with-a-format-under-1-1',
+      'BTPS_EVENT',
+      { ...base.event, message: note('Paid') },
+      'a 1.1 message is a string',
+      v11,
+    ),
+    accept(
+      'trust-request-message-markdown',
+      'TRUST_REQ',
+      { ...base.trustRequest, message: note('Hello') },
+      v12,
+    ),
+    accept(
+      'trust-response-message-markdown',
+      'TRUST_RES',
+      { ...base.trustResponse, message: note('Welcome') },
+      v12,
+    ),
+
+    // Discounts: on the whole invoice, an amount or a percentage; on a line, a column.
+    accept('invoice-discount-amount', 'BTPS_DOC', { ...inv, discount: { amount: 500 } }, v12),
+    accept('invoice-discount-percent', 'BTPS_DOC', { ...inv, discount: { percent: 1000 } }, v12),
+    accept(
+      'invoice-discount-whole-percent',
+      'BTPS_DOC',
+      { ...inv, discount: { percent: 10000 } },
+      v12,
+    ),
+    refuse(
+      'invoice-discount-no-percent',
+      'BTPS_DOC',
+      { ...inv, discount: { percent: 0 } },
+      'percent is 1 to 10000 basis points',
+      v12,
+    ),
+    refuse(
+      'invoice-discount-over-whole',
+      'BTPS_DOC',
+      { ...inv, discount: { percent: 10001 } },
+      'percent is 1 to 10000 basis points',
+      v12,
+    ),
+    refuse(
+      'invoice-discount-fractional-percent',
+      'BTPS_DOC',
+      { ...inv, discount: { percent: 12.5 } },
+      'percent is whole basis points',
+      v12,
+    ),
+    refuse(
+      'invoice-discount-no-amount',
+      'BTPS_DOC',
+      { ...inv, discount: { amount: 0 } },
+      'a discount amount is positive',
+      v12,
+    ),
+    refuse(
+      'invoice-discount-money',
+      'BTPS_DOC',
+      { ...inv, discount: { amount: aud(500) } },
+      'a discount amount is a plain integer in the invoice currency',
+      v12,
+    ),
+    refuse(
+      'invoice-discount-both',
+      'BTPS_DOC',
+      { ...inv, discount: { amount: 500, percent: 1000 } },
+      'an amount or a percentage, not both',
+      v12,
+    ),
+    refuse(
+      'invoice-discount-under-1-1',
+      'BTPS_DOC',
+      { ...inv, discount: { amount: 500 } },
+      '1.1 invoices have no discount',
+      v11,
+    ),
+    accept('receipt-discount', 'BTPS_DOC', { ...base.receipt, discount: { amount: 500 } }, v12),
+    accept('invoice-line-discount', 'BTPS_DOC', { ...inv, lineItems: rows(5000) }, v12),
+    refuse(
+      'invoice-negative-line-discount',
+      'BTPS_DOC',
+      { ...inv, lineItems: rows(-5000) },
+      'a line discount is an integer of at least 0',
+      v12,
+    ),
+    accept(
+      'invoice-negative-line-discount-under-1-1',
+      'BTPS_DOC',
+      { ...inv, lineItems: rows(-5000) },
+      v11,
+    ),
+
+    // Templates and logos by reference.
+    accept(
+      'invoice-template-named-fields',
+      'BTPS_DOC',
+      { ...inv, template: template(templateData) },
+      v12,
+    ),
+    accept(
+      'invoice-template-other-keys',
+      'BTPS_DOC',
+      { ...inv, template: template({ accent: '#0747a6' }) },
+      v12,
+    ),
+    refuse(
+      'invoice-template-sha256-not-hex',
+      'BTPS_DOC',
+      { ...inv, template: template({ ...templateData, sha256: 'ABC' }) },
+      'sha256 is 64 lowercase hex characters',
+      v12,
+    ),
+    refuse(
+      'invoice-template-source-not-https',
+      'BTPS_DOC',
+      { ...inv, template: template({ ...templateData, source: 'http://templates.example/a' }) },
+      'source is an https URL',
+      v12,
+    ),
+    refuse(
+      'invoice-template-version-not-semver',
+      'BTPS_DOC',
+      { ...inv, template: template({ ...templateData, version: 'latest' }) },
+      'version is a semantic version',
+      v12,
+    ),
+    refuse(
+      'invoice-template-logo-not-https',
+      'BTPS_DOC',
+      {
+        ...inv,
+        template: template({
+          ...templateData,
+          logo: { sha256: SHA, source: 'ftp://logos.example/a' },
+        }),
+      },
+      'logo.source is an https URL',
+      v12,
+    ),
+    accept(
+      'invoice-template-own-shapes-under-1-1',
+      'BTPS_DOC',
+      { ...inv, template: template({ logo: 'acme.png', sha256: 'ABC', version: 'latest' }) },
+      v11,
+    ),
+    accept('letter-template', 'BTPS_DOC', { ...base.letter, template: template({}) }, v12),
+    accept('payslip-template', 'BTPS_DOC', { ...base.payslip, template: template({}) }, v12),
+    refuse(
+      'letter-template-under-1-1',
+      'BTPS_DOC',
+      { ...base.letter, template: template({}) },
+      '1.1 letters have no template',
+      v11,
+    ),
+  ];
+  return {
+    description:
+      'The BTPS 1.2 document rules, read as documents.vectors.json is (apply `fill` and `repeat` first). Each case names `version`, the version of the artifact the document travels in: 1.2 rules apply only under 1.2.0, and under 1.1.0 a document is read exactly as 1.1 reads it. An implementation accepts every "accept" case and refuses every "refuse" case; `why` says what is wrong.',
+    cases,
+  };
+}

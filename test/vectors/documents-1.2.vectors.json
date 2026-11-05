@@ -1,0 +1,1309 @@
+{
+  "description": "The BTPS 1.2 document rules, read as documents.vectors.json is (apply `fill` and `repeat` first). Each case names `version`, the version of the artifact the document travels in: 1.2 rules apply only under 1.2.0, and under 1.1.0 a document is read exactly as 1.1 reads it. An implementation accepts every \"accept\" case and refuses every \"refuse\" case; `why` says what is wrong.",
+  "cases": [
+    {
+      "name": "withdrawn",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "withdrawn",
+        "inReplyTo": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "withdrawn-without-in-reply-to",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "withdrawn"
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "inReplyTo is required"
+    },
+    {
+      "name": "withdrawn-with-a-reason",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "withdrawn",
+        "inReplyTo": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c",
+        "reason": "amount_wrong"
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "a withdrawn carries nothing beyond the shared fields and inReplyTo"
+    },
+    {
+      "name": "withdrawn-under-1-1",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "withdrawn",
+        "inReplyTo": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "version": "1.1.0",
+      "expect": "refuse",
+      "why": "1.1 has no withdrawn event"
+    },
+    {
+      "name": "disputed-following-a-withdrawal",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "disputed",
+        "reason": "amount_wrong",
+        "follows": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "refund-requested-following-a-withdrawal",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "refund_requested",
+        "follows": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "follows-not-an-event-id",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "disputed",
+        "reason": "amount_wrong",
+        "follows": "not-a-uuid"
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "follows is the id of the withdrawn event"
+    },
+    {
+      "name": "response-with-follows",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "response",
+        "decision": "accepted",
+        "inReplyTo": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c",
+        "follows": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "only a proposal follows a withdrawal"
+    },
+    {
+      "name": "follows-under-1-1",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "disputed",
+        "reason": "amount_wrong",
+        "follows": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "version": "1.1.0",
+      "expect": "refuse",
+      "why": "1.1 events have no follows"
+    },
+    {
+      "name": "invoice-note-markdown",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "description": {
+          "format": "markdown",
+          "content": "**Thanks**"
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-note-text",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "description": {
+          "format": "text",
+          "content": "Thanks"
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-note-plain-string",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "description": "Thanks"
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-note-html",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "description": {
+          "format": "html",
+          "content": "<b>Thanks</b>"
+        }
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "a note is text or markdown"
+    },
+    {
+      "name": "invoice-note-at-limit",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "description": {
+          "format": "markdown",
+          "content": ""
+        }
+      },
+      "version": "1.2.0",
+      "fill": [
+        {
+          "path": ["description", "content"],
+          "length": 5000
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-note-one-over",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "description": {
+          "format": "markdown",
+          "content": ""
+        }
+      },
+      "version": "1.2.0",
+      "fill": [
+        {
+          "path": ["description", "content"],
+          "length": 5001
+        }
+      ],
+      "expect": "refuse",
+      "why": "longer than 5000 characters"
+    },
+    {
+      "name": "invoice-plain-note-one-over",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "description": ""
+      },
+      "version": "1.2.0",
+      "fill": [
+        {
+          "path": ["description"],
+          "length": 5001
+        }
+      ],
+      "expect": "refuse",
+      "why": "a plain note is read as text, and longer than 5000 characters"
+    },
+    {
+      "name": "invoice-note-with-a-format-under-1-1",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "description": {
+          "format": "markdown",
+          "content": "Thanks"
+        }
+      },
+      "version": "1.1.0",
+      "expect": "refuse",
+      "why": "a 1.1 note is a string"
+    },
+    {
+      "name": "invoice-long-plain-note-under-1-1",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "description": ""
+      },
+      "version": "1.1.0",
+      "fill": [
+        {
+          "path": ["description"],
+          "length": 5001
+        }
+      ],
+      "expect": "accept"
+    },
+    {
+      "name": "receipt-note-markdown",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "receipt",
+        "title": "Receipt",
+        "id": "REC-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "payment": {
+          "amount": {
+            "amount": 50000,
+            "currency": "AUD"
+          },
+          "paidAt": "2026-10-19T00:00:00.000Z",
+          "method": "bank_transfer"
+        },
+        "description": {
+          "format": "markdown",
+          "content": "Paid"
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "event-message-markdown",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "paid",
+        "message": {
+          "format": "markdown",
+          "content": "Paid **today**"
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "event-message-with-a-format-under-1-1",
+      "type": "BTPS_EVENT",
+      "document": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "paid",
+        "message": {
+          "format": "markdown",
+          "content": "Paid"
+        }
+      },
+      "version": "1.1.0",
+      "expect": "refuse",
+      "why": "a 1.1 message is a string"
+    },
+    {
+      "name": "trust-request-message-markdown",
+      "type": "TRUST_REQ",
+      "document": {
+        "id": "req-1",
+        "name": "Acme Pty Ltd",
+        "email": "billing@acme.example",
+        "reason": "To send you invoices",
+        "phone": "+61 400 000 000",
+        "message": {
+          "format": "markdown",
+          "content": "Hello"
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "trust-response-message-markdown",
+      "type": "TRUST_RES",
+      "document": {
+        "id": "res-1",
+        "decision": "accepted",
+        "decidedAt": "2026-10-19T00:00:00.000Z",
+        "decidedBy": "bob$client.example",
+        "message": {
+          "format": "markdown",
+          "content": "Welcome"
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-discount-amount",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "discount": {
+          "amount": 500
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-discount-percent",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "discount": {
+          "percent": 1000
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-discount-whole-percent",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "discount": {
+          "percent": 10000
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-discount-no-percent",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "discount": {
+          "percent": 0
+        }
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "percent is 1 to 10000 basis points"
+    },
+    {
+      "name": "invoice-discount-over-whole",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "discount": {
+          "percent": 10001
+        }
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "percent is 1 to 10000 basis points"
+    },
+    {
+      "name": "invoice-discount-fractional-percent",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "discount": {
+          "percent": 12.5
+        }
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "percent is whole basis points"
+    },
+    {
+      "name": "invoice-discount-no-amount",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "discount": {
+          "amount": 0
+        }
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "a discount amount is positive"
+    },
+    {
+      "name": "invoice-discount-money",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "discount": {
+          "amount": {
+            "amount": 500,
+            "currency": "AUD"
+          }
+        }
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "a discount amount is a plain integer in the invoice currency"
+    },
+    {
+      "name": "invoice-discount-both",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "discount": {
+          "amount": 500,
+          "percent": 1000
+        }
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "an amount or a percentage, not both"
+    },
+    {
+      "name": "invoice-discount-under-1-1",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "discount": {
+          "amount": 500
+        }
+      },
+      "version": "1.1.0",
+      "expect": "refuse",
+      "why": "1.1 invoices have no discount"
+    },
+    {
+      "name": "receipt-discount",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "receipt",
+        "title": "Receipt",
+        "id": "REC-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "payment": {
+          "amount": {
+            "amount": 50000,
+            "currency": "AUD"
+          },
+          "paidAt": "2026-10-19T00:00:00.000Z",
+          "method": "bank_transfer"
+        },
+        "discount": {
+          "amount": 500
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-line-discount",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount", "discount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000,
+              "discount": 5000
+            }
+          ]
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-negative-line-discount",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount", "discount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000,
+              "discount": -5000
+            }
+          ]
+        }
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "a line discount is an integer of at least 0"
+    },
+    {
+      "name": "invoice-negative-line-discount-under-1-1",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount", "discount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000,
+              "discount": -5000
+            }
+          ]
+        }
+      },
+      "version": "1.1.0",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-template-named-fields",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "template": {
+          "name": "acme/classic",
+          "data": {
+            "version": "1.2.0",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": "https://templates.example/acme/classic-invoice@1.2.0",
+            "logo": {
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "source": "https://templates.example/logos/acme.png"
+            }
+          }
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-template-other-keys",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "template": {
+          "name": "acme/classic",
+          "data": {
+            "accent": "#0747a6"
+          }
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "invoice-template-sha256-not-hex",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "template": {
+          "name": "acme/classic",
+          "data": {
+            "version": "1.2.0",
+            "sha256": "ABC",
+            "source": "https://templates.example/acme/classic-invoice@1.2.0",
+            "logo": {
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "source": "https://templates.example/logos/acme.png"
+            }
+          }
+        }
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "sha256 is 64 lowercase hex characters"
+    },
+    {
+      "name": "invoice-template-source-not-https",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "template": {
+          "name": "acme/classic",
+          "data": {
+            "version": "1.2.0",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": "http://templates.example/a",
+            "logo": {
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "source": "https://templates.example/logos/acme.png"
+            }
+          }
+        }
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "source is an https URL"
+    },
+    {
+      "name": "invoice-template-version-not-semver",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "template": {
+          "name": "acme/classic",
+          "data": {
+            "version": "latest",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": "https://templates.example/acme/classic-invoice@1.2.0",
+            "logo": {
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "source": "https://templates.example/logos/acme.png"
+            }
+          }
+        }
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "version is a semantic version"
+    },
+    {
+      "name": "invoice-template-logo-not-https",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "template": {
+          "name": "acme/classic",
+          "data": {
+            "version": "1.2.0",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": "https://templates.example/acme/classic-invoice@1.2.0",
+            "logo": {
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "source": "ftp://logos.example/a"
+            }
+          }
+        }
+      },
+      "version": "1.2.0",
+      "expect": "refuse",
+      "why": "logo.source is an https URL"
+    },
+    {
+      "name": "invoice-template-own-shapes-under-1-1",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "totalAmount": {
+          "amount": 150000,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "rows": [
+            {
+              "Item": "Website build",
+              "Amount": 150000
+            }
+          ]
+        },
+        "template": {
+          "name": "acme/classic",
+          "data": {
+            "logo": "acme.png",
+            "sha256": "ABC",
+            "version": "latest"
+          }
+        }
+      },
+      "version": "1.1.0",
+      "expect": "accept"
+    },
+    {
+      "name": "letter-template",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "letter",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "markdown",
+          "content": "# Welcome\n\nYour plan starts on **1 November**."
+        },
+        "template": {
+          "name": "acme/classic",
+          "data": {}
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "payslip-template",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "payslip",
+        "title": "Payslip",
+        "id": "PAY-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "employee": {
+          "name": "Sam Lee"
+        },
+        "earnings": [
+          {
+            "category": "ordinary",
+            "rate": "48.75",
+            "quantity": "76",
+            "amount": {
+              "amount": 370500,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "deductions": [],
+        "contributions": [
+          {
+            "category": "au:super_guarantee",
+            "amount": {
+              "amount": 44460,
+              "currency": "AUD"
+            }
+          }
+        ],
+        "leave": [
+          {
+            "category": "annual",
+            "description": "Annual Leave",
+            "unit": "hours",
+            "balance": "76.5"
+          }
+        ],
+        "gross": {
+          "amount": 370500,
+          "currency": "AUD"
+        },
+        "net": {
+          "amount": 289000,
+          "currency": "AUD"
+        },
+        "template": {
+          "name": "acme/classic",
+          "data": {}
+        }
+      },
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "name": "letter-template-under-1-1",
+      "type": "BTPS_DOC",
+      "document": {
+        "type": "letter",
+        "title": "Your new plan",
+        "id": "LET-1",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "body": {
+          "format": "markdown",
+          "content": "# Welcome\n\nYour plan starts on **1 November**."
+        },
+        "template": {
+          "name": "acme/classic",
+          "data": {}
+        }
+      },
+      "version": "1.1.0",
+      "expect": "refuse",
+      "why": "1.1 letters have no template"
+    }
+  ]
+}

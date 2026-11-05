@@ -1,0 +1,511 @@
+{
+  "description": "A 1.2 implementation speaks 1.1 and 1.2: it takes every artifact stamped 1.1.x or 1.2.x and refuses any other version (BTP_ERROR_VERSION_UNSUPPORTED), compared by major and minor. It stamps an artifact 1.1.0 when everything in it can be said in 1.1, and 1.2.0 only when it uses something 1.2 adds, so a 1.1 receiver takes every artifact a 1.1 sender could have sent. `stamped` gives each artifact before it is signed (an encrypted one by its envelope) and the version it is stamped with.",
+  "supported": [
+    {
+      "version": "1.1.0",
+      "expect": "accept"
+    },
+    {
+      "version": "1.1.9",
+      "expect": "accept"
+    },
+    {
+      "version": "1.2.0",
+      "expect": "accept"
+    },
+    {
+      "version": "1.2.4",
+      "expect": "accept"
+    },
+    {
+      "version": "1.0.0",
+      "expect": "refuse"
+    },
+    {
+      "version": "1.3.0",
+      "expect": "refuse"
+    },
+    {
+      "version": "2.2.0",
+      "expect": "refuse"
+    },
+    {
+      "version": "v1.2.0",
+      "expect": "refuse"
+    },
+    {
+      "version": "",
+      "expect": "refuse"
+    }
+  ],
+  "stamped": [
+    {
+      "name": "invoice",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000
+              }
+            ]
+          }
+        },
+        "encryption": null
+      },
+      "expect": "1.1.0"
+    },
+    {
+      "name": "invoice-with-a-plain-note",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000
+              }
+            ]
+          },
+          "description": "Thanks"
+        },
+        "encryption": null
+      },
+      "expect": "1.1.0"
+    },
+    {
+      "name": "invoice-with-a-discount-column",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount", "discount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000,
+                "discount": 5000
+              }
+            ]
+          }
+        },
+        "encryption": null
+      },
+      "expect": "1.1.0"
+    },
+    {
+      "name": "invoice-with-template-data",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000
+              }
+            ]
+          },
+          "template": {
+            "name": "acme/classic",
+            "data": {
+              "version": "1.2.0",
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "source": "https://templates.example/acme/classic-invoice@1.2.0",
+              "logo": {
+                "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "source": "https://templates.example/logos/acme.png"
+              }
+            }
+          }
+        },
+        "encryption": null
+      },
+      "expect": "1.1.0"
+    },
+    {
+      "name": "trust-request",
+      "artifact": {
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000"
+        },
+        "encryption": null
+      },
+      "expect": "1.1.0"
+    },
+    {
+      "name": "paid-event",
+      "artifact": {
+        "type": "BTPS_EVENT",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "lifecycle_event",
+          "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+          "occurredAt": "2026-10-19T00:00:00.000Z",
+          "document": {
+            "from": "billing$vendor.example",
+            "id": "INV-1",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "eventType": "paid"
+        },
+        "encryption": null,
+        "relatesTo": "artifact-1"
+      },
+      "expect": "1.1.0"
+    },
+    {
+      "name": "encrypted-document",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": "ciphertext",
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        }
+      },
+      "expect": "1.1.0"
+    },
+    {
+      "name": "withdrawn-event",
+      "artifact": {
+        "type": "BTPS_EVENT",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "lifecycle_event",
+          "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+          "occurredAt": "2026-10-19T00:00:00.000Z",
+          "document": {
+            "from": "billing$vendor.example",
+            "id": "INV-1",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "eventType": "withdrawn",
+          "inReplyTo": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+        },
+        "encryption": null,
+        "relatesTo": "artifact-1"
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "proposal-following-a-withdrawal",
+      "artifact": {
+        "type": "BTPS_EVENT",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "lifecycle_event",
+          "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+          "occurredAt": "2026-10-19T00:00:00.000Z",
+          "document": {
+            "from": "billing$vendor.example",
+            "id": "INV-1",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "eventType": "disputed",
+          "reason": "amount_wrong",
+          "follows": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+        },
+        "encryption": null,
+        "relatesTo": "artifact-1"
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "invoice-note-with-a-format",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000
+              }
+            ]
+          },
+          "description": {
+            "format": "markdown",
+            "content": "**Thanks**"
+          }
+        },
+        "encryption": null
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "event-message-with-a-format",
+      "artifact": {
+        "type": "BTPS_EVENT",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "lifecycle_event",
+          "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+          "occurredAt": "2026-10-19T00:00:00.000Z",
+          "document": {
+            "from": "billing$vendor.example",
+            "id": "INV-1",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "eventType": "paid",
+          "message": {
+            "format": "markdown",
+            "content": "Paid today"
+          }
+        },
+        "encryption": null,
+        "relatesTo": "artifact-1"
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "invoice-discount",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000
+              }
+            ]
+          },
+          "discount": {
+            "percent": 1000
+          }
+        },
+        "encryption": null
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "receipt-discount",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "receipt",
+          "title": "Receipt",
+          "id": "REC-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "payment": {
+            "amount": {
+              "amount": 50000,
+              "currency": "AUD"
+            },
+            "paidAt": "2026-10-19T00:00:00.000Z",
+            "method": "bank_transfer"
+          },
+          "discount": {
+            "amount": 500
+          }
+        },
+        "encryption": null
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "letter-template",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "letter",
+          "title": "Your new plan",
+          "id": "LET-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "body": {
+            "format": "markdown",
+            "content": "# Welcome\n\nYour plan starts on **1 November**."
+          },
+          "template": {
+            "name": "acme/letter",
+            "data": {}
+          }
+        },
+        "encryption": null
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "sync",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "alice$saas.example",
+        "to": "alice$saas.example",
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000
+              }
+            ]
+          }
+        },
+        "encryption": null,
+        "syncOf": {
+          "id": "artifact-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "document-type",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000
+              }
+            ]
+          }
+        },
+        "encryption": null,
+        "documentType": "invoice"
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "trust-request-permissions",
+      "artifact": {
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "permissions": {
+            "send": [
+              {
+                "name": "send:invoice",
+                "required": true
+              }
+            ],
+            "details": []
+          }
+        },
+        "encryption": null
+      },
+      "expect": "1.2.0"
+    }
+  ]
+}
