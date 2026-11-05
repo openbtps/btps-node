@@ -16,6 +16,8 @@ export type BTPEventFacts = {
   eventType: string;
   /** Who sent it */
   from: string;
+  /** The invoice it is about: its issuer and id, as the event's own `document` names it */
+  document: { from: string; id: string };
   /** A proposal is open until it is answered or withdrawn; any other event is answered. */
   state: 'open' | 'answered' | 'withdrawn';
 };

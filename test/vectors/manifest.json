@@ -8,7 +8,7 @@
     "device-key-proof.vector.json": "ef08791a6eac8df8540b57c112634d9feda8b82461bcd0737175bf0e9cbf4805",
     "documents-1.2.vectors.json": "5cd9c15a8c4bf333564537942198d051addef680ef5363ee4c6e6bbcd3581217",
     "documents.vectors.json": "722ae0a2abeae2999484a04834a0f8ca2b4f673dac71746c0e6ed4014c3e248f",
-    "event-chain.vectors.json": "1406c50d3e7a96a4a8610106feaf7ba16ba1f57f48e9d1dfe9197bbeada2d041",
+    "event-chain.vectors.json": "e82ac08db7d166e4d33b28396e8d72d093192d7061659f922861b0b874cede00",
     "jcs.vectors.json": "aac34bc0a6b879a317aca1804f71228f1e0e06a7df4ca138ab4750a4628461d6",
     "kms-signature.vector.json": "2ec980707588c541d260250dc8343bd84b86777835293cde0bd8e014d54b11de",
     "oaep-mgf1-sha1.negative.vector.json": "2275824847c6b90f40ba02879734e4ff3ad46a526e8eb74592c1036861352f41",

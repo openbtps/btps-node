@@ -1199,19 +1199,56 @@ export function eventChain() {
     reason: 'amount_wrong',
     follows: REPLY_TO,
   };
-  const facts = (eventType, from, state) => ({ eventType, from, state });
-  const chain = (name, event, named, expect, why) => ({
+  const invoice = { from: base.event.document.from, id: base.event.document.id };
+  const otherInvoice = { ...invoice, id: 'INV-2' };
+  const facts = (eventType, from, state, document = invoice) => ({
+    eventType,
+    from,
+    state,
+    document,
+  });
+  const chain = (name, event, named, expect, why, from = payer) => ({
     name,
     event,
-    envelope: { from: payer },
+    envelope: { from },
     named,
     expect,
     ...(why && { why }),
   });
   return {
     description:
-      'The BTPS 1.2 event chain. `event` is sent by `envelope.from`; `named` is what the receiving platform holds of the event it names (`inReplyTo` on a withdrawn, `follows` on a proposal) between the same two parties, or null when it holds none. A withdrawn takes back its own sender\'s proposal (paid, partially_paid, disputed or refund_requested) while it is open; a proposal sent again follows a withdrawn. An implementation accepts every "accept" case and refuses every "refuse" case; `why` says what is wrong.',
+      'The BTPS 1.2 event chain. `event` is sent by `envelope.from`; `named` is what the receiving platform holds of the event it names (`inReplyTo` on a withdrawn, `follows` on a proposal) between the same two parties, with the invoice it is about, or null when it holds none. Only the payer withdraws or proposes again, never the invoice\'s issuer (`event.document.from`), whose own recorded `paid` is final. A withdrawn takes back the payer\'s own proposal (paid, partially_paid, disputed or refund_requested) about the same invoice while it is open; a proposal sent again follows a withdrawn about the same invoice. An implementation accepts every "accept" case and refuses every "refuse" case; `why` says what is wrong.',
     cases: [
+      chain(
+        'biller-withdraws-its-own-paid',
+        withdrawn,
+        facts('paid', biller, 'open'),
+        'refuse',
+        "a biller's own recorded paid is final; only the payer withdraws",
+        biller,
+      ),
+      chain(
+        'biller-proposes-again',
+        disputedAgain,
+        facts('withdrawn', biller, 'answered'),
+        'refuse',
+        'only the payer proposes again',
+        biller,
+      ),
+      chain(
+        'withdrawn-names-a-proposal-about-another-invoice',
+        withdrawn,
+        facts('disputed', payer, 'open', otherInvoice),
+        'refuse',
+        'a withdrawn is about the same invoice as the proposal it takes back',
+      ),
+      chain(
+        'proposal-follows-a-withdrawn-about-another-invoice',
+        disputedAgain,
+        facts('withdrawn', payer, 'answered', otherInvoice),
+        'refuse',
+        'a proposal follows a withdrawn about the same invoice',
+      ),
       chain('withdrawn-own-open-proposal', withdrawn, facts('disputed', payer, 'open'), 'accept'),
       chain(
         'withdrawn-names-no-event',

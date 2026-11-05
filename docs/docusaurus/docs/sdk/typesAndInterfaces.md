@@ -807,6 +807,7 @@ type BTPEventFacts = {
   eventType: string;
   from: string; // who sent it
   state: 'open' | 'answered' | 'withdrawn'; // a proposal is open until answered or withdrawn
+  document: { from: string; id: string }; // the invoice it is about: its issuer and id
 };
 ```
 

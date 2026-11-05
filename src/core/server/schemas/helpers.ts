@@ -84,30 +84,58 @@ export const lifecycleEventChainReference = (event: BTPLifecycleEvent): string |
   return 'follows' in event ? event.follows : undefined;
 };
 
+const sameIdentity = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/** Whether two events are about the same invoice. */
+const sameDocument = (a: { from: string; id: string }, b: { from: string; id: string }) =>
+  sameIdentity(a.from, b.from) && a.id === b.id;
+
+/**
+ * The chain rule that needs nothing but the event: only the payer, never the
+ * invoice's issuer (`document.from`), withdraws or proposes again, since a
+ * biller's own recorded `paid` is final. Returns what is wrong, or undefined.
+ */
+export const lifecycleEventSenderProblem = (
+  event: BTPLifecycleEvent,
+  envelope: { from: string },
+): string | undefined => {
+  if (lifecycleEventChainReference(event) === undefined) return undefined;
+  if (!sameIdentity(envelope.from, event.document.from)) return undefined;
+  return "only the payer withdraws or proposes again, never the invoice's issuer";
+};
+
 /**
  * The rules between an event and the earlier event it names in its chain,
  * given what the platform holds of that one between the same two parties
- * (undefined when it holds none): a `withdrawn` takes back its own sender's
- * proposal while it is open, and a proposal sent again follows a `withdrawn`.
- * A server checks an unencrypted event with it; a platform checks an
- * encrypted one after decrypting it. Returns what is wrong, or undefined.
+ * (undefined when it holds none): the sender rule above; a `withdrawn` takes
+ * back the payer's own proposal, about the same invoice, while it is open; a
+ * proposal sent again follows a `withdrawn` about the same invoice. A server
+ * checks an unencrypted event with it; a platform checks an encrypted one
+ * after decrypting it. Returns what is wrong, or undefined.
  */
 export const lifecycleEventChainProblem = (
   event: BTPLifecycleEvent,
   envelope: { from: string },
   named: BTPEventFacts | undefined,
 ): string | undefined => {
+  if (lifecycleEventChainReference(event) === undefined) return undefined;
+  const senderProblem = lifecycleEventSenderProblem(event, envelope);
+  if (senderProblem) return senderProblem;
   if (event.eventType === 'withdrawn') {
     if (!named) return 'a withdrawn must name an event between the same two parties';
     if (!PROPOSALS.includes(named.eventType)) return 'only a proposal can be withdrawn';
-    if (named.from.toLowerCase() !== envelope.from.toLowerCase()) {
-      return 'only its sender can withdraw a proposal';
+    if (!sameIdentity(named.from, envelope.from)) return 'only its sender can withdraw a proposal';
+    if (!sameDocument(named.document, event.document)) {
+      return 'a withdrawn is about the same invoice as the proposal it takes back';
     }
     if (named.state !== 'open') return 'a proposal already answered or withdrawn stays as it is';
     return undefined;
   }
-  if (lifecycleEventChainReference(event) !== undefined && named?.eventType !== 'withdrawn') {
+  if (named?.eventType !== 'withdrawn') {
     return 'follows must name a withdrawn event between the same two parties';
+  }
+  if (!sameDocument(named.document, event.document)) {
+    return 'a proposal follows a withdrawn about the same invoice';
   }
   return undefined;
 };

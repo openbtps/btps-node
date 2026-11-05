@@ -13,5 +13,6 @@ export { BtpsServer } from './btpsServer.js';
 export {
   lifecycleEventChainProblem,
   lifecycleEventChainReference,
+  lifecycleEventSenderProblem,
 } from '@core/server/schemas/helpers.js';
 export * from './types.js';

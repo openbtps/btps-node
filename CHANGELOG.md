@@ -24,11 +24,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   the `withdrawn` it follows in `follows`. Both travel only in `1.2.0`
   artifacts; under `1.1.0` an event is read exactly as 1.1 reads it
   (`processBtpDocSchema` now takes the artifact's version).
-- `BTP_ERROR_EVENT_CHAIN`: a server whose trust store has the new, optional
-  `getEvent` refuses a `withdrawn` that does not take back its sender's own
-  open proposal, and a `follows` that names no `withdrawn`, and tells the
-  sender which. `lifecycleEventChainProblem` (`@btps/sdk/server`) lets a
-  platform check an encrypted event the same way once it has opened it.
+- `BTP_ERROR_EVENT_CHAIN`: a server refuses a `withdrawn` or `follows` from
+  the invoice's issuer, since only the payer withdraws or proposes again.
+  When its trust store has the new, optional `getEvent`, it also refuses a
+  `withdrawn` that does not take back the payer's own open proposal about the
+  same invoice, and a `follows` that names no `withdrawn` about it. It tells
+  the sender which rule it broke. `lifecycleEventChainProblem` and
+  `lifecycleEventSenderProblem` (`@btps/sdk/server`) let a platform check an
+  encrypted event the same way once it has opened it.
 
 ### Changed
 

@@ -114,6 +114,7 @@ import {
 import {
   lifecycleEventChainProblem,
   lifecycleEventChainReference,
+  lifecycleEventSenderProblem,
 } from '@core/server/schemas/helpers.js';
 import { keyProofPayload } from '@core/authentication/keyProof.js';
 import type { BTPIdentityRecord } from '@core/storage/types.js';
@@ -1194,18 +1195,21 @@ export class BtpsServer {
   }
 
   /**
-   * What is wrong with an event's chain: a `withdrawn` that does not take back
-   * its sender's own open proposal, or a `follows` that names no `withdrawn`.
-   * Checked when the event can be read and the store can say what it holds
-   * (`getEvent`); an encrypted event is its platform's to check once opened.
+   * What is wrong with an event's chain: a `withdrawn` or `follows` from the
+   * invoice's issuer, a `withdrawn` that does not take back the payer's own
+   * open proposal about the same invoice, or a `follows` that names no
+   * `withdrawn` about it. Checked when the event can be read; the rules on the
+   * earlier event only when the store can say what it holds (`getEvent`). An
+   * encrypted event is its platform's to check once opened.
    */
   private async eventChainProblem(artifact: BTPTransporterArtifact): Promise<string | undefined> {
-    if (artifact.encryption || !this.trustStore.getEvent) return undefined;
+    if (artifact.encryption) return undefined;
     const parsed = BtpLifecycleEventSchema.safeParse(artifact.document);
     if (!parsed.success) return undefined;
     const named = lifecycleEventChainReference(parsed.data);
     if (named === undefined) return undefined;
     const { from, to } = artifact;
+    if (!this.trustStore.getEvent) return lifecycleEventSenderProblem(parsed.data, { from });
     const facts = await this.trustStore.getEvent({ id: named, from, to });
     return lifecycleEventChainProblem(parsed.data, { from }, facts);
   }
@@ -1681,7 +1685,7 @@ export class BtpsServer {
       }
       if (!this.trustStore.getEvent) {
         console.warn(
-          "[BtpsServer] Warning: the trust store has no getEvent, so this server does not check that a withdrawn event takes back its sender's own open proposal, or what a proposal's follows names. The platform checks them (lifecycleEventChainProblem).",
+          "[BtpsServer] Warning: the trust store has no getEvent, so this server does not check that a withdrawn event takes back the payer's own open proposal about the same invoice, or what a proposal's follows names. The platform checks them (lifecycleEventChainProblem).",
         );
       }
     });

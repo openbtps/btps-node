@@ -1,6 +1,124 @@
 {
-  "description": "The BTPS 1.2 event chain. `event` is sent by `envelope.from`; `named` is what the receiving platform holds of the event it names (`inReplyTo` on a withdrawn, `follows` on a proposal) between the same two parties, or null when it holds none. A withdrawn takes back its own sender's proposal (paid, partially_paid, disputed or refund_requested) while it is open; a proposal sent again follows a withdrawn. An implementation accepts every \"accept\" case and refuses every \"refuse\" case; `why` says what is wrong.",
+  "description": "The BTPS 1.2 event chain. `event` is sent by `envelope.from`; `named` is what the receiving platform holds of the event it names (`inReplyTo` on a withdrawn, `follows` on a proposal) between the same two parties, with the invoice it is about, or null when it holds none. Only the payer withdraws or proposes again, never the invoice's issuer (`event.document.from`), whose own recorded `paid` is final. A withdrawn takes back the payer's own proposal (paid, partially_paid, disputed or refund_requested) about the same invoice while it is open; a proposal sent again follows a withdrawn about the same invoice. An implementation accepts every \"accept\" case and refuses every \"refuse\" case; `why` says what is wrong.",
   "cases": [
+    {
+      "name": "biller-withdraws-its-own-paid",
+      "event": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "withdrawn",
+        "inReplyTo": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "envelope": {
+        "from": "billing$vendor.example"
+      },
+      "named": {
+        "eventType": "paid",
+        "from": "billing$vendor.example",
+        "state": "open",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1"
+        }
+      },
+      "expect": "refuse",
+      "why": "a biller's own recorded paid is final; only the payer withdraws"
+    },
+    {
+      "name": "biller-proposes-again",
+      "event": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "disputed",
+        "reason": "amount_wrong",
+        "follows": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "envelope": {
+        "from": "billing$vendor.example"
+      },
+      "named": {
+        "eventType": "withdrawn",
+        "from": "billing$vendor.example",
+        "state": "answered",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1"
+        }
+      },
+      "expect": "refuse",
+      "why": "only the payer proposes again"
+    },
+    {
+      "name": "withdrawn-names-a-proposal-about-another-invoice",
+      "event": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "withdrawn",
+        "inReplyTo": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "envelope": {
+        "from": "pay$client.example"
+      },
+      "named": {
+        "eventType": "disputed",
+        "from": "pay$client.example",
+        "state": "open",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-2"
+        }
+      },
+      "expect": "refuse",
+      "why": "a withdrawn is about the same invoice as the proposal it takes back"
+    },
+    {
+      "name": "proposal-follows-a-withdrawn-about-another-invoice",
+      "event": {
+        "type": "lifecycle_event",
+        "id": "0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a",
+        "occurredAt": "2026-10-19T00:00:00.000Z",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "eventType": "disputed",
+        "reason": "amount_wrong",
+        "follows": "3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c"
+      },
+      "envelope": {
+        "from": "pay$client.example"
+      },
+      "named": {
+        "eventType": "withdrawn",
+        "from": "pay$client.example",
+        "state": "answered",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-2"
+        }
+      },
+      "expect": "refuse",
+      "why": "a proposal follows a withdrawn about the same invoice"
+    },
     {
       "name": "withdrawn-own-open-proposal",
       "event": {
@@ -21,7 +139,11 @@
       "named": {
         "eventType": "disputed",
         "from": "pay$client.example",
-        "state": "open"
+        "state": "open",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1"
+        }
       },
       "expect": "accept"
     },
@@ -66,7 +188,11 @@
       "named": {
         "eventType": "response",
         "from": "pay$client.example",
-        "state": "answered"
+        "state": "answered",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1"
+        }
       },
       "expect": "refuse",
       "why": "only a proposal can be withdrawn"
@@ -91,7 +217,11 @@
       "named": {
         "eventType": "disputed",
         "from": "billing$vendor.example",
-        "state": "open"
+        "state": "open",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1"
+        }
       },
       "expect": "refuse",
       "why": "only its sender can withdraw a proposal"
@@ -116,7 +246,11 @@
       "named": {
         "eventType": "disputed",
         "from": "pay$client.example",
-        "state": "answered"
+        "state": "answered",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1"
+        }
       },
       "expect": "refuse",
       "why": "an answered proposal stays as answered"
@@ -141,7 +275,11 @@
       "named": {
         "eventType": "paid",
         "from": "pay$client.example",
-        "state": "withdrawn"
+        "state": "withdrawn",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1"
+        }
       },
       "expect": "refuse",
       "why": "a proposal is withdrawn once"
@@ -167,7 +305,11 @@
       "named": {
         "eventType": "withdrawn",
         "from": "pay$client.example",
-        "state": "answered"
+        "state": "answered",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1"
+        }
       },
       "expect": "accept"
     },
@@ -214,7 +356,11 @@
       "named": {
         "eventType": "disputed",
         "from": "pay$client.example",
-        "state": "open"
+        "state": "open",
+        "document": {
+          "from": "billing$vendor.example",
+          "id": "INV-1"
+        }
       },
       "expect": "refuse",
       "why": "follows names a withdrawn"

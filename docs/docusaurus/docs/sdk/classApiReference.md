@@ -1546,11 +1546,11 @@ async isKnownArtifact({ artifactId, from, to }) {
 await store.getEvent?.({ id, from, to });
 ```
 
-Optional, since 1.2. What the platform holds of the lifecycle event with this `id` between these two identities, in either direction, or `undefined` when it holds none. With it, the server checks an unencrypted `withdrawn` (it takes back its own sender's open proposal) and a proposal's `follows` (it names a `withdrawn`), and refuses one that breaks the rule with `BTP_ERROR_EVENT_CHAIN`. Without it, the server warns once at start and the platform checks them, with `lifecycleEventChainProblem` from `@btps/sdk/server`, as it does for an encrypted event once opened.
+Optional, since 1.2. What the platform holds of the lifecycle event with this `id` between these two identities, in either direction, or `undefined` when it holds none. With it, the server checks an unencrypted `withdrawn` (it takes back the payer's own open proposal, about the same invoice) and a proposal's `follows` (it names a `withdrawn` about the same invoice), and refuses one that breaks the rule with `BTP_ERROR_EVENT_CHAIN`. A `withdrawn` or `follows` from the invoice's issuer is refused without asking the store. Without it, the server warns once at start and the platform checks them, with `lifecycleEventChainProblem` from `@btps/sdk/server`, as it does for an encrypted event once opened.
 
 - **id**: `string` – the earlier event the new one names: a `withdrawn`'s `inReplyTo`, or a proposal's `follows`
 - **from**, **to**: `string` – the new event's sender and receiver
-- **Returns**: `Promise<BTPEventFacts | undefined>`: `{ eventType, from, state }`, where `from` is who sent that event and `state` is `open` (a proposal not yet answered or withdrawn), `answered` or `withdrawn`
+- **Returns**: `Promise<BTPEventFacts | undefined>`: `{ eventType, from, state, document }`, where `from` is who sent that event, `state` is `open` (a proposal not yet answered or withdrawn), `answered` or `withdrawn`, and `document` is `{ from, id }` of the invoice that event is about
 
 **Example:**
 
@@ -1563,7 +1563,9 @@ async getEvent({ id, from, to }) {
       { from: to, to: from },
     ],
   });
-  return event ? { eventType: event.eventType, from: event.from, state: event.state } : undefined;
+  if (!event) return undefined;
+  const { eventType, from: sender, state, document } = event;
+  return { eventType, from: sender, state, document: { from: document.from, id: document.id } };
 }
 ```
 

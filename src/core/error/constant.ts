@@ -86,9 +86,10 @@ export const BTP_ERROR_EVENT_UNRELATED: BTPError = {
 };
 
 /**
- * Since 1.2: a `withdrawn` that does not take back its sender's own open
- * proposal, or a `follows` that names no `withdrawn`. It concerns the
- * sender's own events, so the sender is told which.
+ * Since 1.2: a `withdrawn` or `follows` from the invoice's issuer, a
+ * `withdrawn` that does not take back the payer's own open proposal about the
+ * same invoice, or a `follows` that names no `withdrawn` about it. It
+ * concerns the sender's own events, so the sender is told which.
  */
 export const BTP_ERROR_EVENT_CHAIN: BTPError = {
   code: 'BTP_ERROR_EVENT_CHAIN',
