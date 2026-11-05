@@ -461,8 +461,11 @@ The receiver of the invoice (the payer) proposes and the sender (the biller) ans
 | Biller              | `paid` (recorded by the biller, e.g. a cash payment) | None: final                                                                  | Paid                                                                  |
 | Payer, after paying | `refund_requested`                                   | Biller `refund` with the amount, or a rejecting `response`                   | —                                                                     |
 | Biller              | `refund`, with `amount`                              | Payer `response`: accepted or rejected                                       | Refunded (in full or in part)                                         |
+| Proposer (1.2)      | `withdrawn`, with `inReplyTo`                        | None: final                                                                  | As the accepted events say without the withdrawn proposal             |
 
 Several partial payments are allowed; the remaining amount keeps going down. The money itself moves outside BTPS.
+
+**Withdrawing a proposal (since 1.2).** The payer who sent a proposal that has not been answered can take it back with `withdrawn`, naming the proposal in `inReplyTo`, about the same invoice. The proposal is then closed on both sides: the other party no longer answers it. Only the payer who sent the proposal may withdraw it, never the invoice's issuer, whose own recorded `paid` is final, and only while it is open; an answered proposal stays as answered, and a withdrawal is final, with no answer. A withdrawn proposal may be proposed again later, as a new proposal with a new `id` that names the `withdrawn` it follows in `follows`, so the chain stays traceable (`disputed` → `withdrawn` → `disputed`). A `withdrawn`, or a proposal with `follows`, travels in a `1.2.0` artifact: a 1.1 receiver takes neither.
 
 ```json
 {
@@ -489,31 +492,35 @@ Several partial payments are allowed; the remaining amount keeps going down. The
 - **id**: A random UUID. It is also the `id` of the `BTPS_EVENT` artifact that carries the event, so one id identifies it end to end
 - **occurredAt**: When it happened, as the sender states it (ISO format)
 - **document**: The invoice the event is about, `{ from, id, sha256 }`, as for a reference (see References). It must be an invoice between the same two parties: `document.from` is the artifact's `from` or `to`
-- **eventType**: `paid`, `partially_paid`, `disputed`, `refund_requested`, `refund` or `response`
+- **eventType**: `paid`, `partially_paid`, `disputed`, `refund_requested`, `refund`, `response` or (since 1.2) `withdrawn`
 
 **Fields by Event Type:**
 
 | Event type         | Also required           | Optional                      |
 | ------------------ | ----------------------- | ----------------------------- |
-| `paid`             | —                       | `message`                     |
-| `partially_paid`   | `amount`                | `message`                     |
-| `disputed`         | `reason`                | `message`                     |
-| `refund_requested` | —                       | `message`                     |
+| `paid`             | —                       | `message`, `follows` (1.2)    |
+| `partially_paid`   | `amount`                | `message`, `follows` (1.2)    |
+| `disputed`         | `reason`                | `message`, `follows` (1.2)    |
+| `refund_requested` | —                       | `message`, `follows` (1.2)    |
 | `refund`           | `amount`, `inReplyTo`   | `message`                     |
 | `response`         | `decision`, `inReplyTo` | `remainingDueDate`, `message` |
+| `withdrawn` (1.2)  | `inReplyTo`             | `message`                     |
 
 - **amount**: Money in minor units, with its currency (see Money Amounts), more than zero
 - **reason**: Why the payer disputes the invoice: `rejected`, `amount_wrong` or `not_as_agreed`, or a platform's own code under a prefix (such as `acme:late_delivery`)
 - **decision**: `accepted` or `rejected`
-- **inReplyTo**: The `id` of the event this one answers
+- **inReplyTo**: The `id` of the event this one answers, or on a `withdrawn` the proposal it takes back
+- **follows** (1.2): On a proposal sent again after a withdrawal, the `id` of that `withdrawn`
 - **remainingDueDate**: Only on an accepted `response` to a `partially_paid`: the agreed date for the rest (ISO format)
 - **message**: Free text for the other party
 
 **Replies and Tracing:**
 
-Every reply carries `inReplyTo`, and only a reply may: the proposals (`paid`, `partially_paid`, `disputed`, `refund_requested`) start a chain, and each schema refuses `inReplyTo` on them. Every event names its invoice (`document`) and every reply names what it answers, so either party can rebuild the whole exchange from the two identities and the ids.
+Every reply carries `inReplyTo`, and only a reply or a `withdrawn` may: the proposals (`paid`, `partially_paid`, `disputed`, `refund_requested`) start a chain, and each schema refuses `inReplyTo` on them. A proposal sent again after a withdrawal names the `withdrawn` it follows in `follows`, and only a proposal may. Every event names its invoice (`document`) and every reply names what it answers, so either party can rebuild the whole exchange from the two identities and the ids.
 
-Whether an `inReplyTo` names an event the two parties actually exchanged, and whether a change of status is allowed (for example a refund before the invoice is paid), are for the receiving platform to check against the events it holds.
+A receiver refuses, with `BTP_ERROR_EVENT_CHAIN` (400), a `withdrawn` or a proposal with `follows` sent by the invoice's issuer (the event's `from` is its `document.from`): only the payer withdraws or proposes again. It also refuses a `withdrawn` whose `inReplyTo` names no event between the same two parties, an event that is not a proposal, the other party's proposal, a proposal about another invoice, or a proposal already answered or withdrawn; and a proposal whose `follows` names anything but a `withdrawn` about the same invoice between the same two parties. The first rule needs nothing but the event, so it holds for an encrypted event once opened too. The error concerns the sender's own events, so the sender is told which rule it broke. A server checks this on an unencrypted event when its trust store can say what it holds of an earlier event (the optional `getEvent`, see [AbstractTrustStore](/docs/sdk/class-api-references#abstracttruststore)); otherwise, and for an encrypted event once it is opened, the receiving platform checks it with the same rule, `lifecycleEventChainProblem` from `@btps/sdk/server`.
+
+Whether an `inReplyTo` on a reply names an event the two parties actually exchanged, and whether a change of status is allowed (for example a refund before the invoice is paid), are for the receiving platform to check against the events it holds.
 
 **Trust:**
 

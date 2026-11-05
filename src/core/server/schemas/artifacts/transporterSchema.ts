@@ -51,7 +51,7 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
       }
     } else {
       // If not encrypted, document must match the schema for the type
-      const schema = processBtpDocSchema(data.type);
+      const schema = processBtpDocSchema(data.type, data.version);
       if (!schema) return false;
       if (!schema.safeParse(data.document).success) {
         ctx.addIssue({

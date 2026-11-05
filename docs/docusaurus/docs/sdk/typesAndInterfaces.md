@@ -780,14 +780,35 @@ interface BTPLifecycleEvent {
   id: string; // a random UUID, the carrying artifact's id
   occurredAt: string; // ISO format
   document: { from: string; id: string; sha256: string }; // the invoice it is about
-  eventType: 'paid' | 'partially_paid' | 'disputed' | 'refund_requested' | 'refund' | 'response';
+  eventType:
+    | 'paid'
+    | 'partially_paid'
+    | 'disputed'
+    | 'refund_requested'
+    | 'refund'
+    | 'response'
+    | 'withdrawn'; // withdrawn: since 1.2
   amount?: { amount: number; currency: CurrencyCode }; // partially_paid, refund: minor units, more than zero
   reason?: string; // disputed: rejected | amount_wrong | not_as_agreed | a prefixed code
   decision?: 'accepted' | 'rejected'; // response
-  inReplyTo?: string; // refund, response: the id of the event answered
+  inReplyTo?: string; // refund, response: the id of the event answered; withdrawn: the proposal taken back
+  follows?: string; // 1.2, on a proposal sent again: the id of the withdrawn it follows
   remainingDueDate?: string; // an accepted response to a partially_paid
   message?: string; // free text for the other party
 }
+```
+
+### BTPEventFacts
+
+Since 1.2. What a platform holds of a lifecycle event between two parties, as an `AbstractTrustStore`'s optional `getEvent` answers it.
+
+```ts
+type BTPEventFacts = {
+  eventType: string;
+  from: string; // who sent it
+  state: 'open' | 'answered' | 'withdrawn'; // a proposal is open until answered or withdrawn
+  document: { from: string; id: string }; // the invoice it is about: its issuer and id
+};
 ```
 
 ---

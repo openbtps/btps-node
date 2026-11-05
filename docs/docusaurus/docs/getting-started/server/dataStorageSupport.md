@@ -133,6 +133,8 @@ export class MongoTrustStore extends AbstractTrustStore<BTPTrustRecord> {
 
 **Events**: `isKnownArtifact` is required. Every lifecycle event (`BTPS_EVENT`) names, in `relatesTo`, the `BTPS_DOC` artifact that delivered its invoice, and the server accepts the event only when this method says that artifact passed between the event's two parties. Answer it from wherever your platform records the artifacts it sends and receives. See [Lifecycle Event](../../protocol/specifications/transporter-artifact.md#4-lifecycle-event-btps_event).
 
+**Since 1.2**, a store may also implement `getEvent({ id, from, to })`, answering `{ eventType, from, state, document: { from, id } }` for an event it holds between the two parties. With it, the server checks that a `withdrawn` takes back the payer's own open proposal about the same invoice, and that a proposal's `follows` names a `withdrawn` about the same invoice; without it, the server warns once at start and your platform checks them.
+
 ### MongoDB Setup and Usage
 
 ```typescript

@@ -85,6 +85,18 @@ export const BTP_ERROR_EVENT_UNRELATED: BTPError = {
   status: 400,
 };
 
+/**
+ * Since 1.2: a `withdrawn` or `follows` from the invoice's issuer, a
+ * `withdrawn` that does not take back the payer's own open proposal about the
+ * same invoice, or a `follows` that names no `withdrawn` about it. It
+ * concerns the sender's own events, so the sender is told which.
+ */
+export const BTP_ERROR_EVENT_CHAIN: BTPError = {
+  code: 'BTP_ERROR_EVENT_CHAIN',
+  message: 'Event names an earlier event it cannot follow or withdraw',
+  status: 400,
+};
+
 export const BTP_ERROR_RESOLVE_DNS: BTPError = {
   code: 'BTP_ERROR_RESOLVE_DNS',
   message: 'No valid DNS record found',

@@ -318,7 +318,8 @@ export const BtpDocumentSchema = z.discriminatedUnion('type', [
  * partially paid, disputed, refund requested); the biller answers with a
  * `response` or a `refund`; an invoice's status comes from accepted events.
  * Each event type is its own strict object, so `inReplyTo` is allowed only
- * on the replies, `refund` and `response`, where it is required.
+ * on the replies, `refund` and `response`, and on `withdrawn`, where it is
+ * required.
  */
 const lifecycleEventFields = {
   type: z.literal('lifecycle_event'),
@@ -335,51 +336,94 @@ const BtpEventAmountSchema = BtpMoneySchema.extend({
   amount: z.number().int().safe().positive(),
 });
 
+const paidEvent = z.object({ ...lifecycleEventFields, eventType: z.literal('paid') }).strict();
+const partiallyPaidEvent = z
+  .object({
+    ...lifecycleEventFields,
+    eventType: z.literal('partially_paid'),
+    amount: BtpEventAmountSchema,
+  })
+  .strict();
+const disputedEvent = z
+  .object({
+    ...lifecycleEventFields,
+    eventType: z.literal('disputed'),
+    // `rejected`, `amount_wrong`, `not_as_agreed`, or a platform's own code under a prefix.
+    reason: codeSchema(event.reason),
+  })
+  .strict();
+const refundRequestedEvent = z
+  .object({ ...lifecycleEventFields, eventType: z.literal('refund_requested') })
+  .strict();
+const refundEvent = z
+  .object({
+    ...lifecycleEventFields,
+    eventType: z.literal('refund'),
+    amount: BtpEventAmountSchema,
+    inReplyTo: z.string().uuid(), // the refund_requested it answers
+  })
+  .strict();
+const responseEvent = z
+  .object({
+    ...lifecycleEventFields,
+    eventType: z.literal('response'),
+    decision: z.enum(['accepted', 'rejected']),
+    inReplyTo: z.string().uuid(), // the event it answers
+    // On an accepted partially_paid: the agreed due date for the rest.
+    remainingDueDate: z.string().datetime().optional(),
+  })
+  .strict();
+
+const onlyAcceptedHasRemainingDueDate = (event: {
+  eventType: string;
+  remainingDueDate?: string;
+  decision?: string;
+}) =>
+  event.eventType !== 'response' ||
+  event.remainingDueDate === undefined ||
+  event.decision === 'accepted';
+const remainingDueDateRule = {
+  message: 'remainingDueDate is only on an accepted response',
+  path: ['remainingDueDate'],
+};
+
+/** A lifecycle event as 1.1 reads it: what a 1.1.0 `BTPS_EVENT` may carry. */
+export const BtpLifecycleEventV1_1Schema = z
+  .discriminatedUnion('eventType', [
+    paidEvent,
+    partiallyPaidEvent,
+    disputedEvent,
+    refundRequestedEvent,
+    refundEvent,
+    responseEvent,
+  ])
+  .refine(onlyAcceptedHasRemainingDueDate, remainingDueDateRule);
+
+/*
+ * 1.2 adds `withdrawn`: the payer takes back its own unanswered proposal,
+ * named by `inReplyTo`. A proposal sent again after one names the withdrawn
+ * event it follows (`follows`), so the chain stays traceable.
+ */
+const follows = { follows: z.string().uuid().optional() };
+
+/** A lifecycle event: what a `BTPS_EVENT` carries, 1.2's events included. */
 export const BtpLifecycleEventSchema = z
   .discriminatedUnion('eventType', [
-    z.object({ ...lifecycleEventFields, eventType: z.literal('paid') }).strict(),
+    paidEvent.extend(follows),
+    partiallyPaidEvent.extend(follows),
+    disputedEvent.extend(follows),
+    refundRequestedEvent.extend(follows),
+    refundEvent,
+    responseEvent,
     z
       .object({
         ...lifecycleEventFields,
-        eventType: z.literal('partially_paid'),
-        amount: BtpEventAmountSchema,
-      })
-      .strict(),
-    z
-      .object({
-        ...lifecycleEventFields,
-        eventType: z.literal('disputed'),
-        // `rejected`, `amount_wrong`, `not_as_agreed`, or a platform's own code under a prefix.
-        reason: codeSchema(event.reason),
-      })
-      .strict(),
-    z.object({ ...lifecycleEventFields, eventType: z.literal('refund_requested') }).strict(),
-    z
-      .object({
-        ...lifecycleEventFields,
-        eventType: z.literal('refund'),
-        amount: BtpEventAmountSchema,
-        inReplyTo: z.string().uuid(), // the refund_requested it answers
-      })
-      .strict(),
-    z
-      .object({
-        ...lifecycleEventFields,
-        eventType: z.literal('response'),
-        decision: z.enum(['accepted', 'rejected']),
-        inReplyTo: z.string().uuid(), // the event it answers
-        // On an accepted partially_paid: the agreed due date for the rest.
-        remainingDueDate: z.string().datetime().optional(),
+        eventType: z.literal('withdrawn'),
+        inReplyTo: z.string().uuid(), // the sender's own unanswered proposal
       })
       .strict(),
   ])
-  .refine(
-    (event) =>
-      event.eventType !== 'response' ||
-      event.remainingDueDate === undefined ||
-      event.decision === 'accepted',
-    { message: 'remainingDueDate is only on an accepted response', path: ['remainingDueDate'] },
-  );
+  .refine(onlyAcceptedHasRemainingDueDate, remainingDueDateRule);
 
 // Schema for BTPAuthReqDoc (used in agent artifacts)
 export const BtpAuthReqDocSchema = z.object({

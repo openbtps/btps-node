@@ -24,6 +24,7 @@ export const VECTOR_FILES = Object.freeze({
   timeWindow: 'time-window.vectors.json',
   versions: 'versions.vectors.json',
   documents12: 'documents-1.2.vectors.json',
+  eventChain: 'event-chain.vectors.json',
   manifest: 'manifest.json',
 });
 
@@ -122,6 +123,10 @@ export function loadVectorSet(dir) {
   requireFields(VECTOR_FILES.documents12, set.documents12, ['cases']);
   for (const c of set.documents12.cases) {
     requireFields(VECTOR_FILES.documents12, c, ['name', 'type', 'version', 'document', 'expect']);
+  }
+  requireFields(VECTOR_FILES.eventChain, set.eventChain, ['cases']);
+  for (const c of set.eventChain.cases) {
+    requireFields(VECTOR_FILES.eventChain, c, ['name', 'event', 'envelope', 'named', 'expect']);
   }
   requireFields(VECTOR_FILES.manifest, set.manifest, ['hashAlgorithm', 'files']);
 

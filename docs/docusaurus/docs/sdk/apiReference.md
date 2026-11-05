@@ -1191,6 +1191,23 @@ Server-side-only error constant for a `BTPS_EVENT` whose `relatesTo` the trust s
 
 ---
 
+### BTP_ERROR_EVENT_CHAIN
+
+```ts
+const BTP_ERROR_EVENT_CHAIN: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a lifecycle event whose chain is wrong: a `withdrawn` or `follows` from the invoice's issuer rather than the payer, a `withdrawn` that does not take back the payer's own open proposal about the same invoice, or a proposal whose `follows` names no `withdrawn` about the same invoice. It concerns the sender's own events, so unlike `BTP_ERROR_EVENT_UNRELATED` it reaches the wire, with the broken rule appended to the message. A server raises it when its trust store has the optional `getEvent` (see [AbstractTrustStore](./classApiReference.md#getevent)); a platform raises it itself from `lifecycleEventChainProblem` (`@btps/sdk/server`) for an encrypted event once opened.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_EVENT_CHAIN'`
+- `message`: `'Event names an earlier event it cannot follow or withdraw'`
+- `status`: `400`
+
+---
+
 ### BTP_ERROR_TRUST_ALREADY_ACTIVE
 
 ```ts

@@ -149,4 +149,24 @@ describe('what a device stamps', () => {
 
     expect(payload?.version).toBe('1.1.0');
   });
+
+  it('stamps a withdrawn event 1.2.0, inside and out: only a 1.2 receiver takes it', async () => {
+    const { payload, error } = await agent()['getAgentArtifact']({
+      actionType: 'event.send',
+      to: 'billing$vendor.example',
+      document: {
+        type: 'lifecycle_event',
+        id: '0b7f1f1e-6c1a-4a8e-9a57-6f0c1b9e2d3a',
+        occurredAt: issuedAt,
+        document: { from: 'billing$vendor.example', id: 'INV-1', sha256: 'a'.repeat(64) },
+        eventType: 'withdrawn',
+        inReplyTo: '3c8e7a2b-5d4f-4e1a-8b6c-9d0e1f2a3b4c',
+      },
+      options: { signature: { algorithmHash: 'sha256' }, relatesTo: 'artifact-1' },
+    });
+
+    expect(error).toBeUndefined();
+    expect(payload?.version).toBe('1.2.0');
+    expect(payload?.document).toMatchObject({ type: 'BTPS_EVENT', version: '1.2.0' });
+  });
 });
