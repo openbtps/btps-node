@@ -248,6 +248,8 @@ Since 1.2. The answer to a command that makes something, such as `draft.create`:
 
 It holds `id` and nothing else, so no other answer is read as one because it has an `id`.
 
+A provider may give it to any `draft.create`. A `draft.create` carries nothing 1.2 adds, so a 1.2 device stamps it `1.1.0` too, and its version cannot tell a 1.1 device from a 1.2 one. A 1.1 device does not check the document of an answer, so it takes this one as it takes any other, and finds the draft with `draft.fetch` as before.
+
 ### 5. String Response
 
 Simple string responses for basic operations:
