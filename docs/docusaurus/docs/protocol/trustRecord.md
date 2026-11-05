@@ -112,7 +112,7 @@ The computed trust ID enforces **explicit, directional trust relationships**. Th
 
 - `publicKeyBase64`: Current public key in base64 format
 - `publicKeyFingerprint`: SHA-256 fingerprint of current public key
-- `keyHistory`: Array of previous public keys and their usage periods
+- `keyHistory`: Array of previous public keys and their usage periods. Each entry's `firstSeen` is when that key came into use and `lastSeen` when it was retired. The current key came into use at the newest entry's `lastSeen`, or at `createdAt` if the key was never rotated; a device's maximum key age (`maxKeyAgeMs`, since 1.2) counts from then
 
 **Privacy & Security:**
 

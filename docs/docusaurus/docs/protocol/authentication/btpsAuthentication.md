@@ -69,8 +69,13 @@ interface ServerAuthConfig {
 
   /** Token generation and expiry configuration */
   tokenConfig?: TokenConfig;
+
+  /** Since 1.2, optional and off by default: the oldest a device key may be, in ms */
+  maxKeyAgeMs?: number;
 }
 ```
+
+`maxKeyAgeMs` (since 1.2): a refresh signed by an older key is refused with `BTP_ERROR_KEY_TOO_OLD`. The refresh token stays usable, so the device moves to a new key (`rotateKey`) with it and is let in. A key's age runs from when it came into use: when the key before it was retired (the newest `keyHistory` entry's `lastSeen`), or when the device registered (the record's `createdAt`). Refreshing does not reset it.
 
 ### **TokenConfig**
 
@@ -500,6 +505,26 @@ if (result.data) {
 }
 ```
 
+Since 1.2, a refresh is refused when:
+
+- **The token was used before.** With a token store that has `isConsumed`, a refresh token used a second time is theft: only a copy of it can do that. The device is revoked, so whoever holds its newer token, the device or a thief, is refused too, and `refreshTokenReused` fires. The user registers the device again.
+- **The device is revoked or blocked.** A refresh never makes such a device accepted again.
+- **The key is too old,** when `maxKeyAgeMs` is set (above).
+
+### **on / off**
+
+Since 1.2. Listens for what happens to a device's keys. With no listener attached, nothing happens. A listener that throws is warned about (`console.warn`) and never breaks the refresh or stops the other listeners.
+
+```typescript
+auth.on('keyRotated', ({ agentId, identity, previousFingerprint, fingerprint, at }) => {
+  // the device moved to a new key
+});
+
+auth.on('refreshTokenReused', ({ agentId, identity, fingerprint, at }) => {
+  // the device was revoked: tell the user to register it again
+});
+```
+
 ### **cleanup**
 
 Removes expired tokens and sessions.
@@ -656,12 +681,17 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
   /** Take a token once: return it and remove it in one atomic step */
   consume(agentId: string, token: string): Promise<T | undefined>;
 
+  /** Since 1.2, optional: the token as it was when consumed, until it would have expired */
+  isConsumed?(agentId: string, token: string): Promise<T | undefined>;
+
   /** Clean up expired tokens */
   cleanup(): Promise<void>;
 }
 ```
 
 `consume` is how a registration code and a refresh token are used: read and removed in **one atomic step**, so of two devices racing with the same code, only one is registered, and of two refreshes racing with one token, only one succeeds. A two-step read-then-delete is not enough. With Redis use `GETDEL`; with SQL, `DELETE … RETURNING`.
+
+`isConsumed` (since 1.2, optional) is what tells a refresh token used a second time from one that never existed. The store keeps a mark of each token `consume` took until it would have expired, and returns the token as it was. Storing the same token again clears the mark, because a token is put back when a refresh cannot finish. Without it, a second use is refused as an unknown token, as in 1.1, and `BtpsAuthentication` warns once when it is created. `InMemoryTokenStore` has it.
 
 ### **AuthSessionStore**
 

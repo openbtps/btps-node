@@ -355,6 +355,7 @@ interface ServerAuthConfig {
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tokenStore: TokenStore;
   tokenConfig?: TokenConfig;
+  maxKeyAgeMs?: number; // since 1.2
 }
 ```
 
@@ -363,6 +364,7 @@ interface ServerAuthConfig {
 - `trustStore`: Required trust store for managing trust records
 - `tokenStore`: Required token store for managing authentication tokens
 - `tokenConfig`: Optional token configuration
+- `maxKeyAgeMs`: Since 1.2, optional and off by default. The oldest a device key may be: a refresh signed by an older key is refused with `BTP_ERROR_KEY_TOO_OLD`, and the device moves to a new key with the same refresh token. The age runs from when the key came into use (the newest `keyHistory` entry's `lastSeen`, else the record's `createdAt`).
 
 ### TokenConfig
 
@@ -962,6 +964,33 @@ interface ServerAuthConfig {
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tokenStore: TokenStore;
   tokenConfig?: TokenConfig;
+  maxKeyAgeMs?: number; // since 1.2: the oldest a device key may be
+}
+```
+
+### BtpsAuthenticationEvents
+
+Since 1.2: what `auth.on(…)` tells its listeners.
+
+```ts
+type BtpsAuthenticationEvents = {
+  keyRotated: (info: BTPKeyRotatedInfo) => void;
+  refreshTokenReused: (info: BTPRefreshTokenReusedInfo) => void; // the device was revoked
+};
+
+interface BTPKeyRotatedInfo {
+  agentId: string;
+  identity: string;
+  previousFingerprint: string;
+  fingerprint: string;
+  at: string; // ISO 8601
+}
+
+interface BTPRefreshTokenReusedInfo {
+  agentId: string;
+  identity: string;
+  fingerprint?: string; // the revoked device's key, when its record was found
+  at: string; // ISO 8601
 }
 ```
 
@@ -1022,9 +1051,12 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
   get(agentId: string, token: string): Promise<T | undefined>;
   remove(agentId: string, token: string): Promise<void>;
   consume(agentId: string, token: string): Promise<T | undefined>; // read and remove in one atomic step
+  isConsumed?(agentId: string, token: string): Promise<T | undefined>; // since 1.2, optional
   cleanup(): Promise<void>;
 }
 ```
+
+`isConsumed` (since 1.2) returns a token `consume` took, as it was, until it would have expired; storing the token again clears it. With it, a refresh token used a second time revokes the device and fires `refreshTokenReused`. Without it, a second use is refused as in 1.1.
 
 ### AuthSessionStore
 
@@ -1254,10 +1286,12 @@ History record for public key usage.
 ```ts
 interface KeyHistory {
   fingerprint: string;
-  firstSeen: string;
-  lastSeen: string;
+  firstSeen: string; // when the key came into use
+  lastSeen: string; // when it was retired
 }
 ```
+
+Since 1.2, `firstSeen` is when the retired key came into use: when the key before it was retired, or when the device registered. Before 1.2 it was the time of the key's last refresh.
 
 ### BTPTrustRecord
 

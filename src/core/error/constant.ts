@@ -204,6 +204,13 @@ export const BTP_ERROR_KEY_ROTATION_PROOF: BTPError = {
   status: 401,
 };
 
+/** Since 1.2: the device key is older than the server's maxKeyAgeMs. */
+export const BTP_ERROR_KEY_TOO_OLD: BTPError = {
+  code: 'BTP_ERROR_KEY_TOO_OLD',
+  message: 'This device key is older than the server allows. Move to a new key first',
+  status: 401,
+};
+
 export const BTP_ERROR_ARTIFACT_TIME_WINDOW: BTPError = {
   code: 'BTP_ERROR_ARTIFACT_TIME_WINDOW',
   message: 'Artifact was not issued within the time window of this server',
