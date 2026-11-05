@@ -22,8 +22,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 - A receiver's refusal of an artifact's version reaches the sender as a
   `BTP_ERROR_VERSION_UNSUPPORTED` error with `receiverVersion`, the version
-  the receiver speaks, beside its answer.
-- A client refuses to send an artifact stamped lower than what it uses.
+  the receiver speaks, beside its answer. `send` now returns both `response`
+  and `error` for it, where 1.1 returned the response with no error: a caller
+  that checks `error` first now takes that path.
+- A client refuses to send an artifact stamped lower than what it uses, and an
+  agent artifact stamped lower than the artifact it carries.
 
 ## [1.1.3] — 2026-10-30 (alpha)
 

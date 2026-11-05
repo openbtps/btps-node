@@ -14,7 +14,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { BtpsClient } from './btpsClient.js';
-import type { BTPTransporterArtifact } from '../server/index.js';
+import type { BTPAgentArtifact, BTPTransporterArtifact } from '../server/index.js';
 
 vi.mock('@core/server/constants/index.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@core/server/constants/index.js')>()),
@@ -52,6 +52,44 @@ describe('an artifact that uses what 1.2 adds', () => {
   it('passes the check when stamped 1.2.0', () => {
     const client = new BtpsClient({ to: 'pay$client.example' });
     const { isValid } = client['validateArtifact'](artifact('1.2.0'));
+    client.destroy();
+
+    expect(isValid).toBe(true);
+  });
+});
+
+describe('an agent artifact', () => {
+  const carrying = (version: string, carried: BTPTransporterArtifact): BTPAgentArtifact => ({
+    version,
+    id: 'agent-1',
+    issuedAt: new Date().toISOString(),
+    action: 'artifact.send',
+    agentId: 'btps_ag_1',
+    to: 'pay$client.example',
+    signature: { algorithmHash: 'sha256', value: 'AA==', fingerprint: 'AA==' },
+    encryption: null,
+    document: carried,
+  });
+
+  it('is refused stamped lower than the artifact it carries, even built by hand', () => {
+    const client = new BtpsClient({ to: 'alice$saas.example' });
+    const { error } = client['validateArtifact'](carrying('1.1.0', artifact('1.2.0')));
+    client.destroy();
+
+    expect(error?.cause).toBe('an agent artifact stamped 1.1.0 carries one stamped 1.2.0');
+  });
+
+  it('is refused carrying an artifact stamped lower than it uses', () => {
+    const client = new BtpsClient({ to: 'alice$saas.example' });
+    const { error } = client['validateArtifact'](carrying('1.2.0', artifact('1.1.0')));
+    client.destroy();
+
+    expect(error?.cause).toBe('stamped 1.1.0, but it uses what 1.2.0 adds');
+  });
+
+  it('passes stamped as the artifact it carries', () => {
+    const client = new BtpsClient({ to: 'alice$saas.example' });
+    const { isValid } = client['validateArtifact'](carrying('1.2.0', artifact('1.2.0')));
     client.destroy();
 
     expect(isValid).toBe(true);

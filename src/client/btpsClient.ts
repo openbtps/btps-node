@@ -12,6 +12,7 @@ import {
   getBtpAddressParts,
   getDnsIdentityParts,
   getHostAndSelector,
+  isBtpsAgentArtifact,
   isBtpsTransportArtifact,
   isValidIdentity,
   resolvePublicKey,
@@ -770,19 +771,33 @@ export class BtpsClient {
         }),
       };
     }
-    // An artifact that uses what 1.2 adds under 1.1.0 would be read by a 1.1 receiver as something else.
-    if (isBtpsTransportArtifact(artifact)) {
-      const needed = artifactVersion({ ...artifact });
-      if (isVersionBelow(artifact.version, needed)) {
-        return {
-          isValid: false,
-          error: new BTPErrorException(BTP_ERROR_VALIDATION, {
-            cause: `stamped ${artifact.version}, but it uses what ${needed} adds`,
-          }),
-        };
-      }
+    const understamped = this.understamped(artifact);
+    if (understamped) {
+      return {
+        isValid: false,
+        error: new BTPErrorException(BTP_ERROR_VALIDATION, { cause: understamped }),
+      };
     }
     return { isValid: true, error: undefined };
+  }
+
+  /**
+   * Why an artifact is stamped lower than it needs, or undefined. One that uses
+   * what 1.2 adds under 1.1.0 would be read by a 1.1 receiver as something
+   * else, and an agent artifact needs its server to speak what it carries.
+   */
+  protected understamped(artifact: BTPArtifact): string | undefined {
+    const carried = isBtpsAgentArtifact(artifact) ? artifact.document : undefined;
+    const transporter = isBtpsTransportArtifact(carried) ? carried : artifact;
+    if (!isBtpsTransportArtifact(transporter)) return undefined;
+    const needed = artifactVersion({ ...transporter });
+    if (isVersionBelow(transporter.version, needed)) {
+      return `stamped ${transporter.version}, but it uses what ${needed} adds`;
+    }
+    if (transporter !== artifact && isVersionBelow(artifact.version, transporter.version)) {
+      return `an agent artifact stamped ${artifact.version} carries one stamped ${transporter.version}`;
+    }
+    return undefined;
   }
 
   /**
