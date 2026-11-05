@@ -22,6 +22,8 @@ export const VECTOR_FILES = Object.freeze({
   signedArtifacts: 'signed-artifacts.vector.json',
   deviceKeyProof: 'device-key-proof.vector.json',
   timeWindow: 'time-window.vectors.json',
+  versions: 'versions.vectors.json',
+  documents12: 'documents-1.2.vectors.json',
   manifest: 'manifest.json',
 });
 
@@ -116,6 +118,11 @@ export function loadVectorSet(dir) {
     'keyProof',
   ]);
   requireFields(VECTOR_FILES.timeWindow, set.timeWindow, ['now', 'cases']);
+  requireFields(VECTOR_FILES.versions, set.versions, ['supported', 'stamped']);
+  requireFields(VECTOR_FILES.documents12, set.documents12, ['cases']);
+  for (const c of set.documents12.cases) {
+    requireFields(VECTOR_FILES.documents12, c, ['name', 'type', 'version', 'document', 'expect']);
+  }
   requireFields(VECTOR_FILES.manifest, set.manifest, ['hashAlgorithm', 'files']);
 
   // The only shared key is the encryption key, referenced by name. Resolve it

@@ -28,8 +28,10 @@ import {
   addresses,
   deviceKeyProof,
   documents,
+  documents12,
   signedArtifacts,
   timeWindow,
+  versions,
 } from './protocol-vectors.mjs';
 
 const VECTORS_DIR = path.resolve(
@@ -244,6 +246,8 @@ write(
   deviceKeyProof(readVector('self-held-signature.vector.json')),
 );
 write('time-window.vectors.json', timeWindow());
+write('versions.vectors.json', versions());
+write('documents-1.2.vectors.json', documents12());
 
 // The manifest names every vector file with the SHA-256 of its bytes, so a
 // copy of the set can be checked whole. Rewritten on every run.

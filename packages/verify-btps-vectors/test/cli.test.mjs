@@ -17,10 +17,13 @@ describe('verify-btps-vectors CLI', () => {
     expect(code).toBe(0);
   });
 
-  it('in strict mode exits 0: every check passes on this tree', () => {
+  // While a release is built, its checks are known to fail; strict passes once the list is empty.
+  it('in strict mode exits 0 exactly when no check is known to fail on this tree', () => {
+    const known = JSON.parse(fs.readFileSync(KNOWN_FAILING, 'utf8'));
     const { code, out } = run();
-    expect(out).toMatch(/verify:btps-vectors: OK/);
-    expect(code).toBe(0);
+    const empty = Object.keys(known.checks).length === 0;
+    expect(out).toMatch(empty ? /verify:btps-vectors: OK/ : /verify:btps-vectors: FAILED/);
+    expect(code).toBe(empty ? 0 : 1);
   });
 
   it('exits 1 when the known-failing list names a check that now passes', () => {

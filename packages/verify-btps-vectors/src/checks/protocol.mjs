@@ -160,5 +160,29 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
         else ensure(error !== undefined, 'accepted; expected it outside the window');
       }),
     ),
+    ...set.versions.supported.map((c) =>
+      check(`versions/supported/${c.version || 'empty'}`, () => {
+        const supported = rules.versions.isSupportedVersion(c.version);
+        if (c.expect === 'accept') ensure(supported, `refused ${c.version}`);
+        else ensure(!supported, `accepted ${c.version}`);
+      }),
+    ),
+    ...set.versions.stamped.map((c) =>
+      check(`versions/stamped/${c.name}`, () => {
+        const { artifactVersion } = rules.versions;
+        ensure(typeof artifactVersion === 'function', 'the SDK has no artifactVersion');
+        const stamped = artifactVersion(c.artifact);
+        ensure(stamped === c.expect, `stamped ${stamped}; expected ${c.expect}`);
+      }),
+    ),
+    ...set.documents12.cases.map((c) =>
+      check(`documents-1.2/${c.name}`, () => {
+        const schema = rules.processBtpDocSchema(c.type, c.version);
+        const { success } = schema.safeParse(caseDocument(c));
+        if (c.expect === 'accept')
+          ensure(success, `refused under ${c.version}; expected it accepted`);
+        else ensure(!success, `accepted under ${c.version}; expected it refused: ${c.why}`);
+      }),
+    ),
   ];
 }

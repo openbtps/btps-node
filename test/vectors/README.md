@@ -35,7 +35,12 @@ says in its `description` how to read its cases.
 | `signed-artifacts.vector.json` | two transporter artifacts exactly as they travel: a plain invoice and the same invoice encrypted to the receiver, each with its canonical form and signature. Decrypting the second with the receiver's key gives `document` |
 | `device-key-proof.vector.json` | a device moving to a new key: the key proof's payload, its canonical form and the new key's signature                                                                                                                        |
 | `time-window.vectors.json`     | `issuedAt` inside and outside the server's window, at the edges and just past them                                                                                                                                           |
+| `versions.vectors.json`        | BTPS 1.2: the versions a 1.2 implementation takes and refuses, and the version it stamps each artifact with: 1.1.0 for anything 1.1 can say, 1.2.0 only for what 1.2 adds                                                    |
+| `documents-1.2.vectors.json`   | BTPS 1.2: the 1.2 document rules (the withdrawn event, note formats, discounts, templates by reference), each under the version it applies to, and the 1.1 documents they must leave valid under 1.1.0                       |
 | `manifest.json`                | every file above with the SHA-256 of its bytes, so a copy of the set can be checked whole                                                                                                                                    |
+
+While 1.2 is built, the 1.2 checks that fail are listed in `known-failing.json`, each with
+the change that makes it pass; the list is empty again before 1.2 is released.
 
 A long string in a document case is written as a `fill` (its length and
 any prefix or suffix) and a long list as a `repeat`, so a 100,000-character
