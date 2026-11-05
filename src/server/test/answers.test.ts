@@ -8,8 +8,7 @@
 /*
  * BTPS 1.2: answers a provider cannot give in 1.1. A wrong answer reaches the
  * device as an error with its request's id, not as a closed connection, and
- * an answer can say "created, with this id". The `it.fails` cases pass once
- * 1.2 lands.
+ * an answer can say "created, with this id".
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -65,29 +64,45 @@ describe("a provider's answer", () => {
     document,
   });
 
-  it.fails(
-    'that no answer shape allows reaches the device as an error with its request id, and the connection stays open',
-    () => {
-      const { socket, tlsSocket, written } = recordingSocket();
-      server['sendBtpsResponse'](
-        tlsSocket,
-        answer({ unexpected: true } as unknown as BTPServerResDocs),
-      );
+  it('that no answer shape allows reaches the device as an error with its request id, and the connection stays open', () => {
+    const { socket, tlsSocket, written } = recordingSocket();
+    server['sendBtpsResponse'](
+      tlsSocket,
+      answer({ unexpected: true } as unknown as BTPServerResDocs),
+    );
 
-      expect(onError).toHaveBeenCalledWith(
-        expect.objectContaining({ code: BTP_ERROR_VALIDATION.code }),
-      );
-      expect(socket.destroy).not.toHaveBeenCalled();
-      expect(JSON.parse(written[0] ?? 'null')).toMatchObject({
-        type: 'btps_error',
-        reqId: 'req-1',
-        status: { ok: false, code: 500, error: BTP_ERROR_UNKNOWN.code },
-      });
-    },
-  );
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ code: BTP_ERROR_VALIDATION.code }),
+    );
+    expect(socket.destroy).not.toHaveBeenCalled();
+    expect(JSON.parse(written[0] ?? 'null')).toMatchObject({
+      type: 'btps_error',
+      reqId: 'req-1',
+      status: { ok: false, code: 500, error: BTP_ERROR_UNKNOWN.code },
+    });
+  });
 
-  it.fails('can say "created, with this id", as draft.create answers', () => {
+  it('can say "created, with this id", as draft.create answers', () => {
     expect(BtpServerResDocsSchema.safeParse({ id: 'draft-1' }).success).toBe(true);
+
+    const { socket, tlsSocket, written } = recordingSocket();
+    server['sendBtpsResponse'](tlsSocket, answer({ id: 'draft-1' }));
+
+    expect(socket.destroy).not.toHaveBeenCalled();
+    expect(JSON.parse(written[0] ?? 'null')).toMatchObject({ document: { id: 'draft-1' } });
+  });
+
+  it('ends the connection only when even the generic error cannot be sent', () => {
+    const { socket, tlsSocket, written } = recordingSocket();
+    server['sendBtpsResponse'](tlsSocket, {
+      ...answer('ignored'),
+      type: 'btps_error',
+      version: 'not-a-version',
+      status: { ok: false, code: 500, error: String(BTP_ERROR_UNKNOWN.code) },
+    });
+
+    expect(written).toEqual([]);
+    expect(socket.destroy).toHaveBeenCalled();
   });
 
   it('never takes an id with anything else as that answer', () => {

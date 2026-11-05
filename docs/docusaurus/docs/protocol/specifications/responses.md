@@ -111,7 +111,7 @@ An error tells a sender what it can fix itself, never what only the receiver kno
 - **Format and crypto errors** are exact: their rules are public, and knowing which check failed does not help anyone forge a signature.
 - **Who exists and who trusts whom** is never told apart. An unknown recipient, a sender never trusted, a revoked trust and a blocked one all answer `BTP_ERROR_TRUST_NOT_ALLOWED`. Only an expired trust has its own code, and only a sender whose signature verified gets that far.
 - **Devices and authentication codes** get one answer each: an unknown device and a wrong device key both answer `BTP_ERROR_SIG_VERIFICATION`, and a wrong or expired code both answer `BTP_ERROR_AUTHENTICATION_INVALID`.
-- **Internal failures** answer `500` with `BTP_UNKNOWN_ERROR` and a generic message, never their own detail.
+- **Internal failures** answer `500` with `BTP_UNKNOWN_ERROR` and a generic message, never their own detail. So does an answer the receiving platform built in a shape no answer allows (since 1.2): the sender is told against its own request's `reqId`, the connection stays open, and the server reports the wrong answer to its `onError`. A 1.1 server closed the connection without answering.
 
 The receiving server keeps the full reason with the response's `id`, so a sender's operator can quote that `id` to the receiver's operator.
 
@@ -232,7 +232,23 @@ Response to identity lookup requests:
 - **keyType**: Key type (currently "rsa")
 - **version**: Protocol version
 
-### 4. String Response
+### 4. Created Document (`BTPCreatedResDoc`)
+
+Since 1.2. The answer to a command that makes something, such as `draft.create`: the id of what was made.
+
+```json
+{
+  "id": "draft-1"
+}
+```
+
+**Required Fields:**
+
+- **id**: The id of what was made, up to 100 characters
+
+It holds `id` and nothing else, so no other answer is read as one because it has an `id`.
+
+### 5. String Response
 
 Simple string responses for basic operations:
 

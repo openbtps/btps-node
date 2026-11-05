@@ -8,7 +8,11 @@
 import { z } from 'zod';
 import { BtpSignatureSchema, BtpEncryptionSchema } from './schema.js';
 import { identitySchema } from './shared.js';
-import { BtpAuthResDocSchema, BtpIdentityResDocSchema } from './btpsDocsSchema.js';
+import {
+  BtpAuthResDocSchema,
+  BtpCreatedResDocSchema,
+  BtpIdentityResDocSchema,
+} from './btpsDocsSchema.js';
 import { BtpTransporterArtifactSchema } from './artifacts/transporterSchema.js';
 import { boundedArray, boundedRecord } from './bounded.js';
 import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
@@ -106,6 +110,7 @@ export const BtpServerResDocsSchema = z.union([
   BtpAuthResDocSchema,
   BtpQueryResultSchema,
   BtpIdentityResDocSchema,
+  BtpCreatedResDocSchema,
 ]);
 
 // Schema for BTPServerResponse

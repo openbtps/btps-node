@@ -409,6 +409,13 @@ export const BtpIdentityResDocSchema = z.object({
   version: z.string(),
 });
 
+/**
+ * "Created, with this id": the answer to a command that makes something, such
+ * as `draft.create`. Strict, so no other answer is taken for it because it has
+ * an `id`.
+ */
+export const BtpCreatedResDocSchema = z.object({ id: z.string().min(1).max(documentId) }).strict();
+
 // Schema for BTPAgentQueryDoc
 export const BtpAgentQueryDocSchema = z.object({
   title: BtpStringQueryFilterSchema.optional(),
