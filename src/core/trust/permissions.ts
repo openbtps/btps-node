@@ -11,7 +11,11 @@
  * saves, and check an answer against what the requester's record says it asked.
  */
 
-import { BTP_ERROR_PERMISSION, BTP_ERROR_PERMISSION_REQUIRED } from '@core/error/constant.js';
+import {
+  BTP_ERROR_DOCUMENT_TYPE_MISMATCH,
+  BTP_ERROR_PERMISSION,
+  BTP_ERROR_PERMISSION_REQUIRED,
+} from '@core/error/constant.js';
 import type { BTPError } from '@core/error/types.js';
 import type {
   BTPDetailPermission,
@@ -66,6 +70,47 @@ export const trustGrantProblem = (
   response: { granted?: readonly BTPPermissionName[] },
   record: GrantRecord,
 ): string | undefined => trustGrantRefusal(response, record)?.problem;
+
+/**
+ * Why a send cannot be taken under the receiver's trust record, and the error
+ * it is refused with; undefined when it can. Under a trust with permissions, a
+ * `BTPS_DOC` names its `documentType`, `send:<documentType>` is granted, and a
+ * readable document is that type. A trust without permissions (a 1.1 trust)
+ * allows any type, and events follow the document they are about.
+ */
+export const documentTypeRefusal = (
+  artifact: { type: string; documentType?: string; encryption?: unknown; document?: unknown },
+  record: { permissions?: BTPTrustRecordPermissions },
+): { error: BTPError; problem: string } | undefined => {
+  const { permissions } = record;
+  if (artifact.type !== 'BTPS_DOC' || !permissions) return undefined;
+  const { documentType } = artifact;
+  if (documentType === undefined) {
+    return {
+      error: BTP_ERROR_PERMISSION,
+      problem: 'a send under a trust with permissions names its documentType',
+    };
+  }
+  if (!(permissions.granted as readonly string[]).includes(`send:${documentType}`)) {
+    return { error: BTP_ERROR_PERMISSION, problem: `send:${documentType} is not granted` };
+  }
+  const readable =
+    !artifact.encryption && typeof artifact.document === 'object' && artifact.document !== null;
+  const type = readable ? (artifact.document as { type?: unknown }).type : undefined;
+  if (readable && type !== documentType) {
+    return {
+      error: BTP_ERROR_DOCUMENT_TYPE_MISMATCH,
+      problem: `the document is a ${String(type)}, not the ${documentType} its envelope names`,
+    };
+  }
+  return undefined;
+};
+
+/** Since 1.2: why a send does not meet the receiver's trust record, or undefined. */
+export const documentTypeProblem = (
+  artifact: Parameters<typeof documentTypeRefusal>[0],
+  record: Parameters<typeof documentTypeRefusal>[1],
+): string | undefined => documentTypeRefusal(artifact, record)?.problem;
 
 /**
  * Since 1.2: the permissions the requester saves on its own record when it

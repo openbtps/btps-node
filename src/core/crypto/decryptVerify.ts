@@ -7,7 +7,11 @@
 import { decryptBtpPayload, decryptBtpPayloadWithDecrypter, verifySignature } from './index.js';
 import { BTPCryptoResponse, BTPDecryptionKey, VerifyEncryptedPayload } from './types.js';
 import { BTPErrorException } from '@core/error/index.js';
-import { BTP_ERROR_SIG_VERIFICATION, BTP_ERROR_VALIDATION } from '@core/error/constant.js';
+import {
+  BTP_ERROR_DOCUMENT_TYPE_MISMATCH,
+  BTP_ERROR_SIG_VERIFICATION,
+  BTP_ERROR_VALIDATION,
+} from '@core/error/constant.js';
 import { decryptedDocumentProblem } from '@core/server/schemas/helpers.js';
 import isEmpty from 'lodash/isEmpty.js';
 
@@ -67,6 +71,16 @@ export const decryptVerify = async <T = unknown>(
     const problem = decryptedDocumentProblem(decryptedData, restEncryptedPayload);
     if (problem) {
       return genDecryptError(new BTPErrorException(BTP_ERROR_VALIDATION, { cause: problem }));
+    }
+    // Since 1.2: an opened document is the type its envelope names.
+    const { documentType } = restEncryptedPayload as { documentType?: string };
+    const type = (decryptedData as { type?: unknown } | undefined)?.type;
+    if (documentType !== undefined && type !== documentType) {
+      return genDecryptError(
+        new BTPErrorException(BTP_ERROR_DOCUMENT_TYPE_MISMATCH, {
+          cause: `the document is a ${String(type)}, not the ${documentType} its envelope names`,
+        }),
+      );
     }
   }
 

@@ -19,6 +19,7 @@ import type {
   BTPAuthReqDoc,
   BTPServerResponse,
   BTPSyncOf,
+  BTPDocumentType,
   AgentAction,
 } from 'server/index.js';
 import type { ConnectionOptions, TLSSocket } from 'tls';
@@ -98,6 +99,12 @@ export type BtpsAgentCommandOptions = BTPCryptoOptions & {
    * the send it names, by the sent artifact's id and the SHA-256 of its RFC 8785 form (`syncOfArtifact`).
    */
   syncOf?: BTPSyncOf;
+  /**
+   * Since 1.2, on `artifact.send` only: the document's type, named on the envelope, signed and readable, for a
+   * send under a trust with permissions, whose receiver checks `send:<documentType>` is granted. It is the
+   * document's own `type`, and stamps the artifact `1.2.0`, so leave it out for any other send.
+   */
+  documentType?: BTPDocumentType;
   /**
    * The id of the artifact the command sends, a UUID. Sending the same document again after a lost answer under
    * the same id lets the receiver keep it once. Without it, a new id. An event always travels under its own id, so

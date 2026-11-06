@@ -212,6 +212,13 @@ export const BTP_ERROR_PERMISSION_REQUIRED: BTPError = {
   status: 403,
 };
 
+/** Since 1.2: a document whose type is not the documentType its envelope names. */
+export const BTP_ERROR_DOCUMENT_TYPE_MISMATCH: BTPError = {
+  code: 'BTP_ERROR_DOCUMENT_TYPE_MISMATCH',
+  message: 'The document is not the type its envelope names',
+  status: 400,
+};
+
 export const BTP_ERROR_KEY_ROTATION_PROOF: BTPError = {
   code: 'BTP_ERROR_KEY_ROTATION_PROOF',
   message: 'A new device key needs a proof signed by that key',

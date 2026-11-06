@@ -112,6 +112,13 @@ versions follow [Semantic Versioning](https://semver.org/).
   (`BTP_ERROR_PERMISSION`), and takes an answer on an accepted trust only to a
   pending change (`trustGrantProblem`; `validateTrustResponse` gains an
   optional `response`). `BTPDetailValues` now types each detail's value.
+- **A send's document type.** Under a trust with permissions, a server refuses
+  a `BTPS_DOC` that names no `documentType`, or one whose `send:<type>` the
+  trust does not grant (`BTP_ERROR_PERMISSION`), and a readable document that
+  is not its `documentType` (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`, also from
+  `decryptVerify` once opened and from `signEncrypt` before sending). A device
+  sets it with `artifact.send`'s new `documentType` option. A trust without
+  permissions takes any type, as in 1.1 (`documentTypeProblem`).
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).

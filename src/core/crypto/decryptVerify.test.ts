@@ -399,4 +399,29 @@ describe('decryptVerify', () => {
     expect(result.error).toBeUndefined();
     expect(result.payload?.document).toEqual(document);
   });
+
+  it('refuses an opened document that is not the documentType its envelope names', async () => {
+    const send: VerifyEncryptedPayload<string> = {
+      ...encryptedPayload,
+      type: 'BTPS_DOC',
+      version: '1.2.0',
+      documentType: 'receipt',
+      document: 'encrypted-string-data',
+    };
+    const invoice = {
+      type: 'invoice',
+      title: 'Invoice',
+      id: 'INV-1',
+      issuedAt: '2025-01-01T00:00:00.000Z',
+      totalAmount: { amount: 100, currency: 'AUD' },
+      lineItems: { columns: ['Item', 'Amount'], rows: [{ Item: 'Build', Amount: 100 }] },
+    };
+    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+    mockCrypto.decryptBtpPayload.mockReturnValue({ data: invoice });
+
+    const result = await decryptVerify(senderPubPem, send, privateKey);
+
+    expect(result.payload).toBeUndefined();
+    expect(result.error?.code).toBe('BTP_ERROR_DOCUMENT_TYPE_MISMATCH');
+  });
 });

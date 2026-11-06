@@ -253,7 +253,12 @@ export class BtpsAgent extends BtpsClient {
       id: event?.success ? event.data.id : (options?.id ?? randomUUID()),
       issuedAt: new Date().toISOString(),
       // From the document as written, before it is encrypted.
-      version: artifactVersion({ type: artifactType, document, syncOf: options?.syncOf }),
+      version: artifactVersion({
+        type: artifactType,
+        document,
+        syncOf: options?.syncOf,
+        documentType: options?.documentType,
+      }),
       type: artifactType,
       document: encryptedDocument as BTPDocType | string,
       from: this.options.to,
@@ -262,6 +267,7 @@ export class BtpsAgent extends BtpsClient {
       encryption: encryption,
       ...(options?.relatesTo !== undefined && { relatesTo: options.relatesTo }),
       ...(options?.syncOf !== undefined && { syncOf: options.syncOf }),
+      ...(options?.documentType !== undefined && { documentType: options.documentType }),
     };
 
     try {

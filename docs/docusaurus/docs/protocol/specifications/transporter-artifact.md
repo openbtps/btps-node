@@ -181,6 +181,18 @@ The values are in the document, encrypted, so they are checked when it is opened
 
 Each value's length limit is on [Limits](./limits.md#trust-detail-values).
 
+### A send's document type
+
+Under a trust with permissions, a `BTPS_DOC` names its `documentType` on the envelope, and the receiving server checks it against its trust record on arrival, without decrypting:
+
+- a send without `documentType` is refused (`BTP_ERROR_PERMISSION`);
+- `send:<documentType>` must be in the record's `permissions.granted`, or the send is refused (`BTP_ERROR_PERMISSION`);
+- a readable (unencrypted) document whose `type` is not its `documentType` is refused (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`).
+
+`decryptVerify` refuses an opened document that is not its `documentType` (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`), and `signEncrypt` refuses to sign one before it encrypts it. `documentTypeProblem` in `@btps/sdk/trust` runs the arrival check on its own.
+
+Only a send under a trust with permissions carries `documentType`: it stamps the artifact `1.2.0`. A trust without permissions (a 1.1 trust) takes any document type, as in 1.1, and every other send goes as `1.1.0`. Events need none: `relatesTo` ties each to the document it is about. A device sets it with `BtpsAgent`'s `artifact.send` option `documentType`.
+
 ## Sync
 
 Since 1.2. A user's devices keep the same sent items through a **sync**: after a device sends, it sends the user's own copy of that send to the user's own address, so the provider files it among the user's sent items and every other device of the user can fetch it. A sync is an ordinary `artifact.send` whose transporter artifact is from and to the same address, with its document encrypted to the user's own key, and which names the send it copies on its envelope:

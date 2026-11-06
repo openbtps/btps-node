@@ -1098,6 +1098,20 @@ Since 1.2. Why an answer's `granted` does not meet the requester's trust record,
 
 ---
 
+### documentTypeProblem
+
+```ts
+documentTypeProblem(
+  artifact: { type: string; documentType?: string; encryption?: unknown; document?: unknown },
+  record: { permissions?: BTPTrustRecordPermissions }
+): string | undefined
+```
+
+**Description:**
+Since 1.2. Why a send does not meet the receiver's trust record, or `undefined`. Under a trust with permissions, a `BTPS_DOC` names its `documentType`, `send:<documentType>` is granted, and a readable document is that type. A trust without permissions (a 1.1 trust) takes any type, and other artifact types are not checked. The server runs it on every send it receives. See [A send's document type](../protocol/specifications/transporter-artifact.md#a-sends-document-type).
+
+---
+
 ### trustPermissionsFromRequest / trustPermissionsFromResponse
 
 ```ts
@@ -1647,6 +1661,22 @@ Since 1.2. Error constant for a trust answer that leaves out a permission its re
 
 - `code`: `'BTP_ERROR_PERMISSION_REQUIRED'`
 - `message`: `'The answer does not grant every permission the request requires'`
+
+---
+
+### BTP_ERROR_DOCUMENT_TYPE_MISMATCH
+
+```ts
+const BTP_ERROR_DOCUMENT_TYPE_MISMATCH: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a document whose `type` is not the `documentType` its envelope names: refused on arrival when the document is readable, by `decryptVerify` when it is opened, and by `signEncrypt` before it is sent. Status 400.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_DOCUMENT_TYPE_MISMATCH'`
+- `message`: `'The document is not the type its envelope names'`
 
 ---
 
