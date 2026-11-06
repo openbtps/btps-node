@@ -38,10 +38,7 @@ new BtpsAuthentication(config: ServerAuthConfig): BtpsAuthentication
 **Example:**
 
 ```typescript
-import {
-  BtpsAuthentication,
-  InMemoryTokenStore,
-} from '@btps/sdk/authentication';
+import { BtpsAuthentication, InMemoryTokenStore } from '@btps/sdk/authentication';
 import { JsonTrustStore } from '@btps/sdk/trust';
 
 const auth = new BtpsAuthentication({
@@ -72,10 +69,19 @@ interface ServerAuthConfig {
 
   /** Since 1.2, optional and off by default: the oldest a device key may be, in ms */
   maxKeyAgeMs?: number;
+
+  /** Since 1.2: how long a just-rotated refresh token's old value still works, in ms. Default 30 000; 0 is off */
+  refreshGraceMs?: number;
 }
 ```
 
 `maxKeyAgeMs` (since 1.2): a refresh signed by an older key is refused with `BTP_ERROR_KEY_TOO_OLD`. The refresh token stays usable, so the device moves to a new key (`rotateKey`) with it and is let in. A key's age runs from when it came into use: when the key before it was retired (the newest `keyHistory` entry's `lastSeen`), or when the device registered (the record's `createdAt`). Refreshing does not reset it.
+
+`refreshGraceMs` (since 1.2, default 30 seconds): a device that refreshed but lost the answer, on a dropped connection, asks again with the token it still holds. Inside the window that is a **retry**: it gets the same answer again, the same new token included, and nothing is revoked. After the window, a second use is theft (below). A retry is refused as theft too once the new token has been used. `0` turns the window off, so any second use is theft. The window needs a token store with `isConsumed` and `markSuccessor` (see [TokenStore](#tokenstore)); with a store that lacks `markSuccessor` it is `0`, and `BtpsAuthentication` warns once when it is created.
+
+How the answer is kept for a retry: it is sealed with AES-256-GCM under a key derived (HKDF-SHA256) from the **old** token's value, and only the sealed bytes are stored, on the old token's consumed mark. Only whoever holds the old token can open it; the server holds no key that can. It is bound to the device, its user and the time of the rotation, so it cannot be moved to another device or have its window stretched. Only a full 16-byte GCM tag is accepted. The new token is never stored in plain text for this.
+
+**The trade-off.** Inside the window, whoever holds the just-rotated **old** token gets the same new token back: the server cannot tell the device that lost its answer from a copy of the old token. That is why the window is short, 30 seconds by default, and closes as soon as the new token is used: from then on, the old token is theft again. A server that would rather never hand a new token to the old one sets `refreshGraceMs: 0`, and a device that loses a refresh's answer registers again.
 
 ### **TokenConfig**
 
@@ -283,8 +289,7 @@ const refreshResult = await BtpsAuthentication.refreshSession(
 );
 
 if (refreshResult.success) {
-  const { refreshToken: newToken, expiresAt } =
-    refreshResult.response?.document;
+  const { refreshToken: newToken, expiresAt } = refreshResult.response?.document;
   console.log('Session refreshed:', { newToken, expiresAt });
 }
 ```
@@ -487,15 +492,11 @@ async validateAndReissueRefreshToken(
 **Example:**
 
 ```typescript
-const result = await auth.validateAndReissueRefreshToken(
-  agentId,
-  refreshToken,
-  {
-    decidedBy: 'system',
-    privacyType: 'encrypted',
-    decryptBy: 'alice$saas.com',
-  },
-);
+const result = await auth.validateAndReissueRefreshToken(agentId, refreshToken, {
+  decidedBy: 'system',
+  privacyType: 'encrypted',
+  decryptBy: 'alice$saas.com',
+});
 
 if (result.data) {
   console.log('New refresh token:', result.data.refreshToken);
@@ -507,7 +508,7 @@ if (result.data) {
 
 Since 1.2, a refresh is refused when:
 
-- **The token was used before.** With a token store that has `isConsumed`, a refresh token used a second time is theft: only a copy of it can do that. The device is revoked, so whoever holds its newer token, the device or a thief, is refused too, and `refreshTokenReused` fires. The user registers the device again.
+- **The token was used before,** after the grace window (`refreshGraceMs`, above). With a token store that has `isConsumed`, a refresh token used a second time is theft: only a copy of it can do that. The device is revoked, so whoever holds its newer token, the device or a thief, is refused too, and `refreshTokenReused` fires. The user registers the device again.
 - **The device is revoked or blocked.** A refresh never makes such a device accepted again.
 - **The key is too old,** when `maxKeyAgeMs` is set (above).
 
@@ -684,6 +685,9 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
   /** Since 1.2, optional: the token as it was when consumed, until it would have expired */
   isConsumed?(agentId: string, token: string): Promise<T | undefined>;
 
+  /** Since 1.2, optional: keep a consumed token's sealed answer on its mark, for a retry */
+  markSuccessor?(agentId: string, token: string, successor: BTPSealedSuccessor): Promise<void>;
+
   /** Clean up expired tokens */
   cleanup(): Promise<void>;
 }
@@ -692,6 +696,10 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
 `consume` is how a registration code and a refresh token are used: read and removed in **one atomic step**, so of two devices racing with the same code, only one is registered, and of two refreshes racing with one token, only one succeeds. A two-step read-then-delete is not enough. With Redis use `GETDEL`; with SQL, `DELETE … RETURNING`.
 
 `isConsumed` (since 1.2, optional) is what tells a refresh token used a second time from one that never existed. The store keeps a mark of each token `consume` took until it would have expired, and returns the token as it was. Storing the same token again clears the mark, because a token is put back when a refresh cannot finish. Without it, a second use is refused as an unknown token, as in 1.1, and `BtpsAuthentication` warns once when it is created. `InMemoryTokenStore` has it.
+
+`markSuccessor` (since 1.2, optional) keeps `successor`, the sealed answer a consumed refresh token was rotated with, on that token's mark, so `isConsumed` returns it as part of the token. It is opaque, sealed bytes (`BTPSealedSuccessor`: `at`, `iv`, `ciphertext`, `tag`); store it as given. Without it, the grace window is off (`refreshGraceMs` above). `InMemoryTokenStore` has it.
+
+**Keep only a hash of each token.** A persistent store should keep each token's SHA-256, never its value, and look a token up by the hash of the one presented, so a copy of the store lets no one in. `InMemoryTokenStore`, for development and tests, keeps the value.
 
 ### **AuthSessionStore**
 
@@ -717,11 +725,7 @@ The `BtpsAuthentication` class provides comprehensive error handling:
 
 ```typescript
 try {
-  const result = await BtpsAuthentication.authenticate(
-    identity,
-    token,
-    keyPair,
-  );
+  const result = await BtpsAuthentication.authenticate(identity, token, keyPair);
   if (!result.success) {
     console.error('Authentication failed:', result.error);
     return;
