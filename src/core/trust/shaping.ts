@@ -86,6 +86,14 @@ export const composeTrustRequestFor = async <T extends Payload>(
   if (payload.type !== 'TRUST_REQ' || payload.permissions === undefined) return { payload };
   const { version, error } = await receiverVersion(to, options.btpMtsOptions);
   if (error) return { error };
+  // An answer without a version is no answer: a version is never guessed.
+  if (typeof version !== 'string' || version === '') {
+    return {
+      error: new BTPErrorException(BTP_ERROR_VERSION_UNSUPPORTED, {
+        cause: `${to}'s server did not say which version it speaks, so the trust request is not sent`,
+      }),
+    };
+  }
   if (!isVersionBelow(version, '1.2.0')) return { payload };
   if (options.versionFallback === false) {
     return {

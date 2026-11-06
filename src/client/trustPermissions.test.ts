@@ -180,6 +180,17 @@ describe('a trust request with permissions, to a receiver whose server speaks 1.
     expect(error?.code).toBe('BTP_ERROR_SOCKET_TIMEOUT');
   });
 
+  it('is not sent when the receiver answers without a version: none is guessed', async () => {
+    const noVersion = { version: undefined, error: undefined } as unknown as Awaited<
+      ReturnType<BtpsClient['getServerVersion']>
+    >;
+    vi.spyOn(BtpsClient.prototype, 'getServerVersion').mockResolvedValue(noVersion);
+    const { payload, error } = await build('trust.request', request, asking);
+    expect(payload).toBeUndefined();
+    expect(error?.code).toBe('BTP_ERROR_VERSION_UNSUPPORTED');
+    expect(error?.cause).toMatch(/did not say which version/);
+  });
+
   it('never asks the receiver for a request without permissions', async () => {
     const asked = receiverSpeaks('1.1.3');
     await build('trust.request', request, {});
