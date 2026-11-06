@@ -7,7 +7,16 @@
 
 import { BtpSignatureSchema, BtpEncryptionSchema, BtpDelegationSchema } from '../schema.js';
 import { identitySchema } from '../shared.js';
-import { TRANSPORTER_ACTIONS, isVersionBelow } from '../../constants/index.js';
+import {
+  DETAIL_PERMISSIONS,
+  DOCUMENT_TYPES,
+  ENTITY_TYPES,
+  IDENTITY_DETAIL,
+  PERMISSION_ENVELOPE_FIELDS,
+  SEND_PERMISSIONS,
+  TRANSPORTER_ACTIONS,
+  isVersionBelow,
+} from '../../constants/index.js';
 import { z } from 'zod';
 import { lifecycleEventEnvelopeProblem, processBtpDocSchema, sameIdentity } from '../helpers.js';
 import { BtpLifecycleEventSchema, sha256Hex } from '../btpsDocsSchema.js';
@@ -18,6 +27,31 @@ import { BtpLifecycleEventSchema, sha256Hex } from '../btpsDocsSchema.js';
  * document is encrypted to the user's own key and its provider files it unopened.
  */
 export const BtpSyncOfSchema = z.object({ id: z.string().min(1), sha256: sha256Hex }).strict();
+
+// One name from a closed set, and a list of them, never longer than the set.
+const memberOf = <T extends string>(names: readonly T[]) =>
+  z.custom<T>((name) => typeof name === 'string' && (names as readonly string[]).includes(name));
+const namesFrom = <T extends string>(names: readonly T[]) =>
+  z.array(memberOf(names)).max(names.length);
+const PERMISSION_NAMES = [...SEND_PERMISSIONS, ...DETAIL_PERMISSIONS];
+
+/**
+ * Since 1.2, on a TRUST_REQ: the permissions it asks for, signed and readable.
+ * One flat list, the prefix saying each name's kind, with at least one `send:` name.
+ */
+export const BtpTrustPermissionsSchema = z
+  .array(z.object({ name: memberOf(PERMISSION_NAMES), required: z.boolean() }).strict())
+  .max(PERMISSION_NAMES.length)
+  .refine((permissions) => permissions.some(({ name }) => name.startsWith('send:')), {
+    message: 'permissions holds at least one send: name',
+  });
+
+const duplicateOf = (names: readonly string[]) =>
+  names.find((name, i) => names.indexOf(name) !== i);
+const documentRecord = (document: unknown): Record<string, unknown> | undefined =>
+  typeof document === 'object' && document !== null
+    ? (document as Record<string, unknown>)
+    : undefined;
 
 // Base schema for transporter artifacts
 export const BtpTransporterArtifactBaseSchema = z.object({
@@ -34,7 +68,82 @@ export const BtpTransporterArtifactBaseSchema = z.object({
   selector: z.string(),
   relatesTo: z.string().min(1).optional(),
   syncOf: BtpSyncOfSchema.optional(),
+  permissions: BtpTrustPermissionsSchema.optional(),
+  entityType: z.enum(ENTITY_TYPES).optional(),
+  given: namesFrom(DETAIL_PERMISSIONS).optional(),
+  change: z.literal(true).optional(),
+  granted: namesFrom(PERMISSION_NAMES).optional(),
+  documentType: z.enum(DOCUMENT_TYPES).optional(),
 });
+
+type TransporterEnvelope = z.infer<typeof BtpTransporterArtifactBaseSchema>;
+
+/**
+ * Since 1.2: the trust permission rules a server checks on arrival, from the
+ * envelope alone, and from the document only where it is readable.
+ */
+function permissionEnvelopeProblems(data: TransporterEnvelope): [string, string][] {
+  const problems: [string, string][] = [];
+  for (const [field, types] of Object.entries(PERMISSION_ENVELOPE_FIELDS)) {
+    if (data[field as keyof typeof PERMISSION_ENVELOPE_FIELDS] === undefined) continue;
+    if (!(types as readonly string[]).includes(data.type)) {
+      problems.push([field, `${field} is only on ${types.join(' or ')}`]);
+    }
+    if (isVersionBelow(data.version, '1.2.0')) {
+      problems.push([field, `${field} is only in a 1.2.0 artifact`]);
+    }
+  }
+  const lists: [string, readonly string[] | undefined][] = [
+    ['permissions', data.permissions?.map((p) => p.name)],
+    ['given', data.given],
+    ['granted', data.granted],
+  ];
+  for (const [field, names] of lists) {
+    const twice = names && duplicateOf(names);
+    if (twice) problems.push([field, `${twice} appears more than once`]);
+  }
+
+  const { entityType } = data;
+  const other = entityType && IDENTITY_DETAIL[entityType === 'person' ? 'organisation' : 'person'];
+  if (data.permissions && !entityType) {
+    problems.push(['entityType', 'entityType comes with permissions']);
+  }
+  if (data.granted && !entityType) {
+    problems.push(['entityType', 'entityType comes with granted']);
+  }
+  if (data.permissions && entityType) {
+    // You give what you ask for; a date of birth and a registration number swap between kinds.
+    const given: readonly string[] = data.given ?? [];
+    const identities: string[] = Object.values(IDENTITY_DETAIL);
+    for (const { name } of data.permissions) {
+      if (!name.startsWith('detail:')) continue;
+      const gives = identities.includes(name) ? IDENTITY_DETAIL[entityType] : name;
+      if (!given.includes(gives)) {
+        problems.push(['given', `asks for ${name} without giving ${gives}`]);
+      }
+    }
+  }
+  if (other && data.given?.includes(other)) {
+    problems.push(['given', `a ${entityType} never gives ${other}`]);
+  }
+  if (other && data.granted?.includes(other)) {
+    problems.push(['granted', `a ${entityType} never grants ${other}`]);
+  }
+
+  if (data.encryption === null) {
+    const document = documentRecord(data.document);
+    if (data.type === 'TRUST_REQ' && document?.own !== undefined) {
+      problems.push(['document', 'a request with its own values is encrypted']);
+    }
+    if (data.type === 'TRUST_RES' && document?.details !== undefined) {
+      problems.push(['document', 'a response with details is encrypted']);
+    }
+    if (data.type === 'TRUST_RES' && data.granted && document?.decision !== 'accepted') {
+      problems.push(['granted', 'only an accepted answer carries granted']);
+    }
+  }
+  return problems;
+}
 
 // Schema for transporter artifacts with document validation
 export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.superRefine(
@@ -64,6 +173,9 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
           path: ['syncOf'],
         });
       }
+    }
+    for (const [path, message] of permissionEnvelopeProblems(data)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: [path] });
     }
     if (data.encryption) {
       // If encrypted, document must be a string

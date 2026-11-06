@@ -524,15 +524,12 @@
           "phone": "+61 400 000 000"
         },
         "encryption": null,
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            }
-          ],
-          "details": []
-        }
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          }
+        ]
       },
       "expect": "1.2.0"
     },
@@ -672,7 +669,7 @@
       "expect": "1.2.0"
     },
     {
-      "name": "trust-response-profile",
+      "name": "trust-response-details",
       "artifact": {
         "type": "TRUST_RES",
         "from": "billing$vendor.example",
@@ -682,7 +679,7 @@
           "decision": "accepted",
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example",
-          "profile": {
+          "details": {
             "detail:email": "bob@client.example"
           }
         },

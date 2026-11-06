@@ -21,7 +21,7 @@
     "sync.vectors.json": "9824a6f90d052606ce97ba8b7d8e4cbc12c7df959acb5264dc71007779424dee",
     "templates.vectors.json": "56f8ac2ecb01a5bee46452a360d17a4446d26484338224fbcd1f3d48c6c2f7b0",
     "time-window.vectors.json": "9135f8c26d7bdbb3bd35e349e01af599f127d950a030d58134d6591944d2ee57",
-    "trust-permissions.vectors.json": "aa626d01a8dbfea47ddc8ff9ccf7404422218dbaf7d81f986d090d933dacbd6e",
-    "versions.vectors.json": "dd6b9e7e146c9f8cfd4e2ee3a86d05425431ae1b1944be40912904f4f424dcea"
+    "trust-permissions.vectors.json": "732e6f034d56ebb06116ff2ac56d9ffb0bf43968aecdf1b90a29b09aab4cb958",
+    "versions.vectors.json": "33e37ad791949ce11d241f15b784bc92e0cafe6fb9988c42983d1078731f5256"
   }
 }

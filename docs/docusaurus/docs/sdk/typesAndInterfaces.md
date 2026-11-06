@@ -1461,7 +1461,42 @@ interface BTPTransporterArtifact {
   selector: string; // Selector used for public key resolution (e.g., 'btps1', 'btps2')
   relatesTo?: string; // BTPS_EVENT only, and required there: the id of the BTPS_DOC artifact that delivered the invoice
   syncOf?: BTPSyncOf; // since 1.2, a sync only: from and to the same address, inside a device's artifact.send
+  // Since 1.2, trust permissions: see Trust permissions on the Transporter Artifact page.
+  permissions?: BTPTrustPermissions; // TRUST_REQ: what it asks for
+  entityType?: BTPEntityType; // TRUST_REQ with permissions, accepted TRUST_RES: 'person' | 'organisation'
+  given?: BTPDetailPermission[]; // TRUST_REQ: the details the sender gives
+  change?: true; // TRUST_REQ: a change to an active trust
+  granted?: BTPPermissionName[]; // accepted TRUST_RES: the names given
+  documentType?: BTPDocumentType; // BTPS_DOC under a trust with permissions
 }
+```
+
+### Trust permission names
+
+Since 1.2. From `@btps/sdk/trust`, with the lists `DOCUMENT_TYPES`, `DETAIL_TYPES`, `ENTITY_TYPES`, `SEND_PERMISSIONS` and `DETAIL_PERMISSIONS`.
+
+```ts
+type BTPDocumentType = 'invoice' | 'receipt' | 'payslip' | 'letter';
+type BTPEntityType = 'person' | 'organisation';
+type BTPSendPermission = `send:${BTPDocumentType}`;
+type BTPDetailPermission =
+  | 'detail:legalName'
+  | 'detail:profile'
+  | 'detail:email'
+  | 'detail:phone'
+  | 'detail:address'
+  | 'detail:taxNo'
+  | 'detail:dob' // a person's
+  | 'detail:registrationNumber'; // an organisation's
+type BTPPermissionName = BTPSendPermission | BTPDetailPermission;
+
+interface BTPPermission {
+  name: BTPPermissionName;
+  required: boolean;
+}
+
+// One flat list, the prefix saying each name's kind: each name once, at least one send: name
+type BTPTrustPermissions = BTPPermission[];
 ```
 
 ### BTPServerResponse
