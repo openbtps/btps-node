@@ -1,0 +1,1416 @@
+{
+  "description": "BTPS 1.2 details refresh, on an active trust in either direction. Each side fetches only the details it already holds by that trust. `DETAILS_CHANGED` tells the other side which of its details changed, `DETAILS_REQ` asks for some, optionally naming the notice in `relatesTo`, and `DETAILS_RES` answers a request named in `relatesTo`, its values keyed by name and always encrypted to the requester. Each carries `details`, the `detail:` names, on its envelope, signed and readable; all three are 1.2.0 only. A response may answer part of a request. `envelopes` are checked by the transporter schema. `held` cases are checked by `detailsProblem(artifact, record, sentRequest)`: `record` is the receiver's trust record (`status` and `permissions: { requested, granted, detailsHeld, detailsShared }`) and `sentRequest` the `DETAILS_REQ` a response names, as the receiver sent it, or null when it sent none. A notice names only details the receiver holds (`detailsHeld`), a request only details the answerer shares (`detailsShared`, else BTP_ERROR_DETAILS_NOT_HELD), and a response only names its request asked for and the receiver holds; where a response's document is readable (as when opened), it holds a value for every name, and no others. Here the vendor asked for the trust and the client granted its legal name and email.",
+  "envelopes": [
+    {
+      "name": "changed",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c",
+        "type": "DETAILS_CHANGED",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address"]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "request",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d",
+        "type": "DETAILS_REQ",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "request-on-its-own",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d",
+        "type": "DETAILS_REQ",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "response",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "718293a4-b5c6-4d07-a1f8-091a2b3c4d5e",
+        "type": "DETAILS_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "changed-under-1-1",
+      "artifact": {
+        "version": "1.1.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c",
+        "type": "DETAILS_CHANGED",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address"]
+      },
+      "expect": "refuse",
+      "why": "details refresh is only in a 1.2.0 artifact"
+    },
+    {
+      "name": "changed-naming-nothing",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c",
+        "type": "DETAILS_CHANGED",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": []
+      },
+      "expect": "refuse",
+      "why": "details names at least one detail"
+    },
+    {
+      "name": "changed-naming-a-send-name",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c",
+        "type": "DETAILS_CHANGED",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["send:invoice"]
+      },
+      "expect": "refuse",
+      "why": "details holds detail: names only"
+    },
+    {
+      "name": "changed-naming-another-detail",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c",
+        "type": "DETAILS_CHANGED",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:name"]
+      },
+      "expect": "refuse",
+      "why": "only the protocol names exist"
+    },
+    {
+      "name": "changed-naming-a-detail-twice",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c",
+        "type": "DETAILS_CHANGED",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:address"]
+      },
+      "expect": "refuse",
+      "why": "each name appears once"
+    },
+    {
+      "name": "changed-naming-an-artifact",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c",
+        "type": "DETAILS_CHANGED",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address"],
+        "relatesTo": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d"
+      },
+      "expect": "refuse",
+      "why": "a notice relates to nothing before it"
+    },
+    {
+      "name": "request-without-details",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d",
+        "type": "DETAILS_REQ",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
+      },
+      "expect": "refuse",
+      "why": "a request names the details it wants"
+    },
+    {
+      "name": "response-naming-no-request",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "718293a4-b5c6-4d07-a1f8-091a2b3c4d5e",
+        "type": "DETAILS_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"]
+      },
+      "expect": "refuse",
+      "why": "a response names the request it answers"
+    },
+    {
+      "name": "response-unencrypted",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "718293a4-b5c6-4d07-a1f8-091a2b3c4d5e",
+        "type": "DETAILS_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": null,
+        "document": {
+          "detail:address": "2 Rata Road, Auckland",
+          "detail:phone": "+64 9 000 0000"
+        },
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d"
+      },
+      "expect": "refuse",
+      "why": "a response is always encrypted to the requester"
+    },
+    {
+      "name": "document-carrying-details",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "8293a4b5-c6d7-4e18-b209-1a2b3c4d5e6f",
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address"]
+      },
+      "expect": "refuse",
+      "why": "details is only on the three details types"
+    }
+  ],
+  "held": [
+    {
+      "name": "changed-held",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c",
+        "type": "DETAILS_CHANGED",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address"]
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email", "detail:phone", "detail:address"],
+          "detailsShared": ["detail:legalName", "detail:email"]
+        }
+      },
+      "sentRequest": null,
+      "expect": "accept"
+    },
+    {
+      "name": "changed-not-held",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c",
+        "type": "DETAILS_CHANGED",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:taxNo"]
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email", "detail:phone", "detail:address"],
+          "detailsShared": ["detail:legalName", "detail:email"]
+        }
+      },
+      "sentRequest": null,
+      "expect": "refuse",
+      "why": "a notice names only details the receiver holds"
+    },
+    {
+      "name": "changed-on-a-1-1-trust",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c",
+        "type": "DETAILS_CHANGED",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address"]
+      },
+      "record": {
+        "status": "accepted"
+      },
+      "sentRequest": null,
+      "expect": "refuse",
+      "why": "a 1.1 trust holds no details by name"
+    },
+    {
+      "name": "request-shared",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d",
+        "type": "DETAILS_REQ",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
+          "detailsShared": ["detail:legalName", "detail:email", "detail:phone", "detail:address"]
+        }
+      },
+      "sentRequest": null,
+      "expect": "accept"
+    },
+    {
+      "name": "request-not-shared",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d",
+        "type": "DETAILS_REQ",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:registrationNumber"],
+        "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
+          "detailsShared": ["detail:legalName", "detail:email", "detail:phone", "detail:address"]
+        }
+      },
+      "sentRequest": null,
+      "expect": "refuse",
+      "why": "a request names only details the answerer shares (BTP_ERROR_DETAILS_NOT_HELD)"
+    },
+    {
+      "name": "request-for-its-own-details",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d",
+        "type": "DETAILS_REQ",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:email"],
+        "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
+          "detailsShared": ["detail:address"]
+        }
+      },
+      "sentRequest": null,
+      "expect": "refuse",
+      "why": "the answerer shares only its own details, never what it holds of the asker"
+    },
+    {
+      "name": "response",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "718293a4-b5c6-4d07-a1f8-091a2b3c4d5e",
+        "type": "DETAILS_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email", "detail:phone", "detail:address"],
+          "detailsShared": ["detail:legalName", "detail:email"]
+        }
+      },
+      "sentRequest": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d",
+        "type": "DETAILS_REQ",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "response-in-part",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "718293a4-b5c6-4d07-a1f8-091a2b3c4d5e",
+        "type": "DETAILS_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address"],
+        "relatesTo": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email", "detail:phone", "detail:address"],
+          "detailsShared": ["detail:legalName", "detail:email"]
+        }
+      },
+      "sentRequest": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d",
+        "type": "DETAILS_REQ",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "response-opened",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "718293a4-b5c6-4d07-a1f8-091a2b3c4d5e",
+        "type": "DETAILS_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "detail:address": "2 Rata Road, Auckland",
+          "detail:phone": "+64 9 000 0000"
+        },
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email", "detail:phone", "detail:address"],
+          "detailsShared": ["detail:legalName", "detail:email"]
+        }
+      },
+      "sentRequest": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d",
+        "type": "DETAILS_REQ",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "response-naming-a-detail-not-asked-for",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "718293a4-b5c6-4d07-a1f8-091a2b3c4d5e",
+        "type": "DETAILS_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:email"],
+        "relatesTo": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email", "detail:phone", "detail:address"],
+          "detailsShared": ["detail:legalName", "detail:email"]
+        }
+      },
+      "sentRequest": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d",
+        "type": "DETAILS_REQ",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
+      },
+      "expect": "refuse",
+      "why": "a response names only what its request asked for"
+    },
+    {
+      "name": "response-naming-a-detail-not-held",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "718293a4-b5c6-4d07-a1f8-091a2b3c4d5e",
+        "type": "DETAILS_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:address"],
+          "detailsShared": []
+        }
+      },
+      "sentRequest": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d",
+        "type": "DETAILS_REQ",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
+      },
+      "expect": "refuse",
+      "why": "a response names only details the receiver holds"
+    },
+    {
+      "name": "response-to-no-request",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "718293a4-b5c6-4d07-a1f8-091a2b3c4d5e",
+        "type": "DETAILS_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email", "detail:phone", "detail:address"],
+          "detailsShared": ["detail:legalName", "detail:email"]
+        }
+      },
+      "sentRequest": null,
+      "expect": "refuse",
+      "why": "a response answers a request the receiver sent"
+    },
+    {
+      "name": "response-to-a-request-it-did-not-make",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "718293a4-b5c6-4d07-a1f8-091a2b3c4d5e",
+        "type": "DETAILS_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email", "detail:phone", "detail:address"],
+          "detailsShared": ["detail:legalName", "detail:email"]
+        }
+      },
+      "sentRequest": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d",
+        "type": "DETAILS_REQ",
+        "from": "someone$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
+      },
+      "expect": "refuse",
+      "why": "a response answers a request the receiver sent to its sender"
+    },
+    {
+      "name": "response-to-another-request",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "718293a4-b5c6-4d07-a1f8-091a2b3c4d5e",
+        "type": "DETAILS_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email", "detail:phone", "detail:address"],
+          "detailsShared": ["detail:legalName", "detail:email"]
+        }
+      },
+      "sentRequest": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "93a4b5c6-d7e8-4f29-830a-2b3c4d5e6f70",
+        "type": "DETAILS_REQ",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
+      },
+      "expect": "refuse",
+      "why": "a response answers the request it names"
+    },
+    {
+      "name": "response-opened-without-a-value",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "718293a4-b5c6-4d07-a1f8-091a2b3c4d5e",
+        "type": "DETAILS_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "detail:address": "2 Rata Road, Auckland"
+        },
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email", "detail:phone", "detail:address"],
+          "detailsShared": ["detail:legalName", "detail:email"]
+        }
+      },
+      "sentRequest": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d",
+        "type": "DETAILS_REQ",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
+      },
+      "expect": "refuse",
+      "why": "a response holds a value for every name"
+    },
+    {
+      "name": "response-opened-with-a-value-not-named",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "718293a4-b5c6-4d07-a1f8-091a2b3c4d5e",
+        "type": "DETAILS_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "detail:address": "2 Rata Road, Auckland",
+          "detail:phone": "+64 9 000 0000"
+        },
+        "details": ["detail:address"],
+        "relatesTo": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email", "detail:phone", "detail:address"],
+          "detailsShared": ["detail:legalName", "detail:email"]
+        }
+      },
+      "sentRequest": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "60718293-a4b5-4fc6-90e7-f8091a2b3c4d",
+        "type": "DETAILS_REQ",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "details": ["detail:address", "detail:phone"],
+        "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
+      },
+      "expect": "refuse",
+      "why": "a response holds a value only for each name"
+    }
+  ]
+}

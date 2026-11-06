@@ -5,6 +5,7 @@
   "hashAlgorithm": "sha256",
   "files": {
     "addresses.vectors.json": "cea6afc30d9a91aaa5d1310c3b5d0ec3981304cf66e3a2a3e53333ebecab6bab",
+    "details.vectors.json": "f24cb2bcd26078997bca67b1f924c368a2f1599ca8dc50f6bc751114d026a451",
     "device-key-proof.vector.json": "ef08791a6eac8df8540b57c112634d9feda8b82461bcd0737175bf0e9cbf4805",
     "documents-1.2.vectors.json": "5089e64b4a86d36adde5eed87a15a6b9ba3288e845abbcedea9ed9e875c42342",
     "documents.vectors.json": "722ae0a2abeae2999484a04834a0f8ca2b4f673dac71746c0e6ed4014c3e248f",
@@ -20,6 +21,7 @@
     "sync.vectors.json": "9824a6f90d052606ce97ba8b7d8e4cbc12c7df959acb5264dc71007779424dee",
     "templates.vectors.json": "531b6cbf223c37b612d23a962f150301fa81794f3675635e48e20257b84b88eb",
     "time-window.vectors.json": "9135f8c26d7bdbb3bd35e349e01af599f127d950a030d58134d6591944d2ee57",
-    "versions.vectors.json": "f66b6f235ed4db16c3b344d4bfd8878fed904c7671d836d0fb3175e322ad8710"
+    "trust-permissions.vectors.json": "2c33fd2b8cc3e2fba84da5d603708be523c90a6e7a73c33fd6a855a83e5acb12",
+    "versions.vectors.json": "ef129619e34c1b28a23ee8ec72b299146c39638cdcf035022d05d74935f40d77"
   }
 }

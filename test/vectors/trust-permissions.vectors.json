@@ -1,0 +1,4192 @@
+{
+  "description": "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: { send: [{ name, required }], details: [{ name, required }] }`, `entityType` (person or organisation) and `given`, the `detail:` names the sender gives about itself, and every detail it asks for it gives; `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given; a rejected one carries none. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `profile` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
+  "envelopes": [
+    {
+      "name": "request",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "request-sending-only",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": null,
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000"
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            }
+          ],
+          "details": []
+        },
+        "entityType": "organisation",
+        "given": []
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "request-from-a-person-asking-a-date-of-birth",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:dob",
+              "required": true
+            }
+          ]
+        },
+        "entityType": "person",
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "request-asking-a-registration-number",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:registrationNumber",
+              "required": true
+            },
+            {
+              "name": "detail:taxNo",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber",
+          "detail:taxNo"
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "request-for-a-change",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ],
+        "change": true
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "request-under-1-1",
+      "artifact": {
+        "version": "1.1.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "permissions are only in a 1.2.0 artifact"
+    },
+    {
+      "name": "request-without-entity-type",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "entityType comes with permissions"
+    },
+    {
+      "name": "request-from-another-entity-type",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "company",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "entityType is person or organisation"
+    },
+    {
+      "name": "request-sending-nothing",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "send has at least one entry"
+    },
+    {
+      "name": "request-naming-a-type-twice",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:invoice",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "each name appears once"
+    },
+    {
+      "name": "request-sending-another-type",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:quote",
+              "required": true
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "send names one of four document types"
+    },
+    {
+      "name": "request-with-a-provider-name",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "acme:loyalty",
+              "required": true
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "only the protocol names exist: no provider prefixes"
+    },
+    {
+      "name": "request-sending-a-detail",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "detail:email",
+              "required": true
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "send holds send: names only"
+    },
+    {
+      "name": "request-asking-a-send-name-as-a-detail",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "send:invoice",
+              "required": true
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "details holds detail: names only"
+    },
+    {
+      "name": "request-asking-a-1-1-field-name",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:name",
+              "required": true
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber",
+          "detail:name"
+        ]
+      },
+      "expect": "refuse",
+      "why": "the legal name is detail:legalName"
+    },
+    {
+      "name": "request-without-required",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:email"
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "each permission says whether it is required"
+    },
+    {
+      "name": "request-with-more-in-a-permission",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:email",
+              "required": true,
+              "why": "billing"
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "a permission holds name and required only"
+    },
+    {
+      "name": "request-asking-what-it-does-not-give",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:registrationNumber"]
+      },
+      "expect": "refuse",
+      "why": "every detail asked for is given"
+    },
+    {
+      "name": "request-giving-a-send-name",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber",
+          "send:invoice"
+        ]
+      },
+      "expect": "refuse",
+      "why": "given holds detail: names only"
+    },
+    {
+      "name": "request-giving-a-detail-twice",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber",
+          "detail:email"
+        ]
+      },
+      "expect": "refuse",
+      "why": "each name appears once"
+    },
+    {
+      "name": "request-from-a-person-giving-a-registration-number",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "person",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "a person gives detail:dob, never detail:registrationNumber"
+    },
+    {
+      "name": "request-from-an-organisation-giving-a-date-of-birth",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber",
+          "detail:dob"
+        ]
+      },
+      "expect": "refuse",
+      "why": "an organisation gives detail:registrationNumber, never detail:dob"
+    },
+    {
+      "name": "request-for-a-change-marked-false",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ],
+        "change": false
+      },
+      "expect": "refuse",
+      "why": "change is true or absent"
+    },
+    {
+      "name": "request-with-own-values-unencrypted",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": null,
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:registrationNumber": {
+              "number": "51824753556",
+              "country": "AU"
+            }
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "a request with own values is encrypted"
+    },
+    {
+      "name": "request-carrying-granted",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+      },
+      "expect": "refuse",
+      "why": "granted is only on a TRUST_RES"
+    },
+    {
+      "name": "response",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "response-rejecting",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": null,
+        "document": {
+          "id": "res-1",
+          "decision": "rejected",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "response-rejecting-with-granted",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": null,
+        "document": {
+          "id": "res-1",
+          "decision": "rejected",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example"
+        },
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+      },
+      "expect": "refuse",
+      "why": "a rejected answer carries no granted"
+    },
+    {
+      "name": "response-under-1-1",
+      "artifact": {
+        "version": "1.1.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+      },
+      "expect": "refuse",
+      "why": "granted is only in a 1.2.0 artifact"
+    },
+    {
+      "name": "response-granting-another-name",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:nickname"]
+      },
+      "expect": "refuse",
+      "why": "granted holds protocol names only"
+    },
+    {
+      "name": "response-granting-a-name-twice",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "send:invoice"]
+      },
+      "expect": "refuse",
+      "why": "each name appears once"
+    },
+    {
+      "name": "response-with-a-profile-unencrypted",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": null,
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example",
+          "profile": {
+            "detail:legalName": "Robert Smith",
+            "detail:email": "bob@client.example"
+          }
+        },
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+      },
+      "expect": "refuse",
+      "why": "a response with a profile is encrypted"
+    },
+    {
+      "name": "response-carrying-given",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "given is only on a TRUST_REQ"
+    },
+    {
+      "name": "document-type",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "3d4e5f60-7182-4c93-8db4-c5d6e7f8091a",
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "documentType": "invoice"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "document-type-readable",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "3d4e5f60-7182-4c93-8db4-c5d6e7f8091a",
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": null,
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000
+              }
+            ]
+          }
+        },
+        "documentType": "invoice"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "document-type-of-another-type",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "3d4e5f60-7182-4c93-8db4-c5d6e7f8091a",
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "documentType": "quote"
+      },
+      "expect": "refuse",
+      "why": "documentType is one of four document types"
+    },
+    {
+      "name": "document-type-under-1-1",
+      "artifact": {
+        "version": "1.1.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "3d4e5f60-7182-4c93-8db4-c5d6e7f8091a",
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "documentType": "invoice"
+      },
+      "expect": "refuse",
+      "why": "documentType is only in a 1.2.0 artifact"
+    },
+    {
+      "name": "document-carrying-permissions",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "3d4e5f60-7182-4c93-8db4-c5d6e7f8091a",
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "documentType": "invoice",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        }
+      },
+      "expect": "refuse",
+      "why": "permissions are only on a TRUST_REQ"
+    }
+  ],
+  "opened": [
+    {
+      "name": "request-from-an-organisation",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:registrationNumber": {
+              "number": "51824753556",
+              "country": "AU"
+            }
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "request-from-a-person",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "own": {
+            "detail:dob": "1990-04-21"
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:dob",
+              "required": true
+            }
+          ]
+        },
+        "entityType": "person",
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "request-giving-a-profile",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:registrationNumber": {
+              "number": "51824753556",
+              "country": "AU"
+            }
+          },
+          "displayName": "Acme",
+          "logoUrl": "https://vendor.example/logo.png",
+          "websiteUrl": "https://vendor.example"
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber",
+          "detail:profile"
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "request-giving-a-tax-number",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:registrationNumber": {
+              "number": "51824753556",
+              "country": "AU"
+            },
+            "detail:taxNo": {
+              "number": "123456789",
+              "country": "NZ"
+            }
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber",
+          "detail:taxNo"
+        ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "request-without-a-given-value",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {}
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "own holds a value for every name given that 1.1 has no field for"
+    },
+    {
+      "name": "request-without-a-given-1-1-field",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "own": {
+            "detail:registrationNumber": {
+              "number": "51824753556",
+              "country": "AU"
+            }
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "a name given has its value: detail:address is the address field"
+    },
+    {
+      "name": "request-giving-a-profile-without-a-display-name",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:registrationNumber": {
+              "number": "51824753556",
+              "country": "AU"
+            }
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber",
+          "detail:profile"
+        ]
+      },
+      "expect": "refuse",
+      "why": "detail:profile is the request's displayName, which it needs"
+    },
+    {
+      "name": "request-with-a-value-not-given",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:registrationNumber": {
+              "number": "51824753556",
+              "country": "AU"
+            },
+            "detail:taxNo": {
+              "number": "123456789",
+              "country": "NZ"
+            }
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "own holds only names given"
+    },
+    {
+      "name": "request-repeating-a-1-1-field-in-own",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:registrationNumber": {
+              "number": "51824753556",
+              "country": "AU"
+            },
+            "detail:email": "billing@acme.example"
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "a value 1.1 has a field for stays there and is not repeated in own"
+    },
+    {
+      "name": "request-with-a-date-of-birth-in-another-form",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "own": {
+            "detail:dob": "21/04/1990"
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:dob",
+              "required": true
+            }
+          ]
+        },
+        "entityType": "person",
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
+      },
+      "expect": "refuse",
+      "why": "a date of birth is YYYY-MM-DD"
+    },
+    {
+      "name": "request-with-a-registration-number-as-text",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:registrationNumber": "51824753556"
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "a registration number is { number, country }"
+    },
+    {
+      "name": "request-with-a-country-in-lower-case",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:registrationNumber": {
+              "number": "51824753556",
+              "country": "au"
+            }
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "country is ISO 3166-1 alpha-2, in upper case"
+    },
+    {
+      "name": "request-with-a-three-letter-country",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:registrationNumber": {
+              "number": "51824753556",
+              "country": "AUS"
+            }
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "country is ISO 3166-1 alpha-2"
+    },
+    {
+      "name": "request-with-more-in-a-registration-number",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:registrationNumber": {
+              "number": "51824753556",
+              "country": "AU",
+              "scheme": "abn"
+            }
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "a registration number holds number and country only"
+    },
+    {
+      "name": "response",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example",
+          "profile": {
+            "detail:legalName": "Robert Smith",
+            "detail:email": "bob@client.example"
+          }
+        },
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "response-granting-a-profile",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example",
+          "profile": {
+            "detail:legalName": "Robert Smith",
+            "detail:email": "bob@client.example",
+            "detail:profile": {
+              "displayName": "Bob",
+              "logo": {
+                "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "source": "https://client.example/bob.png"
+              },
+              "website": "https://client.example"
+            }
+          }
+        },
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:profile"]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "response-rejecting",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "res-1",
+          "decision": "rejected",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "response-without-a-granted-value",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example",
+          "profile": {
+            "detail:legalName": "Robert Smith"
+          }
+        },
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+      },
+      "expect": "refuse",
+      "why": "profile holds a value for every detail granted"
+    },
+    {
+      "name": "response-with-a-value-not-granted",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example",
+          "profile": {
+            "detail:legalName": "Robert Smith",
+            "detail:email": "bob@client.example",
+            "detail:phone": "+64 21 000 000"
+          }
+        },
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+      },
+      "expect": "refuse",
+      "why": "profile holds only details granted"
+    },
+    {
+      "name": "response-with-a-send-name-in-its-profile",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example",
+          "profile": {
+            "detail:legalName": "Robert Smith",
+            "detail:email": "bob@client.example",
+            "send:invoice": true
+          }
+        },
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+      },
+      "expect": "refuse",
+      "why": "profile holds detail values only"
+    },
+    {
+      "name": "response-with-a-logo-without-its-fingerprint",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example",
+          "profile": {
+            "detail:legalName": "Robert Smith",
+            "detail:email": "bob@client.example",
+            "detail:profile": {
+              "displayName": "Bob",
+              "logo": {
+                "source": "https://client.example/bob.png"
+              }
+            }
+          }
+        },
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:profile"]
+      },
+      "expect": "refuse",
+      "why": "a logo is { sha256, source }"
+    },
+    {
+      "name": "response-with-a-profile-without-a-display-name",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example",
+          "profile": {
+            "detail:legalName": "Robert Smith",
+            "detail:email": "bob@client.example",
+            "detail:profile": {
+              "website": "https://client.example"
+            }
+          }
+        },
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:profile"]
+      },
+      "expect": "refuse",
+      "why": "detail:profile has a displayName"
+    }
+  ],
+  "grant": [
+    {
+      "name": "only-the-required-names",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+      },
+      "record": {
+        "status": "pending",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ],
+          "granted": [],
+          "detailsHeld": [],
+          "detailsShared": []
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "every-name",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": [
+          "send:invoice",
+          "detail:legalName",
+          "detail:email",
+          "send:receipt",
+          "detail:address"
+        ]
+      },
+      "record": {
+        "status": "pending",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ],
+          "granted": [],
+          "detailsHeld": [],
+          "detailsShared": []
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "rejecting",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext"
+      },
+      "record": {
+        "status": "pending",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ],
+          "granted": [],
+          "detailsHeld": [],
+          "detailsShared": []
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-1-1-answer-to-a-1-1-trust",
+      "artifact": {
+        "version": "1.1.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext"
+      },
+      "record": {
+        "status": "pending"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-change",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "send:letter"]
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
+          "detailsShared": [
+            "detail:legalName",
+            "detail:email",
+            "detail:phone",
+            "detail:address",
+            "detail:registrationNumber"
+          ],
+          "pendingChange": {
+            "requested": [
+              {
+                "name": "send:invoice",
+                "required": true
+              },
+              {
+                "name": "send:receipt",
+                "required": false
+              },
+              {
+                "name": "detail:legalName",
+                "required": true
+              },
+              {
+                "name": "detail:email",
+                "required": true
+              },
+              {
+                "name": "detail:address",
+                "required": false
+              },
+              {
+                "name": "send:letter",
+                "required": true
+              }
+            ],
+            "requestedAt": "2026-10-19T00:00:00.000Z"
+          }
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "without-a-required-name",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName"]
+      },
+      "record": {
+        "status": "pending",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ],
+          "granted": [],
+          "detailsHeld": [],
+          "detailsShared": []
+        }
+      },
+      "expect": "refuse",
+      "why": "granted holds every required name asked for (BTP_ERROR_PERMISSION_REQUIRED)"
+    },
+    {
+      "name": "a-name-not-asked-for",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "send:payslip"]
+      },
+      "record": {
+        "status": "pending",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ],
+          "granted": [],
+          "detailsHeld": [],
+          "detailsShared": []
+        }
+      },
+      "expect": "refuse",
+      "why": "granted holds only names the request asked for"
+    },
+    {
+      "name": "to-a-record-without-permissions",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+      },
+      "record": {
+        "status": "pending"
+      },
+      "expect": "refuse",
+      "why": "required permissions cannot be checked without the requested names"
+    },
+    {
+      "name": "to-an-accepted-trust-with-no-change-pending",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
+          "detailsShared": [
+            "detail:legalName",
+            "detail:email",
+            "detail:phone",
+            "detail:address",
+            "detail:registrationNumber"
+          ]
+        }
+      },
+      "expect": "refuse",
+      "why": "an accepted trust takes an answer only while a change is pending"
+    },
+    {
+      "name": "a-change-without-its-new-required-name",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
+          "detailsShared": [
+            "detail:legalName",
+            "detail:email",
+            "detail:phone",
+            "detail:address",
+            "detail:registrationNumber"
+          ],
+          "pendingChange": {
+            "requested": [
+              {
+                "name": "send:invoice",
+                "required": true
+              },
+              {
+                "name": "send:receipt",
+                "required": false
+              },
+              {
+                "name": "detail:legalName",
+                "required": true
+              },
+              {
+                "name": "detail:email",
+                "required": true
+              },
+              {
+                "name": "detail:address",
+                "required": false
+              },
+              {
+                "name": "send:letter",
+                "required": true
+              }
+            ],
+            "requestedAt": "2026-10-19T00:00:00.000Z"
+          }
+        }
+      },
+      "expect": "refuse",
+      "why": "an answer to a change is checked against the change"
+    }
+  ],
+  "documentType": [
+    {
+      "name": "granted",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "3d4e5f60-7182-4c93-8db4-c5d6e7f8091a",
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "documentType": "invoice"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
+          "detailsShared": [
+            "detail:legalName",
+            "detail:email",
+            "detail:phone",
+            "detail:address",
+            "detail:registrationNumber"
+          ]
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "granted-and-readable",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "3d4e5f60-7182-4c93-8db4-c5d6e7f8091a",
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": null,
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000
+              }
+            ]
+          }
+        },
+        "documentType": "invoice"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
+          "detailsShared": [
+            "detail:legalName",
+            "detail:email",
+            "detail:phone",
+            "detail:address",
+            "detail:registrationNumber"
+          ]
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "an-event-under-permissions",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "4e5f6071-8293-4da4-9ec5-d6e7f8091a2b",
+        "type": "BTPS_EVENT",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "relatesTo": "3d4e5f60-7182-4c93-8db4-c5d6e7f8091a"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
+          "detailsShared": [
+            "detail:legalName",
+            "detail:email",
+            "detail:phone",
+            "detail:address",
+            "detail:registrationNumber"
+          ]
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-1-1-trust",
+      "artifact": {
+        "version": "1.1.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "3d4e5f60-7182-4c93-8db4-c5d6e7f8091a",
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext"
+      },
+      "record": {
+        "status": "accepted"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "without-a-document-type",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "3d4e5f60-7182-4c93-8db4-c5d6e7f8091a",
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
+          "detailsShared": [
+            "detail:legalName",
+            "detail:email",
+            "detail:phone",
+            "detail:address",
+            "detail:registrationNumber"
+          ]
+        }
+      },
+      "expect": "refuse",
+      "why": "a send under a trust with permissions names its documentType (BTP_ERROR_PERMISSION)"
+    },
+    {
+      "name": "not-granted",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "3d4e5f60-7182-4c93-8db4-c5d6e7f8091a",
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "documentType": "receipt"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
+          "detailsShared": [
+            "detail:legalName",
+            "detail:email",
+            "detail:phone",
+            "detail:address",
+            "detail:registrationNumber"
+          ]
+        }
+      },
+      "expect": "refuse",
+      "why": "send:<documentType> is granted (BTP_ERROR_PERMISSION)"
+    },
+    {
+      "name": "readable-of-another-type",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "3d4e5f60-7182-4c93-8db4-c5d6e7f8091a",
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": null,
+        "document": {
+          "type": "receipt",
+          "title": "Receipt",
+          "id": "REC-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "payment": {
+            "amount": {
+              "amount": 50000,
+              "currency": "AUD"
+            },
+            "paidAt": "2026-10-19T00:00:00.000Z",
+            "method": "bank_transfer"
+          }
+        },
+        "documentType": "invoice"
+      },
+      "record": {
+        "status": "accepted",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
+          "detailsShared": [
+            "detail:legalName",
+            "detail:email",
+            "detail:phone",
+            "detail:address",
+            "detail:registrationNumber"
+          ]
+        }
+      },
+      "expect": "refuse",
+      "why": "a readable document is its documentType (BTP_ERROR_DOCUMENT_TYPE_MISMATCH)"
+    }
+  ]
+}

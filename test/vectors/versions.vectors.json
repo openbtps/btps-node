@@ -521,18 +521,192 @@
           "name": "Acme Pty Ltd",
           "email": "billing@acme.example",
           "reason": "To send you invoices",
+          "phone": "+61 400 000 000"
+        },
+        "encryption": null,
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            }
+          ],
+          "details": []
+        }
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "trust-request-entity-type",
+      "artifact": {
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000"
+        },
+        "encryption": null,
+        "entityType": "organisation"
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "trust-request-given",
+      "artifact": {
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000"
+        },
+        "encryption": null,
+        "given": ["detail:email"]
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "trust-request-change",
+      "artifact": {
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000"
+        },
+        "encryption": null,
+        "change": true
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "trust-request-own",
+      "artifact": {
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
           "phone": "+61 400 000 000",
-          "permissions": {
-            "send": [
-              {
-                "name": "send:invoice",
-                "required": true
-              }
-            ],
-            "details": []
+          "own": {
+            "detail:dob": "1990-04-21"
           }
         },
         "encryption": null
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "trust-request-verification",
+      "artifact": {
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "verification": {
+            "subject": "billing$vendor.example",
+            "claims": {
+              "detail:legalName": "Acme Pty Ltd"
+            },
+            "verifiedAt": "2026-10-19T00:00:00.000Z",
+            "expiresAt": "2027-10-19T00:00:00.000Z",
+            "verifiedBy": "admin$verifier.example",
+            "selector": "btps1"
+          }
+        },
+        "encryption": null
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "trust-response-granted",
+      "artifact": {
+        "type": "TRUST_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example"
+        },
+        "encryption": null,
+        "granted": ["send:invoice"]
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "trust-response-profile",
+      "artifact": {
+        "type": "TRUST_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example",
+          "profile": {
+            "detail:email": "bob@client.example"
+          }
+        },
+        "encryption": null
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "details-changed",
+      "artifact": {
+        "type": "DETAILS_CHANGED",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": "ciphertext",
+        "encryption": null,
+        "details": ["detail:address"]
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "details-req",
+      "artifact": {
+        "type": "DETAILS_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": "ciphertext",
+        "encryption": null,
+        "details": ["detail:address"]
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "details-res",
+      "artifact": {
+        "type": "DETAILS_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": "ciphertext",
+        "encryption": null,
+        "details": ["detail:address"],
+        "relatesTo": "artifact-1"
       },
       "expect": "1.2.0"
     }
