@@ -45,7 +45,7 @@ export interface BTPClientOptions {
   hostOperator?: string;
   /**
    * Since 1.2: take no answer but one signed by this identity under this selector, as a provider's
-   * own app expects of its server (for example `server$saas.example` under `server1`). Unsigned
+   * own app expects of its server: its domain's operator (for example `admin$saas.example`). Unsigned
    * answers, and those of any other signer, are refused. Off when not set.
    */
   requireSignedBy?: { identity: string; selector: string };

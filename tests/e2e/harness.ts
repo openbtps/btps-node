@@ -76,6 +76,9 @@ const tlsFiles = (() => {
 /** TLS options a sender uses: it trusts the providers' certificate. */
 export const senderTls = { ca: tlsFiles.cert, servername: 'localhost' };
 
+/** A server's TLS key and certificate, for a provider started outside startProvider. */
+export const serverTls = { key: tlsFiles.key, cert: tlsFiles.cert };
+
 export const newKeys = (): Keys => getBTPKeyPair();
 
 /** Publishes an identity's key the way BTPS reads it: `<selector>._btps.identity.<account>.<domain>`. */
@@ -104,7 +107,7 @@ export const publishHost = (
   );
 };
 
-const freePort = () =>
+export const freePort = () =>
   new Promise<number>((resolve) => {
     const probe = net.createServer();
     probe.listen(0, () => {
@@ -151,7 +154,8 @@ export async function startProvider(
   const inbox: BTPTransporterArtifact[] = [];
 
   const server = new BtpsServer({
-    serverIdentity: { identity: operator, ...operatorKeys },
+    // The operator: one key pair signs lookup answers and, with signAnswers, every answer.
+    serverIdentity: { identity: operator, ...operatorKeys, selector },
     trustStore,
     identityStore,
     port,

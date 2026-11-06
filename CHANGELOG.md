@@ -71,7 +71,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   `signAnswers` signs every answer, errors included, as `serverIdentity` under
   its new `selector`. A client with `requireSignedBy: { identity, selector }`
   takes no answer but one signed by that signer under that selector, and
-  refuses any other before it looks up a key.
+  refuses any other before it looks up a key. `serverIdentity` is the
+  domain's operator, whose key signs identity-lookup answers too, so a
+  provider keeps one key pair and its app pins the operator.
 - **Sync.** A device's sync is an `artifact.send` to the user's own address
   that names the send it copies on its envelope, `syncOf: { id, sha256 }`
   (`BtpsAgentCommandOptions.syncOf`; `syncOfArtifact` computes it). It is only

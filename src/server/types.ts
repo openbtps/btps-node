@@ -54,7 +54,7 @@ export interface BtpsServerOptions {
   /**
    * Since 1.2: sign every answer, errors included, as `serverIdentity` under its `selector`, so a
    * device that requires its server's signature (`requireSignedBy`) can read it. Off by default.
-   * Never sign with a key of the domain's operator: use an identity of its own, such as `server$<domain>`.
+   * `serverIdentity` is the domain's operator, which signs identity-lookup answers too: one key pair.
    */
   signAnswers?: boolean;
   /**
