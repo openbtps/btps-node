@@ -50,7 +50,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   (`templates.vectors.json`). Format 1 says how an invoice or receipt looks,
   never what it says: it never carries or changes a value, hides no section
   with signed fields, fetches nothing and runs nothing, and its labels, terms
-  and footer are plain words with no payment detail. Its fingerprint is the
+  and footer are plain text, with no markup and no control, hidden or
+  direction-changing character. What those words say is the platform's
+  policy; the Templates page recommends refusing digit runs and web, email
+  and BTPS addresses, where a fake payment detail would hide. Its fingerprint is the
   SHA-256 of its RFC 8785 canonical form. The SDK renders nothing.
 - **Template format 2: payslips and letters.** Format 2 is format 1 for
   invoices and receipts, plus a payslip template (the payslip's own sections
