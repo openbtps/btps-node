@@ -119,6 +119,16 @@ deduction, contribution or leave, a leave `unit`, `rateUnit`, and
 | `title`        |     200 |
 | `body.content` | 100,000 |
 
+Since 1.2, in a `1.2.0` artifact, a letter's template may carry signature values (`template.data.values`; see [Templates](./templates.md#signature-slots-and-their-values)):
+
+| Field                                                  |                Limit |
+| ------------------------------------------------------ | -------------------: |
+| `signature.typed`, `signature.name`, `signature.title` |                  100 |
+| `signature.drawn`: strokes                             |                   32 |
+| `signature.drawn`: points a stroke                     |                  512 |
+| `signature.drawn`: points in all                       |                2,048 |
+| `signature.drawn`: a point's `x`, `y`                  | 0 to 1,000, 0 to 300 |
+
 ## Lists and records
 
 How many entries a list may have, and how many keys a record. These are

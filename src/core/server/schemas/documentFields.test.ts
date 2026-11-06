@@ -119,6 +119,26 @@ describe('a template', () => {
     );
     expect(takes('1.1.0', { ...invoice, template: template({ source }) })).toBe(true);
   });
+
+  it("carries a letter's signature values, as data on a fixed canvas, on a letter only", () => {
+    const values = (drawn: object, more: object = {}) =>
+      template({
+        values: {
+          'signature.name': 'Jo Bloggs',
+          'signature.drawn': drawn,
+          ...more,
+        },
+      });
+    const onCanvas = { strokes: [[0, 0, 1000, 300]] };
+
+    expect(takes('1.2.0', { ...letter, template: values(onCanvas) })).toBe(true);
+    expect(takes('1.2.0', { ...letter, template: values({ strokes: [[0, 0, 1001, 0]] }) })).toBe(
+      false,
+    );
+    expect(takes('1.2.0', { ...letter, template: values({ strokes: [[0, 0, 1]] }) })).toBe(false);
+    expect(takes('1.2.0', { ...letter, template: values(onCanvas, { total: 100 }) })).toBe(false);
+    expect(takes('1.2.0', { ...invoice, template: values(onCanvas) })).toBe(false);
+  });
 });
 
 describe('what a device stamps', () => {

@@ -8,6 +8,7 @@
 import type { BTPCryptoOptions } from '@core/crypto/types.js';
 import type { Signer } from '@core/crypto/signer-interface.js';
 import type { Decrypter } from '@core/crypto/decrypter-interface.js';
+import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 import type { BTPErrorException } from '@core/error/index.js';
 import type { BtpsClient } from 'client/btpsClient.js';
 import type {
@@ -48,6 +49,12 @@ export interface BTPClientOptions {
    * answers, and those of any other signer, are refused. Off when not set.
    */
   requireSignedBy?: { identity: string; selector: string };
+  /**
+   * Since 1.2: finds the keys this client checks and encrypts with: an answer's signer (`verify`)
+   * and, in `resolveIdentity`, the receiver's key (`encrypt`, before asking the receiver's host).
+   * Without it, each is looked up in DNS, as before.
+   */
+  keyResolver?: BtpsKeyResolver;
   version?: string;
   port?: number;
   maxQueue?: number;

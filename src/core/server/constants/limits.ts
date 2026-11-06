@@ -80,4 +80,7 @@ export const BTPS_FIELD_LIMITS = {
   note: 5000,
   // Since 1.2: a template's or logo's https source, as long as a logo or website address.
   url: 2048,
+  // Since 1.2, under 1.2.0: a letter template's signature values. A drawn signature is
+  // integer strokes on a fixed canvas, `width` by `height`.
+  signature: { text: 100, strokes: 32, strokePoints: 512, points: 2048, width: 1000, height: 300 },
 } as const;

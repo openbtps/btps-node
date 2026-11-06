@@ -81,6 +81,7 @@
     "base64": "bash -c 'base64 -i \"$1\" | tr -d \"\\n\"' --",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
+    "bench": "vitest bench --run",
     "test:e2e": "vitest run -c vitest.e2e.config.ts",
     "test:security": "vitest run -c vitest.security.config.ts",
     "test:watch": "vitest --watch",

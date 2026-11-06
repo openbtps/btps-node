@@ -26,6 +26,7 @@ import {
 } from './types.js';
 import { getHostAndSelector, parseIdentity, resolvePublicKey } from '@core/utils/index.js';
 import { ParsedIdentity } from '@core/utils/types.js';
+import type { BtpsKeyResolver } from './keyResolver.js';
 import { BTPErrorException } from '@core/error/index.js';
 import isEmpty from 'lodash/isEmpty.js';
 
@@ -34,16 +35,18 @@ const genEncryptError = (error: BTPErrorException) => ({
   error,
 });
 
-/** How signEncrypt reaches a receiver's host when DNS has no key for it. */
+/** How signEncrypt finds a receiver's key. */
 export type ReceiverKeyLookup = {
   /** TLS options for the connection to the receiver's host */
   btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
+  /** Since 1.2: asked for the receiver's key (`encrypt`) in place of DNS; its host is still asked after it */
+  keyResolver?: BtpsKeyResolver;
 };
 
 /**
- * A receiver's key as BTPS finds it: in DNS first, then from the receiver's
- * host, in an answer its domain's operator signed. The client is loaded only
- * when DNS has no key, so the core does not depend on it.
+ * A receiver's key as BTPS finds it: in DNS first (or from the keyResolver),
+ * then from the receiver's host, in an answer its domain's operator signed. The
+ * client is loaded only when neither has a key, so the core does not depend on it.
  */
 const findReceiverKey = async (
   to: string,
@@ -51,8 +54,10 @@ const findReceiverKey = async (
   selector: string,
   lookup?: ReceiverKeyLookup,
 ): Promise<string | undefined> => {
-  const inDns = await resolvePublicKey(to, selector);
-  if (inDns) return inDns;
+  const found = lookup?.keyResolver
+    ? await lookup.keyResolver.resolvePublicKey(to, selector, 'encrypt')
+    : await resolvePublicKey(to, selector);
+  if (found) return found;
   const { BtpsClient } = await import('../../client/btpsClient.js');
   const client = new BtpsClient({ to, btpMtsOptions: lookup?.btpMtsOptions, maxRetries: 0 });
   try {

@@ -22,6 +22,7 @@ import { BTPErrorException } from '@core/error/index.js';
 import { BTPIdentityRecord } from '@core/storage/types.js';
 import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 import type { Signer } from '@core/crypto/signer-interface.js';
+import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 import type { z } from 'zod';
 import type {
   BtpLetterDocSchema,
@@ -56,6 +57,11 @@ export interface BtpsServerOptions {
    * `serverIdentity` is the domain's operator, which signs identity-lookup answers too: one key pair.
    */
   signAnswers?: boolean;
+  /**
+   * Since 1.2: finds every key this server checks a signature with (a sender's, a delegator's,
+   * an attestor's), so a provider can cache them. Without it, each is looked up in DNS, as before.
+   */
+  keyResolver?: BtpsKeyResolver;
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tlsOptions: BtpsTlsOptions;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
@@ -334,8 +340,21 @@ export interface BTPTemplate {
     sha256?: string; // lowercase hex
     source?: string; // an https address, always with its sha256
     logo?: { sha256: string; source: string };
+    values?: BTPTemplateValues; // since 1.2, a letter's template only
     [key: string]: unknown;
   };
+}
+
+/**
+ * Since 1.2: what a letter template's signature slots show, from the sender and
+ * signed with the document. A drawn signature is integer strokes, `[x, y, x, y, …]`,
+ * on a canvas 1000 by 300: data a receiver draws itself, never markup.
+ */
+export interface BTPTemplateValues {
+  'signature.typed'?: string;
+  'signature.name'?: string;
+  'signature.title'?: string;
+  'signature.drawn'?: { strokes: number[][] };
 }
 
 /** Proof of a payment: the invoice without what asks for payment, plus `payment`. */
