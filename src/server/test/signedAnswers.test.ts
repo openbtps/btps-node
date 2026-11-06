@@ -52,10 +52,10 @@ describe("a server's signed answers", () => {
 
   const options = (more: Partial<BtpsServerOptions> = {}): BtpsServerOptions => ({
     serverIdentity: {
-      identity: 'server$saas.example',
+      identity: 'admin$saas.example',
       publicKey: keys.publicKey,
       privateKey: keys.privateKey,
-      selector: 'server1',
+      selector: 'btps1',
     },
     trustStore: new JsonTrustStore({ connection: 'unused-trust-store.json' }),
     tlsOptions: { key: 'test-key', cert: 'test-cert' },
@@ -84,8 +84,8 @@ describe("a server's signed answers", () => {
 
     expect(sent).toMatchObject({
       reqId: 'req-1',
-      signedBy: 'server$saas.example',
-      selector: 'server1',
+      signedBy: 'admin$saas.example',
+      selector: 'btps1',
     });
     const { signature, ...signed } = sent;
     expect(signature && verifySignature(signed, signature, keys.publicKey).isValid).toBe(true);
@@ -100,7 +100,7 @@ describe("a server's signed answers", () => {
     const sent = await written(new BtpsServer(options()), refusal);
 
     expect(sent.signature).toBeDefined();
-    expect(sent.signedBy).toBe('server$saas.example');
+    expect(sent.signedBy).toBe('admin$saas.example');
   });
 
   it('are left unsigned, as in 1.1, when the server does not sign answers', async () => {
@@ -111,10 +111,10 @@ describe("a server's signed answers", () => {
 
   it('need the selector the key is published under', () => {
     const { selector: _selector, ...identity } = {
-      identity: 'server$saas.example',
+      identity: 'admin$saas.example',
       publicKey: keys.publicKey,
       privateKey: keys.privateKey,
-      selector: 'server1',
+      selector: 'btps1',
     };
 
     expect(() => new BtpsServer(options({ serverIdentity: identity }))).toThrow(/selector/);
@@ -135,7 +135,7 @@ describe("a server's signed answers", () => {
     };
     const server = new BtpsServer(
       options({
-        serverIdentity: { identity: 'server$saas.example', signer: slowFirst, selector: 'server1' },
+        serverIdentity: { identity: 'admin$saas.example', signer: slowFirst, selector: 'btps1' },
       }),
     );
     const lines: string[] = [];
@@ -188,7 +188,7 @@ describe("a server's signed answers", () => {
 });
 
 describe('a device that requires its server to sign', () => {
-  const requireSignedBy = { identity: 'server$saas.example', selector: 'server1' };
+  const requireSignedBy = { identity: 'admin$saas.example', selector: 'btps1' };
   const device = () => new BtpsClient({ to: 'alice$saas.example', requireSignedBy });
 
   beforeEach(() => dns.mockReset());
@@ -214,7 +214,7 @@ describe('a device that requires its server to sign', () => {
     const { isValid } = await client['verifyServerMessage']({
       ...unsignedAnswer,
       signedBy: 'mallory$saas.example',
-      selector: 'server1',
+      selector: 'btps1',
       signature: { algorithmHash: 'sha256', value: 'AA==', fingerprint: 'AA==' },
     });
     client.destroy();
@@ -225,7 +225,7 @@ describe('a device that requires its server to sign', () => {
 
   it('takes an answer its server signed', async () => {
     dns.mockResolvedValue([[`k=rsa; v=1.2.0; p=${pemToBase64(keys.publicKey)}`]]);
-    const unsigned = { ...unsignedAnswer, signedBy: 'server$saas.example', selector: 'server1' };
+    const unsigned = { ...unsignedAnswer, signedBy: 'admin$saas.example', selector: 'btps1' };
     const client = device();
     const { isValid } = await client['verifyServerMessage']({
       ...unsigned,
@@ -234,16 +234,16 @@ describe('a device that requires its server to sign', () => {
     client.destroy();
 
     expect(isValid).toBe(true);
-    expect(dns).toHaveBeenCalledWith('server1._btps.identity.server.saas.example');
+    expect(dns).toHaveBeenCalledWith('btps1._btps.identity.admin.saas.example');
   });
 
   it('compares the signer without case, as every identity, and its selector exactly', async () => {
     dns.mockResolvedValue([[`k=rsa; v=1.2.0; p=${pemToBase64(keys.publicKey)}`]]);
-    const unsigned = { ...unsignedAnswer, signedBy: 'Server$SaaS.example', selector: 'server1' };
+    const unsigned = { ...unsignedAnswer, signedBy: 'Admin$SaaS.example', selector: 'btps1' };
     const client = device();
     const signed = { ...unsigned, signature: signBtpPayload(unsigned, keys) };
     const { isValid } = await client['verifyServerMessage'](signed);
-    const otherSelector = { ...unsigned, selector: 'SERVER1' };
+    const otherSelector = { ...unsigned, selector: 'BTPS1' };
     const { isValid: underAnother } = await client['verifyServerMessage']({
       ...otherSelector,
       signature: signBtpPayload(otherSelector, keys),
@@ -254,9 +254,9 @@ describe('a device that requires its server to sign', () => {
     expect(underAnother).toBe(false);
   });
 
-  it("refuses an identity-lookup answer, signed by the domain's operator, on its own connection", async () => {
-    // Receiver keys are looked up by resolveIdentity, on a connection of its own that checks the
-    // operator instead, so the pin never stands in the way of a lookup.
+  it('takes an identity-lookup answer on its own connection: the operator is the one signer', async () => {
+    // One key pair: the operator signs lookup answers and every other answer alike.
+    dns.mockResolvedValue([[`k=rsa; v=1.2.0; p=${pemToBase64(keys.publicKey)}`]]);
     const unsigned = {
       ...unsignedAnswer,
       signedBy: 'admin$saas.example',
@@ -270,7 +270,6 @@ describe('a device that requires its server to sign', () => {
     });
     client.destroy();
 
-    expect(isValid).toBe(false);
-    expect(dns).not.toHaveBeenCalled();
+    expect(isValid).toBe(true);
   });
 });

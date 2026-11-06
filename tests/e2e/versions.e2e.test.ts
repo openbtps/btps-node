@@ -128,22 +128,14 @@ const deliver12 = async (artifact: BTPTransporterArtifact) => {
 describe('journey: a 1.2 provider and a 1.1 provider talk', () => {
   let old: Awaited<ReturnType<typeof startProvider11>>;
   let current: Provider;
-  let keeper: Provider; // a 1.2 host that keeps its users' keys, its operator signing its lookup answers
   let alice: Sender; // on the 1.2 provider
   let bob: Sender; // on the 1.1 provider
-  const serverKeys = newKeys();
 
   beforeAll(async () => {
     old = await startProvider11('old.test');
-    keeper = await startProvider('keeper.test');
-    current = await startProvider('new.test', {
-      // The 1.2 provider signs its answers, as its own devices expect.
-      server: {
-        serverIdentity: { identity: 'server$new.test', ...serverKeys, selector: 'server1' },
-        signAnswers: true,
-      },
-    });
-    publishKey('server$new.test', 'server1', serverKeys.publicKey);
+    // The 1.2 provider signs every answer, as its own devices expect, with its one key pair:
+    // its operator's, which signs its identity-lookup answers too.
+    current = await startProvider('new.test', { server: { signAnswers: true } });
     alice = await addUser(current, 'alice');
     bob = { identity: 'bob$old.test', keys: newKeys(), selector: 'btps1' };
     publishKey(bob.identity, bob.selector, bob.keys.publicKey);
@@ -155,7 +147,6 @@ describe('journey: a 1.2 provider and a 1.1 provider talk', () => {
   afterAll(() => {
     old.stop();
     current.stop();
-    keeper.stop();
   });
 
   describe('a 1.2 sender and a 1.1 server', () => {
@@ -255,14 +246,14 @@ describe('journey: a 1.2 provider and a 1.1 provider talk', () => {
       expect(error).toBeUndefined();
       expect(response?.status.ok).toBe(true);
       expect(response?.version).toBe('1.2.0');
-      expect(response?.signedBy).toBe('server$new.test');
+      expect(response?.signedBy).toBe(current.operator);
       expect(current.inbox).toContainEqual(
         expect.objectContaining({ id: (payload as { id: string }).id }),
       );
     });
 
-    it('finds a key only the 1.2 host keeps, in an answer its operator signed', async () => {
-      const dave = await addUser(keeper, 'dave', 'host');
+    it('finds a key only the 1.2 host keeps, from the same server that signs its answers', async () => {
+      const dave = await addUser(current, 'dave', 'host');
       const client = new BtpsClient11({
         to: dave.identity,
         btpMtsOptions: senderTls,
@@ -273,6 +264,26 @@ describe('journey: a 1.2 provider and a 1.1 provider talk', () => {
 
       expect(error).toBeUndefined();
       expect(response?.publicKey.trim()).toBe(dave.keys.publicKey.trim());
+    });
+  });
+
+  describe('a 1.2 device and its own provider, with one key pair', () => {
+    it("pins the operator, and takes both the provider's signed answers and its lookup answers", async () => {
+      const erin = await addUser(current, 'erin', 'host');
+      const pinned = new BtpsClient({
+        to: alice.identity,
+        btpMtsOptions: senderTls,
+        maxRetries: 0,
+        requireSignedBy: { identity: current.operator, selector: current.selector },
+      });
+      const { version, error: pingError } = await pinned.getServerVersion();
+      const { response, error } = await pinned.resolveIdentity(erin.identity, alice.identity);
+      pinned.destroy();
+
+      expect(pingError).toBeUndefined();
+      expect(version).toBe('1.2.0');
+      expect(error).toBeUndefined();
+      expect(response?.publicKey.trim()).toBe(erin.keys.publicKey.trim());
     });
   });
 });
