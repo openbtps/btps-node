@@ -11,6 +11,7 @@ import { computeAgentTrustId } from '@core/trust/trustUtils.js';
 import type { BTPSealedSuccessor } from './types.js';
 
 const INFO = 'btps refresh successor v1';
+const TAG_LENGTH = 16;
 
 // The key is the old token's own: only whoever holds the old token can open its answer.
 const keyFrom = (oldToken: string) => Buffer.from(hkdfSync('sha256', oldToken, '', INFO, 32));
@@ -27,7 +28,9 @@ export function sealSuccessor(
   at: string,
 ): BTPSealedSuccessor {
   const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', keyFrom(oldToken), iv);
+  const cipher = createCipheriv('aes-256-gcm', keyFrom(oldToken), iv, {
+    authTagLength: TAG_LENGTH,
+  });
   cipher.setAAD(boundTo(answer.agentId, userIdentity, at));
   const ciphertext = Buffer.concat([cipher.update(JSON.stringify(answer), 'utf8'), cipher.final()]);
   return {
@@ -45,14 +48,18 @@ export function openSuccessor(
   userIdentity: string,
   sealed: BTPSealedSuccessor,
 ): BTPAuthResDoc | undefined {
+  // A full 16-byte tag only: GCM would otherwise take one as short as 4 bytes, which can be guessed.
+  const tag = Buffer.from(sealed.tag, 'base64');
+  if (tag.length !== TAG_LENGTH) return undefined;
   try {
     const decipher = createDecipheriv(
       'aes-256-gcm',
       keyFrom(oldToken),
       Buffer.from(sealed.iv, 'base64'),
+      { authTagLength: TAG_LENGTH },
     );
     decipher.setAAD(boundTo(agentId, userIdentity, sealed.at));
-    decipher.setAuthTag(Buffer.from(sealed.tag, 'base64'));
+    decipher.setAuthTag(tag);
     const plain = Buffer.concat([
       decipher.update(Buffer.from(sealed.ciphertext, 'base64')),
       decipher.final(),

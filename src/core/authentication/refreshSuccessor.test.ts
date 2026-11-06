@@ -37,6 +37,14 @@ describe('a refresh answer sealed under its old token', () => {
     expect(openSuccessor('old-token', 'agent-1', 'bob$saas.example', sealed)).toBeUndefined();
   });
 
+  it('refuses a tag shorter than 16 bytes, which GCM would otherwise check only in part', () => {
+    const tag = Buffer.from(sealed.tag, 'base64');
+    for (const length of [4, 8, 12, 15]) {
+      const truncated = { ...sealed, tag: tag.subarray(0, length).toString('base64') };
+      expect(openSuccessor('old-token', 'agent-1', identity, truncated)).toBeUndefined();
+    }
+  });
+
   it('cannot have its rotation time moved, to stretch the window', () => {
     const later = { ...sealed, at: '2026-01-01T00:10:00.000Z' };
     expect(openSuccessor('old-token', 'agent-1', identity, later)).toBeUndefined();
