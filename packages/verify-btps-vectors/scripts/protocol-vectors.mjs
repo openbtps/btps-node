@@ -894,9 +894,9 @@ export function versions() {
         V12,
       ),
       stamped(
-        'trust-response-profile',
+        'trust-response-details',
         {
-          ...doc({ ...base.trustResponse, profile: { 'detail:email': 'bob@client.example' } }),
+          ...doc({ ...base.trustResponse, details: { 'detail:email': 'bob@client.example' } }),
           type: 'TRUST_RES',
         },
         V12,
@@ -1676,7 +1676,7 @@ export function trustPermissions() {
   });
   const responseDoc = {
     ...base.trustResponse,
-    profile: { 'detail:legalName': 'Robert Smith', 'detail:email': 'bob@client.example' },
+    details: { 'detail:legalName': 'Robert Smith', 'detail:email': 'bob@client.example' },
   };
   const requested = [...permissions.send, ...permissions.details];
   const pending = trustRecord('pending', {
@@ -1723,13 +1723,13 @@ export function trustPermissions() {
   const withDob = (dob) => ({ ...base.trustRequest, own: { 'detail:dob': dob } });
   const fromAnOrganisation = { ...response, entityType: 'organisation' };
   const granting = (artifact, name) => ({ ...artifact, granted: [...granted, name] });
-  const profileWith = (name, value) => ({
+  const detailsWith = (name, value) => ({
     ...responseDoc,
-    profile: { ...responseDoc.profile, [name]: value },
+    details: { ...responseDoc.details, [name]: value },
   });
   return {
     description:
-      "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: { send: [{ name, required }], details: [{ name, required }] }`, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`; `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `profile` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
+      "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: { send: [{ name, required }], details: [{ name, required }] }`, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`; `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `details` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
     envelopes: [
       named('request', request, 'accept'),
       named(
@@ -2007,10 +2007,10 @@ export function trustPermissions() {
         'each name appears once',
       ),
       named(
-        'response-with-a-profile-unencrypted',
+        'response-with-details-unencrypted',
         { ...response, encryption: null, document: responseDoc },
         'refuse',
-        'a response with a profile is encrypted',
+        'a response with details is encrypted',
       ),
       named(
         'response-carrying-given',
@@ -2170,8 +2170,8 @@ export function trustPermissions() {
           { ...response, granted: [...granted, 'detail:profile'] },
           {
             ...responseDoc,
-            profile: {
-              ...responseDoc.profile,
+            details: {
+              ...responseDoc.details,
               'detail:profile': {
                 displayName: 'Bob',
                 logo: { sha256: SHA, source: 'https://client.example/bob.png' },
@@ -2184,14 +2184,14 @@ export function trustPermissions() {
       ),
       named(
         'response-from-a-person-granting-a-date-of-birth',
-        opened(granting(response, 'detail:dob'), profileWith('detail:dob', '1990-04-21')),
+        opened(granting(response, 'detail:dob'), detailsWith('detail:dob', '1990-04-21')),
         'accept',
       ),
       named(
         'response-from-an-organisation-granting-a-registration-number',
         opened(
           granting(fromAnOrganisation, 'detail:registrationNumber'),
-          profileWith('detail:registrationNumber', registrationNumber),
+          detailsWith('detail:registrationNumber', registrationNumber),
         ),
         'accept',
       ),
@@ -2205,7 +2205,7 @@ export function trustPermissions() {
       ),
       named(
         'response-with-a-date-of-birth-in-another-form',
-        opened(granting(response, 'detail:dob'), profileWith('detail:dob', '21/04/1990')),
+        opened(granting(response, 'detail:dob'), detailsWith('detail:dob', '21/04/1990')),
         'refuse',
         'a date of birth is YYYY-MM-DD',
       ),
@@ -2213,7 +2213,7 @@ export function trustPermissions() {
         'response-with-a-registration-number-as-text',
         opened(
           granting(fromAnOrganisation, 'detail:registrationNumber'),
-          profileWith('detail:registrationNumber', registrationNumber.number),
+          detailsWith('detail:registrationNumber', registrationNumber.number),
         ),
         'refuse',
         'a registration number is { number, country }',
@@ -2222,28 +2222,28 @@ export function trustPermissions() {
         'response-without-a-granted-value',
         opened(response, {
           ...responseDoc,
-          profile: { 'detail:legalName': responseDoc.profile['detail:legalName'] },
+          details: { 'detail:legalName': responseDoc.details['detail:legalName'] },
         }),
         'refuse',
-        'profile holds a value for every detail granted',
+        'details holds a value for every detail granted',
       ),
       named(
         'response-with-a-value-not-granted',
         opened(response, {
           ...responseDoc,
-          profile: { ...responseDoc.profile, 'detail:phone': '+64 21 000 000' },
+          details: { ...responseDoc.details, 'detail:phone': '+64 21 000 000' },
         }),
         'refuse',
-        'profile holds only details granted',
+        'details holds only details granted',
       ),
       named(
-        'response-with-a-send-name-in-its-profile',
+        'response-with-a-send-name-in-its-details',
         opened(response, {
           ...responseDoc,
-          profile: { ...responseDoc.profile, 'send:invoice': true },
+          details: { ...responseDoc.details, 'send:invoice': true },
         }),
         'refuse',
-        'profile holds detail values only',
+        'details holds detail values only',
       ),
       named(
         'response-with-a-logo-without-its-fingerprint',
@@ -2251,8 +2251,8 @@ export function trustPermissions() {
           { ...response, granted: [...granted, 'detail:profile'] },
           {
             ...responseDoc,
-            profile: {
-              ...responseDoc.profile,
+            details: {
+              ...responseDoc.details,
               'detail:profile': {
                 displayName: 'Bob',
                 logo: { source: 'https://client.example/bob.png' },
@@ -2269,8 +2269,8 @@ export function trustPermissions() {
           { ...response, granted: [...granted, 'detail:profile'] },
           {
             ...responseDoc,
-            profile: {
-              ...responseDoc.profile,
+            details: {
+              ...responseDoc.details,
               'detail:profile': { website: 'https://client.example' },
             },
           },

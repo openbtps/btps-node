@@ -38,7 +38,7 @@
     "sdk/protocol/trust-permissions/opened/response-with-a-registration-number-as-text": "Trust permissions: the values",
     "sdk/protocol/trust-permissions/opened/response-without-a-granted-value": "Trust permissions: the values",
     "sdk/protocol/trust-permissions/opened/response-with-a-value-not-granted": "Trust permissions: the values",
-    "sdk/protocol/trust-permissions/opened/response-with-a-send-name-in-its-profile": "Trust permissions: the values",
+    "sdk/protocol/trust-permissions/opened/response-with-a-send-name-in-its-details": "Trust permissions: the values",
     "sdk/protocol/trust-permissions/opened/response-with-a-logo-without-its-fingerprint": "Trust permissions: the values",
     "sdk/protocol/trust-permissions/opened/response-with-a-profile-without-a-display-name": "Trust permissions: the values",
     "sdk/protocol/trust-permissions/grant/only-the-required-names": "Trust permissions: the answer",

@@ -133,7 +133,7 @@ From the envelope alone:
 
 And where the document is readable (not encrypted):
 
-- a request carrying its own values, or an answer carrying a profile: those are always encrypted;
+- a request carrying its own values (`own`), or an answer carrying the granted values (`details`, keyed by name, so `detail:profile` sits inside it as `{ displayName, logo?, website? }`): those are always encrypted;
 - an answer that is not `accepted` but carries `granted`.
 
 An address's kind is published nowhere but the envelope.

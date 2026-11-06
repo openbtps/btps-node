@@ -78,13 +78,13 @@ const USES_1_2: ((artifact: BTPVersionedArtifact) => boolean)[] = [
   // Trust permissions on the envelope: names, kind, grants and a send's documentType.
   (artifact) =>
     Object.keys(PERMISSION_ENVELOPE_FIELDS).some((field) => artifact[field] !== undefined),
-  // Trust permission values in the document: a request's own values and verification, an answer's profile.
+  // Trust permission values in the document: a request's own values and verification, an answer's details.
   (artifact) => {
     const document = documentOf(artifact);
     return (
       (artifact.type === 'TRUST_REQ' &&
         (document?.own !== undefined || document?.verification !== undefined)) ||
-      (artifact.type === 'TRUST_RES' && document?.profile !== undefined)
+      (artifact.type === 'TRUST_RES' && document?.details !== undefined)
     );
   },
 ];

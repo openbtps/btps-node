@@ -133,8 +133,8 @@ function permissionEnvelopeProblems(data: TransporterEnvelope): [string, string]
     if (data.type === 'TRUST_REQ' && document?.own !== undefined) {
       problems.push(['document', 'a request with its own values is encrypted']);
     }
-    if (data.type === 'TRUST_RES' && document?.profile !== undefined) {
-      problems.push(['document', 'a response with a profile is encrypted']);
+    if (data.type === 'TRUST_RES' && document?.details !== undefined) {
+      problems.push(['document', 'a response with details is encrypted']);
     }
     if (data.type === 'TRUST_RES' && data.granted && document?.decision !== 'accepted') {
       problems.push(['granted', 'only an accepted answer carries granted']);

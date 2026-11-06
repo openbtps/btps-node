@@ -1,5 +1,5 @@
 {
-  "description": "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: { send: [{ name, required }], details: [{ name, required }] }`, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`; `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `profile` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
+  "description": "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: { send: [{ name, required }], details: [{ name, required }] }`, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`; `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `details` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
   "envelopes": [
     {
       "name": "request",
@@ -2150,7 +2150,7 @@
       "why": "each name appears once"
     },
     {
-      "name": "response-with-a-profile-unencrypted",
+      "name": "response-with-details-unencrypted",
       "artifact": {
         "version": "1.2.0",
         "issuedAt": "2026-10-19T00:00:00.000Z",
@@ -2170,7 +2170,7 @@
           "decision": "accepted",
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example",
-          "profile": {
+          "details": {
             "detail:legalName": "Robert Smith",
             "detail:email": "bob@client.example"
           }
@@ -2179,7 +2179,7 @@
         "entityType": "person"
       },
       "expect": "refuse",
-      "why": "a response with a profile is encrypted"
+      "why": "a response with details is encrypted"
     },
     {
       "name": "response-carrying-given",
@@ -3620,7 +3620,7 @@
           "decision": "accepted",
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example",
-          "profile": {
+          "details": {
             "detail:legalName": "Robert Smith",
             "detail:email": "bob@client.example"
           }
@@ -3657,7 +3657,7 @@
           "decision": "accepted",
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example",
-          "profile": {
+          "details": {
             "detail:legalName": "Robert Smith",
             "detail:email": "bob@client.example",
             "detail:profile": {
@@ -3702,7 +3702,7 @@
           "decision": "accepted",
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example",
-          "profile": {
+          "details": {
             "detail:legalName": "Robert Smith",
             "detail:email": "bob@client.example",
             "detail:dob": "1990-04-21"
@@ -3740,7 +3740,7 @@
           "decision": "accepted",
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example",
-          "profile": {
+          "details": {
             "detail:legalName": "Robert Smith",
             "detail:email": "bob@client.example",
             "detail:registrationNumber": {
@@ -3817,7 +3817,7 @@
           "decision": "accepted",
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example",
-          "profile": {
+          "details": {
             "detail:legalName": "Robert Smith",
             "detail:email": "bob@client.example",
             "detail:dob": "21/04/1990"
@@ -3856,7 +3856,7 @@
           "decision": "accepted",
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example",
-          "profile": {
+          "details": {
             "detail:legalName": "Robert Smith",
             "detail:email": "bob@client.example",
             "detail:registrationNumber": "51824753556"
@@ -3900,7 +3900,7 @@
           "decision": "accepted",
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example",
-          "profile": {
+          "details": {
             "detail:legalName": "Robert Smith"
           }
         },
@@ -3908,7 +3908,7 @@
         "entityType": "person"
       },
       "expect": "refuse",
-      "why": "profile holds a value for every detail granted"
+      "why": "details holds a value for every detail granted"
     },
     {
       "name": "response-with-a-value-not-granted",
@@ -3937,7 +3937,7 @@
           "decision": "accepted",
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example",
-          "profile": {
+          "details": {
             "detail:legalName": "Robert Smith",
             "detail:email": "bob@client.example",
             "detail:phone": "+64 21 000 000"
@@ -3947,10 +3947,10 @@
         "entityType": "person"
       },
       "expect": "refuse",
-      "why": "profile holds only details granted"
+      "why": "details holds only details granted"
     },
     {
-      "name": "response-with-a-send-name-in-its-profile",
+      "name": "response-with-a-send-name-in-its-details",
       "artifact": {
         "version": "1.2.0",
         "issuedAt": "2026-10-19T00:00:00.000Z",
@@ -3976,7 +3976,7 @@
           "decision": "accepted",
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example",
-          "profile": {
+          "details": {
             "detail:legalName": "Robert Smith",
             "detail:email": "bob@client.example",
             "send:invoice": true
@@ -3986,7 +3986,7 @@
         "entityType": "person"
       },
       "expect": "refuse",
-      "why": "profile holds detail values only"
+      "why": "details holds detail values only"
     },
     {
       "name": "response-with-a-logo-without-its-fingerprint",
@@ -4015,7 +4015,7 @@
           "decision": "accepted",
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example",
-          "profile": {
+          "details": {
             "detail:legalName": "Robert Smith",
             "detail:email": "bob@client.example",
             "detail:profile": {
@@ -4059,7 +4059,7 @@
           "decision": "accepted",
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example",
-          "profile": {
+          "details": {
             "detail:legalName": "Robert Smith",
             "detail:email": "bob@client.example",
             "detail:profile": {
