@@ -154,7 +154,8 @@ export async function startProvider(
   const inbox: BTPTransporterArtifact[] = [];
 
   const server = new BtpsServer({
-    serverIdentity: { identity: operator, ...operatorKeys },
+    // The operator: one key pair signs lookup answers and, with signAnswers, every answer.
+    serverIdentity: { identity: operator, ...operatorKeys, selector },
     trustStore,
     identityStore,
     port,

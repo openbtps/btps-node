@@ -36,7 +36,7 @@ import { JsonTrustStore } from '@btps/sdk/trust';
 const trustStore = new JsonTrustStore({ connection: './trust.json' });
 const server = new BtpsServer({
   serverIdentity: {
-    identity: 'server$example.com',
+    identity: 'admin$example.com', // the domain's operator: it signs lookup answers, and every answer with signAnswers
     publicKey: '-----BEGIN PUBLIC KEY-----...',
     privateKey: '-----BEGIN PRIVATE KEY-----...',
   },
