@@ -303,13 +303,10 @@
     "label": { "type": "string", "$ref": "#/$defs/words", "maxLength": 40 },
     "colour": { "type": "string", "pattern": "^#[0-9a-f]{6}$" },
     "words": {
-      "description": "Plain words: printable characters and line breaks, with no markup, control, hidden or direction-changing character; and nothing that could say where to pay or who to contact: no run of four or more digits, and no web, email or BTPS address.",
+      "description": "Plain text: printable characters and line breaks, with no markup, control, hidden or direction-changing character. What the words may say is the platform's policy, not this schema's.",
       "type": "string",
       "minLength": 1,
-      "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f<>\\u200b-\\u200f\\u202a-\\u202e\\u2066-\\u2069\\ufeff]*$",
-      "not": {
-        "pattern": "\\d(?:[\\s.-]?\\d){3}|[hH][tT][tT][pP][sS]?:|[wW][wW][wW]\\.|\\S@\\S|\\S\\$\\S"
-      }
+      "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f<>\\u200b-\\u200f\\u202a-\\u202e\\u2066-\\u2069\\ufeff]*$"
     }
   }
 }

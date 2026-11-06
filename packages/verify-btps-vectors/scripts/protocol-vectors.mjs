@@ -2810,11 +2810,10 @@ export function templates() {
       { ...letter, letterhead: { ...letter.letterhead, name: 'Kauri Studio' } },
       "the letterhead places the document's fields, never values of its own",
     ),
-    refuse(
-      'a-letter-sign-off-with-a-phone-number',
-      { ...letter, footer: { ...letter.footer, signOff: 'Call 02 9999 0000' } },
-      'the sign-off is plain words: no run of four or more digits',
-    ),
+    accept('a-letter-sign-off-with-a-phone-number', {
+      ...letter,
+      footer: { ...letter.footer, signOff: 'Call 02 9999 0000' },
+    }),
     refuse('a-letter-unknown-slot', signatureSlots(['signature.stamp']), 'slots are a fixed list'),
     refuse(
       'a-letter-with-a-signature-value-of-its-own',
@@ -2844,7 +2843,7 @@ export function templates() {
   ];
   return {
     description:
-      'The BTPS 1.2 template file, formats 1 and 2 (Templates page; JSON Schema at docs/docusaurus/static/schemas/btps-template.schema.json, published with the docs site as schemas/btps-template.schema.json). A template says how a document looks, never what it says: it never carries or changes a value of the document, hides no section with signed fields, names nothing to fetch and runs nothing; its own words are labels from a fixed set and static terms and footer text, each plain words with no digit run of four or more and no web, email or BTPS address. Format 1 is for invoices and receipts. Format 2 is format 1 for them, plus payslips (sections and labels of their own) and letters (the page, a letterhead placing every one of the sender\'s own fields, and a footer with a sign-off and signature slots, whose values come from the document; never the body). An implementation accepts every "accept" template and refuses every "refuse" one; `check` is the rule that refuses it: "schema" for the JSON Schema, "contrast" for the WCAG AA contrast of `page.text` and `page.muted` (4.5:1) and `page.accent` (3:1) against `page.background`. `fingerprint` is a template\'s RFC 8785 canonical form and the lowercase hex SHA-256 of it, which `template.data.sha256` names.',
+      'The BTPS 1.2 template file, formats 1 and 2 (Templates page; JSON Schema at docs/docusaurus/static/schemas/btps-template.schema.json, published with the docs site as schemas/btps-template.schema.json). A template says how a document looks, never what it says: it never carries or changes a value of the document, hides no section with signed fields, names nothing to fetch and runs nothing; its own words are labels from a fixed set and static terms and footer text, each plain text with no markup and no control, hidden or direction-changing character; what they say is the platform\'s policy. Format 1 is for invoices and receipts. Format 2 is format 1 for them, plus payslips (sections and labels of their own) and letters (the page, a letterhead placing every one of the sender\'s own fields, and a footer with a sign-off and signature slots, whose values come from the document; never the body). An implementation accepts every "accept" template and refuses every "refuse" one; `check` is the rule that refuses it: "schema" for the JSON Schema, "contrast" for the WCAG AA contrast of `page.text` and `page.muted` (4.5:1) and `page.accent` (3:1) against `page.background`. `fingerprint` is a template\'s RFC 8785 canonical form and the lowercase hex SHA-256 of it, which `template.data.sha256` names.',
     fingerprint: {
       template: full,
       canonical: canonicalizeValue(full),
@@ -2948,42 +2947,19 @@ export function templates() {
         labels({ title: '<b>Invoice</b>' }),
         'plain words, no markup',
       ),
-      refuse(
-        'a-label-with-a-digit-run',
-        labels({ title: 'Invoice 10042' }),
-        'no run of four or more digits',
-      ),
-      refuse(
-        'a-label-with-an-email-address',
-        labels({ payment: 'Pay pay@x.example' }),
-        'no email address',
-      ),
+      // What a template's words say is the platform's policy: digits and addresses are plain text.
+      accept('a-label-with-a-digit-run', labels({ title: 'Invoice 10042' })),
+      accept('a-label-with-an-email-address', labels({ payment: 'Pay pay@x.example' })),
       refuse(
         'a-label-with-a-hidden-character',
         labels({ to: 'Bill\u200bto' }),
         'no hidden character',
       ),
-      refuse(
-        'terms-with-bank-details',
-        text({ terms: 'Pay to BSB 062-000 account 1234 5678' }),
-        'no run of four or more digits',
-      ),
-      refuse(
-        'terms-with-a-btps-address',
-        text({ terms: 'Send to pay$kauri.example' }),
-        'no BTPS address',
-      ),
-      refuse('terms-with-a-url', text({ terms: 'Pay at https://pay.example/x' }), 'no web address'),
-      refuse(
-        'a-footer-with-a-phone-number',
-        text({ footer: 'Call 02 9999 0000' }),
-        'no run of four or more digits',
-      ),
-      refuse(
-        'a-footer-with-a-web-address',
-        text({ footer: 'Pay at www.pay.example' }),
-        'no web address',
-      ),
+      accept('terms-with-bank-details', text({ terms: 'Pay to BSB 062-000 account 1234 5678' })),
+      accept('terms-with-a-btps-address', text({ terms: 'Send to pay$kauri.example' })),
+      accept('terms-with-a-url', text({ terms: 'Pay at https://pay.example/x' })),
+      accept('a-footer-with-a-phone-number', text({ footer: 'Call 02 9999 0000' })),
+      accept('a-footer-with-a-web-address', text({ footer: 'Pay at www.pay.example' })),
       refuse(
         'a-footer-that-reads-backwards',
         text({ footer: 'Kauri \u202eoiduts' }),
