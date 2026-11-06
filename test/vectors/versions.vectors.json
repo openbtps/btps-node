@@ -603,10 +603,7 @@
           "reason": "To send you invoices",
           "phone": "+61 400 000 000",
           "own": {
-            "detail:identity": {
-              "type": "dob",
-              "value": "1990-04-21"
-            }
+            "detail:dob": "1990-04-21"
           }
         },
         "encryption": null

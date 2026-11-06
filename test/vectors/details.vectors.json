@@ -701,7 +701,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "details": ["detail:identity"],
+        "details": ["detail:registrationNumber"],
         "relatesTo": "5f607182-93a4-4eb5-8fd6-e7f8091a2b3c"
       },
       "record": {
