@@ -2218,6 +2218,110 @@ export default function () {
         expect(result.error).toBeInstanceOf(BTPErrorException);
         expect(result.error?.message).toContain('BTPS trust request is not allowed');
       });
+
+      describe('since 1.2, a details refresh a device sends', () => {
+        // The user, the payer, gave its address to the biller, and holds the biller's email.
+        const user = 'pay$client.com';
+        const biller = 'billing$acme.com';
+        const accepted = { status: 'accepted', privacyType: 'mixed', keyHistory: [] };
+        const records = new Map<string, unknown>([
+          [computeAgentTrustId('device-1', user), { ...accepted, senderId: 'device-1' }],
+          [
+            computeTrustId(biller, user),
+            {
+              ...accepted,
+              senderId: biller,
+              receiverId: user,
+              permissions: {
+                requested: [],
+                granted: [],
+                detailsHeld: ['detail:email'],
+                detailsShared: ['detail:address'],
+              },
+            },
+          ],
+        ]);
+        const send = (
+          action: 'details.changed' | 'details.respond',
+          type: 'DETAILS_CHANGED' | 'DETAILS_RES',
+          names: string[],
+        ) =>
+          ({
+            version: '1.2.0',
+            id: 'agent-artifact',
+            agentId: 'device-1',
+            action,
+            to: biller,
+            issuedAt: new Date().toISOString(),
+            signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
+            encryption: null,
+            document: {
+              version: '1.2.0',
+              id: 'details-1',
+              type,
+              from: user,
+              to: biller,
+              details: names,
+              ...(type === 'DETAILS_RES' && { relatesTo: 'req-1' }),
+            },
+          }) as unknown as BTPAgentArtifact;
+
+        beforeEach(() => {
+          trustStore.getById = vi.fn(async (id: string) => records.get(id) as BTPTrustRecord);
+          trustStore.getArtifact = vi.fn(async () => ({
+            id: 'req-1',
+            type: 'DETAILS_REQ',
+            from: biller,
+            to: user,
+            details: ['detail:address'],
+          }));
+        });
+
+        it('takes a notice of a detail the user shares, before it goes', async () => {
+          const result = await server['verifyAgentTrust'](
+            send('details.changed', 'DETAILS_CHANGED', ['detail:address']),
+          );
+          expect(result.isTrusted).toBe(true);
+        });
+
+        it('refuses a notice of a detail the user never shared: BTP_ERROR_DETAILS_NOT_HELD', async () => {
+          const result = await server['verifyAgentTrust'](
+            send('details.changed', 'DETAILS_CHANGED', ['detail:phone']),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_DETAILS_NOT_HELD');
+        });
+
+        it('takes a response to a request the user received, and tells its listeners', async () => {
+          const shared = vi.fn();
+          server.on('detailsShared', shared);
+          const result = await server['verifyAgentTrust'](
+            send('details.respond', 'DETAILS_RES', ['detail:address']),
+          );
+          expect(result.isTrusted).toBe(true);
+          expect(shared).toHaveBeenCalledWith(
+            expect.objectContaining({ from: user, to: biller, names: ['detail:address'] }),
+          );
+        });
+
+        it('refuses a response naming what the request did not ask for', async () => {
+          records.set(computeTrustId(biller, user), {
+            ...(records.get(computeTrustId(biller, user)) as object),
+            permissions: {
+              requested: [],
+              granted: [],
+              detailsHeld: [],
+              detailsShared: ['detail:address', 'detail:phone'],
+            },
+          });
+          const shared = vi.fn();
+          server.on('detailsShared', shared);
+          const result = await server['verifyAgentTrust'](
+            send('details.respond', 'DETAILS_RES', ['detail:address', 'detail:phone']),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+          expect(shared).not.toHaveBeenCalled();
+        });
+      });
     });
 
     describe('verifyEventRelation', () => {

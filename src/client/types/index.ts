@@ -20,6 +20,7 @@ import type {
   BTPServerResponse,
   BTPSyncOf,
   BTPDocumentType,
+  BTPDetailPermission,
   AgentAction,
 } from 'server/index.js';
 import type { ConnectionOptions, TLSSocket } from 'tls';
@@ -92,8 +93,17 @@ export type BtpsAgentDoc =
   | BTPAgentQuery;
 
 export type BtpsAgentCommandOptions = BTPCryptoOptions & {
-  /** Required on `event.send`, refused elsewhere: the id of the `BTPS_DOC` artifact that delivered the invoice. */
+  /**
+   * Required on `event.send`: the id of the `BTPS_DOC` artifact that delivered the invoice. Since 1.2, required on
+   * `details.respond` (the `DETAILS_REQ` it answers) and allowed on `details.request` (the `DETAILS_CHANGED` it
+   * follows). Refused elsewhere.
+   */
   relatesTo?: string;
+  /**
+   * Since 1.2, required on `details.changed`, `details.request` and `details.respond`, and refused elsewhere: the
+   * `detail:` names the artifact is about, set on its envelope. A `details.respond` is always encrypted.
+   */
+  details?: BTPDetailPermission[];
   /**
    * Since 1.2, on `artifact.send` to the device's own address only: this send is a sync, the user's own copy of
    * the send it names, by the sent artifact's id and the SHA-256 of its RFC 8785 form (`syncOfArtifact`).

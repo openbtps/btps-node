@@ -216,6 +216,8 @@ Every step is its own artifact, delivered like any other, so a platform may queu
 
 A request that passes is told to the server's `detailsRequested` listeners: `{ from, to, names, at }`.
 
+**When sent**, a device sends each one with its own agent action (`details.changed`, `details.request`, `details.respond`; see [Agent Artifact](./agent-artifact.md)), and its provider makes the same checks first, from the user's own record of the trust. A response that passes is told to the provider's `detailsShared` listeners, so a platform can show who fetched what, and when.
+
 **When opened**, `decryptVerify` refuses a response whose values do not match its names: a value for every name, valid for it, and no others.
 
 ## Sync
