@@ -41,6 +41,7 @@ import type {
 } from '@core/crypto/types.js';
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
 import { BtpLifecycleEventSchema } from '@core/server/schemas/btpsDocsSchema.js';
+import { BtpTransporterArtifactSchema } from '@core/server/schemas/artifacts/transporterSchema.js';
 import { validate } from '@core/utils/validation.js';
 import {
   AGENT_ACTIONS_REQUIRING_DOCUMENT,
@@ -249,6 +250,15 @@ export class BtpsAgent extends BtpsClient {
       );
     }
 
+    // Since 1.2: trust permissions, set on the envelope.
+    const trustFields = {
+      ...(options?.permissions !== undefined && { permissions: options.permissions }),
+      ...(options?.entityType !== undefined && { entityType: options.entityType }),
+      ...(options?.given !== undefined && { given: options.given }),
+      ...(options?.change !== undefined && { change: options.change }),
+      ...(options?.granted !== undefined && { granted: options.granted }),
+    };
+
     const transporterArtifact: Omit<BTPTransporterArtifact, 'signature'> = {
       id: event?.success ? event.data.id : (options?.id ?? randomUUID()),
       issuedAt: new Date().toISOString(),
@@ -258,6 +268,7 @@ export class BtpsAgent extends BtpsClient {
         document,
         syncOf: options?.syncOf,
         documentType: options?.documentType,
+        ...trustFields,
       }),
       type: artifactType,
       document: encryptedDocument as BTPDocType | string,
@@ -269,6 +280,7 @@ export class BtpsAgent extends BtpsClient {
       ...(options?.syncOf !== undefined && { syncOf: options.syncOf }),
       ...(options?.documentType !== undefined && { documentType: options.documentType }),
       ...(options?.details !== undefined && { details: options.details }),
+      ...trustFields,
     };
 
     try {
@@ -276,6 +288,22 @@ export class BtpsAgent extends BtpsClient {
         'sign' in this.signingKey
           ? await signBtpPayloadWithSigner(transporterArtifact, this.signingKey)
           : signBtpPayload(transporterArtifact, this.signingKey);
+
+      // Since 1.2: a trust request or answer with permissions is checked as its
+      // provider will check it (given what it asks, names, kinds) before it goes.
+      if (Object.keys(trustFields).length > 0) {
+        const checked = BtpTransporterArtifactSchema.safeParse({
+          ...transporterArtifact,
+          signature,
+        });
+        if (!checked.success) {
+          return await this.buildClientErrorResponse(
+            new BTPErrorException(BTP_ERROR_VALIDATION, {
+              cause: checked.error.issues.map((issue) => issue.message).join('; '),
+            }),
+          );
+        }
+      }
 
       return {
         payload: {

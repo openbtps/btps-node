@@ -22,8 +22,15 @@ import {
   BtpDocSchema,
 } from '@core/server/schemas/btpsDocsSchema.js';
 import { BtpDetailsResDocSchema } from '@core/server/schemas/trustValues.js';
-import { BtpSyncOfSchema } from '@core/server/schemas/artifacts/transporterSchema.js';
-import { DETAIL_PERMISSIONS, DOCUMENT_TYPES } from '@core/server/constants/permissions.js';
+import {
+  BtpSyncOfSchema,
+  BtpTrustPermissionsSchema,
+} from '@core/server/schemas/artifacts/transporterSchema.js';
+import {
+  DETAIL_PERMISSIONS,
+  DOCUMENT_TYPES,
+  ENTITY_TYPES,
+} from '@core/server/constants/permissions.js';
 import type { BTPDetailPermission } from '@core/server/types.js';
 
 // Use the server's document schema directly
@@ -63,8 +70,23 @@ export const BtpsAgentCommandSchema = z.object({
       )
       .min(1)
       .optional(),
+    // Since 1.2: trust permissions, checked in full by the transporter schema once built.
+    permissions: BtpTrustPermissionsSchema.optional(),
+    entityType: z.enum(ENTITY_TYPES).optional(),
+    given: z.array(z.string()).optional(),
+    change: z.literal(true).optional(),
+    granted: z.array(z.string()).optional(),
   }).optional(),
 });
+
+// Since 1.2: which trust action each permission option is on.
+const TRUST_OPTION_ACTIONS = {
+  permissions: ['trust.request'],
+  given: ['trust.request'],
+  change: ['trust.request'],
+  granted: ['trust.respond'],
+  entityType: ['trust.request', 'trust.respond'],
+} as const;
 
 // Since 1.2: the details refresh actions, and which of them name an earlier artifact.
 const DETAILS_ACTIONS: readonly string[] = [
@@ -104,6 +126,28 @@ export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
     {
       message: 'options.details is required on the details actions and only there',
       path: ['options', 'details'],
+    },
+  )
+  .refine(
+    (data) =>
+      Object.entries(TRUST_OPTION_ACTIONS).every(
+        ([option, actions]) =>
+          data.options?.[option as keyof typeof TRUST_OPTION_ACTIONS] === undefined ||
+          (actions as readonly string[]).includes(data.actionType),
+      ),
+    {
+      message:
+        'options.permissions, given and change are only on trust.request, granted only on trust.respond, and entityType on either',
+      path: ['options'],
+    },
+  )
+  .refine(
+    (data) =>
+      (data.options?.permissions === undefined && data.options?.granted === undefined) ||
+      data.options?.entityType !== undefined,
+    {
+      message: 'options.entityType comes with permissions and with granted',
+      path: ['options', 'entityType'],
     },
   )
   .refine((data) => data.actionType !== 'details.respond' || data.options?.encryption, {
