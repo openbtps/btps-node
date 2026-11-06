@@ -1112,6 +1112,21 @@ Since 1.2. Why a send does not meet the receiver's trust record, or `undefined`.
 
 ---
 
+### detailsProblem
+
+```ts
+detailsProblem(
+  artifact: BTPDetailsEnvelope,
+  record: { permissions?: BTPTrustRecordPermissions },
+  sentRequest?: BTPDetailsEnvelope
+): string | undefined
+```
+
+**Description:**
+Since 1.2. Why a details refresh artifact cannot be taken, or `undefined`. A `DETAILS_CHANGED` or `DETAILS_RES` names only details the receiver holds (`record.permissions.detailsHeld`), a `DETAILS_REQ` only details the answerer shares (`detailsShared`); a record without permissions holds none. A `DETAILS_RES` answers `sentRequest`, the `DETAILS_REQ` it names as its receiver sent it, and names only what it asked for; once opened (its `document` an object), its values match its names. `record` is the receiver's own record of the trust, in either direction. The server runs the same checks on arrival; a platform whose trust store has no `getArtifact` runs this one with its own sent request. See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh).
+
+---
+
 ### trustPermissionsFromRequest / trustPermissionsFromResponse
 
 ```ts
@@ -1677,6 +1692,38 @@ Since 1.2. Error constant for a document whose `type` is not the `documentType` 
 
 - `code`: `'BTP_ERROR_DOCUMENT_TYPE_MISMATCH'`
 - `message`: `'The document is not the type its envelope names'`
+
+---
+
+### BTP_ERROR_DETAILS_NOT_HELD
+
+```ts
+const BTP_ERROR_DETAILS_NOT_HELD: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a details refresh naming a detail the receiver (of a notice or response) or the answerer (of a request) does not hold by the trust, or arriving over a trust without permissions. Status 403.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_DETAILS_NOT_HELD'`
+- `message`: `'That detail is not held by this trust'`
+
+---
+
+### BTP_ERROR_DETAILS_RATE_LIMITED
+
+```ts
+const BTP_ERROR_DETAILS_RATE_LIMITED: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a details request over the limit its provider sets (`allowDetailsRequest`). Its `meta.retryAfter`, an ISO 8601 time, says when the asker may ask again. Status 429.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_DETAILS_RATE_LIMITED'`
+- `message`: `'Too many details requests on this trust. Ask again later'`
 
 ---
 

@@ -2453,6 +2453,137 @@ export default function () {
         });
       });
 
+      describe('since 1.2, a details refresh', () => {
+        // The biller asked; the payer granted its address. Each record is the receiver's own.
+        const holding = (detailsHeld: string[], detailsShared: string[]) => ({
+          ...record(biller, payer),
+          permissions: {
+            requested: [],
+            granted: [],
+            detailsHeld,
+            detailsShared,
+          } as unknown as BTPTrustRecord['permissions'],
+        });
+        const details = (
+          type: 'DETAILS_CHANGED' | 'DETAILS_REQ' | 'DETAILS_RES',
+          from: string,
+          to: string,
+          names: string[],
+          relatesTo?: string,
+        ) => {
+          const sent = artifact('BTPS_DOC', from, to);
+          return {
+            ...sent,
+            artifact: {
+              ...sent.artifact,
+              version: '1.2.0',
+              type,
+              details: names,
+              ...(relatesTo !== undefined && { relatesTo }),
+            },
+          } as unknown as ProcessedArtifact;
+        };
+
+        it('takes a notice of a detail the receiver holds, over the trust in either direction', async () => {
+          storeHolding(holding(['detail:address'], []));
+          const result = await server['verifyTrust'](
+            details('DETAILS_CHANGED', payer, biller, ['detail:address']),
+          );
+          expect(result.isTrusted).toBe(true);
+        });
+
+        it('refuses a notice of a detail the receiver does not hold: BTP_ERROR_DETAILS_NOT_HELD', async () => {
+          storeHolding(holding(['detail:address'], []));
+          const result = await server['verifyTrust'](
+            details('DETAILS_CHANGED', payer, biller, ['detail:phone']),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_DETAILS_NOT_HELD');
+        });
+
+        it('refuses a request for a detail the answerer does not share', async () => {
+          storeHolding(holding([], ['detail:email']));
+          const result = await server['verifyTrust'](
+            details('DETAILS_REQ', payer, biller, ['detail:phone']),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_DETAILS_NOT_HELD');
+        });
+
+        it('tells its listeners when a request arrives and passes its checks', async () => {
+          storeHolding(holding([], ['detail:email']));
+          const requested = vi.fn();
+          server.on('detailsRequested', requested);
+          const result = await server['verifyTrust'](
+            details('DETAILS_REQ', payer, biller, ['detail:email']),
+          );
+          expect(result.isTrusted).toBe(true);
+          expect(requested).toHaveBeenCalledWith(
+            expect.objectContaining({ from: payer, to: biller, names: ['detail:email'] }),
+          );
+        });
+
+        it("refuses a request over the provider's limit, saying when to ask again", async () => {
+          const limited = new BtpsServer({
+            trustStore,
+            serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+            tlsOptions: { key: 'test-key', cert: 'test-cert' },
+            allowDetailsRequest: () => ({ retryAfter: '2026-12-01T00:00:00.000Z' }),
+          });
+          storeHolding(holding([], ['detail:email']));
+          const result = await limited['verifyTrust'](
+            details('DETAILS_REQ', payer, biller, ['detail:email']),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_DETAILS_RATE_LIMITED');
+          expect(result.error?.meta).toEqual({ retryAfter: '2026-12-01T00:00:00.000Z' });
+        });
+
+        it('takes a response to a request its receiver sent, naming only what it asked', async () => {
+          storeHolding(holding(['detail:address'], []));
+          trustStore.getArtifact = vi.fn(async () => ({
+            id: 'req-1',
+            type: 'DETAILS_REQ',
+            from: biller,
+            to: payer,
+            details: ['detail:address'],
+          }));
+          const result = await server['verifyTrust'](
+            details('DETAILS_RES', payer, biller, ['detail:address'], 'req-1'),
+          );
+          expect(result.isTrusted).toBe(true);
+        });
+
+        it('refuses a response naming what its request did not ask for', async () => {
+          storeHolding(holding(['detail:address', 'detail:email'], []));
+          trustStore.getArtifact = vi.fn(async () => ({
+            id: 'req-1',
+            type: 'DETAILS_REQ',
+            from: biller,
+            to: payer,
+            details: ['detail:address'],
+          }));
+          const result = await server['verifyTrust'](
+            details('DETAILS_RES', payer, biller, ['detail:address', 'detail:email'], 'req-1'),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+        });
+
+        it('falls back to isKnownArtifact for a store without getArtifact', async () => {
+          storeHolding(holding(['detail:address'], []));
+          trustStore.getArtifact = undefined;
+          const result = await server['verifyTrust'](
+            details('DETAILS_RES', payer, biller, ['detail:address'], 'req-1'),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+        });
+
+        it('refuses any details refresh over a 1.1 trust', async () => {
+          storeHolding(record(biller, payer));
+          const result = await server['verifyTrust'](
+            details('DETAILS_CHANGED', payer, biller, ['detail:address']),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_DETAILS_NOT_HELD');
+        });
+      });
+
       describe('through the whole pipeline, an event over either trust must still relate to an invoice', () => {
         const socket = () =>
           ({

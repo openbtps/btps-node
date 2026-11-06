@@ -134,6 +134,11 @@ export const BtpTrustResDocSchema = BtpTrustResDocV1_1Schema.extend({
   message: BtpNoteSchema(trustResponse.message).optional(),
 });
 
+/** Since 1.2: a DETAILS_CHANGED or DETAILS_REQ: no values, an optional note. Its names are on the envelope. */
+export const BtpDetailsNoteDocSchema = z
+  .object({ message: BtpNoteSchema(BTPS_FIELD_LIMITS.note).optional() })
+  .strict();
+
 const BtpLineItemsSchema = z.object({
   columns: boundedArray(z.string(), lineItems.columns),
   // A money cell is integer minor units; a decimal (e.g. a quantity) is written as text.

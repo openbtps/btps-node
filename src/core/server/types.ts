@@ -162,6 +162,8 @@ export interface BTPTransporterArtifact extends BTPGenericArtifact<BTPDocType | 
   granted?: BTPPermissionName[];
   /** Since 1.2, on a BTPS_DOC under a trust with permissions: the type of the document it carries. */
   documentType?: BTPDocumentType;
+  /** Since 1.2, on a DETAILS_CHANGED, DETAILS_REQ or DETAILS_RES: the details it is about, by name. */
+  details?: BTPDetailPermission[];
 }
 
 export type BTPDocumentType = (typeof DOCUMENT_TYPES)[number];

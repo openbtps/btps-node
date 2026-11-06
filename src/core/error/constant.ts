@@ -219,6 +219,20 @@ export const BTP_ERROR_DOCUMENT_TYPE_MISMATCH: BTPError = {
   status: 400,
 };
 
+/** Since 1.2: a details refresh naming a detail its receiver or answerer does not hold by the trust. */
+export const BTP_ERROR_DETAILS_NOT_HELD: BTPError = {
+  code: 'BTP_ERROR_DETAILS_NOT_HELD',
+  message: 'That detail is not held by this trust',
+  status: 403,
+};
+
+/** Since 1.2: a details request over the limit the provider sets; its meta says when to ask again. */
+export const BTP_ERROR_DETAILS_RATE_LIMITED: BTPError = {
+  code: 'BTP_ERROR_DETAILS_RATE_LIMITED',
+  message: 'Too many details requests on this trust. Ask again later',
+  status: 429,
+};
+
 export const BTP_ERROR_KEY_ROTATION_PROOF: BTPError = {
   code: 'BTP_ERROR_KEY_ROTATION_PROOF',
   message: 'A new device key needs a proof signed by that key',

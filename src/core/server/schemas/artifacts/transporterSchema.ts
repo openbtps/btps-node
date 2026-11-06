@@ -8,6 +8,7 @@
 import { BtpSignatureSchema, BtpEncryptionSchema, BtpDelegationSchema } from '../schema.js';
 import { identitySchema } from '../shared.js';
 import {
+  DETAILS_ARTIFACT_TYPES,
   DETAIL_PERMISSIONS,
   DOCUMENT_TYPES,
   ENTITY_TYPES,
@@ -88,6 +89,7 @@ export const BtpTransporterArtifactBaseSchema = z.object({
   change: z.literal(true).optional(),
   granted: namesFrom(PERMISSION_NAMES).optional(),
   documentType: z.enum(DOCUMENT_TYPES).optional(),
+  details: namesFrom(DETAIL_PERMISSIONS).min(1).optional(),
 });
 
 type TransporterEnvelope = z.infer<typeof BtpTransporterArtifactBaseSchema>;
@@ -111,6 +113,7 @@ function permissionEnvelopeProblems(data: TransporterEnvelope): [string, string]
     ['permissions', data.permissions?.map((p) => p.name)],
     ['given', data.given],
     ['granted', data.granted],
+    ['details', data.details],
   ];
   for (const [field, names] of lists) {
     const twice = names && duplicateOf(names);
@@ -143,6 +146,14 @@ function permissionEnvelopeProblems(data: TransporterEnvelope): [string, string]
   if (other && data.granted?.includes(other)) {
     problems.push(['granted', `a ${entityType} never grants ${other}`]);
   }
+  // A details refresh artifact names the details it is about; a response is always encrypted.
+  const isDetails = (DETAILS_ARTIFACT_TYPES as readonly string[]).includes(data.type);
+  if (isDetails && data.details === undefined) {
+    problems.push(['details', `a ${data.type} names the details it is about`]);
+  }
+  if (data.type === 'DETAILS_RES' && data.encryption === null) {
+    problems.push(['encryption', 'a DETAILS_RES is always encrypted to the requester']);
+  }
 
   if (data.encryption === null) {
     const document = documentRecord(data.document);
@@ -164,10 +175,16 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
   (data, ctx) => {
     // An event names, outside its (possibly encrypted) document, the artifact
     // that delivered its invoice, so a server can check it without decrypting.
-    if ((data.type === 'BTPS_EVENT') !== (data.relatesTo !== undefined)) {
+    // Since 1.2, a details response names its request, and a request may name a notice.
+    const needsRelatesTo = data.type === 'BTPS_EVENT' || data.type === 'DETAILS_RES';
+    const mayRelate = needsRelatesTo || data.type === 'DETAILS_REQ';
+    if (
+      needsRelatesTo ? data.relatesTo === undefined : !mayRelate && data.relatesTo !== undefined
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'relatesTo is required on a BTPS_EVENT and only there',
+        message:
+          'relatesTo is required on a BTPS_EVENT and a DETAILS_RES, may be on a DETAILS_REQ, and nowhere else',
         path: ['relatesTo'],
       });
     }
