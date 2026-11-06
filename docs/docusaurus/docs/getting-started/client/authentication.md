@@ -247,7 +247,7 @@ const inboxes = await client.queryInboxes();
 
 A refresh keeps the device's key: the server refuses a refresh that names a different key without a proof signed by it (`BTP_ERROR_KEY_ROTATION_PROOF`), so a refresh token alone can never move a device to someone else's key. To move to a new key, use `rotateKey`. The current key signs the request and the new key signs a proof, so the server accepts the new key only from the device holding both. It keeps the old key's fingerprint in the device's key history.
 
-Since 1.2, a server may set a maximum key age (`maxKeyAgeMs`). A refresh with an older key is refused with `BTP_ERROR_KEY_TOO_OLD`, and the same refresh token stays usable: call `rotateKey` with it. Keep the latest refresh token only, too: a server whose token store detects reuse revokes a device whose old refresh token is used again, as only a copy of it could be.
+Since 1.2, a server may set a maximum key age (`maxKeyAgeMs`). A refresh with an older key is refused with `BTP_ERROR_KEY_TOO_OLD`, and the same refresh token stays usable: call `rotateKey` with it. Keep the latest refresh token only, too: a server whose token store detects reuse revokes a device whose old refresh token is used again, as only a copy of it could be. If a refresh's answer is lost, ask again with the same token straight away: inside the server's grace window (`refreshGraceMs`, 30 seconds by default) that is a retry, and it gets the same answer and the same new token.
 
 ```typescript
 import { getBTPKeyPair } from '@btps/sdk/crypto';

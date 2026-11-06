@@ -42,6 +42,32 @@ export interface ServerAuthConfig {
    * when the key before it was retired, or when the device registered.
    */
   maxKeyAgeMs?: number;
+  /**
+   * Since 1.2: how long, in milliseconds, a just-rotated refresh token's old
+   * value still works, so a device that lost the answer to its refresh can ask
+   * again. Inside the window the same answer comes back, the same new token
+   * included; after it, a second use is theft. Default 30 000; 0 turns it off.
+   * Needs a token store with `isConsumed` and `markSuccessor`; without them it is 0.
+   */
+  refreshGraceMs?: number;
+}
+
+/**
+ * Since 1.2: the answer to a refresh, kept on the old token's consumed mark so a
+ * retry gets the same answer. Sealed with AES-256-GCM under a key derived
+ * (HKDF-SHA256) from the old token's value, bound to the device and the user,
+ * so only whoever holds the old token can open it and it cannot be moved to
+ * another device. Never the new token in plain text.
+ */
+export interface BTPSealedSuccessor {
+  /** When the old token was rotated, as an ISO 8601 timestamp: the grace window runs from here */
+  at: string;
+  /** Base64 */
+  iv: string;
+  /** Base64 */
+  ciphertext: string;
+  /** Base64 */
+  tag: string;
 }
 
 /** Since 1.2: a device moved to a new key. */
@@ -92,6 +118,8 @@ export interface BTPsTokenDocument {
   decryptBy: string;
   /** Additional metadata */
   metadata?: Record<string, unknown>;
+  /** Since 1.2, on a consumed refresh token only: the answer it was rotated with, sealed */
+  successor?: BTPSealedSuccessor;
 }
 
 export type AuthSession = BTPsTokenDocument & {
@@ -158,6 +186,13 @@ export interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
    * Without it, a second use is refused as an unknown token, as in 1.1.
    */
   isConsumed?(agentId: string, token: string): Promise<T | undefined>;
+  /**
+   * Since 1.2, optional: keep `successor` on a consumed token's mark, so
+   * `isConsumed` returns it. It is sealed, never the new token in plain text.
+   * With it and `isConsumed`, a refresh retried inside `refreshGraceMs` gets its
+   * first answer again; without it, the grace window is off.
+   */
+  markSuccessor?(agentId: string, token: string, successor: BTPSealedSuccessor): Promise<void>;
   /** Clean up expired tokens */
   cleanup(): Promise<void>;
 }

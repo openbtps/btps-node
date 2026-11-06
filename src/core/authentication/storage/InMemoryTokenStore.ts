@@ -6,7 +6,7 @@
  */
 
 import { computeTrustId } from '@core/trust/trustUtils.js';
-import { TokenStore, BTPsTokenDocument } from '../types.js';
+import { TokenStore, BTPsTokenDocument, BTPSealedSuccessor } from '../types.js';
 
 /**
  * In-memory implementation of RefreshTokenStore for storing refresh tokens
@@ -120,6 +120,22 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
     const consumedToken = this.consumed.get(this.makeKey(agentId, token));
     if (!consumedToken || new Date() > new Date(consumedToken.expiresAt)) return undefined;
     return consumedToken;
+  }
+
+  /**
+   * Keep the sealed answer a consumed token was rotated with on its mark.
+   * @param agentId - The agent ID
+   * @param token - The consumed token
+   * @param successor - The sealed answer
+   */
+  async markSuccessor(
+    agentId: string,
+    token: string,
+    successor: BTPSealedSuccessor,
+  ): Promise<void> {
+    const key = this.makeKey(agentId, token);
+    const consumedToken = this.consumed.get(key);
+    if (consumedToken) this.consumed.set(key, { ...consumedToken, successor });
   }
 
   /**
