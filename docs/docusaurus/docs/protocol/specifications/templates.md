@@ -75,10 +75,10 @@ The format is the JSON Schema [`btps-template.schema.json`](pathname:///schemas/
 | `page`     | `font`, from a fixed list (below); `size` (`small`, `normal`, `large`); `density` (`compact`, `comfortable`); and the colours `background`, `text`, `muted`, `accent`, each `#rrggbb` in lower case |
 | `logo`     | Where the sender's own logo goes and how big: `position` (`top-left`, `top-center`, `top-right`, `none`) and `size` (`small`, `medium`, `large`)                                                    |
 | `sections` | The order the document's sections are shown in, each at most once (below)                                                                                                                           |
-| `labels`   | Wording in place of the provider's default, by key (below): plain words of 1 to 40 characters                                                                                                       |
+| `labels`   | Wording in place of the provider's default, by key (below): plain text of 1 to 40 characters                                                                                                        |
 | `lines`    | How line items are drawn: `style` (`plain`, `striped`, `boxed`) and `header` (`plain`, `accent`)                                                                                                    |
 | `totals`   | How the totals are drawn: `style` (`plain`, `boxed`, `accent`)                                                                                                                                      |
-| `text`     | Static `terms` (at most 2,000 characters) and `footer` (at most 300), plain words. Each is required when `sections` lists it                                                                        |
+| `text`     | Static `terms` (at most 2,000 characters) and `footer` (at most 300), plain text. Each is required when `sections` lists it                                                                         |
 
 - **Fonts:** `geist`, `source-serif-4`, `atkinson-hyperlegible-next`, `geist-mono`. All four are open-licence, so a receiver draws them from its own copy and fetches nothing.
 - **Sections:** `header`, `parties`, `details`, `lines`, `totals`, `payment`, `notes`, `terms`, `footer`. The first seven carry signed fields, and every template shows all seven.
@@ -88,13 +88,20 @@ Every key a template may hold is named in the schema, and any other key is refus
 
 ### A template's own words
 
-A template's labels, terms and footer are printed on every document drawn with it, whoever sent it. So they are plain words only:
+A template's labels, terms and footer are printed on every document drawn with it, whoever sent it. The protocol fixes their format, not what they say:
 
-- no markup, and no control, hidden or direction-changing character;
-- no run of four or more digits (an account, BSB or phone number), so `Payment within 14 days` is fine and `BSB 062-000` is not;
-- no web, email or BTPS address.
+- plain text only: no markup, and no control, hidden or direction-changing character;
+- the length limits above;
+- a receiver draws them as text, never as a link, even where they look like an address.
 
-No payment detail can come from a template.
+**What a template's words say is the platform's policy.** A platform that publishes or accepts templates decides what their words may say, and a template file the schema accepts may still be one a platform refuses.
+
+**Recommended practice for platforms.** A template's words are printed on documents its author never sees, so they are where a fake payment detail would hide: a phone number to call, an account number or a biller code to pay. We recommend that a platform refuse, in a template's labels, terms, footer and sign-off:
+
+- a run of four or more digits (an account, BSB or phone number), so `Payment within 14 days` is fine and `BSB 062-000` is not;
+- a web, email or BTPS address.
+
+That keeps every payment detail in the signed document, where the receiver sees who sent it.
 
 ### Beyond the schema
 
@@ -107,12 +114,12 @@ Two more rules, which a JSON Schema cannot say:
 
 - **Carry or change a value.** It holds no amount, total, tax, date, party, payee, payment detail, document id or note, and has no field that could change one. Every value shown comes from the signed document.
 - **Hide a field.** Every section that carries signed fields is listed, so all of them are shown. A template cannot hide, truncate or reorder what is inside a value.
-- **Fetch anything.** It names no address: fonts are from the fixed list, and the logo is the sender's own, named by the document (`template.data.logo`) and checked by its fingerprint. The template says only where the logo goes and how big.
+- **Fetch anything.** No field of it names an address to fetch: fonts are from the fixed list, and the logo is the sender's own, named by the document (`template.data.logo`) and checked by its fingerprint. The template says only where the logo goes and how big.
 - **Run anything.** It holds no script, style sheet or markup.
 
 ## Format 2: payslips and letters
 
-Since 1.2. Format `2` is format 1 for invoices and receipts, word for word but for its number, and adds a template for payslips and one for letters. A format 2 template is for one kind of document. Every rule above holds for all three: the template's own words are plain words, nothing is hidden or fetched, nothing is run, and the contrast and 16 KiB rules apply.
+Since 1.2. Format `2` is format 1 for invoices and receipts, word for word but for its number, and adds a template for payslips and one for letters. A format 2 template is for one kind of document. Every rule above holds for all three: the template's own words are plain text, nothing is hidden or fetched, nothing is run, and the contrast and 16 KiB rules apply.
 
 ### A payslip
 
@@ -157,7 +164,7 @@ A letter's body is the sender's own text, in its own format. A letter template n
 | Field        | What it says                                                                                                                                                                                                                                                                            |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `letterhead` | Where the sender's own issuer fields go: `fields` lists every one, `name`, `address`, `email`, `phone`, `identifiers`, each once, in the order shown; `align` (`start`, `center`, `end`). Placement only: the values are the document's `issuer`, and one it does not have is not shown |
-| `footer`     | Optional. `signOff`, static text such as "Yours sincerely," (plain words, at most 300 characters), and `signature`: the `slots` to show, in order, and their `align`                                                                                                                    |
+| `footer`     | Optional. `signOff`, static text such as "Yours sincerely," (plain text, at most 300 characters), and `signature`: the `slots` to show, in order, and their `align`                                                                                                                     |
 
 ### Signature slots and their values
 
@@ -173,7 +180,7 @@ A letter template places named **slots**, and the sender fills them. The slots a
 - **The values are the sender's own, and travel in the document.** The sender's provider fills them in when it sends, as `template.data.values` on the letter's template reference, so they are signed with the letter: see [Transporter Artifact](./transporter-artifact.md), Templates. Where a value comes from is the provider's: its user's settings, for example.
 - **The receiver draws exactly those values in the slots the template places,** and fetches nothing. A value for a slot the template does not place is not drawn.
 - **A value never fills, overrides or shadows a document field.** Its keys are the slot names above, and any other key is refused. Values are only on a letter's template, and only in a `1.2.0` artifact.
-- **They are the sender's own data, not template text,** so the digit and address rules for a template's words do not apply to them. A text value is still plain text of 1 to 100 characters: no markup, and no control, hidden or direction-changing character.
+- **They are the sender's own data, not template text,** so what a platform allows in a template's words does not apply to them. A text value is still plain text of 1 to 100 characters: no markup, and no control, hidden or direction-changing character.
 - **A typed signature** is drawn in Caveat, an open-licence script font (SIL Open Font License 1.1), which a receiver holds itself. It is for the typed signature only: a template cannot set it as its page font.
 - **A drawn signature is data, never SVG or any markup:** `{ "strokes": [[x, y, x, y, …], …] }`. Each stroke is integer points on a canvas 1,000 wide and 300 high, from `0, 0` at the top left. The receiving provider draws the lines itself. It holds at most 32 strokes, at most 512 points a stroke, and at most 2,048 points in all.
 
