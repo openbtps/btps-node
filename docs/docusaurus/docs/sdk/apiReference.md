@@ -1118,6 +1118,8 @@ Since 1.2. What a platform saves on its trust records. The BTPS server only read
 - `trustPermissionsFromRequest`: the requester's record, when it sends a request with permissions. For a change (`change: true`), pass the trust's `current` permissions: the change is added as `pendingChange`, and the trust keeps running on its old grant until it is answered. `undefined` for a request without permissions, a 1.1 trust.
 - `trustPermissionsFromResponse`: both records once a request is accepted. The requester holds the details granted to it (`detailsHeld`) and shares the details it gave (`detailsShared`); the responder holds the reverse. Each side saves its own. `undefined` when the answer grants nothing by name.
 
+**On any answer to a pending change, clear `pendingChange`.** If the change is accepted, save the record `trustPermissionsFromResponse` returns: it has no `pendingChange`. If it is rejected, keep the current permissions and remove `pendingChange`, so the trust runs on its old grant. A `pendingChange` left in place lets the accepted trust keep taking answers to a change already decided.
+
 **Example:**
 
 ```js

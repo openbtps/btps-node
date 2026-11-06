@@ -129,6 +129,11 @@ The computed trust ID enforces **explicit, directional trust relationships**. Th
 
 **The platform writes it; the BTPS server only reads it.** As with every other field here, the server never writes a trust record: the platform does, through its trust store, when it sends a request and when its user decides. It must save `permissions` then. `trustPermissionsFromRequest` and `trustPermissionsFromResponse` in `@btps/sdk/trust` compute what to save. The server reads it to check each answer: a `TRUST_RES` whose `granted` leaves out a required name, or arrives where the requester's record has no `permissions`, is refused (`BTP_ERROR_PERMISSION_REQUIRED`), and one granting a name never asked for is refused too (`BTP_ERROR_PERMISSION`). An accepted trust takes an answer only while a change is pending, checked against the change.
 
+**Once a change is answered, the platform clears `pendingChange`,** whichever way it went, or the trust keeps taking answers to a change already decided:
+
+- **Accepted:** save the record `trustPermissionsFromResponse` returns, which has no `pendingChange`. The new grant replaces the old one.
+- **Rejected:** keep the current permissions and remove `pendingChange`, so the trust runs on its old grant.
+
 ---
 
 ## Trust Status Types

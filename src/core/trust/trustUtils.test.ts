@@ -226,6 +226,15 @@ describe('validateTrustResponse()', () => {
       expect((await answer(['send:invoice', 'send:letter'])).isValid).toBe(true);
       expect((await answer(['send:invoice'])).error?.code).toBe('BTP_ERROR_PERMISSION_REQUIRED');
     });
+
+    it('refuses a further answer once the platform has cleared the answered change', async () => {
+      mockTrustStore.getById = vi
+        .fn()
+        .mockResolvedValue(makeTrust({ status: 'accepted', permissions }));
+      const result = await answer(['send:invoice']);
+      expect(result.isValid).toBe(false);
+      expect(result.error?.code).toBe('BTP_ERROR_TRUST_NOT_ALLOWED');
+    });
   });
 });
 
