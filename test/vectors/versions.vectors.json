@@ -603,7 +603,10 @@
           "reason": "To send you invoices",
           "phone": "+61 400 000 000",
           "own": {
-            "detail:dob": "1990-04-21"
+            "detail:identity": {
+              "type": "dob",
+              "value": "1990-04-21"
+            }
           }
         },
         "encryption": null
@@ -651,6 +654,23 @@
         },
         "encryption": null,
         "granted": ["send:invoice"]
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "trust-response-entity-type",
+      "artifact": {
+        "type": "TRUST_RES",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example"
+        },
+        "encryption": null,
+        "entityType": "person"
       },
       "expect": "1.2.0"
     },

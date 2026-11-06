@@ -1,5 +1,5 @@
 {
-  "description": "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: { send: [{ name, required }], details: [{ name, required }] }`, `entityType` (person or organisation) and `given`, the `detail:` names the sender gives about itself, and every detail it asks for it gives; `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given; a rejected one carries none. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `profile` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
+  "description": "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|identity>`, and nothing else. A `TRUST_REQ` carries `permissions: { send: [{ name, required }], details: [{ name, required }] }`, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for); `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`; a rejected one carries no `granted`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `profile` holds each granted detail by name; `taxNo` is `{ number, country }`; `detail:identity` is tagged by the giver's `entityType`, a person's `{ type: \"dob\", value: \"YYYY-MM-DD\" }` and an organisation's `{ type: \"registrationNumber\", number, country }`; and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
   "envelopes": [
     {
       "name": "request",
@@ -56,7 +56,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "accept"
@@ -99,7 +99,7 @@
       "expect": "accept"
     },
     {
-      "name": "request-from-a-person-asking-a-date-of-birth",
+      "name": "request-from-a-person-asking-an-identity",
       "artifact": {
         "version": "1.2.0",
         "issuedAt": "2026-10-19T00:00:00.000Z",
@@ -134,18 +134,18 @@
           ],
           "details": [
             {
-              "name": "detail:dob",
+              "name": "detail:identity",
               "required": true
             }
           ]
         },
         "entityType": "person",
-        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:identity"]
       },
       "expect": "accept"
     },
     {
-      "name": "request-asking-a-registration-number",
+      "name": "request-from-an-organisation-asking-an-identity",
       "artifact": {
         "version": "1.2.0",
         "issuedAt": "2026-10-19T00:00:00.000Z",
@@ -180,7 +180,7 @@
           ],
           "details": [
             {
-              "name": "detail:registrationNumber",
+              "name": "detail:identity",
               "required": true
             },
             {
@@ -195,9 +195,63 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber",
+          "detail:identity",
           "detail:taxNo"
         ]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "request-giving-only-what-it-asks",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": ["detail:legalName", "detail:email", "detail:address"]
       },
       "expect": "accept"
     },
@@ -256,7 +310,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ],
         "change": true
       },
@@ -317,7 +371,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -377,7 +431,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -438,7 +492,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -490,7 +544,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -551,7 +605,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -608,7 +662,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -665,7 +719,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -722,7 +776,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -775,7 +829,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -828,7 +882,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber",
+          "detail:identity",
           "detail:name"
         ]
       },
@@ -881,7 +935,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -935,7 +989,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -991,7 +1045,7 @@
           ]
         },
         "entityType": "organisation",
-        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:registrationNumber"]
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:identity"]
       },
       "expect": "refuse",
       "why": "every detail asked for is given"
@@ -1051,7 +1105,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber",
+          "detail:identity",
           "send:invoice"
         ]
       },
@@ -1113,7 +1167,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber",
+          "detail:identity",
           "detail:email"
         ]
       },
@@ -1121,7 +1175,7 @@
       "why": "each name appears once"
     },
     {
-      "name": "request-from-a-person-giving-a-registration-number",
+      "name": "request-asking-a-date-of-birth",
       "artifact": {
         "version": "1.2.0",
         "issuedAt": "2026-10-19T00:00:00.000Z",
@@ -1156,77 +1210,8 @@
           ],
           "details": [
             {
-              "name": "detail:legalName",
+              "name": "detail:dob",
               "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
-        "entityType": "person",
-        "given": [
-          "detail:legalName",
-          "detail:email",
-          "detail:phone",
-          "detail:address",
-          "detail:registrationNumber"
-        ]
-      },
-      "expect": "refuse",
-      "why": "a person gives detail:dob, never detail:registrationNumber"
-    },
-    {
-      "name": "request-from-an-organisation-giving-a-date-of-birth",
-      "artifact": {
-        "version": "1.2.0",
-        "issuedAt": "2026-10-19T00:00:00.000Z",
-        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
-        "type": "TRUST_REQ",
-        "from": "billing$vendor.example",
-        "to": "pay$client.example",
-        "selector": "btps1",
-        "signature": {
-          "algorithmHash": "sha256",
-          "value": "AA==",
-          "fingerprint": "AA=="
-        },
-        "encryption": {
-          "algorithm": "aes-256-gcm",
-          "encryptedKey": "AA==",
-          "iv": "AA==",
-          "authTag": "AA==",
-          "type": "standardEncrypt"
-        },
-        "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
             }
           ]
         },
@@ -1236,12 +1221,12 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber",
+          "detail:identity",
           "detail:dob"
         ]
       },
       "expect": "refuse",
-      "why": "an organisation gives detail:registrationNumber, never detail:dob"
+      "why": "a date of birth or registration number is detail:identity"
     },
     {
       "name": "request-for-a-change-marked-false",
@@ -1298,7 +1283,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ],
         "change": false
       },
@@ -1329,7 +1314,8 @@
           "phone": "+61 400 000 000",
           "address": "1 Kauri Street, Wellington",
           "own": {
-            "detail:registrationNumber": {
+            "detail:identity": {
+              "type": "registrationNumber",
               "number": "51824753556",
               "country": "AU"
             }
@@ -1367,7 +1353,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -1428,7 +1414,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ],
         "granted": ["send:invoice", "detail:legalName", "detail:email"]
       },
@@ -1458,7 +1444,8 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "entityType": "person"
       },
       "expect": "accept"
     },
@@ -1488,6 +1475,63 @@
       "expect": "accept"
     },
     {
+      "name": "response-without-entity-type",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+      },
+      "expect": "refuse",
+      "why": "entityType comes with granted"
+    },
+    {
+      "name": "response-from-another-entity-type",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "entityType": "company"
+      },
+      "expect": "refuse",
+      "why": "entityType is person or organisation"
+    },
+    {
       "name": "response-rejecting-with-granted",
       "artifact": {
         "version": "1.2.0",
@@ -1509,7 +1553,8 @@
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example"
         },
-        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "entityType": "person"
       },
       "expect": "refuse",
       "why": "a rejected answer carries no granted"
@@ -1537,7 +1582,8 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "entityType": "person"
       },
       "expect": "refuse",
       "why": "granted is only in a 1.2.0 artifact"
@@ -1565,7 +1611,8 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:nickname"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:nickname"],
+        "entityType": "person"
       },
       "expect": "refuse",
       "why": "granted holds protocol names only"
@@ -1593,7 +1640,8 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": ["send:invoice", "detail:legalName", "detail:email", "send:invoice"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "send:invoice"],
+        "entityType": "person"
       },
       "expect": "refuse",
       "why": "each name appears once"
@@ -1624,7 +1672,8 @@
             "detail:email": "bob@client.example"
           }
         },
-        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "entityType": "person"
       },
       "expect": "refuse",
       "why": "a response with a profile is encrypted"
@@ -1653,12 +1702,13 @@
         },
         "document": "ciphertext",
         "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "entityType": "person",
         "given": [
           "detail:legalName",
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -1872,7 +1922,8 @@
           "phone": "+61 400 000 000",
           "address": "1 Kauri Street, Wellington",
           "own": {
-            "detail:registrationNumber": {
+            "detail:identity": {
+              "type": "registrationNumber",
               "number": "51824753556",
               "country": "AU"
             }
@@ -1910,7 +1961,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "accept"
@@ -1944,7 +1995,10 @@
           "reason": "To send you invoices",
           "phone": "+61 400 000 000",
           "own": {
-            "detail:dob": "1990-04-21"
+            "detail:identity": {
+              "type": "dob",
+              "value": "1990-04-21"
+            }
           }
         },
         "permissions": {
@@ -1960,13 +2014,74 @@
           ],
           "details": [
             {
-              "name": "detail:dob",
+              "name": "detail:identity",
               "required": true
             }
           ]
         },
         "entityType": "person",
-        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:identity"]
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "request-giving-only-what-it-asks",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington"
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": ["detail:legalName", "detail:email", "detail:address"]
       },
       "expect": "accept"
     },
@@ -2000,7 +2115,8 @@
           "phone": "+61 400 000 000",
           "address": "1 Kauri Street, Wellington",
           "own": {
-            "detail:registrationNumber": {
+            "detail:identity": {
+              "type": "registrationNumber",
               "number": "51824753556",
               "country": "AU"
             }
@@ -2041,7 +2157,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber",
+          "detail:identity",
           "detail:profile"
         ]
       },
@@ -2077,7 +2193,8 @@
           "phone": "+61 400 000 000",
           "address": "1 Kauri Street, Wellington",
           "own": {
-            "detail:registrationNumber": {
+            "detail:identity": {
+              "type": "registrationNumber",
               "number": "51824753556",
               "country": "AU"
             },
@@ -2119,7 +2236,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber",
+          "detail:identity",
           "detail:taxNo"
         ]
       },
@@ -2188,7 +2305,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -2223,7 +2340,8 @@
           "reason": "To send you invoices",
           "phone": "+61 400 000 000",
           "own": {
-            "detail:registrationNumber": {
+            "detail:identity": {
+              "type": "registrationNumber",
               "number": "51824753556",
               "country": "AU"
             }
@@ -2261,7 +2379,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -2297,7 +2415,8 @@
           "phone": "+61 400 000 000",
           "address": "1 Kauri Street, Wellington",
           "own": {
-            "detail:registrationNumber": {
+            "detail:identity": {
+              "type": "registrationNumber",
               "number": "51824753556",
               "country": "AU"
             }
@@ -2335,7 +2454,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber",
+          "detail:identity",
           "detail:profile"
         ]
       },
@@ -2372,7 +2491,8 @@
           "phone": "+61 400 000 000",
           "address": "1 Kauri Street, Wellington",
           "own": {
-            "detail:registrationNumber": {
+            "detail:identity": {
+              "type": "registrationNumber",
               "number": "51824753556",
               "country": "AU"
             },
@@ -2414,7 +2534,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -2450,7 +2570,8 @@
           "phone": "+61 400 000 000",
           "address": "1 Kauri Street, Wellington",
           "own": {
-            "detail:registrationNumber": {
+            "detail:identity": {
+              "type": "registrationNumber",
               "number": "51824753556",
               "country": "AU"
             },
@@ -2489,70 +2610,14 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
       "why": "a value 1.1 has a field for stays there and is not repeated in own"
     },
     {
-      "name": "request-with-a-date-of-birth-in-another-form",
-      "artifact": {
-        "version": "1.2.0",
-        "issuedAt": "2026-10-19T00:00:00.000Z",
-        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
-        "type": "TRUST_REQ",
-        "from": "billing$vendor.example",
-        "to": "pay$client.example",
-        "selector": "btps1",
-        "signature": {
-          "algorithmHash": "sha256",
-          "value": "AA==",
-          "fingerprint": "AA=="
-        },
-        "encryption": {
-          "algorithm": "aes-256-gcm",
-          "encryptedKey": "AA==",
-          "iv": "AA==",
-          "authTag": "AA==",
-          "type": "standardEncrypt"
-        },
-        "document": {
-          "id": "req-1",
-          "name": "Acme Pty Ltd",
-          "email": "billing@acme.example",
-          "reason": "To send you invoices",
-          "phone": "+61 400 000 000",
-          "own": {
-            "detail:dob": "21/04/1990"
-          }
-        },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:dob",
-              "required": true
-            }
-          ]
-        },
-        "entityType": "person",
-        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
-      },
-      "expect": "refuse",
-      "why": "a date of birth is YYYY-MM-DD"
-    },
-    {
-      "name": "request-with-a-registration-number-as-text",
+      "name": "request-from-an-organisation-giving-a-date-of-birth",
       "artifact": {
         "version": "1.2.0",
         "issuedAt": "2026-10-19T00:00:00.000Z",
@@ -2581,7 +2646,10 @@
           "phone": "+61 400 000 000",
           "address": "1 Kauri Street, Wellington",
           "own": {
-            "detail:registrationNumber": "51824753556"
+            "detail:identity": {
+              "type": "dob",
+              "value": "1990-04-21"
+            }
           }
         },
         "permissions": {
@@ -2616,11 +2684,410 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
-      "why": "a registration number is { number, country }"
+      "why": "an identity's type is the giver's entityType: an organisation gives a registrationNumber"
+    },
+    {
+      "name": "request-from-a-person-giving-a-registration-number",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "own": {
+            "detail:identity": {
+              "type": "registrationNumber",
+              "number": "51824753556",
+              "country": "AU"
+            }
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:identity",
+              "required": true
+            }
+          ]
+        },
+        "entityType": "person",
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:identity"]
+      },
+      "expect": "refuse",
+      "why": "an identity's type is the giver's entityType: a person gives a dob"
+    },
+    {
+      "name": "request-with-an-identity-of-another-type",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:identity": {
+              "type": "passport",
+              "number": "X1234567",
+              "country": "AU"
+            }
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:identity"
+        ]
+      },
+      "expect": "refuse",
+      "why": "an identity is a dob or a registrationNumber"
+    },
+    {
+      "name": "request-with-an-untagged-identity",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:identity": {
+              "number": "51824753556",
+              "country": "AU"
+            }
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:identity"
+        ]
+      },
+      "expect": "refuse",
+      "why": "an identity is tagged with its type"
+    },
+    {
+      "name": "request-with-a-date-of-birth-in-another-form",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "own": {
+            "detail:identity": {
+              "type": "dob",
+              "value": "21/04/1990"
+            }
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:identity",
+              "required": true
+            }
+          ]
+        },
+        "entityType": "person",
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:identity"]
+      },
+      "expect": "refuse",
+      "why": "a date of birth is YYYY-MM-DD"
+    },
+    {
+      "name": "request-with-more-in-a-date-of-birth",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "own": {
+            "detail:identity": {
+              "type": "dob",
+              "value": "1990-04-21",
+              "country": "NZ"
+            }
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:identity",
+              "required": true
+            }
+          ]
+        },
+        "entityType": "person",
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:identity"]
+      },
+      "expect": "refuse",
+      "why": "a date of birth holds type and value only"
+    },
+    {
+      "name": "request-with-a-registration-number-as-text",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:identity": "51824753556"
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:identity"
+        ]
+      },
+      "expect": "refuse",
+      "why": "a registration number is { type, number, country }"
     },
     {
       "name": "request-with-a-country-in-lower-case",
@@ -2652,7 +3119,8 @@
           "phone": "+61 400 000 000",
           "address": "1 Kauri Street, Wellington",
           "own": {
-            "detail:registrationNumber": {
+            "detail:identity": {
+              "type": "registrationNumber",
               "number": "51824753556",
               "country": "au"
             }
@@ -2690,7 +3158,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -2726,7 +3194,8 @@
           "phone": "+61 400 000 000",
           "address": "1 Kauri Street, Wellington",
           "own": {
-            "detail:registrationNumber": {
+            "detail:identity": {
+              "type": "registrationNumber",
               "number": "51824753556",
               "country": "AUS"
             }
@@ -2764,7 +3233,7 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
@@ -2800,7 +3269,8 @@
           "phone": "+61 400 000 000",
           "address": "1 Kauri Street, Wellington",
           "own": {
-            "detail:registrationNumber": {
+            "detail:identity": {
+              "type": "registrationNumber",
               "number": "51824753556",
               "country": "AU",
               "scheme": "abn"
@@ -2839,11 +3309,88 @@
           "detail:email",
           "detail:phone",
           "detail:address",
-          "detail:registrationNumber"
+          "detail:identity"
         ]
       },
       "expect": "refuse",
-      "why": "a registration number holds number and country only"
+      "why": "a registration number holds type, number and country only"
+    },
+    {
+      "name": "request-with-a-tax-number-as-text",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "req-1",
+          "name": "Acme Pty Ltd",
+          "email": "billing@acme.example",
+          "reason": "To send you invoices",
+          "phone": "+61 400 000 000",
+          "address": "1 Kauri Street, Wellington",
+          "own": {
+            "detail:identity": {
+              "type": "registrationNumber",
+              "number": "51824753556",
+              "country": "AU"
+            },
+            "detail:taxNo": "123456789"
+          }
+        },
+        "permissions": {
+          "send": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            }
+          ],
+          "details": [
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            }
+          ]
+        },
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:identity",
+          "detail:taxNo"
+        ]
+      },
+      "expect": "refuse",
+      "why": "a tax number is { number, country }"
     },
     {
       "name": "response",
@@ -2877,7 +3424,8 @@
             "detail:email": "bob@client.example"
           }
         },
-        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "entityType": "person"
       },
       "expect": "accept"
     },
@@ -2921,7 +3469,91 @@
             }
           }
         },
-        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:profile"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:profile"],
+        "entityType": "person"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "response-granting-an-identity",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example",
+          "profile": {
+            "detail:legalName": "Robert Smith",
+            "detail:email": "bob@client.example",
+            "detail:identity": {
+              "type": "dob",
+              "value": "1990-04-21"
+            }
+          }
+        },
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:identity"],
+        "entityType": "person"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "response-from-an-organisation-granting-an-identity",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example",
+          "profile": {
+            "detail:legalName": "Robert Smith",
+            "detail:email": "bob@client.example",
+            "detail:identity": {
+              "type": "registrationNumber",
+              "number": "51824753556",
+              "country": "AU"
+            }
+          }
+        },
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:identity"],
+        "entityType": "organisation"
       },
       "expect": "accept"
     },
@@ -2957,6 +3589,91 @@
       "expect": "accept"
     },
     {
+      "name": "response-from-a-person-granting-a-registration-number",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example",
+          "profile": {
+            "detail:legalName": "Robert Smith",
+            "detail:email": "bob@client.example",
+            "detail:identity": {
+              "type": "registrationNumber",
+              "number": "51824753556",
+              "country": "AU"
+            }
+          }
+        },
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:identity"],
+        "entityType": "person"
+      },
+      "expect": "refuse",
+      "why": "an identity's type is the responder's entityType: a person gives a dob"
+    },
+    {
+      "name": "response-from-an-organisation-granting-a-date-of-birth",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": {
+          "id": "res-1",
+          "decision": "accepted",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example",
+          "profile": {
+            "detail:legalName": "Robert Smith",
+            "detail:email": "bob@client.example",
+            "detail:identity": {
+              "type": "dob",
+              "value": "1990-04-21"
+            }
+          }
+        },
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:identity"],
+        "entityType": "organisation"
+      },
+      "expect": "refuse",
+      "why": "an identity's type is the responder's entityType: an organisation gives a registrationNumber"
+    },
+    {
       "name": "response-without-a-granted-value",
       "artifact": {
         "version": "1.2.0",
@@ -2987,7 +3704,8 @@
             "detail:legalName": "Robert Smith"
           }
         },
-        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "entityType": "person"
       },
       "expect": "refuse",
       "why": "profile holds a value for every detail granted"
@@ -3025,7 +3743,8 @@
             "detail:phone": "+64 21 000 000"
           }
         },
-        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "entityType": "person"
       },
       "expect": "refuse",
       "why": "profile holds only details granted"
@@ -3063,7 +3782,8 @@
             "send:invoice": true
           }
         },
-        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "entityType": "person"
       },
       "expect": "refuse",
       "why": "profile holds detail values only"
@@ -3106,7 +3826,8 @@
             }
           }
         },
-        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:profile"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:profile"],
+        "entityType": "person"
       },
       "expect": "refuse",
       "why": "a logo is { sha256, source }"
@@ -3146,7 +3867,8 @@
             }
           }
         },
-        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:profile"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:profile"],
+        "entityType": "person"
       },
       "expect": "refuse",
       "why": "detail:profile has a displayName"
@@ -3176,7 +3898,8 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "entityType": "person"
       },
       "record": {
         "status": "pending",
@@ -3239,7 +3962,8 @@
           "detail:email",
           "send:receipt",
           "detail:address"
-        ]
+        ],
+        "entityType": "person"
       },
       "record": {
         "status": "pending",
@@ -3264,6 +3988,68 @@
             {
               "name": "detail:address",
               "required": false
+            }
+          ],
+          "granted": [],
+          "detailsHeld": [],
+          "detailsShared": []
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "an-identity-from-the-other-kind",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:identity"],
+        "entityType": "organisation"
+      },
+      "record": {
+        "status": "pending",
+        "permissions": {
+          "requested": [
+            {
+              "name": "send:invoice",
+              "required": true
+            },
+            {
+              "name": "send:receipt",
+              "required": false
+            },
+            {
+              "name": "detail:legalName",
+              "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
+            },
+            {
+              "name": "detail:identity",
+              "required": true
             }
           ],
           "granted": [],
@@ -3351,7 +4137,8 @@
           "authTag": "AA==",
           "type": "standardEncrypt"
         },
-        "document": "ciphertext"
+        "document": "ciphertext",
+        "entityType": "person"
       },
       "record": {
         "status": "pending"
@@ -3381,7 +4168,8 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": ["send:invoice", "detail:legalName", "detail:email", "send:letter"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "send:letter"],
+        "entityType": "person"
       },
       "record": {
         "status": "accepted",
@@ -3415,7 +4203,7 @@
             "detail:email",
             "detail:phone",
             "detail:address",
-            "detail:registrationNumber"
+            "detail:identity"
           ],
           "pendingChange": {
             "requested": [
@@ -3473,7 +4261,8 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": ["send:invoice", "detail:legalName"]
+        "granted": ["send:invoice", "detail:legalName"],
+        "entityType": "person"
       },
       "record": {
         "status": "pending",
@@ -3531,7 +4320,8 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": ["send:invoice", "detail:legalName", "detail:email", "send:payslip"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "send:payslip"],
+        "entityType": "person"
       },
       "record": {
         "status": "pending",
@@ -3589,7 +4379,8 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "entityType": "person"
       },
       "record": {
         "status": "pending"
@@ -3620,7 +4411,8 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "entityType": "person"
       },
       "record": {
         "status": "accepted",
@@ -3654,7 +4446,7 @@
             "detail:email",
             "detail:phone",
             "detail:address",
-            "detail:registrationNumber"
+            "detail:identity"
           ]
         }
       },
@@ -3684,7 +4476,8 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": ["send:invoice", "detail:legalName", "detail:email"]
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
+        "entityType": "person"
       },
       "record": {
         "status": "accepted",
@@ -3718,7 +4511,7 @@
             "detail:email",
             "detail:phone",
             "detail:address",
-            "detail:registrationNumber"
+            "detail:identity"
           ],
           "pendingChange": {
             "requested": [
@@ -3813,7 +4606,7 @@
             "detail:email",
             "detail:phone",
             "detail:address",
-            "detail:registrationNumber"
+            "detail:identity"
           ]
         }
       },
@@ -3888,7 +4681,7 @@
             "detail:email",
             "detail:phone",
             "detail:address",
-            "detail:registrationNumber"
+            "detail:identity"
           ]
         }
       },
@@ -3951,7 +4744,7 @@
             "detail:email",
             "detail:phone",
             "detail:address",
-            "detail:registrationNumber"
+            "detail:identity"
           ]
         }
       },
@@ -4042,7 +4835,7 @@
             "detail:email",
             "detail:phone",
             "detail:address",
-            "detail:registrationNumber"
+            "detail:identity"
           ]
         }
       },
@@ -4106,7 +4899,7 @@
             "detail:email",
             "detail:phone",
             "detail:address",
-            "detail:registrationNumber"
+            "detail:identity"
           ]
         }
       },
@@ -4181,7 +4974,7 @@
             "detail:email",
             "detail:phone",
             "detail:address",
-            "detail:registrationNumber"
+            "detail:identity"
           ]
         }
       },
