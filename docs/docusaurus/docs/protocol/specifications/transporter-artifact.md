@@ -184,6 +184,40 @@ The values are in the document, encrypted, so they are checked when it is opened
 
 Each value's length limit is on [Limits](./limits.md#trust-detail-values).
 
+### Verification
+
+**BTPS verifies no one and decides nothing about who is verified.** It gives a standard place for a signed statement, the checks only cryptography can do, and the facts a provider needs to decide for itself. A provider that has checked a sender (by documents, by staff, or automatically) signs a statement of what it checked, and the sender's request carries it in its document as `verification`:
+
+```json
+{
+  "verifiedBy": "admin$saas.example",
+  "claims": {
+    "entityType": "organisation",
+    "detail:legalName": "Acme Pty Ltd",
+    "detail:registrationNumber": { "number": "51824753556", "country": "AU" }
+  },
+  "verifiedAt": "2026-11-01T00:00:00.000Z",
+  "expiresAt": "2027-11-01T00:00:00.000Z",
+  "selector": "btps1",
+  "signature": { "algorithmHash": "sha256", "value": "…", "fingerprint": "…" }
+}
+```
+
+- **The claims** say exactly what was checked, by the protocol's names only: `entityType`, and `detail:` names with their values in their shapes (above). Any other key is refused.
+- **The signature** is `verifiedBy`'s, at its `selector`, over the RFC 8785 form of `{ subject, claims, verifiedAt, expiresAt, verifiedBy, selector }`, where `subject` is the request's `from`, so a statement cannot be copied into anyone else's request. `signVerification` in `@btps/sdk/trust` makes one.
+- **It is values**, so a request carrying one is encrypted, as one carrying `own` is.
+
+`verificationFacts(request)` reports, for the opened request, and refuses nothing:
+
+| Fact                   | Means                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `signatureValid`       | the signature is `verifiedBy`'s, over this sender's address and these claims                                  |
+| `expired`              | `expiresAt` has passed                                                                                        |
+| `verifierServesSender` | `verifiedBy` is on the domain of the operator (`op`) named in the sender's `_btps.host`, not the sender's own |
+| `verifierIsOperator`   | `verifiedBy` is that operator: the serving provider's own signing identity                                    |
+
+`verifierServesSender` is what shows a custom-domain or BYOK user signing for themselves: they control their own DNS or key, but cannot publish keys under their provider's domain. **What each provider decides:** whose verifications it trusts, which facts it requires, and what its app shows. We recommend accepting only `verifierIsOperator`, and always naming the verifier ("Verified by …"), never a bare "Verified". Someone who runs their own BTPS server is their own provider and can sign for themselves; the protocol cannot tell a real provider from a home server, which is why the decision is each provider's. A request without a verification works as before.
+
 ### A send's document type
 
 Under a trust with permissions, a `BTPS_DOC` names its `documentType` on the envelope, and the receiving server checks it against its trust record on arrival, without decrypting:

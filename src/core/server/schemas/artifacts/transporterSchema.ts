@@ -160,6 +160,9 @@ function permissionEnvelopeProblems(data: TransporterEnvelope): [string, string]
     if (data.type === 'TRUST_REQ' && document?.own !== undefined) {
       problems.push(['document', 'a request with its own values is encrypted']);
     }
+    if (data.type === 'TRUST_REQ' && document?.verification !== undefined) {
+      problems.push(['document', 'a request with a verification is encrypted']);
+    }
     if (data.type === 'TRUST_RES' && document?.details !== undefined) {
       problems.push(['document', 'a response with details is encrypted']);
     }

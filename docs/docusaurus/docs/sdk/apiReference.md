@@ -1112,6 +1112,34 @@ Since 1.2. Why a send does not meet the receiver's trust record, or `undefined`.
 
 ---
 
+### signVerification
+
+```ts
+signVerification(
+  statement: { subject: string; claims: BTPVerificationClaims; verifiedAt: string; expiresAt: string },
+  verifier: { verifiedBy: string; selector: string } & ({ pemFiles: PemKeys } | { signer: Signer })
+): Promise<BTPVerification>
+```
+
+**Description:**
+Since 1.2. A provider signs a statement that it checked `subject`, the address that will send the trust request carrying it, as `verifiedBy` at `selector`. The result goes in the request's document as `verification`. `claims` are the protocol's names only: `entityType`, and `detail:` names with their values. See [Verification](../protocol/specifications/transporter-artifact.md#verification).
+
+---
+
+### verificationFacts
+
+```ts
+verificationFacts(
+  request: { from: string; document?: unknown },
+  options?: { keyResolver?: BtpsKeyResolver; now?: number }
+): Promise<BTPVerificationFacts | undefined>
+```
+
+**Description:**
+Since 1.2. The facts about an opened trust request's verification, or `undefined` when it carries none: `{ signatureValid, expired, verifierServesSender, verifierIsOperator }`. It refuses nothing and labels no one verified: whose verifications to trust, and which facts to require, are each provider's to decide. `verifiedBy`'s key is looked up in DNS, or through `keyResolver`, and the operator from the sender's `_btps.host`. See [Verification](../protocol/specifications/transporter-artifact.md#verification).
+
+---
+
 ### detailsProblem
 
 ```ts

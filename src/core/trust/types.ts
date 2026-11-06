@@ -6,6 +6,7 @@
  */
 
 import { BTPStorageRecord } from '@core/storage/types.js';
+import type { BTPSignature } from '@core/crypto/types.js';
 import type {
   BTPDetailPermission,
   BTPPermissionName,
@@ -64,7 +65,41 @@ export interface BTPTrustReqDoc {
   expiresAt?: string; // @optional expiry date and time for the trust to last in ISO Format
   privacyType?: BTPEncryptionType; // @optional Privacy type to be upheld for communicating for this trust
   own?: BTPDetailValues; // since 1.2: the values of the details given that 1.1 has no field for, by name; encrypted
+  verification?: BTPVerification; // since 1.2: a provider's signed statement of what it checked; encrypted
 }
+
+/** Since 1.2: what a verification says was checked: the sender's kind, and details by name in their shapes. */
+export type BTPVerificationClaims = { entityType?: 'person' | 'organisation' } & BTPDetailValues;
+
+/**
+ * Since 1.2: a provider's signed statement that it checked a sender. Signed by
+ * `verifiedBy` at `selector` over the RFC 8785 form of `{ subject, claims,
+ * verifiedAt, expiresAt, verifiedBy, selector }`, where `subject` is the
+ * request's `from`, so it cannot be copied into anyone else's request.
+ */
+export type BTPVerification = {
+  verifiedBy: string;
+  claims: BTPVerificationClaims;
+  verifiedAt: string;
+  expiresAt: string;
+  selector: string;
+  signature: BTPSignature;
+};
+
+/**
+ * Since 1.2: the facts about a verification, for its receiver to decide on.
+ * BTPS refuses nothing because of them and labels no one verified.
+ */
+export type BTPVerificationFacts = {
+  /** The signature is `verifiedBy`'s, over this sender's address and these claims */
+  signatureValid: boolean;
+  /** `expiresAt` has passed */
+  expired: boolean;
+  /** `verifiedBy` is on the domain of the operator named in the sender's `_btps.host` */
+  verifierServesSender: boolean;
+  /** `verifiedBy` is that operator: the serving provider's own signing identity */
+  verifierIsOperator: boolean;
+};
 
 /** Since 1.2: a tax or registration number, for any country (ISO 3166-1 alpha-2, e.g. `AU`). */
 export type BTPNumberInCountry = { number: string; country: string };
