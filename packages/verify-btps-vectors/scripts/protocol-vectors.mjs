@@ -754,6 +754,10 @@ export function versions() {
     relatesTo: 'artifact-1',
   });
   const stamped = (name, artifact, expect) => ({ name, artifact, expect });
+  const trustRequest = (envelope, document = {}) => ({
+    ...doc({ ...base.trustRequest, ...document }, envelope),
+    type: 'TRUST_REQ',
+  });
   const withdrawn = { ...base.event, eventType: 'withdrawn', inReplyTo: REPLY_TO };
   return {
     description:
@@ -853,14 +857,60 @@ export function versions() {
       stamped('document-type', doc(base.invoice, { documentType: 'invoice' }), V12),
       stamped(
         'trust-request-permissions',
+        trustRequest({
+          permissions: { send: [{ name: 'send:invoice', required: true }], details: [] },
+        }),
+        V12,
+      ),
+      stamped('trust-request-entity-type', trustRequest({ entityType: 'organisation' }), V12),
+      stamped('trust-request-given', trustRequest({ given: ['detail:email'] }), V12),
+      stamped('trust-request-change', trustRequest({ change: true }), V12),
+      stamped('trust-request-own', trustRequest({}, { own: { 'detail:dob': '1990-04-21' } }), V12),
+      stamped(
+        'trust-request-verification',
+        trustRequest(
+          {},
+          {
+            verification: {
+              subject: 'billing$vendor.example',
+              claims: { 'detail:legalName': base.trustRequest.name },
+              verifiedAt: ISSUED_AT,
+              expiresAt: '2027-10-19T00:00:00.000Z',
+              verifiedBy: 'admin$verifier.example',
+              selector: 'btps1',
+            },
+          },
+        ),
+        V12,
+      ),
+      stamped(
+        'trust-response-granted',
+        { ...doc(base.trustResponse, { granted: ['send:invoice'] }), type: 'TRUST_RES' },
+        V12,
+      ),
+      stamped(
+        'trust-response-entity-type',
+        { ...doc(base.trustResponse, { entityType: 'person' }), type: 'TRUST_RES' },
+        V12,
+      ),
+      stamped(
+        'trust-response-profile',
         {
-          ...doc({
-            ...base.trustRequest,
-            permissions: { send: [{ name: 'send:invoice', required: true }], details: [] },
-          }),
-          type: 'TRUST_REQ',
+          ...doc({ ...base.trustResponse, profile: { 'detail:email': 'bob@client.example' } }),
+          type: 'TRUST_RES',
         },
         V12,
+      ),
+      ...['DETAILS_CHANGED', 'DETAILS_REQ', 'DETAILS_RES'].map((type) =>
+        stamped(
+          type.toLowerCase().replace('_', '-'),
+          {
+            ...doc('ciphertext', { details: ['detail:address'] }),
+            type,
+            ...(type === 'DETAILS_RES' && { relatesTo: 'artifact-1' }),
+          },
+          V12,
+        ),
       ),
     ],
   };
@@ -1555,6 +1605,1058 @@ export function sync() {
         { status: 'delivered', at: ISSUED_AT, seenBy: 'pay$client.example' },
         'refuse',
         'a delivery holds status, code and at only: no receipt from the receiver',
+      ),
+    ],
+  };
+}
+
+// The two parties of the trust in the trust permission and details vectors.
+const VENDOR = 'billing$vendor.example';
+const CLIENT = 'pay$client.example';
+const transporter = (type, id, more = {}) => ({
+  version: V12,
+  issuedAt: ISSUED_AT,
+  id,
+  type,
+  from: VENDOR,
+  to: CLIENT,
+  selector: 'btps1',
+  signature: { algorithmHash: 'sha256', value: 'AA==', fingerprint: 'AA==' },
+  encryption: {
+    algorithm: 'aes-256-gcm',
+    encryptedKey: 'AA==',
+    iv: 'AA==',
+    authTag: 'AA==',
+    type: 'standardEncrypt',
+  },
+  document: 'ciphertext',
+  ...more,
+});
+const back = (artifact) => ({ ...artifact, from: artifact.to, to: artifact.from });
+const ask = (name, required = true) => ({ name, required });
+const trustRecord = (status, permissions) => ({ status, ...(permissions && { permissions }) });
+
+/** BTPS 1.2 trust permissions: the names on the envelope, the values in the document, the checks on each. */
+export function trustPermissions() {
+  const permissions = {
+    send: [ask('send:invoice'), ask('send:receipt', false)],
+    details: [ask('detail:legalName'), ask('detail:email'), ask('detail:address', false)],
+  };
+  const given = [
+    'detail:legalName',
+    'detail:email',
+    'detail:phone',
+    'detail:address',
+    'detail:registrationNumber',
+  ];
+  const request = transporter('TRUST_REQ', '1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8', {
+    permissions,
+    entityType: 'organisation',
+    given,
+  });
+  const granted = ['send:invoice', 'detail:legalName', 'detail:email'];
+  const response = back(
+    transporter('TRUST_RES', '2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809', {
+      granted,
+      entityType: 'person',
+    }),
+  );
+  const invoice = transporter('BTPS_DOC', '3d4e5f60-7182-4c93-8db4-c5d6e7f8091a', {
+    documentType: 'invoice',
+  });
+  const registrationNumber = { number: '51824753556', country: 'AU' };
+  const requestDoc = {
+    ...base.trustRequest,
+    address: '1 Kauri Street, Wellington',
+    own: { 'detail:registrationNumber': registrationNumber },
+  };
+  const withRegistrationNumber = (value) => ({
+    ...requestDoc,
+    own: { 'detail:registrationNumber': value },
+  });
+  const responseDoc = {
+    ...base.trustResponse,
+    profile: { 'detail:legalName': 'Robert Smith', 'detail:email': 'bob@client.example' },
+  };
+  const requested = [...permissions.send, ...permissions.details];
+  const pending = trustRecord('pending', {
+    requested,
+    granted: [],
+    detailsHeld: [],
+    detailsShared: [],
+  });
+  const accepted = trustRecord('accepted', {
+    requested,
+    granted,
+    detailsHeld: ['detail:legalName', 'detail:email'],
+    detailsShared: given,
+  });
+  const changing = trustRecord('accepted', {
+    ...accepted.permissions,
+    pendingChange: {
+      requested: [...requested, ask('send:letter')],
+      requestedAt: ISSUED_AT,
+    },
+  });
+  const named = (name, artifact, expect, why) => ({
+    name,
+    artifact,
+    expect,
+    ...(why && { why }),
+  });
+  const against = (name, artifact, record, expect, why) => ({
+    name,
+    artifact,
+    record,
+    expect,
+    ...(why && { why }),
+  });
+  const opened = (artifact, document) => ({ ...artifact, document });
+  const asking = (details, more = {}) => ({
+    ...request,
+    permissions: { ...permissions, details },
+    ...more,
+  });
+  const personGiven = ['detail:legalName', 'detail:email', 'detail:phone', 'detail:dob'];
+  const fromAPerson = (details, more = {}) =>
+    asking(details, { entityType: 'person', given: personGiven, ...more });
+  const withDob = (dob) => ({ ...base.trustRequest, own: { 'detail:dob': dob } });
+  const fromAnOrganisation = { ...response, entityType: 'organisation' };
+  const granting = (artifact, name) => ({ ...artifact, granted: [...granted, name] });
+  const profileWith = (name, value) => ({
+    ...responseDoc,
+    profile: { ...responseDoc.profile, [name]: value },
+  });
+  return {
+    description:
+      "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: { send: [{ name, required }], details: [{ name, required }] }`, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`; `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `profile` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
+    envelopes: [
+      named('request', request, 'accept'),
+      named(
+        'request-sending-only',
+        {
+          ...transporter('TRUST_REQ', request.id, {
+            permissions: { send: [ask('send:invoice')], details: [] },
+            entityType: 'organisation',
+            given: [],
+          }),
+          encryption: null,
+          document: base.trustRequest,
+        },
+        'accept',
+      ),
+      named(
+        'request-from-a-person-asking-a-date-of-birth',
+        fromAPerson([ask('detail:dob')]),
+        'accept',
+      ),
+      named(
+        'request-from-an-organisation-asking-a-registration-number',
+        asking([ask('detail:registrationNumber'), ask('detail:taxNo', false)], {
+          given: [...given, 'detail:taxNo'],
+        }),
+        'accept',
+      ),
+      named(
+        'request-from-a-person-asking-a-registration-number',
+        fromAPerson([ask('detail:registrationNumber')]),
+        'accept',
+      ),
+      named(
+        'request-from-an-organisation-asking-a-date-of-birth',
+        asking([ask('detail:dob')]),
+        'accept',
+      ),
+      named(
+        'request-giving-only-what-it-asks',
+        { ...request, given: ['detail:legalName', 'detail:email', 'detail:address'] },
+        'accept',
+      ),
+      named('request-for-a-change', { ...request, change: true }, 'accept'),
+      named(
+        'request-under-1-1',
+        { ...request, version: V11 },
+        'refuse',
+        'permissions are only in a 1.2.0 artifact',
+      ),
+      named(
+        'request-without-entity-type',
+        { ...request, entityType: undefined },
+        'refuse',
+        'entityType comes with permissions',
+      ),
+      named(
+        'request-from-another-entity-type',
+        { ...request, entityType: 'company' },
+        'refuse',
+        'entityType is person or organisation',
+      ),
+      named(
+        'request-sending-nothing',
+        { ...request, permissions: { ...permissions, send: [] } },
+        'refuse',
+        'send has at least one entry',
+      ),
+      named(
+        'request-naming-a-type-twice',
+        {
+          ...request,
+          permissions: { ...permissions, send: [ask('send:invoice'), ask('send:invoice', false)] },
+        },
+        'refuse',
+        'each name appears once',
+      ),
+      named(
+        'request-sending-another-type',
+        { ...request, permissions: { ...permissions, send: [ask('send:quote')] } },
+        'refuse',
+        'send names one of four document types',
+      ),
+      named(
+        'request-with-a-provider-name',
+        { ...request, permissions: { ...permissions, send: [ask('acme:loyalty')] } },
+        'refuse',
+        'only the protocol names exist: no provider prefixes',
+      ),
+      named(
+        'request-sending-a-detail',
+        { ...request, permissions: { ...permissions, send: [ask('detail:email')] } },
+        'refuse',
+        'send holds send: names only',
+      ),
+      named(
+        'request-asking-a-send-name-as-a-detail',
+        asking([ask('send:invoice')]),
+        'refuse',
+        'details holds detail: names only',
+      ),
+      named(
+        'request-asking-a-1-1-field-name',
+        asking([ask('detail:name')], { given: [...given, 'detail:name'] }),
+        'refuse',
+        'the legal name is detail:legalName',
+      ),
+      named(
+        'request-without-required',
+        asking([{ name: 'detail:email' }]),
+        'refuse',
+        'each permission says whether it is required',
+      ),
+      named(
+        'request-with-more-in-a-permission',
+        asking([{ ...ask('detail:email'), why: 'billing' }]),
+        'refuse',
+        'a permission holds name and required only',
+      ),
+      named(
+        'request-asking-what-it-does-not-give',
+        { ...request, given: given.filter((name) => name !== 'detail:address') },
+        'refuse',
+        'every detail asked for is given',
+      ),
+      named(
+        'request-giving-a-send-name',
+        { ...request, given: [...given, 'send:invoice'] },
+        'refuse',
+        'given holds detail: names only',
+      ),
+      named(
+        'request-giving-a-detail-twice',
+        { ...request, given: [...given, 'detail:email'] },
+        'refuse',
+        'each name appears once',
+      ),
+      named(
+        'request-from-a-person-asking-a-date-of-birth-without-giving-one',
+        fromAPerson([ask('detail:dob')], { given: personGiven.slice(0, 3) }),
+        'refuse',
+        'a person asking for a date of birth gives its own',
+      ),
+      named(
+        'request-from-a-person-asking-a-registration-number-giving-nothing-for-it',
+        fromAPerson([ask('detail:registrationNumber')], { given: personGiven.slice(0, 3) }),
+        'refuse',
+        'a person asking for a registration number gives its date of birth',
+      ),
+      named(
+        'request-from-an-organisation-asking-a-date-of-birth-giving-nothing-for-it',
+        asking([ask('detail:dob')], {
+          given: given.filter((name) => name !== 'detail:registrationNumber'),
+        }),
+        'refuse',
+        'an organisation asking for a date of birth gives its registration number',
+      ),
+      named(
+        'request-from-a-person-giving-a-registration-number',
+        fromAPerson([ask('detail:dob')], { given: [...personGiven, 'detail:registrationNumber'] }),
+        'refuse',
+        'a person gives detail:dob, never detail:registrationNumber',
+      ),
+      named(
+        'request-from-an-organisation-giving-a-date-of-birth',
+        { ...request, given: [...given, 'detail:dob'] },
+        'refuse',
+        'an organisation gives detail:registrationNumber, never detail:dob',
+      ),
+      named(
+        'request-asking-an-identity',
+        asking([ask('detail:identity')], { given: [...given, 'detail:identity'] }),
+        'refuse',
+        'a date of birth and a registration number are separate permissions',
+      ),
+      named(
+        'request-for-a-change-marked-false',
+        { ...request, change: false },
+        'refuse',
+        'change is true or absent',
+      ),
+      named(
+        'request-with-own-values-unencrypted',
+        { ...request, encryption: null, document: requestDoc },
+        'refuse',
+        'a request with own values is encrypted',
+      ),
+      named(
+        'request-carrying-granted',
+        { ...request, granted },
+        'refuse',
+        'granted is only on a TRUST_RES',
+      ),
+      named('response', response, 'accept'),
+      named(
+        'response-rejecting',
+        {
+          ...response,
+          granted: undefined,
+          entityType: undefined,
+          encryption: null,
+          document: { ...base.trustResponse, decision: 'rejected' },
+        },
+        'accept',
+      ),
+      named(
+        'response-rejecting-with-entity-type',
+        {
+          ...response,
+          granted: undefined,
+          encryption: null,
+          document: { ...base.trustResponse, decision: 'rejected' },
+        },
+        'accept',
+      ),
+      named(
+        'response-without-entity-type',
+        { ...response, entityType: undefined },
+        'refuse',
+        'entityType comes with granted',
+      ),
+      named(
+        'response-from-another-entity-type',
+        { ...response, entityType: 'company' },
+        'refuse',
+        'entityType is person or organisation',
+      ),
+      named(
+        'response-from-a-person-granting-a-date-of-birth',
+        granting(response, 'detail:dob'),
+        'accept',
+      ),
+      named(
+        'response-from-an-organisation-granting-a-registration-number',
+        granting(fromAnOrganisation, 'detail:registrationNumber'),
+        'accept',
+      ),
+      named(
+        'response-from-a-person-granting-a-registration-number',
+        granting(response, 'detail:registrationNumber'),
+        'refuse',
+        'a person grants detail:dob, never detail:registrationNumber',
+      ),
+      named(
+        'response-from-an-organisation-granting-a-date-of-birth',
+        granting(fromAnOrganisation, 'detail:dob'),
+        'refuse',
+        'an organisation grants detail:registrationNumber, never detail:dob',
+      ),
+      named(
+        'response-rejecting-with-granted',
+        {
+          ...response,
+          encryption: null,
+          document: { ...base.trustResponse, decision: 'rejected' },
+        },
+        'refuse',
+        'a rejected answer carries no granted',
+      ),
+      named(
+        'response-under-1-1',
+        { ...response, version: V11 },
+        'refuse',
+        'granted is only in a 1.2.0 artifact',
+      ),
+      named(
+        'response-granting-another-name',
+        { ...response, granted: [...granted, 'detail:nickname'] },
+        'refuse',
+        'granted holds protocol names only',
+      ),
+      named(
+        'response-granting-a-name-twice',
+        { ...response, granted: [...granted, 'send:invoice'] },
+        'refuse',
+        'each name appears once',
+      ),
+      named(
+        'response-with-a-profile-unencrypted',
+        { ...response, encryption: null, document: responseDoc },
+        'refuse',
+        'a response with a profile is encrypted',
+      ),
+      named(
+        'response-carrying-given',
+        { ...response, given },
+        'refuse',
+        'given is only on a TRUST_REQ',
+      ),
+      named('document-type', invoice, 'accept'),
+      named(
+        'document-type-readable',
+        { ...invoice, encryption: null, document: base.invoice },
+        'accept',
+      ),
+      named(
+        'document-type-of-another-type',
+        { ...invoice, documentType: 'quote' },
+        'refuse',
+        'documentType is one of four document types',
+      ),
+      named(
+        'document-type-under-1-1',
+        { ...invoice, version: V11 },
+        'refuse',
+        'documentType is only in a 1.2.0 artifact',
+      ),
+      named(
+        'document-carrying-permissions',
+        { ...invoice, permissions },
+        'refuse',
+        'permissions are only on a TRUST_REQ',
+      ),
+    ],
+    opened: [
+      named('request-from-an-organisation', opened(request, requestDoc), 'accept'),
+      named(
+        'request-from-a-person',
+        opened(fromAPerson([ask('detail:dob')]), withDob('1990-04-21')),
+        'accept',
+      ),
+      named(
+        'request-giving-only-what-it-asks',
+        opened(
+          { ...request, given: ['detail:legalName', 'detail:email', 'detail:address'] },
+          { ...requestDoc, own: undefined },
+        ),
+        'accept',
+      ),
+      named(
+        'request-giving-a-profile',
+        opened(
+          { ...request, given: [...given, 'detail:profile'] },
+          {
+            ...requestDoc,
+            displayName: 'Acme',
+            logoUrl: 'https://vendor.example/logo.png',
+            websiteUrl: 'https://vendor.example',
+          },
+        ),
+        'accept',
+      ),
+      named(
+        'request-giving-a-tax-number',
+        opened(
+          { ...request, given: [...given, 'detail:taxNo'] },
+          {
+            ...requestDoc,
+            own: { ...requestDoc.own, 'detail:taxNo': { number: '123456789', country: 'NZ' } },
+          },
+        ),
+        'accept',
+      ),
+      named(
+        'request-without-a-given-value',
+        opened(request, { ...requestDoc, own: {} }),
+        'refuse',
+        'own holds a value for every name given that 1.1 has no field for',
+      ),
+      named(
+        'request-without-a-given-1-1-field',
+        opened(request, { ...requestDoc, address: undefined }),
+        'refuse',
+        'a name given has its value: detail:address is the address field',
+      ),
+      named(
+        'request-giving-a-profile-without-a-display-name',
+        opened({ ...request, given: [...given, 'detail:profile'] }, requestDoc),
+        'refuse',
+        "detail:profile is the request's displayName, which it needs",
+      ),
+      named(
+        'request-with-a-value-not-given',
+        opened(request, {
+          ...requestDoc,
+          own: { ...requestDoc.own, 'detail:taxNo': { number: '123456789', country: 'NZ' } },
+        }),
+        'refuse',
+        'own holds only names given',
+      ),
+      named(
+        'request-repeating-a-1-1-field-in-own',
+        opened(request, {
+          ...requestDoc,
+          own: { ...requestDoc.own, 'detail:email': base.trustRequest.email },
+        }),
+        'refuse',
+        'a value 1.1 has a field for stays there and is not repeated in own',
+      ),
+      named(
+        'request-with-a-date-of-birth-in-another-form',
+        opened(fromAPerson([ask('detail:dob')]), withDob('21/04/1990')),
+        'refuse',
+        'a date of birth is YYYY-MM-DD',
+      ),
+      named(
+        'request-with-a-date-of-birth-as-an-object',
+        opened(fromAPerson([ask('detail:dob')]), withDob({ value: '1990-04-21' })),
+        'refuse',
+        'a date of birth is a YYYY-MM-DD string',
+      ),
+      named(
+        'request-with-a-registration-number-as-text',
+        opened(request, withRegistrationNumber(registrationNumber.number)),
+        'refuse',
+        'a registration number is { number, country }',
+      ),
+      named(
+        'request-with-a-country-in-lower-case',
+        opened(request, withRegistrationNumber({ ...registrationNumber, country: 'au' })),
+        'refuse',
+        'country is ISO 3166-1 alpha-2, in upper case',
+      ),
+      named(
+        'request-with-a-three-letter-country',
+        opened(request, withRegistrationNumber({ ...registrationNumber, country: 'AUS' })),
+        'refuse',
+        'country is ISO 3166-1 alpha-2',
+      ),
+      named(
+        'request-with-more-in-a-registration-number',
+        opened(request, withRegistrationNumber({ ...registrationNumber, scheme: 'abn' })),
+        'refuse',
+        'a registration number holds number and country only',
+      ),
+      named(
+        'request-with-a-tax-number-as-text',
+        opened(
+          { ...request, given: [...given, 'detail:taxNo'] },
+          { ...requestDoc, own: { ...requestDoc.own, 'detail:taxNo': '123456789' } },
+        ),
+        'refuse',
+        'a tax number is { number, country }',
+      ),
+      named('response', opened(response, responseDoc), 'accept'),
+      named(
+        'response-granting-a-profile',
+        opened(
+          { ...response, granted: [...granted, 'detail:profile'] },
+          {
+            ...responseDoc,
+            profile: {
+              ...responseDoc.profile,
+              'detail:profile': {
+                displayName: 'Bob',
+                logo: { sha256: SHA, source: 'https://client.example/bob.png' },
+                website: 'https://client.example',
+              },
+            },
+          },
+        ),
+        'accept',
+      ),
+      named(
+        'response-from-a-person-granting-a-date-of-birth',
+        opened(granting(response, 'detail:dob'), profileWith('detail:dob', '1990-04-21')),
+        'accept',
+      ),
+      named(
+        'response-from-an-organisation-granting-a-registration-number',
+        opened(
+          granting(fromAnOrganisation, 'detail:registrationNumber'),
+          profileWith('detail:registrationNumber', registrationNumber),
+        ),
+        'accept',
+      ),
+      named(
+        'response-rejecting',
+        opened(
+          { ...response, granted: undefined, entityType: undefined },
+          { ...base.trustResponse, decision: 'rejected' },
+        ),
+        'accept',
+      ),
+      named(
+        'response-with-a-date-of-birth-in-another-form',
+        opened(granting(response, 'detail:dob'), profileWith('detail:dob', '21/04/1990')),
+        'refuse',
+        'a date of birth is YYYY-MM-DD',
+      ),
+      named(
+        'response-with-a-registration-number-as-text',
+        opened(
+          granting(fromAnOrganisation, 'detail:registrationNumber'),
+          profileWith('detail:registrationNumber', registrationNumber.number),
+        ),
+        'refuse',
+        'a registration number is { number, country }',
+      ),
+      named(
+        'response-without-a-granted-value',
+        opened(response, {
+          ...responseDoc,
+          profile: { 'detail:legalName': responseDoc.profile['detail:legalName'] },
+        }),
+        'refuse',
+        'profile holds a value for every detail granted',
+      ),
+      named(
+        'response-with-a-value-not-granted',
+        opened(response, {
+          ...responseDoc,
+          profile: { ...responseDoc.profile, 'detail:phone': '+64 21 000 000' },
+        }),
+        'refuse',
+        'profile holds only details granted',
+      ),
+      named(
+        'response-with-a-send-name-in-its-profile',
+        opened(response, {
+          ...responseDoc,
+          profile: { ...responseDoc.profile, 'send:invoice': true },
+        }),
+        'refuse',
+        'profile holds detail values only',
+      ),
+      named(
+        'response-with-a-logo-without-its-fingerprint',
+        opened(
+          { ...response, granted: [...granted, 'detail:profile'] },
+          {
+            ...responseDoc,
+            profile: {
+              ...responseDoc.profile,
+              'detail:profile': {
+                displayName: 'Bob',
+                logo: { source: 'https://client.example/bob.png' },
+              },
+            },
+          },
+        ),
+        'refuse',
+        'a logo is { sha256, source }',
+      ),
+      named(
+        'response-with-a-profile-without-a-display-name',
+        opened(
+          { ...response, granted: [...granted, 'detail:profile'] },
+          {
+            ...responseDoc,
+            profile: {
+              ...responseDoc.profile,
+              'detail:profile': { website: 'https://client.example' },
+            },
+          },
+        ),
+        'refuse',
+        'detail:profile has a displayName',
+      ),
+    ],
+    grant: [
+      against('only-the-required-names', response, pending, 'accept'),
+      against(
+        'every-name',
+        { ...response, granted: [...granted, 'send:receipt', 'detail:address'] },
+        pending,
+        'accept',
+      ),
+      against(
+        'a-registration-number-asked-of-an-organisation',
+        granting(fromAnOrganisation, 'detail:registrationNumber'),
+        trustRecord('pending', {
+          ...pending.permissions,
+          requested: [...requested, ask('detail:registrationNumber')],
+        }),
+        'accept',
+      ),
+      against(
+        'a-date-of-birth-asked-of-an-organisation',
+        fromAnOrganisation,
+        trustRecord('pending', {
+          ...pending.permissions,
+          requested: [...requested, ask('detail:dob')],
+        }),
+        'refuse',
+        'a required name the answerer cannot grant is not met: the request is rejected and sent again',
+      ),
+      against(
+        'rejecting',
+        { ...response, granted: undefined, entityType: undefined },
+        pending,
+        'accept',
+      ),
+      against(
+        'a-1-1-answer-to-a-1-1-trust',
+        { ...response, version: V11, granted: undefined },
+        trustRecord('pending'),
+        'accept',
+      ),
+      against(
+        'a-change',
+        { ...response, granted: [...granted, 'send:letter'] },
+        changing,
+        'accept',
+      ),
+      against(
+        'without-a-required-name',
+        { ...response, granted: ['send:invoice', 'detail:legalName'] },
+        pending,
+        'refuse',
+        'granted holds every required name asked for (BTP_ERROR_PERMISSION_REQUIRED)',
+      ),
+      against(
+        'a-name-not-asked-for',
+        { ...response, granted: [...granted, 'send:payslip'] },
+        pending,
+        'refuse',
+        'granted holds only names the request asked for',
+      ),
+      against(
+        'to-a-record-without-permissions',
+        response,
+        trustRecord('pending'),
+        'refuse',
+        'required permissions cannot be checked without the requested names',
+      ),
+      against(
+        'to-an-accepted-trust-with-no-change-pending',
+        response,
+        accepted,
+        'refuse',
+        'an accepted trust takes an answer only while a change is pending',
+      ),
+      against(
+        'a-change-without-its-new-required-name',
+        response,
+        changing,
+        'refuse',
+        'an answer to a change is checked against the change',
+      ),
+    ],
+    documentType: [
+      against('granted', invoice, accepted, 'accept'),
+      against(
+        'granted-and-readable',
+        { ...invoice, encryption: null, document: base.invoice },
+        accepted,
+        'accept',
+      ),
+      against(
+        'an-event-under-permissions',
+        transporter('BTPS_EVENT', '4e5f6071-8293-4da4-9ec5-d6e7f8091a2b', {
+          relatesTo: invoice.id,
+        }),
+        accepted,
+        'accept',
+      ),
+      against(
+        'a-1-1-trust',
+        { ...invoice, version: V11, documentType: undefined },
+        trustRecord('accepted'),
+        'accept',
+      ),
+      against(
+        'without-a-document-type',
+        { ...invoice, documentType: undefined },
+        accepted,
+        'refuse',
+        'a send under a trust with permissions names its documentType (BTP_ERROR_PERMISSION)',
+      ),
+      against(
+        'not-granted',
+        { ...invoice, documentType: 'receipt' },
+        accepted,
+        'refuse',
+        'send:<documentType> is granted (BTP_ERROR_PERMISSION)',
+      ),
+      against(
+        'readable-of-another-type',
+        { ...invoice, encryption: null, document: base.receipt },
+        accepted,
+        'refuse',
+        'a readable document is its documentType (BTP_ERROR_DOCUMENT_TYPE_MISMATCH)',
+      ),
+    ],
+  };
+}
+
+/** BTPS 1.2 details refresh: DETAILS_CHANGED, DETAILS_REQ and DETAILS_RES, and the names each may carry. */
+export function details() {
+  // The vendor asked; the client granted its legal name and email. Each record is its owner's.
+  const shared = ['detail:legalName', 'detail:email', 'detail:phone', 'detail:address'];
+  const granted = ['send:invoice', 'detail:legalName', 'detail:email'];
+  const permissions = (detailsHeld, detailsShared) => ({
+    requested: [ask('send:invoice'), ask('detail:legalName'), ask('detail:email')],
+    granted,
+    detailsHeld,
+    detailsShared,
+  });
+  const vendorRecord = trustRecord(
+    'accepted',
+    permissions(['detail:legalName', 'detail:email'], shared),
+  );
+  const clientRecord = trustRecord(
+    'accepted',
+    permissions(shared, ['detail:legalName', 'detail:email']),
+  );
+  const changed = transporter('DETAILS_CHANGED', '5f607182-93a4-4eb5-8fd6-e7f8091a2b3c', {
+    details: ['detail:address'],
+  });
+  const request = back(
+    transporter('DETAILS_REQ', '60718293-a4b5-4fc6-90e7-f8091a2b3c4d', {
+      details: ['detail:address', 'detail:phone'],
+      relatesTo: changed.id,
+    }),
+  );
+  const response = transporter('DETAILS_RES', '718293a4-b5c6-4d07-a1f8-091a2b3c4d5e', {
+    details: ['detail:address', 'detail:phone'],
+    relatesTo: request.id,
+  });
+  const values = { 'detail:address': '2 Rata Road, Auckland', 'detail:phone': '+64 9 000 0000' };
+  const named = (name, artifact, expect, why) => ({
+    name,
+    artifact,
+    expect,
+    ...(why && { why }),
+  });
+  const held = (name, artifact, record, sentRequest, expect, why) => ({
+    name,
+    artifact,
+    record,
+    sentRequest,
+    expect,
+    ...(why && { why }),
+  });
+  return {
+    description:
+      "BTPS 1.2 details refresh, on an active trust in either direction. Each side fetches only the details it already holds by that trust. `DETAILS_CHANGED` tells the other side which of its details changed, `DETAILS_REQ` asks for some, optionally naming the notice in `relatesTo`, and `DETAILS_RES` answers a request named in `relatesTo`, its values keyed by name and always encrypted to the requester. A notice's or request's document holds no values, only an optional `message`, a 1.2 note. Each carries `details`, the `detail:` names, on its envelope, signed and readable; all three are 1.2.0 only. A response may answer part of a request. `envelopes` are checked by the transporter schema. `held` cases are checked by `detailsProblem(artifact, record, sentRequest)`: `record` is the receiver's trust record (`status` and `permissions: { requested, granted, detailsHeld, detailsShared }`) and `sentRequest` the `DETAILS_REQ` a response names, as the receiver sent it, or null when it sent none. A notice names only details the receiver holds (`detailsHeld`), a request only details the answerer shares (`detailsShared`, else BTP_ERROR_DETAILS_NOT_HELD), and a response only names its request asked for and the receiver holds; where a response's document is readable (as when opened), it holds a value for every name, and no others. Here the vendor asked for the trust and the client granted its legal name and email.",
+    envelopes: [
+      named('changed', changed, 'accept'),
+      named('request', request, 'accept'),
+      named('request-on-its-own', { ...request, relatesTo: undefined }, 'accept'),
+      named(
+        'changed-with-a-message',
+        { ...changed, encryption: null, document: { message: note('We have moved.', 'text') } },
+        'accept',
+      ),
+      named(
+        'request-with-a-message',
+        { ...request, encryption: null, document: { message: 'Your new address, please.' } },
+        'accept',
+      ),
+      named('response', response, 'accept'),
+      named(
+        'changed-carrying-a-value',
+        {
+          ...changed,
+          encryption: null,
+          document: { 'detail:address': '2 Rata Road, Auckland' },
+        },
+        'refuse',
+        'a notice carries no values',
+      ),
+      named(
+        'request-with-a-message-of-another-format',
+        {
+          ...request,
+          encryption: null,
+          document: { message: note('<p>Your new address</p>', 'html') },
+        },
+        'refuse',
+        'message is a 1.2 note: plain text, or text or markdown',
+      ),
+      named(
+        'changed-under-1-1',
+        { ...changed, version: V11 },
+        'refuse',
+        'details refresh is only in a 1.2.0 artifact',
+      ),
+      named(
+        'changed-naming-nothing',
+        { ...changed, details: [] },
+        'refuse',
+        'details names at least one detail',
+      ),
+      named(
+        'changed-naming-a-send-name',
+        { ...changed, details: ['send:invoice'] },
+        'refuse',
+        'details holds detail: names only',
+      ),
+      named(
+        'changed-naming-another-detail',
+        { ...changed, details: ['detail:name'] },
+        'refuse',
+        'only the protocol names exist',
+      ),
+      named(
+        'changed-naming-a-detail-twice',
+        { ...changed, details: ['detail:address', 'detail:address'] },
+        'refuse',
+        'each name appears once',
+      ),
+      named(
+        'changed-naming-an-artifact',
+        { ...changed, relatesTo: request.id },
+        'refuse',
+        'a notice relates to nothing before it',
+      ),
+      named(
+        'request-without-details',
+        { ...request, details: undefined },
+        'refuse',
+        'a request names the details it wants',
+      ),
+      named(
+        'response-naming-no-request',
+        { ...response, relatesTo: undefined },
+        'refuse',
+        'a response names the request it answers',
+      ),
+      named(
+        'response-unencrypted',
+        { ...response, encryption: null, document: values },
+        'refuse',
+        'a response is always encrypted to the requester',
+      ),
+      named(
+        'document-carrying-details',
+        transporter('BTPS_DOC', '8293a4b5-c6d7-4e18-b209-1a2b3c4d5e6f', {
+          details: ['detail:address'],
+        }),
+        'refuse',
+        'details is only on the three details types',
+      ),
+    ],
+    held: [
+      held('changed-held', changed, clientRecord, null, 'accept'),
+      held(
+        'changed-not-held',
+        { ...changed, details: ['detail:taxNo'] },
+        clientRecord,
+        null,
+        'refuse',
+        'a notice names only details the receiver holds',
+      ),
+      held(
+        'changed-on-a-1-1-trust',
+        changed,
+        trustRecord('accepted'),
+        null,
+        'refuse',
+        'a 1.1 trust holds no details by name',
+      ),
+      held('request-shared', request, vendorRecord, null, 'accept'),
+      held(
+        'request-not-shared',
+        { ...request, details: ['detail:registrationNumber'] },
+        vendorRecord,
+        null,
+        'refuse',
+        'a request names only details the answerer shares (BTP_ERROR_DETAILS_NOT_HELD)',
+      ),
+      held(
+        'request-for-its-own-details',
+        { ...request, details: ['detail:email'] },
+        trustRecord(
+          'accepted',
+          permissions(['detail:legalName', 'detail:email'], ['detail:address']),
+        ),
+        null,
+        'refuse',
+        'the answerer shares only its own details, never what it holds of the asker',
+      ),
+      held('response', response, clientRecord, request, 'accept'),
+      held(
+        'response-in-part',
+        { ...response, details: ['detail:address'] },
+        clientRecord,
+        request,
+        'accept',
+      ),
+      held('response-opened', { ...response, document: values }, clientRecord, request, 'accept'),
+      held(
+        'response-naming-a-detail-not-asked-for',
+        { ...response, details: ['detail:address', 'detail:email'] },
+        clientRecord,
+        request,
+        'refuse',
+        'a response names only what its request asked for',
+      ),
+      held(
+        'response-naming-a-detail-not-held',
+        response,
+        trustRecord('accepted', permissions(['detail:address'], [])),
+        request,
+        'refuse',
+        'a response names only details the receiver holds',
+      ),
+      held(
+        'response-to-no-request',
+        response,
+        clientRecord,
+        null,
+        'refuse',
+        'a response answers a request the receiver sent',
+      ),
+      held(
+        'response-to-a-request-it-did-not-make',
+        response,
+        clientRecord,
+        { ...request, from: 'someone$client.example' },
+        'refuse',
+        'a response answers a request the receiver sent to its sender',
+      ),
+      held(
+        'response-to-another-request',
+        response,
+        clientRecord,
+        { ...request, id: '93a4b5c6-d7e8-4f29-830a-2b3c4d5e6f70' },
+        'refuse',
+        'a response answers the request it names',
+      ),
+      held(
+        'response-opened-without-a-value',
+        { ...response, document: { 'detail:address': values['detail:address'] } },
+        clientRecord,
+        request,
+        'refuse',
+        'a response holds a value for every name',
+      ),
+      held(
+        'response-opened-with-a-value-not-named',
+        { ...response, details: ['detail:address'], document: values },
+        clientRecord,
+        request,
+        'refuse',
+        'a response holds a value only for each name',
       ),
     ],
   };

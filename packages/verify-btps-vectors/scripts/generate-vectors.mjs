@@ -26,6 +26,7 @@ import { createWebRuntime } from '../src/runtimes/web.mjs';
 import { toBase64, utf8 } from '../src/encoding.mjs';
 import {
   addresses,
+  details,
   deviceKeyProof,
   documents,
   documents12,
@@ -34,6 +35,7 @@ import {
   sync,
   templates,
   timeWindow,
+  trustPermissions,
   versions,
 } from './protocol-vectors.mjs';
 
@@ -254,6 +256,8 @@ write('documents-1.2.vectors.json', documents12());
 write('event-chain.vectors.json', eventChain());
 write('sync.vectors.json', sync());
 write('templates.vectors.json', templates());
+write('trust-permissions.vectors.json', trustPermissions());
+write('details.vectors.json', details());
 
 // The manifest names every vector file with the SHA-256 of its bytes, so a
 // copy of the set can be checked whole. Rewritten on every run.

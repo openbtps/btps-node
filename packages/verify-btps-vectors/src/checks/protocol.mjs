@@ -220,5 +220,49 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
         else ensure(!success, `accepted; expected it refused: ${c.why}`);
       }),
     ),
+    ...[
+      ['trust-permissions', set.trustPermissions.envelopes],
+      ['details', set.details.envelopes],
+    ].flatMap(([file, cases]) =>
+      cases.map((c) =>
+        check(`${file}/envelope/${c.name}`, () => {
+          const { success } = rules.transporter.BtpTransporterArtifactSchema.safeParse(c.artifact);
+          if (c.expect === 'accept') ensure(success, 'refused; expected it accepted');
+          else ensure(!success, `accepted; expected it refused: ${c.why}`);
+        }),
+      ),
+    ),
+    ...set.trustPermissions.opened.map((c) =>
+      problemCheck(
+        `trust-permissions/opened/${c.name}`,
+        c.artifact.type === 'TRUST_REQ' ? 'trustRequestProblem' : 'trustResponseProblem',
+        c,
+      ),
+    ),
+    ...set.trustPermissions.grant.map((c) =>
+      problemCheck(`trust-permissions/grant/${c.name}`, 'trustGrantProblem', c, [c.record]),
+    ),
+    ...set.trustPermissions.documentType.map((c) =>
+      problemCheck(`trust-permissions/document-type/${c.name}`, 'documentTypeProblem', c, [
+        c.record,
+      ]),
+    ),
+    ...set.details.held.map((c) =>
+      problemCheck(`details/held/${c.name}`, 'detailsProblem', c, [
+        c.record,
+        c.sentRequest ?? undefined,
+      ]),
+    ),
   ];
+
+  // A rule the SDK exports as a function returning why an artifact fails it, or undefined.
+  function problemCheck(id, name, c, more = []) {
+    return check(id, () => {
+      const rule = rules.helpers[name];
+      ensure(typeof rule === 'function', `the SDK has no ${name}`);
+      const problem = rule(c.artifact, ...more);
+      if (c.expect === 'accept') ensure(problem === undefined, `refused: ${problem}`);
+      else ensure(problem !== undefined, `accepted; expected it refused: ${c.why}`);
+    });
+  }
 }

@@ -26,6 +26,8 @@ export const VECTOR_FILES = Object.freeze({
   documents12: 'documents-1.2.vectors.json',
   eventChain: 'event-chain.vectors.json',
   sync: 'sync.vectors.json',
+  trustPermissions: 'trust-permissions.vectors.json',
+  details: 'details.vectors.json',
   manifest: 'manifest.json',
 });
 
@@ -136,6 +138,25 @@ export function loadVectorSet(dir) {
   }
   for (const c of set.sync.delivery) {
     requireFields(VECTOR_FILES.sync, c, ['name', 'entry', 'expect']);
+  }
+  const permissionCases = {
+    envelopes: [],
+    opened: [],
+    grant: ['record'],
+    documentType: ['record'],
+  };
+  requireFields(VECTOR_FILES.trustPermissions, set.trustPermissions, Object.keys(permissionCases));
+  for (const [key, more] of Object.entries(permissionCases)) {
+    for (const c of set.trustPermissions[key]) {
+      requireFields(VECTOR_FILES.trustPermissions, c, ['name', 'artifact', ...more, 'expect']);
+    }
+  }
+  requireFields(VECTOR_FILES.details, set.details, ['envelopes', 'held']);
+  for (const c of set.details.envelopes) {
+    requireFields(VECTOR_FILES.details, c, ['name', 'artifact', 'expect']);
+  }
+  for (const c of set.details.held) {
+    requireFields(VECTOR_FILES.details, c, ['name', 'artifact', 'record', 'sentRequest', 'expect']);
   }
   requireFields(VECTOR_FILES.manifest, set.manifest, ['hashAlgorithm', 'files']);
 
