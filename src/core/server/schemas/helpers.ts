@@ -38,6 +38,9 @@ import {
 } from './btpsDocsSchema.js';
 import { BTPEncryption } from '@core/crypto/types.js';
 import type { BTPEventFacts } from '@core/trust/types.js';
+import { trustRequestProblem, trustResponseProblem } from './trustValues.js';
+
+export { trustRequestProblem, trustResponseProblem, BtpDetailValueSchemas } from './trustValues.js';
 
 /**
  * The schema a document of this artifact type is read with, under the
@@ -159,6 +162,12 @@ export const decryptedDocumentProblem = (
   if (!schema) return undefined;
   const parsed = schema.safeParse(document);
   if (!parsed.success) return 'Document type does not match the artifact type';
+  // Since 1.2: a trust request's or answer's values match the names on its envelope.
+  const names = envelope as { given?: readonly string[]; granted?: readonly string[] };
+  if (envelope.type === 'TRUST_REQ') return trustRequestProblem({ given: names.given, document });
+  if (envelope.type === 'TRUST_RES') {
+    return trustResponseProblem({ granted: names.granted, document });
+  }
   if (envelope.type !== 'BTPS_EVENT') return undefined;
   const event = parsed.data as BTPLifecycleEvent;
   const { id, from, to } = envelope;

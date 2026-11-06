@@ -365,4 +365,38 @@ describe('decryptVerify', () => {
     );
     expect(mockCrypto.decryptBtpPayload).not.toHaveBeenCalled();
   });
+
+  it('refuses an opened trust request whose values do not match the names it gives', async () => {
+    const request: VerifyEncryptedPayload<string> = {
+      ...encryptedPayload,
+      version: '1.2.0',
+      given: ['detail:dob'],
+      document: 'encrypted-string-data',
+    };
+    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+    mockCrypto.decryptBtpPayload.mockReturnValue({ data: encryptedPayload.document });
+
+    const result = await decryptVerify(senderPubPem, request, privateKey);
+
+    expect(result.payload).toBeUndefined();
+    expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+    expect(result.error?.cause).toBe('detail:dob is given, so own holds its value');
+  });
+
+  it('opens a trust request whose values match the names it gives', async () => {
+    const request: VerifyEncryptedPayload<string> = {
+      ...encryptedPayload,
+      version: '1.2.0',
+      given: ['detail:dob'],
+      document: 'encrypted-string-data',
+    };
+    const document = { ...encryptedPayload.document, own: { 'detail:dob': '1990-04-21' } };
+    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+    mockCrypto.decryptBtpPayload.mockReturnValue({ data: document });
+
+    const result = await decryptVerify(senderPubPem, request, privateKey);
+
+    expect(result.error).toBeUndefined();
+    expect(result.payload?.document).toEqual(document);
+  });
 });

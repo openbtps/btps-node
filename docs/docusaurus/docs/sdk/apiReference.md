@@ -809,6 +809,25 @@ const syncOf = syncOfArtifact(sentArtifact);
 
 ---
 
+### trustRequestProblem / trustResponseProblem
+
+```ts
+trustRequestProblem(artifact: { given?: string[]; document?: unknown }): string | undefined
+trustResponseProblem(artifact: { granted?: string[]; document?: unknown }): string | undefined
+```
+
+**Description:**
+Since 1.2. Why an opened trust request's or answer's values do not match the names on its envelope, or `undefined` when they do. A request gives each name in `given` a value, in the 1.1 field it has or else in `own`; an answer holds the value of every granted `detail:` name in `details`; each value has its name's shape. `decryptVerify` runs the same check. See [Trust permissions](../protocol/specifications/transporter-artifact.md#the-values-checked-when-opened).
+
+**Example:**
+
+```js
+import { trustRequestProblem } from '@btps/sdk/trust';
+const problem = trustRequestProblem({ given: artifact.given, document: openedDocument });
+```
+
+---
+
 ### verifySignature
 
 ```ts

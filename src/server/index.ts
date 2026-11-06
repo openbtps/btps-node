@@ -14,6 +14,8 @@ export {
   lifecycleEventChainProblem,
   lifecycleEventChainReference,
   lifecycleEventSenderProblem,
+  trustRequestProblem,
+  trustResponseProblem,
 } from '@core/server/schemas/helpers.js';
 // A provider wraps an encrypted result's content key to the device that asked.
 export { wrapForAgent } from './libs/wrapForAgent.js';

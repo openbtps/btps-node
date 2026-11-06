@@ -137,6 +137,50 @@ And where the document is readable (not encrypted):
 
 An address's kind is published nowhere but the envelope.
 
+### The values, checked when opened
+
+The values are in the document, encrypted, so they are checked when it is opened: `decryptVerify` refuses a trust request or answer whose values do not match its names, with `BTP_ERROR_VALIDATION`. `trustRequestProblem` and `trustResponseProblem` in `@btps/sdk/trust` run the same check on an opened artifact, for a platform that opens documents another way.
+
+**A request** gives each name in `given` a value:
+
+- where 1.1's trust request already has a field, the value is there and nowhere else: `detail:legalName` is `name`, `detail:email` is `email`, `detail:phone` is `phone`, `detail:address` is `address`, and `detail:profile` is `displayName`, with `logoUrl` and `websiteUrl`;
+- every other name's value is in `own`, keyed by name;
+- `own` holds nothing else: no name that is not given, and no value 1.1 has a field for.
+
+```json
+{
+  "name": "Acme Pty Ltd",
+  "email": "billing@acme.example",
+  "phone": "+61 400 000 000",
+  "reason": "To send you invoices",
+  "own": { "detail:registrationNumber": { "number": "51824753556", "country": "AU" } }
+}
+```
+
+**An answer** holds the value of every granted `detail:` name in `details`, keyed by name, and nothing else:
+
+```json
+{
+  "decision": "accepted",
+  "details": {
+    "detail:legalName": "Robert Smith",
+    "detail:profile": { "displayName": "Bob", "website": "https://client.example" }
+  }
+}
+```
+
+**Each value's shape:**
+
+| Name                                        | Value                                                                                  |
+| ------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `detail:legalName`, `phone`, `address`      | text                                                                                   |
+| `detail:email`                              | an email address                                                                       |
+| `detail:profile`                            | `{ displayName, logo?: { sha256, source }, website? }`, with https addresses           |
+| `detail:taxNo`, `detail:registrationNumber` | `{ number, country }`, `country` an ISO 3166-1 alpha-2 code in upper case, e.g. `"AU"` |
+| `detail:dob`                                | a real date, `YYYY-MM-DD`                                                              |
+
+Each value's length limit is on [Limits](./limits.md#trust-detail-values).
+
 ## Sync
 
 Since 1.2. A user's devices keep the same sent items through a **sync**: after a device sends, it sends the user's own copy of that send to the user's own address, so the provider files it among the user's sent items and every other device of the user can fetch it. A sync is an ordinary `artifact.send` whose transporter artifact is from and to the same address, with its document encrypted to the user's own key, and which names the send it copies on its envelope:
