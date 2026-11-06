@@ -35,6 +35,7 @@ import type { Decrypter } from './decrypter-interface.js';
 export * from './decryptVerify.js';
 export * from './jcs.js';
 export * from './signEncrypt.js';
+export * from './keyResolver.js';
 export * from './keygen.js';
 export * from './types.js';
 export * from './signer-interface.js';

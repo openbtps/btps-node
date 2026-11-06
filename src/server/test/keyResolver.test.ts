@@ -10,7 +10,7 @@
  * its own cache in front of it. It is asked for a key and what the key is for:
  * `verify` (a signature key) or `encrypt` (a receiver's key). Without it, each
  * lookup is today's: a signature key from DNS only, a receiver's key from DNS
- * and then the receiver's host. The `it.fails` cases pass once 1.2 lands.
+ * and then the receiver's host.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -23,6 +23,9 @@ import { BtpsClient } from '../../client/btpsClient.js';
 import JsonTrustStore from '@core/trust/storage/JsonTrustStore.js';
 import { signBtpPayload } from '@core/crypto/index.js';
 import { signEncrypt, type ReceiverKeyLookup } from '@core/crypto/signEncrypt.js';
+import { createDefaultKeyResolver } from '@core/crypto/keyResolver.js';
+import { BtpsDelegator } from '@core/delegation/BtpsDelegator.js';
+import { pemToBase64 } from '@core/utils/index.js';
 import type { BtpsServerOptions } from '../types.js';
 import type { BTPInvoiceDoc, BTPServerResponse, BTPTransporterArtifact } from '../index.js';
 
@@ -99,7 +102,7 @@ describe('finding keys', () => {
     expect(connect).not.toHaveBeenCalled();
   });
 
-  it.fails("a server asks its keyResolver for the sender's signature key", async () => {
+  it("a server asks its keyResolver for the sender's signature key", async () => {
     const keyResolver = resolverReturning(sender.publicKey);
     const { isValid } = await serverWith({ keyResolver })['verifySignature']({
       type: 'transporter',
@@ -115,7 +118,7 @@ describe('finding keys', () => {
     expect(dns).not.toHaveBeenCalled();
   });
 
-  it.fails("a client asks its keyResolver for the key of a server's signed answer", async () => {
+  it("a client asks its keyResolver for the key of a server's signed answer", async () => {
     const keyResolver = resolverReturning(sender.publicKey);
     const options = { to: 'alice$vendor.example', keyResolver };
     const client = new BtpsClient(options);
@@ -142,7 +145,7 @@ describe('finding keys', () => {
     expect(isValid).toBe(true);
   });
 
-  it.fails("signEncrypt asks the keyResolver for the receiver's encryption key", async () => {
+  it("signEncrypt asks the keyResolver for the receiver's encryption key", async () => {
     // The receiver's host record is DNS's alone: it names the selector to ask for.
     dns.mockImplementation(async (name: string) => {
       if (name === '_btps.host.client.example')
@@ -177,5 +180,85 @@ describe('finding keys', () => {
       'encrypt',
     );
     expect(payload?.encryption).not.toBeNull();
+  });
+
+  it("a client asks its keyResolver for a receiver's key before any key record, then answers with it", async () => {
+    dns.mockImplementation(async (name: string) => {
+      if (name === '_btps.host.client.example')
+        return [['v=1.1.0; u=btps.client.example; s=btps1']];
+      throw notFound();
+    });
+    const keyResolver = resolverReturning(receiver.publicKey);
+    const client = new BtpsClient({ to: 'pay$client.example', keyResolver });
+
+    const { response } = await client.resolveIdentity('pay$client.example', 'alice$vendor.example');
+    client.destroy();
+
+    expect(keyResolver.resolvePublicKey).toHaveBeenCalledWith(
+      'pay$client.example',
+      'btps1',
+      'encrypt',
+    );
+    expect(response?.publicKey).toBe(receiver.publicKey);
+    expect(dns).not.toHaveBeenCalledWith('btps1._btps.identity.pay.client.example');
+  });
+
+  it('a delegator asks its keyResolver for its own published key', async () => {
+    dns.mockImplementation(async (name: string) => {
+      if (name === '_btps.host.vendor.example')
+        return [['v=1.1.0; u=btps.vendor.example; s=btps1']];
+      throw notFound();
+    });
+    const keyResolver = resolverReturning(sender.publicKey);
+    const delegator = new BtpsDelegator({
+      identity: 'alice$vendor.example',
+      privateKey: sender.privateKey,
+      keyResolver,
+      autoInit: false,
+    });
+
+    await delegator.init();
+
+    expect(keyResolver.resolvePublicKey).toHaveBeenCalledWith(
+      'alice$vendor.example',
+      'btps1',
+      'verify',
+    );
+  });
+});
+
+describe('the default key resolver', () => {
+  beforeEach(() => {
+    dns.mockReset();
+    dns.mockRejectedValue(notFound());
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('finds a signature key in DNS only, never asking a host', async () => {
+    const connect = vi.spyOn(tls, 'connect');
+    dns.mockImplementation(async (name: string) => {
+      if (name === 'btps1._btps.identity.alice.vendor.example')
+        return [[`v=1.1.0; k=rsa; p=${pemToBase64(sender.publicKey)}`]];
+      throw notFound();
+    });
+    const resolver = createDefaultKeyResolver({ from: 'pay$client.example' });
+
+    expect(await resolver.resolvePublicKey('alice$vendor.example', 'btps1', 'verify')).toBe(
+      sender.publicKey.trim(),
+    );
+    expect(
+      await resolver.resolvePublicKey('bob$vendor.example', 'btps1', 'verify'),
+    ).toBeUndefined();
+    expect(connect).not.toHaveBeenCalled();
+  });
+
+  it("finds a receiver's key in DNS only without a sender to ask its host as", async () => {
+    const connect = vi.spyOn(tls, 'connect');
+
+    expect(
+      await createDefaultKeyResolver().resolvePublicKey('pay$client.example', 'btps1', 'encrypt'),
+    ).toBeUndefined();
+    expect(connect).not.toHaveBeenCalled();
   });
 });

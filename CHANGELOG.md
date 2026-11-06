@@ -91,6 +91,13 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `verifyTransporterSignature` (`@btps/sdk/server`): who signed a transporter
   artifact, checked as a server checks it on arrival. The server and
   `openResult` share it.
+- **One `keyResolver` option for every key lookup** (`BtpsKeyResolver`), so a
+  provider can cache keys; BTPS itself caches nothing. `BtpsServer`,
+  `BtpsClient` (and so `BtpsAgent` and `BtpsTransporter`), `BtpsDelegator`
+  and `signEncrypt`'s `lookup` take it, and it is asked for a key and what it
+  is for, `verify` or `encrypt`. Without it, every lookup is as before.
+  `createDefaultKeyResolver` is that lookup, to wrap.
+- `yarn bench`: what a server spends on one arriving artifact, step by step.
 
 ### Changed
 

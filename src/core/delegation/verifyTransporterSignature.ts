@@ -23,17 +23,29 @@ import {
 import { verifySignature } from '@core/crypto/index.js';
 import { getHostAndSelector, isDelegationAllowed, resolvePublicKey } from '@core/utils/index.js';
 import type { BTPAttestation, BTPDelegation, BTPTransporterArtifact } from '@core/server/types.js';
+import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 
 type Verified = { isValid: boolean; error?: BTPErrorException };
+
+/** A signature key: from the resolver when one is given, else from DNS, as without one. */
+const signatureKey = (identity: string, selector: string, keyResolver?: BtpsKeyResolver) =>
+  keyResolver
+    ? keyResolver.resolvePublicKey(identity, selector, 'verify')
+    : resolvePublicKey(identity, selector);
 
 /** A delegation's attestation, signed by the attestor over the delegation. */
 export const verifyAttestation = async (
   delegation: Omit<BTPDelegation, 'attestation'> & { attestation: BTPAttestation },
+  keyResolver?: BtpsKeyResolver,
 ): Promise<Verified> => {
   const { attestation, ...restDelegation } = delegation;
   const { signature, ...restAttestation } = attestation;
 
-  const attestorPubKey = await resolvePublicKey(attestation.signedBy, attestation.selector);
+  const attestorPubKey = await signatureKey(
+    attestation.signedBy,
+    attestation.selector,
+    keyResolver,
+  );
   if (!attestorPubKey) {
     return {
       isValid: false,
@@ -65,6 +77,7 @@ export const verifyDelegation = async (
   artifactWithDelegation: Omit<BTPTransporterArtifact, 'delegation'> & {
     delegation: BTPDelegation;
   },
+  keyResolver?: BtpsKeyResolver,
 ): Promise<Verified> => {
   // Only the sender itself or its domain's operator may delegate, and only
   // the operator may attest: the receiver learns who that is from DNS.
@@ -111,12 +124,13 @@ export const verifyDelegation = async (
     }
     const { isValid, error } = await verifyAttestation(
       delegation as Omit<BTPDelegation, 'attestation'> & { attestation: BTPAttestation },
+      keyResolver,
     );
     if (!isValid) return { isValid, error };
   }
 
   /* Verify the delegation signature against the delegated artifact which includes the original artifact and signed artifact*/
-  const delegatorPubKey = await resolvePublicKey(delegation.signedBy, delegation.selector);
+  const delegatorPubKey = await signatureKey(delegation.signedBy, delegation.selector, keyResolver);
   if (!delegatorPubKey) {
     return {
       isValid: false,
@@ -167,13 +181,16 @@ export const verifyDelegation = async (
  * checks it on arrival. Signed by its sender's own key from DNS, or, when it is
  * delegated, through `verifyDelegation`. On success it also gives the key that
  * signed the artifact itself, the one to verify it against when decrypting.
+ * Since 1.2, every key is found through `keyResolver` when one is given.
  */
 export const verifyTransporterSignature = async (
   artifact: BTPTransporterArtifact,
+  keyResolver?: BtpsKeyResolver,
 ): Promise<Verified & { signerKey?: string }> => {
   if (artifact.delegation) {
     const delegated = await verifyDelegation(
       artifact as Omit<BTPTransporterArtifact, 'delegation'> & { delegation: BTPDelegation },
+      keyResolver,
     );
     return delegated.isValid
       ? { ...delegated, signerKey: artifact.delegation.agentPubKey }
@@ -181,7 +198,7 @@ export const verifyTransporterSignature = async (
   }
 
   const { signature, ...signedMsg } = artifact;
-  const publicKey = await resolvePublicKey(artifact.from, artifact.selector);
+  const publicKey = await signatureKey(artifact.from, artifact.selector, keyResolver);
 
   if (!publicKey) {
     return { isValid: false, error: new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY) };

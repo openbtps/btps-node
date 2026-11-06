@@ -9,6 +9,7 @@ import type { BTPTransporterArtifact, BTPDelegation, BTPAttestation } from '../s
 import { signBtpPayload, signBtpPayloadWithSigner } from '../crypto/index.js';
 import type { BTPSigningKey, PemKeys } from '@core/crypto/types.js';
 import type { Signer } from '@core/crypto/signer-interface.js';
+import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 import { getHostAndSelector, resolvePublicKey } from '@core/utils/index.js';
 import { createSign, createVerify } from 'crypto';
 import { BTP_ERROR_SIG_VERIFICATION, BTPErrorException } from '@core/error/index.js';
@@ -19,6 +20,8 @@ import { BTP_ERROR_SIG_VERIFICATION, BTPErrorException } from '@core/error/index
 export type BtpsDelegatorOptions = {
   identity: string;
   autoInit?: boolean; // Optional: disable auto-initialization for testing
+  /** Since 1.2: finds the delegator's own published key; without it, DNS as before */
+  keyResolver?: BtpsKeyResolver;
 } & (
   | { privateKey: PemKeys['privateKey'] }
   // The delegator's private key held elsewhere (a KMS)
@@ -32,6 +35,7 @@ export type BtpsDelegatorOptions = {
 export class BtpsDelegator {
   private readonly identity: string;
   private readonly key: PemKeys['privateKey'] | Signer;
+  private readonly keyResolver?: BtpsKeyResolver;
   private publicKey?: PemKeys['publicKey'];
   private selector: string = 'btps1';
   private isInitialized = false;
@@ -44,6 +48,7 @@ export class BtpsDelegator {
   constructor(options: BtpsDelegatorOptions) {
     this.identity = options.identity;
     this.key = 'signer' in options ? options.signer : options.privateKey;
+    this.keyResolver = options.keyResolver;
     if (options.autoInit !== false) {
       // Kept so delegateArtifact waits for it and reports its failure, rather
       // than the failure being lost as an unhandled rejection
@@ -83,7 +88,9 @@ export class BtpsDelegator {
     if (!dnsHostAndSelector) return { isValid: false, publicKey: undefined };
     this.selector = dnsHostAndSelector.selector;
 
-    const publicKey = await resolvePublicKey(this.identity, this.selector);
+    const publicKey = this.keyResolver
+      ? await this.keyResolver.resolvePublicKey(this.identity, this.selector, 'verify')
+      : await resolvePublicKey(this.identity, this.selector);
     if (!publicKey) return { isValid: false, publicKey: undefined };
     const isValid =
       typeof this.key === 'string'
