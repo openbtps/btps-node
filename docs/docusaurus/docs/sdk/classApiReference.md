@@ -855,7 +855,7 @@ if (result.data) {
 }
 ```
 
-Since 1.2 it also refuses a revoked or blocked device; a key older than `maxKeyAgeMs`, with `BTP_ERROR_KEY_TOO_OLD`, keeping the token so the device can move to a new key with it; and, with a token store that has `isConsumed`, a refresh token used a second time, which revokes the device and fires `refreshTokenReused`.
+Since 1.2 it also refuses a revoked or blocked device; a key older than `maxKeyAgeMs`, with `BTP_ERROR_KEY_TOO_OLD`, keeping the token so the device can move to a new key with it; and, with a token store that has `isConsumed`, a refresh token used a second time, which revokes the device and fires `refreshTokenReused`. A second use inside `refreshGraceMs` (default 30 seconds) is a retry instead, while the new token is unused: it returns the first answer again.
 
 ### on / off
 

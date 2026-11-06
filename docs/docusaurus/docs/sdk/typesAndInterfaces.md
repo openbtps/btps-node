@@ -360,6 +360,7 @@ interface ServerAuthConfig {
   tokenStore: TokenStore;
   tokenConfig?: TokenConfig;
   maxKeyAgeMs?: number; // since 1.2
+  refreshGraceMs?: number; // since 1.2, default 30 000
 }
 ```
 
@@ -369,6 +370,7 @@ interface ServerAuthConfig {
 - `tokenStore`: Required token store for managing authentication tokens
 - `tokenConfig`: Optional token configuration
 - `maxKeyAgeMs`: Since 1.2, optional and off by default. The oldest a device key may be: a refresh signed by an older key is refused with `BTP_ERROR_KEY_TOO_OLD`, and the device moves to a new key with the same refresh token. The age runs from when the key came into use (the newest `keyHistory` entry's `lastSeen`, else the record's `createdAt`).
+- `refreshGraceMs`: Since 1.2, default 30 000; `0` is off. How long a just-rotated refresh token's old value still works: a refresh retried inside the window gets the same answer again, the same new token included; after it, a second use is theft. Needs a token store with `isConsumed` and `markSuccessor`; otherwise it is `0`.
 
 ### TokenConfig
 
@@ -981,6 +983,7 @@ interface ServerAuthConfig {
   tokenStore: TokenStore;
   tokenConfig?: TokenConfig;
   maxKeyAgeMs?: number; // since 1.2: the oldest a device key may be
+  refreshGraceMs?: number; // since 1.2: how long a rotated refresh token still works for a retry; default 30 000, 0 off
 }
 ```
 
@@ -1036,6 +1039,15 @@ interface BTPsTokenDocument {
   expiresAt: string;
   decryptBy: string; // Identity to decrypt by when decrypting the document
   metadata?: Record<string, unknown>;
+  successor?: BTPSealedSuccessor; // since 1.2, a consumed refresh token only: its sealed answer
+}
+
+// Since 1.2: a refresh's answer, sealed under the old token (AES-256-GCM, key by HKDF-SHA256)
+interface BTPSealedSuccessor {
+  at: string; // when the old token was rotated: the grace window runs from here
+  iv: string; // base64
+  ciphertext: string; // base64
+  tag: string; // base64
 }
 ```
 
@@ -1068,11 +1080,14 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
   remove(agentId: string, token: string): Promise<void>;
   consume(agentId: string, token: string): Promise<T | undefined>; // read and remove in one atomic step
   isConsumed?(agentId: string, token: string): Promise<T | undefined>; // since 1.2, optional
+  markSuccessor?(agentId: string, token: string, successor: BTPSealedSuccessor): Promise<void>; // since 1.2, optional
   cleanup(): Promise<void>;
 }
 ```
 
 `isConsumed` (since 1.2) returns a token `consume` took, as it was, until it would have expired; storing the token again clears it. With it, a refresh token used a second time revokes the device and fires `refreshTokenReused`. Without it, a second use is refused as in 1.1.
+
+`markSuccessor` (since 1.2) keeps a consumed token's sealed answer on its mark, so `isConsumed` returns it as `successor`. With it, a refresh retried inside `refreshGraceMs` gets the same answer; without it, the window is off. A persistent store should keep only a hash of each token, never its value.
 
 ### AuthSessionStore
 

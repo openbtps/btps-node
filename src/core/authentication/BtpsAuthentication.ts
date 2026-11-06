@@ -22,6 +22,7 @@ import {
   type BTPSigningKey,
 } from '@core/crypto/index.js';
 import { keyProofPayload } from './keyProof.js';
+import { openSuccessor, sealSuccessor } from './refreshSuccessor.js';
 import type {
   ServerAuthConfig,
   AuthRequestResponse,
@@ -50,6 +51,9 @@ const DEFAULT_TOKEN_CONFIG: TokenConfig = {
   refreshTokenExpiryMs: 7 * 24 * 60 * 60 * 1000, // 7 days
 } as const;
 
+/** How long a just-rotated refresh token's old value still works, for a retry. */
+const DEFAULT_REFRESH_GRACE_MS = 30 * 1000;
+
 /** When a device's current key came into use: when the key before it was retired, or when it registered. */
 const currentKeySince = (record: BTPTrustRecord): string =>
   record.keyHistory?.at(-1)?.lastSeen ?? record.createdAt;
@@ -59,6 +63,7 @@ export class BtpsAuthentication {
   private readonly trustStore: AbstractTrustStore<BTPTrustRecord>;
   private readonly tokenStore: TokenStore;
   private readonly maxKeyAgeMs?: number;
+  private readonly refreshGraceMs: number;
   private readonly emitter = new EventEmitter();
 
   /**
@@ -76,6 +81,13 @@ export class BtpsAuthentication {
     if (!this.tokenStore.isConsumed) {
       console.warn(
         '[BtpsAuthentication] Warning: the token store has no isConsumed, so a refresh token used a second time is refused but not detected as theft: the device is not revoked and refreshTokenReused does not fire.',
+      );
+    }
+    const grace = config.refreshGraceMs ?? DEFAULT_REFRESH_GRACE_MS;
+    this.refreshGraceMs = this.tokenStore.isConsumed && this.tokenStore.markSuccessor ? grace : 0;
+    if (grace > 0 && this.tokenStore.isConsumed && !this.tokenStore.markSuccessor) {
+      console.warn(
+        '[BtpsAuthentication] Warning: the token store has no markSuccessor, so refreshGraceMs is 0: a refresh retried with its old token is theft, even straight after.',
       );
     }
   }
@@ -412,6 +424,8 @@ export class BtpsAuthentication {
     if (!storedToken) {
       const consumedToken = await this.tokenStore.isConsumed?.(agentId, refreshToken);
       if (consumedToken) {
+        const retried = await this.retriedRefresh(agentId, refreshToken, consumedToken);
+        if (retried) return retried;
         return {
           data: undefined,
           error: await this.refuseReusedRefreshToken(agentId, refreshToken, consumedToken),
@@ -531,14 +545,55 @@ export class BtpsAuthentication {
       });
     }
 
-    return {
-      data: {
-        agentId,
-        refreshToken: newRefreshToken,
-        expiresAt: patch.expiresAt,
-        decryptBy: options.decryptBy,
-      },
+    const answer: BTPAuthResDoc = {
+      agentId,
+      refreshToken: newRefreshToken,
+      expiresAt: patch.expiresAt,
+      decryptBy: options.decryptBy,
     };
+    if (this.refreshGraceMs > 0) {
+      // Kept sealed under the old token, so a retry inside the window gets this same answer.
+      try {
+        await this.tokenStore.markSuccessor?.(
+          agentId,
+          refreshToken,
+          sealSuccessor(refreshToken, userIdentity, answer, now),
+        );
+      } catch (error) {
+        console.warn(
+          '[BtpsAuthentication] Warning: could not keep the refresh for a retry:',
+          error,
+        );
+      }
+    }
+    return { data: answer };
+  }
+
+  /**
+   * A refresh token used again inside the grace window, by the device that
+   * lost the answer: the same answer again, while its new token is unused and
+   * the device still let in. Undefined when it is not a retry, so it is theft.
+   */
+  private async retriedRefresh(
+    agentId: string,
+    refreshToken: string,
+    consumedToken: BTPsTokenDocument,
+  ): Promise<{ data?: BTPAuthResDoc; error?: BTPErrorException } | undefined> {
+    const { successor, userIdentity } = consumedToken;
+    if (this.refreshGraceMs <= 0 || !successor) return undefined;
+    if (Date.now() - new Date(successor.at).getTime() > this.refreshGraceMs) return undefined;
+    const answer = openSuccessor(refreshToken, agentId, userIdentity, successor);
+    if (!answer || !(await this.tokenStore.get(agentId, answer.refreshToken))) return undefined;
+    const trustRecord = await this.trustStore.getById(computeAgentTrustId(agentId, userIdentity));
+    if (!trustRecord || trustRecord.status === 'revoked' || trustRecord.status === 'blocked') {
+      return {
+        error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
+          cause: `Device ${agentId} is ${trustRecord?.status ?? 'unknown'}`,
+          meta: { agentId, userIdentity },
+        }),
+      };
+    }
+    return { data: answer };
   }
 
   /**

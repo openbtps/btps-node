@@ -89,6 +89,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   use is refused as in 1.1, and `BtpsAuthentication` warns once.
   `InMemoryTokenStore` has it. `auth.on('keyRotated', …)` tells a listener
   when a device moves to a new key.
+- **A grace window for a retried refresh** (`refreshGraceMs`, default 30 s,
+  `0` off). A device that lost a refresh's answer asks again with its old token:
+  inside the window it gets the same answer, the same new token included, and
+  nothing is revoked; after it, a second use is theft. The answer is kept
+  sealed under the old token (AES-256-GCM, key by HKDF-SHA256, bound to the
+  device and user), never in plain text, through the new, optional
+  `TokenStore.markSuccessor`. A store without it has no window, and
+  `BtpsAuthentication` warns once. `InMemoryTokenStore` has it.
 - **A maximum key age** (`maxKeyAgeMs`, off by default): a refresh signed by an
   older device key is refused with `BTP_ERROR_KEY_TOO_OLD`, and the device
   moves to a new key with the same refresh token.

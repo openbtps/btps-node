@@ -56,6 +56,8 @@ const identity = 'alice$saas.example';
 const registeredAt = '2026-01-01T00:00:00.000Z';
 const refreshedAt = '2026-01-02T00:00:00.000Z';
 const rotatedAt = '2026-01-03T00:00:00.000Z';
+// Past the default 30 s grace window from registration, so a second use is theft, not a retry.
+const afterGrace = '2026-01-01T00:00:31.000Z';
 
 describe("a device key's history", () => {
   let trustStore: MemoryTrustStore;
@@ -176,6 +178,7 @@ describe("a device key's history", () => {
     );
     const options = { decidedBy: identity, decryptBy: identity };
     const newer = await auth.validateAndReissueRefreshToken(agentId, refreshToken, options);
+    vi.setSystemTime(new Date(afterGrace));
     await auth.validateAndReissueRefreshToken(agentId, refreshToken, options);
 
     const { data, error } = await auth.validateAndReissueRefreshToken(
@@ -227,6 +230,7 @@ describe("a device key's history", () => {
       ...options,
       publicKey: getBTPKeyPair().publicKey,
     });
+    vi.setSystemTime(new Date(afterGrace));
     const again = await auth.validateAndReissueRefreshToken(agentId, refreshToken, options);
 
     expect(moved.data?.refreshToken).toBeDefined();
@@ -234,6 +238,121 @@ describe("a device key's history", () => {
     expect(again.error?.cause).toMatch(/revoked/);
     expect(reused).toHaveBeenCalledOnce();
     expect(warn).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+});
+
+describe('a refresh retried inside the grace window', () => {
+  let trustStore: MemoryTrustStore;
+  let tokenStore: InMemoryTokenStore;
+  const options = { decidedBy: identity, decryptBy: identity };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    trustStore = new MemoryTrustStore();
+    tokenStore = new InMemoryTokenStore();
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  /** Registers a device and refreshes it once, as a device whose answer is then lost. */
+  const registerAndRefresh = async (auth: BtpsAuthentication) => {
+    vi.setSystemTime(new Date(registeredAt));
+    const { agentId, refreshToken } = await auth.createAgent(
+      { userIdentity: identity, publicKey: getBTPKeyPair().publicKey, decidedBy: identity },
+      identity,
+    );
+    const first = await auth.validateAndReissueRefreshToken(agentId, refreshToken, options);
+    return { agentId, refreshToken, first: first.data };
+  };
+  const after = (ms: number) => vi.setSystemTime(new Date(Date.parse(registeredAt) + ms));
+
+  it('gives a retry at 29 s the same answer, the same new token included, and revokes nothing', async () => {
+    const auth = new BtpsAuthentication({ trustStore, tokenStore });
+    const reused = vi.fn();
+    auth.on('refreshTokenReused', reused);
+    const { agentId, refreshToken, first } = await registerAndRefresh(auth);
+
+    after(29_000);
+    const retried = await auth.validateAndReissueRefreshToken(agentId, refreshToken, options);
+    const record = await trustStore.getById(computeAgentTrustId(agentId, identity));
+
+    expect(retried.error).toBeUndefined();
+    expect(retried.data).toEqual(first);
+    expect(record?.status).toBe('accepted');
+    expect(reused).not.toHaveBeenCalled();
+  });
+
+  it('treats a reuse at 31 s as theft: the device is revoked', async () => {
+    const auth = new BtpsAuthentication({ trustStore, tokenStore });
+    const reused = vi.fn();
+    auth.on('refreshTokenReused', reused);
+    const { agentId, refreshToken } = await registerAndRefresh(auth);
+
+    after(31_000);
+    const { data, error } = await auth.validateAndReissueRefreshToken(
+      agentId,
+      refreshToken,
+      options,
+    );
+    const record = await trustStore.getById(computeAgentTrustId(agentId, identity));
+
+    expect(data).toBeUndefined();
+    expect(error?.cause).toMatch(/revoked/);
+    expect(record?.status).toBe('revoked');
+    expect(reused).toHaveBeenCalledOnce();
+  });
+
+  it('is off at 0: a reuse straight after is theft, as before', async () => {
+    const auth = new BtpsAuthentication({ trustStore, tokenStore, refreshGraceMs: 0 });
+    const { agentId, refreshToken } = await registerAndRefresh(auth);
+
+    const { error } = await auth.validateAndReissueRefreshToken(agentId, refreshToken, options);
+    const record = await trustStore.getById(computeAgentTrustId(agentId, identity));
+
+    expect(error?.cause).toMatch(/revoked/);
+    expect(record?.status).toBe('revoked');
+  });
+
+  it('treats a reuse as theft once the new token has been used', async () => {
+    const auth = new BtpsAuthentication({ trustStore, tokenStore });
+    const { agentId, refreshToken, first } = await registerAndRefresh(auth);
+    await auth.validateAndReissueRefreshToken(agentId, first?.refreshToken ?? '', options);
+
+    after(1_000);
+    const { error } = await auth.validateAndReissueRefreshToken(agentId, refreshToken, options);
+
+    expect(error?.cause).toMatch(/revoked/);
+  });
+
+  it("keeps the answer sealed: the new token is nowhere on the old token's mark in plain text", async () => {
+    const auth = new BtpsAuthentication({ trustStore, tokenStore });
+    const { agentId, refreshToken, first } = await registerAndRefresh(auth);
+
+    const mark = await tokenStore.isConsumed(agentId, refreshToken);
+
+    expect(mark?.successor).toBeDefined();
+    expect(JSON.stringify(mark)).not.toContain(first?.refreshToken);
+  });
+
+  it('is off, with one warning, for a store that cannot keep the answer', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const store = {
+      store: tokenStore.store.bind(tokenStore),
+      get: tokenStore.get.bind(tokenStore),
+      remove: tokenStore.remove.bind(tokenStore),
+      consume: tokenStore.consume.bind(tokenStore),
+      isConsumed: tokenStore.isConsumed.bind(tokenStore),
+      cleanup: tokenStore.cleanup.bind(tokenStore),
+    };
+    const auth = new BtpsAuthentication({ trustStore, tokenStore: store });
+    const { agentId, refreshToken } = await registerAndRefresh(auth);
+
+    const { error } = await auth.validateAndReissueRefreshToken(agentId, refreshToken, options);
+
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn.mock.calls[0]?.[0]).toMatch(/markSuccessor/);
+    expect(error?.cause).toMatch(/revoked/);
     warn.mockRestore();
   });
 });
