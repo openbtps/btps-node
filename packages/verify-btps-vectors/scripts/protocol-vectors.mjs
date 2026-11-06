@@ -867,6 +867,121 @@ export function versions() {
 }
 
 /** The 1.2 document rules, and the 1.1 documents they must leave as they are. */
+/** A letter template's signature values, `template.data.values`: 1.2.0, a letter's template only. */
+function signatureValueCases(template, v12) {
+  const drawn = { strokes: [[0, 0, 500, 150, 1000, 300]] };
+  const values = {
+    'signature.typed': 'Jo Bloggs',
+    'signature.name': 'Jo Bloggs',
+    'signature.title': 'Director, 2nd floor',
+    'signature.drawn': drawn,
+  };
+  const letter = (more) => ({
+    ...base.letter,
+    template: template({ values: { ...values, ...more } }),
+  });
+  const stroke = (points) => Array.from({ length: points * 2 }, (_, at) => (at % 2 ? 150 : 500));
+  const refuseLetter = (name, more, why) => refuse(name, 'BTPS_DOC', letter(more), why, v12);
+  return [
+    accept('letter-signature-values', 'BTPS_DOC', letter({}), v12),
+    accept(
+      'letter-signature-at-every-limit',
+      'BTPS_DOC',
+      letter({
+        'signature.name': 'x'.repeat(100),
+        'signature.drawn': {
+          strokes: [...Array.from({ length: 3 }, () => stroke(512)), stroke(512)],
+        },
+      }),
+      v12,
+    ),
+    refuseLetter(
+      'letter-signature-naming-a-document-field',
+      { totalAmount: { amount: 100, currency: 'AUD' } },
+      'a value fills a fixed slot, never a document field',
+    ),
+    refuseLetter(
+      'letter-signature-unknown-slot',
+      { 'signature.stamp': 'Approved' },
+      'slot names are a fixed list',
+    ),
+    refuseLetter(
+      'letter-signature-drawn-as-svg',
+      { 'signature.drawn': '<svg><path d="M0 0L10 10"/></svg>' },
+      'a drawn signature is integer strokes, never markup',
+    ),
+    refuseLetter(
+      'letter-signature-drawn-with-markup',
+      { 'signature.drawn': { svg: '<path d="M0 0"/>' } },
+      'a drawn signature holds strokes only',
+    ),
+    refuseLetter(
+      'letter-signature-stroke-outside-the-canvas',
+      { 'signature.drawn': { strokes: [[0, 0, 1001, 150]] } },
+      'the canvas is 1000 by 300',
+    ),
+    refuseLetter(
+      'letter-signature-stroke-below-the-canvas',
+      { 'signature.drawn': { strokes: [[0, 0, 500, 301]] } },
+      'the canvas is 1000 by 300',
+    ),
+    refuseLetter(
+      'letter-signature-stroke-odd',
+      { 'signature.drawn': { strokes: [[0, 0, 500]] } },
+      'a stroke is x, y pairs',
+    ),
+    refuseLetter(
+      'letter-signature-stroke-not-integers',
+      { 'signature.drawn': { strokes: [[0, 0, 500.5, 150]] } },
+      'points are integers',
+    ),
+    refuseLetter(
+      'letter-signature-too-many-strokes',
+      { 'signature.drawn': { strokes: Array.from({ length: 33 }, () => [0, 0, 1, 1]) } },
+      'at most 32 strokes',
+    ),
+    refuseLetter(
+      'letter-signature-stroke-too-long',
+      { 'signature.drawn': { strokes: [stroke(513)] } },
+      'at most 512 points a stroke',
+    ),
+    refuseLetter(
+      'letter-signature-too-many-points',
+      { 'signature.drawn': { strokes: Array.from({ length: 5 }, () => stroke(410)) } },
+      'at most 2048 points in all',
+    ),
+    refuseLetter(
+      'letter-signature-name-one-over',
+      { 'signature.name': 'x'.repeat(101) },
+      'a signature text is at most 100 characters',
+    ),
+    refuseLetter(
+      'letter-signature-name-with-markup',
+      { 'signature.name': '<b>Jo</b>' },
+      'a signature text is plain text',
+    ),
+    refuseLetter(
+      'letter-signature-name-reads-backwards',
+      { 'signature.name': 'Jo \u202eSggolb' },
+      'no direction-changing character',
+    ),
+    refuse(
+      'invoice-template-with-values',
+      'BTPS_DOC',
+      { ...base.invoice, template: template({ values }) },
+      'values are only on a letter template',
+      v12,
+    ),
+    refuse(
+      'payslip-template-with-values',
+      'BTPS_DOC',
+      { ...base.payslip, template: template({ values }) },
+      'values are only on a letter template',
+      v12,
+    ),
+  ];
+}
+
 export function documents12() {
   const inv = base.invoice;
   const rows = (discount) => ({
@@ -1199,6 +1314,8 @@ export function documents12() {
       '1.1 letters have no template',
       v11,
     ),
+    // A letter template's signature values: the sender's own, signed with the document.
+    ...signatureValueCases(template, v12),
   ];
   return {
     description:
@@ -1490,9 +1607,142 @@ export function templates() {
   const page = (more) => ({ ...full, page: { ...full.page, ...more } });
   const labels = (more) => ({ ...full, labels: { ...full.labels, ...more } });
   const text = (more) => ({ ...full, text: { ...full.text, ...more } });
+  // Format 2: a payslip like an invoice, and a letter that sets only its page, letterhead and footer.
+  const payslipSigned = [
+    'header',
+    'parties',
+    'period',
+    'earnings',
+    'deductions',
+    'contributions',
+    'leave',
+    'totals',
+  ];
+  const payslip = {
+    format: 2,
+    kinds: ['payslip'],
+    page: full.page,
+    logo: full.logo,
+    sections: [...payslipSigned, 'footer'],
+    labels: { title: 'Payslip', net: 'Net pay', employer: 'Employer' },
+    lines: full.lines,
+    totals: full.totals,
+    text: { footer: 'Kauri Studio' },
+  };
+  const letter = {
+    format: 2,
+    kinds: ['letter'],
+    page: full.page,
+    logo: full.logo,
+    letterhead: { fields: ['name', 'address', 'email', 'phone', 'identifiers'], align: 'start' },
+    footer: {
+      signOff: 'Yours sincerely,',
+      signature: {
+        slots: ['signature.drawn', 'signature.typed', 'signature.name', 'signature.title'],
+        align: 'start',
+      },
+    },
+  };
+  const { footer: _footer, ...letterWithoutFooter } = letter;
+  const signatureSlots = (slots) => ({
+    ...letter,
+    footer: { ...letter.footer, signature: { ...letter.footer.signature, slots } },
+  });
+  const format2 = [
+    accept('format-2-invoice', { ...full, format: 2 }),
+    accept('format-2-payslip', payslip),
+    accept('format-2-letter', letter),
+    accept('format-2-letter-without-a-footer', letterWithoutFooter),
+    refuse(
+      'a-payslip-with-a-signed-section-left-out',
+      { ...payslip, sections: payslipSigned.filter((s) => s !== 'deductions') },
+      'every section with signed fields is shown',
+    ),
+    refuse(
+      'a-payslip-with-an-invoice-section',
+      { ...payslip, sections: [...payslipSigned, 'lines'] },
+      "a payslip's sections are its own groups",
+    ),
+    refuse(
+      'a-payslip-with-an-invoice-label',
+      { ...payslip, labels: { amountDue: 'Amount due' } },
+      "a payslip's labels are its own keys",
+    ),
+    refuse('a-payslip-in-format-1', { ...payslip, format: 1 }, 'format 1 has no payslip'),
+    refuse(
+      'a-payslip-and-an-invoice-in-one',
+      { ...payslip, kinds: ['payslip', 'invoice'] },
+      'a payslip template is for payslips only',
+    ),
+    refuse(
+      'a-letter-that-styles-the-body',
+      { ...letter, body: { font: 'geist-mono', size: 'large' } },
+      "a letter template never touches the body: it is the sender's own",
+    ),
+    refuse(
+      'a-letter-that-reorders-the-body',
+      { ...letter, sections: ['header', 'body', 'footer'] },
+      'a letter template has no sections',
+    ),
+    refuse(
+      'a-letter-hiding-an-issuer-field',
+      {
+        ...letter,
+        letterhead: { ...letter.letterhead, fields: ['name', 'address', 'email', 'phone'] },
+      },
+      "the letterhead places every one of the sender's own fields",
+    ),
+    refuse(
+      'a-letter-with-an-issuer-field-twice',
+      {
+        ...letter,
+        letterhead: {
+          ...letter.letterhead,
+          fields: ['name', 'name', 'address', 'email', 'phone'],
+        },
+      },
+      'each field once',
+    ),
+    refuse(
+      'a-letter-with-a-value-in-its-letterhead',
+      { ...letter, letterhead: { ...letter.letterhead, name: 'Kauri Studio' } },
+      "the letterhead places the document's fields, never values of its own",
+    ),
+    refuse(
+      'a-letter-sign-off-with-a-phone-number',
+      { ...letter, footer: { ...letter.footer, signOff: 'Call 02 9999 0000' } },
+      'the sign-off is plain words: no run of four or more digits',
+    ),
+    refuse('a-letter-unknown-slot', signatureSlots(['signature.stamp']), 'slots are a fixed list'),
+    refuse(
+      'a-letter-with-a-signature-value-of-its-own',
+      {
+        ...letter,
+        footer: {
+          ...letter.footer,
+          signature: { ...letter.footer.signature, name: 'Jo Bloggs' },
+        },
+      },
+      'signature values come from the document, never the template',
+    ),
+    refuse(
+      'a-letter-with-a-drawn-signature-as-svg',
+      {
+        ...letter,
+        footer: { ...letter.footer, signature: { ...letter.footer.signature, svg: '<svg/>' } },
+      },
+      'a template holds no markup, and no signature',
+    ),
+    refuse(
+      'a-letter-in-the-signature-font',
+      { ...letter, page: { ...letter.page, font: 'caveat' } },
+      'the script font is for the typed signature only',
+    ),
+    refuse('a-letter-in-format-1', { ...letter, format: 1 }, 'format 1 has no letter'),
+  ];
   return {
     description:
-      'The BTPS 1.2 template file, format 1 (Templates page; JSON Schema at docs/docusaurus/static/schemas/btps-template.schema.json, published with the docs site as schemas/btps-template.schema.json). A template says how a document looks, never what it says: it never carries or changes a value of the document, hides no section with signed fields, names nothing to fetch and runs nothing; its own words are labels from a fixed set and static terms and footer text, each plain words with no digit run of four or more and no web, email or BTPS address. An implementation accepts every "accept" template and refuses every "refuse" one; `check` is the rule that refuses it: "schema" for the JSON Schema, "contrast" for the WCAG AA contrast of `page.text` and `page.muted` (4.5:1) and `page.accent` (3:1) against `page.background`. `fingerprint` is a template\'s RFC 8785 canonical form and the lowercase hex SHA-256 of it, which `template.data.sha256` names.',
+      'The BTPS 1.2 template file, formats 1 and 2 (Templates page; JSON Schema at docs/docusaurus/static/schemas/btps-template.schema.json, published with the docs site as schemas/btps-template.schema.json). A template says how a document looks, never what it says: it never carries or changes a value of the document, hides no section with signed fields, names nothing to fetch and runs nothing; its own words are labels from a fixed set and static terms and footer text, each plain words with no digit run of four or more and no web, email or BTPS address. Format 1 is for invoices and receipts. Format 2 is format 1 for them, plus payslips (sections and labels of their own) and letters (the page, a letterhead placing every one of the sender\'s own fields, and a footer with a sign-off and signature slots, whose values come from the document; never the body). An implementation accepts every "accept" template and refuses every "refuse" one; `check` is the rule that refuses it: "schema" for the JSON Schema, "contrast" for the WCAG AA contrast of `page.text` and `page.muted` (4.5:1) and `page.accent` (3:1) against `page.background`. `fingerprint` is a template\'s RFC 8785 canonical form and the lowercase hex SHA-256 of it, which `template.data.sha256` names.',
     fingerprint: {
       template: full,
       canonical: canonicalizeValue(full),
@@ -1506,7 +1756,7 @@ export function templates() {
         text({ terms: 'Payment within 14 days.\nLate fees: 2% a month.' }),
       ),
       accept('label-at-40-characters', labels({ title: 'x'.repeat(40) })),
-      refuse('a-later-format', { ...full, format: 2 }, 'this is format 1'),
+      refuse('a-later-format', { ...full, format: 3 }, 'formats 1 and 2 are the ones there are'),
       refuse('an-unknown-key', { ...full, script: 'alert(1)' }, 'unknown keys are refused'),
       refuse(
         'an-amount',
@@ -1606,7 +1856,11 @@ export function templates() {
         labels({ payment: 'Pay pay@x.example' }),
         'no email address',
       ),
-      refuse('a-label-with-a-hidden-character', labels({ to: 'Bill​to' }), 'no hidden character'),
+      refuse(
+        'a-label-with-a-hidden-character',
+        labels({ to: 'Bill\u200bto' }),
+        'no hidden character',
+      ),
       refuse(
         'terms-with-bank-details',
         text({ terms: 'Pay to BSB 062-000 account 1234 5678' }),
@@ -1630,7 +1884,7 @@ export function templates() {
       ),
       refuse(
         'a-footer-that-reads-backwards',
-        text({ footer: 'Kauri ‮oiduts' }),
+        text({ footer: 'Kauri \u202eoiduts' }),
         'no direction-changing character',
       ),
       refuse(
@@ -1661,6 +1915,7 @@ export function templates() {
         'the accent contrasts 3:1 with the background',
         'contrast',
       ),
+      ...format2,
     ],
   };
 }

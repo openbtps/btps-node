@@ -52,6 +52,16 @@ versions follow [Semantic Versioning](https://semver.org/).
   with signed fields, fetches nothing and runs nothing, and its labels, terms
   and footer are plain words with no payment detail. Its fingerprint is the
   SHA-256 of its RFC 8785 canonical form. The SDK renders nothing.
+- **Template format 2: payslips and letters.** Format 2 is format 1 for
+  invoices and receipts, plus a payslip template (the payslip's own sections
+  and labels, every one with signed fields shown) and a letter template, which
+  sets only the page, a letterhead placing the sender's own fields, and a
+  footer with a sign-off and signature slots, never the body. A letter's
+  template carries the slots' values in `template.data.values`
+  (`BTPTemplateValues`), signed with the letter, 1.2.0 only: a typed
+  signature, drawn in the open-licence script font Caveat, a name, a title, and
+  a drawn signature as integer strokes on a 1,000 by 300 canvas, never markup.
+  Such a signature is decoration and proves no agreement.
 - Every 1.2 document rule applies under `1.2.0` only: a document valid in 1.1
   reads exactly as before in a `1.1.0` artifact. The schemas 1.1 reads with are
   kept beside the newest (`Btp…V1_1Schema`). A device checks what it sends

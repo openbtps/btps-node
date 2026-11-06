@@ -70,8 +70,8 @@ The format is the JSON Schema [`btps-template.schema.json`](pathname:///schemas/
 
 | Field      | What it says                                                                                                                                                                                        |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `format`   | `1`. A later format adds fields under a new number, never as a key an older renderer would ignore                                                                                                   |
-| `kinds`    | The document types it is for: `invoice`, `receipt`. A letter or payslip may name a template, but format 1 has none for them, so they are shown in the standard view until a later format adds them  |
+| `format`   | `1`, or `2` (since 1.2, the same for an invoice or receipt). A later format adds fields under a new number, never as a key an older renderer would ignore                                           |
+| `kinds`    | The document types it is for: `invoice`, `receipt`. Payslips and letters have templates of their own in [format 2](#format-2-payslips-and-letters)                                                  |
 | `page`     | `font`, from a fixed list (below); `size` (`small`, `normal`, `large`); `density` (`compact`, `comfortable`); and the colours `background`, `text`, `muted`, `accent`, each `#rrggbb` in lower case |
 | `logo`     | Where the sender's own logo goes and how big: `position` (`top-left`, `top-center`, `top-right`, `none`) and `size` (`small`, `medium`, `large`)                                                    |
 | `sections` | The order the document's sections are shown in, each at most once (below)                                                                                                                           |
@@ -110,6 +110,75 @@ Two more rules, which a JSON Schema cannot say:
 - **Fetch anything.** It names no address: fonts are from the fixed list, and the logo is the sender's own, named by the document (`template.data.logo`) and checked by its fingerprint. The template says only where the logo goes and how big.
 - **Run anything.** It holds no script, style sheet or markup.
 
+## Format 2: payslips and letters
+
+Since 1.2. Format `2` is format 1 for invoices and receipts, word for word but for its number, and adds a template for payslips and one for letters. A format 2 template is for one kind of document. Every rule above holds for all three: the template's own words are plain words, nothing is hidden or fetched, nothing is run, and the contrast and 16 KiB rules apply.
+
+### A payslip
+
+A payslip template has the same fields as an invoice's (`page`, `logo`, `sections`, `labels`, `lines`, `totals`, `text`), with `kinds: ["payslip"]`. Its sections and labels are the payslip's own:
+
+- **Sections:** `header`, `parties` (employer and employee), `period` (pay period, pay date, pay rate), `earnings`, `deductions`, `contributions`, `leave`, `totals` (gross, tax withheld, net, year to date), `terms`, `footer`. The first eight carry signed fields, and every payslip template shows all eight.
+- **Label keys:** `title`, `employer`, `employee`, `employeeId`, `payPeriod`, `payDate`, `payRate`, `earnings`, `deductions`, `contributions`, `leave`, `description`, `rate`, `quantity`, `amount`, `balance`, `gross`, `taxWithheld`, `net`, `yearToDate`.
+- `lines` styles the earnings, deductions, contributions and leave tables, and `totals` the totals.
+
+### A letter
+
+A letter's body is the sender's own text, in its own format. A letter template never styles, reorders or touches it: it has no sections and no labels. It sets the page, a letterhead and a footer, and nothing else:
+
+```json
+{
+  "format": 2,
+  "kinds": ["letter"],
+  "page": {
+    "font": "source-serif-4",
+    "size": "normal",
+    "density": "comfortable",
+    "background": "#ffffff",
+    "text": "#1f2933",
+    "muted": "#52606d",
+    "accent": "#0b6e4f"
+  },
+  "logo": { "position": "top-left", "size": "medium" },
+  "letterhead": {
+    "fields": ["name", "address", "email", "phone", "identifiers"],
+    "align": "start"
+  },
+  "footer": {
+    "signOff": "Yours sincerely,",
+    "signature": {
+      "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+      "align": "start"
+    }
+  }
+}
+```
+
+| Field        | What it says                                                                                                                                                                                                                                                                            |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `letterhead` | Where the sender's own issuer fields go: `fields` lists every one, `name`, `address`, `email`, `phone`, `identifiers`, each once, in the order shown; `align` (`start`, `center`, `end`). Placement only: the values are the document's `issuer`, and one it does not have is not shown |
+| `footer`     | Optional. `signOff`, static text such as "Yours sincerely," (plain words, at most 300 characters), and `signature`: the `slots` to show, in order, and their `align`                                                                                                                    |
+
+### Signature slots and their values
+
+A letter template places named **slots**, and the sender fills them. The slots are a fixed list:
+
+| Slot              | Its value                                          |
+| ----------------- | -------------------------------------------------- |
+| `signature.drawn` | A drawn signature, as data (below)                 |
+| `signature.typed` | A typed signature, drawn in the script font Caveat |
+| `signature.name`  | The signer's name                                  |
+| `signature.title` | The signer's title                                 |
+
+- **The values are the sender's own, and travel in the document.** The sender's provider fills them in when it sends, as `template.data.values` on the letter's template reference, so they are signed with the letter: see [Transporter Artifact](./transporter-artifact.md), Templates. Where a value comes from is the provider's: its user's settings, for example.
+- **The receiver draws exactly those values in the slots the template places,** and fetches nothing. A value for a slot the template does not place is not drawn.
+- **A value never fills, overrides or shadows a document field.** Its keys are the slot names above, and any other key is refused. Values are only on a letter's template, and only in a `1.2.0` artifact.
+- **They are the sender's own data, not template text,** so the digit and address rules for a template's words do not apply to them. A text value is still plain text of 1 to 100 characters: no markup, and no control, hidden or direction-changing character.
+- **A typed signature** is drawn in Caveat, an open-licence script font (SIL Open Font License 1.1), which a receiver holds itself. It is for the typed signature only: a template cannot set it as its page font.
+- **A drawn signature is data, never SVG or any markup:** `{ "strokes": [[x, y, x, y, …], …] }`. Each stroke is integer points on a canvas 1,000 wide and 300 high, from `0, 0` at the top left. The receiving provider draws the lines itself. It holds at most 32 strokes, at most 512 points a stroke, and at most 2,048 points in all.
+
+**A signature here is decoration and proves nothing.** It is a styled signature block, like the one an e-signature service prints, and anyone can type a name or draw a line. It records no agreement and is not evidence that the signer agreed to anything. A letter's acceptance, signed with the user's device key, is what records agreement. It comes with letter agreements and their acceptance, planned for 1.2 once their design is approved.
+
 ### Its fingerprint
 
 A template's `sha256`, the one `template.data.sha256` names, is the lowercase hex SHA-256 of its [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) canonical form: the same canonical JSON that artifacts are signed over. So the same template has one fingerprint however it is spaced or ordered. The vectors give one template, its canonical form and its fingerprint.
@@ -118,7 +187,7 @@ A template's `sha256`, the one `template.data.sha256` names, is the lowercase he
 
 When and how a template is fetched is each provider's own: it fetches when it can read the document, on arrival for a readable one, or when its user first views it for one only the user can open. What the protocol fixes is safety:
 
-- **Draw only what matches.** A provider draws a template only when its fingerprint is `sha256` and it is a valid template for the document's type.
+- **Draw only what matches.** A provider draws a template only when its fingerprint is `sha256` and it is a valid template for the document's type, in a format it knows.
 - **The logo too.** It draws the logo only if its bytes match `logo.sha256` and are a PNG, JPEG or WebP image.
 - **Fall back.** On any failure (no answer, a mismatch, an invalid file, a document type the template is not for) it shows the standard view. The signed document is always shown in full, so nothing depends on how long a template stays available.
 

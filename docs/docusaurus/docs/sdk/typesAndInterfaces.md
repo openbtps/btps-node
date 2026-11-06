@@ -798,10 +798,20 @@ interface BTPTemplate {
     sha256?: string; // lowercase hex
     source?: string; // an https address, always with its sha256
     logo?: { sha256: string; source: string };
+    values?: BTPTemplateValues; // since 1.2, a letter's template only
     [key: string]: unknown;
   };
 }
+
+interface BTPTemplateValues {
+  'signature.typed'?: string; // drawn in the script font Caveat
+  'signature.name'?: string;
+  'signature.title'?: string;
+  'signature.drawn'?: { strokes: number[][] }; // [x, y, x, y, …] on a 1000 by 300 canvas
+}
 ```
+
+`values` (since 1.2, in a `1.2.0` artifact, on a letter's template only): what the template's signature slots show, from the sender and signed with the letter. A text value is plain text of 1 to 100 characters. A drawn signature is integer strokes: at most 32 strokes, 512 points a stroke and 2,048 points in all. See [Templates](../protocol/specifications/templates.md#signature-slots-and-their-values).
 
 ### BTPReceiptDoc
 
