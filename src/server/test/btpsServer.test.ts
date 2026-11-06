@@ -2536,6 +2536,22 @@ export default function () {
           expect(result.error?.meta).toEqual({ retryAfter: '2026-12-01T00:00:00.000Z' });
         });
 
+        it("never counts a request refused for its privacy type against the provider's limit", async () => {
+          const allowDetailsRequest = vi.fn(() => true as const);
+          const limited = new BtpsServer({
+            trustStore,
+            serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
+            tlsOptions: { key: 'test-key', cert: 'test-cert' },
+            allowDetailsRequest,
+          });
+          storeHolding({ ...holding([], ['detail:email']), privacyType: 'encrypted' });
+          const result = await limited['verifyTrust'](
+            details('DETAILS_REQ', payer, biller, ['detail:email']),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_PRIVACY_TYPE');
+          expect(allowDetailsRequest).not.toHaveBeenCalled();
+        });
+
         it('takes a response to a request its receiver sent, naming only what it asked', async () => {
           storeHolding(holding(['detail:address'], []));
           trustStore.getArtifact = vi.fn(async () => ({

@@ -131,7 +131,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   `BTP_ERROR_DETAILS_RATE_LIMITED`, with `retryAfter`). A request that passes
   is told to `server.on('detailsRequested', …)`. `decryptVerify` refuses an
   opened response whose values do not match its names (`detailsProblem`).
-  `JsonTrustStore` has `getArtifact`. The known-failing vector list is empty.
+  `JsonTrustStore` keeps no artifacts, so its `getArtifact` answers
+  `undefined`: a server using it as is takes no `DETAILS_RES` until the store
+  is extended to answer from the platform's own records. The known-failing
+  vector list is empty.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).

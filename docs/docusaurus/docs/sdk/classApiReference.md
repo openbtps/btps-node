@@ -1607,7 +1607,7 @@ async getEvent({ id, from, to }) {
 await store.getArtifact?.({ artifactId, from, to });
 ```
 
-Optional, since 1.2. The envelope of the artifact with this id that passed between these two identities, in either direction, as the platform recorded it, or `undefined` when it holds none. With it, the server checks that a `DETAILS_RES` answers a `DETAILS_REQ` its receiver sent to that sender, and names only what that request asked for (see [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)). Without it, the server checks only that the request is known (`isKnownArtifact`), warns once at start, and the platform checks the names with `detailsProblem` from `@btps/sdk/trust`. `JsonTrustStore` has it, and holds no artifacts.
+Optional, since 1.2. The envelope of the artifact with this id that passed between these two identities, in either direction, as the platform recorded it, or `undefined` when it holds none. With it, the server checks that a `DETAILS_RES` answers a `DETAILS_REQ` its receiver sent to that sender, and names only what that request asked for (see [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)). Without it, the server checks only that the request is known (`isKnownArtifact`), warns once at start, and the platform checks the names with `detailsProblem` from `@btps/sdk/trust`. `JsonTrustStore` keeps no artifacts, so its `getArtifact` answers `undefined`: a server using it as is takes no `DETAILS_RES`, as it takes no `BTPS_EVENT`, until the store is extended to answer from the platform's own records.
 
 - **artifactId**: `string` – the response's `relatesTo`
 - **from**, **to**: `string` – the two identities

@@ -1154,27 +1154,25 @@ export class BtpsServer {
       }
     }
 
-    if (artifact.type === 'DETAILS_REQ') {
-      const allowed = (await this.allowDetailsRequest?.({ from, to, names: [...details] })) ?? true;
-      if (allowed !== true) {
-        return {
-          isTrusted: false,
-          error: new BTPErrorException(BTP_ERROR_DETAILS_RATE_LIMITED, {
-            meta: { retryAfter: allowed.retryAfter },
-          }),
-        };
-      }
-    }
-
     const privacy = this.verifyPrivacyType(artifact, record);
-    if (privacy.isTrusted && artifact.type === 'DETAILS_REQ') {
-      this.tell('detailsRequested', {
-        from,
-        to,
-        names: [...details],
-        at: new Date().toISOString(),
-      });
+    if (!privacy.isTrusted || artifact.type !== 'DETAILS_REQ') return privacy;
+
+    // Asked last, so the provider's count holds only requests that are taken.
+    const allowed = (await this.allowDetailsRequest?.({ from, to, names: [...details] })) ?? true;
+    if (allowed !== true) {
+      return {
+        isTrusted: false,
+        error: new BTPErrorException(BTP_ERROR_DETAILS_RATE_LIMITED, {
+          meta: { retryAfter: allowed.retryAfter },
+        }),
+      };
     }
+    this.tell('detailsRequested', {
+      from,
+      to,
+      names: [...details],
+      at: new Date().toISOString(),
+    });
     return privacy;
   }
 
