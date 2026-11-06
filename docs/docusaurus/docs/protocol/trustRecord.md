@@ -118,6 +118,17 @@ The computed trust ID enforces **explicit, directional trust relationships**. Th
 
 - `privacyType`: Agreed privacy level (`unencrypted`, `encrypted`, `mixed`)
 
+**Permissions (since 1.2, optional):**
+
+- `permissions`: what this trust permits, by name (see [Trust permissions](./specifications/transporter-artifact.md#trust-permissions)). A record without it is a 1.1 trust, which permits any document type.
+  - `requested`: what the request asked for, `[{ name, required }]`
+  - `granted`: the names the answer granted
+  - `detailsHeld`: the other side's details this side holds, by name
+  - `detailsShared`: this side's details the other side holds, by name
+  - `pendingChange`: `{ requested, requestedAt }`, a change sent on an active trust, until it is answered
+
+**The platform writes it; the BTPS server only reads it.** As with every other field here, the server never writes a trust record: the platform does, through its trust store, when it sends a request and when its user decides. It must save `permissions` then. `trustPermissionsFromRequest` and `trustPermissionsFromResponse` in `@btps/sdk/trust` compute what to save. The server reads it to check each answer: a `TRUST_RES` whose `granted` leaves out a required name, or arrives where the requester's record has no `permissions`, is refused (`BTP_ERROR_PERMISSION_REQUIRED`), and one granting a name never asked for is refused too (`BTP_ERROR_PERMISSION`). An accepted trust takes an answer only while a change is pending, checked against the change.
+
 ---
 
 ## Trust Status Types

@@ -13,7 +13,10 @@ import {
   BtpCreatedResDocSchema,
   BtpIdentityResDocSchema,
 } from './btpsDocsSchema.js';
-import { BtpTransporterArtifactSchema } from './artifacts/transporterSchema.js';
+import {
+  BtpTransporterArtifactSchema,
+  BtpTrustRecordPermissionsSchema,
+} from './artifacts/transporterSchema.js';
 import { boundedArray, boundedRecord } from './bounded.js';
 import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
 
@@ -75,6 +78,8 @@ export const BtpTrustRecordSchema = z
     privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']),
     retryAfterDate: z.string().datetime().optional(),
     metadata: boundedRecord(z.unknown(), recordKeys).optional(),
+    // Since 1.2: without it, a 1.1 trust.
+    permissions: BtpTrustRecordPermissionsSchema.optional(),
   })
   .refine((record) => record.status === 'pending' || record.decidedAt !== '', {
     message: 'only a pending trust has no decidedAt',

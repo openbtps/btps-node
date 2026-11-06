@@ -6,6 +6,11 @@
  */
 
 import { BTPStorageRecord } from '@core/storage/types.js';
+import type {
+  BTPDetailPermission,
+  BTPPermissionName,
+  BTPTrustPermissions,
+} from '@core/server/types.js';
 
 export type BTPTrustStatus = 'accepted' | 'rejected' | 'revoked' | 'pending' | 'blocked';
 export type BTPTrustDecisionType = Exclude<BTPTrustStatus, 'pending'>;
@@ -42,6 +47,7 @@ export type BTPTrustRecord = Omit<BTPStorageRecord, 'updatedAt'> & {
   privacyType: BTPEncryptionType; // Privacy type to be sent based on this agreed trust
   retryAfterDate?: string; // @optional Retry date of the future in ISO Format. Useful to block revoked and rejected trust sending new trust request
   metadata?: Record<string, unknown>; // @optional Metadata of the trust record
+  permissions?: BTPTrustRecordPermissions; // since 1.2: written by the platform; without it, a 1.1 trust
 };
 
 export interface BTPTrustReqDoc {
@@ -60,12 +66,49 @@ export interface BTPTrustReqDoc {
   own?: BTPDetailValues; // since 1.2: the values of the details given that 1.1 has no field for, by name; encrypted
 }
 
+/** Since 1.2: a tax or registration number, for any country (ISO 3166-1 alpha-2, e.g. `AU`). */
+export type BTPNumberInCountry = { number: string; country: string };
+
+/** Since 1.2: a display or trading name, picture or logo, and website: `detail:profile`. */
+export type BTPDetailProfile = {
+  displayName: string;
+  logo?: { sha256: string; source: string };
+  website?: string;
+};
+
+/** Since 1.2: the value each detail permission carries. */
+export type BTPDetailValueOf = {
+  'detail:legalName': string;
+  'detail:profile': BTPDetailProfile;
+  'detail:email': string;
+  'detail:phone': string;
+  'detail:address': string;
+  'detail:taxNo': BTPNumberInCountry;
+  /** `YYYY-MM-DD` */
+  'detail:dob': string;
+  'detail:registrationNumber': BTPNumberInCountry;
+};
+
+/** Since 1.2: detail values by permission name, e.g. `{ "detail:dob": "1990-04-21" }`. */
+export type BTPDetailValues = { [Name in keyof BTPDetailValueOf]?: BTPDetailValueOf[Name] };
+
 /**
- * Since 1.2: detail values by permission name, e.g. `{ "detail:dob": "1990-04-21" }`.
- * `detail:taxNo` and `detail:registrationNumber` are `{ number, country }`;
- * `detail:profile` is `{ displayName, logo?: { sha256, source }, website? }`.
+ * Since 1.2: a trust record's permissions, written by the platform, never the
+ * BTPS server, which only reads them. `trustPermissionsFromRequest` and
+ * `trustPermissionsFromResponse` compute them for the platform to save.
  */
-export type BTPDetailValues = Partial<Record<`detail:${string}`, unknown>>;
+export type BTPTrustRecordPermissions = {
+  /** What the request asked for */
+  requested: BTPTrustPermissions;
+  /** What the answer granted: the `send:` names checked on each document, and the details given */
+  granted: BTPPermissionName[];
+  /** The other side's details this side holds */
+  detailsHeld: BTPDetailPermission[];
+  /** This side's details the other side holds */
+  detailsShared: BTPDetailPermission[];
+  /** A change sent on an active trust, until it is answered */
+  pendingChange?: { requested: BTPTrustPermissions; requestedAt: string };
+};
 
 export interface BTPTrustResDoc {
   id: string; // Random unique Id

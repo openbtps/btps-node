@@ -15,6 +15,8 @@ import {
 import { BTPTrustRecord } from './types.js';
 import isEmpty from 'lodash/isEmpty.js';
 import { AbstractTrustStore } from './storage/AbstractTrustStore.js';
+import type { BTPPermissionName } from '@core/server/types.js';
+import { trustGrantRefusal } from './permissions.js';
 
 /**
  * Checks if a trust record is active.
@@ -96,12 +98,15 @@ export function computeAgentTrustId(agentId: string, identity: string): string {
  * @param senderId - The identity sending the trust response (e.g., userB$domain)
  * @param receiverId - The identity receiving the trust response (e.g., userA$domain)
  * @param trustStore - The TrustStore instance
+ * @param response - Since 1.2: the answer's envelope, whose `granted` is checked against the
+ *   requester's record: every required name granted, and none it did not ask for
  * @returns Object indicating validity and optional BTPS error
  */
 export async function validateTrustResponse(
   senderId: string, // The responder
   receiverId: string, // The original requester
   trustStore: AbstractTrustStore<BTPTrustRecord>,
+  response: { granted?: readonly BTPPermissionName[] } = {},
 ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
   const flippedId = computeTrustId(receiverId, senderId);
   const trustRecord = await trustStore.getById(flippedId);
@@ -115,12 +120,22 @@ export async function validateTrustResponse(
     return buildError(`No pending trust request found from ${receiverId} to ${senderId}`);
   }
 
-  if (trustRecord.status !== 'pending') {
+  // Since 1.2, an accepted trust also takes an answer to the change it has pending.
+  const changePending = trustRecord.status === 'accepted' && trustRecord.permissions?.pendingChange;
+  if (trustRecord.status !== 'pending' && !changePending) {
     return buildError(`Trust request from ${receiverId} to ${senderId} is not pending`);
   }
 
   if (trustRecord.receiverId !== senderId) {
     return buildError(`Only ${trustRecord.receiverId} can respond to this trust request`);
+  }
+
+  const refusal = trustGrantRefusal(response, trustRecord);
+  if (refusal) {
+    return {
+      isValid: false,
+      error: new BTPErrorException(refusal.error, { cause: refusal.problem }),
+    };
   }
 
   return { isValid: true };

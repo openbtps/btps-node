@@ -1117,6 +1117,7 @@ export class BtpsServer {
         artifact.from,
         artifact.to,
         this.trustStore,
+        artifact,
       );
       return { isTrusted: isValid, error };
     }
