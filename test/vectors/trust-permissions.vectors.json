@@ -1,5 +1,5 @@
 {
-  "description": "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: { send: [{ name, required }], details: [{ name, required }] }`, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`; `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `details` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
+  "description": "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: [{ name, required }]`, one flat list in which the prefix says each name's kind, each name once and at least one `send:` name, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`; `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `details` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
   "envelopes": [
     {
       "name": "request",
@@ -24,32 +24,28 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -84,15 +80,12 @@
           "reason": "To send you invoices",
           "phone": "+61 400 000 000"
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            }
-          ],
-          "details": []
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          }
+        ],
         "entityType": "organisation",
         "given": []
       },
@@ -121,24 +114,20 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:dob",
-              "required": true
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:dob",
+            "required": true
+          }
+        ],
         "entityType": "person",
         "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
       },
@@ -167,28 +156,24 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:registrationNumber",
-              "required": true
-            },
-            {
-              "name": "detail:taxNo",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:registrationNumber",
+            "required": true
+          },
+          {
+            "name": "detail:taxNo",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -224,24 +209,20 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:registrationNumber",
-              "required": true
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:registrationNumber",
+            "required": true
+          }
+        ],
         "entityType": "person",
         "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
       },
@@ -270,24 +251,20 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:dob",
-              "required": true
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:dob",
+            "required": true
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -322,32 +299,28 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": ["detail:legalName", "detail:email", "detail:address"]
       },
@@ -376,32 +349,28 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -437,32 +406,28 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -498,32 +463,28 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "given": [
           "detail:legalName",
           "detail:email",
@@ -558,32 +519,28 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "company",
         "given": [
           "detail:legalName",
@@ -597,7 +554,7 @@
       "why": "entityType is person or organisation"
     },
     {
-      "name": "request-sending-nothing",
+      "name": "request-with-no-send-name",
       "artifact": {
         "version": "1.2.0",
         "issuedAt": "2026-10-19T00:00:00.000Z",
@@ -619,23 +576,20 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -646,7 +600,43 @@
         ]
       },
       "expect": "refuse",
-      "why": "send has at least one entry"
+      "why": "permissions holds at least one send: name"
+    },
+    {
+      "name": "request-with-no-permissions",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": [],
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "permissions holds at least one send: name"
     },
     {
       "name": "request-naming-a-type-twice",
@@ -671,32 +661,28 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:invoice",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:invoice",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -708,6 +694,67 @@
       },
       "expect": "refuse",
       "why": "each name appears once"
+    },
+    {
+      "name": "request-naming-a-detail-twice",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
+        "type": "TRUST_REQ",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": {
+          "algorithm": "aes-256-gcm",
+          "encryptedKey": "AA==",
+          "iv": "AA==",
+          "authTag": "AA==",
+          "type": "standardEncrypt"
+        },
+        "document": "ciphertext",
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          },
+          {
+            "name": "detail:email",
+            "required": false
+          }
+        ],
+        "entityType": "organisation",
+        "given": [
+          "detail:legalName",
+          "detail:email",
+          "detail:phone",
+          "detail:address",
+          "detail:registrationNumber"
+        ]
+      },
+      "expect": "refuse",
+      "why": "each name appears once, required or not"
     },
     {
       "name": "request-sending-another-type",
@@ -732,28 +779,24 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:quote",
-              "required": true
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:quote",
+            "required": true
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -789,28 +832,32 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "acme:loyalty",
-              "required": true
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "acme:loyalty",
+            "required": true
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -824,64 +871,7 @@
       "why": "only the protocol names exist: no provider prefixes"
     },
     {
-      "name": "request-sending-a-detail",
-      "artifact": {
-        "version": "1.2.0",
-        "issuedAt": "2026-10-19T00:00:00.000Z",
-        "id": "1b2c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8",
-        "type": "TRUST_REQ",
-        "from": "billing$vendor.example",
-        "to": "pay$client.example",
-        "selector": "btps1",
-        "signature": {
-          "algorithmHash": "sha256",
-          "value": "AA==",
-          "fingerprint": "AA=="
-        },
-        "encryption": {
-          "algorithm": "aes-256-gcm",
-          "encryptedKey": "AA==",
-          "iv": "AA==",
-          "authTag": "AA==",
-          "type": "standardEncrypt"
-        },
-        "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "detail:email",
-              "required": true
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
-        "entityType": "organisation",
-        "given": [
-          "detail:legalName",
-          "detail:email",
-          "detail:phone",
-          "detail:address",
-          "detail:registrationNumber"
-        ]
-      },
-      "expect": "refuse",
-      "why": "send holds send: names only"
-    },
-    {
-      "name": "request-asking-a-send-name-as-a-detail",
+      "name": "request-with-permissions-in-groups",
       "artifact": {
         "version": "1.2.0",
         "issuedAt": "2026-10-19T00:00:00.000Z",
@@ -916,8 +906,16 @@
           ],
           "details": [
             {
-              "name": "send:invoice",
+              "name": "detail:legalName",
               "required": true
+            },
+            {
+              "name": "detail:email",
+              "required": true
+            },
+            {
+              "name": "detail:address",
+              "required": false
             }
           ]
         },
@@ -931,7 +929,7 @@
         ]
       },
       "expect": "refuse",
-      "why": "details holds detail: names only"
+      "why": "permissions is one flat list"
     },
     {
       "name": "request-asking-a-1-1-field-name",
@@ -956,24 +954,20 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:name",
-              "required": true
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:name",
+            "required": true
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -1010,23 +1004,19 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:email"
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:email"
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -1062,25 +1052,21 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:email",
-              "required": true,
-              "why": "billing"
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:email",
+            "required": true,
+            "why": "billing"
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -1116,32 +1102,28 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": ["detail:legalName", "detail:email", "detail:phone", "detail:registrationNumber"]
       },
@@ -1171,32 +1153,28 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -1233,32 +1211,28 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -1295,24 +1269,20 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:dob",
-              "required": true
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:dob",
+            "required": true
+          }
+        ],
         "entityType": "person",
         "given": ["detail:legalName", "detail:email", "detail:phone"]
       },
@@ -1342,24 +1312,20 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:registrationNumber",
-              "required": true
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:registrationNumber",
+            "required": true
+          }
+        ],
         "entityType": "person",
         "given": ["detail:legalName", "detail:email", "detail:phone"]
       },
@@ -1389,24 +1355,20 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:dob",
-              "required": true
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:dob",
+            "required": true
+          }
+        ],
         "entityType": "organisation",
         "given": ["detail:legalName", "detail:email", "detail:phone", "detail:address"]
       },
@@ -1436,24 +1398,20 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:dob",
-              "required": true
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:dob",
+            "required": true
+          }
+        ],
         "entityType": "person",
         "given": [
           "detail:legalName",
@@ -1489,32 +1447,28 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -1551,24 +1505,20 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:identity",
-              "required": true
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:identity",
+            "required": true
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -1605,32 +1555,28 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -1674,32 +1620,28 @@
             }
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -1735,32 +1677,28 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -2363,32 +2301,28 @@
         },
         "document": "ciphertext",
         "documentType": "invoice",
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        }
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ]
       },
       "expect": "refuse",
       "why": "permissions are only on a TRUST_REQ"
@@ -2431,32 +2365,28 @@
             }
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -2500,24 +2430,20 @@
             "detail:dob": "1990-04-21"
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:dob",
-              "required": true
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:dob",
+            "required": true
+          }
+        ],
         "entityType": "person",
         "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
       },
@@ -2553,32 +2479,28 @@
           "phone": "+61 400 000 000",
           "address": "1 Kauri Street, Wellington"
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": ["detail:legalName", "detail:email", "detail:address"]
       },
@@ -2623,32 +2545,28 @@
           "logoUrl": "https://vendor.example/logo.png",
           "websiteUrl": "https://vendor.example"
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -2701,32 +2619,28 @@
             }
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -2770,32 +2684,28 @@
           "address": "1 Kauri Street, Wellington",
           "own": {}
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -2843,32 +2753,28 @@
             }
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -2917,32 +2823,28 @@
             }
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -2996,32 +2898,28 @@
             }
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -3071,32 +2969,28 @@
             "detail:email": "billing@acme.example"
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -3141,24 +3035,20 @@
             "detail:dob": "21/04/1990"
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:dob",
-              "required": true
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:dob",
+            "required": true
+          }
+        ],
         "entityType": "person",
         "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
       },
@@ -3199,24 +3089,20 @@
             }
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:dob",
-              "required": true
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:dob",
+            "required": true
+          }
+        ],
         "entityType": "person",
         "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
       },
@@ -3256,32 +3142,28 @@
             "detail:registrationNumber": "51824753556"
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -3330,32 +3212,28 @@
             }
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -3404,32 +3282,28 @@
             }
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -3479,32 +3353,28 @@
             }
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",
@@ -3554,32 +3424,28 @@
             "detail:taxNo": "123456789"
           }
         },
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            },
-            {
-              "name": "send:receipt",
-              "required": false
-            }
-          ],
-          "details": [
-            {
-              "name": "detail:legalName",
-              "required": true
-            },
-            {
-              "name": "detail:email",
-              "required": true
-            },
-            {
-              "name": "detail:address",
-              "required": false
-            }
-          ]
-        },
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          },
+          {
+            "name": "send:receipt",
+            "required": false
+          },
+          {
+            "name": "detail:legalName",
+            "required": true
+          },
+          {
+            "name": "detail:email",
+            "required": true
+          },
+          {
+            "name": "detail:address",
+            "required": false
+          }
+        ],
         "entityType": "organisation",
         "given": [
           "detail:legalName",

@@ -81,8 +81,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   device's `artifact.send`: a server refuses one sent to it directly
   (`BTP_ERROR_SYNC_NOT_ALLOWED`).
 - **Trust permissions on the envelope.** A `TRUST_REQ` may carry
-  `permissions` (the `send:` and `detail:` names it asks for, each `required`
-  or not), `entityType`, `given` (the details it gives) and `change`; an
+  `permissions` (one flat list of the `send:` and `detail:` names it asks
+  for, each `required` or not, each once, with at least one `send:`), `entityType`, `given` (the details it gives) and `change`; an
   accepted `TRUST_RES` carries `granted` and the responder's `entityType`; a
   `BTPS_DOC` may carry `documentType`. All are signed, readable and `1.2.0`
   only. A server refuses on arrival a name that is not the protocol's, a

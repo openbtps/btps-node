@@ -171,16 +171,16 @@ export type BTPDetailPermission = (typeof DETAIL_PERMISSIONS)[number];
 export type BTPPermissionName = BTPSendPermission | BTPDetailPermission;
 
 /** Since 1.2: one permission a trust request asks for. */
-export interface BTPPermission<Name extends BTPPermissionName = BTPPermissionName> {
-  name: Name;
+export interface BTPPermission {
+  name: BTPPermissionName;
   required: boolean;
 }
 
-/** Since 1.2: what a trust request asks for, signed and readable on its envelope. */
-export interface BTPTrustPermissions {
-  send: BTPPermission<BTPSendPermission>[];
-  details: BTPPermission<BTPDetailPermission>[];
-}
+/**
+ * Since 1.2: what a trust request asks for, signed and readable on its envelope.
+ * One flat list, the prefix saying each name's kind: each name once, at least one `send:`.
+ */
+export type BTPTrustPermissions = BTPPermission[];
 
 /** Since 1.2: the send a sync copies, by the sent artifact's id and the lowercase hex SHA-256 of its RFC 8785 form. */
 export interface BTPSyncOf {

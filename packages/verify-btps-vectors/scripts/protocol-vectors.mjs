@@ -858,7 +858,7 @@ export function versions() {
       stamped(
         'trust-request-permissions',
         trustRequest({
-          permissions: { send: [{ name: 'send:invoice', required: true }], details: [] },
+          permissions: [{ name: 'send:invoice', required: true }],
         }),
         V12,
       ),
@@ -1638,10 +1638,10 @@ const trustRecord = (status, permissions) => ({ status, ...(permissions && { per
 
 /** BTPS 1.2 trust permissions: the names on the envelope, the values in the document, the checks on each. */
 export function trustPermissions() {
-  const permissions = {
-    send: [ask('send:invoice'), ask('send:receipt', false)],
-    details: [ask('detail:legalName'), ask('detail:email'), ask('detail:address', false)],
-  };
+  // One flat list: the prefix says which kind each permission is.
+  const sends = [ask('send:invoice'), ask('send:receipt', false)];
+  const asked = [ask('detail:legalName'), ask('detail:email'), ask('detail:address', false)];
+  const permissions = [...sends, ...asked];
   const given = [
     'detail:legalName',
     'detail:email',
@@ -1678,7 +1678,7 @@ export function trustPermissions() {
     ...base.trustResponse,
     details: { 'detail:legalName': 'Robert Smith', 'detail:email': 'bob@client.example' },
   };
-  const requested = [...permissions.send, ...permissions.details];
+  const requested = permissions;
   const pending = trustRecord('pending', {
     requested,
     granted: [],
@@ -1714,9 +1714,10 @@ export function trustPermissions() {
   const opened = (artifact, document) => ({ ...artifact, document });
   const asking = (details, more = {}) => ({
     ...request,
-    permissions: { ...permissions, details },
+    permissions: [...sends, ...details],
     ...more,
   });
+  const sending = (send) => ({ ...request, permissions: [...send, ...asked] });
   const personGiven = ['detail:legalName', 'detail:email', 'detail:phone', 'detail:dob'];
   const fromAPerson = (details, more = {}) =>
     asking(details, { entityType: 'person', given: personGiven, ...more });
@@ -1729,14 +1730,14 @@ export function trustPermissions() {
   });
   return {
     description:
-      "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: { send: [{ name, required }], details: [{ name, required }] }`, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`; `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `details` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
+      "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: [{ name, required }]`, one flat list in which the prefix says each name's kind, each name once and at least one `send:` name, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`; `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `details` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
     envelopes: [
       named('request', request, 'accept'),
       named(
         'request-sending-only',
         {
           ...transporter('TRUST_REQ', request.id, {
-            permissions: { send: [ask('send:invoice')], details: [] },
+            permissions: [ask('send:invoice')],
             entityType: 'organisation',
             given: [],
           }),
@@ -1792,43 +1793,46 @@ export function trustPermissions() {
         'entityType is person or organisation',
       ),
       named(
-        'request-sending-nothing',
-        { ...request, permissions: { ...permissions, send: [] } },
+        'request-with-no-send-name',
+        sending([]),
         'refuse',
-        'send has at least one entry',
+        'permissions holds at least one send: name',
+      ),
+      named(
+        'request-with-no-permissions',
+        { ...request, permissions: [] },
+        'refuse',
+        'permissions holds at least one send: name',
       ),
       named(
         'request-naming-a-type-twice',
-        {
-          ...request,
-          permissions: { ...permissions, send: [ask('send:invoice'), ask('send:invoice', false)] },
-        },
+        sending([ask('send:invoice'), ask('send:invoice', false)]),
         'refuse',
         'each name appears once',
       ),
       named(
+        'request-naming-a-detail-twice',
+        asking([...asked, ask('detail:email', false)]),
+        'refuse',
+        'each name appears once, required or not',
+      ),
+      named(
         'request-sending-another-type',
-        { ...request, permissions: { ...permissions, send: [ask('send:quote')] } },
+        sending([ask('send:quote')]),
         'refuse',
         'send names one of four document types',
       ),
       named(
         'request-with-a-provider-name',
-        { ...request, permissions: { ...permissions, send: [ask('acme:loyalty')] } },
+        sending([...sends, ask('acme:loyalty')]),
         'refuse',
         'only the protocol names exist: no provider prefixes',
       ),
       named(
-        'request-sending-a-detail',
-        { ...request, permissions: { ...permissions, send: [ask('detail:email')] } },
+        'request-with-permissions-in-groups',
+        { ...request, permissions: { send: sends, details: asked } },
         'refuse',
-        'send holds send: names only',
-      ),
-      named(
-        'request-asking-a-send-name-as-a-detail',
-        asking([ask('send:invoice')]),
-        'refuse',
-        'details holds detail: names only',
+        'permissions is one flat list',
       ),
       named(
         'request-asking-a-1-1-field-name',

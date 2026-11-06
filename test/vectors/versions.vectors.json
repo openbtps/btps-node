@@ -524,15 +524,12 @@
           "phone": "+61 400 000 000"
         },
         "encryption": null,
-        "permissions": {
-          "send": [
-            {
-              "name": "send:invoice",
-              "required": true
-            }
-          ],
-          "details": []
-        }
+        "permissions": [
+          {
+            "name": "send:invoice",
+            "required": true
+          }
+        ]
       },
       "expect": "1.2.0"
     },

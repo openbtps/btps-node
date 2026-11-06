@@ -1490,15 +1490,13 @@ type BTPDetailPermission =
   | 'detail:registrationNumber'; // an organisation's
 type BTPPermissionName = BTPSendPermission | BTPDetailPermission;
 
-interface BTPPermission<Name extends BTPPermissionName = BTPPermissionName> {
-  name: Name;
+interface BTPPermission {
+  name: BTPPermissionName;
   required: boolean;
 }
 
-interface BTPTrustPermissions {
-  send: BTPPermission<BTPSendPermission>[]; // at least one
-  details: BTPPermission<BTPDetailPermission>[];
-}
+// One flat list, the prefix saying each name's kind: each name once, at least one send: name
+type BTPTrustPermissions = BTPPermission[];
 ```
 
 ### BTPServerResponse

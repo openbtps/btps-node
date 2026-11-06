@@ -33,16 +33,18 @@ const memberOf = <T extends string>(names: readonly T[]) =>
   z.custom<T>((name) => typeof name === 'string' && (names as readonly string[]).includes(name));
 const namesFrom = <T extends string>(names: readonly T[]) =>
   z.array(memberOf(names)).max(names.length);
-const permissionsFrom = <T extends string>(names: readonly T[]) =>
-  z.array(z.object({ name: memberOf(names), required: z.boolean() }).strict()).max(names.length);
+const PERMISSION_NAMES = [...SEND_PERMISSIONS, ...DETAIL_PERMISSIONS];
 
-/** Since 1.2, on a TRUST_REQ: the permissions it asks for, signed and readable. */
+/**
+ * Since 1.2, on a TRUST_REQ: the permissions it asks for, signed and readable.
+ * One flat list, the prefix saying each name's kind, with at least one `send:` name.
+ */
 export const BtpTrustPermissionsSchema = z
-  .object({
-    send: permissionsFrom(SEND_PERMISSIONS).min(1),
-    details: permissionsFrom(DETAIL_PERMISSIONS),
-  })
-  .strict();
+  .array(z.object({ name: memberOf(PERMISSION_NAMES), required: z.boolean() }).strict())
+  .max(PERMISSION_NAMES.length)
+  .refine((permissions) => permissions.some(({ name }) => name.startsWith('send:')), {
+    message: 'permissions holds at least one send: name',
+  });
 
 const duplicateOf = (names: readonly string[]) =>
   names.find((name, i) => names.indexOf(name) !== i);
@@ -70,7 +72,7 @@ export const BtpTransporterArtifactBaseSchema = z.object({
   entityType: z.enum(ENTITY_TYPES).optional(),
   given: namesFrom(DETAIL_PERMISSIONS).optional(),
   change: z.literal(true).optional(),
-  granted: namesFrom([...SEND_PERMISSIONS, ...DETAIL_PERMISSIONS]).optional(),
+  granted: namesFrom(PERMISSION_NAMES).optional(),
   documentType: z.enum(DOCUMENT_TYPES).optional(),
 });
 
@@ -92,8 +94,7 @@ function permissionEnvelopeProblems(data: TransporterEnvelope): [string, string]
     }
   }
   const lists: [string, readonly string[] | undefined][] = [
-    ['permissions', data.permissions?.send.map((p) => p.name)],
-    ['permissions', data.permissions?.details.map((p) => p.name)],
+    ['permissions', data.permissions?.map((p) => p.name)],
     ['given', data.given],
     ['granted', data.granted],
   ];
@@ -112,9 +113,10 @@ function permissionEnvelopeProblems(data: TransporterEnvelope): [string, string]
   }
   if (data.permissions && entityType) {
     // You give what you ask for; a date of birth and a registration number swap between kinds.
-    const given = data.given ?? [];
+    const given: readonly string[] = data.given ?? [];
     const identities: string[] = Object.values(IDENTITY_DETAIL);
-    for (const { name } of data.permissions.details) {
+    for (const { name } of data.permissions) {
+      if (!name.startsWith('detail:')) continue;
       const gives = identities.includes(name) ? IDENTITY_DETAIL[entityType] : name;
       if (!given.includes(gives)) {
         problems.push(['given', `asks for ${name} without giving ${gives}`]);

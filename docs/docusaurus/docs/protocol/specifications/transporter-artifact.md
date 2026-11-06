@@ -95,27 +95,25 @@ A name is one of the protocol's own, and nothing else. There are no provider-def
 
 ### On the envelope
 
-| Field          | On                                 | What it says                                                                                                             |
-| -------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `permissions`  | `TRUST_REQ`                        | `{ send: [{ name, required }], details: [{ name, required }] }`: what the sender asks for. `send` has at least one entry |
-| `entityType`   | `TRUST_REQ`, accepted `TRUST_RES`  | `person` or `organisation`: what owns the sender's address. Required with `permissions` and with `granted`               |
-| `given`        | `TRUST_REQ`                        | The `detail:` names the sender gives about itself, as permissions                                                        |
-| `change`       | `TRUST_REQ`                        | `true`: a change to an active trust, asking for the whole set of permissions now wanted                                  |
-| `granted`      | accepted `TRUST_RES`               | The names given. A rejected answer carries none, and may leave out `entityType`                                          |
-| `documentType` | `BTPS_DOC` under a trust with them | The type of the document it carries: `invoice`, `receipt`, `payslip` or `letter`                                         |
+| Field          | On                                 | What it says                                                                                                                                             |
+| -------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `permissions`  | `TRUST_REQ`                        | `[{ name, required }]`: what the sender asks for, one flat list in which the prefix says each name's kind. Each name once, and at least one `send:` name |
+| `entityType`   | `TRUST_REQ`, accepted `TRUST_RES`  | `person` or `organisation`: what owns the sender's address. Required with `permissions` and with `granted`                                               |
+| `given`        | `TRUST_REQ`                        | The `detail:` names the sender gives about itself, as permissions                                                                                        |
+| `change`       | `TRUST_REQ`                        | `true`: a change to an active trust, asking for the whole set of permissions now wanted                                                                  |
+| `granted`      | accepted `TRUST_RES`               | The names given. A rejected answer carries none, and may leave out `entityType`                                                                          |
+| `documentType` | `BTPS_DOC` under a trust with them | The type of the document it carries: `invoice`, `receipt`, `payslip` or `letter`                                                                         |
 
 ```json
 {
   "type": "TRUST_REQ",
   "from": "billing$vendor.example",
   "to": "pay$client.example",
-  "permissions": {
-    "send": [{ "name": "send:invoice", "required": true }],
-    "details": [
-      { "name": "detail:legalName", "required": true },
-      { "name": "detail:address", "required": false }
-    ]
-  },
+  "permissions": [
+    { "name": "send:invoice", "required": true },
+    { "name": "detail:legalName", "required": true },
+    { "name": "detail:address", "required": false }
+  ],
   "entityType": "organisation",
   "given": ["detail:legalName", "detail:email", "detail:address"]
 }
@@ -126,7 +124,8 @@ A name is one of the protocol's own, and nothing else. There are no provider-def
 From the envelope alone:
 
 - a field on another artifact type, or in a `1.1.0` artifact;
-- a name that is not the protocol's, or a name twice in one list;
+- a name that is not the protocol's, or a name twice in one list, required or not;
+- `permissions` without a `send:` name;
 - `permissions` or `granted` without `entityType`;
 - **a request that does not give what it asks for:** every detail asked for is in `given`. `detail:dob` and `detail:registrationNumber` swap between kinds: a person gives its date of birth and an organisation its registration number, never the other, so asking for either is met by giving your own. The sender's `entityType` decides which;
 - a person giving or granting `detail:registrationNumber`, or an organisation giving or granting `detail:dob`.
