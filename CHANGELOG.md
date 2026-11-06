@@ -80,6 +80,17 @@ versions follow [Semantic Versioning](https://semver.org/).
   from and to the same address, only in `1.2.0` artifacts, and only inside a
   device's `artifact.send`: a server refuses one sent to it directly
   (`BTP_ERROR_SYNC_NOT_ALLOWED`).
+- **Trust permissions on the envelope.** A `TRUST_REQ` may carry
+  `permissions` (the `send:` and `detail:` names it asks for, each `required`
+  or not), `entityType`, `given` (the details it gives) and `change`; an
+  accepted `TRUST_RES` carries `granted` and the responder's `entityType`; a
+  `BTPS_DOC` may carry `documentType`. All are signed, readable and `1.2.0`
+  only. A server refuses on arrival a name that is not the protocol's, a
+  request that does not give what it asks for (a person's `detail:dob` and an
+  organisation's `detail:registrationNumber` swap between kinds), and a
+  readable request or answer that carries values unencrypted. The names are
+  exported from `@btps/sdk/trust` (`DOCUMENT_TYPES`, `SEND_PERMISSIONS`,
+  `DETAIL_PERMISSIONS`).
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).

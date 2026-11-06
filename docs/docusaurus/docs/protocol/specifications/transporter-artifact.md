@@ -80,6 +80,63 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
 - **delegation**: Delegation information for agent-based operations
 - **relatesTo**: Required on a `BTPS_EVENT` and refused on every other type: the `id` of the `BTPS_DOC` artifact that delivered the invoice the event is about (see Lifecycle Event)
 - **syncOf**: Since 1.2, on a sync only: the send it copies (see [Sync](#sync))
+- **permissions**, **entityType**, **given**, **change**, **granted**, **documentType**: Since 1.2, trust permissions (see [Trust permissions](#trust-permissions))
+
+## Trust permissions
+
+Since 1.2. A trust says what may travel on it: which document types may be sent, and which details each side gives the other. Every permission **name** travels on the envelope, signed and readable, so the receiving BTPS server checks it on arrival without decrypting anything. Only the **values** (a date of birth, an address) are in the document, encrypted. Every field here is `1.2.0` only, and stamps the artifact `1.2.0`; a trust request, answer or send without them goes as `1.1.0`, exactly as in 1.1.
+
+### The names
+
+A name is one of the protocol's own, and nothing else. There are no provider-defined names, so every provider understands every permission. `DOCUMENT_TYPES`, `SEND_PERMISSIONS` and `DETAIL_PERMISSIONS` in `@btps/sdk/trust` list them.
+
+- **Sending:** `send:invoice`, `send:receipt`, `send:payslip`, `send:letter`.
+- **Details:** `detail:legalName`, `detail:profile`, `detail:email`, `detail:phone`, `detail:address`, `detail:taxNo`, `detail:dob` (a person's date of birth), `detail:registrationNumber` (an organisation's).
+
+### On the envelope
+
+| Field          | On                                 | What it says                                                                                                             |
+| -------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `permissions`  | `TRUST_REQ`                        | `{ send: [{ name, required }], details: [{ name, required }] }`: what the sender asks for. `send` has at least one entry |
+| `entityType`   | `TRUST_REQ`, accepted `TRUST_RES`  | `person` or `organisation`: what owns the sender's address. Required with `permissions` and with `granted`               |
+| `given`        | `TRUST_REQ`                        | The `detail:` names the sender gives about itself, as permissions                                                        |
+| `change`       | `TRUST_REQ`                        | `true`: a change to an active trust, asking for the whole set of permissions now wanted                                  |
+| `granted`      | accepted `TRUST_RES`               | The names given. A rejected answer carries none, and may leave out `entityType`                                          |
+| `documentType` | `BTPS_DOC` under a trust with them | The type of the document it carries: `invoice`, `receipt`, `payslip` or `letter`                                         |
+
+```json
+{
+  "type": "TRUST_REQ",
+  "from": "billing$vendor.example",
+  "to": "pay$client.example",
+  "permissions": {
+    "send": [{ "name": "send:invoice", "required": true }],
+    "details": [
+      { "name": "detail:legalName", "required": true },
+      { "name": "detail:address", "required": false }
+    ]
+  },
+  "entityType": "organisation",
+  "given": ["detail:legalName", "detail:email", "detail:address"]
+}
+```
+
+### What a server refuses on arrival
+
+From the envelope alone:
+
+- a field on another artifact type, or in a `1.1.0` artifact;
+- a name that is not the protocol's, or a name twice in one list;
+- `permissions` or `granted` without `entityType`;
+- **a request that does not give what it asks for:** every detail asked for is in `given`. `detail:dob` and `detail:registrationNumber` swap between kinds: a person gives its date of birth and an organisation its registration number, never the other, so asking for either is met by giving your own. The sender's `entityType` decides which;
+- a person giving or granting `detail:registrationNumber`, or an organisation giving or granting `detail:dob`.
+
+And where the document is readable (not encrypted):
+
+- a request carrying its own values, or an answer carrying a profile: those are always encrypted;
+- an answer that is not `accepted` but carries `granted`.
+
+An address's kind is published nowhere but the envelope.
 
 ## Sync
 

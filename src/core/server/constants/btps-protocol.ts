@@ -5,6 +5,8 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
+import { PERMISSION_ENVELOPE_FIELDS } from './permissions.js';
+
 export const BTP_PROTOCOL_VERSION = '1.2.0';
 export const MIN_SUPPORTED_VERSION = '1.1.0';
 export const MAX_SUPPORTED_VERSION = '1.2.0';
@@ -71,6 +73,18 @@ const USES_1_2: ((artifact: BTPVersionedArtifact) => boolean)[] = [
     return (
       (document?.type === 'letter' || document?.type === 'payslip') &&
       document.template !== undefined
+    );
+  },
+  // Trust permissions on the envelope: names, kind, grants and a send's documentType.
+  (artifact) =>
+    Object.keys(PERMISSION_ENVELOPE_FIELDS).some((field) => artifact[field] !== undefined),
+  // Trust permission values in the document: a request's own values and verification, an answer's profile.
+  (artifact) => {
+    const document = documentOf(artifact);
+    return (
+      (artifact.type === 'TRUST_REQ' &&
+        (document?.own !== undefined || document?.verification !== undefined)) ||
+      (artifact.type === 'TRUST_RES' && document?.profile !== undefined)
     );
   },
 ];

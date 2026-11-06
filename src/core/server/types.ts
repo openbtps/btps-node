@@ -13,6 +13,10 @@ import type { BtpLifecycleEventSchema } from './schemas/btpsDocsSchema.js';
 import {
   AGENT_ACTIONS,
   AGENT_ACTIONS_REQUIRING_DOCUMENT,
+  DETAIL_PERMISSIONS,
+  DOCUMENT_TYPES,
+  ENTITY_TYPES,
+  SEND_PERMISSIONS,
   TRANSPORTER_ACTIONS,
 } from './constants/index.js';
 import { CURRENCY_CODES } from './constants/currency.js';
@@ -146,6 +150,36 @@ export interface BTPTransporterArtifact extends BTPGenericArtifact<BTPDocType | 
   relatesTo?: string;
   /** Since 1.2, on a sync only (from equals to, inside a device's artifact.send): the send it copies. */
   syncOf?: BTPSyncOf;
+  /** Since 1.2, on a TRUST_REQ: the permissions it asks for. */
+  permissions?: BTPTrustPermissions;
+  /** Since 1.2, on a TRUST_REQ with permissions and an accepted TRUST_RES: what owns the sender's address. */
+  entityType?: BTPEntityType;
+  /** Since 1.2, on a TRUST_REQ: the details the sender gives about itself, by name. */
+  given?: BTPDetailPermission[];
+  /** Since 1.2, on a TRUST_REQ: a change to an active trust, asking for the whole set now wanted. */
+  change?: true;
+  /** Since 1.2, on an accepted TRUST_RES: the permission names given. */
+  granted?: BTPPermissionName[];
+  /** Since 1.2, on a BTPS_DOC under a trust with permissions: the type of the document it carries. */
+  documentType?: BTPDocumentType;
+}
+
+export type BTPDocumentType = (typeof DOCUMENT_TYPES)[number];
+export type BTPEntityType = (typeof ENTITY_TYPES)[number];
+export type BTPSendPermission = (typeof SEND_PERMISSIONS)[number];
+export type BTPDetailPermission = (typeof DETAIL_PERMISSIONS)[number];
+export type BTPPermissionName = BTPSendPermission | BTPDetailPermission;
+
+/** Since 1.2: one permission a trust request asks for. */
+export interface BTPPermission<Name extends BTPPermissionName = BTPPermissionName> {
+  name: Name;
+  required: boolean;
+}
+
+/** Since 1.2: what a trust request asks for, signed and readable on its envelope. */
+export interface BTPTrustPermissions {
+  send: BTPPermission<BTPSendPermission>[];
+  details: BTPPermission<BTPDetailPermission>[];
 }
 
 /** Since 1.2: the send a sync copies, by the sent artifact's id and the lowercase hex SHA-256 of its RFC 8785 form. */
