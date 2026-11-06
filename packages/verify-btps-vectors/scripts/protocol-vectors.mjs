@@ -1890,6 +1890,16 @@ export function trustPermissions() {
         'accept',
       ),
       named(
+        'response-rejecting-with-entity-type',
+        {
+          ...response,
+          granted: undefined,
+          encryption: null,
+          document: { ...base.trustResponse, decision: 'rejected' },
+        },
+        'accept',
+      ),
+      named(
         'response-without-entity-type',
         { ...response, entityType: undefined },
         'refuse',

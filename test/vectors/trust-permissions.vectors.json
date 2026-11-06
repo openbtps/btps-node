@@ -1475,6 +1475,32 @@
       "expect": "accept"
     },
     {
+      "name": "response-rejecting-with-entity-type",
+      "artifact": {
+        "version": "1.2.0",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "id": "2c3d4e5f-6071-4b82-9ca3-b4c5d6e7f809",
+        "type": "TRUST_RES",
+        "from": "pay$client.example",
+        "to": "billing$vendor.example",
+        "selector": "btps1",
+        "signature": {
+          "algorithmHash": "sha256",
+          "value": "AA==",
+          "fingerprint": "AA=="
+        },
+        "encryption": null,
+        "document": {
+          "id": "res-1",
+          "decision": "rejected",
+          "decidedAt": "2026-10-19T00:00:00.000Z",
+          "decidedBy": "bob$client.example"
+        },
+        "entityType": "person"
+      },
+      "expect": "accept"
+    },
+    {
       "name": "response-without-entity-type",
       "artifact": {
         "version": "1.2.0",
