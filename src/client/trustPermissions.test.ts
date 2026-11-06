@@ -11,10 +11,22 @@
  * artifact is checked as its provider will check it before it goes.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateKeyPairSync } from 'crypto';
 import { BtpsAgent } from './btpsAgent.js';
+import { BtpsClient } from './btpsClient.js';
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
+import { BTPErrorException } from '../core/error/index.js';
+
+// The receiver's server, asked its version once for a trust request with permissions.
+const receiverSpeaks = (version: string) =>
+  vi
+    .spyOn(BtpsClient.prototype, 'getServerVersion')
+    .mockResolvedValue({ version, error: undefined });
+beforeEach(() => {
+  vi.restoreAllMocks();
+  receiverSpeaks('1.2.0');
+});
 
 const keys = generateKeyPairSync('rsa', {
   modulusLength: 2048,
@@ -111,5 +123,66 @@ describe("a device's trust answer with permissions", () => {
 
   it('is refused granting without entityType', () => {
     expect(call('trust.respond', answer, { granted: ['send:invoice'] })).toBe(false);
+  });
+});
+
+describe('a trust request with permissions, to a receiver whose server speaks 1.1', () => {
+  const ownValues = {
+    ...request,
+    own: { 'detail:registrationNumber': { number: '1', country: 'AU' } },
+  };
+  const withIdentity = {
+    ...asking,
+    permissions: [
+      ...asking.permissions,
+      { name: 'detail:registrationNumber' as const, required: false },
+    ],
+    given: ['detail:email' as const, 'detail:registrationNumber' as const],
+  };
+
+  it('goes as 1.1 allows, saying what it left out', async () => {
+    receiverSpeaks('1.1.3');
+    const { payload, error, shaped } = await build('trust.request', ownValues, withIdentity);
+    expect(error).toBeUndefined();
+    expect(shaped).toEqual({
+      sentAs: '1.1.0',
+      leftOut: ['permissions', 'given', 'entityType', 'own'],
+    });
+    expect(payload).toMatchObject({ type: 'TRUST_REQ', version: '1.1.0', document: request });
+    expect(payload).not.toHaveProperty('permissions');
+    expect(payload?.document).not.toHaveProperty('own');
+  });
+
+  it('is refused instead, with its version, when versionFallback is false', async () => {
+    receiverSpeaks('1.1.3');
+    const { payload, error } = await build('trust.request', request, {
+      ...asking,
+      versionFallback: false,
+    });
+    expect(payload).toBeUndefined();
+    expect(error?.code).toBe('BTP_ERROR_VERSION_UNSUPPORTED');
+    expect(error?.meta).toEqual({ receiverVersion: '1.1.3' });
+  });
+
+  it('goes as it is to a 1.2 receiver, saying nothing was shaped', async () => {
+    const { payload, shaped } = await build('trust.request', request, asking);
+    expect(shaped).toBeUndefined();
+    expect(payload?.version).toBe('1.2.0');
+  });
+
+  it('is not sent when the receiver cannot be asked: no version is guessed', async () => {
+    vi.spyOn(BtpsClient.prototype, 'getServerVersion').mockResolvedValue({
+      version: undefined,
+      error: new BTPErrorException({ code: 'BTP_ERROR_SOCKET_TIMEOUT', message: 'no answer' }),
+    });
+    const { payload, error } = await build('trust.request', request, asking);
+    expect(payload).toBeUndefined();
+    expect(error?.code).toBe('BTP_ERROR_SOCKET_TIMEOUT');
+  });
+
+  it('never asks the receiver for a request without permissions', async () => {
+    const asked = receiverSpeaks('1.1.3');
+    await build('trust.request', request, {});
+    expect(asked).not.toHaveBeenCalled();
   });
 });

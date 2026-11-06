@@ -148,13 +148,21 @@ Response from a BTPS client operation.
 interface BTPClientResponse {
   response?: BTPServerResponse;
   error?: BTPErrorException;
+  shaped?: BTPShaped; // since 1.2
 }
+
+// Since 1.2: a trust request sent as its 1.1 receiver allows
+type BTPShaped = {
+  sentAs: string; // '1.1.0'
+  leftOut: ('permissions' | 'given' | 'entityType' | 'change' | 'own' | 'verification')[];
+};
 ```
 
 **Properties:**
 
 - `response`: Optional server response if successful
 - `error`: Optional error if the operation failed
+- `shaped`: Since 1.2, only when a trust request with permissions went to a receiver whose server speaks 1.1: the version it went as, and what it left out. The trust it asks for will carry no permissions. See [To a receiver whose server speaks 1.1](../protocol/specifications/transporter-artifact.md#trust-permissions)
 
 ### ConnectionStates
 
@@ -2295,6 +2303,7 @@ interface BTPCryptoOptions {
     algorithm: EncryptionAlgorithmType;
     mode: EncryptionMode;
   };
+  versionFallback?: boolean; // since 1.2: false refuses a trust request with permissions to a 1.1 receiver
 }
 ```
 
@@ -2306,6 +2315,7 @@ Response from cryptographic operations.
 interface BTPCryptoResponse<T = Record<string, unknown>> {
   payload?: BTPCryptoArtifact<T>;
   error?: BTPErrorException;
+  shaped?: BTPShaped; // since 1.2: a trust request sent as its 1.1 receiver allows (see BTPClientResponse)
 }
 ```
 

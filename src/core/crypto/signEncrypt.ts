@@ -14,7 +14,8 @@ import {
   BTP_ERROR_VALIDATION,
 } from '@core/error/constant.js';
 import { processBtpDocSchema } from '@core/server/schemas/helpers.js';
-import type { BTPArtifactType } from '@core/server/types.js';
+import type { BTPArtifactType, BTPShaped } from '@core/server/types.js';
+import { composeTrustRequestFor } from '@core/trust/shaping.js';
 import { signBtpPayload, signBtpPayloadWithSigner, encryptBtpPayload } from './index.js';
 import type { Signer } from './signer-interface.js';
 import {
@@ -89,7 +90,16 @@ export const signEncrypt = async <T = unknown>(
   options?: BTPCryptoOptions,
   lookup?: ReceiverKeyLookup,
 ): Promise<BTPCryptoResponse<T>> => {
-  const { document, ...restPayload } = payload;
+  // Since 1.2: a trust request with permissions goes as its receiver's version allows.
+  const composed = to
+    ? await composeTrustRequestFor(to, payload, {
+        versionFallback: options?.versionFallback,
+        btpMtsOptions: lookup?.btpMtsOptions,
+      })
+    : { payload };
+  if (composed.error) return genEncryptError(composed.error);
+  const { shaped } = composed as { shaped?: BTPShaped };
+  const { document, ...restPayload } = composed.payload;
   let encryption: BTPEncryption | null = null;
   let encryptedDoc: string | T = document;
 
@@ -159,5 +169,6 @@ export const signEncrypt = async <T = unknown>(
       signature,
     } as BTPCryptoArtifact<T>,
     error: undefined,
+    ...(shaped && { shaped }),
   };
 };

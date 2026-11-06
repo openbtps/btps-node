@@ -12,6 +12,7 @@ import {
   BTPDelegation,
   BTPDocType,
   BTPServerResponse,
+  BTPShaped,
   BTPTransporterArtifact,
 } from '@core/server/types.js';
 import type { Signer } from './signer-interface.js';
@@ -56,6 +57,11 @@ export type BTPCryptoOptions = {
     algorithm: EncryptionAlgorithmType;
     mode: EncryptionMode;
   };
+  /**
+   * Since 1.2, for a trust request with permissions: whether to send it as 1.1 allows when the
+   * receiver's server speaks 1.1 (the default), or refuse with its version (`false`).
+   */
+  versionFallback?: boolean;
 };
 
 type WithGenericDocument<TArtifact extends BTPArtifact, T> = Omit<TArtifact, 'document'> & {
@@ -69,6 +75,8 @@ export type BTPCryptoArtifact<T = BTPDocType> =
 export interface BTPCryptoResponse<T = BTPDocType> {
   payload?: BTPCryptoArtifact<T> | BTPServerResponse<T>;
   error?: BTPErrorException;
+  /** Since 1.2: a trust request sent as its 1.1 receiver allows, and what it left out */
+  shaped?: BTPShaped;
 }
 
 export interface VerifyEncryptedPayload<T = unknown | string> {

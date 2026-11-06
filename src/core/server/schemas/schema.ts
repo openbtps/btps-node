@@ -25,6 +25,8 @@ export const BtpCryptoOptionsSchema = z.object({
       mode: z.enum(['none', 'standardEncrypt', '2faEncrypt']),
     })
     .optional(),
+  // Since 1.2: send a trust request with permissions as a 1.1 receiver allows, or refuse.
+  versionFallback: z.boolean().optional(),
 });
 
 // Schema for validating individual parameters

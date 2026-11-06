@@ -155,6 +155,15 @@ versions follow [Semantic Versioning](https://semver.org/).
   `verificationFacts` reports `{ signatureValid, expired,
 verifierServesSender, verifierIsOperator }` and refuses nothing. Whose
   verifications to trust is each provider's to decide.
+- **A trust request composed for its receiver's version.** Before a trust
+  request with permissions is signed, the agent and `signEncrypt` ask the
+  receiver's server its version with one `PING`. To a 1.1 server it goes as
+  1.1 allows, without the permission fields and the values that stamp it
+  `1.2.0`, and the result says so in `shaped` (`{ sentAs, leftOut }`); with
+  `versionFallback: false` it is refused with the receiver's version. If the
+  server cannot be asked, nothing is sent. A request without permissions is
+  never asked about. `shapeTrustRequestFor11` and `composeTrustRequestFor`
+  are exported for platforms that build artifacts another way.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).
