@@ -2569,7 +2569,7 @@
           "data": {
             "values": {
               "signature.typed": "Jo Bloggs",
-              "signature.name": "Jo ‮Sggolb",
+              "signature.name": "Jo \u202eSggolb",
               "signature.title": "Director, 2nd floor",
               "signature.drawn": {
                 "strokes": [[0, 0, 500, 150, 1000, 300]]

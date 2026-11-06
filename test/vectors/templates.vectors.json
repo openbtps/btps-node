@@ -1454,7 +1454,7 @@
         ],
         "labels": {
           "title": "Tax invoice",
-          "to": "Bill​to",
+          "to": "Bill\u200bto",
           "amountDue": "Amount due"
         },
         "lines": {
@@ -1766,7 +1766,7 @@
         },
         "text": {
           "terms": "Payment within 14 days.\nThank you for your business.",
-          "footer": "Kauri ‮oiduts"
+          "footer": "Kauri \u202eoiduts"
         }
       },
       "expect": "refuse",

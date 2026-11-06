@@ -962,7 +962,7 @@ function signatureValueCases(template, v12) {
     ),
     refuseLetter(
       'letter-signature-name-reads-backwards',
-      { 'signature.name': 'Jo ‮Sggolb' },
+      { 'signature.name': 'Jo \u202eSggolb' },
       'no direction-changing character',
     ),
     refuse(
@@ -1856,7 +1856,11 @@ export function templates() {
         labels({ payment: 'Pay pay@x.example' }),
         'no email address',
       ),
-      refuse('a-label-with-a-hidden-character', labels({ to: 'Bill​to' }), 'no hidden character'),
+      refuse(
+        'a-label-with-a-hidden-character',
+        labels({ to: 'Bill\u200bto' }),
+        'no hidden character',
+      ),
       refuse(
         'terms-with-bank-details',
         text({ terms: 'Pay to BSB 062-000 account 1234 5678' }),
@@ -1880,7 +1884,7 @@ export function templates() {
       ),
       refuse(
         'a-footer-that-reads-backwards',
-        text({ footer: 'Kauri ‮oiduts' }),
+        text({ footer: 'Kauri \u202eoiduts' }),
         'no direction-changing character',
       ),
       refuse(

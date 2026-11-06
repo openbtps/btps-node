@@ -6,7 +6,7 @@
   "files": {
     "addresses.vectors.json": "cea6afc30d9a91aaa5d1310c3b5d0ec3981304cf66e3a2a3e53333ebecab6bab",
     "device-key-proof.vector.json": "ef08791a6eac8df8540b57c112634d9feda8b82461bcd0737175bf0e9cbf4805",
-    "documents-1.2.vectors.json": "021d2998dfce1b28c07657bb97697e64761b5917c0e29211ea566108c287c45e",
+    "documents-1.2.vectors.json": "5089e64b4a86d36adde5eed87a15a6b9ba3288e845abbcedea9ed9e875c42342",
     "documents.vectors.json": "722ae0a2abeae2999484a04834a0f8ca2b4f673dac71746c0e6ed4014c3e248f",
     "event-chain.vectors.json": "e82ac08db7d166e4d33b28396e8d72d093192d7061659f922861b0b874cede00",
     "jcs.vectors.json": "aac34bc0a6b879a317aca1804f71228f1e0e06a7df4ca138ab4750a4628461d6",
@@ -18,7 +18,7 @@
     "self-held-signature.vector.json": "ecf0b6725fb06f43176f3e803bdcac18142e3644c61bac53a5ea69e0142c045f",
     "signed-artifacts.vector.json": "5876fb3439adac0559110aaa8636cf983624728592587c41af161cfe65877ea7",
     "sync.vectors.json": "9824a6f90d052606ce97ba8b7d8e4cbc12c7df959acb5264dc71007779424dee",
-    "templates.vectors.json": "9b3f7c3bcf33a6d5b9ab8ff46a096418bf783c6abf6a94fb81cd553bae38d436",
+    "templates.vectors.json": "531b6cbf223c37b612d23a962f150301fa81794f3675635e48e20257b84b88eb",
     "time-window.vectors.json": "9135f8c26d7bdbb3bd35e349e01af599f127d950a030d58134d6591944d2ee57",
     "versions.vectors.json": "f66b6f235ed4db16c3b344d4bfd8878fed904c7671d836d0fb3175e322ad8710"
   }

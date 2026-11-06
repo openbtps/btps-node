@@ -177,7 +177,7 @@ A letter template places named **slots**, and the sender fills them. The slots a
 - **A typed signature** is drawn in Caveat, an open-licence script font (SIL Open Font License 1.1), which a receiver holds itself. It is for the typed signature only: a template cannot set it as its page font.
 - **A drawn signature is data, never SVG or any markup:** `{ "strokes": [[x, y, x, y, …], …] }`. Each stroke is integer points on a canvas 1,000 wide and 300 high, from `0, 0` at the top left. The receiving provider draws the lines itself. It holds at most 32 strokes, at most 512 points a stroke, and at most 2,048 points in all.
 
-**A signature here is decoration and proves nothing.** It is a styled signature block, like the one an e-signature service prints, and anyone can type a name or draw a line. It records no agreement and is not evidence that the signer agreed to anything. A letter's acceptance, signed with the user's device key, is what records agreement, and it comes in a later version of BTPS.
+**A signature here is decoration and proves nothing.** It is a styled signature block, like the one an e-signature service prints, and anyone can type a name or draw a line. It records no agreement and is not evidence that the signer agreed to anything. A letter's acceptance, signed with the user's device key, is what records agreement. It comes with letter agreements and their acceptance, planned for 1.2 once their design is approved.
 
 ### Its fingerprint
 
