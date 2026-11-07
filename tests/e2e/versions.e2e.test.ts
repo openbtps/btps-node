@@ -20,20 +20,33 @@ import { BtpsClient as BtpsClient11 } from 'btps-sdk-1-1-3/client';
 import { JsonTrustStore as JsonTrustStore11 } from 'btps-sdk-1-1-3/trust';
 import { JsonIdentityStore as JsonIdentityStore11 } from 'btps-sdk-1-1-3/storage';
 import { signEncrypt as signEncrypt11 } from 'btps-sdk-1-1-3/crypto';
+import { createHash, randomUUID } from 'crypto';
 import { BtpsClient } from '../../src/client/btpsClient.js';
 import { signEncrypt } from '../../src/core/crypto/index.js';
+import { canonicalizeValue } from '../../src/core/crypto/jcs.js';
 import { artifactVersion } from '../../src/core/server/constants/index.js';
+import { DETAIL_PERMISSIONS } from '../../src/core/server/constants/permissions.js';
+import { composeTrustRequestFor } from '../../src/core/trust/shaping.js';
 import { computeId, parseIdentity } from '../../src/core/utils/index.js';
-import { BTP_ERROR_VERSION_UNSUPPORTED } from '../../src/core/error/index.js';
+import {
+  BTPErrorException,
+  BTP_ERROR_RATE_LIMITER,
+  BTP_ERROR_VERSION_UNSUPPORTED,
+} from '../../src/core/error/index.js';
 import type { AbstractTrustStore } from '../../src/core/trust/storage/AbstractTrustStore.js';
 import type { BTPTrustRecord } from '../../src/core/trust/types.js';
-import type { BTPTransporterArtifact } from '../../src/core/server/types.js';
+import type { BTPArtifactType, BTPTransporterArtifact } from '../../src/core/server/types.js';
+import type { MiddlewareDefinition } from '../../src/server/types.js';
 import {
   addUser,
   freePort,
+  invoiceDocument,
+  letterDocument,
   newKeys,
+  payslipDocument,
   publishHost,
   publishKey,
+  receiptDocument,
   recordTrust,
   senderTls,
   serverTls,
@@ -284,6 +297,315 @@ describe('journey: a 1.2 provider and a 1.1 provider talk', () => {
       expect(version).toBe('1.2.0');
       expect(error).toBeUndefined();
       expect(response?.publicKey.trim()).toBe(erin.keys.publicKey.trim());
+    });
+  });
+});
+
+// Every document type, every permission and each 1.2 addition, across
+// versions. A 1.1 peer knows no permissions, so a trust with it is a 1.1
+// trust: every type 1.1 knows goes, and what only 1.2 says is refused with
+// the version the 1.1 server speaks, or shaped as 1.1 allows.
+describe('journey: every document type and permission between 1.1 and 1.2', () => {
+  let old: Awaited<ReturnType<typeof startProvider11>>;
+  let current: Provider;
+  let alice: Sender; // on the 1.2 provider
+  let bob: Sender; // on the 1.1 provider
+
+  const agreement = (
+    JSON.parse(
+      fs.readFileSync(
+        path.resolve(__dirname, '../../test/vectors/agreements.vectors.json'),
+        'utf8',
+      ),
+    ) as { documents: { name: string; expect: string; document: object }[] }
+  ).documents.find((c) => c.name === 'agreement' && c.expect === 'accept')!.document;
+
+  // What 1.1 knows, each as 1.1 can say it.
+  const KNOWN_TO_11: [string, object][] = [
+    ['invoice', invoiceDocument()],
+    ['receipt', receiptDocument()],
+    ['payslip', payslipDocument()],
+    ['letter', letterDocument()],
+  ];
+
+  /** What a 1.2 sender sends of any type: stamped by artifactVersion, encrypted to the receiver. */
+  const sentAny = async (
+    from: Sender,
+    to: string,
+    type: BTPArtifactType,
+    document: object,
+    extra: object = {},
+  ) => {
+    const { accountName, domainName } = parseIdentity(from.identity)!;
+    const unsigned = { type, from: from.identity, to, selector: from.selector, document, ...extra };
+    const { payload, error } = await signEncrypt(
+      to,
+      { accountName, domainName, pemFiles: from.keys },
+      { version: artifactVersion(unsigned), ...unsigned },
+      {
+        signature: { algorithmHash: 'sha256' },
+        encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+      },
+      { btpMtsOptions: senderTls },
+    );
+    if (error) throw error;
+    return payload as unknown as BTPTransporterArtifact;
+  };
+
+  /** What a 1.1 sender sends, with the published 1.1.3 SDK, end to end. */
+  const sent11 = async (from: Sender, to: string, type: string, document: object, extra = {}) => {
+    const { accountName, domainName } = parseIdentity(from.identity)!;
+    const { payload, error } = await signEncrypt11(
+      to,
+      { accountName, domainName, pemFiles: from.keys },
+      {
+        version: '1.1.0',
+        type,
+        from: from.identity,
+        to,
+        selector: from.selector,
+        document,
+        ...extra,
+      },
+      {
+        signature: { algorithmHash: 'sha256' },
+        encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+      },
+      { btpMtsOptions: senderTls },
+    );
+    if (error) throw error;
+    const client = new BtpsClient11({ to, btpMtsOptions: senderTls, maxRetries: 0 });
+    try {
+      return {
+        payload: payload as unknown as BTPTransporterArtifact,
+        ...(await client.send(payload as never)),
+      };
+    } finally {
+      client.destroy();
+    }
+  };
+
+  const sender = (identity: string): Sender => {
+    const keys = newKeys();
+    publishKey(identity, 'btps1', keys.publicKey);
+    return { identity, keys, selector: 'btps1' };
+  };
+
+  beforeAll(async () => {
+    old = await startProvider11('old11.test');
+    current = await startProvider('new12.test');
+    alice = await addUser(current, 'alice');
+    bob = sender('bob$old11.test');
+    // A trust with a 1.1 peer is a 1.1 trust: it names no permissions.
+    await recordTrust(old.trustStore, alice.identity, bob.identity, 'accepted');
+    await recordTrust(current.trustStore, bob.identity, alice.identity, 'accepted');
+  });
+
+  afterAll(() => {
+    old.stop();
+    current.stop();
+  });
+
+  describe('from a 1.2 sender to a 1.1 server', () => {
+    for (const [type, document] of KNOWN_TO_11) {
+      it(`delivers ${type === 'invoice' ? 'an' : 'a'} ${type}, stamped 1.1.0`, async () => {
+        const artifact = await sentAny(alice, bob.identity, 'BTPS_DOC', document);
+        const { response, error } = await deliver12(artifact);
+
+        expect(artifact.version).toBe('1.1.0');
+        expect(error).toBeUndefined();
+        expect(response?.status.ok).toBe(true);
+        expect(old.inbox).toContainEqual(expect.objectContaining({ id: artifact.id }));
+      });
+    }
+
+    const onlyIn12: [string, BTPArtifactType, object, object?][] = [
+      ['an agreement', 'BTPS_DOC', agreement],
+      [
+        'an invoice naming its documentType',
+        'BTPS_DOC',
+        invoiceDocument(),
+        { documentType: 'invoice' },
+      ],
+      ['an invoice with a discount', 'BTPS_DOC', invoiceDocument({ discount: { amount: 500 } })],
+      [
+        'an invoice whose note says its format',
+        'BTPS_DOC',
+        invoiceDocument({ description: { format: 'markdown', content: '**Thanks**' } }),
+      ],
+      ...DETAIL_PERMISSIONS.map((name): [string, BTPArtifactType, object, object] => [
+        `a request for ${name}`,
+        'DETAILS_REQ',
+        {},
+        { details: [name] },
+      ]),
+    ];
+    for (const [label, type, document, extra] of onlyIn12) {
+      it(`is refused ${label}, stamped 1.2.0, and told the 1.1 server's version`, async () => {
+        const artifact = await sentAny(alice, bob.identity, type, document, extra);
+        const { error, response } = await deliver12(artifact);
+
+        expect(artifact.version).toBe('1.2.0');
+        if (type === 'DETAILS_REQ') {
+          // 1.1 has no details refresh: its server refuses the artifact type itself, before its version.
+          expect(response?.status).toMatchObject({
+            ok: false,
+            code: 400,
+            error: 'BTP_ERROR_VALIDATION',
+          });
+        } else {
+          expect(error?.code).toBe(BTP_ERROR_VERSION_UNSUPPORTED.code);
+          expect(error?.meta).toMatchObject({ receiverVersion: '1.1.0' });
+        }
+        expect(old.inbox).not.toContainEqual(expect.objectContaining({ id: artifact.id }));
+      });
+    }
+
+    it('shapes a trust request with permissions as 1.1 allows, and the 1.1 server takes it', async () => {
+      const carol = sender('carol$old11.test');
+      const unsigned = {
+        version: '1.2.0',
+        type: 'TRUST_REQ' as const,
+        from: alice.identity,
+        to: carol.identity,
+        selector: alice.selector,
+        permissions: [
+          { name: 'send:invoice', required: true },
+          { name: 'detail:email', required: false },
+        ],
+        entityType: 'person',
+        given: ['detail:email'],
+        document: {
+          id: 'req-shaped',
+          name: 'Alice',
+          email: 'alice@new12.test',
+          reason: 'Invoices',
+          phone: '+61 400 000 002',
+        },
+      };
+      const composed = await composeTrustRequestFor(carol.identity, unsigned, {
+        btpMtsOptions: senderTls,
+      });
+      if (composed.error) throw composed.error;
+      const { accountName, domainName } = parseIdentity(alice.identity)!;
+      const { payload, error: signError } = await signEncrypt(
+        carol.identity,
+        { accountName, domainName, pemFiles: alice.keys },
+        composed.payload,
+        {
+          signature: { algorithmHash: 'sha256' },
+          encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+        },
+        { btpMtsOptions: senderTls },
+      );
+      const { response } = await deliver12(payload as unknown as BTPTransporterArtifact);
+
+      expect(signError).toBeUndefined();
+      expect(composed.shaped).toEqual({
+        sentAs: '1.1.0',
+        leftOut: ['permissions', 'given', 'entityType'],
+      });
+      expect(response?.status.ok).toBe(true);
+      expect(old.inbox).toContainEqual(
+        expect.objectContaining({ type: 'TRUST_REQ', from: alice.identity, version: '1.1.0' }),
+      );
+    });
+  });
+
+  describe('from a 1.1 sender to a 1.2 server', () => {
+    for (const [type, document] of KNOWN_TO_11) {
+      it(`takes ${type === 'invoice' ? 'an' : 'a'} ${type} sent with the published 1.1.3 SDK`, async () => {
+        const { payload, response, error } = await sent11(
+          bob,
+          alice.identity,
+          'BTPS_DOC',
+          document,
+        );
+
+        expect(error).toBeUndefined();
+        expect(response?.status.ok).toBe(true);
+        expect(current.inbox).toContainEqual(expect.objectContaining({ id: payload.id }));
+      });
+    }
+
+    it('takes a 1.1 event about an invoice the two exchanged', async () => {
+      const invoice = await sentAny(alice, bob.identity, 'BTPS_DOC', invoiceDocument());
+      expect((await deliver12(invoice)).response?.status.ok).toBe(true);
+      // The 1.2 platform records what it sent, as it records what arrives.
+      current.trustStore.remember(invoice);
+      const paidId = randomUUID();
+      const { response, error } = await sent11(
+        bob,
+        alice.identity,
+        'BTPS_EVENT',
+        {
+          type: 'lifecycle_event',
+          id: paidId,
+          occurredAt: new Date().toISOString(),
+          document: {
+            from: alice.identity,
+            id: invoice.id,
+            sha256: createHash('sha256').update(canonicalizeValue(invoice)).digest('hex'),
+          },
+          eventType: 'paid',
+        },
+        { id: paidId, relatesTo: invoice.id },
+      );
+
+      expect(error).toBeUndefined();
+      expect(response?.status.ok).toBe(true);
+      expect(current.inbox).toContainEqual(expect.objectContaining({ id: paidId }));
+    });
+
+    it('takes a 1.1 trust request from a sender it has no trust with', async () => {
+      const dan = sender('dan$old11.test');
+      const { payload, response, error } = await sent11(dan, alice.identity, 'TRUST_REQ', {
+        id: 'req-11',
+        name: 'Dan',
+        email: 'dan@old11.test',
+        reason: 'Invoices',
+        phone: '+61 400 000 003',
+      });
+
+      expect(error).toBeUndefined();
+      expect(response?.status.ok).toBe(true);
+      expect(current.inbox).toContainEqual(expect.objectContaining({ id: payload.id }));
+    });
+
+    it('hands a 1.1 client a 429 with retryAfter it can read', async () => {
+      const eve = sender('eve$old11.test');
+      await recordTrust(current.trustStore, eve.identity, alice.identity, 'accepted');
+      const limitEve: MiddlewareDefinition<'after', 'trustVerification'> = {
+        phase: 'after',
+        step: 'trustVerification',
+        handler: async (req, res, next) => {
+          const { data } = req;
+          if (data.type === 'transporter' && data.artifact.from === eve.identity) {
+            return res.sendError(
+              new BTPErrorException(BTP_ERROR_RATE_LIMITER, { meta: { retryAfter: 30 } }),
+            );
+          }
+          return next();
+        },
+      };
+      current.use([limitEve as MiddlewareDefinition]);
+      try {
+        const { response, error } = await sent11(
+          eve,
+          alice.identity,
+          'BTPS_DOC',
+          invoiceDocument(),
+        );
+
+        expect(response?.status).toMatchObject({
+          ok: false,
+          code: 429,
+          error: BTP_ERROR_RATE_LIMITER.code,
+        });
+        expect(error?.message ?? '').not.toMatch(/validation|parse|invalid/i);
+      } finally {
+        current.use([]);
+      }
     });
   });
 });
