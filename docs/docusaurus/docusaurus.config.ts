@@ -103,8 +103,10 @@ const config: Config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl: 'https://github.com/btps/btps-docs/tree/main/',
-          // Versioning configuration
-          // includeCurrentVersion: false,
+          // The released docs, at /docs. The working copy in docs/ is not published
+          // until a release candidate shows it as the next version.
+          lastVersion: '1.1.3',
+          includeCurrentVersion: false,
         },
         blog: false,
         theme: {
@@ -132,11 +134,11 @@ const config: Config = {
           srcDark: 'img/btps-white.svg',
         },
         items: [
-          // {
-          //   type: 'docsVersionDropdown',
-          //   position: 'right',
-          //   dropdownActiveClassDisabled: true,
-          // },
+          {
+            type: 'docsVersionDropdown',
+            position: 'right',
+            dropdownActiveClassDisabled: true,
+          },
           {
             type: 'docSidebar',
             sidebarId: 'docs',
