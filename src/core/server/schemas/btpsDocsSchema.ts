@@ -276,15 +276,11 @@ const signatureText = z
  */
 const drawnSignature = z
   .object({
-    strokes: z
-      .array(
-        z
-          .array(z.number().int().min(0))
-          .min(2)
-          .max(signature.strokePoints * 2),
-      )
-      .min(1)
-      .max(signature.strokes),
+    strokes: boundedArray(
+      boundedArray(z.number().int().min(0), signature.strokePoints * 2, 2),
+      signature.strokes,
+      1,
+    ),
   })
   .strict()
   .superRefine(({ strokes }, ctx) => {

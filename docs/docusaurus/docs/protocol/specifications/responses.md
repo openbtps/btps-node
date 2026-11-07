@@ -87,7 +87,7 @@ The status field provides information about the response:
 - **message**: Human-readable status message
 - **error**: On an error, its BTPS code, for example `BTP_ERROR_TRUST_EXPIRED`. Branch on this, not on `message`. A 1.0 server does not send it.
 - **retryAfter**: Since 1.2, on a `429` only, in a `1.2.0` response only: the whole seconds, zero or more, to wait before sending again. Without it, a 429 says nothing about when.
-- **closing**: Since 1.2, `true` only, in a `1.2.0` response only, on any answer: the server ends the connection after this answer and reads nothing more on it. A sender that reads it writes nothing more to that connection and sends its next artifact on a new one. The connection's end can reach the sender after the answer does, so without `closing`, as from a 1.1 server, a sender cannot tell that an answer was the connection's last.
+- **closing**: Since 1.2, `true` only, in a `1.2.0` response only, on any answer: the server ends the connection after this answer and reads nothing more on it. A sender that takes the answer writes nothing more to that connection and sends its next artifact on a new one; one that requires its server's signature (`requireSignedBy`) acts on `closing` only in an answer signed as it requires. The connection's end can reach the sender after the answer does, so without `closing`, as from a 1.1 server, a sender cannot tell that an answer was the connection's last.
 
 ### Status Codes
 

@@ -1065,6 +1065,7 @@ interface BTPsTokenDocument {
   decryptBy: string; // Identity to decrypt by when decrypting the document
   metadata?: Record<string, unknown>;
   successor?: BTPSealedSuccessor; // since 1.2, a consumed refresh token only: its sealed answer
+  consumedAt?: string; // since 1.2, a consumed refresh token only: when consume took it
 }
 
 // Since 1.2: a refresh's answer, sealed under the old token (AES-256-GCM, key by HKDF-SHA256)
@@ -1110,7 +1111,7 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
 }
 ```
 
-`isConsumed` (since 1.2) returns a token `consume` took, as it was, until it would have expired; storing the token again clears it. With it, a refresh token used a second time revokes the device and fires `refreshTokenReused`. Without it, a second use is refused as in 1.1.
+`isConsumed` (since 1.2) returns a token `consume` took, as it was, with `consumedAt`, when it was taken, until it would have expired; storing the token again clears it. A second use before the first refresh has an answer, inside `refreshGraceMs`, is told to try again, not taken for theft. With it, a refresh token used a second time revokes the device and fires `refreshTokenReused`. Without it, a second use is refused as in 1.1.
 
 `markSuccessor` (since 1.2) keeps a consumed token's sealed answer on its mark, so `isConsumed` returns it as `successor`. With it, a refresh retried inside `refreshGraceMs` gets the same answer; without it, the window is off. A persistent store should keep only a hash of each token, never its value.
 
@@ -1528,18 +1529,25 @@ type BTPEvidenceBundle = {
 type BTPEvidenceFacts = {
   contentSha256: string;
   originatorSignatureValid: boolean;
+  originatorKey: BTPEvidenceKey; // the key it was checked with, from the bundle
+  keysConfirmedOnline: false; // every key is the bundle's own, never looked up online
   termsAttached: boolean;
   statements: (BTPStatementSignatureFacts & {
     signer: string;
     decision: 'accepted' | 'declined';
+    key: BTPEvidenceKey; // the signer's identity key, or its device's key
+    delegationKey?: BTPEvidenceKey; // for a device: the key its delegation was checked with
     agreementMatches: boolean;
     termsMatch: boolean;
     withinDeadline: boolean;
     inOrder: boolean;
     timestamp?: BTPTimestampFacts; // when the bundle has a token for it
   })[];
-  complete: boolean; // every fact holds, and every signer accepted, once; never a timestamp
+  complete: boolean; // every fact holds against the bundle's own keys, and every signer accepted, once; never a timestamp
 };
+
+// A key a signature was checked with, as the bundle holds it; no fingerprint when it has no usable key
+type BTPEvidenceKey = { identity: string; selector?: string; fingerprint?: string };
 
 // What an RFC 3161 token shows about its statement
 type BTPTimestampFacts = {

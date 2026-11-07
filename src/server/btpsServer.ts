@@ -109,13 +109,30 @@ import {
   resolveMaxArtifactAgeSeconds,
 } from './libs/artifactTimeWindow.js';
 import { resolveConnectionTimeoutMs } from './libs/connectionTimeout.js';
-import { resolveMaxInFlightPerConnection } from './libs/inFlightLimit.js';
-import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
+import {
+  resolveMaxConsecutiveInvalidLines,
+  resolveMaxInFlightPerConnection,
+} from './libs/inFlightLimit.js';
+import { BtpArtifactSchemaByType } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
 import { BtpAuthReqDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import { keyProofPayload } from '@core/authentication/keyProof.js';
 import type { BTPIdentityRecord } from '@core/storage/types.js';
 import type { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
+import * as BTPS_ERROR_CONSTANTS from '@core/error/constant.js';
+
+/** Every BTPS error constant, by its code: the only errors a sender is told by name. */
+const BTPS_ERRORS_BY_CODE = new Map<string, BTPError>(
+  Object.values(BTPS_ERROR_CONSTANTS)
+    .filter(
+      (value): value is BTPError =>
+        typeof value === 'object' &&
+        value !== null &&
+        typeof (value as BTPError).code === 'string' &&
+        typeof (value as BTPError).status === 'number',
+    )
+    .map((constant) => [String(constant.code), constant]),
+);
 
 /**
  * BTPS Secure Server over TLS (btps://)
@@ -131,6 +148,7 @@ export class BtpsServer {
   private readonly connectionTimeoutMs: number;
   private readonly maxArtifactSizeKb: number;
   private readonly maxInFlightPerConnection: number;
+  private readonly maxConsecutiveInvalidLines: number;
   private readonly maxArtifactAgeSeconds: number;
   private readonly signAnswers: boolean;
   private readonly keyResolver?: BtpsKeyResolver;
@@ -163,6 +181,9 @@ export class BtpsServer {
     this.maxArtifactSizeKb = resolveMaxArtifactSizeKb(options.maxArtifactSizeKb);
     this.maxInFlightPerConnection = resolveMaxInFlightPerConnection(
       options.maxInFlightPerConnection,
+    );
+    this.maxConsecutiveInvalidLines = resolveMaxConsecutiveInvalidLines(
+      options.maxConsecutiveInvalidLines,
     );
     this.maxArtifactAgeSeconds = resolveMaxArtifactAgeSeconds(options.maxArtifactAgeSeconds);
     this.signAnswers = options.signAnswers === true;
@@ -339,7 +360,7 @@ export class BtpsServer {
           }
           /* always try to send the error with the reqId */
           const reqId = resCtx?.reqId as string | undefined;
-          this.sendBtpsError(socket, error, reqId, action);
+          this.sendBtpsError(socket, error, reqId, action, true);
         },
         get responseSent() {
           return responseSent;
@@ -352,6 +373,8 @@ export class BtpsServer {
     // Requests on this connection still being handled: while there are any,
     // the idle timeout does not close it.
     let inFlight = 0;
+    // Lines in a row this server could not read: at the limit, the last is answered and the connection ends.
+    let invalidInARow = 0;
 
     stream.on('data', async (line: string) => {
       if (!line.trim()) return;
@@ -414,8 +437,17 @@ export class BtpsServer {
 
         if (parseError || !data) {
           const errorToSend = parseError ?? BTP_ERROR_INVALID_JSON;
+          invalidInARow++;
+          if (invalidInARow >= this.maxConsecutiveInvalidLines) {
+            return this.handleOnSocketError(
+              new BTPErrorException(errorToSend),
+              { req: parseReq as BTPRequestCtx<'before', 'onError'>, res: parseRes },
+              'end',
+            );
+          }
           return this.sendBtpsError(socket, errorToSend);
         }
+        invalidInARow = 0;
 
         // Before any signature work: an artifact of another protocol version is refused.
         if (!isSupportedVersion(data.artifact.version)) {
@@ -472,6 +504,9 @@ export class BtpsServer {
           'answer',
         );
       } finally {
+        // A line is in flight until its answer is written, signed or not, so the
+        // in-flight limit also bounds answers still waiting to be signed.
+        await this.answersOnSocket.get(socket);
         inFlight--;
         if (stream.isPaused() && !stream.destroyed) stream.resume();
       }
@@ -1487,7 +1522,7 @@ export class BtpsServer {
         return { error: 'VALIDATION', data };
       }
 
-      const validationResult = validate(BtpArtifactServerSchema, data);
+      const validationResult = validate<unknown>(BtpArtifactSchemaByType[type], data);
 
       if (!validationResult.success) {
         return {
@@ -1591,15 +1626,16 @@ export class BtpsServer {
    * Sends a BTPS error response to the client
    */
   /**
-   * What a sender is told about an error. A BTPS error carries its status and
-   * its code; a numeric code set by middleware is sent as given. Anything else
-   * is internal: a generic 500, so no internal detail ever reaches the wire.
-   * The full error stays with the server, keyed by the response id.
-   * Since 1.2, a 429 also carries its meta.retryAfter, in whole seconds;
-   * nothing else from meta, and never cause.
+   * What a sender is told about an error. A BTPS error, from its constant,
+   * carries its status and its code; a numeric code middleware sends with
+   * `res.sendError` goes as given. Anything else, a thrown error with a code
+   * of its own included, is internal: a generic 500, so no internal detail
+   * ever reaches the wire. The full error stays with the server, keyed by the
+   * response id. Since 1.2, a 429 also carries its meta.retryAfter, in whole
+   * seconds; nothing else from meta, and never cause.
    */
-  private wireStatus(error: BTPError): BTPStatus {
-    const status = this.errorStatus(error);
+  private wireStatus(error: BTPError, fromMiddleware = false): BTPStatus {
+    const status = this.errorStatus(error, fromMiddleware);
     const retryAfter = error instanceof BTPErrorException ? error.meta?.retryAfter : undefined;
     if (
       status.code === 429 &&
@@ -1612,12 +1648,30 @@ export class BtpsServer {
     return status;
   }
 
-  private errorStatus(error: BTPError): BTPStatus {
-    if (typeof error.code === 'number') {
-      return { ok: false, code: error.code, message: error.message };
+  private errorStatus(error: BTPError, fromMiddleware: boolean): BTPStatus {
+    // A platform's own answer: a plain object its middleware sends with res.sendError, as given.
+    if (fromMiddleware && !(error instanceof Error)) {
+      if (error.status && typeof error.code === 'string') {
+        return { ok: false, code: error.status, message: error.message, error: error.code };
+      }
+      if (typeof error.code === 'number') {
+        return { ok: false, code: error.code, message: error.message };
+      }
     }
-    if (error.status && error.code) {
-      return { ok: false, code: error.status, message: error.message, error: error.code };
+    // Anything thrown, or an error passed on as caught: told only as a BTPS error, by its
+    // code, with its constant's status, and its constant's message or that message with
+    // the detail the server adds (`<message>: <detail>`).
+    const constant =
+      typeof error.code === 'string' ? BTPS_ERRORS_BY_CODE.get(error.code) : undefined;
+    if (constant?.status !== undefined) {
+      const ownMessage =
+        error.message === constant.message || error.message.startsWith(`${constant.message}: `);
+      return {
+        ok: false,
+        code: constant.status,
+        message: ownMessage ? error.message : constant.message,
+        error: String(constant.code),
+      };
     }
     return {
       ok: false,
@@ -1632,8 +1686,9 @@ export class BtpsServer {
     error: BTPError,
     reqId?: string,
     action?: BtpsErrorAction,
+    fromMiddleware = false,
   ) {
-    const response = this.prepareBtpsResponse(this.wireStatus(error), reqId);
+    const response = this.prepareBtpsResponse(this.wireStatus(error, fromMiddleware), reqId);
 
     this.sendBtpsResponse(
       socket,
@@ -1696,6 +1751,8 @@ export class BtpsServer {
     const earlier = this.answersOnSocket.get(socket) ?? Promise.resolve();
     const answer = earlier
       .then(async () => {
+        // A connection that has gone, or that an earlier answer ended, is sent nothing: nothing is signed for it.
+        if (socket.destroyed || socket.writableEnded) return;
         const signed = artifact.signature ? artifact : await this.signAnswer(artifact);
         this.writeAnswer(socket, signed, action);
       })

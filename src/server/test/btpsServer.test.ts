@@ -43,6 +43,7 @@ import {
 } from '../../core/server/types.js';
 import {
   BTPErrorException,
+  transformToBTPErrorException,
   BTP_ERROR_TRUST_NOT_ALLOWED,
   BTP_ERROR_TRUST_NON_EXISTENT,
   BTP_ERROR_TRUST_EXPIRED,
@@ -2137,10 +2138,13 @@ export default function () {
       });
 
       it('sends retryAfter only on a 429, and only as whole seconds', () => {
+        // As middleware sends them with res.sendError.
         const wait = (error: BTPError, retryAfter: unknown) =>
-          server['wireStatus'](new BTPErrorException(error, { meta: { retryAfter } })).retryAfter;
+          server['wireStatus'](new BTPErrorException(error, { meta: { retryAfter } }), true)
+            .retryAfter;
         expect(wait(BTP_ERROR_PRIVACY_TYPE, 30)).toBeUndefined();
-        expect(wait({ code: 429, message: 'Slow down' }, 30)).toBe(30);
+        // An exception with a code of its own is no BTPS error: it goes as a 500, with no wait.
+        expect(wait({ code: 429, message: 'Slow down' }, 30)).toBeUndefined();
         expect(wait(BTP_ERROR_RATE_LIMITER, '2026-12-01T00:00:00.000Z')).toBeUndefined();
         expect(wait(BTP_ERROR_RATE_LIMITER, 1.5)).toBeUndefined();
         expect(wait(BTP_ERROR_RATE_LIMITER, -1)).toBeUndefined();
@@ -2148,7 +2152,7 @@ export default function () {
       });
 
       it('sends a numeric code set by middleware as given', () => {
-        expect(server['wireStatus']({ code: 402, message: 'Payment required' })).toEqual({
+        expect(server['wireStatus']({ code: 402, message: 'Payment required' }, true)).toEqual({
           ok: false,
           code: 402,
           message: 'Payment required',
@@ -2164,6 +2168,119 @@ export default function () {
           code: 500,
           message: BTP_ERROR_UNKNOWN.message,
           error: BTP_ERROR_UNKNOWN.code,
+        });
+      });
+
+      it("never sends a thrown error's own numeric code or message, as from a store", async () => {
+        const fromStore = Object.assign(
+          new Error('E11000 duplicate key error collection: btps.trust index: id_1'),
+          { code: 11000 },
+        );
+        const generic = {
+          ok: false,
+          code: 500,
+          message: BTP_ERROR_UNKNOWN.message,
+          error: BTP_ERROR_UNKNOWN.code,
+        };
+        expect(server['wireStatus'](transformToBTPErrorException(fromStore))).toEqual(generic);
+        expect(
+          server['wireStatus'](new BTPErrorException({ code: 402, message: 'Payment required' })),
+        ).toEqual(generic);
+
+        // As it goes out on the wire, from a failure while an artifact was handled.
+        const written: string[] = [];
+        const socket = {
+          destroyed: false,
+          writableEnded: false,
+          writable: true,
+          write: (line: string) => written.push(line) > 0,
+          end: vi.fn(),
+          destroy: vi.fn(),
+        } as unknown as TLSSocket;
+        await server['handleOnSocketError'](
+          transformToBTPErrorException(fromStore),
+          {
+            req: { socket } as unknown as BTPRequestCtx<'before', 'onError'>,
+            res: { socket, reqId: 'req-1' } as unknown as BTPResponseCtx,
+          },
+          'answer',
+        );
+        expect(JSON.parse(written[0] ?? 'null').status).toEqual(generic);
+        expect(written.join('')).not.toContain('E11000');
+      });
+
+      describe('by where it comes from, not how it looks', () => {
+        const generic = {
+          ok: false,
+          code: 500,
+          message: BTP_ERROR_UNKNOWN.message,
+          error: BTP_ERROR_UNKNOWN.code,
+        };
+        const fromSdk = { status: 403, code: 'AccessDenied', message: 'internal bucket acme-keys' };
+        const sdkError = () => Object.assign(new Error(fromSdk.message), fromSdk);
+        const onTheWire = async (error: BTPError) => {
+          const written: string[] = [];
+          const socket = {
+            destroyed: false,
+            writableEnded: false,
+            writable: true,
+            write: (line: string) => written.push(line) > 0,
+            end: vi.fn(),
+            destroy: vi.fn(),
+          } as unknown as TLSSocket;
+          await server['sendBtpsError'](socket, error, 'req-1', undefined, true);
+          return { status: JSON.parse(written[0] ?? 'null').status, text: written.join('') };
+        };
+
+        it('tells a caught error middleware passes on only by a BTPS code: another library’s goes as a 500', async () => {
+          const caught = await onTheWire(sdkError() as unknown as BTPError);
+          expect(caught.status).toEqual(generic);
+          expect(caught.text).not.toContain('acme-keys');
+          expect(server['wireStatus'](new BTPErrorException(fromSdk), true)).toEqual(generic);
+          // Thrown, it is turned into an exception and answered the same way.
+          expect(server['wireStatus'](transformToBTPErrorException(sdkError()))).toEqual(generic);
+        });
+
+        it("sends a platform's own answer, a plain object, as given: its own code, or a BTPS code with its reference", async () => {
+          const alreadyReceived = {
+            code: 'PROVIDER_ALREADY_RECEIVED',
+            message: 'This artifact was already received',
+            status: 409,
+          };
+          expect((await onTheWire(alreadyReceived)).status).toEqual({
+            ok: false,
+            code: 409,
+            message: alreadyReceived.message,
+            error: 'PROVIDER_ALREADY_RECEIVED',
+          });
+          const referenced = {
+            ...BTP_ERROR_RATE_LIMITER,
+            message: `${BTP_ERROR_RATE_LIMITER.message} Reference: AB12-CD34.`,
+          };
+          expect((await onTheWire(referenced)).status).toEqual({
+            ok: false,
+            code: 429,
+            message: referenced.message,
+            error: BTP_ERROR_RATE_LIMITER.code,
+          });
+        });
+
+        it("tells a thrown BTPS error with its detail, and any other message as the constant's own", () => {
+          const withDetail = new BTPErrorException({
+            ...BTP_ERROR_ARTIFACT_TOO_LARGE,
+            message: `${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 1024 KB`,
+          });
+          expect(server['wireStatus'](withDetail).message).toBe(withDetail.message);
+          const otherwise = new BTPErrorException({
+            ...BTP_ERROR_RATE_LIMITER,
+            message: 'internal queue q-7 is full',
+          });
+          expect(server['wireStatus'](otherwise)).toEqual({
+            ok: false,
+            code: 429,
+            message: BTP_ERROR_RATE_LIMITER.message,
+            error: BTP_ERROR_RATE_LIMITER.code,
+          });
         });
       });
     });

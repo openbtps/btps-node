@@ -231,12 +231,13 @@ BTPS_FIELD_LIMITS.lineItems.rows; // 10000
 Each server sets these for what it receives. A value below the minimum is
 raised to the minimum, with a warning; the server still starts.
 
-| Setting                    | Default         | Minimum  | What it bounds                                                                                   |
-| -------------------------- | --------------- | -------- | ------------------------------------------------------------------------------------------------ |
-| `maxArtifactSizeKb`        | 5,120 KB (5 MB) | 1,024 KB | the size of one artifact, attachments included (`BTP_ERROR_ARTIFACT_TOO_LARGE`)                  |
-| `maxArtifactAgeSeconds`    | 300 (5 minutes) | 60       | how far `issuedAt` may be from the server's clock, either way (`BTP_ERROR_ARTIFACT_TIME_WINDOW`) |
-| `connectionTimeoutMs`      | 30,000 (30 s)   | none     | how long a connection with nothing in flight stays open                                          |
-| `maxInFlightPerConnection` | 32              | 1        | how many requests one connection may have handled at once                                        |
+| Setting                      | Default         | Minimum  | What it bounds                                                                                   |
+| ---------------------------- | --------------- | -------- | ------------------------------------------------------------------------------------------------ |
+| `maxArtifactSizeKb`          | 5,120 KB (5 MB) | 1,024 KB | the size of one artifact, attachments included (`BTP_ERROR_ARTIFACT_TOO_LARGE`)                  |
+| `maxArtifactAgeSeconds`      | 300 (5 minutes) | 60       | how far `issuedAt` may be from the server's clock, either way (`BTP_ERROR_ARTIFACT_TIME_WINDOW`) |
+| `connectionTimeoutMs`        | 30,000 (30 s)   | none     | how long a connection with nothing in flight stays open                                          |
+| `maxInFlightPerConnection`   | 32              | 1        | how many requests one connection may have handled at once                                        |
+| `maxConsecutiveInvalidLines` | 10              | 1        | since 1.2: how many lines in a row one connection may send that the server cannot read           |
 
 ### Requests in flight
 
@@ -246,6 +247,14 @@ handled, the server reads nothing more from it until one finishes. The
 sender is then slowed by TCP; nothing is refused, and every artifact is
 answered in turn. Without this, a sender that never waits could make the
 server hold any number of artifacts in memory at once.
+
+A request is handled until its answer is written, a signed answer included,
+so a server that signs its answers (`signAnswers`) signs no more at once than
+the limit. Since 1.2, a connection that sends `maxConsecutiveInvalidLines`
+lines in a row the server cannot read (not JSON, or not a valid artifact) has
+the last one answered and is ended, with `status.closing`; a line it can read
+starts the count again. A connection that has gone is sent nothing, and no
+answer is signed for it.
 
 ### Artifact size
 

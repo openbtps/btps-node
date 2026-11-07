@@ -10,7 +10,7 @@ import { BtpsAuthentication } from './BtpsAuthentication.js';
 import { InMemoryTokenStore } from './storage/InMemoryTokenStore.js';
 import { AbstractTrustStore } from '../trust/storage/AbstractTrustStore.js';
 import { BTPTrustRecord } from '../trust/types.js';
-import { BTPErrorException } from '../error/index.js';
+import { BTPErrorException, BTP_ERROR_TEMPORARILY_UNAVAILABLE } from '../error/index.js';
 import { getBTPKeyPair } from '../crypto/keygen.js';
 import { PemSigner } from '../crypto/pem-signer.js';
 import { BtpsAgent } from '../../client/btpsAgent.js';
@@ -523,6 +523,45 @@ describe('BtpsAuthentication', () => {
       expect(results.filter((r) => r.data)).toHaveLength(1);
     });
 
+    it('tells the other of two racing refreshes to try again, and revokes nothing', async () => {
+      const { agentId, decryptBy } = await registeredAgent();
+      const options = { publicKey: mockKeyPair.publicKey, decryptBy, decidedBy: 'admin' };
+      const reused = vi.fn();
+      auth.on('refreshTokenReused', reused);
+
+      const [first, second] = await Promise.all([
+        auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', options),
+        auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', options),
+      ]);
+      const record = (await trustStore.getAll()).find((r) => r.senderId === agentId);
+
+      expect(first.data).toBeDefined();
+      expect(second.error?.code).toBe(BTP_ERROR_TEMPORARILY_UNAVAILABLE.code);
+      expect(reused).not.toHaveBeenCalled();
+      expect(record?.status).toBe('accepted');
+
+      const again = await auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', options);
+      expect(again.data?.refreshToken).toBe(first.data?.refreshToken);
+    });
+
+    it('takes a token used again past the window, with no refresh answered for it, as theft', async () => {
+      const auth = new BtpsAuthentication({ trustStore, tokenStore, refreshGraceMs: 20 });
+      const { agentId, decryptBy } = await registeredAgent();
+      const reused = vi.fn();
+      auth.on('refreshTokenReused', reused);
+      // A refresh that took the token and never answered.
+      await tokenStore.consume(agentId, 'ONE_REFRESH');
+      await new Promise((resolve) => setTimeout(resolve, 40));
+
+      const late = await auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', {
+        decryptBy,
+        decidedBy: 'admin',
+      });
+
+      expect(late.error?.code).not.toBe(BTP_ERROR_TEMPORARILY_UNAVAILABLE.code);
+      expect(reused).toHaveBeenCalledOnce();
+    });
+
     it('puts the token back when the trust update fails, so the device can try again', async () => {
       const { agentId, decryptBy } = await registeredAgent();
       const update = vi.spyOn(trustStore, 'update').mockRejectedValueOnce(new Error('store down'));
@@ -863,5 +902,59 @@ describe('BtpsAuthentication', () => {
         vi.restoreAllMocks();
       },
     );
+  });
+
+  describe('an error, wherever it is logged', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    const carries = (error: Error | undefined, secret: string) => {
+      expect(error).toBeInstanceOf(BTPErrorException);
+      return JSON.stringify((error as BTPErrorException).toJSON()).includes(secret);
+    };
+    const refresh = (a: BtpsAuthentication, agentId: string, token: string) =>
+      a.validateAndReissueRefreshToken(agentId, token, {
+        decryptBy: 'admin$saas.com',
+        decidedBy: 'admin',
+      });
+
+    it('never carries a refresh token, used again, unknown, or of an unknown device', async () => {
+      const strict = new BtpsAuthentication({ trustStore, tokenStore, refreshGraceMs: 0 });
+      const { agentId } = await strict.createAgent(
+        { userIdentity: 'alice$saas.com', publicKey: mockKeyPair.publicKey, decidedBy: 'admin' },
+        'admin$saas.com',
+      );
+      await tokenStore.store('SECRET_USED', agentId, 'alice$saas.com', 3600000, 'admin$saas.com');
+      await tokenStore.consume(agentId, 'SECRET_USED');
+      const used = await refresh(strict, agentId, 'SECRET_USED');
+      const unknown = await refresh(strict, agentId, 'SECRET_UNKNOWN');
+      await tokenStore.store('SECRET_ORPHAN', 'btps_ag_gone', 'alice$saas.com', 3600000, 'x');
+      const orphan = await refresh(strict, 'btps_ag_gone', 'SECRET_ORPHAN');
+
+      expect(used.error).toBeDefined();
+      expect(carries(used.error, 'SECRET_USED')).toBe(false);
+      expect(unknown.error).toBeDefined();
+      expect(carries(unknown.error, 'SECRET_UNKNOWN')).toBe(false);
+      expect(orphan.error).toBeDefined();
+      expect(carries(orphan.error, 'SECRET_ORPHAN')).toBe(false);
+    });
+
+    it("never carries a device's registration code, or a refresh token its provider sent", async () => {
+      const answered = (response: unknown) => {
+        vi.spyOn(BtpsAgent.prototype, 'command').mockResolvedValue({ response } as never);
+        return BtpsAuthentication.authenticate('alice$example.com', 'SECRET_CODE', mockKeyPair);
+      };
+      const ok = { ok: true, code: 200, message: 'success' };
+
+      const refused = await answered({ type: 'btps_error', status: { ok: false, code: 401 } });
+      const partial = await answered({
+        type: 'btps_response',
+        status: ok,
+        document: { refreshToken: 'SECRET_SENT' },
+      });
+
+      expect(carries(refused.error, 'SECRET_CODE')).toBe(false);
+      expect(carries(partial.error, 'SECRET_CODE')).toBe(false);
+      expect(carries(partial.error, 'SECRET_SENT')).toBe(false);
+    });
   });
 });

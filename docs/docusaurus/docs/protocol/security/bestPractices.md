@@ -71,6 +71,8 @@ Some defences depend on what your platform stores, so BTPS leaves them to you. A
 
 Telling the sender it was already received is safe: it is the sender's own artifact, and a sender resending after a timeout learns its first send arrived. Check after `signatureVerification`, so only the real sender's artifacts are looked up. With several server instances, answer `isKnownArtifact` from shared storage, never from one instance's memory.
 
+**What a sender is told of an error.** Your own answers go as plain objects through `res.sendError`, as above: a `{ code, message, status }` of your own, or a BTPS constant with something added to its message, goes out as you wrote it. Anything thrown, or an error you caught and pass on, is told only as a BTPS constant (its status, and its message or that message followed by `: ` and a detail); any other error, a database's or an SDK's with a code and status of its own, goes out as a generic `500`, and its detail stays with your server. So never pass a caught error to `res.sendError` to explain a refusal: send your own answer.
+
 **Repeated trust requests.** A sender can ask again while its first request is pending. To refuse that, answer exactly as BTPS answers every other trust refusal, so a stranger cannot learn that a request is pending:
 
 ```js

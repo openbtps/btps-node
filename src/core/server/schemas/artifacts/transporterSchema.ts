@@ -26,6 +26,7 @@ import {
   sameIdentity,
 } from '../helpers.js';
 import { BtpAgreementEventSchema, BtpLifecycleEventSchema, sha256Hex } from '../btpsDocsSchema.js';
+import { boundedArray } from '../bounded.js';
 
 /**
  * Since 1.2, on a sync: the send it copies, by the id of the sent artifact and
@@ -37,20 +38,20 @@ export const BtpSyncOfSchema = z.object({ id: z.string().min(1), sha256: sha256H
 // One name from a closed set, and a list of them, never longer than the set.
 const memberOf = <T extends string>(names: readonly T[]) =>
   z.custom<T>((name) => typeof name === 'string' && (names as readonly string[]).includes(name));
-const namesFrom = <T extends string>(names: readonly T[]) =>
-  z.array(memberOf(names)).max(names.length);
+const namesFrom = <T extends string>(names: readonly T[], min = 0) =>
+  boundedArray(memberOf(names), names.length, min);
 const PERMISSION_NAMES = [...SEND_PERMISSIONS, ...DETAIL_PERMISSIONS];
 
 /**
  * Since 1.2, on a TRUST_REQ: the permissions it asks for, signed and readable.
  * One flat list, the prefix saying each name's kind, with at least one `send:` name.
  */
-export const BtpTrustPermissionsSchema = z
-  .array(z.object({ name: memberOf(PERMISSION_NAMES), required: z.boolean() }).strict())
-  .max(PERMISSION_NAMES.length)
-  .refine((permissions) => permissions.some(({ name }) => name.startsWith('send:')), {
-    message: 'permissions holds at least one send: name',
-  });
+export const BtpTrustPermissionsSchema = boundedArray(
+  z.object({ name: memberOf(PERMISSION_NAMES), required: z.boolean() }).strict(),
+  PERMISSION_NAMES.length,
+).refine((permissions) => permissions.some(({ name }) => name.startsWith('send:')), {
+  message: 'permissions holds at least one send: name',
+});
 
 /** Since 1.2: a trust record's permissions, as the platform saves them. */
 export const BtpTrustRecordPermissionsSchema = z
@@ -94,7 +95,7 @@ export const BtpTransporterArtifactBaseSchema = z.object({
   change: z.literal(true).optional(),
   granted: namesFrom(PERMISSION_NAMES).optional(),
   documentType: z.enum(DOCUMENT_TYPES).optional(),
-  details: namesFrom(DETAIL_PERMISSIONS).min(1).optional(),
+  details: namesFrom(DETAIL_PERMISSIONS, 1).optional(),
 });
 
 type TransporterEnvelope = z.infer<typeof BtpTransporterArtifactBaseSchema>;

@@ -120,6 +120,8 @@ export interface BTPsTokenDocument {
   metadata?: Record<string, unknown>;
   /** Since 1.2, on a consumed refresh token only: the answer it was rotated with, sealed */
   successor?: BTPSealedSuccessor;
+  /** Since 1.2, on a consumed refresh token only: when `consume` took it, ISO 8601 */
+  consumedAt?: string;
 }
 
 export type AuthSession = BTPsTokenDocument & {
@@ -183,7 +185,10 @@ export interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
    * it would have expired; undefined for a token never taken, or past its life.
    * Storing a token again clears the mark. With it, a refresh token used a
    * second time is theft: the device is revoked and `refreshTokenReused` fires.
-   * Without it, a second use is refused as an unknown token, as in 1.1.
+   * Without it, a second use is refused as an unknown token, as in 1.1. The
+   * mark carries `consumedAt`, when `consume` took the token: a second use
+   * while the first refresh is still being made is told to try again, not
+   * taken for theft.
    */
   isConsumed?(agentId: string, token: string): Promise<T | undefined>;
   /**

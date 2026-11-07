@@ -29,8 +29,8 @@ const tooMany = (ctx: z.RefinementCtx, max: number, unit: 'entries' | 'keys') =>
     fatal: true,
   });
 
-/** A list of at most `max` entries. */
-export const boundedArray = <T extends z.ZodTypeAny>(element: T, max: number) =>
+/** A list of at most `max` entries, and at least `min`. */
+export const boundedArray = <T extends z.ZodTypeAny>(element: T, max: number, min = 0) =>
   z.preprocess((value, ctx) => {
     if (!Array.isArray(value)) return value;
     if (value.length > max) {
@@ -52,7 +52,7 @@ export const boundedArray = <T extends z.ZodTypeAny>(element: T, max: number) =>
       }
     }
     return value;
-  }, z.array(element));
+  }, z.array(element).min(min));
 
 /** A record of at most `max` keys. No limit is above the threshold, so zod checks the values. */
 export const boundedRecord = <V extends z.ZodTypeAny>(

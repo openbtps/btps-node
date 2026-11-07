@@ -76,8 +76,10 @@ export interface BtpsServerOptions {
   maxArtifactSizeKb?: number;
   /** How far an artifact's issuedAt may be from this server's clock, in seconds, either way. Default 300 (5 minutes), minimum 60. */
   maxArtifactAgeSeconds?: number;
-  /** How many requests one connection may have handled at once; at the limit the server stops reading it until one finishes. Default 32, minimum 1. */
+  /** How many requests one connection may have handled at once; at the limit the server stops reading it until one finishes. A request is handled until its answer is written. Default 32, minimum 1. */
   maxInFlightPerConnection?: number;
+  /** Since 1.2: how many lines in a row one connection may send that this server cannot read; it answers the last and ends the connection. Default 10, minimum 1. */
+  maxConsecutiveInvalidLines?: number;
 }
 
 /** Since 1.2: a details request arrived: who asked whom for which details, and when. */
