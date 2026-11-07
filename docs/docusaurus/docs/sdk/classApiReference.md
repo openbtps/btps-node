@@ -410,8 +410,8 @@ Executes an agent command with optional document payload.
 **Example:**
 
 ```js
-// Authentication request
-const authRes = await agent.command('auth.request', 'server$domain.com', {
+// Authentication request, to the user's own address: its provider answers
+const authRes = await agent.command('auth.request', 'user$domain.com', {
   identity: 'user$domain.com',
   authToken: 'ABC123DEF456',
   publicKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',

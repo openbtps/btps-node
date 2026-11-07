@@ -96,7 +96,21 @@ A declined sender is held back by the trust record's `retryAfterDate`, and a blo
 
 **Rate limits.** BTPS sets none by default. Add your own, or start from the SDK's `BtpsSimpleRateLimiter`, which is an example for a single instance, not for production. Count identities after `signatureVerification`, so a sender cannot spend another address's allowance.
 
-**Your own refusals.** Use a BTPS error constant where one fits, or your own `{ code, message, status }`. Never put internal detail (stack traces, store errors, the reason a trust is refused) in what you send.
+**Your own refusals.** Use a BTPS error constant where one fits, or your own `{ code, message, status }`. Never put internal detail (stack traces, store errors, the reason a trust is refused) in what you send. Since 1.2, a 429 you send as a `BTPErrorException` with `meta: { retryAfter }`, in whole seconds, tells the sender how long to wait.
+
+### Since 1.2
+
+**What the server checks, and what is yours.** The server checks structure, signatures, the trust and its permissions, and reads only the trust record and `isKnownArtifact`: a send of a document type the trust does not grant (`send:<type>`) is refused, and so is a details refresh naming a detail the receiver does not hold. Checks that need more of your records are yours, as middleware with your own lookups: an event's chain (`eventChainCheck`), what a details response names (`detailsResponseCheck`), an agreement's turn (`agreementOrderCheck`) and your own limit on details requests (`detailsRequestLimit`). Without them those artifacts are taken. See [Your Platform's Checks](../../getting-started/server/middlewares.md#your-platforms-checks).
+
+**Verification: facts, and your own list.** A trust request may carry a verification, a statement that a provider checked its sender. `verificationFacts` reports facts only: whether the signature holds, whether it has expired, whether the verifier serves the sender's domain, and whether it is that domain's operator. Only a domain's operator may verify (`verifierRefusal`). A valid signature makes no one verified: keep your own list of the verifiers you trust, and decide which facts you require, for example an operator you list, in date. Never show a sender as verified on a signature alone.
+
+**One key pair, the operator's.** Run your server as your domain's operator (`admin$<domain>`), with the key published at its selector. The same key signs identity-lookup answers and, with `signAnswers`, every answer, and devices pin it with `requireSignedBy`. Never run a separate `server$<domain>` identity: clients take a lookup answer only from the operator.
+
+**A device's key to an encrypted document.** `wrapForAgent` re-wraps a document's key to a device's own key. Wrap only to the device record of the identity whose key unwraps, the device that asked as your agent authentication identified it: given another identity's device, it would hand that device this identity's document.
+
+**Refresh tokens and their grace window.** With a token store that has `isConsumed`, a refresh token used a second time is theft: the device is revoked and `refreshTokenReused` fires. A refresh retried inside `refreshGraceMs` (30 seconds by default, `0` off; it needs `markSuccessor`) gets the same new token instead, so a device that lost the answer on a dropped connection is not revoked. Inside the window, whoever holds the just-rotated old token gets that answer too: keep the window short. See [BtpsAuthentication](../authentication/btpsAuthentication.md).
+
+**Trusted timestamps.** An evidence bundle's timestamp is trusted only when it is signed by a timestamp authority's certificate (its one extended key usage `timeStamping`, critical) that chains to a root you give. Give the roots of the authorities you choose, never a general certificate authority's root alone.
 
 ## Compliance Considerations
 

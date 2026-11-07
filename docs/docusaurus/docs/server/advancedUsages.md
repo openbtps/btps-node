@@ -450,6 +450,35 @@ A BTPS server takes no load decisions for you, but nothing in it stands in the w
 - **Raise the operating system's limits**, such as open files per process, for the number of connections you expect.
 - **Answer "send again later" under real overload** (`429` or `503`) rather than holding connections open.
 
+### Caching Key Lookups
+
+Since 1.2, every key lookup goes through one option, `keyResolver`: the server checking a sender's, a delegator's or an attestor's signature, a client checking a server's signed answer, and `signEncrypt` finding a receiver's key. BTPS caches nothing itself. Wrap the default lookup with your own cache, and pass it to `BtpsServer`, `BtpsClient` (and so `BtpsAgent` and `BtpsTransporter`), `BtpsDelegator` and `signEncrypt`'s `lookup`. It only finds keys: every signature, time window and delegation rule stays inside BTPS.
+
+```js
+import { createDefaultKeyResolver } from '@btps/sdk/crypto';
+import { BtpsServer } from '@btps/sdk/server';
+
+const lookup = createDefaultKeyResolver();
+const cache = new Map(); // in production, a shared store such as Redis
+const TTL_MS = 5 * 60 * 1000;
+
+const keyResolver = {
+  async resolvePublicKey(identity, selector, use) {
+    const key = `${identity}|${selector}|${use}`;
+    const hit = cache.get(key);
+    if (hit && hit.until > Date.now()) return hit.publicKey;
+    const publicKey = await lookup.resolvePublicKey(identity, selector, use);
+    // Never cache a miss: a key just published must be found on the next lookup.
+    if (publicKey) cache.set(key, { publicKey, until: Date.now() + TTL_MS });
+    return publicKey;
+  },
+};
+
+const server = new BtpsServer({ ...options, keyResolver });
+```
+
+`use` says what the key is for: `verify`, a signature key, looked up in DNS only; or `encrypt`, a receiver's key, looked up in DNS and then from the receiver's host. Keep the time to live short: a provider rotates a key by publishing a new selector, and a removed key should stop verifying soon after. A key's selector is never reused for a different key, so a cached key is never the wrong one for its selector.
+
 ## Security Best Practices
 
 - Use strong TLS configuration and rotate certificates regularly.

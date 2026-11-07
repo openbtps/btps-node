@@ -12,11 +12,11 @@ what matters to you.
 | Release | Stage                | What it means                                                                                          |
 | ------- | -------------------- | ------------------------------------------------------------------------------------------------------ |
 | **1.1** | **Alpha** (released) | The protocol and this SDK are usable and tested. The wire may still change before the general release. |
-| **1.2** | Beta (planned)       | Everything below that is ready. The wire settles: changes after 1.2 should only add, not break.        |
+| **1.2** | Beta (in testing)    | What "In 1.2" lists below. The wire settles: changes after 1.2 should only add, not break.             |
 | **1.3** | General release      | Stable. The SDK's unit tests cover 100% of its code.                                                   |
 
-**Every item below is a plan, not a promise.** Each gets a design before it is
-built, and may change or move to a later release. A server refuses artifacts of
+**Every item after 1.2 is a plan, not a promise.** Each gets a design before it
+is built, and may change or move to a later release. A server refuses artifacts of
 another protocol version, so a 1.2 feature never reaches a 1.1 server that
 cannot understand it.
 
@@ -24,81 +24,79 @@ cannot understand it.
 [issue on GitHub](https://github.com/openbtps/btps-node/issues) to ask for
 something, or to say which of these matters most to you.
 
-## Planned for 1.2 (beta)
+## In 1.2 (beta, not yet released)
+
+1.2 is being tested before it is released. The
+[changelog](https://github.com/openbtps/btps-node/blob/release/1.2/CHANGELOG.md)
+lists every change, and what a 1.1 provider does to upgrade.
 
 ### Trust permissions
 
-Today a trust is a single yes or no: the receiver accepts the sender, or does
-not. In 1.2 a trust request lists exactly what the sender asks for, and the
-receiver sees it the way an app's sign-in screen shows what it will get:
+A trust request lists exactly what the sender asks for, and the receiver grants
+it the way an app's sign-in screen shows what it will get:
 
-- **What it may send:** invoices only, payslips and invoices, letters, and so on.
-- **Which personal details it may see:** chosen field by field (email, phone,
-  address, date of birth). A bank might ask for full details; a plumber for none.
-- **Required or optional:** the receiver cannot remove a required permission,
-  only reject the request; optional ones can be granted or left out.
+- **What it may send:** each document type by name (`send:invoice`,
+  `send:receipt`, `send:payslip`, `send:letter`, `send:agreement`).
+- **Which details it may hold:** chosen one by one (legal name, profile, email,
+  phone, address, tax number, date of birth, registration number). Each side
+  gives what it asks for.
+- **Required or optional:** a grant that leaves out a required permission is
+  refused; optional ones can be granted or left out.
+- **Kept up to date:** each side can be told when the other's details change,
+  and fetch again only what it already holds. A trust can later be changed to
+  ask for more, or less.
 
-The request and its answer are always encrypted, because they carry personal
-details. Still to design: standard permission names every provider shows the
-same way, how granted details reach the sender, and how to ask for more later.
+The names travel signed and readable, so a receiver's server checks them on
+arrival; the values are always encrypted. A request to a 1.1 provider goes as
+1.1 allows, and the sender is told what was left out.
 
-### Letters that can be agreed to
+### Agreements
 
-1.1 already carries letters. 1.2 lets a letter ask to be **accepted**, so
-agreements (a loan contract, a phone plan) can be signed over BTPS:
+A new document type, `agreement`, asks to be accepted, so a loan contract or a
+phone plan can be signed over BTPS:
 
-- the letter states what must be accepted (its terms, by their attachments'
-  hashes) and by when;
-- the receiver answers `accepted` or `declined`, **signed by their own device
-  key**, never by the provider on their behalf;
-- an **evidence bundle** (the signed letter, the signed answer and the keys
-  used) that anyone can verify offline, without trusting any vendor;
-- proof that still verifies years later, after keys have rotated;
-- several signers, in order (the customer accepts, then the bank countersigns).
-
-### A core for every platform
-
-BTPS is for any app: mobile, desktop and web, in any language. 1.2 starts
-**`btps-core` in Rust**: canonical JSON, signing, encryption, addresses and
-the document rules, written once. Then bindings for Swift (iOS, macOS), Kotlin
-(Android), React Native and the browser (WebAssembly). This is how Signal and
-Matrix ship one protocol to every platform.
-
-The [golden vectors](./protocol/specifications/golden-vectors.md) are the
-contract: the Rust core, this SDK and any other implementation must pass the
-same vectors.
-
-### More device key types
-
-BTPS 1.1 keys are RSA. An iPhone's Secure Enclave holds only P-256 keys, so a
-1.1 device key on an iPhone lives in the Keychain, not in hardware. 1.2 plans
-**P-256 (ECDSA) device keys**, so a phone's key never leaves its hardware, and
-**Ed25519** for identities, whose signatures are much cheaper to verify.
+- it states what must be accepted (its terms, by their attachments' hashes),
+  by when, and by whom, in turn or in any order;
+- each signer answers `accepted` or `declined` with a signed statement, by its
+  own device key or by its identity key, and which kind signed is recorded;
+- an **evidence bundle** (the signed agreement, every signed answer and the
+  keys used) that anyone can check offline, from the command line too;
+- an optional **trusted timestamp** on each answer, so it still proves when it
+  was signed after keys have rotated.
 
 ### Safer devices
 
 - **Signals for a stolen device key:** a provider can be told when a device's
   key rotates, and when a refresh token is used twice, which suggests a copy.
   What to tell the user stays the provider's choice.
+- **A grace window for a lost answer:** a device that refreshed but lost the
+  answer can ask again for a short time without being taken for a thief.
 - **An optional maximum key age**, off by default, for providers that want
   devices to rotate on a schedule.
-
-### Currency symbols in addresses
-
-Addresses may use a currency symbol as the separator: `bob€example.com` and
-`bob£example.com` as well as `bob$example.com`. Still to settle: the exact
-list of symbols, and whether `bob€example.com` and `bob$example.com` are the
-same address.
+- **A device's own key to its documents:** a provider can let a device open an
+  encrypted document with the device's own key.
 
 ### Clearer answers and faster servers
 
 - **A device can be told the id of what it just created** (a draft, for
   example), and a provider's malformed answer reaches the device as a clear
   error instead of a closed connection.
-- **Less work per artifact:** one pass that checks and canonicalises the JSON
-  instead of four, and a cache of parsed keys, measured with benchmarks first.
-- **Simpler device commands:** a device acting on its own data need not name
-  its own address.
+- **One place to cache keys:** every key lookup goes through one option, so a
+  provider can cache them.
+- **A 429 says how long to wait.**
+
+## Moved from the 1.2 plan to a later release
+
+- **A core for every platform:** `btps-core` in Rust, with bindings for Swift,
+  Kotlin, React Native and the browser. The
+  [golden vectors](./protocol/specifications/golden-vectors.md) remain the
+  contract every implementation must pass.
+- **More device key types:** P-256 (ECDSA) device keys for a phone's secure
+  hardware, and Ed25519 for identities.
+- **Currency symbols in addresses**, such as `bob€example.com`.
+- **One pass over each artifact's JSON**, in place of several.
+- **Simpler device commands:** a device acting on its own data need not name its
+  own address.
 
 ## Later
 
