@@ -96,6 +96,8 @@ __metadata:
     vite-tsconfig-paths: "npm:^5.1.4"
     vitest: "npm:^3.2.4"
     zod: "npm:^3.25.67"
+  bin:
+    btps-verify-evidence: ./bin/verify-evidence-bundle.mjs
   languageName: unknown
   linkType: soft
 
