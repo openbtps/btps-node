@@ -43,6 +43,7 @@ import {
 } from '../../core/server/types.js';
 import {
   BTPErrorException,
+  transformToBTPErrorException,
   BTP_ERROR_TRUST_NOT_ALLOWED,
   BTP_ERROR_TRUST_NON_EXISTENT,
   BTP_ERROR_TRUST_EXPIRED,
@@ -2137,8 +2138,10 @@ export default function () {
       });
 
       it('sends retryAfter only on a 429, and only as whole seconds', () => {
+        // As middleware sends them with res.sendError, a numeric code included.
         const wait = (error: BTPError, retryAfter: unknown) =>
-          server['wireStatus'](new BTPErrorException(error, { meta: { retryAfter } })).retryAfter;
+          server['wireStatus'](new BTPErrorException(error, { meta: { retryAfter } }), true)
+            .retryAfter;
         expect(wait(BTP_ERROR_PRIVACY_TYPE, 30)).toBeUndefined();
         expect(wait({ code: 429, message: 'Slow down' }, 30)).toBe(30);
         expect(wait(BTP_ERROR_RATE_LIMITER, '2026-12-01T00:00:00.000Z')).toBeUndefined();
@@ -2148,7 +2151,7 @@ export default function () {
       });
 
       it('sends a numeric code set by middleware as given', () => {
-        expect(server['wireStatus']({ code: 402, message: 'Payment required' })).toEqual({
+        expect(server['wireStatus']({ code: 402, message: 'Payment required' }, true)).toEqual({
           ok: false,
           code: 402,
           message: 'Payment required',
@@ -2165,6 +2168,44 @@ export default function () {
           message: BTP_ERROR_UNKNOWN.message,
           error: BTP_ERROR_UNKNOWN.code,
         });
+      });
+
+      it("never sends a thrown error's own numeric code or message, as from a store", async () => {
+        const fromStore = Object.assign(
+          new Error('E11000 duplicate key error collection: btps.trust index: id_1'),
+          { code: 11000 },
+        );
+        const generic = {
+          ok: false,
+          code: 500,
+          message: BTP_ERROR_UNKNOWN.message,
+          error: BTP_ERROR_UNKNOWN.code,
+        };
+        expect(server['wireStatus'](transformToBTPErrorException(fromStore))).toEqual(generic);
+        expect(
+          server['wireStatus'](new BTPErrorException({ code: 402, message: 'Payment required' })),
+        ).toEqual(generic);
+
+        // As it goes out on the wire, from a failure while an artifact was handled.
+        const written: string[] = [];
+        const socket = {
+          destroyed: false,
+          writableEnded: false,
+          writable: true,
+          write: (line: string) => written.push(line) > 0,
+          end: vi.fn(),
+          destroy: vi.fn(),
+        } as unknown as TLSSocket;
+        await server['handleOnSocketError'](
+          transformToBTPErrorException(fromStore),
+          {
+            req: { socket } as unknown as BTPRequestCtx<'before', 'onError'>,
+            res: { socket, reqId: 'req-1' } as unknown as BTPResponseCtx,
+          },
+          'answer',
+        );
+        expect(JSON.parse(written[0] ?? 'null').status).toEqual(generic);
+        expect(written.join('')).not.toContain('E11000');
       });
     });
 

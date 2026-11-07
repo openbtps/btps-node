@@ -346,7 +346,7 @@ export class BtpsServer {
           }
           /* always try to send the error with the reqId */
           const reqId = resCtx?.reqId as string | undefined;
-          this.sendBtpsError(socket, error, reqId, action);
+          this.sendBtpsError(socket, error, reqId, action, true);
         },
         get responseSent() {
           return responseSent;
@@ -1612,15 +1612,16 @@ export class BtpsServer {
    * Sends a BTPS error response to the client
    */
   /**
-   * What a sender is told about an error. A BTPS error carries its status and
-   * its code; a numeric code set by middleware is sent as given. Anything else
-   * is internal: a generic 500, so no internal detail ever reaches the wire.
-   * The full error stays with the server, keyed by the response id.
-   * Since 1.2, a 429 also carries its meta.retryAfter, in whole seconds;
-   * nothing else from meta, and never cause.
+   * What a sender is told about an error. A BTPS error, from its constant,
+   * carries its status and its code; a numeric code middleware sends with
+   * `res.sendError` goes as given. Anything else, a thrown error with a code
+   * of its own included, is internal: a generic 500, so no internal detail
+   * ever reaches the wire. The full error stays with the server, keyed by the
+   * response id. Since 1.2, a 429 also carries its meta.retryAfter, in whole
+   * seconds; nothing else from meta, and never cause.
    */
-  private wireStatus(error: BTPError): BTPStatus {
-    const status = this.errorStatus(error);
+  private wireStatus(error: BTPError, fromMiddleware = false): BTPStatus {
+    const status = this.errorStatus(error, fromMiddleware);
     const retryAfter = error instanceof BTPErrorException ? error.meta?.retryAfter : undefined;
     if (
       status.code === 429 &&
@@ -1633,12 +1634,12 @@ export class BtpsServer {
     return status;
   }
 
-  private errorStatus(error: BTPError): BTPStatus {
-    if (typeof error.code === 'number') {
-      return { ok: false, code: error.code, message: error.message };
-    }
-    if (error.status && error.code) {
+  private errorStatus(error: BTPError, fromMiddleware: boolean): BTPStatus {
+    if (error.status && typeof error.code === 'string') {
       return { ok: false, code: error.status, message: error.message, error: error.code };
+    }
+    if (fromMiddleware && typeof error.code === 'number') {
+      return { ok: false, code: error.code, message: error.message };
     }
     return {
       ok: false,
@@ -1653,8 +1654,9 @@ export class BtpsServer {
     error: BTPError,
     reqId?: string,
     action?: BtpsErrorAction,
+    fromMiddleware = false,
   ) {
-    const response = this.prepareBtpsResponse(this.wireStatus(error), reqId);
+    const response = this.prepareBtpsResponse(this.wireStatus(error, fromMiddleware), reqId);
 
     this.sendBtpsResponse(
       socket,
