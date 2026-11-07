@@ -13,7 +13,7 @@ import {
   BTP_ERROR_VALIDATION,
 } from '@core/error/constant.js';
 import { decryptedDocumentProblem } from '@core/server/schemas/helpers.js';
-import { verifierProblem } from '@core/trust/verification.js';
+import { verifierRefusal } from '@core/trust/verification.js';
 import isEmpty from 'lodash/isEmpty.js';
 
 const genDecryptError = (error: BTPErrorException) => ({
@@ -87,10 +87,10 @@ export const decryptVerify = async <T = unknown>(
     const { verification } = (decryptedData ?? {}) as { verification?: { verifiedBy: string } };
     const verifier =
       restEncryptedPayload.type === 'TRUST_REQ' && verification
-        ? await verifierProblem(verification.verifiedBy)
+        ? await verifierRefusal(verification.verifiedBy)
         : undefined;
     if (verifier) {
-      return genDecryptError(new BTPErrorException(BTP_ERROR_VALIDATION, { cause: verifier }));
+      return genDecryptError(new BTPErrorException(verifier.error, { cause: verifier.problem }));
     }
   }
 

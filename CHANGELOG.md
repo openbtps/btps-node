@@ -155,7 +155,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   `verificationFacts` reports `{ signatureValid, expired,
 verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   runs a BTPS server verifies: `verifiedBy` is the `op` of its own domain's
-  `_btps.host`, or `decryptVerify` refuses the request (`verifierProblem`).
+  `_btps.host`, or `decryptVerify` refuses the request (`verifierRefusal`); a
+  lookup that fails is `BTP_ERROR_RESOLVE_DNS`, to try again.
   Whose verifications to trust is each provider's to decide.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`

@@ -310,6 +310,18 @@ describe('decryptVerify', () => {
         const result = await opened(verifiedBy('admin$saas.example'));
         expect(result.error).toBeUndefined();
       });
+
+      it('is refused to try again when the lookup itself fails, not judged', async () => {
+        vi.mocked(resolveTxt).mockRejectedValue(
+          Object.assign(new Error('queryTxt ETIMEOUT'), { code: 'ETIMEOUT' }),
+        );
+        const result = await opened(verifiedBy('admin$saas.example'));
+        expect(result.payload).toBeUndefined();
+        expect(result.error?.code).toBe('BTP_ERROR_RESOLVE_DNS');
+        expect(String(result.error?.cause)).toBe(
+          "could not look up saas.example's BTPS host record; try again",
+        );
+      });
     });
   });
 

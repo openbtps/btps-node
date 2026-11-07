@@ -17,6 +17,8 @@ import type { Signer } from '@core/crypto/signer-interface.js';
 import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 import { signatureKey } from '@core/delegation/verifyTransporterSignature.js';
 import { getHostAndSelector, parseIdentity } from '@core/utils/index.js';
+import { BTP_ERROR_RESOLVE_DNS, BTP_ERROR_VALIDATION } from '@core/error/constant.js';
+import type { BTPError } from '@core/error/types.js';
 import type { BTPVerification, BTPVerificationClaims, BTPVerificationFacts } from './types.js';
 
 /** What a verification is signed over: the statement, bound to its subject, the request's `from`. */
@@ -61,12 +63,27 @@ export const signVerification = async (
  * Since 1.2: why `verifiedBy` may not verify, or undefined. Only one who runs a
  * BTPS server verifies: the `op` of its own domain's host record. This makes a
  * verifier an operator, nothing more; whose verifications to trust stays each
- * provider's to decide.
+ * provider's to decide. A lookup that fails, rather than finding no record, is
+ * `BTP_ERROR_RESOLVE_DNS`, to try again.
  */
-export const verifierProblem = async (verifiedBy: string): Promise<string | undefined> => {
-  const operator = (await getHostAndSelector(verifiedBy))?.operator;
-  if (operator?.toLowerCase() === verifiedBy.toLowerCase()) return undefined;
-  return `the verifier does not run a BTPS server: ${verifiedBy} is not the operator of ${domainOf(verifiedBy)}`;
+export const verifierRefusal = async (
+  verifiedBy: string,
+): Promise<{ error: BTPError; problem: string } | undefined> => {
+  const domain = domainOf(verifiedBy);
+  let host: Awaited<ReturnType<typeof getHostAndSelector>>;
+  try {
+    host = await getHostAndSelector(verifiedBy);
+  } catch {
+    return {
+      error: BTP_ERROR_RESOLVE_DNS,
+      problem: `could not look up ${domain}'s BTPS host record; try again`,
+    };
+  }
+  if (host?.operator?.toLowerCase() === verifiedBy.toLowerCase()) return undefined;
+  return {
+    error: BTP_ERROR_VALIDATION,
+    problem: `the verifier does not run a BTPS server: ${verifiedBy} is not the operator of ${domain}`,
+  };
 };
 
 /**
