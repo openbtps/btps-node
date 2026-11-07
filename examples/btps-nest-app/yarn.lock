@@ -456,6 +456,8 @@ __metadata:
     proper-lockfile: "npm:^4.1.2"
     split2: "npm:^4.2.0"
     zod: "npm:^3.25.67"
+  bin:
+    btps-verify-evidence: ./bin/verify-evidence-bundle.mjs
   languageName: node
   linkType: soft
 
