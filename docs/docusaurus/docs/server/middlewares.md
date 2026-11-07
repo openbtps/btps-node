@@ -234,4 +234,4 @@ export default function createMiddleware(dependencies) {
 
 ---
 
-Next: [Advanced Usage](/docs/server/advanced-usages) | [Debugging](/docs/server/debugging)
+Next: [Advanced Usage](./advancedUsages.md) | [Debugging](./debugging.md)

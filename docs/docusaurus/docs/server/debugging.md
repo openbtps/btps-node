@@ -109,4 +109,4 @@ This guide helps you diagnose, debug, and resolve common issues with the BTPS Se
 
 ---
 
-For more, see [Server Overview](/docs/server/overview) and [Security Best Practices](/docs/protocol/security/best-practices).
+For more, see [Server Overview](./overview.md) and [Security Best Practices](../protocol/security/bestPractices.md).

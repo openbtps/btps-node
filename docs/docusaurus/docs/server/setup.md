@@ -29,7 +29,7 @@ BTPS requires a trust store to manage trust relationships. There are two main op
     ```
 - **Database-backed Trust Stores (Recommended for Production):**
   - **Best for:** High scalability, high throughput, multi-tenant, or enterprise deployments.
-  - **Options:** MongoDB, SQL, DynamoDB, Postgres, and more. See [Advanced Usage](/docs/server/advanced-usages) for implementation examples.
+  - **Options:** MongoDB, SQL, DynamoDB, Postgres, and more. See [Advanced Usage](./advancedUsages.md) for implementation examples.
 
 > **Recommendation:** Use a database-backed trust store for any production or large-scale deployment.
 
@@ -66,7 +66,7 @@ const server = new BtpsServer({
 });
 ```
 
-For more details on custom trust stores and scaling, see [Advanced Usage](/docs/server/advanced-usages).
+For more details on custom trust stores and scaling, see [Advanced Usage](./advancedUsages.md).
 
 ## 4. Middleware Setup
 
@@ -147,4 +147,4 @@ server.stop();
 
 ---
 
-Next: [Middleware System](/docs/server/middlewares) | [Advanced Usage](/docs/server/advanced-usages)
+Next: [Middleware System](./middlewares.md) | [Advanced Usage](./advancedUsages.md)

@@ -327,4 +327,4 @@ When reporting issues, include:
 
 ---
 
-For more, see [Metrics & Monitoring](/docs/client/metrics-and-monitoring) or [Best Practices](/docs/client/best-practices).
+For more, see [Metrics & Monitoring](./metricsAndMonitor.md) or [Best Practices](./bestPractices.md).

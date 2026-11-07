@@ -629,4 +629,4 @@ const client = new BtpsClient({ ...options }); // connect 5 s, reply 20 s
 
 Following these Dos and Don'ts will help ensure your BTPS Client integration is robust, secure, and production-ready.
 
-For more, see [Setup](/docs/client/setup), [Best Practices](/docs/client/best-practices), or [Debugging](/docs/client/debugging).
+For more, see [Setup](./setup.md), [Best Practices](./bestPractices.md), or [Debugging](./debugging.md).

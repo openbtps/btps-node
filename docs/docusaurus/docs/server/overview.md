@@ -99,4 +99,4 @@ graph TD
 
 ---
 
-Continue to [Setup](/docs/server/setup) to get started, or see [Advanced Usage](/docs/server/advanced-usages) for custom integrations.
+Continue to [Setup](./setup.md) to get started, or see [Advanced Usage](./advancedUsages.md) for custom integrations.
