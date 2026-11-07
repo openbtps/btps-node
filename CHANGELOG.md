@@ -24,14 +24,16 @@ versions follow [Semantic Versioning](https://semver.org/).
   the `withdrawn` it follows in `follows`. Both travel only in `1.2.0`
   artifacts; under `1.1.0` an event is read exactly as 1.1 reads it
   (`processBtpDocSchema` now takes the artifact's version).
-- `BTP_ERROR_EVENT_CHAIN`: a server refuses a `withdrawn` or `follows` from
-  the invoice's issuer, since only the payer withdraws or proposes again.
-  When its trust store has the new, optional `getEvent`, it also refuses a
+- `BTP_ERROR_EVENT_CHAIN`: the new `eventChainCheck` middleware
+  (`@btps/sdk/server/core`, off until added) refuses a `withdrawn` or
+  `follows` from the invoice's issuer, since only the payer withdraws or
+  proposes again. With the platform's own `getEvent` lookup, it also refuses a
   `withdrawn` that does not take back the payer's own open proposal about the
   same invoice, and a `follows` that names no `withdrawn` about it. It tells
-  the sender which rule it broke. `lifecycleEventChainProblem` and
-  `lifecycleEventSenderProblem` (`@btps/sdk/server`) let a platform check an
-  encrypted event the same way once it has opened it.
+  the sender which rule it broke. The server checks no chain itself.
+  `lifecycleEventChainProblem` and `lifecycleEventSenderProblem`
+  (`@btps/sdk/server`) let a platform check an encrypted event the same way
+  once it has opened it.
 - **Notes say how they are written.** An invoice's and receipt's
   `description`, an event's `message`, and a trust request's or response's
   `message` may be `{ format: 'text' | 'markdown', content }` (`BTPNote`); a
@@ -126,23 +128,25 @@ versions follow [Semantic Versioning](https://semver.org/).
   are about, on the envelope, so each side of an active trust is told when the
   other's details change and can fetch again only what it already holds. A
   server checks the names against its own record of the trust, in either
-  direction (`BTP_ERROR_DETAILS_NOT_HELD`), that a response answers a request
-  its receiver sent, naming only what it asked (`BTP_ERROR_PERMISSION`;
-  through the trust store's new, optional `getArtifact`, else only
-  `isKnownArtifact`), and the provider's own limit (`allowDetailsRequest`,
-  `BTP_ERROR_DETAILS_RATE_LIMITED`, with `retryAfter`). A request that passes
-  is told to `server.on('detailsRequested', …)`. `decryptVerify` refuses an
-  opened response whose values do not match its names (`detailsProblem`).
-  `JsonTrustStore` keeps no artifacts, so its `getArtifact` answers
-  `undefined`: a server using it as is takes no `DETAILS_RES` until the store
-  is extended to answer from the platform's own records. The known-failing
-  vector list is empty.
+  direction (`BTP_ERROR_DETAILS_NOT_HELD`), and that a response answers a
+  request it knows (`isKnownArtifact`, `BTP_ERROR_PERMISSION`). Two new
+  middleware (`@btps/sdk/server/core`, off until added) are the platform's:
+  `detailsResponseCheck({ getArtifact })` refuses a response naming what its
+  request did not ask for (`BTP_ERROR_PERMISSION`), and
+  `detailsRequestLimit(allow)` a request over the provider's own limit
+  (`BTP_ERROR_DETAILS_RATE_LIMITED`, with `status.retryAfter`). A request
+  that passes every check, middleware included, is told to
+  `server.on('detailsRequested', …)`. `decryptVerify` refuses an opened
+  response whose values do not match its names (`detailsProblem`).
+  `JsonTrustStore` keeps no artifacts, so a server using it as is takes no
+  `DETAILS_RES` until the store is extended to answer from the platform's own
+  records. The known-failing vector list is empty.
 - **Details refresh from a device.** New agent actions `details.changed`,
   `details.request` and `details.respond`, with the `BtpsAgent` command option
   `details` (a response also needs `relatesTo` and encryption). The device's
   own provider checks the names before it sends them, as the receiver will,
   from the user's own record of the trust, and tells
-  `server.on('detailsShared', …)` of each response it takes.
+  `server.on('detailsShared', …)` of each response that passes every check.
 - **A device's trust request and answer with permissions.** New `BtpsAgent`
   command options: `permissions`, `entityType`, `given` and `change` on
   `trust.request`, and `granted` and `entityType` on `trust.respond`. They go
@@ -242,6 +246,11 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   is for, `verify` or `encrypt`. Without it, every lookup is as before.
   `createDefaultKeyResolver` is that lookup, to wrap.
 - `yarn bench`: what a server spends on one arriving artifact, step by step.
+- **A 429 can say how long to wait.** `status.retryAfter`, in a `1.2.0`
+  response and on a 429 only, is the whole seconds a sender should wait before
+  sending again. A server sends it from an error's `meta.retryAfter`, for its
+  own refusals and middleware's `res.sendError` alike; nothing else from
+  `meta` reaches the wire, and `cause` never does.
 
 ### Changed
 
@@ -265,6 +274,25 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
 - A server whose implementor takes errors, through the `onError` option or
   `onError` middleware, no longer also writes each failed artifact to
   `console.error`. With neither, it writes as before.
+
+### Upgrade notes
+
+A 1.2 server checks structure, signatures, the trust and its permissions, and
+`isKnownArtifact`; it reads no other record of the platform's. These 1.2
+refusals happen only when the platform adds their middleware, from
+`@btps/sdk/server/core`, with its own lookups. Without it, the artifact is
+taken and checking it is the platform's, with the plain function named:
+
+| Refusal                                                                         | Middleware                              | Plain function                                  |
+| ------------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------- |
+| `BTP_ERROR_EVENT_CHAIN`: a `withdrawn` or `follows` that breaks the chain       | `eventChainCheck({ getEvent })`         | `lifecycleEventChainProblem`                    |
+| `BTP_ERROR_PERMISSION`: a `DETAILS_RES` naming what its request did not ask for | `detailsResponseCheck({ getArtifact })` | `detailsProblem`, `detailsRequestRefusal`       |
+| `BTP_ERROR_AGREEMENT_ORDER`: an agreement's answer out of turn                  | `agreementOrderCheck({ answers })`      | `agreementTurnProblem`, `agreementOrderProblem` |
+| `BTP_ERROR_DETAILS_RATE_LIMITED`: a `DETAILS_REQ` over the provider's own limit | `detailsRequestLimit(allow)`            | none: the limit is the provider's               |
+
+`AbstractTrustStore` has no `getEvent` or `getArtifact`, and `BtpsServer` no
+`allowDetailsRequest` option: pass each lookup to its middleware instead.
+`detailsRequestLimit` takes `retryAfter` in whole seconds.
 
 ## [1.1.3] — 2026-10-30 (alpha)
 

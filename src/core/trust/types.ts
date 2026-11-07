@@ -19,7 +19,7 @@ export type BTPTrustStatus = 'accepted' | 'rejected' | 'revoked' | 'pending' | '
 export type BTPTrustDecisionType = Exclude<BTPTrustStatus, 'pending'>;
 export type BTPEncryptionType = 'unencrypted' | 'encrypted' | 'mixed';
 
-/** What a platform holds of a lifecycle event between two parties, as its store's `getEvent` answers. */
+/** What a platform holds of a lifecycle event between two parties, as its `eventChainCheck` lookup answers. */
 export type BTPEventFacts = {
   eventType: string;
   /** Who sent it */

@@ -220,6 +220,15 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
         else ensure(!success, `accepted; expected it refused: ${c.why}`);
       }),
     ),
+    ...set.responses.cases.map((c) =>
+      check(`responses/${c.name}`, () => {
+        const schema = rules.responses.BtpServerResponseSchema;
+        ensure(schema !== undefined, 'the SDK has no server response schema');
+        const { success } = schema.safeParse(c.response);
+        if (c.expect === 'accept') ensure(success, 'refused; expected it accepted');
+        else ensure(!success, `accepted; expected it refused: ${c.why}`);
+      }),
+    ),
     ...[
       ['trust-permissions', set.trustPermissions.envelopes],
       ['details', set.details.envelopes],

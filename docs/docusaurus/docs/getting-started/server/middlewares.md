@@ -84,7 +84,7 @@ A BTPS server does not limit or filter traffic by itself: how many artifacts an 
 - **Rate limiting by identity**, after signature verification: 30 per second per identity. It counts only once the signature proves the sender, so no one can use up another identity's allowance by naming it
 - **Metrics** for received and rejected artifacts
 
-An artifact over a limit is answered `BTP_ERROR_RATE_LIMITER` (429), which tells the sender to send again later.
+An artifact over a limit is answered `BTP_ERROR_RATE_LIMITER` (429), which tells the sender to send again later. Since 1.2, your own middleware can also say how much later: send the error as a `BTPErrorException` with `meta: { retryAfter }`, in whole seconds, and it goes out as `status.retryAfter`. Nothing else from `meta` reaches the wire.
 
 :::warning Not for production
 
@@ -129,6 +129,19 @@ export default function createMiddleware() {
 ```
 
 The same pattern filters anything else, such as duplicates or blocked addresses: tap into the step where the information you need is verified, and answer with an error to refuse.
+
+## Your Platform's Checks
+
+Since 1.2, a server checks only structure, signatures, the trust and its permissions, and that an event or a details response names an artifact your store knows (`isKnownArtifact`). Checks that need more of your platform's own records are yours, and the SDK ships each as middleware from `@btps/sdk/server/core`, off until you add it with your own lookups. Each runs after the server's trust check and refuses in flight with its BTPS error, the reason in its message:
+
+| Middleware                              | Refuses                                                                                  | Error                            |
+| --------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------- |
+| `eventChainCheck({ getEvent })`         | a `withdrawn` or `follows` that breaks the chain, on an unencrypted event                | `BTP_ERROR_EVENT_CHAIN`          |
+| `detailsResponseCheck({ getArtifact })` | a `DETAILS_RES` naming what its request did not ask for, arriving or sent by your device | `BTP_ERROR_PERMISSION`           |
+| `agreementOrderCheck({ answers })`      | an agreement's answer that is not its sender's turn                                      | `BTP_ERROR_AGREEMENT_ORDER`      |
+| `detailsRequestLimit(allow)`            | a `DETAILS_REQ` over your own limit, with `status.retryAfter`                            | `BTP_ERROR_DETAILS_RATE_LIMITED` |
+
+Without them, these artifacts are taken, and checking them is left to your platform once they arrive. Each check is also a plain function for that, such as `lifecycleEventChainProblem` and `detailsProblem`. Put `detailsRequestLimit` last, so it counts only requests every other check takes. See [Lifecycle Event](../../protocol/specifications/transporter-artifact.md#4-lifecycle-event-btps_event), [Details refresh](../../protocol/specifications/transporter-artifact.md#details-refresh) and [Agreement events](../../protocol/specifications/transporter-artifact.md#agreement-events) for each, with an example.
 
 ## Middleware Phases and Steps
 

@@ -259,12 +259,35 @@ Every step is its own artifact, delivered like any other, so a platform may queu
 **On arrival**, from the envelope and the receiver's own record of the trust, without decrypting:
 
 - a notice or a response names only details the receiver holds of the sender, and a request only details the answerer shares (`BTP_ERROR_DETAILS_NOT_HELD`); a trust without permissions holds none;
-- a response answers a `DETAILS_REQ` its receiver sent to its sender, and names only what that request asked for (`BTP_ERROR_PERMISSION`). The server reads the request through the trust store's optional `getArtifact`; with a store that lacks it, it checks only that the request is known (`isKnownArtifact`), warns once at start, and the names are the platform's to check (`detailsProblem`);
-- a request is within the provider's own limit, if it sets one (`allowDetailsRequest`); over it, the request is refused with `BTP_ERROR_DETAILS_RATE_LIMITED`, whose `meta.retryAfter` says when to ask again. The protocol sets no limit.
+- a response answers a request the receiver knows (`isKnownArtifact` on its `relatesTo`, `BTP_ERROR_PERMISSION`).
 
-A request that passes is told to the server's `detailsRequested` listeners: `{ from, to, names, at }`.
+**The platform's own checks.** Two more checks read records only the platform keeps, so they are the platform's, off until it adds them as middleware from `@btps/sdk/server/core`. Each runs after the server's trust check and refuses in flight, from the envelope, encrypted or not:
 
-**When sent**, a device sends each one with its own agent action (`details.changed`, `details.request`, `details.respond`; see [Agent Artifact](./agent-artifact.md)), and its provider makes the same checks first, from the user's own record of the trust. A response that passes is told to the provider's `detailsShared` listeners, so a platform can show who fetched what, and when.
+- `detailsResponseCheck({ getArtifact })`: a response answers a `DETAILS_REQ` its receiver sent to its sender, and names only what that request asked for (`detailsRequestRefusal`; `BTP_ERROR_PERMISSION`, the reason in its message). For a response arriving and for one this provider's own device sends.
+- `detailsRequestLimit(allow)`: a request is within the provider's own limit, if it sets one. Over it, the request is refused with `BTP_ERROR_DETAILS_RATE_LIMITED`, whose `status.retryAfter` says how many seconds to wait before asking again. The protocol sets no limit. Add it after every other check, so the provider counts only requests that are taken.
+
+```js
+import { detailsRequestLimit, detailsResponseCheck } from '@btps/sdk/server/core';
+
+export default function createMiddleware() {
+  return [
+    detailsResponseCheck({
+      // The envelope of the artifact `artifactId` the platform recorded from `from` to `to`.
+      getArtifact: ({ artifactId, from, to }) => artifacts.envelope({ artifactId, from, to }),
+    }),
+    // Last: the provider's own count, e.g. ten requests per trust per month.
+    detailsRequestLimit(async ({ from, to }) =>
+      (await counts.thisMonth(from, to)) < 10
+        ? true
+        : { retryAfter: await counts.secondsToNextMonth() },
+    ),
+  ];
+}
+```
+
+A request that passes every check, the platform's middleware included, is told to the server's `detailsRequested` listeners: `{ from, to, names, at }`.
+
+**When sent**, a device sends each one with its own agent action (`details.changed`, `details.request`, `details.respond`; see [Agent Artifact](./agent-artifact.md)), and its provider makes the same checks first, from the user's own record of the trust, `detailsResponseCheck` included when added. A response that passes every check is told to the provider's `detailsShared` listeners, so a platform can show who fetched what, and when.
 
 **When opened**, `decryptVerify` refuses a response whose values do not match its names: a value for every name, valid for it, and no others.
 
@@ -809,7 +832,26 @@ Several partial payments are allowed; the remaining amount keeps going down. The
 
 Every reply carries `inReplyTo`, and only a reply or a `withdrawn` may: the proposals (`paid`, `partially_paid`, `disputed`, `refund_requested`) start a chain, and each schema refuses `inReplyTo` on them. A proposal sent again after a withdrawal names the `withdrawn` it follows in `follows`, and only a proposal may. Every event names its invoice (`document`) and every reply names what it answers, so either party can rebuild the whole exchange from the two identities and the ids.
 
-A receiver refuses, with `BTP_ERROR_EVENT_CHAIN` (400), a `withdrawn` or a proposal with `follows` sent by the invoice's issuer (the event's `from` is its `document.from`): only the payer withdraws or proposes again. It also refuses a `withdrawn` whose `inReplyTo` names no event between the same two parties, an event that is not a proposal, the other party's proposal, a proposal about another invoice, or a proposal already answered or withdrawn; and a proposal whose `follows` names anything but a `withdrawn` about the same invoice between the same two parties. The first rule needs nothing but the event, so it holds for an encrypted event once opened too. The error concerns the sender's own events, so the sender is told which rule it broke. A server checks this on an unencrypted event when its trust store can say what it holds of an earlier event (the optional `getEvent`, see [AbstractTrustStore](/docs/sdk/class-api-references#abstracttruststore)); otherwise, and for an encrypted event once it is opened, the receiving platform checks it with the same rule, `lifecycleEventChainProblem` from `@btps/sdk/server`.
+A receiver refuses, with `BTP_ERROR_EVENT_CHAIN` (400), a `withdrawn` or a proposal with `follows` sent by the invoice's issuer (the event's `from` is its `document.from`): only the payer withdraws or proposes again. It also refuses a `withdrawn` whose `inReplyTo` names no event between the same two parties, an event that is not a proposal, the other party's proposal, a proposal about another invoice, or a proposal already answered or withdrawn; and a proposal whose `follows` names anything but a `withdrawn` about the same invoice between the same two parties. The first rule needs nothing but the event, so it holds for an encrypted event once opened too. The error concerns the sender's own events, so the sender is told which rule it broke.
+
+The chain is the receiving platform's to check, from the events it holds, never the server's. The SDK ships the check as middleware, `eventChainCheck` from `@btps/sdk/server/core`, off until a platform adds it. It runs after the server's trust check and refuses an unencrypted event in flight. With `getEvent`, the platform's own lookup of an earlier event, it checks every rule; without it, only that the payer sent it:
+
+```js
+import { eventChainCheck } from '@btps/sdk/server/core';
+
+export default function createMiddleware() {
+  return [
+    eventChainCheck({
+      // What the platform holds of event `id` between `from` and `to`, either way:
+      // { eventType, from, state: 'open' | 'answered' | 'withdrawn', document: { from, id } },
+      // or undefined when it holds none.
+      getEvent: ({ id, from, to }) => events.facts({ id, from, to }),
+    }),
+  ];
+}
+```
+
+An encrypted event's chain is inside it, so the platform checks it once opened, with the same rule, `lifecycleEventChainProblem` from `@btps/sdk/server`, and answers the sender with a BTPS event.
 
 Whether an `inReplyTo` on a reply names an event the two parties actually exchanged, and whether a change of status is allowed (for example a refund before the invoice is paid), are for the receiving platform to check against the events it holds.
 
