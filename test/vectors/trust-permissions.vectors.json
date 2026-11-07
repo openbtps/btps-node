@@ -807,7 +807,7 @@
         ]
       },
       "expect": "refuse",
-      "why": "send names one of four document types"
+      "why": "send names one of the five document types"
     },
     {
       "name": "request-with-a-provider-name",
@@ -2247,7 +2247,7 @@
         "documentType": "quote"
       },
       "expect": "refuse",
-      "why": "documentType is one of four document types"
+      "why": "documentType is one of the five document types"
     },
     {
       "name": "document-type-under-1-1",
