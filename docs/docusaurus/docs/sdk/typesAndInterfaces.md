@@ -1530,6 +1530,7 @@ type BTPEvidenceBundle = {
   agreement: BTPAgreementDoc;
   statements: BTPStatementRecord[];
   keys: { identity: string; selector: string; publicKey: string; fingerprint: string }[];
+  timestamps?: { statementSha256: string; token: string }[]; // RFC 3161 tokens, base64
 };
 
 // What verifyEvidenceBundle reports: facts, never a verdict
@@ -1544,8 +1545,18 @@ type BTPEvidenceFacts = {
     termsMatch: boolean;
     withinDeadline: boolean;
     inOrder: boolean;
+    timestamp?: BTPTimestampFacts; // when the bundle has a token for it
   })[];
-  complete: boolean; // every fact holds, and every signer accepted, once
+  complete: boolean; // every fact holds, and every signer accepted, once; never a timestamp
+};
+
+// What an RFC 3161 token shows about its statement
+type BTPTimestampFacts = {
+  imprintMatches: boolean;
+  signatureValid: boolean;
+  time?: string;
+  authority?: string;
+  trusted?: boolean; // only when trusted roots are given
 };
 
 // Since 1.2: detail values by permission name, e.g. { "detail:dob": "1990-04-21" }

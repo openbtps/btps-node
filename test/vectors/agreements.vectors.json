@@ -6261,6 +6261,392 @@
         ],
         "complete": false
       }
+    },
+    {
+      "name": "timestamped-by-a-trusted-authority",
+      "bundle": {
+        "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
+        "agreement": {
+          "type": "agreement",
+          "title": "Home loan agreement",
+          "id": "AGR-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "body": {
+            "format": "markdown",
+            "content": "# Home loan\n\nThe terms are attached. Each of you accepts them in turn."
+          },
+          "attachments": [
+            {
+              "content": "JVBERi0xLjcgSG9tZSBsb2FuIHRlcm1zOiA2LjElIHAuYS4gb3ZlciAzMCB5ZWFycw==",
+              "type": "application/pdf",
+              "filename": "terms.pdf",
+              "size": 49,
+              "sha256": "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
+            }
+          ],
+          "acceptance": {
+            "by": "2026-11-30T00:00:00.000Z",
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+            "signers": [
+              {
+                "address": "alice$client.example"
+              },
+              {
+                "address": "sam$guarantor.example"
+              },
+              {
+                "address": "loans$bank.example"
+              }
+            ],
+            "signingOrder": "sequential"
+          },
+          "originatorSignature": {
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "CKDY755su+/NYdHnWK3Q4YAZDjfnllz6O51EmWmF+Csy14SlQL+eqNBqw2/4kt3m8ETYcIH6g7U4Q1ECINyjs6ZYC/8V40dCuJY7hLj0NKzgJr8DxOXfJsOuGYTVO5BqWh3C36tskTVslOpSu0/56RMM5zTUr6P+74DPkr+16rXZef2IJiByrw6jBNnnZpGDEA1LySofZJLt08bHYa5JeyMjMffhs+1xKychYo7Xyc90x6O/D19V4bJT/4E7wpe7x1+Yxx9MI14kpnn+PJhVhD4BcP+Pm6lvZIHUFXbrcgC/VlU/UiC+IedgNpTs1fKVfbO4aC6tGscavoaA7HvTTg==",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
+          }
+        },
+        "statements": [
+          {
+            "statement": {
+              "agreement": {
+                "originator": "loans$bank.example",
+                "id": "AGR-1",
+                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+              },
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+              "signer": "alice$client.example",
+              "decision": "accepted",
+              "signedAt": "2026-11-02T00:00:00.000Z"
+            },
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
+              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            }
+          },
+          {
+            "statement": {
+              "agreement": {
+                "originator": "loans$bank.example",
+                "id": "AGR-1",
+                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+              },
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+              "signer": "sam$guarantor.example",
+              "decision": "accepted",
+              "signedAt": "2026-11-03T00:00:00.000Z",
+              "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
+            },
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "X4Kg0fWsd7ZE0qA7cMXZgm0DsG1bSEjSAmzCWCpzHh/QR/komonXSN4Z3KjDYNuV7yV8BPywE7iZmjKd37YAYwUJ95aD8A0oXspYUdsE7Nb/ARzimNB7HsKRgZ6/keI6ddu3c8aHRILuXdXOkPdmnh87qLxZLIr92G5WxAqrXPZ1qE04lVEhsIvA0URrB6d3ZhkYncL5OU1cWU5SYkyQqEGbsnDhDfJrIW/+h5q/JP9CEDZyk1H4H9WQ8kfwqU4WcbSizgkQbQOpNH43gyLUlA9aUnrCqKHxSI8mrDI0y+NEVolZWnmVgO50wfGMyeuu2C9P1Jp4rhRS+lDU1bJQ8w==",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
+          },
+          {
+            "statement": {
+              "agreement": {
+                "originator": "loans$bank.example",
+                "id": "AGR-1",
+                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+              },
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+              "signer": "loans$bank.example",
+              "decision": "accepted",
+              "signedAt": "2026-11-04T00:00:00.000Z",
+              "previous": "2d2c41bfe94d99407015991848ddf22b2fa57533fa8ffd31ab34a72f75ab07ef"
+            },
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "n7Qt2Wr6E759MJch2BbORM4SLxovT8J8AKOC8FC68DQyN/naOp0uCsNjlU96UOrnwGXBiAF5JBXkDIBSVKG11vKEMq2Z7KLe+2Kpqiy1gmbGEJs9Po+aPyjUzq28penNTMuIjeRmfq0XMyRUYKHkfw2WFk5TkEYWm/6p/A7rp5e5usRis5Mlz4xxQ9bcFwZ0W9QmuuLB4ytMqhqRnqdPwNm45Ia+WCeZmpYK5tRJa3ONnPF7Z96TMRLpl9K3K+93pcHyOFU0tmiIvHZCknTfePmU9Bxe60qgoL89RPEZQe1zgL9IRmF7eprOzzREwYRL5daTDv63V6sGsA+mo33vmg==",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
+          }
+        ],
+        "keys": [
+          {
+            "identity": "loans$bank.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArlhp1Th8WEqOBszPSXSI\nabxtIb/yGvGUvMtxWACENxKWbK/4elcppOv4wLvX2w/OjQRB4ptLVcMsuBctE5N8\nEWgm2Vowz7MQYwfB2jY2tMQgtlV8Gebmm0+OwF6lMjy5tx5KKr/49NvIGGtA7Qq1\n+jL3oW1b1y12TB42L+VOReOhOUnxwEVLGoy6bUnSqBQMNC8PM5EapYQ30TIqofUB\nKCRgOc+k75QBuopdXVvkh5PFVuA218QQ6ZUAy1XEhQVMN+5JN6KMp8rY8YKKCGSW\ngkPie3/BdkwpaeXmh1KSBnIklcELw1d3jk5fp0/APbwlbrzotxHlpe39sMp5RV02\nuQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+          },
+          {
+            "identity": "alice$client.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2IcTyTDB8kMUjQoqGTdc\nspN5YLs3HICYM418Dggffu/x1CU9c7aA/GWvyIWsFSxnH6f10EEZwTqFxA0CC+2J\nPxq4/8/rLI5EvS6XqlZdEWs3b0kFbZQjqLhzIKv54we+SxjXCmOQWyKaa44k7oOJ\nm3VAXncmEwe6e+OOBwBH3mEDZbUJBxxhjvA9FjFWFYfiLDoqbsexaz0M/y08sUaP\nYPZL0XRDeGx3FpFg9vxVuvEqDRUYoA8AgWDMINcVYG1rc/9zD7dBdYAG1Bl/UTyu\n6fNH7b4Oj9jMTZ8+sqwWewJn+usMskY98cxeo9DdTHQkl2no1ndvti8Y8dVqoBW+\nCwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+          },
+          {
+            "identity": "sam$guarantor.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApmbSkQN2QV4GWGkpioYz\nKKWwlB53SS+xDc1JRHY6Wfndo15BwcD1ClHeOLYvJP5e5RxxqWo21tZApNGXunYs\nMwidCxJLyTUtQYCL7k/PxUhqEKjsGmSU0qMp0wF/1JXSEQEV5IW4Hu2PedQ7lMv2\n1xR7vYiOBHLAwLSLgl18Z6A43B9D72e2YrdMRrVy/iDS/ih2LtxzTDmdjHxoJKHx\nYD1d8BW/wvSoJ3uFPJXLely8dkERFErm+8Ug5/Zt+EQODruipqzilLzBGT3bgdpU\n/BvLCSsVUqdzKg45svH+euAue55aOyU+TZR3N1XZZcdB5brEYCfSo7+60109CgVN\nAQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+          },
+          {
+            "identity": "admin$client.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvHFYdmAbxNC+zCuZ39Aq\njoWJFmVt5OPRTgdUiMbkn7tND1azh/tnLuAmSclms8nFADId7vETH26cjYfxOkOo\nz5sa8EQDKZT+0IdOhsicZwy4sFZ+TGKSQIHUrfG/z/VwBGS5LrwKE0xoUN8vz5T8\ntvXiZMw8dbC80j1mOYSK3ee/meZVRYD8vPoTnGlmG/Ngt5Y3O+7PkZPVgw3j51bG\nPFl2qld066T7watqWDRcp2f2zeMXexRMdw/p8iSzMXKHcn5oEjb7ZTodA+v016Xr\ny3AVlE/lDng3KKtaTmuUqwb530p2l6Xsr4oTY6YI78BYhh1vEklXRLiwv+oZ4EqF\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+          }
+        ],
+        "timestamps": [
+          {
+            "statementSha256": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e",
+            "token": "MIIE/QYJKoZIhvcNAQcCoIIE7jCCBOoCAQMxDzANBglghkgBZQMEAgEFADBoBgsqhkiG9w0BCRABBKBZJFcEVTBTAgEBBgkrBgEEAYaNHwEwLzALBglghkgBZQMEAgEEIPJOOhym0tE2JkFDT7FVB+pHRA63TXsgmiWdDRkjjzIeAgEBGA8yMDI2MTEwMjAwMDUwMFqgggLKMIICxjCCAbCgAwIBAgIBBzALBgkqhkiG9w0BAQswHTEbMBkGA1UEAwwSQlRQUyBUZXN0IFRTQSBSb290MB4XDTI2MDEwMTAwMDAwMFoXDTM2MDEwMTAwMDAwMFowGDEWMBQGA1UEAwwNQlRQUyBUZXN0IFRTQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKS8BT5+TTkwtfT/h28FptKemNSKrR4Pw+Lqwyr6Bm/K2ZUwnGqKD5jiXHM4WTIvhEtfel1RboOBUXLD4eKrJJQo1X6kcmaUk28DtkZlcWrJhDgdqh+BPkrkooytI+Qfnj2M4QLFVPCihOc3elZtfD3ZWpORkES9NnIDtWcV3PbDDs+EZhqNys9siQ+ou9cNUMMcluXRljdrxrcWGKYyuefJ/qyVAh0gwWsQ2h5Fd9tqNfMkGMM1Ff7ovLB7DQgbE2u0n7uH4VP8KKAArvTaZWoMDnREr8Fi7w1aumM/kMCJVXqkJQOCor8Jn7FBN212VMd3spDbQ7AhXiZFg7JPeUsCAwEAAaMaMBgwFgYDVR0lAQH/BAwwCgYIKwYBBQUHAwgwCwYJKoZIhvcNAQELA4IBAQC3y8abxPXecZ33cQXiIaVMv62vfa/eeqbWwA39yKkloRoF05U2v1wE3tqaAcnAAMV1Ze2CH5DRvficAMWvMD1dDgqL311OsnJl5Zw/MUoFRhGyOZ7FYdwbKXUqR9GTkZZsrBpg17BXoKA4EJus8Q1K9Hb2X+DpaA+s2mQCeWp8EDmURcYKNQ4RlpcDpFzOfhbd3T6iYfBKkFKIJ1l2yCyJwQ2vb0btllYQHBS7IRE7eLjhGaql2NTiQZBqiRgPmk9pSm6+k5p+AZNGjgbrROXElHjBQ3Z77Xq+zCxtgi4uaDZAhaHjTmTk3OzGfLR4p/wKBqT2Gge0dyoUuyCvsCqJMYIBmjCCAZYCAQEwIjAdMRswGQYDVQQDDBJCVFBTIFRlc3QgVFNBIFJvb3QCAQcwDQYJYIZIAWUDBAIBBQCgTTAaBgkqhkiG9w0BCQMxDQYLKoZIhvcNAQkQAQQwLwYJKoZIhvcNAQkEMSIEIJCz+GYMs6d9iMYXAmu8vCwExL6LmzhAPa3N97DmumCHMAsGCSqGSIb3DQEBCwSCAQBT02tpTgb5/7CVGfyCm1/E+lLGxGqO3TVV7lJKwK7vkhrvwVRfBHCEKPzx7jZqsbOt58oDlC1Y702k0LQ9cFqD24MKRz6ri2F4SoUBD1uH08esiLa+/bxLFGKYGpVVEAFH0wP/3Tc9HxtmLMI2Vrlw22+YuqIaYzJRg8qtnpJutyJkb0kfZPKg7S2qRiLlwg5mPEpriTJYM4u0uwYbCBdXC8VW+Jw1A6+C6Oa5btwplqRLXoElvkZDK/87IHgIgMtCKCSmH5g0oF3K2uikdW20bp8cAHyqdqPxtCcU5ENYH36fMRz/1jrSy80oDNXDB4FkUtp1hWOowFyhGY5cN2AQ"
+          }
+        ]
+      },
+      "options": {
+        "trustedTimestampRoots": [
+          "-----BEGIN CERTIFICATE-----\nMIICxDCCAa6gAwIBAgIBATALBgkqhkiG9w0BAQswHTEbMBkGA1UEAwwSQlRQUyBUZXN0IFRTQSBSb290MB4XDTI2MDEwMTAwMDAwMFoXDTM2MDEwMTAwMDAwMFowHTEbMBkGA1UEAwwSQlRQUyBUZXN0IFRTQSBSb290MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyW9pt6CFz1GQdd4hUNN5mc+vRs4Gmb4BuTsXh/gJDsuf65bWq6Y7aEIEHyGd//4Dyhy6rFJ8kciNTMYuIf1lttCz4NMnNDW/JMkHgMc8kMztLQVJTYoYM78lx/FZYDgDVaSmrlsNPuXiKPj61jcwWsUP6KW/uR7rypt1gMnVe4ZPyqSalwH59lTk5Hy6rBNZCLKGKwFEkPN3EGSp5x9gBgTPT4anbEBl5Lhf70BZeXh1V4r9m+00OSWTZj/3u0uBtw5bv2/YWKhoEBKF2FtnLANKZ3CAea6aIh1aPQMO6+ocrsYFQivNJGlc8pmvLVwSI713r/j71CkwZgCHStMt2QIDAQABoxMwETAPBgNVHRMBAf8EBTADAQH/MAsGCSqGSIb3DQEBCwOCAQEACXd6DIeUm99fHoFICZ5PYX88IC1Jm14KJ6srsuUWkOEbvFbxRvKaswRdFzu0NW/ybVkHoUHxcxKre9Dm73eah0kKda0OXg1cdzP4o+k6lJxB8AVSQIzKVsxL7LgP7xut1YKJzJTMzL/13pZ8MeSZmCRDjHamdsV8BoBTjQTtCemhF33hcBfYo2M7nIIBmU/LGY7OIGG/8yBNclB+wMqvB+4LTdtV0QBWNQm43betxzlF62j7pNbfta09NFyb+xuxtlfAqwmdfA4Oafj9Jn1Ht7SzJuGP6+RcTRl8GlIvZJMT73aKkItaGex8BGyCcFL/VAtVtBTzIx9FtwQkGfMd9Q==\n-----END CERTIFICATE-----"
+        ]
+      },
+      "expect": {
+        "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
+        "originatorSignatureValid": true,
+        "termsAttached": true,
+        "statements": [
+          {
+            "signer": "alice$client.example",
+            "decision": "accepted",
+            "signatureValid": true,
+            "keyKind": "identity",
+            "agreementMatches": true,
+            "termsMatch": true,
+            "withinDeadline": true,
+            "inOrder": true,
+            "timestamp": {
+              "imprintMatches": true,
+              "signatureValid": true,
+              "time": "2026-11-02T00:05:00.000Z",
+              "authority": "CN=BTPS Test TSA",
+              "trusted": true
+            }
+          },
+          {
+            "signer": "sam$guarantor.example",
+            "decision": "accepted",
+            "signatureValid": true,
+            "keyKind": "identity",
+            "agreementMatches": true,
+            "termsMatch": true,
+            "withinDeadline": true,
+            "inOrder": true
+          },
+          {
+            "signer": "loans$bank.example",
+            "decision": "accepted",
+            "signatureValid": true,
+            "keyKind": "identity",
+            "agreementMatches": true,
+            "termsMatch": true,
+            "withinDeadline": true,
+            "inOrder": true
+          }
+        ],
+        "complete": true
+      }
+    },
+    {
+      "name": "timestamp-of-another-statement",
+      "bundle": {
+        "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
+        "agreement": {
+          "type": "agreement",
+          "title": "Home loan agreement",
+          "id": "AGR-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "body": {
+            "format": "markdown",
+            "content": "# Home loan\n\nThe terms are attached. Each of you accepts them in turn."
+          },
+          "attachments": [
+            {
+              "content": "JVBERi0xLjcgSG9tZSBsb2FuIHRlcm1zOiA2LjElIHAuYS4gb3ZlciAzMCB5ZWFycw==",
+              "type": "application/pdf",
+              "filename": "terms.pdf",
+              "size": 49,
+              "sha256": "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
+            }
+          ],
+          "acceptance": {
+            "by": "2026-11-30T00:00:00.000Z",
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+            "signers": [
+              {
+                "address": "alice$client.example"
+              },
+              {
+                "address": "sam$guarantor.example"
+              },
+              {
+                "address": "loans$bank.example"
+              }
+            ],
+            "signingOrder": "sequential"
+          },
+          "originatorSignature": {
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "CKDY755su+/NYdHnWK3Q4YAZDjfnllz6O51EmWmF+Csy14SlQL+eqNBqw2/4kt3m8ETYcIH6g7U4Q1ECINyjs6ZYC/8V40dCuJY7hLj0NKzgJr8DxOXfJsOuGYTVO5BqWh3C36tskTVslOpSu0/56RMM5zTUr6P+74DPkr+16rXZef2IJiByrw6jBNnnZpGDEA1LySofZJLt08bHYa5JeyMjMffhs+1xKychYo7Xyc90x6O/D19V4bJT/4E7wpe7x1+Yxx9MI14kpnn+PJhVhD4BcP+Pm6lvZIHUFXbrcgC/VlU/UiC+IedgNpTs1fKVfbO4aC6tGscavoaA7HvTTg==",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
+          }
+        },
+        "statements": [
+          {
+            "statement": {
+              "agreement": {
+                "originator": "loans$bank.example",
+                "id": "AGR-1",
+                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+              },
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+              "signer": "alice$client.example",
+              "decision": "accepted",
+              "signedAt": "2026-11-02T00:00:00.000Z"
+            },
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
+              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            }
+          },
+          {
+            "statement": {
+              "agreement": {
+                "originator": "loans$bank.example",
+                "id": "AGR-1",
+                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+              },
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+              "signer": "sam$guarantor.example",
+              "decision": "accepted",
+              "signedAt": "2026-11-03T00:00:00.000Z",
+              "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
+            },
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "X4Kg0fWsd7ZE0qA7cMXZgm0DsG1bSEjSAmzCWCpzHh/QR/komonXSN4Z3KjDYNuV7yV8BPywE7iZmjKd37YAYwUJ95aD8A0oXspYUdsE7Nb/ARzimNB7HsKRgZ6/keI6ddu3c8aHRILuXdXOkPdmnh87qLxZLIr92G5WxAqrXPZ1qE04lVEhsIvA0URrB6d3ZhkYncL5OU1cWU5SYkyQqEGbsnDhDfJrIW/+h5q/JP9CEDZyk1H4H9WQ8kfwqU4WcbSizgkQbQOpNH43gyLUlA9aUnrCqKHxSI8mrDI0y+NEVolZWnmVgO50wfGMyeuu2C9P1Jp4rhRS+lDU1bJQ8w==",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
+          },
+          {
+            "statement": {
+              "agreement": {
+                "originator": "loans$bank.example",
+                "id": "AGR-1",
+                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+              },
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+              "signer": "loans$bank.example",
+              "decision": "accepted",
+              "signedAt": "2026-11-04T00:00:00.000Z",
+              "previous": "2d2c41bfe94d99407015991848ddf22b2fa57533fa8ffd31ab34a72f75ab07ef"
+            },
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "n7Qt2Wr6E759MJch2BbORM4SLxovT8J8AKOC8FC68DQyN/naOp0uCsNjlU96UOrnwGXBiAF5JBXkDIBSVKG11vKEMq2Z7KLe+2Kpqiy1gmbGEJs9Po+aPyjUzq28penNTMuIjeRmfq0XMyRUYKHkfw2WFk5TkEYWm/6p/A7rp5e5usRis5Mlz4xxQ9bcFwZ0W9QmuuLB4ytMqhqRnqdPwNm45Ia+WCeZmpYK5tRJa3ONnPF7Z96TMRLpl9K3K+93pcHyOFU0tmiIvHZCknTfePmU9Bxe60qgoL89RPEZQe1zgL9IRmF7eprOzzREwYRL5daTDv63V6sGsA+mo33vmg==",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
+          }
+        ],
+        "keys": [
+          {
+            "identity": "loans$bank.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArlhp1Th8WEqOBszPSXSI\nabxtIb/yGvGUvMtxWACENxKWbK/4elcppOv4wLvX2w/OjQRB4ptLVcMsuBctE5N8\nEWgm2Vowz7MQYwfB2jY2tMQgtlV8Gebmm0+OwF6lMjy5tx5KKr/49NvIGGtA7Qq1\n+jL3oW1b1y12TB42L+VOReOhOUnxwEVLGoy6bUnSqBQMNC8PM5EapYQ30TIqofUB\nKCRgOc+k75QBuopdXVvkh5PFVuA218QQ6ZUAy1XEhQVMN+5JN6KMp8rY8YKKCGSW\ngkPie3/BdkwpaeXmh1KSBnIklcELw1d3jk5fp0/APbwlbrzotxHlpe39sMp5RV02\nuQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+          },
+          {
+            "identity": "alice$client.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2IcTyTDB8kMUjQoqGTdc\nspN5YLs3HICYM418Dggffu/x1CU9c7aA/GWvyIWsFSxnH6f10EEZwTqFxA0CC+2J\nPxq4/8/rLI5EvS6XqlZdEWs3b0kFbZQjqLhzIKv54we+SxjXCmOQWyKaa44k7oOJ\nm3VAXncmEwe6e+OOBwBH3mEDZbUJBxxhjvA9FjFWFYfiLDoqbsexaz0M/y08sUaP\nYPZL0XRDeGx3FpFg9vxVuvEqDRUYoA8AgWDMINcVYG1rc/9zD7dBdYAG1Bl/UTyu\n6fNH7b4Oj9jMTZ8+sqwWewJn+usMskY98cxeo9DdTHQkl2no1ndvti8Y8dVqoBW+\nCwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+          },
+          {
+            "identity": "sam$guarantor.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApmbSkQN2QV4GWGkpioYz\nKKWwlB53SS+xDc1JRHY6Wfndo15BwcD1ClHeOLYvJP5e5RxxqWo21tZApNGXunYs\nMwidCxJLyTUtQYCL7k/PxUhqEKjsGmSU0qMp0wF/1JXSEQEV5IW4Hu2PedQ7lMv2\n1xR7vYiOBHLAwLSLgl18Z6A43B9D72e2YrdMRrVy/iDS/ih2LtxzTDmdjHxoJKHx\nYD1d8BW/wvSoJ3uFPJXLely8dkERFErm+8Ug5/Zt+EQODruipqzilLzBGT3bgdpU\n/BvLCSsVUqdzKg45svH+euAue55aOyU+TZR3N1XZZcdB5brEYCfSo7+60109CgVN\nAQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+          },
+          {
+            "identity": "admin$client.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvHFYdmAbxNC+zCuZ39Aq\njoWJFmVt5OPRTgdUiMbkn7tND1azh/tnLuAmSclms8nFADId7vETH26cjYfxOkOo\nz5sa8EQDKZT+0IdOhsicZwy4sFZ+TGKSQIHUrfG/z/VwBGS5LrwKE0xoUN8vz5T8\ntvXiZMw8dbC80j1mOYSK3ee/meZVRYD8vPoTnGlmG/Ngt5Y3O+7PkZPVgw3j51bG\nPFl2qld066T7watqWDRcp2f2zeMXexRMdw/p8iSzMXKHcn5oEjb7ZTodA+v016Xr\ny3AVlE/lDng3KKtaTmuUqwb530p2l6Xsr4oTY6YI78BYhh1vEklXRLiwv+oZ4EqF\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+          }
+        ],
+        "timestamps": [
+          {
+            "statementSha256": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e",
+            "token": "MIIE/QYJKoZIhvcNAQcCoIIE7jCCBOoCAQMxDzANBglghkgBZQMEAgEFADBoBgsqhkiG9w0BCRABBKBZJFcEVTBTAgEBBgkrBgEEAYaNHwEwLzALBglghkgBZQMEAgEEIC0sQb/pTZlAcBWZGEjd8isvpXUz+o/9Mas0py91qwfvAgEBGA8yMDI2MTEwMjAwMDUwMFqgggLKMIICxjCCAbCgAwIBAgIBBzALBgkqhkiG9w0BAQswHTEbMBkGA1UEAwwSQlRQUyBUZXN0IFRTQSBSb290MB4XDTI2MDEwMTAwMDAwMFoXDTM2MDEwMTAwMDAwMFowGDEWMBQGA1UEAwwNQlRQUyBUZXN0IFRTQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKS8BT5+TTkwtfT/h28FptKemNSKrR4Pw+Lqwyr6Bm/K2ZUwnGqKD5jiXHM4WTIvhEtfel1RboOBUXLD4eKrJJQo1X6kcmaUk28DtkZlcWrJhDgdqh+BPkrkooytI+Qfnj2M4QLFVPCihOc3elZtfD3ZWpORkES9NnIDtWcV3PbDDs+EZhqNys9siQ+ou9cNUMMcluXRljdrxrcWGKYyuefJ/qyVAh0gwWsQ2h5Fd9tqNfMkGMM1Ff7ovLB7DQgbE2u0n7uH4VP8KKAArvTaZWoMDnREr8Fi7w1aumM/kMCJVXqkJQOCor8Jn7FBN212VMd3spDbQ7AhXiZFg7JPeUsCAwEAAaMaMBgwFgYDVR0lAQH/BAwwCgYIKwYBBQUHAwgwCwYJKoZIhvcNAQELA4IBAQC3y8abxPXecZ33cQXiIaVMv62vfa/eeqbWwA39yKkloRoF05U2v1wE3tqaAcnAAMV1Ze2CH5DRvficAMWvMD1dDgqL311OsnJl5Zw/MUoFRhGyOZ7FYdwbKXUqR9GTkZZsrBpg17BXoKA4EJus8Q1K9Hb2X+DpaA+s2mQCeWp8EDmURcYKNQ4RlpcDpFzOfhbd3T6iYfBKkFKIJ1l2yCyJwQ2vb0btllYQHBS7IRE7eLjhGaql2NTiQZBqiRgPmk9pSm6+k5p+AZNGjgbrROXElHjBQ3Z77Xq+zCxtgi4uaDZAhaHjTmTk3OzGfLR4p/wKBqT2Gge0dyoUuyCvsCqJMYIBmjCCAZYCAQEwIjAdMRswGQYDVQQDDBJCVFBTIFRlc3QgVFNBIFJvb3QCAQcwDQYJYIZIAWUDBAIBBQCgTTAaBgkqhkiG9w0BCQMxDQYLKoZIhvcNAQkQAQQwLwYJKoZIhvcNAQkEMSIEIG1xvcPJRacRJLVuX4Lqhl0k3AezpT28dRQSgHy2tu2+MAsGCSqGSIb3DQEBCwSCAQBC/Y2MFV7ZYXpqVlf7ECPtv/9X4Y3CNPGQSshV4b6+wnUN0Qx0KOaclh4Bhim3wlxh53OT/LyK4B56ZcZ/1DZvgJwZx3n8YGQ3Xd5hzpQ03NvswhGBRuZm63l+ICouDDHsd02cyXt4uxgyWSmA+kzrE+7WdWfsxCTdBPQjUYlcEaCjnppnYDWoCxidQaHsGnOhTx1ltOExzclvYr7tey2RL8Yj8F1nR4hTDTah6tKNHJntgcI2FasIIyqzGs+Za2Bsdz9nk02NsNLpQif9iGu8XAN6jf8AViRoBF8H3NVTWA7tDuN+JOy4oLIc+WAWAIq0aGbI7Mjh+lJ/aQg/TmY3"
+          }
+        ]
+      },
+      "options": {
+        "trustedTimestampRoots": [
+          "-----BEGIN CERTIFICATE-----\nMIICxDCCAa6gAwIBAgIBATALBgkqhkiG9w0BAQswHTEbMBkGA1UEAwwSQlRQUyBUZXN0IFRTQSBSb290MB4XDTI2MDEwMTAwMDAwMFoXDTM2MDEwMTAwMDAwMFowHTEbMBkGA1UEAwwSQlRQUyBUZXN0IFRTQSBSb290MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyW9pt6CFz1GQdd4hUNN5mc+vRs4Gmb4BuTsXh/gJDsuf65bWq6Y7aEIEHyGd//4Dyhy6rFJ8kciNTMYuIf1lttCz4NMnNDW/JMkHgMc8kMztLQVJTYoYM78lx/FZYDgDVaSmrlsNPuXiKPj61jcwWsUP6KW/uR7rypt1gMnVe4ZPyqSalwH59lTk5Hy6rBNZCLKGKwFEkPN3EGSp5x9gBgTPT4anbEBl5Lhf70BZeXh1V4r9m+00OSWTZj/3u0uBtw5bv2/YWKhoEBKF2FtnLANKZ3CAea6aIh1aPQMO6+ocrsYFQivNJGlc8pmvLVwSI713r/j71CkwZgCHStMt2QIDAQABoxMwETAPBgNVHRMBAf8EBTADAQH/MAsGCSqGSIb3DQEBCwOCAQEACXd6DIeUm99fHoFICZ5PYX88IC1Jm14KJ6srsuUWkOEbvFbxRvKaswRdFzu0NW/ybVkHoUHxcxKre9Dm73eah0kKda0OXg1cdzP4o+k6lJxB8AVSQIzKVsxL7LgP7xut1YKJzJTMzL/13pZ8MeSZmCRDjHamdsV8BoBTjQTtCemhF33hcBfYo2M7nIIBmU/LGY7OIGG/8yBNclB+wMqvB+4LTdtV0QBWNQm43betxzlF62j7pNbfta09NFyb+xuxtlfAqwmdfA4Oafj9Jn1Ht7SzJuGP6+RcTRl8GlIvZJMT73aKkItaGex8BGyCcFL/VAtVtBTzIx9FtwQkGfMd9Q==\n-----END CERTIFICATE-----"
+        ]
+      },
+      "expect": {
+        "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
+        "originatorSignatureValid": true,
+        "termsAttached": true,
+        "statements": [
+          {
+            "signer": "alice$client.example",
+            "decision": "accepted",
+            "signatureValid": true,
+            "keyKind": "identity",
+            "agreementMatches": true,
+            "termsMatch": true,
+            "withinDeadline": true,
+            "inOrder": true,
+            "timestamp": {
+              "imprintMatches": false,
+              "signatureValid": true,
+              "time": "2026-11-02T00:05:00.000Z",
+              "authority": "CN=BTPS Test TSA",
+              "trusted": true
+            }
+          },
+          {
+            "signer": "sam$guarantor.example",
+            "decision": "accepted",
+            "signatureValid": true,
+            "keyKind": "identity",
+            "agreementMatches": true,
+            "termsMatch": true,
+            "withinDeadline": true,
+            "inOrder": true
+          },
+          {
+            "signer": "loans$bank.example",
+            "decision": "accepted",
+            "signatureValid": true,
+            "keyKind": "identity",
+            "agreementMatches": true,
+            "termsMatch": true,
+            "withinDeadline": true,
+            "inOrder": true
+          }
+        ],
+        "complete": true
+      }
     }
   ]
 }

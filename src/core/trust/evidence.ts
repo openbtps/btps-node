@@ -28,6 +28,7 @@ import {
   statementSignatureFacts,
   type BTPKeyOf,
 } from './agreements.js';
+import { timestampFacts, type BTPTimestampFacts } from './timestamps.js';
 import type { BTPAgreementState, BTPStatementRecord, BTPStatementSignatureFacts } from './types.js';
 
 /**
@@ -59,8 +60,10 @@ export type BTPEvidenceFacts = {
     withinDeadline: boolean;
     /** It follows the signers and order, after the statements before it */
     inOrder: boolean;
+    /** Its RFC 3161 timestamp, when the bundle has one for it */
+    timestamp?: BTPTimestampFacts;
   })[];
-  /** Every fact above holds, and every signer accepted, once */
+  /** Every fact above holds, and every signer accepted, once. A timestamp is optional and never part of it. */
   complete: boolean;
 };
 
@@ -86,8 +89,13 @@ const keysOf = (bundle: Pick<BTPEvidenceBundle, 'keys'>): BTPKeyOf => {
  * (`BTP_ERROR_VALIDATION`). Whether a key really was its identity's at the
  * time, and whether a device's delegator is its domain's operator, are facts
  * a reader may confirm online; the bundle embeds the keys so it checks without.
+ * A statement's RFC 3161 timestamp, when there is one, is reported with it;
+ * with `trustedTimestampRoots` (PEM), whether its authority is trusted too.
  */
-export const verifyEvidenceBundle = async (bundle: unknown): Promise<BTPEvidenceFacts> => {
+export const verifyEvidenceBundle = async (
+  bundle: unknown,
+  options: { trustedTimestampRoots?: string[] } = {},
+): Promise<BTPEvidenceFacts> => {
   const parsed = BtpEvidenceBundleSchema.safeParse(bundle);
   if (!parsed.success) {
     throw new BTPErrorException(BTP_ERROR_VALIDATION, {
@@ -134,6 +142,16 @@ export const verifyEvidenceBundle = async (bundle: unknown): Promise<BTPEvidence
     });
     return facts;
   });
+  // Timestamps are optional: each is reported with its statement and decides nothing.
+  const timestamped: BTPEvidenceFacts['statements'] = await Promise.all(
+    statementFacts.map(async (facts, i) => {
+      const sha256 = answered[i]?.sha256 ?? '';
+      const token = parsed.data.timestamps?.find((t) => t.statementSha256 === sha256)?.token;
+      if (token === undefined) return facts;
+      const trustedRoots = options.trustedTimestampRoots;
+      return { ...facts, timestamp: await timestampFacts(token, sha256, { trustedRoots }) };
+    }),
+  );
 
   const originatorValid = originatorSignatureValid(agreement, originator, keyOf);
   const complete =
@@ -153,7 +171,7 @@ export const verifyEvidenceBundle = async (bundle: unknown): Promise<BTPEvidence
     contentSha256: agreementContentSha256(agreement),
     originatorSignatureValid: originatorValid,
     termsAttached,
-    statements: statementFacts,
+    statements: timestamped,
     complete,
   };
 };
@@ -222,6 +240,13 @@ export const describeEvidenceFacts = (facts: BTPEvidenceFacts): string => {
       `   signature ${mark(s.signatureValid)}, this agreement ${mark(s.agreementMatches)}`,
       `   these terms ${mark(s.termsMatch)}, by the deadline ${mark(s.withinDeadline)}, in order ${mark(s.inOrder)}`,
     );
+    const stamp = s.timestamp;
+    if (stamp) {
+      const trusted = stamp.trusted === undefined ? 'no roots given' : mark(stamp.trusted);
+      lines.push(
+        `   timestamped ${stamp.time ?? 'unreadable'} by ${stamp.authority ?? 'unknown'}: over this statement ${mark(stamp.imprintMatches)}, signed ${mark(stamp.signatureValid)}, trusted ${trusted}`,
+      );
+    }
   });
   lines.push('', line('complete', mark(facts.complete)));
   return lines.join('\n');

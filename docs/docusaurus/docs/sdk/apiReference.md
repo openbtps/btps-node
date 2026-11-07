@@ -1254,7 +1254,10 @@ Since 1.2. Why an agreement's answer does not answer it, or `undefined`. `agreem
 ### verifyEvidenceBundle, buildEvidenceBundle, describeEvidenceFacts
 
 ```ts
-verifyEvidenceBundle(bundle: unknown): Promise<BTPEvidenceFacts>
+verifyEvidenceBundle(
+  bundle: unknown,
+  options?: { trustedTimestampRoots?: string[] }
+): Promise<BTPEvidenceFacts>
 buildEvidenceBundle(
   parts: { originator: string; agreement: BTPAgreementDoc; statements: BTPStatementRecord[] },
   keyOf: BTPKeyOf
@@ -1263,7 +1266,24 @@ describeEvidenceFacts(facts: BTPEvidenceFacts): string
 ```
 
 **Description:**
-Since 1.2. An agreement's evidence bundle, checked offline. `verifyEvidenceBundle` refuses a file that is not a bundle (`BTP_ERROR_VALIDATION`) and otherwise reports facts, never a verdict: the content's SHA-256, the originator's signature, the terms as attached, and for each statement its signature and key kind, its agreement, terms, deadline and order, and whether the agreement is `complete`. It uses only the keys in the bundle, each counted only when its fingerprint is its own. `buildEvidenceBundle` makes one from the opened agreement, its statement records in the order taken, and the keys `keyOf` gives; it refuses one whose key it cannot find (`BTP_ERROR_RESOLVE_PUBKEY`). `describeEvidenceFacts` gives the facts as plain text, as the `btps-verify-evidence` command prints them. See [The evidence bundle](../protocol/specifications/transporter-artifact.md#the-evidence-bundle).
+Since 1.2. An agreement's evidence bundle, checked offline. `verifyEvidenceBundle` refuses a file that is not a bundle (`BTP_ERROR_VALIDATION`) and otherwise reports facts, never a verdict: the content's SHA-256, the originator's signature, the terms as attached, and for each statement its signature and key kind, its agreement, terms, deadline and order, and whether the agreement is `complete`. It uses only the keys in the bundle, each counted only when its fingerprint is its own. `buildEvidenceBundle` makes one from the opened agreement, its statement records in the order taken, and the keys `keyOf` gives; it refuses one whose key it cannot find (`BTP_ERROR_RESOLVE_PUBKEY`). `describeEvidenceFacts` gives the facts as plain text, as the `btps-verify-evidence` command prints them. A statement with an RFC 3161 token in the bundle's `timestamps` gets a `timestamp` fact (see `timestampFacts`); `trustedTimestampRoots` are the PEM certificates whose timestamps the reader trusts. See [The evidence bundle](../protocol/specifications/transporter-artifact.md#the-evidence-bundle).
+
+---
+
+### timestampRequest, timestampTokenOf, timestampFacts
+
+```ts
+timestampRequest(record: BTPStatementRecord, options?: { nonce?: number }): Promise<Uint8Array>
+timestampTokenOf(response: Uint8Array): Promise<string>
+timestampFacts(
+  token: string,
+  statementSha256: string,
+  options?: { trustedRoots?: string[] }
+): Promise<BTPTimestampFacts>
+```
+
+**Description:**
+Since 1.2. RFC 3161 trusted timestamps on an agreement's statements. `timestampRequest` builds a DER TimeStampReq over the SHA-256 of a statement record, asking for the authority's certificate; only that hash leaves the provider. The platform sends it to the authority of its choice (`Content-Type: application/timestamp-query`) and gives the reply to `timestampTokenOf`, which returns the token, base64, as a bundle holds it, and refuses a reply that grants none (`BTP_ERROR_VALIDATION`). `timestampFacts` reports facts, never refusing: `imprintMatches` (the token is over this statement), `signatureValid` (signed by the certificate it carries), `time`, `authority`, and, with `trustedRoots`, `trusted` (the authority's certificate is one of them or chains to one). An unreadable token reports both checks false. `pkijs` and `asn1js` read the tokens, loaded only when a timestamp is used.
 
 ---
 

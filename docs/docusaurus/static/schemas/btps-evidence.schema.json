@@ -87,6 +87,20 @@
           "fingerprint": { "type": "string", "minLength": 1 }
         }
       }
+    },
+    "timestamps": {
+      "description": "Optional RFC 3161 timestamp tokens, each over the SHA-256 of a statement record's RFC 8785 form: the DER TimeStampToken, base64.",
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["statementSha256", "token"],
+        "properties": {
+          "statementSha256": { "$ref": "#/$defs/sha256" },
+          "token": { "type": "string", "minLength": 1 }
+        }
+      }
     }
   },
   "$defs": {

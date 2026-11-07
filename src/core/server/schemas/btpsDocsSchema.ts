@@ -827,6 +827,11 @@ export const BtpEvidenceBundleSchema = z
     statements: statements,
     // The originator's, each signer's, and each device's delegator and attestor.
     keys: boundedArray(BtpEvidenceKeySchema, agreement.signers * 3 + 1),
+    // Optional RFC 3161 tokens, base64, each over the SHA-256 of a statement record.
+    timestamps: boundedArray(
+      z.object({ statementSha256: sha256Hex, token: z.string().min(1) }).strict(),
+      agreement.signers,
+    ).optional(),
   })
   .strict();
 

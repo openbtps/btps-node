@@ -27,6 +27,7 @@ import { toBase64, utf8 } from '../src/encoding.mjs';
 import {
   addresses,
   agreements,
+  agreementTimestamps,
   details,
   deviceKeyProof,
   documents,
@@ -262,16 +263,16 @@ write('details.vectors.json', details());
 // The originator and the guarantor sign with the existing signing keys. The
 // wrap key is only encrypted to, so the other signer, a device and the
 // operator that delegates it get keys of their own, made here.
-write(
-  'agreements.vectors.json',
-  agreements({
-    originator: readVector('kms-signature.vector.json'),
-    signer: newKeyPair(),
-    guarantor: readVector('self-held-signature.vector.json'),
-    device: newKeyPair(),
-    operator: newKeyPair(),
-  }),
-);
+const agreementSet = agreements({
+  originator: readVector('kms-signature.vector.json'),
+  signer: newKeyPair(),
+  guarantor: readVector('self-held-signature.vector.json'),
+  device: newKeyPair(),
+  operator: newKeyPair(),
+});
+// Timestamped bundles: a test authority, made at generation, signs real RFC 3161 tokens.
+agreementSet.bundles.push(...(await agreementTimestamps(agreementSet)));
+write('agreements.vectors.json', agreementSet);
 
 // The manifest names every vector file with the SHA-256 of its bytes, so a
 // copy of the set can be checked whole. Rewritten on every run.
