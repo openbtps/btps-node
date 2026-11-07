@@ -6,7 +6,9 @@ slug: notes-discounts-templates
 
 # Notes, discounts and templates
 
-Three additions to documents, each `1.2.0` only. A document valid in 1.1 reads exactly as before in a `1.1.0` artifact.
+> **Since 1.2.** Each travels in `1.2.0` artifacts only. A document without them reads exactly as before in a `1.1.0` artifact.
+
+Three things a document can say about itself: how its notes are written, what was taken off, and how it should look.
 
 | What                                     | Why                                                                                                            |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |

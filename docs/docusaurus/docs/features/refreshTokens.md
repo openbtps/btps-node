@@ -6,7 +6,9 @@ slug: refresh-tokens
 
 # Refresh tokens
 
-A device signs in once, with a one-time code, and then keeps its session with a **refresh token**, rotated on every refresh. 1.2 makes refresh safer against a stolen device key and kinder to a device on a bad connection:
+> **Since 1.2.** Everything in the table below.
+
+A device signs in once, with a one-time code, and then keeps its session with a **refresh token**, rotated on every refresh. Refresh is built to be safe against a stolen device key and kind to a device on a bad connection:
 
 | What                                            | Why                                                                                    |
 | ----------------------------------------------- | -------------------------------------------------------------------------------------- |
@@ -144,7 +146,7 @@ A device that is told `BTP_ERROR_TEMPORARILY_UNAVAILABLE` waits a moment and ref
 | uses the old token after the window, or after the new token has been used            | theft: the device is revoked and `refreshTokenReused` fires                                                                                                                           |
 | refreshes with a key older than `maxKeyAgeMs`                                        | `BTP_ERROR_KEY_TOO_OLD`; the token stays usable, so the device rotates (`rotateKey`) and is let in                                                                                    |
 
-**A store without the new methods.** Without `isConsumed`, a second use is refused as an unknown token, as in 1.1, and the device is not revoked. Without `markSuccessor`, there is no grace window. Without `consumedAt` on the consumed mark, a racing refresh is taken for theft. `BtpsAuthentication` warns once for each method a store lacks. `InMemoryTokenStore` has them all.
+**A store without the new methods.** Without `isConsumed`, a second use is refused as an unknown token, and the device is not revoked. Without `markSuccessor`, there is no grace window. Without `consumedAt` on the consumed mark, a racing refresh is taken for theft. `BtpsAuthentication` warns once for each method a store lacks. `InMemoryTokenStore` has them all.
 
 The device journey (`tests/e2e/devices.e2e.test.ts`) retries a refresh inside a 1-second window and gets the same token, then is taken for theft after it. The security suite (`tests/security/reviewFixes.security.test.ts`) races two refreshes over two connections: one succeeds, the other is told to try again, and the device stays accepted.
 

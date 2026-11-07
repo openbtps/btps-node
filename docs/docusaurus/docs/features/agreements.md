@@ -6,11 +6,13 @@ slug: agreements
 
 # Agreements
 
+> **Since 1.2.** An agreement travels in `1.2.0` artifacts only.
+
 **What it is.** `agreement` is a fifth document type: a letter that asks its signers to accept it, such as a loan contract, a tenancy or a phone plan. Each signer answers `accepted` or `declined` with a signed statement, in turn or in any order, and the originator collects the answers into an [evidence bundle](./evidenceBundles.md) anyone can check offline.
 
 **Why.** Contracts are still signed by email links and portals. Over BTPS the agreement and every answer are signed artifacts between parties who already trust each other, so the proof of who accepted what, and when, is in the artifacts themselves.
 
-An agreement is `1.2.0` only, and travels under a trust that grants `send:agreement` (`send:letter` never covers one).
+An agreement travels under a trust that grants `send:agreement` (`send:letter` never covers one).
 
 ## The flow, in turn
 

@@ -6,6 +6,8 @@ slug: details-refresh
 
 # Details refresh
 
+> **Since 1.2.** The three details types travel in `1.2.0` artifacts only.
+
 **What it is.** Each side of an active trust with [permissions](./trustPermissions.md) can tell the other that its details changed, ask for them again, and answer, but only for the details it already holds by that trust. Three artifact types, each delivered like any other:
 
 | Type              | Says                  | Envelope (signed, readable)                                                     | Document                              |
@@ -14,9 +16,9 @@ slug: details-refresh
 | `DETAILS_REQ`     | "send me these again" | `details`: the names wanted; `relatesTo` (optional): the notice it follows      | no values; an optional `message`      |
 | `DETAILS_RES`     | "here they are"       | `details`: the names it answers; `relatesTo` (required): the request it answers | the values, by name, always encrypted |
 
-**Why.** A business's address or a person's email changes. In 1.1 the only way to share the new one was a new trust request. Now the side that holds a detail can fetch it again, and only that detail: the record's `detailsHeld` (what this side holds of the other) and `detailsShared` (what it gave) bound every step, and the names are checked on the envelope without opening anything.
+**Why.** A business's address or a person's email changes. Rather than a new trust request, the side that holds a detail fetches it again, and only that detail: the record's `detailsHeld` (what this side holds of the other) and `detailsShared` (what it gave) bound every step, and the names are checked on the envelope without opening anything.
 
-It works over the trust in either direction. All three types are `1.2.0` only.
+It works over the trust in either direction.
 
 ## The flow
 

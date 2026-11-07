@@ -6,7 +6,9 @@ slug: platform-checks
 
 # Your platform's checks
 
-**What it is.** A 1.2 server checks an artifact's structure, its signatures, the trust and its permissions, and `isKnownArtifact`, and reads no other record of the platform's. Everything that needs a record only the platform keeps (an invoice's events, the requests it sent, an agreement's answers, its own limits) is the platform's to check. The SDK ships those checks two ways: as **middleware**, which refuses in flight, and as **plain functions**, for a platform that checks another way.
+> **Since 1.2.** The four middleware and the plain functions below.
+
+**What it is.** A BTPS server checks an artifact's structure, its signatures, the trust and its permissions, and `isKnownArtifact`, and reads no other record of the platform's. Everything that needs a record only the platform keeps (an invoice's events, the requests it sent, an agreement's answers, its own limits) is the platform's to check. The SDK ships those checks two ways: as **middleware**, which refuses in flight, and as **plain functions**, for a platform that checks another way.
 
 **Why.** The server stays the same for every platform; what a platform keeps, and how, stays its own. Each check is off until the platform adds it, with its own lookup.
 
@@ -151,4 +153,4 @@ The feature journey (`tests/e2e/features.e2e.test.ts`) checks that a caching res
 | the trust and its permissions; `isKnownArtifact`      | an agreement's order: `agreementOrderCheck`, then `agreementStatementProblem` once opened |
 | in-flight, invalid-line and size limits               | your own limits: `detailsRequestLimit`                                                    |
 
-What a 1.1 provider registers to keep each refusal when it upgrades is in the changelog's [Upgrading from 1.1](https://github.com/openbtps/btps-node/blob/release/1.2/CHANGELOG.md#upgrading-from-11).
+When to register each, for a provider upgrading from 1.1: [Migrating from 1.1 to 1.2](../whats-new/version-1.2-migration.md#4-register-the-checks-12-leaves-to-you).

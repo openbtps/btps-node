@@ -1,12 +1,14 @@
 ---
-title: Devices in 1.2
-sidebar_label: Devices in 1.2
+title: Devices
+sidebar_label: Devices
 slug: devices
 ---
 
-# Devices in 1.2
+# Devices
 
-A device (a phone, a desktop app) acts for its user through the user's provider, with its own key and a delegation. 1.2 adds four things for devices. Refresh tokens and key rotation have their own page: [Refresh tokens](./refreshTokens.md).
+> **Since 1.2.** Each of the four below; sync travels in `1.2.0` artifacts only.
+
+A device (a phone, a desktop app) acts for its user through the user's provider, with its own key and a delegation. This page covers four things a device relies on. Refresh tokens and key rotation have their own page: [Refresh tokens](./refreshTokens.md).
 
 | What                                                | Why                                                                                           |
 | --------------------------------------------------- | --------------------------------------------------------------------------------------------- |
@@ -139,7 +141,7 @@ const agent = new BtpsAgent({
 
 **One key pair.** `serverIdentity` is the domain's operator, whose key already signs identity-lookup answers, so a provider keeps one key pair and its app pins the operator. Every 1.1 and 1.2 client takes a lookup answer only from the operator.
 
-Since 1.2, a client acts on an answer's `status.closing` only once the answer is taken: with `requireSignedBy`, only in one signed as required ([Versions and 1.1](./versions.md#the-closing-signal)).
+A client acts on an answer's `status.closing` only once the answer is taken: with `requireSignedBy`, only in one signed as required ([Protocol versions](./versions.md#the-closing-signal)).
 
 ## Sync
 

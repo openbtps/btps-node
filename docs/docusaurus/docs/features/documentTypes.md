@@ -6,11 +6,13 @@ slug: document-types
 
 # A send's document type
 
+> **Since 1.2.** `documentType` travels in `1.2.0` artifacts only.
+
 **What it is.** Under a trust with [permissions](./trustPermissions.md), every `BTPS_DOC` names its type on the envelope, `documentType` (`invoice`, `receipt`, `payslip`, `letter` or `agreement`), and the receiving server refuses it unless the trust grants `send:<documentType>`.
 
 **Why.** The document is usually encrypted, so the server cannot read its type. The name on the envelope is signed and readable, so the server checks it on arrival, and the receiver's platform checks once it opens the document that it is the type the envelope named. A receiver who granted invoices only gets invoices only.
 
-A trust without permissions (a 1.1 trust) takes any document type, and sends under it carry no `documentType`, as in 1.1. Events need none: `relatesTo` ties each to the document it is about.
+A trust without permissions (one made before 1.2, or with a 1.1 provider) takes any document type, and sends under it carry no `documentType`. Events need none: `relatesTo` ties each to the document it is about.
 
 ## The flow
 

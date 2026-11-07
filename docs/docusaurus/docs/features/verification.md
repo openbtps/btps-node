@@ -6,6 +6,8 @@ slug: verification
 
 # Verification
 
+> **Since 1.2.** `verification` travels in `1.2.0` artifacts only.
+
 **What it is.** A provider that has checked who a sender is (by documents, by staff, or automatically) can sign a statement of what it checked, and the sender's trust request carries it: `verification`, in the request's document. The receiver gets the facts it needs to decide whether to believe it.
 
 **Why.** "Is this invoice really from my energy company?" A receiver can see that a trusted provider checked the sender's legal name, without the protocol deciding for it. **BTPS verifies no one and labels no one verified.** It gives a standard place for the statement, the checks only cryptography can do, and the facts; whose verifications to trust is each provider's own decision.

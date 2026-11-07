@@ -6,7 +6,9 @@ slug: trust-permissions
 
 # Trust permissions
 
-**What it is.** In 1.1 a trust was all or nothing: once accepted, the sender could send any document, and a trust request carried whatever details the sender chose to share. Since 1.2 a trust request lists exactly what it asks for, the way an app's sign-in screen shows what it will get, and the receiver grants all of it or part of it:
+> **Since 1.2.** The permission fields travel in `1.2.0` artifacts only.
+
+**What it is.** A trust request lists exactly what it asks for, the way an app's sign-in screen shows what it will get, and the receiver grants all of it or part of it:
 
 - **what may be sent**: one `send:` name per document type (`send:invoice`, `send:receipt`, `send:payslip`, `send:letter`, `send:agreement`);
 - **which details each side holds of the other**: one `detail:` name per detail (`detail:legalName`, `detail:profile`, `detail:email`, `detail:phone`, `detail:address`, `detail:taxNo`, `detail:dob` for a person, `detail:registrationNumber` for an organisation);
@@ -14,7 +16,7 @@ slug: trust-permissions
 
 **Why.** A receiver sees what it agrees to, can say yes to invoices and no to letters, and both sides know which details they may hold and later refresh ([Details refresh](./detailsRefresh.md)). Each name travels on the envelope, **signed and readable**, so the receiving server checks it on arrival without decrypting anything. The **values** (a date of birth, an address) are in the document, always encrypted.
 
-A trust without permissions is a 1.1 trust and works as in 1.1: any document type, no details by name.
+A trust without permissions (one made before 1.2, or with a 1.1 provider) is all or nothing: any document type, no details by name.
 
 ## The flow
 
@@ -78,7 +80,7 @@ The vendor asks for invoices (required) and receipts (optional), and for the cli
 }
 ```
 
-Opened, the document gives each name in `given` its value: in 1.1's own field where there is one (`detail:legalName` is `name`, `detail:address` is `address`), otherwise in `own`, by name.
+Opened, the document gives each name in `given` its value: in the request's own field where there is one (`detail:legalName` is `name`, `detail:address` is `address`), otherwise in `own`, by name.
 
 ```json btps=document:TRUST_REQ
 {
@@ -177,7 +179,7 @@ await trustStore.create(
     senderId: vendor,
     receiverId: client,
     status: 'pending',
-    // ...the rest of the trust record, as in 1.1
+    // ...the rest of the trust record
     permissions: trustPermissionsFromRequest({ permissions, issuedAt }),
   },
   computeTrustId(vendor, client),
@@ -214,7 +216,7 @@ if (error) throw error;
 const { response } = await new BtpsTransporter({}).transport(client, payload);
 ```
 
-`signEncrypt` asks the receiver's server its version first. To a 1.1 server the request goes as 1.1 allows, without the permission fields, and the result says so in `shaped` ([Versions and 1.1](./versions.md)).
+`signEncrypt` asks the receiver's server its version first. To a 1.1 server the request goes as 1.1 allows, without the permission fields, and the result says so in `shaped` ([Protocol versions](./versions.md)).
 
 ### Vendor: ask, from a device
 

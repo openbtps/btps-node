@@ -6,9 +6,11 @@ slug: withdrawing-proposals
 
 # Withdrawing a proposal
 
+> **Since 1.2.** `withdrawn` and `follows` travel in `1.2.0` artifacts only.
+
 **What it is.** A payer who sent a proposal about an invoice (`paid`, `partially_paid`, `disputed` or `refund_requested`) that has not been answered can take it back with a `withdrawn` event, naming the proposal in `inReplyTo`. Later, the payer may propose again: a new proposal that names the `withdrawn` it follows in `follows`, so the chain stays traceable (`disputed` → `withdrawn` → `disputed`).
 
-**Why.** In 1.1 a proposal sent by mistake (a dispute filed on the wrong invoice, a `paid` marked too early) stayed open until the biller answered it. Now the payer who sent it can close it, and the biller no longer has to answer.
+**Why.** A proposal sent by mistake (a dispute filed on the wrong invoice, a `paid` marked too early) would otherwise stay open until the biller answered it. The payer who sent it closes it instead, and the biller need not answer.
 
 The rules:
 

@@ -1,10 +1,12 @@
 ---
-title: Versions and 1.1
-sidebar_label: Versions and 1.1
+title: Protocol versions
+sidebar_label: Protocol versions
 slug: versions
 ---
 
-# Versions and 1.1
+# Protocol versions
+
+> **Since 1.2.** How a 1.2 provider and a 1.1 provider talk.
 
 **What it is.** A 1.2 server takes any `1.1.x` and `1.2.x` artifact. A 1.2 sender stamps each artifact `1.1.0` whenever everything in it can be said in 1.1, and `1.2.0` only when it uses something 1.2 adds. So a 1.1 and a 1.2 provider always talk, and a 1.2 feature never reaches a 1.1 server that cannot understand it.
 
@@ -123,4 +125,4 @@ A server that ends a connection after an answer (a refusal that ends it, `QUIT`,
 
 ## Protocol and platform
 
-Stamping, asking and shaping are the SDK's, automatically. What to do when a receiver speaks 1.1 (send as 1.1 allows, or refuse) is the platform's choice, through `versionFallback`. What changes for a 1.1 provider that upgrades is in the changelog's [Upgrading from 1.1](https://github.com/openbtps/btps-node/blob/release/1.2/CHANGELOG.md#upgrading-from-11).
+Stamping, asking and shaping are the SDK's, automatically. What to do when a receiver speaks 1.1 (send as 1.1 allows, or refuse) is the platform's choice, through `versionFallback`. What changes for a 1.1 provider that upgrades is in [Migrating from 1.1 to 1.2](../whats-new/version-1.2-migration.md).
