@@ -190,6 +190,17 @@ describe('a statement signed on a device', () => {
     });
   });
 
+  it('does not check when the signer delegated for itself with no attestation', async () => {
+    // A server refuses such a delegation on arrival, so an offline reader does too.
+    const signed = await signStatementOnDevice(statement, { pemFiles: keys.device });
+    const record = deviceStatementRecord(signed, delivered(ALICE, byAlice));
+    expect(statementSignatureFacts(record, keyOf)).toEqual({
+      signatureValid: false,
+      keyKind: 'device',
+      delegatedBy: ALICE,
+    });
+  });
+
   it('does not check when the artifact came from someone else', async () => {
     const signed = await signStatementOnDevice(statement, { pemFiles: keys.device });
     const record = deviceStatementRecord(signed, delivered(BANK, byOperator));

@@ -132,9 +132,13 @@ export const deviceStatementRecord = (
 /**
  * Since 1.2: what a statement record's signature shows, from the record alone
  * and the keys `keyOf` gives. A device-signed record holds when the delegation
- * is its delegator's over the artifact, the artifact came from the signer and
- * is signed by the delegated key, and so is the statement. Whether the
- * delegator is the domain's operator is a DNS fact, not checked here.
+ * is its delegator's over the artifact, a self-delegation (signed by the
+ * signer itself) carries an attestation, any attestation is its attestor's,
+ * the artifact came from the signer and is signed by the delegated key, and so
+ * is the statement. Every one of these is checked offline. Whether the
+ * delegator or the attestor is the signer's domain's operator needs DNS
+ * (`_btps.host` `op`): it is not checked here, and `delegatedBy` and
+ * `attestedBy` report who they are.
  */
 export const statementSignatureFacts = (
   record: BTPStatementRecord,
@@ -151,8 +155,11 @@ export const statementSignatureFacts = (
   // The delegation is signed before it is attested: the attestation is not part of what it signed.
   const { signature: delegationSignature, attestation, ...unsignedDelegation } = delegation;
   const { signature: artifactSignature, ...unsignedArtifact } = artifact;
+  // A server refuses a self-delegation without an attestation, so this does too.
+  const selfDelegated = sameIdentity(delegation.signedBy, artifact.from);
   const signatureValid =
     sameIdentity(artifact.from, statement.signer) &&
+    (!selfDelegated || attestation !== undefined) &&
     isValid(
       { ...artifact, delegation: unsignedDelegation },
       delegationSignature,
