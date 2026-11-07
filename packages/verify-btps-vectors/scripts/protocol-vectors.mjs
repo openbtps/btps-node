@@ -3404,7 +3404,8 @@ export function agreements(keys) {
     ),
     envelope(
       'agreement-facts-on-a-document',
-      { ...send, agreement: facts },
+      // A letter, so only the facts are wrong.
+      { ...send, documentType: 'letter', agreement: facts },
       'refuse',
       'only an event carries agreement facts',
     ),
