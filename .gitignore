@@ -37,6 +37,7 @@ test
 !/test/licenseHeaders.test.ts
 !/test/templates.test.ts
 !/test/evidence.test.ts
+!/test/whatsNewExamples.test.ts
 !/test/vectors.json
 !/packages/verify-btps-vectors/test/
 coverage

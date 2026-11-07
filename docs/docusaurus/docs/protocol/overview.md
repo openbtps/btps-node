@@ -9,6 +9,8 @@ sidebar_label: Overview
 
 BTPS (Billing Trust Protocol Secure) is a trust-based, cryptographically verifiable protocol for secure, consent-based exchange of billing documents and trust relationships. It is inspired by DKIM but specialized for billing/invoice workflows, with robust identity, trust, and key rotation mechanisms. Only trusted users can send bills/invoices. The protocol uses TLS for transport security.
 
+What 1.2 adds, feature by feature, with flows and working code: [What's new in 1.2](../whats-new/overview.md).
+
 ## Protocol Architecture
 
 ### Visual Protocol Flow

@@ -6,6 +6,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased] — 1.2.0
 
+Each feature below has a guide, with its flow, artifacts and code for both sides: [What's new in 1.2](https://www.openbtps.org/docs/next/whats-new).
+
 ### Added
 
 - **BTPS 1.2 speaks 1.1 and 1.2.** A 1.2 server takes any 1.1.x and 1.2.x

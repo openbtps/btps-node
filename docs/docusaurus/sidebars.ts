@@ -23,6 +23,26 @@ const sidebars: SidebarsConfig = {
     'roadmap',
     {
       type: 'category',
+      label: "What's new in 1.2",
+      collapsed: false,
+      items: [
+        'whats-new/overview',
+        'whats-new/trustPermissions',
+        'whats-new/documentTypes',
+        'whats-new/detailsRefresh',
+        'whats-new/verification',
+        'whats-new/agreements',
+        'whats-new/evidenceBundles',
+        'whats-new/withdrawingProposals',
+        'whats-new/devices',
+        'whats-new/refreshTokens',
+        'whats-new/notesDiscountsTemplates',
+        'whats-new/versions',
+        'whats-new/platformChecks',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Getting Started',
       collapsed: false,
       items: [
