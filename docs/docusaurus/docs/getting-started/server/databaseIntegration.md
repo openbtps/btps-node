@@ -32,7 +32,7 @@ interface BtpsServerOptions {
 
 The `trustStore` parameter is **required** and must implement the `AbstractTrustStore` interface. The `identityStore` parameter is **optional** and must implement the `AbstractIdentityStore` interface.
 
-For complete storage API documentation, see [Storage Classes](/docs/sdk/class-api-references#abstractstoragestore).
+For complete storage API documentation, see [Storage Classes](../../sdk/classApiReference.md#abstractstoragestore).
 
 ## Basic Integration
 
@@ -738,8 +738,8 @@ With your database integration configured, you can now:
 
 - [Data Storage Support](./dataStorageSupport.md)
 - [Server Setup](./setup.md)
-- [BtpsServer Class Reference](/docs/sdk/class-api-references#btpsserver) - Complete server API documentation
-- [AbstractStorageStore](/docs/sdk/class-api-references#abstractstoragestore) - Storage base class documentation
-- [JsonTrustStore](/docs/sdk/class-api-references#jsontruststore) - File-based trust store documentation
-- [JsonIdentityStore](/docs/sdk/class-api-references#jsonidentitystore) - File-based identity store documentation
+- [BtpsServer Class Reference](../../sdk/classApiReference.md#btpsserver) - Complete server API documentation
+- [AbstractStorageStore](../../sdk/classApiReference.md#abstractstoragestore) - Storage base class documentation
+- [JsonTrustStore](../../sdk/classApiReference.md#jsontruststore) - File-based trust store documentation
+- [JsonIdentityStore](../../sdk/classApiReference.md#jsonidentitystore) - File-based identity store documentation
 - [Trust Model](../../protocol/trustRecord.md)

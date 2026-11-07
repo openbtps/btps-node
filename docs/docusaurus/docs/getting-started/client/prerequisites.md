@@ -293,4 +293,4 @@ With prerequisites in place, you can now:
 - [Client Overview](../../client/overview)
 - [Client Setup](../../client/setup)
 - [Client Examples](../../client/examples)
-- [Client Best Practices](/docs/client/best-practices)
+- [Client Best Practices](../../client/bestPractices.md)

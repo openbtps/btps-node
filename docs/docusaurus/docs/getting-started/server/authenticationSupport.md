@@ -18,7 +18,7 @@ BTPS authentication provides:
 - **Secure Communication**: Ensure artifacts are from trusted sources
 - **Delegation Support**: Handle delegated identities and permissions
 
-For detailed authentication concepts, see [Authentication Overview](/docs/protocol/authentication/overview).
+For detailed authentication concepts, see [Authentication Overview](../../protocol/authentication/overview.md).
 
 ## Setting Up Authentication in Your Server
 
@@ -303,11 +303,11 @@ With authentication support configured, you can now:
 
 ## See Also
 
-- [Authentication Overview](/docs/protocol/authentication/overview)
-- [BTPS Authentication](/docs/protocol/authentication/btps-authentication)
-- [Authentication Setup](/docs/protocol/authentication/setup)
-- [Authentication Examples](/docs/protocol/authentication/examples)
-- [Authentication Flow](/docs/protocol/authentication/authentication-flow)
+- [Authentication Overview](../../protocol/authentication/overview.md)
+- [BTPS Authentication](../../protocol/authentication/btpsAuthentication.md)
+- [Authentication Setup](../../protocol/authentication/setup.md)
+- [Authentication Examples](../../protocol/authentication/examples.md)
+- [Authentication Flow](../../protocol/authentication/authenticationFlow.md)
 - [Event Handlers](./eventHandlers.md)
 - [Middleware Integration](./middlewares.md)
 - [Server Setup](./setup.md)

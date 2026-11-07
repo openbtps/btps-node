@@ -189,7 +189,7 @@ static authenticate(
 
 - `identity`: `string` - User identity
 - `authToken`: `string` - Temporary authentication token
-- `keyPair`: [BTPSigningKey](/docs/sdk/types-and-interfaces#btpsigningkey-and-btpdecryptionkey) - Device key pair, or a Signer holding it
+- `keyPair`: [BTPSigningKey](../../sdk/typesAndInterfaces.md#btpsigningkey-and-btpdecryptionkey) - Device key pair, or a Signer holding it
 - `agentInfo` (optional): `Record<string, string | string[]>` - Device information
 - `agentOptions` (optional): [AuthAgentOptions](#authagentoptions) - Authentication options
 
@@ -252,7 +252,7 @@ static refreshSession(
 - `agentId`: `string` - Agent identifier
 - `identity`: `string` - User identity
 - `refreshToken`: `string` - Current refresh token
-- `keyPair`: [BTPSigningKey](/docs/sdk/types-and-interfaces#btpsigningkey-and-btpdecryptionkey) - Device key pair, or a Signer holding it
+- `keyPair`: [BTPSigningKey](../../sdk/typesAndInterfaces.md#btpsigningkey-and-btpdecryptionkey) - Device key pair, or a Signer holding it
 - `agentInfo` (optional): `Record<string, string | string[]>` - Updated device information
 - `agentOptions` (optional): [AuthAgentOptions](#authagentoptions) - Authentication options
 
@@ -302,7 +302,7 @@ static rotateKey(
 ): Promise<AuthRequestResult>
 ```
 
-The refresh is signed by `currentKey` and carries a `keyProof` signed by `newKey`, so the server accepts the new key only from the device that holds both (see [the refresh document](../specifications/agent-artifact.md#2-authentication-refresh-document-authrefresh)). Either key can be a PEM key pair or a [Signer](/docs/sdk/types-and-interfaces#signer), such as one over the device's keystore. Once it succeeds, the device signs with `newKey`.
+The refresh is signed by `currentKey` and carries a `keyProof` signed by `newKey`, so the server accepts the new key only from the device that holds both (see [the refresh document](../specifications/agent-artifact.md#2-authentication-refresh-document-authrefresh)). Either key can be a PEM key pair or a [Signer](../../sdk/typesAndInterfaces.md#signer), such as one over the device's keystore. Once it succeeds, the device signs with `newKey`.
 
 **Example:**
 

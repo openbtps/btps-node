@@ -547,7 +547,7 @@ So every `BTPS_EVENT` carries `relatesTo` in its envelope, outside the encrypted
 }
 ```
 
-Answering that question is required of every trust store (`isKnownArtifact`, see [AbstractTrustStore](/docs/sdk/class-api-references#abstracttruststore)), because only the platform knows which artifacts it delivered. A server whose store answers `false` accepts no events.
+Answering that question is required of every trust store (`isKnownArtifact`, see [AbstractTrustStore](../../sdk/classApiReference.md#abstracttruststore)), because only the platform knows which artifacts it delivered. A server whose store answers `false` accepts no events.
 
 ## Security Features
 
