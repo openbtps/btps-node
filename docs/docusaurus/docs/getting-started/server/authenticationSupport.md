@@ -223,27 +223,27 @@ REFRESH_TOKEN_EXPIRY_MS=604800000
 ### Test Script
 
 ```typescript
-// Test authentication integration
-const authResult = await agent.command('auth.request', null, {
-  document: {
-    authToken: 'YDVKSEU4CEEW',
-    publicKey: 'device-public-key',
-    identity: 'user$domain.com',
-    agentInfo: {
-      deviceName: 'Test Device',
-      platform: 'test',
-    },
+// Test authentication integration: both go to the user's own address
+const authResult = await agent.command('auth.request', 'user$domain.com', {
+  authToken: 'YDVKSEU4CEEW',
+  publicKey: 'device-public-key',
+  identity: 'user$domain.com',
+  agentInfo: {
+    deviceName: 'Test Device',
+    platform: 'test',
   },
-  respondNow: true,
 });
 
-const refreshResult = await agent.command('auth.refresh', null, {
-  document: {
-    authToken: 'refresh-token',
-    publicKey: 'device-public-key',
+// A refresh is sent by the agent whose id is the session's agentId,
+// with the refresh token as its authToken
+const refreshResult = await agent.command('auth.refresh', 'user$domain.com', {
+  authToken: 'refresh-token',
+  publicKey: 'device-public-key',
+  identity: 'user$domain.com',
+  agentInfo: {
+    deviceName: 'Test Device',
+    platform: 'test',
   },
-  agentId: 'agent-id',
-  respondNow: true,
 });
 ```
 
