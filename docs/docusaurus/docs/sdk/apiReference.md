@@ -1251,6 +1251,22 @@ Since 1.2. Why an agreement's answer does not answer it, or `undefined`. `agreem
 
 ---
 
+### verifyEvidenceBundle, buildEvidenceBundle, describeEvidenceFacts
+
+```ts
+verifyEvidenceBundle(bundle: unknown): Promise<BTPEvidenceFacts>
+buildEvidenceBundle(
+  parts: { originator: string; agreement: BTPAgreementDoc; statements: BTPStatementRecord[] },
+  keyOf: BTPKeyOf
+): BTPEvidenceBundle
+describeEvidenceFacts(facts: BTPEvidenceFacts): string
+```
+
+**Description:**
+Since 1.2. An agreement's evidence bundle, checked offline. `verifyEvidenceBundle` refuses a file that is not a bundle (`BTP_ERROR_VALIDATION`) and otherwise reports facts, never a verdict: the content's SHA-256, the originator's signature, the terms as attached, and for each statement its signature and key kind, its agreement, terms, deadline and order, and whether the agreement is `complete`. It uses only the keys in the bundle, each counted only when its fingerprint is its own. `buildEvidenceBundle` makes one from the opened agreement, its statement records in the order taken, and the keys `keyOf` gives; it refuses one whose key it cannot find (`BTP_ERROR_RESOLVE_PUBKEY`). `describeEvidenceFacts` gives the facts as plain text, as the `btps-verify-evidence` command prints them. See [The evidence bundle](../protocol/specifications/transporter-artifact.md#the-evidence-bundle).
+
+---
+
 ### detailsProblem
 
 ```ts

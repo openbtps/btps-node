@@ -879,6 +879,41 @@ The originator's server checks them on arrival, without opening anything, agains
 
 **Once opened**, and before it records, forwards or bundles an answer, the originator's platform MUST check it with `agreementStatementProblem` from `@btps/sdk/trust`: the statement names this agreement (its originator, id and `contentSha256` as its copy has them) and its terms exactly, is its sender's own, is signed no later than `acceptance.by`, follows the signers' order against the answers already taken, and matches its envelope's facts. Its signatures it checks with `statementSignatureFacts` (see [Agreement](#agreement)).
 
+#### The evidence bundle
+
+Since 1.2: a file a party to an agreement creates to show what was agreed, for example to a solicitor or a court. It holds everything needed to check the agreement offline, with no provider and no network, and no decryption key: the content is bound by its originator's signature, not by any copy's encryption.
+
+```json
+{
+  "format": "btps-evidence/1",
+  "originator": "loans$bank.example",
+  "agreement": { "type": "agreement", "…": "…", "originatorSignature": { "…": "…" } },
+  "statements": [{ "statement": { "…": "…" }, "selector": "btps1", "signature": { "…": "…" } }],
+  "keys": [
+    {
+      "identity": "loans$bank.example",
+      "selector": "btps1",
+      "publicKey": "-----BEGIN PUBLIC KEY-----…",
+      "fingerprint": "…"
+    }
+  ]
+}
+```
+
+- **`agreement`** is the opened agreement, attachments included, with `originatorSignature`. **`statements`** are the signers' statement records, in the order they were taken. **`keys`** holds the public key behind each signature: the originator's, each identity-signed statement's, and each device's delegator and attestor. A device's own key is its delegation's `agentPubKey`. Its JSON Schema is published at [`/schemas/btps-evidence.schema.json`](pathname:///schemas/btps-evidence.schema.json).
+- **`buildEvidenceBundle`** (`@btps/sdk/trust`) makes one from what the originator holds; a signer's platform makes one from its own copy and the records in `agreement_complete`.
+- **`verifyEvidenceBundle`** checks it and reports facts, never a verdict: the content's SHA-256, whether the originator's signature is over it, whether each term is the SHA-256 of an attachment as attached, and, for each statement, whether its signature holds and with which kind of key (and, for a device, who delegated and attested it), whether it names this agreement and its terms, whether it was signed by the deadline, and whether it follows the signers' order. `complete` says whether every one of those holds and every signer accepted, once. An answer out of order or late is reported as such, and nothing is refused for it. A key in `keys` counts only when its fingerprint is its own.
+- **From the command line:** `npx -p @btps/sdk btps-verify-evidence bundle.json` prints the facts (`--json` for JSON). It exits `0` when the agreement is complete, `1` when it is not, and `2` when the file is not an evidence bundle.
+- **What it cannot know offline:** whether each key really was its identity's when it signed, and whether a device's delegator or attestor is its domain's operator. Both are facts a reader may confirm online, through DNS. The bundle embeds the keys so that it checks without.
+- **Privacy, by design.** An agreement only ever travels encrypted to its own signers. A bundle is a file a party chooses to create and disclose; whoever receives it sees everything in it, because a dispute is about exactly that. BTPS never publishes a bundle.
+
+**Proof that lasts.** A bundle embeds its keys, so it still checks if a provider is gone. For it to be confirmed online years later, after keys have rotated, two rules hold for every provider:
+
+- A provider MUST never reuse a selector for a different key of the same identity.
+- A provider MUST keep old public keys answerable at their selectors, after rotation, for at least as long as it keeps documents signed with them.
+
+The SDK cannot see a provider's key history, so these are rules for the provider, with no check of their own (see [Key Rotation](../keyRotation.md)).
+
 ## Security Features
 
 ### Digital Signatures

@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.openbtps.org/schemas/btps-evidence.schema.json",
+  "title": "BTPS agreement evidence bundle, format btps-evidence/1",
+  "description": "A file a party to a BTPS agreement creates to show what was agreed: the opened agreement with its originator's signature, every signer's statement record in the order it was taken, and the public key behind each signature, so it checks offline with no provider and no network. It holds no decryption key: the content is bound by the originator's signature, not by any copy's encryption. Whoever receives it sees everything in it, by design. The agreement's own fields are those of the agreement document on the Transporter Artifact page of the BTPS specification; this schema checks the bundle's structure, and verifyEvidenceBundle checks every signature, hash and order.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "originator", "agreement", "statements", "keys"],
+  "properties": {
+    "format": { "const": "btps-evidence/1" },
+    "originator": {
+      "description": "The address that sent the agreement and signed its content.",
+      "$ref": "#/$defs/address"
+    },
+    "agreement": {
+      "description": "The opened agreement, attachments included, with originatorSignature.",
+      "type": "object",
+      "required": ["type", "title", "id", "issuedAt", "body", "acceptance", "originatorSignature"],
+      "properties": {
+        "type": { "const": "agreement" },
+        "title": { "type": "string", "maxLength": 200 },
+        "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "issuedAt": { "type": "string", "format": "date-time" },
+        "body": {
+          "type": "object",
+          "required": ["format", "content"],
+          "properties": {
+            "format": { "enum": ["text", "markdown"] },
+            "content": { "type": "string", "maxLength": 100000 }
+          }
+        },
+        "acceptance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["terms", "signers", "signingOrder"],
+          "properties": {
+            "by": { "type": "string", "format": "date-time" },
+            "terms": {
+              "type": "array",
+              "maxItems": 10,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/sha256" }
+            },
+            "signers": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 20,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["address"],
+                "properties": { "address": { "$ref": "#/$defs/address" } }
+              }
+            },
+            "signingOrder": { "enum": ["any", "sequential"] }
+          }
+        },
+        "originatorSignature": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["selector", "signature"],
+          "properties": {
+            "selector": { "type": "string", "minLength": 1 },
+            "signature": { "$ref": "#/$defs/signature" }
+          }
+        }
+      }
+    },
+    "statements": {
+      "description": "Each signer's statement record, in the order it was taken.",
+      "type": "array",
+      "maxItems": 20,
+      "items": { "$ref": "#/$defs/record" }
+    },
+    "keys": {
+      "description": "The public key behind each signature: the originator's, each identity-signed statement's, and each device's delegator and attestor. A device's own key is its delegation's agentPubKey.",
+      "type": "array",
+      "maxItems": 61,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["identity", "selector", "publicKey", "fingerprint"],
+        "properties": {
+          "identity": { "$ref": "#/$defs/address" },
+          "selector": { "type": "string", "minLength": 1 },
+          "publicKey": { "type": "string", "minLength": 1 },
+          "fingerprint": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "address": {
+      "description": "A BTPS address, account$domain.",
+      "type": "string",
+      "pattern": "^[^$\\s]+\\$[^$\\s]+$"
+    },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "signature": {
+      "type": "object",
+      "required": ["algorithmHash", "value", "fingerprint"],
+      "properties": {
+        "algorithmHash": { "const": "sha256" },
+        "value": { "type": "string" },
+        "fingerprint": { "type": "string" }
+      }
+    },
+    "record": {
+      "description": "A signed statement: by the signer's identity key at selector, or by a device, carrying the whole delegated artifact that delivered it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statement", "signature"],
+      "properties": {
+        "statement": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["agreement", "terms", "signer", "decision", "signedAt"],
+          "properties": {
+            "agreement": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["originator", "id", "contentSha256"],
+              "properties": {
+                "originator": { "$ref": "#/$defs/address" },
+                "id": { "type": "string", "minLength": 1, "maxLength": 100 },
+                "contentSha256": { "$ref": "#/$defs/sha256" }
+              }
+            },
+            "terms": { "type": "array", "maxItems": 10, "items": { "$ref": "#/$defs/sha256" } },
+            "signer": { "$ref": "#/$defs/address" },
+            "decision": { "enum": ["accepted", "declined"] },
+            "signedAt": { "type": "string", "format": "date-time" },
+            "previous": { "$ref": "#/$defs/sha256" }
+          }
+        },
+        "signature": { "$ref": "#/$defs/signature" },
+        "selector": { "type": "string", "minLength": 1 },
+        "delegatedArtifact": {
+          "type": "object",
+          "required": ["from", "signature", "delegation"],
+          "properties": {
+            "from": { "$ref": "#/$defs/address" },
+            "signature": { "$ref": "#/$defs/signature" },
+            "delegation": {
+              "type": "object",
+              "required": ["agentPubKey", "signedBy", "signature", "selector"],
+              "properties": {
+                "agentPubKey": { "type": "string" },
+                "signedBy": { "$ref": "#/$defs/address" },
+                "signature": { "$ref": "#/$defs/signature" },
+                "selector": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "oneOf": [
+        { "properties": { "selector": { "type": "string" } }, "required": ["selector"] },
+        {
+          "properties": { "delegatedArtifact": { "type": "object" } },
+          "required": ["delegatedArtifact"]
+        }
+      ]
+    }
+  }
+}

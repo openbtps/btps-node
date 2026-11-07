@@ -152,6 +152,20 @@ jobs:
           echo '{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","strict":true,"skipLibCheck":false,"noEmit":true,"types":["node"]},"files":["index.mts"]}' > tsconfig.json
           cat index.mts
           npx tsc -p .
+      # Since 1.2: the evidence bundle verifier ships as a bin. Run it from the
+      # installed tarball on two vector bundles: complete exits 0, declined 1.
+      - name: Run btps-verify-evidence from the installed tarball
+        run: |
+          cd "$RUNNER_TEMP/pack-smoke"
+          node -e "
+            const fs = require('fs');
+            const { bundles } = require('$GITHUB_WORKSPACE/test/vectors/agreements.vectors.json');
+            for (const c of bundles) fs.writeFileSync(c.name + '.json', JSON.stringify(c.bundle));
+          "
+          npx --no-install btps-verify-evidence complete-sequential-with-identity-keys.json
+          status=0
+          npx --no-install btps-verify-evidence declined.json || status=$?
+          test "$status" -eq 1
 
   test:
     name: ci/test

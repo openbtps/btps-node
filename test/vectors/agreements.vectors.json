@@ -4413,6 +4413,7 @@
       "name": "complete-sequential-with-identity-keys",
       "bundle": {
         "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
         "agreement": {
           "type": "agreement",
           "title": "Home loan agreement",
@@ -4587,6 +4588,7 @@
       "name": "complete-with-a-device-signed-acceptance",
       "bundle": {
         "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
         "agreement": {
           "type": "agreement",
           "title": "Home loan agreement",
@@ -4799,6 +4801,7 @@
       "name": "complete-in-any-order",
       "bundle": {
         "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
         "agreement": {
           "type": "agreement",
           "title": "Home loan agreement",
@@ -4939,6 +4942,7 @@
       "name": "declined",
       "bundle": {
         "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
         "agreement": {
           "type": "agreement",
           "title": "Home loan agreement",
@@ -5053,6 +5057,7 @@
       "name": "waiting-for-the-last-signer",
       "bundle": {
         "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
         "agreement": {
           "type": "agreement",
           "title": "Home loan agreement",
@@ -5197,6 +5202,7 @@
       "name": "content-changed-after-signing",
       "bundle": {
         "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
         "agreement": {
           "type": "agreement",
           "title": "Home loan agreement",
@@ -5371,6 +5377,7 @@
       "name": "statement-changed-after-signing",
       "bundle": {
         "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
         "agreement": {
           "type": "agreement",
           "title": "Home loan agreement",
@@ -5545,6 +5552,7 @@
       "name": "statement-signed-by-another-device",
       "bundle": {
         "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
         "agreement": {
           "type": "agreement",
           "title": "Home loan agreement",
@@ -5697,6 +5705,7 @@
       "name": "out-of-turn",
       "bundle": {
         "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
         "agreement": {
           "type": "agreement",
           "title": "Home loan agreement",
@@ -5811,6 +5820,7 @@
       "name": "after-the-deadline",
       "bundle": {
         "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
         "agreement": {
           "type": "agreement",
           "title": "Home loan agreement",
@@ -5925,6 +5935,7 @@
       "name": "a-term-that-is-not-its-attachment",
       "bundle": {
         "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
         "agreement": {
           "type": "agreement",
           "title": "Home loan agreement",
@@ -6008,6 +6019,7 @@
       "name": "a-signer-key-left-out",
       "bundle": {
         "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
         "agreement": {
           "type": "agreement",
           "title": "Home loan agreement",
@@ -6103,6 +6115,144 @@
             "decision": "accepted",
             "signatureValid": false,
             "keyKind": "identity",
+            "agreementMatches": true,
+            "termsMatch": true,
+            "withinDeadline": true,
+            "inOrder": true
+          }
+        ],
+        "complete": false
+      }
+    },
+    {
+      "name": "a-self-delegated-device-without-attestation",
+      "bundle": {
+        "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
+        "agreement": {
+          "type": "agreement",
+          "title": "Home loan agreement",
+          "id": "AGR-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "body": {
+            "format": "markdown",
+            "content": "# Home loan\n\nThe terms are attached. Each of you accepts them in turn."
+          },
+          "attachments": [
+            {
+              "content": "JVBERi0xLjcgSG9tZSBsb2FuIHRlcm1zOiA2LjElIHAuYS4gb3ZlciAzMCB5ZWFycw==",
+              "type": "application/pdf",
+              "filename": "terms.pdf",
+              "size": 49,
+              "sha256": "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
+            }
+          ],
+          "acceptance": {
+            "by": "2026-11-30T00:00:00.000Z",
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+            "signers": [
+              {
+                "address": "alice$client.example"
+              },
+              {
+                "address": "sam$guarantor.example"
+              }
+            ],
+            "signingOrder": "any"
+          },
+          "originatorSignature": {
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "Dg/3L1D/hw6PGc0GsXQmX3wM7b+YyqGv7YfT94TEglA+lhF1ZuBhU17YMoY7XsZ23VZOCguUwdgBP3SBzK/bBHtIrCtnIZ8bJMKXvu0cADUP/pSW0fNQFA3HoBkVeXZ4pwOUpmIomynVowptKWSnsrNW4Dhfuempztud3Q4THbPltQiZF3eZG/PfDjZ8LKHAh613YFpr21sUDzzsQeTkrUUPkmtw+upIH2b56ELxIY6wWUaqBaY0KaUK0pU3Ra2YwZBd1pnPDeXGXsHULx5Cs2TtMqtezPbR0SXt0EYAruiV+Q9z8o9pBELe0iEMYrU05r6gZtcEm7TUx5bsWGi5Fg==",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
+          }
+        },
+        "statements": [
+          {
+            "statement": {
+              "agreement": {
+                "originator": "loans$bank.example",
+                "id": "AGR-1",
+                "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4"
+              },
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+              "signer": "sam$guarantor.example",
+              "decision": "accepted",
+              "signedAt": "2026-11-03T00:00:00.000Z"
+            },
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "NaTJcI7P3mHNlfkTbwDBSpXoHtINGs2r0RgBoCzJ4aSDIpiYkrPrOzGc66GjI9AIs84QP5Bx5vKCS57E04lzgZ40LLJHFnmCaI+6MBpJA9+gniBW023TjcS5EJ7+D08CxAAYAIb0TwBZ50wgXtjomC/kc3VPEE9pUz0moElkPPhYne26sosljRExd/qI7j8HNuz3BrucB6WLedkPmyATyTjAAiE07IRR5pJlNxfkz2e2glP2S/cgGva0rQvbKUsBQhPxvsyj6ubTdfmrIBq4kU0i7+71ZE5zAQgsqIIFFN3UGrCeaAvZQbZfN8QDKUQfwLARht97DBoubIHpaNDxxQ==",
+              "fingerprint": "nkAxR7LIXI5fBN1CMpto6nNMRrxwfbgMhsvWyXajAFA="
+            },
+            "delegatedArtifact": {
+              "version": "1.2.0",
+              "issuedAt": "2026-11-03T00:00:00.000Z",
+              "id": "7a1c2e3f-4b5d-4c6e-8f70-81a2b3c4d5e6",
+              "type": "BTPS_EVENT",
+              "from": "sam$guarantor.example",
+              "to": "loans$bank.example",
+              "relatesTo": "agreement-copy-to-alice",
+              "agreement": {
+                "id": "AGR-1",
+                "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4"
+              },
+              "encryption": {
+                "algorithm": "aes-256-gcm",
+                "encryptedKey": "AA==",
+                "iv": "AA==",
+                "authTag": "AA==",
+                "type": "standardEncrypt"
+              },
+              "document": "ciphertext",
+              "signature": {
+                "algorithmHash": "sha256",
+                "value": "fol2uO+Dul2YuIt5AT+EKXy7UDHawtZmYxuXQFtyh2pUUPn/0xjsNzEAEssuEqA+n4bPi7386q9hrDoGK+YpYJuTVXloaWoZqZAJ6XJCSIs5nNqAZEc82WgNCPdd4cN65+XzVAj+TaXNI32FoQ+XQE2fAeZ8+mw/jzuVRoLs5XAH7pURFZj7t6EqgijEo/nmnVsvzlxZ/EbzYP7ICbKOmA4OyfkWQX51pUHsTibZiA6xUEIq1vWUnExImPt4cllBgNX85HvunVvSoDl6isZnwaHgkIFtwjQUr6oZfiwK9gMGcwmDWEJvAVmW0O/t65xWKJlux+3GWb4aThnoltQKpw==",
+                "fingerprint": "nkAxR7LIXI5fBN1CMpto6nNMRrxwfbgMhsvWyXajAFA="
+              },
+              "delegation": {
+                "agentId": "device-alice-1",
+                "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvsBR/1W3PWOadASUP0O0\n6mSWNg6vrIqHCQnyi5tQ7gSOWFTyDZz2dvTdg2hAyWt1uFegFu4a0inmA/LHiFfS\n8ifjEaOU63h4A8R/bL3hnSRINYh001arZHSSSU4cglqzTQaqSyU+nWJ525LdOVPa\nwtuIuueAu9XaER+3PgqyoGz7oNOuKyufiLTIcWLLsIaeiMDdJYUdLHcUVS8Gkgl3\nNuKux6gSRQQJn6uw/ok+Fe/75PLbHOB6k+3VVKyMdQly34Ogb6j2uJ2uyNK5l2VZ\n/jopBxsB+6H5LHcBuEG0XuCHNfIbPer1heqGKNqXSXogOSvdWcFTPMobv2UFrXqC\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
+                "signedBy": "sam$guarantor.example",
+                "issuedAt": "2026-11-03T00:00:00.000Z",
+                "selector": "btps1",
+                "signature": {
+                  "algorithmHash": "sha256",
+                  "value": "A+tI9LR6gVwtdDXC/C3eMvKKbH1k1q8YoMliPSvvFPeUCgDkCQW5rYHepuJTyzQ1XtLkAuyDmt+/HBEAKMSKWUbX/wz64LWAYH5+w1GZyys2z4GwVt0UvaEeOIuPu9I+TjIiDzxSMTvQRoaPWIMB5Vul/89QBnHQdm6yFLIVJMqjmPAzxDNj1RoFCSwZGi252b6ZKTbzESyYq0bSMQALEJbE9ioEGk8lGn/1+gQHoJWFLpdM7Zzoy+Xkzn68Ep/Guzna7Hyn1EJ5CS6ZiI3kloaVe1BTlgzpO1RSuJAYvCWaNwTohj30CkAIs3l4eVOc9Whgzz9Z/FDOSbiKPRj8uA==",
+                  "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+                }
+              }
+            }
+          }
+        ],
+        "keys": [
+          {
+            "identity": "loans$bank.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArlhp1Th8WEqOBszPSXSI\nabxtIb/yGvGUvMtxWACENxKWbK/4elcppOv4wLvX2w/OjQRB4ptLVcMsuBctE5N8\nEWgm2Vowz7MQYwfB2jY2tMQgtlV8Gebmm0+OwF6lMjy5tx5KKr/49NvIGGtA7Qq1\n+jL3oW1b1y12TB42L+VOReOhOUnxwEVLGoy6bUnSqBQMNC8PM5EapYQ30TIqofUB\nKCRgOc+k75QBuopdXVvkh5PFVuA218QQ6ZUAy1XEhQVMN+5JN6KMp8rY8YKKCGSW\ngkPie3/BdkwpaeXmh1KSBnIklcELw1d3jk5fp0/APbwlbrzotxHlpe39sMp5RV02\nuQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+          },
+          {
+            "identity": "sam$guarantor.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApmbSkQN2QV4GWGkpioYz\nKKWwlB53SS+xDc1JRHY6Wfndo15BwcD1ClHeOLYvJP5e5RxxqWo21tZApNGXunYs\nMwidCxJLyTUtQYCL7k/PxUhqEKjsGmSU0qMp0wF/1JXSEQEV5IW4Hu2PedQ7lMv2\n1xR7vYiOBHLAwLSLgl18Z6A43B9D72e2YrdMRrVy/iDS/ih2LtxzTDmdjHxoJKHx\nYD1d8BW/wvSoJ3uFPJXLely8dkERFErm+8Ug5/Zt+EQODruipqzilLzBGT3bgdpU\n/BvLCSsVUqdzKg45svH+euAue55aOyU+TZR3N1XZZcdB5brEYCfSo7+60109CgVN\nAQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+          }
+        ]
+      },
+      "expect": {
+        "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4",
+        "originatorSignatureValid": true,
+        "termsAttached": true,
+        "statements": [
+          {
+            "signer": "sam$guarantor.example",
+            "decision": "accepted",
+            "signatureValid": false,
+            "keyKind": "device",
+            "delegatedBy": "sam$guarantor.example",
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
