@@ -40,6 +40,7 @@ import {
   BTP_ERROR_AUTHENTICATION_INVALID,
   BTP_ERROR_IDENTITY,
   BTP_ERROR_KEY_TOO_OLD,
+  BTP_ERROR_TEMPORARILY_UNAVAILABLE,
 } from '@core/error/constant.js';
 import { BTPErrorException, transformToBTPErrorException } from '@core/error/index.js';
 import type { SetRequired } from 'server/index.js';
@@ -426,6 +427,16 @@ export class BtpsAuthentication {
       if (consumedToken) {
         const retried = await this.retriedRefresh(agentId, refreshToken, consumedToken);
         if (retried) return retried;
+        // Taken but not yet answered: the first refresh is still being made, so this is no theft.
+        if (this.refreshInProgress(consumedToken)) {
+          return {
+            data: undefined,
+            error: new BTPErrorException(BTP_ERROR_TEMPORARILY_UNAVAILABLE, {
+              cause: 'A refresh with this token is still being made: try again shortly',
+              meta: { agentId },
+            }),
+          };
+        }
         return {
           data: undefined,
           error: await this.refuseReusedRefreshToken(agentId, refreshToken, consumedToken),
@@ -567,6 +578,17 @@ export class BtpsAuthentication {
       }
     }
     return { data: answer };
+  }
+
+  /**
+   * A consumed token whose refresh has no answer yet, taken inside the grace
+   * window: the refresh that took it is still being made. After the window
+   * with no answer, a second use is theft, as before.
+   */
+  private refreshInProgress(consumedToken: BTPsTokenDocument): boolean {
+    const { successor, consumedAt } = consumedToken;
+    if (this.refreshGraceMs <= 0 || successor || !consumedAt) return false;
+    return Date.now() - new Date(consumedAt).getTime() <= this.refreshGraceMs;
   }
 
   /**

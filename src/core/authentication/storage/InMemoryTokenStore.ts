@@ -106,7 +106,7 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
     const storedToken = this.tokens.get(key);
     this.tokens.delete(key);
     if (!storedToken || new Date() > new Date(storedToken.expiresAt)) return undefined;
-    this.consumed.set(key, storedToken);
+    this.consumed.set(key, { ...storedToken, consumedAt: new Date().toISOString() });
     return storedToken;
   }
 

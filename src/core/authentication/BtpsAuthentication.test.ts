@@ -10,7 +10,7 @@ import { BtpsAuthentication } from './BtpsAuthentication.js';
 import { InMemoryTokenStore } from './storage/InMemoryTokenStore.js';
 import { AbstractTrustStore } from '../trust/storage/AbstractTrustStore.js';
 import { BTPTrustRecord } from '../trust/types.js';
-import { BTPErrorException } from '../error/index.js';
+import { BTPErrorException, BTP_ERROR_TEMPORARILY_UNAVAILABLE } from '../error/index.js';
 import { getBTPKeyPair } from '../crypto/keygen.js';
 import { PemSigner } from '../crypto/pem-signer.js';
 import { BtpsAgent } from '../../client/btpsAgent.js';
@@ -521,6 +521,45 @@ describe('BtpsAuthentication', () => {
       ]);
 
       expect(results.filter((r) => r.data)).toHaveLength(1);
+    });
+
+    it('tells the other of two racing refreshes to try again, and revokes nothing', async () => {
+      const { agentId, decryptBy } = await registeredAgent();
+      const options = { publicKey: mockKeyPair.publicKey, decryptBy, decidedBy: 'admin' };
+      const reused = vi.fn();
+      auth.on('refreshTokenReused', reused);
+
+      const [first, second] = await Promise.all([
+        auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', options),
+        auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', options),
+      ]);
+      const record = (await trustStore.getAll()).find((r) => r.senderId === agentId);
+
+      expect(first.data).toBeDefined();
+      expect(second.error?.code).toBe(BTP_ERROR_TEMPORARILY_UNAVAILABLE.code);
+      expect(reused).not.toHaveBeenCalled();
+      expect(record?.status).toBe('accepted');
+
+      const again = await auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', options);
+      expect(again.data?.refreshToken).toBe(first.data?.refreshToken);
+    });
+
+    it('takes a token used again past the window, with no refresh answered for it, as theft', async () => {
+      const auth = new BtpsAuthentication({ trustStore, tokenStore, refreshGraceMs: 20 });
+      const { agentId, decryptBy } = await registeredAgent();
+      const reused = vi.fn();
+      auth.on('refreshTokenReused', reused);
+      // A refresh that took the token and never answered.
+      await tokenStore.consume(agentId, 'ONE_REFRESH');
+      await new Promise((resolve) => setTimeout(resolve, 40));
+
+      const late = await auth.validateAndReissueRefreshToken(agentId, 'ONE_REFRESH', {
+        decryptBy,
+        decidedBy: 'admin',
+      });
+
+      expect(late.error?.code).not.toBe(BTP_ERROR_TEMPORARILY_UNAVAILABLE.code);
+      expect(reused).toHaveBeenCalledOnce();
     });
 
     it('puts the token back when the trust update fails, so the device can try again', async () => {

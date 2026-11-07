@@ -1065,6 +1065,7 @@ interface BTPsTokenDocument {
   decryptBy: string; // Identity to decrypt by when decrypting the document
   metadata?: Record<string, unknown>;
   successor?: BTPSealedSuccessor; // since 1.2, a consumed refresh token only: its sealed answer
+  consumedAt?: string; // since 1.2, a consumed refresh token only: when consume took it
 }
 
 // Since 1.2: a refresh's answer, sealed under the old token (AES-256-GCM, key by HKDF-SHA256)
@@ -1110,7 +1111,7 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
 }
 ```
 
-`isConsumed` (since 1.2) returns a token `consume` took, as it was, until it would have expired; storing the token again clears it. With it, a refresh token used a second time revokes the device and fires `refreshTokenReused`. Without it, a second use is refused as in 1.1.
+`isConsumed` (since 1.2) returns a token `consume` took, as it was, with `consumedAt`, when it was taken, until it would have expired; storing the token again clears it. A second use before the first refresh has an answer, inside `refreshGraceMs`, is told to try again, not taken for theft. With it, a refresh token used a second time revokes the device and fires `refreshTokenReused`. Without it, a second use is refused as in 1.1.
 
 `markSuccessor` (since 1.2) keeps a consumed token's sealed answer on its mark, so `isConsumed` returns it as `successor`. With it, a refresh retried inside `refreshGraceMs` gets the same answer; without it, the window is off. A persistent store should keep only a hash of each token, never its value.
 
