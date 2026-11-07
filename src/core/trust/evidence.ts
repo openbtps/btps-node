@@ -44,18 +44,34 @@ export type BTPEvidenceBundle = Omit<z.infer<typeof BtpEvidenceBundleSchema>, 's
   statements: BTPStatementRecord[];
 };
 
+/**
+ * Since 1.2: a key a signature was checked with: whose, under which selector,
+ * and its fingerprint. Taken from the bundle, so it says what the bundle
+ * holds, not that the key was its identity's: no fingerprint when the bundle
+ * has no usable key for it. A device key has no selector.
+ */
+export type BTPEvidenceKey = { identity: string; selector?: string; fingerprint?: string };
+
 /** Since 1.2: what an evidence bundle shows. BTPS reports these and decides nothing. */
 export type BTPEvidenceFacts = {
   /** The SHA-256 of the agreement's content, as the bundle holds it */
   contentSha256: string;
   /** The originator's signature is over this content */
   originatorSignatureValid: boolean;
+  /** The key the originator's signature was checked with */
+  originatorKey: BTPEvidenceKey;
+  /** Always false: every key is the bundle's own, not looked up online */
+  keysConfirmedOnline: false;
   /** Each term is the SHA-256 of one of its attachments, as attached */
   termsAttached: boolean;
   /** Each statement, in the bundle's order */
   statements: (BTPStatementSignatureFacts & {
     signer: string;
     decision: 'accepted' | 'declined';
+    /** The key its signature was checked with: the signer's identity key, or its device's key */
+    key: BTPEvidenceKey;
+    /** For a device: the key its delegation was checked with, the delegator's */
+    delegationKey?: BTPEvidenceKey;
     /** It names this agreement: its originator, id and content */
     agreementMatches: boolean;
     /** It repeats the agreement's terms exactly */
@@ -67,8 +83,42 @@ export type BTPEvidenceFacts = {
     /** Its RFC 3161 timestamp, when the bundle has one for it */
     timestamp?: BTPTimestampFacts;
   })[];
-  /** Every fact above holds, and every signer accepted, once. A timestamp is optional and never part of it. */
+  /**
+   * Every fact above holds, and every signer accepted, once. A timestamp is
+   * optional and never part of it. Checked against the bundle's own keys: it
+   * says the bundle is consistent, not that each key was its identity's.
+   */
   complete: boolean;
+};
+
+/** A key, by whose and under which selector, with the fingerprint of what the bundle holds for it. */
+const bundleKey = (keyOf: BTPKeyOf, identity: string, selector: string): BTPEvidenceKey => {
+  const fingerprint = fingerprintOf(keyOf(identity, selector));
+  return { identity, selector, ...(fingerprint && { fingerprint }) };
+};
+
+const fingerprintOf = (publicKey: string | undefined): string | undefined => {
+  if (!publicKey) return undefined;
+  try {
+    return getFingerprintFromPem(publicKey);
+  } catch {
+    return undefined;
+  }
+};
+
+/** The keys a statement record's signatures were checked with. */
+const statementKeys = (
+  record: BTPStatementRecord,
+  keyOf: BTPKeyOf,
+): { key: BTPEvidenceKey; delegationKey?: BTPEvidenceKey } => {
+  const { signer } = record.statement;
+  if (!record.delegatedArtifact) return { key: bundleKey(keyOf, signer, record.selector) };
+  const { delegation } = record.delegatedArtifact;
+  const fingerprint = fingerprintOf(delegation.agentPubKey);
+  return {
+    key: { identity: signer, ...(fingerprint && { fingerprint }) },
+    delegationKey: bundleKey(keyOf, delegation.signedBy, delegation.selector),
+  };
 };
 
 const sha256Hex = (bytes: Buffer) => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -126,6 +176,7 @@ export const verifyEvidenceBundle = async (
       signer: statement.signer,
       decision: statement.decision,
       ...statementSignatureFacts(record, keyOf),
+      ...statementKeys(record, keyOf),
       agreementMatches:
         sameIdentity(named.originator, ref.originator) &&
         named.id === ref.id &&
@@ -174,6 +225,8 @@ export const verifyEvidenceBundle = async (
   return {
     contentSha256: agreementContentSha256(agreement),
     originatorSignatureValid: originatorValid,
+    originatorKey: bundleKey(keyOf, originator, agreement.originatorSignature.selector),
+    keysConfirmedOnline: false,
     termsAttached,
     statements: timestamped,
     complete,
@@ -230,9 +283,12 @@ export const buildEvidenceBundle = (
 export const describeEvidenceFacts = (facts: BTPEvidenceFacts): string => {
   const mark = (fact: boolean) => (fact ? 'yes' : 'NO');
   const line = (label: string, value: string) => `${label.padEnd(27)}${value}`;
+  const keyText = ({ identity, selector, fingerprint }: BTPEvidenceKey) =>
+    `${identity}${selector ? ` at ${selector}` : ''}, fingerprint ${fingerprint ?? 'none in the bundle'}`;
   const lines = [
     line('content sha256', facts.contentSha256),
     line("originator's signature", mark(facts.originatorSignatureValid)),
+    line("originator's key", keyText(facts.originatorKey)),
     line('terms are its attachments', mark(facts.termsAttached)),
   ];
   facts.statements.forEach((s, i) => {
@@ -241,6 +297,8 @@ export const describeEvidenceFacts = (facts: BTPEvidenceFacts): string => {
     lines.push(
       '',
       `${i + 1}. ${s.signer}: ${s.decision} (${key}${attested})`,
+      `   key ${keyText(s.key)}`,
+      ...(s.delegationKey ? [`   delegation key ${keyText(s.delegationKey)}`] : []),
       `   signature ${mark(s.signatureValid)}, this agreement ${mark(s.agreementMatches)}`,
       `   these terms ${mark(s.termsMatch)}, by the deadline ${mark(s.withinDeadline)}, in order ${mark(s.inOrder)}`,
     );
@@ -256,6 +314,11 @@ export const describeEvidenceFacts = (facts: BTPEvidenceFacts): string => {
       );
     }
   });
-  lines.push('', line('complete', mark(facts.complete)));
+  lines.push(
+    '',
+    'keys from the bundle, not confirmed online: complete says the bundle is',
+    "consistent, not that each key was its identity's when it signed",
+    line('complete', mark(facts.complete)),
+  );
   return lines.join('\n');
 };

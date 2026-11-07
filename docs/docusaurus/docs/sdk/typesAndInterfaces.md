@@ -1529,18 +1529,25 @@ type BTPEvidenceBundle = {
 type BTPEvidenceFacts = {
   contentSha256: string;
   originatorSignatureValid: boolean;
+  originatorKey: BTPEvidenceKey; // the key it was checked with, from the bundle
+  keysConfirmedOnline: false; // every key is the bundle's own, never looked up online
   termsAttached: boolean;
   statements: (BTPStatementSignatureFacts & {
     signer: string;
     decision: 'accepted' | 'declined';
+    key: BTPEvidenceKey; // the signer's identity key, or its device's key
+    delegationKey?: BTPEvidenceKey; // for a device: the key its delegation was checked with
     agreementMatches: boolean;
     termsMatch: boolean;
     withinDeadline: boolean;
     inOrder: boolean;
     timestamp?: BTPTimestampFacts; // when the bundle has a token for it
   })[];
-  complete: boolean; // every fact holds, and every signer accepted, once; never a timestamp
+  complete: boolean; // every fact holds against the bundle's own keys, and every signer accepted, once; never a timestamp
 };
+
+// A key a signature was checked with, as the bundle holds it; no fingerprint when it has no usable key
+type BTPEvidenceKey = { identity: string; selector?: string; fingerprint?: string };
 
 // What an RFC 3161 token shows about its statement
 type BTPTimestampFacts = {

@@ -40,6 +40,7 @@ import {
   timeWindow,
   trustPermissions,
   versions,
+  withKeyFacts,
 } from './protocol-vectors.mjs';
 
 const VECTORS_DIR = path.resolve(
@@ -274,6 +275,8 @@ const agreementSet = agreements({
 });
 // Timestamped bundles: a test authority, made at generation, signs real RFC 3161 tokens.
 agreementSet.bundles.push(...(await agreementTimestamps(agreementSet)));
+// Each bundle also expects the keys its verifier names.
+agreementSet.bundles = agreementSet.bundles.map(withKeyFacts);
 write('agreements.vectors.json', agreementSet);
 
 // The manifest names every vector file with the SHA-256 of its bytes, so a

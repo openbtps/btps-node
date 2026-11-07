@@ -4103,7 +4103,12 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "alice$client.example",
+              "selector": "btps1",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
+            }
           },
           {
             "signer": "sam$guarantor.example",
@@ -4113,7 +4118,12 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "sam$guarantor.example",
+              "selector": "btps1",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
           },
           {
             "signer": "loans$bank.example",
@@ -4123,10 +4133,21 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "loans$bank.example",
+              "selector": "btps1",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
           }
         ],
-        "complete": true
+        "complete": true,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -4313,7 +4334,16 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "alice$client.example",
+              "fingerprint": "GKIlW7lWL0Q5S+RonbV14TsBT+Zy0b2LRcUM6aBt1Bg="
+            },
+            "delegationKey": {
+              "identity": "admin$client.example",
+              "selector": "btps1",
+              "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
+            }
           },
           {
             "signer": "sam$guarantor.example",
@@ -4323,7 +4353,12 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "sam$guarantor.example",
+              "selector": "btps1",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
           },
           {
             "signer": "loans$bank.example",
@@ -4333,10 +4368,21 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "loans$bank.example",
+              "selector": "btps1",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
           }
         ],
-        "complete": true
+        "complete": true,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -4464,7 +4510,12 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "sam$guarantor.example",
+              "selector": "btps1",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
           },
           {
             "signer": "alice$client.example",
@@ -4474,10 +4525,21 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "alice$client.example",
+              "selector": "btps1",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
+            }
           }
         ],
-        "complete": true
+        "complete": true,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -4589,10 +4651,21 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "alice$client.example",
+              "selector": "btps1",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
+            }
           }
         ],
-        "complete": false
+        "complete": false,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -4724,7 +4797,12 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "alice$client.example",
+              "selector": "btps1",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
+            }
           },
           {
             "signer": "sam$guarantor.example",
@@ -4734,10 +4812,21 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "sam$guarantor.example",
+              "selector": "btps1",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
           }
         ],
-        "complete": false
+        "complete": false,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -4889,7 +4978,12 @@
             "agreementMatches": false,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "alice$client.example",
+              "selector": "btps1",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
+            }
           },
           {
             "signer": "sam$guarantor.example",
@@ -4899,7 +4993,12 @@
             "agreementMatches": false,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "sam$guarantor.example",
+              "selector": "btps1",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
           },
           {
             "signer": "loans$bank.example",
@@ -4909,10 +5008,21 @@
             "agreementMatches": false,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "loans$bank.example",
+              "selector": "btps1",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
           }
         ],
-        "complete": false
+        "complete": false,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -5064,7 +5174,12 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "alice$client.example",
+              "selector": "btps1",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
+            }
           },
           {
             "signer": "sam$guarantor.example",
@@ -5074,7 +5189,12 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "sam$guarantor.example",
+              "selector": "btps1",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
           },
           {
             "signer": "loans$bank.example",
@@ -5084,10 +5204,21 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": false
+            "inOrder": false,
+            "key": {
+              "identity": "loans$bank.example",
+              "selector": "btps1",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
           }
         ],
-        "complete": false
+        "complete": false,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -5234,10 +5365,25 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "alice$client.example",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            },
+            "delegationKey": {
+              "identity": "admin$client.example",
+              "selector": "btps1",
+              "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
+            }
           }
         ],
-        "complete": false
+        "complete": false,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -5349,10 +5495,21 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": false
+            "inOrder": false,
+            "key": {
+              "identity": "sam$guarantor.example",
+              "selector": "btps1",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
           }
         ],
-        "complete": false
+        "complete": false,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -5464,10 +5621,21 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": false,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "alice$client.example",
+              "selector": "btps1",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
+            }
           }
         ],
-        "complete": false
+        "complete": false,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -5551,7 +5719,13 @@
         "originatorSignatureValid": true,
         "termsAttached": false,
         "statements": [],
-        "complete": false
+        "complete": false,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -5657,10 +5831,20 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "alice$client.example",
+              "selector": "btps1"
+            }
           }
         ],
-        "complete": false
+        "complete": false,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -5792,10 +5976,25 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "sam$guarantor.example",
+              "fingerprint": "qjkH2vrmw3YICxo9WiP2ediFZ7sx5CMQTGsAS1ihmp8="
+            },
+            "delegationKey": {
+              "identity": "sam$guarantor.example",
+              "selector": "btps1",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
           }
         ],
-        "complete": false
+        "complete": false,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -5966,6 +6165,11 @@
               "authority": "CN=BTPS Test TSA",
               "timestampingKeyUsage": true,
               "trusted": true
+            },
+            "key": {
+              "identity": "alice$client.example",
+              "selector": "btps1",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -5976,7 +6180,12 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "sam$guarantor.example",
+              "selector": "btps1",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
           },
           {
             "signer": "loans$bank.example",
@@ -5986,10 +6195,21 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "loans$bank.example",
+              "selector": "btps1",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
           }
         ],
-        "complete": true
+        "complete": true,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -6160,6 +6380,11 @@
               "authority": "CN=BTPS Test TSA",
               "timestampingKeyUsage": true,
               "trusted": true
+            },
+            "key": {
+              "identity": "alice$client.example",
+              "selector": "btps1",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -6170,7 +6395,12 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "sam$guarantor.example",
+              "selector": "btps1",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
           },
           {
             "signer": "loans$bank.example",
@@ -6180,10 +6410,21 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "loans$bank.example",
+              "selector": "btps1",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
           }
         ],
-        "complete": true
+        "complete": true,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     },
     {
@@ -6354,6 +6595,11 @@
               "authority": "CN=BTPS Test TLS Server",
               "timestampingKeyUsage": false,
               "trusted": false
+            },
+            "key": {
+              "identity": "alice$client.example",
+              "selector": "btps1",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -6364,7 +6610,12 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "sam$guarantor.example",
+              "selector": "btps1",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
           },
           {
             "signer": "loans$bank.example",
@@ -6374,10 +6625,21 @@
             "agreementMatches": true,
             "termsMatch": true,
             "withinDeadline": true,
-            "inOrder": true
+            "inOrder": true,
+            "key": {
+              "identity": "loans$bank.example",
+              "selector": "btps1",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
           }
         ],
-        "complete": true
+        "complete": true,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
       }
     }
   ]

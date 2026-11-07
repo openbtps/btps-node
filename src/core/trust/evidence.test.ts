@@ -122,6 +122,30 @@ describe('an evidence bundle', () => {
     expect(text.split('\n').at(-1)).toBe(`${'complete'.padEnd(27)}NO`);
   });
 
+  it('names each key it checked a signature with, and says the keys are the bundle’s own', async () => {
+    const { agreement, statements } = await signed();
+    const bundle = buildEvidenceBundle({ originator: BANK, agreement, statements }, keyOf);
+    const fingerprintOf = (identity: string) =>
+      bundle.keys.find((key) => key.identity === identity)?.fingerprint;
+
+    const facts = await verifyEvidenceBundle(bundle);
+    const text = describeEvidenceFacts(facts);
+
+    expect(facts.keysConfirmedOnline).toBe(false);
+    expect(facts.originatorKey).toEqual({
+      identity: BANK,
+      selector: 'btps1',
+      fingerprint: fingerprintOf(BANK),
+    });
+    expect(facts.statements[0]?.key).toEqual({
+      identity: ALICE,
+      selector: 'btps1',
+      fingerprint: fingerprintOf(ALICE),
+    });
+    expect(text).toContain(`${fingerprintOf(ALICE)}`);
+    expect(text).toContain('keys from the bundle, not confirmed online');
+  });
+
   it("reads a statement's timestamp too, saying when no roots were given to trust it", async () => {
     const { agreement, statements } = await signed();
     const bundle = buildEvidenceBundle({ originator: BANK, agreement, statements }, keyOf);

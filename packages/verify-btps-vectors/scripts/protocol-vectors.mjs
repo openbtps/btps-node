@@ -3849,6 +3849,48 @@ export function agreements(keys) {
 }
 
 /**
+ * BTPS 1.2: an evidence bundle case with the keys its verifier names added to
+ * what it expects: the key each signature is checked with, as the bundle holds
+ * it, and that none was confirmed online. A bundle's key counts only when its
+ * fingerprint is its own; a device signs with its delegation's `agentPubKey`.
+ */
+export function withKeyFacts(c) {
+  const { keys, originator, agreement, statements } = c.bundle;
+  const keyFact = (identity, selector) => {
+    const key = keys.find(
+      (k) =>
+        k.identity === identity &&
+        k.selector === selector &&
+        fingerprintOf(k.publicKey) === k.fingerprint,
+    );
+    return { identity, selector, ...(key && { fingerprint: key.fingerprint }) };
+  };
+  return {
+    ...c,
+    expect: {
+      ...c.expect,
+      originatorKey: keyFact(originator, agreement.originatorSignature.selector),
+      keysConfirmedOnline: false,
+      statements: c.expect.statements.map((fact, i) => {
+        const record = statements[i];
+        if (!record.delegatedArtifact) {
+          return { ...fact, key: keyFact(record.statement.signer, record.selector) };
+        }
+        const { delegation } = record.delegatedArtifact;
+        return {
+          ...fact,
+          key: {
+            identity: record.statement.signer,
+            fingerprint: fingerprintOf(delegation.agentPubKey),
+          },
+          delegationKey: keyFact(delegation.signedBy, delegation.selector),
+        };
+      }),
+    },
+  };
+}
+
+/**
  * BTPS 1.2: RFC 3161 timestamp cases for the agreement vectors, made from the
  * complete sequential bundle in `set`. A test authority, made here with
  * pkijs, issues real tokens: a root CA, and the authority's certificate it

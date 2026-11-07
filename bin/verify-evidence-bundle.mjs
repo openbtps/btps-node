@@ -9,7 +9,8 @@
 /**
  * btps-verify-evidence: check a BTPS agreement's evidence bundle offline, with
  * no provider and no network, and print what it shows. It reports facts,
- * never a verdict.
+ * never a verdict. The keys are the bundle's own, not confirmed online: it
+ * prints each one's fingerprint for a reader to check.
  *
  *   npx -p @btps/sdk btps-verify-evidence <bundle.json> [--json] [--timestamp-root <ca.pem>]...
  *
