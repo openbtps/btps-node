@@ -109,7 +109,10 @@ import {
   resolveMaxArtifactAgeSeconds,
 } from './libs/artifactTimeWindow.js';
 import { resolveConnectionTimeoutMs } from './libs/connectionTimeout.js';
-import { resolveMaxInFlightPerConnection } from './libs/inFlightLimit.js';
+import {
+  resolveMaxConsecutiveInvalidLines,
+  resolveMaxInFlightPerConnection,
+} from './libs/inFlightLimit.js';
 import { BtpArtifactSchemaByType } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
 import { BtpAuthReqDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
@@ -131,6 +134,7 @@ export class BtpsServer {
   private readonly connectionTimeoutMs: number;
   private readonly maxArtifactSizeKb: number;
   private readonly maxInFlightPerConnection: number;
+  private readonly maxConsecutiveInvalidLines: number;
   private readonly maxArtifactAgeSeconds: number;
   private readonly signAnswers: boolean;
   private readonly keyResolver?: BtpsKeyResolver;
@@ -163,6 +167,9 @@ export class BtpsServer {
     this.maxArtifactSizeKb = resolveMaxArtifactSizeKb(options.maxArtifactSizeKb);
     this.maxInFlightPerConnection = resolveMaxInFlightPerConnection(
       options.maxInFlightPerConnection,
+    );
+    this.maxConsecutiveInvalidLines = resolveMaxConsecutiveInvalidLines(
+      options.maxConsecutiveInvalidLines,
     );
     this.maxArtifactAgeSeconds = resolveMaxArtifactAgeSeconds(options.maxArtifactAgeSeconds);
     this.signAnswers = options.signAnswers === true;
@@ -352,6 +359,8 @@ export class BtpsServer {
     // Requests on this connection still being handled: while there are any,
     // the idle timeout does not close it.
     let inFlight = 0;
+    // Lines in a row this server could not read: at the limit, the last is answered and the connection ends.
+    let invalidInARow = 0;
 
     stream.on('data', async (line: string) => {
       if (!line.trim()) return;
@@ -414,8 +423,17 @@ export class BtpsServer {
 
         if (parseError || !data) {
           const errorToSend = parseError ?? BTP_ERROR_INVALID_JSON;
+          invalidInARow++;
+          if (invalidInARow >= this.maxConsecutiveInvalidLines) {
+            return this.handleOnSocketError(
+              new BTPErrorException(errorToSend),
+              { req: parseReq as BTPRequestCtx<'before', 'onError'>, res: parseRes },
+              'end',
+            );
+          }
           return this.sendBtpsError(socket, errorToSend);
         }
+        invalidInARow = 0;
 
         // Before any signature work: an artifact of another protocol version is refused.
         if (!isSupportedVersion(data.artifact.version)) {
@@ -472,6 +490,9 @@ export class BtpsServer {
           'answer',
         );
       } finally {
+        // A line is in flight until its answer is written, signed or not, so the
+        // in-flight limit also bounds answers still waiting to be signed.
+        await this.answersOnSocket.get(socket);
         inFlight--;
         if (stream.isPaused() && !stream.destroyed) stream.resume();
       }
@@ -1696,6 +1717,8 @@ export class BtpsServer {
     const earlier = this.answersOnSocket.get(socket) ?? Promise.resolve();
     const answer = earlier
       .then(async () => {
+        // A connection that has gone, or that an earlier answer ended, is sent nothing: nothing is signed for it.
+        if (socket.destroyed || socket.writableEnded) return;
         const signed = artifact.signature ? artifact : await this.signAnswer(artifact);
         this.writeAnswer(socket, signed, action);
       })

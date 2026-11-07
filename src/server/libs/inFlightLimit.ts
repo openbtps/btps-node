@@ -34,3 +34,30 @@ export const resolveMaxInFlightPerConnection = (configured: number | undefined):
   }
   return configured;
 };
+
+/** Since 1.2: how many unreadable lines in a row one connection may send unless the server sets `maxConsecutiveInvalidLines`. */
+export const DEFAULT_MAX_CONSECUTIVE_INVALID_LINES = 10;
+
+/**
+ * The number a server uses. It answers that many lines in a row it cannot
+ * read, then answers the last and ends the connection: a sender that sends
+ * only what cannot be read gets no more answers made for it, signed or not.
+ * A value it cannot use is warned about and replaced by 1 (when too small) or
+ * the default (when not a whole number).
+ */
+export const resolveMaxConsecutiveInvalidLines = (configured: number | undefined): number => {
+  if (configured === undefined) return DEFAULT_MAX_CONSECUTIVE_INVALID_LINES;
+  if (!Number.isInteger(configured)) {
+    console.warn(
+      `[BtpsServer] maxConsecutiveInvalidLines ${configured} is not a whole number; using the default ${DEFAULT_MAX_CONSECUTIVE_INVALID_LINES}`,
+    );
+    return DEFAULT_MAX_CONSECUTIVE_INVALID_LINES;
+  }
+  if (configured < 1) {
+    console.warn(
+      `[BtpsServer] maxConsecutiveInvalidLines ${configured} is below the minimum 1; using 1`,
+    );
+    return 1;
+  }
+  return configured;
+};
