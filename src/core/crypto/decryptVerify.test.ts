@@ -12,12 +12,14 @@ import { BTPErrorException } from '../error/index.js';
 import { VerifyEncryptedPayload } from './types.js';
 import { BTPTrustReqDoc } from '../trust/types.js';
 import type { Decrypter } from './decrypter-interface.js';
+import { resolveTxt } from 'dns/promises';
 
 vi.mock('./index', () => ({
   decryptBtpPayload: vi.fn(),
   decryptBtpPayloadWithDecrypter: vi.fn(),
   verifySignature: vi.fn(),
 }));
+vi.mock('dns/promises', () => ({ resolveTxt: vi.fn() }));
 
 const mockCrypto = vi.mocked(cryptoIndex);
 
@@ -271,6 +273,43 @@ describe('decryptVerify', () => {
       const result = await opened(invoice, 'BTPS_DOC');
       expect(result.payload).toBeUndefined();
       expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+    });
+
+    describe('since 1.2, a trust request with a verification', () => {
+      const verifiedBy = (identity: string) => ({
+        ...request,
+        verification: {
+          verifiedBy: identity,
+          claims: { 'detail:legalName': 'Acme' },
+          verifiedAt: '2026-11-01T00:00:00.000Z',
+          expiresAt: '2027-11-01T00:00:00.000Z',
+          selector: 'btps1',
+          signature: { algorithmHash: 'sha256', value: 'AA==', fingerprint: 'AA==' },
+        },
+      });
+
+      beforeEach(() => {
+        vi.mocked(resolveTxt).mockImplementation(async (name: string) => {
+          if (name === '_btps.host.saas.example') {
+            return [['v=1.2.0; u=btps.saas.example:3443; s=btps1; op=admin$saas.example']];
+          }
+          throw Object.assign(new Error(`queryTxt ENOTFOUND ${name}`), { code: 'ENOTFOUND' });
+        });
+      });
+
+      it("is refused when its verifier is not its domain's operator", async () => {
+        const result = await opened(verifiedBy('jane$saas.example'));
+        expect(result.payload).toBeUndefined();
+        expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+        expect(String(result.error?.cause)).toBe(
+          'the verifier does not run a BTPS server: jane$saas.example is not the operator of saas.example',
+        );
+      });
+
+      it('is returned when its verifier is the operator', async () => {
+        const result = await opened(verifiedBy('admin$saas.example'));
+        expect(result.error).toBeUndefined();
+      });
     });
   });
 

@@ -153,8 +153,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   shapes), signed over the sender's own address so it cannot be copied. A
   request carrying one is encrypted. `signVerification` makes one;
   `verificationFacts` reports `{ signatureValid, expired,
-verifierServesSender, verifierIsOperator }` and refuses nothing. Whose
-  verifications to trust is each provider's to decide.
+verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
+  runs a BTPS server verifies: `verifiedBy` is the `op` of its own domain's
+  `_btps.host`, or `decryptVerify` refuses the request (`verifierProblem`).
+  Whose verifications to trust is each provider's to decide.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).

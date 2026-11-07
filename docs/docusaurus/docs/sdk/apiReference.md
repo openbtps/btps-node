@@ -1140,6 +1140,17 @@ Since 1.2. The facts about an opened trust request's verification, or `undefined
 
 ---
 
+### verifierProblem
+
+```ts
+verifierProblem(verifiedBy: string): Promise<string | undefined>
+```
+
+**Description:**
+Since 1.2. Why `verifiedBy` may not verify, or `undefined`: only the operator (`op`) named in `_btps.host` of its own domain, one who runs a BTPS server, may. `decryptVerify` runs it on every opened trust request that carries a verification. It only makes a verifier an operator: whose verifications to trust stays each provider's to decide. See [Verification](../protocol/specifications/transporter-artifact.md#verification).
+
+---
+
 ### detailsProblem
 
 ```ts

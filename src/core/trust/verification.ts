@@ -58,6 +58,18 @@ export const signVerification = async (
 };
 
 /**
+ * Since 1.2: why `verifiedBy` may not verify, or undefined. Only one who runs a
+ * BTPS server verifies: the `op` of its own domain's host record. This makes a
+ * verifier an operator, nothing more; whose verifications to trust stays each
+ * provider's to decide.
+ */
+export const verifierProblem = async (verifiedBy: string): Promise<string | undefined> => {
+  const operator = (await getHostAndSelector(verifiedBy))?.operator;
+  if (operator?.toLowerCase() === verifiedBy.toLowerCase()) return undefined;
+  return `the verifier does not run a BTPS server: ${verifiedBy} is not the operator of ${domainOf(verifiedBy)}`;
+};
+
+/**
  * Since 1.2: the facts about an opened trust request's verification, or
  * undefined when it carries none. It refuses nothing: whose verifications to
  * trust, and which facts to require, are each provider's to decide.

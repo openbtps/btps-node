@@ -13,7 +13,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { generateKeyPairSync } from 'crypto';
 import { resolveTxt } from 'dns/promises';
-import { signVerification, verificationFacts } from './verification.js';
+import { signVerification, verificationFacts, verifierProblem } from './verification.js';
 import { trustRequestProblem } from '../server/schemas/trustValues.js';
 import { BtpTransporterArtifactSchema } from '../server/schemas/artifacts/transporterSchema.js';
 import { pemToBase64 } from '../utils/index.js';
@@ -33,6 +33,10 @@ const ownKeys = keyPair();
 vi.mocked(resolveTxt).mockImplementation(async (name: string) => {
   const records: Record<string, string> = {
     '_btps.host.acme.example': 'v=1.2.0; u=btps.saas.example:3443; s=btps1; op=admin$saas.example',
+    '_btps.host.saas.example': 'v=1.2.0; u=btps.saas.example:3443; s=btps1; op=admin$saas.example',
+    '_btps.host.idcheck.example':
+      'v=1.2.0; u=btps.idcheck.example:3443; s=btps1; op=admin$idcheck.example',
+    '_btps.host.self.example': 'v=1.2.0; u=btps.self.example:3443; s=btps1; op=me$self.example',
     'btps1._btps.identity.admin.saas.example': `v=1.2.0; k=rsa; p=${pemToBase64(operatorKeys.publicKey)}`,
     'btps1._btps.identity.verify.saas.example': `v=1.2.0; k=rsa; p=${pemToBase64(operatorKeys.publicKey)}`,
     'btps1._btps.identity.billing.acme.example': `v=1.2.0; k=rsa; p=${pemToBase64(ownKeys.publicKey)}`,
@@ -130,6 +134,32 @@ describe('a verification', () => {
 
   it('absent: no facts', async () => {
     expect(await verificationFacts({ from: sender, document: { id: 'req-1' } })).toBeUndefined();
+  });
+});
+
+describe('a verifier', () => {
+  it('may not be a customer address on a SaaS: it runs no BTPS server', async () => {
+    expect(await verifierProblem('jane$saas.example')).toBe(
+      'the verifier does not run a BTPS server: jane$saas.example is not the operator of saas.example',
+    );
+  });
+
+  it("may be the SaaS's own operator", async () => {
+    expect(await verifierProblem('admin$saas.example')).toBeUndefined();
+  });
+
+  it('may be another operator, an identity-check service running its own server', async () => {
+    expect(await verifierProblem('admin$idcheck.example')).toBeUndefined();
+  });
+
+  it('may be a self-hoster who is its own operator', async () => {
+    expect(await verifierProblem('me$self.example')).toBeUndefined();
+  });
+
+  it('may not be an address whose domain runs no BTPS server', async () => {
+    expect(await verifierProblem('jane$nowhere.example')).toMatch(
+      /jane\$nowhere\.example is not the operator of nowhere\.example/,
+    );
   });
 });
 
