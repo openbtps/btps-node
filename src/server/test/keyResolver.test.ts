@@ -253,6 +253,33 @@ describe('the default key resolver', () => {
     expect(connect).not.toHaveBeenCalled();
   });
 
+  it("asks the receiver's host for its key when DNS has none, as the sender, then closes", async () => {
+    const resolveIdentity = vi
+      .spyOn(BtpsClient.prototype, 'resolveIdentity')
+      .mockResolvedValue({ response: { publicKey: receiver.publicKey } } as Awaited<
+        ReturnType<BtpsClient['resolveIdentity']>
+      >);
+    const destroy = vi.spyOn(BtpsClient.prototype, 'destroy');
+    const resolver = createDefaultKeyResolver({ from: 'alice$vendor.example' });
+
+    expect(await resolver.resolvePublicKey('pay$client.example', 'btps1', 'encrypt')).toBe(
+      receiver.publicKey,
+    );
+    expect(resolveIdentity).toHaveBeenCalledWith('pay$client.example', 'alice$vendor.example');
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  it('closes the client even when the host lookup fails', async () => {
+    vi.spyOn(BtpsClient.prototype, 'resolveIdentity').mockRejectedValue(new Error('no host'));
+    const destroy = vi.spyOn(BtpsClient.prototype, 'destroy');
+    const resolver = createDefaultKeyResolver({ from: 'alice$vendor.example' });
+
+    await expect(
+      resolver.resolvePublicKey('pay$client.example', 'btps1', 'encrypt'),
+    ).rejects.toThrow('no host');
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
   it("finds a receiver's key in DNS only without a sender to ask its host as", async () => {
     const connect = vi.spyOn(tls, 'connect');
 
