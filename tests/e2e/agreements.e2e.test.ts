@@ -13,7 +13,7 @@
 // a trusted timestamp on a statement.
 
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
-import { execFileSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import fs from 'fs';
 import os from 'os';
@@ -268,19 +268,23 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
         return file;
       };
       const changed = { ...bundle, agreement: { ...bundle.agreement, title: 'Another loan' } };
+      // The bin as shipped: it imports @btps/sdk/trust, the built package (test:e2e builds it).
       const cli = path.resolve(__dirname, '../../bin/verify-evidence-bundle.mjs');
-      const exitOf = (file: string) => {
-        try {
-          execFileSync(process.execPath, [cli, file], { stdio: 'pipe' });
-          return 0;
-        } catch (error) {
-          return (error as { status: number }).status;
-        }
+      const run = (file: string) => {
+        const { status, stdout, stderr } = spawnSync(process.execPath, [cli, file], {
+          encoding: 'utf8',
+        });
+        return { status, output: `${stdout}${stderr}` };
       };
 
-      expect(exitOf(write('complete.json', bundle))).toBe(0);
-      expect(exitOf(write('changed.json', changed))).toBe(1);
-      expect(exitOf(write('nothing.json', { format: 'something-else' }))).toBe(2);
+      for (const [file, value, status] of [
+        ['complete.json', bundle, 0],
+        ['changed.json', changed, 1],
+        ['nothing.json', { format: 'something-else' }, 2],
+      ] as const) {
+        const result = run(write(file, value));
+        expect(result.status, result.output).toBe(status);
+      }
       fs.rmSync(dir, { recursive: true, force: true });
     });
 
