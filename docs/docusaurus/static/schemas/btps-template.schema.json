@@ -160,7 +160,7 @@
       "allOf": [{ "$ref": "#/$defs/termsGiven" }, { "$ref": "#/$defs/footerGiven" }]
     },
     "letterTemplate": {
-      "description": "A letter template, format 2: the page, the letterhead and the footer only. The body is the sender's own text, which a template never styles or reorders.",
+      "description": "A letter template, format 2: the page, the letterhead and the footer only. The body is the sender's own text, which a template never styles or reorders. Since 1.2 it also draws an agreement, a letter that asks for acceptance.",
       "type": "object",
       "additionalProperties": false,
       "required": ["format", "kinds", "page", "logo", "letterhead"],
@@ -169,8 +169,9 @@
         "kinds": {
           "type": "array",
           "minItems": 1,
-          "maxItems": 1,
-          "items": { "const": "letter" }
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "enum": ["letter", "agreement"] }
         },
         "page": { "$ref": "#/$defs/page" },
         "logo": { "$ref": "#/$defs/logo" },

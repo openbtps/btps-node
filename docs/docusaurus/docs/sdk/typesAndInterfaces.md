@@ -1716,11 +1716,11 @@ interface BTPAgentQuery {
 Generic document type.
 
 ```ts
-type BTPDocument = BTPInvoiceDoc | BTPReceiptDoc | BTPPayslipDoc | BTPLetterDoc; // what a BTPS_DOC carries
+type BTPDocument = BTPInvoiceDoc | BTPReceiptDoc | BTPPayslipDoc | BTPLetterDoc | BTPAgreementDoc; // what a BTPS_DOC carries
 type BTPDocType = BTPDocument | BTPLifecycleEvent | BTPTrustReqDoc | BTPTrustResDoc;
 ```
 
-`BTPPayslipDoc` and `BTPLetterDoc` are inferred from their schemas; their fields are in the Transporter Artifact specification.
+`BTPPayslipDoc`, `BTPLetterDoc` and, since 1.2, `BTPAgreementDoc` are inferred from their schemas; their fields are in the Transporter Artifact specification.
 
 ### BTPStringQueryFilter
 

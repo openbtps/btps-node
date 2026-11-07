@@ -25,6 +25,7 @@ import type { Signer } from '@core/crypto/signer-interface.js';
 import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 import type { z } from 'zod';
 import type {
+  BtpAgreementDocSchema,
   BtpLetterDocSchema,
   BtpPayslipDocSchema,
 } from '@core/server/schemas/btpsDocsSchema.js';
@@ -404,5 +405,13 @@ export type BTPPayslipDoc = z.infer<typeof BtpPayslipDocSchema>;
 /** A letter: a title and one body, `text` or `markdown`. */
 export type BTPLetterDoc = z.infer<typeof BtpLetterDocSchema>;
 
+/** Since 1.2: an agreement, a letter that asks its signers to accept it. */
+export type BTPAgreementDoc = z.infer<typeof BtpAgreementDocSchema>;
+
 /** What a `BTPS_DOC` carries. */
-export type BTPDocument = BTPInvoiceDoc | BTPReceiptDoc | BTPPayslipDoc | BTPLetterDoc;
+export type BTPDocument =
+  | BTPInvoiceDoc
+  | BTPReceiptDoc
+  | BTPPayslipDoc
+  | BTPLetterDoc
+  | BTPAgreementDoc;

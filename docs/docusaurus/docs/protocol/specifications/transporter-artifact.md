@@ -91,7 +91,7 @@ Since 1.2. A trust says what may travel on it: which document types may be sent,
 
 A name is one of the protocol's own, and nothing else. There are no provider-defined names, so every provider understands every permission. `DOCUMENT_TYPES`, `SEND_PERMISSIONS` and `DETAIL_PERMISSIONS` in `@btps/sdk/trust` list them.
 
-- **Sending:** `send:invoice`, `send:receipt`, `send:payslip`, `send:letter`.
+- **Sending:** `send:invoice`, `send:receipt`, `send:payslip`, `send:letter`, `send:agreement`. `send:letter` does not cover an agreement: a person can take a bank's notices without taking its contracts for acceptance, or allow both.
 - **Details:** `detail:legalName`, `detail:profile`, `detail:email`, `detail:phone`, `detail:address`, `detail:taxNo`, `detail:dob` (a person's date of birth), `detail:registrationNumber` (an organisation's).
 
 ### On the envelope
@@ -371,7 +371,8 @@ A document's `type` says which kind it is:
 - **`invoice`**: asks for payment. The receiver may show it as a bill.
 - **`receipt`**: proves a payment was made (see [Receipt](#receipt)).
 - **`payslip`**: an employee's pay for a period (see [Payslip](#payslip)).
-- **`letter`**: anything else, from a notice to an agreement (see [Letter](#letter)).
+- **`letter`**: anything else, from a notice to a statement (see [Letter](#letter)).
+- **`agreement`**: since 1.2, a letter that asks its signers to accept it (see [Agreement](#agreement)).
 
 The invoice is described first; the others share its money, attachments and references.
 
@@ -462,7 +463,7 @@ A person's note says how it is written: `{ "format": "text" | "markdown", "conte
 
 **Templates (by reference):**
 
-`template` is `{ "name": "acme/classic-invoice", "data": { … } }`. Since 1.2, in a `1.2.0` artifact, `data`'s named fields are each optional but well formed when present: `version` (a semantic version), `sha256` (64 lowercase hex characters), `source` (an https address, always with its `sha256`), and `logo: { sha256, source }`. A letter's template may also carry `values`, its signature slots' values, signed with the letter: `signature.typed`, `signature.name` and `signature.title` as plain text of at most 100 characters, and `signature.drawn` as integer strokes on a 1,000 by 300 canvas (see [Templates](./templates.md#signature-slots-and-their-values)). Any other key in `values`, or `values` on another document's template, is refused. Other keys stay the provider's. Under `1.1.0`, `data` is free, as in 1.1. A receiving platform draws the document with the template only when the template's fingerprint matches `sha256`; anything that fails falls back to the standard view. Since 1.2 a letter and a payslip may name a template too. The template file's own format, and what a template must never do, are on [Templates](./templates.md).
+`template` is `{ "name": "acme/classic-invoice", "data": { … } }`. Since 1.2, in a `1.2.0` artifact, `data`'s named fields are each optional but well formed when present: `version` (a semantic version), `sha256` (64 lowercase hex characters), `source` (an https address, always with its `sha256`), and `logo: { sha256, source }`. A letter's or an agreement's template may also carry `values`, its signature slots' values, signed with the document: `signature.typed`, `signature.name` and `signature.title` as plain text of at most 100 characters, and `signature.drawn` as integer strokes on a 1,000 by 300 canvas (see [Templates](./templates.md#signature-slots-and-their-values)). Any other key in `values`, or `values` on another document's template, is refused. Other keys stay the provider's. Under `1.1.0`, `data` is free, as in 1.1. A receiving platform draws the document with the template only when the template's fingerprint matches `sha256`; anything that fails falls back to the standard view. Since 1.2 a letter, an agreement and a payslip may name a template too. The template file's own format, and what a template must never do, are on [Templates](./templates.md).
 
 A document carries no status: whether an invoice is paid, partly paid, disputed or refunded comes from the lifecycle events exchanged about it. The schema is strict, so a field it does not name (such as 1.0's `status`) is refused.
 
@@ -648,7 +649,7 @@ An employee's pay for a period. Earnings, deductions, contributions and leave ar
 
 #### Letter
 
-Anything else: a notice, a statement, a plan change, an agreement. It has a title and one body, and no money.
+Anything else: a notice, a statement, a plan change. It has a title and one body, and no money. A letter that asks for acceptance is an [agreement](#agreement), its own type.
 
 ```json
 {
@@ -669,6 +670,52 @@ Anything else: a notice, a statement, a plan change, an agreement. It has a titl
 - **`text`** is shown exactly as written.
 - **`markdown`** is CommonMark with raw HTML off. A receiver renders it without inline images and follows only `https` links. There is no HTML body: an HTML body would need sanitising by every receiver, and a mistake in that is a vulnerability.
 - **Optional:** `issuer`, `attachments` (up to 10), `references` (up to 20), `metadata`.
+- A letter never carries `acceptance`.
+
+#### Agreement
+
+Since 1.2, in a `1.2.0` artifact only: a letter that asks its signers to accept it, such as a loan contract, a tenancy or a phone plan. It has every field a letter has, and a template for letters draws it too. It also carries `acceptance`, which is required, and `originatorSignature`. A 1.1 receiver refuses it by version.
+
+```json
+{
+  "type": "agreement",
+  "title": "Home loan agreement",
+  "id": "AGR-1",
+  "issuedAt": "2026-11-01T00:00:00Z",
+  "body": { "format": "markdown", "content": "# Home loan\n\nThe terms are attached." },
+  "attachments": [
+    {
+      "content": "JVBERi0…",
+      "type": "application/pdf",
+      "filename": "terms.pdf",
+      "size": 48213,
+      "sha256": "9f2c…"
+    }
+  ],
+  "acceptance": {
+    "by": "2026-11-30T00:00:00Z",
+    "terms": ["9f2c…"],
+    "signers": [
+      { "address": "alice$client.example" },
+      { "address": "sam$guarantor.example" },
+      { "address": "loans$bank.example" }
+    ],
+    "signingOrder": "sequential"
+  },
+  "originatorSignature": {
+    "selector": "btps1",
+    "signature": { "algorithmHash": "sha256", "value": "…", "fingerprint": "…" }
+  }
+}
+```
+
+- **`acceptance.signers`**: who accepts it, 1 to 20 BTPS addresses, each once, letters compared without case. The originator may be one of them, for example a bank that countersigns. It is signed content, so the list cannot change after sending.
+- **`acceptance.signingOrder`**: `sequential`, where the signers answer in list order, or `any`.
+- **`acceptance.terms`**: the SHA-256 of each attachment that is a term of the agreement, each once, and each the `sha256` of one of its attachments. It may be empty: an acceptance always covers the whole signed content, and `terms` only names which attached documents are the contract.
+- **`acceptance.by`** (optional): the deadline. A signer's answer is signed no later than it.
+- **One source of truth:** an agreement always carries `acceptance`, and a letter never does, so the type and the block can never disagree. There is no `kind` field.
+- **Its content and its originator's signature.** An agreement is identified by its originator's address, its `id`, and its `contentSha256`: the SHA-256, in lowercase hex, of its RFC 8785 form without `originatorSignature`. `originatorSignature` is the originator's signature, at `selector`, over the RFC 8785 form of `{ originator, id, contentSha256 }`. Every signer gets its own copy, encrypted to it only; the copies have the same content, so any copy can be checked offline, whatever its encryption.
+- **Its permission:** under a trust with permissions, an agreement travels with `documentType: "agreement"`, and the receiver must have granted `send:agreement` (see [A send's document type](#a-sends-document-type)).
 
 Each document type's limits are on [Limits](./limits.md#document-fields).
 

@@ -88,7 +88,7 @@ Since 1.2: a request's `own` and an answer's `details` (see [Trust permissions](
 
 ### Documents (`BTPS_DOC`)
 
-Every document type, invoice, receipt, payslip and letter, limits its
+Every document type, invoice, receipt, payslip, letter and agreement, limits its
 identifiers. How many entries its lists may have is under
 [Lists and records](#lists-and-records). Its other content is bounded by the
 [artifact size](#artifact-size), except, since 1.2 and in a `1.2.0` artifact
@@ -136,6 +136,16 @@ Since 1.2, in a `1.2.0` artifact, a letter's template may carry signature values
 | `signature.drawn`: points a stroke                     |                  512 |
 | `signature.drawn`: points in all                       |                2,048 |
 | `signature.drawn`: a point's `x`, `y`                  | 0 to 1,000, 0 to 300 |
+
+### Agreement
+
+Since 1.2, in a `1.2.0` artifact only. An agreement has a letter's limits,
+its template's included, and these:
+
+| Field                |                               Limit |
+| -------------------- | ----------------------------------: |
+| `acceptance.signers` |                             1 to 20 |
+| `acceptance.terms`   | 10, one for each attachment at most |
 
 ## Lists and records
 

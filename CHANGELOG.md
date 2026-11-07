@@ -169,6 +169,12 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   server cannot be asked, nothing is sent. A request without permissions is
   never asked about. `shapeTrustRequestFor11` and `composeTrustRequestFor`
   are exported for platforms that build artifacts another way.
+- **Agreements.** `agreement` is a fifth document type, `1.2.0` only: a letter
+  that asks its signers to accept it (`BTPAgreementDoc`). It carries a required
+  `acceptance` (`by`, `terms` naming its attachments, 1 to 20 `signers`,
+  `signingOrder` `any` or `sequential`) and `originatorSignature`, and a letter
+  never carries `acceptance`. `send:agreement` joins the permission names, and
+  letter templates draw agreements too (`kinds` `letter`, `agreement`).
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).

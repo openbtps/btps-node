@@ -2760,6 +2760,19 @@ export function templates() {
     accept('format-2-payslip', payslip),
     accept('format-2-letter', letter),
     accept('format-2-letter-without-a-footer', letterWithoutFooter),
+    // Since 1.2 an agreement is a letter that asks for acceptance: a letter template draws it too.
+    accept('format-2-letter-for-agreements', { ...letter, kinds: ['letter', 'agreement'] }),
+    accept('format-2-agreement', { ...letter, kinds: ['agreement'] }),
+    refuse(
+      'a-letter-template-naming-agreement-twice',
+      { ...letter, kinds: ['agreement', 'agreement'] },
+      'each kind appears once',
+    ),
+    refuse(
+      'a-letter-template-for-invoices-too',
+      { ...letter, kinds: ['letter', 'invoice'] },
+      'a letter template is for letters and agreements only',
+    ),
     refuse(
       'a-payslip-with-a-signed-section-left-out',
       { ...payslip, sections: payslipSigned.filter((s) => s !== 'deductions') },
@@ -3385,6 +3398,7 @@ export function agreements(keys) {
         from: BANK,
         to: ALICE,
         permissions: [ask('send:letter'), ask('send:agreement')],
+        entityType: 'organisation',
       }),
       'accept',
     ),

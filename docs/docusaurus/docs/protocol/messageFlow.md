@@ -220,7 +220,7 @@ sequenceDiagram
     participant S as Sender
     participant R as Receiver
 
-    S->>S: Create business document (invoice, receipt, payslip, letter)
+    S->>S: Create business document (invoice, receipt, payslip, letter, agreement)
     S->>S: Check the document against its type's schema and field limits
     S->>S: Optionally encrypt the document based on privacy type
     S->>S: Sign the BTPS artifact with its own private key

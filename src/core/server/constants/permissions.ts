@@ -9,7 +9,7 @@
  * Since 1.2: the document types a `BTPS_DOC` carries. Each names a `send:`
  * permission and a `documentType`, so a new type is added here, with its schema.
  */
-export const DOCUMENT_TYPES = ['invoice', 'receipt', 'payslip', 'letter'] as const;
+export const DOCUMENT_TYPES = ['invoice', 'receipt', 'payslip', 'letter', 'agreement'] as const;
 
 /** Since 1.2: the details a trust may ask for, each a `detail:` permission. */
 export const DETAIL_TYPES = [

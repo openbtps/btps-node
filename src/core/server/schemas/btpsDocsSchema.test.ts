@@ -341,6 +341,8 @@ describe('BtpLetterDocSchema', () => {
 
 describe('DOCUMENT_TYPES', () => {
   it('names every document type a BTPS_DOC carries, and no other', () => {
-    expect([...BtpDocumentSchema.optionsMap.keys()].sort()).toEqual([...DOCUMENT_TYPES].sort());
+    expect([...BtpDocumentSchema.innerType().optionsMap.keys()].sort()).toEqual(
+      [...DOCUMENT_TYPES].sort(),
+    );
   });
 });

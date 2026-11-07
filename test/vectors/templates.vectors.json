@@ -2162,6 +2162,138 @@
       "expect": "accept"
     },
     {
+      "name": "format-2-letter-for-agreements",
+      "template": {
+        "format": 2,
+        "kinds": ["letter", "agreement"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "format-2-agreement",
+      "template": {
+        "format": 2,
+        "kinds": ["agreement"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-letter-template-naming-agreement-twice",
+      "template": {
+        "format": 2,
+        "kinds": ["agreement", "agreement"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "each kind appears once"
+    },
+    {
+      "name": "a-letter-template-for-invoices-too",
+      "template": {
+        "format": 2,
+        "kinds": ["letter", "invoice"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a letter template is for letters and agreements only"
+    },
+    {
       "name": "a-payslip-with-a-signed-section-left-out",
       "template": {
         "format": 2,

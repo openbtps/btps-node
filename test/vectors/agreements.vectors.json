@@ -2174,7 +2174,8 @@
             "name": "send:agreement",
             "required": true
           }
-        ]
+        ],
+        "entityType": "organisation"
       },
       "expect": "accept"
     },

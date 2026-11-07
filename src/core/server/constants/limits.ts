@@ -52,6 +52,10 @@ export const BTPS_FIELD_LIMITS = {
     attachments: 10,
     references: 20,
   },
+  // Since 1.2, an agreement: a letter's limits, and who signs it.
+  agreement: {
+    signers: 20,
+  },
   // An invoice's, a receipt's and a payslip's; a letter has its own.
   attachments: 10,
   references: 20,
