@@ -74,8 +74,13 @@ const receiver = async (first: { version: string; closing?: true }) => {
 
 const servers: net.Server[] = [];
 const clients: BtpsClient[] = [];
-const clientFor = () => {
-  const client = new BtpsClient({ to: 'bob$saas.test', host: '127.0.0.1', maxRetries: 0 });
+const clientFor = (more: Partial<ConstructorParameters<typeof BtpsClient>[0]> = {}) => {
+  const client = new BtpsClient({
+    to: 'bob$saas.test',
+    host: '127.0.0.1',
+    maxRetries: 0,
+    ...more,
+  });
   clients.push(client);
   return client;
 };
@@ -109,6 +114,21 @@ describe('an answer that ends the connection, since 1.2', () => {
     await client.send(artifact());
     const next = await client.send(artifact());
 
+    expect(next.error?.code).toBe(BTP_ERROR_CONNECTION_ENDED.code);
+    expect(connections).toHaveLength(1);
+  });
+
+  it('is acted on only once the answer is taken: a client that requires a signature ignores it unsigned', async () => {
+    const { connections } = await receiver({ version: '1.2.0', closing: true });
+    const client = clientFor({
+      requireSignedBy: { identity: 'admin$saas.test', selector: 'btps1' },
+    });
+
+    const first = await client.send(artifact());
+    const next = await client.send(artifact());
+
+    expect(first.response).toBeUndefined();
+    expect(first.error).toBeDefined();
     expect(next.error?.code).toBe(BTP_ERROR_CONNECTION_ENDED.code);
     expect(connections).toHaveLength(1);
   });

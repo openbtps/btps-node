@@ -321,13 +321,14 @@ export class BtpsClient {
     try {
       assertStrictJson(line);
       const msg: BTPServerResponse = JSON.parse(line);
-      // Since 1.2: the server ends this connection after this answer, so nothing
-      // more is written to it; the next send makes a new one.
-      if (msg?.status?.closing === true && socket && this.socket === socket) {
-        this.states.isConnected = false;
-      }
       this.states.shouldRetry = false;
       const { isValid: validSignature, error } = await this.verifyServerMessage(msg);
+      // Since 1.2: the server ends this connection after this answer, so nothing
+      // more is written to it and the next send makes a new one. Only an answer
+      // this client takes says so: with requireSignedBy, one signed as required.
+      if (validSignature && msg?.status?.closing === true && socket && this.socket === socket) {
+        this.states.isConnected = false;
+      }
       // An error the server could not tie to a request, such as a line it
       // could not parse, has no reqId: while one send is waiting, it is that one's.
       const reqId =
