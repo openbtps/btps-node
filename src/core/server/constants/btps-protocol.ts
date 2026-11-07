@@ -5,7 +5,7 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import { PERMISSION_ENVELOPE_FIELDS } from './permissions.js';
+import { DETAILS_ARTIFACT_TYPES, PERMISSION_ENVELOPE_FIELDS } from './permissions.js';
 
 export const BTP_PROTOCOL_VERSION = '1.2.0';
 export const MIN_SUPPORTED_VERSION = '1.1.0';
@@ -87,6 +87,8 @@ const USES_1_2: ((artifact: BTPVersionedArtifact) => boolean)[] = [
       (artifact.type === 'TRUST_RES' && document?.details !== undefined)
     );
   },
+  // A details refresh artifact: a notice, a request or its answer.
+  (artifact) => (DETAILS_ARTIFACT_TYPES as readonly unknown[]).includes(artifact.type),
 ];
 
 /**

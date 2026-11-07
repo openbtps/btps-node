@@ -7,6 +7,7 @@
 
 import { AbstractStorageStore } from '@core/storage/AbstractStorageStore.js';
 import { BTPEventFacts, BTPTrustRecord } from '../types.js';
+import type { BTPDetailsEnvelope } from '../permissions.js';
 
 export abstract class AbstractTrustStore<T extends BTPTrustRecord> extends AbstractStorageStore<T> {
   abstract getAll(receiverId?: string): Promise<T[]>;
@@ -33,4 +34,19 @@ export abstract class AbstractTrustStore<T extends BTPTrustRecord> extends Abstr
    * `withdrawn` about it; without it, those are the platform's to check.
    */
   getEvent?(query: { id: string; from: string; to: string }): Promise<BTPEventFacts | undefined>;
+
+  /**
+   * Optional, since 1.2: the envelope of the artifact with this id that passed
+   * between these two identities, in either direction, as the platform
+   * recorded it, or undefined when it holds none. With it, a server checks
+   * that a `DETAILS_RES` answers a `DETAILS_REQ` its receiver sent to that
+   * sender, naming only what it asked for; without it, the server checks only
+   * that the request is known (`isKnownArtifact`), and the names are the
+   * platform's to check (`detailsProblem`).
+   */
+  getArtifact?(query: {
+    artifactId: string;
+    from: string;
+    to: string;
+  }): Promise<BTPDetailsEnvelope | undefined>;
 }

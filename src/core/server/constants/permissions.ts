@@ -29,6 +29,9 @@ export const ENTITY_TYPES = ['person', 'organisation'] as const;
 export const SEND_PERMISSIONS = DOCUMENT_TYPES.map((type) => `send:${type}` as const);
 export const DETAIL_PERMISSIONS = DETAIL_TYPES.map((type) => `detail:${type}` as const);
 
+/** Since 1.2: details refresh: a notice that details changed, a request for some, and its answer. */
+export const DETAILS_ARTIFACT_TYPES = ['DETAILS_CHANGED', 'DETAILS_REQ', 'DETAILS_RES'] as const;
+
 /** Since 1.2: the envelope fields of trust permissions, and the artifact types each is on. */
 export const PERMISSION_ENVELOPE_FIELDS = {
   permissions: ['TRUST_REQ'],
@@ -37,6 +40,7 @@ export const PERMISSION_ENVELOPE_FIELDS = {
   change: ['TRUST_REQ'],
   granted: ['TRUST_RES'],
   documentType: ['BTPS_DOC'],
+  details: DETAILS_ARTIFACT_TYPES,
 } as const;
 
 /**

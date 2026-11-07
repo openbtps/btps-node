@@ -119,6 +119,22 @@ versions follow [Semantic Versioning](https://semver.org/).
   `decryptVerify` once opened and from `signEncrypt` before sending). A device
   sets it with `artifact.send`'s new `documentType` option. A trust without
   permissions takes any type, as in 1.1 (`documentTypeProblem`).
+- **Details refresh.** Three new artifact types, `DETAILS_CHANGED`,
+  `DETAILS_REQ` and `DETAILS_RES`, carry `details`, the `detail:` names they
+  are about, on the envelope, so each side of an active trust is told when the
+  other's details change and can fetch again only what it already holds. A
+  server checks the names against its own record of the trust, in either
+  direction (`BTP_ERROR_DETAILS_NOT_HELD`), that a response answers a request
+  its receiver sent, naming only what it asked (`BTP_ERROR_PERMISSION`;
+  through the trust store's new, optional `getArtifact`, else only
+  `isKnownArtifact`), and the provider's own limit (`allowDetailsRequest`,
+  `BTP_ERROR_DETAILS_RATE_LIMITED`, with `retryAfter`). A request that passes
+  is told to `server.on('detailsRequested', …)`. `decryptVerify` refuses an
+  opened response whose values do not match its names (`detailsProblem`).
+  `JsonTrustStore` keeps no artifacts, so its `getArtifact` answers
+  `undefined`: a server using it as is takes no `DETAILS_RES` until the store
+  is extended to answer from the platform's own records. The known-failing
+  vector list is empty.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).

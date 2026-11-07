@@ -39,7 +39,16 @@ export const AGENT_ACTIONS = [
   ...TRASH_ACTIONS,
 ] as const;
 
-export const TRANSPORTER_ACTIONS = ['TRUST_REQ', 'TRUST_RES', 'BTPS_DOC', 'BTPS_EVENT'] as const;
+export const TRANSPORTER_ACTIONS = [
+  'TRUST_REQ',
+  'TRUST_RES',
+  'BTPS_DOC',
+  'BTPS_EVENT',
+  // Since 1.2: details refresh, on an active trust in either direction.
+  'DETAILS_CHANGED',
+  'DETAILS_REQ',
+  'DETAILS_RES',
+] as const;
 
 /**
  * Agent actions that carry a transporter artifact, built by the device, and its

@@ -32,6 +32,7 @@ import {
 } from '../../src/core/crypto/index.js';
 import { BTP_PROTOCOL_VERSION } from '../../src/core/server/constants/index.js';
 import type { BTPTrustRecord } from '../../src/core/trust/types.js';
+import type { BTPDetailsEnvelope } from '../../src/core/trust/permissions.js';
 import type {
   BTPArtifactType,
   BTPServerResponse,
@@ -118,18 +119,23 @@ export const freePort = () =>
 
 /** A trust store that also knows which artifacts its platform exchanged, as a platform does. */
 class PlatformTrustStore extends JsonTrustStore {
-  readonly exchanged = new Set<string>();
+  readonly exchanged = new Map<string, BTPDetailsEnvelope>();
 
-  remember(artifact: { id: string; from: string; to: string }) {
-    this.exchanged.add(`${artifact.id}|${artifact.from}|${artifact.to}`);
+  remember(artifact: { id: string; from: string; to: string; type?: string; details?: string[] }) {
+    const { id, from, to, type = '', details } = artifact;
+    this.exchanged.set(`${id}|${from}|${to}`, { id, from, to, type, details });
   }
 
   override async isKnownArtifact(query?: { artifactId: string; from: string; to: string }) {
-    if (!query) return false;
+    return query !== undefined && (await this.getArtifact(query)) !== undefined;
+  }
+
+  override async getArtifact(query?: { artifactId: string; from: string; to: string }) {
+    if (!query) return undefined;
     const { artifactId, from, to } = query;
     return (
-      this.exchanged.has(`${artifactId}|${from}|${to}`) ||
-      this.exchanged.has(`${artifactId}|${to}|${from}`)
+      this.exchanged.get(`${artifactId}|${from}|${to}`) ??
+      this.exchanged.get(`${artifactId}|${to}|${from}`)
     );
   }
 }

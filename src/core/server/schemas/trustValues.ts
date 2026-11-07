@@ -135,3 +135,34 @@ export const trustResponseProblem = (artifact: {
   }
   return undefined;
 };
+
+/** Since 1.2: a DETAILS_RES's document: the value of each detail it answers, by name. */
+export const BtpDetailsResDocSchema = z
+  .object(
+    Object.fromEntries(
+      Object.entries(BtpDetailValueSchemas).map(([name, schema]) => [name, schema.optional()]),
+    ),
+  )
+  .strict();
+
+/**
+ * Since 1.2: why an opened DETAILS_RES's values do not match the names on its
+ * envelope (`details`), or undefined: a value for every name, valid for it, and no others.
+ */
+export const detailsValuesProblem = (artifact: {
+  details?: readonly string[];
+  document?: unknown;
+}): string | undefined => {
+  const document = recordOf(artifact.document);
+  if (!document) return 'a details response is checked once it is opened';
+  const names = artifact.details ?? [];
+  for (const name of names) {
+    if (document[name] === undefined) return `${name} is named, so the response holds its value`;
+    const problem = valueProblem('the response', name, document[name]);
+    if (problem) return problem;
+  }
+  for (const name of Object.keys(document)) {
+    if (!names.includes(name)) return `the response holds ${name}, which it does not name`;
+  }
+  return undefined;
+};

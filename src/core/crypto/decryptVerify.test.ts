@@ -424,4 +424,24 @@ describe('decryptVerify', () => {
     expect(result.payload).toBeUndefined();
     expect(result.error?.code).toBe('BTP_ERROR_DOCUMENT_TYPE_MISMATCH');
   });
+
+  it('refuses an opened details response whose values do not match its names', async () => {
+    const response: VerifyEncryptedPayload<string> = {
+      ...encryptedPayload,
+      type: 'DETAILS_RES',
+      version: '1.2.0',
+      details: ['detail:address', 'detail:phone'],
+      relatesTo: 'req-1',
+      document: 'encrypted-string-data',
+    };
+    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+    mockCrypto.decryptBtpPayload.mockReturnValue({
+      data: { 'detail:address': '2 Rata Road, Auckland' },
+    });
+
+    const result = await decryptVerify(senderPubPem, response, privateKey);
+
+    expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+    expect(result.error?.cause).toBe('detail:phone is named, so the response holds its value');
+  });
 });

@@ -13,6 +13,8 @@ import {
   computeAgentTrustId,
   validateTrustResponse,
   documentTypeRefusal,
+  detailsNamesRefusal,
+  detailsRequestRefusal,
 } from '@core/trust/index.js';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
@@ -40,6 +42,8 @@ import {
   BTP_ERROR_PRIVACY_TYPE,
   BTP_ERROR_VERSION_UNSUPPORTED,
   BTP_ERROR_SYNC_NOT_ALLOWED,
+  BTP_ERROR_PERMISSION,
+  BTP_ERROR_DETAILS_RATE_LIMITED,
 } from '@core/error/constant.js';
 import {
   assertStrictJson,
@@ -77,8 +81,10 @@ import {
   MAX_SUPPORTED_VERSION,
   MIN_SUPPORTED_VERSION,
   isSupportedVersion,
+  DETAILS_ARTIFACT_TYPES,
 } from '../core/server/constants/index.js';
 import type {
+  BtpsServerEvents,
   BtpsServerOptions,
   BTPRequestCtx,
   BTPResponseCtx,
@@ -138,6 +144,9 @@ export class BtpsServer {
   private readonly maxArtifactAgeSeconds: number;
   private readonly signAnswers: boolean;
   private readonly keyResolver?: BtpsKeyResolver;
+  private readonly allowDetailsRequest?: BtpsServerOptions['allowDetailsRequest'];
+  /** Since 1.2: what `on(…)` tells its listeners, apart from the artifact handlers. */
+  private readonly events = new EventEmitter();
   /** With signAnswers: each connection's last answer, which the next waits for. */
   private readonly answersOnSocket = new WeakMap<TLSSocket, Promise<void>>();
   private readonly dependencies: {
@@ -169,6 +178,7 @@ export class BtpsServer {
     this.maxArtifactAgeSeconds = resolveMaxArtifactAgeSeconds(options.maxArtifactAgeSeconds);
     this.signAnswers = options.signAnswers === true;
     this.keyResolver = options.keyResolver;
+    this.allowDetailsRequest = options.allowDetailsRequest;
     // Signing every answer is asked for, and without a selector no device could check one.
     if (this.signAnswers && !options.serverIdentity.selector) {
       throw new BTPErrorException({
@@ -1104,6 +1114,99 @@ export class BtpsServer {
   }
 
   /**
+   * Since 1.2: a details refresh, on an active trust in either direction, read
+   * from the receiver's own record of it: its names against what each side
+   * holds, a response against the request it names, a request against the
+   * provider's limit. Nothing is decrypted.
+   */
+  private async verifyDetailsTrust(
+    artifact: BTPTransporterArtifact,
+  ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
+    const { from, to, details = [] } = artifact;
+    const records = await Promise.all([
+      this.trustStore.getById(computeTrustId(from, to)),
+      this.trustStore.getById(computeTrustId(to, from)),
+    ]);
+    const active = records.filter(isTrustActive);
+    const record = active.find((r) => r?.permissions) ?? active[0];
+    if (!record) return { isTrusted: false, error: this.getTrustRefusalError(records[0]) };
+    const refuse = (refusal: { error: BTPError; problem: string }) => ({
+      isTrusted: false,
+      error: new BTPErrorException(refusal.error, { cause: refusal.problem }),
+    });
+
+    const namesRefusal = detailsNamesRefusal(artifact, record);
+    if (namesRefusal) return refuse(namesRefusal);
+
+    if (artifact.type === 'DETAILS_RES') {
+      const query = { artifactId: artifact.relatesTo ?? '', from: to, to: from };
+      if (this.trustStore.getArtifact) {
+        const requestRefusal = detailsRequestRefusal(
+          artifact,
+          await this.trustStore.getArtifact(query),
+        );
+        if (requestRefusal) return refuse(requestRefusal);
+      } else if (!(await this.trustStore.isKnownArtifact(query))) {
+        return refuse({
+          error: BTP_ERROR_PERMISSION,
+          problem: 'a details response answers a request its receiver sent',
+        });
+      }
+    }
+
+    const privacy = this.verifyPrivacyType(artifact, record);
+    if (!privacy.isTrusted || artifact.type !== 'DETAILS_REQ') return privacy;
+
+    // Asked last, so the provider's count holds only requests that are taken.
+    const allowed = (await this.allowDetailsRequest?.({ from, to, names: [...details] })) ?? true;
+    if (allowed !== true) {
+      return {
+        isTrusted: false,
+        error: new BTPErrorException(BTP_ERROR_DETAILS_RATE_LIMITED, {
+          meta: { retryAfter: allowed.retryAfter },
+        }),
+      };
+    }
+    this.tell('detailsRequested', {
+      from,
+      to,
+      names: [...details],
+      at: new Date().toISOString(),
+    });
+    return privacy;
+  }
+
+  /**
+   * Since 1.2: tell every listener, each on its own: one that throws is warned
+   * about and never stops the others or the artifact.
+   */
+  private tell<K extends keyof BtpsServerEvents>(
+    event: K,
+    info: Parameters<BtpsServerEvents[K]>[0],
+  ) {
+    for (const listener of this.events.listeners(event)) {
+      try {
+        (listener as BtpsServerEvents[K])(info);
+      } catch (error) {
+        console.warn(`[BtpsServer] Warning: a ${event} listener threw:`, error);
+      }
+    }
+  }
+
+  /**
+   * Since 1.2: listen for `detailsRequested`, emitted when a details request
+   * arrives and passes its checks: who asked whom for which details, and when.
+   */
+  public on<K extends keyof BtpsServerEvents>(event: K, listener: BtpsServerEvents[K]): void {
+    this.events.on(event, listener);
+  }
+
+  /** Since 1.2: stop listening. */
+  public off<K extends keyof BtpsServerEvents>(event: K, listener: BtpsServerEvents[K]): void {
+    this.events.off(event, listener);
+  }
+
+  /**
    * Core trust verification (non-negotiable)
    */
   private async verifyTrust(
@@ -1112,6 +1215,10 @@ export class BtpsServer {
     const { artifact, type } = data;
 
     if (type === 'agent') return this.verifyAgentTrust(artifact);
+
+    if ((DETAILS_ARTIFACT_TYPES as readonly string[]).includes(artifact.type)) {
+      return this.verifyDetailsTrust(artifact);
+    }
 
     if (artifact.type === 'TRUST_RES') {
       const { isValid, error } = await validateTrustResponse(
@@ -1630,6 +1737,11 @@ export class BtpsServer {
       if (!this.trustStore.getEvent) {
         console.warn(
           "[BtpsServer] Warning: the trust store has no getEvent, so this server does not check that a withdrawn event takes back the payer's own open proposal about the same invoice, or what a proposal's follows names. The platform checks them (lifecycleEventChainProblem).",
+        );
+      }
+      if (!this.trustStore.getArtifact) {
+        console.warn(
+          '[BtpsServer] Warning: the trust store has no getArtifact, so this server checks only that a details response answers a known request, not that it names only what was asked. The platform checks that (detailsProblem).',
         );
       }
     });
