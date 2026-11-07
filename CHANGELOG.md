@@ -309,6 +309,28 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   takes a change while the receiver's record of the trust is active and has
   no change pending, and refuses anything else as before. The receiving
   platform saves the change as `pendingChange` until its user answers.
+- A refresh that races another with the same token is told to try again
+  (`BTP_ERROR_TEMPORARILY_UNAVAILABLE`) instead of revoking the device; a
+  token store records `consumedAt` on the consumed mark.
+- An evidence bundle's facts name the key each signature was checked with,
+  and say the keys are the bundle's own, not confirmed online
+  (`keysConfirmedOnline: false`).
+- A client acts on `status.closing` only in an answer it takes, signed as
+  `requireSignedBy` requires.
+
+### Security
+
+- A server checks each line against the schema of the kind of artifact it is
+  taken for, and control and identity lookup artifacts take no other member
+  (also in 1.1.3).
+- Every list 1.2 adds to an artifact is refused when too long before its
+  entries are read.
+- A server with `signAnswers` signs no more answers than a connection has
+  lines in flight, and ends a connection after `maxConsecutiveInvalidLines`
+  unreadable lines in a row (default 10).
+- `BtpsAuthentication` errors carry no refresh token or registration code.
+- An error thrown with a code of its own reaches the sender as the generic
+  500; only middleware's `res.sendError` sends a numeric code as given.
 
 ### Upgrading from 1.1
 
