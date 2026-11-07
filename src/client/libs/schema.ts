@@ -16,9 +16,15 @@ import {
 } from '@core/server/schemas/schema.js';
 import { identitySchema } from '@core/server/schemas/shared.js';
 import { validateAgentDocument } from '@core/server/schemas/helpers.js';
-import { BtpAuthReqDocSchema, BtpDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
+import {
+  BtpAuthReqDocSchema,
+  BtpDetailsNoteDocSchema,
+  BtpDocSchema,
+} from '@core/server/schemas/btpsDocsSchema.js';
+import { BtpDetailsResDocSchema } from '@core/server/schemas/trustValues.js';
 import { BtpSyncOfSchema } from '@core/server/schemas/artifacts/transporterSchema.js';
-import { DOCUMENT_TYPES } from '@core/server/constants/permissions.js';
+import { DETAIL_PERMISSIONS, DOCUMENT_TYPES } from '@core/server/constants/permissions.js';
+import type { BTPDetailPermission } from '@core/server/types.js';
 
 // Use the server's document schema directly
 export const BtpsAgentOptionsSchema = BtpCryptoOptionsSchema.optional();
@@ -33,6 +39,8 @@ export const BtpsAgentCommandDocumentSchema: z.ZodType<unknown> = z
     BtpAgentMutationSchema,
     BtpIdsPayloadSchema,
     BtpAgentCreateSchema,
+    BtpDetailsNoteDocSchema,
+    BtpDetailsResDocSchema,
   ])
   .optional();
 
@@ -46,8 +54,30 @@ export const BtpsAgentCommandSchema = z.object({
     id: z.string().uuid().optional(),
     syncOf: BtpSyncOfSchema.optional(),
     documentType: z.enum(DOCUMENT_TYPES).optional(),
+    details: z
+      .array(
+        z.custom<BTPDetailPermission>(
+          (name) =>
+            typeof name === 'string' && (DETAIL_PERMISSIONS as readonly string[]).includes(name),
+        ),
+      )
+      .min(1)
+      .optional(),
   }).optional(),
 });
+
+// Since 1.2: the details refresh actions, and which of them name an earlier artifact.
+const DETAILS_ACTIONS: readonly string[] = [
+  'details.changed',
+  'details.request',
+  'details.respond',
+];
+const relatesToOn = (actionType: string): 'required' | 'allowed' | 'refused' =>
+  actionType === 'event.send' || actionType === 'details.respond'
+    ? 'required'
+    : actionType === 'details.request'
+      ? 'allowed'
+      : 'refused';
 
 // Schema for validating the complete command call - use server's validation logic
 export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
@@ -58,12 +88,28 @@ export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
   },
 )
   .refine(
-    (data) => (data.actionType === 'event.send') === (data.options?.relatesTo !== undefined),
+    (data) => {
+      const on = relatesToOn(data.actionType);
+      const has = data.options?.relatesTo !== undefined;
+      return on === 'allowed' || (on === 'required') === has;
+    },
     {
-      message: 'options.relatesTo is required on event.send and only there',
+      message:
+        'options.relatesTo is required on event.send and details.respond, allowed on details.request, and refused elsewhere',
       path: ['options', 'relatesTo'],
     },
   )
+  .refine(
+    (data) => DETAILS_ACTIONS.includes(data.actionType) === (data.options?.details !== undefined),
+    {
+      message: 'options.details is required on the details actions and only there',
+      path: ['options', 'details'],
+    },
+  )
+  .refine((data) => data.actionType !== 'details.respond' || data.options?.encryption, {
+    message: 'details.respond is always encrypted to the requester: options.encryption is required',
+    path: ['options', 'encryption'],
+  })
   .refine(
     (data) =>
       data.options?.documentType === undefined ||
