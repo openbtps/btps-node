@@ -1170,6 +1170,67 @@ Since 1.2. Why `verifiedBy` may not verify, or `undefined`: only the operator (`
 
 ---
 
+### agreementContentSha256, agreementRef
+
+```ts
+agreementContentSha256(agreement: object): string
+agreementRef(agreement: { id: string }, originator: string): BTPAgreementRef
+```
+
+**Description:**
+Since 1.2. The SHA-256, in lowercase hex, of an agreement's RFC 8785 form without `originatorSignature`, and what names the agreement: `{ originator, id, contentSha256 }`. Every signer's copy has the same, whatever its encryption. See [Agreement](../protocol/specifications/transporter-artifact.md#agreement).
+
+---
+
+### signAgreement, originatorSignatureValid
+
+```ts
+signAgreement(
+  content: Omit<BTPAgreementDoc, 'originatorSignature'>,
+  by: { originator: string; selector: string } & ({ pemFiles: PemKeys } | { signer: Signer })
+): Promise<BTPAgreementDoc>
+originatorSignatureValid(agreement: BTPAgreementDoc, originator: string, keyOf: BTPKeyOf): boolean
+```
+
+**Description:**
+Since 1.2. The originator signs an agreement once, over `agreementRef`, and sends each signer its own copy. `originatorSignatureValid` checks the signature against the originator's key at its `selector`, from `keyOf(identity, selector)`: a key from DNS, from a store, or from an evidence bundle.
+
+---
+
+### signStatement, signStatementOnDevice, deviceStatementRecord
+
+```ts
+signStatement(
+  statement: BTPAgreementStatement,
+  by: { selector: string } & ({ pemFiles: PemKeys } | { signer: Signer })
+): Promise<BTPStatementRecord>
+signStatementOnDevice(
+  statement: BTPAgreementStatement,
+  device: { pemFiles: PemKeys } | { signer: Signer }
+): Promise<{ statement: BTPAgreementStatement; signature: BTPSignature }>
+deviceStatementRecord(
+  signed: { statement: BTPAgreementStatement; signature: BTPSignature },
+  delegatedArtifact: BTPTransporterArtifact & { delegation: BTPDelegation }
+): BTPStatementRecord
+```
+
+**Description:**
+Since 1.2. A signer's answer to an agreement, signed over the statement's RFC 8785 form. `signStatement` signs with the signer's identity key, which may be a managed key its provider holds, and names its `selector`. `signStatementOnDevice` signs with a device's key; the originator completes the record with `deviceStatementRecord`, adding the delegated artifact that delivered it, as it arrived, so the record can be checked offline wherever it is forwarded.
+
+---
+
+### statementRecordSha256, statementSignatureFacts
+
+```ts
+statementRecordSha256(record: BTPStatementRecord): string
+statementSignatureFacts(record: BTPStatementRecord, keyOf: BTPKeyOf): BTPStatementSignatureFacts
+```
+
+**Description:**
+Since 1.2. `statementRecordSha256` is the SHA-256 of a record's RFC 8785 form, signature included: what the next statement in a sequential agreement names as `previous`. `statementSignatureFacts` reports what a record's signature shows, from the record and the keys `keyOf` gives: `signatureValid`, `keyKind` (`identity`, or `device` when the record carries a delegated artifact), and for a device `delegatedBy` and `attestedBy`. A device-signed record holds when the delegation is its delegator's over the artifact, a self-delegation (signed by the signer itself) carries an attestation, any attestation is its attestor's, the artifact came from the signer and is signed by the delegated key, and so is the statement; all of these are checked offline. It decides nothing that needs DNS: whether `delegatedBy` or `attestedBy` is the signer's domain's operator (`_btps.host` `op`) is a fact a reader may confirm online.
+
+---
+
 ### detailsProblem
 
 ```ts

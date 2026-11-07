@@ -717,6 +717,25 @@ Since 1.2, in a `1.2.0` artifact only: a letter that asks its signers to accept 
 - **Its content and its originator's signature.** An agreement is identified by its originator's address, its `id`, and its `contentSha256`: the SHA-256, in lowercase hex, of its RFC 8785 form without `originatorSignature`. `originatorSignature` is the originator's signature, at `selector`, over the RFC 8785 form of `{ originator, id, contentSha256 }`. Every signer gets its own copy, encrypted to it only; the copies have the same content, so any copy can be checked offline, whatever its encryption.
 - **Its permission:** under a trust with permissions, an agreement travels with `documentType: "agreement"`, and the receiver must have granted `send:agreement` (see [A send's document type](#a-sends-document-type)).
 
+**A signer's answer is a signed statement** over the RFC 8785 form of:
+
+```json
+{
+  "agreement": { "originator": "loans$bank.example", "id": "AGR-1", "contentSha256": "fabe…" },
+  "terms": ["9f2c…"],
+  "signer": "sam$guarantor.example",
+  "decision": "accepted",
+  "signedAt": "2026-11-03T00:00:00Z",
+  "previous": "4c1d…"
+}
+```
+
+- **`terms`** repeats the agreement's `acceptance.terms` exactly, in the same order. **`decision`** is `accepted` or `declined`. **`signedAt`** is the signer's own signed time, which the deadline is checked against.
+- **`previous`**, in a `sequential` agreement only, on every statement after the first: the SHA-256 of the statement record before it, in its RFC 8785 form, signature included.
+- **The record** is `{ statement, signature, selector }` when the signer signs with its identity key, which may be a managed key its provider holds. When a device signs it, the record is `{ statement, signature, delegatedArtifact }`: the whole event artifact that delivered it, as it arrived (envelope, ciphertext, the device's signature and its delegation), which the originator adds on receipt. A BTPS delegation signs the artifact it travels with, so the record keeps that artifact to stay checkable offline. Its ciphertext only has to verify, never to open.
+- **The key kind is a fact, not a field:** a record with a delegated artifact was signed by a device, and one without by the identity, so the two can never disagree. A device's record checks when its delegation is its delegator's over that artifact, a self-delegation (signed by the signer itself) carries an attestation, as a server requires on arrival, any attestation is its attestor's, the artifact came from the signer and is signed by the delegated key, and so is the statement. All of these are checked offline. Who delegated it, and who attested it, are reported as facts: whether the delegator, or the attestor, is the signer's domain's operator needs DNS (`_btps.host` `op`), which a reader may confirm online; it is never a verdict.
+- **An answer is final.** A statement is never withdrawn; a change is a new agreement.
+
 Each document type's limits are on [Limits](./limits.md#document-fields).
 
 ### 4. Lifecycle Event (`BTPS_EVENT`)

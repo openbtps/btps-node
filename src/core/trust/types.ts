@@ -8,8 +8,10 @@
 import { BTPStorageRecord } from '@core/storage/types.js';
 import type { BTPSignature } from '@core/crypto/types.js';
 import type {
+  BTPDelegation,
   BTPDetailPermission,
   BTPPermissionName,
+  BTPTransporterArtifact,
   BTPTrustPermissions,
 } from '@core/server/types.js';
 
@@ -99,6 +101,47 @@ export type BTPVerificationFacts = {
   verifierServesSender: boolean;
   /** `verifiedBy` is that operator: the serving provider's own signing identity */
   verifierIsOperator: boolean;
+};
+
+/** Since 1.2: an agreement, by its originator, its id and the SHA-256 of its content. */
+export type BTPAgreementRef = { originator: string; id: string; contentSha256: string };
+
+/**
+ * Since 1.2: a signer's answer to an agreement, signed over its RFC 8785 form.
+ * `previous`, in a sequential agreement, is the SHA-256 of the statement
+ * record before it.
+ */
+export type BTPAgreementStatement = {
+  agreement: BTPAgreementRef;
+  terms: string[];
+  signer: string;
+  decision: 'accepted' | 'declined';
+  signedAt: string;
+  previous?: string;
+};
+
+/**
+ * Since 1.2: a signed statement. Signed by the signer's identity key at
+ * `selector`, or by its device key, when it carries the whole delegated
+ * artifact that delivered it, as it arrived.
+ */
+export type BTPStatementRecord = { statement: BTPAgreementStatement; signature: BTPSignature } & (
+  | { selector: string; delegatedArtifact?: never }
+  | {
+      delegatedArtifact: BTPTransporterArtifact & { delegation: BTPDelegation };
+      selector?: never;
+    }
+);
+
+/** Since 1.2: what a statement record's signature shows. BTPS reports these and decides nothing. */
+export type BTPStatementSignatureFacts = {
+  /** The statement is signed by its signer's key, or by a device its delegation vouches for */
+  signatureValid: boolean;
+  /** Which kind of key signed it, from the record itself */
+  keyKind: 'identity' | 'device';
+  /** For a device: who signed its delegation, and who attested it, if anyone */
+  delegatedBy?: string;
+  attestedBy?: string;
 };
 
 /** Since 1.2: a tax or registration number, for any country (ISO 3166-1 alpha-2, e.g. `AU`). */
