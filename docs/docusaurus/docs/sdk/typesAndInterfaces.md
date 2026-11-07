@@ -178,7 +178,7 @@ interface ConnectionStates {
 
 - `isConnecting`: Whether the connection is currently being established
 - `isConnected`: Whether the connection is active and ready
-- `isDraining`: Whether the connection is draining (finishing pending operations)
+- `isDraining`: Always `false` since 1.2. The socket buffers what it cannot send at once, and the client keeps no queue of its own
 - `isDestroyed`: Whether the connection has been destroyed
 - `shouldRetry`: Whether the connection should be retried on failure
 

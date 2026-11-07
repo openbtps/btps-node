@@ -78,7 +78,6 @@ export class BtpsClient {
   protected socket?: TLSSocket;
   protected emitter: EventEmitter = new EventEmitter();
   protected retries = 0;
-  protected backpressureQueue: string[] = [];
   protected states: ConnectionStates = {
     isConnecting: false,
     isConnected: false,
@@ -261,17 +260,11 @@ export class BtpsClient {
   protected attachListeners(socket: TLSSocket) {
     socket.pipe(split2()).on('data', (line: string) => void this.onData(line));
 
-    socket.on('drain', () => {
-      void this.flushBackpressure();
-    });
-
     // Nothing more can arrive on it: once the lines already received are read, what still waits on it fails.
     const over = (error: BTPErrorException) => {
       if (this.socket === socket) {
         this.states.isConnected = false;
         this.states.isConnecting = false;
-        // What was not yet written was for this connection: the next one never sends it.
-        this.backpressureQueue = [];
       }
       void Promise.allSettled([...this.reading]).then(() => this.failSendsOn(socket, error));
     };
@@ -363,28 +356,6 @@ export class BtpsClient {
   protected unrefSocketIfNoQueue() {
     if (this.queue.size === 0 && this.socket && !this.socket.destroyed) {
       this.socket.unref();
-    }
-  }
-
-  /**
-   * Flush the backpressure queue
-   */
-  protected async flushBackpressure(): Promise<void> {
-    if (this.states.isDraining) return;
-    this.states.isDraining = true;
-
-    try {
-      while (this.backpressureQueue.length && this.socket?.writable) {
-        const chunk = this.backpressureQueue.shift();
-        if (!chunk) break;
-
-        const canWrite = this.socket.write(chunk);
-        if (!canWrite) {
-          await new Promise<void>((resolve) => this.socket!.once('drain', resolve));
-        }
-      }
-    } finally {
-      this.states.isDraining = false;
     }
   }
 
@@ -607,11 +578,8 @@ export class BtpsClient {
       return;
     }
 
-    const serialized = JSON.stringify(artifact) + '\n';
-    if (!this.socket?.write(serialized)) {
-      this.backpressureQueue.push(serialized);
-      this.states.isDraining = true;
-    }
+    // A write the socket cannot send at once is buffered by it, never written again.
+    this.socket?.write(JSON.stringify(artifact) + '\n');
   }
 
   /**
@@ -1216,8 +1184,6 @@ export class BtpsClient {
     this.states.isConnected = false;
     this.states.isDestroyed = true;
     this.states.shouldRetry = false;
-    this.states.isDraining = false;
-    this.backpressureQueue = [];
     this.removeAllListeners();
     this.socket?.destroy();
     // Every send still waiting is answered, so none waits forever.

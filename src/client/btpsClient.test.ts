@@ -886,30 +886,51 @@ describe('BtpsClient', () => {
     });
   });
 
-  describe('backpressure handling', () => {
-    it('should handle backpressure queue', async () => {
-      const artifact = {
-        id: 'test-id',
-        from: 'test$example.com',
-        to: 'recipient$example.com',
-        type: 'TRUST_REQ' as const,
-        issuedAt: '2023-01-01T00:00:00.000Z',
-        document: {
-          id: 'doc-1',
-          name: 'Test Company',
-          email: 'test@company.com',
-          reason: 'Business partnership',
-          phone: '+1234567890',
-        } as BTPTrustReqDoc,
-        version: BTP_PROTOCOL_VERSION,
-        encryption: null,
-        selector: 'btps1',
-        signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
-      };
+  describe('a write the socket cannot send at once', () => {
+    // A large encrypted document: past the socket's buffer, so write() asks the writer to wait.
+    const large = {
+      id: 'large-id',
+      from: 'test$example.com',
+      to: 'recipient$example.com',
+      type: 'BTPS_DOC' as const,
+      issuedAt: '2023-01-01T00:00:00.000Z',
+      document: 'x'.repeat(100_000),
+      version: BTP_PROTOCOL_VERSION,
+      encryption: {
+        algorithm: 'aes-256-gcm' as const,
+        encryptedKey: 'AA==',
+        iv: 'AA==',
+        authTag: 'AA==',
+        type: 'standardEncrypt' as const,
+      },
+      selector: 'btps1',
+      signature: { algorithmHash: 'sha256' as const, value: 'test-sig', fingerprint: 'test-fp' },
+    };
 
-      const result = await client.send(artifact);
-      expect(result.error).toBeUndefined();
-      expect(result.response).toBeDefined();
+    const sendOn = () => {
+      mockSocket.write.mockReturnValue(false);
+      client['socket'] = mockSocket as unknown as tls.TLSSocket;
+      client['states'].isConnected = true;
+      client['attachListeners'](mockSocket as unknown as tls.TLSSocket);
+      client['sendArtifact'](large);
+    };
+
+    it('is left to the socket to buffer, and never written a second time', async () => {
+      sendOn();
+      mockSocket.emit('drain');
+      await vi.runAllTimersAsync();
+
+      expect(mockSocket.write).toHaveBeenCalledOnce();
+      expect(client.getConnectionStates().isDraining).toBe(false);
+    });
+
+    it('is not kept by the client once written', () => {
+      sendOn();
+      const line = JSON.stringify(large) + '\n';
+      const holds = (value: unknown): boolean =>
+        value === line || (Array.isArray(value) && value.some(holds));
+
+      expect(Object.values(client).some(holds)).toBe(false);
     });
   });
 

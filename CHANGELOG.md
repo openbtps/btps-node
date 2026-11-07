@@ -265,6 +265,12 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
 
 ### Changed
 
+- A client no longer keeps a copy of an artifact the socket could not send at
+  once. It queued one, as though the write had failed, and never sent or freed
+  it until the connection ended: on a long-lived connection, every artifact
+  past the socket's buffer, about 16 KB, stayed in memory. The socket buffers
+  what it cannot send at once, and nothing was ever sent twice.
+  `getConnectionStates().isDraining` is always `false`.
 - `decryptVerify` refuses every signature that does not verify. Before, one
   that failed without an error object went on to be decrypted.
 - A refresh never makes a revoked or blocked device accepted again.
