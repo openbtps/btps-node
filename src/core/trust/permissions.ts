@@ -12,11 +12,14 @@
  */
 
 import {
+  BTP_ERROR_DETAILS_NOT_HELD,
   BTP_ERROR_DOCUMENT_TYPE_MISMATCH,
   BTP_ERROR_PERMISSION,
   BTP_ERROR_PERMISSION_REQUIRED,
 } from '@core/error/constant.js';
 import type { BTPError } from '@core/error/types.js';
+import { DETAILS_ARTIFACT_TYPES } from '@core/server/constants/permissions.js';
+import { detailsValuesProblem } from '@core/server/schemas/trustValues.js';
 import type {
   BTPDetailPermission,
   BTPPermissionName,
@@ -111,6 +114,89 @@ export const documentTypeProblem = (
   artifact: Parameters<typeof documentTypeRefusal>[0],
   record: Parameters<typeof documentTypeRefusal>[1],
 ): string | undefined => documentTypeRefusal(artifact, record)?.problem;
+
+/** Since 1.2: a details refresh artifact as these checks read it: its envelope, and its document once opened. */
+export type BTPDetailsEnvelope = {
+  type: string;
+  id?: string;
+  from: string;
+  to: string;
+  details?: readonly string[];
+  relatesTo?: string;
+  document?: unknown;
+};
+
+const sameAddress = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/**
+ * A details refresh against the receiver's record of the trust, from the
+ * envelope alone: a notice and a response name only details the receiver holds
+ * of the sender (`detailsHeld`), a request only details the answerer shares
+ * (`detailsShared`). A trust without permissions holds no details by name.
+ */
+export const detailsNamesRefusal = (
+  artifact: BTPDetailsEnvelope,
+  record: { permissions?: BTPTrustRecordPermissions },
+): { error: BTPError; problem: string } | undefined => {
+  if (!(DETAILS_ARTIFACT_TYPES as readonly string[]).includes(artifact.type)) return undefined;
+  const { permissions } = record;
+  if (!permissions) {
+    return {
+      error: BTP_ERROR_DETAILS_NOT_HELD,
+      problem: 'a trust without permissions holds no details by name',
+    };
+  }
+  const asking = artifact.type === 'DETAILS_REQ';
+  const holds: readonly string[] = asking ? permissions.detailsShared : permissions.detailsHeld;
+  const missing = (artifact.details ?? []).find((name) => !holds.includes(name));
+  if (!missing) return undefined;
+  return {
+    error: BTP_ERROR_DETAILS_NOT_HELD,
+    problem: asking
+      ? `${missing} is not a detail the answerer shares by this trust`
+      : `${missing} is not a detail the receiver holds by this trust`,
+  };
+};
+
+/**
+ * A details response against the request it names (`relatesTo`), as the
+ * receiver sent it: that request, from the receiver to this sender, and only
+ * the names it asked for. `sentRequest` is undefined when the receiver sent none.
+ */
+export const detailsRequestRefusal = (
+  response: BTPDetailsEnvelope,
+  sentRequest?: BTPDetailsEnvelope,
+): { error: BTPError; problem: string } | undefined => {
+  if (response.type !== 'DETAILS_RES') return undefined;
+  const refuse = (problem: string) => ({ error: BTP_ERROR_PERMISSION, problem });
+  if (!sentRequest) return refuse('a details response answers a request its receiver sent');
+  if (sentRequest.type !== 'DETAILS_REQ' || sentRequest.id !== response.relatesTo) {
+    return refuse('a details response answers the request it names');
+  }
+  if (!sameAddress(sentRequest.from, response.to) || !sameAddress(sentRequest.to, response.from)) {
+    return refuse('a details response answers a request its receiver sent to its sender');
+  }
+  const asked = sentRequest.details ?? [];
+  const extra = (response.details ?? []).find((name) => !asked.includes(name));
+  return extra ? refuse(`${extra} was not asked for`) : undefined;
+};
+
+/**
+ * Since 1.2: why a details refresh artifact cannot be taken, or undefined: its
+ * names against the receiver's record, a response against the request it
+ * names, and, once a response is opened, its values against its names.
+ */
+export const detailsProblem = (
+  artifact: BTPDetailsEnvelope,
+  record: { permissions?: BTPTrustRecordPermissions },
+  sentRequest?: BTPDetailsEnvelope,
+): string | undefined => {
+  const refusal =
+    detailsNamesRefusal(artifact, record) ?? detailsRequestRefusal(artifact, sentRequest);
+  if (refusal) return refusal.problem;
+  const opened = typeof artifact.document === 'object' && artifact.document !== null;
+  return artifact.type === 'DETAILS_RES' && opened ? detailsValuesProblem(artifact) : undefined;
+};
 
 /**
  * Since 1.2: the permissions the requester saves on its own record when it

@@ -1,32 +1,5 @@
 {
   "description": "Checks that fail on the BTPS 1.2 baseline (release 1.1.3) because the 1.2 rule they prove is not built yet; each value names the 1.2 change that makes it pass. `verify-btps-vectors --known-failing test/vectors/known-failing.json` passes only while the failing set is exactly this list, so each change must remove its own entries in the same pull request that makes them pass. The list is empty again before 1.2 is released.",
   "baseline": "5b5dafbfecefd845b94d2a2b347b19b588f73f2e",
-  "checks": {
-    "sdk/protocol/versions/stamped/details-changed": "Trust permissions: details refresh",
-    "sdk/protocol/versions/stamped/details-req": "Trust permissions: details refresh",
-    "sdk/protocol/versions/stamped/details-res": "Trust permissions: details refresh",
-    "sdk/protocol/details/envelope/changed": "Trust permissions: details refresh",
-    "sdk/protocol/details/envelope/request": "Trust permissions: details refresh",
-    "sdk/protocol/details/envelope/request-on-its-own": "Trust permissions: details refresh",
-    "sdk/protocol/details/envelope/changed-with-a-message": "Trust permissions: details refresh",
-    "sdk/protocol/details/envelope/request-with-a-message": "Trust permissions: details refresh",
-    "sdk/protocol/details/envelope/response": "Trust permissions: details refresh",
-    "sdk/protocol/details/envelope/document-carrying-details": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/changed-held": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/changed-not-held": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/changed-on-a-1-1-trust": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/request-shared": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/request-not-shared": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/request-for-its-own-details": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/response": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/response-in-part": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/response-opened": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/response-naming-a-detail-not-asked-for": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/response-naming-a-detail-not-held": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/response-to-no-request": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/response-to-a-request-it-did-not-make": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/response-to-another-request": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/response-opened-without-a-value": "Trust permissions: details refresh",
-    "sdk/protocol/details/held/response-opened-with-a-value-not-named": "Trust permissions: details refresh"
-  }
+  "checks": {}
 }

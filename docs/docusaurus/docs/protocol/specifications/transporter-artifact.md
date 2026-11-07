@@ -67,7 +67,7 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
 - **version**: Protocol version (currently "1.0")
 - **id**: Unique message identifier (UUID v4 recommended). A receiving platform treats `(from, id)` as unique and ignores a second copy, which can arrive within the time window (see [Server Requirements](./overview.md#server-requirements))
 - **issuedAt**: ISO 8601 timestamp of message creation. The receiving server refuses the artifact when this is outside its time window, 5 minutes either way by default, so an artifact is sent soon after it is signed
-- **type**: Artifact type (TRUST_REQ, TRUST_RES, BTPS_DOC, BTPS_EVENT)
+- **type**: Artifact type (TRUST_REQ, TRUST_RES, BTPS_DOC, BTPS_EVENT; since 1.2, DETAILS_CHANGED, DETAILS_REQ, DETAILS_RES)
 - **from**: Sender's BTPS identity address
 - **to**: Recipient's BTPS identity address
 - **document**: The actual document content
@@ -78,7 +78,8 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
 
 - **encryption**: Encryption details (null for unencrypted messages)
 - **delegation**: Delegation information for agent-based operations
-- **relatesTo**: Required on a `BTPS_EVENT` and refused on every other type: the `id` of the `BTPS_DOC` artifact that delivered the invoice the event is about (see Lifecycle Event)
+- **relatesTo**: Required on a `BTPS_EVENT` and refused on every other type: the `id` of the `BTPS_DOC` artifact that delivered the invoice the event is about (see Lifecycle Event). Since 1.2, also required on a `DETAILS_RES` and allowed on a `DETAILS_REQ` (see [Details refresh](#details-refresh))
+- **details**: Since 1.2, on the three details refresh types only (see [Details refresh](#details-refresh))
 - **syncOf**: Since 1.2, on a sync only: the send it copies (see [Sync](#sync))
 - **permissions**, **entityType**, **given**, **change**, **granted**, **documentType**: Since 1.2, trust permissions (see [Trust permissions](#trust-permissions))
 
@@ -194,6 +195,32 @@ Under a trust with permissions, a `BTPS_DOC` names its `documentType` on the env
 The sender's own server checks it first: a device's `artifact.send` is checked by its provider, against the user's own record of the trust with the receiver, before it goes, with the same rules and errors. Only that trust's own direction is read, from the sender to the receiver, as on arrival: a document travels only that way, unlike a details refresh, which works over a trust in either direction.
 
 Only a send under a trust with permissions carries `documentType`: it stamps the artifact `1.2.0`. A trust without permissions (a 1.1 trust) takes any document type, as in 1.1, and every other send goes as `1.1.0`. Events need none: `relatesTo` ties each to the document it is about. A device sets it with `BtpsAgent`'s `artifact.send` option `documentType`.
+
+## Details refresh
+
+Since 1.2. Each side of an active trust with permissions can be told when the other side's details change, and can fetch them again, but only the details it already holds by that trust: the requester holds the responder's granted details, and the responder holds the requester's given ones (the record's `detailsHeld`; what a side gave is its `detailsShared`). It works over the trust in either direction.
+
+Every step is its own artifact, delivered like any other, so a platform may queue it; nothing is answered at once.
+
+| Type              | Envelope (signed, readable)                                                          | Document                                                |
+| ----------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| `DETAILS_CHANGED` | `details`: the names that changed                                                    | no values; an optional `message` note                   |
+| `DETAILS_REQ`     | `details`: the names wanted; `relatesTo`, optional: the `DETAILS_CHANGED` it follows | no values; an optional `message` note                   |
+| `DETAILS_RES`     | `details`: the names it answers; `relatesTo`, required: the `DETAILS_REQ` it answers | the value of each name, keyed by name, always encrypted |
+
+`details` holds `detail:` names only, each once, at least one. All three types are `1.2.0` only. A response may answer part of a request: it names only what it carries.
+
+**On arrival**, from the envelope and the receiver's own record of the trust, without decrypting:
+
+- a notice or a response names only details the receiver holds of the sender, and a request only details the answerer shares (`BTP_ERROR_DETAILS_NOT_HELD`); a trust without permissions holds none;
+- a response answers a `DETAILS_REQ` its receiver sent to its sender, and names only what that request asked for (`BTP_ERROR_PERMISSION`). The server reads the request through the trust store's optional `getArtifact`; with a store that lacks it, it checks only that the request is known (`isKnownArtifact`), warns once at start, and the names are the platform's to check (`detailsProblem`);
+- a request is within the provider's own limit, if it sets one (`allowDetailsRequest`); over it, the request is refused with `BTP_ERROR_DETAILS_RATE_LIMITED`, whose `meta.retryAfter` says when to ask again. The protocol sets no limit.
+
+A request that passes is told to the server's `detailsRequested` listeners: `{ from, to, names, at }`.
+
+**When sent**, a device sends each one with its own agent action (`details.changed`, `details.request`, `details.respond`; see [Agent Artifact](./agent-artifact.md)), and its provider makes the same checks first, from the user's own record of the trust. A response that passes is told to the provider's `detailsShared` listeners, so a platform can show who fetched what, and when.
+
+**When opened**, `decryptVerify` refuses a response whose values do not match its names: a value for every name, valid for it, and no others.
 
 ## Sync
 

@@ -27,6 +27,7 @@ import {
 } from '../types.js';
 import {
   BtpAuthReqDocSchema,
+  BtpDetailsNoteDocSchema,
   BtpDocumentSchema,
   BtpDocumentV1_1Schema,
   BtpLifecycleEventSchema,
@@ -38,10 +39,15 @@ import {
 } from './btpsDocsSchema.js';
 import { BTPEncryption } from '@core/crypto/types.js';
 import type { BTPEventFacts } from '@core/trust/types.js';
-import { trustRequestProblem, trustResponseProblem } from './trustValues.js';
+import {
+  BtpDetailsResDocSchema,
+  detailsValuesProblem,
+  trustRequestProblem,
+  trustResponseProblem,
+} from './trustValues.js';
 
 export { trustRequestProblem, trustResponseProblem, BtpDetailValueSchemas } from './trustValues.js';
-export { trustGrantProblem, documentTypeProblem } from '@core/trust/permissions.js';
+export { trustGrantProblem, documentTypeProblem, detailsProblem } from '@core/trust/permissions.js';
 
 /**
  * The schema a document of this artifact type is read with, under the
@@ -62,6 +68,12 @@ export const processBtpDocSchema = (
       return before1_2 ? BtpDocumentV1_1Schema : BtpDocumentSchema;
     case 'BTPS_EVENT':
       return before1_2 ? BtpLifecycleEventV1_1Schema : BtpLifecycleEventSchema;
+    // Since 1.2, under 1.2.0 only: the envelope refuses a details artifact under 1.1.0.
+    case 'DETAILS_CHANGED':
+    case 'DETAILS_REQ':
+      return BtpDetailsNoteDocSchema;
+    case 'DETAILS_RES':
+      return BtpDetailsResDocSchema;
     default:
       return null;
   }
@@ -168,6 +180,12 @@ export const decryptedDocumentProblem = (
   if (envelope.type === 'TRUST_REQ') return trustRequestProblem({ given: names.given, document });
   if (envelope.type === 'TRUST_RES') {
     return trustResponseProblem({ granted: names.granted, document });
+  }
+  if (envelope.type === 'DETAILS_RES') {
+    return detailsValuesProblem({
+      details: (envelope as { details?: string[] }).details,
+      document,
+    });
   }
   if (envelope.type !== 'BTPS_EVENT') return undefined;
   const event = parsed.data as BTPLifecycleEvent;

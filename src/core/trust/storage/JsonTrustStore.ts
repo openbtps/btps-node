@@ -6,6 +6,7 @@
  */
 
 import { BTPTrustRecord } from '../types.js';
+import type { BTPDetailsEnvelope } from '../permissions.js';
 import { AbstractTrustStore, computeTrustId } from '../index.js';
 import { BTPErrorException } from '@core/error/index.js';
 import { StorageStoreOptions } from '@core/storage/types.js';
@@ -68,6 +69,14 @@ class JsonTrustStore
    */
   async isKnownArtifact(): Promise<boolean> {
     return false;
+  }
+
+  /**
+   * Since 1.2: for the same reason it holds no artifact's envelope, so a server
+   * using it as is takes no `DETAILS_RES`. Extend it as for `isKnownArtifact`.
+   */
+  async getArtifact(): Promise<BTPDetailsEnvelope | undefined> {
+    return undefined;
   }
 }
 

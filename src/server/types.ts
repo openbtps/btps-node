@@ -77,7 +77,35 @@ export interface BtpsServerOptions {
   maxArtifactAgeSeconds?: number;
   /** How many requests one connection may have handled at once; at the limit the server stops reading it until one finishes. Default 32, minimum 1. */
   maxInFlightPerConnection?: number;
+  /**
+   * Since 1.2: the provider's own limit on details requests, e.g. requests per trust per month. Asked on
+   * each `DETAILS_REQ` that arrives; `true` takes it, `{ retryAfter }` (ISO 8601) refuses it with
+   * `BTP_ERROR_DETAILS_RATE_LIMITED`, telling the asker when it may ask again. Without it, no limit.
+   */
+  allowDetailsRequest?: (request: {
+    from: string;
+    to: string;
+    names: string[];
+  }) => true | { retryAfter: string } | Promise<true | { retryAfter: string }>;
 }
+
+/** Since 1.2: a details request arrived: who asked whom for which details, and when. */
+export interface BTPDetailsRequestedInfo {
+  from: string;
+  to: string;
+  names: string[];
+  /** ISO 8601 */
+  at: string;
+}
+
+/** Since 1.2: a device's details response was taken to be sent: who gave whom which details, and when. */
+export type BTPDetailsSharedInfo = BTPDetailsRequestedInfo;
+
+/** Since 1.2: what `BtpsServer.on(…)` tells its listeners. */
+export type BtpsServerEvents = {
+  detailsRequested: (info: BTPDetailsRequestedInfo) => void;
+  detailsShared: (info: BTPDetailsSharedInfo) => void;
+};
 
 // Middleware Types
 export type Phase = 'before' | 'after';

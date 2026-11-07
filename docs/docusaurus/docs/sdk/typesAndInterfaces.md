@@ -32,6 +32,11 @@ interface BtpsServerOptions {
   middlewarePath?: string;
   maxArtifactSizeKb?: number;
   maxArtifactAgeSeconds?: number;
+  allowDetailsRequest?: (request: {
+    from: string;
+    to: string;
+    names: string[];
+  }) => true | { retryAfter: string } | Promise<true | { retryAfter: string }>; // since 1.2
 }
 ```
 
@@ -49,6 +54,9 @@ interface BtpsServerOptions {
 - `middlewarePath`: Optional path to middleware file
 - `maxArtifactSizeKb`: Optional largest artifact the server can accept, in KB, where 1 KB is 1024 bytes (default: 5120, that is 5 MB). An artifact over it is refused before it is read in full, with the limit in the error message, and the connection is closed. The minimum is 1024 (1 MB): a smaller value logs a warning and 1024 is used, and a value that is not a size logs a warning and the default is used. There is no maximum.
 - `maxArtifactAgeSeconds`: Optional time window, in seconds: how far a signed artifact's `issuedAt` may be from the server's clock, either way (default: 300, that is 5 minutes). An artifact outside it is refused after its signature is checked, with the window in the error message, and the connection stays open. The minimum is 60: a smaller value logs a warning and 60 is used, and a value that is not a time logs a warning and the default is used. There is no maximum. Within the window the same artifact can arrive more than once, so a platform treats `(from, id)` as unique.
+- `allowDetailsRequest`: Optional, since 1.2. The provider's own limit on details requests, for example requests per trust per month. Asked on each `DETAILS_REQ` that passes its other checks: `true` takes it, `{ retryAfter }` (ISO 8601) refuses it with `BTP_ERROR_DETAILS_RATE_LIMITED`, `retryAfter` in the error's `meta`. Without it, no limit: the protocol sets none. See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)
+
+Since 1.2, `server.on('detailsRequested', listener)` tells a listener each time a details request arrives and passes its checks, and `server.on('detailsShared', listener)` each time one of this provider's devices sends a details response that passes them: `{ from, to, names, at }`. A listener that throws is warned about and never stops the others; `server.off` removes one.
 
 ---
 
@@ -272,6 +280,7 @@ type BtpsAgentCommandOptions = BTPCryptoOptions & {
   id?: string;
   syncOf?: BTPSyncOf; // since 1.2
   documentType?: BTPDocumentType; // since 1.2
+  details?: BTPDetailPermission[]; // since 1.2
 };
 
 interface BTPSyncOf {
@@ -280,7 +289,8 @@ interface BTPSyncOf {
 }
 ```
 
-- `relatesTo`: Required on `event.send` and refused on every other action: the `id` of the `BTPS_DOC` artifact that delivered the invoice the event is about. It is set on the `BTPS_EVENT` envelope, outside the encrypted document, so the receiving server can check it without decrypting
+- `relatesTo`: Required on `event.send` and refused on every other action but the details ones: the `id` of the `BTPS_DOC` artifact that delivered the invoice the event is about. It is set on the `BTPS_EVENT` envelope, outside the encrypted document, so the receiving server can check it without decrypting. Since 1.2, it is also required on `details.respond` (the `DETAILS_REQ` it answers) and allowed on `details.request` (the `DETAILS_CHANGED` it follows)
+- `details`: Since 1.2, required on `details.changed`, `details.request` and `details.respond`, and refused elsewhere: the `detail:` names the artifact is about, set on its envelope. A `details.respond` also needs `encryption`. See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)
 - `syncOf`: Since 1.2, on `artifact.send` to the device's own address only, and refused elsewhere: this send is a sync, the user's own copy of the send it names. `syncOfArtifact(sentArtifact)` gives it. It is set on the envelope and stamps the artifact `1.2.0`. See [Sync](../protocol/specifications/transporter-artifact.md#sync)
 - `documentType`: Since 1.2, on `artifact.send` only, and refused elsewhere: the document's own `type`, for a send under a trust with permissions, whose receiver checks that `send:<documentType>` is granted. A value that is not the document's type is refused before anything is sent. It is set on the envelope and stamps the artifact `1.2.0`, so leave it out for any other send. See [Trust permissions](../protocol/specifications/transporter-artifact.md#a-sends-document-type)
 

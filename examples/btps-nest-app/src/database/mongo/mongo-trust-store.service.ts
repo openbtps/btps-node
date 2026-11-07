@@ -105,6 +105,11 @@ export class MongoTrustStoreService extends AbstractTrustStore<BTPTrustRecord> {
     return false;
   }
 
+  // For the same reason it holds no artifact's envelope, so it takes no details responses.
+  async getArtifact(): Promise<undefined> {
+    return undefined;
+  }
+
   private mapToBTPTrustRecord(record: TrustRecordDocument): BTPTrustRecord {
     return {
       id: record.id,

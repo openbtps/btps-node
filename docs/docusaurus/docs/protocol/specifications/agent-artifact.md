@@ -42,7 +42,7 @@ Agent artifacts (`BTPAgentArtifact`) are designed for client-to-server communica
 
 - **id**: Unique message identifier (UUID v4 recommended)
 - **action**: Agent action type (see Supported Actions section)
-- **agentId**: Unique identifier for the authenticated agent: the device id the server issued when the device registered (`btps_ag_…` by default). It is never an identity: on every action but `auth.request`, an `agentId` that is a valid identity is refused before any key is looked up (`BTP_ERROR_AGENT_ID`). The server finds the device's key only under the device's own record id, `computeAgentTrustId(agentId, owner)`, which can never be the id of a trust between two identities, so a trusted business cannot sign with its own key and act as one of the receiver's devices. The owner is the user the device acts for: on a send (`artifact.send`, `event.send`, `trust.request`, `trust.respond`) it is the `from` of the transporter artifact the device signed and carries; on any other action it is `to`. A device that carries an artifact `from` anyone but its own user is refused (`BTP_ERROR_SIG_VERIFICATION`)
+- **agentId**: Unique identifier for the authenticated agent: the device id the server issued when the device registered (`btps_ag_…` by default). It is never an identity: on every action but `auth.request`, an `agentId` that is a valid identity is refused before any key is looked up (`BTP_ERROR_AGENT_ID`). The server finds the device's key only under the device's own record id, `computeAgentTrustId(agentId, owner)`, which can never be the id of a trust between two identities, so a trusted business cannot sign with its own key and act as one of the receiver's devices. The owner is the user the device acts for: on a send (`artifact.send`, `event.send`, `trust.request`, `trust.respond`, and since 1.2 the `details.*` actions) it is the `from` of the transporter artifact the device signed and carries; on any other action it is `to`. A device that carries an artifact `from` anyone but its own user is refused (`BTP_ERROR_SIG_VERIFICATION`)
 - **to**: Recipient's BTPS identity address. On a send it is the receiver; on an action on the user's own data (`inbox.fetch`, `trust.fetch`, …) it is the user's own address
 - **issuedAt**: ISO 8601 timestamp of message creation
 - **signature**: Cryptographic signature for authenticity
@@ -109,6 +109,8 @@ Agent artifacts (`BTPAgentArtifact`) are designed for client-to-server communica
 **`artifact.send`** - Used to send artifacts to other organizations.
 
 **`event.send`** - Used to send a lifecycle event (paid, partially paid, disputed, refund requested, refund, response) about an invoice, carried as a `BTPS_EVENT`. The command's options must give `relatesTo`, the `id` of the `BTPS_DOC` artifact that delivered the invoice.
+
+**`details.changed`**, **`details.request`**, **`details.respond`** - Since 1.2: details refresh, carried as a `DETAILS_CHANGED`, `DETAILS_REQ` or `DETAILS_RES` (see [Details refresh](./transporter-artifact.md#details-refresh)). The command's options must give `details`, the `detail:` names it is about. A response must give `relatesTo`, the `DETAILS_REQ` it answers, and be encrypted; a request may give `relatesTo`, the notice it follows. The device's own provider checks the names before it sends them, as their receiver will: from the user's own record of the trust, a notice or response names only details the user shares, and a request only details the user holds; a response answers a request the user received from that receiver, naming only what it asked. A response that passes is told to the server's `detailsShared` listeners: `{ from, to, names, at }`.
 
 ## Supported Document Types
 
@@ -319,7 +321,7 @@ Used to delete multiple documents.
 
 ### 9. Transporter Artifact Document (`artifact.send`)
 
-Used to send transporter artifacts to other organizations. The device builds and signs the transporter artifact itself, and the agent artifact carries it as its document. Its `type` follows the action: `BTPS_DOC` for `artifact.send`, `BTPS_EVENT` for `event.send`, `TRUST_REQ` for `trust.request` and `TRUST_RES` for `trust.respond`. Its `selector` is the sender's own, from the sender domain's `_btps.host` record. The server checks the carried artifact against the transporter artifact rules, including its document against its type.
+Used to send transporter artifacts to other organizations. The device builds and signs the transporter artifact itself, and the agent artifact carries it as its document. Its `type` follows the action: `BTPS_DOC` for `artifact.send`, `BTPS_EVENT` for `event.send`, `TRUST_REQ` for `trust.request`, `TRUST_RES` for `trust.respond`, and since 1.2 `DETAILS_CHANGED`, `DETAILS_REQ` and `DETAILS_RES` for `details.changed`, `details.request` and `details.respond`. Its `selector` is the sender's own, from the sender domain's `_btps.host` record. The server checks the carried artifact against the transporter artifact rules, including its document against its type.
 
 Since 1.2, an `artifact.send` may be a **sync**: its transporter artifact is from and to the device's own address and names the send it copies in `syncOf` (see [Sync](./transporter-artifact.md#sync)). This is the only way a sync reaches a provider: a carried artifact with `syncOf` under any other action is refused.
 
