@@ -18,7 +18,6 @@ import {
   TRANSPORTER_ACTIONS,
   isVersionBelow,
 } from '../../constants/index.js';
-import { BTPS_FIELD_LIMITS } from '../../constants/limits.js';
 import { z } from 'zod';
 import {
   agreementEventEnvelopeProblem,
@@ -34,19 +33,6 @@ import { BtpAgreementEventSchema, BtpLifecycleEventSchema, sha256Hex } from '../
  * document is encrypted to the user's own key and its provider files it unopened.
  */
 export const BtpSyncOfSchema = z.object({ id: z.string().min(1), sha256: sha256Hex }).strict();
-
-/**
- * Since 1.2, on an agreement's answer: which agreement it answers and, in a
- * sequential agreement, the statement record before it, as hashes. Readable,
- * so the originator's server checks the order on arrival without opening it.
- */
-export const BtpAgreementFactsSchema = z
-  .object({
-    id: z.string().min(1).max(BTPS_FIELD_LIMITS.documentId),
-    contentSha256: sha256Hex,
-    previous: sha256Hex.optional(),
-  })
-  .strict();
 
 // One name from a closed set, and a list of them, never longer than the set.
 const memberOf = <T extends string>(names: readonly T[]) =>
@@ -102,7 +88,6 @@ export const BtpTransporterArtifactBaseSchema = z.object({
   selector: z.string(),
   relatesTo: z.string().min(1).optional(),
   syncOf: BtpSyncOfSchema.optional(),
-  agreement: BtpAgreementFactsSchema.optional(),
   permissions: BtpTrustPermissionsSchema.optional(),
   entityType: z.enum(ENTITY_TYPES).optional(),
   given: namesFrom(DETAIL_PERMISSIONS).optional(),
@@ -225,23 +210,6 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
           code: z.ZodIssueCode.custom,
           message: 'syncOf is only in a 1.2.0 artifact',
           path: ['syncOf'],
-        });
-      }
-    }
-    // Since 1.2: an agreement's answer names its agreement, and the statement before it, as hashes.
-    if (data.agreement !== undefined) {
-      if (data.type !== 'BTPS_EVENT') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'agreement is only on a BTPS_EVENT',
-          path: ['agreement'],
-        });
-      }
-      if (isVersionBelow(data.version, '1.2.0')) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'agreement is only in a 1.2.0 artifact',
-          path: ['agreement'],
         });
       }
     }

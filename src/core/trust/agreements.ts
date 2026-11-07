@@ -22,9 +22,8 @@ import type { BtpAgreementDocSchema } from '@core/server/schemas/btpsDocsSchema.
 import type { BTPDelegation } from '@core/server/types.js';
 import { sameIdentity } from '@core/server/schemas/helpers.js';
 import type {
-  BTPAgreementFacts,
+  BTPAgreementAnswers,
   BTPAgreementRef,
-  BTPAgreementState,
   BTPAgreementStatement,
   BTPStatementRecord,
   BTPStatementSignatureFacts,
@@ -188,32 +187,48 @@ const attestationHolds = ({ attestation, ...delegation }: BTPDelegation, keyOf: 
 };
 
 /**
- * Since 1.2: why an answer does not follow its agreement's signers and order,
- * from its sender, the `previous` it names, and what the originator holds; or
- * undefined. A server runs it on the readable facts of an answer's envelope,
- * with its store's `getAgreement`; `agreementStatementProblem` runs it on an
- * opened statement.
+ * Since 1.2: why it is not `from`'s turn to answer, from the answers already
+ * taken; or undefined. It needs only who sent the answer, so it reads the
+ * envelope and never the statement: a listed signer who has not answered, and
+ * in a sequential agreement the next one, with nothing after a decline.
  */
-export const agreementOrderProblem = (
-  answer: { from: string; previous?: string },
-  held: BTPAgreementState,
+export const agreementTurnProblem = (
+  from: string,
+  held: BTPAgreementAnswers,
 ): string | undefined => {
-  const { from, previous } = answer;
   if (!held.signers.some((signer) => sameIdentity(signer, from))) {
     return 'only a listed signer answers';
   }
   if (held.answered.some(({ signer }) => sameIdentity(signer, from))) {
     return 'an answer is final: a signer answers once';
   }
-  if (held.signingOrder === 'any') {
-    return previous === undefined ? undefined : 'previous is only in a sequential agreement';
-  }
+  if (held.signingOrder === 'any') return undefined;
   if (held.answered.some(({ decision }) => decision === 'declined')) {
     return 'a declined ends a sequential agreement';
   }
   const next = held.signers[held.answered.length];
   if (next === undefined || !sameIdentity(next, from)) {
     return 'in a sequential agreement the signers answer in list order';
+  }
+  return undefined;
+};
+
+/**
+ * Since 1.2: why an answer does not follow its agreement's signers and order,
+ * from its sender, the `previous` its statement names, and the answers already
+ * taken; or undefined: its turn (`agreementTurnProblem`), and `previous`, the
+ * SHA-256 of the answer before it in a sequential agreement and absent in an
+ * `any` one. `agreementStatementProblem` runs this on an opened statement.
+ */
+export const agreementOrderProblem = (
+  answer: { from: string; previous?: string },
+  held: BTPAgreementAnswers,
+): string | undefined => {
+  const { from, previous } = answer;
+  const turn = agreementTurnProblem(from, held);
+  if (turn) return turn;
+  if (held.signingOrder === 'any') {
+    return previous === undefined ? undefined : 'previous is only in a sequential agreement';
   }
   const last = held.answered[held.answered.length - 1];
   if (previous === last?.sha256) return undefined;
@@ -226,16 +241,16 @@ const sameRef = (a: BTPAgreementRef, b: BTPAgreementRef) =>
   sameIdentity(a.originator, b.originator) && a.id === b.id && a.contentSha256 === b.contentSha256;
 
 /**
- * Since 1.2: why an opened answer does not answer its agreement, or undefined.
- * `envelope` is the answer's own (`from`, `to`, its readable `agreement`
- * facts), `agreement` the receiver's copy, and `earlier` the statement records
- * it has already taken, in order. The statement names this agreement and its
- * terms exactly, is its sender's own, is signed by the deadline, follows the
- * signers' order, and matches its envelope. Signatures are not part of this:
+ * Since 1.2: why an opened answer does not answer its agreement, or undefined:
+ * the originator's platform's check, never the server's. `envelope` is the
+ * answer's own `from` and `to`, `agreement` the receiver's copy, and `earlier`
+ * the statement records it has already taken, in order. The statement names
+ * this agreement and its terms exactly, is its sender's own, is signed by the
+ * deadline, and follows the signers' order. Signatures are not part of this:
  * `statementSignatureFacts` checks them.
  */
 export const agreementStatementProblem = (
-  envelope: { from: string; to: string; agreement?: BTPAgreementFacts },
+  envelope: { from: string; to: string },
   event: { eventType: string; agreement: BTPAgreementRef; statement?: BTPStatementRecord },
   agreement: BTPAgreementDoc,
   earlier: readonly BTPStatementRecord[],
@@ -251,14 +266,6 @@ export const agreementStatementProblem = (
   }
   if (!sameRef(statement.agreement, agreementRef(agreement, envelope.to))) {
     return 'a statement names its own agreement: its originator, id and contentSha256';
-  }
-  const facts = envelope.agreement;
-  if (
-    facts?.id !== statement.agreement.id ||
-    facts.contentSha256 !== statement.agreement.contentSha256 ||
-    facts.previous !== statement.previous
-  ) {
-    return "the envelope's agreement facts are the statement's";
   }
   if (!sameIdentity(envelope.from, statement.signer)) {
     return 'a statement is sent by its own signer';

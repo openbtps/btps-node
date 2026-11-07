@@ -870,14 +870,32 @@ Since 1.2, in a `1.2.0` artifact only, a `BTPS_EVENT` may carry an agreement's a
 ```
 
 - **Forwarding carries records only**, at most one for each of at most 20 signers, never the agreement again: each signer already has its own copy. Whether and when to send `agreement_complete` is the originator's choice; from the records, the signer's platform assembles the evidence bundle.
-- **`relatesTo`** names the signer's own copy of the agreement, as an invoice's event names its invoice, and the event travels over the trust between the two, as any event does. Its `id` is the artifact's `id`, and its agreement's `originator` is the artifact's `from` or `to`, or it is refused, readable on arrival or once opened.
+- **`relatesTo`** names the signer's own copy of the agreement, as an invoice's event names its invoice, and the event travels over the trust between the two, as any event does.
+- **The event is consistent with itself, which the server checks:** its `id` is the artifact's `id`, and its agreement's `originator` is the artifact's `from` or `to`. These read only the artifact, so they are structure: a readable event is refused on arrival, and an encrypted one by `decryptVerify` once opened.
 - **An answer is final.** A `withdrawn` names a proposal only, so it can never name an `accepted` or `declined`. A change is a new agreement.
+- **Nothing about the agreement is on the envelope.** An answer's envelope is an ordinary event's: a server sees that an event passed between two parties, and nothing of which agreement it answers or where it falls.
 
-**The order, read from the envelope.** An answer's envelope carries `agreement`, signed and readable like `documentType`: `{ id, contentSha256, previous? }`, the agreement it answers and, in a sequential agreement, the SHA-256 of the statement record before it. They are hashes only, so a server can see that an artifact answers a given agreement and where it falls in the chain, but not who agreed to what or what the agreement says. They are on a `BTPS_EVENT` only, and only in a `1.2.0` artifact; a device sets them with `event.send`'s `agreement` option.
+**The order is the originator's platform's, never the server's.** The order of the answers is data the originator chose, as an invoice's amounts are, so the server never checks it: it checks structure, signatures, the trust and its permissions, and passes the answer on. The platform records the answers it takes, and checks each one in two parts.
 
-The originator's server checks them on arrival, without opening anything, against what its trust store holds of the agreement (the optional `getAgreement`, see [AbstractTrustStore](/docs/sdk/class-api-references#abstracttruststore)): the sender is a listed signer who has not answered yet; in a `sequential` agreement, it is the next signer, nothing comes after a `declined`, and `previous` is the SHA-256 of the last answer taken, or absent for the first; in an `any` agreement, there is no `previous`. It refuses one that does not follow, or that names no agreement its receiver originated, with `BTP_ERROR_AGREEMENT_ORDER` (400). The platform records each answer it takes; the server only reads. Without `getAgreement` the server still starts, warning once: nothing else it does depends on it, and the order is checked in full once the answer is opened (below), so no answer is taken unchecked, only checked later.
+- **Its turn, in flight, from the envelope.** Whose turn it is needs only who sent the answer (`from`) and which copy it answers (`relatesTo`), so it is checked before the answer is opened, encrypted or not: a listed signer who has not answered; in a `sequential` agreement, the next signer, and nothing after a `declined` (`agreementTurnProblem`). The SDK ships this as middleware, `agreementOrderCheck` from `@btps/sdk/server/core`, off until a platform adds it with its own lookup. It runs after the server's trust check and refuses an answer out of turn while it is in flight, with `BTP_ERROR_AGREEMENT_ORDER` (400) and the broken rule in its message, so the sender knows at once:
 
-**Once opened**, and before it records, forwards or bundles an answer, the originator's platform MUST check it with `agreementStatementProblem` from `@btps/sdk/trust`: the statement names this agreement (its originator, id and `contentSha256` as its copy has them) and its terms exactly, is its sender's own, is signed no later than `acceptance.by`, follows the signers' order against the answers already taken, and matches its envelope's facts. Its signatures it checks with `statementSignatureFacts` (see [Agreement](#agreement)).
+  ```js
+  import { agreementOrderCheck } from '@btps/sdk/server/core';
+
+  export default function createMiddleware() {
+    return [
+      agreementOrderCheck({
+        // The platform's own record of the agreement whose copy `relatesTo` names, sent by
+        // `originator` to `signer`: its signers, signingOrder, and the answers taken so far,
+        // or undefined when it is no agreement copy.
+        answers: ({ relatesTo, signer, originator }) =>
+          agreements.answersByCopy({ copyId: relatesTo, signer, originator }),
+      }),
+    ];
+  }
+  ```
+
+- **The statement, once opened.** What needs the opened statement the platform checks with `agreementStatementProblem` from `@btps/sdk/trust`: its `decision` is the event's `eventType`, it names this agreement (its originator, id and `contentSha256` as its copy has them) and its terms exactly, it is its sender's own, it was signed no later than `acceptance.by`, and `previous` is the SHA-256 of the last answer taken, or none for the first, in a `sequential` agreement, and absent in an `any` one (`agreementOrderProblem`). A platform holding the originator's key (a managed key) can open the answer in its own middleware and refuse it in flight too. When the user holds the key, the platform checks it once the user's device has opened it, and answers the sender afterwards with a BTPS event. Its signatures it checks with `statementSignatureFacts` (see [Agreement](#agreement)).
 
 ## Security Features
 

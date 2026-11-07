@@ -166,8 +166,6 @@ export interface BTPTransporterArtifact extends BTPGenericArtifact<BTPDocType | 
   relatesTo?: string;
   /** Since 1.2, on a sync only (from equals to, inside a device's artifact.send): the send it copies. */
   syncOf?: BTPSyncOf;
-  /** Since 1.2, on an agreement's answer: the agreement it answers and the statement record before it, as hashes. */
-  agreement?: { id: string; contentSha256: string; previous?: string };
   /** Since 1.2, on a TRUST_REQ: the permissions it asks for. */
   permissions?: BTPTrustPermissions;
   /** Since 1.2, on a TRUST_REQ with permissions and an accepted TRUST_RES: what owns the sender's address. */

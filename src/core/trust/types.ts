@@ -107,17 +107,11 @@ export type BTPVerificationFacts = {
 export type BTPAgreementRef = { originator: string; id: string; contentSha256: string };
 
 /**
- * Since 1.2: what an answer's envelope says, signed and readable: the
- * agreement it answers, and the statement record before it, as hashes.
+ * Since 1.2: an agreement's signers in order, how they answer, and the answers
+ * its originator's platform has taken, in order, each by the SHA-256 of its
+ * record: what `agreementOrderProblem` checks an answer against.
  */
-export type BTPAgreementFacts = { id: string; contentSha256: string; previous?: string };
-
-/**
- * Since 1.2: what an originator's platform holds of one of its agreements, as
- * its store's `getAgreement` answers: its signers in order, how they answer,
- * and the answers it has taken, in order, each by the SHA-256 of its record.
- */
-export type BTPAgreementState = {
+export type BTPAgreementAnswers = {
   signers: string[];
   signingOrder: 'any' | 'sequential';
   answered: { signer: string; decision: 'accepted' | 'declined'; sha256: string }[];
