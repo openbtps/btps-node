@@ -1,0 +1,36 @@
+{
+  "person": {
+    "names": [
+      "send:invoice",
+      "send:receipt",
+      "send:payslip",
+      "send:letter",
+      "send:agreement",
+      "detail:legalName",
+      "detail:profile",
+      "detail:email",
+      "detail:phone",
+      "detail:address",
+      "detail:taxNo",
+      "detail:dob"
+    ],
+    "grants": [0, 2047, 2079, 4064, 227, 1804, 304, 581, 1162]
+  },
+  "organisation": {
+    "names": [
+      "send:invoice",
+      "send:receipt",
+      "send:payslip",
+      "send:letter",
+      "send:agreement",
+      "detail:legalName",
+      "detail:profile",
+      "detail:email",
+      "detail:phone",
+      "detail:address",
+      "detail:taxNo",
+      "detail:registrationNumber"
+    ],
+    "grants": [0, 2047, 2079, 4064, 227, 1804, 304, 581, 1162]
+  }
+}
