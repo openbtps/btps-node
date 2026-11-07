@@ -493,6 +493,6 @@ await server.start();
 - [Server Overview](./overview.md)
 - [Middleware System](./middlewares.md)
 - [Trust Model](../protocol/trustRecord.md)
-- [Security Best Practices](/docs/protocol/security/best-practices)
+- [Security Best Practices](../protocol/security/bestPractices.md)
 
 ---

@@ -608,9 +608,9 @@ With identity lookup support configured, you can now:
 
 ## See Also
 
-- [Identity Record Protocol](/docs/protocol/identityRecord.md) - Complete identity record specification
+- [Identity Record Protocol](../../protocol/identityRecord.md) - Complete identity record specification
 - [Data Storage Support](./dataStorageSupport.md) - Storage integration guide
 - [Database Integration](./databaseIntegration.md) - Database setup guide
-- [BtpsServer Class Reference](/docs/sdk/class-api-references#btpsserver) - Complete server API documentation
-- [AbstractIdentityStore](/docs/sdk/class-api-references#abstractidentitystore) - Identity store base class
-- [JsonIdentityStore](/docs/sdk/class-api-references#jsonidentitystore) - File-based identity store
+- [BtpsServer Class Reference](../../sdk/classApiReference.md#btpsserver) - Complete server API documentation
+- [AbstractIdentityStore](../../sdk/classApiReference.md#abstractidentitystore) - Identity store base class
+- [JsonIdentityStore](../../sdk/classApiReference.md#jsonidentitystore) - File-based identity store

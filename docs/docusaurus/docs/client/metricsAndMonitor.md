@@ -74,4 +74,4 @@ setInterval(() => {
 
 ---
 
-For more, see [Debugging](/docs/client/debugging) or [Best Practices](/docs/client/best-practices).
+For more, see [Debugging](./debugging.md) or [Best Practices](./bestPractices.md).
