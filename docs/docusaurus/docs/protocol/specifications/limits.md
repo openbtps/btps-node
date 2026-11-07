@@ -171,6 +171,20 @@ amount of memory to check. Since 1.1.3.
 | `agentInfo` list values                                    |       50 |
 | keys of any record                                         |      100 |
 
+Since 1.2, the lists that trust permissions, details refresh and agreements add. Each name is in a list at most once, so a names list is at most as long as the names it may hold:
+
+| Field                                                                   |   Limit |
+| ----------------------------------------------------------------------- | ------: |
+| a `TRUST_REQ`'s `permissions` (at least one `send:` name)               |      13 |
+| a `TRUST_REQ`'s `given`                                                 |       8 |
+| a `TRUST_RES`'s `granted`                                               |      13 |
+| a details artifact's `details` (at least one)                           |       8 |
+| an agreement's `acceptance.signers`                                     |      20 |
+| the `statements` of an `agreement_progress` or `agreement_complete`     | 1 to 20 |
+| an evidence bundle's `statements`                                       |      20 |
+| an evidence bundle's `keys` (three for each signer, and the originator) |      61 |
+| an evidence bundle's `timestamps`                                       |      20 |
+
 A record is any object whose keys the sender chooses: `metadata`,
 `issuer.identifiers`, a payslip's `yearToDate`, `template.data` and
 `agentInfo`.

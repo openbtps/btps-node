@@ -254,7 +254,7 @@ Every step is its own artifact, delivered like any other, so a platform may queu
 | `DETAILS_REQ`     | `details`: the names wanted; `relatesTo`, optional: the `DETAILS_CHANGED` it follows | no values; an optional `message` note                   |
 | `DETAILS_RES`     | `details`: the names it answers; `relatesTo`, required: the `DETAILS_REQ` it answers | the value of each name, keyed by name, always encrypted |
 
-`details` holds `detail:` names only, each once, at least one. All three types are `1.2.0` only. A response may answer part of a request: it names only what it carries.
+`details` holds `detail:` names only, each once, at least one. All three types are `1.2.0` only. A response may answer part of a request: it names only what it carries. A 1.1 server does not know these types: it refuses one as an artifact it cannot read (`BTP_ERROR_VALIDATION`), before it reads the version, so the sender is not told the receiver speaks 1.1. A trust with a 1.1 provider holds no details by name in any case.
 
 **On arrival**, from the envelope and the receiver's own record of the trust, without decrypting:
 
