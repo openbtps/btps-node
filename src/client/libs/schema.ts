@@ -18,6 +18,7 @@ import { identitySchema } from '@core/server/schemas/shared.js';
 import { validateAgentDocument } from '@core/server/schemas/helpers.js';
 import { BtpAuthReqDocSchema, BtpDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import { BtpSyncOfSchema } from '@core/server/schemas/artifacts/transporterSchema.js';
+import { DOCUMENT_TYPES } from '@core/server/constants/permissions.js';
 
 // Use the server's document schema directly
 export const BtpsAgentOptionsSchema = BtpCryptoOptionsSchema.optional();
@@ -44,6 +45,7 @@ export const BtpsAgentCommandSchema = z.object({
     relatesTo: z.string().min(1).optional(),
     id: z.string().uuid().optional(),
     syncOf: BtpSyncOfSchema.optional(),
+    documentType: z.enum(DOCUMENT_TYPES).optional(),
   }).optional(),
 });
 
@@ -60,6 +62,16 @@ export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
     {
       message: 'options.relatesTo is required on event.send and only there',
       path: ['options', 'relatesTo'],
+    },
+  )
+  .refine(
+    (data) =>
+      data.options?.documentType === undefined ||
+      (data.actionType === 'artifact.send' &&
+        (data.document as { type?: unknown } | undefined)?.type === data.options.documentType),
+    {
+      message: "options.documentType is only on artifact.send, and is the document's own type",
+      path: ['options', 'documentType'],
     },
   )
   .refine((data) => data.options?.syncOf === undefined || data.actionType === 'artifact.send', {

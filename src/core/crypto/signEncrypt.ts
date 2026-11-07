@@ -8,6 +8,7 @@
 import { randomUUID } from 'crypto';
 import type { ConnectionOptions } from 'tls';
 import {
+  BTP_ERROR_DOCUMENT_TYPE_MISMATCH,
   BTP_ERROR_IDENTITY,
   BTP_ERROR_RESOLVE_PUBKEY,
   BTP_ERROR_VALIDATION,
@@ -91,6 +92,16 @@ export const signEncrypt = async <T = unknown>(
   const { document, ...restPayload } = payload;
   let encryption: BTPEncryption | null = null;
   let encryptedDoc: string | T = document;
+
+  // Since 1.2: a documentType on the envelope is the document's own type, signed with it.
+  const type = (document as { type?: unknown } | undefined)?.type;
+  if (restPayload.documentType !== undefined && type !== restPayload.documentType) {
+    return genEncryptError(
+      new BTPErrorException(BTP_ERROR_DOCUMENT_TYPE_MISMATCH, {
+        cause: `the document is a ${String(type)}, not the ${String(restPayload.documentType)} its envelope names`,
+      }),
+    );
+  }
 
   if (to && !isEmpty(options?.encryption)) {
     // Once encrypted, no server can read the document, so it is checked here.

@@ -12,6 +12,7 @@ import {
   computeTrustId,
   computeAgentTrustId,
   validateTrustResponse,
+  documentTypeRefusal,
 } from '@core/trust/index.js';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
@@ -1139,6 +1140,14 @@ export class BtpsServer {
     } else {
       if (!isTrustActive(trustRecord)) {
         return { isTrusted: false, error: this.getTrustRefusalError(trustRecord) };
+      }
+      // Since 1.2: under a trust with permissions, a send names a document type it grants.
+      const refusal = trustRecord && documentTypeRefusal(artifact, trustRecord);
+      if (refusal) {
+        return {
+          isTrusted: false,
+          error: new BTPErrorException(refusal.error, { cause: refusal.problem }),
+        };
       }
       return this.verifyPrivacyType(artifact, trustRecord);
     }

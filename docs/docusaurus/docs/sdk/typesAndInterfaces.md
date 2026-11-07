@@ -271,6 +271,7 @@ type BtpsAgentCommandOptions = BTPCryptoOptions & {
   relatesTo?: string;
   id?: string;
   syncOf?: BTPSyncOf; // since 1.2
+  documentType?: BTPDocumentType; // since 1.2
 };
 
 interface BTPSyncOf {
@@ -281,6 +282,7 @@ interface BTPSyncOf {
 
 - `relatesTo`: Required on `event.send` and refused on every other action: the `id` of the `BTPS_DOC` artifact that delivered the invoice the event is about. It is set on the `BTPS_EVENT` envelope, outside the encrypted document, so the receiving server can check it without decrypting
 - `syncOf`: Since 1.2, on `artifact.send` to the device's own address only, and refused elsewhere: this send is a sync, the user's own copy of the send it names. `syncOfArtifact(sentArtifact)` gives it. It is set on the envelope and stamps the artifact `1.2.0`. See [Sync](../protocol/specifications/transporter-artifact.md#sync)
+- `documentType`: Since 1.2, on `artifact.send` only, and refused elsewhere: the document's own `type`, for a send under a trust with permissions, whose receiver checks that `send:<documentType>` is granted. A value that is not the document's type is refused before anything is sent. It is set on the envelope and stamps the artifact `1.2.0`, so leave it out for any other send. See [Trust permissions](../protocol/specifications/transporter-artifact.md#a-sends-document-type)
 
 ### BTPConnection
 

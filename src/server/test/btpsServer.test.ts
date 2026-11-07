@@ -2417,6 +2417,42 @@ export default function () {
         expect(result.isTrusted).toBe(true);
       });
 
+      describe('since 1.2, a send under a trust with permissions', () => {
+        const granting = (...granted: ('send:invoice' | 'send:receipt')[]) => ({
+          ...record(biller, payer),
+          permissions: { requested: [], granted, detailsHeld: [], detailsShared: [] },
+        });
+        const invoice = (documentType?: 'invoice' | 'receipt') => {
+          const sent = artifact('BTPS_DOC', biller, payer);
+          return { ...sent, artifact: { ...sent.artifact, documentType } };
+        };
+
+        it('takes a send naming a document type the trust grants', async () => {
+          storeHolding(granting('send:invoice'));
+          const result = await server['verifyTrust'](invoice('invoice'));
+          expect(result.isTrusted).toBe(true);
+        });
+
+        it('refuses a send of a type not granted: BTP_ERROR_PERMISSION', async () => {
+          storeHolding(granting('send:invoice'));
+          const result = await server['verifyTrust'](invoice('receipt'));
+          expect(result.isTrusted).toBe(false);
+          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+        });
+
+        it('refuses a send that names no document type: BTP_ERROR_PERMISSION', async () => {
+          storeHolding(granting('send:invoice'));
+          const result = await server['verifyTrust'](invoice());
+          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+        });
+
+        it('takes any send under a 1.1 trust, as before', async () => {
+          storeHolding(record(biller, payer));
+          const result = await server['verifyTrust'](invoice());
+          expect(result.isTrusted).toBe(true);
+        });
+      });
+
       describe('through the whole pipeline, an event over either trust must still relate to an invoice', () => {
         const socket = () =>
           ({

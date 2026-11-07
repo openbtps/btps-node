@@ -41,7 +41,7 @@ import type { BTPEventFacts } from '@core/trust/types.js';
 import { trustRequestProblem, trustResponseProblem } from './trustValues.js';
 
 export { trustRequestProblem, trustResponseProblem, BtpDetailValueSchemas } from './trustValues.js';
-export { trustGrantProblem } from '@core/trust/permissions.js';
+export { trustGrantProblem, documentTypeProblem } from '@core/trust/permissions.js';
 
 /**
  * The schema a document of this artifact type is read with, under the
