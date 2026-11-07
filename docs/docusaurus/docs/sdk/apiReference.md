@@ -1056,18 +1056,20 @@ const deviceRecordId = computeAgentTrustId(
 validateTrustResponse(
   senderId: string,
   receiverId: string,
-  trustStore: AbstractTrustStore<BTPTrustRecord>
+  trustStore: AbstractTrustStore<BTPTrustRecord>,
+  response?: { granted?: BTPPermissionName[] }
 ): Promise<{ isValid: boolean; error?: BTPErrorException }>
 ```
 
 **Description:**
-Validates a `TRUST_RES` by checking if the response is authorized (only the original receiver of a trust request can respond).
+Validates a `TRUST_RES` by checking if the response is authorized (only the original receiver of a trust request can respond). Since 1.2, with `response`, its `granted` is checked against the requester's record (`trustGrantProblem`), and an accepted trust also takes an answer to the change it has pending (`permissions.pendingChange`).
 
 **Arguments:**
 
 - `senderId` (`string`, required): The identity sending the trust response (responder).
 - `receiverId` (`string`, required): The identity receiving the trust response (original requester).
 - `trustStore` (`AbstractTrustStore<BTPTrustRecord>`, required): The trust store instance.
+- `response` (`object`, optional, since 1.2): The answer's envelope. A `granted` that leaves out a required name, or that the record has no permissions to check against, is refused with `BTP_ERROR_PERMISSION_REQUIRED`; a name the request did not ask for, with `BTP_ERROR_PERMISSION`.
 
 **Returns:**
 
@@ -1078,6 +1080,52 @@ Validates a `TRUST_RES` by checking if the response is authorized (only the orig
 ```js
 import { validateTrustResponse } from '@btps/sdk/trust';
 const { isValid, error } = await validateTrustResponse('userB$domain', 'userA$domain', trustStore);
+```
+
+---
+
+### trustGrantProblem
+
+```ts
+trustGrantProblem(
+  response: { granted?: BTPPermissionName[] },
+  record: { status: BTPTrustStatus; permissions?: BTPTrustRecordPermissions }
+): string | undefined
+```
+
+**Description:**
+Since 1.2. Why an answer's `granted` does not meet the requester's trust record, or `undefined`: every required name it asked for is granted, and nothing it did not ask for. A pending trust is checked against `permissions.requested`; an accepted trust takes an answer only while a change is pending, and is checked against `permissions.pendingChange.requested`. A record without `permissions` cannot be checked, so `granted` is refused there. An answer without `granted` (a rejection, or a 1.1 answer) is not checked. The server runs it on every `TRUST_RES` through `validateTrustResponse`.
+
+---
+
+### trustPermissionsFromRequest / trustPermissionsFromResponse
+
+```ts
+trustPermissionsFromRequest(
+  request: { permissions?: BTPTrustPermissions; change?: true; issuedAt: string },
+  current?: BTPTrustRecordPermissions
+): BTPTrustRecordPermissions | undefined
+
+trustPermissionsFromResponse(
+  response: { granted?: BTPPermissionName[] },
+  request: { permissions?: BTPTrustPermissions; given?: BTPDetailPermission[] }
+): { requester: BTPTrustRecordPermissions; responder: BTPTrustRecordPermissions } | undefined
+```
+
+**Description:**
+Since 1.2. What a platform saves on its trust records. The BTPS server only reads records; the platform writes them, so it must save what these return.
+
+- `trustPermissionsFromRequest`: the requester's record, when it sends a request with permissions. For a change (`change: true`), pass the trust's `current` permissions: the change is added as `pendingChange`, and the trust keeps running on its old grant until it is answered. `undefined` for a request without permissions, a 1.1 trust.
+- `trustPermissionsFromResponse`: both records once a request is accepted. The requester holds the details granted to it (`detailsHeld`) and shares the details it gave (`detailsShared`); the responder holds the reverse. Each side saves its own. `undefined` when the answer grants nothing by name.
+
+**On any answer to a pending change, clear `pendingChange`.** If the change is accepted, save the record `trustPermissionsFromResponse` returns: it has no `pendingChange`. If it is rejected, keep the current permissions and remove `pendingChange`, so the trust runs on its old grant. A `pendingChange` left in place lets the accepted trust keep taking answers to a change already decided.
+
+**Example:**
+
+```js
+import { trustPermissionsFromResponse } from '@btps/sdk/trust';
+const saved = trustPermissionsFromResponse(response, request);
+if (saved) await trustStore.update(trustId, { permissions: saved.requester });
 ```
 
 ---
@@ -1567,6 +1615,38 @@ Since 1.2. Error constant for a transporter artifact with `syncOf` sent to a ser
 
 - `code`: `'BTP_ERROR_SYNC_NOT_ALLOWED'`
 - `message`: `"A sync comes only from a device of its own address, inside that device's artifact.send"`
+
+---
+
+### BTP_ERROR_PERMISSION
+
+```ts
+const BTP_ERROR_PERMISSION: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for something a trust's permissions do not cover: a trust answer granting a name its request never asked for, or answering an accepted trust with no change pending. Status 403.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_PERMISSION'`
+- `message`: `'This trust does not permit it'`
+
+---
+
+### BTP_ERROR_PERMISSION_REQUIRED
+
+```ts
+const BTP_ERROR_PERMISSION_REQUIRED: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a trust answer that leaves out a permission its request requires, or whose `granted` cannot be checked because the requester's trust record has no permissions. Status 403.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_PERMISSION_REQUIRED'`
+- `message`: `'The answer does not grant every permission the request requires'`
 
 ---
 

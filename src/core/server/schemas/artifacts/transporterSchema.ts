@@ -46,6 +46,20 @@ export const BtpTrustPermissionsSchema = z
     message: 'permissions holds at least one send: name',
   });
 
+/** Since 1.2: a trust record's permissions, as the platform saves them. */
+export const BtpTrustRecordPermissionsSchema = z
+  .object({
+    requested: BtpTrustPermissionsSchema,
+    granted: namesFrom(PERMISSION_NAMES),
+    detailsHeld: namesFrom(DETAIL_PERMISSIONS),
+    detailsShared: namesFrom(DETAIL_PERMISSIONS),
+    pendingChange: z
+      .object({ requested: BtpTrustPermissionsSchema, requestedAt: z.string().datetime() })
+      .strict()
+      .optional(),
+  })
+  .strict();
+
 const duplicateOf = (names: readonly string[]) =>
   names.find((name, i) => names.indexOf(name) !== i);
 const documentRecord = (document: unknown): Record<string, unknown> | undefined =>

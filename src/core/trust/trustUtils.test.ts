@@ -13,6 +13,8 @@ import {
   validateTrustResponse,
   canRetryTrust,
   AbstractTrustStore,
+  trustPermissionsFromRequest,
+  trustPermissionsFromResponse,
 } from './index.js';
 import { BTPTrustRecord } from './types.js';
 
@@ -172,5 +174,120 @@ describe('validateTrustResponse()', () => {
     );
     const result = await validateTrustResponse('b$domain.com', 'a$domain.com', mockTrustStore);
     expect(result.isValid).toBe(true);
+  });
+
+  describe('since 1.2, with granted', () => {
+    const permissions = {
+      requested: [
+        { name: 'send:invoice' as const, required: true },
+        { name: 'detail:email' as const, required: false },
+      ],
+      granted: [],
+      detailsHeld: [],
+      detailsShared: [],
+    };
+    const answer = (granted: ('send:invoice' | 'detail:email' | 'send:letter')[]) =>
+      validateTrustResponse('b$domain.com', 'a$domain.com', mockTrustStore, { granted });
+
+    it('takes an answer granting every required name', async () => {
+      mockTrustStore.getById = vi.fn().mockResolvedValue(makeTrust({ permissions }));
+      expect((await answer(['send:invoice'])).isValid).toBe(true);
+    });
+
+    it('refuses an answer without a required name: BTP_ERROR_PERMISSION_REQUIRED', async () => {
+      mockTrustStore.getById = vi.fn().mockResolvedValue(makeTrust({ permissions }));
+      const result = await answer(['detail:email']);
+      expect(result.isValid).toBe(false);
+      expect(result.error?.code).toBe('BTP_ERROR_PERMISSION_REQUIRED');
+    });
+
+    it('refuses a name the request never asked for: BTP_ERROR_PERMISSION', async () => {
+      mockTrustStore.getById = vi.fn().mockResolvedValue(makeTrust({ permissions }));
+      const result = await answer(['send:invoice', 'send:letter']);
+      expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+    });
+
+    it('refuses granted where the record has no permissions to check it against', async () => {
+      mockTrustStore.getById = vi.fn().mockResolvedValue(makeTrust({}));
+      const result = await answer(['send:invoice']);
+      expect(result.error?.code).toBe('BTP_ERROR_PERMISSION_REQUIRED');
+    });
+
+    it('takes an answer to the change an accepted trust has pending, checked against the change', async () => {
+      const pendingChange = {
+        requested: [...permissions.requested, { name: 'send:letter' as const, required: true }],
+        requestedAt: now.toISOString(),
+      };
+      mockTrustStore.getById = vi
+        .fn()
+        .mockResolvedValue(
+          makeTrust({ status: 'accepted', permissions: { ...permissions, pendingChange } }),
+        );
+      expect((await answer(['send:invoice', 'send:letter'])).isValid).toBe(true);
+      expect((await answer(['send:invoice'])).error?.code).toBe('BTP_ERROR_PERMISSION_REQUIRED');
+    });
+
+    it('refuses a further answer once the platform has cleared the answered change', async () => {
+      mockTrustStore.getById = vi
+        .fn()
+        .mockResolvedValue(makeTrust({ status: 'accepted', permissions }));
+      const result = await answer(['send:invoice']);
+      expect(result.isValid).toBe(false);
+      expect(result.error?.code).toBe('BTP_ERROR_TRUST_NOT_ALLOWED');
+    });
+  });
+});
+
+describe('trust record permissions, for the platform to save', () => {
+  const request = {
+    permissions: [
+      { name: 'send:invoice' as const, required: true },
+      { name: 'detail:email' as const, required: true },
+    ],
+    given: ['detail:email' as const, 'detail:registrationNumber' as const],
+    issuedAt: now.toISOString(),
+  };
+
+  it('keeps what a request asked for on the requester own record', () => {
+    expect(trustPermissionsFromRequest(request)).toEqual({
+      requested: request.permissions,
+      granted: [],
+      detailsHeld: [],
+      detailsShared: [],
+    });
+  });
+
+  it('keeps nothing for a request without permissions, a 1.1 trust', () => {
+    expect(trustPermissionsFromRequest({ issuedAt: request.issuedAt })).toBeUndefined();
+  });
+
+  it('adds a change as pending, so the trust runs on its old grant meanwhile', () => {
+    const current = {
+      ...trustPermissionsFromRequest(request)!,
+      granted: ['send:invoice' as const],
+    };
+    expect(trustPermissionsFromRequest({ ...request, change: true }, current)).toEqual({
+      ...current,
+      pendingChange: { requested: request.permissions, requestedAt: request.issuedAt },
+    });
+  });
+
+  it('gives each side what it holds of the other once accepted', () => {
+    const saved = trustPermissionsFromResponse(
+      { granted: ['send:invoice', 'detail:email'] },
+      request,
+    );
+    expect(saved?.requester).toMatchObject({
+      detailsHeld: ['detail:email'],
+      detailsShared: request.given,
+    });
+    expect(saved?.responder).toMatchObject({
+      detailsHeld: request.given,
+      detailsShared: ['detail:email'],
+    });
+  });
+
+  it('keeps nothing for an answer that grants nothing by name', () => {
+    expect(trustPermissionsFromResponse({}, request)).toBeUndefined();
   });
 });

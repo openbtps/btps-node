@@ -11,6 +11,7 @@ export { default as JsonTrustStore } from './storage/JsonTrustStore.js';
 export { AbstractTrustStore } from './storage/AbstractTrustStore.js';
 export * from './types.js';
 export * from './trustUtils.js';
+export * from './permissions.js';
 // The permission names a trust carries, for a client as well as a server.
 export * from '@core/server/constants/permissions.js';
 export type {

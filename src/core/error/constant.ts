@@ -198,6 +198,20 @@ export const BTP_ERROR_SYNC_NOT_ALLOWED: BTPError = {
   status: 403,
 };
 
+/** Since 1.2: something a trust's permissions do not cover, such as a name the request never asked for. */
+export const BTP_ERROR_PERMISSION: BTPError = {
+  code: 'BTP_ERROR_PERMISSION',
+  message: 'This trust does not permit it',
+  status: 403,
+};
+
+/** Since 1.2: a trust answer that leaves out a required permission, or one that cannot be checked. */
+export const BTP_ERROR_PERMISSION_REQUIRED: BTPError = {
+  code: 'BTP_ERROR_PERMISSION_REQUIRED',
+  message: 'The answer does not grant every permission the request requires',
+  status: 403,
+};
+
 export const BTP_ERROR_KEY_ROTATION_PROOF: BTPError = {
   code: 'BTP_ERROR_KEY_ROTATION_PROOF',
   message: 'A new device key needs a proof signed by that key',

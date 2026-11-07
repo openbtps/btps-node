@@ -1390,6 +1390,16 @@ interface BTPTrustRecord {
   privacyType: BTPEncryptionType;
   retryAfterDate?: string;
   metadata?: Record<string, unknown>;
+  permissions?: BTPTrustRecordPermissions; // since 1.2: written by the platform; without it, a 1.1 trust
+}
+
+// Since 1.2: written by the platform, never the BTPS server, which only reads them
+interface BTPTrustRecordPermissions {
+  requested: BTPTrustPermissions; // what the request asked for
+  granted: BTPPermissionName[]; // what the answer granted
+  detailsHeld: BTPDetailPermission[]; // the other side's details this side holds
+  detailsShared: BTPDetailPermission[]; // this side's details the other side holds
+  pendingChange?: { requested: BTPTrustPermissions; requestedAt: string }; // a change, until answered
 }
 ```
 
@@ -1415,7 +1425,20 @@ interface BTPTrustReqDoc {
 }
 
 // Since 1.2: detail values by permission name, e.g. { "detail:dob": "1990-04-21" }
-type BTPDetailValues = Partial<Record<`detail:${string}`, unknown>>;
+type BTPDetailValues = {
+  'detail:legalName'?: string;
+  'detail:profile'?: {
+    displayName: string;
+    logo?: { sha256: string; source: string };
+    website?: string;
+  };
+  'detail:email'?: string;
+  'detail:phone'?: string;
+  'detail:address'?: string;
+  'detail:taxNo'?: { number: string; country: string }; // country: ISO 3166-1 alpha-2
+  'detail:dob'?: string; // YYYY-MM-DD
+  'detail:registrationNumber'?: { number: string; country: string };
+};
 ```
 
 ### BTPTrustResDoc

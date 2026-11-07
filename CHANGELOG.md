@@ -102,6 +102,16 @@ versions follow [Semantic Versioning](https://semver.org/).
   shapes (`{ number, country }`, a `YYYY-MM-DD` date, a profile with https
   addresses), with `BTP_ERROR_VALIDATION`. `trustRequestProblem` and
   `trustResponseProblem` in `@btps/sdk/trust` run the same check.
+- **Trust permissions on the trust record.** A record may carry `permissions`
+  (`requested`, `granted`, `detailsHeld`, `detailsShared`, `pendingChange`),
+  which the platform writes and the server only reads; without it, a 1.1
+  trust. `trustPermissionsFromRequest` and `trustPermissionsFromResponse`
+  compute what to save. A server refuses a `TRUST_RES` whose `granted` leaves
+  out a required name, or that its record cannot check
+  (`BTP_ERROR_PERMISSION_REQUIRED`), or that grants a name never asked for
+  (`BTP_ERROR_PERMISSION`), and takes an answer on an accepted trust only to a
+  pending change (`trustGrantProblem`; `validateTrustResponse` gains an
+  optional `response`). `BTPDetailValues` now types each detail's value.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).
