@@ -803,6 +803,33 @@ export const BtpAgreementEventSchema = z
 /** What a 1.2.0 `BTPS_EVENT` carries: an invoice's lifecycle event, or an agreement's. */
 export const BtpEventSchema = z.union([BtpLifecycleEventSchema, BtpAgreementEventSchema]);
 
+/** A public key in an evidence bundle, by the identity and selector it signs as. */
+const BtpEvidenceKeySchema = z
+  .object({
+    identity: identitySchema,
+    selector: z.string().min(1),
+    publicKey: z.string().min(1),
+    fingerprint: z.string().min(1),
+  })
+  .strict();
+
+/**
+ * Since 1.2: an agreement's evidence bundle, a file a party creates to show
+ * what was agreed: the opened agreement with its originator's signature,
+ * every signer's statement record in order, and the public key behind each
+ * signature, so it checks offline. It holds no decryption key.
+ */
+export const BtpEvidenceBundleSchema = z
+  .object({
+    format: z.literal('btps-evidence/1'),
+    originator: identitySchema,
+    agreement: BtpAgreementDocSchema,
+    statements: statements,
+    // The originator's, each signer's, and each device's delegator and attestor.
+    keys: boundedArray(BtpEvidenceKeySchema, agreement.signers * 3 + 1),
+  })
+  .strict();
+
 // Schema for BTPAuthReqDoc (used in agent artifacts)
 export const BtpAuthReqDocSchema = z.object({
   identity: identitySchema,

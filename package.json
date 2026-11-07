@@ -65,8 +65,12 @@
       "import": "./dist/core/storage/index.js"
     }
   },
+  "bin": {
+    "btps-verify-evidence": "./bin/verify-evidence-bundle.mjs"
+  },
   "files": [
     "dist",
+    "bin",
     "NOTICE",
     "CHANGELOG.md"
   ],

@@ -200,6 +200,14 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   platform checks the statement with `agreementStatementProblem`
   (`agreementOrderProblem` for its `previous`). A `withdrawn` can never name
   an answer.
+- **The evidence bundle.** `buildEvidenceBundle` makes a `btps-evidence/1`
+  file (`BTPEvidenceBundle`, JSON Schema `btps-evidence.schema.json`): the
+  opened agreement, every statement record in order, and the key behind each
+  signature. `verifyEvidenceBundle` checks it offline and reports facts
+  (`BTPEvidenceFacts`), never a verdict; `describeEvidenceFacts` prints them,
+  as the new `btps-verify-evidence` command does. Providers never reuse a
+  selector for a different key, and keep old keys answerable while documents
+  signed with them are kept.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).

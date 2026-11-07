@@ -3165,7 +3165,11 @@ export function agreements(keys) {
   });
   // A device's record carries the whole event artifact that delivered it, as it
   // arrived: signed by the device, delegated by the signer's operator.
-  const byDevice = (statement, deviceKey = keys.device) => {
+  const byDevice = (
+    statement,
+    deviceKey = keys.device,
+    delegator = { identity: OPERATOR, key: keys.operator },
+  ) => {
     const artifact = {
       version: V12,
       issuedAt: statement.signedAt,
@@ -3188,7 +3192,7 @@ export function agreements(keys) {
     const delegation = {
       agentId: 'device-alice-1',
       agentPubKey: deviceKey.publicKeyPem,
-      signedBy: OPERATOR,
+      signedBy: delegator.identity,
       issuedAt: statement.signedAt,
       selector: 'btps1',
     };
@@ -3199,7 +3203,7 @@ export function agreements(keys) {
         ...withSignature,
         delegation: {
           ...delegation,
-          signature: signatureBy(keys.operator, { ...withSignature, delegation }),
+          signature: signatureBy(delegator.key, { ...withSignature, delegation }),
         },
       },
     };
@@ -3659,6 +3663,7 @@ export function agreements(keys) {
   ];
   const bundle = (statementRecords, about = agreement, bundleKeys = allKeys) => ({
     format: 'btps-evidence/1',
+    originator: BANK,
     agreement: about,
     statements: statementRecords,
     keys: bundleKeys,
@@ -3697,6 +3702,11 @@ export function agreements(keys) {
     ),
   );
   const late = byIdentity(keys.signer, stated(ALICE, 'accepted', '2026-12-01T00:00:00.000Z'));
+  const samSelfDelegated = byDevice(
+    stated(SAM, 'accepted', at(3), undefined, anyRef),
+    keys.device,
+    { identity: SAM, key: keys.guarantor },
+  );
   const bundles = [
     evidence(
       'complete-sequential-with-identity-keys',
@@ -3780,6 +3790,15 @@ export function agreements(keys) {
         allKeys.filter((k) => k.identity !== ALICE),
       ),
       verdictless(agreement, [fact(alice, { signatureValid: false })]),
+    ),
+    // A delegation the signer signed for itself must be attested by its operator, as a server requires.
+    evidence(
+      'a-self-delegated-device-without-attestation',
+      bundle([samSelfDelegated], anyOrder, [
+        keyOf(BANK, keys.originator),
+        keyOf(SAM, keys.guarantor),
+      ]),
+      verdictless(anyOrder, [fact(samSelfDelegated, { signatureValid: false, delegatedBy: SAM })]),
     ),
   ];
 

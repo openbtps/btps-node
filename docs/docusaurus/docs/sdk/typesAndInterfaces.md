@@ -1514,6 +1514,31 @@ type BTPAgreementEvent = {
   | { eventType: 'agreement_progress' | 'agreement_complete'; statements: BTPStatementRecord[] }
 );
 
+// Since 1.2: see The evidence bundle on the Transporter Artifact page
+type BTPEvidenceBundle = {
+  format: 'btps-evidence/1';
+  originator: string;
+  agreement: BTPAgreementDoc;
+  statements: BTPStatementRecord[];
+  keys: { identity: string; selector: string; publicKey: string; fingerprint: string }[];
+};
+
+// What verifyEvidenceBundle reports: facts, never a verdict
+type BTPEvidenceFacts = {
+  contentSha256: string;
+  originatorSignatureValid: boolean;
+  termsAttached: boolean;
+  statements: (BTPStatementSignatureFacts & {
+    signer: string;
+    decision: 'accepted' | 'declined';
+    agreementMatches: boolean;
+    termsMatch: boolean;
+    withinDeadline: boolean;
+    inOrder: boolean;
+  })[];
+  complete: boolean; // every fact holds, and every signer accepted, once
+};
+
 // Since 1.2: detail values by permission name, e.g. { "detail:dob": "1990-04-21" }
 type BTPDetailValues = {
   'detail:legalName'?: string;

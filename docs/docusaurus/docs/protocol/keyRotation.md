@@ -134,6 +134,11 @@ graph TD
 
 `s=` is domain-wide: senders use it as their own selector and receivers look up keys under it for every address on the domain. Publish a key under the new selector for **every** identity on the domain before changing `s=`. Keep the old selector's records until artifacts signed with it can no longer arrive: a receiver verifies each artifact with the key at the selector it names.
 
+**Since 1.2, two rules so that signatures can still be confirmed years later**, as an agreement's must (see [The evidence bundle](./specifications/transporter-artifact.md#the-evidence-bundle)):
+
+- A provider MUST never reuse a selector for a different key of the same identity. A new key always gets a new selector.
+- A provider MUST keep old public keys answerable at their selectors, after rotation, for at least as long as it keeps documents signed with them. Rotating `s=` moves which key signs next; it never removes the old key's record.
+
 ## Preparation for Key Rotation
 
 ### 1. Key Generation and Validation

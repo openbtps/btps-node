@@ -1,18 +1,5 @@
 {
   "description": "Checks that fail on the BTPS 1.2 baseline (release 1.1.3) because the 1.2 rule they prove is not built yet; each value names the 1.2 change that makes it pass. `verify-btps-vectors --known-failing test/vectors/known-failing.json` passes only while the failing set is exactly this list, so each change must remove its own entries in the same pull request that makes them pass. The list is empty again before 1.2 is released.",
   "baseline": "5b5dafbfecefd845b94d2a2b347b19b588f73f2e",
-  "checks": {
-    "sdk/protocol/agreements/bundle/complete-sequential-with-identity-keys": "Agreements: the evidence bundle and verifyEvidenceBundle",
-    "sdk/protocol/agreements/bundle/complete-with-a-device-signed-acceptance": "Agreements: the evidence bundle and verifyEvidenceBundle",
-    "sdk/protocol/agreements/bundle/complete-in-any-order": "Agreements: the evidence bundle and verifyEvidenceBundle",
-    "sdk/protocol/agreements/bundle/declined": "Agreements: the evidence bundle and verifyEvidenceBundle",
-    "sdk/protocol/agreements/bundle/waiting-for-the-last-signer": "Agreements: the evidence bundle and verifyEvidenceBundle",
-    "sdk/protocol/agreements/bundle/content-changed-after-signing": "Agreements: the evidence bundle and verifyEvidenceBundle",
-    "sdk/protocol/agreements/bundle/statement-changed-after-signing": "Agreements: the evidence bundle and verifyEvidenceBundle",
-    "sdk/protocol/agreements/bundle/statement-signed-by-another-device": "Agreements: the evidence bundle and verifyEvidenceBundle",
-    "sdk/protocol/agreements/bundle/out-of-turn": "Agreements: the evidence bundle and verifyEvidenceBundle",
-    "sdk/protocol/agreements/bundle/after-the-deadline": "Agreements: the evidence bundle and verifyEvidenceBundle",
-    "sdk/protocol/agreements/bundle/a-term-that-is-not-its-attachment": "Agreements: the evidence bundle and verifyEvidenceBundle",
-    "sdk/protocol/agreements/bundle/a-signer-key-left-out": "Agreements: the evidence bundle and verifyEvidenceBundle"
-  }
+  "checks": {}
 }
