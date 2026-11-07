@@ -10,6 +10,9 @@
 // provider delegates and delivers, then moves to a new key. A code works once;
 // a device the provider never registered is refused, and so is a phone
 // sending as someone other than its user.
+//
+// An agent action outside IMMEDIATE_ACTIONS is answered 200 once its provider
+// takes it, before delivery, so assert its arrival with vi.waitFor.
 
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { BtpsAuthentication } from '../../src/core/authentication/BtpsAuthentication.js';
@@ -191,7 +194,6 @@ describe('journey: a user registers a phone', () => {
 
       expect(error).toBeUndefined();
       expect(response?.status).toMatchObject({ ok: true, code: 200 });
-      // A send is answered once taken, before the provider delivers it: wait for it to arrive.
       const arrived = await vi.waitFor(
         () => {
           const found = elsewhere.inbox.find(
