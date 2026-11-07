@@ -22,7 +22,7 @@ Every agent command reaches one handler, `onIncomingArtifact('Agent', handler)`.
 
 Your server moves an artifact from the outbox to the sentbox once it is delivered.
 
-For complete BtpsAgent command documentation, see [BtpsAgent.command()](/docs/sdk/class-api-references#command).
+For complete BtpsAgent command documentation, see [BtpsAgent.command()](../../sdk/classApiReference.md#command).
 
 ## Supported Agent Actions
 
@@ -831,8 +831,8 @@ With query support implemented, you can now:
 
 ## See Also
 
-- [BtpsAgent.command()](/docs/sdk/class-api-references#command) - Complete command API documentation
+- [BtpsAgent.command()](../../sdk/classApiReference.md#command) - Complete command API documentation
 - [Data Storage Support](./dataStorageSupport.md)
 - [Event Handlers](./eventHandlers.md)
 - [Server Setup](./setup.md)
-- [BtpsServer.onIncomingArtifact()](/docs/sdk/class-api-references#onincomingartifact) - Event handler documentation
+- [BtpsServer.onIncomingArtifact()](../../sdk/classApiReference.md#onincomingartifact) - Event handler documentation

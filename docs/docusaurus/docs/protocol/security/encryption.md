@@ -71,7 +71,7 @@ sequenceDiagram
 
 ## Signing Process
 
-See [Signature](/docs/protocol/security/signature-verification) for full details.
+See [Signature](./signature.md) for full details.
 
 ## Notes
 

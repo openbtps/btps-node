@@ -20,7 +20,7 @@ When a `BtpsAgent` sends a command to your server, the server follows this flow:
 5. **Transporter processes** from outbox asynchronously (like SMTP mail delivery)
 6. **Results stored** in sent inbox (success) or failure inbox with `BTPDeliveryFailureDoc` (failure)
 
-For detailed information about the BtpsTransporter class, see [BtpsTransporter Overview](/docs/client/btpsTransporter/overview) and [BtpsTransporter API Reference](/docs/sdk/class-api-references#btpstransporter).
+For detailed information about the BtpsTransporter class, see [BtpsTransporter Overview](../../client/btpsTransporter/overview.md) and [BtpsTransporter API Reference](../../sdk/classApiReference.md#btpstransporter).
 
 ## Transporter API
 
@@ -33,7 +33,7 @@ The `BtpsTransporter` class provides:
 - **Connection Management**: `registerConnection()`, `deregisterConnection()`
 - **Metrics**: Connection counts, active connections, etc.
 
-For complete API documentation, see [BtpsTransporter Class Reference](/docs/sdk/class-api-references#btpstransporter).
+For complete API documentation, see [BtpsTransporter Class Reference](../../sdk/classApiReference.md#btpstransporter).
 
 ## Setting Up Transporter in Your Server
 
@@ -52,7 +52,7 @@ const trustStore = new JsonTrustStore({
 });
 
 // Transporter factory - creates different instances per user
-// See [BtpsTransporter Overview](/docs/client/btpsTransporter/overview) for detailed architecture
+// See [BtpsTransporter Overview](../../client/btpsTransporter/overview.md) for detailed architecture
 function createTransporter(userId: string) {
   return new BtpsTransporter({
     maxConnections: 10,
@@ -247,7 +247,7 @@ async function handleImmediateRequest(artifact: any, resCtx: any) {
 
 ### Step 4: Implement Outbox Processing
 
-See [BtpsTransporter.transport()](/docs/sdk/class-api-references#transport) for complete API
+See [BtpsTransporter.transport()](../../sdk/classApiReference.md#transport) for complete API
 
 ```typescript
 // src/transporter-processor.ts
@@ -443,7 +443,7 @@ MAX_RETRY_COUNT=3
 
 ### Test Script
 
-See [BtpsAgent Class Reference](/docs/sdk/class-api-references#btpsagent) for complete API
+See [BtpsAgent Class Reference](../../sdk/classApiReference.md#btpsagent) for complete API
 
 ```typescript
 // test-transporter-integration.ts
@@ -500,7 +500,7 @@ console.log('Inbox result:', inboxResult); // Should return inbox items
 - **`inbox.fetch`** (respondNow: true): Fetch inbox immediately
 - **`outbox.fetch`** (respondNow: true): Fetch outbox immediately
 
-For complete BtpsAgent command documentation, see [BtpsAgent.command()](/docs/sdk/class-api-references#command).
+For complete BtpsAgent command documentation, see [BtpsAgent.command()](../../sdk/classApiReference.md#command).
 
 ### Transporter Flow
 
@@ -530,6 +530,6 @@ With transporter integration configured, you can now:
 - [Event Handlers](./eventHandlers.md)
 - [Middleware Integration](./middlewares.md)
 - [Server Setup](./setup.md)
-- [BtpsTransporter Overview](/docs/client/btpsTransporter/overview) - Detailed architecture and use cases
-- [BtpsTransporter API Reference](/docs/sdk/class-api-references#btpstransporter) - Complete class documentation
-- [BtpsAgent API Reference](/docs/sdk/class-api-references#btpsagent) - Agent command documentation
+- [BtpsTransporter Overview](../../client/btpsTransporter/overview.md) - Detailed architecture and use cases
+- [BtpsTransporter API Reference](../../sdk/classApiReference.md#btpstransporter) - Complete class documentation
+- [BtpsAgent API Reference](../../sdk/classApiReference.md#btpsagent) - Agent command documentation
