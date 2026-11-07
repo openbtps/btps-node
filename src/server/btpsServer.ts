@@ -119,6 +119,20 @@ import { BtpAuthReqDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import { keyProofPayload } from '@core/authentication/keyProof.js';
 import type { BTPIdentityRecord } from '@core/storage/types.js';
 import type { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
+import * as BTPS_ERROR_CONSTANTS from '@core/error/constant.js';
+
+/** Every BTPS error constant, by its code: the only errors a sender is told by name. */
+const BTPS_ERRORS_BY_CODE = new Map<string, BTPError>(
+  Object.values(BTPS_ERROR_CONSTANTS)
+    .filter(
+      (value): value is BTPError =>
+        typeof value === 'object' &&
+        value !== null &&
+        typeof (value as BTPError).code === 'string' &&
+        typeof (value as BTPError).status === 'number',
+    )
+    .map((constant) => [String(constant.code), constant]),
+);
 
 /**
  * BTPS Secure Server over TLS (btps://)
@@ -1635,11 +1649,29 @@ export class BtpsServer {
   }
 
   private errorStatus(error: BTPError, fromMiddleware: boolean): BTPStatus {
-    if (error.status && typeof error.code === 'string') {
-      return { ok: false, code: error.status, message: error.message, error: error.code };
+    // A platform's own answer: a plain object its middleware sends with res.sendError, as given.
+    if (fromMiddleware && !(error instanceof Error)) {
+      if (error.status && typeof error.code === 'string') {
+        return { ok: false, code: error.status, message: error.message, error: error.code };
+      }
+      if (typeof error.code === 'number') {
+        return { ok: false, code: error.code, message: error.message };
+      }
     }
-    if (fromMiddleware && typeof error.code === 'number') {
-      return { ok: false, code: error.code, message: error.message };
+    // Anything thrown, or an error passed on as caught: told only as a BTPS error, by its
+    // code, with its constant's status, and its constant's message or that message with
+    // the detail the server adds (`<message>: <detail>`).
+    const constant =
+      typeof error.code === 'string' ? BTPS_ERRORS_BY_CODE.get(error.code) : undefined;
+    if (constant?.status !== undefined) {
+      const ownMessage =
+        error.message === constant.message || error.message.startsWith(`${constant.message}: `);
+      return {
+        ok: false,
+        code: constant.status,
+        message: ownMessage ? error.message : constant.message,
+        error: String(constant.code),
+      };
     }
     return {
       ok: false,

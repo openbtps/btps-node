@@ -329,8 +329,9 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   lines in flight, and ends a connection after `maxConsecutiveInvalidLines`
   unreadable lines in a row (default 10).
 - `BtpsAuthentication` errors carry no refresh token or registration code.
-- An error thrown with a code of its own reaches the sender as the generic
-  500; only middleware's `res.sendError` sends a numeric code as given.
+- An error thrown, or passed on as caught, reaches the sender only as a BTPS
+  constant, else as the generic 500; a platform's own plain answer sent with
+  `res.sendError` goes as given.
 
 ### Upgrading from 1.1
 
