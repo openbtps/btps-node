@@ -296,9 +296,9 @@ fs.writeFileSync(
   `${JSON.stringify(
     {
       name: 'btps-golden-vectors',
-      protocol: 'BTPS 1.1',
+      protocol: 'BTPS 1.2',
       description:
-        'Every file of the BTPS 1.1 golden vector set, with the lowercase hex SHA-256 of its bytes. See test/vectors/README.md.',
+        'Every file of the BTPS 1.2 golden vector set, which covers 1.1 too, with the lowercase hex SHA-256 of its bytes. See test/vectors/README.md.',
       hashAlgorithm: 'sha256',
       files,
     },

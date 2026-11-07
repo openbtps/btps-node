@@ -1,6 +1,6 @@
 # BTPS golden vectors
 
-These are the vectors for BTPS 1.1. Every runtime must reproduce them exactly: Node, web, and
+These are the vectors for BTPS 1.1 and 1.2. Every runtime must reproduce them exactly: Node, web, and
 later iOS and Android. The runner is
 [`packages/verify-btps-vectors`](../../packages/verify-btps-vectors/).
 
@@ -23,7 +23,7 @@ algorithm is the one that mode uses.
 
 ### The protocol vectors
 
-What any BTPS 1.1 implementation, in any language, must accept, refuse and
+What any BTPS 1.1 or 1.2 implementation, in any language, must accept, refuse and
 reproduce. They are written from the specification (`scripts/protocol-vectors.mjs`),
 not computed by the SDK, so they test the SDK rather than repeat it. Each file
 says in its `description` how to read its cases.
@@ -81,6 +81,12 @@ always rewrites `manifest.json`, and a check fails when any file differs
 from its manifest entry. To add a vector: run the generator, format the new
 file with Prettier, then run the generator again so the manifest hashes the
 formatted bytes.
+
+To check that the committed set is what the generator makes, without
+`--force`: run it with `--force` in a copy of the tree, format that copy's
+files with Prettier, and compare. Only keys, signatures, wrapped keys, IVs,
+timestamp tokens and the hashes over them may differ, and the copy must pass
+`verify-btps-vectors` but for its manifest.
 
 Money: RFC 8785 serialises an integer above 2^53 − 1 as the nearest double,
 which for money would mean a silently different amount. The 1.1 documents
