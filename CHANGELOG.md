@@ -262,6 +262,15 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   sending again. A server sends it from an error's `meta.retryAfter`, for its
   own refusals and middleware's `res.sendError` alike; nothing else from
   `meta` reaches the wire, and `cause` never does.
+- **An answer says when it is the connection's last.** `status.closing: true`,
+  in a `1.2.0` response, is on every answer after which a server ends the
+  connection: a refusal that ends it, `QUIT`, an idle timeout. A `BtpsClient`
+  that reads it sends its next artifact on a new connection. Before, the end
+  could reach the client after the answer did, and a send written in between
+  went to a connection nobody read and failed with
+  `BTP_ERROR_CONNECTION_ENDED`. A 1.1 server's answers say nothing, so with
+  one the client still only lets in an end that has already arrived, as in
+  1.1.
 
 ### Changed
 

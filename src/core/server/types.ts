@@ -236,6 +236,8 @@ export type BTPStatus = {
   error?: string;
   /** Since 1.2, on a 429 only: whole seconds to wait before sending again */
   retryAfter?: number;
+  /** Since 1.2: the server ends the connection after this answer, so send nothing more on it */
+  closing?: true;
 };
 
 export interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFailureArtifact> {

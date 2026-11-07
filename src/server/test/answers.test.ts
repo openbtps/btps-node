@@ -105,6 +105,45 @@ describe("a provider's answer", () => {
     expect(socket.destroy).toHaveBeenCalled();
   });
 
+  describe('that ends the connection, since 1.2', () => {
+    const refusal = (version: string): BTPServerResponse => ({
+      version,
+      id: 'answer-1',
+      issuedAt,
+      type: 'btps_error',
+      reqId: 'req-1',
+      status: { ok: false, code: 429, error: 'BTP_ERROR_RATE_LIMITER' },
+    });
+    const sent = (version: string, action?: 'end' | 'destroy') => {
+      const { socket, tlsSocket, written } = recordingSocket();
+      server['sendBtpsResponse'](tlsSocket, refusal(version), action);
+      return { socket, status: (JSON.parse(written[0] ?? 'null') as BTPServerResponse).status };
+    };
+
+    it('says so, closing gently or at once, so its sender writes nothing more to it', () => {
+      const ended = sent('1.2.0', 'end');
+      expect(ended.status.closing).toBe(true);
+      expect(ended.socket.end).toHaveBeenCalled();
+
+      const destroyed = sent('1.2.0', 'destroy');
+      expect(destroyed.status.closing).toBe(true);
+      expect(destroyed.socket.destroy).toHaveBeenCalled();
+    });
+
+    it('says nothing when the connection stays open', () => {
+      const { socket, status } = sent('1.2.0');
+      expect(status).not.toHaveProperty('closing');
+      expect(socket.end).not.toHaveBeenCalled();
+    });
+
+    it('says nothing in a 1.1.0 answer, which has no field for it', () => {
+      const { socket, status } = sent('1.1.0', 'end');
+      expect(status).not.toHaveProperty('closing');
+      expect(socket.end).toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+    });
+  });
+
   it('never takes an id with anything else as that answer', () => {
     expect(BtpServerResDocsSchema.safeParse({ id: 'draft-1', status: 'created' }).success).toBe(
       false,

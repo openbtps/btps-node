@@ -1700,6 +1700,7 @@ interface BTPStatus {
   message?: string;
   error?: string; // on an error, its BTPS code, e.g. 'BTP_ERROR_TRUST_EXPIRED'
   retryAfter?: number; // since 1.2, on a 429 only: whole seconds to wait before sending again
+  closing?: true; // since 1.2: the server ends the connection after this answer; send nothing more on it
 }
 ```
 

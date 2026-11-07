@@ -258,7 +258,7 @@ export class BtpsClient {
    * connection closing late leaves a newer one alone.
    */
   protected attachListeners(socket: TLSSocket) {
-    socket.pipe(split2()).on('data', (line: string) => void this.onData(line));
+    socket.pipe(split2()).on('data', (line: string) => void this.onData(line, socket));
 
     // Nothing more can arrive on it: once the lines already received are read, what still waits on it fails.
     const over = (error: BTPErrorException) => {
@@ -305,8 +305,8 @@ export class BtpsClient {
     this.unrefSocketIfNoQueue();
   }
 
-  protected async onData(line: string) {
-    const read = this.readLine(line);
+  protected async onData(line: string, socket?: TLSSocket) {
+    const read = this.readLine(line, socket);
     this.reading.add(read);
     try {
       await read;
@@ -315,12 +315,17 @@ export class BtpsClient {
     }
   }
 
-  protected async readLine(line: string) {
+  protected async readLine(line: string, socket?: TLSSocket) {
     if (!line.trim()) return;
 
     try {
       assertStrictJson(line);
       const msg: BTPServerResponse = JSON.parse(line);
+      // Since 1.2: the server ends this connection after this answer, so nothing
+      // more is written to it; the next send makes a new one.
+      if (msg?.status?.closing === true && socket && this.socket === socket) {
+        this.states.isConnected = false;
+      }
       this.states.shouldRetry = false;
       const { isValid: validSignature, error } = await this.verifyServerMessage(msg);
       // An error the server could not tie to a request, such as a line it
