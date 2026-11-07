@@ -312,9 +312,9 @@ const drawnSignature = z
   });
 
 /**
- * Since 1.2, under 1.2.0, on a letter's template only: the values its slots
- * show, from the sender, signed with the document. Slot names are a fixed list,
- * none of them a document field.
+ * Since 1.2, under 1.2.0, on a letter's or an agreement's template only: the
+ * values its slots show, from the sender, signed with the document. Slot names
+ * are a fixed list, none of them a document field.
  */
 const BtpTemplateValuesSchema = z
   .object({
@@ -330,7 +330,7 @@ const BtpTemplateValuesSchema = z
  * optional, are well formed when present; other keys stay the provider's. A
  * `source` comes with its `sha256`, as a logo's does: the fingerprint is what
  * makes it trustworthy, so a receiver never draws whatever an address serves.
- * Only a letter's template carries `values`.
+ * Only a letter's or an agreement's template carries `values`.
  */
 const templateSchema = (withValues: boolean) =>
   z.object({
@@ -344,7 +344,9 @@ const templateSchema = (withValues: boolean) =>
           logo: z.object({ sha256: sha256Hex, source: httpsUrl }).strict().optional(),
           values: withValues
             ? BtpTemplateValuesSchema.optional()
-            : z.undefined({ invalid_type_error: 'values are only on a letter template' }),
+            : z.undefined({
+                invalid_type_error: "values are only on a letter's or an agreement's template",
+              }),
         })
         .catchall(z.unknown())
         .refine((data) => data.source === undefined || data.sha256 !== undefined, {
