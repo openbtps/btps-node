@@ -24,6 +24,7 @@ import type {
   BTPEntityType,
   BTPPermissionName,
   BTPTrustPermissions,
+  BTPShaped,
   AgentAction,
 } from 'server/index.js';
 import type { ConnectionOptions, TLSSocket } from 'tls';
@@ -235,6 +236,8 @@ export type TypedEventEmitter<T = BtpsClientEvents> = {
 export interface BTPClientResponse {
   response?: BTPServerResponse;
   error?: BTPErrorException;
+  /** Since 1.2: a trust request sent as its 1.1 receiver allows, and what it left out */
+  shaped?: BTPShaped;
 }
 
 export type BtpsHostDnsTxt = {

@@ -179,6 +179,22 @@ export interface BTPTransporterArtifact extends BTPGenericArtifact<BTPDocType | 
 }
 
 export type BTPDocumentType = (typeof DOCUMENT_TYPES)[number];
+
+/** Since 1.2: what a trust request leaves out when its receiver's server speaks 1.1. */
+export type BTPShapedField =
+  | 'permissions'
+  | 'given'
+  | 'entityType'
+  | 'change'
+  | 'own'
+  | 'verification';
+
+/**
+ * Since 1.2: a trust request with permissions, sent as its 1.1 receiver allows:
+ * the version it went as, and what it left out. Never silent: the trust it asks
+ * for will carry no permissions.
+ */
+export type BTPShaped = { sentAs: string; leftOut: BTPShapedField[] };
 export type BTPEntityType = (typeof ENTITY_TYPES)[number];
 export type BTPSendPermission = (typeof SEND_PERMISSIONS)[number];
 export type BTPDetailPermission = (typeof DETAIL_PERMISSIONS)[number];

@@ -140,6 +140,15 @@ An address's kind is published nowhere but the envelope.
 
 **Sending one.** A device sets these with `BtpsAgent`'s `trust.request` options `permissions`, `entityType`, `given` and `change`, and `trust.respond` options `granted` and `entityType`; the agent checks the artifact as its provider will before it goes. A platform sending server to server puts the same fields on the payload it gives `signEncrypt`, which signs them with the envelope, and stamps the artifact with `artifactVersion`.
 
+**To a receiver whose server speaks 1.1.** A 1.1 server knows no permissions, so the SDK composes the request for the receiver's version, automatically and never silently:
+
+- Before it signs a trust request **with permissions**, the agent or `signEncrypt` asks the receiver's server its version, with one `PING` on a connection of its own. A request without permissions is never asked about, so it costs no round trip.
+- To a 1.1 server, it goes as 1.1 allows: without `permissions`, `given`, `entityType` and `change` on the envelope, and without `own` and `verification` in the document, stamped `1.1.0`. 1.1's own fields (`name`, `email`, `phone`, …) stay. The result says so in `shaped`, `{ sentAs: "1.1.0", leftOut: [...] }`, so the platform knows the trust will carry no permissions.
+- With `versionFallback: false`, it is refused instead (`BTP_ERROR_VERSION_UNSUPPORTED`), with the receiver's version in the error's `meta.receiverVersion`.
+- When the receiver's server cannot be asked, that error is returned and nothing is sent: a version is never guessed.
+
+`shapeTrustRequestFor11` in `@btps/sdk/trust` does the shaping alone, for a platform that builds artifacts another way. A 1.1 provider asking a 1.2 one sends a 1.1 request, which the 1.2 receiver takes as it always has. A trust made under 1.1 keeps working, and either side may later send a `change` to add permissions once both run 1.2.
+
 ### The values, checked when opened
 
 The values are in the document, encrypted, so they are checked when it is opened: `decryptVerify` refuses a trust request or answer whose values do not match its names, with `BTP_ERROR_VALIDATION`. `trustRequestProblem` and `trustResponseProblem` in `@btps/sdk/trust` run the same check on an opened artifact, for a platform that opens documents another way.

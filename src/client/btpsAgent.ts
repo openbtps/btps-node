@@ -42,6 +42,8 @@ import type {
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
 import { BtpLifecycleEventSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import { BtpTransporterArtifactSchema } from '@core/server/schemas/artifacts/transporterSchema.js';
+import { composeTrustRequestFor } from '@core/trust/shaping.js';
+import type { BTPShaped } from '@core/server/types.js';
 import { validate } from '@core/utils/validation.js';
 import {
   AGENT_ACTIONS_REQUIRING_DOCUMENT,
@@ -123,13 +125,15 @@ export class BtpsAgent extends BtpsClient {
 
     // An agent artifact that carries a transporter artifact needs a server of that one's version.
     let carriedVersion: string | undefined;
+    let shaped: BTPShaped | undefined;
     const needForTransport = Object.keys(mappedTransporterAction).includes(actionType);
     if (needForTransport) {
-      const { payload: transporterPayload, error: transporterError } =
-        await this.buildTransportArtifact({
-          ...commandParams,
-          to: commandParams.to,
-        });
+      const built = await this.buildTransportArtifact({
+        ...commandParams,
+        to: commandParams.to,
+      });
+      const { payload: transporterPayload, error: transporterError } = built;
+      shaped = built.shaped;
 
       if (transporterError) {
         return await this.buildClientErrorResponse(transporterError);
@@ -161,6 +165,7 @@ export class BtpsAgent extends BtpsClient {
       return {
         payload: agentArtifact as BTPCryptoArtifact<BTPDocType>,
         error: undefined,
+        ...(shaped && { shaped }),
       };
     } catch (error) {
       return await this.buildClientErrorResponse(transformToBTPErrorException(error));
@@ -170,7 +175,31 @@ export class BtpsAgent extends BtpsClient {
   protected async buildTransportArtifact(
     commandParams: BtpsAgentCommandParams,
   ): Promise<BTPCryptoResponse<BTPDocType>> {
-    const { document, actionType, to, options } = commandParams;
+    const { actionType, to } = commandParams;
+    let { document, options } = commandParams;
+
+    // Since 1.2: a trust request with permissions goes as its receiver's version allows.
+    let shaped: BTPShaped | undefined;
+    if (actionType === 'trust.request' && options?.permissions !== undefined) {
+      const { permissions, given, entityType, change } = options;
+      const composed = await composeTrustRequestFor(
+        to,
+        { type: 'TRUST_REQ', document, permissions, given, entityType, change },
+        { versionFallback: options.versionFallback, btpMtsOptions: this.options.btpMtsOptions },
+      );
+      if (composed.error) return await this.buildClientErrorResponse(composed.error);
+      if (composed.shaped) {
+        shaped = composed.shaped;
+        document = composed.payload.document as BtpsAgentDoc;
+        options = {
+          ...options,
+          permissions: undefined,
+          given: undefined,
+          entityType: undefined,
+          change: undefined,
+        };
+      }
+    }
 
     // Document validation is already handled by schema validation above
     // This check is redundant but kept for clarity
@@ -311,6 +340,7 @@ export class BtpsAgent extends BtpsClient {
           signature,
         } as BTPCryptoArtifact<BTPDocType>,
         error: undefined,
+        ...(shaped && { shaped }),
       };
     } catch (error) {
       return this.buildClientErrorResponse(error as BTPErrorException);
@@ -346,12 +376,13 @@ export class BtpsAgent extends BtpsClient {
       );
     }
 
-    const { payload, error } = await this.getAgentArtifact(commandParams);
+    const { payload, error, shaped } = await this.getAgentArtifact(commandParams);
     if (error) {
       return await this.buildClientErrorResponse(error);
     }
 
-    return this.send(payload as BTPAgentArtifact, timeoutMs);
+    const sent = await this.send(payload as BTPAgentArtifact, timeoutMs);
+    return shaped ? { ...sent, shaped } : sent;
   }
 
   /**

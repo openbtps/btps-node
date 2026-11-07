@@ -430,6 +430,8 @@ signEncrypt<T>(
 **Description:**
 Signs and (optionally) encrypts a BTPS document for secure transmission. Handles key lookup, encryption, and signature in one step. Now supports key rotation through selector-based public key resolution.
 
+Since 1.2, a `TRUST_REQ` payload carrying `permissions` is composed for its receiver's version: one `PING` asks the receiver's server, and to a 1.1 server it is sent as 1.1 allows, reported in the result's `shaped`, or refused with `options.versionFallback: false`. If the receiver's server cannot be asked, that error is returned. A payload without permissions is never asked about. See [To a receiver whose server speaks 1.1](../protocol/specifications/transporter-artifact.md#trust-permissions).
+
 **Arguments:**
 
 - `to` (`string | undefined`, required): Recipient BTPS identity. If undefined, no encryption is performed.
@@ -1109,6 +1111,23 @@ documentTypeProblem(
 
 **Description:**
 Since 1.2. Why a send does not meet the receiver's trust record, or `undefined`. Under a trust with permissions, a `BTPS_DOC` names its `documentType`, `send:<documentType>` is granted, and a readable document is that type. A trust without permissions (a 1.1 trust) takes any type, and other artifact types are not checked. The server runs it on every send it receives. See [A send's document type](../protocol/specifications/transporter-artifact.md#a-sends-document-type).
+
+---
+
+### shapeTrustRequestFor11 / composeTrustRequestFor
+
+```ts
+shapeTrustRequestFor11<T>(payload: T): { payload: T; shaped: BTPShaped }
+
+composeTrustRequestFor<T>(
+  to: string,
+  payload: T,
+  options?: { versionFallback?: boolean; btpMtsOptions?: ConnectionOptions }
+): Promise<{ payload: T; shaped?: BTPShaped } | { error: BTPErrorException }>
+```
+
+**Description:**
+Since 1.2. `shapeTrustRequestFor11` returns a trust request as a 1.1 receiver allows: without `permissions`, `given`, `entityType` and `change`, and without `own` and `verification` in its document, restamped, with what it left out. `composeTrustRequestFor` asks the receiver's server its version (one `PING`) for a `TRUST_REQ` carrying permissions only, and shapes it for a 1.1 server, refuses it with `versionFallback: false`, or returns the error when the server cannot be asked. `signEncrypt` and `BtpsAgent` call it themselves; a platform that builds artifacts another way calls it before it signs. See [To a receiver whose server speaks 1.1](../protocol/specifications/transporter-artifact.md#trust-permissions).
 
 ---
 
