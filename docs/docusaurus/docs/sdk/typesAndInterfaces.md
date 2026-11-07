@@ -281,6 +281,12 @@ type BtpsAgentCommandOptions = BTPCryptoOptions & {
   syncOf?: BTPSyncOf; // since 1.2
   documentType?: BTPDocumentType; // since 1.2
   details?: BTPDetailPermission[]; // since 1.2
+  // Since 1.2, trust permissions:
+  permissions?: BTPTrustPermissions; // trust.request
+  entityType?: BTPEntityType; // trust.request, trust.respond
+  given?: BTPDetailPermission[]; // trust.request
+  change?: true; // trust.request
+  granted?: BTPPermissionName[]; // trust.respond
 };
 
 interface BTPSyncOf {
@@ -293,6 +299,9 @@ interface BTPSyncOf {
 - `details`: Since 1.2, required on `details.changed`, `details.request` and `details.respond`, and refused elsewhere: the `detail:` names the artifact is about, set on its envelope. A `details.respond` also needs `encryption`. See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)
 - `syncOf`: Since 1.2, on `artifact.send` to the device's own address only, and refused elsewhere: this send is a sync, the user's own copy of the send it names. `syncOfArtifact(sentArtifact)` gives it. It is set on the envelope and stamps the artifact `1.2.0`. See [Sync](../protocol/specifications/transporter-artifact.md#sync)
 - `documentType`: Since 1.2, on `artifact.send` only, and refused elsewhere: the document's own `type`, for a send under a trust with permissions, whose receiver checks that `send:<documentType>` is granted. A value that is not the document's type is refused before anything is sent. It is set on the envelope and stamps the artifact `1.2.0`, so leave it out for any other send. See [Trust permissions](../protocol/specifications/transporter-artifact.md#a-sends-document-type)
+- `permissions`, `entityType`, `given`, `change`: Since 1.2, on `trust.request`: the permissions asked for, what owns the user's address, the details the user gives (their values go in the document: see [The values](../protocol/specifications/transporter-artifact.md#the-values-checked-when-opened)), and whether this changes an active trust. `entityType` is required with `permissions`
+- `granted`, `entityType`: Since 1.2, on `trust.respond`, when accepting: the names granted, and what owns the user's address
+- Each of these is set on the envelope and stamps the artifact `1.2.0`. The built artifact is checked as its provider will check it, so a request that does not give what it asks for, or names a permission that is not the protocol's, is refused before it is sent (`BTP_ERROR_VALIDATION`, naming the rule)
 
 ### BTPConnection
 

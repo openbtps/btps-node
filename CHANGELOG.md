@@ -141,6 +141,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   own provider checks the names before it sends them, as the receiver will,
   from the user's own record of the trust, and tells
   `server.on('detailsShared', …)` of each response it takes.
+- **A device's trust request and answer with permissions.** New `BtpsAgent`
+  command options: `permissions`, `entityType`, `given` and `change` on
+  `trust.request`, and `granted` and `entityType` on `trust.respond`. They go
+  on the envelope and stamp the artifact `1.2.0`, and the agent checks the
+  artifact as its provider will before it goes, so a request that does not
+  give what it asks for is refused before it is sent.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).

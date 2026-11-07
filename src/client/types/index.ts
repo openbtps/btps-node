@@ -21,6 +21,9 @@ import type {
   BTPSyncOf,
   BTPDocumentType,
   BTPDetailPermission,
+  BTPEntityType,
+  BTPPermissionName,
+  BTPTrustPermissions,
   AgentAction,
 } from 'server/index.js';
 import type { ConnectionOptions, TLSSocket } from 'tls';
@@ -115,6 +118,19 @@ export type BtpsAgentCommandOptions = BTPCryptoOptions & {
    * document's own `type`, and stamps the artifact `1.2.0`, so leave it out for any other send.
    */
   documentType?: BTPDocumentType;
+  /**
+   * Since 1.2, on `trust.request` only: the permissions asked for, one flat list (see Trust permissions). With it,
+   * `entityType` is required, and every detail asked for is given in `given`.
+   */
+  permissions?: BTPTrustPermissions;
+  /** Since 1.2, on `trust.request` and `trust.respond`: what owns the user's address. Required with `permissions` and `granted`. */
+  entityType?: BTPEntityType;
+  /** Since 1.2, on `trust.request` only: the `detail:` names of the details the user gives; their values go in the document. */
+  given?: BTPDetailPermission[];
+  /** Since 1.2, on `trust.request` only: `true` for a change to an active trust, asking for the whole set now wanted. */
+  change?: true;
+  /** Since 1.2, on `trust.respond` only, and only when accepting: the permission names granted. */
+  granted?: BTPPermissionName[];
   /**
    * The id of the artifact the command sends, a UUID. Sending the same document again after a lost answer under
    * the same id lets the receiver keep it once. Without it, a new id. An event always travels under its own id, so
