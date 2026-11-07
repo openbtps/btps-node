@@ -408,7 +408,7 @@ The client manages several internal states:
 
 - **isConnecting**: Establishing TLS connection
 - **isConnected**: Ready to send artifacts
-- **isDraining**: Handling backpressure (network is slow)
+- **isDraining**: Always `false` since 1.2: the socket buffers what it cannot send at once
 - **isDestroyed**: Client has been cleaned up
 - **shouldRetry**: Whether retries are allowed
 

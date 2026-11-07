@@ -150,6 +150,7 @@ export type BtpsAgentCommandParams = {
 export interface ConnectionStates {
   isConnecting: boolean;
   isConnected: boolean;
+  /** Always false since 1.2: the socket buffers what it cannot send at once, and the client keeps no queue of its own. */
   isDraining: boolean;
   isDestroyed: boolean;
   shouldRetry: boolean;
