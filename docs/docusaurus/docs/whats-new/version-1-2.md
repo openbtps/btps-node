@@ -1,7 +1,7 @@
 ---
 title: What's new in 1.2
 sidebar_label: 1.2
-slug: /whats-new/1.2
+slug: /whats-new/1-2
 ---
 
 # What's new in 1.2
@@ -10,7 +10,7 @@ BTPS 1.2 is the beta: the wire settles, and changes after it should only add, no
 
 :::tip Upgrading from 1.1?
 
-Start with [Migrating from 1.1 to 1.2](./version-1.2-migration.md): what changes for you, the steps in a safe order with rollback at each, and the order to adopt each feature in.
+Start with [Migrating from 1.1 to 1.2](./version-1-2-migration.md): what changes for you, the steps in a safe order with rollback at each, and the order to adopt each feature in.
 
 :::
 
@@ -40,6 +40,6 @@ Start with [Migrating from 1.1 to 1.2](./version-1.2-migration.md): what changes
 
 ## Upgrading from 1.1
 
-A 1.1 provider upgrades without changing what it sends. What changes in the trust and token stores, which answers a 1.1 caller now handles, which middleware to register, and the order to adopt each feature in: [Migrating from 1.1 to 1.2](./version-1.2-migration.md).
+A 1.1 provider upgrades without changing what it sends. What changes in the trust and token stores, which answers a 1.1 caller now handles, which middleware to register, and the order to adopt each feature in: [Migrating from 1.1 to 1.2](./version-1-2-migration.md).
 
 Every change is in the [changelog](https://github.com/openbtps/btps-node/blob/release/1.2/CHANGELOG.md). The rules in full are in the [specification](../protocol/specifications/overview.md).

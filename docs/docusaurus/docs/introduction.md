@@ -10,7 +10,7 @@ slug: /
 
 **BTPS (Billing Trust Protocol Secure)** is an open, trust-based protocol for secure, cryptographically verifiable billing and invoice communication. It is designed to stop invoice fraud, automate onboarding, and enable secure, auditable, and interoperable billing workflows across SaaS, fintech, and enterprise platforms.
 
-**New in 1.2:** trust permissions, details refresh, verification, agreements with evidence bundles, and more: see [What's new in 1.2](./whats-new/version-1.2.md), and each feature's guide under [Features](./features/trustPermissions.md).
+**New in 1.2:** trust permissions, details refresh, verification, agreements with evidence bundles, and more: see [What's new in 1.2](./whats-new/version-1-2.md), and each feature's guide under [Features](./features/trustPermissions.md).
 
 ## 🏗️ High-Level Architecture
 

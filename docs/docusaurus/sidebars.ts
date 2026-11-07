@@ -25,7 +25,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: "What's new",
       collapsed: false,
-      items: ['whats-new/version-1.2', 'whats-new/version-1.2-migration'],
+      items: ['whats-new/version-1-2', 'whats-new/version-1-2-migration'],
     },
     {
       type: 'category',

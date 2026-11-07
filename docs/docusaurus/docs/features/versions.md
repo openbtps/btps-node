@@ -125,4 +125,4 @@ A server that ends a connection after an answer (a refusal that ends it, `QUIT`,
 
 ## Protocol and platform
 
-Stamping, asking and shaping are the SDK's, automatically. What to do when a receiver speaks 1.1 (send as 1.1 allows, or refuse) is the platform's choice, through `versionFallback`. What changes for a 1.1 provider that upgrades is in [Migrating from 1.1 to 1.2](../whats-new/version-1.2-migration.md).
+Stamping, asking and shaping are the SDK's, automatically. What to do when a receiver speaks 1.1 (send as 1.1 allows, or refuse) is the platform's choice, through `versionFallback`. What changes for a 1.1 provider that upgrades is in [Migrating from 1.1 to 1.2](../whats-new/version-1-2-migration.md).

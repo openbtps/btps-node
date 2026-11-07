@@ -1,7 +1,7 @@
 ---
 title: Migrating from 1.1 to 1.2
 sidebar_label: Migrating from 1.1
-slug: /whats-new/1.2/migration
+slug: /whats-new/1-2/migration
 ---
 
 # Migrating from 1.1 to 1.2

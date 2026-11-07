@@ -153,4 +153,4 @@ The feature journey (`tests/e2e/features.e2e.test.ts`) checks that a caching res
 | the trust and its permissions; `isKnownArtifact`      | an agreement's order: `agreementOrderCheck`, then `agreementStatementProblem` once opened |
 | in-flight, invalid-line and size limits               | your own limits: `detailsRequestLimit`                                                    |
 
-When to register each, for a provider upgrading from 1.1: [Migrating from 1.1 to 1.2](../whats-new/version-1.2-migration.md#4-register-the-checks-12-leaves-to-you).
+When to register each, for a provider upgrading from 1.1: [Migrating from 1.1 to 1.2](../whats-new/version-1-2-migration.md#4-register-the-checks-12-leaves-to-you).

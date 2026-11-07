@@ -6,8 +6,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased] — 1.2.0
 
-What's new, with a guide for each feature: [What's new in 1.2](https://www.openbtps.org/docs/next/whats-new/1.2).
-Upgrading a 1.1 provider: [Migrating from 1.1 to 1.2](https://www.openbtps.org/docs/next/whats-new/1.2/migration).
+What's new, with a guide for each feature: [What's new in 1.2](https://www.openbtps.org/docs/next/whats-new/1-2).
+Upgrading a 1.1 provider: [Migrating from 1.1 to 1.2](https://www.openbtps.org/docs/next/whats-new/1-2/migration).
 
 ### Added
 
@@ -356,7 +356,7 @@ without `permissions` is a 1.1 trust, checked as 1.1 checks it. In short:
   middleware the platform registers, from `@btps/sdk/server/core`.
 
 The steps, in a safe order with rollback at each, the code, and the order to
-adopt each feature in: [Migrating from 1.1 to 1.2](https://www.openbtps.org/docs/next/whats-new/1.2/migration).
+adopt each feature in: [Migrating from 1.1 to 1.2](https://www.openbtps.org/docs/next/whats-new/1-2/migration).
 
 ## [1.1.3] — 2026-10-30 (alpha)
 
