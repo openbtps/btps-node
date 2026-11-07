@@ -8,10 +8,12 @@
 import { z } from 'zod';
 import { CONTROL_ACTIONS } from '../../constants/control.js';
 
-// Schema for control artifacts
-export const BtpControlArtifactSchema = z.object({
-  version: z.string(),
-  id: z.string(),
-  issuedAt: z.string().datetime(),
-  action: z.enum(CONTROL_ACTIONS),
-});
+// Schema for control artifacts: these members only, so no other kind of artifact passes as one
+export const BtpControlArtifactSchema = z
+  .object({
+    version: z.string(),
+    id: z.string(),
+    issuedAt: z.string().datetime(),
+    action: z.enum(CONTROL_ACTIONS),
+  })
+  .strict();

@@ -8,13 +8,15 @@
 import { z } from 'zod';
 import { identitySchema } from '../shared.js';
 
-// Schema for identity lookup request artifacts
-export const BtpIdentityLookupRequestSchema = z.object({
-  version: z.string(),
-  id: z.string(),
-  issuedAt: z.string().datetime(),
-  identity: identitySchema,
-  from: identitySchema,
-  hostSelector: z.string(),
-  identitySelector: z.string().optional(),
-});
+// Schema for identity lookup request artifacts: these members only, so no other kind of artifact passes as one
+export const BtpIdentityLookupRequestSchema = z
+  .object({
+    version: z.string(),
+    id: z.string(),
+    issuedAt: z.string().datetime(),
+    identity: identitySchema,
+    from: identitySchema,
+    hostSelector: z.string(),
+    identitySelector: z.string().optional(),
+  })
+  .strict();

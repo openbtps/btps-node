@@ -110,7 +110,7 @@ import {
 } from './libs/artifactTimeWindow.js';
 import { resolveConnectionTimeoutMs } from './libs/connectionTimeout.js';
 import { resolveMaxInFlightPerConnection } from './libs/inFlightLimit.js';
-import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
+import { BtpArtifactSchemaByType } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
 import { BtpAuthReqDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import { keyProofPayload } from '@core/authentication/keyProof.js';
@@ -1487,7 +1487,7 @@ export class BtpsServer {
         return { error: 'VALIDATION', data };
       }
 
-      const validationResult = validate(BtpArtifactServerSchema, data);
+      const validationResult = validate<unknown>(BtpArtifactSchemaByType[type], data);
 
       if (!validationResult.success) {
         return {
