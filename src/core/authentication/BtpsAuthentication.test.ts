@@ -903,4 +903,58 @@ describe('BtpsAuthentication', () => {
       },
     );
   });
+
+  describe('an error, wherever it is logged', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    const carries = (error: Error | undefined, secret: string) => {
+      expect(error).toBeInstanceOf(BTPErrorException);
+      return JSON.stringify((error as BTPErrorException).toJSON()).includes(secret);
+    };
+    const refresh = (a: BtpsAuthentication, agentId: string, token: string) =>
+      a.validateAndReissueRefreshToken(agentId, token, {
+        decryptBy: 'admin$saas.com',
+        decidedBy: 'admin',
+      });
+
+    it('never carries a refresh token, used again, unknown, or of an unknown device', async () => {
+      const strict = new BtpsAuthentication({ trustStore, tokenStore, refreshGraceMs: 0 });
+      const { agentId } = await strict.createAgent(
+        { userIdentity: 'alice$saas.com', publicKey: mockKeyPair.publicKey, decidedBy: 'admin' },
+        'admin$saas.com',
+      );
+      await tokenStore.store('SECRET_USED', agentId, 'alice$saas.com', 3600000, 'admin$saas.com');
+      await tokenStore.consume(agentId, 'SECRET_USED');
+      const used = await refresh(strict, agentId, 'SECRET_USED');
+      const unknown = await refresh(strict, agentId, 'SECRET_UNKNOWN');
+      await tokenStore.store('SECRET_ORPHAN', 'btps_ag_gone', 'alice$saas.com', 3600000, 'x');
+      const orphan = await refresh(strict, 'btps_ag_gone', 'SECRET_ORPHAN');
+
+      expect(used.error).toBeDefined();
+      expect(carries(used.error, 'SECRET_USED')).toBe(false);
+      expect(unknown.error).toBeDefined();
+      expect(carries(unknown.error, 'SECRET_UNKNOWN')).toBe(false);
+      expect(orphan.error).toBeDefined();
+      expect(carries(orphan.error, 'SECRET_ORPHAN')).toBe(false);
+    });
+
+    it("never carries a device's registration code, or a refresh token its provider sent", async () => {
+      const answered = (response: unknown) => {
+        vi.spyOn(BtpsAgent.prototype, 'command').mockResolvedValue({ response } as never);
+        return BtpsAuthentication.authenticate('alice$example.com', 'SECRET_CODE', mockKeyPair);
+      };
+      const ok = { ok: true, code: 200, message: 'success' };
+
+      const refused = await answered({ type: 'btps_error', status: { ok: false, code: 401 } });
+      const partial = await answered({
+        type: 'btps_response',
+        status: ok,
+        document: { refreshToken: 'SECRET_SENT' },
+      });
+
+      expect(carries(refused.error, 'SECRET_CODE')).toBe(false);
+      expect(carries(partial.error, 'SECRET_CODE')).toBe(false);
+      expect(carries(partial.error, 'SECRET_SENT')).toBe(false);
+    });
+  });
 });

@@ -172,7 +172,7 @@ export class BtpsAuthentication {
     }
     return new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
       cause: 'Refresh token used a second time: the device is revoked',
-      meta: { agentId, refreshToken },
+      meta: { agentId },
     });
   }
 
@@ -287,7 +287,7 @@ export class BtpsAuthentication {
           success: false,
           error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
             cause: 'Invalid authentication response',
-            meta: { agentId, identity, authToken, agentInfo, response },
+            meta: { agentId, identity, agentInfo, status: response?.status },
           }),
         };
       }
@@ -300,7 +300,7 @@ export class BtpsAuthentication {
           success: false,
           error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
             cause: 'Invalid authentication response format',
-            meta: { agentId, identity, authToken, agentInfo, response },
+            meta: { agentId, identity, agentInfo, status: response?.status },
           }),
         };
       }
@@ -446,7 +446,7 @@ export class BtpsAuthentication {
         data: undefined,
         error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
           cause: 'Invalid or expired refresh token',
-          meta: { agentId, refreshToken },
+          meta: { agentId },
         }),
       };
     }
@@ -459,7 +459,7 @@ export class BtpsAuthentication {
         data: undefined,
         error: new BTPErrorException(BTP_ERROR_AUTHENTICATION_INVALID, {
           cause: `Trust record not found for ${agentId} → ${userIdentity}`,
-          meta: { agentId, userIdentity, refreshToken },
+          meta: { agentId, userIdentity },
         }),
       };
     }
