@@ -23,6 +23,7 @@ import {
   BTPArtifactType,
   AgentAction,
   AgentActionRequiringDocument,
+  BTPAgreementEvent,
   BTPLifecycleEvent,
 } from '../types.js';
 import {
@@ -30,7 +31,7 @@ import {
   BtpDetailsNoteDocSchema,
   BtpDocumentSchema,
   BtpDocumentV1_1Schema,
-  BtpLifecycleEventSchema,
+  BtpEventSchema,
   BtpLifecycleEventV1_1Schema,
   BtpTrustReqDocSchema,
   BtpTrustReqDocV1_1Schema,
@@ -67,7 +68,7 @@ export const processBtpDocSchema = (
     case 'BTPS_DOC':
       return before1_2 ? BtpDocumentV1_1Schema : BtpDocumentSchema;
     case 'BTPS_EVENT':
-      return before1_2 ? BtpLifecycleEventV1_1Schema : BtpLifecycleEventSchema;
+      return before1_2 ? BtpLifecycleEventV1_1Schema : BtpEventSchema;
     // Since 1.2, under 1.2.0 only: the envelope refuses a details artifact under 1.1.0.
     case 'DETAILS_CHANGED':
     case 'DETAILS_REQ':
@@ -92,6 +93,23 @@ export const lifecycleEventEnvelopeProblem = (
   if (event.id !== envelope.id) return "an event's id must be the id of the artifact carrying it";
   if (event.document.from !== envelope.from && event.document.from !== envelope.to) {
     return 'an event may only be about an invoice between its own sender and receiver';
+  }
+  return undefined;
+};
+
+/**
+ * Since 1.2: the rules between an agreement's event and its artifact: the
+ * event's `id` is the artifact's `id`, and it travels between the agreement's
+ * originator and a signer. Returns what is wrong, or undefined.
+ */
+export const agreementEventEnvelopeProblem = (
+  event: BTPAgreementEvent,
+  envelope: { id: string; from: string; to: string },
+): string | undefined => {
+  if (event.id !== envelope.id) return "an event's id must be the id of the artifact carrying it";
+  const { originator } = event.agreement;
+  if (!sameIdentity(originator, envelope.from) && !sameIdentity(originator, envelope.to)) {
+    return "an agreement's event travels between its originator and a signer";
   }
   return undefined;
 };
@@ -188,12 +206,14 @@ export const decryptedDocumentProblem = (
     });
   }
   if (envelope.type !== 'BTPS_EVENT') return undefined;
-  const event = parsed.data as BTPLifecycleEvent;
+  const event = parsed.data as BTPLifecycleEvent | BTPAgreementEvent;
   const { id, from, to } = envelope;
   if (typeof id !== 'string' || typeof from !== 'string' || typeof to !== 'string') {
     return 'an event must travel in an artifact with an id, from and to';
   }
-  return lifecycleEventEnvelopeProblem(event, { id, from, to });
+  return event.type === 'agreement_event'
+    ? agreementEventEnvelopeProblem(event, { id, from, to })
+    : lifecycleEventEnvelopeProblem(event, { id, from, to });
 };
 
 // Helper function to process document schema based on action type
@@ -204,7 +224,7 @@ export const processBtpDocSchemaForAgent = (actionType: string) => {
     'trust.update': BtpAgentMutationSchema,
     'trust.delete': BtpIdsPayloadSchema,
     'artifact.send': BtpDocumentSchema,
-    'event.send': BtpLifecycleEventSchema,
+    'event.send': BtpEventSchema,
     'auth.request': BtpAuthReqDocSchema,
     'auth.refresh': BtpAuthReqDocSchema,
     'inbox.fetch': BtpAgentQuerySchema,

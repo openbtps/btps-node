@@ -59,6 +59,8 @@ const USES_1_2: ((artifact: BTPVersionedArtifact) => boolean)[] = [
   },
   // A sync, naming the send it copies.
   (artifact) => artifact.syncOf !== undefined,
+  // An agreement's answer, or statements its originator forwards.
+  (artifact) => documentOf(artifact)?.type === 'agreement_event',
   // A note that says how it is written: 1.1 notes are plain strings.
   (artifact) => {
     const document = documentOf(artifact);

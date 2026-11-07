@@ -1231,6 +1231,41 @@ Since 1.2. `statementRecordSha256` is the SHA-256 of a record's RFC 8785 form, s
 
 ---
 
+### agreementStatementProblem, agreementOrderProblem
+
+```ts
+agreementStatementProblem(
+  envelope: { from: string; to: string },
+  event: { eventType: string; agreement: BTPAgreementRef; statement?: BTPStatementRecord },
+  agreement: BTPAgreementDoc,
+  earlier: readonly BTPStatementRecord[]
+): string | undefined
+agreementOrderProblem(
+  answer: { from: string; previous?: string },
+  held: BTPAgreementAnswers
+): string | undefined
+agreementTurnProblem(from: string, held: BTPAgreementAnswers): string | undefined
+```
+
+**Description:**
+Since 1.2. Why an agreement's answer does not answer it, or `undefined`: the originator's platform's checks, never the server's. `agreementTurnProblem` needs only the sender: a listed signer who has not answered, and in a sequential agreement the next one, with nothing after a decline. `agreementOrderCheck` runs it in flight. `agreementOrderProblem` adds the statement's `previous`: the SHA-256 of the answer before it in a sequential agreement, and absent in an `any` one. `agreementStatementProblem` is the full check of an opened answer: `envelope` is the answer's own `from` and `to`, `agreement` the receiver's copy, and `earlier` the statement records already taken, in order. The statement's `decision` is the event's `eventType`, it names this agreement (its originator, id and `contentSha256`) and its terms exactly, is its sender's own, is signed no later than `acceptance.by`, and follows the order. Signatures are not part of it: check them with `statementSignatureFacts`. See [Agreement events](../protocol/specifications/transporter-artifact.md#agreement-events).
+
+---
+
+### agreementOrderCheck
+
+```ts
+agreementOrderCheck(lookups: {
+  answers: (query: { relatesTo: string; signer: string; originator: string }) =>
+    Promise<BTPAgreementAnswers | undefined>;
+}): MiddlewareDefinition<'after', 'trustVerification'>
+```
+
+**Description:**
+Since 1.2, from `@btps/sdk/server/core`. Middleware a platform adds to check an agreement's answers in flight, after the server's trust check. From the envelope alone (who sent it, and the copy `relatesTo` names), with the platform's own record of the agreement from `answers`, it refuses an answer that is not its sender's turn (`agreementTurnProblem`) with `BTP_ERROR_AGREEMENT_ORDER`, the broken rule in its message. It needs no decryption. An event whose `relatesTo` is no agreement copy (`answers` gives `undefined`), and an untrusted artifact, pass on. Off until added; the server never checks the order itself. See [Agreement events](../protocol/specifications/transporter-artifact.md#agreement-events).
+
+---
+
 ### detailsProblem
 
 ```ts
@@ -1490,6 +1525,23 @@ Since 1.2. Error constant for a lifecycle event whose chain is wrong: a `withdra
 
 - `code`: `'BTP_ERROR_EVENT_CHAIN'`
 - `message`: `'Event names an earlier event it cannot follow or withdraw'`
+- `status`: `400`
+
+---
+
+### BTP_ERROR_AGREEMENT_ORDER
+
+```ts
+const BTP_ERROR_AGREEMENT_ORDER: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for an agreement's answer that is not its sender's turn: from someone who is not a signer, a signer's second answer, out of turn in a sequential agreement, or after a decline. The platform's own `agreementOrderCheck` middleware raises it in flight, with the broken rule in its message; the server itself never does.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_AGREEMENT_ORDER'`
+- `message`: `"Answer is not its sender's turn"`
 - `status`: `400`
 
 ---

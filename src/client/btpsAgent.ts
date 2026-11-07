@@ -40,7 +40,7 @@ import type {
   BTPSigningKey,
 } from '@core/crypto/types.js';
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
-import { BtpLifecycleEventSchema } from '@core/server/schemas/btpsDocsSchema.js';
+import { BtpEventSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import { BtpTransporterArtifactSchema } from '@core/server/schemas/artifacts/transporterSchema.js';
 import { composeTrustRequestFor } from '@core/trust/shaping.js';
 import type { BTPShaped } from '@core/server/types.js';
@@ -266,8 +266,7 @@ export class BtpsAgent extends BtpsClient {
     ] as BTPArtifactType;
 
     // An event travels in an artifact with the event's own id.
-    const event =
-      artifactType === 'BTPS_EVENT' ? BtpLifecycleEventSchema.safeParse(document) : undefined;
+    const event = artifactType === 'BTPS_EVENT' ? BtpEventSchema.safeParse(document) : undefined;
 
     // An artifact names the sender's own selector, the one its key is published at.
     const senderSelector = (await this.resolveBtpsHostDnsTxt(this.options.to))?.selector;

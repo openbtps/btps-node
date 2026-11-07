@@ -19,8 +19,13 @@ import {
   isVersionBelow,
 } from '../../constants/index.js';
 import { z } from 'zod';
-import { lifecycleEventEnvelopeProblem, processBtpDocSchema, sameIdentity } from '../helpers.js';
-import { BtpLifecycleEventSchema, sha256Hex } from '../btpsDocsSchema.js';
+import {
+  agreementEventEnvelopeProblem,
+  lifecycleEventEnvelopeProblem,
+  processBtpDocSchema,
+  sameIdentity,
+} from '../helpers.js';
+import { BtpAgreementEventSchema, BtpLifecycleEventSchema, sha256Hex } from '../btpsDocsSchema.js';
 
 /**
  * Since 1.2, on a sync: the send it copies, by the id of the sent artifact and
@@ -234,7 +239,12 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
       }
       if (data.type === 'BTPS_EVENT') {
         const event = BtpLifecycleEventSchema.safeParse(data.document);
-        const problem = event.success ? lifecycleEventEnvelopeProblem(event.data, data) : undefined;
+        const answer = BtpAgreementEventSchema.safeParse(data.document);
+        const problem = event.success
+          ? lifecycleEventEnvelopeProblem(event.data, data)
+          : answer.success
+            ? agreementEventEnvelopeProblem(answer.data, data)
+            : undefined;
         if (problem) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem, path: ['document'] });
         }

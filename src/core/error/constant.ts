@@ -97,6 +97,18 @@ export const BTP_ERROR_EVENT_CHAIN: BTPError = {
   status: 400,
 };
 
+/**
+ * Since 1.2: an agreement's answer that is not its sender's turn: from someone
+ * who is not a signer, a second answer, out of turn, or after a decline.
+ * Raised by the platform's own check in flight (`agreementOrderCheck`
+ * middleware), never by the server, with the broken rule in its message.
+ */
+export const BTP_ERROR_AGREEMENT_ORDER: BTPError = {
+  code: 'BTP_ERROR_AGREEMENT_ORDER',
+  message: "Answer is not its sender's turn",
+  status: 400,
+};
+
 export const BTP_ERROR_RESOLVE_DNS: BTPError = {
   code: 'BTP_ERROR_RESOLVE_DNS',
   message: 'No valid DNS record found',

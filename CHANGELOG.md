@@ -184,6 +184,18 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   `signatureValid`, `keyKind` and, for a device, `delegatedBy` and
   `attestedBy`; `statementRecordSha256` is what the next statement names as
   `previous`.
+- **Agreement events.** A `BTPS_EVENT` may carry an `agreement_event`,
+  `1.2.0` only (`BTPAgreementEvent`): a signer's `accepted` or `declined`,
+  each with its statement record, and the originator's `agreement_progress`
+  and `agreement_complete`, carrying the records so far. The server checks an
+  answer's structure, signatures, trust and permissions only; its order is the
+  originator's platform's. The new `agreementOrderCheck` middleware
+  (`@btps/sdk/server/core`, off until added with the platform's own lookup)
+  refuses an answer out of turn in flight from its envelope, without opening
+  it (`BTP_ERROR_AGREEMENT_ORDER`; `agreementTurnProblem`). Once opened, the
+  platform checks the statement with `agreementStatementProblem`
+  (`agreementOrderProblem` for its `previous`). A `withdrawn` can never name
+  an answer.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).
