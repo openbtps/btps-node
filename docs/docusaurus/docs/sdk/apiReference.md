@@ -1387,7 +1387,7 @@ try {
 
 ## Error Constants (`@btps/sdk/error`)
 
-A constant a server sends carries a `status`: the numeric `status.code` it is answered with, while its `code` goes out as `status.error`. See [Status Codes](../protocol/specifications/responses.md#status-codes) for each status and whether a sender should send again. Middleware can send its own error with a numeric `code` (for example `{ code: 402, message: 'Payment required' }`), which goes out as given. Any other error is treated as internal and answered `500` with `BTP_UNKNOWN_ERROR`, so its detail never reaches the wire.
+A constant a server sends carries a `status`: the numeric `status.code` it is answered with, while its `code` goes out as `status.error`. See [Status Codes](../protocol/specifications/responses.md#status-codes) for each status and whether a sender should send again. Middleware can send its own error with a numeric `code` (for example `{ code: 402, message: 'Payment required' }`), which goes out as given. Since 1.2, a 429 sent as a `BTPErrorException` whose `meta.retryAfter` is whole seconds, zero or more, also goes out with it as `status.retryAfter`, for example `res.sendError(new BTPErrorException(BTP_ERROR_RATE_LIMITER, { meta: { retryAfter: 30 } }))`. Nothing else from `meta` reaches the wire, and `cause` never does. Any other error is treated as internal and answered `500` with `BTP_UNKNOWN_ERROR`, so its detail never reaches the wire.
 
 ### BTP_ERROR_IDENTITY
 
@@ -1889,7 +1889,7 @@ const BTP_ERROR_DETAILS_RATE_LIMITED: BTPError;
 ```
 
 **Description:**
-Since 1.2. Error constant for a details request over the limit its provider sets (`allowDetailsRequest`). Its `meta.retryAfter`, an ISO 8601 time, says when the asker may ask again. Status 429.
+Since 1.2. Error constant for a details request over the limit its provider sets (`allowDetailsRequest`). Status 429. Its `meta.retryAfter` is the whole seconds until the time the provider gave, and goes out as `status.retryAfter`, so the asker knows how long to wait before asking again.
 
 **Properties:**
 

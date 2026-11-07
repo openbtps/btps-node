@@ -1,0 +1,170 @@
+{
+  "description": "BTPS 1.2 server responses. A response's `status` is `{ ok, code, message?, error? }`, and since 1.2 a 429 may also carry `retryAfter`: the whole seconds, zero or more, its sender should wait before sending again. `retryAfter` is only on a 429, and only in a `1.2.0` response. A 429 without it says nothing about when, and its sender waits as it chooses.",
+  "cases": [
+    {
+      "name": "retry-after",
+      "response": {
+        "version": "1.2.0",
+        "status": {
+          "ok": false,
+          "code": 429,
+          "message": "Too many details requests on this trust. Ask again later",
+          "error": "BTP_ERROR_DETAILS_RATE_LIMITED",
+          "retryAfter": 90
+        },
+        "id": "7b2e4f60-1c3d-4e5f-8a9b-0c1d2e3f4a5b",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "type": "btps_error",
+        "reqId": "req-1"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "retry-after-zero",
+      "response": {
+        "version": "1.2.0",
+        "status": {
+          "ok": false,
+          "code": 429,
+          "message": "Too many details requests on this trust. Ask again later",
+          "error": "BTP_ERROR_DETAILS_RATE_LIMITED",
+          "retryAfter": 0
+        },
+        "id": "7b2e4f60-1c3d-4e5f-8a9b-0c1d2e3f4a5b",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "type": "btps_error",
+        "reqId": "req-1"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-429-without-retry-after",
+      "response": {
+        "version": "1.2.0",
+        "status": {
+          "ok": false,
+          "code": 429,
+          "message": "Too many details requests on this trust. Ask again later",
+          "error": "BTP_ERROR_DETAILS_RATE_LIMITED"
+        },
+        "id": "7b2e4f60-1c3d-4e5f-8a9b-0c1d2e3f4a5b",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "type": "btps_error",
+        "reqId": "req-1"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-429-without-retry-after-under-1-1",
+      "response": {
+        "version": "1.1.0",
+        "status": {
+          "ok": false,
+          "code": 429,
+          "message": "Too many details requests on this trust. Ask again later",
+          "error": "BTP_ERROR_DETAILS_RATE_LIMITED"
+        },
+        "id": "7b2e4f60-1c3d-4e5f-8a9b-0c1d2e3f4a5b",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "type": "btps_error",
+        "reqId": "req-1"
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "retry-after-in-part-seconds",
+      "response": {
+        "version": "1.2.0",
+        "status": {
+          "ok": false,
+          "code": 429,
+          "message": "Too many details requests on this trust. Ask again later",
+          "error": "BTP_ERROR_DETAILS_RATE_LIMITED",
+          "retryAfter": 1.5
+        },
+        "id": "7b2e4f60-1c3d-4e5f-8a9b-0c1d2e3f4a5b",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "type": "btps_error",
+        "reqId": "req-1"
+      },
+      "expect": "refuse",
+      "why": "retryAfter is whole seconds"
+    },
+    {
+      "name": "retry-after-below-zero",
+      "response": {
+        "version": "1.2.0",
+        "status": {
+          "ok": false,
+          "code": 429,
+          "message": "Too many details requests on this trust. Ask again later",
+          "error": "BTP_ERROR_DETAILS_RATE_LIMITED",
+          "retryAfter": -1
+        },
+        "id": "7b2e4f60-1c3d-4e5f-8a9b-0c1d2e3f4a5b",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "type": "btps_error",
+        "reqId": "req-1"
+      },
+      "expect": "refuse",
+      "why": "retryAfter is zero or more"
+    },
+    {
+      "name": "retry-after-as-a-date",
+      "response": {
+        "version": "1.2.0",
+        "status": {
+          "ok": false,
+          "code": 429,
+          "message": "Too many details requests on this trust. Ask again later",
+          "error": "BTP_ERROR_DETAILS_RATE_LIMITED",
+          "retryAfter": "2026-10-19T00:01:30.000Z"
+        },
+        "id": "7b2e4f60-1c3d-4e5f-8a9b-0c1d2e3f4a5b",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "type": "btps_error",
+        "reqId": "req-1"
+      },
+      "expect": "refuse",
+      "why": "retryAfter is a number of seconds, never a date"
+    },
+    {
+      "name": "retry-after-on-a-400",
+      "response": {
+        "version": "1.2.0",
+        "status": {
+          "ok": false,
+          "code": 400,
+          "message": "Artifact does not use the encryption its trust requires",
+          "error": "BTP_ERROR_PRIVACY_TYPE",
+          "retryAfter": 90
+        },
+        "id": "7b2e4f60-1c3d-4e5f-8a9b-0c1d2e3f4a5b",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "type": "btps_error",
+        "reqId": "req-1"
+      },
+      "expect": "refuse",
+      "why": "retryAfter is only on a 429"
+    },
+    {
+      "name": "retry-after-under-1-1",
+      "response": {
+        "version": "1.1.0",
+        "status": {
+          "ok": false,
+          "code": 429,
+          "message": "Too many details requests on this trust. Ask again later",
+          "error": "BTP_ERROR_DETAILS_RATE_LIMITED",
+          "retryAfter": 90
+        },
+        "id": "7b2e4f60-1c3d-4e5f-8a9b-0c1d2e3f4a5b",
+        "issuedAt": "2026-10-19T00:00:00.000Z",
+        "type": "btps_error",
+        "reqId": "req-1"
+      },
+      "expect": "refuse",
+      "why": "retryAfter is only in a 1.2.0 response"
+    }
+  ]
+}

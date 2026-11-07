@@ -19,6 +19,7 @@ import {
 } from './artifacts/transporterSchema.js';
 import { boundedArray, boundedRecord } from './bounded.js';
 import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
+import { isVersionBelow } from '../constants/index.js';
 
 const { query, trustRecord, recordKeys } = BTPS_FIELD_LIMITS;
 
@@ -28,6 +29,7 @@ export const BtpStatusSchema = z.object({
   code: z.number(),
   message: z.string().optional(),
   error: z.string().optional(),
+  retryAfter: z.number().int().nonnegative().optional(),
 });
 
 // Schema for BTPDeliveryFailureDoc
@@ -180,5 +182,23 @@ export const BtpServerResponseSchema = z
         code: z.ZodIssueCode.custom,
         message: 'When encrypted, document must be a string',
       });
+    }
+
+    // Since 1.2, under 1.2.0 only: how long a 429 asks its sender to wait.
+    if (data.status.retryAfter !== undefined) {
+      if (data.status.code !== 429) {
+        ctx.addIssue({
+          path: ['status', 'retryAfter'],
+          code: z.ZodIssueCode.custom,
+          message: 'retryAfter is only on a 429',
+        });
+      }
+      if (isVersionBelow(data.version, '1.2.0')) {
+        ctx.addIssue({
+          path: ['status', 'retryAfter'],
+          code: z.ZodIssueCode.custom,
+          message: 'retryAfter is only in a 1.2.0 response',
+        });
+      }
     }
   });

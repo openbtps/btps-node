@@ -84,7 +84,7 @@ A BTPS server does not limit or filter traffic by itself: how many artifacts an 
 - **Rate limiting by identity**, after signature verification: 30 per second per identity. It counts only once the signature proves the sender, so no one can use up another identity's allowance by naming it
 - **Metrics** for received and rejected artifacts
 
-An artifact over a limit is answered `BTP_ERROR_RATE_LIMITER` (429), which tells the sender to send again later.
+An artifact over a limit is answered `BTP_ERROR_RATE_LIMITER` (429), which tells the sender to send again later. Since 1.2, your own middleware can also say how much later: send the error as a `BTPErrorException` with `meta: { retryAfter }`, in whole seconds, and it goes out as `status.retryAfter`. Nothing else from `meta` reaches the wire.
 
 :::warning Not for production
 

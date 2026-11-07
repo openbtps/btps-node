@@ -32,6 +32,7 @@ import {
   documents,
   documents12,
   eventChain,
+  responses,
   signedArtifacts,
   sync,
   templates,
@@ -256,6 +257,7 @@ write('versions.vectors.json', versions());
 write('documents-1.2.vectors.json', documents12());
 write('event-chain.vectors.json', eventChain());
 write('sync.vectors.json', sync());
+write('responses.vectors.json', responses());
 write('templates.vectors.json', templates());
 write('trust-permissions.vectors.json', trustPermissions());
 write('details.vectors.json', details());

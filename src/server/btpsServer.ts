@@ -714,10 +714,15 @@ export class BtpsServer {
       // wire only distinguishes expired from everything else, so an
       // un-upgraded 1.0 peer still just sees "not allowed" for a revoked or
       // never-trusted sender. A sender with an active trust is also told when
-      // it did not encrypt as that trust requires, or when an event's chain
-      // is wrong: both concern only what the sender itself sent.
+      // it did not encrypt as that trust requires, when an event's chain is
+      // wrong, or when it asked for details too often: each concerns only
+      // what the sender itself sent.
       const refusal = reqCtx.error;
-      const toldExactly = [BTP_ERROR_PRIVACY_TYPE.code, BTP_ERROR_EVENT_CHAIN.code];
+      const toldExactly = [
+        BTP_ERROR_PRIVACY_TYPE.code,
+        BTP_ERROR_EVENT_CHAIN.code,
+        BTP_ERROR_DETAILS_RATE_LIMITED.code,
+      ];
       const wireError =
         refusal?.code === BTP_ERROR_TRUST_EXPIRED.code
           ? BTP_ERROR_TRUST_EXPIRED
@@ -1243,7 +1248,12 @@ export class BtpsServer {
       return {
         isTrusted: false,
         error: new BTPErrorException(BTP_ERROR_DETAILS_RATE_LIMITED, {
-          meta: { retryAfter: allowed.retryAfter },
+          meta: {
+            retryAfter: Math.max(
+              0,
+              Math.ceil((Date.parse(allowed.retryAfter) - Date.now()) / 1000),
+            ),
+          },
         }),
       };
     }
@@ -1650,8 +1660,24 @@ export class BtpsServer {
    * its code; a numeric code set by middleware is sent as given. Anything else
    * is internal: a generic 500, so no internal detail ever reaches the wire.
    * The full error stays with the server, keyed by the response id.
+   * Since 1.2, a 429 also carries its meta.retryAfter, in whole seconds;
+   * nothing else from meta, and never cause.
    */
   private wireStatus(error: BTPError): BTPStatus {
+    const status = this.errorStatus(error);
+    const retryAfter = error instanceof BTPErrorException ? error.meta?.retryAfter : undefined;
+    if (
+      status.code === 429 &&
+      typeof retryAfter === 'number' &&
+      Number.isSafeInteger(retryAfter) &&
+      retryAfter >= 0
+    ) {
+      return { ...status, retryAfter };
+    }
+    return status;
+  }
+
+  private errorStatus(error: BTPError): BTPStatus {
     if (typeof error.code === 'number') {
       return { ok: false, code: error.code, message: error.message };
     }

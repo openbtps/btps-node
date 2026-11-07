@@ -53,6 +53,8 @@ import {
   BTP_ERROR_PRIVACY_TYPE,
   BTP_ERROR_VERSION_UNSUPPORTED,
   BTP_ERROR_SYNC_NOT_ALLOWED,
+  BTP_ERROR_DETAILS_RATE_LIMITED,
+  type BTPError,
 } from '../../core/error/index.js';
 import { PassThrough } from 'stream';
 import net from 'net';
@@ -2113,6 +2115,31 @@ export default function () {
         });
       });
 
+      it("tells a 429's sender how long to wait, from its meta.retryAfter and nothing else", () => {
+        const error = new BTPErrorException(BTP_ERROR_RATE_LIMITER, {
+          meta: { retryAfter: 30, limit: 100 },
+          cause: new Error('bucket full'),
+        });
+        expect(server['wireStatus'](error)).toEqual({
+          ok: false,
+          code: 429,
+          message: BTP_ERROR_RATE_LIMITER.message,
+          error: BTP_ERROR_RATE_LIMITER.code,
+          retryAfter: 30,
+        });
+      });
+
+      it('sends retryAfter only on a 429, and only as whole seconds', () => {
+        const wait = (error: BTPError, retryAfter: unknown) =>
+          server['wireStatus'](new BTPErrorException(error, { meta: { retryAfter } })).retryAfter;
+        expect(wait(BTP_ERROR_PRIVACY_TYPE, 30)).toBeUndefined();
+        expect(wait({ code: 429, message: 'Slow down' }, 30)).toBe(30);
+        expect(wait(BTP_ERROR_RATE_LIMITER, '2026-12-01T00:00:00.000Z')).toBeUndefined();
+        expect(wait(BTP_ERROR_RATE_LIMITER, 1.5)).toBeUndefined();
+        expect(wait(BTP_ERROR_RATE_LIMITER, -1)).toBeUndefined();
+        expect(wait(BTP_ERROR_RATE_LIMITER, 0)).toBe(0);
+      });
+
       it('sends a numeric code set by middleware as given', () => {
         expect(server['wireStatus']({ code: 402, message: 'Payment required' })).toEqual({
           ok: false,
@@ -2708,11 +2735,21 @@ export default function () {
             allowDetailsRequest: () => ({ retryAfter: '2026-12-01T00:00:00.000Z' }),
           });
           storeHolding(holding([], ['detail:email']));
+          vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-30T23:58:30.000Z'));
           const result = await limited['verifyTrust'](
             details('DETAILS_REQ', payer, biller, ['detail:email']),
           );
-          expect(result.error?.code).toBe('BTP_ERROR_DETAILS_RATE_LIMITED');
-          expect(result.error?.meta).toEqual({ retryAfter: '2026-12-01T00:00:00.000Z' });
+          vi.mocked(Date.now).mockRestore();
+          const { error } = result;
+          expect(error?.code).toBe('BTP_ERROR_DETAILS_RATE_LIMITED');
+          expect(error?.meta).toEqual({ retryAfter: 90 });
+          expect(error && server['wireStatus'](error)).toEqual({
+            ok: false,
+            code: 429,
+            message: BTP_ERROR_DETAILS_RATE_LIMITED.message,
+            error: BTP_ERROR_DETAILS_RATE_LIMITED.code,
+            retryAfter: 90,
+          });
         });
 
         it("never counts a request refused for its privacy type against the provider's limit", async () => {
@@ -3060,6 +3097,27 @@ export default function () {
             code: 400,
             message: `${BTP_ERROR_PRIVACY_TYPE.message}: encrypted`,
             error: BTP_ERROR_PRIVACY_TYPE.code,
+          });
+        });
+
+        it('tells a sender over the details limit so, and when to ask again', async () => {
+          server['verifyTrust'] = vi.fn(async () => ({
+            isTrusted: false,
+            error: new BTPErrorException(BTP_ERROR_DETAILS_RATE_LIMITED, {
+              meta: { retryAfter: 90 },
+            }),
+          }));
+          const socket = buildMockSocket();
+          const { reqCtx, resCtx } = buildPipelineCtx(socket, transporterArtifact());
+
+          await server['executeRequestPipeline'](reqCtx, resCtx);
+
+          expect(writtenPayload(socket).status).toEqual({
+            ok: false,
+            code: 429,
+            message: BTP_ERROR_DETAILS_RATE_LIMITED.message,
+            error: BTP_ERROR_DETAILS_RATE_LIMITED.code,
+            retryAfter: 90,
           });
         });
 
