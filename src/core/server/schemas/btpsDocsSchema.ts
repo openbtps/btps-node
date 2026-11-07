@@ -18,6 +18,7 @@ const {
   receipt,
   payslip,
   letter,
+  agreement,
   attachments,
   references,
   lineItems,
@@ -311,9 +312,9 @@ const drawnSignature = z
   });
 
 /**
- * Since 1.2, under 1.2.0, on a letter's template only: the values its slots
- * show, from the sender, signed with the document. Slot names are a fixed list,
- * none of them a document field.
+ * Since 1.2, under 1.2.0, on a letter's or an agreement's template only: the
+ * values its slots show, from the sender, signed with the document. Slot names
+ * are a fixed list, none of them a document field.
  */
 const BtpTemplateValuesSchema = z
   .object({
@@ -329,7 +330,7 @@ const BtpTemplateValuesSchema = z
  * optional, are well formed when present; other keys stay the provider's. A
  * `source` comes with its `sha256`, as a logo's does: the fingerprint is what
  * makes it trustworthy, so a receiver never draws whatever an address serves.
- * Only a letter's template carries `values`.
+ * Only a letter's or an agreement's template carries `values`.
  */
 const templateSchema = (withValues: boolean) =>
   z.object({
@@ -343,7 +344,9 @@ const templateSchema = (withValues: boolean) =>
           logo: z.object({ sha256: sha256Hex, source: httpsUrl }).strict().optional(),
           values: withValues
             ? BtpTemplateValuesSchema.optional()
-            : z.undefined({ invalid_type_error: 'values are only on a letter template' }),
+            : z.undefined({
+                invalid_type_error: "values are only on a letter's or an agreement's template",
+              }),
         })
         .catchall(z.unknown())
         .refine((data) => data.source === undefined || data.sha256 !== undefined, {
@@ -516,13 +519,61 @@ export const BtpDocumentV1_1Schema = z.discriminatedUnion('type', [
   BtpLetterDocV1_1Schema,
 ]);
 
-/** What a `BTPS_DOC` carries: an invoice, a receipt, a payslip or a letter, by its `type`. */
-export const BtpDocumentSchema = z.discriminatedUnion('type', [
-  BtpInvoiceDocSchema,
-  BtpReceiptDocSchema,
-  BtpPayslipDocSchema,
-  BtpLetterDocSchema,
-]);
+/**
+ * Since 1.2: what an agreement asks. `terms` are the SHA-256s of the
+ * attachments that are its terms; `signers` answer in list order when
+ * `signingOrder` is `sequential`, and in any order when it is `any`.
+ */
+const BtpAcceptanceSchema = z
+  .object({
+    by: z.string().datetime().optional(),
+    terms: boundedArray(sha256Hex, letter.attachments),
+    signers: boundedArray(z.object({ address: identitySchema }).strict(), agreement.signers),
+    signingOrder: z.enum(['any', 'sequential']),
+  })
+  .strict()
+  .superRefine(({ terms, signers }, ctx) => {
+    const issue = (message: string, path: string) =>
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: [path] });
+    if (signers.length === 0) issue('an agreement has at least one signer', 'signers');
+    const addresses = signers.map(({ address }) => address.toLowerCase());
+    if (new Set(addresses).size !== addresses.length) issue('each signer appears once', 'signers');
+    if (new Set(terms).size !== terms.length) issue('each term appears once', 'terms');
+  });
+
+/**
+ * Since 1.2, under 1.2.0 only: an agreement, a letter that asks its signers to
+ * accept it. Its content is everything but `originatorSignature`, which is its
+ * originator's signature over `{ originator, id, contentSha256 }`.
+ */
+export const BtpAgreementDocSchema = BtpLetterDocSchema.extend({
+  type: z.literal('agreement'),
+  acceptance: BtpAcceptanceSchema,
+  originatorSignature: z
+    .object({ selector: z.string().min(1), signature: BtpSignatureSchema })
+    .strict(),
+}).strict();
+
+/** What a `BTPS_DOC` carries, by its `type`: since 1.2, an agreement too, whose terms are its attachments. */
+export const BtpDocumentSchema = z
+  .discriminatedUnion('type', [
+    BtpInvoiceDocSchema,
+    BtpReceiptDocSchema,
+    BtpPayslipDocSchema,
+    BtpLetterDocSchema,
+    BtpAgreementDocSchema,
+  ])
+  .superRefine((document, ctx) => {
+    if (document.type !== 'agreement') return;
+    const attached = new Set(document.attachments?.map(({ sha256 }) => sha256));
+    if (document.acceptance.terms.some((term) => !attached.has(term))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'each term is the sha256 of one of its attachments',
+        path: ['acceptance', 'terms'],
+      });
+    }
+  });
 
 /*
  * A lifecycle event: what a `BTPS_EVENT` carries. The payer proposes (paid,

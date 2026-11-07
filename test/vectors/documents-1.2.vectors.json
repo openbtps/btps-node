@@ -2619,7 +2619,7 @@
       },
       "version": "1.2.0",
       "expect": "refuse",
-      "why": "values are only on a letter template"
+      "why": "values are only on a letter's or an agreement's template"
     },
     {
       "name": "payslip-template-with-values",
@@ -2685,7 +2685,7 @@
       },
       "version": "1.2.0",
       "expect": "refuse",
-      "why": "values are only on a letter template"
+      "why": "values are only on a letter's or an agreement's template"
     }
   ]
 }

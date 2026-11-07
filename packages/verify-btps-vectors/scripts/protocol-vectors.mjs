@@ -1020,14 +1020,14 @@ function signatureValueCases(template, v12) {
       'invoice-template-with-values',
       'BTPS_DOC',
       { ...base.invoice, template: template({ values }) },
-      'values are only on a letter template',
+      "values are only on a letter's or an agreement's template",
       v12,
     ),
     refuse(
       'payslip-template-with-values',
       'BTPS_DOC',
       { ...base.payslip, template: template({ values }) },
-      'values are only on a letter template',
+      "values are only on a letter's or an agreement's template",
       v12,
     ),
   ];
@@ -2760,6 +2760,19 @@ export function templates() {
     accept('format-2-payslip', payslip),
     accept('format-2-letter', letter),
     accept('format-2-letter-without-a-footer', letterWithoutFooter),
+    // Since 1.2 an agreement is a letter that asks for acceptance: a letter template draws it too.
+    accept('format-2-letter-for-agreements', { ...letter, kinds: ['letter', 'agreement'] }),
+    accept('format-2-agreement', { ...letter, kinds: ['agreement'] }),
+    refuse(
+      'a-letter-template-naming-agreement-twice',
+      { ...letter, kinds: ['agreement', 'agreement'] },
+      'each kind appears once',
+    ),
+    refuse(
+      'a-letter-template-for-invoices-too',
+      { ...letter, kinds: ['letter', 'invoice'] },
+      'a letter template is for letters and agreements only',
+    ),
     refuse(
       'a-payslip-with-a-signed-section-left-out',
       { ...payslip, sections: payslipSigned.filter((s) => s !== 'deductions') },

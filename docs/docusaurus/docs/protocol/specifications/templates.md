@@ -6,7 +6,7 @@ slug: templates
 
 # Templates
 
-Since 1.2. A receiver can show a document the way its sender sees it, even when the receiver is on another provider. The signed document carries a **reference** to its template, never the template itself: `template` on an invoice, a receipt, a payslip or a letter (see [Transporter Artifact](./transporter-artifact.md), Templates).
+Since 1.2. A receiver can show a document the way its sender sees it, even when the receiver is on another provider. The signed document carries a **reference** to its template, never the template itself: `template` on an invoice, a receipt, a payslip, a letter or an agreement (see [Transporter Artifact](./transporter-artifact.md), Templates).
 
 ```json
 {
@@ -131,7 +131,7 @@ A payslip template has the same fields as an invoice's (`page`, `logo`, `section
 
 ### A letter
 
-A letter's body is the sender's own text, in its own format. A letter template never styles, reorders or touches it: it has no sections and no labels. It sets the page, a letterhead and a footer, and nothing else:
+A letter's body is the sender's own text, in its own format. A letter template never styles, reorders or touches it: it has no sections and no labels. It sets the page, a letterhead and a footer, and nothing else. Since 1.2 it also draws an agreement, a letter that asks for acceptance: its `kinds` are `letter`, `agreement` or both, each once.
 
 ```json
 {
@@ -179,12 +179,12 @@ A letter template places named **slots**, and the sender fills them. The slots a
 
 - **The values are the sender's own, and travel in the document.** The sender's provider fills them in when it sends, as `template.data.values` on the letter's template reference, so they are signed with the letter: see [Transporter Artifact](./transporter-artifact.md), Templates. Where a value comes from is the provider's: its user's settings, for example.
 - **The receiver draws exactly those values in the slots the template places,** and fetches nothing. A value for a slot the template does not place is not drawn.
-- **A value never fills, overrides or shadows a document field.** Its keys are the slot names above, and any other key is refused. Values are only on a letter's template, and only in a `1.2.0` artifact.
+- **A value never fills, overrides or shadows a document field.** Its keys are the slot names above, and any other key is refused. Values are only on a letter's or an agreement's template, and only in a `1.2.0` artifact.
 - **They are the sender's own data, not template text,** so what a platform allows in a template's words does not apply to them. A text value is still plain text of 1 to 100 characters: no markup, and no control, hidden or direction-changing character.
 - **A typed signature** is drawn in Caveat, an open-licence script font (SIL Open Font License 1.1), which a receiver holds itself. It is for the typed signature only: a template cannot set it as its page font.
 - **A drawn signature is data, never SVG or any markup:** `{ "strokes": [[x, y, x, y, …], …] }`. Each stroke is integer points on a canvas 1,000 wide and 300 high, from `0, 0` at the top left. The receiving provider draws the lines itself. It holds at most 32 strokes, at most 512 points a stroke, and at most 2,048 points in all.
 
-**A signature here is decoration and proves nothing.** It is a styled signature block, like the one an e-signature service prints, and anyone can type a name or draw a line. It records no agreement and is not evidence that the signer agreed to anything. A letter's acceptance, signed with the user's device key, is what records agreement. It comes with letter agreements and their acceptance, planned for 1.2 once their design is approved.
+**A signature here is decoration and proves nothing.** It is a styled signature block, like the one an e-signature service prints, and anyone can type a name or draw a line. It records no agreement and is not evidence that the signer agreed to anything. What records agreement is each signer's own signed answer to an [agreement](./transporter-artifact.md#agreement), never a signature drawn by its template.
 
 ### Its fingerprint
 

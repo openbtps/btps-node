@@ -67,6 +67,8 @@ const USES_1_2: ((artifact: BTPVersionedArtifact) => boolean)[] = [
   },
   // A discount on a whole invoice or receipt. A line's `discount` column 1.1 already carries.
   (artifact) => documentOf(artifact)?.discount !== undefined,
+  // An agreement: 1.1 has no such document.
+  (artifact) => documentOf(artifact)?.type === 'agreement',
   // A template on a letter or payslip. An invoice's or receipt's 1.1 already carries.
   (artifact) => {
     const document = documentOf(artifact);
