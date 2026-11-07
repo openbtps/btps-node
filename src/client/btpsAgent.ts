@@ -296,7 +296,6 @@ export class BtpsAgent extends BtpsClient {
         document,
         syncOf: options?.syncOf,
         documentType: options?.documentType,
-        agreement: options?.agreement,
         ...trustFields,
       }),
       type: artifactType,
@@ -308,7 +307,6 @@ export class BtpsAgent extends BtpsClient {
       ...(options?.relatesTo !== undefined && { relatesTo: options.relatesTo }),
       ...(options?.syncOf !== undefined && { syncOf: options.syncOf }),
       ...(options?.documentType !== undefined && { documentType: options.documentType }),
-      ...(options?.agreement !== undefined && { agreement: options.agreement }),
       ...(options?.details !== undefined && { details: options.details }),
       ...trustFields,
     };

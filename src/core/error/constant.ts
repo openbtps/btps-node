@@ -98,13 +98,14 @@ export const BTP_ERROR_EVENT_CHAIN: BTPError = {
 };
 
 /**
- * Since 1.2: an agreement's answer that does not follow its agreement: from
- * someone who is not a signer, a second answer, out of turn, after a decline,
- * or naming the wrong statement before it.
+ * Since 1.2: an agreement's answer that is not its sender's turn: from someone
+ * who is not a signer, a second answer, out of turn, or after a decline.
+ * Raised by the platform's own check in flight (`agreementOrderCheck`
+ * middleware), never by the server, with the broken rule in its message.
  */
 export const BTP_ERROR_AGREEMENT_ORDER: BTPError = {
   code: 'BTP_ERROR_AGREEMENT_ORDER',
-  message: "Answer does not follow its agreement's signers and order",
+  message: "Answer is not its sender's turn",
   status: 400,
 };
 

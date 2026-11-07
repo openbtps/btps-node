@@ -326,35 +326,6 @@ describe('BtpsServer', () => {
 
         await expect(server.start()).rejects.toThrow('Middleware error');
       });
-
-      // Since 1.2: an agreement's answer is checked in full by its platform once
-      // opened either way, so a store without getAgreement is not crucial.
-      it('starts, warning once, when the trust store has no getAgreement', async () => {
-        vi.spyOn(console, 'log').mockImplementation(() => {});
-        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        delete trustStore.getAgreement;
-
-        await server.start();
-
-        expect(listenSpy).toHaveBeenCalled();
-        const agreements = warn.mock.calls.filter(([message]) =>
-          String(message).includes('no getAgreement'),
-        );
-        expect(agreements).toHaveLength(1);
-        expect(String(agreements[0]?.[0])).toContain('agreementStatementProblem');
-      });
-
-      it('says nothing about agreements when the trust store has getAgreement', async () => {
-        vi.spyOn(console, 'log').mockImplementation(() => {});
-        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        trustStore.getAgreement = vi.fn(async () => undefined);
-
-        await server.start();
-
-        const said = warn.mock.calls.some(([message]) => String(message).includes('getAgreement'));
-        expect(said).toBe(false);
-        delete trustStore.getAgreement;
-      });
     });
 
     describe('stop()', () => {
@@ -2480,78 +2451,6 @@ export default function () {
         expect(result.isTrusted).toBe(false);
         expect(result.error?.code).toBe(BTP_ERROR_EVENT_UNRELATED.code);
         expect(spy).not.toHaveBeenCalled();
-      });
-
-      describe("since 1.2, an agreement's answer, from its envelope's facts", () => {
-        // billing$issuer.com originated the agreement; the payer answers second, after the guarantor.
-        const SHA = 'a'.repeat(64);
-        const answer = (previous?: string): ProcessedArtifact => {
-          const processed = transporter('BTPS_EVENT', 'agreement-copy');
-          return {
-            ...processed,
-            artifact: {
-              ...processed.artifact,
-              version: '1.2.0',
-              agreement: { id: 'AGR-1', contentSha256: SHA, ...(previous && { previous }) },
-            },
-          } as ProcessedArtifact;
-        };
-        const held = (
-          answered: { signer: string; decision: 'accepted' | 'declined'; sha256: string }[],
-        ) => ({
-          signers: ['sam$guarantor.com', 'billing$payer.com', 'billing$issuer.com'],
-          signingOrder: 'sequential' as const,
-          answered,
-        });
-        const samAccepted = {
-          signer: 'sam$guarantor.com',
-          decision: 'accepted' as const,
-          sha256: 'b'.repeat(64),
-        };
-
-        beforeEach(() => {
-          vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(true);
-        });
-        afterEach(() => {
-          delete trustStore.getAgreement;
-        });
-
-        it('takes an answer in turn that names the statement before it', async () => {
-          trustStore.getAgreement = vi.fn(async () => held([samAccepted]));
-          const result = await server['verifyEventRelation'](answer('b'.repeat(64)));
-          expect(result).toEqual({ isTrusted: true, error: undefined });
-          expect(trustStore.getAgreement).toHaveBeenCalledWith({
-            originator: 'billing$issuer.com',
-            id: 'AGR-1',
-            contentSha256: SHA,
-          });
-        });
-
-        it('refuses one out of turn: BTP_ERROR_AGREEMENT_ORDER', async () => {
-          trustStore.getAgreement = vi.fn(async () => held([]));
-          const result = await server['verifyEventRelation'](answer());
-          expect(result.error?.code).toBe('BTP_ERROR_AGREEMENT_ORDER');
-          expect(result.error?.cause).toBe(
-            'in a sequential agreement the signers answer in list order',
-          );
-        });
-
-        it('refuses one naming another statement before it', async () => {
-          trustStore.getAgreement = vi.fn(async () => held([samAccepted]));
-          const result = await server['verifyEventRelation'](answer('c'.repeat(64)));
-          expect(result.error?.code).toBe('BTP_ERROR_AGREEMENT_ORDER');
-        });
-
-        it('refuses one about an agreement its receiver did not originate', async () => {
-          trustStore.getAgreement = vi.fn(async () => undefined);
-          const result = await server['verifyEventRelation'](answer());
-          expect(result.error?.code).toBe('BTP_ERROR_AGREEMENT_ORDER');
-        });
-
-        it('leaves it to the platform when the store has no getAgreement', async () => {
-          const result = await server['verifyEventRelation'](answer());
-          expect(result).toEqual({ isTrusted: true, error: undefined });
-        });
       });
     });
 

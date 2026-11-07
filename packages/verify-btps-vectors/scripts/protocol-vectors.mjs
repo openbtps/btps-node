@@ -3110,11 +3110,7 @@ export function agreements(keys) {
       from: statement.signer,
       to: BANK,
       relatesTo: 'agreement-copy-to-alice',
-      agreement: {
-        id: statement.agreement.id,
-        contentSha256: statement.agreement.contentSha256,
-        ...(statement.previous && { previous: statement.previous }),
-      },
+      selector: 'btps1',
       encryption: {
         algorithm: 'aes-256-gcm',
         encryptedKey: 'AA==',
@@ -3373,15 +3369,6 @@ export function agreements(keys) {
     to: ALICE,
     documentType: 'agreement',
   });
-  const answerEnvelope = (facts, more = {}) =>
-    transporter('BTPS_EVENT', '91a2b3c4-d5e6-4f70-8182-93a4b5c6d7e8', {
-      from: SAM,
-      to: BANK,
-      relatesTo: 'agreement-copy-to-sam',
-      agreement: facts,
-      ...more,
-    });
-  const facts = { id: 'AGR-1', contentSha256: ref.contentSha256, previous: hashOf(alice) };
   const envelope = (name, artifact, expect, why) => ({
     name,
     artifact,
@@ -3390,12 +3377,6 @@ export function agreements(keys) {
   });
   const envelopes = [
     envelope('agreement-sent', send, 'accept'),
-    envelope('answer-names-its-agreement', answerEnvelope(facts), 'accept'),
-    envelope(
-      'first-answer-names-no-previous',
-      answerEnvelope({ id: 'AGR-1', contentSha256: ref.contentSha256 }),
-      'accept',
-    ),
     envelope(
       'trust-request-asking-send-agreement',
       transporter('TRUST_REQ', 'a2b3c4d5-e6f7-4081-9293-a4b5c6d7e8f9', {
@@ -3405,31 +3386,6 @@ export function agreements(keys) {
         entityType: 'organisation',
       }),
       'accept',
-    ),
-    envelope(
-      'agreement-facts-on-a-document',
-      // A letter, so only the facts are wrong.
-      { ...send, documentType: 'letter', agreement: facts },
-      'refuse',
-      'only an event carries agreement facts',
-    ),
-    envelope(
-      'agreement-facts-with-a-short-hash',
-      answerEnvelope({ ...facts, contentSha256: 'abc' }),
-      'refuse',
-      'contentSha256 is a SHA-256 in lowercase hex',
-    ),
-    envelope(
-      'agreement-facts-with-another-key',
-      answerEnvelope({ ...facts, signer: SAM }),
-      'refuse',
-      'agreement facts are id, contentSha256 and previous only',
-    ),
-    envelope(
-      'agreement-facts-under-1-1',
-      answerEnvelope(facts, { version: V11 }),
-      'refuse',
-      '1.1 has no agreement facts',
     ),
     envelope(
       'agreement-sent-under-1-1',
@@ -3464,20 +3420,22 @@ export function agreements(keys) {
       artifact: { ...send, encryption: null, document: agreement },
       expect: V12,
     },
-    { name: 'answer-with-agreement-facts', artifact: answerEnvelope(facts), expect: V12 },
+    {
+      name: 'answer',
+      artifact: transporter('BTPS_EVENT', '5d6e7f80-9102-4a3b-8c4d-5e6f708192a3', {
+        from: SAM,
+        to: BANK,
+        relatesTo: 'agreement-copy-to-sam',
+        encryption: null,
+        document: answer('accepted', sam),
+      }),
+      expect: V12,
+    },
   ];
 
   // The rules between an opened answer, its agreement and the answers before it.
   const answerFrom = (record, eventType = record.statement.decision) => ({
-    envelope: {
-      from: record.statement.signer,
-      to: BANK,
-      agreement: {
-        id: record.statement.agreement.id,
-        contentSha256: record.statement.agreement.contentSha256,
-        ...(record.statement.previous && { previous: record.statement.previous }),
-      },
-    },
+    envelope: { from: record.statement.signer, to: BANK },
     event: answer(eventType, record),
   });
   const rule = (name, given, about, earlier, expect, why) => ({
@@ -3608,24 +3566,6 @@ export function agreements(keys) {
       [aliceDeclines],
       'refuse',
       'a declined ends a sequential agreement',
-    ),
-    rule(
-      'envelope-names-another-previous',
-      withEnvelope(answerFrom(sam), {
-        agreement: { id: 'AGR-1', contentSha256: ref.contentSha256, previous: SHA },
-      }),
-      agreement,
-      [alice],
-      'refuse',
-      "the envelope's agreement facts are the statement's",
-    ),
-    rule(
-      'envelope-names-another-content',
-      withEnvelope(answerFrom(alice), { agreement: { id: 'AGR-1', contentSha256: SHA } }),
-      agreement,
-      [],
-      'refuse',
-      "the envelope's agreement facts are the statement's",
     ),
     rule(
       'event-names-another-agreement',
@@ -3796,7 +3736,7 @@ export function agreements(keys) {
 
   return {
     description:
-      'BTPS 1.2 agreements. `documents` and `events` are read as documents-1.2.vectors.json is, under `version`. `envelopes` are transporter artifacts as a server reads them, unopened. `documentType` is a send against the receiver\'s grants, as in trust-permissions.vectors.json. `stamped` is the version each artifact is stamped with. `contentSha256` is the SHA-256 of an agreement\'s RFC 8785 form without `originatorSignature`; `statementSha256` is the SHA-256 of a statement record\'s RFC 8785 form, signature included, which the next statement names as `previous`. `statements` are the rules between an opened answer (`event`, sent with `envelope`), its `agreement`, and the statement records already answered (`earlier`, in order); signatures are not part of these rules. `bundles` are evidence bundles and the facts an offline verifier reports for each: a verifier reports facts, never a verdict, and every listed fact must be as given. An implementation accepts every "accept" case and refuses every "refuse" case; `why` says what is wrong.',
+      "BTPS 1.2 agreements. `documents` and `events` are read as documents-1.2.vectors.json is, under `version`. `envelopes` are transporter artifacts as a server reads them, unopened. `documentType` is a send against the receiver's grants, as in trust-permissions.vectors.json. `stamped` is the version each artifact is stamped with. `contentSha256` is the SHA-256 of an agreement's RFC 8785 form without `originatorSignature`; `statementSha256` is the SHA-256 of a statement record's RFC 8785 form, signature included, which the next statement names as `previous`. `statements` are the originator's platform's rules, never the server's, between an opened answer (`event`, sent from `envelope.from` to `envelope.to`), its `agreement`, and the statement records already answered (`earlier`, in order); signatures are not part of these rules. `bundles` are evidence bundles and the facts an offline verifier reports for each: a verifier reports facts, never a verdict, and every listed fact must be as given. An implementation accepts every \"accept\" case and refuses every \"refuse\" case; `why` says what is wrong.",
     documents,
     events,
     envelopes,

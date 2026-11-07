@@ -240,8 +240,8 @@ describe('a statement signed on a device', () => {
 });
 
 // The rules between opened answers are in agreements.vectors.json; these are the
-// envelope-only checks a server makes with what its store holds.
-describe('an answer, by its envelope, against what the originator holds', () => {
+// order alone, which the originator's platform checks against the answers it has taken.
+describe("an answer's order, against the answers already taken", () => {
   const SAM = 'sam$guarantor.example';
   const first = 'a'.repeat(64);
   const sequential = (

@@ -29,7 +29,11 @@ import {
   type BTPKeyOf,
 } from './agreements.js';
 import { timestampFacts, type BTPTimestampFacts } from './timestamps.js';
-import type { BTPAgreementState, BTPStatementRecord, BTPStatementSignatureFacts } from './types.js';
+import type {
+  BTPAgreementAnswers,
+  BTPStatementRecord,
+  BTPStatementSignatureFacts,
+} from './types.js';
 
 /**
  * Since 1.2: an agreement's evidence bundle (format `btps-evidence/1`). A
@@ -114,7 +118,7 @@ export const verifyEvidenceBundle = async (
         sha256 === term && sha256Hex(Buffer.from(content, 'base64')) === term,
     ),
   );
-  const answered: BTPAgreementState['answered'] = [];
+  const answered: BTPAgreementAnswers['answered'] = [];
   const statementFacts = statements.map((record) => {
     const { statement } = record;
     const { agreement: named } = statement;
