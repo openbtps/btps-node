@@ -326,6 +326,35 @@ describe('BtpsServer', () => {
 
         await expect(server.start()).rejects.toThrow('Middleware error');
       });
+
+      // Since 1.2: an agreement's answer is checked in full by its platform once
+      // opened either way, so a store without getAgreement is not crucial.
+      it('starts, warning once, when the trust store has no getAgreement', async () => {
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        delete trustStore.getAgreement;
+
+        await server.start();
+
+        expect(listenSpy).toHaveBeenCalled();
+        const agreements = warn.mock.calls.filter(([message]) =>
+          String(message).includes('no getAgreement'),
+        );
+        expect(agreements).toHaveLength(1);
+        expect(String(agreements[0]?.[0])).toContain('agreementStatementProblem');
+      });
+
+      it('says nothing about agreements when the trust store has getAgreement', async () => {
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        trustStore.getAgreement = vi.fn(async () => undefined);
+
+        await server.start();
+
+        const said = warn.mock.calls.some(([message]) => String(message).includes('getAgreement'));
+        expect(said).toBe(false);
+        delete trustStore.getAgreement;
+      });
     });
 
     describe('stop()', () => {
