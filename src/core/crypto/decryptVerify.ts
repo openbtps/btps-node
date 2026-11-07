@@ -13,6 +13,7 @@ import {
   BTP_ERROR_VALIDATION,
 } from '@core/error/constant.js';
 import { decryptedDocumentProblem } from '@core/server/schemas/helpers.js';
+import { verifierRefusal } from '@core/trust/verification.js';
 import isEmpty from 'lodash/isEmpty.js';
 
 const genDecryptError = (error: BTPErrorException) => ({
@@ -81,6 +82,15 @@ export const decryptVerify = async <T = unknown>(
           cause: `the document is a ${String(type)}, not the ${documentType} its envelope names`,
         }),
       );
+    }
+    // Since 1.2: only one who runs a BTPS server verifies.
+    const { verification } = (decryptedData ?? {}) as { verification?: { verifiedBy: string } };
+    const verifier =
+      restEncryptedPayload.type === 'TRUST_REQ' && verification
+        ? await verifierRefusal(verification.verifiedBy)
+        : undefined;
+    if (verifier) {
+      return genDecryptError(new BTPErrorException(verifier.error, { cause: verifier.problem }));
     }
   }
 

@@ -215,6 +215,7 @@ Each value's length limit is on [Limits](./limits.md#trust-detail-values).
 - **The claims** say exactly what was checked, by the protocol's names only: `entityType`, and `detail:` names with their values in their shapes (above). Any other key is refused.
 - **The signature** is `verifiedBy`'s, at its `selector`, over the RFC 8785 form of `{ subject, claims, verifiedAt, expiresAt, verifiedBy, selector }`, where `subject` is the request's `from`, so a statement cannot be copied into anyone else's request. `signVerification` in `@btps/sdk/trust` makes one.
 - **It is values**, so a request carrying one is encrypted, as one carrying `own` is.
+- **Its verifier runs a BTPS server.** `verifiedBy` must be the operator (`op`) named in `_btps.host` of its own domain. A customer address on a SaaS (`jane$saas.example`, where `op` is `admin$saas.example`) may not verify; another operator, such as an identity-check service running its own server, or a self-hoster who is its own `op`, may. When the request is opened (`decryptVerify`), a verification from anyone else refuses it (`BTP_ERROR_VALIDATION`, "the verifier does not run a BTPS server: … is not the operator of …"). A lookup that fails, rather than finding no record, judges no one: the request is refused to be tried again (`BTP_ERROR_RESOLVE_DNS`, "could not look up …'s BTPS host record; try again"). This rule only makes a verifier an operator. Each provider still chooses whose verifications it trusts, and may keep its own list even among operators.
 
 `verificationFacts(request)` reports, for the opened request, and refuses nothing:
 
@@ -236,6 +237,8 @@ Under a trust with permissions, a `BTPS_DOC` names its `documentType` on the env
 - a readable (unencrypted) document whose `type` is not its `documentType` is refused (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`).
 
 `decryptVerify` refuses an opened document that is not its `documentType` (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`), and `signEncrypt` refuses to sign one before it encrypts it. `documentTypeProblem` in `@btps/sdk/trust` runs the arrival check on its own.
+
+The sender's own server checks it first: a device's `artifact.send` is checked by its provider, against the user's own record of the trust with the receiver, before it goes, with the same rules and errors. Only that trust's own direction is read, from the sender to the receiver, as on arrival: a document travels only that way, unlike a details refresh, which works over a trust in either direction.
 
 Only a send under a trust with permissions carries `documentType`: it stamps the artifact `1.2.0`. A trust without permissions (a 1.1 trust) takes any document type, as in 1.1, and every other send goes as `1.1.0`. Events need none: `relatesTo` ties each to the document it is about. A device sets it with `BtpsAgent`'s `artifact.send` option `documentType`.
 

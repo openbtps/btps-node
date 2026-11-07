@@ -118,7 +118,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   is not its `documentType` (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`, also from
   `decryptVerify` once opened and from `signEncrypt` before sending). A device
   sets it with `artifact.send`'s new `documentType` option. A trust without
-  permissions takes any type, as in 1.1 (`documentTypeProblem`).
+  permissions takes any type, as in 1.1 (`documentTypeProblem`). A device's
+  send is checked the same way by its own provider before it goes, from the
+  user's own record of the trust in its direction, sender to receiver.
 - **Details refresh.** Three new artifact types, `DETAILS_CHANGED`,
   `DETAILS_REQ` and `DETAILS_RES`, carry `details`, the `detail:` names they
   are about, on the envelope, so each side of an active trust is told when the
@@ -153,8 +155,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   shapes), signed over the sender's own address so it cannot be copied. A
   request carrying one is encrypted. `signVerification` makes one;
   `verificationFacts` reports `{ signatureValid, expired,
-verifierServesSender, verifierIsOperator }` and refuses nothing. Whose
-  verifications to trust is each provider's to decide.
+verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
+  runs a BTPS server verifies: `verifiedBy` is the `op` of its own domain's
+  `_btps.host`, or `decryptVerify` refuses the request (`verifierRefusal`); a
+  lookup that fails is `BTP_ERROR_RESOLVE_DNS`, to try again.
+  Whose verifications to trust is each provider's to decide.
 - **A trust request composed for its receiver's version.** Before a trust
   request with permissions is signed, the agent and `signEncrypt` ask the
   receiver's server its version with one `PING`. To a 1.1 server it goes as
