@@ -70,6 +70,14 @@ has a limit.
 | `decidedBy` |   254 |
 | `message`   | 5,000 |
 
+### Trust detail values
+
+Since 1.2: a request's `own` and an answer's `details` (see [Trust permissions](./transporter-artifact.md#trust-permissions)). Each value has the limit of the trust request field it stands for, so `detail:legalName` is at most 200 characters, `detail:email` 254, `detail:phone` 32 and `detail:address` 1,000; `detail:profile`'s `displayName` is at most 200, and its `logo.source` and `website` at most 2,048.
+
+| Value                                                 | Limit |
+| ----------------------------------------------------- | ----: |
+| `detail:taxNo`, `detail:registrationNumber`: `number` |    64 |
+
 ### Lifecycle event (`BTPS_EVENT`)
 
 | Field         | Limit |

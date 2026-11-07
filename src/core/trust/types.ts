@@ -57,7 +57,15 @@ export interface BTPTrustReqDoc {
   message?: string | { format: 'text' | 'markdown'; content: string }; // @optional message from the requesting party; a note with a format since 1.2
   expiresAt?: string; // @optional expiry date and time for the trust to last in ISO Format
   privacyType?: BTPEncryptionType; // @optional Privacy type to be upheld for communicating for this trust
+  own?: BTPDetailValues; // since 1.2: the values of the details given that 1.1 has no field for, by name; encrypted
 }
+
+/**
+ * Since 1.2: detail values by permission name, e.g. `{ "detail:dob": "1990-04-21" }`.
+ * `detail:taxNo` and `detail:registrationNumber` are `{ number, country }`;
+ * `detail:profile` is `{ displayName, logo?: { sha256, source }, website? }`.
+ */
+export type BTPDetailValues = Partial<Record<`detail:${string}`, unknown>>;
 
 export interface BTPTrustResDoc {
   id: string; // Random unique Id
@@ -68,4 +76,5 @@ export interface BTPTrustResDoc {
   retryAfterDate?: string;
   message?: string | { format: 'text' | 'markdown'; content: string }; // a note with a format since 1.2
   privacyType?: BTPEncryptionType;
+  details?: BTPDetailValues; // since 1.2: the value of every detail granted, by name; encrypted
 }

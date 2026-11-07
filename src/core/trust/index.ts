@@ -22,3 +22,5 @@ export type {
   BTPPermission,
   BTPTrustPermissions,
 } from '@core/server/types.js';
+// A platform checks an opened trust request's or answer's values with these, as decryptVerify does.
+export { trustRequestProblem, trustResponseProblem } from '@core/server/schemas/trustValues.js';

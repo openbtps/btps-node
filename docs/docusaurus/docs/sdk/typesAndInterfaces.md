@@ -1411,7 +1411,11 @@ interface BTPTrustReqDoc {
   message?: BTPNote; // a note with a format since 1.2
   expiresAt?: string;
   privacyType?: BTPEncryptionType;
+  own?: BTPDetailValues; // since 1.2: the values of given details 1.1 has no field for; encrypted
 }
+
+// Since 1.2: detail values by permission name, e.g. { "detail:dob": "1990-04-21" }
+type BTPDetailValues = Partial<Record<`detail:${string}`, unknown>>;
 ```
 
 ### BTPTrustResDoc
@@ -1428,6 +1432,7 @@ interface BTPTrustResDoc {
   retryAfterDate?: string;
   message?: BTPNote; // a note with a format since 1.2
   privacyType?: BTPEncryptionType;
+  details?: BTPDetailValues; // since 1.2: the value of every granted detail, by name; encrypted
 }
 ```
 

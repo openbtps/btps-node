@@ -94,6 +94,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   readable request or answer that carries values unencrypted. The names are
   exported from `@btps/sdk/trust` (`DOCUMENT_TYPES`, `SEND_PERMISSIONS`,
   `DETAIL_PERMISSIONS`).
+- **Trust permission values, checked when opened.** A request gives each name
+  in `given` its value, in the 1.1 field it has (`name` is `detail:legalName`,
+  and so on) or else in `own`, by name; an answer holds every granted detail's
+  value in `details`, by name. `decryptVerify` refuses a request or answer
+  whose values do not match its names, or whose values are not their names'
+  shapes (`{ number, country }`, a `YYYY-MM-DD` date, a profile with https
+  addresses), with `BTP_ERROR_VALIDATION`. `trustRequestProblem` and
+  `trustResponseProblem` in `@btps/sdk/trust` run the same check.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).

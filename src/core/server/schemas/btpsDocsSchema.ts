@@ -233,7 +233,7 @@ export const BtpReceiptDocV1_1Schema = BtpInvoiceDocV1_1Schema.omit({
  */
 
 /** An https address, as long as a logo or website address may be. */
-const httpsUrl = z
+export const httpsUrl = z
   .string()
   .max(BTPS_FIELD_LIMITS.url)
   .url()
