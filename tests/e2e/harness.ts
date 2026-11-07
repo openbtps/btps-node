@@ -174,7 +174,18 @@ export async function startProvider(
   server.onIncomingArtifact('Transporter', async (artifact) => {
     inbox.push(artifact);
     trustStore.remember(artifact);
-    if (artifact.type === 'TRUST_REQ') {
+    if (artifact.type === 'TRUST_REQ' && artifact.change) {
+      // A change to an active trust waits for its user's answer, one at a time.
+      const id = computeTrustId(artifact.from, artifact.to);
+      const { permissions } = (await trustStore.getById(id)) ?? {};
+      const requested = artifact.permissions ?? [];
+      await trustStore.update(id, {
+        permissions: {
+          ...(permissions ?? { requested, granted: [], detailsHeld: [], detailsShared: [] }),
+          pendingChange: { requested, requestedAt: artifact.issuedAt },
+        },
+      });
+    } else if (artifact.type === 'TRUST_REQ') {
       await recordTrust(trustStore, artifact.from, artifact.to, 'pending');
     }
     if (artifact.type === 'TRUST_RES') {

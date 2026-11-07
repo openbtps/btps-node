@@ -1268,7 +1268,7 @@ export class BtpsServer {
     }
 
     if (artifact.type === 'TRUST_REQ') {
-      const { isValid, error } = validateTrustRequest(trustRecord);
+      const { isValid, error } = validateTrustRequest(trustRecord, artifact);
       return { isTrusted: isValid, error };
     } else {
       if (!isTrustActive(trustRecord)) {

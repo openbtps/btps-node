@@ -292,6 +292,15 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   `onError` middleware, no longer also writes each failed artifact to
   `console.error`. With neither, it writes as before.
 
+### Fixed
+
+- A change to an active trust (`TRUST_REQ` with `change: true`) reaches its
+  receiver. The server refused every trust request on an active trust, a
+  change too, so permissions could never be added or removed later. It now
+  takes a change while the receiver's record of the trust is active and has
+  no change pending, and refuses anything else as before. The receiving
+  platform saves the change as `pendingChange` until its user answers.
+
 ### Upgrading from 1.1
 
 A 1.1 provider upgrades without changing what it sends: a 1.2 server and
