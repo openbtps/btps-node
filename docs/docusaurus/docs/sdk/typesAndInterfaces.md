@@ -1471,6 +1471,34 @@ interface BTPVerificationFacts {
   verifierIsOperator: boolean;
 }
 
+// Since 1.2: see Agreement on the Transporter Artifact page
+type BTPAgreementRef = { originator: string; id: string; contentSha256: string };
+
+type BTPAgreementStatement = {
+  agreement: BTPAgreementRef;
+  terms: string[];
+  signer: string;
+  decision: 'accepted' | 'declined';
+  signedAt: string;
+  previous?: string; // in a sequential agreement: the SHA-256 of the record before it
+};
+
+// Signed by the signer's identity key at `selector`, or by a device key, carrying the delegated artifact that delivered it
+type BTPStatementRecord = { statement: BTPAgreementStatement; signature: BTPSignature } & (
+  | { selector: string }
+  | { delegatedArtifact: BTPTransporterArtifact & { delegation: BTPDelegation } }
+);
+
+interface BTPStatementSignatureFacts {
+  signatureValid: boolean;
+  keyKind: 'identity' | 'device';
+  delegatedBy?: string; // a device's delegator
+  attestedBy?: string; // and its attestor, if any
+}
+
+// A public key by identity and selector: from DNS, a store, or an evidence bundle
+type BTPKeyOf = (identity: string, selector: string) => string | undefined;
+
 // Since 1.2: detail values by permission name, e.g. { "detail:dob": "1990-04-21" }
 type BTPDetailValues = {
   'detail:legalName'?: string;

@@ -175,6 +175,15 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   `signingOrder` `any` or `sequential`) and `originatorSignature`, and a letter
   never carries `acceptance`. `send:agreement` joins the permission names, and
   letter templates draw agreements too (`kinds` `letter`, `agreement`).
+- **Agreements are signed over their content.** `signAgreement` signs
+  `{ originator, id, contentSha256 }` (`agreementRef`, `agreementContentSha256`),
+  and `originatorSignatureValid` checks it. A signer's answer is a statement
+  record, signed with its identity key (`signStatement`) or a device key
+  (`signStatementOnDevice`, completed by `deviceStatementRecord` with the
+  delegated artifact that delivered it). `statementSignatureFacts` reports
+  `signatureValid`, `keyKind` and, for a device, `delegatedBy` and
+  `attestedBy`; `statementRecordSha256` is what the next statement names as
+  `previous`.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).
