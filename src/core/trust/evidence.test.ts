@@ -137,13 +137,14 @@ describe('an evidence bundle', () => {
             signatureValid: true,
             time: '2026-11-02T00:05:00.000Z',
             authority: 'CN=Test TSA',
+            timestampingKeyUsage: true,
           },
         },
         ...rest,
       ],
     };
     expect(describeEvidenceFacts(stamped)).toContain(
-      'timestamped 2026-11-02T00:05:00.000Z by CN=Test TSA: over this statement yes, signed yes, trusted no roots given',
+      "timestamped 2026-11-02T00:05:00.000Z by CN=Test TSA: over this statement yes, signed yes, an authority's certificate yes, trusted no roots given",
     );
   });
 });

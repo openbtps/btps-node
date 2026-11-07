@@ -1547,7 +1547,8 @@ type BTPTimestampFacts = {
   signatureValid: boolean;
   time?: string;
   authority?: string;
-  trusted?: boolean; // only when trusted roots are given
+  timestampingKeyUsage?: boolean; // its certificate's one usage is timeStamping, critical (RFC 3161 §2.3)
+  trusted?: boolean; // only when trusted roots are given; needs timestampingKeyUsage
 };
 
 // Since 1.2: detail values by permission name, e.g. { "detail:dob": "1990-04-21" }

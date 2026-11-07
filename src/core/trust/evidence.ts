@@ -247,8 +247,12 @@ export const describeEvidenceFacts = (facts: BTPEvidenceFacts): string => {
     const stamp = s.timestamp;
     if (stamp) {
       const trusted = stamp.trusted === undefined ? 'no roots given' : mark(stamp.trusted);
+      const authority =
+        stamp.timestampingKeyUsage === undefined
+          ? ''
+          : `, an authority's certificate ${mark(stamp.timestampingKeyUsage)}`;
       lines.push(
-        `   timestamped ${stamp.time ?? 'unreadable'} by ${stamp.authority ?? 'unknown'}: over this statement ${mark(stamp.imprintMatches)}, signed ${mark(stamp.signatureValid)}, trusted ${trusted}`,
+        `   timestamped ${stamp.time ?? 'unreadable'} by ${stamp.authority ?? 'unknown'}: over this statement ${mark(stamp.imprintMatches)}, signed ${mark(stamp.signatureValid)}${authority}, trusted ${trusted}`,
       );
     }
   });

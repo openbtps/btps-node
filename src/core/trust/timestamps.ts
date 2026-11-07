@@ -23,6 +23,9 @@ import type { BTPStatementRecord } from './types.js';
 const SHA256 = '2.16.840.1.101.3.4.2.1';
 const TST_INFO = '1.2.840.113549.1.9.16.1.4';
 const MESSAGE_DIGEST = '1.2.840.113549.1.9.4';
+const CONTENT_TYPE = '1.2.840.113549.1.9.3';
+const EXT_KEY_USAGE = '2.5.29.37';
+const TIME_STAMPING = '1.3.6.1.5.5.7.3.8';
 const HASHES: Record<string, string> = {
   [SHA256]: 'sha256',
   '2.16.840.1.101.3.4.2.2': 'sha384',
@@ -39,7 +42,12 @@ export type BTPTimestampFacts = {
   time?: string;
   /** Who signed it: its certificate's subject */
   authority?: string;
-  /** With trusted roots given: the certificate chains to one of them */
+  /**
+   * The signer's certificate is a timestamp authority's (RFC 3161 §2.3): its
+   * only extended key usage is id-kp-timeStamping, marked critical
+   */
+  timestampingKeyUsage?: boolean;
+  /** With trusted roots given: a timestamp authority's certificate that chains to one of them */
   trusted?: boolean;
 };
 
@@ -104,7 +112,7 @@ export const timestampFacts = async (
   statementSha256: string,
   options: { trustedRoots?: string[] } = {},
 ): Promise<BTPTimestampFacts> => {
-  const { pkijs } = await libraries();
+  const { asn1js, pkijs } = await libraries();
   const unread: BTPTimestampFacts = { imprintMatches: false, signatureValid: false };
   try {
     const contentInfo = pkijs.ContentInfo.fromBER(Buffer.from(token, 'base64'));
@@ -135,11 +143,32 @@ export const timestampFacts = async (
     const authority = signer?.subject.typesAndValues
       .map(({ type, value }) => `${type === '2.5.4.3' ? 'CN' : type}=${value.valueBlock.value}`)
       .join(', ');
+    // RFC 3161 §2.3: an authority's certificate has one extended key usage, id-kp-timeStamping, critical.
+    const usages = signer?.extensions?.filter(({ extnID }) => extnID === EXT_KEY_USAGE) ?? [];
+    const [usage] = usages;
+    const timestampingKeyUsage =
+      usages.length === 1 &&
+      usage?.critical === true &&
+      usage.parsedValue instanceof pkijs.ExtKeyUsage &&
+      usage.parsedValue.keyPurposes.length === 1 &&
+      usage.parsedValue.keyPurposes[0] === TIME_STAMPING;
     const hash = signerInfo && HASHES[signerInfo.digestAlgorithm.algorithmId];
     const attributes = signerInfo?.signedAttrs;
-    const digest = attributes?.attributes.find(({ type }) => type === MESSAGE_DIGEST)?.values[0];
+    const attribute = (type: string) =>
+      attributes?.attributes.find((attr) => attr.type === type)?.values[0];
+    const digest = attribute(MESSAGE_DIGEST);
+    // RFC 5652 §5.3: the content type it signs is the one it carries, a TSTInfo.
+    const contentType = attribute(CONTENT_TYPE);
+    const contentTypeMatches =
+      contentType instanceof asn1js.ObjectIdentifier && contentType.getValue() === TST_INFO;
     let signatureValid = false;
-    if (signer && hash && attributes?.encodedValue && digest instanceof Object) {
+    if (
+      signer &&
+      hash &&
+      attributes?.encodedValue &&
+      digest instanceof Object &&
+      contentTypeMatches
+    ) {
       const digestMatches =
         hexOf(digest.valueBlock.valueHexView) ===
         crypto.createHash(hash).update(content).digest('hex');
@@ -157,11 +186,12 @@ export const timestampFacts = async (
     }
     const roots = options.trustedRoots?.map((pem) => pkijs.Certificate.fromBER(derOfPem(pem)));
     const signerDer = signer && hexOf(signer.toSchema().toBER());
-    // Trusted when a root is the authority's own certificate (pinned), or its chain reaches one.
+    // Trusted when it is an authority's certificate, and a root is that certificate (pinned) or its chain reaches one.
     const trusted =
       roots === undefined
         ? undefined
         : signatureValid &&
+          timestampingKeyUsage &&
           signer !== undefined &&
           (roots.some((root) => hexOf(root.toSchema().toBER()) === signerDer) ||
             (
@@ -178,6 +208,7 @@ export const timestampFacts = async (
       signatureValid,
       time: tstInfo.genTime.toISOString(),
       ...(authority && { authority }),
+      ...(signer && { timestampingKeyUsage }),
       ...(trusted !== undefined && { trusted }),
     };
   } catch {

@@ -71,9 +71,16 @@ const certify = async (
 /**
  * A test authority, as one is run: a root CA, and the authority's own
  * certificate it issues, for time stamping only. Their PEMs, and a way to
- * answer a request.
+ * answer a request. `usage` gives that certificate another extended key
+ * usage instead, or none (`null`), as a certificate not for time stamping has.
  */
-const authority = async (name: string) => {
+const authority = async (
+  name: string,
+  usage: { purposes: string[]; critical: boolean } | null = {
+    purposes: ['1.3.6.1.5.5.7.3.8'],
+    critical: true,
+  },
+) => {
   const ca = { cn: `${name} Root`, keys: await keyPair() };
   const tsa = { cn: name, keys: await keyPair() };
   const basicConstraints = new pkijs.BasicConstraints({ cA: true });
@@ -85,16 +92,23 @@ const authority = async (name: string) => {
       parsedValue: basicConstraints,
     }),
   ]);
-  // Extended key usage: timeStamping, critical, as RFC 3161 requires of an authority.
-  const usage = new pkijs.ExtKeyUsage({ keyPurposes: ['1.3.6.1.5.5.7.3.8'] });
-  const certificate = await certify(tsa, ca, 7, [
-    new pkijs.Extension({
-      extnID: '2.5.29.37',
-      critical: true,
-      extnValue: usage.toSchema().toBER(false),
-      parsedValue: usage,
-    }),
-  ]);
+  // Extended key usage: by default timeStamping, critical, as RFC 3161 requires of an authority.
+  const keyUsage = usage && new pkijs.ExtKeyUsage({ keyPurposes: usage.purposes });
+  const certificate = await certify(
+    tsa,
+    ca,
+    7,
+    usage && keyUsage
+      ? [
+          new pkijs.Extension({
+            extnID: '2.5.29.37',
+            critical: usage.critical,
+            extnValue: keyUsage.toSchema().toBER(false),
+            parsedValue: keyUsage,
+          }),
+        ]
+      : [],
+  );
   const keys = tsa.keys;
   const pem = pemOf(certificate);
   const rootPem = pemOf(root);
@@ -177,6 +191,7 @@ describe('a trusted timestamp on a statement', () => {
       signatureValid: true,
       time: GEN_TIME.toISOString(),
       authority: 'CN=Test TSA',
+      timestampingKeyUsage: true,
     });
     const trustedBy = async (pem: string) =>
       (await timestampFacts(token, sha256, { trustedRoots: [pem] })).trusted;
@@ -193,6 +208,28 @@ describe('a trusted timestamp on a statement', () => {
       trustedRoots: [other.rootPem],
     });
     expect(facts).toMatchObject({ imprintMatches: false, signatureValid: true, trusted: false });
+  });
+
+  it('is not trusted when signed by a certificate under the root that is not for time stamping', async () => {
+    const sha256 = statementRecordSha256(record);
+    // A TLS server's certificate, an authority's with another usage beside, one not critical, and one with none.
+    for (const usage of [
+      { purposes: ['1.3.6.1.5.5.7.3.1'], critical: false },
+      { purposes: ['1.3.6.1.5.5.7.3.8', '1.3.6.1.5.5.7.3.1'], critical: true },
+      { purposes: ['1.3.6.1.5.5.7.3.8'], critical: false },
+      null,
+    ]) {
+      const notAuthority = await authority('Test Server', usage);
+      const token = await timestampTokenOf(await notAuthority.respond(sha256));
+      for (const pem of [notAuthority.rootPem, notAuthority.pem]) {
+        expect(await timestampFacts(token, sha256, { trustedRoots: [pem] })).toMatchObject({
+          imprintMatches: true,
+          signatureValid: true,
+          timestampingKeyUsage: false,
+          trusted: false,
+        });
+      }
+    }
   });
 
   it('is unreadable, never an error, when the token is not one', async () => {

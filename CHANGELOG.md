@@ -214,7 +214,10 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   authority's reply, and `timestampFacts` reports a token's facts;
   `verifyEvidenceBundle` reports each statement's, and whether its authority is
   trusted given `trustedTimestampRoots` (`btps-verify-evidence
---timestamp-root`). A timestamp never changes `complete`. New dependencies:
+--timestamp-root`). Only a timestamp authority's certificate is trusted: its
+  one extended key usage is timeStamping, critical, as RFC 3161 requires
+  (`timestampingKeyUsage`), so a TLS server's certificate under a trusted root
+  is not. A timestamp never changes `complete`. New dependencies:
   `pkijs` and `asn1js` (BSD-3-Clause), loaded only when a timestamp is used.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`

@@ -3879,9 +3879,14 @@ export async function agreementTimestamps(set) {
   const certificate = await certify(tsa, ca, 7, [
     extension('2.5.29.37', new pkijs.ExtKeyUsage({ keyPurposes: ['1.3.6.1.5.5.7.3.8'] })),
   ]);
+  // A TLS server's certificate under the same root: not for time stamping.
+  const server = { cn: 'BTPS Test TLS Server', keys: await keyPair() };
+  const serverCertificate = await certify(server, ca, 8, [
+    extension('2.5.29.37', new pkijs.ExtKeyUsage({ keyPurposes: ['1.3.6.1.5.5.7.3.1'] })),
+  ]);
 
   // A TimeStampToken over `sha256Hex`, base64, as an authority's reply carries it.
-  const tokenOver = async (sha256Hex) => {
+  const tokenOver = async (sha256Hex, signer = { certificate, keys: tsa.keys }) => {
     const eContent = new pkijs.TSTInfo({
       version: 1,
       policy: '1.3.6.1.4.1.99999.1',
@@ -3904,8 +3909,8 @@ export async function agreementTimestamps(set) {
         new pkijs.SignerInfo({
           version: 1,
           sid: new pkijs.IssuerAndSerialNumber({
-            issuer: certificate.issuer,
-            serialNumber: certificate.serialNumber,
+            issuer: signer.certificate.issuer,
+            serialNumber: signer.certificate.serialNumber,
           }),
           signedAttrs: new pkijs.SignedAndUnsignedAttributes({
             type: 0,
@@ -3924,9 +3929,9 @@ export async function agreementTimestamps(set) {
           }),
         }),
       ],
-      certificates: [certificate],
+      certificates: [signer.certificate],
     });
-    await signedData.sign(tsa.keys.privateKey, 0, 'SHA-256');
+    await signedData.sign(signer.keys.privateKey, 0, 'SHA-256');
     const token = new pkijs.ContentInfo({
       contentType: '1.2.840.113549.1.7.2',
       content: signedData.toSchema(true),
@@ -3936,22 +3941,23 @@ export async function agreementTimestamps(set) {
 
   const base = set.bundles.find((c) => c.name === 'complete-sequential-with-identity-keys');
   const [first, second] = base.bundle.statements.map((record) => hashOf(record));
-  const timestamp = (imprintMatches) => ({
+  const timestamp = (imprintMatches, byAuthority) => ({
     imprintMatches,
     signatureValid: true,
     time: GEN_TIME.toISOString(),
-    authority: 'CN=BTPS Test TSA',
-    trusted: true,
+    authority: byAuthority ? 'CN=BTPS Test TSA' : 'CN=BTPS Test TLS Server',
+    timestampingKeyUsage: byAuthority,
+    trusted: byAuthority,
   });
   // The first statement timestamped; its facts gain `timestamp`, and nothing else changes.
-  const timestamped = (name, token, imprintMatches) => ({
+  const timestamped = (name, token, imprintMatches, byAuthority = true) => ({
     name,
     bundle: { ...base.bundle, timestamps: [{ statementSha256: first, token }] },
     options: { trustedTimestampRoots: [pemOf(root)] },
     expect: {
       ...base.expect,
       statements: base.expect.statements.map((fact, i) =>
-        i === 0 ? { ...fact, timestamp: timestamp(imprintMatches) } : fact,
+        i === 0 ? { ...fact, timestamp: timestamp(imprintMatches, byAuthority) } : fact,
       ),
     },
   });
@@ -3959,5 +3965,13 @@ export async function agreementTimestamps(set) {
     timestamped('timestamped-by-a-trusted-authority', await tokenOver(first), true),
     // A real token, but over the second statement: it is reported, and decides nothing.
     timestamped('timestamp-of-another-statement', await tokenOver(second), false),
+    // Signed under the trusted root, but by a TLS server's certificate: RFC 3161 §2.3
+    // takes only a certificate whose one usage is timeStamping, so it is not trusted.
+    timestamped(
+      'timestamp-by-a-certificate-not-for-time-stamping',
+      await tokenOver(first, { certificate: serverCertificate, keys: server.keys }),
+      true,
+      false,
+    ),
   ];
 }
