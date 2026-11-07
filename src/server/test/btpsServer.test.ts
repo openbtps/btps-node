@@ -2218,6 +2218,81 @@ export default function () {
         expect(result.error).toBeInstanceOf(BTPErrorException);
         expect(result.error?.message).toContain('BTPS trust request is not allowed');
       });
+
+      describe("since 1.2, a device's send under a trust with permissions", () => {
+        // The user, the biller, asked the payer for a trust; the payer granted invoices.
+        const user = 'billing$acme.com';
+        const payer = 'pay$client.com';
+        const accepted = { status: 'accepted', privacyType: 'mixed', keyHistory: [] };
+        const userRecord = (granted?: string[]) => ({
+          ...accepted,
+          senderId: user,
+          receiverId: payer,
+          ...(granted && {
+            permissions: { requested: [], granted, detailsHeld: [], detailsShared: [] },
+          }),
+        });
+        const holding = (...records: [string, unknown][]) => {
+          const byId = new Map<string, unknown>([
+            [computeAgentTrustId('device-1', user), { ...accepted, senderId: 'device-1' }],
+            ...records,
+          ]);
+          trustStore.getById = vi.fn(async (id: string) => byId.get(id) as BTPTrustRecord);
+        };
+        const send = (documentType?: string) =>
+          ({
+            version: '1.2.0',
+            id: 'agent-artifact',
+            agentId: 'device-1',
+            action: 'artifact.send',
+            to: payer,
+            issuedAt: new Date().toISOString(),
+            signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
+            encryption: null,
+            document: {
+              version: '1.2.0',
+              id: 'invoice-1',
+              type: 'BTPS_DOC',
+              from: user,
+              to: payer,
+              encryption: { algorithm: 'aes-256-gcm' },
+              document: 'ciphertext',
+              ...(documentType && { documentType }),
+            },
+          }) as unknown as BTPAgentArtifact;
+
+        it('takes a send of a document type the receiver granted, before it goes', async () => {
+          holding([computeTrustId(user, payer), userRecord(['send:invoice'])]);
+          expect((await server['verifyAgentTrust'](send('invoice'))).isTrusted).toBe(true);
+        });
+
+        it('refuses a send of a type not granted: BTP_ERROR_PERMISSION', async () => {
+          holding([computeTrustId(user, payer), userRecord(['send:invoice'])]);
+          const result = await server['verifyAgentTrust'](send('receipt'));
+          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+        });
+
+        it('refuses a send that names no document type: BTP_ERROR_PERMISSION', async () => {
+          holding([computeTrustId(user, payer), userRecord(['send:invoice'])]);
+          const result = await server['verifyAgentTrust'](send());
+          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+        });
+
+        it('adds nothing under a 1.1 trust', async () => {
+          holding([computeTrustId(user, payer), userRecord()]);
+          expect((await server['verifyAgentTrust'](send())).isTrusted).toBe(true);
+        });
+
+        it('reads only the trust from the user to the receiver, never the reverse', async () => {
+          // The payer asked the user too and was granted nothing to receive invoices with:
+          // that record is about the other direction and never decides the user's send.
+          holding([
+            computeTrustId(payer, user),
+            { ...userRecord([]), senderId: payer, receiverId: user },
+          ]);
+          expect((await server['verifyAgentTrust'](send('invoice'))).isTrusted).toBe(true);
+        });
+      });
     });
 
     describe('verifyEventRelation', () => {

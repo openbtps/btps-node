@@ -118,7 +118,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   is not its `documentType` (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`, also from
   `decryptVerify` once opened and from `signEncrypt` before sending). A device
   sets it with `artifact.send`'s new `documentType` option. A trust without
-  permissions takes any type, as in 1.1 (`documentTypeProblem`).
+  permissions takes any type, as in 1.1 (`documentTypeProblem`). A device's
+  send is checked the same way by its own provider before it goes, from the
+  user's own record of the trust in its direction, sender to receiver.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).

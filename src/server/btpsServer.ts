@@ -958,7 +958,32 @@ export class BtpsServer {
         }),
       };
     }
-    return { isTrusted: isTrustActive(trustRecord), error: undefined };
+    if (!isTrustActive(trustRecord)) return { isTrusted: false, error: undefined };
+    const carried = artifact.document as BTPTransporterArtifact;
+    if (artifact.action === 'artifact.send' && carried?.type === 'BTPS_DOC') {
+      return this.verifyDocumentSend(carried);
+    }
+    return { isTrusted: true, error: undefined };
+  }
+
+  /**
+   * Since 1.2: a device's send checked by its own provider before it goes, as
+   * its receiver will check it: under a trust with permissions it names a
+   * documentType the receiver granted. A trust without them, or none, adds nothing here.
+   */
+  private async verifyDocumentSend(
+    carried: BTPTransporterArtifact,
+  ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
+    // Documents travel only along the trust's direction, id(from → to), unlike details refresh, which reads either direction.
+    const record = await this.trustStore.getById(computeTrustId(carried.from, carried.to));
+    const refusal = isTrustActive(record) && record && documentTypeRefusal(carried, record);
+    if (refusal) {
+      return {
+        isTrusted: false,
+        error: new BTPErrorException(refusal.error, { cause: refusal.problem }),
+      };
+    }
+    return { isTrusted: true, error: undefined };
   }
 
   /**
@@ -1142,6 +1167,7 @@ export class BtpsServer {
         return { isTrusted: false, error: this.getTrustRefusalError(trustRecord) };
       }
       // Since 1.2: under a trust with permissions, a send names a document type it grants.
+      // Documents travel only along the trust's direction, id(from → to), unlike details refresh, which reads either direction.
       const refusal = trustRecord && documentTypeRefusal(artifact, trustRecord);
       if (refusal) {
         return {
