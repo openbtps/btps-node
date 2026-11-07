@@ -253,7 +253,91 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
         c.sentRequest ?? undefined,
       ]),
     ),
+    ...agreementChecks(set.agreements),
   ];
+
+  // Since 1.2: agreements, their answers, and the evidence bundle.
+  function agreementChecks(agreements) {
+    const named = (name) => {
+      const rule = rules.agreements?.[name];
+      ensure(typeof rule === 'function', `the SDK has no ${name}`);
+      return rule;
+    };
+    return [
+      ...[
+        ['documents', agreements.documents],
+        ['events', agreements.events],
+      ].flatMap(([kind, cases]) =>
+        cases.map((c) =>
+          check(`agreements/${kind}/${c.name}`, () => {
+            const schema = rules.processBtpDocSchema(c.type, c.version);
+            const { success } = schema.safeParse(caseDocument(c));
+            if (c.expect === 'accept')
+              ensure(success, `refused under ${c.version}; expected it accepted`);
+            else ensure(!success, `accepted under ${c.version}; expected it refused: ${c.why}`);
+          }),
+        ),
+      ),
+      ...agreements.envelopes.map((c) =>
+        check(`agreements/envelope/${c.name}`, () => {
+          const { success } = rules.transporter.BtpTransporterArtifactSchema.safeParse(c.artifact);
+          if (c.expect === 'accept') ensure(success, 'refused; expected it accepted');
+          else ensure(!success, `accepted; expected it refused: ${c.why}`);
+        }),
+      ),
+      ...agreements.documentType.map((c) =>
+        problemCheck(`agreements/document-type/${c.name}`, 'documentTypeProblem', c, [c.record]),
+      ),
+      ...agreements.stamped.map((c) =>
+        check(`agreements/stamped/${c.name}`, () => {
+          const stamped = rules.versions.artifactVersion(c.artifact);
+          ensure(stamped === c.expect, `stamped ${stamped}; expected ${c.expect}`);
+        }),
+      ),
+      check('agreements/content-sha256', () => {
+        const { document, sha256 } = agreements.contentSha256;
+        const found = named('agreementContentSha256')(document);
+        ensure(found === sha256, `the SDK hashes the content to ${found}`);
+      }),
+      check('agreements/statement-sha256', () => {
+        const { record, sha256 } = agreements.statementSha256;
+        const found = named('statementRecordSha256')(record);
+        ensure(found === sha256, `the SDK hashes the record to ${found}`);
+      }),
+      ...agreements.statements.map((c) =>
+        check(`agreements/statement/${c.name}`, () => {
+          const problem = named('agreementStatementProblem')(
+            c.envelope,
+            c.event,
+            c.agreement,
+            c.earlier,
+          );
+          if (c.expect === 'accept') ensure(problem === undefined, `refused: ${problem}`);
+          else ensure(problem !== undefined, `accepted; expected it refused: ${c.why}`);
+        }),
+      ),
+      ...agreements.bundles.map((c) =>
+        check(`agreements/bundle/${c.name}`, async () => {
+          const facts = await named('verifyEvidenceBundle')(c.bundle);
+          // Every fact the vector lists must be as given; a verifier may report more.
+          const differ = (expected, found, at) => {
+            if (expected === null || typeof expected !== 'object') {
+              return expected === found ? [] : [`${at}: ${JSON.stringify(found)}`];
+            }
+            if (found === null || typeof found !== 'object') return [`${at}: missing`];
+            if (Array.isArray(expected) && expected.length !== found.length) {
+              return [`${at}: ${found.length} entries, not ${expected.length}`];
+            }
+            return Object.entries(expected).flatMap(([key, value]) =>
+              differ(value, found[key], `${at}.${key}`),
+            );
+          };
+          const wrong = differ(c.expect, facts, 'facts');
+          ensure(wrong.length === 0, `reported ${wrong.join('; ')}`);
+        }),
+      ),
+    ];
+  }
 
   // A rule the SDK exports as a function returning why an artifact fails it, or undefined.
   function problemCheck(id, name, c, more = []) {

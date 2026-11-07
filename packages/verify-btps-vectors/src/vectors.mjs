@@ -28,6 +28,7 @@ export const VECTOR_FILES = Object.freeze({
   sync: 'sync.vectors.json',
   trustPermissions: 'trust-permissions.vectors.json',
   details: 'details.vectors.json',
+  agreements: 'agreements.vectors.json',
   manifest: 'manifest.json',
 });
 
@@ -158,6 +159,27 @@ export function loadVectorSet(dir) {
   for (const c of set.details.held) {
     requireFields(VECTOR_FILES.details, c, ['name', 'artifact', 'record', 'sentRequest', 'expect']);
   }
+  const agreementCases = {
+    documents: ['type', 'version', 'document'],
+    events: ['type', 'version', 'document'],
+    envelopes: ['artifact'],
+    documentType: ['artifact', 'record'],
+    stamped: ['artifact'],
+    statements: ['envelope', 'event', 'agreement', 'earlier'],
+    bundles: ['bundle'],
+  };
+  requireFields(VECTOR_FILES.agreements, set.agreements, [
+    ...Object.keys(agreementCases),
+    'contentSha256',
+    'statementSha256',
+  ]);
+  for (const [key, more] of Object.entries(agreementCases)) {
+    for (const c of set.agreements[key]) {
+      requireFields(VECTOR_FILES.agreements, c, ['name', ...more, 'expect']);
+    }
+  }
+  requireFields(VECTOR_FILES.agreements, set.agreements.contentSha256, ['document', 'sha256']);
+  requireFields(VECTOR_FILES.agreements, set.agreements.statementSha256, ['record', 'sha256']);
   requireFields(VECTOR_FILES.manifest, set.manifest, ['hashAlgorithm', 'files']);
 
   // The only shared key is the encryption key, referenced by name. Resolve it

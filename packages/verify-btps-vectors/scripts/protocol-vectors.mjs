@@ -6,7 +6,8 @@
  *
  * Keys are the existing test keys: the sender signs with the key in
  * kms-signature.vector.json, and the receiver's key is the one in
- * oaep-wrap.vector.json. No new key is made.
+ * oaep-wrap.vector.json. No new key is made, except the agreement vectors'
+ * other signer, device and operator, which the generator makes and passes in.
  */
 
 import crypto from 'node:crypto';
@@ -1820,7 +1821,7 @@ export function trustPermissions() {
         'request-sending-another-type',
         sending([ask('send:quote')]),
         'refuse',
-        'send names one of four document types',
+        'send names one of the five document types',
       ),
       named(
         'request-with-a-provider-name',
@@ -2032,7 +2033,7 @@ export function trustPermissions() {
         'document-type-of-another-type',
         { ...invoice, documentType: 'quote' },
         'refuse',
-        'documentType is one of four document types',
+        'documentType is one of the five document types',
       ),
       named(
         'document-type-under-1-1',
@@ -2999,5 +3000,777 @@ export function templates() {
       ),
       ...format2,
     ],
+  };
+}
+
+const sha256Hex = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
+/** The SHA-256 of a value's RFC 8785 form, in lowercase hex. */
+const hashOf = (value) => sha256Hex(Buffer.from(canonicalizeValue(value), 'utf8'));
+const signatureBy = (key, value) => ({
+  algorithmHash: 'sha256',
+  value: signWith(key.privateKeyPem, value),
+  fingerprint: fingerprintOf(key.publicKeyPem),
+});
+
+/**
+ * BTPS 1.2 agreements: the agreement document, the signers' answers and their
+ * order, and the evidence bundle. `keys` are the originator's, two signers',
+ * a device's and the device's operator's, each `{ publicKeyPem, privateKeyPem }`.
+ */
+export function agreements(keys) {
+  const BANK = 'loans$bank.example';
+  const ALICE = 'alice$client.example';
+  const SAM = 'sam$guarantor.example';
+  const OPERATOR = 'admin$client.example';
+  const termsPdf = Buffer.from('%PDF-1.7 Home loan terms: 6.1% p.a. over 30 years', 'utf8');
+  const terms = {
+    content: termsPdf.toString('base64'),
+    type: 'application/pdf',
+    filename: 'terms.pdf',
+    size: termsPdf.length,
+    sha256: sha256Hex(termsPdf),
+  };
+  const BY = '2026-11-30T00:00:00.000Z';
+  const at = (day) => `2026-11-${String(day).padStart(2, '0')}T00:00:00.000Z`;
+
+  // An agreement as its originator signs it: the content, then its statement over it.
+  const contentOf = (acceptance, more = {}) => ({
+    type: 'agreement',
+    title: 'Home loan agreement',
+    id: 'AGR-1',
+    issuedAt: ISSUED_AT,
+    body: note('# Home loan\n\nThe terms are attached. Each of you accepts them in turn.'),
+    attachments: [terms],
+    acceptance: {
+      by: BY,
+      terms: [terms.sha256],
+      signers: [{ address: ALICE }, { address: SAM }, { address: BANK }],
+      signingOrder: 'sequential',
+      ...acceptance,
+    },
+    ...more,
+  });
+  const refOf = (content) => ({ originator: BANK, id: content.id, contentSha256: hashOf(content) });
+  const signed = (content) => ({
+    ...content,
+    originatorSignature: {
+      selector: 'btps1',
+      signature: signatureBy(keys.originator, refOf(content)),
+    },
+  });
+  const content = contentOf({});
+  const agreement = signed(content);
+  const ref = refOf(content);
+  const anyContent = contentOf({
+    signers: [{ address: ALICE }, { address: SAM }],
+    signingOrder: 'any',
+  });
+  const anyOrder = signed(anyContent);
+  const anyRef = refOf(anyContent);
+
+  // A signer's statement, and its record signed by an identity key or a device key.
+  const stated = (signer, decision, signedAt, previous, about = ref) => ({
+    agreement: about,
+    terms: [terms.sha256],
+    signer,
+    decision,
+    signedAt,
+    ...(previous && { previous }),
+  });
+  const byIdentity = (key, statement) => ({
+    statement,
+    selector: 'btps1',
+    signature: signatureBy(key, statement),
+  });
+  // A device's record carries the whole event artifact that delivered it, as it
+  // arrived: signed by the device, delegated by the signer's operator.
+  const byDevice = (statement, deviceKey = keys.device) => {
+    const artifact = {
+      version: V12,
+      issuedAt: statement.signedAt,
+      id: '7a1c2e3f-4b5d-4c6e-8f70-81a2b3c4d5e6',
+      type: 'BTPS_EVENT',
+      from: statement.signer,
+      to: BANK,
+      relatesTo: 'agreement-copy-to-alice',
+      agreement: {
+        id: statement.agreement.id,
+        contentSha256: statement.agreement.contentSha256,
+        ...(statement.previous && { previous: statement.previous }),
+      },
+      encryption: {
+        algorithm: 'aes-256-gcm',
+        encryptedKey: 'AA==',
+        iv: 'AA==',
+        authTag: 'AA==',
+        type: 'standardEncrypt',
+      },
+      document: 'ciphertext',
+    };
+    const withSignature = { ...artifact, signature: signatureBy(keys.device, artifact) };
+    const delegation = {
+      agentId: 'device-alice-1',
+      agentPubKey: deviceKey.publicKeyPem,
+      signedBy: OPERATOR,
+      issuedAt: statement.signedAt,
+      selector: 'btps1',
+    };
+    return {
+      statement,
+      signature: signatureBy(keys.device, statement),
+      delegatedArtifact: {
+        ...withSignature,
+        delegation: {
+          ...delegation,
+          signature: signatureBy(keys.operator, { ...withSignature, delegation }),
+        },
+      },
+    };
+  };
+
+  const alice = byIdentity(keys.signer, stated(ALICE, 'accepted', at(2)));
+  const sam = byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), hashOf(alice)));
+  const bank = byIdentity(keys.originator, stated(BANK, 'accepted', at(4), hashOf(sam)));
+  const aliceByDevice = byDevice(stated(ALICE, 'accepted', at(2)));
+  const samAfterDevice = byIdentity(
+    keys.guarantor,
+    stated(SAM, 'accepted', at(3), hashOf(aliceByDevice)),
+  );
+  const bankAfterDevice = byIdentity(
+    keys.originator,
+    stated(BANK, 'accepted', at(4), hashOf(samAfterDevice)),
+  );
+  const aliceDeclines = byIdentity(keys.signer, stated(ALICE, 'declined', at(2)));
+
+  // Answer events, as an opened BTPS_EVENT carries them.
+  const answer = (eventType, record, more = {}) => ({
+    type: 'agreement_event',
+    id: '5d6e7f80-9102-4a3b-8c4d-5e6f708192a3',
+    occurredAt: record.statement.signedAt,
+    eventType,
+    agreement: record.statement.agreement,
+    statement: record,
+    ...more,
+  });
+  const forwarded = (eventType, statements) => ({
+    type: 'agreement_event',
+    id: '6e7f8091-0213-4b4c-9d5e-6f708192a3b4',
+    occurredAt: at(4),
+    eventType,
+    agreement: ref,
+    statements,
+  });
+
+  // Documents, read under the version they travel in.
+  const docCase = (fn, name, document, why) =>
+    fn === accept
+      ? accept(name, 'BTPS_DOC', document, under(V12))
+      : refuse(name, 'BTPS_DOC', document, why, under(V12));
+  const signers = (count) =>
+    Array.from({ length: count }, (_, i) => ({ address: `signer${i + 1}$party.example` }));
+  const withAcceptance = (acceptance) => ({ ...agreement, acceptance });
+  const documents = [
+    docCase(accept, 'agreement', agreement),
+    docCase(accept, 'agreement-in-any-order', anyOrder),
+    docCase(
+      accept,
+      'agreement-without-a-deadline',
+      withAcceptance({ ...content.acceptance, by: undefined }),
+    ),
+    docCase(
+      accept,
+      'agreement-with-no-terms-attached',
+      withAcceptance({ ...content.acceptance, terms: [] }),
+    ),
+    docCase(
+      accept,
+      'agreement-with-twenty-signers',
+      withAcceptance({ ...content.acceptance, signers: signers(20) }),
+    ),
+    docCase(accept, 'agreement-with-a-letter-template', {
+      ...agreement,
+      template: { name: 'bank/letterhead', data: { values: { 'signature.name': 'Loans team' } } },
+    }),
+    docCase(
+      refuse,
+      'agreement-with-twenty-one-signers',
+      withAcceptance({ ...content.acceptance, signers: signers(21) }),
+      'at most 20 signers',
+    ),
+    docCase(
+      refuse,
+      'agreement-with-no-signers',
+      withAcceptance({ ...content.acceptance, signers: [] }),
+      'an agreement has at least one signer',
+    ),
+    docCase(
+      refuse,
+      'agreement-naming-a-signer-twice',
+      withAcceptance({
+        ...content.acceptance,
+        signers: [{ address: ALICE }, { address: 'Alice$Client.example' }],
+      }),
+      'each signer appears once, letters compared without case',
+    ),
+    docCase(
+      refuse,
+      'agreement-signer-not-an-address',
+      withAcceptance({ ...content.acceptance, signers: [{ address: 'alice@client.example' }] }),
+      'a signer is a BTPS address',
+    ),
+    docCase(
+      refuse,
+      'agreement-in-another-order',
+      withAcceptance({ ...content.acceptance, signingOrder: 'parallel' }),
+      'signingOrder is any or sequential',
+    ),
+    docCase(
+      refuse,
+      'agreement-without-a-signing-order',
+      withAcceptance({ ...content.acceptance, signingOrder: undefined }),
+      'signingOrder is required',
+    ),
+    docCase(
+      refuse,
+      'agreement-term-not-attached',
+      withAcceptance({ ...content.acceptance, terms: [SHA] }),
+      'each term is the sha256 of an attachment',
+    ),
+    docCase(
+      refuse,
+      'agreement-term-named-twice',
+      withAcceptance({ ...content.acceptance, terms: [terms.sha256, terms.sha256] }),
+      'each term appears once',
+    ),
+    docCase(
+      refuse,
+      'agreement-deadline-not-a-date',
+      withAcceptance({ ...content.acceptance, by: 'end of November' }),
+      'by is a date and time',
+    ),
+    docCase(
+      refuse,
+      'agreement-without-acceptance',
+      { ...agreement, acceptance: undefined },
+      'an agreement always carries acceptance',
+    ),
+    docCase(
+      refuse,
+      'agreement-without-the-originator-signature',
+      { ...agreement, originatorSignature: undefined },
+      'an agreement always carries its originator signature',
+    ),
+    docCase(
+      refuse,
+      'agreement-with-a-kind',
+      { ...agreement, kind: 'agreement' },
+      'there is no kind: the type says what it is',
+    ),
+    docCase(
+      refuse,
+      'letter-with-acceptance',
+      { ...base.letter, acceptance: content.acceptance },
+      'a letter never carries acceptance',
+    ),
+    refuse('agreement-under-1-1', 'BTPS_DOC', agreement, '1.1 has no agreement', under(V11)),
+  ];
+
+  // Answer and forwarding events.
+  const eventCase = (fn, name, document, why) =>
+    fn === accept
+      ? accept(name, 'BTPS_EVENT', document, under(V12))
+      : refuse(name, 'BTPS_EVENT', document, why, under(V12));
+  const events = [
+    eventCase(accept, 'accepted', answer('accepted', alice)),
+    eventCase(accept, 'accepted-by-a-device', answer('accepted', aliceByDevice)),
+    eventCase(
+      accept,
+      'declined-with-a-note',
+      answer('declined', aliceDeclines, { message: note('The rate is not what we discussed.') }),
+    ),
+    eventCase(accept, 'agreement-progress', forwarded('agreement_progress', [alice])),
+    eventCase(accept, 'agreement-complete', forwarded('agreement_complete', [alice, sam, bank])),
+    eventCase(
+      refuse,
+      'accepted-with-a-note',
+      answer('accepted', alice, { message: note('Happy to sign.') }),
+      'only a declined carries a note',
+    ),
+    eventCase(
+      refuse,
+      'accepted-carrying-a-declined-statement',
+      answer('accepted', aliceDeclines),
+      "the event's eventType is its statement's decision",
+    ),
+    eventCase(
+      refuse,
+      'record-signed-both-ways',
+      answer('accepted', { ...alice, delegatedArtifact: aliceByDevice.delegatedArtifact }),
+      'a record has exactly one of selector and delegatedArtifact',
+    ),
+    eventCase(
+      refuse,
+      'record-signed-neither-way',
+      answer('accepted', { statement: alice.statement, signature: alice.signature }),
+      'a record has exactly one of selector and delegatedArtifact',
+    ),
+    eventCase(
+      refuse,
+      'statement-with-another-decision',
+      answer('accepted', byIdentity(keys.signer, stated(ALICE, 'maybe', at(2)))),
+      'decision is accepted or declined',
+    ),
+    eventCase(
+      refuse,
+      'statement-without-a-time',
+      answer('accepted', { ...alice, statement: { ...alice.statement, signedAt: undefined } }),
+      'a statement has its signedAt',
+    ),
+    eventCase(
+      refuse,
+      'agreement-progress-with-no-statements',
+      forwarded('agreement_progress', []),
+      'forwarding carries at least one statement',
+    ),
+    eventCase(
+      refuse,
+      'agreement-complete-with-twenty-one-statements',
+      forwarded(
+        'agreement_complete',
+        Array.from({ length: 21 }, () => alice),
+      ),
+      'at most one statement for each of at most 20 signers',
+    ),
+    refuse(
+      'accepted-under-1-1',
+      'BTPS_EVENT',
+      answer('accepted', alice),
+      '1.1 has no agreement events',
+      under(V11),
+    ),
+  ];
+
+  // Envelopes: what a server reads without opening anything.
+  const send = transporter('BTPS_DOC', '8091a2b3-c4d5-4e6f-9071-82a3b4c5d6e7', {
+    from: BANK,
+    to: ALICE,
+    documentType: 'agreement',
+  });
+  const answerEnvelope = (facts, more = {}) =>
+    transporter('BTPS_EVENT', '91a2b3c4-d5e6-4f70-8182-93a4b5c6d7e8', {
+      from: SAM,
+      to: BANK,
+      relatesTo: 'agreement-copy-to-sam',
+      agreement: facts,
+      ...more,
+    });
+  const facts = { id: 'AGR-1', contentSha256: ref.contentSha256, previous: hashOf(alice) };
+  const envelope = (name, artifact, expect, why) => ({
+    name,
+    artifact,
+    expect,
+    ...(why && { why }),
+  });
+  const envelopes = [
+    envelope('agreement-sent', send, 'accept'),
+    envelope('answer-names-its-agreement', answerEnvelope(facts), 'accept'),
+    envelope(
+      'first-answer-names-no-previous',
+      answerEnvelope({ id: 'AGR-1', contentSha256: ref.contentSha256 }),
+      'accept',
+    ),
+    envelope(
+      'trust-request-asking-send-agreement',
+      transporter('TRUST_REQ', 'a2b3c4d5-e6f7-4081-9293-a4b5c6d7e8f9', {
+        from: BANK,
+        to: ALICE,
+        permissions: [ask('send:letter'), ask('send:agreement')],
+      }),
+      'accept',
+    ),
+    envelope(
+      'agreement-facts-on-a-document',
+      { ...send, agreement: facts },
+      'refuse',
+      'only an event carries agreement facts',
+    ),
+    envelope(
+      'agreement-facts-with-a-short-hash',
+      answerEnvelope({ ...facts, contentSha256: 'abc' }),
+      'refuse',
+      'contentSha256 is a SHA-256 in lowercase hex',
+    ),
+    envelope(
+      'agreement-facts-with-another-key',
+      answerEnvelope({ ...facts, signer: SAM }),
+      'refuse',
+      'agreement facts are id, contentSha256 and previous only',
+    ),
+    envelope(
+      'agreement-facts-under-1-1',
+      answerEnvelope(facts, { version: V11 }),
+      'refuse',
+      '1.1 has no agreement facts',
+    ),
+    envelope(
+      'agreement-sent-under-1-1',
+      { ...send, version: V11 },
+      'refuse',
+      '1.1 has no documentType',
+    ),
+  ];
+
+  // A send's documentType against the receiver's grants.
+  const granted = (names) =>
+    trustRecord('accepted', { requested: [], granted: names, detailsHeld: [], detailsShared: [] });
+  const documentType = [
+    {
+      name: 'agreement-granted',
+      artifact: send,
+      record: granted(['send:agreement']),
+      expect: 'accept',
+    },
+    {
+      name: 'letter-granted-not-agreement',
+      artifact: send,
+      record: granted(['send:letter']),
+      expect: 'refuse',
+      why: 'send:letter does not cover an agreement',
+    },
+  ];
+
+  const stamped = [
+    {
+      name: 'agreement',
+      artifact: { ...send, encryption: null, document: agreement },
+      expect: V12,
+    },
+    { name: 'answer-with-agreement-facts', artifact: answerEnvelope(facts), expect: V12 },
+  ];
+
+  // The rules between an opened answer, its agreement and the answers before it.
+  const answerFrom = (record, eventType = record.statement.decision) => ({
+    envelope: {
+      from: record.statement.signer,
+      to: BANK,
+      agreement: {
+        id: record.statement.agreement.id,
+        contentSha256: record.statement.agreement.contentSha256,
+        ...(record.statement.previous && { previous: record.statement.previous }),
+      },
+    },
+    event: answer(eventType, record),
+  });
+  const rule = (name, given, about, earlier, expect, why) => ({
+    name,
+    ...given,
+    agreement: about,
+    earlier,
+    expect,
+    ...(why && { why }),
+  });
+  const withEnvelope = (given, change) => ({
+    ...given,
+    envelope: { ...given.envelope, ...change },
+  });
+  const samFirst = byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3)));
+  const statements = [
+    rule('first-signer-accepts', answerFrom(alice), agreement, [], 'accept'),
+    rule('second-signer-names-the-first', answerFrom(sam), agreement, [alice], 'accept'),
+    rule('first-signer-declines', answerFrom(aliceDeclines), agreement, [], 'accept'),
+    rule(
+      'second-signer-names-a-device-signed-first',
+      answerFrom(samAfterDevice),
+      agreement,
+      [aliceByDevice],
+      'accept',
+    ),
+    rule(
+      'any-order-second-signer-first',
+      answerFrom(byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), undefined, anyRef))),
+      anyOrder,
+      [],
+      'accept',
+    ),
+    rule(
+      'not-a-signer',
+      answerFrom(
+        byIdentity(
+          keys.guarantor,
+          stated('eve$other.example', 'accepted', at(2), undefined, anyRef),
+        ),
+      ),
+      anyOrder,
+      [],
+      'refuse',
+      'only a listed signer answers',
+    ),
+    rule(
+      'sent-by-someone-else',
+      withEnvelope(answerFrom(alice), { from: SAM }),
+      agreement,
+      [],
+      'refuse',
+      'a statement is sent by its own signer',
+    ),
+    rule(
+      'out-of-turn',
+      answerFrom(samFirst),
+      agreement,
+      [],
+      'refuse',
+      'in a sequential agreement the signers answer in list order',
+    ),
+    rule(
+      'later-signer-names-no-previous',
+      answerFrom(samFirst),
+      agreement,
+      [alice],
+      'refuse',
+      'every statement after the first names the one before it',
+    ),
+    rule(
+      'later-signer-names-another-previous',
+      answerFrom(byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), SHA))),
+      agreement,
+      [alice],
+      'refuse',
+      'previous is the SHA-256 of the statement record before it',
+    ),
+    rule(
+      'any-order-names-a-previous',
+      answerFrom(byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), hashOf(alice), anyRef))),
+      anyOrder,
+      [],
+      'refuse',
+      'previous is only in a sequential agreement',
+    ),
+    rule(
+      'terms-left-out',
+      answerFrom(byIdentity(keys.signer, { ...stated(ALICE, 'accepted', at(2)), terms: [] })),
+      agreement,
+      [],
+      'refuse',
+      "a statement repeats the agreement's terms exactly",
+    ),
+    rule(
+      'another-content',
+      answerFrom(
+        byIdentity(
+          keys.signer,
+          stated(ALICE, 'accepted', at(2), undefined, { ...ref, contentSha256: SHA }),
+        ),
+      ),
+      agreement,
+      [],
+      'refuse',
+      "a statement names its agreement's own contentSha256",
+    ),
+    rule(
+      'after-the-deadline',
+      answerFrom(byIdentity(keys.signer, stated(ALICE, 'accepted', '2026-12-01T00:00:00.000Z'))),
+      agreement,
+      [],
+      'refuse',
+      'signedAt is no later than acceptance.by',
+    ),
+    rule(
+      'answers-twice',
+      answerFrom(byIdentity(keys.signer, stated(ALICE, 'declined', at(3), undefined, anyRef))),
+      anyOrder,
+      [byIdentity(keys.signer, stated(ALICE, 'accepted', at(2), undefined, anyRef))],
+      'refuse',
+      'an answer is final: a signer answers once',
+    ),
+    rule(
+      'after-a-decline',
+      answerFrom(byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), hashOf(aliceDeclines)))),
+      agreement,
+      [aliceDeclines],
+      'refuse',
+      'a declined ends a sequential agreement',
+    ),
+    rule(
+      'envelope-names-another-previous',
+      withEnvelope(answerFrom(sam), {
+        agreement: { id: 'AGR-1', contentSha256: ref.contentSha256, previous: SHA },
+      }),
+      agreement,
+      [alice],
+      'refuse',
+      "the envelope's agreement facts are the statement's",
+    ),
+    rule(
+      'envelope-names-another-content',
+      withEnvelope(answerFrom(alice), { agreement: { id: 'AGR-1', contentSha256: SHA } }),
+      agreement,
+      [],
+      'refuse',
+      "the envelope's agreement facts are the statement's",
+    ),
+    rule(
+      'event-names-another-agreement',
+      {
+        ...answerFrom(alice),
+        event: { ...answer('accepted', alice), agreement: { ...ref, id: 'AGR-2' } },
+      },
+      agreement,
+      [],
+      'refuse',
+      "the event's agreement is its statement's",
+    ),
+  ];
+
+  // The evidence bundle: everything, checked offline.
+  const keyOf = (identity, key) => ({
+    identity,
+    selector: 'btps1',
+    publicKey: key.publicKeyPem,
+    fingerprint: fingerprintOf(key.publicKeyPem),
+  });
+  const allKeys = [
+    keyOf(BANK, keys.originator),
+    keyOf(ALICE, keys.signer),
+    keyOf(SAM, keys.guarantor),
+    keyOf(OPERATOR, keys.operator),
+  ];
+  const bundle = (statementRecords, about = agreement, bundleKeys = allKeys) => ({
+    format: 'btps-evidence/1',
+    agreement: about,
+    statements: statementRecords,
+    keys: bundleKeys,
+  });
+  const fact = (record, more = {}) => ({
+    signer: record.statement.signer,
+    decision: record.statement.decision,
+    signatureValid: true,
+    keyKind: record.delegatedArtifact ? 'device' : 'identity',
+    ...(record.delegatedArtifact && { delegatedBy: OPERATOR }),
+    agreementMatches: true,
+    termsMatch: true,
+    withinDeadline: true,
+    inOrder: true,
+    ...more,
+  });
+  // The content is the agreement without its originator's signature.
+  const contentHashOf = (about) =>
+    hashOf(Object.fromEntries(Object.entries(about).filter(([k]) => k !== 'originatorSignature')));
+  const verdictless = (about, statementFacts, more = {}) => ({
+    contentSha256: contentHashOf(about),
+    originatorSignatureValid: true,
+    termsAttached: true,
+    statements: statementFacts,
+    complete: false,
+    ...more,
+  });
+  const evidence = (name, given, expect) => ({ name, bundle: given, expect });
+  const changedBody = { ...agreement, body: note('# Home loan\n\nThe rate is 2.1% p.a.') };
+  const tamperedSam = { ...sam, statement: { ...sam.statement, signedAt: at(5) } };
+  const wrongDevice = byDevice(stated(ALICE, 'accepted', at(2)), keys.guarantor);
+  const misattached = signed(
+    contentOf(
+      {},
+      { attachments: [{ ...terms, content: Buffer.from('other').toString('base64') }] },
+    ),
+  );
+  const late = byIdentity(keys.signer, stated(ALICE, 'accepted', '2026-12-01T00:00:00.000Z'));
+  const bundles = [
+    evidence(
+      'complete-sequential-with-identity-keys',
+      bundle([alice, sam, bank]),
+      verdictless(agreement, [fact(alice), fact(sam), fact(bank)], { complete: true }),
+    ),
+    evidence(
+      'complete-with-a-device-signed-acceptance',
+      bundle([aliceByDevice, samAfterDevice, bankAfterDevice]),
+      verdictless(agreement, [fact(aliceByDevice), fact(samAfterDevice), fact(bankAfterDevice)], {
+        complete: true,
+      }),
+    ),
+    evidence(
+      'complete-in-any-order',
+      bundle(
+        [
+          byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), undefined, anyRef)),
+          byIdentity(keys.signer, stated(ALICE, 'accepted', at(4), undefined, anyRef)),
+        ],
+        anyOrder,
+      ),
+      verdictless(
+        anyOrder,
+        [
+          fact(byIdentity(keys.guarantor, stated(SAM, 'accepted', at(3), undefined, anyRef))),
+          fact(byIdentity(keys.signer, stated(ALICE, 'accepted', at(4), undefined, anyRef))),
+        ],
+        { complete: true },
+      ),
+    ),
+    evidence('declined', bundle([aliceDeclines]), verdictless(agreement, [fact(aliceDeclines)])),
+    evidence(
+      'waiting-for-the-last-signer',
+      bundle([alice, sam]),
+      verdictless(agreement, [fact(alice), fact(sam)]),
+    ),
+    evidence(
+      'content-changed-after-signing',
+      bundle([alice, sam, bank], changedBody),
+      verdictless(
+        changedBody,
+        [alice, sam, bank].map((r) => fact(r, { agreementMatches: false })),
+        { originatorSignatureValid: false },
+      ),
+    ),
+    evidence(
+      'statement-changed-after-signing',
+      bundle([alice, tamperedSam, bank]),
+      verdictless(agreement, [
+        fact(alice),
+        fact(tamperedSam, { signatureValid: false }),
+        fact(bank, { inOrder: false }),
+      ]),
+    ),
+    evidence(
+      'statement-signed-by-another-device',
+      bundle([wrongDevice]),
+      verdictless(agreement, [fact(wrongDevice, { signatureValid: false })]),
+    ),
+    evidence(
+      'out-of-turn',
+      bundle([samFirst]),
+      verdictless(agreement, [fact(samFirst, { inOrder: false })]),
+    ),
+    evidence(
+      'after-the-deadline',
+      bundle([late]),
+      verdictless(agreement, [fact(late, { withinDeadline: false })]),
+    ),
+    evidence(
+      'a-term-that-is-not-its-attachment',
+      bundle([], misattached),
+      verdictless(misattached, [], { termsAttached: false }),
+    ),
+    evidence(
+      'a-signer-key-left-out',
+      bundle(
+        [alice],
+        agreement,
+        allKeys.filter((k) => k.identity !== ALICE),
+      ),
+      verdictless(agreement, [fact(alice, { signatureValid: false })]),
+    ),
+  ];
+
+  return {
+    description:
+      'BTPS 1.2 agreements. `documents` and `events` are read as documents-1.2.vectors.json is, under `version`. `envelopes` are transporter artifacts as a server reads them, unopened. `documentType` is a send against the receiver\'s grants, as in trust-permissions.vectors.json. `stamped` is the version each artifact is stamped with. `contentSha256` is the SHA-256 of an agreement\'s RFC 8785 form without `originatorSignature`; `statementSha256` is the SHA-256 of a statement record\'s RFC 8785 form, signature included, which the next statement names as `previous`. `statements` are the rules between an opened answer (`event`, sent with `envelope`), its `agreement`, and the statement records already answered (`earlier`, in order); signatures are not part of these rules. `bundles` are evidence bundles and the facts an offline verifier reports for each: a verifier reports facts, never a verdict, and every listed fact must be as given. An implementation accepts every "accept" case and refuses every "refuse" case; `why` says what is wrong.',
+    documents,
+    events,
+    envelopes,
+    documentType,
+    stamped,
+    contentSha256: { document: agreement, sha256: ref.contentSha256 },
+    statementSha256: { record: alice, sha256: hashOf(alice) },
+    statements,
+    bundles,
   };
 }

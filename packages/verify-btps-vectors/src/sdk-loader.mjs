@@ -133,6 +133,10 @@ async function loadProtocol(build, root, outDir) {
           // Namespaces, so a rule the SDK does not have yet is missing rather than a build error.
           "export * as transporter from './src/core/server/schemas/artifacts/transporterSchema.ts';",
           "export * as responses from './src/core/server/schemas/responseSchema.ts';",
+          // Since 1.2, agreements: a tree without the module gets an empty namespace, so its checks fail one by one.
+          fs.existsSync(path.join(root, 'src/core/agreements/index.ts'))
+            ? "export * as agreements from './src/core/agreements/index.ts';"
+            : 'export const agreements = {};',
         ].join('\n'),
         resolveDir: root,
         sourcefile: 'verify-btps-vectors-protocol-entry.mjs',
