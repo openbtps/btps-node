@@ -6,7 +6,6 @@
  */
 
 import { BTPTrustRecord } from '../types.js';
-import type { BTPDetailsEnvelope } from '../permissions.js';
 import { AbstractTrustStore, computeTrustId } from '../index.js';
 import { BTPErrorException } from '@core/error/index.js';
 import { StorageStoreOptions } from '@core/storage/types.js';
@@ -64,19 +63,12 @@ class JsonTrustStore
 
   /**
    * This store keeps trust records only, not artifacts, so it knows of none
-   * and a server using it as is accepts no `BTPS_EVENT`. To accept events,
-   * extend it and answer from wherever the platform keeps delivered artifacts.
+   * and a server using it as is accepts no `BTPS_EVENT`, and since 1.2 no
+   * `DETAILS_RES`. To accept them, extend it and answer from wherever the
+   * platform keeps delivered artifacts.
    */
   async isKnownArtifact(): Promise<boolean> {
     return false;
-  }
-
-  /**
-   * Since 1.2: for the same reason it holds no artifact's envelope, so a server
-   * using it as is takes no `DETAILS_RES`. Extend it as for `isKnownArtifact`.
-   */
-  async getArtifact(): Promise<BTPDetailsEnvelope | undefined> {
-    return undefined;
   }
 }
 

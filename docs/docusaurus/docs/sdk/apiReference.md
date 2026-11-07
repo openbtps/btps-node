@@ -1266,6 +1266,48 @@ Since 1.2, from `@btps/sdk/server/core`. Middleware a platform adds to check an 
 
 ---
 
+### eventChainCheck
+
+```ts
+eventChainCheck(lookups?: {
+  getEvent?: (query: { id: string; from: string; to: string }) =>
+    Promise<BTPEventFacts | undefined>;
+}): MiddlewareDefinition<'after', 'trustVerification'>
+```
+
+**Description:**
+Since 1.2, from `@btps/sdk/server/core`. Middleware a platform adds to check a lifecycle event's chain in flight, after the server's trust check, with `lifecycleEventChainProblem`. It refuses with `BTP_ERROR_EVENT_CHAIN`, the broken rule in its message. With `getEvent`, the platform's own lookup of the earlier event a `withdrawn` or `follows` names, it checks every rule; without it, only that the payer, never the invoice's issuer, sent it. It reads the event, so an encrypted one passes on, for the platform to check once opened. Off until added; the server never checks a chain itself. See [Lifecycle Event](../protocol/specifications/transporter-artifact.md#4-lifecycle-event-btps_event).
+
+---
+
+### detailsResponseCheck
+
+```ts
+detailsResponseCheck(lookups: {
+  getArtifact: (query: { artifactId: string; from: string; to: string }) =>
+    Promise<BTPDetailsEnvelope | undefined>;
+}): MiddlewareDefinition<'after', 'trustVerification'>
+```
+
+**Description:**
+Since 1.2, from `@btps/sdk/server/core`. Middleware a platform adds to check a `DETAILS_RES` in flight, after the server's trust check: it answers a `DETAILS_REQ` its receiver sent to its sender, and names only what that request asked for (`detailsRequestRefusal`). It refuses with `BTP_ERROR_PERMISSION`, the reason in its message. `getArtifact` is the platform's own record of the request the response names: `artifactId` is its `relatesTo`, `from` the response's receiver and `to` its sender. It reads only envelopes, so it works the same for an encrypted response, arriving or sent by one of this provider's devices. Off until added; the server checks only that the request is known (`isKnownArtifact`). See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh).
+
+---
+
+### detailsRequestLimit
+
+```ts
+detailsRequestLimit(
+  allow: (request: { from: string; to: string; names: string[] }) =>
+    true | { retryAfter: number } | Promise<true | { retryAfter: number }>
+): MiddlewareDefinition<'after', 'trustVerification'>
+```
+
+**Description:**
+Since 1.2, from `@btps/sdk/server/core`. Middleware a provider adds for its own limit on details requests, for example requests per trust per month: `allow` is asked once for each trusted `DETAILS_REQ`. `true` takes it, and `{ retryAfter }`, in whole seconds, refuses it with `BTP_ERROR_DETAILS_RATE_LIMITED`, whose `status.retryAfter` tells the asker how long to wait. Add it after every other check, so the provider counts only requests that are taken. Off until added: the protocol sets no limit. See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh).
+
+---
+
 ### detailsProblem
 
 ```ts
@@ -1277,7 +1319,7 @@ detailsProblem(
 ```
 
 **Description:**
-Since 1.2. Why a details refresh artifact cannot be taken, or `undefined`. A `DETAILS_CHANGED` or `DETAILS_RES` names only details the receiver holds (`record.permissions.detailsHeld`), a `DETAILS_REQ` only details the answerer shares (`detailsShared`); a record without permissions holds none. A `DETAILS_RES` answers `sentRequest`, the `DETAILS_REQ` it names as its receiver sent it, and names only what it asked for; once opened (its `document` an object), its values match its names. `record` is the receiver's own record of the trust, in either direction. The server runs the same checks on arrival; a platform whose trust store has no `getArtifact` runs this one with its own sent request. See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh).
+Since 1.2. Why a details refresh artifact cannot be taken, or `undefined`. A `DETAILS_CHANGED` or `DETAILS_RES` names only details the receiver holds (`record.permissions.detailsHeld`), a `DETAILS_REQ` only details the answerer shares (`detailsShared`); a record without permissions holds none. A `DETAILS_RES` answers `sentRequest`, the `DETAILS_REQ` it names as its receiver sent it, and names only what it asked for; once opened (its `document` an object), its values match its names. `record` is the receiver's own record of the trust, in either direction. The server checks the names on arrival, and `detailsResponseCheck` the request; a platform without that middleware runs this one with its own sent request. See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh).
 
 ---
 
@@ -1519,7 +1561,7 @@ const BTP_ERROR_EVENT_CHAIN: BTPError;
 ```
 
 **Description:**
-Since 1.2. Error constant for a lifecycle event whose chain is wrong: a `withdrawn` or `follows` from the invoice's issuer rather than the payer, a `withdrawn` that does not take back the payer's own open proposal about the same invoice, or a proposal whose `follows` names no `withdrawn` about the same invoice. It concerns the sender's own events, so unlike `BTP_ERROR_EVENT_UNRELATED` it reaches the wire, with the broken rule appended to the message. A server raises it when its trust store has the optional `getEvent` (see [AbstractTrustStore](./classApiReference.md#getevent)); a platform raises it itself from `lifecycleEventChainProblem` (`@btps/sdk/server`) for an encrypted event once opened.
+Since 1.2. Error constant for a lifecycle event whose chain is wrong: a `withdrawn` or `follows` from the invoice's issuer rather than the payer, a `withdrawn` that does not take back the payer's own open proposal about the same invoice, or a proposal whose `follows` names no `withdrawn` about the same invoice. It concerns the sender's own events, so unlike `BTP_ERROR_EVENT_UNRELATED` it reaches the wire, with the broken rule appended to the message. The `eventChainCheck` middleware raises it in flight; a platform raises it itself from `lifecycleEventChainProblem` (`@btps/sdk/server`) for an encrypted event once opened. The server never raises it.
 
 **Properties:**
 
@@ -1889,7 +1931,7 @@ const BTP_ERROR_DETAILS_RATE_LIMITED: BTPError;
 ```
 
 **Description:**
-Since 1.2. Error constant for a details request over the limit its provider sets (`allowDetailsRequest`). Status 429. Its `meta.retryAfter` is the whole seconds until the time the provider gave, and goes out as `status.retryAfter`, so the asker knows how long to wait before asking again.
+Since 1.2. Error constant for a details request over the limit its provider sets (`detailsRequestLimit`). Status 429. Its `meta.retryAfter` is the whole seconds the provider gave, and goes out as `status.retryAfter`, so the asker knows how long to wait before asking again.
 
 **Properties:**
 
