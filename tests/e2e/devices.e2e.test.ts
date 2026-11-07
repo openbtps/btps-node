@@ -191,8 +191,16 @@ describe('journey: a user registers a phone', () => {
 
       expect(error).toBeUndefined();
       expect(response?.status).toMatchObject({ ok: true, code: 200 });
-      const arrived = elsewhere.inbox.find(
-        (a) => (a.document as { id?: string }).id === document.id,
+      // A send is answered once taken, before the provider delivers it: wait for it to arrive.
+      const arrived = await vi.waitFor(
+        () => {
+          const found = elsewhere.inbox.find(
+            (a) => (a.document as { id?: string }).id === document.id,
+          );
+          expect(found).toBeDefined();
+          return found;
+        },
+        { timeout: 10000 },
       );
       expect(arrived).toMatchObject({
         from: user.identity,
@@ -237,8 +245,12 @@ describe('journey: a user registers a phone', () => {
 
     expect(error).toBeUndefined();
     expect(response?.status).toMatchObject({ ok: true, code: 200 });
-    expect(elsewhere.inbox.some((a) => a.type === 'TRUST_REQ' && a.from === user.identity)).toBe(
-      true,
+    await vi.waitFor(
+      () =>
+        expect(
+          elsewhere.inbox.some((a) => a.type === 'TRUST_REQ' && a.from === user.identity),
+        ).toBe(true),
+      { timeout: 10000 },
     );
   });
 
