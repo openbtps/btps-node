@@ -18,6 +18,7 @@ import { canonicalizeValue } from '../crypto/jcs.js';
 import { PemSigner } from '../crypto/pem-signer.js';
 import {
   agreementContentSha256,
+  agreementOrderProblem,
   agreementRef,
   deviceStatementRecord,
   originatorSignatureValid,
@@ -235,5 +236,66 @@ describe('a statement signed on a device', () => {
       JSON.stringify(deviceStatementRecord(signed, delivered(ALICE, byOperator))),
     );
     expect(statementSignatureFacts(record, keyOf).signatureValid).toBe(true);
+  });
+});
+
+// The rules between opened answers are in agreements.vectors.json; these are the
+// order alone, which the originator's platform checks against the answers it has taken.
+describe("an answer's order, against the answers already taken", () => {
+  const SAM = 'sam$guarantor.example';
+  const first = 'a'.repeat(64);
+  const sequential = (
+    answered: { signer: string; decision: 'accepted' | 'declined'; sha256: string }[],
+  ) => ({ signers: [ALICE, SAM, BANK], signingOrder: 'sequential' as const, answered });
+  const aliceAccepted = { signer: ALICE, decision: 'accepted' as const, sha256: first };
+
+  it('takes the first signer first, naming no previous', () => {
+    expect(agreementOrderProblem({ from: ALICE }, sequential([]))).toBeUndefined();
+  });
+
+  it('takes the next signer naming the statement before it, letters compared without case', () => {
+    expect(
+      agreementOrderProblem(
+        { from: 'Sam$Guarantor.example', previous: first },
+        sequential([aliceAccepted]),
+      ),
+    ).toBeUndefined();
+  });
+
+  it('refuses someone not listed, a second answer, and one out of turn', () => {
+    expect(agreementOrderProblem({ from: 'eve$other.example' }, sequential([]))).toBe(
+      'only a listed signer answers',
+    );
+    expect(
+      agreementOrderProblem({ from: ALICE, previous: first }, sequential([aliceAccepted])),
+    ).toBe('an answer is final: a signer answers once');
+    expect(agreementOrderProblem({ from: SAM }, sequential([]))).toBe(
+      'in a sequential agreement the signers answer in list order',
+    );
+  });
+
+  it('refuses a previous that is missing, wrong, or named first', () => {
+    expect(agreementOrderProblem({ from: SAM }, sequential([aliceAccepted]))).toMatch(/previous/);
+    expect(
+      agreementOrderProblem({ from: SAM, previous: 'b'.repeat(64) }, sequential([aliceAccepted])),
+    ).toMatch(/previous/);
+    expect(agreementOrderProblem({ from: ALICE, previous: first }, sequential([]))).toBe(
+      'the first statement names no previous',
+    );
+  });
+
+  it('refuses anything after a decline in a sequential agreement', () => {
+    const declined = { ...aliceAccepted, decision: 'declined' as const };
+    expect(agreementOrderProblem({ from: SAM, previous: first }, sequential([declined]))).toBe(
+      'a declined ends a sequential agreement',
+    );
+  });
+
+  it('takes any order, but never a previous, when the order is any', () => {
+    const anyOrder = { signers: [ALICE, SAM], signingOrder: 'any' as const, answered: [] };
+    expect(agreementOrderProblem({ from: SAM }, anyOrder)).toBeUndefined();
+    expect(agreementOrderProblem({ from: SAM, previous: first }, anyOrder)).toBe(
+      'previous is only in a sequential agreement',
+    );
   });
 });

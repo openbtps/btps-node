@@ -9,7 +9,7 @@ import { BTPSignature, BTPEncryption } from '@core/crypto/types.js';
 import { BTPDetailValues, BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
 import { BTPDocument } from '../../server/types.js';
 import type { z } from 'zod';
-import type { BtpLifecycleEventSchema } from './schemas/btpsDocsSchema.js';
+import type { BtpAgreementEventSchema, BtpLifecycleEventSchema } from './schemas/btpsDocsSchema.js';
 import {
   AGENT_ACTIONS,
   AGENT_ACTIONS_REQUIRING_DOCUMENT,
@@ -31,6 +31,9 @@ export type AgentActionRequiringDocument = (typeof AGENT_ACTIONS_REQUIRING_DOCUM
 /** A lifecycle event: what a `BTPS_EVENT` carries (paid, partially paid, disputed, refund, response). */
 export type BTPLifecycleEvent = z.infer<typeof BtpLifecycleEventSchema>;
 
+/** Since 1.2: an agreement's answer, or the statements its originator forwards, as a `BTPS_EVENT` carries them. */
+export type BTPAgreementEvent = z.infer<typeof BtpAgreementEventSchema>;
+
 /** Since 1.2: what a DETAILS_CHANGED or DETAILS_REQ carries: no values, an optional note. */
 export type BTPDetailsNoteDoc = {
   message?: string | { format: 'text' | 'markdown'; content: string };
@@ -39,6 +42,7 @@ export type BTPDetailsNoteDoc = {
 export type BTPDocType =
   | BTPDocument
   | BTPLifecycleEvent
+  | BTPAgreementEvent
   | BTPTrustReqDoc
   | BTPTrustResDoc
   // Since 1.2: details refresh. A DETAILS_RES carries the values, by name.

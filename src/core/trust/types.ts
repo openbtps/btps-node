@@ -107,6 +107,17 @@ export type BTPVerificationFacts = {
 export type BTPAgreementRef = { originator: string; id: string; contentSha256: string };
 
 /**
+ * Since 1.2: an agreement's signers in order, how they answer, and the answers
+ * its originator's platform has taken, in order, each by the SHA-256 of its
+ * record: what `agreementOrderProblem` checks an answer against.
+ */
+export type BTPAgreementAnswers = {
+  signers: string[];
+  signingOrder: 'any' | 'sequential';
+  answered: { signer: string; decision: 'accepted' | 'declined'; sha256: string }[];
+};
+
+/**
  * Since 1.2: a signer's answer to an agreement, signed over its RFC 8785 form.
  * `previous`, in a sequential agreement, is the SHA-256 of the statement
  * record before it.

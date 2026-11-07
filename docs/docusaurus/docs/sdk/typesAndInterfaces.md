@@ -1499,6 +1499,25 @@ interface BTPStatementSignatureFacts {
 // A public key by identity and selector: from DNS, a store, or an evidence bundle
 type BTPKeyOf = (identity: string, selector: string) => string | undefined;
 
+// An agreement's signers, how they answer, and the answers its originator's platform has taken
+type BTPAgreementAnswers = {
+  signers: string[];
+  signingOrder: 'any' | 'sequential';
+  answered: { signer: string; decision: 'accepted' | 'declined'; sha256: string }[];
+};
+
+// What a BTPS_EVENT carries for an agreement: an answer, or statements forwarded by its originator
+type BTPAgreementEvent = {
+  type: 'agreement_event';
+  id: string;
+  occurredAt: string;
+  agreement: BTPAgreementRef;
+} & (
+  | { eventType: 'accepted'; statement: BTPStatementRecord }
+  | { eventType: 'declined'; statement: BTPStatementRecord; message?: BTPNote }
+  | { eventType: 'agreement_progress' | 'agreement_complete'; statements: BTPStatementRecord[] }
+);
+
 // Since 1.2: detail values by permission name, e.g. { "detail:dob": "1990-04-21" }
 type BTPDetailValues = {
   'detail:legalName'?: string;
@@ -1745,7 +1764,12 @@ Generic document type.
 
 ```ts
 type BTPDocument = BTPInvoiceDoc | BTPReceiptDoc | BTPPayslipDoc | BTPLetterDoc | BTPAgreementDoc; // what a BTPS_DOC carries
-type BTPDocType = BTPDocument | BTPLifecycleEvent | BTPTrustReqDoc | BTPTrustResDoc;
+type BTPDocType =
+  | BTPDocument
+  | BTPLifecycleEvent
+  | BTPAgreementEvent
+  | BTPTrustReqDoc
+  | BTPTrustResDoc;
 ```
 
 `BTPPayslipDoc`, `BTPLetterDoc` and, since 1.2, `BTPAgreementDoc` are inferred from their schemas; their fields are in the Transporter Artifact specification.
