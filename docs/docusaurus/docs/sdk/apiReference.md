@@ -1631,7 +1631,7 @@ const BTP_ERROR_TRUST_ALREADY_ACTIVE: BTPError;
 ```
 
 **Description:**
-Error constant for already active trust records.
+Error constant for already active trust records. Since 1.2, an active trust still takes a change (`change: true`) while none is pending; on the wire, every trust request refusal reads `BTP_ERROR_TRUST_NOT_ALLOWED`.
 
 **Properties:**
 

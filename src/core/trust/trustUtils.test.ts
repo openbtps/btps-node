@@ -94,6 +94,50 @@ describe('validateTrustRequest()', () => {
   it('returns valid if trust is undefined (first-time)', () => {
     expect(validateTrustRequest(undefined).isValid).toBe(true);
   });
+
+  describe('since 1.2, a change', () => {
+    const change = { change: true as const };
+    const pending = {
+      requested: [{ name: 'send:invoice' as const, required: true }],
+      requestedAt: past.toISOString(),
+    };
+    const permissions = { requested: [], granted: [], detailsHeld: [], detailsShared: [] };
+
+    it('is taken on an active trust, a 1.1 trust without permissions too', () => {
+      const withPermissions = makeTrust({ status: 'accepted', permissions });
+      expect(validateTrustRequest(withPermissions, change).isValid).toBe(true);
+      expect(validateTrustRequest(makeTrust({ status: 'accepted' }), change).isValid).toBe(true);
+    });
+
+    it('is refused while another change is pending on the trust', () => {
+      const trust = makeTrust({
+        status: 'accepted',
+        permissions: { ...permissions, pendingChange: pending },
+      });
+      const { isValid, error } = validateTrustRequest(trust, change);
+      expect(isValid).toBe(false);
+      expect(error?.cause).toBe('a change is already pending on this trust');
+    });
+
+    it('is refused without an active trust: none, pending, blocked, rejected, expired, before its retry date', () => {
+      const inactive = [
+        undefined,
+        makeTrust({ status: 'pending' }),
+        makeTrust({ status: 'blocked' }),
+        makeTrust({ status: 'rejected' }),
+        makeTrust({ status: 'accepted', expiresAt: past.toISOString() }),
+        makeTrust({ status: 'rejected', retryAfterDate: future.toISOString() }),
+      ];
+      for (const trust of inactive) {
+        expect(validateTrustRequest(trust, change).isValid, trust?.status ?? 'none').toBe(false);
+      }
+    });
+
+    it('leaves a request that is not a change refused on an active trust, as before', () => {
+      const { error } = validateTrustRequest(makeTrust({ status: 'accepted' }), {});
+      expect(error?.code).toBe('BTP_ERROR_TRUST_ALREADY_ACTIVE');
+    });
+  });
 });
 
 describe('canRetryTrust()', () => {

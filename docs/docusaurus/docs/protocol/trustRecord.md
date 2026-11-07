@@ -37,7 +37,7 @@ Trust records are the core data structures that maintain the state and history o
          |----------------------------------------------------->|
 ```
 
-The receiver's server refuses a trust request while trust between the pair is already active, blocked, or before its `retryAfterDate`; the sender sees `BTP_ERROR_TRUST_NOT_ALLOWED`.
+The receiver's server refuses a trust request while trust between the pair is already active, blocked, or before its `retryAfterDate`; the sender sees `BTP_ERROR_TRUST_NOT_ALLOWED`. Since 1.2, an active trust takes one kind of request: a change, one at a time (see Permissions, below).
 
 ## Trust Record Structure
 
@@ -133,6 +133,8 @@ The computed trust ID enforces **explicit, directional trust relationships**. Th
 
 - **Accepted:** save the record `trustPermissionsFromResponse` returns, which has no `pendingChange`. The new grant replaces the old one.
 - **Rejected:** keep the current permissions and remove `pendingChange`, so the trust runs on its old grant.
+
+**A change is the one trust request an active trust takes, one at a time.** A `TRUST_REQ` with `change: true` is taken only while the receiver's record of that trust, from that sender, is active; a 1.1 trust without `permissions` takes one too, to move to permissions. Any other trust request on an active trust is refused, as is a change to a trust that is not active (none, pending, blocked, rejected, expired, or before its `retryAfterDate`). The receiving platform saves a change it takes as `pendingChange` on its own record until its user answers, and a second change is refused until then. All of these read "not allowed" on the wire.
 
 ---
 

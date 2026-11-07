@@ -37,15 +37,37 @@ export const isTrustActive = (trust?: BTPTrustRecord): boolean => {
  * Used in for artifact type TRUST_REQ
  * only allow message to be sent if trust record is not active
  * considers blocked and retryAfterDate as one can send new trust request after the retryAfterDate
+ * Since 1.2, a change (`change: true`) is the one request an active trust takes,
+ * one at a time: never while the receiver's record has a change pending, and
+ * never without an active trust.
  * @param trust - The trust record to check
+ * @param request - The request's envelope
  * @returns Object indicating validity and optional BTPS error
  */
 export const validateTrustRequest = (
   trust?: BTPTrustRecord,
+  request?: { change?: true },
 ): { isValid: boolean; error?: BTPErrorException } => {
   const isActive = isTrustActive(trust);
+  if (isActive && request?.change) {
+    if (!trust?.permissions?.pendingChange) return { isValid: true, error: undefined };
+    return {
+      isValid: false,
+      error: new BTPErrorException(BTP_ERROR_TRUST_NOT_ALLOWED, {
+        cause: 'a change is already pending on this trust',
+      }),
+    };
+  }
   if (isActive)
     return { isValid: false, error: new BTPErrorException(BTP_ERROR_TRUST_ALREADY_ACTIVE) };
+  if (request?.change) {
+    return {
+      isValid: false,
+      error: new BTPErrorException(BTP_ERROR_TRUST_NOT_ALLOWED, {
+        cause: 'a change is only to an active trust',
+      }),
+    };
+  }
 
   if (trust?.status === 'blocked')
     return { isValid: false, error: new BTPErrorException(BTP_ERROR_TRUST_BLOCKED) };

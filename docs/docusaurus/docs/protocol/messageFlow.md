@@ -193,7 +193,7 @@ sequenceDiagram
 4. **Cryptographic Signing**: BTPS artifact, including any ciphertext, signed with the sender's private key
 5. **Transmission**: BTPS artifact sent to receiver's BTPS server; the sender keeps a `pending` record of its request
 6. **Server Checks**: Receiver's server checks size, version, the sender's signature and the time window
-7. **Trust Check**: A request is refused while trust is already active, blocked, or before `retryAfterDate`; the sender sees `BTP_ERROR_TRUST_NOT_ALLOWED`
+7. **Trust Check**: A request is refused while trust is already active, blocked, or before `retryAfterDate`; the sender sees `BTP_ERROR_TRUST_NOT_ALLOWED`. Since 1.2, an active trust takes a change (`change: true`), one at a time
 8. **Decryption**: Receiver decrypts the document with its own private key, if it was encrypted
 9. **Trust Record Creation**: Receiver creates trust record with `pending` status
 10. **Anti-Spam Protection**: `retryAfterDate` set (recommended: 24 hours)
