@@ -1,5 +1,5 @@
 {
-  "description": "BTPS 1.2 agreements. `documents` and `events` are read as documents-1.2.vectors.json is, under `version`. `envelopes` are transporter artifacts as a server reads them, unopened. `documentType` is a send against the receiver's grants, as in trust-permissions.vectors.json. `stamped` is the version each artifact is stamped with. `contentSha256` is the SHA-256 of an agreement's RFC 8785 form without `originatorSignature`; `statementSha256` is the SHA-256 of a statement record's RFC 8785 form, signature included, which the next statement names as `previous`. `statements` are the rules between an opened answer (`event`, sent with `envelope`), its `agreement`, and the statement records already answered (`earlier`, in order); signatures are not part of these rules. `bundles` are evidence bundles and the facts an offline verifier reports for each: a verifier reports facts, never a verdict, and every listed fact must be as given. An implementation accepts every \"accept\" case and refuses every \"refuse\" case; `why` says what is wrong.",
+  "description": "BTPS 1.2 agreements. `documents` and `events` are read as documents-1.2.vectors.json is, under `version`. `envelopes` are transporter artifacts as a server reads them, unopened. `documentType` is a send against the receiver's grants, as in trust-permissions.vectors.json. `stamped` is the version each artifact is stamped with. `contentSha256` is the SHA-256 of an agreement's RFC 8785 form without `originatorSignature`; `statementSha256` is the SHA-256 of a statement record's RFC 8785 form, signature included, which the next statement names as `previous`. `statements` are the originator's platform's rules, never the server's, between an opened answer (`event`, sent from `envelope.from` to `envelope.to`), its `agreement`, and the statement records already answered (`earlier`, in order); signatures are not part of these rules. `bundles` are evidence bundles and the facts an offline verifier reports for each: a verifier reports facts, never a verdict, and every listed fact must be as given. An implementation accepts every \"accept\" case and refuses every \"refuse\" case; `why` says what is wrong.",
   "documents": [
     {
       "name": "agreement",
@@ -1077,8 +1077,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       },
@@ -1112,8 +1112,8 @@
           },
           "signature": {
             "algorithmHash": "sha256",
-            "value": "Oa7/L2bQ0wAzX2cUbkxZjHKRHtOAhzP/ZnOmL7gyHJ3L6hIXIjLl41noqt5uP1cRsRTls7PkLLahNwKVDbH88mlddoeidZa8HDj53LrYtDV++4pb4J/3oohvpDMTPzfI+TQd6fZPmYk1oE3wOfAa2tTxbIErT/vETXvHiIgQZ6RlYYTediCegR7eVSGNCvpHiJzDTP6NuhjlxHgXTaRnn4fGQUkx+mbr7Qt6bw0c8vu4yNLxBvFp1VnucvhQlcGSxqFt+f5EvOOqrCiw3aC2KVzBk7Vk3Ws9QHzCbzJ6P6lqZh2MW65jA8ltHnEWG/aycxPiFEPbfpC8pYKvl8dQUg==",
-            "fingerprint": "8UuO0MXm6tXtvaopQKXKxlo44HVWkkNVzjfwzVKuFWI="
+            "value": "rGVaodBxYRuuSVyvGvWMJkV+3+xvZDG9n18zessPAHfpKzEhvXoDTiPH5mcecCiZBNSUWbjRS/iM7vBtWbueOUixM1ztF3E57FbhdfkFfIiBc6oWsv8GiyzBNQDAT7hckzp36gnIzpaK5aZMi4CP6dDmi7qJ976fRo99z5FyuRTvlXG3lfqw7Ql332zW7j+ncDhfb6JGWVs4WzZBu8fla2LutpMmZtFrFO0mY13agv3oJyUj35WL0mUWEJhBbtbWtCzKnCdQ2I7L0Tj9Lc4A+6wejyg3wp852oAiVTnKGioEbjv09NOUVizw+aN/yhAIMIEBI22tPGux8IhBmljpLw==",
+            "fingerprint": "GKIlW7lWL0Q5S+RonbV14TsBT+Zy0b2LRcUM6aBt1Bg="
           },
           "delegatedArtifact": {
             "version": "1.2.0",
@@ -1123,10 +1123,7 @@
             "from": "alice$client.example",
             "to": "loans$bank.example",
             "relatesTo": "agreement-copy-to-alice",
-            "agreement": {
-              "id": "AGR-1",
-              "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-            },
+            "selector": "btps1",
             "encryption": {
               "algorithm": "aes-256-gcm",
               "encryptedKey": "AA==",
@@ -1137,19 +1134,19 @@
             "document": "ciphertext",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "cwhMQ2Q5bkbHnEQi8UxLQso6HRBbVrVe+AaIrbUgH4/00o0gWK9ZzJ80yCN/CMGM54eb8a83CiVOPGbFKCRz1pHvq5iKhxJu/z7alg5cwaUuPnsbK041YiFtTbUoQ0ZKPLvrYGmjX85lGsttlW0Uw7pQTut5/4Yi6ab/LB2KvBCJFCWrTvKe10W0Nw9OhSyqXoKkqEBnrs0lGHYoHsW7Ebux5ZpU6dVl2x6DPAu8siZZk1jODqRecH12KxkbHG+zfHvAl8joocF9DHTrkYVrnCsM8NfoyKo1jR+bXVNYYn8F7GZ+aGe67ZUoA76zy5ajFlpxnspy5Y3w6dw7bN30bg==",
-              "fingerprint": "8UuO0MXm6tXtvaopQKXKxlo44HVWkkNVzjfwzVKuFWI="
+              "value": "CFzV4w6dDUB3Fb3ykqYx6Y+fyndZXfuZe3lAqrpPNxGvL+GrrK8q2xMd4x/FaFFPimLKjol3VwWwWz73/HLtpUWF/Zk0mqr2vrUolRoKFwnzKoHL03L5QiZA3X7X4SmOe7ov+QAKzGJDirHqMhUvFwSnKn49DOnwpeECQY4S12tt8RfoSXYEzrdSlybnZhEcZQOkzjz9j/IJWuXnU3npRT784X2fisw5xYOBAUL7O/pn77xEXKjOkRVWWWg2YJ2SpDVSM6l1qMJBOpqL1uNOpJp9cqgRl0MItB2SRGGsGFvixt9fTkja7rIRt5EYYfAuEXUAos6U2gGlmg9PwCtVKA==",
+              "fingerprint": "GKIlW7lWL0Q5S+RonbV14TsBT+Zy0b2LRcUM6aBt1Bg="
             },
             "delegation": {
               "agentId": "device-alice-1",
-              "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsGEB8WpHYz392nWAuAaf\nHe7DZNTdUwNq6YbhQEpvN0G1XWkgkGYwiofIlz/4OukhsG87c0OjG59zGuu+oSWS\nd+nysFmlik31Yiarfb+OOhH1kGvBVvJ3oam2tWDK652ugr2e3BjL9QZe24+BODJ0\nPSY8FB4SL3YKNfnND4fp/x4nyDEwpL5HzSsvNSoS5DkWHS5oz56sWs+o/PcwyYPD\n9wke2oMkJYYgWdDzeNvobQvCWzr4WR9aUCP5xnH3RM8vnrlDK5Aky3UOE8HmjI8o\nwwLh/CmxylTvApK6WP1PA5wG4AuaPB9jmmyEW48M3DPWH92rLh4w9HeJlNh3bJNg\ngwIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArupLH9bzYQSv2ikkc3g2\ngNkjQCk/torbrO7YC+GcAtRSf+w/S/76xowJDL89jqSD5CpjOWHPELn8p9U0GKI9\n7WDihhYOVMuPw2OEAbp+7Oty2SaqNdoOpExALfelvUY9ypPvVmM7y7aZFf3JWXxk\nM9uTNjfQbLuiMRcudU+bEC4gHh4GiX73vHDa1kKcK9GyVCLWQsVARwuuaLKyvAaa\ndqUfFeBx2tLtNW8aag20KtwoOQknO43KmbbIbus3lAtBzAzsXCCZus2ZjCJALsLX\nJ9hJIepuwHvWyzgcp9Sfot9wxJH+kKP3tK3EU04VUHSbHJlV564tElwf58hOAQ2G\nRQIDAQAB\n-----END PUBLIC KEY-----\n",
               "signedBy": "admin$client.example",
               "issuedAt": "2026-11-02T00:00:00.000Z",
               "selector": "btps1",
               "signature": {
                 "algorithmHash": "sha256",
-                "value": "dhGxH6zqaltjMKAhrLhj1OVHszRibvWNXS6Q+xC3le2vflA+qUrh5KTKe0YQllnrLre5p52CjiF2aY9NWf1vpxt48VoH63dDOCeBKk3dFvHX1/H9IJnjpqu2pzzHOuJ3Q7NpggiI0M+VzI869YGDaba9RBU1D1xer/3us6dshrQuE/0Hj+xvJUeHnzqvcaKJLTP04c0BdnW/PB/MCaG56gEdLoxzfY4Mm3LUC7duBCog9RT+JdjMgPGz3AMJyumJDP4P51jl5vq/cJApg2RvHC5eRK/MS4WIzC6I2fBmKr4H5mrl9aiFWtyPJJUFUdw1NQzBCNNM09H+rr+L2uqsUw==",
-                "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+                "value": "dby5oZ+TipccvnYpQUCPV+7JV0MsepedLvyaFOo3xLUbMUNwAtKACkvJNFjNAjb/c6KwIGu9S3JXR0Unso4FTnDvp+BXr938TSQY3fEPKmpb5rShZgLcJajjvni+TkVPU11MBg1270sGp7Y6VeB1VhgwurkuRDvdEYhf5wgAEVuYTr6bFc7DON1lcY8xRStK3FT4nG8DWY29o1fZ0Qy5b3qh8DtqI1WC5p3/j+5nGUIo7zHuRzC0JLGOLHwBUt9ibMOm2jQuJ1kYx3QpFzDtveSLvNdiXGicITjnLdrSdtZxWrLlIEkycJ7kDdNreS5rh2X+VIRfXPImDOL4GFruBw==",
+                "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
               }
             }
           }
@@ -1186,8 +1183,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "efQkg/0WoJfOB3bRkHMHVT2fz46GuyGO8i1E+OjLIj3rBaoPCSnoCkpebeTggSbW7W5i6f1+v4RHMKqhugg4o0B/NX1muSsgGK3hAqqQSoLnRA9y1FE+Z52vS31jxbhrlBKgVBRpKrpeBJYWgj4KgPB8WlQZTuND42FB0WS1yjdi/8dHiaOHn+Mx+yHOdPgpmModiaFkb4wQWdWzQ80FehVGh4FhpeeH3QRcrgnwV1KalnRhmbdrmR44HfZjLQyW6HhvgfAA8+6SysX3tWDPxxl5HmMU7qmigJVs5z2enma+OZSQdQW/20ClN9jTCGZyl0Ll14cxZdPqEpeMWmEBXA==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "WrAQfzjktdFHzAvqjAJnNOV5BKKcthRlt5+X1Ai0o4932qjJlhjpTYWEqilmYq+xrJVZpH5+Yaa9BL7SmINJgPv6Myd7/BxY+tZVvf702fDjUmdAcckIhP4mOjOMdstN2KYN31DSis+zIXCsKXYxY6iJCrLtMwNh2mU4cup6L8jWULnvS010lACUT1wZkdXSxBoNDun/oWiq553v4N/bP+HXG5xNF7HyNkd2fRfV6E4CpULDzbD3Sf16Zow49Iar8c7yWU1p1DbW0epBjD3FwcFU3OZuLfBCrArEfpXwYMwIdr/42CS9/BMs/hvYVAjvSK76nyNU07cHF+5mBkpn2w==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         },
         "message": {
@@ -1227,8 +1224,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           }
         ]
@@ -1265,8 +1262,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1280,12 +1277,12 @@
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
-              "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
+              "previous": "57e2925ee17898b635aa8fcda6a23d934df2f118d0f60b72ccf2a721cd77b9dc"
             },
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "X4Kg0fWsd7ZE0qA7cMXZgm0DsG1bSEjSAmzCWCpzHh/QR/komonXSN4Z3KjDYNuV7yV8BPywE7iZmjKd37YAYwUJ95aD8A0oXspYUdsE7Nb/ARzimNB7HsKRgZ6/keI6ddu3c8aHRILuXdXOkPdmnh87qLxZLIr92G5WxAqrXPZ1qE04lVEhsIvA0URrB6d3ZhkYncL5OU1cWU5SYkyQqEGbsnDhDfJrIW/+h5q/JP9CEDZyk1H4H9WQ8kfwqU4WcbSizgkQbQOpNH43gyLUlA9aUnrCqKHxSI8mrDI0y+NEVolZWnmVgO50wfGMyeuu2C9P1Jp4rhRS+lDU1bJQ8w==",
+              "value": "IYUw4XhIV/8o04jNk7lAv8J3vZktJ/sdtxmf8j0axADR/xyavTT6ymQLQjL1YxCSoGIEzHicpUoIp9uMoeTWJWkig3rUX1sStbTPXk+g8vpGFhDCbXpsIW0UZTQRpstlfWCBablnvYXxG5Ia64hVGu8V0hTmiQ3clgnVdURv3GG7+wGqBWWZ2QPvi5qQCrWnXc8IBS7TcdqKw3JG7Vgy+oD6sd0jDYbsbNsK2v5XSu9nQiJGkzIkWHQIsHE/rMhID2tmpBSbETKf3dXJqSU16lf4XKJ7/goBadqu7PvR2cvk93e6chNRL5LXtUuCpS0UhMoaiMhHxW7XI6pM2A5wKw==",
               "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
             }
           },
@@ -1300,12 +1297,12 @@
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
-              "previous": "2d2c41bfe94d99407015991848ddf22b2fa57533fa8ffd31ab34a72f75ab07ef"
+              "previous": "307d64465ec1a5e652bbd1da371878a1ef13159a0b2211a5756b36e4bf84d348"
             },
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "n7Qt2Wr6E759MJch2BbORM4SLxovT8J8AKOC8FC68DQyN/naOp0uCsNjlU96UOrnwGXBiAF5JBXkDIBSVKG11vKEMq2Z7KLe+2Kpqiy1gmbGEJs9Po+aPyjUzq28penNTMuIjeRmfq0XMyRUYKHkfw2WFk5TkEYWm/6p/A7rp5e5usRis5Mlz4xxQ9bcFwZ0W9QmuuLB4ytMqhqRnqdPwNm45Ia+WCeZmpYK5tRJa3ONnPF7Z96TMRLpl9K3K+93pcHyOFU0tmiIvHZCknTfePmU9Bxe60qgoL89RPEZQe1zgL9IRmF7eprOzzREwYRL5daTDv63V6sGsA+mo33vmg==",
+              "value": "fpAYD4eiIHNHQTANxNGYvnDe/HhgZbnRlaOx4wTunA5ETNfRVULxL5ChzEPNy9LoF8i/pQFMyvN7MIpmMbgyykNdG7mCPeMBB5rn1g1zDX1dLqK8WxJ60ZmXj81igfAcokS3cO+TD4Z326RFLb3yZBR2hFay7xa4EmBkEK8cer+RNeFZkmcVWCz1nErs7HatTwjviv1yhKSRLYfmsb0HlV8PEm8MVsJuzUBqV3X4A1L/uEIvh/zQ1fP8MRLorj/Gx8LkZpm/Pj8sZMQnsQ1vxp/7k9ZvZ1hsFw6n3rm+1Pi2YW2A8WpAq1o95f7wtYOcK4SRZxhYlxoiGh9fSY7eVQ==",
               "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
             }
           }
@@ -1342,8 +1339,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         },
         "message": {
@@ -1383,8 +1380,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "efQkg/0WoJfOB3bRkHMHVT2fz46GuyGO8i1E+OjLIj3rBaoPCSnoCkpebeTggSbW7W5i6f1+v4RHMKqhugg4o0B/NX1muSsgGK3hAqqQSoLnRA9y1FE+Z52vS31jxbhrlBKgVBRpKrpeBJYWgj4KgPB8WlQZTuND42FB0WS1yjdi/8dHiaOHn+Mx+yHOdPgpmModiaFkb4wQWdWzQ80FehVGh4FhpeeH3QRcrgnwV1KalnRhmbdrmR44HfZjLQyW6HhvgfAA8+6SysX3tWDPxxl5HmMU7qmigJVs5z2enma+OZSQdQW/20ClN9jTCGZyl0Ll14cxZdPqEpeMWmEBXA==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "WrAQfzjktdFHzAvqjAJnNOV5BKKcthRlt5+X1Ai0o4932qjJlhjpTYWEqilmYq+xrJVZpH5+Yaa9BL7SmINJgPv6Myd7/BxY+tZVvf702fDjUmdAcckIhP4mOjOMdstN2KYN31DSis+zIXCsKXYxY6iJCrLtMwNh2mU4cup6L8jWULnvS010lACUT1wZkdXSxBoNDun/oWiq553v4N/bP+HXG5xNF7HyNkd2fRfV6E4CpULDzbD3Sf16Zow49Iar8c7yWU1p1DbW0epBjD3FwcFU3OZuLfBCrArEfpXwYMwIdr/42CS9/BMs/hvYVAjvSK76nyNU07cHF+5mBkpn2w==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       },
@@ -1420,8 +1417,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           },
           "delegatedArtifact": {
             "version": "1.2.0",
@@ -1431,10 +1428,7 @@
             "from": "alice$client.example",
             "to": "loans$bank.example",
             "relatesTo": "agreement-copy-to-alice",
-            "agreement": {
-              "id": "AGR-1",
-              "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-            },
+            "selector": "btps1",
             "encryption": {
               "algorithm": "aes-256-gcm",
               "encryptedKey": "AA==",
@@ -1445,19 +1439,19 @@
             "document": "ciphertext",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "cwhMQ2Q5bkbHnEQi8UxLQso6HRBbVrVe+AaIrbUgH4/00o0gWK9ZzJ80yCN/CMGM54eb8a83CiVOPGbFKCRz1pHvq5iKhxJu/z7alg5cwaUuPnsbK041YiFtTbUoQ0ZKPLvrYGmjX85lGsttlW0Uw7pQTut5/4Yi6ab/LB2KvBCJFCWrTvKe10W0Nw9OhSyqXoKkqEBnrs0lGHYoHsW7Ebux5ZpU6dVl2x6DPAu8siZZk1jODqRecH12KxkbHG+zfHvAl8joocF9DHTrkYVrnCsM8NfoyKo1jR+bXVNYYn8F7GZ+aGe67ZUoA76zy5ajFlpxnspy5Y3w6dw7bN30bg==",
-              "fingerprint": "8UuO0MXm6tXtvaopQKXKxlo44HVWkkNVzjfwzVKuFWI="
+              "value": "CFzV4w6dDUB3Fb3ykqYx6Y+fyndZXfuZe3lAqrpPNxGvL+GrrK8q2xMd4x/FaFFPimLKjol3VwWwWz73/HLtpUWF/Zk0mqr2vrUolRoKFwnzKoHL03L5QiZA3X7X4SmOe7ov+QAKzGJDirHqMhUvFwSnKn49DOnwpeECQY4S12tt8RfoSXYEzrdSlybnZhEcZQOkzjz9j/IJWuXnU3npRT784X2fisw5xYOBAUL7O/pn77xEXKjOkRVWWWg2YJ2SpDVSM6l1qMJBOpqL1uNOpJp9cqgRl0MItB2SRGGsGFvixt9fTkja7rIRt5EYYfAuEXUAos6U2gGlmg9PwCtVKA==",
+              "fingerprint": "GKIlW7lWL0Q5S+RonbV14TsBT+Zy0b2LRcUM6aBt1Bg="
             },
             "delegation": {
               "agentId": "device-alice-1",
-              "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsGEB8WpHYz392nWAuAaf\nHe7DZNTdUwNq6YbhQEpvN0G1XWkgkGYwiofIlz/4OukhsG87c0OjG59zGuu+oSWS\nd+nysFmlik31Yiarfb+OOhH1kGvBVvJ3oam2tWDK652ugr2e3BjL9QZe24+BODJ0\nPSY8FB4SL3YKNfnND4fp/x4nyDEwpL5HzSsvNSoS5DkWHS5oz56sWs+o/PcwyYPD\n9wke2oMkJYYgWdDzeNvobQvCWzr4WR9aUCP5xnH3RM8vnrlDK5Aky3UOE8HmjI8o\nwwLh/CmxylTvApK6WP1PA5wG4AuaPB9jmmyEW48M3DPWH92rLh4w9HeJlNh3bJNg\ngwIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArupLH9bzYQSv2ikkc3g2\ngNkjQCk/torbrO7YC+GcAtRSf+w/S/76xowJDL89jqSD5CpjOWHPELn8p9U0GKI9\n7WDihhYOVMuPw2OEAbp+7Oty2SaqNdoOpExALfelvUY9ypPvVmM7y7aZFf3JWXxk\nM9uTNjfQbLuiMRcudU+bEC4gHh4GiX73vHDa1kKcK9GyVCLWQsVARwuuaLKyvAaa\ndqUfFeBx2tLtNW8aag20KtwoOQknO43KmbbIbus3lAtBzAzsXCCZus2ZjCJALsLX\nJ9hJIepuwHvWyzgcp9Sfot9wxJH+kKP3tK3EU04VUHSbHJlV564tElwf58hOAQ2G\nRQIDAQAB\n-----END PUBLIC KEY-----\n",
               "signedBy": "admin$client.example",
               "issuedAt": "2026-11-02T00:00:00.000Z",
               "selector": "btps1",
               "signature": {
                 "algorithmHash": "sha256",
-                "value": "dhGxH6zqaltjMKAhrLhj1OVHszRibvWNXS6Q+xC3le2vflA+qUrh5KTKe0YQllnrLre5p52CjiF2aY9NWf1vpxt48VoH63dDOCeBKk3dFvHX1/H9IJnjpqu2pzzHOuJ3Q7NpggiI0M+VzI869YGDaba9RBU1D1xer/3us6dshrQuE/0Hj+xvJUeHnzqvcaKJLTP04c0BdnW/PB/MCaG56gEdLoxzfY4Mm3LUC7duBCog9RT+JdjMgPGz3AMJyumJDP4P51jl5vq/cJApg2RvHC5eRK/MS4WIzC6I2fBmKr4H5mrl9aiFWtyPJJUFUdw1NQzBCNNM09H+rr+L2uqsUw==",
-                "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+                "value": "dby5oZ+TipccvnYpQUCPV+7JV0MsepedLvyaFOo3xLUbMUNwAtKACkvJNFjNAjb/c6KwIGu9S3JXR0Unso4FTnDvp+BXr938TSQY3fEPKmpb5rShZgLcJajjvni+TkVPU11MBg1270sGp7Y6VeB1VhgwurkuRDvdEYhf5wgAEVuYTr6bFc7DON1lcY8xRStK3FT4nG8DWY29o1fZ0Qy5b3qh8DtqI1WC5p3/j+5nGUIo7zHuRzC0JLGOLHwBUt9ibMOm2jQuJ1kYx3QpFzDtveSLvNdiXGicITjnLdrSdtZxWrLlIEkycJ7kDdNreS5rh2X+VIRfXPImDOL4GFruBw==",
+                "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
               }
             }
           }
@@ -1494,8 +1488,8 @@
           },
           "signature": {
             "algorithmHash": "sha256",
-            "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       },
@@ -1531,8 +1525,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "xdbBbJnxxq6nIeKXkV1ATnUQgAaUQ6bxacAUzN8f48eiwd4ygU2RCo5gtuPw/4vjslRgtCsEOWBtdzprD9TUbl0MmPVdkwT04OEtCrJWu66XNb4GN2fGO3r0P+FfhXpPmDdPGse5nVw87MbSNywynNFmA87hIvg/YO1IqiXAWzbljQpW8RQAivEmNrXPugkR1fAfgu6AQHMZD1AN5wmyRKvmATq5c3sANP0+s5JtBiSBuu3agfn+IgeFtf9EKHcXRWN4L3viDbC0A1JfHMJ2A2sclj7Phpv95CWN7DMCQ6zucERpNDxPZ7cKmlGa4t27flctTHR3USNanejqK3/wqw==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "OlQa4yrGmEoxOoGuXr/5NBoFZgm4UIKJwRLQauwuE//R6qoNDL+P0FdGI0KeamRRUP1+L7gdKPOWxpHlOttxcQpLsjTe1mT0O8fPS4rijdFXaGLLL1Q5fYDZKfsJz+su0qYNYZivj3yuC2sHeWa8cVr2IWZ2BFLM1pu/Anq4Yp78rtOQ7fU5+KKnbIPotdnViYJIx5gbLLbwIokYYrgHqtqdNkyy5XhyHANq7WkOjVVi80OfNOopEphn0/L1jS6LwuUL3dtPPWGANSXhv2RrFURGjJuCHXG0RBL6EJ6D3H61Y9kmTtCyHMMAFKOJGE8JTbCNcSkEE6okInnp3G3K1A==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       },
@@ -1566,8 +1560,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       },
@@ -1623,8 +1617,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1642,8 +1636,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1661,8 +1655,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1680,8 +1674,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1699,8 +1693,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1718,8 +1712,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1737,8 +1731,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1756,8 +1750,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1775,8 +1769,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1794,8 +1788,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1813,8 +1807,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1832,8 +1826,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1851,8 +1845,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1870,8 +1864,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1889,8 +1883,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1908,8 +1902,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1927,8 +1921,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1946,8 +1940,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1965,8 +1959,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -1984,8 +1978,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -2003,8 +1997,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           }
         ]
@@ -2041,8 +2035,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       },
@@ -2076,69 +2070,6 @@
         },
         "document": "ciphertext",
         "documentType": "agreement"
-      },
-      "expect": "accept"
-    },
-    {
-      "name": "answer-names-its-agreement",
-      "artifact": {
-        "version": "1.2.0",
-        "issuedAt": "2026-10-19T00:00:00.000Z",
-        "id": "91a2b3c4-d5e6-4f70-8182-93a4b5c6d7e8",
-        "type": "BTPS_EVENT",
-        "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "selector": "btps1",
-        "signature": {
-          "algorithmHash": "sha256",
-          "value": "AA==",
-          "fingerprint": "AA=="
-        },
-        "encryption": {
-          "algorithm": "aes-256-gcm",
-          "encryptedKey": "AA==",
-          "iv": "AA==",
-          "authTag": "AA==",
-          "type": "standardEncrypt"
-        },
-        "document": "ciphertext",
-        "relatesTo": "agreement-copy-to-sam",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
-          "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
-        }
-      },
-      "expect": "accept"
-    },
-    {
-      "name": "first-answer-names-no-previous",
-      "artifact": {
-        "version": "1.2.0",
-        "issuedAt": "2026-10-19T00:00:00.000Z",
-        "id": "91a2b3c4-d5e6-4f70-8182-93a4b5c6d7e8",
-        "type": "BTPS_EVENT",
-        "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "selector": "btps1",
-        "signature": {
-          "algorithmHash": "sha256",
-          "value": "AA==",
-          "fingerprint": "AA=="
-        },
-        "encryption": {
-          "algorithm": "aes-256-gcm",
-          "encryptedKey": "AA==",
-          "iv": "AA==",
-          "authTag": "AA==",
-          "type": "standardEncrypt"
-        },
-        "document": "ciphertext",
-        "relatesTo": "agreement-copy-to-sam",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-        }
       },
       "expect": "accept"
     },
@@ -2178,139 +2109,6 @@
         "entityType": "organisation"
       },
       "expect": "accept"
-    },
-    {
-      "name": "agreement-facts-on-a-document",
-      "artifact": {
-        "version": "1.2.0",
-        "issuedAt": "2026-10-19T00:00:00.000Z",
-        "id": "8091a2b3-c4d5-4e6f-9071-82a3b4c5d6e7",
-        "type": "BTPS_DOC",
-        "from": "loans$bank.example",
-        "to": "alice$client.example",
-        "selector": "btps1",
-        "signature": {
-          "algorithmHash": "sha256",
-          "value": "AA==",
-          "fingerprint": "AA=="
-        },
-        "encryption": {
-          "algorithm": "aes-256-gcm",
-          "encryptedKey": "AA==",
-          "iv": "AA==",
-          "authTag": "AA==",
-          "type": "standardEncrypt"
-        },
-        "document": "ciphertext",
-        "documentType": "letter",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
-          "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
-        }
-      },
-      "expect": "refuse",
-      "why": "only an event carries agreement facts"
-    },
-    {
-      "name": "agreement-facts-with-a-short-hash",
-      "artifact": {
-        "version": "1.2.0",
-        "issuedAt": "2026-10-19T00:00:00.000Z",
-        "id": "91a2b3c4-d5e6-4f70-8182-93a4b5c6d7e8",
-        "type": "BTPS_EVENT",
-        "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "selector": "btps1",
-        "signature": {
-          "algorithmHash": "sha256",
-          "value": "AA==",
-          "fingerprint": "AA=="
-        },
-        "encryption": {
-          "algorithm": "aes-256-gcm",
-          "encryptedKey": "AA==",
-          "iv": "AA==",
-          "authTag": "AA==",
-          "type": "standardEncrypt"
-        },
-        "document": "ciphertext",
-        "relatesTo": "agreement-copy-to-sam",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "abc",
-          "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
-        }
-      },
-      "expect": "refuse",
-      "why": "contentSha256 is a SHA-256 in lowercase hex"
-    },
-    {
-      "name": "agreement-facts-with-another-key",
-      "artifact": {
-        "version": "1.2.0",
-        "issuedAt": "2026-10-19T00:00:00.000Z",
-        "id": "91a2b3c4-d5e6-4f70-8182-93a4b5c6d7e8",
-        "type": "BTPS_EVENT",
-        "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "selector": "btps1",
-        "signature": {
-          "algorithmHash": "sha256",
-          "value": "AA==",
-          "fingerprint": "AA=="
-        },
-        "encryption": {
-          "algorithm": "aes-256-gcm",
-          "encryptedKey": "AA==",
-          "iv": "AA==",
-          "authTag": "AA==",
-          "type": "standardEncrypt"
-        },
-        "document": "ciphertext",
-        "relatesTo": "agreement-copy-to-sam",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
-          "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e",
-          "signer": "sam$guarantor.example"
-        }
-      },
-      "expect": "refuse",
-      "why": "agreement facts are id, contentSha256 and previous only"
-    },
-    {
-      "name": "agreement-facts-under-1-1",
-      "artifact": {
-        "version": "1.1.0",
-        "issuedAt": "2026-10-19T00:00:00.000Z",
-        "id": "91a2b3c4-d5e6-4f70-8182-93a4b5c6d7e8",
-        "type": "BTPS_EVENT",
-        "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "selector": "btps1",
-        "signature": {
-          "algorithmHash": "sha256",
-          "value": "AA==",
-          "fingerprint": "AA=="
-        },
-        "encryption": {
-          "algorithm": "aes-256-gcm",
-          "encryptedKey": "AA==",
-          "iv": "AA==",
-          "authTag": "AA==",
-          "type": "standardEncrypt"
-        },
-        "document": "ciphertext",
-        "relatesTo": "agreement-copy-to-sam",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
-          "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
-        }
-      },
-      "expect": "refuse",
-      "why": "1.1 has no agreement facts"
     },
     {
       "name": "agreement-sent-under-1-1",
@@ -2481,11 +2279,11 @@
       "expect": "1.2.0"
     },
     {
-      "name": "answer-with-agreement-facts",
+      "name": "answer",
       "artifact": {
         "version": "1.2.0",
         "issuedAt": "2026-10-19T00:00:00.000Z",
-        "id": "91a2b3c4-d5e6-4f70-8182-93a4b5c6d7e8",
+        "id": "5d6e7f80-9102-4a3b-8c4d-5e6f708192a3",
         "type": "BTPS_EVENT",
         "from": "sam$guarantor.example",
         "to": "loans$bank.example",
@@ -2495,20 +2293,39 @@
           "value": "AA==",
           "fingerprint": "AA=="
         },
-        "encryption": {
-          "algorithm": "aes-256-gcm",
-          "encryptedKey": "AA==",
-          "iv": "AA==",
-          "authTag": "AA==",
-          "type": "standardEncrypt"
+        "encryption": null,
+        "document": {
+          "type": "agreement_event",
+          "id": "5d6e7f80-9102-4a3b-8c4d-5e6f708192a3",
+          "occurredAt": "2026-11-03T00:00:00.000Z",
+          "eventType": "accepted",
+          "agreement": {
+            "originator": "loans$bank.example",
+            "id": "AGR-1",
+            "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+          },
+          "statement": {
+            "statement": {
+              "agreement": {
+                "originator": "loans$bank.example",
+                "id": "AGR-1",
+                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+              },
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+              "signer": "sam$guarantor.example",
+              "decision": "accepted",
+              "signedAt": "2026-11-03T00:00:00.000Z",
+              "previous": "57e2925ee17898b635aa8fcda6a23d934df2f118d0f60b72ccf2a721cd77b9dc"
+            },
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "IYUw4XhIV/8o04jNk7lAv8J3vZktJ/sdtxmf8j0axADR/xyavTT6ymQLQjL1YxCSoGIEzHicpUoIp9uMoeTWJWkig3rUX1sStbTPXk+g8vpGFhDCbXpsIW0UZTQRpstlfWCBablnvYXxG5Ia64hVGu8V0hTmiQ3clgnVdURv3GG7+wGqBWWZ2QPvi5qQCrWnXc8IBS7TcdqKw3JG7Vgy+oD6sd0jDYbsbNsK2v5XSu9nQiJGkzIkWHQIsHE/rMhID2tmpBSbETKf3dXJqSU16lf4XKJ7/goBadqu7PvR2cvk93e6chNRL5LXtUuCpS0UhMoaiMhHxW7XI6pM2A5wKw==",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
+          }
         },
-        "document": "ciphertext",
-        "relatesTo": "agreement-copy-to-sam",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
-          "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
-        }
+        "relatesTo": "agreement-copy-to-sam"
       },
       "expect": "1.2.0"
     }
@@ -2575,22 +2392,18 @@
       "selector": "btps1",
       "signature": {
         "algorithmHash": "sha256",
-        "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-        "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+        "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+        "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
       }
     },
-    "sha256": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
+    "sha256": "57e2925ee17898b635aa8fcda6a23d934df2f118d0f60b72ccf2a721cd77b9dc"
   },
   "statements": [
     {
       "name": "first-signer-accepts",
       "envelope": {
         "from": "alice$client.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -2617,8 +2430,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       },
@@ -2672,12 +2485,7 @@
       "name": "second-signer-names-the-first",
       "envelope": {
         "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
-          "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -2700,12 +2508,12 @@
             "signer": "sam$guarantor.example",
             "decision": "accepted",
             "signedAt": "2026-11-03T00:00:00.000Z",
-            "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
+            "previous": "57e2925ee17898b635aa8fcda6a23d934df2f118d0f60b72ccf2a721cd77b9dc"
           },
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "X4Kg0fWsd7ZE0qA7cMXZgm0DsG1bSEjSAmzCWCpzHh/QR/komonXSN4Z3KjDYNuV7yV8BPywE7iZmjKd37YAYwUJ95aD8A0oXspYUdsE7Nb/ARzimNB7HsKRgZ6/keI6ddu3c8aHRILuXdXOkPdmnh87qLxZLIr92G5WxAqrXPZ1qE04lVEhsIvA0URrB6d3ZhkYncL5OU1cWU5SYkyQqEGbsnDhDfJrIW/+h5q/JP9CEDZyk1H4H9WQ8kfwqU4WcbSizgkQbQOpNH43gyLUlA9aUnrCqKHxSI8mrDI0y+NEVolZWnmVgO50wfGMyeuu2C9P1Jp4rhRS+lDU1bJQ8w==",
+            "value": "IYUw4XhIV/8o04jNk7lAv8J3vZktJ/sdtxmf8j0axADR/xyavTT6ymQLQjL1YxCSoGIEzHicpUoIp9uMoeTWJWkig3rUX1sStbTPXk+g8vpGFhDCbXpsIW0UZTQRpstlfWCBablnvYXxG5Ia64hVGu8V0hTmiQ3clgnVdURv3GG7+wGqBWWZ2QPvi5qQCrWnXc8IBS7TcdqKw3JG7Vgy+oD6sd0jDYbsbNsK2v5XSu9nQiJGkzIkWHQIsHE/rMhID2tmpBSbETKf3dXJqSU16lf4XKJ7/goBadqu7PvR2cvk93e6chNRL5LXtUuCpS0UhMoaiMhHxW7XI6pM2A5wKw==",
             "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
           }
         }
@@ -2769,8 +2577,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       ],
@@ -2780,11 +2588,7 @@
       "name": "first-signer-declines",
       "envelope": {
         "from": "alice$client.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -2811,8 +2615,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "efQkg/0WoJfOB3bRkHMHVT2fz46GuyGO8i1E+OjLIj3rBaoPCSnoCkpebeTggSbW7W5i6f1+v4RHMKqhugg4o0B/NX1muSsgGK3hAqqQSoLnRA9y1FE+Z52vS31jxbhrlBKgVBRpKrpeBJYWgj4KgPB8WlQZTuND42FB0WS1yjdi/8dHiaOHn+Mx+yHOdPgpmModiaFkb4wQWdWzQ80FehVGh4FhpeeH3QRcrgnwV1KalnRhmbdrmR44HfZjLQyW6HhvgfAA8+6SysX3tWDPxxl5HmMU7qmigJVs5z2enma+OZSQdQW/20ClN9jTCGZyl0Ll14cxZdPqEpeMWmEBXA==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "WrAQfzjktdFHzAvqjAJnNOV5BKKcthRlt5+X1Ai0o4932qjJlhjpTYWEqilmYq+xrJVZpH5+Yaa9BL7SmINJgPv6Myd7/BxY+tZVvf702fDjUmdAcckIhP4mOjOMdstN2KYN31DSis+zIXCsKXYxY6iJCrLtMwNh2mU4cup6L8jWULnvS010lACUT1wZkdXSxBoNDun/oWiq553v4N/bP+HXG5xNF7HyNkd2fRfV6E4CpULDzbD3Sf16Zow49Iar8c7yWU1p1DbW0epBjD3FwcFU3OZuLfBCrArEfpXwYMwIdr/42CS9/BMs/hvYVAjvSK76nyNU07cHF+5mBkpn2w==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       },
@@ -2866,12 +2670,7 @@
       "name": "second-signer-names-a-device-signed-first",
       "envelope": {
         "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
-          "previous": "176d0c2dc1685ad2a759db2f3cee7b151eb3bb4964f1be80dfd45d03f7ea1fc2"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -2894,12 +2693,12 @@
             "signer": "sam$guarantor.example",
             "decision": "accepted",
             "signedAt": "2026-11-03T00:00:00.000Z",
-            "previous": "176d0c2dc1685ad2a759db2f3cee7b151eb3bb4964f1be80dfd45d03f7ea1fc2"
+            "previous": "1adcb5e20991825aeeca63c3585a951b97b4e661d2517a7e42010f21d999f7be"
           },
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "mQeO4SKs09XMdCPIqeno5c5JXSNjlVbaHgWf2/jyoKZVM/cH/cdh4v8K6a1GVErZlO1TQhUt0Ql+FoeQrmoKl+pPhmw5jMzbr4uLYxai91T+yHAmKk34yFr+kQ2ziJV7jLIGI29biEFurE1nzrD8U/LkufYi85lftKirpiybC7me6E6vvDalT1pifOmOy86PxVGnVnlkDC0tJH1qjkjsd8ERlDuBpWlHuJ7V6f6te+SLiUmpdrE4AF6B8immkSFPAA4E8DMQU7IKFt3vrcAXFD/1f/mXfxz+33PawVBqU2pVgSR9AL6hnvKLsx2N4CNcKoaiptV0Rr+4hcoNdO+Dbg==",
+            "value": "ihKqVD+Op8lNvuo1zgOShtkT2302A8vZ+QInI1wrPkUVTTLvM8wEclKNIHMCY2V4C8o8esmE5MPLM/Rf8ACkE4baPMNiSb7O7MSQbRwcYANqVwwVaY31/FNgFd06OxZT/wJqdODlSlMzrVEOme1FjmTG06S7YIqoPqqKOntISpYl34iNXX0y6xhFoy4pAlVMFGXcvoaAwGZVLPwicxGUDn81/S56ToghGwXEQyqRWg0XcLVU2MGaNDViQ9nlidoWGJOelPVnGTrX3Zh/DQ2xNY/GB+02/dGg9vJYKBLyMEczr6i5PDKGK7u+yqrINwJn9j1ZVscygs+yiSVRi6rozg==",
             "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
           }
         }
@@ -2962,8 +2761,8 @@
           },
           "signature": {
             "algorithmHash": "sha256",
-            "value": "Oa7/L2bQ0wAzX2cUbkxZjHKRHtOAhzP/ZnOmL7gyHJ3L6hIXIjLl41noqt5uP1cRsRTls7PkLLahNwKVDbH88mlddoeidZa8HDj53LrYtDV++4pb4J/3oohvpDMTPzfI+TQd6fZPmYk1oE3wOfAa2tTxbIErT/vETXvHiIgQZ6RlYYTediCegR7eVSGNCvpHiJzDTP6NuhjlxHgXTaRnn4fGQUkx+mbr7Qt6bw0c8vu4yNLxBvFp1VnucvhQlcGSxqFt+f5EvOOqrCiw3aC2KVzBk7Vk3Ws9QHzCbzJ6P6lqZh2MW65jA8ltHnEWG/aycxPiFEPbfpC8pYKvl8dQUg==",
-            "fingerprint": "8UuO0MXm6tXtvaopQKXKxlo44HVWkkNVzjfwzVKuFWI="
+            "value": "rGVaodBxYRuuSVyvGvWMJkV+3+xvZDG9n18zessPAHfpKzEhvXoDTiPH5mcecCiZBNSUWbjRS/iM7vBtWbueOUixM1ztF3E57FbhdfkFfIiBc6oWsv8GiyzBNQDAT7hckzp36gnIzpaK5aZMi4CP6dDmi7qJ976fRo99z5FyuRTvlXG3lfqw7Ql332zW7j+ncDhfb6JGWVs4WzZBu8fla2LutpMmZtFrFO0mY13agv3oJyUj35WL0mUWEJhBbtbWtCzKnCdQ2I7L0Tj9Lc4A+6wejyg3wp852oAiVTnKGioEbjv09NOUVizw+aN/yhAIMIEBI22tPGux8IhBmljpLw==",
+            "fingerprint": "GKIlW7lWL0Q5S+RonbV14TsBT+Zy0b2LRcUM6aBt1Bg="
           },
           "delegatedArtifact": {
             "version": "1.2.0",
@@ -2973,10 +2772,7 @@
             "from": "alice$client.example",
             "to": "loans$bank.example",
             "relatesTo": "agreement-copy-to-alice",
-            "agreement": {
-              "id": "AGR-1",
-              "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-            },
+            "selector": "btps1",
             "encryption": {
               "algorithm": "aes-256-gcm",
               "encryptedKey": "AA==",
@@ -2987,19 +2783,19 @@
             "document": "ciphertext",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "cwhMQ2Q5bkbHnEQi8UxLQso6HRBbVrVe+AaIrbUgH4/00o0gWK9ZzJ80yCN/CMGM54eb8a83CiVOPGbFKCRz1pHvq5iKhxJu/z7alg5cwaUuPnsbK041YiFtTbUoQ0ZKPLvrYGmjX85lGsttlW0Uw7pQTut5/4Yi6ab/LB2KvBCJFCWrTvKe10W0Nw9OhSyqXoKkqEBnrs0lGHYoHsW7Ebux5ZpU6dVl2x6DPAu8siZZk1jODqRecH12KxkbHG+zfHvAl8joocF9DHTrkYVrnCsM8NfoyKo1jR+bXVNYYn8F7GZ+aGe67ZUoA76zy5ajFlpxnspy5Y3w6dw7bN30bg==",
-              "fingerprint": "8UuO0MXm6tXtvaopQKXKxlo44HVWkkNVzjfwzVKuFWI="
+              "value": "CFzV4w6dDUB3Fb3ykqYx6Y+fyndZXfuZe3lAqrpPNxGvL+GrrK8q2xMd4x/FaFFPimLKjol3VwWwWz73/HLtpUWF/Zk0mqr2vrUolRoKFwnzKoHL03L5QiZA3X7X4SmOe7ov+QAKzGJDirHqMhUvFwSnKn49DOnwpeECQY4S12tt8RfoSXYEzrdSlybnZhEcZQOkzjz9j/IJWuXnU3npRT784X2fisw5xYOBAUL7O/pn77xEXKjOkRVWWWg2YJ2SpDVSM6l1qMJBOpqL1uNOpJp9cqgRl0MItB2SRGGsGFvixt9fTkja7rIRt5EYYfAuEXUAos6U2gGlmg9PwCtVKA==",
+              "fingerprint": "GKIlW7lWL0Q5S+RonbV14TsBT+Zy0b2LRcUM6aBt1Bg="
             },
             "delegation": {
               "agentId": "device-alice-1",
-              "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsGEB8WpHYz392nWAuAaf\nHe7DZNTdUwNq6YbhQEpvN0G1XWkgkGYwiofIlz/4OukhsG87c0OjG59zGuu+oSWS\nd+nysFmlik31Yiarfb+OOhH1kGvBVvJ3oam2tWDK652ugr2e3BjL9QZe24+BODJ0\nPSY8FB4SL3YKNfnND4fp/x4nyDEwpL5HzSsvNSoS5DkWHS5oz56sWs+o/PcwyYPD\n9wke2oMkJYYgWdDzeNvobQvCWzr4WR9aUCP5xnH3RM8vnrlDK5Aky3UOE8HmjI8o\nwwLh/CmxylTvApK6WP1PA5wG4AuaPB9jmmyEW48M3DPWH92rLh4w9HeJlNh3bJNg\ngwIDAQAB\n-----END PUBLIC KEY-----\n",
+              "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArupLH9bzYQSv2ikkc3g2\ngNkjQCk/torbrO7YC+GcAtRSf+w/S/76xowJDL89jqSD5CpjOWHPELn8p9U0GKI9\n7WDihhYOVMuPw2OEAbp+7Oty2SaqNdoOpExALfelvUY9ypPvVmM7y7aZFf3JWXxk\nM9uTNjfQbLuiMRcudU+bEC4gHh4GiX73vHDa1kKcK9GyVCLWQsVARwuuaLKyvAaa\ndqUfFeBx2tLtNW8aag20KtwoOQknO43KmbbIbus3lAtBzAzsXCCZus2ZjCJALsLX\nJ9hJIepuwHvWyzgcp9Sfot9wxJH+kKP3tK3EU04VUHSbHJlV564tElwf58hOAQ2G\nRQIDAQAB\n-----END PUBLIC KEY-----\n",
               "signedBy": "admin$client.example",
               "issuedAt": "2026-11-02T00:00:00.000Z",
               "selector": "btps1",
               "signature": {
                 "algorithmHash": "sha256",
-                "value": "dhGxH6zqaltjMKAhrLhj1OVHszRibvWNXS6Q+xC3le2vflA+qUrh5KTKe0YQllnrLre5p52CjiF2aY9NWf1vpxt48VoH63dDOCeBKk3dFvHX1/H9IJnjpqu2pzzHOuJ3Q7NpggiI0M+VzI869YGDaba9RBU1D1xer/3us6dshrQuE/0Hj+xvJUeHnzqvcaKJLTP04c0BdnW/PB/MCaG56gEdLoxzfY4Mm3LUC7duBCog9RT+JdjMgPGz3AMJyumJDP4P51jl5vq/cJApg2RvHC5eRK/MS4WIzC6I2fBmKr4H5mrl9aiFWtyPJJUFUdw1NQzBCNNM09H+rr+L2uqsUw==",
-                "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+                "value": "dby5oZ+TipccvnYpQUCPV+7JV0MsepedLvyaFOo3xLUbMUNwAtKACkvJNFjNAjb/c6KwIGu9S3JXR0Unso4FTnDvp+BXr938TSQY3fEPKmpb5rShZgLcJajjvni+TkVPU11MBg1270sGp7Y6VeB1VhgwurkuRDvdEYhf5wgAEVuYTr6bFc7DON1lcY8xRStK3FT4nG8DWY29o1fZ0Qy5b3qh8DtqI1WC5p3/j+5nGUIo7zHuRzC0JLGOLHwBUt9ibMOm2jQuJ1kYx3QpFzDtveSLvNdiXGicITjnLdrSdtZxWrLlIEkycJ7kDdNreS5rh2X+VIRfXPImDOL4GFruBw==",
+                "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
               }
             }
           }
@@ -3011,11 +2807,7 @@
       "name": "any-order-second-signer-first",
       "envelope": {
         "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -3094,11 +2886,7 @@
       "name": "not-a-signer",
       "envelope": {
         "from": "eve$other.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -3178,11 +2966,7 @@
       "name": "sent-by-someone-else",
       "envelope": {
         "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -3209,8 +2993,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       },
@@ -3265,11 +3049,7 @@
       "name": "out-of-turn",
       "envelope": {
         "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -3352,11 +3132,7 @@
       "name": "later-signer-names-no-previous",
       "envelope": {
         "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -3447,8 +3223,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       ],
@@ -3459,12 +3235,7 @@
       "name": "later-signer-names-another-previous",
       "envelope": {
         "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
-          "previous": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -3556,8 +3327,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       ],
@@ -3568,12 +3339,7 @@
       "name": "any-order-names-a-previous",
       "envelope": {
         "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4",
-          "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -3596,12 +3362,12 @@
             "signer": "sam$guarantor.example",
             "decision": "accepted",
             "signedAt": "2026-11-03T00:00:00.000Z",
-            "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
+            "previous": "57e2925ee17898b635aa8fcda6a23d934df2f118d0f60b72ccf2a721cd77b9dc"
           },
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "ea4WhTxQ5Q7W1hUOiX2Pi9yQquc8U+F89qZh7NH82qd3U7IBHk2i3lydXXe7vkjh8RCugFaYMjCKEURvJoI5JKN9RJjlbZsmpcwXivwNhUeaO6iP+MeLCyHCEYFUb6xnl0QfEqj1cRswyihI9UxrDcmejerdE+16ozqPbw1AHCJz4vV0iRjq6ZDbwr2O/bdKc43+Jwp4ISuTmdT3pykEyltnIjaDFQtdO4BUo6bcp5flujqGw/mEB/nm6hKyC9pKJM+MHvDaIaIEoUex8aM6reOihsMWFw668dexqsbblgA0B4c4Twn5Z2P/0kojZ5WjCdVJPGm1j7+puMLfGYB8iw==",
+            "value": "HR2ekDpBMgYelcKPepjUT4nvukETiUqgumJ7XnRaH0tP2aEDLysBn/THJ9vSVzlkDXemNU0FXCA25sCAvpBpIZIEr30jQY7hFRi0xZn85PozjFAZSvYATj02JUlSy9L1YpLVdE3cx6xjhZICisnwqFLNpLxVMF7MV/G0WHZi4OCcIgFyClqFElqI5H1Ar7qzAFb0nZx6pp9m7qX+HVvMHEeFAt1GH0EG7RM5z7s4SNVL6zetmgl2TBW6vAG6e7vVpRu1Yjke/XVNZoZBcIbAdXYEpHgsrOsr6M6wiDzq2puAlajEnkYlnlHeiPRfsuMIj7N/NgfMtSywnFdK9/g0ng==",
             "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
           }
         }
@@ -3654,11 +3420,7 @@
       "name": "terms-left-out",
       "envelope": {
         "from": "alice$client.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -3685,8 +3447,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "C6iCgBlNkU+L1gBsaRy6WQDKx/r9ZzszJCfwSDsPGCnQGbzpd4eyCBV8zoP8r/i8o2G/kY8XD+rfMB1/nrLEIpd1QvOTRJljO2XPu1abJrM8HGAY7bGqUGccNwHG6A/3EVtFozw62fW0VcS5OrO1oxwTLwhesd2SWdHec0fq1n0Lh5P6K4qvn6PtIyWjXtUSQii9d9X8TufDyALjz71G/DhVAfE3s6fMSrBbXtUbaU/1kIJ10zNAg9rL1s4b2LmU0ai0Huc9kAxeI9xamRGzY/psGEPmXpQendXX0U9tEHoxLuspYEpjnRp1Sd3X2OakExXmm0c8blx+z5w+IwDJ3w==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "YN2+FVn3kZwHCy3VTDgOok6h5teK/oVyxv4QKk/6qh3jPgiZp7P7gxQ45E/NYixXTLSAOR3j7BsAZfo9j27WEDSx/Mu1pFjLJLicukThOk6qayTGlTOTW0dyqegA/zGyXuZDZzhqaOQ34z2nY0bO4s+S7URKqEdAsngUDZJBJjrBTjz80zb+54IDJM/PNyFVzMaRHm7NW8YMipy+ksWNrfYFTrzJ0SCnZwf5RZHI3TkvcOsk7DWJwlccWflxY0SPaqj/xIdbFrmNQc5FLWH1oZm7JmWQ+VGJreqHiDyNE+EN2REuvX52SglNY2uoYXpEYiHUHS1sZ+IO3vlbbfSFyg==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       },
@@ -3741,11 +3503,7 @@
       "name": "another-content",
       "envelope": {
         "from": "alice$client.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -3772,8 +3530,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "PtOrYw25VAvQvsI59rUvFRuB41qYxU7lDjPj0LeLe/e61foYInwx0PlmkNAH6iMYp94HVxDDLUxNFZOm6sxwaPzcKLJrfU15MPAIuE6hGpl8m8J7b/yKV9LCND0/yeqwxlhBTxzaGufjQJeKM3G69oa0CcWNW59okY3q5Fjm6W8FQW8mZCsoaIoTJzDV0rflMcCHiZyzcn1e/dhflcj21MzifYhx23eZ/oD6ixrQ0SmnNDFldcGEYdY7QRtnaFnw5M2adm+xNigk6wnZCVV067nnGs99uXGLul9wJFKJdpGQa52qF9oOg4CAJsMDucdt0XiijpbgJgMcE4WSVoQdMg==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "YjlBgDKgQxJzttsNqYyPalm705SRk8Vd8g9rqwLGj5IlRz2YAr9W4St+8v3prPB11iRLnHXUuIIZxrYU/H3eUV8gLczDArs9fL6djQQKjZQ3xcdWaj50RFfUyRbde8o6l9tI6SEJ4iJnxac8cD6y2Eo8FsPw3l+Lv6Rdu/aSQ05usaHlf/IVwOdsK1usBitjlUYJcd+WbtV6qEIS2/TNgFNMKfBwWAt36zrpafKpd571k9mQD7/CDrqeBWwS5c6HKy8QKGMActzxiRtwIAAmtFBKtYljtxLi8AptFfxkAEkWZNGKs8MMJP6QDdZ2X4H70UBPFHXMJNMZrMuVpIhrdQ==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       },
@@ -3828,11 +3586,7 @@
       "name": "after-the-deadline",
       "envelope": {
         "from": "alice$client.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -3859,8 +3613,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "ON3gTuFbI/JhNN7HLR3W3I02niXcgtprFbuKpU4qDqiNgQwBtq0fKyQCFHcYbGxcTdNY9omqNtgyPmrtxAHbRDbx7OCbho+x+epVuwJ0f7/8t0lkd7J+rjmnH+lfwoO+cGc29z+mFwNaOiNPAAzeLeQh2QanYq62qW6Af2yvy5/2nT23WdjEM1Ig3resh+om8hZ+iheJGMkGbEoTfkH+WMD6YShDmJbe3sEra6abPImwwTZmhAlOEOl5MbkZ40k/kkJZNZDrhbkT8qI0Aki7bam57yGuYU+Djv6BleOSW/11Af2IY3C9e4GA0TSezsf8lAnxzQPUkahmm27BPB87Ew==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "Px/nXcbq/Qp/i33nBfy1qKXqundn1WSVHXxkw7oNfgNRQY8xq+582HpKetXi1BjFfkYNJiLvibK0WkblA+Lx6g0ikWH6PQX7kWLgMDRjFArvYLLyiUShahxn6nqOp2bcLxaaM+A8KQQMSxyVy2c3R5gF0ea+V5ufdeubkeuFhQ47157QQFOIYaC+J9GM7H7tQowx2eQkKTKiU8kZvl7yfB9zSUuXpEvAeua0z5UkPoLI09pAvwWSr1lk3SA+hqvDmmfiS/wjX4/LAtxSJsCnUzy6LHI3fZs5NN/l7XMoNEfqVHuIRoyk/lr23AWK0vhGj0f1rJMknq5g3xV9TyLjiw==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       },
@@ -3915,11 +3669,7 @@
       "name": "answers-twice",
       "envelope": {
         "from": "alice$client.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -3946,8 +3696,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "xfUJ9Itd0bthWgiBKuVBSace384irf1YU8jf3JgEZO7wyEz2MbTxDHIvOK0ERLU2KPcnA6nddGUPyLgZhFW8YlHb9vur+WoL7nXdPds/j9sugddzbrXRwBn7JYrU2XsaoQ0J/RzAknr5xSHnvYcohWLs0QFXVCVojLLIuQCgH58XMFc6u/kZ5/0oo65HwfYNQttiNjRkFyiRujz6DHs8RlC9/DKZr/DOq8qexb2WBp9cXvRQV6IzZ6n9zbgVj55wFFxzJDeqWmc4a74mEP5WLmd4OLNLYPpHh88XdsFzr7fnVeu5xmc+VZstY2Q0rYhRzRdkJtZ0XlbLNgy0bFw7ig==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "KG+K617e0pVgLODuyuUvFZL4HRU8vG14sfaYPl2Np3ca19XgDCjJPcjIhEvIfBGcY82ouFsD1ZC+wm+mPfjK2p64oDtPu/Phj36LzeiVXb4L1hC8kXLr8W+Ac5/Gt1c/7qMbTo4aCeJ5v4BP2PQIL6bqZ1p9ZI7BQJl1PmpH+itrED20KWviGattb+1Ix36D/nbZ1hvxaZOxVcjFEIH2Jv6udrJpJKItvXjpvFyugDLA5J6wuenXIKGUEtGLpIRGq2mwusgTjAMJchGEZZup2VfEealQkM3EW3aqN3r1eb6ex/PFezsNbh3pm2kPvUuj4tTRytrYpqv+6y1np6LttA==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       },
@@ -4007,8 +3757,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "JauD+qJ6b3lYYBvbEPkgiVnoa5SdiD1M41GiNSQlfwIQ7Q5jovTYiIGZKxKlsQwIxy2NX1dOH9y3S1nHIfRgX3mMMWw1ccTOvYwiS+EBg698jhMegnKEEVUHB49hfrXp7Ddtsx7/4naDXLojpM/CQofCakQwuhX0fOhUxnjq1gPV02CZ3dviZh0rwpTBUah2d6tNcguKbDA59J5jLJf+2HmrqT3pEDv8n3thZBaBviGG/2lI/aFiX8/9t8LnbSypk/ixZva8NbBt1P+lsyMJ+QCfO9BKzW1rQ+xKz9UyICC4le2ZDpwqq7J/ZwoLs6G8ddkD7ZWMiTUTYMNLw2j/wA==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "a8EtbZTexkaj2kf3gUrR55FDsFsfUm61mToTPRmFGfTxug3/4ovQ6P3eEYNDDQogPCAcEH2eSTSNaaXX5pVBDDFtHNi5t3HCVUVXmzxYOd0CcRXBCVBoeUNMdNFGVThO2p+E5YsA3v+OU7jEmdaSu/Yn7qn/d8BFr10/RSVLXtPcbgg25cOsQwX0xOsmvfLnezEczmcw1Rwj0xumXcTscPMbhUxICxme+J1GilUd/0MdZXIl/hmpAMC3bfyBTA1psL4ClKcPVJeW8z2w+4ciARD/JS96craQxhYr7Iagf446C6zH10CdON2FRkZREP0CjFKjHphoYJTP3g87prm8fg==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       ],
@@ -4019,12 +3769,7 @@
       "name": "after-a-decline",
       "envelope": {
         "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
-          "previous": "7c9524ec5ba7e421aa7681cea4dbe2c5e80600433efbafb1cba2a9dd4ab03b48"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -4047,12 +3792,12 @@
             "signer": "sam$guarantor.example",
             "decision": "accepted",
             "signedAt": "2026-11-03T00:00:00.000Z",
-            "previous": "7c9524ec5ba7e421aa7681cea4dbe2c5e80600433efbafb1cba2a9dd4ab03b48"
+            "previous": "c87ebd12648626e11dc1d916d2d2870c2c3a01310fbe800ee2d029701883ebb4"
           },
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "lSN0gEHcnr0ePKJMfh3R8pbT9T9BEziS9H2eT2Bw9xVIN7a1vncsJuR23WX1D3nlII49zRq0f0upfn1y7qX2peu//ODY7F6uoD00sCE4ihApXMaI+LjeW/5TZD2urM/gpB+b7By9ma5aMQZJYS23OLCvp/V4ULg0T9XXbF2cTQZdOMziISRar4M+kdufFmEBzLJ1TWXh+VC8MdjQXBp6sx5pVhwlKDj8lJBPyheUnjJuy9fyYlimvPerL0LTWAwtaIi5ywtHLhsxdtzp5CD/TaB4fsNkq/EAlWXWSyNwHv+LWv0bNJDOZthHsTNPATcFZfs5QhT12F3LJpwIP9Msgw==",
+            "value": "CPFpf0+t0XrxPjnlR/Un6oKHBGGGuWqaCvhXd/Oze64Kz4Aj3TTJ5Y44ciESu2uwnem10V46pozpu4rTionr6LSlOMNqwL+eQDzySVQn2j0qLW+cdsKhVrhNAmqEMyqxM1QNQvyR+1Lu113b0lVI08mHoT8CUGE3y3pghVnYDBk0EPX+qppmqqrfvIb+HzEiyxR1WBJ+T8/BvJaMSp3lWez/tuMC1ux8qW/9hAfdcqPrynfE88eC2YCWh+ZKwy04uU800JnFaib4IC8Gv723Y3/SynlwMvQkMaUfy13szI9gZzBM8UkyKZHVW81xAOcHcD0UwtpGvUjSe5to8hja8Q==",
             "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
           }
         }
@@ -4116,8 +3861,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "efQkg/0WoJfOB3bRkHMHVT2fz46GuyGO8i1E+OjLIj3rBaoPCSnoCkpebeTggSbW7W5i6f1+v4RHMKqhugg4o0B/NX1muSsgGK3hAqqQSoLnRA9y1FE+Z52vS31jxbhrlBKgVBRpKrpeBJYWgj4KgPB8WlQZTuND42FB0WS1yjdi/8dHiaOHn+Mx+yHOdPgpmModiaFkb4wQWdWzQ80FehVGh4FhpeeH3QRcrgnwV1KalnRhmbdrmR44HfZjLQyW6HhvgfAA8+6SysX3tWDPxxl5HmMU7qmigJVs5z2enma+OZSQdQW/20ClN9jTCGZyl0Ll14cxZdPqEpeMWmEBXA==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "WrAQfzjktdFHzAvqjAJnNOV5BKKcthRlt5+X1Ai0o4932qjJlhjpTYWEqilmYq+xrJVZpH5+Yaa9BL7SmINJgPv6Myd7/BxY+tZVvf702fDjUmdAcckIhP4mOjOMdstN2KYN31DSis+zIXCsKXYxY6iJCrLtMwNh2mU4cup6L8jWULnvS010lACUT1wZkdXSxBoNDun/oWiq553v4N/bP+HXG5xNF7HyNkd2fRfV6E4CpULDzbD3Sf16Zow49Iar8c7yWU1p1DbW0epBjD3FwcFU3OZuLfBCrArEfpXwYMwIdr/42CS9/BMs/hvYVAjvSK76nyNU07cHF+5mBkpn2w==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       ],
@@ -4125,210 +3870,10 @@
       "why": "a declined ends a sequential agreement"
     },
     {
-      "name": "envelope-names-another-previous",
-      "envelope": {
-        "from": "sam$guarantor.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
-          "previous": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        }
-      },
-      "event": {
-        "type": "agreement_event",
-        "id": "5d6e7f80-9102-4a3b-8c4d-5e6f708192a3",
-        "occurredAt": "2026-11-03T00:00:00.000Z",
-        "eventType": "accepted",
-        "agreement": {
-          "originator": "loans$bank.example",
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-        },
-        "statement": {
-          "statement": {
-            "agreement": {
-              "originator": "loans$bank.example",
-              "id": "AGR-1",
-              "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-            },
-            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
-            "signer": "sam$guarantor.example",
-            "decision": "accepted",
-            "signedAt": "2026-11-03T00:00:00.000Z",
-            "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
-          },
-          "selector": "btps1",
-          "signature": {
-            "algorithmHash": "sha256",
-            "value": "X4Kg0fWsd7ZE0qA7cMXZgm0DsG1bSEjSAmzCWCpzHh/QR/komonXSN4Z3KjDYNuV7yV8BPywE7iZmjKd37YAYwUJ95aD8A0oXspYUdsE7Nb/ARzimNB7HsKRgZ6/keI6ddu3c8aHRILuXdXOkPdmnh87qLxZLIr92G5WxAqrXPZ1qE04lVEhsIvA0URrB6d3ZhkYncL5OU1cWU5SYkyQqEGbsnDhDfJrIW/+h5q/JP9CEDZyk1H4H9WQ8kfwqU4WcbSizgkQbQOpNH43gyLUlA9aUnrCqKHxSI8mrDI0y+NEVolZWnmVgO50wfGMyeuu2C9P1Jp4rhRS+lDU1bJQ8w==",
-            "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
-          }
-        }
-      },
-      "agreement": {
-        "type": "agreement",
-        "title": "Home loan agreement",
-        "id": "AGR-1",
-        "issuedAt": "2026-10-19T00:00:00.000Z",
-        "body": {
-          "format": "markdown",
-          "content": "# Home loan\n\nThe terms are attached. Each of you accepts them in turn."
-        },
-        "attachments": [
-          {
-            "content": "JVBERi0xLjcgSG9tZSBsb2FuIHRlcm1zOiA2LjElIHAuYS4gb3ZlciAzMCB5ZWFycw==",
-            "type": "application/pdf",
-            "filename": "terms.pdf",
-            "size": 49,
-            "sha256": "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          }
-        ],
-        "acceptance": {
-          "by": "2026-11-30T00:00:00.000Z",
-          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
-          "signers": [
-            {
-              "address": "alice$client.example"
-            },
-            {
-              "address": "sam$guarantor.example"
-            },
-            {
-              "address": "loans$bank.example"
-            }
-          ],
-          "signingOrder": "sequential"
-        },
-        "originatorSignature": {
-          "selector": "btps1",
-          "signature": {
-            "algorithmHash": "sha256",
-            "value": "CKDY755su+/NYdHnWK3Q4YAZDjfnllz6O51EmWmF+Csy14SlQL+eqNBqw2/4kt3m8ETYcIH6g7U4Q1ECINyjs6ZYC/8V40dCuJY7hLj0NKzgJr8DxOXfJsOuGYTVO5BqWh3C36tskTVslOpSu0/56RMM5zTUr6P+74DPkr+16rXZef2IJiByrw6jBNnnZpGDEA1LySofZJLt08bHYa5JeyMjMffhs+1xKychYo7Xyc90x6O/D19V4bJT/4E7wpe7x1+Yxx9MI14kpnn+PJhVhD4BcP+Pm6lvZIHUFXbrcgC/VlU/UiC+IedgNpTs1fKVfbO4aC6tGscavoaA7HvTTg==",
-            "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
-          }
-        }
-      },
-      "earlier": [
-        {
-          "statement": {
-            "agreement": {
-              "originator": "loans$bank.example",
-              "id": "AGR-1",
-              "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-            },
-            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
-            "signer": "alice$client.example",
-            "decision": "accepted",
-            "signedAt": "2026-11-02T00:00:00.000Z"
-          },
-          "selector": "btps1",
-          "signature": {
-            "algorithmHash": "sha256",
-            "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
-          }
-        }
-      ],
-      "expect": "refuse",
-      "why": "the envelope's agreement facts are the statement's"
-    },
-    {
-      "name": "envelope-names-another-content",
-      "envelope": {
-        "from": "alice$client.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        }
-      },
-      "event": {
-        "type": "agreement_event",
-        "id": "5d6e7f80-9102-4a3b-8c4d-5e6f708192a3",
-        "occurredAt": "2026-11-02T00:00:00.000Z",
-        "eventType": "accepted",
-        "agreement": {
-          "originator": "loans$bank.example",
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-        },
-        "statement": {
-          "statement": {
-            "agreement": {
-              "originator": "loans$bank.example",
-              "id": "AGR-1",
-              "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-            },
-            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
-            "signer": "alice$client.example",
-            "decision": "accepted",
-            "signedAt": "2026-11-02T00:00:00.000Z"
-          },
-          "selector": "btps1",
-          "signature": {
-            "algorithmHash": "sha256",
-            "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
-          }
-        }
-      },
-      "agreement": {
-        "type": "agreement",
-        "title": "Home loan agreement",
-        "id": "AGR-1",
-        "issuedAt": "2026-10-19T00:00:00.000Z",
-        "body": {
-          "format": "markdown",
-          "content": "# Home loan\n\nThe terms are attached. Each of you accepts them in turn."
-        },
-        "attachments": [
-          {
-            "content": "JVBERi0xLjcgSG9tZSBsb2FuIHRlcm1zOiA2LjElIHAuYS4gb3ZlciAzMCB5ZWFycw==",
-            "type": "application/pdf",
-            "filename": "terms.pdf",
-            "size": 49,
-            "sha256": "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          }
-        ],
-        "acceptance": {
-          "by": "2026-11-30T00:00:00.000Z",
-          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
-          "signers": [
-            {
-              "address": "alice$client.example"
-            },
-            {
-              "address": "sam$guarantor.example"
-            },
-            {
-              "address": "loans$bank.example"
-            }
-          ],
-          "signingOrder": "sequential"
-        },
-        "originatorSignature": {
-          "selector": "btps1",
-          "signature": {
-            "algorithmHash": "sha256",
-            "value": "CKDY755su+/NYdHnWK3Q4YAZDjfnllz6O51EmWmF+Csy14SlQL+eqNBqw2/4kt3m8ETYcIH6g7U4Q1ECINyjs6ZYC/8V40dCuJY7hLj0NKzgJr8DxOXfJsOuGYTVO5BqWh3C36tskTVslOpSu0/56RMM5zTUr6P+74DPkr+16rXZef2IJiByrw6jBNnnZpGDEA1LySofZJLt08bHYa5JeyMjMffhs+1xKychYo7Xyc90x6O/D19V4bJT/4E7wpe7x1+Yxx9MI14kpnn+PJhVhD4BcP+Pm6lvZIHUFXbrcgC/VlU/UiC+IedgNpTs1fKVfbO4aC6tGscavoaA7HvTTg==",
-            "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
-          }
-        }
-      },
-      "earlier": [],
-      "expect": "refuse",
-      "why": "the envelope's agreement facts are the statement's"
-    },
-    {
       "name": "event-names-another-agreement",
       "envelope": {
         "from": "alice$client.example",
-        "to": "loans$bank.example",
-        "agreement": {
-          "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-        }
+        "to": "loans$bank.example"
       },
       "event": {
         "type": "agreement_event",
@@ -4355,8 +3900,8 @@
           "selector": "btps1",
           "signature": {
             "algorithmHash": "sha256",
-            "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           }
         }
       },
@@ -4473,8 +4018,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -4488,12 +4033,12 @@
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
-              "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
+              "previous": "57e2925ee17898b635aa8fcda6a23d934df2f118d0f60b72ccf2a721cd77b9dc"
             },
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "X4Kg0fWsd7ZE0qA7cMXZgm0DsG1bSEjSAmzCWCpzHh/QR/komonXSN4Z3KjDYNuV7yV8BPywE7iZmjKd37YAYwUJ95aD8A0oXspYUdsE7Nb/ARzimNB7HsKRgZ6/keI6ddu3c8aHRILuXdXOkPdmnh87qLxZLIr92G5WxAqrXPZ1qE04lVEhsIvA0URrB6d3ZhkYncL5OU1cWU5SYkyQqEGbsnDhDfJrIW/+h5q/JP9CEDZyk1H4H9WQ8kfwqU4WcbSizgkQbQOpNH43gyLUlA9aUnrCqKHxSI8mrDI0y+NEVolZWnmVgO50wfGMyeuu2C9P1Jp4rhRS+lDU1bJQ8w==",
+              "value": "IYUw4XhIV/8o04jNk7lAv8J3vZktJ/sdtxmf8j0axADR/xyavTT6ymQLQjL1YxCSoGIEzHicpUoIp9uMoeTWJWkig3rUX1sStbTPXk+g8vpGFhDCbXpsIW0UZTQRpstlfWCBablnvYXxG5Ia64hVGu8V0hTmiQ3clgnVdURv3GG7+wGqBWWZ2QPvi5qQCrWnXc8IBS7TcdqKw3JG7Vgy+oD6sd0jDYbsbNsK2v5XSu9nQiJGkzIkWHQIsHE/rMhID2tmpBSbETKf3dXJqSU16lf4XKJ7/goBadqu7PvR2cvk93e6chNRL5LXtUuCpS0UhMoaiMhHxW7XI6pM2A5wKw==",
               "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
             }
           },
@@ -4508,12 +4053,12 @@
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
-              "previous": "2d2c41bfe94d99407015991848ddf22b2fa57533fa8ffd31ab34a72f75ab07ef"
+              "previous": "307d64465ec1a5e652bbd1da371878a1ef13159a0b2211a5756b36e4bf84d348"
             },
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "n7Qt2Wr6E759MJch2BbORM4SLxovT8J8AKOC8FC68DQyN/naOp0uCsNjlU96UOrnwGXBiAF5JBXkDIBSVKG11vKEMq2Z7KLe+2Kpqiy1gmbGEJs9Po+aPyjUzq28penNTMuIjeRmfq0XMyRUYKHkfw2WFk5TkEYWm/6p/A7rp5e5usRis5Mlz4xxQ9bcFwZ0W9QmuuLB4ytMqhqRnqdPwNm45Ia+WCeZmpYK5tRJa3ONnPF7Z96TMRLpl9K3K+93pcHyOFU0tmiIvHZCknTfePmU9Bxe60qgoL89RPEZQe1zgL9IRmF7eprOzzREwYRL5daTDv63V6sGsA+mo33vmg==",
+              "value": "fpAYD4eiIHNHQTANxNGYvnDe/HhgZbnRlaOx4wTunA5ETNfRVULxL5ChzEPNy9LoF8i/pQFMyvN7MIpmMbgyykNdG7mCPeMBB5rn1g1zDX1dLqK8WxJ60ZmXj81igfAcokS3cO+TD4Z326RFLb3yZBR2hFay7xa4EmBkEK8cer+RNeFZkmcVWCz1nErs7HatTwjviv1yhKSRLYfmsb0HlV8PEm8MVsJuzUBqV3X4A1L/uEIvh/zQ1fP8MRLorj/Gx8LkZpm/Pj8sZMQnsQ1vxp/7k9ZvZ1hsFw6n3rm+1Pi2YW2A8WpAq1o95f7wtYOcK4SRZxhYlxoiGh9fSY7eVQ==",
               "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
             }
           }
@@ -4528,8 +4073,8 @@
           {
             "identity": "alice$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2IcTyTDB8kMUjQoqGTdc\nspN5YLs3HICYM418Dggffu/x1CU9c7aA/GWvyIWsFSxnH6f10EEZwTqFxA0CC+2J\nPxq4/8/rLI5EvS6XqlZdEWs3b0kFbZQjqLhzIKv54we+SxjXCmOQWyKaa44k7oOJ\nm3VAXncmEwe6e+OOBwBH3mEDZbUJBxxhjvA9FjFWFYfiLDoqbsexaz0M/y08sUaP\nYPZL0XRDeGx3FpFg9vxVuvEqDRUYoA8AgWDMINcVYG1rc/9zD7dBdYAG1Bl/UTyu\n6fNH7b4Oj9jMTZ8+sqwWewJn+usMskY98cxeo9DdTHQkl2no1ndvti8Y8dVqoBW+\nCwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoNg8aq1uNPkXTfAtdYdf\njZwzz/tpqtDteRhG8cqIzA2W8Mt82WOARo1W1TjJyhdzCeFWpSywDcYvTgTeznNi\nwRkMm3MhJaTCdBnd97GBiOQ8Q4BOP5uNbHNWMwuZQssqyYt/fmCJFo4hQtKb6pH9\nlKZb6w6SFXumpNalmPJ2wm1VwTmlNUcWD3lHT5OWJBBWaMLhp/VBPSpuvytZ611T\n0KsBcxJLyDy3fZmhfwOWJKXboo/ASm7v+U9HLdf/AvVIeGb6GPfTpRdC4LS+wmcb\nZpLfEAOEZppLjRFPRNuGrKniXzyOTMWrDt1ukd8kR6XH407gavEJo3IoBeo6tGS0\nmwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           },
           {
             "identity": "sam$guarantor.example",
@@ -4540,8 +4085,8 @@
           {
             "identity": "admin$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvHFYdmAbxNC+zCuZ39Aq\njoWJFmVt5OPRTgdUiMbkn7tND1azh/tnLuAmSclms8nFADId7vETH26cjYfxOkOo\nz5sa8EQDKZT+0IdOhsicZwy4sFZ+TGKSQIHUrfG/z/VwBGS5LrwKE0xoUN8vz5T8\ntvXiZMw8dbC80j1mOYSK3ee/meZVRYD8vPoTnGlmG/Ngt5Y3O+7PkZPVgw3j51bG\nPFl2qld066T7watqWDRcp2f2zeMXexRMdw/p8iSzMXKHcn5oEjb7ZTodA+v016Xr\ny3AVlE/lDng3KKtaTmuUqwb530p2l6Xsr4oTY6YI78BYhh1vEklXRLiwv+oZ4EqF\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GQFk0E2rN0KCdB9hS1u\n6d/f8RMY3m2Jh+BbrWLQg/rvL8Bh/xT0RBdL8qPe2/GFOd91gmicJknN9xvrovkL\nFZpR6/qtvKAn8YLQkqf6mPTC+giyL2NkbohVU16Vc6qtYaLUIcZSahZU3odHe55l\no1PfUokBsjkmVKLUHA+zjmPHILzlZVuFCkQ6QDmGuuP5CJzs9EAt3BiavZ1ToQ6q\ng6zS72YeMg6BZ+g6CTu0BltQzNwtjUUvcd6TfEwujd2/bBvEJMwplzetHNKEANJC\nv6otR03LuQfxT03q5Gf6I8JgU5szROm0gzhkRHkLWR00mpNQcV8EfaPXqCIwGxNw\nqQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
           }
         ]
       },
@@ -4647,8 +4192,8 @@
             },
             "signature": {
               "algorithmHash": "sha256",
-              "value": "Oa7/L2bQ0wAzX2cUbkxZjHKRHtOAhzP/ZnOmL7gyHJ3L6hIXIjLl41noqt5uP1cRsRTls7PkLLahNwKVDbH88mlddoeidZa8HDj53LrYtDV++4pb4J/3oohvpDMTPzfI+TQd6fZPmYk1oE3wOfAa2tTxbIErT/vETXvHiIgQZ6RlYYTediCegR7eVSGNCvpHiJzDTP6NuhjlxHgXTaRnn4fGQUkx+mbr7Qt6bw0c8vu4yNLxBvFp1VnucvhQlcGSxqFt+f5EvOOqrCiw3aC2KVzBk7Vk3Ws9QHzCbzJ6P6lqZh2MW65jA8ltHnEWG/aycxPiFEPbfpC8pYKvl8dQUg==",
-              "fingerprint": "8UuO0MXm6tXtvaopQKXKxlo44HVWkkNVzjfwzVKuFWI="
+              "value": "rGVaodBxYRuuSVyvGvWMJkV+3+xvZDG9n18zessPAHfpKzEhvXoDTiPH5mcecCiZBNSUWbjRS/iM7vBtWbueOUixM1ztF3E57FbhdfkFfIiBc6oWsv8GiyzBNQDAT7hckzp36gnIzpaK5aZMi4CP6dDmi7qJ976fRo99z5FyuRTvlXG3lfqw7Ql332zW7j+ncDhfb6JGWVs4WzZBu8fla2LutpMmZtFrFO0mY13agv3oJyUj35WL0mUWEJhBbtbWtCzKnCdQ2I7L0Tj9Lc4A+6wejyg3wp852oAiVTnKGioEbjv09NOUVizw+aN/yhAIMIEBI22tPGux8IhBmljpLw==",
+              "fingerprint": "GKIlW7lWL0Q5S+RonbV14TsBT+Zy0b2LRcUM6aBt1Bg="
             },
             "delegatedArtifact": {
               "version": "1.2.0",
@@ -4658,10 +4203,7 @@
               "from": "alice$client.example",
               "to": "loans$bank.example",
               "relatesTo": "agreement-copy-to-alice",
-              "agreement": {
-                "id": "AGR-1",
-                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-              },
+              "selector": "btps1",
               "encryption": {
                 "algorithm": "aes-256-gcm",
                 "encryptedKey": "AA==",
@@ -4672,19 +4214,19 @@
               "document": "ciphertext",
               "signature": {
                 "algorithmHash": "sha256",
-                "value": "cwhMQ2Q5bkbHnEQi8UxLQso6HRBbVrVe+AaIrbUgH4/00o0gWK9ZzJ80yCN/CMGM54eb8a83CiVOPGbFKCRz1pHvq5iKhxJu/z7alg5cwaUuPnsbK041YiFtTbUoQ0ZKPLvrYGmjX85lGsttlW0Uw7pQTut5/4Yi6ab/LB2KvBCJFCWrTvKe10W0Nw9OhSyqXoKkqEBnrs0lGHYoHsW7Ebux5ZpU6dVl2x6DPAu8siZZk1jODqRecH12KxkbHG+zfHvAl8joocF9DHTrkYVrnCsM8NfoyKo1jR+bXVNYYn8F7GZ+aGe67ZUoA76zy5ajFlpxnspy5Y3w6dw7bN30bg==",
-                "fingerprint": "8UuO0MXm6tXtvaopQKXKxlo44HVWkkNVzjfwzVKuFWI="
+                "value": "CFzV4w6dDUB3Fb3ykqYx6Y+fyndZXfuZe3lAqrpPNxGvL+GrrK8q2xMd4x/FaFFPimLKjol3VwWwWz73/HLtpUWF/Zk0mqr2vrUolRoKFwnzKoHL03L5QiZA3X7X4SmOe7ov+QAKzGJDirHqMhUvFwSnKn49DOnwpeECQY4S12tt8RfoSXYEzrdSlybnZhEcZQOkzjz9j/IJWuXnU3npRT784X2fisw5xYOBAUL7O/pn77xEXKjOkRVWWWg2YJ2SpDVSM6l1qMJBOpqL1uNOpJp9cqgRl0MItB2SRGGsGFvixt9fTkja7rIRt5EYYfAuEXUAos6U2gGlmg9PwCtVKA==",
+                "fingerprint": "GKIlW7lWL0Q5S+RonbV14TsBT+Zy0b2LRcUM6aBt1Bg="
               },
               "delegation": {
                 "agentId": "device-alice-1",
-                "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsGEB8WpHYz392nWAuAaf\nHe7DZNTdUwNq6YbhQEpvN0G1XWkgkGYwiofIlz/4OukhsG87c0OjG59zGuu+oSWS\nd+nysFmlik31Yiarfb+OOhH1kGvBVvJ3oam2tWDK652ugr2e3BjL9QZe24+BODJ0\nPSY8FB4SL3YKNfnND4fp/x4nyDEwpL5HzSsvNSoS5DkWHS5oz56sWs+o/PcwyYPD\n9wke2oMkJYYgWdDzeNvobQvCWzr4WR9aUCP5xnH3RM8vnrlDK5Aky3UOE8HmjI8o\nwwLh/CmxylTvApK6WP1PA5wG4AuaPB9jmmyEW48M3DPWH92rLh4w9HeJlNh3bJNg\ngwIDAQAB\n-----END PUBLIC KEY-----\n",
+                "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArupLH9bzYQSv2ikkc3g2\ngNkjQCk/torbrO7YC+GcAtRSf+w/S/76xowJDL89jqSD5CpjOWHPELn8p9U0GKI9\n7WDihhYOVMuPw2OEAbp+7Oty2SaqNdoOpExALfelvUY9ypPvVmM7y7aZFf3JWXxk\nM9uTNjfQbLuiMRcudU+bEC4gHh4GiX73vHDa1kKcK9GyVCLWQsVARwuuaLKyvAaa\ndqUfFeBx2tLtNW8aag20KtwoOQknO43KmbbIbus3lAtBzAzsXCCZus2ZjCJALsLX\nJ9hJIepuwHvWyzgcp9Sfot9wxJH+kKP3tK3EU04VUHSbHJlV564tElwf58hOAQ2G\nRQIDAQAB\n-----END PUBLIC KEY-----\n",
                 "signedBy": "admin$client.example",
                 "issuedAt": "2026-11-02T00:00:00.000Z",
                 "selector": "btps1",
                 "signature": {
                   "algorithmHash": "sha256",
-                  "value": "dhGxH6zqaltjMKAhrLhj1OVHszRibvWNXS6Q+xC3le2vflA+qUrh5KTKe0YQllnrLre5p52CjiF2aY9NWf1vpxt48VoH63dDOCeBKk3dFvHX1/H9IJnjpqu2pzzHOuJ3Q7NpggiI0M+VzI869YGDaba9RBU1D1xer/3us6dshrQuE/0Hj+xvJUeHnzqvcaKJLTP04c0BdnW/PB/MCaG56gEdLoxzfY4Mm3LUC7duBCog9RT+JdjMgPGz3AMJyumJDP4P51jl5vq/cJApg2RvHC5eRK/MS4WIzC6I2fBmKr4H5mrl9aiFWtyPJJUFUdw1NQzBCNNM09H+rr+L2uqsUw==",
-                  "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+                  "value": "dby5oZ+TipccvnYpQUCPV+7JV0MsepedLvyaFOo3xLUbMUNwAtKACkvJNFjNAjb/c6KwIGu9S3JXR0Unso4FTnDvp+BXr938TSQY3fEPKmpb5rShZgLcJajjvni+TkVPU11MBg1270sGp7Y6VeB1VhgwurkuRDvdEYhf5wgAEVuYTr6bFc7DON1lcY8xRStK3FT4nG8DWY29o1fZ0Qy5b3qh8DtqI1WC5p3/j+5nGUIo7zHuRzC0JLGOLHwBUt9ibMOm2jQuJ1kYx3QpFzDtveSLvNdiXGicITjnLdrSdtZxWrLlIEkycJ7kDdNreS5rh2X+VIRfXPImDOL4GFruBw==",
+                  "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
                 }
               }
             }
@@ -4700,12 +4242,12 @@
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
-              "previous": "176d0c2dc1685ad2a759db2f3cee7b151eb3bb4964f1be80dfd45d03f7ea1fc2"
+              "previous": "1adcb5e20991825aeeca63c3585a951b97b4e661d2517a7e42010f21d999f7be"
             },
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "mQeO4SKs09XMdCPIqeno5c5JXSNjlVbaHgWf2/jyoKZVM/cH/cdh4v8K6a1GVErZlO1TQhUt0Ql+FoeQrmoKl+pPhmw5jMzbr4uLYxai91T+yHAmKk34yFr+kQ2ziJV7jLIGI29biEFurE1nzrD8U/LkufYi85lftKirpiybC7me6E6vvDalT1pifOmOy86PxVGnVnlkDC0tJH1qjkjsd8ERlDuBpWlHuJ7V6f6te+SLiUmpdrE4AF6B8immkSFPAA4E8DMQU7IKFt3vrcAXFD/1f/mXfxz+33PawVBqU2pVgSR9AL6hnvKLsx2N4CNcKoaiptV0Rr+4hcoNdO+Dbg==",
+              "value": "ihKqVD+Op8lNvuo1zgOShtkT2302A8vZ+QInI1wrPkUVTTLvM8wEclKNIHMCY2V4C8o8esmE5MPLM/Rf8ACkE4baPMNiSb7O7MSQbRwcYANqVwwVaY31/FNgFd06OxZT/wJqdODlSlMzrVEOme1FjmTG06S7YIqoPqqKOntISpYl34iNXX0y6xhFoy4pAlVMFGXcvoaAwGZVLPwicxGUDn81/S56ToghGwXEQyqRWg0XcLVU2MGaNDViQ9nlidoWGJOelPVnGTrX3Zh/DQ2xNY/GB+02/dGg9vJYKBLyMEczr6i5PDKGK7u+yqrINwJn9j1ZVscygs+yiSVRi6rozg==",
               "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
             }
           },
@@ -4720,12 +4262,12 @@
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
-              "previous": "149412ee3ad8d28be3fd2a74967d5a30c76ddcecfc37002cafedf42bbccfe392"
+              "previous": "5e31127a6cd42f042bcac607a8e52206821d555713422982eacb9f5d920ad8b9"
             },
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "bfePt4O+zuL9RXB2PJYeyKQoPYPZC5jx4tLQUSEsvW0Ft2OiIyczQwZazR84WxXmtdKj0HGVeH6X57Pt92LgDwjwFt8eo4+C3zzuzJg0o4v9eW1LFWILLEIV86Kt6Ay3EpOOb+K22FzAccsVIfkqx79vddDHAT1VnPRdV13VtsWd6d/NRMB396D/IcsnKZU4LDUXSxITAZeGYLL2aD05TiGYRMnmbvbevziAbhbwewNpX+7kzFr21gEbjjwtOHsuUeCt/OMWa7zTqnQj1tayzFL5yJzK0v5GiC3c+B0CeGDCPybuEWpLDtF4LZkl9uoKqVFCLjfXeR3JQVF+rvtcwA==",
+              "value": "XUePRkS9ofu0cbPBEI8ThZ+3fKANQ4hyVztI2xE11A/rqTFE2NVbUOfi8ND7nbb/3LnGLQ3HpRjyioqodVgNE9LdHY94Wr0ukrOpv+1xu/jaux20ABK1A0ymYAIh4/lDjvnjOuyjl/qSKlzgbJBZhx9kAbk/qE2PfiyNcOpqrJKZfSVYRBf1cIMCFKyaYcDjb/WVZPKw0uNUgp5gWx6kt06Alm1VSGP504fr8EqHDTxkMyhrnmDtLUZPcn4Ee3TwHfRUBNLwG6aXSH/PvEPdQmBPrVADkolCWn/zFMyxfzosBcP16e45kxp4yR/+iEpaCW34aQH4gFS4PmX7G2/a8Q==",
               "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
             }
           }
@@ -4740,8 +4282,8 @@
           {
             "identity": "alice$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2IcTyTDB8kMUjQoqGTdc\nspN5YLs3HICYM418Dggffu/x1CU9c7aA/GWvyIWsFSxnH6f10EEZwTqFxA0CC+2J\nPxq4/8/rLI5EvS6XqlZdEWs3b0kFbZQjqLhzIKv54we+SxjXCmOQWyKaa44k7oOJ\nm3VAXncmEwe6e+OOBwBH3mEDZbUJBxxhjvA9FjFWFYfiLDoqbsexaz0M/y08sUaP\nYPZL0XRDeGx3FpFg9vxVuvEqDRUYoA8AgWDMINcVYG1rc/9zD7dBdYAG1Bl/UTyu\n6fNH7b4Oj9jMTZ8+sqwWewJn+usMskY98cxeo9DdTHQkl2no1ndvti8Y8dVqoBW+\nCwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoNg8aq1uNPkXTfAtdYdf\njZwzz/tpqtDteRhG8cqIzA2W8Mt82WOARo1W1TjJyhdzCeFWpSywDcYvTgTeznNi\nwRkMm3MhJaTCdBnd97GBiOQ8Q4BOP5uNbHNWMwuZQssqyYt/fmCJFo4hQtKb6pH9\nlKZb6w6SFXumpNalmPJ2wm1VwTmlNUcWD3lHT5OWJBBWaMLhp/VBPSpuvytZ611T\n0KsBcxJLyDy3fZmhfwOWJKXboo/ASm7v+U9HLdf/AvVIeGb6GPfTpRdC4LS+wmcb\nZpLfEAOEZppLjRFPRNuGrKniXzyOTMWrDt1ukd8kR6XH407gavEJo3IoBeo6tGS0\nmwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           },
           {
             "identity": "sam$guarantor.example",
@@ -4752,8 +4294,8 @@
           {
             "identity": "admin$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvHFYdmAbxNC+zCuZ39Aq\njoWJFmVt5OPRTgdUiMbkn7tND1azh/tnLuAmSclms8nFADId7vETH26cjYfxOkOo\nz5sa8EQDKZT+0IdOhsicZwy4sFZ+TGKSQIHUrfG/z/VwBGS5LrwKE0xoUN8vz5T8\ntvXiZMw8dbC80j1mOYSK3ee/meZVRYD8vPoTnGlmG/Ngt5Y3O+7PkZPVgw3j51bG\nPFl2qld066T7watqWDRcp2f2zeMXexRMdw/p8iSzMXKHcn5oEjb7ZTodA+v016Xr\ny3AVlE/lDng3KKtaTmuUqwb530p2l6Xsr4oTY6YI78BYhh1vEklXRLiwv+oZ4EqF\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GQFk0E2rN0KCdB9hS1u\n6d/f8RMY3m2Jh+BbrWLQg/rvL8Bh/xT0RBdL8qPe2/GFOd91gmicJknN9xvrovkL\nFZpR6/qtvKAn8YLQkqf6mPTC+giyL2NkbohVU16Vc6qtYaLUIcZSahZU3odHe55l\no1PfUokBsjkmVKLUHA+zjmPHILzlZVuFCkQ6QDmGuuP5CJzs9EAt3BiavZ1ToQ6q\ng6zS72YeMg6BZ+g6CTu0BltQzNwtjUUvcd6TfEwujd2/bBvEJMwplzetHNKEANJC\nv6otR03LuQfxT03q5Gf6I8JgU5szROm0gzhkRHkLWR00mpNQcV8EfaPXqCIwGxNw\nqQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
           }
         ]
       },
@@ -4877,8 +4419,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "A7cLrJwb0oR7fTGDpeypuClFXoQaJdF6vMlsFj8tNRph1Ce7v5VLryv2ZkmKs0o1CEE/BUoewjIS2RtokdOS5fORh53f+jELgVque4M1tMXT/+kI+qDz7ksin1ci12R1UR4Q7RvId9inSFtDeFhZ7CmZc9p65f10t6KyUJxXjw4eb7dJPxV8Qq08piPHaqI7bd4vhlRgapgybhuhVXLKHPznQfV/OeBGssAkMifJOtrOV01EGH7866qVJycNtfzal3CU1Ve4+yXBs2fRzDiethDwq/9L+voTBWUxaBg7HESlcYuL8CTlIUHQKlUTwaXES17uovk9TMm0mzdfn/9CaA==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "J2DacydK0f+0OBLYsGi7HHpKPfGnXRATurFlAJKjxoXWQYQHQmzS29Op3Aa6VXRLY1d9nLSBtHOFDJppxj6R8BolI3Y5Y6pivSQcH4bTdYiSONXlp1Qss+b7TS1q+BzOy+X4NSwsH9pUwRFoqFV2YK48YvLcYZVZR933/dSbdEExTM580Zu6ojExPZnHwlz9qax19RSjKPljBPsMR+CEPmBRi6e3SzOEY2u+9bqiFHb9vEb62YqAWiX3JzYmD1nTgur6yHhmV3fm2cTdymYLw08vueWc6ZuCI5rsrFpQl0PxZLJGSfQz2KxehdkmBlBe73+Anj5CnJvhi0sXn9We5Q==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           }
         ],
@@ -4892,8 +4434,8 @@
           {
             "identity": "alice$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2IcTyTDB8kMUjQoqGTdc\nspN5YLs3HICYM418Dggffu/x1CU9c7aA/GWvyIWsFSxnH6f10EEZwTqFxA0CC+2J\nPxq4/8/rLI5EvS6XqlZdEWs3b0kFbZQjqLhzIKv54we+SxjXCmOQWyKaa44k7oOJ\nm3VAXncmEwe6e+OOBwBH3mEDZbUJBxxhjvA9FjFWFYfiLDoqbsexaz0M/y08sUaP\nYPZL0XRDeGx3FpFg9vxVuvEqDRUYoA8AgWDMINcVYG1rc/9zD7dBdYAG1Bl/UTyu\n6fNH7b4Oj9jMTZ8+sqwWewJn+usMskY98cxeo9DdTHQkl2no1ndvti8Y8dVqoBW+\nCwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoNg8aq1uNPkXTfAtdYdf\njZwzz/tpqtDteRhG8cqIzA2W8Mt82WOARo1W1TjJyhdzCeFWpSywDcYvTgTeznNi\nwRkMm3MhJaTCdBnd97GBiOQ8Q4BOP5uNbHNWMwuZQssqyYt/fmCJFo4hQtKb6pH9\nlKZb6w6SFXumpNalmPJ2wm1VwTmlNUcWD3lHT5OWJBBWaMLhp/VBPSpuvytZ611T\n0KsBcxJLyDy3fZmhfwOWJKXboo/ASm7v+U9HLdf/AvVIeGb6GPfTpRdC4LS+wmcb\nZpLfEAOEZppLjRFPRNuGrKniXzyOTMWrDt1ukd8kR6XH407gavEJo3IoBeo6tGS0\nmwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           },
           {
             "identity": "sam$guarantor.example",
@@ -4904,8 +4446,8 @@
           {
             "identity": "admin$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvHFYdmAbxNC+zCuZ39Aq\njoWJFmVt5OPRTgdUiMbkn7tND1azh/tnLuAmSclms8nFADId7vETH26cjYfxOkOo\nz5sa8EQDKZT+0IdOhsicZwy4sFZ+TGKSQIHUrfG/z/VwBGS5LrwKE0xoUN8vz5T8\ntvXiZMw8dbC80j1mOYSK3ee/meZVRYD8vPoTnGlmG/Ngt5Y3O+7PkZPVgw3j51bG\nPFl2qld066T7watqWDRcp2f2zeMXexRMdw/p8iSzMXKHcn5oEjb7ZTodA+v016Xr\ny3AVlE/lDng3KKtaTmuUqwb530p2l6Xsr4oTY6YI78BYhh1vEklXRLiwv+oZ4EqF\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GQFk0E2rN0KCdB9hS1u\n6d/f8RMY3m2Jh+BbrWLQg/rvL8Bh/xT0RBdL8qPe2/GFOd91gmicJknN9xvrovkL\nFZpR6/qtvKAn8YLQkqf6mPTC+giyL2NkbohVU16Vc6qtYaLUIcZSahZU3odHe55l\no1PfUokBsjkmVKLUHA+zjmPHILzlZVuFCkQ6QDmGuuP5CJzs9EAt3BiavZ1ToQ6q\ng6zS72YeMg6BZ+g6CTu0BltQzNwtjUUvcd6TfEwujd2/bBvEJMwplzetHNKEANJC\nv6otR03LuQfxT03q5Gf6I8JgU5szROm0gzhkRHkLWR00mpNQcV8EfaPXqCIwGxNw\nqQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
           }
         ]
       },
@@ -5002,8 +4544,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "efQkg/0WoJfOB3bRkHMHVT2fz46GuyGO8i1E+OjLIj3rBaoPCSnoCkpebeTggSbW7W5i6f1+v4RHMKqhugg4o0B/NX1muSsgGK3hAqqQSoLnRA9y1FE+Z52vS31jxbhrlBKgVBRpKrpeBJYWgj4KgPB8WlQZTuND42FB0WS1yjdi/8dHiaOHn+Mx+yHOdPgpmModiaFkb4wQWdWzQ80FehVGh4FhpeeH3QRcrgnwV1KalnRhmbdrmR44HfZjLQyW6HhvgfAA8+6SysX3tWDPxxl5HmMU7qmigJVs5z2enma+OZSQdQW/20ClN9jTCGZyl0Ll14cxZdPqEpeMWmEBXA==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "WrAQfzjktdFHzAvqjAJnNOV5BKKcthRlt5+X1Ai0o4932qjJlhjpTYWEqilmYq+xrJVZpH5+Yaa9BL7SmINJgPv6Myd7/BxY+tZVvf702fDjUmdAcckIhP4mOjOMdstN2KYN31DSis+zIXCsKXYxY6iJCrLtMwNh2mU4cup6L8jWULnvS010lACUT1wZkdXSxBoNDun/oWiq553v4N/bP+HXG5xNF7HyNkd2fRfV6E4CpULDzbD3Sf16Zow49Iar8c7yWU1p1DbW0epBjD3FwcFU3OZuLfBCrArEfpXwYMwIdr/42CS9/BMs/hvYVAjvSK76nyNU07cHF+5mBkpn2w==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           }
         ],
@@ -5017,8 +4559,8 @@
           {
             "identity": "alice$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2IcTyTDB8kMUjQoqGTdc\nspN5YLs3HICYM418Dggffu/x1CU9c7aA/GWvyIWsFSxnH6f10EEZwTqFxA0CC+2J\nPxq4/8/rLI5EvS6XqlZdEWs3b0kFbZQjqLhzIKv54we+SxjXCmOQWyKaa44k7oOJ\nm3VAXncmEwe6e+OOBwBH3mEDZbUJBxxhjvA9FjFWFYfiLDoqbsexaz0M/y08sUaP\nYPZL0XRDeGx3FpFg9vxVuvEqDRUYoA8AgWDMINcVYG1rc/9zD7dBdYAG1Bl/UTyu\n6fNH7b4Oj9jMTZ8+sqwWewJn+usMskY98cxeo9DdTHQkl2no1ndvti8Y8dVqoBW+\nCwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoNg8aq1uNPkXTfAtdYdf\njZwzz/tpqtDteRhG8cqIzA2W8Mt82WOARo1W1TjJyhdzCeFWpSywDcYvTgTeznNi\nwRkMm3MhJaTCdBnd97GBiOQ8Q4BOP5uNbHNWMwuZQssqyYt/fmCJFo4hQtKb6pH9\nlKZb6w6SFXumpNalmPJ2wm1VwTmlNUcWD3lHT5OWJBBWaMLhp/VBPSpuvytZ611T\n0KsBcxJLyDy3fZmhfwOWJKXboo/ASm7v+U9HLdf/AvVIeGb6GPfTpRdC4LS+wmcb\nZpLfEAOEZppLjRFPRNuGrKniXzyOTMWrDt1ukd8kR6XH407gavEJo3IoBeo6tGS0\nmwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           },
           {
             "identity": "sam$guarantor.example",
@@ -5029,8 +4571,8 @@
           {
             "identity": "admin$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvHFYdmAbxNC+zCuZ39Aq\njoWJFmVt5OPRTgdUiMbkn7tND1azh/tnLuAmSclms8nFADId7vETH26cjYfxOkOo\nz5sa8EQDKZT+0IdOhsicZwy4sFZ+TGKSQIHUrfG/z/VwBGS5LrwKE0xoUN8vz5T8\ntvXiZMw8dbC80j1mOYSK3ee/meZVRYD8vPoTnGlmG/Ngt5Y3O+7PkZPVgw3j51bG\nPFl2qld066T7watqWDRcp2f2zeMXexRMdw/p8iSzMXKHcn5oEjb7ZTodA+v016Xr\ny3AVlE/lDng3KKtaTmuUqwb530p2l6Xsr4oTY6YI78BYhh1vEklXRLiwv+oZ4EqF\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GQFk0E2rN0KCdB9hS1u\n6d/f8RMY3m2Jh+BbrWLQg/rvL8Bh/xT0RBdL8qPe2/GFOd91gmicJknN9xvrovkL\nFZpR6/qtvKAn8YLQkqf6mPTC+giyL2NkbohVU16Vc6qtYaLUIcZSahZU3odHe55l\no1PfUokBsjkmVKLUHA+zjmPHILzlZVuFCkQ6QDmGuuP5CJzs9EAt3BiavZ1ToQ6q\ng6zS72YeMg6BZ+g6CTu0BltQzNwtjUUvcd6TfEwujd2/bBvEJMwplzetHNKEANJC\nv6otR03LuQfxT03q5Gf6I8JgU5szROm0gzhkRHkLWR00mpNQcV8EfaPXqCIwGxNw\nqQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
           }
         ]
       },
@@ -5117,8 +4659,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -5132,12 +4674,12 @@
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
-              "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
+              "previous": "57e2925ee17898b635aa8fcda6a23d934df2f118d0f60b72ccf2a721cd77b9dc"
             },
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "X4Kg0fWsd7ZE0qA7cMXZgm0DsG1bSEjSAmzCWCpzHh/QR/komonXSN4Z3KjDYNuV7yV8BPywE7iZmjKd37YAYwUJ95aD8A0oXspYUdsE7Nb/ARzimNB7HsKRgZ6/keI6ddu3c8aHRILuXdXOkPdmnh87qLxZLIr92G5WxAqrXPZ1qE04lVEhsIvA0URrB6d3ZhkYncL5OU1cWU5SYkyQqEGbsnDhDfJrIW/+h5q/JP9CEDZyk1H4H9WQ8kfwqU4WcbSizgkQbQOpNH43gyLUlA9aUnrCqKHxSI8mrDI0y+NEVolZWnmVgO50wfGMyeuu2C9P1Jp4rhRS+lDU1bJQ8w==",
+              "value": "IYUw4XhIV/8o04jNk7lAv8J3vZktJ/sdtxmf8j0axADR/xyavTT6ymQLQjL1YxCSoGIEzHicpUoIp9uMoeTWJWkig3rUX1sStbTPXk+g8vpGFhDCbXpsIW0UZTQRpstlfWCBablnvYXxG5Ia64hVGu8V0hTmiQ3clgnVdURv3GG7+wGqBWWZ2QPvi5qQCrWnXc8IBS7TcdqKw3JG7Vgy+oD6sd0jDYbsbNsK2v5XSu9nQiJGkzIkWHQIsHE/rMhID2tmpBSbETKf3dXJqSU16lf4XKJ7/goBadqu7PvR2cvk93e6chNRL5LXtUuCpS0UhMoaiMhHxW7XI6pM2A5wKw==",
               "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
             }
           }
@@ -5152,8 +4694,8 @@
           {
             "identity": "alice$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2IcTyTDB8kMUjQoqGTdc\nspN5YLs3HICYM418Dggffu/x1CU9c7aA/GWvyIWsFSxnH6f10EEZwTqFxA0CC+2J\nPxq4/8/rLI5EvS6XqlZdEWs3b0kFbZQjqLhzIKv54we+SxjXCmOQWyKaa44k7oOJ\nm3VAXncmEwe6e+OOBwBH3mEDZbUJBxxhjvA9FjFWFYfiLDoqbsexaz0M/y08sUaP\nYPZL0XRDeGx3FpFg9vxVuvEqDRUYoA8AgWDMINcVYG1rc/9zD7dBdYAG1Bl/UTyu\n6fNH7b4Oj9jMTZ8+sqwWewJn+usMskY98cxeo9DdTHQkl2no1ndvti8Y8dVqoBW+\nCwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoNg8aq1uNPkXTfAtdYdf\njZwzz/tpqtDteRhG8cqIzA2W8Mt82WOARo1W1TjJyhdzCeFWpSywDcYvTgTeznNi\nwRkMm3MhJaTCdBnd97GBiOQ8Q4BOP5uNbHNWMwuZQssqyYt/fmCJFo4hQtKb6pH9\nlKZb6w6SFXumpNalmPJ2wm1VwTmlNUcWD3lHT5OWJBBWaMLhp/VBPSpuvytZ611T\n0KsBcxJLyDy3fZmhfwOWJKXboo/ASm7v+U9HLdf/AvVIeGb6GPfTpRdC4LS+wmcb\nZpLfEAOEZppLjRFPRNuGrKniXzyOTMWrDt1ukd8kR6XH407gavEJo3IoBeo6tGS0\nmwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           },
           {
             "identity": "sam$guarantor.example",
@@ -5164,8 +4706,8 @@
           {
             "identity": "admin$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvHFYdmAbxNC+zCuZ39Aq\njoWJFmVt5OPRTgdUiMbkn7tND1azh/tnLuAmSclms8nFADId7vETH26cjYfxOkOo\nz5sa8EQDKZT+0IdOhsicZwy4sFZ+TGKSQIHUrfG/z/VwBGS5LrwKE0xoUN8vz5T8\ntvXiZMw8dbC80j1mOYSK3ee/meZVRYD8vPoTnGlmG/Ngt5Y3O+7PkZPVgw3j51bG\nPFl2qld066T7watqWDRcp2f2zeMXexRMdw/p8iSzMXKHcn5oEjb7ZTodA+v016Xr\ny3AVlE/lDng3KKtaTmuUqwb530p2l6Xsr4oTY6YI78BYhh1vEklXRLiwv+oZ4EqF\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GQFk0E2rN0KCdB9hS1u\n6d/f8RMY3m2Jh+BbrWLQg/rvL8Bh/xT0RBdL8qPe2/GFOd91gmicJknN9xvrovkL\nFZpR6/qtvKAn8YLQkqf6mPTC+giyL2NkbohVU16Vc6qtYaLUIcZSahZU3odHe55l\no1PfUokBsjkmVKLUHA+zjmPHILzlZVuFCkQ6QDmGuuP5CJzs9EAt3BiavZ1ToQ6q\ng6zS72YeMg6BZ+g6CTu0BltQzNwtjUUvcd6TfEwujd2/bBvEJMwplzetHNKEANJC\nv6otR03LuQfxT03q5Gf6I8JgU5szROm0gzhkRHkLWR00mpNQcV8EfaPXqCIwGxNw\nqQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
           }
         ]
       },
@@ -5262,8 +4804,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -5277,12 +4819,12 @@
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
-              "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
+              "previous": "57e2925ee17898b635aa8fcda6a23d934df2f118d0f60b72ccf2a721cd77b9dc"
             },
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "X4Kg0fWsd7ZE0qA7cMXZgm0DsG1bSEjSAmzCWCpzHh/QR/komonXSN4Z3KjDYNuV7yV8BPywE7iZmjKd37YAYwUJ95aD8A0oXspYUdsE7Nb/ARzimNB7HsKRgZ6/keI6ddu3c8aHRILuXdXOkPdmnh87qLxZLIr92G5WxAqrXPZ1qE04lVEhsIvA0URrB6d3ZhkYncL5OU1cWU5SYkyQqEGbsnDhDfJrIW/+h5q/JP9CEDZyk1H4H9WQ8kfwqU4WcbSizgkQbQOpNH43gyLUlA9aUnrCqKHxSI8mrDI0y+NEVolZWnmVgO50wfGMyeuu2C9P1Jp4rhRS+lDU1bJQ8w==",
+              "value": "IYUw4XhIV/8o04jNk7lAv8J3vZktJ/sdtxmf8j0axADR/xyavTT6ymQLQjL1YxCSoGIEzHicpUoIp9uMoeTWJWkig3rUX1sStbTPXk+g8vpGFhDCbXpsIW0UZTQRpstlfWCBablnvYXxG5Ia64hVGu8V0hTmiQ3clgnVdURv3GG7+wGqBWWZ2QPvi5qQCrWnXc8IBS7TcdqKw3JG7Vgy+oD6sd0jDYbsbNsK2v5XSu9nQiJGkzIkWHQIsHE/rMhID2tmpBSbETKf3dXJqSU16lf4XKJ7/goBadqu7PvR2cvk93e6chNRL5LXtUuCpS0UhMoaiMhHxW7XI6pM2A5wKw==",
               "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
             }
           },
@@ -5297,12 +4839,12 @@
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
-              "previous": "2d2c41bfe94d99407015991848ddf22b2fa57533fa8ffd31ab34a72f75ab07ef"
+              "previous": "307d64465ec1a5e652bbd1da371878a1ef13159a0b2211a5756b36e4bf84d348"
             },
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "n7Qt2Wr6E759MJch2BbORM4SLxovT8J8AKOC8FC68DQyN/naOp0uCsNjlU96UOrnwGXBiAF5JBXkDIBSVKG11vKEMq2Z7KLe+2Kpqiy1gmbGEJs9Po+aPyjUzq28penNTMuIjeRmfq0XMyRUYKHkfw2WFk5TkEYWm/6p/A7rp5e5usRis5Mlz4xxQ9bcFwZ0W9QmuuLB4ytMqhqRnqdPwNm45Ia+WCeZmpYK5tRJa3ONnPF7Z96TMRLpl9K3K+93pcHyOFU0tmiIvHZCknTfePmU9Bxe60qgoL89RPEZQe1zgL9IRmF7eprOzzREwYRL5daTDv63V6sGsA+mo33vmg==",
+              "value": "fpAYD4eiIHNHQTANxNGYvnDe/HhgZbnRlaOx4wTunA5ETNfRVULxL5ChzEPNy9LoF8i/pQFMyvN7MIpmMbgyykNdG7mCPeMBB5rn1g1zDX1dLqK8WxJ60ZmXj81igfAcokS3cO+TD4Z326RFLb3yZBR2hFay7xa4EmBkEK8cer+RNeFZkmcVWCz1nErs7HatTwjviv1yhKSRLYfmsb0HlV8PEm8MVsJuzUBqV3X4A1L/uEIvh/zQ1fP8MRLorj/Gx8LkZpm/Pj8sZMQnsQ1vxp/7k9ZvZ1hsFw6n3rm+1Pi2YW2A8WpAq1o95f7wtYOcK4SRZxhYlxoiGh9fSY7eVQ==",
               "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
             }
           }
@@ -5317,8 +4859,8 @@
           {
             "identity": "alice$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2IcTyTDB8kMUjQoqGTdc\nspN5YLs3HICYM418Dggffu/x1CU9c7aA/GWvyIWsFSxnH6f10EEZwTqFxA0CC+2J\nPxq4/8/rLI5EvS6XqlZdEWs3b0kFbZQjqLhzIKv54we+SxjXCmOQWyKaa44k7oOJ\nm3VAXncmEwe6e+OOBwBH3mEDZbUJBxxhjvA9FjFWFYfiLDoqbsexaz0M/y08sUaP\nYPZL0XRDeGx3FpFg9vxVuvEqDRUYoA8AgWDMINcVYG1rc/9zD7dBdYAG1Bl/UTyu\n6fNH7b4Oj9jMTZ8+sqwWewJn+usMskY98cxeo9DdTHQkl2no1ndvti8Y8dVqoBW+\nCwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoNg8aq1uNPkXTfAtdYdf\njZwzz/tpqtDteRhG8cqIzA2W8Mt82WOARo1W1TjJyhdzCeFWpSywDcYvTgTeznNi\nwRkMm3MhJaTCdBnd97GBiOQ8Q4BOP5uNbHNWMwuZQssqyYt/fmCJFo4hQtKb6pH9\nlKZb6w6SFXumpNalmPJ2wm1VwTmlNUcWD3lHT5OWJBBWaMLhp/VBPSpuvytZ611T\n0KsBcxJLyDy3fZmhfwOWJKXboo/ASm7v+U9HLdf/AvVIeGb6GPfTpRdC4LS+wmcb\nZpLfEAOEZppLjRFPRNuGrKniXzyOTMWrDt1ukd8kR6XH407gavEJo3IoBeo6tGS0\nmwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           },
           {
             "identity": "sam$guarantor.example",
@@ -5329,8 +4871,8 @@
           {
             "identity": "admin$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvHFYdmAbxNC+zCuZ39Aq\njoWJFmVt5OPRTgdUiMbkn7tND1azh/tnLuAmSclms8nFADId7vETH26cjYfxOkOo\nz5sa8EQDKZT+0IdOhsicZwy4sFZ+TGKSQIHUrfG/z/VwBGS5LrwKE0xoUN8vz5T8\ntvXiZMw8dbC80j1mOYSK3ee/meZVRYD8vPoTnGlmG/Ngt5Y3O+7PkZPVgw3j51bG\nPFl2qld066T7watqWDRcp2f2zeMXexRMdw/p8iSzMXKHcn5oEjb7ZTodA+v016Xr\ny3AVlE/lDng3KKtaTmuUqwb530p2l6Xsr4oTY6YI78BYhh1vEklXRLiwv+oZ4EqF\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GQFk0E2rN0KCdB9hS1u\n6d/f8RMY3m2Jh+BbrWLQg/rvL8Bh/xT0RBdL8qPe2/GFOd91gmicJknN9xvrovkL\nFZpR6/qtvKAn8YLQkqf6mPTC+giyL2NkbohVU16Vc6qtYaLUIcZSahZU3odHe55l\no1PfUokBsjkmVKLUHA+zjmPHILzlZVuFCkQ6QDmGuuP5CJzs9EAt3BiavZ1ToQ6q\ng6zS72YeMg6BZ+g6CTu0BltQzNwtjUUvcd6TfEwujd2/bBvEJMwplzetHNKEANJC\nv6otR03LuQfxT03q5Gf6I8JgU5szROm0gzhkRHkLWR00mpNQcV8EfaPXqCIwGxNw\nqQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
           }
         ]
       },
@@ -5437,8 +4979,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           },
           {
@@ -5452,12 +4994,12 @@
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-05T00:00:00.000Z",
-              "previous": "f24e3a1ca6d2d1362641434fb15507ea47440eb74d7b209a259d0d19238f321e"
+              "previous": "57e2925ee17898b635aa8fcda6a23d934df2f118d0f60b72ccf2a721cd77b9dc"
             },
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "X4Kg0fWsd7ZE0qA7cMXZgm0DsG1bSEjSAmzCWCpzHh/QR/komonXSN4Z3KjDYNuV7yV8BPywE7iZmjKd37YAYwUJ95aD8A0oXspYUdsE7Nb/ARzimNB7HsKRgZ6/keI6ddu3c8aHRILuXdXOkPdmnh87qLxZLIr92G5WxAqrXPZ1qE04lVEhsIvA0URrB6d3ZhkYncL5OU1cWU5SYkyQqEGbsnDhDfJrIW/+h5q/JP9CEDZyk1H4H9WQ8kfwqU4WcbSizgkQbQOpNH43gyLUlA9aUnrCqKHxSI8mrDI0y+NEVolZWnmVgO50wfGMyeuu2C9P1Jp4rhRS+lDU1bJQ8w==",
+              "value": "IYUw4XhIV/8o04jNk7lAv8J3vZktJ/sdtxmf8j0axADR/xyavTT6ymQLQjL1YxCSoGIEzHicpUoIp9uMoeTWJWkig3rUX1sStbTPXk+g8vpGFhDCbXpsIW0UZTQRpstlfWCBablnvYXxG5Ia64hVGu8V0hTmiQ3clgnVdURv3GG7+wGqBWWZ2QPvi5qQCrWnXc8IBS7TcdqKw3JG7Vgy+oD6sd0jDYbsbNsK2v5XSu9nQiJGkzIkWHQIsHE/rMhID2tmpBSbETKf3dXJqSU16lf4XKJ7/goBadqu7PvR2cvk93e6chNRL5LXtUuCpS0UhMoaiMhHxW7XI6pM2A5wKw==",
               "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
             }
           },
@@ -5472,12 +5014,12 @@
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
-              "previous": "2d2c41bfe94d99407015991848ddf22b2fa57533fa8ffd31ab34a72f75ab07ef"
+              "previous": "307d64465ec1a5e652bbd1da371878a1ef13159a0b2211a5756b36e4bf84d348"
             },
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "n7Qt2Wr6E759MJch2BbORM4SLxovT8J8AKOC8FC68DQyN/naOp0uCsNjlU96UOrnwGXBiAF5JBXkDIBSVKG11vKEMq2Z7KLe+2Kpqiy1gmbGEJs9Po+aPyjUzq28penNTMuIjeRmfq0XMyRUYKHkfw2WFk5TkEYWm/6p/A7rp5e5usRis5Mlz4xxQ9bcFwZ0W9QmuuLB4ytMqhqRnqdPwNm45Ia+WCeZmpYK5tRJa3ONnPF7Z96TMRLpl9K3K+93pcHyOFU0tmiIvHZCknTfePmU9Bxe60qgoL89RPEZQe1zgL9IRmF7eprOzzREwYRL5daTDv63V6sGsA+mo33vmg==",
+              "value": "fpAYD4eiIHNHQTANxNGYvnDe/HhgZbnRlaOx4wTunA5ETNfRVULxL5ChzEPNy9LoF8i/pQFMyvN7MIpmMbgyykNdG7mCPeMBB5rn1g1zDX1dLqK8WxJ60ZmXj81igfAcokS3cO+TD4Z326RFLb3yZBR2hFay7xa4EmBkEK8cer+RNeFZkmcVWCz1nErs7HatTwjviv1yhKSRLYfmsb0HlV8PEm8MVsJuzUBqV3X4A1L/uEIvh/zQ1fP8MRLorj/Gx8LkZpm/Pj8sZMQnsQ1vxp/7k9ZvZ1hsFw6n3rm+1Pi2YW2A8WpAq1o95f7wtYOcK4SRZxhYlxoiGh9fSY7eVQ==",
               "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
             }
           }
@@ -5492,8 +5034,8 @@
           {
             "identity": "alice$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2IcTyTDB8kMUjQoqGTdc\nspN5YLs3HICYM418Dggffu/x1CU9c7aA/GWvyIWsFSxnH6f10EEZwTqFxA0CC+2J\nPxq4/8/rLI5EvS6XqlZdEWs3b0kFbZQjqLhzIKv54we+SxjXCmOQWyKaa44k7oOJ\nm3VAXncmEwe6e+OOBwBH3mEDZbUJBxxhjvA9FjFWFYfiLDoqbsexaz0M/y08sUaP\nYPZL0XRDeGx3FpFg9vxVuvEqDRUYoA8AgWDMINcVYG1rc/9zD7dBdYAG1Bl/UTyu\n6fNH7b4Oj9jMTZ8+sqwWewJn+usMskY98cxeo9DdTHQkl2no1ndvti8Y8dVqoBW+\nCwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoNg8aq1uNPkXTfAtdYdf\njZwzz/tpqtDteRhG8cqIzA2W8Mt82WOARo1W1TjJyhdzCeFWpSywDcYvTgTeznNi\nwRkMm3MhJaTCdBnd97GBiOQ8Q4BOP5uNbHNWMwuZQssqyYt/fmCJFo4hQtKb6pH9\nlKZb6w6SFXumpNalmPJ2wm1VwTmlNUcWD3lHT5OWJBBWaMLhp/VBPSpuvytZ611T\n0KsBcxJLyDy3fZmhfwOWJKXboo/ASm7v+U9HLdf/AvVIeGb6GPfTpRdC4LS+wmcb\nZpLfEAOEZppLjRFPRNuGrKniXzyOTMWrDt1ukd8kR6XH407gavEJo3IoBeo6tGS0\nmwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           },
           {
             "identity": "sam$guarantor.example",
@@ -5504,8 +5046,8 @@
           {
             "identity": "admin$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvHFYdmAbxNC+zCuZ39Aq\njoWJFmVt5OPRTgdUiMbkn7tND1azh/tnLuAmSclms8nFADId7vETH26cjYfxOkOo\nz5sa8EQDKZT+0IdOhsicZwy4sFZ+TGKSQIHUrfG/z/VwBGS5LrwKE0xoUN8vz5T8\ntvXiZMw8dbC80j1mOYSK3ee/meZVRYD8vPoTnGlmG/Ngt5Y3O+7PkZPVgw3j51bG\nPFl2qld066T7watqWDRcp2f2zeMXexRMdw/p8iSzMXKHcn5oEjb7ZTodA+v016Xr\ny3AVlE/lDng3KKtaTmuUqwb530p2l6Xsr4oTY6YI78BYhh1vEklXRLiwv+oZ4EqF\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GQFk0E2rN0KCdB9hS1u\n6d/f8RMY3m2Jh+BbrWLQg/rvL8Bh/xT0RBdL8qPe2/GFOd91gmicJknN9xvrovkL\nFZpR6/qtvKAn8YLQkqf6mPTC+giyL2NkbohVU16Vc6qtYaLUIcZSahZU3odHe55l\no1PfUokBsjkmVKLUHA+zjmPHILzlZVuFCkQ6QDmGuuP5CJzs9EAt3BiavZ1ToQ6q\ng6zS72YeMg6BZ+g6CTu0BltQzNwtjUUvcd6TfEwujd2/bBvEJMwplzetHNKEANJC\nv6otR03LuQfxT03q5Gf6I8JgU5szROm0gzhkRHkLWR00mpNQcV8EfaPXqCIwGxNw\nqQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
           }
         ]
       },
@@ -5611,8 +5153,8 @@
             },
             "signature": {
               "algorithmHash": "sha256",
-              "value": "Oa7/L2bQ0wAzX2cUbkxZjHKRHtOAhzP/ZnOmL7gyHJ3L6hIXIjLl41noqt5uP1cRsRTls7PkLLahNwKVDbH88mlddoeidZa8HDj53LrYtDV++4pb4J/3oohvpDMTPzfI+TQd6fZPmYk1oE3wOfAa2tTxbIErT/vETXvHiIgQZ6RlYYTediCegR7eVSGNCvpHiJzDTP6NuhjlxHgXTaRnn4fGQUkx+mbr7Qt6bw0c8vu4yNLxBvFp1VnucvhQlcGSxqFt+f5EvOOqrCiw3aC2KVzBk7Vk3Ws9QHzCbzJ6P6lqZh2MW65jA8ltHnEWG/aycxPiFEPbfpC8pYKvl8dQUg==",
-              "fingerprint": "8UuO0MXm6tXtvaopQKXKxlo44HVWkkNVzjfwzVKuFWI="
+              "value": "rGVaodBxYRuuSVyvGvWMJkV+3+xvZDG9n18zessPAHfpKzEhvXoDTiPH5mcecCiZBNSUWbjRS/iM7vBtWbueOUixM1ztF3E57FbhdfkFfIiBc6oWsv8GiyzBNQDAT7hckzp36gnIzpaK5aZMi4CP6dDmi7qJ976fRo99z5FyuRTvlXG3lfqw7Ql332zW7j+ncDhfb6JGWVs4WzZBu8fla2LutpMmZtFrFO0mY13agv3oJyUj35WL0mUWEJhBbtbWtCzKnCdQ2I7L0Tj9Lc4A+6wejyg3wp852oAiVTnKGioEbjv09NOUVizw+aN/yhAIMIEBI22tPGux8IhBmljpLw==",
+              "fingerprint": "GKIlW7lWL0Q5S+RonbV14TsBT+Zy0b2LRcUM6aBt1Bg="
             },
             "delegatedArtifact": {
               "version": "1.2.0",
@@ -5622,10 +5164,7 @@
               "from": "alice$client.example",
               "to": "loans$bank.example",
               "relatesTo": "agreement-copy-to-alice",
-              "agreement": {
-                "id": "AGR-1",
-                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
-              },
+              "selector": "btps1",
               "encryption": {
                 "algorithm": "aes-256-gcm",
                 "encryptedKey": "AA==",
@@ -5636,8 +5175,8 @@
               "document": "ciphertext",
               "signature": {
                 "algorithmHash": "sha256",
-                "value": "cwhMQ2Q5bkbHnEQi8UxLQso6HRBbVrVe+AaIrbUgH4/00o0gWK9ZzJ80yCN/CMGM54eb8a83CiVOPGbFKCRz1pHvq5iKhxJu/z7alg5cwaUuPnsbK041YiFtTbUoQ0ZKPLvrYGmjX85lGsttlW0Uw7pQTut5/4Yi6ab/LB2KvBCJFCWrTvKe10W0Nw9OhSyqXoKkqEBnrs0lGHYoHsW7Ebux5ZpU6dVl2x6DPAu8siZZk1jODqRecH12KxkbHG+zfHvAl8joocF9DHTrkYVrnCsM8NfoyKo1jR+bXVNYYn8F7GZ+aGe67ZUoA76zy5ajFlpxnspy5Y3w6dw7bN30bg==",
-                "fingerprint": "8UuO0MXm6tXtvaopQKXKxlo44HVWkkNVzjfwzVKuFWI="
+                "value": "CFzV4w6dDUB3Fb3ykqYx6Y+fyndZXfuZe3lAqrpPNxGvL+GrrK8q2xMd4x/FaFFPimLKjol3VwWwWz73/HLtpUWF/Zk0mqr2vrUolRoKFwnzKoHL03L5QiZA3X7X4SmOe7ov+QAKzGJDirHqMhUvFwSnKn49DOnwpeECQY4S12tt8RfoSXYEzrdSlybnZhEcZQOkzjz9j/IJWuXnU3npRT784X2fisw5xYOBAUL7O/pn77xEXKjOkRVWWWg2YJ2SpDVSM6l1qMJBOpqL1uNOpJp9cqgRl0MItB2SRGGsGFvixt9fTkja7rIRt5EYYfAuEXUAos6U2gGlmg9PwCtVKA==",
+                "fingerprint": "GKIlW7lWL0Q5S+RonbV14TsBT+Zy0b2LRcUM6aBt1Bg="
               },
               "delegation": {
                 "agentId": "device-alice-1",
@@ -5647,8 +5186,8 @@
                 "selector": "btps1",
                 "signature": {
                   "algorithmHash": "sha256",
-                  "value": "kLYJ/1cis5m+zlAkGOyTKa4lg0j9iGjlr/nYeBtAXKtazEsqBhEInqa11Q04xM3wLu8GqdFRQFP+N3BAQfpRIPEqT/Tq56reW7vVfvchZEHQgbmFud0zfpuP0h3Jwvvp8QeMgP6tDgojrIYGqnX9FAQyTt4eRnqLNS2uxACuk9fMNWWI/LnHl1O9ZWIf8EBhxY194OPxRCnSZqOAaYkP9wlHF0rPBPwDF1JeOrlaaAQr20GA62hPPrAIS188uHIpPuAAPKJdJTPe6GagPXd1rJt6iwpxSwLJnuupnQLSNaAu8dmV8rHTSB9ZLqa62u9GMXpExXYe8R58/oz/lPEjeg==",
-                  "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+                  "value": "veUOVZMtjE9Vhx0Nf7UsuXGR1kN0vGdbnuSxFtYGIMmnosa4Ftfk8Jobsdm8hMepDMZU01n8aYXQfZfsUhbdUHZK0/d48x7fGGUTTm29EUcYqKW3xnJ79GRVTCcDskbgRVvonzoiGvHPv5Ka1TN/jdhXOTjAZMVqbK4Mb9bncOUocJn9PYKJmjbR7eCKrEZZdjabIFH8a8DXyPrXkk13YRDIiAmNXb/lJXeI7TVVPr+oQC5o6oSD721LVABAhG1E4NHatzj8ht8w1t/c6asaWnhV/dwcyDLGKOK25ZiD2ZUcJtkKruwX/ePfTQXmnAiXSPLJ0Nx/U5dD02WxdAMUsw==",
+                  "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
                 }
               }
             }
@@ -5664,8 +5203,8 @@
           {
             "identity": "alice$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2IcTyTDB8kMUjQoqGTdc\nspN5YLs3HICYM418Dggffu/x1CU9c7aA/GWvyIWsFSxnH6f10EEZwTqFxA0CC+2J\nPxq4/8/rLI5EvS6XqlZdEWs3b0kFbZQjqLhzIKv54we+SxjXCmOQWyKaa44k7oOJ\nm3VAXncmEwe6e+OOBwBH3mEDZbUJBxxhjvA9FjFWFYfiLDoqbsexaz0M/y08sUaP\nYPZL0XRDeGx3FpFg9vxVuvEqDRUYoA8AgWDMINcVYG1rc/9zD7dBdYAG1Bl/UTyu\n6fNH7b4Oj9jMTZ8+sqwWewJn+usMskY98cxeo9DdTHQkl2no1ndvti8Y8dVqoBW+\nCwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoNg8aq1uNPkXTfAtdYdf\njZwzz/tpqtDteRhG8cqIzA2W8Mt82WOARo1W1TjJyhdzCeFWpSywDcYvTgTeznNi\nwRkMm3MhJaTCdBnd97GBiOQ8Q4BOP5uNbHNWMwuZQssqyYt/fmCJFo4hQtKb6pH9\nlKZb6w6SFXumpNalmPJ2wm1VwTmlNUcWD3lHT5OWJBBWaMLhp/VBPSpuvytZ611T\n0KsBcxJLyDy3fZmhfwOWJKXboo/ASm7v+U9HLdf/AvVIeGb6GPfTpRdC4LS+wmcb\nZpLfEAOEZppLjRFPRNuGrKniXzyOTMWrDt1ukd8kR6XH407gavEJo3IoBeo6tGS0\nmwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           },
           {
             "identity": "sam$guarantor.example",
@@ -5676,8 +5215,8 @@
           {
             "identity": "admin$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvHFYdmAbxNC+zCuZ39Aq\njoWJFmVt5OPRTgdUiMbkn7tND1azh/tnLuAmSclms8nFADId7vETH26cjYfxOkOo\nz5sa8EQDKZT+0IdOhsicZwy4sFZ+TGKSQIHUrfG/z/VwBGS5LrwKE0xoUN8vz5T8\ntvXiZMw8dbC80j1mOYSK3ee/meZVRYD8vPoTnGlmG/Ngt5Y3O+7PkZPVgw3j51bG\nPFl2qld066T7watqWDRcp2f2zeMXexRMdw/p8iSzMXKHcn5oEjb7ZTodA+v016Xr\ny3AVlE/lDng3KKtaTmuUqwb530p2l6Xsr4oTY6YI78BYhh1vEklXRLiwv+oZ4EqF\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GQFk0E2rN0KCdB9hS1u\n6d/f8RMY3m2Jh+BbrWLQg/rvL8Bh/xT0RBdL8qPe2/GFOd91gmicJknN9xvrovkL\nFZpR6/qtvKAn8YLQkqf6mPTC+giyL2NkbohVU16Vc6qtYaLUIcZSahZU3odHe55l\no1PfUokBsjkmVKLUHA+zjmPHILzlZVuFCkQ6QDmGuuP5CJzs9EAt3BiavZ1ToQ6q\ng6zS72YeMg6BZ+g6CTu0BltQzNwtjUUvcd6TfEwujd2/bBvEJMwplzetHNKEANJC\nv6otR03LuQfxT03q5Gf6I8JgU5szROm0gzhkRHkLWR00mpNQcV8EfaPXqCIwGxNw\nqQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
           }
         ]
       },
@@ -5780,8 +5319,8 @@
           {
             "identity": "alice$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2IcTyTDB8kMUjQoqGTdc\nspN5YLs3HICYM418Dggffu/x1CU9c7aA/GWvyIWsFSxnH6f10EEZwTqFxA0CC+2J\nPxq4/8/rLI5EvS6XqlZdEWs3b0kFbZQjqLhzIKv54we+SxjXCmOQWyKaa44k7oOJ\nm3VAXncmEwe6e+OOBwBH3mEDZbUJBxxhjvA9FjFWFYfiLDoqbsexaz0M/y08sUaP\nYPZL0XRDeGx3FpFg9vxVuvEqDRUYoA8AgWDMINcVYG1rc/9zD7dBdYAG1Bl/UTyu\n6fNH7b4Oj9jMTZ8+sqwWewJn+usMskY98cxeo9DdTHQkl2no1ndvti8Y8dVqoBW+\nCwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoNg8aq1uNPkXTfAtdYdf\njZwzz/tpqtDteRhG8cqIzA2W8Mt82WOARo1W1TjJyhdzCeFWpSywDcYvTgTeznNi\nwRkMm3MhJaTCdBnd97GBiOQ8Q4BOP5uNbHNWMwuZQssqyYt/fmCJFo4hQtKb6pH9\nlKZb6w6SFXumpNalmPJ2wm1VwTmlNUcWD3lHT5OWJBBWaMLhp/VBPSpuvytZ611T\n0KsBcxJLyDy3fZmhfwOWJKXboo/ASm7v+U9HLdf/AvVIeGb6GPfTpRdC4LS+wmcb\nZpLfEAOEZppLjRFPRNuGrKniXzyOTMWrDt1ukd8kR6XH407gavEJo3IoBeo6tGS0\nmwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           },
           {
             "identity": "sam$guarantor.example",
@@ -5792,8 +5331,8 @@
           {
             "identity": "admin$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvHFYdmAbxNC+zCuZ39Aq\njoWJFmVt5OPRTgdUiMbkn7tND1azh/tnLuAmSclms8nFADId7vETH26cjYfxOkOo\nz5sa8EQDKZT+0IdOhsicZwy4sFZ+TGKSQIHUrfG/z/VwBGS5LrwKE0xoUN8vz5T8\ntvXiZMw8dbC80j1mOYSK3ee/meZVRYD8vPoTnGlmG/Ngt5Y3O+7PkZPVgw3j51bG\nPFl2qld066T7watqWDRcp2f2zeMXexRMdw/p8iSzMXKHcn5oEjb7ZTodA+v016Xr\ny3AVlE/lDng3KKtaTmuUqwb530p2l6Xsr4oTY6YI78BYhh1vEklXRLiwv+oZ4EqF\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GQFk0E2rN0KCdB9hS1u\n6d/f8RMY3m2Jh+BbrWLQg/rvL8Bh/xT0RBdL8qPe2/GFOd91gmicJknN9xvrovkL\nFZpR6/qtvKAn8YLQkqf6mPTC+giyL2NkbohVU16Vc6qtYaLUIcZSahZU3odHe55l\no1PfUokBsjkmVKLUHA+zjmPHILzlZVuFCkQ6QDmGuuP5CJzs9EAt3BiavZ1ToQ6q\ng6zS72YeMg6BZ+g6CTu0BltQzNwtjUUvcd6TfEwujd2/bBvEJMwplzetHNKEANJC\nv6otR03LuQfxT03q5Gf6I8JgU5szROm0gzhkRHkLWR00mpNQcV8EfaPXqCIwGxNw\nqQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
           }
         ]
       },
@@ -5880,8 +5419,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ON3gTuFbI/JhNN7HLR3W3I02niXcgtprFbuKpU4qDqiNgQwBtq0fKyQCFHcYbGxcTdNY9omqNtgyPmrtxAHbRDbx7OCbho+x+epVuwJ0f7/8t0lkd7J+rjmnH+lfwoO+cGc29z+mFwNaOiNPAAzeLeQh2QanYq62qW6Af2yvy5/2nT23WdjEM1Ig3resh+om8hZ+iheJGMkGbEoTfkH+WMD6YShDmJbe3sEra6abPImwwTZmhAlOEOl5MbkZ40k/kkJZNZDrhbkT8qI0Aki7bam57yGuYU+Djv6BleOSW/11Af2IY3C9e4GA0TSezsf8lAnxzQPUkahmm27BPB87Ew==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Px/nXcbq/Qp/i33nBfy1qKXqundn1WSVHXxkw7oNfgNRQY8xq+582HpKetXi1BjFfkYNJiLvibK0WkblA+Lx6g0ikWH6PQX7kWLgMDRjFArvYLLyiUShahxn6nqOp2bcLxaaM+A8KQQMSxyVy2c3R5gF0ea+V5ufdeubkeuFhQ47157QQFOIYaC+J9GM7H7tQowx2eQkKTKiU8kZvl7yfB9zSUuXpEvAeua0z5UkPoLI09pAvwWSr1lk3SA+hqvDmmfiS/wjX4/LAtxSJsCnUzy6LHI3fZs5NN/l7XMoNEfqVHuIRoyk/lr23AWK0vhGj0f1rJMknq5g3xV9TyLjiw==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           }
         ],
@@ -5895,8 +5434,8 @@
           {
             "identity": "alice$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2IcTyTDB8kMUjQoqGTdc\nspN5YLs3HICYM418Dggffu/x1CU9c7aA/GWvyIWsFSxnH6f10EEZwTqFxA0CC+2J\nPxq4/8/rLI5EvS6XqlZdEWs3b0kFbZQjqLhzIKv54we+SxjXCmOQWyKaa44k7oOJ\nm3VAXncmEwe6e+OOBwBH3mEDZbUJBxxhjvA9FjFWFYfiLDoqbsexaz0M/y08sUaP\nYPZL0XRDeGx3FpFg9vxVuvEqDRUYoA8AgWDMINcVYG1rc/9zD7dBdYAG1Bl/UTyu\n6fNH7b4Oj9jMTZ8+sqwWewJn+usMskY98cxeo9DdTHQkl2no1ndvti8Y8dVqoBW+\nCwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoNg8aq1uNPkXTfAtdYdf\njZwzz/tpqtDteRhG8cqIzA2W8Mt82WOARo1W1TjJyhdzCeFWpSywDcYvTgTeznNi\nwRkMm3MhJaTCdBnd97GBiOQ8Q4BOP5uNbHNWMwuZQssqyYt/fmCJFo4hQtKb6pH9\nlKZb6w6SFXumpNalmPJ2wm1VwTmlNUcWD3lHT5OWJBBWaMLhp/VBPSpuvytZ611T\n0KsBcxJLyDy3fZmhfwOWJKXboo/ASm7v+U9HLdf/AvVIeGb6GPfTpRdC4LS+wmcb\nZpLfEAOEZppLjRFPRNuGrKniXzyOTMWrDt1ukd8kR6XH407gavEJo3IoBeo6tGS0\nmwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           },
           {
             "identity": "sam$guarantor.example",
@@ -5907,8 +5446,8 @@
           {
             "identity": "admin$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvHFYdmAbxNC+zCuZ39Aq\njoWJFmVt5OPRTgdUiMbkn7tND1azh/tnLuAmSclms8nFADId7vETH26cjYfxOkOo\nz5sa8EQDKZT+0IdOhsicZwy4sFZ+TGKSQIHUrfG/z/VwBGS5LrwKE0xoUN8vz5T8\ntvXiZMw8dbC80j1mOYSK3ee/meZVRYD8vPoTnGlmG/Ngt5Y3O+7PkZPVgw3j51bG\nPFl2qld066T7watqWDRcp2f2zeMXexRMdw/p8iSzMXKHcn5oEjb7ZTodA+v016Xr\ny3AVlE/lDng3KKtaTmuUqwb530p2l6Xsr4oTY6YI78BYhh1vEklXRLiwv+oZ4EqF\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GQFk0E2rN0KCdB9hS1u\n6d/f8RMY3m2Jh+BbrWLQg/rvL8Bh/xT0RBdL8qPe2/GFOd91gmicJknN9xvrovkL\nFZpR6/qtvKAn8YLQkqf6mPTC+giyL2NkbohVU16Vc6qtYaLUIcZSahZU3odHe55l\no1PfUokBsjkmVKLUHA+zjmPHILzlZVuFCkQ6QDmGuuP5CJzs9EAt3BiavZ1ToQ6q\ng6zS72YeMg6BZ+g6CTu0BltQzNwtjUUvcd6TfEwujd2/bBvEJMwplzetHNKEANJC\nv6otR03LuQfxT03q5Gf6I8JgU5szROm0gzhkRHkLWR00mpNQcV8EfaPXqCIwGxNw\nqQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
           }
         ]
       },
@@ -5990,8 +5529,8 @@
           {
             "identity": "alice$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2IcTyTDB8kMUjQoqGTdc\nspN5YLs3HICYM418Dggffu/x1CU9c7aA/GWvyIWsFSxnH6f10EEZwTqFxA0CC+2J\nPxq4/8/rLI5EvS6XqlZdEWs3b0kFbZQjqLhzIKv54we+SxjXCmOQWyKaa44k7oOJ\nm3VAXncmEwe6e+OOBwBH3mEDZbUJBxxhjvA9FjFWFYfiLDoqbsexaz0M/y08sUaP\nYPZL0XRDeGx3FpFg9vxVuvEqDRUYoA8AgWDMINcVYG1rc/9zD7dBdYAG1Bl/UTyu\n6fNH7b4Oj9jMTZ8+sqwWewJn+usMskY98cxeo9DdTHQkl2no1ndvti8Y8dVqoBW+\nCwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoNg8aq1uNPkXTfAtdYdf\njZwzz/tpqtDteRhG8cqIzA2W8Mt82WOARo1W1TjJyhdzCeFWpSywDcYvTgTeznNi\nwRkMm3MhJaTCdBnd97GBiOQ8Q4BOP5uNbHNWMwuZQssqyYt/fmCJFo4hQtKb6pH9\nlKZb6w6SFXumpNalmPJ2wm1VwTmlNUcWD3lHT5OWJBBWaMLhp/VBPSpuvytZ611T\n0KsBcxJLyDy3fZmhfwOWJKXboo/ASm7v+U9HLdf/AvVIeGb6GPfTpRdC4LS+wmcb\nZpLfEAOEZppLjRFPRNuGrKniXzyOTMWrDt1ukd8kR6XH407gavEJo3IoBeo6tGS0\nmwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
           },
           {
             "identity": "sam$guarantor.example",
@@ -6002,8 +5541,8 @@
           {
             "identity": "admin$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvHFYdmAbxNC+zCuZ39Aq\njoWJFmVt5OPRTgdUiMbkn7tND1azh/tnLuAmSclms8nFADId7vETH26cjYfxOkOo\nz5sa8EQDKZT+0IdOhsicZwy4sFZ+TGKSQIHUrfG/z/VwBGS5LrwKE0xoUN8vz5T8\ntvXiZMw8dbC80j1mOYSK3ee/meZVRYD8vPoTnGlmG/Ngt5Y3O+7PkZPVgw3j51bG\nPFl2qld066T7watqWDRcp2f2zeMXexRMdw/p8iSzMXKHcn5oEjb7ZTodA+v016Xr\ny3AVlE/lDng3KKtaTmuUqwb530p2l6Xsr4oTY6YI78BYhh1vEklXRLiwv+oZ4EqF\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GQFk0E2rN0KCdB9hS1u\n6d/f8RMY3m2Jh+BbrWLQg/rvL8Bh/xT0RBdL8qPe2/GFOd91gmicJknN9xvrovkL\nFZpR6/qtvKAn8YLQkqf6mPTC+giyL2NkbohVU16Vc6qtYaLUIcZSahZU3odHe55l\no1PfUokBsjkmVKLUHA+zjmPHILzlZVuFCkQ6QDmGuuP5CJzs9EAt3BiavZ1ToQ6q\ng6zS72YeMg6BZ+g6CTu0BltQzNwtjUUvcd6TfEwujd2/bBvEJMwplzetHNKEANJC\nv6otR03LuQfxT03q5Gf6I8JgU5szROm0gzhkRHkLWR00mpNQcV8EfaPXqCIwGxNw\nqQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
           }
         ]
       },
@@ -6079,8 +5618,8 @@
             "selector": "btps1",
             "signature": {
               "algorithmHash": "sha256",
-              "value": "ly/Gd1bO1fr1bYN0KkTQLkzqek+HD0kckPEJkT8WGFHnRpLD5fa6ToO9Vkgybsei6VT7Wzk/75SIS14OaOJlyVSWam5LNwqrWJBwrLYdEuU7lPTxI6DjHWTYDr6khkY2YbpDTbt6wDSs8txRT8WkgZzYcqshPsi+glus7XnVyYz8zEy/hmrPLSy00iJiOqIFlAyEntLfZ7oZkNWqw3UMrtk1+Sqfw5Xt5kzdjLR/PW5CADolcL5fZG2yLZ6qwkXpgF8+EUXCc41Ei2nnmge/V7Df8DlJvb3WtnVT9RIrs+G5OIPXLHdUK4GOHniC64cXjZzOC51qFQIRMNeeUCRH6g==",
-              "fingerprint": "p77G4XBW/XvEBWj9kjNX1VMy86e9b37LxM8TSQh9vEs="
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
             }
           }
         ],
@@ -6100,8 +5639,8 @@
           {
             "identity": "admin$client.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvHFYdmAbxNC+zCuZ39Aq\njoWJFmVt5OPRTgdUiMbkn7tND1azh/tnLuAmSclms8nFADId7vETH26cjYfxOkOo\nz5sa8EQDKZT+0IdOhsicZwy4sFZ+TGKSQIHUrfG/z/VwBGS5LrwKE0xoUN8vz5T8\ntvXiZMw8dbC80j1mOYSK3ee/meZVRYD8vPoTnGlmG/Ngt5Y3O+7PkZPVgw3j51bG\nPFl2qld066T7watqWDRcp2f2zeMXexRMdw/p8iSzMXKHcn5oEjb7ZTodA+v016Xr\ny3AVlE/lDng3KKtaTmuUqwb530p2l6Xsr4oTY6YI78BYhh1vEklXRLiwv+oZ4EqF\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "PMuufuBoAxVDOMhYgCAUc7L/sBcj4Sxr4OAVrkDXx2c="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GQFk0E2rN0KCdB9hS1u\n6d/f8RMY3m2Jh+BbrWLQg/rvL8Bh/xT0RBdL8qPe2/GFOd91gmicJknN9xvrovkL\nFZpR6/qtvKAn8YLQkqf6mPTC+giyL2NkbohVU16Vc6qtYaLUIcZSahZU3odHe55l\no1PfUokBsjkmVKLUHA+zjmPHILzlZVuFCkQ6QDmGuuP5CJzs9EAt3BiavZ1ToQ6q\ng6zS72YeMg6BZ+g6CTu0BltQzNwtjUUvcd6TfEwujd2/bBvEJMwplzetHNKEANJC\nv6otR03LuQfxT03q5Gf6I8JgU5szROm0gzhkRHkLWR00mpNQcV8EfaPXqCIwGxNw\nqQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
           }
         ]
       },
@@ -6184,8 +5723,8 @@
             },
             "signature": {
               "algorithmHash": "sha256",
-              "value": "NaTJcI7P3mHNlfkTbwDBSpXoHtINGs2r0RgBoCzJ4aSDIpiYkrPrOzGc66GjI9AIs84QP5Bx5vKCS57E04lzgZ40LLJHFnmCaI+6MBpJA9+gniBW023TjcS5EJ7+D08CxAAYAIb0TwBZ50wgXtjomC/kc3VPEE9pUz0moElkPPhYne26sosljRExd/qI7j8HNuz3BrucB6WLedkPmyATyTjAAiE07IRR5pJlNxfkz2e2glP2S/cgGva0rQvbKUsBQhPxvsyj6ubTdfmrIBq4kU0i7+71ZE5zAQgsqIIFFN3UGrCeaAvZQbZfN8QDKUQfwLARht97DBoubIHpaNDxxQ==",
-              "fingerprint": "nkAxR7LIXI5fBN1CMpto6nNMRrxwfbgMhsvWyXajAFA="
+              "value": "Rok7aZ1hijFFf1cpn1d6jnvcps3UnqtbTpfYP7e11leUB1fnyX4sRPGMPu7i6t1RTM59wxDrPl87bZbyyWcPS9II+OKVKMebwynkbcjSZtruENOTS6OujnXztyg0Ty9lv2Nqhw0zBnzAdXbAT9szgpADK0exj8gOyiL1qTwlZiOY5m+eRt1jQCvnNnmrxLceqVHDq5TeytCCLQnSEyn1XJiEaYuypagHZTnkX0KiLweHopNRzl/F49lw8yLE8Hk6tF3SrMwKzEhA7xJRqkTRf8wKGku/8D9Eg7nGVaJZUvMpinXFZHjvVscI/8Jdu6D1xAVeuBrRq3o9WrT4woyWOQ==",
+              "fingerprint": "qjkH2vrmw3YICxo9WiP2ediFZ7sx5CMQTGsAS1ihmp8="
             },
             "delegatedArtifact": {
               "version": "1.2.0",
@@ -6195,10 +5734,7 @@
               "from": "sam$guarantor.example",
               "to": "loans$bank.example",
               "relatesTo": "agreement-copy-to-alice",
-              "agreement": {
-                "id": "AGR-1",
-                "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4"
-              },
+              "selector": "btps1",
               "encryption": {
                 "algorithm": "aes-256-gcm",
                 "encryptedKey": "AA==",
@@ -6209,18 +5745,18 @@
               "document": "ciphertext",
               "signature": {
                 "algorithmHash": "sha256",
-                "value": "fol2uO+Dul2YuIt5AT+EKXy7UDHawtZmYxuXQFtyh2pUUPn/0xjsNzEAEssuEqA+n4bPi7386q9hrDoGK+YpYJuTVXloaWoZqZAJ6XJCSIs5nNqAZEc82WgNCPdd4cN65+XzVAj+TaXNI32FoQ+XQE2fAeZ8+mw/jzuVRoLs5XAH7pURFZj7t6EqgijEo/nmnVsvzlxZ/EbzYP7ICbKOmA4OyfkWQX51pUHsTibZiA6xUEIq1vWUnExImPt4cllBgNX85HvunVvSoDl6isZnwaHgkIFtwjQUr6oZfiwK9gMGcwmDWEJvAVmW0O/t65xWKJlux+3GWb4aThnoltQKpw==",
-                "fingerprint": "nkAxR7LIXI5fBN1CMpto6nNMRrxwfbgMhsvWyXajAFA="
+                "value": "ccbPt57eyyts+eYxBTeTBHSXA7lM/36ZvEDG7q/VxX9EtDU9R24Gu9aHaQKxrbd1TJYKmdN4R7E7XysJq3D57EWQ0Xys991x3KCmCQrpAqfXXWFl2k1MacjjtW/abrI2w859n/MNgcLI9xAre4B5qk1h4aqZrVVaDQz0daZpcKCK0m9kKZKeTUwfIMbx9cq5kpMkCBEHc0sqYgaayYJkllS8t3P0G+DaeZBpHsFvY2Km1F8swccyWtjHoc2dsQEsVrF4yrZievRls7ELxTZSEjwe2REyEEUTVcWwFc4uR3iHHvCwdMISHSaty3aZD8p3ZOSLR8tn/dzkYuKGaB6YaQ==",
+                "fingerprint": "qjkH2vrmw3YICxo9WiP2ediFZ7sx5CMQTGsAS1ihmp8="
               },
               "delegation": {
                 "agentId": "device-alice-1",
-                "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvsBR/1W3PWOadASUP0O0\n6mSWNg6vrIqHCQnyi5tQ7gSOWFTyDZz2dvTdg2hAyWt1uFegFu4a0inmA/LHiFfS\n8ifjEaOU63h4A8R/bL3hnSRINYh001arZHSSSU4cglqzTQaqSyU+nWJ525LdOVPa\nwtuIuueAu9XaER+3PgqyoGz7oNOuKyufiLTIcWLLsIaeiMDdJYUdLHcUVS8Gkgl3\nNuKux6gSRQQJn6uw/ok+Fe/75PLbHOB6k+3VVKyMdQly34Ogb6j2uJ2uyNK5l2VZ\n/jopBxsB+6H5LHcBuEG0XuCHNfIbPer1heqGKNqXSXogOSvdWcFTPMobv2UFrXqC\nIwIDAQAB\n-----END PUBLIC KEY-----\n",
+                "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3QLSU4CkdTNSOAPkxL9y\naOF/R3bh2NbqwsSNoVMqOq6H5eFPR7YvaU78F+vb1ADRiqaP0xnq48sGQZncyN2q\nLkgLaCQrfSCv1Ewz/Tdm6m4PHuewDl8tguW4MHO+/Jf9+V7Uv4CpmLkXHoCae1/c\nCTEKy7pokHCQVEM2kGa6+jBNYW3qCwMaEk/w33eF0AkEpGEih+fRGq8UDg1Sxxit\nqaojrJqMcRNrNNTdb5nryvgQmCty+LQutkv5fpEX7VCABhKxgEahf/XGunzqLOr9\nmU2kwcNtMJx9jffzh6p5doL95OBHco2vOvkJXifx4t1H2V5Zcy33UOuC7kLP5V/4\n+wIDAQAB\n-----END PUBLIC KEY-----\n",
                 "signedBy": "sam$guarantor.example",
                 "issuedAt": "2026-11-03T00:00:00.000Z",
                 "selector": "btps1",
                 "signature": {
                   "algorithmHash": "sha256",
-                  "value": "A+tI9LR6gVwtdDXC/C3eMvKKbH1k1q8YoMliPSvvFPeUCgDkCQW5rYHepuJTyzQ1XtLkAuyDmt+/HBEAKMSKWUbX/wz64LWAYH5+w1GZyys2z4GwVt0UvaEeOIuPu9I+TjIiDzxSMTvQRoaPWIMB5Vul/89QBnHQdm6yFLIVJMqjmPAzxDNj1RoFCSwZGi252b6ZKTbzESyYq0bSMQALEJbE9ioEGk8lGn/1+gQHoJWFLpdM7Zzoy+Xkzn68Ep/Guzna7Hyn1EJ5CS6ZiI3kloaVe1BTlgzpO1RSuJAYvCWaNwTohj30CkAIs3l4eVOc9Whgzz9Z/FDOSbiKPRj8uA==",
+                  "value": "flwIH7N+j2VSr3txATgNxUPlg1bFtpIUMg9t4gF74L6RaHoauomcHiAgvsP0z8rlwF/DqY2ugc0KjxrmcuHg0nHC+DiAzrq5eUBkobQ9JEJ0mAOcMQ1PbY3X3VW3tMpIhG44Fm47MxRPhe2p45806E4mzaqVlL87j5YgiQmxyIsOeUnXk/uHtqBCxPZZsueS13wOLC3emgSDRTcylz5SoW5xCjAf6e0bYch/vXETeG8KwDBKl89A7XBM/Lr2O3LnsSNCifITpgnAdaR87/99olfuD1WYDhbW2XppQNdDyG7dDj1dMX+d87R6fWenPokc6F1pnl4M50sAB8pl9UxEdA==",
                   "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
                 }
               }

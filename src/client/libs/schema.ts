@@ -23,7 +23,6 @@ import {
 } from '@core/server/schemas/btpsDocsSchema.js';
 import { BtpDetailsResDocSchema } from '@core/server/schemas/trustValues.js';
 import {
-  BtpAgreementFactsSchema,
   BtpSyncOfSchema,
   BtpTrustPermissionsSchema,
 } from '@core/server/schemas/artifacts/transporterSchema.js';
@@ -62,7 +61,6 @@ export const BtpsAgentCommandSchema = z.object({
     id: z.string().uuid().optional(),
     syncOf: BtpSyncOfSchema.optional(),
     documentType: z.enum(DOCUMENT_TYPES).optional(),
-    agreement: BtpAgreementFactsSchema.optional(),
     details: z
       .array(
         z.custom<BTPDetailPermission>(
@@ -169,10 +167,6 @@ export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
   .refine((data) => data.options?.syncOf === undefined || data.actionType === 'artifact.send', {
     message: 'options.syncOf is only on artifact.send',
     path: ['options', 'syncOf'],
-  })
-  .refine((data) => data.options?.agreement === undefined || data.actionType === 'event.send', {
-    message: "options.agreement is only on event.send, on an agreement's answer",
-    path: ['options', 'agreement'],
   })
   .refine(
     (data) =>

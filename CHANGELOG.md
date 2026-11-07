@@ -187,13 +187,15 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
 - **Agreement events.** A `BTPS_EVENT` may carry an `agreement_event`,
   `1.2.0` only (`BTPAgreementEvent`): a signer's `accepted` or `declined`,
   each with its statement record, and the originator's `agreement_progress`
-  and `agreement_complete`, carrying the records so far. An answer's envelope
-  carries `agreement: { id, contentSha256, previous? }`, as hashes (the agent's
-  `event.send` option `agreement`), and the originator's server checks the
-  order from it with the trust store's new, optional `getAgreement`
-  (`BTP_ERROR_AGREEMENT_ORDER`; `agreementOrderProblem`). Once opened, the
-  platform checks an answer with `agreementStatementProblem`. A `withdrawn`
-  can never name an answer.
+  and `agreement_complete`, carrying the records so far. The server checks an
+  answer's structure, signatures, trust and permissions only; its order is the
+  originator's platform's. The new `agreementOrderCheck` middleware
+  (`@btps/sdk/server/core`, off until added with the platform's own lookup)
+  refuses an answer out of turn in flight from its envelope, without opening
+  it (`BTP_ERROR_AGREEMENT_ORDER`; `agreementTurnProblem`). Once opened, the
+  platform checks the statement with `agreementStatementProblem`
+  (`agreementOrderProblem` for its `previous`). A `withdrawn` can never name
+  an answer.
 - **The evidence bundle.** `buildEvidenceBundle` makes a `btps-evidence/1`
   file (`BTPEvidenceBundle`, JSON Schema `btps-evidence.schema.json`): the
   opened agreement, every statement record in order, and the key behind each

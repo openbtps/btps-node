@@ -6,9 +6,9 @@
  */
 
 /*
- * BTPS 1.2: an agreement's answer, as a device sends it. The answer is an
- * agreement_event on event.send, and its agreement facts go on the envelope,
- * on event.send only. Either stamps the artifact 1.2.0.
+ * BTPS 1.2: an agreement's answer, as a device sends it: an agreement_event on
+ * event.send, which stamps the artifact 1.2.0. Its envelope says nothing about
+ * the agreement; the server checks only that the event is self-consistent.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -37,38 +37,20 @@ const answer = {
     signature: { algorithmHash: 'sha256', value: 'AA==', fingerprint: 'AA==' },
   },
 };
-const facts = { id: 'AGR-1', contentSha256: SHA };
-const call = (actionType: string, document: object, options: object) =>
-  BtpsAgentCommandCallSchema.safeParse({
-    actionType,
-    to: 'loans$bank.example',
-    document,
-    options,
-  }).success;
 
 describe("an agreement's answer, sent by a device", () => {
-  it('goes on event.send with its agreement facts', () => {
-    expect(call('event.send', answer, { relatesTo: 'agreement-copy', agreement: facts })).toBe(
-      true,
-    );
+  it('goes on event.send, naming the copy it answers', () => {
+    const sent = BtpsAgentCommandCallSchema.safeParse({
+      actionType: 'event.send',
+      to: 'loans$bank.example',
+      document: answer,
+      options: { relatesTo: 'agreement-copy' },
+    });
+    expect(sent.success).toBe(true);
   });
 
-  it('refuses agreement facts on any other action', () => {
-    expect(call('artifact.send', answer, { agreement: facts })).toBe(false);
-  });
-
-  it('refuses agreement facts that are not hashes', () => {
-    const short = { ...facts, contentSha256: 'abc' };
-    expect(call('event.send', answer, { relatesTo: 'agreement-copy', agreement: short })).toBe(
-      false,
-    );
-  });
-
-  it('stamps its artifact 1.2.0, by the answer or by its facts', () => {
+  it('stamps its artifact 1.2.0 by its document', () => {
     expect(artifactVersion({ type: 'BTPS_EVENT', document: answer })).toBe('1.2.0');
-    expect(artifactVersion({ type: 'BTPS_EVENT', document: 'ciphertext', agreement: facts })).toBe(
-      '1.2.0',
-    );
   });
 });
 
@@ -82,7 +64,6 @@ describe("an agreement's event and the artifact carrying it", () => {
     to: 'loans$bank.example',
     selector: 'btps1',
     relatesTo: 'agreement-copy',
-    agreement: facts,
     signature: { algorithmHash: 'sha256', value: 'AA==', fingerprint: 'AA==' },
     encryption: null,
   };
