@@ -4,7 +4,7 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — 1.2.0
+## [1.2.0-rc.1] — 2026-11-08 (beta, release candidate)
 
 ### Added
 
