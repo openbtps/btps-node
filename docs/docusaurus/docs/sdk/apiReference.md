@@ -1112,6 +1112,45 @@ Since 1.2. Why a send does not meet the receiver's trust record, or `undefined`.
 
 ---
 
+### signVerification
+
+```ts
+signVerification(
+  statement: { subject: string; claims: BTPVerificationClaims; verifiedAt: string; expiresAt: string },
+  verifier: { verifiedBy: string; selector: string } & ({ pemFiles: PemKeys } | { signer: Signer })
+): Promise<BTPVerification>
+```
+
+**Description:**
+Since 1.2. A provider signs a statement that it checked `subject`, the address that will send the trust request carrying it, as `verifiedBy` at `selector`. The result goes in the request's document as `verification`. `claims` are the protocol's names only: `entityType`, and `detail:` names with their values. See [Verification](../protocol/specifications/transporter-artifact.md#verification).
+
+---
+
+### verificationFacts
+
+```ts
+verificationFacts(
+  request: { from: string; document?: unknown },
+  options?: { keyResolver?: BtpsKeyResolver; now?: number }
+): Promise<BTPVerificationFacts | undefined>
+```
+
+**Description:**
+Since 1.2. The facts about an opened trust request's verification, or `undefined` when it carries none: `{ signatureValid, expired, verifierServesSender, verifierIsOperator }`. It refuses nothing and labels no one verified: whose verifications to trust, and which facts to require, are each provider's to decide. `verifiedBy`'s key is looked up in DNS, or through `keyResolver`, and the operator from the sender's `_btps.host`. See [Verification](../protocol/specifications/transporter-artifact.md#verification).
+
+---
+
+### verifierRefusal
+
+```ts
+verifierRefusal(verifiedBy: string): Promise<{ error: BTPError; problem: string } | undefined>
+```
+
+**Description:**
+Since 1.2. Why `verifiedBy` may not verify, or `undefined`: only the operator (`op`) named in `_btps.host` of its own domain, one who runs a BTPS server, may. Anyone else is `BTP_ERROR_VALIDATION`. A lookup that fails (a DNS error or timeout, not a domain without the record) judges no one: it is `BTP_ERROR_RESOLVE_DNS`, to try again. `decryptVerify` runs it on every opened trust request that carries a verification. It only makes a verifier an operator: whose verifications to trust stays each provider's to decide. See [Verification](../protocol/specifications/transporter-artifact.md#verification).
+
+---
+
 ### detailsProblem
 
 ```ts

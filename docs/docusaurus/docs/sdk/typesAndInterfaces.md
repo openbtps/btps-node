@@ -1443,6 +1443,24 @@ interface BTPTrustReqDoc {
   expiresAt?: string;
   privacyType?: BTPEncryptionType;
   own?: BTPDetailValues; // since 1.2: the values of given details 1.1 has no field for; encrypted
+  verification?: BTPVerification; // since 1.2: a provider's signed statement of what it checked; encrypted
+}
+
+// Since 1.2: see Verification on the Transporter Artifact page
+interface BTPVerification {
+  verifiedBy: string;
+  claims: { entityType?: 'person' | 'organisation' } & BTPDetailValues;
+  verifiedAt: string;
+  expiresAt: string;
+  selector: string;
+  signature: BTPSignature;
+}
+
+interface BTPVerificationFacts {
+  signatureValid: boolean;
+  expired: boolean;
+  verifierServesSender: boolean;
+  verifierIsOperator: boolean;
 }
 
 // Since 1.2: detail values by permission name, e.g. { "detail:dob": "1990-04-21" }

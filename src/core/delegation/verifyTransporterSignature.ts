@@ -28,7 +28,7 @@ import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 type Verified = { isValid: boolean; error?: BTPErrorException };
 
 /** A signature key: from the resolver when one is given, else from DNS, as without one. */
-const signatureKey = (identity: string, selector: string, keyResolver?: BtpsKeyResolver) =>
+export const signatureKey = (identity: string, selector: string, keyResolver?: BtpsKeyResolver) =>
   keyResolver
     ? keyResolver.resolvePublicKey(identity, selector, 'verify')
     : resolvePublicKey(identity, selector);

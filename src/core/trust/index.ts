@@ -12,6 +12,7 @@ export { AbstractTrustStore } from './storage/AbstractTrustStore.js';
 export * from './types.js';
 export * from './trustUtils.js';
 export * from './permissions.js';
+export * from './verification.js';
 // The permission names a trust carries, for a client as well as a server.
 export * from '@core/server/constants/permissions.js';
 export type {

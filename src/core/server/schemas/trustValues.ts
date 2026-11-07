@@ -15,6 +15,8 @@
 import { z } from 'zod';
 import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
 import { httpsUrl, sha256Hex } from './btpsDocsSchema.js';
+import { BtpSignatureSchema, identitySchema } from './shared.js';
+import { ENTITY_TYPES } from '../constants/permissions.js';
 
 const { trustRequest, detailNumber } = BTPS_FIELD_LIMITS;
 const text = (max: number) => z.string().min(1).max(max);
@@ -53,6 +55,32 @@ export const BtpDetailValueSchemas: Record<string, z.ZodTypeAny> = {
   'detail:dob': dateOfBirth,
   'detail:registrationNumber': numberInCountry,
 };
+
+/**
+ * Since 1.2: a provider's signed statement that it checked a sender, in a
+ * trust request's document. Its claims are keyed by the protocol's names only:
+ * `entityType`, and `detail:` names with their values' shapes.
+ */
+export const BtpVerificationSchema = z
+  .object({
+    verifiedBy: identitySchema,
+    claims: z
+      .object({
+        entityType: z.enum(ENTITY_TYPES).optional(),
+        ...Object.fromEntries(
+          Object.entries(BtpDetailValueSchemas).map(([name, schema]) => [name, schema.optional()]),
+        ),
+      })
+      .strict()
+      .refine((claims) => Object.keys(claims).length > 0, {
+        message: 'claims names what was checked',
+      }),
+    verifiedAt: z.string().datetime(),
+    expiresAt: z.string().datetime(),
+    selector: z.string().min(1),
+    signature: BtpSignatureSchema,
+  })
+  .strict();
 
 /**
  * The details a 1.1 trust request already has a field for: there the value
@@ -107,6 +135,12 @@ export const trustRequestProblem = (artifact: {
     if (!given.includes(name)) return `own holds ${name}, which is not given`;
     const field = REQUEST_FIELDS[name];
     if (field !== undefined) return `${name} is the request's ${field}, never repeated in own`;
+  }
+  if (document.verification !== undefined) {
+    const verification = BtpVerificationSchema.safeParse(document.verification);
+    if (!verification.success) {
+      return `verification is not well formed: ${verification.error.issues.map((issue) => issue.message).join('; ')}`;
+    }
   }
   return undefined;
 };

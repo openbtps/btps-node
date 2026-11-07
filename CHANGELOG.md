@@ -149,6 +149,17 @@ versions follow [Semantic Versioning](https://semver.org/).
   on the envelope and stamp the artifact `1.2.0`, and the agent checks the
   artifact as its provider will before it goes, so a request that does not
   give what it asks for is refused before it is sent.
+- **Verification.** A trust request's document may carry `verification`, a
+  provider's signed statement of what it checked of the sender: `claims` by
+  the protocol's names only (`entityType` and `detail:` values in their
+  shapes), signed over the sender's own address so it cannot be copied. A
+  request carrying one is encrypted. `signVerification` makes one;
+  `verificationFacts` reports `{ signatureValid, expired,
+verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
+  runs a BTPS server verifies: `verifiedBy` is the `op` of its own domain's
+  `_btps.host`, or `decryptVerify` refuses the request (`verifierRefusal`); a
+  lookup that fails is `BTP_ERROR_RESOLVE_DNS`, to try again.
+  Whose verifications to trust is each provider's to decide.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).
