@@ -24,6 +24,8 @@ client
 !src/client
 !docs/docusaurus/docs/client
 !docs/docusaurus/docs/getting-started/client
+!docs/docusaurus/versioned_docs/*/client
+!docs/docusaurus/versioned_docs/*/getting-started/client
 .env*
 *.tgz
 test

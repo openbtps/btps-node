@@ -1,0 +1,166 @@
+{
+  "docs": [
+    {
+      "type": "doc",
+      "id": "introduction",
+      "label": "BTPS Introduction"
+    },
+    "roadmap",
+    {
+      "type": "category",
+      "label": "Getting Started",
+      "collapsed": false,
+      "items": [
+        "getting-started/installation",
+        {
+          "type": "category",
+          "label": "Server Setup",
+          "items": [
+            "getting-started/server/prerequisites",
+            "getting-started/server/setup",
+            "getting-started/server/dataStorageSupport",
+            "getting-started/server/databaseIntegration",
+            "getting-started/server/middlewares",
+            "getting-started/server/eventHandlers",
+            "getting-started/server/identityLookupSupport",
+            "getting-started/server/transporterSupport",
+            "getting-started/server/authenticationSupport",
+            "getting-started/server/delegationSupport",
+            "getting-started/server/forwardingArtifact",
+            "getting-started/server/supportingQueries"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Client Setup",
+          "items": [
+            "getting-started/client/prerequisites",
+            "getting-started/client/setup",
+            "getting-started/client/authentication",
+            "getting-started/client/btpsAgent",
+            "getting-started/client/btpsTransporter"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Protocol",
+      "collapsed": false,
+      "items": [
+        "protocol/overview",
+        "protocol/principles",
+        "protocol/messageFlow",
+        {
+          "type": "category",
+          "label": "Specifications",
+          "items": [
+            "protocol/specifications/overview",
+            "protocol/specifications/limits",
+            "protocol/specifications/golden-vectors",
+            "protocol/specifications/artifacts",
+            "protocol/specifications/transporter-artifact",
+            "protocol/specifications/agent-artifact",
+            "protocol/specifications/identity-lookup-artifact",
+            "protocol/specifications/control-artifact",
+            "protocol/specifications/delivery-failure-artifact",
+            "protocol/specifications/responses"
+          ]
+        },
+        "protocol/trustRecord",
+        "protocol/identityRecord",
+        "protocol/keyRotation",
+        {
+          "type": "category",
+          "label": "Delegation",
+          "items": [
+            "protocol/delegation/overview",
+            "protocol/delegation/specification",
+            "protocol/delegation/verificationProcess",
+            "protocol/delegation/delegationFlow",
+            "protocol/delegation/btpsDelegator",
+            "protocol/delegation/bestPractices",
+            "protocol/delegation/revocation"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Authentication",
+          "items": [
+            "protocol/authentication/overview",
+            "protocol/authentication/setup",
+            "protocol/authentication/authenticationFlow",
+            "protocol/authentication/btpsAuthentication",
+            "protocol/authentication/examples"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Security",
+          "items": [
+            "protocol/security/overview",
+            "protocol/security/algorithm",
+            "protocol/security/encryption",
+            "protocol/security/decryption",
+            "protocol/security/signature",
+            "protocol/security/keyManagement",
+            "protocol/security/bestPractices"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "BTPS Client",
+      "items": [
+        "client/overview",
+        "client/setup",
+        {
+          "type": "category",
+          "label": "BTPS Agent",
+          "items": [
+            "client/btpsAgent/overview",
+            "client/btpsAgent/setup",
+            "client/btpsAgent/commands",
+            "client/btpsAgent/examples"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "BTPS Transporter",
+          "items": [
+            "client/btpsTransporter/overview",
+            "client/btpsTransporter/setup",
+            "client/btpsTransporter/examples"
+          ]
+        },
+        "client/examples",
+        "client/metricsAndMonitor",
+        "client/debugging",
+        "client/bestPractices"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "BTPS Server",
+      "items": [
+        "server/overview",
+        "server/setup",
+        "server/middlewares",
+        "server/advancedUsages",
+        "server/metricsAndMonitor",
+        "server/debugging"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "SDK & API Reference",
+      "items": [
+        "sdk/overview",
+        "sdk/apiReference",
+        "sdk/classApiReference",
+        "sdk/typesAndInterfaces"
+      ]
+    }
+  ]
+}
