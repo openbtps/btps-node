@@ -17,6 +17,7 @@
     "sdk/protocol/agreements/events/declined-with-a-note": "Agreements: answer events, agreement facts on the envelope, and their order",
     "sdk/protocol/agreements/events/agreement-progress": "Agreements: answer events, agreement facts on the envelope, and their order",
     "sdk/protocol/agreements/events/agreement-complete": "Agreements: answer events, agreement facts on the envelope, and their order",
+    "sdk/protocol/agreements/envelope/agreement-facts-on-a-document": "Agreements: answer events, agreement facts on the envelope, and their order",
     "sdk/protocol/agreements/envelope/agreement-facts-with-a-short-hash": "Agreements: answer events, agreement facts on the envelope, and their order",
     "sdk/protocol/agreements/envelope/agreement-facts-with-another-key": "Agreements: answer events, agreement facts on the envelope, and their order",
     "sdk/protocol/agreements/envelope/agreement-facts-under-1-1": "Agreements: answer events, agreement facts on the envelope, and their order",

@@ -2174,7 +2174,8 @@
             "name": "send:agreement",
             "required": true
           }
-        ]
+        ],
+        "entityType": "organisation"
       },
       "expect": "accept"
     },
@@ -2201,7 +2202,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "documentType": "agreement",
+        "documentType": "letter",
         "agreement": {
           "id": "AGR-1",
           "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
