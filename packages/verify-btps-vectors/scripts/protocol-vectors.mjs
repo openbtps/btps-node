@@ -1633,7 +1633,7 @@ export function responses() {
   };
   return {
     description:
-      "BTPS 1.2 server responses. A response's `status` is `{ ok, code, message?, error? }`, and since 1.2 a 429 may also carry `retryAfter`: the whole seconds, zero or more, its sender should wait before sending again. `retryAfter` is only on a 429, and only in a `1.2.0` response. A 429 without it says nothing about when, and its sender waits as it chooses.",
+      "BTPS 1.2 server responses. A response's `status` is `{ ok, code, message?, error? }`, and since 1.2 a 429 may also carry `retryAfter`: the whole seconds, zero or more, its sender should wait before sending again. `retryAfter` is only on a 429, and only in a `1.2.0` response. A 429 without it says nothing about when, and its sender waits as it chooses. Since 1.2, any answer may carry `closing: true`: the server ends the connection after it, and its sender sends nothing more on that connection. `closing` is `true` or absent, and only in a `1.2.0` response.",
     cases: [
       response('retry-after', { ...limited, retryAfter: 90 }, 'accept'),
       response('retry-after-zero', { ...limited, retryAfter: 0 }, 'accept'),
@@ -1673,6 +1673,37 @@ export function responses() {
         { ...limited, retryAfter: 90 },
         'refuse',
         'retryAfter is only in a 1.2.0 response',
+        V11,
+      ),
+      response('closing', { ...limited, closing: true }, 'accept'),
+      response('closing-with-retry-after', { ...limited, retryAfter: 90, closing: true }, 'accept'),
+      response(
+        'closing-on-a-413',
+        {
+          code: 413,
+          message: 'Artifact is larger than this server takes: 5120 KB',
+          error: 'BTP_ERROR_ARTIFACT_TOO_LARGE',
+          closing: true,
+        },
+        'accept',
+      ),
+      response(
+        'closing-false',
+        { ...limited, closing: false },
+        'refuse',
+        'closing is true or absent',
+      ),
+      response(
+        'closing-as-a-string',
+        { ...limited, closing: 'true' },
+        'refuse',
+        'closing is true or absent',
+      ),
+      response(
+        'closing-under-1-1',
+        { ...limited, closing: true },
+        'refuse',
+        'closing is only in a 1.2.0 response',
         V11,
       ),
     ],

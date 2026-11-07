@@ -171,6 +171,29 @@ describe('BtpServerResponseSchema', () => {
     });
   });
 
+  describe('closing, since 1.2', () => {
+    const answered = (status: object, version = '1.2.0') =>
+      validate(BtpServerResponseSchema, {
+        version,
+        status: { ok: true, code: 200, ...status },
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        issuedAt: '2025-01-01T00:00:00.000Z',
+        type: 'btps_response',
+      }).success;
+
+    it('is true or absent, on any answer', () => {
+      expect(answered({ closing: true })).toBe(true);
+      expect(answered({ ok: false, code: 429, closing: true, retryAfter: 30 })).toBe(true);
+      expect(answered({})).toBe(true);
+      expect(answered({ closing: false })).toBe(false);
+      expect(answered({ closing: 'true' })).toBe(false);
+    });
+
+    it('is only in a 1.2.0 response', () => {
+      expect(answered({ closing: true }, '1.1.0')).toBe(false);
+    });
+  });
+
   describe('a trust.fetch answer listing trust records', () => {
     const trustRecord = {
       id: 'fb275f18c0d1',

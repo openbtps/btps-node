@@ -78,6 +78,7 @@ import {
   MAX_SUPPORTED_VERSION,
   MIN_SUPPORTED_VERSION,
   isSupportedVersion,
+  isVersionBelow,
   DETAILS_ARTIFACT_TYPES,
 } from '../core/server/constants/index.js';
 import type {
@@ -1651,10 +1652,17 @@ export class BtpsServer {
    */
   private sendBtpsResponse(
     socket: TLSSocket,
-    artifact: BTPServerResponse,
+    response: BTPServerResponse,
     action?: BtpsErrorAction,
   ) {
     if (socket.destroyed || socket.writableEnded || !socket.writable) return;
+
+    // Since 1.2: an answer after which this server ends the connection says so,
+    // before it is signed, so its sender sends nothing more on it.
+    const artifact: BTPServerResponse =
+      action && !response.signature && !isVersionBelow(response.version, '1.2.0')
+        ? { ...response, status: { ...response.status, closing: true } }
+        : response;
 
     // Validate the response artifact using Zod schema
     const validationResult = validate(BtpServerResponseSchema, artifact);

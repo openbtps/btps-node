@@ -278,6 +278,49 @@ describe('journey: a 1.2 provider and a 1.1 provider talk', () => {
       expect(error).toBeUndefined();
       expect(response?.publicKey.trim()).toBe(dave.keys.publicKey.trim());
     });
+
+    it('reads a 1.2 answer that ends the connection, closing and all, as any other', async () => {
+      const { accountName, domainName } = parseIdentity(bob.identity)!;
+      const { payload } = await signEncrypt11(
+        alice.identity,
+        { accountName, domainName, pemFiles: bob.keys },
+        {
+          version: '1.1.0',
+          type: 'BTPS_DOC',
+          from: bob.identity,
+          to: alice.identity,
+          selector: bob.selector,
+          document: invoice(),
+        },
+        {
+          signature: { algorithmHash: 'sha256' },
+          encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+        },
+        { btpMtsOptions: senderTls },
+      );
+      current.use([
+        {
+          phase: 'before',
+          step: 'parsing',
+          handler: async (_req, res) => res.sendError({ code: 429, message: 'Slow down' }, 'end'),
+        },
+      ]);
+      const client = new BtpsClient11({
+        to: alice.identity,
+        btpMtsOptions: senderTls,
+        maxRetries: 0,
+      });
+      try {
+        const { response, error } = await client.send(payload as never);
+
+        expect(response?.status).toMatchObject({ ok: false, code: 429, closing: true });
+        expect(response?.signedBy).toBe(current.operator);
+        expect(error?.message ?? '').not.toMatch(/validation|parse|invalid|signature/i);
+      } finally {
+        client.destroy();
+        current.use([]);
+      }
+    });
   });
 
   describe('a 1.2 device and its own provider, with one key pair', () => {

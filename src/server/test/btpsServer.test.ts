@@ -4040,9 +4040,9 @@ export default function () {
       expect(socket.destroy).not.toHaveBeenCalled();
     });
 
-    it('answers QUIT and ends the connection', async () => {
+    it('answers QUIT and ends the connection, saying so on the answer', async () => {
       const { written, socket } = await control('QUIT');
-      expect(written.status).toEqual({ ok: true, code: 200, message: 'bye' });
+      expect(written.status).toEqual({ ok: true, code: 200, message: 'bye', closing: true });
       expect(socket.end).toHaveBeenCalled();
     });
   });

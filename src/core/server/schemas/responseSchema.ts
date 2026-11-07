@@ -30,6 +30,7 @@ export const BtpStatusSchema = z.object({
   message: z.string().optional(),
   error: z.string().optional(),
   retryAfter: z.number().int().nonnegative().optional(),
+  closing: z.literal(true).optional(),
 });
 
 // Schema for BTPDeliveryFailureDoc
@@ -200,5 +201,14 @@ export const BtpServerResponseSchema = z
           message: 'retryAfter is only in a 1.2.0 response',
         });
       }
+    }
+
+    // Since 1.2, under 1.2.0 only: the server ends the connection after this answer.
+    if (data.status.closing !== undefined && isVersionBelow(data.version, '1.2.0')) {
+      ctx.addIssue({
+        path: ['status', 'closing'],
+        code: z.ZodIssueCode.custom,
+        message: 'closing is only in a 1.2.0 response',
+      });
     }
   });

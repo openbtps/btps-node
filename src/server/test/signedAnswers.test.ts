@@ -103,6 +103,24 @@ describe("a server's signed answers", () => {
     expect(sent.signedBy).toBe('admin$saas.example');
   });
 
+  it('sign that an answer ends the connection, with the rest of it', async () => {
+    const lines: string[] = [];
+    const socket = {
+      destroyed: false,
+      writableEnded: false,
+      writable: true,
+      write: (line: string) => lines.push(line) > 0,
+      destroy: vi.fn(),
+      end: vi.fn(),
+    } as unknown as TLSSocket;
+    new BtpsServer(options())['sendBtpsResponse'](socket, unsignedAnswer, 'end');
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const { signature, ...signed } = JSON.parse(lines[0] ?? 'null') as BTPServerResponse;
+    expect(signed.status.closing).toBe(true);
+    expect(signature && verifySignature(signed, signature, keys.publicKey).isValid).toBe(true);
+  });
+
   it('are left unsigned, as in 1.1, when the server does not sign answers', async () => {
     const sent = await written(new BtpsServer(options({ signAnswers: false })), unsignedAnswer);
 
