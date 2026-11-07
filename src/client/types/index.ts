@@ -120,6 +120,12 @@ export type BtpsAgentCommandOptions = BTPCryptoOptions & {
    */
   documentType?: BTPDocumentType;
   /**
+   * Since 1.2, on `event.send` only, on an agreement's answer: the agreement it answers and, in a sequential
+   * agreement, the statement record before it, as hashes, set on the envelope so the originator's server checks the
+   * order without opening it: the statement's own agreement `id` and `contentSha256`, and its `previous`.
+   */
+  agreement?: { id: string; contentSha256: string; previous?: string };
+  /**
    * Since 1.2, on `trust.request` only: the permissions asked for, one flat list (see Trust permissions). With it,
    * `entityType` is required, and every detail asked for is given in `given`.
    */

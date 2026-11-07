@@ -15,6 +15,7 @@ import {
   documentTypeRefusal,
   detailsNamesRefusal,
   detailsRequestRefusal,
+  agreementOrderProblem,
 } from '@core/trust/index.js';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
@@ -36,6 +37,7 @@ import {
   BTP_ERROR_INVALID_ACTION,
   BTP_ERROR_EVENT_UNRELATED,
   BTP_ERROR_EVENT_CHAIN,
+  BTP_ERROR_AGREEMENT_ORDER,
   BTP_ERROR_KEY_ROTATION_PROOF,
   BTP_ERROR_AGENT_ID,
   BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
@@ -1162,6 +1164,16 @@ export class BtpsServer {
         }),
       };
     }
+    const orderProblem = await this.agreementOrderProblem(data.artifact);
+    if (orderProblem) {
+      return {
+        isTrusted: false,
+        error: new BTPErrorException(BTP_ERROR_AGREEMENT_ORDER, {
+          cause: orderProblem,
+          meta: { from, to, agreement: data.artifact.agreement },
+        }),
+      };
+    }
     const problem = await this.eventChainProblem(data.artifact);
     if (!problem) return { isTrusted: true, error: undefined };
     return {
@@ -1171,6 +1183,24 @@ export class BtpsServer {
         { meta: { from, to } },
       ),
     };
+  }
+
+  /**
+   * Since 1.2: an agreement's answer, from the readable facts on its envelope,
+   * against what the originator's store holds of the agreement (`getAgreement`):
+   * from a signer who has not answered, in turn, naming the statement before
+   * it. Nothing is decrypted. Without `getAgreement`, the platform checks the
+   * opened statement (`agreementStatementProblem`).
+   */
+  private async agreementOrderProblem(
+    artifact: BTPTransporterArtifact,
+  ): Promise<string | undefined> {
+    const { from, to, agreement } = artifact;
+    if (!agreement || !this.trustStore.getAgreement) return undefined;
+    const { id, contentSha256, previous } = agreement;
+    const held = await this.trustStore.getAgreement({ originator: to, id, contentSha256 });
+    if (!held) return `no agreement ${id} that ${to} originated with this content`;
+    return agreementOrderProblem({ from, previous }, held);
   }
 
   /**
@@ -1825,6 +1855,11 @@ export class BtpsServer {
       if (!this.trustStore.getArtifact) {
         console.warn(
           '[BtpsServer] Warning: the trust store has no getArtifact, so this server checks only that a details response answers a known request, not that it names only what was asked. The platform checks that (detailsProblem).',
+        );
+      }
+      if (!this.trustStore.getAgreement) {
+        console.warn(
+          "[BtpsServer] Warning: the trust store has no getAgreement, so this server does not refuse an agreement's answer that is out of order on arrival. The platform checks it once opened (agreementStatementProblem).",
         );
       }
     });

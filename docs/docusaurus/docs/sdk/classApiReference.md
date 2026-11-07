@@ -1613,6 +1613,18 @@ Optional, since 1.2. The envelope of the artifact with this id that passed betwe
 - **from**, **to**: `string` – the two identities
 - **Returns**: `Promise<BTPDetailsEnvelope | undefined>`: `{ type, id, from, to, details }`
 
+### getAgreement
+
+```ts
+await store.getAgreement?.({ originator, id, contentSha256 });
+```
+
+Optional, since 1.2. What the platform holds of an agreement it originated, or `undefined` when it holds none: its signers in order, how they answer, and the answers it has taken, in order. The platform records each answer it takes; the server only reads. With it, the originator's server refuses, with `BTP_ERROR_AGREEMENT_ORDER`, an answer whose envelope's `agreement` facts do not follow the agreement's signers and order (see [Agreement events](../protocol/specifications/transporter-artifact.md#agreement-events)). Without it, the server warns once at start, and the platform checks the opened answer with `agreementStatementProblem` from `@btps/sdk/trust`.
+
+- **originator**: `string` – the answer's `to`
+- **id**, **contentSha256**: `string` – from the answer's envelope
+- **Returns**: `Promise<BTPAgreementState | undefined>`: `{ signers, signingOrder, answered: [{ signer, decision, sha256 }] }`
+
 ---
 
 ## JsonTrustStore

@@ -6,7 +6,7 @@
  */
 
 import { AbstractStorageStore } from '@core/storage/AbstractStorageStore.js';
-import { BTPEventFacts, BTPTrustRecord } from '../types.js';
+import { BTPAgreementRef, BTPAgreementState, BTPEventFacts, BTPTrustRecord } from '../types.js';
 import type { BTPDetailsEnvelope } from '../permissions.js';
 
 export abstract class AbstractTrustStore<T extends BTPTrustRecord> extends AbstractStorageStore<T> {
@@ -49,4 +49,14 @@ export abstract class AbstractTrustStore<T extends BTPTrustRecord> extends Abstr
     from: string;
     to: string;
   }): Promise<BTPDetailsEnvelope | undefined>;
+
+  /**
+   * Optional, since 1.2: what the platform holds of an agreement it
+   * originated, or undefined when it holds none: its signers in order, how
+   * they answer, and the answers it has taken. The platform records each answer
+   * it takes; the server only reads. With it, a server refuses an answer whose
+   * envelope does not follow the agreement's signers and order; without it,
+   * that is the platform's to check once opened (`agreementStatementProblem`).
+   */
+  getAgreement?(query: BTPAgreementRef): Promise<BTPAgreementState | undefined>;
 }

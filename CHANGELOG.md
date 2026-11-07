@@ -184,6 +184,16 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   `signatureValid`, `keyKind` and, for a device, `delegatedBy` and
   `attestedBy`; `statementRecordSha256` is what the next statement names as
   `previous`.
+- **Agreement events.** A `BTPS_EVENT` may carry an `agreement_event`,
+  `1.2.0` only (`BTPAgreementEvent`): a signer's `accepted` or `declined`,
+  each with its statement record, and the originator's `agreement_progress`
+  and `agreement_complete`, carrying the records so far. An answer's envelope
+  carries `agreement: { id, contentSha256, previous? }`, as hashes (the agent's
+  `event.send` option `agreement`), and the originator's server checks the
+  order from it with the trust store's new, optional `getAgreement`
+  (`BTP_ERROR_AGREEMENT_ORDER`; `agreementOrderProblem`). Once opened, the
+  platform checks an answer with `agreementStatementProblem`. A `withdrawn`
+  can never name an answer.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).

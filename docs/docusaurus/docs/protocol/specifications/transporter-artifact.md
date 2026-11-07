@@ -847,6 +847,38 @@ So every `BTPS_EVENT` carries `relatesTo` in its envelope, outside the encrypted
 
 Answering that question is required of every trust store (`isKnownArtifact`, see [AbstractTrustStore](/docs/sdk/class-api-references#abstracttruststore)), because only the platform knows which artifacts it delivered. A server whose store answers `false` accepts no events.
 
+#### Agreement events
+
+Since 1.2, in a `1.2.0` artifact only, a `BTPS_EVENT` may carry an agreement's answer instead of an invoice's lifecycle event: `type` is `agreement_event`, and every one names its agreement, `{ originator, id, contentSha256 }`.
+
+| `eventType`          | From                        | Carries                                                                         |
+| -------------------- | --------------------------- | ------------------------------------------------------------------------------- |
+| `accepted`           | a signer, to the originator | `statement`: its signed statement record, whose `decision` is `accepted`        |
+| `declined`           | a signer, to the originator | `statement`, whose `decision` is `declined`, and an optional `message` (a note) |
+| `agreement_progress` | the originator, to a signer | `statements`: the records so far, before a sequential signer's turn             |
+| `agreement_complete` | the originator, to a signer | `statements`: every record, once all have answered                              |
+
+```json
+{
+  "type": "agreement_event",
+  "id": "5d6e7f80-9102-4a3b-8c4d-5e6f708192a3",
+  "occurredAt": "2026-11-03T00:00:00Z",
+  "eventType": "accepted",
+  "agreement": { "originator": "loans$bank.example", "id": "AGR-1", "contentSha256": "fabe…" },
+  "statement": { "statement": { "…": "…" }, "selector": "btps1", "signature": { "…": "…" } }
+}
+```
+
+- **Forwarding carries records only**, at most one for each of at most 20 signers, never the agreement again: each signer already has its own copy. Whether and when to send `agreement_complete` is the originator's choice; from the records, the signer's platform assembles the evidence bundle.
+- **`relatesTo`** names the signer's own copy of the agreement, as an invoice's event names its invoice, and the event travels over the trust between the two, as any event does. Its `id` is the artifact's `id`, and its agreement's `originator` is the artifact's `from` or `to`, or it is refused, readable on arrival or once opened.
+- **An answer is final.** A `withdrawn` names a proposal only, so it can never name an `accepted` or `declined`. A change is a new agreement.
+
+**The order, read from the envelope.** An answer's envelope carries `agreement`, signed and readable like `documentType`: `{ id, contentSha256, previous? }`, the agreement it answers and, in a sequential agreement, the SHA-256 of the statement record before it. They are hashes only, so a server can see that an artifact answers a given agreement and where it falls in the chain, but not who agreed to what or what the agreement says. They are on a `BTPS_EVENT` only, and only in a `1.2.0` artifact; a device sets them with `event.send`'s `agreement` option.
+
+The originator's server checks them on arrival, without opening anything, against what its trust store holds of the agreement (the optional `getAgreement`, see [AbstractTrustStore](/docs/sdk/class-api-references#abstracttruststore)): the sender is a listed signer who has not answered yet; in a `sequential` agreement, it is the next signer, nothing comes after a `declined`, and `previous` is the SHA-256 of the last answer taken, or absent for the first; in an `any` agreement, there is no `previous`. It refuses one that does not follow, or that names no agreement its receiver originated, with `BTP_ERROR_AGREEMENT_ORDER` (400). The platform records each answer it takes; the server only reads. Without `getAgreement`, the server warns once at start and the platform checks the order.
+
+**Once opened**, the originator's platform checks the answer with `agreementStatementProblem` from `@btps/sdk/trust`: the statement names this agreement (its originator, id and `contentSha256` as its copy has them) and its terms exactly, is its sender's own, is signed no later than `acceptance.by`, follows the signers' order against the answers already taken, and matches its envelope's facts. Its signatures it checks with `statementSignatureFacts` (see [Agreement](#agreement)).
+
 ## Security Features
 
 ### Digital Signatures

@@ -97,6 +97,17 @@ export const BTP_ERROR_EVENT_CHAIN: BTPError = {
   status: 400,
 };
 
+/**
+ * Since 1.2: an agreement's answer that does not follow its agreement: from
+ * someone who is not a signer, a second answer, out of turn, after a decline,
+ * or naming the wrong statement before it.
+ */
+export const BTP_ERROR_AGREEMENT_ORDER: BTPError = {
+  code: 'BTP_ERROR_AGREEMENT_ORDER',
+  message: "Answer does not follow its agreement's signers and order",
+  status: 400,
+};
+
 export const BTP_ERROR_RESOLVE_DNS: BTPError = {
   code: 'BTP_ERROR_RESOLVE_DNS',
   message: 'No valid DNS record found',

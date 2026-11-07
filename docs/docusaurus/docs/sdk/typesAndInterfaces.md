@@ -288,6 +288,7 @@ type BtpsAgentCommandOptions = BTPCryptoOptions & {
   id?: string;
   syncOf?: BTPSyncOf; // since 1.2
   documentType?: BTPDocumentType; // since 1.2
+  agreement?: BTPAgreementFacts; // since 1.2, event.send on an agreement's answer
   details?: BTPDetailPermission[]; // since 1.2
   // Since 1.2, trust permissions:
   permissions?: BTPTrustPermissions; // trust.request
@@ -307,6 +308,7 @@ interface BTPSyncOf {
 - `details`: Since 1.2, required on `details.changed`, `details.request` and `details.respond`, and refused elsewhere: the `detail:` names the artifact is about, set on its envelope. A `details.respond` also needs `encryption`. See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)
 - `syncOf`: Since 1.2, on `artifact.send` to the device's own address only, and refused elsewhere: this send is a sync, the user's own copy of the send it names. `syncOfArtifact(sentArtifact)` gives it. It is set on the envelope and stamps the artifact `1.2.0`. See [Sync](../protocol/specifications/transporter-artifact.md#sync)
 - `documentType`: Since 1.2, on `artifact.send` only, and refused elsewhere: the document's own `type`, for a send under a trust with permissions, whose receiver checks that `send:<documentType>` is granted. A value that is not the document's type is refused before anything is sent. It is set on the envelope and stamps the artifact `1.2.0`, so leave it out for any other send. See [Trust permissions](../protocol/specifications/transporter-artifact.md#a-sends-document-type)
+- `agreement`: Since 1.2, on `event.send` only, and refused elsewhere, on an agreement's answer: `{ id, contentSha256, previous? }`, the statement's own agreement and the statement record before it, as hashes. It is set on the envelope, so the originator's server checks the order without opening anything, and stamps the artifact `1.2.0`. See [Agreement events](../protocol/specifications/transporter-artifact.md#agreement-events)
 - `permissions`, `entityType`, `given`, `change`: Since 1.2, on `trust.request`: the permissions asked for, what owns the user's address, the details the user gives (their values go in the document: see [The values](../protocol/specifications/transporter-artifact.md#the-values-checked-when-opened)), and whether this changes an active trust. `entityType` is required with `permissions`
 - `granted`, `entityType`: Since 1.2, on `trust.respond`, when accepting: the names granted, and what owns the user's address
 - Each of these is set on the envelope and stamps the artifact `1.2.0`. The built artifact is checked as its provider will check it, so a request that does not give what it asks for, or names a permission that is not the protocol's, is refused before it is sent (`BTP_ERROR_VALIDATION`, naming the rule)
@@ -1499,6 +1501,28 @@ interface BTPStatementSignatureFacts {
 // A public key by identity and selector: from DNS, a store, or an evidence bundle
 type BTPKeyOf = (identity: string, selector: string) => string | undefined;
 
+// On an answer's envelope, readable: the agreement it answers, and the statement record before it, as hashes
+type BTPAgreementFacts = { id: string; contentSha256: string; previous?: string };
+
+// What an originator's store holds of one of its agreements (getAgreement)
+type BTPAgreementState = {
+  signers: string[];
+  signingOrder: 'any' | 'sequential';
+  answered: { signer: string; decision: 'accepted' | 'declined'; sha256: string }[];
+};
+
+// What a BTPS_EVENT carries for an agreement: an answer, or statements forwarded by its originator
+type BTPAgreementEvent = {
+  type: 'agreement_event';
+  id: string;
+  occurredAt: string;
+  agreement: BTPAgreementRef;
+} & (
+  | { eventType: 'accepted'; statement: BTPStatementRecord }
+  | { eventType: 'declined'; statement: BTPStatementRecord; message?: BTPNote }
+  | { eventType: 'agreement_progress' | 'agreement_complete'; statements: BTPStatementRecord[] }
+);
+
 // Since 1.2: detail values by permission name, e.g. { "detail:dob": "1990-04-21" }
 type BTPDetailValues = {
   'detail:legalName'?: string;
@@ -1579,6 +1603,7 @@ interface BTPTransporterArtifact {
   selector: string; // Selector used for public key resolution (e.g., 'btps1', 'btps2')
   relatesTo?: string; // BTPS_EVENT only, and required there: the id of the BTPS_DOC artifact that delivered the invoice
   syncOf?: BTPSyncOf; // since 1.2, a sync only: from and to the same address, inside a device's artifact.send
+  agreement?: BTPAgreementFacts; // since 1.2, an agreement's answer (BTPS_EVENT): what it answers, as hashes
   // Since 1.2, trust permissions: see Trust permissions on the Transporter Artifact page.
   permissions?: BTPTrustPermissions; // TRUST_REQ: what it asks for
   entityType?: BTPEntityType; // TRUST_REQ with permissions, accepted TRUST_RES: 'person' | 'organisation'
@@ -1745,7 +1770,12 @@ Generic document type.
 
 ```ts
 type BTPDocument = BTPInvoiceDoc | BTPReceiptDoc | BTPPayslipDoc | BTPLetterDoc | BTPAgreementDoc; // what a BTPS_DOC carries
-type BTPDocType = BTPDocument | BTPLifecycleEvent | BTPTrustReqDoc | BTPTrustResDoc;
+type BTPDocType =
+  | BTPDocument
+  | BTPLifecycleEvent
+  | BTPAgreementEvent
+  | BTPTrustReqDoc
+  | BTPTrustResDoc;
 ```
 
 `BTPPayslipDoc`, `BTPLetterDoc` and, since 1.2, `BTPAgreementDoc` are inferred from their schemas; their fields are in the Transporter Artifact specification.

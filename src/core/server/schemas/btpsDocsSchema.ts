@@ -691,6 +691,118 @@ export const BtpLifecycleEventSchema = z
   ])
   .refine(onlyAcceptedHasRemainingDueDate, remainingDueDateRule);
 
+/*
+ * Since 1.2, under 1.2.0 only: an agreement's answers. A signer answers with a
+ * signed statement; the originator forwards the statements so far to the next
+ * signer, and every statement once all have answered. Each is a BTPS_EVENT of
+ * its own type, apart from the invoice's lifecycle events.
+ */
+const BtpAgreementRefSchema = z
+  .object({
+    originator: identitySchema,
+    id: z.string().min(1).max(documentId),
+    contentSha256: sha256Hex,
+  })
+  .strict();
+
+/** A signer's answer: what it signs, over its RFC 8785 form. */
+export const BtpAgreementStatementSchema = z
+  .object({
+    agreement: BtpAgreementRefSchema,
+    terms: boundedArray(sha256Hex, letter.attachments),
+    signer: identitySchema,
+    decision: z.enum(['accepted', 'declined']),
+    signedAt: z.string().datetime(),
+    previous: sha256Hex.optional(),
+  })
+  .strict();
+
+/**
+ * A signed statement: by the signer's identity key at `selector`, or by a
+ * device, when it carries the delegated artifact that delivered it, as it
+ * arrived. Its signatures are checked by `statementSignatureFacts`.
+ */
+export const BtpStatementRecordSchema = z
+  .object({
+    statement: BtpAgreementStatementSchema,
+    signature: BtpSignatureSchema,
+    selector: z.string().min(1).optional(),
+    delegatedArtifact: z
+      .object({
+        from: identitySchema,
+        signature: BtpSignatureSchema,
+        delegation: z
+          .object({
+            agentPubKey: z.string(),
+            signedBy: identitySchema,
+            signature: BtpSignatureSchema,
+          })
+          .passthrough(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .strict()
+  .refine(
+    (record) => (record.selector === undefined) !== (record.delegatedArtifact === undefined),
+    {
+      message: 'a record has exactly one of selector and delegatedArtifact',
+    },
+  );
+
+const agreementEventFields = {
+  type: z.literal('agreement_event'),
+  id: z.string().uuid(), // the id of the BTPS_EVENT that carries it
+  occurredAt: z.string().datetime(),
+  agreement: BtpAgreementRefSchema,
+};
+const statements = boundedArray(BtpStatementRecordSchema, agreement.signers);
+
+/** An agreement's answer, or statements forwarded by its originator, by `eventType`. */
+export const BtpAgreementEventSchema = z
+  .discriminatedUnion('eventType', [
+    z
+      .object({
+        ...agreementEventFields,
+        eventType: z.literal('accepted'),
+        statement: BtpStatementRecordSchema,
+      })
+      .strict(),
+    z
+      .object({
+        ...agreementEventFields,
+        ...message,
+        eventType: z.literal('declined'),
+        statement: BtpStatementRecordSchema,
+      })
+      .strict(),
+    z
+      .object({ ...agreementEventFields, eventType: z.literal('agreement_progress'), statements })
+      .strict(),
+    z
+      .object({ ...agreementEventFields, eventType: z.literal('agreement_complete'), statements })
+      .strict(),
+  ])
+  .superRefine((event, ctx) => {
+    if ('statement' in event && event.statement.statement.decision !== event.eventType) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "an answer's eventType is its statement's decision",
+        path: ['statement'],
+      });
+    }
+    if ('statements' in event && event.statements.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'forwarding carries at least one statement',
+        path: ['statements'],
+      });
+    }
+  });
+
+/** What a 1.2.0 `BTPS_EVENT` carries: an invoice's lifecycle event, or an agreement's. */
+export const BtpEventSchema = z.union([BtpLifecycleEventSchema, BtpAgreementEventSchema]);
+
 // Schema for BTPAuthReqDoc (used in agent artifacts)
 export const BtpAuthReqDocSchema = z.object({
   identity: identitySchema,
@@ -743,6 +855,7 @@ export const BtpDocSchema = z.union([
   BtpTrustResDocSchema,
   BtpDocumentSchema,
   BtpLifecycleEventSchema,
+  BtpAgreementEventSchema,
   BtpTrustReqDocV1_1Schema,
   BtpTrustResDocV1_1Schema,
   BtpDocumentV1_1Schema,

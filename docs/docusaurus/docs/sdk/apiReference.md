@@ -1231,6 +1231,26 @@ Since 1.2. `statementRecordSha256` is the SHA-256 of a record's RFC 8785 form, s
 
 ---
 
+### agreementStatementProblem, agreementOrderProblem
+
+```ts
+agreementStatementProblem(
+  envelope: { from: string; to: string; agreement?: BTPAgreementFacts },
+  event: { eventType: string; agreement: BTPAgreementRef; statement?: BTPStatementRecord },
+  agreement: BTPAgreementDoc,
+  earlier: readonly BTPStatementRecord[]
+): string | undefined
+agreementOrderProblem(
+  answer: { from: string; previous?: string },
+  held: BTPAgreementState
+): string | undefined
+```
+
+**Description:**
+Since 1.2. Why an agreement's answer does not answer it, or `undefined`. `agreementStatementProblem` is the originator's platform's check of an opened answer: `envelope` is the answer's own, `agreement` the receiver's copy, and `earlier` the statement records already taken, in order. The statement names this agreement (its originator, id and `contentSha256`) and its terms exactly, is its sender's own, is signed no later than `acceptance.by`, follows the signers' order, and matches the envelope's `agreement` facts and the event's own `agreement`. Signatures are not part of it: check them with `statementSignatureFacts`. `agreementOrderProblem` is the order alone, from the sender, the `previous` it names and what the originator holds: the server runs it on an answer's envelope with its store's `getAgreement`. See [Agreement events](../protocol/specifications/transporter-artifact.md#agreement-events).
+
+---
+
 ### detailsProblem
 
 ```ts
@@ -1490,6 +1510,23 @@ Since 1.2. Error constant for a lifecycle event whose chain is wrong: a `withdra
 
 - `code`: `'BTP_ERROR_EVENT_CHAIN'`
 - `message`: `'Event names an earlier event it cannot follow or withdraw'`
+- `status`: `400`
+
+---
+
+### BTP_ERROR_AGREEMENT_ORDER
+
+```ts
+const BTP_ERROR_AGREEMENT_ORDER: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for an agreement's answer that does not follow its agreement: from someone who is not a signer, a signer's second answer, out of turn in a sequential agreement, after a decline, or naming the wrong statement before it; or one about an agreement its receiver did not originate. The originator's server raises it from the answer's envelope when its trust store has the optional `getAgreement` (see [AbstractTrustStore](./classApiReference.md#getagreement)), with the broken rule as its cause; a platform finds the same from `agreementStatementProblem` once the answer is opened.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_AGREEMENT_ORDER'`
+- `message`: `"Answer does not follow its agreement's signers and order"`
 - `status`: `400`
 
 ---

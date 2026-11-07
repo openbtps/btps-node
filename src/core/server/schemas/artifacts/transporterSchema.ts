@@ -18,9 +18,15 @@ import {
   TRANSPORTER_ACTIONS,
   isVersionBelow,
 } from '../../constants/index.js';
+import { BTPS_FIELD_LIMITS } from '../../constants/limits.js';
 import { z } from 'zod';
-import { lifecycleEventEnvelopeProblem, processBtpDocSchema, sameIdentity } from '../helpers.js';
-import { BtpLifecycleEventSchema, sha256Hex } from '../btpsDocsSchema.js';
+import {
+  agreementEventEnvelopeProblem,
+  lifecycleEventEnvelopeProblem,
+  processBtpDocSchema,
+  sameIdentity,
+} from '../helpers.js';
+import { BtpAgreementEventSchema, BtpLifecycleEventSchema, sha256Hex } from '../btpsDocsSchema.js';
 
 /**
  * Since 1.2, on a sync: the send it copies, by the id of the sent artifact and
@@ -28,6 +34,19 @@ import { BtpLifecycleEventSchema, sha256Hex } from '../btpsDocsSchema.js';
  * document is encrypted to the user's own key and its provider files it unopened.
  */
 export const BtpSyncOfSchema = z.object({ id: z.string().min(1), sha256: sha256Hex }).strict();
+
+/**
+ * Since 1.2, on an agreement's answer: which agreement it answers and, in a
+ * sequential agreement, the statement record before it, as hashes. Readable,
+ * so the originator's server checks the order on arrival without opening it.
+ */
+export const BtpAgreementFactsSchema = z
+  .object({
+    id: z.string().min(1).max(BTPS_FIELD_LIMITS.documentId),
+    contentSha256: sha256Hex,
+    previous: sha256Hex.optional(),
+  })
+  .strict();
 
 // One name from a closed set, and a list of them, never longer than the set.
 const memberOf = <T extends string>(names: readonly T[]) =>
@@ -83,6 +102,7 @@ export const BtpTransporterArtifactBaseSchema = z.object({
   selector: z.string(),
   relatesTo: z.string().min(1).optional(),
   syncOf: BtpSyncOfSchema.optional(),
+  agreement: BtpAgreementFactsSchema.optional(),
   permissions: BtpTrustPermissionsSchema.optional(),
   entityType: z.enum(ENTITY_TYPES).optional(),
   given: namesFrom(DETAIL_PERMISSIONS).optional(),
@@ -208,6 +228,23 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
         });
       }
     }
+    // Since 1.2: an agreement's answer names its agreement, and the statement before it, as hashes.
+    if (data.agreement !== undefined) {
+      if (data.type !== 'BTPS_EVENT') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'agreement is only on a BTPS_EVENT',
+          path: ['agreement'],
+        });
+      }
+      if (isVersionBelow(data.version, '1.2.0')) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'agreement is only in a 1.2.0 artifact',
+          path: ['agreement'],
+        });
+      }
+    }
     for (const [path, message] of permissionEnvelopeProblems(data)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: [path] });
     }
@@ -234,7 +271,12 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
       }
       if (data.type === 'BTPS_EVENT') {
         const event = BtpLifecycleEventSchema.safeParse(data.document);
-        const problem = event.success ? lifecycleEventEnvelopeProblem(event.data, data) : undefined;
+        const answer = BtpAgreementEventSchema.safeParse(data.document);
+        const problem = event.success
+          ? lifecycleEventEnvelopeProblem(event.data, data)
+          : answer.success
+            ? agreementEventEnvelopeProblem(answer.data, data)
+            : undefined;
         if (problem) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem, path: ['document'] });
         }
