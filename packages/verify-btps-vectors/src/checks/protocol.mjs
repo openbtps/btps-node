@@ -327,7 +327,8 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
       ),
       ...agreements.bundles.map((c) =>
         check(`agreements/bundle/${c.name}`, async () => {
-          const facts = await named('verifyEvidenceBundle')(c.bundle);
+          // `options` (since 1.2's timestamps): the timestamp roots a reader trusts.
+          const facts = await named('verifyEvidenceBundle')(c.bundle, c.options);
           // Every fact the vector lists must be as given; a verifier may report more.
           const differ = (expected, found, at) => {
             if (expected === null || typeof expected !== 'object') {

@@ -126,8 +126,10 @@
   },
   "dependencies": {
     "@humanwhocodes/momoa": "^3.3.13",
+    "asn1js": "^4.0.0",
     "canonicalize": "^5.1.0",
     "lodash": "^4.17.21",
+    "pkijs": "^4.0.1",
     "proper-lockfile": "^4.1.2",
     "split2": "^4.2.0",
     "zod": "^3.25.67"

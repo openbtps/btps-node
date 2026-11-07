@@ -451,8 +451,10 @@ __metadata:
   resolution: "@btps/sdk@portal:../..::locator=btps-nest-app%40workspace%3A."
   dependencies:
     "@humanwhocodes/momoa": "npm:^3.3.13"
+    asn1js: "npm:^4.0.0"
     canonicalize: "npm:^5.1.0"
     lodash: "npm:^4.17.21"
+    pkijs: "npm:^4.0.1"
     proper-lockfile: "npm:^4.1.2"
     split2: "npm:^4.2.0"
     zod: "npm:^3.25.67"
@@ -1128,6 +1130,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noble/hashes@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "@noble/hashes@npm:2.4.0"
+  checksum: 10c0/f5820a38c52886073a69722a030688ad188bbacb822d01554545371259961c2b916266c57c013c2ce5a0d78aec977142fc68fd2a79be4c97b0644fcee9bb35f6
+  languageName: node
+  linkType: hard
+
 "@nodelib/fs.scandir@npm:2.1.5":
   version: 2.1.5
   resolution: "@nodelib/fs.scandir@npm:2.1.5"
@@ -1187,6 +1196,13 @@ __metadata:
   bin:
     opencollective: bin/opencollective.js
   checksum: 10c0/540268687af3289ff107585484d42201b404cdbb98b3a512487c12a6b180a8f0e1df0d701df47d3d9e0d5c0f6eb3252d80535562aedca9edf52cf7fd17ae4601
+  languageName: node
+  linkType: hard
+
+"@peculiar/utils@npm:^4.1.0":
+  version: 4.1.0
+  resolution: "@peculiar/utils@npm:4.1.0"
+  checksum: 10c0/9495260286bdec4be87ea7a4e47589d13831fec08e4b684164f2653366663b8def9252bc6b957c00ec927771fa26ade6ff7430006f0215d6ff4f81ac51ec82b4
   languageName: node
   linkType: hard
 
@@ -2051,6 +2067,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"asn1js@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "asn1js@npm:4.0.0"
+  dependencies:
+    "@peculiar/utils": "npm:^4.1.0"
+  checksum: 10c0/7fc48dc9cc4e37a7a0e4f8e296a4044c7677f1cae0f9cc058b0abd5d8d5430d8ff1966ec81b91823086964aaf0fad8b05bfcfd49bed9bac2fd7d15cde5321563
+  languageName: node
+  linkType: hard
+
 "babel-jest@npm:^29.7.0":
   version: 29.7.0
   resolution: "babel-jest@npm:29.7.0"
@@ -2321,6 +2346,13 @@ __metadata:
   version: 3.1.2
   resolution: "bytes@npm:3.1.2"
   checksum: 10c0/76d1c43cbd602794ad8ad2ae94095cddeb1de78c5dddaa7005c51af10b0176c69971a6d88e805a90c2b6550d76636e43c40d8427a808b8645ede885de4a0358e
+  languageName: node
+  linkType: hard
+
+"bytestreamjs@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "bytestreamjs@npm:3.0.0"
+  checksum: 10c0/61af0f7cc964d3d5ba664e72a0abf0f3d10fdbb1f45a9cc618f0f93c68a00dd881e09cabe85a9e8da7cd4b0e4c584b2cb657d956c94b7800bc981c503d419d97
   languageName: node
   linkType: hard
 
@@ -5782,6 +5814,19 @@ __metadata:
   dependencies:
     find-up: "npm:^4.0.0"
   checksum: 10c0/c56bda7769e04907a88423feb320babaed0711af8c436ce3e56763ab1021ba107c7b0cafb11cde7529f669cfc22bffcaebffb573645cbd63842ea9fb17cd7728
+  languageName: node
+  linkType: hard
+
+"pkijs@npm:^4.0.1":
+  version: 4.0.1
+  resolution: "pkijs@npm:4.0.1"
+  dependencies:
+    "@noble/hashes": "npm:^2.4.0"
+    "@peculiar/utils": "npm:^4.1.0"
+    bytestreamjs: "npm:^3.0.0"
+  peerDependencies:
+    asn1js: ^4.0.0
+  checksum: 10c0/818a44ac45e056bd690b981bd9bb1fe1fc96d297f3b3b2624e24c505fe0bcd86421d3123bb631ef1591ce344be8c8f7b478b034c0cc3a04ad3ae2bcc7447a7fd
   languageName: node
   linkType: hard
 

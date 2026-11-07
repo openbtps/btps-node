@@ -121,4 +121,30 @@ describe('an evidence bundle', () => {
     expect(text).toContain('in order yes');
     expect(text.split('\n').at(-1)).toBe(`${'complete'.padEnd(27)}NO`);
   });
+
+  it("reads a statement's timestamp too, saying when no roots were given to trust it", async () => {
+    const { agreement, statements } = await signed();
+    const bundle = buildEvidenceBundle({ originator: BANK, agreement, statements }, keyOf);
+    const facts = await verifyEvidenceBundle(bundle);
+    const [first, ...rest] = facts.statements;
+    const stamped = {
+      ...facts,
+      statements: [
+        {
+          ...first!,
+          timestamp: {
+            imprintMatches: true,
+            signatureValid: true,
+            time: '2026-11-02T00:05:00.000Z',
+            authority: 'CN=Test TSA',
+            timestampingKeyUsage: true,
+          },
+        },
+        ...rest,
+      ],
+    };
+    expect(describeEvidenceFacts(stamped)).toContain(
+      "timestamped 2026-11-02T00:05:00.000Z by CN=Test TSA: over this statement yes, signed yes, an authority's certificate yes, trusted no roots given",
+    );
+  });
 });

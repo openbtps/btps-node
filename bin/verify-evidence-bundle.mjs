@@ -11,27 +11,39 @@
  * no provider and no network, and print what it shows. It reports facts,
  * never a verdict.
  *
- *   npx -p @btps/sdk btps-verify-evidence <bundle.json> [--json]
+ *   npx -p @btps/sdk btps-verify-evidence <bundle.json> [--json] [--timestamp-root <ca.pem>]...
  *
- *   --json   print the facts as JSON instead of text
+ *   --json                    print the facts as JSON instead of text
+ *   --timestamp-root <file>   a PEM certificate whose timestamps you trust; repeat for more
  *
  * Exit codes: 0 the agreement is complete, 1 it is not (see the facts),
- * 2 the file could not be read or is not an evidence bundle.
+ * 2 the file could not be read or is not an evidence bundle. A timestamp is
+ * reported and never changes the exit code.
  */
 
 import fs from 'node:fs';
 import { describeEvidenceFacts, verifyEvidenceBundle } from '@btps/sdk/trust';
 
 const args = process.argv.slice(2);
-const file = args.find((arg) => !arg.startsWith('--'));
-if (!file) {
-  console.error('usage: btps-verify-evidence <bundle.json> [--json]');
+const roots = [];
+const rest = [];
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--timestamp-root') roots.push(args[++i]);
+  else rest.push(args[i]);
+}
+const file = rest.find((arg) => !arg.startsWith('--'));
+if (!file || roots.includes(undefined)) {
+  console.error(
+    'usage: btps-verify-evidence <bundle.json> [--json] [--timestamp-root <ca.pem>]...',
+  );
   process.exit(2);
 }
 
 let facts;
 try {
-  facts = await verifyEvidenceBundle(JSON.parse(fs.readFileSync(file, 'utf8')));
+  const bundle = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const trustedTimestampRoots = roots.map((root) => fs.readFileSync(root, 'utf8'));
+  facts = await verifyEvidenceBundle(bundle, roots.length ? { trustedTimestampRoots } : {});
 } catch (error) {
   const cause = error?.cause ? `: ${error.cause}` : '';
   console.error(`${file}: ${error?.message ?? error}${cause}`);
