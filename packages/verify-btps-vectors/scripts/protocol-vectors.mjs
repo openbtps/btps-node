@@ -1611,6 +1611,74 @@ export function sync() {
   };
 }
 
+/** BTPS 1.2 server responses: how long a 429 asks its sender to wait. */
+export function responses() {
+  const response = (name, status, expect, why, version = V12) => ({
+    name,
+    response: {
+      version,
+      status: { ok: false, ...status },
+      id: '7b2e4f60-1c3d-4e5f-8a9b-0c1d2e3f4a5b',
+      issuedAt: ISSUED_AT,
+      type: 'btps_error',
+      reqId: 'req-1',
+    },
+    expect,
+    ...(why && { why }),
+  });
+  const limited = {
+    code: 429,
+    message: 'Too many details requests on this trust. Ask again later',
+    error: 'BTP_ERROR_DETAILS_RATE_LIMITED',
+  };
+  return {
+    description:
+      "BTPS 1.2 server responses. A response's `status` is `{ ok, code, message?, error? }`, and since 1.2 a 429 may also carry `retryAfter`: the whole seconds, zero or more, its sender should wait before sending again. `retryAfter` is only on a 429, and only in a `1.2.0` response. A 429 without it says nothing about when, and its sender waits as it chooses.",
+    cases: [
+      response('retry-after', { ...limited, retryAfter: 90 }, 'accept'),
+      response('retry-after-zero', { ...limited, retryAfter: 0 }, 'accept'),
+      response('a-429-without-retry-after', limited, 'accept'),
+      response('a-429-without-retry-after-under-1-1', limited, 'accept', undefined, V11),
+      response(
+        'retry-after-in-part-seconds',
+        { ...limited, retryAfter: 1.5 },
+        'refuse',
+        'retryAfter is whole seconds',
+      ),
+      response(
+        'retry-after-below-zero',
+        { ...limited, retryAfter: -1 },
+        'refuse',
+        'retryAfter is zero or more',
+      ),
+      response(
+        'retry-after-as-a-date',
+        { ...limited, retryAfter: '2026-10-19T00:01:30.000Z' },
+        'refuse',
+        'retryAfter is a number of seconds, never a date',
+      ),
+      response(
+        'retry-after-on-a-400',
+        {
+          code: 400,
+          message: 'Artifact does not use the encryption its trust requires',
+          error: 'BTP_ERROR_PRIVACY_TYPE',
+          retryAfter: 90,
+        },
+        'refuse',
+        'retryAfter is only on a 429',
+      ),
+      response(
+        'retry-after-under-1-1',
+        { ...limited, retryAfter: 90 },
+        'refuse',
+        'retryAfter is only in a 1.2.0 response',
+        V11,
+      ),
+    ],
+  };
+}
+
 // The two parties of the trust in the trust permission and details vectors.
 const VENDOR = 'billing$vendor.example';
 const CLIENT = 'pay$client.example';

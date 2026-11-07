@@ -142,6 +142,35 @@ describe('BtpServerResponseSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  describe("a 429's retryAfter, since 1.2", () => {
+    const limited = (status: object, version = '1.2.0') =>
+      validate(BtpServerResponseSchema, {
+        version,
+        status: { ok: false, code: 429, message: 'Too many requests', ...status },
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        issuedAt: '2025-01-01T00:00:00.000Z',
+        type: 'btps_error',
+      }).success;
+
+    it('is whole seconds, zero or more', () => {
+      expect(limited({ retryAfter: 30 })).toBe(true);
+      expect(limited({ retryAfter: 0 })).toBe(true);
+      expect(limited({})).toBe(true);
+      expect(limited({ retryAfter: 1.5 })).toBe(false);
+      expect(limited({ retryAfter: -1 })).toBe(false);
+      expect(limited({ retryAfter: '30' })).toBe(false);
+    });
+
+    it('is only on a 429', () => {
+      expect(limited({ code: 400, retryAfter: 30 })).toBe(false);
+    });
+
+    it('is only in a 1.2.0 response', () => {
+      expect(limited({ retryAfter: 30 }, '1.1.0')).toBe(false);
+      expect(limited({}, '1.1.0')).toBe(true);
+    });
+  });
+
   describe('a trust.fetch answer listing trust records', () => {
     const trustRecord = {
       id: 'fb275f18c0d1',

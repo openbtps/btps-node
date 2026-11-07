@@ -230,6 +230,8 @@ export type BTPStatus = {
   message?: string;
   /** On an error, its BTPS code, e.g. 'BTP_ERROR_TRUST_EXPIRED' */
   error?: string;
+  /** Since 1.2, on a 429 only: whole seconds to wait before sending again */
+  retryAfter?: number;
 };
 
 export interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFailureArtifact> {

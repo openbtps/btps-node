@@ -130,7 +130,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   its receiver sent, naming only what it asked (`BTP_ERROR_PERMISSION`;
   through the trust store's new, optional `getArtifact`, else only
   `isKnownArtifact`), and the provider's own limit (`allowDetailsRequest`,
-  `BTP_ERROR_DETAILS_RATE_LIMITED`, with `retryAfter`). A request that passes
+  `BTP_ERROR_DETAILS_RATE_LIMITED`, with `status.retryAfter`). A request that passes
   is told to `server.on('detailsRequested', …)`. `decryptVerify` refuses an
   opened response whose values do not match its names (`detailsProblem`).
   `JsonTrustStore` keeps no artifacts, so its `getArtifact` answers
@@ -222,6 +222,11 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   is for, `verify` or `encrypt`. Without it, every lookup is as before.
   `createDefaultKeyResolver` is that lookup, to wrap.
 - `yarn bench`: what a server spends on one arriving artifact, step by step.
+- **A 429 can say how long to wait.** `status.retryAfter`, in a `1.2.0`
+  response and on a 429 only, is the whole seconds a sender should wait before
+  sending again. A server sends it from an error's `meta.retryAfter`, for its
+  own refusals and middleware's `res.sendError` alike; nothing else from
+  `meta` reaches the wire, and `cause` never does.
 
 ### Changed
 

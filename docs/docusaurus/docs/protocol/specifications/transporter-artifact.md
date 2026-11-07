@@ -260,7 +260,7 @@ Every step is its own artifact, delivered like any other, so a platform may queu
 
 - a notice or a response names only details the receiver holds of the sender, and a request only details the answerer shares (`BTP_ERROR_DETAILS_NOT_HELD`); a trust without permissions holds none;
 - a response answers a `DETAILS_REQ` its receiver sent to its sender, and names only what that request asked for (`BTP_ERROR_PERMISSION`). The server reads the request through the trust store's optional `getArtifact`; with a store that lacks it, it checks only that the request is known (`isKnownArtifact`), warns once at start, and the names are the platform's to check (`detailsProblem`);
-- a request is within the provider's own limit, if it sets one (`allowDetailsRequest`); over it, the request is refused with `BTP_ERROR_DETAILS_RATE_LIMITED`, whose `meta.retryAfter` says when to ask again. The protocol sets no limit.
+- a request is within the provider's own limit, if it sets one (`allowDetailsRequest`); over it, the request is refused with `BTP_ERROR_DETAILS_RATE_LIMITED`, whose `status.retryAfter` says how many seconds to wait before asking again. The protocol sets no limit.
 
 A request that passes is told to the server's `detailsRequested` listeners: `{ from, to, names, at }`.
 
