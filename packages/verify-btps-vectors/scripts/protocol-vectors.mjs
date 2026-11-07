@@ -1020,14 +1020,14 @@ function signatureValueCases(template, v12) {
       'invoice-template-with-values',
       'BTPS_DOC',
       { ...base.invoice, template: template({ values }) },
-      'values are only on a letter template',
+      "values are only on a letter's or an agreement's template",
       v12,
     ),
     refuse(
       'payslip-template-with-values',
       'BTPS_DOC',
       { ...base.payslip, template: template({ values }) },
-      'values are only on a letter template',
+      "values are only on a letter's or an agreement's template",
       v12,
     ),
   ];
