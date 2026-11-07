@@ -23,4 +23,7 @@ export * from './btpsSimpleMetricsTracker.js';
 export * from './btpsSimpleRateLimiter.js';
 export * from './defaultMiddleware.js';
 export * from './agreementOrderCheck.js';
+export * from './eventChainCheck.js';
+export * from './detailsResponseCheck.js';
+export * from './detailsRequestLimit.js';
 export * from './type.js';
