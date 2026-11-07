@@ -24,7 +24,14 @@ import { keyProofPayload } from '../../core/authentication/keyProof.js';
 import { generateKeyPairSync } from 'crypto';
 import path from 'path';
 import fs from 'fs/promises';
-import type { BTPRequestCtx, BTPResponseCtx, ProcessedArtifact, BtpsTlsOptions } from '../types.js';
+import type {
+  BTPRequestCtx,
+  BTPResponseCtx,
+  MiddlewareDefinition,
+  ProcessedArtifact,
+  BtpsTlsOptions,
+} from '../types.js';
+import { detailsRequestLimit } from '../libs/detailsRequestLimit.js';
 import {
   BTPAgentArtifact,
   BTPAttestation,
@@ -53,6 +60,8 @@ import {
   BTP_ERROR_PRIVACY_TYPE,
   BTP_ERROR_VERSION_UNSUPPORTED,
   BTP_ERROR_SYNC_NOT_ALLOWED,
+  BTP_ERROR_DETAILS_RATE_LIMITED,
+  type BTPError,
 } from '../../core/error/index.js';
 import { PassThrough } from 'stream';
 import net from 'net';
@@ -2113,6 +2122,31 @@ export default function () {
         });
       });
 
+      it("tells a 429's sender how long to wait, from its meta.retryAfter and nothing else", () => {
+        const error = new BTPErrorException(BTP_ERROR_RATE_LIMITER, {
+          meta: { retryAfter: 30, limit: 100 },
+          cause: new Error('bucket full'),
+        });
+        expect(server['wireStatus'](error)).toEqual({
+          ok: false,
+          code: 429,
+          message: BTP_ERROR_RATE_LIMITER.message,
+          error: BTP_ERROR_RATE_LIMITER.code,
+          retryAfter: 30,
+        });
+      });
+
+      it('sends retryAfter only on a 429, and only as whole seconds', () => {
+        const wait = (error: BTPError, retryAfter: unknown) =>
+          server['wireStatus'](new BTPErrorException(error, { meta: { retryAfter } })).retryAfter;
+        expect(wait(BTP_ERROR_PRIVACY_TYPE, 30)).toBeUndefined();
+        expect(wait({ code: 429, message: 'Slow down' }, 30)).toBe(30);
+        expect(wait(BTP_ERROR_RATE_LIMITER, '2026-12-01T00:00:00.000Z')).toBeUndefined();
+        expect(wait(BTP_ERROR_RATE_LIMITER, 1.5)).toBeUndefined();
+        expect(wait(BTP_ERROR_RATE_LIMITER, -1)).toBeUndefined();
+        expect(wait(BTP_ERROR_RATE_LIMITER, 0)).toBe(0);
+      });
+
       it('sends a numeric code set by middleware as given', () => {
         expect(server['wireStatus']({ code: 402, message: 'Payment required' })).toEqual({
           ok: false,
@@ -2343,13 +2377,7 @@ export default function () {
 
         beforeEach(() => {
           trustStore.getById = vi.fn(async (id: string) => records.get(id) as BTPTrustRecord);
-          trustStore.getArtifact = vi.fn(async () => ({
-            id: 'req-1',
-            type: 'DETAILS_REQ',
-            from: biller,
-            to: user,
-            details: ['detail:address'],
-          }));
+          trustStore.isKnownArtifact = vi.fn(async () => true);
         });
 
         it('takes a notice of a detail the user shares, before it goes', async () => {
@@ -2366,35 +2394,41 @@ export default function () {
           expect(result.error?.code).toBe('BTP_ERROR_DETAILS_NOT_HELD');
         });
 
-        it('takes a response to a request the user received, and tells its listeners', async () => {
-          const shared = vi.fn();
-          server.on('detailsShared', shared);
+        it('takes a response to a request the user received', async () => {
           const result = await server['verifyAgentTrust'](
             send('details.respond', 'DETAILS_RES', ['detail:address']),
           );
           expect(result.isTrusted).toBe(true);
+          expect(trustStore.isKnownArtifact).toHaveBeenCalledWith({
+            artifactId: 'req-1',
+            from: biller,
+            to: user,
+          });
+        });
+
+        it('refuses a response to a request the user never received', async () => {
+          trustStore.isKnownArtifact = vi.fn(async () => false);
+          const result = await server['verifyAgentTrust'](
+            send('details.respond', 'DETAILS_RES', ['detail:address']),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+        });
+
+        it('tells its listeners of a response only once it has passed every check', () => {
+          const shared = vi.fn();
+          server.on('detailsShared', shared);
+          server['tellDetails']({
+            type: 'agent',
+            artifact: send('details.respond', 'DETAILS_RES', ['detail:address']),
+          } as ProcessedArtifact);
+          server['tellDetails']({
+            type: 'agent',
+            artifact: send('details.changed', 'DETAILS_CHANGED', ['detail:address']),
+          } as ProcessedArtifact);
+          expect(shared).toHaveBeenCalledTimes(1);
           expect(shared).toHaveBeenCalledWith(
             expect.objectContaining({ from: user, to: biller, names: ['detail:address'] }),
           );
-        });
-
-        it('refuses a response naming what the request did not ask for', async () => {
-          records.set(computeTrustId(biller, user), {
-            ...(records.get(computeTrustId(biller, user)) as object),
-            permissions: {
-              requested: [],
-              granted: [],
-              detailsHeld: [],
-              detailsShared: ['detail:address', 'detail:phone'],
-            },
-          });
-          const shared = vi.fn();
-          server.on('detailsShared', shared);
-          const result = await server['verifyAgentTrust'](
-            send('details.respond', 'DETAILS_RES', ['detail:address', 'detail:phone']),
-          );
-          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
-          expect(shared).not.toHaveBeenCalled();
         });
       });
     });
@@ -2687,83 +2721,30 @@ export default function () {
           expect(result.error?.code).toBe('BTP_ERROR_DETAILS_NOT_HELD');
         });
 
-        it('tells its listeners when a request arrives and passes its checks', async () => {
-          storeHolding(holding([], ['detail:email']));
+        it('tells its listeners of a request only once it has passed every check', () => {
           const requested = vi.fn();
           server.on('detailsRequested', requested);
-          const result = await server['verifyTrust'](
-            details('DETAILS_REQ', payer, biller, ['detail:email']),
-          );
-          expect(result.isTrusted).toBe(true);
+          server['tellDetails'](details('DETAILS_REQ', payer, biller, ['detail:email']));
+          server['tellDetails'](details('DETAILS_CHANGED', payer, biller, ['detail:email']));
+          expect(requested).toHaveBeenCalledTimes(1);
           expect(requested).toHaveBeenCalledWith(
             expect.objectContaining({ from: payer, to: biller, names: ['detail:email'] }),
           );
         });
 
-        it("refuses a request over the provider's limit, saying when to ask again", async () => {
-          const limited = new BtpsServer({
-            trustStore,
-            serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
-            tlsOptions: { key: 'test-key', cert: 'test-cert' },
-            allowDetailsRequest: () => ({ retryAfter: '2026-12-01T00:00:00.000Z' }),
-          });
-          storeHolding(holding([], ['detail:email']));
-          const result = await limited['verifyTrust'](
-            details('DETAILS_REQ', payer, biller, ['detail:email']),
-          );
-          expect(result.error?.code).toBe('BTP_ERROR_DETAILS_RATE_LIMITED');
-          expect(result.error?.meta).toEqual({ retryAfter: '2026-12-01T00:00:00.000Z' });
-        });
-
-        it("never counts a request refused for its privacy type against the provider's limit", async () => {
-          const allowDetailsRequest = vi.fn(() => true as const);
-          const limited = new BtpsServer({
-            trustStore,
-            serverIdentity: { identity: 'test', publicKey: 'test', privateKey: 'test' },
-            tlsOptions: { key: 'test-key', cert: 'test-cert' },
-            allowDetailsRequest,
-          });
-          storeHolding({ ...holding([], ['detail:email']), privacyType: 'encrypted' });
-          const result = await limited['verifyTrust'](
-            details('DETAILS_REQ', payer, biller, ['detail:email']),
-          );
-          expect(result.error?.code).toBe('BTP_ERROR_PRIVACY_TYPE');
-          expect(allowDetailsRequest).not.toHaveBeenCalled();
-        });
-
-        it('takes a response to a request its receiver sent, naming only what it asked', async () => {
+        it('takes a response to a request it knows, leaving its names to the platform', async () => {
           storeHolding(holding(['detail:address'], []));
-          trustStore.getArtifact = vi.fn(async () => ({
-            id: 'req-1',
-            type: 'DETAILS_REQ',
-            from: biller,
-            to: payer,
-            details: ['detail:address'],
-          }));
+          const known = vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(true);
           const result = await server['verifyTrust'](
             details('DETAILS_RES', payer, biller, ['detail:address'], 'req-1'),
           );
           expect(result.isTrusted).toBe(true);
+          expect(known).toHaveBeenCalledWith({ artifactId: 'req-1', from: biller, to: payer });
         });
 
-        it('refuses a response naming what its request did not ask for', async () => {
-          storeHolding(holding(['detail:address', 'detail:email'], []));
-          trustStore.getArtifact = vi.fn(async () => ({
-            id: 'req-1',
-            type: 'DETAILS_REQ',
-            from: biller,
-            to: payer,
-            details: ['detail:address'],
-          }));
-          const result = await server['verifyTrust'](
-            details('DETAILS_RES', payer, biller, ['detail:address', 'detail:email'], 'req-1'),
-          );
-          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
-        });
-
-        it('falls back to isKnownArtifact for a store without getArtifact', async () => {
+        it('refuses a response to a request it does not know: BTP_ERROR_PERMISSION', async () => {
           storeHolding(holding(['detail:address'], []));
-          trustStore.getArtifact = undefined;
+          vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(false);
           const result = await server['verifyTrust'](
             details('DETAILS_RES', payer, biller, ['detail:address'], 'req-1'),
           );
@@ -3060,6 +3041,42 @@ export default function () {
             code: 400,
             message: `${BTP_ERROR_PRIVACY_TYPE.message}: encrypted`,
             error: BTP_ERROR_PRIVACY_TYPE.code,
+          });
+        });
+
+        it("tells a sender over the provider's details limit so, and when to ask again", async () => {
+          const allow = vi.fn(() => ({ retryAfter: 90 }));
+          server['middlewareManager']['middleware'] = [
+            detailsRequestLimit(allow),
+          ] as MiddlewareDefinition[];
+          server['verifyTrust'] = vi.fn(async () => ({ isTrusted: true }));
+          const socket = buildMockSocket();
+          const request = {
+            ...transporterArtifact(),
+            version: '1.2.0',
+            type: 'DETAILS_REQ',
+            details: ['detail:email'],
+          } as BTPTransporterArtifact;
+          const { reqCtx, resCtx } = buildPipelineCtx(socket, request);
+          resCtx.sendError = (error) => {
+            resCtx.responseSent = true;
+            server['sendBtpsError'](socket, error, resCtx.reqId);
+          };
+
+          await server['executeRequestPipeline'](reqCtx, resCtx);
+
+          expect(allow).toHaveBeenCalledWith({
+            from: request.from,
+            to: request.to,
+            names: ['detail:email'],
+          });
+
+          expect(writtenPayload(socket).status).toEqual({
+            ok: false,
+            code: 429,
+            message: BTP_ERROR_DETAILS_RATE_LIMITED.message,
+            error: BTP_ERROR_DETAILS_RATE_LIMITED.code,
+            retryAfter: 90,
           });
         });
 

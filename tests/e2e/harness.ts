@@ -130,7 +130,7 @@ class PlatformTrustStore extends JsonTrustStore {
     return query !== undefined && (await this.getArtifact(query)) !== undefined;
   }
 
-  override async getArtifact(query?: { artifactId: string; from: string; to: string }) {
+  async getArtifact(query?: { artifactId: string; from: string; to: string }) {
     if (!query) return undefined;
     const { artifactId, from, to } = query;
     return (

@@ -86,6 +86,7 @@ The status field provides information about the response:
 
 - **message**: Human-readable status message
 - **error**: On an error, its BTPS code, for example `BTP_ERROR_TRUST_EXPIRED`. Branch on this, not on `message`. A 1.0 server does not send it.
+- **retryAfter**: Since 1.2, on a `429` only, in a `1.2.0` response only: the whole seconds, zero or more, to wait before sending again. Without it, a 429 says nothing about when.
 
 ### Status Codes
 
@@ -100,7 +101,7 @@ The code tells a sender whether to send the same artifact again:
 | **404** | Not Found: identity lookup found no identity                                                                                                                                   | No                            |
 | **408** | The connection timed out                                                                                                                                                       | Yes                           |
 | **413** | Artifact over the server's size limit                                                                                                                                          | No; split it across documents |
-| **429** | Too Many Requests: rate limit exceeded                                                                                                                                         | Yes, later                    |
+| **429** | Too Many Requests: rate limit exceeded                                                                                                                                         | Yes, later; see `retryAfter`  |
 | **500** | Internal Server Error, including a receiving handler that failed                                                                                                               | Yes, later                    |
 | **503** | Service Unavailable: the server accepts no artifact of this kind, or it is briefly unable to take one (`BTP_ERROR_TEMPORARILY_UNAVAILABLE`)                                    | Yes, later                    |
 

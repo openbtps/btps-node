@@ -32,11 +32,6 @@ interface BtpsServerOptions {
   middlewarePath?: string;
   maxArtifactSizeKb?: number;
   maxArtifactAgeSeconds?: number;
-  allowDetailsRequest?: (request: {
-    from: string;
-    to: string;
-    names: string[];
-  }) => true | { retryAfter: string } | Promise<true | { retryAfter: string }>; // since 1.2
 }
 ```
 
@@ -54,9 +49,10 @@ interface BtpsServerOptions {
 - `middlewarePath`: Optional path to middleware file
 - `maxArtifactSizeKb`: Optional largest artifact the server can accept, in KB, where 1 KB is 1024 bytes (default: 5120, that is 5 MB). An artifact over it is refused before it is read in full, with the limit in the error message, and the connection is closed. The minimum is 1024 (1 MB): a smaller value logs a warning and 1024 is used, and a value that is not a size logs a warning and the default is used. There is no maximum.
 - `maxArtifactAgeSeconds`: Optional time window, in seconds: how far a signed artifact's `issuedAt` may be from the server's clock, either way (default: 300, that is 5 minutes). An artifact outside it is refused after its signature is checked, with the window in the error message, and the connection stays open. The minimum is 60: a smaller value logs a warning and 60 is used, and a value that is not a time logs a warning and the default is used. There is no maximum. Within the window the same artifact can arrive more than once, so a platform treats `(from, id)` as unique.
-- `allowDetailsRequest`: Optional, since 1.2. The provider's own limit on details requests, for example requests per trust per month. Asked on each `DETAILS_REQ` that passes its other checks: `true` takes it, `{ retryAfter }` (ISO 8601) refuses it with `BTP_ERROR_DETAILS_RATE_LIMITED`, `retryAfter` in the error's `meta`. Without it, no limit: the protocol sets none. See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)
 
-Since 1.2, `server.on('detailsRequested', listener)` tells a listener each time a details request arrives and passes its checks, and `server.on('detailsShared', listener)` each time one of this provider's devices sends a details response that passes them: `{ from, to, names, at }`. A listener that throws is warned about and never stops the others; `server.off` removes one.
+The provider's own limit on details requests is middleware, since 1.2: `detailsRequestLimit` (see [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)).
+
+Since 1.2, `server.on('detailsRequested', listener)` tells a listener each time a details request arrives and passes every check, the platform's middleware included, and `server.on('detailsShared', listener)` each time one of this provider's devices sends a details response that passes them: `{ from, to, names, at }`. A listener that throws is warned about and never stops the others; `server.off` removes one.
 
 ---
 
@@ -892,7 +888,7 @@ interface BTPLifecycleEvent {
 
 ### BTPEventFacts
 
-Since 1.2. What a platform holds of a lifecycle event between two parties, as an `AbstractTrustStore`'s optional `getEvent` answers it.
+Since 1.2. What a platform holds of a lifecycle event between two parties, as the `getEvent` it gives `eventChainCheck` answers it.
 
 ```ts
 type BTPEventFacts = {
@@ -1702,6 +1698,7 @@ interface BTPStatus {
   code: number; // 4xx: do not resend as is; 429 and 5xx: resend later
   message?: string;
   error?: string; // on an error, its BTPS code, e.g. 'BTP_ERROR_TRUST_EXPIRED'
+  retryAfter?: number; // since 1.2, on a 429 only: whole seconds to wait before sending again
 }
 ```
 

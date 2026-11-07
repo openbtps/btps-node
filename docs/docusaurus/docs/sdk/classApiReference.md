@@ -1550,7 +1550,7 @@ const filtered = await store.getAll('receiver-id');
 await store.isKnownArtifact({ artifactId, from, to });
 ```
 
-Answer whether an artifact with this id passed between these two identities, in either direction. The server asks this for every `BTPS_EVENT`, using the event's `relatesTo`, and refuses the event unless the answer is `true` (`BTP_ERROR_EVENT_UNRELATED` in the server's context, `BTP_ERROR_TRUST_NOT_ALLOWED` on the wire). Only the platform knows which artifacts it delivered, so every trust store must implement it. A store that always answers `false` accepts no events (see [Lifecycle Event](../protocol/specifications/transporter-artifact.md#4-lifecycle-event-btps_event)).
+Answer whether an artifact with this id passed between these two identities, in either direction. The server asks this for every `BTPS_EVENT`, using the event's `relatesTo`, and refuses the event unless the answer is `true` (`BTP_ERROR_EVENT_UNRELATED` in the server's context, `BTP_ERROR_TRUST_NOT_ALLOWED` on the wire). Only the platform knows which artifacts it delivered, so every trust store must implement it. A store that always answers `false` accepts no events (see [Lifecycle Event](../protocol/specifications/transporter-artifact.md#4-lifecycle-event-btps_event)). Since 1.2, the server asks it the same for every `DETAILS_RES`, using the response's `relatesTo` with `from` and `to` as the request's, and refuses with `BTP_ERROR_PERMISSION` a response to a request it does not know (see [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)).
 
 - **artifactId**: `string` – the event's `relatesTo`: the `id` of the `BTPS_DOC` artifact that delivered the invoice
 - **from**: `string` – the event's sender
@@ -1571,47 +1571,6 @@ async isKnownArtifact({ artifactId, from, to }) {
   return count > 0;
 }
 ```
-
-### getEvent
-
-```ts
-await store.getEvent?.({ id, from, to });
-```
-
-Optional, since 1.2. What the platform holds of the lifecycle event with this `id` between these two identities, in either direction, or `undefined` when it holds none. With it, the server checks an unencrypted `withdrawn` (it takes back the payer's own open proposal, about the same invoice) and a proposal's `follows` (it names a `withdrawn` about the same invoice), and refuses one that breaks the rule with `BTP_ERROR_EVENT_CHAIN`. A `withdrawn` or `follows` from the invoice's issuer is refused without asking the store. Without it, the server warns once at start and the platform checks them, with `lifecycleEventChainProblem` from `@btps/sdk/server`, as it does for an encrypted event once opened.
-
-- **id**: `string` – the earlier event the new one names: a `withdrawn`'s `inReplyTo`, or a proposal's `follows`
-- **from**, **to**: `string` – the new event's sender and receiver
-- **Returns**: `Promise<BTPEventFacts | undefined>`: `{ eventType, from, state, document }`, where `from` is who sent that event, `state` is `open` (a proposal not yet answered or withdrawn), `answered` or `withdrawn`, and `document` is `{ from, id }` of the invoice that event is about
-
-**Example:**
-
-```js
-async getEvent({ id, from, to }) {
-  const event = await this.events.findOne({
-    id,
-    $or: [
-      { from, to },
-      { from: to, to: from },
-    ],
-  });
-  if (!event) return undefined;
-  const { eventType, from: sender, state, document } = event;
-  return { eventType, from: sender, state, document: { from: document.from, id: document.id } };
-}
-```
-
-### getArtifact
-
-```ts
-await store.getArtifact?.({ artifactId, from, to });
-```
-
-Optional, since 1.2. The envelope of the artifact with this id that passed between these two identities, in either direction, as the platform recorded it, or `undefined` when it holds none. With it, the server checks that a `DETAILS_RES` answers a `DETAILS_REQ` its receiver sent to that sender, and names only what that request asked for (see [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)). Without it, the server checks only that the request is known (`isKnownArtifact`), warns once at start, and the platform checks the names with `detailsProblem` from `@btps/sdk/trust`. `JsonTrustStore` keeps no artifacts, so its `getArtifact` answers `undefined`: a server using it as is takes no `DETAILS_RES`, as it takes no `BTPS_EVENT`, until the store is extended to answer from the platform's own records.
-
-- **artifactId**: `string` – the response's `relatesTo`
-- **from**, **to**: `string` – the two identities
-- **Returns**: `Promise<BTPDetailsEnvelope | undefined>`: `{ type, id, from, to, details }`
 
 ---
 

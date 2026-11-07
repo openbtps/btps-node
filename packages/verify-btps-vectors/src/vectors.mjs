@@ -26,6 +26,7 @@ export const VECTOR_FILES = Object.freeze({
   documents12: 'documents-1.2.vectors.json',
   eventChain: 'event-chain.vectors.json',
   sync: 'sync.vectors.json',
+  responses: 'responses.vectors.json',
   trustPermissions: 'trust-permissions.vectors.json',
   details: 'details.vectors.json',
   agreements: 'agreements.vectors.json',
@@ -139,6 +140,10 @@ export function loadVectorSet(dir) {
   }
   for (const c of set.sync.delivery) {
     requireFields(VECTOR_FILES.sync, c, ['name', 'entry', 'expect']);
+  }
+  requireFields(VECTOR_FILES.responses, set.responses, ['cases']);
+  for (const c of set.responses.cases) {
+    requireFields(VECTOR_FILES.responses, c, ['name', 'response', 'expect']);
   }
   const permissionCases = {
     envelopes: [],

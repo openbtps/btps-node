@@ -99,15 +99,10 @@ export class MongoTrustStoreService extends AbstractTrustStore<BTPTrustRecord> {
     }
   }
 
-  // This example does not keep delivered artifacts, so it accepts no events.
-  // A platform answers from its own artifact records here.
+  // This example does not keep delivered artifacts, so it accepts no events
+  // and no details responses. A platform answers from its own artifact records here.
   async isKnownArtifact(): Promise<boolean> {
     return false;
-  }
-
-  // For the same reason it holds no artifact's envelope, so it takes no details responses.
-  async getArtifact(): Promise<undefined> {
-    return undefined;
   }
 
   private mapToBTPTrustRecord(record: TrustRecordDocument): BTPTrustRecord {

@@ -14,7 +14,6 @@ import {
   validateTrustResponse,
   documentTypeRefusal,
   detailsNamesRefusal,
-  detailsRequestRefusal,
 } from '@core/trust/index.js';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
@@ -35,7 +34,6 @@ import {
   BTP_ERROR_UNKNOWN,
   BTP_ERROR_INVALID_ACTION,
   BTP_ERROR_EVENT_UNRELATED,
-  BTP_ERROR_EVENT_CHAIN,
   BTP_ERROR_KEY_ROTATION_PROOF,
   BTP_ERROR_AGENT_ID,
   BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
@@ -43,7 +41,6 @@ import {
   BTP_ERROR_VERSION_UNSUPPORTED,
   BTP_ERROR_SYNC_NOT_ALLOWED,
   BTP_ERROR_PERMISSION,
-  BTP_ERROR_DETAILS_RATE_LIMITED,
 } from '@core/error/constant.js';
 import {
   assertStrictJson,
@@ -114,15 +111,7 @@ import { resolveConnectionTimeoutMs } from './libs/connectionTimeout.js';
 import { resolveMaxInFlightPerConnection } from './libs/inFlightLimit.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
-import {
-  BtpAuthReqDocSchema,
-  BtpLifecycleEventSchema,
-} from '@core/server/schemas/btpsDocsSchema.js';
-import {
-  lifecycleEventChainProblem,
-  lifecycleEventChainReference,
-  lifecycleEventSenderProblem,
-} from '@core/server/schemas/helpers.js';
+import { BtpAuthReqDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import { keyProofPayload } from '@core/authentication/keyProof.js';
 import type { BTPIdentityRecord } from '@core/storage/types.js';
 import type { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
@@ -144,7 +133,6 @@ export class BtpsServer {
   private readonly maxArtifactAgeSeconds: number;
   private readonly signAnswers: boolean;
   private readonly keyResolver?: BtpsKeyResolver;
-  private readonly allowDetailsRequest?: BtpsServerOptions['allowDetailsRequest'];
   /** Since 1.2: what `on(…)` tells its listeners, apart from the artifact handlers. */
   private readonly events = new EventEmitter();
   /** With signAnswers: each connection's last answer, which the next waits for. */
@@ -178,7 +166,6 @@ export class BtpsServer {
     this.maxArtifactAgeSeconds = resolveMaxArtifactAgeSeconds(options.maxArtifactAgeSeconds);
     this.signAnswers = options.signAnswers === true;
     this.keyResolver = options.keyResolver;
-    this.allowDetailsRequest = options.allowDetailsRequest;
     // Signing every answer is asked for, and without a selector no device could check one.
     if (this.signAnswers && !options.serverIdentity.selector) {
       throw new BTPErrorException({
@@ -714,18 +701,18 @@ export class BtpsServer {
       // wire only distinguishes expired from everything else, so an
       // un-upgraded 1.0 peer still just sees "not allowed" for a revoked or
       // never-trusted sender. A sender with an active trust is also told when
-      // it did not encrypt as that trust requires, or when an event's chain
-      // is wrong: both concern only what the sender itself sent.
+      // it did not encrypt as that trust requires: that concerns only what
+      // the sender itself sent.
       const refusal = reqCtx.error;
-      const toldExactly = [BTP_ERROR_PRIVACY_TYPE.code, BTP_ERROR_EVENT_CHAIN.code];
       const wireError =
         refusal?.code === BTP_ERROR_TRUST_EXPIRED.code
           ? BTP_ERROR_TRUST_EXPIRED
-          : refusal && toldExactly.includes(refusal.code)
+          : refusal && refusal.code === BTP_ERROR_PRIVACY_TYPE.code
             ? refusal
             : BTP_ERROR_TRUST_NOT_ALLOWED;
       return this.sendBtpsError(resCtx.socket, wireError, resCtx.reqId);
     }
+    this.tellDetails(data);
 
     // Execute before onArtifact middleware
     const beforeOnArtifactResponseSent = await this.executeMiddleware(
@@ -1008,7 +995,7 @@ export class BtpsServer {
   private async verifyDetailsSend(
     carried: BTPTransporterArtifact,
   ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
-    const { from, to, details = [] } = carried;
+    const { from, to } = carried;
     const records = await Promise.all([
       this.trustStore.getById(computeTrustId(from, to)),
       this.trustStore.getById(computeTrustId(to, from)),
@@ -1035,19 +1022,12 @@ export class BtpsServer {
 
     if (carried.type !== 'DETAILS_RES') return { isTrusted: true, error: undefined };
     const query = { artifactId: carried.relatesTo ?? '', from: to, to: from };
-    if (this.trustStore.getArtifact) {
-      const requestRefusal = detailsRequestRefusal(
-        carried,
-        await this.trustStore.getArtifact(query),
-      );
-      if (requestRefusal) return refuse(requestRefusal);
-    } else if (!(await this.trustStore.isKnownArtifact(query))) {
+    if (!(await this.trustStore.isKnownArtifact(query))) {
       return refuse({
         error: BTP_ERROR_PERMISSION,
         problem: 'a details response answers a request its sender received',
       });
     }
-    this.tell('detailsShared', { from, to, names: [...details], at: new Date().toISOString() });
     return { isTrusted: true, error: undefined };
   }
 
@@ -1162,47 +1142,18 @@ export class BtpsServer {
         }),
       };
     }
-    const problem = await this.eventChainProblem(data.artifact);
-    if (!problem) return { isTrusted: true, error: undefined };
-    return {
-      isTrusted: false,
-      error: new BTPErrorException(
-        { ...BTP_ERROR_EVENT_CHAIN, message: `${BTP_ERROR_EVENT_CHAIN.message}: ${problem}` },
-        { meta: { from, to } },
-      ),
-    };
-  }
-
-  /**
-   * What is wrong with an event's chain: a `withdrawn` or `follows` from the
-   * invoice's issuer, a `withdrawn` that does not take back the payer's own
-   * open proposal about the same invoice, or a `follows` that names no
-   * `withdrawn` about it. Checked when the event can be read; the rules on the
-   * earlier event only when the store can say what it holds (`getEvent`). An
-   * encrypted event is its platform's to check once opened.
-   */
-  private async eventChainProblem(artifact: BTPTransporterArtifact): Promise<string | undefined> {
-    if (artifact.encryption) return undefined;
-    const parsed = BtpLifecycleEventSchema.safeParse(artifact.document);
-    if (!parsed.success) return undefined;
-    const named = lifecycleEventChainReference(parsed.data);
-    if (named === undefined) return undefined;
-    const { from, to } = artifact;
-    if (!this.trustStore.getEvent) return lifecycleEventSenderProblem(parsed.data, { from });
-    const facts = await this.trustStore.getEvent({ id: named, from, to });
-    return lifecycleEventChainProblem(parsed.data, { from }, facts);
+    return { isTrusted: true, error: undefined };
   }
 
   /**
    * Since 1.2: a details refresh, on an active trust in either direction, read
    * from the receiver's own record of it: its names against what each side
-   * holds, a response against the request it names, a request against the
-   * provider's limit. Nothing is decrypted.
+   * holds, and a response against a request it knows. Nothing is decrypted.
    */
   private async verifyDetailsTrust(
     artifact: BTPTransporterArtifact,
   ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
-    const { from, to, details = [] } = artifact;
+    const { from, to } = artifact;
     const records = await Promise.all([
       this.trustStore.getById(computeTrustId(from, to)),
       this.trustStore.getById(computeTrustId(to, from)),
@@ -1220,13 +1171,7 @@ export class BtpsServer {
 
     if (artifact.type === 'DETAILS_RES') {
       const query = { artifactId: artifact.relatesTo ?? '', from: to, to: from };
-      if (this.trustStore.getArtifact) {
-        const requestRefusal = detailsRequestRefusal(
-          artifact,
-          await this.trustStore.getArtifact(query),
-        );
-        if (requestRefusal) return refuse(requestRefusal);
-      } else if (!(await this.trustStore.isKnownArtifact(query))) {
+      if (!(await this.trustStore.isKnownArtifact(query))) {
         return refuse({
           error: BTP_ERROR_PERMISSION,
           problem: 'a details response answers a request its receiver sent',
@@ -1234,26 +1179,25 @@ export class BtpsServer {
       }
     }
 
-    const privacy = this.verifyPrivacyType(artifact, record);
-    if (!privacy.isTrusted || artifact.type !== 'DETAILS_REQ') return privacy;
+    return this.verifyPrivacyType(artifact, record);
+  }
 
-    // Asked last, so the provider's count holds only requests that are taken.
-    const allowed = (await this.allowDetailsRequest?.({ from, to, names: [...details] })) ?? true;
-    if (allowed !== true) {
-      return {
-        isTrusted: false,
-        error: new BTPErrorException(BTP_ERROR_DETAILS_RATE_LIMITED, {
-          meta: { retryAfter: allowed.retryAfter },
-        }),
-      };
+  /**
+   * Since 1.2: tell listeners of a details refresh only once every check has
+   * passed, the platform's own middleware included: a request that arrived,
+   * or a response one of this provider's devices sends.
+   */
+  private tellDetails({ type, artifact }: ProcessedArtifact) {
+    const at = new Date().toISOString();
+    if (type === 'transporter' && artifact.type === 'DETAILS_REQ') {
+      const { from, to, details = [] } = artifact;
+      this.tell('detailsRequested', { from, to, names: [...details], at });
     }
-    this.tell('detailsRequested', {
-      from,
-      to,
-      names: [...details],
-      at: new Date().toISOString(),
-    });
-    return privacy;
+    const carried = type === 'agent' ? (artifact.document as BTPTransporterArtifact) : undefined;
+    if (carried?.type === 'DETAILS_RES') {
+      const { from, to, details = [] } = carried;
+      this.tell('detailsShared', { from, to, names: [...details], at });
+    }
   }
 
   /**
@@ -1650,8 +1594,24 @@ export class BtpsServer {
    * its code; a numeric code set by middleware is sent as given. Anything else
    * is internal: a generic 500, so no internal detail ever reaches the wire.
    * The full error stays with the server, keyed by the response id.
+   * Since 1.2, a 429 also carries its meta.retryAfter, in whole seconds;
+   * nothing else from meta, and never cause.
    */
   private wireStatus(error: BTPError): BTPStatus {
+    const status = this.errorStatus(error);
+    const retryAfter = error instanceof BTPErrorException ? error.meta?.retryAfter : undefined;
+    if (
+      status.code === 429 &&
+      typeof retryAfter === 'number' &&
+      Number.isSafeInteger(retryAfter) &&
+      retryAfter >= 0
+    ) {
+      return { ...status, retryAfter };
+    }
+    return status;
+  }
+
+  private errorStatus(error: BTPError): BTPStatus {
     if (typeof error.code === 'number') {
       return { ok: false, code: error.code, message: error.message };
     }
@@ -1816,16 +1776,6 @@ export class BtpsServer {
         if (!this.acceptsArtifacts(type)) {
           console.warn(`[BtpsServer] Warning: ${this.noHandlerWarning(type)}`);
         }
-      }
-      if (!this.trustStore.getEvent) {
-        console.warn(
-          "[BtpsServer] Warning: the trust store has no getEvent, so this server does not check that a withdrawn event takes back the payer's own open proposal about the same invoice, or what a proposal's follows names. The platform checks them (lifecycleEventChainProblem).",
-        );
-      }
-      if (!this.trustStore.getArtifact) {
-        console.warn(
-          '[BtpsServer] Warning: the trust store has no getArtifact, so this server checks only that a details response answers a known request, not that it names only what was asked. The platform checks that (detailsProblem).',
-        );
       }
     });
   }
