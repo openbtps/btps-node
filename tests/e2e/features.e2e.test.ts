@@ -195,7 +195,6 @@ describe('journey: what 1.2 adds between two providers', () => {
   });
 
   it("looks a sender's key up once, then answers from its cache", async () => {
-    const before = verifyLookups.filter((identity) => identity === client.identity).length;
     for (let i = 0; i < 3; i++) {
       const invoice = await artifactFrom(vendor, client.identity, 'BTPS_DOC', invoiceDocument());
       vendorHost.trustStore.remember(invoice);
@@ -215,9 +214,8 @@ describe('journey: what 1.2 adds between two providers', () => {
       expect((await deliver(paid)).response?.status.ok).toBe(true);
     }
 
-    expect(verifyLookups.filter((identity) => identity === client.identity).length - before).toBe(
-      before === 0 ? 1 : 0,
-    );
+    // Every event the client sent on this journey was checked with one lookup of its key.
+    expect(verifyLookups.filter((identity) => identity === client.identity)).toHaveLength(1);
   });
 
   describe('details, within the provider limit and as asked', () => {
