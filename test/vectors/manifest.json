@@ -1,7 +1,7 @@
 {
   "name": "btps-golden-vectors",
-  "protocol": "BTPS 1.1",
-  "description": "Every file of the BTPS 1.1 golden vector set, with the lowercase hex SHA-256 of its bytes. See test/vectors/README.md.",
+  "protocol": "BTPS 1.2",
+  "description": "Every file of the BTPS 1.2 golden vector set, which covers 1.1 too, with the lowercase hex SHA-256 of its bytes. See test/vectors/README.md.",
   "hashAlgorithm": "sha256",
   "files": {
     "addresses.vectors.json": "cea6afc30d9a91aaa5d1310c3b5d0ec3981304cf66e3a2a3e53333ebecab6bab",
