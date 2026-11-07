@@ -968,7 +968,64 @@ export class BtpsServer {
         }),
       };
     }
-    return { isTrusted: isTrustActive(trustRecord), error: undefined };
+    if (!isTrustActive(trustRecord)) return { isTrusted: false, error: undefined };
+    const carried = artifact.document as BTPTransporterArtifact;
+    if ((DETAILS_ARTIFACT_TYPES as readonly string[]).includes(carried?.type)) {
+      return this.verifyDetailsSend(carried);
+    }
+    return { isTrusted: true, error: undefined };
+  }
+
+  /**
+   * Since 1.2: a details refresh a device sends, checked by its own provider
+   * before it goes, as its receiver will check it: from the user's own record
+   * of the trust, where what the user shares is what the receiver holds. A
+   * response answers a request the user received from that receiver.
+   */
+  private async verifyDetailsSend(
+    carried: BTPTransporterArtifact,
+  ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
+    const { from, to, details = [] } = carried;
+    const records = await Promise.all([
+      this.trustStore.getById(computeTrustId(from, to)),
+      this.trustStore.getById(computeTrustId(to, from)),
+    ]);
+    const active = records.filter(isTrustActive);
+    const record = active.find((r) => r?.permissions) ?? active[0];
+    if (!record) return { isTrusted: false, error: this.getTrustRefusalError(records[0]) };
+    const refuse = (refusal: { error: BTPError; problem: string }) => ({
+      isTrusted: false,
+      error: new BTPErrorException(refusal.error, { cause: refusal.problem }),
+    });
+
+    // The receiver's view of the same trust: it holds what this side shares.
+    const { permissions } = record;
+    const asReceiver = permissions && {
+      permissions: {
+        ...permissions,
+        detailsHeld: permissions.detailsShared,
+        detailsShared: permissions.detailsHeld,
+      },
+    };
+    const namesRefusal = detailsNamesRefusal(carried, asReceiver ?? {});
+    if (namesRefusal) return refuse(namesRefusal);
+
+    if (carried.type !== 'DETAILS_RES') return { isTrusted: true, error: undefined };
+    const query = { artifactId: carried.relatesTo ?? '', from: to, to: from };
+    if (this.trustStore.getArtifact) {
+      const requestRefusal = detailsRequestRefusal(
+        carried,
+        await this.trustStore.getArtifact(query),
+      );
+      if (requestRefusal) return refuse(requestRefusal);
+    } else if (!(await this.trustStore.isKnownArtifact(query))) {
+      return refuse({
+        error: BTP_ERROR_PERMISSION,
+        problem: 'a details response answers a request its sender received',
+      });
+    }
+    this.tell('detailsShared', { from, to, names: [...details], at: new Date().toISOString() });
+    return { isTrusted: true, error: undefined };
   }
 
   /**
@@ -1195,7 +1252,9 @@ export class BtpsServer {
 
   /**
    * Since 1.2: listen for `detailsRequested`, emitted when a details request
-   * arrives and passes its checks: who asked whom for which details, and when.
+   * arrives and passes its checks, and `detailsShared`, emitted when one of
+   * this provider's devices sends a details response that passes them: who
+   * asked or gave whom which details, and when.
    */
   public on<K extends keyof BtpsServerEvents>(event: K, listener: BtpsServerEvents[K]): void {
     this.events.on(event, listener);

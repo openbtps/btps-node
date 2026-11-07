@@ -98,9 +98,13 @@ export interface BTPDetailsRequestedInfo {
   at: string;
 }
 
+/** Since 1.2: a device's details response was taken to be sent: who gave whom which details, and when. */
+export type BTPDetailsSharedInfo = BTPDetailsRequestedInfo;
+
 /** Since 1.2: what `BtpsServer.on(…)` tells its listeners. */
 export type BtpsServerEvents = {
   detailsRequested: (info: BTPDetailsRequestedInfo) => void;
+  detailsShared: (info: BTPDetailsSharedInfo) => void;
 };
 
 // Middleware Types

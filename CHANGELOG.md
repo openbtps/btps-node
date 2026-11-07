@@ -135,6 +135,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   `undefined`: a server using it as is takes no `DETAILS_RES` until the store
   is extended to answer from the platform's own records. The known-failing
   vector list is empty.
+- **Details refresh from a device.** New agent actions `details.changed`,
+  `details.request` and `details.respond`, with the `BtpsAgent` command option
+  `details` (a response also needs `relatesTo` and encryption). The device's
+  own provider checks the names before it sends them, as the receiver will,
+  from the user's own record of the trust, and tells
+  `server.on('detailsShared', …)` of each response it takes.
 - `meta.delivery` on a sentbox result: a send's outcome by its provider's own
   record, `{ status: 'pending' | 'delivered' | 'failed', code?, at }`
   (`BTPDelivery`).

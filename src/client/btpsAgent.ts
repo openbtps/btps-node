@@ -268,6 +268,7 @@ export class BtpsAgent extends BtpsClient {
       ...(options?.relatesTo !== undefined && { relatesTo: options.relatesTo }),
       ...(options?.syncOf !== undefined && { syncOf: options.syncOf }),
       ...(options?.documentType !== undefined && { documentType: options.documentType }),
+      ...(options?.details !== undefined && { details: options.details }),
     };
 
     try {
