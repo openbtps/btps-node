@@ -279,7 +279,8 @@ const agreementSet = agreements({
 // Timestamped bundles: a test authority, made at generation, signs real RFC 3161 tokens.
 agreementSet.bundles.push(...(await agreementTimestamps(agreementSet)));
 // Key chain bundles: the bank and the guarantor rotate to keys made here, and the
-// guarantor's operator, with a key made here too, answers for its chain.
+// guarantor's operator, with a key made here too, answers for its chain; so does a
+// forger, with a key of its own.
 agreementSet.bundles.push(
   ...agreementKeyChains(agreementSet, {
     originator: readVector('kms-signature.vector.json'),
@@ -287,6 +288,7 @@ agreementSet.bundles.push(
     guarantor: readVector('self-held-signature.vector.json'),
     guarantorNext: newKeyPair(),
     guarantorOperator: newKeyPair(),
+    forger: newKeyPair(),
   }),
 );
 // Each bundle also expects the keys its verifier names.

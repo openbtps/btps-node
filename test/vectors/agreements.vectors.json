@@ -6792,8 +6792,8 @@
                   },
                   "to": {
                     "selector": "btps2",
-                    "fingerprint": "PcSwaJjM28OSRZF2YR5hpH3U4HxoMItJREu8vMzLra4=",
-                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqRNqtNBgZcaW9MAffM3hUTvsH5HlR05xEsR69EqVrk8r81qDJdKAsrRQ+l1NCsqyYqpVjwH5bPfN5GSJ2UrAAIwNaejAg3MlgWX/eo2l75YrH7Hf+kIAQbmiGD6PdvsUMvyDP7nG3I4xJDkxxaKWzQqlSwghL+5+0u6GSyKyOMZ6li4GEuxE1sfSZ2Y33rNRaRsPsVknhwWJeISNIEjCDq2adyG9dpiBG6cJY2PpmA7HqI02EboDtnhNKti4LAYFba0dTeh5HEzTnr0/cU9pIwwgvf5l3arhKfsv26BdqxFyJNmfIbOJUL60WQ6anYOjTYA1DGXtQacDBTj0Qp/TtwIDAQAB"
+                    "fingerprint": "E7k991f9dWwgFuqN+CkgcAMHTzp9yuFvA7YSYbwGF78=",
+                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtkHGXazhh5q7qxn/87Tv1dR6CKAdMr2V3wKxigzxsIpYZk5fozQTFdq+NQ971+Or5b2TzNcSaKJdHwG+oLWUN0jzrFc1U1In5265HQkt/JJLDcazhL9OGE5Z7F6cY3jpD1qODJJinx09QgWkgvhYy/V3uv3aQMKe5I7ye2h6FVIxK1Rq4e7KqJxsAVoyGhsHqTK+0E+4jxMIt7Dr8euZNc9x1Nx0VO+/vSL+sQ3KR415Cq9p9ZOJRF8p3fkizyLTH2tdisgBf9E5anPyD0EdYPK+cWXrdlbCrirTVfZ/Avt4Nm/4szcTypAMZIn+PrYTbrQQ14QceJQ/y9HABx8pTwIDAQAB"
                   },
                   "at": "2026-11-20T00:00:00.000Z",
                   "expiry": "planned",
@@ -6803,14 +6803,14 @@
                   {
                     "by": "from",
                     "algorithmHash": "sha256",
-                    "value": "J+CvBvLjv4Pcao/Fde6QydbRlHC00brjWiKkJj5K0bWyyQFAC6+2/AApQu/dwLMTlDwRTEXUDZUw+RA4n2AyDEXbbm3s6IYLOomB51L8DmmIIIjAbD6aXdm0nfD5jlvY/OGGgcOjTWDyJ7WFXdUQSmF6muVYQ2hHd66pFMZox2baTTV5PfhFWGfpMy24Woet4nzg9NJ71XjfD6g8AXSGQjtU8SjC2/LP6UFYBAAhmpbiFrnLtPJDwXmdaRgTZ3EcFvvcXF+1IxEFB4mcuGDLFADWD9qsNns43ucpR/Ix4ARtLQ6nIdKg4A8CIAVrEtqnP4t52KPqxbIoo4FPD9k2Kg==",
+                    "value": "NOfowh1I/WUlCtqcpn3aBIEj5UhZ8LQDsKCqe7HRAw/TKkv/b1Z06BOycjRRryqZ8UyrK87uDasPQxWFitPzewxbcv68za03fxZatUjx7+eOBmyxPYqVk9NhBPna5osPlmiAULULXC20iuLg1oosfxTRHs+GbZvMZ3U2sI/gWmo5zuFjPHEOBolmhfw9xhN8UkL3hqMPW7BpbLH13PjR8A9b88UrqdqCzX4keG4wF3O4HgBkWFU/UTp92ddqlu+n3loJhAqgZiLs2Seckfgfl+jE5nc30Gh5crcNT/adNY1KW0Z2I4jB+9NxSMZqawDKf+I0FIHgD3GE2O/21HbEbQ==",
                     "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
                   },
                   {
                     "by": "to",
                     "algorithmHash": "sha256",
-                    "value": "hQGJXFNig0J9tmjHE+oqR+JlPUs6apvw6KKeNhD5i+qLXRkN/IkzupIDMC0kNf3pX31HHL3ZLBH3ji96aKplmTG7yXDDfM4QAquVZOjPyRYhO//PC3tzKBYich5x9j38t6w/I5aFuxV1WDQNnzcXd36IHpk+O8X1fFuo2uoG9FzIwAZmbGAoKvFtx3+KJ/Qiv2eYH+HaPkbJDqrZCAL2EuymO3E5WmKtv8bmTSDF6TnOxgVANnw8bmivX5+Xu5WOTIKeHfSyhIF+Q23eRAPTM1UE/o760nvzxVjSuRLK4ome0GxvSDnAI719H9Cts4trfsp4a942tuWedyGaMkGcOg==",
-                    "fingerprint": "PcSwaJjM28OSRZF2YR5hpH3U4HxoMItJREu8vMzLra4="
+                    "value": "WgwwVoJdAxdng8/7kvllLuboBVqgITYdlvNK1PUayPXqQIK0K7xivjCwdVa3RD8IixR9E+fKc1bhq8z6gFabarvw/7WaZUgRWsR83OdhBX+zvoDhLhX/YJDs+fszKzMrhuS5SHv7wwZTVmuXfM7mhUj62g+Tzk80RgCZJU8CK9tGiMB1OhTNwszQvJrJDjllhHqNV0rQmLwkwZuATa/L9RLRV2Yb4GGyT0RAUAkhCz8KrQX/ZG84QaqPtLAlW7X8EihcMAxUHQHfwjg6uKa4G/ZrOZkIyIwuTSkyY8vAjE2cHPfHwI5TJ5pOZ5DeglVrJMYeduDQ8YgFMv0VOwAQrA==",
+                    "fingerprint": "E7k991f9dWwgFuqN+CkgcAMHTzp9yuFvA7YSYbwGF78="
                   }
                 ]
               }
@@ -6872,7 +6872,7 @@
               "keyInChain": true,
               "authorityUnverified": false,
               "forked": false,
-              "reachesKey": "PcSwaJjM28OSRZF2YR5hpH3U4HxoMItJREu8vMzLra4=",
+              "reachesKey": "E7k991f9dWwgFuqN+CkgcAMHTzp9yuFvA7YSYbwGF78=",
               "anchored": false,
               "rotatedAt": "2026-11-20T00:00:00.000Z",
               "signedInWindow": true
@@ -6891,7 +6891,7 @@
           "keyInChain": true,
           "authorityUnverified": false,
           "forked": false,
-          "reachesKey": "PcSwaJjM28OSRZF2YR5hpH3U4HxoMItJREu8vMzLra4=",
+          "reachesKey": "E7k991f9dWwgFuqN+CkgcAMHTzp9yuFvA7YSYbwGF78=",
           "anchored": false,
           "rotatedAt": "2026-11-20T00:00:00.000Z",
           "signedInWindow": true
@@ -7048,8 +7048,8 @@
                   },
                   "to": {
                     "selector": "btps2",
-                    "fingerprint": "PcSwaJjM28OSRZF2YR5hpH3U4HxoMItJREu8vMzLra4=",
-                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqRNqtNBgZcaW9MAffM3hUTvsH5HlR05xEsR69EqVrk8r81qDJdKAsrRQ+l1NCsqyYqpVjwH5bPfN5GSJ2UrAAIwNaejAg3MlgWX/eo2l75YrH7Hf+kIAQbmiGD6PdvsUMvyDP7nG3I4xJDkxxaKWzQqlSwghL+5+0u6GSyKyOMZ6li4GEuxE1sfSZ2Y33rNRaRsPsVknhwWJeISNIEjCDq2adyG9dpiBG6cJY2PpmA7HqI02EboDtnhNKti4LAYFba0dTeh5HEzTnr0/cU9pIwwgvf5l3arhKfsv26BdqxFyJNmfIbOJUL60WQ6anYOjTYA1DGXtQacDBTj0Qp/TtwIDAQAB"
+                    "fingerprint": "E7k991f9dWwgFuqN+CkgcAMHTzp9yuFvA7YSYbwGF78=",
+                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtkHGXazhh5q7qxn/87Tv1dR6CKAdMr2V3wKxigzxsIpYZk5fozQTFdq+NQ971+Or5b2TzNcSaKJdHwG+oLWUN0jzrFc1U1In5265HQkt/JJLDcazhL9OGE5Z7F6cY3jpD1qODJJinx09QgWkgvhYy/V3uv3aQMKe5I7ye2h6FVIxK1Rq4e7KqJxsAVoyGhsHqTK+0E+4jxMIt7Dr8euZNc9x1Nx0VO+/vSL+sQ3KR415Cq9p9ZOJRF8p3fkizyLTH2tdisgBf9E5anPyD0EdYPK+cWXrdlbCrirTVfZ/Avt4Nm/4szcTypAMZIn+PrYTbrQQ14QceJQ/y9HABx8pTwIDAQAB"
                   },
                   "at": "2026-11-20T00:00:00.000Z",
                   "expiry": "planned",
@@ -7059,14 +7059,14 @@
                   {
                     "by": "from",
                     "algorithmHash": "sha256",
-                    "value": "J+CvBvLjv4Pcao/Fde6QydbRlHC00brjWiKkJj5K0bWyyQFAC6+2/AApQu/dwLMTlDwRTEXUDZUw+RA4n2AyDEXbbm3s6IYLOomB51L8DmmIIIjAbD6aXdm0nfD5jlvY/OGGgcOjTWDyJ7WFXdUQSmF6muVYQ2hHd66pFMZox2baTTV5PfhFWGfpMy24Woet4nzg9NJ71XjfD6g8AXSGQjtU8SjC2/LP6UFYBAAhmpbiFrnLtPJDwXmdaRgTZ3EcFvvcXF+1IxEFB4mcuGDLFADWD9qsNns43ucpR/Ix4ARtLQ6nIdKg4A8CIAVrEtqnP4t52KPqxbIoo4FPD9k2Kg==",
+                    "value": "NOfowh1I/WUlCtqcpn3aBIEj5UhZ8LQDsKCqe7HRAw/TKkv/b1Z06BOycjRRryqZ8UyrK87uDasPQxWFitPzewxbcv68za03fxZatUjx7+eOBmyxPYqVk9NhBPna5osPlmiAULULXC20iuLg1oosfxTRHs+GbZvMZ3U2sI/gWmo5zuFjPHEOBolmhfw9xhN8UkL3hqMPW7BpbLH13PjR8A9b88UrqdqCzX4keG4wF3O4HgBkWFU/UTp92ddqlu+n3loJhAqgZiLs2Seckfgfl+jE5nc30Gh5crcNT/adNY1KW0Z2I4jB+9NxSMZqawDKf+I0FIHgD3GE2O/21HbEbQ==",
                     "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
                   },
                   {
                     "by": "to",
                     "algorithmHash": "sha256",
-                    "value": "hQGJXFNig0J9tmjHE+oqR+JlPUs6apvw6KKeNhD5i+qLXRkN/IkzupIDMC0kNf3pX31HHL3ZLBH3ji96aKplmTG7yXDDfM4QAquVZOjPyRYhO//PC3tzKBYich5x9j38t6w/I5aFuxV1WDQNnzcXd36IHpk+O8X1fFuo2uoG9FzIwAZmbGAoKvFtx3+KJ/Qiv2eYH+HaPkbJDqrZCAL2EuymO3E5WmKtv8bmTSDF6TnOxgVANnw8bmivX5+Xu5WOTIKeHfSyhIF+Q23eRAPTM1UE/o760nvzxVjSuRLK4ome0GxvSDnAI719H9Cts4trfsp4a942tuWedyGaMkGcOg==",
-                    "fingerprint": "PcSwaJjM28OSRZF2YR5hpH3U4HxoMItJREu8vMzLra4="
+                    "value": "WgwwVoJdAxdng8/7kvllLuboBVqgITYdlvNK1PUayPXqQIK0K7xivjCwdVa3RD8IixR9E+fKc1bhq8z6gFabarvw/7WaZUgRWsR83OdhBX+zvoDhLhX/YJDs+fszKzMrhuS5SHv7wwZTVmuXfM7mhUj62g+Tzk80RgCZJU8CK9tGiMB1OhTNwszQvJrJDjllhHqNV0rQmLwkwZuATa/L9RLRV2Yb4GGyT0RAUAkhCz8KrQX/ZG84QaqPtLAlW7X8EihcMAxUHQHfwjg6uKa4G/ZrOZkIyIwuTSkyY8vAjE2cHPfHwI5TJ5pOZ5DeglVrJMYeduDQ8YgFMv0VOwAQrA==",
+                    "fingerprint": "E7k991f9dWwgFuqN+CkgcAMHTzp9yuFvA7YSYbwGF78="
                   }
                 ]
               }
@@ -7075,7 +7075,7 @@
         ]
       },
       "options": {
-        "anchors": ["PcSwaJjM28OSRZF2YR5hpH3U4HxoMItJREu8vMzLra4="]
+        "anchors": ["E7k991f9dWwgFuqN+CkgcAMHTzp9yuFvA7YSYbwGF78="]
       },
       "expect": {
         "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
@@ -7131,10 +7131,10 @@
               "keyInChain": true,
               "authorityUnverified": false,
               "forked": false,
-              "reachesKey": "PcSwaJjM28OSRZF2YR5hpH3U4HxoMItJREu8vMzLra4=",
+              "reachesKey": "E7k991f9dWwgFuqN+CkgcAMHTzp9yuFvA7YSYbwGF78=",
               "anchored": {
                 "by": "kept-fingerprint",
-                "upTo": "PcSwaJjM28OSRZF2YR5hpH3U4HxoMItJREu8vMzLra4="
+                "upTo": "E7k991f9dWwgFuqN+CkgcAMHTzp9yuFvA7YSYbwGF78="
               },
               "rotatedAt": "2026-11-20T00:00:00.000Z",
               "signedInWindow": true
@@ -7153,10 +7153,10 @@
           "keyInChain": true,
           "authorityUnverified": false,
           "forked": false,
-          "reachesKey": "PcSwaJjM28OSRZF2YR5hpH3U4HxoMItJREu8vMzLra4=",
+          "reachesKey": "E7k991f9dWwgFuqN+CkgcAMHTzp9yuFvA7YSYbwGF78=",
           "anchored": {
             "by": "kept-fingerprint",
-            "upTo": "PcSwaJjM28OSRZF2YR5hpH3U4HxoMItJREu8vMzLra4="
+            "upTo": "E7k991f9dWwgFuqN+CkgcAMHTzp9yuFvA7YSYbwGF78="
           },
           "rotatedAt": "2026-11-20T00:00:00.000Z",
           "signedInWindow": true
@@ -7313,8 +7313,8 @@
                   },
                   "to": {
                     "selector": "btps2",
-                    "fingerprint": "eZR5ee63okYhNmG82iANnwAoWUCkNolX9vSnXYCzGug=",
-                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApndELB7oLSP/g0nNM/aXjeU2nVCgFOgfSZP3l+fbbg5XsKzy1j2h00foojwoCaXmyxIGg+j31APXlzoZvTX63lsRTuhfFbsp3+DJI4d9afYcG5mVSX1QvNwKJh6kNxuBQT4H1pbjTziX2wseDzZjIVnbwb1tVWoPxM8AnMdq36+8zLsFTUoat1lALUc0ucEQl4xSLtPyRiZlhjG/mtB/s0g+UdY259jxik9mSic9+uLvwyQAucD6/hU4E9uHfiEk3Kxsg9ZzmAcj1lga2NVCBtlkg2zBuqFYw8bWN+4Qqf6N+Nil3EZQK4uah9j7lSAUbm41q1dt9XuyzF3ClmRKowIDAQAB"
+                    "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
+                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsUAFDPoxsphQ3Iu28P2Qnnj7HHC8SMjzqD0nUhcyBR65ZvqRwv3jxdkk3GSwFR3FlMePe9cCNXDMJqTQ0V4zne4GGrSfO1dHHO/rAdx/uKVnPNZ/NRFwf45CICXOQhvPcEzrX9SatM/awDbAyTy0BsiBTuIwwT6bTnPOA62re6urYkUOToij90rqpJ/qff5KXyg/IqtOOyl4tSX6Hh2/iK3M4yKjZQyiSxe0sc6Ukw/77DrbpM4CjuSc+jS7f5A5IW1gS8RsRq3AWKK918xR9+BsLdHRjHgrcPCnAT5AmRkuHVzAAwlgsM/X14uyTUeW8tPz8gC1kDHBUhc9A3Wn3QIDAQAB"
                   },
                   "at": "2026-11-20T00:00:00.000Z",
                   "expiry": "immediate",
@@ -7326,14 +7326,14 @@
                   {
                     "by": "from",
                     "algorithmHash": "sha256",
-                    "value": "WGVHbEcFtJvnYOcgYhty2u1LQBZWDnXhUF/jup9TqFohOA/qMIUf9/4Vu82Qo6wdJ8qjccKqxDAFivQ42WClKs3MD4MQQrmgLb1tCJMTKqIyaUq28Ggrb7F6hPGKZWO2a0JJTOufWcrZ7CxoGxf0tPfEg8RF+hX/a43+2gSabREvE1ZNdZq4Mz1VTS6Lfaugcqt2qxLKPaig9gNap3EZb3GtClrqw/m4YPIN3cWsEyfVSvGhzhrLDRDHoTdvsibqD2Y9PRn9vLmaw6O8f4Hqpd7BGREnr989IM+ulRveRTa9SZRziUsYnyb+NlVFdqfQMiuhFyFRmQ+glCViZ4cH6A==",
+                    "value": "QdsEHifFFLCcadreyZf/Zk8gnrNaY5d7hbE6YaAR/v5iUH9i6lHQi7wpc2zl9KuemxU4bRJsnVgDwe957X0whm6fhBDEzfXFe9rqUYGh+Db0WC7vSGVbtnOIxlPqehAdtdKUHo1jlt9Bj7hSNihM0YSJlvWB9zRR1JEJ4M093ACW4KliKDx39C1k9aSnXLVx3+eOer1/BqtFENozPxJ863VU0vuofSkmTGQmTpGMoYHqZ654t5YL65tuxng9pEzu+m78c9zEPZV9Ax+ZzXbctMuvW6o9jR6aHJjHwfHFMdrFSnEFC7iGQRbiy51sPCVceDfDSQzVlbgCNY2urWXYew==",
                     "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
                   },
                   {
                     "by": "to",
                     "algorithmHash": "sha256",
-                    "value": "DxCiLYhJNj3kasZixt4SkfglGHwJruaHgacoJl4eaI39tp9DM4Jrb6Mdjkd6I6Ux0T10RSV33rjO5CJTaSRw2/aocpc/FbO3SamqZIEjI9muMhwuJV8/bOBcjWorGa7U3Go0e2o1LMNN0ayaHv+AiR53EQ1XwPM5R6AbICCqvJFwRXp0D0SYTR5hBRTEmj8V9l25XgdWENCgh/fJ/m76ZPRSNkQ2Sf0GYqno0qm3j1mAW9BKCdnAA7aga0AZYtqtRTW2vpz7Z32At5GtUffj01EfFO1zhfiBF7xBatyXnxD1Db92GMhy402C/2Sy3+SJ1cSIHTT4zt8MTsMMjNI/Xg==",
-                    "fingerprint": "eZR5ee63okYhNmG82iANnwAoWUCkNolX9vSnXYCzGug="
+                    "value": "iy1e+p0v91crR795yXlENqET+l+1zoKTQXGvFEX2zx5k4eD5IVjHgLnPwlCzl6TenNj6Sqlj/vMBPBhShLHL2GDH04yhXcsbyB2LAuzHDtp87pWG2+viOcg90IF09W5muPCqNKUxD9YOzlLI1KpCkxeKGY4yTPDEvG+LGbNc1ybDnSSPJue2lsVZPS6RAL5m7+kTzPD3hYCbYy6eCGq011AeIcs4EQ58b9bnzGRXIPMPlUssew33+c246+GmZCvPELPlQxIh00TAOsHR0X4gbNRNlUEiHNXu9vNhWOCRG8y+Jj4RuYiUBaUO/+3Eyioy2MqQVjvyYbFkOVIgeygeTg==",
+                    "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0="
                   }
                 ]
               }
@@ -7398,7 +7398,7 @@
               "keyInChain": true,
               "authorityUnverified": false,
               "forked": false,
-              "reachesKey": "eZR5ee63okYhNmG82iANnwAoWUCkNolX9vSnXYCzGug=",
+              "reachesKey": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
               "anchored": false,
               "rotatedAt": "2026-11-20T00:00:00.000Z",
               "signedInWindow": false,
@@ -7585,8 +7585,8 @@
                   },
                   "to": {
                     "selector": "btps2",
-                    "fingerprint": "eZR5ee63okYhNmG82iANnwAoWUCkNolX9vSnXYCzGug=",
-                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApndELB7oLSP/g0nNM/aXjeU2nVCgFOgfSZP3l+fbbg5XsKzy1j2h00foojwoCaXmyxIGg+j31APXlzoZvTX63lsRTuhfFbsp3+DJI4d9afYcG5mVSX1QvNwKJh6kNxuBQT4H1pbjTziX2wseDzZjIVnbwb1tVWoPxM8AnMdq36+8zLsFTUoat1lALUc0ucEQl4xSLtPyRiZlhjG/mtB/s0g+UdY259jxik9mSic9+uLvwyQAucD6/hU4E9uHfiEk3Kxsg9ZzmAcj1lga2NVCBtlkg2zBuqFYw8bWN+4Qqf6N+Nil3EZQK4uah9j7lSAUbm41q1dt9XuyzF3ClmRKowIDAQAB"
+                    "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
+                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsUAFDPoxsphQ3Iu28P2Qnnj7HHC8SMjzqD0nUhcyBR65ZvqRwv3jxdkk3GSwFR3FlMePe9cCNXDMJqTQ0V4zne4GGrSfO1dHHO/rAdx/uKVnPNZ/NRFwf45CICXOQhvPcEzrX9SatM/awDbAyTy0BsiBTuIwwT6bTnPOA62re6urYkUOToij90rqpJ/qff5KXyg/IqtOOyl4tSX6Hh2/iK3M4yKjZQyiSxe0sc6Ukw/77DrbpM4CjuSc+jS7f5A5IW1gS8RsRq3AWKK918xR9+BsLdHRjHgrcPCnAT5AmRkuHVzAAwlgsM/X14uyTUeW8tPz8gC1kDHBUhc9A3Wn3QIDAQAB"
                   },
                   "at": "2026-11-20T00:00:00.000Z",
                   "expiry": "immediate",
@@ -7598,14 +7598,14 @@
                   {
                     "by": "from",
                     "algorithmHash": "sha256",
-                    "value": "WGVHbEcFtJvnYOcgYhty2u1LQBZWDnXhUF/jup9TqFohOA/qMIUf9/4Vu82Qo6wdJ8qjccKqxDAFivQ42WClKs3MD4MQQrmgLb1tCJMTKqIyaUq28Ggrb7F6hPGKZWO2a0JJTOufWcrZ7CxoGxf0tPfEg8RF+hX/a43+2gSabREvE1ZNdZq4Mz1VTS6Lfaugcqt2qxLKPaig9gNap3EZb3GtClrqw/m4YPIN3cWsEyfVSvGhzhrLDRDHoTdvsibqD2Y9PRn9vLmaw6O8f4Hqpd7BGREnr989IM+ulRveRTa9SZRziUsYnyb+NlVFdqfQMiuhFyFRmQ+glCViZ4cH6A==",
+                    "value": "QdsEHifFFLCcadreyZf/Zk8gnrNaY5d7hbE6YaAR/v5iUH9i6lHQi7wpc2zl9KuemxU4bRJsnVgDwe957X0whm6fhBDEzfXFe9rqUYGh+Db0WC7vSGVbtnOIxlPqehAdtdKUHo1jlt9Bj7hSNihM0YSJlvWB9zRR1JEJ4M093ACW4KliKDx39C1k9aSnXLVx3+eOer1/BqtFENozPxJ863VU0vuofSkmTGQmTpGMoYHqZ654t5YL65tuxng9pEzu+m78c9zEPZV9Ax+ZzXbctMuvW6o9jR6aHJjHwfHFMdrFSnEFC7iGQRbiy51sPCVceDfDSQzVlbgCNY2urWXYew==",
                     "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
                   },
                   {
                     "by": "to",
                     "algorithmHash": "sha256",
-                    "value": "DxCiLYhJNj3kasZixt4SkfglGHwJruaHgacoJl4eaI39tp9DM4Jrb6Mdjkd6I6Ux0T10RSV33rjO5CJTaSRw2/aocpc/FbO3SamqZIEjI9muMhwuJV8/bOBcjWorGa7U3Go0e2o1LMNN0ayaHv+AiR53EQ1XwPM5R6AbICCqvJFwRXp0D0SYTR5hBRTEmj8V9l25XgdWENCgh/fJ/m76ZPRSNkQ2Sf0GYqno0qm3j1mAW9BKCdnAA7aga0AZYtqtRTW2vpz7Z32At5GtUffj01EfFO1zhfiBF7xBatyXnxD1Db92GMhy402C/2Sy3+SJ1cSIHTT4zt8MTsMMjNI/Xg==",
-                    "fingerprint": "eZR5ee63okYhNmG82iANnwAoWUCkNolX9vSnXYCzGug="
+                    "value": "iy1e+p0v91crR795yXlENqET+l+1zoKTQXGvFEX2zx5k4eD5IVjHgLnPwlCzl6TenNj6Sqlj/vMBPBhShLHL2GDH04yhXcsbyB2LAuzHDtp87pWG2+viOcg90IF09W5muPCqNKUxD9YOzlLI1KpCkxeKGY4yTPDEvG+LGbNc1ybDnSSPJue2lsVZPS6RAL5m7+kTzPD3hYCbYy6eCGq011AeIcs4EQ58b9bnzGRXIPMPlUssew33+c246+GmZCvPELPlQxIh00TAOsHR0X4gbNRNlUEiHNXu9vNhWOCRG8y+Jj4RuYiUBaUO/+3Eyioy2MqQVjvyYbFkOVIgeygeTg==",
+                    "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0="
                   }
                 ]
               }
@@ -7670,7 +7670,7 @@
               "keyInChain": true,
               "authorityUnverified": false,
               "forked": false,
-              "reachesKey": "eZR5ee63okYhNmG82iANnwAoWUCkNolX9vSnXYCzGug=",
+              "reachesKey": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
               "anchored": false,
               "rotatedAt": "2026-11-20T00:00:00.000Z",
               "signedInWindow": false,
@@ -7856,8 +7856,8 @@
                   },
                   "to": {
                     "selector": "btps2",
-                    "fingerprint": "eZR5ee63okYhNmG82iANnwAoWUCkNolX9vSnXYCzGug=",
-                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApndELB7oLSP/g0nNM/aXjeU2nVCgFOgfSZP3l+fbbg5XsKzy1j2h00foojwoCaXmyxIGg+j31APXlzoZvTX63lsRTuhfFbsp3+DJI4d9afYcG5mVSX1QvNwKJh6kNxuBQT4H1pbjTziX2wseDzZjIVnbwb1tVWoPxM8AnMdq36+8zLsFTUoat1lALUc0ucEQl4xSLtPyRiZlhjG/mtB/s0g+UdY259jxik9mSic9+uLvwyQAucD6/hU4E9uHfiEk3Kxsg9ZzmAcj1lga2NVCBtlkg2zBuqFYw8bWN+4Qqf6N+Nil3EZQK4uah9j7lSAUbm41q1dt9XuyzF3ClmRKowIDAQAB"
+                    "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
+                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsUAFDPoxsphQ3Iu28P2Qnnj7HHC8SMjzqD0nUhcyBR65ZvqRwv3jxdkk3GSwFR3FlMePe9cCNXDMJqTQ0V4zne4GGrSfO1dHHO/rAdx/uKVnPNZ/NRFwf45CICXOQhvPcEzrX9SatM/awDbAyTy0BsiBTuIwwT6bTnPOA62re6urYkUOToij90rqpJ/qff5KXyg/IqtOOyl4tSX6Hh2/iK3M4yKjZQyiSxe0sc6Ukw/77DrbpM4CjuSc+jS7f5A5IW1gS8RsRq3AWKK918xR9+BsLdHRjHgrcPCnAT5AmRkuHVzAAwlgsM/X14uyTUeW8tPz8gC1kDHBUhc9A3Wn3QIDAQAB"
                   },
                   "at": "2026-11-20T00:00:00.000Z",
                   "expiry": "immediate",
@@ -7869,8 +7869,8 @@
                   {
                     "by": "to",
                     "algorithmHash": "sha256",
-                    "value": "BFheR/6ZayQ/JR9vv72GG8LD7E2ql4yjmTjEXBIHxFwFF0KAxH0cSPdzp1JRUldAFadoPD0TeUlZC1zMG5LsEw1gcWiWPT+6ah+cNrmbKqjnziDUFk3OJscyiVM4nzjxcggX2dv/KExVS/8Y82+Ov3L9VLzdDYhBhW60yDsRuD8LttTpH5Wwsy3CACqTEm76Klb5nK7Op7/0NhWpiURutyJ+kKCWDzKSUIB6/jZlXePZ6Jdg7xh2isj6x1IEjKR96P47O6ge855QoSVEc5bnfODOGpEzc7eypKnDxtYS9swFQ9qpm/it5M6clsxM3g3ACHMHqc5zmKyNwaQY5VrAPg==",
-                    "fingerprint": "eZR5ee63okYhNmG82iANnwAoWUCkNolX9vSnXYCzGug="
+                    "value": "jSFCzCUJdFRuEIQ4iAsRR/QF2aawa3SO7SB0cNzgK5CI0hJrqQUSw2+5PvMbSMMo4vpIBX4VMPoYxJW4HmLcwK7ksWfWyihqckFje9WZ1+JF8yPc8HbqjAKaLeX8UboA5XI3TeE/+js9BRTxpWPYsMFQfuJzDwbi12SHSAgiZBqEb3oEM4ismwAl8q3AQEo1ftizSFESiPEYBSKc4nrzDCm0aePJfydAkVB7qQQkIwe3Mv8S8mY09E2D1rf7Wv6C4l9Haww9p/ZvCJRCxG7fLzk0JdUm9cl5w3C/eMI0mseRK9Gtr0km7NOhrcaYV7tN8HsP5IaOAbWl/u6fzM/ijA==",
+                    "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0="
                   }
                 ]
               }
@@ -7917,7 +7917,7 @@
               "keyInChain": true,
               "authorityUnverified": true,
               "forked": false,
-              "reachesKey": "eZR5ee63okYhNmG82iANnwAoWUCkNolX9vSnXYCzGug=",
+              "reachesKey": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
               "anchored": false,
               "rotatedAt": "2026-11-20T00:00:00.000Z",
               "signedInWindow": true,
@@ -7954,7 +7954,7 @@
       }
     },
     {
-      "name": "a-lost-keys-rotation-confirmed-by-its-operators-answer",
+      "name": "a-lost-keys-rotation-with-its-operators-answer-by-a-key-not-kept",
       "bundle": {
         "format": "btps-evidence/1",
         "originator": "loans$bank.example",
@@ -8090,8 +8090,8 @@
           {
             "identity": "admin$guarantor.example",
             "selector": "btps1",
-            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArvC/Ztz1cqVCgEsPXb20\naSj3JmGHtuvq9KnB6SZLRYJkOeskgRp3sTl4hYYs9G2ryWmmSI2BOHcZs7QXwBq4\nQ8EX6KjYpTkqrDFVr8V86bsuNRtx09mui5FyH9Fm0hhqDetQH6l/21haw6j5DLez\nyy13wLS8Xg/gK1Hbgl90URanXO9tMNxfdCEA+IW2yHoL0SefPAiGi0t+E7aLJqNY\nwABkcCXjoFt7/u2uumYvtUwWT1/AJYjDtfIKP7Gmu8e2mfiAcCM93kmyYDUjdcLp\nx9iN5pP91Wkbm2dfmo5t4t3XeuDe7lX1i0QXwy1A6C6kCK9tIJQgXNUUn7ZQzPF2\nyQIDAQAB\n-----END PUBLIC KEY-----\n",
-            "fingerprint": "sHk9b7BsK5abKDPUev+gzhMob12gbaJRMdRgUBV7fbU="
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuG4QyQ5iZdIIlI5Nh8ZG\n53PeRfR+TU1omW+atwevALRa55qVxnrTGAWH+s84QwlloYT0Y5mC7oCvqE089M9k\nUBZ6qMApPau8/4yXqcTzxkHqumi4kTZx4xvTamvPl0VWM5/eO3DVmVkjonMvzFiU\nc96X8jnyVD8aObdzZvJJYZeMyNqP22tMv+B/asG4CoqnueL0E1qHsqXzUhTyMFc9\nRKTyMeVfQwUpPqY17kd1LTkU9t1VJlDhIbc9715fJcI2PeGQNSp576I/bEPyDFHL\nZl3GMzzWmU+U+Hrrc3Dsk+yZZRbv4/xB8caRFECBOJKzgXGIQiL//4Y5a2+A7cWr\nqwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "XJA9Y6CwCgsF+/kW0Xr+Zvkf3m+ojeWZr4bMRvZVy1k="
           }
         ],
         "keyChains": [
@@ -8109,8 +8109,8 @@
                   },
                   "to": {
                     "selector": "btps2",
-                    "fingerprint": "eZR5ee63okYhNmG82iANnwAoWUCkNolX9vSnXYCzGug=",
-                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApndELB7oLSP/g0nNM/aXjeU2nVCgFOgfSZP3l+fbbg5XsKzy1j2h00foojwoCaXmyxIGg+j31APXlzoZvTX63lsRTuhfFbsp3+DJI4d9afYcG5mVSX1QvNwKJh6kNxuBQT4H1pbjTziX2wseDzZjIVnbwb1tVWoPxM8AnMdq36+8zLsFTUoat1lALUc0ucEQl4xSLtPyRiZlhjG/mtB/s0g+UdY259jxik9mSic9+uLvwyQAucD6/hU4E9uHfiEk3Kxsg9ZzmAcj1lga2NVCBtlkg2zBuqFYw8bWN+4Qqf6N+Nil3EZQK4uah9j7lSAUbm41q1dt9XuyzF3ClmRKowIDAQAB"
+                    "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
+                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsUAFDPoxsphQ3Iu28P2Qnnj7HHC8SMjzqD0nUhcyBR65ZvqRwv3jxdkk3GSwFR3FlMePe9cCNXDMJqTQ0V4zne4GGrSfO1dHHO/rAdx/uKVnPNZ/NRFwf45CICXOQhvPcEzrX9SatM/awDbAyTy0BsiBTuIwwT6bTnPOA62re6urYkUOToij90rqpJ/qff5KXyg/IqtOOyl4tSX6Hh2/iK3M4yKjZQyiSxe0sc6Ukw/77DrbpM4CjuSc+jS7f5A5IW1gS8RsRq3AWKK918xR9+BsLdHRjHgrcPCnAT5AmRkuHVzAAwlgsM/X14uyTUeW8tPz8gC1kDHBUhc9A3Wn3QIDAQAB"
                   },
                   "at": "2026-11-20T00:00:00.000Z",
                   "expiry": "immediate",
@@ -8122,8 +8122,8 @@
                   {
                     "by": "to",
                     "algorithmHash": "sha256",
-                    "value": "BFheR/6ZayQ/JR9vv72GG8LD7E2ql4yjmTjEXBIHxFwFF0KAxH0cSPdzp1JRUldAFadoPD0TeUlZC1zMG5LsEw1gcWiWPT+6ah+cNrmbKqjnziDUFk3OJscyiVM4nzjxcggX2dv/KExVS/8Y82+Ov3L9VLzdDYhBhW60yDsRuD8LttTpH5Wwsy3CACqTEm76Klb5nK7Op7/0NhWpiURutyJ+kKCWDzKSUIB6/jZlXePZ6Jdg7xh2isj6x1IEjKR96P47O6ge855QoSVEc5bnfODOGpEzc7eypKnDxtYS9swFQ9qpm/it5M6clsxM3g3ACHMHqc5zmKyNwaQY5VrAPg==",
-                    "fingerprint": "eZR5ee63okYhNmG82iANnwAoWUCkNolX9vSnXYCzGug="
+                    "value": "jSFCzCUJdFRuEIQ4iAsRR/QF2aawa3SO7SB0cNzgK5CI0hJrqQUSw2+5PvMbSMMo4vpIBX4VMPoYxJW4HmLcwK7ksWfWyihqckFje9WZ1+JF8yPc8HbqjAKaLeX8UboA5XI3TeE/+js9BRTxpWPYsMFQfuJzDwbi12SHSAgiZBqEb3oEM4ismwAl8q3AQEo1ftizSFESiPEYBSKc4nrzDCm0aePJfydAkVB7qQQkIwe3Mv8S8mY09E2D1rf7Wv6C4l9Haww9p/ZvCJRCxG7fLzk0JdUm9cl5w3C/eMI0mseRK9Gtr0km7NOhrcaYV7tN8HsP5IaOAbWl/u6fzM/ijA==",
+                    "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0="
                   }
                 ]
               }
@@ -8152,8 +8152,8 @@
                       },
                       "to": {
                         "selector": "btps2",
-                        "fingerprint": "eZR5ee63okYhNmG82iANnwAoWUCkNolX9vSnXYCzGug=",
-                        "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApndELB7oLSP/g0nNM/aXjeU2nVCgFOgfSZP3l+fbbg5XsKzy1j2h00foojwoCaXmyxIGg+j31APXlzoZvTX63lsRTuhfFbsp3+DJI4d9afYcG5mVSX1QvNwKJh6kNxuBQT4H1pbjTziX2wseDzZjIVnbwb1tVWoPxM8AnMdq36+8zLsFTUoat1lALUc0ucEQl4xSLtPyRiZlhjG/mtB/s0g+UdY259jxik9mSic9+uLvwyQAucD6/hU4E9uHfiEk3Kxsg9ZzmAcj1lga2NVCBtlkg2zBuqFYw8bWN+4Qqf6N+Nil3EZQK4uah9j7lSAUbm41q1dt9XuyzF3ClmRKowIDAQAB"
+                        "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
+                        "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsUAFDPoxsphQ3Iu28P2Qnnj7HHC8SMjzqD0nUhcyBR65ZvqRwv3jxdkk3GSwFR3FlMePe9cCNXDMJqTQ0V4zne4GGrSfO1dHHO/rAdx/uKVnPNZ/NRFwf45CICXOQhvPcEzrX9SatM/awDbAyTy0BsiBTuIwwT6bTnPOA62re6urYkUOToij90rqpJ/qff5KXyg/IqtOOyl4tSX6Hh2/iK3M4yKjZQyiSxe0sc6Ukw/77DrbpM4CjuSc+jS7f5A5IW1gS8RsRq3AWKK918xR9+BsLdHRjHgrcPCnAT5AmRkuHVzAAwlgsM/X14uyTUeW8tPz8gC1kDHBUhc9A3Wn3QIDAQAB"
                       },
                       "at": "2026-11-20T00:00:00.000Z",
                       "expiry": "immediate",
@@ -8165,8 +8165,8 @@
                       {
                         "by": "to",
                         "algorithmHash": "sha256",
-                        "value": "BFheR/6ZayQ/JR9vv72GG8LD7E2ql4yjmTjEXBIHxFwFF0KAxH0cSPdzp1JRUldAFadoPD0TeUlZC1zMG5LsEw1gcWiWPT+6ah+cNrmbKqjnziDUFk3OJscyiVM4nzjxcggX2dv/KExVS/8Y82+Ov3L9VLzdDYhBhW60yDsRuD8LttTpH5Wwsy3CACqTEm76Klb5nK7Op7/0NhWpiURutyJ+kKCWDzKSUIB6/jZlXePZ6Jdg7xh2isj6x1IEjKR96P47O6ge855QoSVEc5bnfODOGpEzc7eypKnDxtYS9swFQ9qpm/it5M6clsxM3g3ACHMHqc5zmKyNwaQY5VrAPg==",
-                        "fingerprint": "eZR5ee63okYhNmG82iANnwAoWUCkNolX9vSnXYCzGug="
+                        "value": "jSFCzCUJdFRuEIQ4iAsRR/QF2aawa3SO7SB0cNzgK5CI0hJrqQUSw2+5PvMbSMMo4vpIBX4VMPoYxJW4HmLcwK7ksWfWyihqckFje9WZ1+JF8yPc8HbqjAKaLeX8UboA5XI3TeE/+js9BRTxpWPYsMFQfuJzDwbi12SHSAgiZBqEb3oEM4ismwAl8q3AQEo1ftizSFESiPEYBSKc4nrzDCm0aePJfydAkVB7qQQkIwe3Mv8S8mY09E2D1rf7Wv6C4l9Haww9p/ZvCJRCxG7fLzk0JdUm9cl5w3C/eMI0mseRK9Gtr0km7NOhrcaYV7tN8HsP5IaOAbWl/u6fzM/ijA==",
+                        "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0="
                       }
                     ]
                   }
@@ -8176,8 +8176,8 @@
               "selector": "btps1",
               "signature": {
                 "algorithmHash": "sha256",
-                "value": "owQhxnAzBLf3yhknm15n/KOPi+EqLph+wcfXC16qiVFFQlPDm2M1rVDUg6E5Cjv/gGJJ6iHdBreqwB3EUc7XaIpGr01R73zQ+p4mCyMePdrRPn2/0/F6+IXijWY9MH1AkqXSEZoFNWvUBYoaMaZovudEHCQB9GpyE9Pgge8Y9lku0W4BZIgVv27/mt+g0sqUFu8xwGtloBs+yDxRNYqOz55z/svXlPy5ZY7mDu6uFqJmiMToJ5PTyPKGXSQnhZiTdhsVBzrJqyZpbc1McvPRE498q7Qu5Zy5R4CFFYQR33mIHL3iLON0K28VQmk1PY6ZNAt4kVHi/gX2/mOBDYqKaA==",
-                "fingerprint": "sHk9b7BsK5abKDPUev+gzhMob12gbaJRMdRgUBV7fbU="
+                "value": "LH7gOUNjtECmz9x7h2tLiqrHEFKpfSEZVs4D+bw7lvA/ekjscR5ytEle2SoQSAWoYX7UUIuEWl9Y98pV/KuUJmiedYW78XK0w9QFUVytCzXNAMEx3fhwq2Irf1P0/4SVTV9HGJe6MozKCctX0CQ+9w9e/Llo967GzRmODkuzf4ygsJgmuknfO+vZKuv98k4t2Jc7SmVMqRvJ2lXDq1GmM807ee9UJB+ceNEkqVDzdb6x4EFFOdkEZwLfxeD2BvmamrlJHh19ub4IU9aW6r38lDeSmk6uznNwIE7HRfnwnF3mrCa8vOh7fpq5g0soZHhxdF0S4b/lz000qwlT/LypMA==",
+                "fingerprint": "XJA9Y6CwCgsF+/kW0Xr+Zvkf3m+ojeWZr4bMRvZVy1k="
               }
             }
           }
@@ -8220,9 +8220,9 @@
             "keyChain": {
               "chainValid": true,
               "keyInChain": true,
-              "authorityUnverified": false,
+              "authorityUnverified": true,
               "forked": false,
-              "reachesKey": "eZR5ee63okYhNmG82iANnwAoWUCkNolX9vSnXYCzGug=",
+              "reachesKey": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
               "anchored": false,
               "rotatedAt": "2026-11-20T00:00:00.000Z",
               "signedInWindow": true,
@@ -8230,6 +8230,640 @@
                 "at": "2026-11-20T00:00:00.000Z",
                 "compromisedSince": "2026-11-20T00:00:00.000Z",
                 "reason": "lost"
+              },
+              "operatorAnswer": {
+                "signedBy": "admin$guarantor.example",
+                "signatureValid": true,
+                "answersThisChain": true,
+                "operatorKeyAnchored": false
+              }
+            }
+          },
+          {
+            "signer": "loans$bank.example",
+            "decision": "accepted",
+            "signatureValid": true,
+            "keyKind": "identity",
+            "agreementMatches": true,
+            "termsMatch": true,
+            "withinDeadline": true,
+            "inOrder": true,
+            "key": {
+              "identity": "loans$bank.example",
+              "selector": "btps1",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
+          }
+        ],
+        "complete": true,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
+      }
+    },
+    {
+      "name": "a-lost-keys-rotation-confirmed-by-its-operators-answer-by-a-kept-key",
+      "bundle": {
+        "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
+        "agreement": {
+          "type": "agreement",
+          "title": "Home loan agreement",
+          "id": "AGR-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "body": {
+            "format": "markdown",
+            "content": "# Home loan\n\nThe terms are attached. Each of you accepts them in turn."
+          },
+          "attachments": [
+            {
+              "content": "JVBERi0xLjcgSG9tZSBsb2FuIHRlcm1zOiA2LjElIHAuYS4gb3ZlciAzMCB5ZWFycw==",
+              "type": "application/pdf",
+              "filename": "terms.pdf",
+              "size": 49,
+              "sha256": "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
+            }
+          ],
+          "acceptance": {
+            "by": "2026-11-30T00:00:00.000Z",
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+            "signers": [
+              {
+                "address": "alice$client.example"
+              },
+              {
+                "address": "sam$guarantor.example"
+              },
+              {
+                "address": "loans$bank.example"
+              }
+            ],
+            "signingOrder": "sequential"
+          },
+          "originatorSignature": {
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "CKDY755su+/NYdHnWK3Q4YAZDjfnllz6O51EmWmF+Csy14SlQL+eqNBqw2/4kt3m8ETYcIH6g7U4Q1ECINyjs6ZYC/8V40dCuJY7hLj0NKzgJr8DxOXfJsOuGYTVO5BqWh3C36tskTVslOpSu0/56RMM5zTUr6P+74DPkr+16rXZef2IJiByrw6jBNnnZpGDEA1LySofZJLt08bHYa5JeyMjMffhs+1xKychYo7Xyc90x6O/D19V4bJT/4E7wpe7x1+Yxx9MI14kpnn+PJhVhD4BcP+Pm6lvZIHUFXbrcgC/VlU/UiC+IedgNpTs1fKVfbO4aC6tGscavoaA7HvTTg==",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
+          }
+        },
+        "statements": [
+          {
+            "statement": {
+              "agreement": {
+                "originator": "loans$bank.example",
+                "id": "AGR-1",
+                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+              },
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+              "signer": "alice$client.example",
+              "decision": "accepted",
+              "signedAt": "2026-11-02T00:00:00.000Z"
+            },
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
+            }
+          },
+          {
+            "statement": {
+              "agreement": {
+                "originator": "loans$bank.example",
+                "id": "AGR-1",
+                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+              },
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+              "signer": "sam$guarantor.example",
+              "decision": "accepted",
+              "signedAt": "2026-11-03T00:00:00.000Z",
+              "previous": "57e2925ee17898b635aa8fcda6a23d934df2f118d0f60b72ccf2a721cd77b9dc"
+            },
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "IYUw4XhIV/8o04jNk7lAv8J3vZktJ/sdtxmf8j0axADR/xyavTT6ymQLQjL1YxCSoGIEzHicpUoIp9uMoeTWJWkig3rUX1sStbTPXk+g8vpGFhDCbXpsIW0UZTQRpstlfWCBablnvYXxG5Ia64hVGu8V0hTmiQ3clgnVdURv3GG7+wGqBWWZ2QPvi5qQCrWnXc8IBS7TcdqKw3JG7Vgy+oD6sd0jDYbsbNsK2v5XSu9nQiJGkzIkWHQIsHE/rMhID2tmpBSbETKf3dXJqSU16lf4XKJ7/goBadqu7PvR2cvk93e6chNRL5LXtUuCpS0UhMoaiMhHxW7XI6pM2A5wKw==",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
+          },
+          {
+            "statement": {
+              "agreement": {
+                "originator": "loans$bank.example",
+                "id": "AGR-1",
+                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+              },
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+              "signer": "loans$bank.example",
+              "decision": "accepted",
+              "signedAt": "2026-11-04T00:00:00.000Z",
+              "previous": "307d64465ec1a5e652bbd1da371878a1ef13159a0b2211a5756b36e4bf84d348"
+            },
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "fpAYD4eiIHNHQTANxNGYvnDe/HhgZbnRlaOx4wTunA5ETNfRVULxL5ChzEPNy9LoF8i/pQFMyvN7MIpmMbgyykNdG7mCPeMBB5rn1g1zDX1dLqK8WxJ60ZmXj81igfAcokS3cO+TD4Z326RFLb3yZBR2hFay7xa4EmBkEK8cer+RNeFZkmcVWCz1nErs7HatTwjviv1yhKSRLYfmsb0HlV8PEm8MVsJuzUBqV3X4A1L/uEIvh/zQ1fP8MRLorj/Gx8LkZpm/Pj8sZMQnsQ1vxp/7k9ZvZ1hsFw6n3rm+1Pi2YW2A8WpAq1o95f7wtYOcK4SRZxhYlxoiGh9fSY7eVQ==",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
+          }
+        ],
+        "keys": [
+          {
+            "identity": "loans$bank.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArlhp1Th8WEqOBszPSXSI\nabxtIb/yGvGUvMtxWACENxKWbK/4elcppOv4wLvX2w/OjQRB4ptLVcMsuBctE5N8\nEWgm2Vowz7MQYwfB2jY2tMQgtlV8Gebmm0+OwF6lMjy5tx5KKr/49NvIGGtA7Qq1\n+jL3oW1b1y12TB42L+VOReOhOUnxwEVLGoy6bUnSqBQMNC8PM5EapYQ30TIqofUB\nKCRgOc+k75QBuopdXVvkh5PFVuA218QQ6ZUAy1XEhQVMN+5JN6KMp8rY8YKKCGSW\ngkPie3/BdkwpaeXmh1KSBnIklcELw1d3jk5fp0/APbwlbrzotxHlpe39sMp5RV02\nuQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+          },
+          {
+            "identity": "alice$client.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoNg8aq1uNPkXTfAtdYdf\njZwzz/tpqtDteRhG8cqIzA2W8Mt82WOARo1W1TjJyhdzCeFWpSywDcYvTgTeznNi\nwRkMm3MhJaTCdBnd97GBiOQ8Q4BOP5uNbHNWMwuZQssqyYt/fmCJFo4hQtKb6pH9\nlKZb6w6SFXumpNalmPJ2wm1VwTmlNUcWD3lHT5OWJBBWaMLhp/VBPSpuvytZ611T\n0KsBcxJLyDy3fZmhfwOWJKXboo/ASm7v+U9HLdf/AvVIeGb6GPfTpRdC4LS+wmcb\nZpLfEAOEZppLjRFPRNuGrKniXzyOTMWrDt1ukd8kR6XH407gavEJo3IoBeo6tGS0\nmwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
+          },
+          {
+            "identity": "sam$guarantor.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApmbSkQN2QV4GWGkpioYz\nKKWwlB53SS+xDc1JRHY6Wfndo15BwcD1ClHeOLYvJP5e5RxxqWo21tZApNGXunYs\nMwidCxJLyTUtQYCL7k/PxUhqEKjsGmSU0qMp0wF/1JXSEQEV5IW4Hu2PedQ7lMv2\n1xR7vYiOBHLAwLSLgl18Z6A43B9D72e2YrdMRrVy/iDS/ih2LtxzTDmdjHxoJKHx\nYD1d8BW/wvSoJ3uFPJXLely8dkERFErm+8Ug5/Zt+EQODruipqzilLzBGT3bgdpU\n/BvLCSsVUqdzKg45svH+euAue55aOyU+TZR3N1XZZcdB5brEYCfSo7+60109CgVN\nAQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+          },
+          {
+            "identity": "admin$client.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GQFk0E2rN0KCdB9hS1u\n6d/f8RMY3m2Jh+BbrWLQg/rvL8Bh/xT0RBdL8qPe2/GFOd91gmicJknN9xvrovkL\nFZpR6/qtvKAn8YLQkqf6mPTC+giyL2NkbohVU16Vc6qtYaLUIcZSahZU3odHe55l\no1PfUokBsjkmVKLUHA+zjmPHILzlZVuFCkQ6QDmGuuP5CJzs9EAt3BiavZ1ToQ6q\ng6zS72YeMg6BZ+g6CTu0BltQzNwtjUUvcd6TfEwujd2/bBvEJMwplzetHNKEANJC\nv6otR03LuQfxT03q5Gf6I8JgU5szROm0gzhkRHkLWR00mpNQcV8EfaPXqCIwGxNw\nqQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
+          },
+          {
+            "identity": "admin$guarantor.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuG4QyQ5iZdIIlI5Nh8ZG\n53PeRfR+TU1omW+atwevALRa55qVxnrTGAWH+s84QwlloYT0Y5mC7oCvqE089M9k\nUBZ6qMApPau8/4yXqcTzxkHqumi4kTZx4xvTamvPl0VWM5/eO3DVmVkjonMvzFiU\nc96X8jnyVD8aObdzZvJJYZeMyNqP22tMv+B/asG4CoqnueL0E1qHsqXzUhTyMFc9\nRKTyMeVfQwUpPqY17kd1LTkU9t1VJlDhIbc9715fJcI2PeGQNSp576I/bEPyDFHL\nZl3GMzzWmU+U+Hrrc3Dsk+yZZRbv4/xB8caRFECBOJKzgXGIQiL//4Y5a2+A7cWr\nqwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "XJA9Y6CwCgsF+/kW0Xr+Zvkf3m+ojeWZr4bMRvZVy1k="
+          }
+        ],
+        "keyChains": [
+          {
+            "identity": "sam$guarantor.example",
+            "records": [
+              {
+                "rotation": {
+                  "type": "btps.keyRotation.v1",
+                  "identity": "sam$guarantor.example",
+                  "from": {
+                    "selector": "btps1",
+                    "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0=",
+                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApmbSkQN2QV4GWGkpioYzKKWwlB53SS+xDc1JRHY6Wfndo15BwcD1ClHeOLYvJP5e5RxxqWo21tZApNGXunYsMwidCxJLyTUtQYCL7k/PxUhqEKjsGmSU0qMp0wF/1JXSEQEV5IW4Hu2PedQ7lMv21xR7vYiOBHLAwLSLgl18Z6A43B9D72e2YrdMRrVy/iDS/ih2LtxzTDmdjHxoJKHxYD1d8BW/wvSoJ3uFPJXLely8dkERFErm+8Ug5/Zt+EQODruipqzilLzBGT3bgdpU/BvLCSsVUqdzKg45svH+euAue55aOyU+TZR3N1XZZcdB5brEYCfSo7+60109CgVNAQIDAQAB"
+                  },
+                  "to": {
+                    "selector": "btps2",
+                    "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
+                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsUAFDPoxsphQ3Iu28P2Qnnj7HHC8SMjzqD0nUhcyBR65ZvqRwv3jxdkk3GSwFR3FlMePe9cCNXDMJqTQ0V4zne4GGrSfO1dHHO/rAdx/uKVnPNZ/NRFwf45CICXOQhvPcEzrX9SatM/awDbAyTy0BsiBTuIwwT6bTnPOA62re6urYkUOToij90rqpJ/qff5KXyg/IqtOOyl4tSX6Hh2/iK3M4yKjZQyiSxe0sc6Ukw/77DrbpM4CjuSc+jS7f5A5IW1gS8RsRq3AWKK918xR9+BsLdHRjHgrcPCnAT5AmRkuHVzAAwlgsM/X14uyTUeW8tPz8gC1kDHBUhc9A3Wn3QIDAQAB"
+                  },
+                  "at": "2026-11-20T00:00:00.000Z",
+                  "expiry": "immediate",
+                  "compromisedSince": "2026-11-20T00:00:00.000Z",
+                  "reason": "lost",
+                  "prev": null
+                },
+                "signatures": [
+                  {
+                    "by": "to",
+                    "algorithmHash": "sha256",
+                    "value": "jSFCzCUJdFRuEIQ4iAsRR/QF2aawa3SO7SB0cNzgK5CI0hJrqQUSw2+5PvMbSMMo4vpIBX4VMPoYxJW4HmLcwK7ksWfWyihqckFje9WZ1+JF8yPc8HbqjAKaLeX8UboA5XI3TeE/+js9BRTxpWPYsMFQfuJzDwbi12SHSAgiZBqEb3oEM4ismwAl8q3AQEo1ftizSFESiPEYBSKc4nrzDCm0aePJfydAkVB7qQQkIwe3Mv8S8mY09E2D1rf7Wv6C4l9Haww9p/ZvCJRCxG7fLzk0JdUm9cl5w3C/eMI0mseRK9Gtr0km7NOhrcaYV7tN8HsP5IaOAbWl/u6fzM/ijA==",
+                    "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0="
+                  }
+                ]
+              }
+            ],
+            "operatorAnswer": {
+              "version": "1.2.0",
+              "status": {
+                "ok": true,
+                "code": 200
+              },
+              "id": "e9d1c0b2-7a64-4f3e-9b28-5c1d0e7f6a43",
+              "issuedAt": "2026-11-21T00:00:00.000Z",
+              "type": "btps_response",
+              "reqId": "0b7c2e4d-8f15-4a96-b3d7-6e2f1a9c8d50",
+              "document": {
+                "identity": "sam$guarantor.example",
+                "keyChain": [
+                  {
+                    "rotation": {
+                      "type": "btps.keyRotation.v1",
+                      "identity": "sam$guarantor.example",
+                      "from": {
+                        "selector": "btps1",
+                        "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0=",
+                        "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApmbSkQN2QV4GWGkpioYzKKWwlB53SS+xDc1JRHY6Wfndo15BwcD1ClHeOLYvJP5e5RxxqWo21tZApNGXunYsMwidCxJLyTUtQYCL7k/PxUhqEKjsGmSU0qMp0wF/1JXSEQEV5IW4Hu2PedQ7lMv21xR7vYiOBHLAwLSLgl18Z6A43B9D72e2YrdMRrVy/iDS/ih2LtxzTDmdjHxoJKHxYD1d8BW/wvSoJ3uFPJXLely8dkERFErm+8Ug5/Zt+EQODruipqzilLzBGT3bgdpU/BvLCSsVUqdzKg45svH+euAue55aOyU+TZR3N1XZZcdB5brEYCfSo7+60109CgVNAQIDAQAB"
+                      },
+                      "to": {
+                        "selector": "btps2",
+                        "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
+                        "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsUAFDPoxsphQ3Iu28P2Qnnj7HHC8SMjzqD0nUhcyBR65ZvqRwv3jxdkk3GSwFR3FlMePe9cCNXDMJqTQ0V4zne4GGrSfO1dHHO/rAdx/uKVnPNZ/NRFwf45CICXOQhvPcEzrX9SatM/awDbAyTy0BsiBTuIwwT6bTnPOA62re6urYkUOToij90rqpJ/qff5KXyg/IqtOOyl4tSX6Hh2/iK3M4yKjZQyiSxe0sc6Ukw/77DrbpM4CjuSc+jS7f5A5IW1gS8RsRq3AWKK918xR9+BsLdHRjHgrcPCnAT5AmRkuHVzAAwlgsM/X14uyTUeW8tPz8gC1kDHBUhc9A3Wn3QIDAQAB"
+                      },
+                      "at": "2026-11-20T00:00:00.000Z",
+                      "expiry": "immediate",
+                      "compromisedSince": "2026-11-20T00:00:00.000Z",
+                      "reason": "lost",
+                      "prev": null
+                    },
+                    "signatures": [
+                      {
+                        "by": "to",
+                        "algorithmHash": "sha256",
+                        "value": "jSFCzCUJdFRuEIQ4iAsRR/QF2aawa3SO7SB0cNzgK5CI0hJrqQUSw2+5PvMbSMMo4vpIBX4VMPoYxJW4HmLcwK7ksWfWyihqckFje9WZ1+JF8yPc8HbqjAKaLeX8UboA5XI3TeE/+js9BRTxpWPYsMFQfuJzDwbi12SHSAgiZBqEb3oEM4ismwAl8q3AQEo1ftizSFESiPEYBSKc4nrzDCm0aePJfydAkVB7qQQkIwe3Mv8S8mY09E2D1rf7Wv6C4l9Haww9p/ZvCJRCxG7fLzk0JdUm9cl5w3C/eMI0mseRK9Gtr0km7NOhrcaYV7tN8HsP5IaOAbWl/u6fzM/ijA==",
+                        "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0="
+                      }
+                    ]
+                  }
+                ]
+              },
+              "signedBy": "admin$guarantor.example",
+              "selector": "btps1",
+              "signature": {
+                "algorithmHash": "sha256",
+                "value": "LH7gOUNjtECmz9x7h2tLiqrHEFKpfSEZVs4D+bw7lvA/ekjscR5ytEle2SoQSAWoYX7UUIuEWl9Y98pV/KuUJmiedYW78XK0w9QFUVytCzXNAMEx3fhwq2Irf1P0/4SVTV9HGJe6MozKCctX0CQ+9w9e/Llo967GzRmODkuzf4ygsJgmuknfO+vZKuv98k4t2Jc7SmVMqRvJ2lXDq1GmM807ee9UJB+ceNEkqVDzdb6x4EFFOdkEZwLfxeD2BvmamrlJHh19ub4IU9aW6r38lDeSmk6uznNwIE7HRfnwnF3mrCa8vOh7fpq5g0soZHhxdF0S4b/lz000qwlT/LypMA==",
+                "fingerprint": "XJA9Y6CwCgsF+/kW0Xr+Zvkf3m+ojeWZr4bMRvZVy1k="
+              }
+            }
+          }
+        ]
+      },
+      "options": {
+        "anchors": ["XJA9Y6CwCgsF+/kW0Xr+Zvkf3m+ojeWZr4bMRvZVy1k="]
+      },
+      "expect": {
+        "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
+        "originatorSignatureValid": true,
+        "termsAttached": true,
+        "statements": [
+          {
+            "signer": "alice$client.example",
+            "decision": "accepted",
+            "signatureValid": true,
+            "keyKind": "identity",
+            "agreementMatches": true,
+            "termsMatch": true,
+            "withinDeadline": true,
+            "inOrder": true,
+            "key": {
+              "identity": "alice$client.example",
+              "selector": "btps1",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
+            }
+          },
+          {
+            "signer": "sam$guarantor.example",
+            "decision": "accepted",
+            "signatureValid": true,
+            "keyKind": "identity",
+            "agreementMatches": true,
+            "termsMatch": true,
+            "withinDeadline": true,
+            "inOrder": true,
+            "key": {
+              "identity": "sam$guarantor.example",
+              "selector": "btps1",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            },
+            "keyChain": {
+              "chainValid": true,
+              "keyInChain": true,
+              "authorityUnverified": false,
+              "forked": false,
+              "reachesKey": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
+              "anchored": false,
+              "rotatedAt": "2026-11-20T00:00:00.000Z",
+              "signedInWindow": true,
+              "expiredImmediately": {
+                "at": "2026-11-20T00:00:00.000Z",
+                "compromisedSince": "2026-11-20T00:00:00.000Z",
+                "reason": "lost"
+              },
+              "operatorAnswer": {
+                "signedBy": "admin$guarantor.example",
+                "signatureValid": true,
+                "answersThisChain": true,
+                "operatorKeyAnchored": true
+              }
+            }
+          },
+          {
+            "signer": "loans$bank.example",
+            "decision": "accepted",
+            "signatureValid": true,
+            "keyKind": "identity",
+            "agreementMatches": true,
+            "termsMatch": true,
+            "withinDeadline": true,
+            "inOrder": true,
+            "key": {
+              "identity": "loans$bank.example",
+              "selector": "btps1",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
+          }
+        ],
+        "complete": true,
+        "originatorKey": {
+          "identity": "loans$bank.example",
+          "selector": "btps1",
+          "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+        },
+        "keysConfirmedOnline": false
+      }
+    },
+    {
+      "name": "a-lost-keys-rotation-with-a-forged-operators-answer",
+      "bundle": {
+        "format": "btps-evidence/1",
+        "originator": "loans$bank.example",
+        "agreement": {
+          "type": "agreement",
+          "title": "Home loan agreement",
+          "id": "AGR-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "body": {
+            "format": "markdown",
+            "content": "# Home loan\n\nThe terms are attached. Each of you accepts them in turn."
+          },
+          "attachments": [
+            {
+              "content": "JVBERi0xLjcgSG9tZSBsb2FuIHRlcm1zOiA2LjElIHAuYS4gb3ZlciAzMCB5ZWFycw==",
+              "type": "application/pdf",
+              "filename": "terms.pdf",
+              "size": 49,
+              "sha256": "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
+            }
+          ],
+          "acceptance": {
+            "by": "2026-11-30T00:00:00.000Z",
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+            "signers": [
+              {
+                "address": "alice$client.example"
+              },
+              {
+                "address": "sam$guarantor.example"
+              },
+              {
+                "address": "loans$bank.example"
+              }
+            ],
+            "signingOrder": "sequential"
+          },
+          "originatorSignature": {
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "CKDY755su+/NYdHnWK3Q4YAZDjfnllz6O51EmWmF+Csy14SlQL+eqNBqw2/4kt3m8ETYcIH6g7U4Q1ECINyjs6ZYC/8V40dCuJY7hLj0NKzgJr8DxOXfJsOuGYTVO5BqWh3C36tskTVslOpSu0/56RMM5zTUr6P+74DPkr+16rXZef2IJiByrw6jBNnnZpGDEA1LySofZJLt08bHYa5JeyMjMffhs+1xKychYo7Xyc90x6O/D19V4bJT/4E7wpe7x1+Yxx9MI14kpnn+PJhVhD4BcP+Pm6lvZIHUFXbrcgC/VlU/UiC+IedgNpTs1fKVfbO4aC6tGscavoaA7HvTTg==",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
+          }
+        },
+        "statements": [
+          {
+            "statement": {
+              "agreement": {
+                "originator": "loans$bank.example",
+                "id": "AGR-1",
+                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+              },
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+              "signer": "alice$client.example",
+              "decision": "accepted",
+              "signedAt": "2026-11-02T00:00:00.000Z"
+            },
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "Fhj1Nw3J0Wz0HcrbsbBkzN4PQaD8HARSlNVHk/SCiV/zhUsrDVfFjah8RNB1P9c14WiNnUBHYZUCAYbug1n/xkXTMBQ5GCFWd2E87lArRnJ+Kqg9hFwgSX8TcnDCNL7pTIJTcHo6DuZ5F/zr5MXaByqfPBm8fbRCUSFcRtVxAcmuGTvSP5EoUdA7KGCzBW+nuaHizo19NEmcioxLTTkFIXWJPD9Efj7nmPoinqwufa6ojjprrVmaZoQJkwNj0n789JY4RcvZTe2um/aEOih3BbpNj9npzF6jlUvSpt+MWVxktG8CZhQBKfC812PkSjRYfw8e3Zzhcs1wN4ZgG1P8xA==",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
+            }
+          },
+          {
+            "statement": {
+              "agreement": {
+                "originator": "loans$bank.example",
+                "id": "AGR-1",
+                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+              },
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+              "signer": "sam$guarantor.example",
+              "decision": "accepted",
+              "signedAt": "2026-11-03T00:00:00.000Z",
+              "previous": "57e2925ee17898b635aa8fcda6a23d934df2f118d0f60b72ccf2a721cd77b9dc"
+            },
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "IYUw4XhIV/8o04jNk7lAv8J3vZktJ/sdtxmf8j0axADR/xyavTT6ymQLQjL1YxCSoGIEzHicpUoIp9uMoeTWJWkig3rUX1sStbTPXk+g8vpGFhDCbXpsIW0UZTQRpstlfWCBablnvYXxG5Ia64hVGu8V0hTmiQ3clgnVdURv3GG7+wGqBWWZ2QPvi5qQCrWnXc8IBS7TcdqKw3JG7Vgy+oD6sd0jDYbsbNsK2v5XSu9nQiJGkzIkWHQIsHE/rMhID2tmpBSbETKf3dXJqSU16lf4XKJ7/goBadqu7PvR2cvk93e6chNRL5LXtUuCpS0UhMoaiMhHxW7XI6pM2A5wKw==",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            }
+          },
+          {
+            "statement": {
+              "agreement": {
+                "originator": "loans$bank.example",
+                "id": "AGR-1",
+                "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+              },
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+              "signer": "loans$bank.example",
+              "decision": "accepted",
+              "signedAt": "2026-11-04T00:00:00.000Z",
+              "previous": "307d64465ec1a5e652bbd1da371878a1ef13159a0b2211a5756b36e4bf84d348"
+            },
+            "selector": "btps1",
+            "signature": {
+              "algorithmHash": "sha256",
+              "value": "fpAYD4eiIHNHQTANxNGYvnDe/HhgZbnRlaOx4wTunA5ETNfRVULxL5ChzEPNy9LoF8i/pQFMyvN7MIpmMbgyykNdG7mCPeMBB5rn1g1zDX1dLqK8WxJ60ZmXj81igfAcokS3cO+TD4Z326RFLb3yZBR2hFay7xa4EmBkEK8cer+RNeFZkmcVWCz1nErs7HatTwjviv1yhKSRLYfmsb0HlV8PEm8MVsJuzUBqV3X4A1L/uEIvh/zQ1fP8MRLorj/Gx8LkZpm/Pj8sZMQnsQ1vxp/7k9ZvZ1hsFw6n3rm+1Pi2YW2A8WpAq1o95f7wtYOcK4SRZxhYlxoiGh9fSY7eVQ==",
+              "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+            }
+          }
+        ],
+        "keys": [
+          {
+            "identity": "loans$bank.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArlhp1Th8WEqOBszPSXSI\nabxtIb/yGvGUvMtxWACENxKWbK/4elcppOv4wLvX2w/OjQRB4ptLVcMsuBctE5N8\nEWgm2Vowz7MQYwfB2jY2tMQgtlV8Gebmm0+OwF6lMjy5tx5KKr/49NvIGGtA7Qq1\n+jL3oW1b1y12TB42L+VOReOhOUnxwEVLGoy6bUnSqBQMNC8PM5EapYQ30TIqofUB\nKCRgOc+k75QBuopdXVvkh5PFVuA218QQ6ZUAy1XEhQVMN+5JN6KMp8rY8YKKCGSW\ngkPie3/BdkwpaeXmh1KSBnIklcELw1d3jk5fp0/APbwlbrzotxHlpe39sMp5RV02\nuQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
+          },
+          {
+            "identity": "alice$client.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoNg8aq1uNPkXTfAtdYdf\njZwzz/tpqtDteRhG8cqIzA2W8Mt82WOARo1W1TjJyhdzCeFWpSywDcYvTgTeznNi\nwRkMm3MhJaTCdBnd97GBiOQ8Q4BOP5uNbHNWMwuZQssqyYt/fmCJFo4hQtKb6pH9\nlKZb6w6SFXumpNalmPJ2wm1VwTmlNUcWD3lHT5OWJBBWaMLhp/VBPSpuvytZ611T\n0KsBcxJLyDy3fZmhfwOWJKXboo/ASm7v+U9HLdf/AvVIeGb6GPfTpRdC4LS+wmcb\nZpLfEAOEZppLjRFPRNuGrKniXzyOTMWrDt1ukd8kR6XH407gavEJo3IoBeo6tGS0\nmwIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
+          },
+          {
+            "identity": "sam$guarantor.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApmbSkQN2QV4GWGkpioYz\nKKWwlB53SS+xDc1JRHY6Wfndo15BwcD1ClHeOLYvJP5e5RxxqWo21tZApNGXunYs\nMwidCxJLyTUtQYCL7k/PxUhqEKjsGmSU0qMp0wF/1JXSEQEV5IW4Hu2PedQ7lMv2\n1xR7vYiOBHLAwLSLgl18Z6A43B9D72e2YrdMRrVy/iDS/ih2LtxzTDmdjHxoJKHx\nYD1d8BW/wvSoJ3uFPJXLely8dkERFErm+8Ug5/Zt+EQODruipqzilLzBGT3bgdpU\n/BvLCSsVUqdzKg45svH+euAue55aOyU+TZR3N1XZZcdB5brEYCfSo7+60109CgVN\nAQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+          },
+          {
+            "identity": "admin$client.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GQFk0E2rN0KCdB9hS1u\n6d/f8RMY3m2Jh+BbrWLQg/rvL8Bh/xT0RBdL8qPe2/GFOd91gmicJknN9xvrovkL\nFZpR6/qtvKAn8YLQkqf6mPTC+giyL2NkbohVU16Vc6qtYaLUIcZSahZU3odHe55l\no1PfUokBsjkmVKLUHA+zjmPHILzlZVuFCkQ6QDmGuuP5CJzs9EAt3BiavZ1ToQ6q\ng6zS72YeMg6BZ+g6CTu0BltQzNwtjUUvcd6TfEwujd2/bBvEJMwplzetHNKEANJC\nv6otR03LuQfxT03q5Gf6I8JgU5szROm0gzhkRHkLWR00mpNQcV8EfaPXqCIwGxNw\nqQIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys="
+          },
+          {
+            "identity": "admin$guarantor.example",
+            "selector": "btps1",
+            "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1dDebEgtZYpstQ91D3Oe\nAoXTg15gImO7GRVt8AMwUuEdMtFwS66iLBXJe4G/9GCTyKNfep7n0ShJYObH6kfd\n5/tvkyvejzkq3G+ePgiCDNPUFmXfGPOW31DbueNBi95DCJhDTQ2AQHIjt9pCqVgU\ngamonBj6+3Nn6+agmojAGVq0veO1/7NIIiDuA/hFmKLMn+10/6wDzNh2nKpZjBGC\nuwiGq1Vo2G7ssxv9jyi51DcyTU5W3cBzilGxQtdDh+qZYG8kgNJ0aU58m2Dwr7p7\n6ybj07AiiI2/navBjmxNZIrwT69/WuRR1V3EvBYkTX0kG8AOpF5fqbk0F1xk8NXm\n/wIDAQAB\n-----END PUBLIC KEY-----\n",
+            "fingerprint": "cx7EOjpggTyj03LS+K174AxiPWT0JBCA3DwQ+YV8kmo="
+          }
+        ],
+        "keyChains": [
+          {
+            "identity": "sam$guarantor.example",
+            "records": [
+              {
+                "rotation": {
+                  "type": "btps.keyRotation.v1",
+                  "identity": "sam$guarantor.example",
+                  "from": {
+                    "selector": "btps1",
+                    "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0=",
+                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApmbSkQN2QV4GWGkpioYzKKWwlB53SS+xDc1JRHY6Wfndo15BwcD1ClHeOLYvJP5e5RxxqWo21tZApNGXunYsMwidCxJLyTUtQYCL7k/PxUhqEKjsGmSU0qMp0wF/1JXSEQEV5IW4Hu2PedQ7lMv21xR7vYiOBHLAwLSLgl18Z6A43B9D72e2YrdMRrVy/iDS/ih2LtxzTDmdjHxoJKHxYD1d8BW/wvSoJ3uFPJXLely8dkERFErm+8Ug5/Zt+EQODruipqzilLzBGT3bgdpU/BvLCSsVUqdzKg45svH+euAue55aOyU+TZR3N1XZZcdB5brEYCfSo7+60109CgVNAQIDAQAB"
+                  },
+                  "to": {
+                    "selector": "btps2",
+                    "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
+                    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsUAFDPoxsphQ3Iu28P2Qnnj7HHC8SMjzqD0nUhcyBR65ZvqRwv3jxdkk3GSwFR3FlMePe9cCNXDMJqTQ0V4zne4GGrSfO1dHHO/rAdx/uKVnPNZ/NRFwf45CICXOQhvPcEzrX9SatM/awDbAyTy0BsiBTuIwwT6bTnPOA62re6urYkUOToij90rqpJ/qff5KXyg/IqtOOyl4tSX6Hh2/iK3M4yKjZQyiSxe0sc6Ukw/77DrbpM4CjuSc+jS7f5A5IW1gS8RsRq3AWKK918xR9+BsLdHRjHgrcPCnAT5AmRkuHVzAAwlgsM/X14uyTUeW8tPz8gC1kDHBUhc9A3Wn3QIDAQAB"
+                  },
+                  "at": "2026-11-20T00:00:00.000Z",
+                  "expiry": "immediate",
+                  "compromisedSince": "2026-11-20T00:00:00.000Z",
+                  "reason": "lost",
+                  "prev": null
+                },
+                "signatures": [
+                  {
+                    "by": "to",
+                    "algorithmHash": "sha256",
+                    "value": "jSFCzCUJdFRuEIQ4iAsRR/QF2aawa3SO7SB0cNzgK5CI0hJrqQUSw2+5PvMbSMMo4vpIBX4VMPoYxJW4HmLcwK7ksWfWyihqckFje9WZ1+JF8yPc8HbqjAKaLeX8UboA5XI3TeE/+js9BRTxpWPYsMFQfuJzDwbi12SHSAgiZBqEb3oEM4ismwAl8q3AQEo1ftizSFESiPEYBSKc4nrzDCm0aePJfydAkVB7qQQkIwe3Mv8S8mY09E2D1rf7Wv6C4l9Haww9p/ZvCJRCxG7fLzk0JdUm9cl5w3C/eMI0mseRK9Gtr0km7NOhrcaYV7tN8HsP5IaOAbWl/u6fzM/ijA==",
+                    "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0="
+                  }
+                ]
+              }
+            ],
+            "operatorAnswer": {
+              "version": "1.2.0",
+              "status": {
+                "ok": true,
+                "code": 200
+              },
+              "id": "e9d1c0b2-7a64-4f3e-9b28-5c1d0e7f6a43",
+              "issuedAt": "2026-11-21T00:00:00.000Z",
+              "type": "btps_response",
+              "reqId": "0b7c2e4d-8f15-4a96-b3d7-6e2f1a9c8d50",
+              "document": {
+                "identity": "sam$guarantor.example",
+                "keyChain": [
+                  {
+                    "rotation": {
+                      "type": "btps.keyRotation.v1",
+                      "identity": "sam$guarantor.example",
+                      "from": {
+                        "selector": "btps1",
+                        "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0=",
+                        "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApmbSkQN2QV4GWGkpioYzKKWwlB53SS+xDc1JRHY6Wfndo15BwcD1ClHeOLYvJP5e5RxxqWo21tZApNGXunYsMwidCxJLyTUtQYCL7k/PxUhqEKjsGmSU0qMp0wF/1JXSEQEV5IW4Hu2PedQ7lMv21xR7vYiOBHLAwLSLgl18Z6A43B9D72e2YrdMRrVy/iDS/ih2LtxzTDmdjHxoJKHxYD1d8BW/wvSoJ3uFPJXLely8dkERFErm+8Ug5/Zt+EQODruipqzilLzBGT3bgdpU/BvLCSsVUqdzKg45svH+euAue55aOyU+TZR3N1XZZcdB5brEYCfSo7+60109CgVNAQIDAQAB"
+                      },
+                      "to": {
+                        "selector": "btps2",
+                        "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
+                        "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsUAFDPoxsphQ3Iu28P2Qnnj7HHC8SMjzqD0nUhcyBR65ZvqRwv3jxdkk3GSwFR3FlMePe9cCNXDMJqTQ0V4zne4GGrSfO1dHHO/rAdx/uKVnPNZ/NRFwf45CICXOQhvPcEzrX9SatM/awDbAyTy0BsiBTuIwwT6bTnPOA62re6urYkUOToij90rqpJ/qff5KXyg/IqtOOyl4tSX6Hh2/iK3M4yKjZQyiSxe0sc6Ukw/77DrbpM4CjuSc+jS7f5A5IW1gS8RsRq3AWKK918xR9+BsLdHRjHgrcPCnAT5AmRkuHVzAAwlgsM/X14uyTUeW8tPz8gC1kDHBUhc9A3Wn3QIDAQAB"
+                      },
+                      "at": "2026-11-20T00:00:00.000Z",
+                      "expiry": "immediate",
+                      "compromisedSince": "2026-11-20T00:00:00.000Z",
+                      "reason": "lost",
+                      "prev": null
+                    },
+                    "signatures": [
+                      {
+                        "by": "to",
+                        "algorithmHash": "sha256",
+                        "value": "jSFCzCUJdFRuEIQ4iAsRR/QF2aawa3SO7SB0cNzgK5CI0hJrqQUSw2+5PvMbSMMo4vpIBX4VMPoYxJW4HmLcwK7ksWfWyihqckFje9WZ1+JF8yPc8HbqjAKaLeX8UboA5XI3TeE/+js9BRTxpWPYsMFQfuJzDwbi12SHSAgiZBqEb3oEM4ismwAl8q3AQEo1ftizSFESiPEYBSKc4nrzDCm0aePJfydAkVB7qQQkIwe3Mv8S8mY09E2D1rf7Wv6C4l9Haww9p/ZvCJRCxG7fLzk0JdUm9cl5w3C/eMI0mseRK9Gtr0km7NOhrcaYV7tN8HsP5IaOAbWl/u6fzM/ijA==",
+                        "fingerprint": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0="
+                      }
+                    ]
+                  }
+                ]
+              },
+              "signedBy": "admin$guarantor.example",
+              "selector": "btps1",
+              "signature": {
+                "algorithmHash": "sha256",
+                "value": "oCiYQ+rlqHpacmb+Ay1b4L+cguFVmlimhedcVVzTZd0fhbPnZfaHLGBIJbzC1VYlc7U7PtHYnWfiqFGIl6iDos5n4YGZNLWStN87SFCEc8zzXa0irpForyK1AS+Ia/qJ9HS5YH+aF8Fkmk43i6nLtJ0R4vR6yWW69XF7acnbTIAMVUXWlBbbMJz4CVx4r4SqTjVmvk1m85AEN7h1q42l492OudBnxvP0+ysj/smg4sP7K2eaLMkzQzZQd+hK822Laakluwe9JnpOjrfpBJWwsKLyBlCQLyt7Vp6m7SCk9xhaEGFZQBEAU2dGTYNgGlRnFxIGue2y0/4CQE0Zk9Anfw==",
+                "fingerprint": "cx7EOjpggTyj03LS+K174AxiPWT0JBCA3DwQ+YV8kmo="
+              }
+            }
+          }
+        ]
+      },
+      "options": {
+        "anchors": ["XJA9Y6CwCgsF+/kW0Xr+Zvkf3m+ojeWZr4bMRvZVy1k="]
+      },
+      "expect": {
+        "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
+        "originatorSignatureValid": true,
+        "termsAttached": true,
+        "statements": [
+          {
+            "signer": "alice$client.example",
+            "decision": "accepted",
+            "signatureValid": true,
+            "keyKind": "identity",
+            "agreementMatches": true,
+            "termsMatch": true,
+            "withinDeadline": true,
+            "inOrder": true,
+            "key": {
+              "identity": "alice$client.example",
+              "selector": "btps1",
+              "fingerprint": "pjT0JVpLAYFswEla3/ev3WX42beJYOiAg0crTXSszVY="
+            }
+          },
+          {
+            "signer": "sam$guarantor.example",
+            "decision": "accepted",
+            "signatureValid": true,
+            "keyKind": "identity",
+            "agreementMatches": true,
+            "termsMatch": true,
+            "withinDeadline": true,
+            "inOrder": true,
+            "key": {
+              "identity": "sam$guarantor.example",
+              "selector": "btps1",
+              "fingerprint": "yXINCn4QQ2vnYtWxIicUhcrQNvdDHBt6aS/O4z8PCp0="
+            },
+            "keyChain": {
+              "chainValid": true,
+              "keyInChain": true,
+              "authorityUnverified": true,
+              "forked": false,
+              "reachesKey": "ZCJxGnuf4eV6DiA3LfAuqFNd7NdyTVAJUdz03WxSyW0=",
+              "anchored": false,
+              "rotatedAt": "2026-11-20T00:00:00.000Z",
+              "signedInWindow": true,
+              "expiredImmediately": {
+                "at": "2026-11-20T00:00:00.000Z",
+                "compromisedSince": "2026-11-20T00:00:00.000Z",
+                "reason": "lost"
+              },
+              "operatorAnswer": {
+                "signedBy": "admin$guarantor.example",
+                "signatureValid": true,
+                "answersThisChain": true,
+                "operatorKeyAnchored": false
               }
             }
           },

@@ -145,7 +145,27 @@ const arrivalOf = (
   );
 
 /** The answer an operator signs to a key chain lookup, kept whole. */
-const operatorAnswer = (identity: string, keyChain: BTPKeyChainRecord[]): BTPServerResponse => {
+/** Alice loses her first key: only her new one signs its rotation. */
+const lostRotation = () =>
+  signKeyRotation(
+    {
+      identity: ALICE,
+      from: { selector: 'btps1', publicKey: a1.publicKey },
+      to: { selector: 'btps2' },
+      at: at(10),
+      prev: null,
+      expiry: 'immediate',
+      compromisedSince: at(10),
+      reason: 'lost',
+    },
+    { to: { pemFiles: a2 } },
+  );
+
+const operatorAnswer = (
+  identity: string,
+  keyChain: BTPKeyChainRecord[],
+  signer = op,
+): BTPServerResponse => {
   const answer = {
     version: '1.2.0',
     status: { ok: true, code: 200 },
@@ -157,7 +177,8 @@ const operatorAnswer = (identity: string, keyChain: BTPKeyChainRecord[]): BTPSer
     signedBy: OPERATOR,
     selector: 'btps1',
   };
-  return { ...answer, signature: signBtpPayload(answer, op) } as unknown as BTPServerResponse;
+  const signature = signBtpPayload(answer, signer);
+  return { ...answer, signature } as unknown as BTPServerResponse;
 };
 
 const verified = (bundle: object, options?: Parameters<typeof verifyEvidenceBundle>[1]) =>
@@ -285,56 +306,75 @@ describe("an evidence bundle's key chains", () => {
     expect(early.statements[0]?.keyChain?.disownedAfterTheFact).toBe(false);
   });
 
-  it("calls a lost key's rotation unconfirmed, unless its operator's answer in the bundle holds", async () => {
-    const lost = await signKeyRotation(
-      {
-        identity: ALICE,
-        from: { selector: 'btps1', publicKey: a1.publicKey },
-        to: { selector: 'btps2' },
-        at: at(10),
-        prev: null,
-        expiry: 'immediate',
-        compromisedSince: at(10),
-        reason: 'lost',
-      },
-      { to: { pemFiles: a2 } },
-    );
+  it("calls a lost key's rotation unconfirmed, unless an operator key the reader kept answered for it", async () => {
+    const lost = await lostRotation();
     const { agreement, statements } = await signed();
-    const keyOf = dnsNow({
-      [BANK]: { btps1: b1.publicKey },
-      [ALICE]: { btps2: a2.publicKey },
-      [OPERATOR]: { btps1: op.publicKey },
-    });
-    const factsWith = async (chain: BTPEvidenceKeyChain) =>
-      (
-        await verified(
-          buildEvidenceBundle(
-            { originator: BANK, agreement, statements, keyChains: [chain] },
-            keyOf,
-          ),
-        )
-      ).statements[0]?.keyChain;
+    // The bundle holds `operatorKey` as the operator's: whatever its builder put there.
+    const bundleFacts = (
+      chain: BTPEvidenceKeyChain,
+      operatorKey = op.publicKey,
+      anchors?: string[],
+    ) => {
+      const keyOf = dnsNow({
+        [BANK]: { btps1: b1.publicKey },
+        [ALICE]: { btps2: a2.publicKey },
+        [OPERATOR]: { btps1: operatorKey },
+      });
+      const bundle = buildEvidenceBundle(
+        { originator: BANK, agreement, statements, keyChains: [chain] },
+        keyOf,
+      );
+      return verified(bundle, { anchors });
+    };
+    const factsWith = async (...args: Parameters<typeof bundleFacts>) =>
+      (await bundleFacts(...args)).statements[0]?.keyChain;
+    const answered = {
+      identity: ALICE,
+      records: [lost],
+      operatorAnswer: operatorAnswer(ALICE, [lost]),
+    };
 
     expect(await factsWith({ identity: ALICE, records: [lost] })).toMatchObject({
       chainValid: true,
       authorityUnverified: true,
       signedInWindow: true,
     });
-    expect(
-      await factsWith({
-        identity: ALICE,
-        records: [lost],
-        operatorAnswer: operatorAnswer(ALICE, [lost]),
-      }),
-    ).toMatchObject({ authorityUnverified: false, signedInWindow: true });
-    // An answer for another chain confirms nothing.
-    expect(
-      await factsWith({
-        identity: ALICE,
-        records: [lost],
-        operatorAnswer: operatorAnswer(ALICE, []),
-      }),
-    ).toMatchObject({ authorityUnverified: true });
+    // The operator's answer, by a key that is only the bundle's own: present, and confirming nothing.
+    const unanchored = await factsWith(answered);
+    expect(unanchored).toMatchObject({
+      authorityUnverified: true,
+      operatorAnswer: {
+        signedBy: OPERATOR,
+        signatureValid: true,
+        answersThisChain: true,
+        operatorKeyAnchored: false,
+      },
+    });
+    // The reader kept the operator's real fingerprint: the answer confirms the rotation.
+    expect(await factsWith(answered, op.publicKey, [fp(op)])).toMatchObject({
+      authorityUnverified: false,
+      operatorAnswer: { operatorKeyAnchored: true },
+    });
+    // A forger's "operator answer", signed with a key it put in the bundle, confirms nothing,
+    // whatever the reader kept.
+    const forger = keyPair();
+    const forged = {
+      ...answered,
+      operatorAnswer: operatorAnswer(ALICE, [lost], forger),
+    };
+    expect(await factsWith(forged, forger.publicKey, [fp(op)])).toMatchObject({
+      authorityUnverified: true,
+      operatorAnswer: { signatureValid: true, operatorKeyAnchored: false },
+    });
+    // An answer for another chain confirms nothing, though its operator's key is kept.
+    const other = { ...answered, operatorAnswer: operatorAnswer(ALICE, []) };
+    expect(await factsWith(other, op.publicKey, [fp(op)])).toMatchObject({
+      authorityUnverified: true,
+      operatorAnswer: { answersThisChain: false, operatorKeyAnchored: true },
+    });
+    expect(describeEvidenceFacts(await bundleFacts(answered))).toContain(
+      `      operator's answer by ${OPERATOR}: signed yes, this chain yes, its key anchored NO`,
+    );
   });
 
   it('is refused when a key chain is not one', async () => {
@@ -445,5 +485,36 @@ describe('an evidence bundle checked online', () => {
     expect(await confirmed()).toBe(false);
     publish({ ...inDns, [ATTESTOR]: { btps1: attestor.publicKey } });
     expect(await confirmed()).toBe(true);
+  });
+
+  it("takes an operator's answer for a lost key's rotation once DNS confirms the operator's key", async () => {
+    const lost = await lostRotation();
+    const { agreement, statements } = await signed();
+    const keyOf = dnsNow({
+      [BANK]: { btps1: b1.publicKey },
+      [ALICE]: { btps2: a2.publicKey },
+      [OPERATOR]: { btps1: op.publicKey },
+    });
+    const keyChains = [
+      { identity: ALICE, records: [lost], operatorAnswer: operatorAnswer(ALICE, [lost]) },
+    ];
+    const bundle = buildEvidenceBundle(
+      { originator: BANK, agreement, statements, keyChains },
+      keyOf,
+    );
+    const chainFacts = async () =>
+      (await verified(bundle, { online: online({}) })).statements[0]?.keyChain;
+
+    publish({ [OPERATOR]: { btps1: op.publicKey } });
+    expect(await chainFacts()).toMatchObject({
+      authorityUnverified: false,
+      operatorAnswer: { operatorKeyAnchored: true },
+    });
+    // DNS has another key for the operator: the bundle's is not confirmed.
+    publish({ [OPERATOR]: { btps1: keyPair().publicKey } });
+    expect(await chainFacts()).toMatchObject({
+      authorityUnverified: true,
+      operatorAnswer: { operatorKeyAnchored: false },
+    });
   });
 });

@@ -337,19 +337,27 @@ describe('journey: keys rotate along a signed chain', () => {
       rotatedAt: planned && 'rotation' in planned ? planned.rotation.at : 'no rotation',
       reachesKey: fingerprintOf(k3.publicKey),
     });
-    // Jane's chain has a lost key's rotation: her operator's answer, kept whole, confirms it.
+    // Jane's chain has a lost key's rotation. Her operator's answer, kept whole, is there,
+    // but its key is only the bundle's own: it confirms nothing until the reader trusts it.
     expect(facts.statements[0]?.keyChain).toMatchObject({
       chainValid: true,
       keyInChain: true,
       signedInWindow: true,
-      authorityUnverified: false,
-    });
-    const unanswered = {
-      ...bundle,
-      keyChains: keyChains.map(({ identity, records }) => ({ identity, records })),
-    };
-    expect((await verifyEvidenceBundle(unanswered)).statements[0]?.keyChain).toMatchObject({
       authorityUnverified: true,
+      operatorAnswer: {
+        signedBy: vendorHost.operator,
+        signatureValid: true,
+        answersThisChain: true,
+        operatorKeyAnchored: false,
+      },
+    });
+    // A reader who kept the operator's fingerprint takes the answer.
+    const operatorKept = await verifyEvidenceBundle(bundle, {
+      anchors: [fingerprintOf(vendorHost.operatorKeys.publicKey)],
+    });
+    expect(operatorKept.statements[0]?.keyChain).toMatchObject({
+      authorityUnverified: false,
+      operatorAnswer: { operatorKeyAnchored: true },
     });
 
     // The bin as shipped (test:e2e builds the package), anchored on a fingerprint kept.

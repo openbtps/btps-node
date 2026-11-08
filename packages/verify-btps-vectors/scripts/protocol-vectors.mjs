@@ -4055,10 +4055,10 @@ export async function agreementTimestamps(set) {
  * (`keyChains`, with an operator's signed answer) and statements' signed
  * arrivals (`arrivals`), and each signing key is reported against its chain.
  * `keys`: the originator's and the guarantor's signing keys, each one's next
- * key, and the guarantor's operator's key, `{ publicKeyPem, privateKeyPem }`.
+ * key, the guarantor's operator's key, and a forger's, `{ publicKeyPem, privateKeyPem }`.
  */
 export function agreementKeyChains(set, keys) {
-  const { originator, originatorNext, guarantor, guarantorNext, guarantorOperator } = keys;
+  const { originator, originatorNext, guarantor, guarantorNext, guarantorOperator, forger } = keys;
   const BANK = 'loans$bank.example';
   const SAM = 'sam$guarantor.example';
   const OPERATOR = 'admin$guarantor.example';
@@ -4176,13 +4176,28 @@ export function agreementKeyChains(set, keys) {
     signedBy: OPERATOR,
     selector: 'btps1',
   };
-  const operatorAnswer = { ...answered, signature: signatureBy(guarantorOperator, answered) };
-  const operatorKey = {
-    identity: OPERATOR,
-    selector: 'btps1',
-    publicKey: guarantorOperator.publicKeyPem,
-    fingerprint: fp(guarantorOperator),
-  };
+  // The answer, and the operator's key the bundle holds, signed and put there by `by`.
+  const answeredBy = (by) => ({
+    keys: [
+      ...base.bundle.keys,
+      { identity: OPERATOR, selector: 'btps1', publicKey: by.publicKeyPem, fingerprint: fp(by) },
+    ],
+    keyChains: [
+      {
+        identity: SAM,
+        records: [lost],
+        operatorAnswer: { ...answered, signature: signatureBy(by, answered) },
+      },
+    ],
+  });
+  // An operator key is the bundle's own: its answer confirms the rotation only when the
+  // reader kept that key's fingerprint (or confirmed it online).
+  const answerFacts = (operatorKeyAnchored) => ({
+    signedBy: OPERATOR,
+    signatureValid: true,
+    answersThisChain: true,
+    operatorKeyAnchored,
+  });
 
   return [
     withFacts(
@@ -4231,12 +4246,52 @@ export function agreementKeyChains(set, keys) {
       },
     ),
     withFacts(
-      'a-lost-keys-rotation-confirmed-by-its-operators-answer',
+      'a-lost-keys-rotation-with-its-operators-answer-by-a-key-not-kept',
+      answeredBy(guarantorOperator),
       {
-        keys: [...base.bundle.keys, operatorKey],
-        keyChains: [{ identity: SAM, records: [lost], operatorAnswer }],
+        statements: {
+          1: {
+            keyChain: chainFacts(guarantorNext, {
+              ...lostFacts,
+              authorityUnverified: true,
+              operatorAnswer: answerFacts(false),
+            }),
+          },
+        },
       },
-      { statements: { 1: { keyChain: chainFacts(guarantorNext, lostFacts) } } },
+    ),
+    withFacts(
+      'a-lost-keys-rotation-confirmed-by-its-operators-answer-by-a-kept-key',
+      answeredBy(guarantorOperator),
+      {
+        statements: {
+          1: {
+            keyChain: chainFacts(guarantorNext, {
+              ...lostFacts,
+              operatorAnswer: answerFacts(true),
+            }),
+          },
+        },
+      },
+      { anchors: [fp(guarantorOperator)] },
+    ),
+    // A forger's answer, signed by a key it put in the bundle as the operator's: the
+    // reader kept the real operator's fingerprint, and the forged one confirms nothing.
+    withFacts(
+      'a-lost-keys-rotation-with-a-forged-operators-answer',
+      answeredBy(forger),
+      {
+        statements: {
+          1: {
+            keyChain: chainFacts(guarantorNext, {
+              ...lostFacts,
+              authorityUnverified: true,
+              operatorAnswer: answerFacts(false),
+            }),
+          },
+        },
+      },
+      { anchors: [fp(guarantorOperator)] },
     ),
   ];
 }

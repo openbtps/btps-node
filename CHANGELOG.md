@@ -314,9 +314,12 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   chain (`originatorKeyChain`, each statement's `keyChain`): its window,
   `rotatedAt`, `expiredImmediately`, `authorityUnverified`, and
   `disownedAfterTheFact` when an owner expired its key from before a
-  statement that had already arrived. `anchors` are fingerprints a reader
-  kept; `online` confirms each key now, and only then is
-  `keysConfirmedOnline` true. `btps-verify-evidence` takes `--anchor` and
+  statement that had already arrived. The operator's answer is reported
+  (`operatorAnswer`) and confirms a lost key's rotation only when the
+  operator's key is anchored or confirmed online: its key is otherwise the
+  bundle's own, which a forger could have put there. `anchors` are
+  fingerprints a reader kept; `online` confirms each key now, and only then
+  is `keysConfirmedOnline` true. `btps-verify-evidence` takes `--anchor` and
   `--online`. None of these changes `complete`.
 
 ### Changed

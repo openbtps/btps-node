@@ -168,7 +168,7 @@ An old answer replayed, an answer to another lookup, and one about another ident
 
 An agreement's [evidence bundle](./transporter-artifact.md#the-evidence-bundle) is read long after it was signed, when the keys that signed it may have been rotated away, their DNS records retired, or found compromised. So a bundle may carry each signing identity's chain, and the facts report each signing key against it.
 
-- **`keyChains`**: `[{ identity, records, operatorAnswer? }]`. `records` is the identity's chain; `operatorAnswer` is the operator's signed answer to the lookup that served it, kept whole (`lookupKeyChain`'s `answer`), so its signature checks offline with the operator's key in the bundle's `keys`. That key, like every key in a bundle, is the bundle's own until checked online: offline, the answer shows what the builder was given. A key whose DNS record is retired is taken from its identity's chain.
+- **`keyChains`**: `[{ identity, records, operatorAnswer? }]`. `records` is the identity's chain; `operatorAnswer` is the operator's signed answer to the lookup that served it, kept whole (`lookupKeyChain`'s `answer`), so its signature checks offline with the operator's key in the bundle's `keys`. That key, like every key in a bundle, is the bundle's own: whoever built the bundle put it there. So the answer confirms a lost key's rotation only when the operator's key is **anchored**: its fingerprint is one the reader kept (`anchors`), or it is confirmed online. Otherwise it shows only what the builder was given. A key whose DNS record is retired is taken from its identity's chain.
 - **`arrivals`**: `[{ statementSha256, arrivedAt, receivedBy, selector, signature }]`. The builder's platform signs one as each statement arrives (`signArrival`), over the RFC 8785 form of `{ type: "btps.arrival.v1", statementSha256, arrivedAt, receivedBy, selector }`: the receiver's record of when it had the statement, which the signer could not set.
 
 For each signing key (the originator's, and each statement's: a device's is its delegator's), with its identity's chain in the bundle:
@@ -177,7 +177,8 @@ For each signing key (the originator's, and each statement's: a device's is its 
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `chainValid`, `problem`       | the chain holds every [chain rule](#the-chain-rules); the first one broken, if not                                            |
 | `keyInChain`                  | the key that signed is a key of the chain                                                                                     |
-| `authorityUnverified`         | the chain has a lost key's rotation that neither the operator's answer in the bundle nor an online anchor confirms            |
+| `authorityUnverified`         | the chain has a lost key's rotation that neither an online anchor nor an operator's answer by an anchored key confirms        |
+| `operatorAnswer`              | `{ signedBy, signatureValid, answersThisChain, operatorKeyAnchored }`, when the bundle keeps an operator's answer             |
 | `forked`                      | the chain gives a key two successors                                                                                          |
 | `reachesKey`                  | the fingerprint of the chain's last key                                                                                       |
 | `anchored`                    | what confirms the chain, and up to which key: a fingerprint the reader kept (`kept-fingerprint`), `online`, or `false`        |
