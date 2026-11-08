@@ -38,6 +38,7 @@ const sidebars: SidebarsConfig = {
         'features/verification',
         'features/agreements',
         'features/evidenceBundles',
+        'features/keyRotation',
         'features/withdrawingProposals',
         'features/devices',
         'features/refreshTokens',

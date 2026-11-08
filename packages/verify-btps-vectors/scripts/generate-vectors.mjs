@@ -27,6 +27,7 @@ import { toBase64, utf8 } from '../src/encoding.mjs';
 import {
   addresses,
   agreements,
+  agreementKeyChains,
   agreementTimestamps,
   details,
   deviceKeyProof,
@@ -277,6 +278,19 @@ const agreementSet = agreements({
 });
 // Timestamped bundles: a test authority, made at generation, signs real RFC 3161 tokens.
 agreementSet.bundles.push(...(await agreementTimestamps(agreementSet)));
+// Key chain bundles: the bank and the guarantor rotate to keys made here, and the
+// guarantor's operator, with a key made here too, answers for its chain; so does a
+// forger, with a key of its own.
+agreementSet.bundles.push(
+  ...agreementKeyChains(agreementSet, {
+    originator: readVector('kms-signature.vector.json'),
+    originatorNext: newKeyPair(),
+    guarantor: readVector('self-held-signature.vector.json'),
+    guarantorNext: newKeyPair(),
+    guarantorOperator: newKeyPair(),
+    forger: newKeyPair(),
+  }),
+);
 // Each bundle also expects the keys its verifier names.
 agreementSet.bundles = agreementSet.bundles.map(withKeyFacts);
 write('agreements.vectors.json', agreementSet);

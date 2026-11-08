@@ -9,8 +9,14 @@
 // as planned, then with immediate expiry; its host serves the chain; every
 // receiver checks each arrival's key against it, whatever DNS still has.
 // A SaaS user, whose keys only its host knows, rotates too, and loses a key.
+// An agreement both signed before, with keys since rotated away, still checks
+// offline from its evidence bundle, which keeps their chains.
 
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import { spawnSync } from 'child_process';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { computeId } from '../../src/core/utils/index.js';
 import {
   contentKeyOpens,
@@ -24,6 +30,8 @@ import {
   BTP_ERROR_RESOLVE_PUBKEY,
 } from '../../src/core/error/index.js';
 import { BTP_PROTOCOL_VERSION } from '../../src/core/server/constants/index.js';
+import { agreementRef, signAgreement, signStatement } from '../../src/core/trust/agreements.js';
+import { buildEvidenceBundle, verifyEvidenceBundle } from '../../src/core/trust/evidence.js';
 import {
   keyChainRecordHash,
   signKeyExpiry,
@@ -62,6 +70,7 @@ describe('journey: keys rotate along a signed chain', () => {
   let client: User;
   let strict: User;
   const [k1, k2, k3] = [newKeys(), newKeys(), newKeys()];
+  const [j1, j2, j3] = [newKeys(), newKeys(), newKeys()];
   const vendorChain: BTPKeyChainRecord[] = [];
   const janeChain: BTPKeyChainRecord[] = [];
 
@@ -219,7 +228,6 @@ describe('journey: keys rotate along a signed chain', () => {
   });
 
   it("rotates a SaaS user's key through its host, and its lost key on the operator's authority", async () => {
-    const [j1, j2, j3] = [newKeys(), newKeys(), newKeys()];
     const record = (keys: Keys, selector: string) => ({
       selector,
       publicKey: keys.publicKey,
@@ -273,6 +281,116 @@ describe('journey: keys rotate along a signed chain', () => {
     expect(await send(jane(j2, 'btps2'), client)).toMatchObject({
       error: BTP_ERROR_KEY_REVOKED.code,
     });
+  });
+
+  it('keeps an agreement signed with keys since rotated away checking offline, its chains and their answers in its evidence', async () => {
+    // Signed before the rotations, with keys DNS no longer has.
+    const agreement = await signAgreement(
+      {
+        type: 'agreement',
+        title: 'Service terms',
+        id: 'AGR-1',
+        issuedAt: secondsAgo(600),
+        body: { format: 'text', content: 'Twelve months of service.' },
+        acceptance: { terms: [], signers: [{ address: JANE }], signingOrder: 'any' },
+      },
+      { originator: VENDOR, selector: 'btps1', pemFiles: k1 },
+    );
+    const statement = await signStatement(
+      {
+        agreement: agreementRef(agreement, VENDOR),
+        terms: [],
+        signer: JANE,
+        decision: 'accepted',
+        signedAt: secondsAgo(500),
+      },
+      { selector: 'btps1', pemFiles: j1 },
+    );
+
+    // Each signer's chain, as its host serves it now, with the operator's signed answer.
+    const resolver = createDefaultKeyResolver({
+      from: client.identity,
+      btpMtsOptions: senderTls,
+      keyChainMaxCacheSeconds: 0,
+    });
+    const keyChains = [];
+    for (const identity of [VENDOR, JANE]) {
+      const lookup = await resolver.resolveKeyChain!(identity);
+      if (lookup.status !== 'chain') throw new Error(`no chain for ${identity}`);
+      keyChains.push({ identity, records: lookup.records, operatorAnswer: lookup.answer });
+    }
+    // DNS has only the operator's key: the signers' keys come from their chains.
+    const keyOf = (identity: string) =>
+      identity === vendorHost.operator ? vendorHost.operatorKeys.publicKey : undefined;
+    const bundle = buildEvidenceBundle(
+      { originator: VENDOR, agreement, statements: [statement], keyChains },
+      keyOf,
+    );
+
+    const facts = await verifyEvidenceBundle(JSON.parse(JSON.stringify(bundle)));
+    const [planned] = vendorChain;
+    expect(facts.complete).toBe(true);
+    expect(facts.originatorKeyChain).toMatchObject({
+      chainValid: true,
+      keyInChain: true,
+      signedInWindow: true,
+      rotatedAt: planned && 'rotation' in planned ? planned.rotation.at : 'no rotation',
+      reachesKey: fingerprintOf(k3.publicKey),
+    });
+    // Jane's chain has a lost key's rotation. Her operator's answer, kept whole, is there,
+    // but its key is only the bundle's own: it confirms nothing until the reader trusts it.
+    expect(facts.statements[0]?.keyChain).toMatchObject({
+      chainValid: true,
+      keyInChain: true,
+      signedInWindow: true,
+      authorityUnverified: true,
+      operatorAnswer: {
+        signedBy: vendorHost.operator,
+        signatureValid: true,
+        answersThisChain: true,
+        operatorKeyAnchored: false,
+      },
+    });
+    // A reader who names the operator's fingerprint for Jane's domain takes the answer;
+    // kept only as a plain anchor, it vouches for nothing the key says of others.
+    const operatorFingerprint = fingerprintOf(vendorHost.operatorKeys.publicKey);
+    const operatorNamed = await verifyEvidenceBundle(bundle, {
+      operators: { 'vendor.example': operatorFingerprint },
+    });
+    expect(operatorNamed.statements[0]?.keyChain).toMatchObject({
+      authorityUnverified: false,
+      operatorAnswer: { operatorKeyAnchored: true },
+    });
+    const operatorAnchored = await verifyEvidenceBundle(bundle, {
+      anchors: [operatorFingerprint],
+    });
+    expect(operatorAnchored.statements[0]?.keyChain).toMatchObject({
+      authorityUnverified: true,
+    });
+
+    // The bin as shipped (test:e2e builds the package), anchored on a fingerprint kept.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'btps-evidence-'));
+    const file = path.join(dir, 'evidence.json');
+    fs.writeFileSync(file, JSON.stringify(bundle));
+    const cli = path.resolve(__dirname, '../../bin/verify-evidence-bundle.mjs');
+    const run = (...args: string[]) =>
+      spawnSync(process.execPath, [cli, file, ...args], { encoding: 'utf8' });
+    const anchored = run('--json', '--anchor', fingerprintOf(k3.publicKey));
+    expect(anchored.status, anchored.stderr).toBe(0);
+    expect(JSON.parse(anchored.stdout).originatorKeyChain.anchored).toEqual({
+      by: 'kept-fingerprint',
+      upTo: fingerprintOf(k3.publicKey),
+    });
+    const named = run('--json', '--operator', `vendor.example=${operatorFingerprint}`);
+    expect(named.status, named.stderr).toBe(0);
+    expect(JSON.parse(named.stdout).statements[0].keyChain).toMatchObject({
+      authorityUnverified: false,
+      operatorAnswer: { operatorKeyAnchored: true },
+    });
+    expect(run('--anchor').status).toBe(2);
+    expect(run('--operator', operatorFingerprint).status).toBe(2);
+    expect(run('--online').status).toBe(2);
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 
   it('opens a stored document after its receiver moves to a new key, through a side-car, the artifact unchanged', async () => {

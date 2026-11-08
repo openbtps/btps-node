@@ -24,7 +24,11 @@ import type { BTPStatementRecord } from './types.js';
 type Case = {
   name: string;
   bundle: BTPEvidenceBundle;
-  options?: { trustedTimestampRoots?: string[] };
+  options?: {
+    trustedTimestampRoots?: string[];
+    anchors?: string[];
+    operators?: Record<string, string>;
+  };
   expect: Record<string, unknown>;
 };
 const { bundles } = JSON.parse(

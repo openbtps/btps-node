@@ -340,7 +340,8 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
       ),
       ...agreements.bundles.map((c) =>
         check(`agreements/bundle/${c.name}`, async () => {
-          // `options` (since 1.2's timestamps): the timestamp roots a reader trusts.
+          // `options`: the timestamp roots a reader trusts, the signing-key fingerprints it kept
+          // (`anchors`), and the operator fingerprints it kept, by domain (`operators`).
           const facts = await named('verifyEvidenceBundle')(c.bundle, c.options);
           const wrong = differ(c.expect, facts, 'facts');
           ensure(wrong.length === 0, `reported ${wrong.join('; ')}`);

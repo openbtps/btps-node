@@ -119,7 +119,7 @@ From `@btps/sdk/trust`:
 | `keyAt(facts, { selector, fingerprint })` | one key of a verified chain, and its window                                                                                              |
 | `keyChainSignerProblem(key, options)`     | why a live artifact signed by that key is refused now (`BTP_ERROR_KEY_RETIRED`, `BTP_ERROR_KEY_REVOKED`), or `undefined`                 |
 
-From `@btps/sdk/crypto`: `wrapContentKeyFor` and `contentKeyOpens`, for [side-cars](#deleting-an-old-private-key). From `@btps/sdk/client`: `BtpsClient.lookupKeyChain(identity, from)`, an identity's chain from its host.
+From `@btps/sdk/crypto`: `wrapContentKeyFor` and `contentKeyOpens`, for [side-cars](#deleting-an-old-private-key). From `@btps/sdk/client`: `BtpsClient.lookupKeyChain(identity, from)`, an identity's chain from its host, with the operator's signed `answer` it came in. For [evidence bundles](#in-an-evidence-bundle), from `@btps/sdk/trust`: `signArrival`, and `buildEvidenceBundle` and `verifyEvidenceBundle` with key chains.
 
 The SDK never needs a provider to keep a private key: once a rotation is signed, the old key may be deleted.
 
@@ -163,6 +163,40 @@ Since 1.2, a client sends a `1.2.0` lookup, and asks a 1.1 host again as `1.1.0`
 - it names the identity asked about (`identity`), and carries `keyChain` when it was asked for.
 
 An old answer replayed, an answer to another lookup, and one about another identity are refused. The answer to a `1.1.0` lookup carries none of these, as in 1.1.
+
+## In an evidence bundle
+
+An agreement's [evidence bundle](./transporter-artifact.md#the-evidence-bundle) is read long after it was signed, when the keys that signed it may have been rotated away, their DNS records retired, or found compromised. So a bundle may carry each signing identity's chain, and the facts report each signing key against it.
+
+- **`keyChains`**: `[{ identity, records, operatorAnswer? }]`. `records` is the identity's chain; `operatorAnswer` is the operator's signed answer to the lookup that served it, kept whole (`lookupKeyChain`'s `answer`), so its signature checks offline with the operator's key in the bundle's `keys`. That key, like every key in a bundle, is the bundle's own: whoever built the bundle put it there. So the answer confirms a lost key's rotation only when its key is **anchored as the operator of the chain identity's domain**:
+
+  - offline, its fingerprint is the one the reader names for that domain (`operators`, `{ [domain]: fingerprint }`; `--operator <domain>=<fingerprint>`). A plain anchor never counts here: a signing key's anchor vouches only for that key's own records, while an operator's answer vouches for another identity's. Otherwise a counterparty whose key the reader kept could answer "as operator" for anyone;
+  - online, `signedBy` is the operator DNS names for that domain (its `_btps.host` record's `op=`), and its key is confirmed as `signedBy`'s, as a signing key is.
+
+  Otherwise it shows only what the builder was given. A key whose DNS record is retired is taken from its identity's chain.
+
+- **`arrivals`**: `[{ statementSha256, arrivedAt, receivedBy, selector, signature }]`. The builder's platform signs one as each statement arrives (`signArrival`), over the RFC 8785 form of `{ type: "btps.arrival.v1", statementSha256, arrivedAt, receivedBy, selector }`: the receiver's record of when it had the statement, which the signer could not set.
+
+For each signing key (the originator's, and each statement's: a device's is its delegator's), with its identity's chain in the bundle:
+
+| Fact                          | Means                                                                                                                         |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `chainValid`, `problem`       | the chain holds every [chain rule](#the-chain-rules); the first one broken, if not                                            |
+| `keyInChain`                  | the key that signed is a key of the chain                                                                                     |
+| `authorityUnverified`         | the chain has a lost key's rotation that neither an online anchor nor an operator's answer by an anchored key confirms        |
+| `operatorAnswer`              | `{ signedBy, signatureValid, answersThisChain, operatorKeyAnchored }`, when the bundle keeps an operator's answer             |
+| `forked`                      | the chain gives a key two successors                                                                                          |
+| `reachesKey`                  | the fingerprint of the chain's last key                                                                                       |
+| `anchored`                    | what confirms the chain, and up to which key: a fingerprint the reader kept (`kept-fingerprint`), `online`, or `false`        |
+| `rotatedAt`                   | when the key was rotated away from, if it was                                                                                 |
+| `expiredImmediately`          | `{ at, compromisedSince, reason }`, when the key was expired                                                                  |
+| `signedInWindow`              | the time the signer claims (a statement's `signedAt`, the agreement's `issuedAt`) is in the key's [window](#validity-windows) |
+| `signedInWindowIndependently` | the same, by the time of a trusted, valid timestamp on the statement; absent without one                                      |
+| `disownedAfterTheFact`        | the key was declared expired from before a time the statement had already arrived; absent without such a time (below)         |
+
+**Disowned after the fact.** A party may, after signing, expire its own key from a date before its signature. The expiry stands on the chain, and `signedInWindow` is false. The bundle shows what it can against that: an independent time for the statement (a trusted timestamp's, else a signed arrival's) at or after `compromisedSince` and before the expiry was declared makes `disownedAfterTheFact` true. What follows from it is the reader's to decide. None of these facts changes `complete`.
+
+Offline, `anchors` (signing-key fingerprints the reader kept) anchor a chain, and `operators` (operator fingerprints the reader kept, by domain) let an operator's answer confirm a lost key's rotation. Online (`verifyEvidenceBundle`'s `online`, `btps-verify-evidence --online`), each signing key is confirmed now as its identity's: a key of its identity's chain, which must hold online [as a server requires](#checking-keys-on-arrival), or its DNS key when there is no chain. `keysConfirmedOnline` is true only when every one is. A bundle's signatures are past, so a key since rotated away or expired is still its identity's: when it was valid is in the facts above.
 
 ## Deleting an old private key
 

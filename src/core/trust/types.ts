@@ -11,6 +11,7 @@ import type {
   BTPDelegation,
   BTPDetailPermission,
   BTPPermissionName,
+  BTPServerResponse,
   BTPTransporterArtifact,
   BTPTrustPermissions,
 } from '@core/server/types.js';
@@ -183,7 +184,8 @@ export type BTPKeyChainDns = { kind: 'hostOnly' } | { kind: 'published'; fingerp
 /**
  * Since 1.2: what asking an identity's host for its key chain gave.
  * - `chain`: the operator's signed answer, checked; `[]` for an identity that
- *   never rotated.
+ *   never rotated. `answer` is that answer as it came, signature and all, for
+ *   an evidence bundle to keep.
  * - `unavailable`: no chain to be had (a 1.1 host, an unreachable one, or one
  *   that answered with an error): the identity's keys are checked by DNS, as
  *   in 1.1.
@@ -191,7 +193,7 @@ export type BTPKeyChainDns = { kind: 'hostOnly' } | { kind: 'published'; fingerp
  *   its time, the identity it names): refused, never taken for unavailable.
  */
 export type BTPKeyChainLookup =
-  | { status: 'chain'; records: BTPKeyChainRecord[] }
+  | { status: 'chain'; records: BTPKeyChainRecord[]; answer?: BTPServerResponse }
   | { status: 'unavailable'; reason: string }
   | { status: 'invalid'; reason: string };
 
