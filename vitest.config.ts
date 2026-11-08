@@ -15,7 +15,7 @@ export default defineConfig({
       include: ['src/**/*.ts'], // adjust as needed
       exclude: ['**/*.d.ts', '**/types.ts', '**/constant.ts'],
       // `yarn test` (ci/test) fails below these. Raised toward 100 by the public release.
-      thresholds: { lines: 94, statements: 94, functions: 96, branches: 89 },
+      thresholds: { lines: 96, statements: 96, functions: 97, branches: 91 },
     },
     globals: true,
     environment: 'node',

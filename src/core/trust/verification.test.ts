@@ -17,6 +17,7 @@ import { signVerification, verificationFacts, verifierRefusal } from './verifica
 import { trustRequestProblem } from '../server/schemas/trustValues.js';
 import { BtpTransporterArtifactSchema } from '../server/schemas/artifacts/transporterSchema.js';
 import { pemToBase64 } from '../utils/index.js';
+import { PemSigner } from '../crypto/index.js';
 
 vi.mock('dns/promises', () => ({ resolveTxt: vi.fn() }));
 
@@ -89,6 +90,18 @@ describe('a verification', () => {
       signatureValid: true,
       expired: false,
       verifierServesSender: true,
+      verifierIsOperator: true,
+    });
+  });
+
+  it('signed with a key held elsewhere, a signer: the same facts as with its own key', async () => {
+    const verification = await signVerification(statement, {
+      verifiedBy: 'admin$saas.example',
+      selector: 'btps1',
+      signer: new PemSigner(operatorKeys),
+    });
+    expect(await verificationFacts(request(verification), { now })).toMatchObject({
+      signatureValid: true,
       verifierIsOperator: true,
     });
   });
