@@ -9,6 +9,7 @@ export * from './btps-protocol.js';
 export * from './control.js';
 export * from './currency.js';
 export * from './limits.js';
+export * from './permissions.js';
 
 const TRUST_ACTIONS = ['trust.request', 'trust.respond'] as const;
 
@@ -23,6 +24,8 @@ const SYSTEM_ACTIONS = ['system.ping'] as const;
 export const AUTH_ACTIONS = ['auth.request', 'auth.refresh'] as const;
 const ARTIFACT_ACTIONS = ['artifact.send'] as const;
 const EVENT_ACTIONS = ['event.send'] as const;
+// Since 1.2: details refresh, sent by a device through its own provider.
+const DETAILS_ACTIONS = ['details.changed', 'details.request', 'details.respond'] as const;
 
 export const AGENT_ACTIONS = [
   ...TRUST_ACTIONS,
@@ -36,9 +39,19 @@ export const AGENT_ACTIONS = [
   ...ARTIFACT_ACTIONS,
   ...EVENT_ACTIONS,
   ...TRASH_ACTIONS,
+  ...DETAILS_ACTIONS,
 ] as const;
 
-export const TRANSPORTER_ACTIONS = ['TRUST_REQ', 'TRUST_RES', 'BTPS_DOC', 'BTPS_EVENT'] as const;
+export const TRANSPORTER_ACTIONS = [
+  'TRUST_REQ',
+  'TRUST_RES',
+  'BTPS_DOC',
+  'BTPS_EVENT',
+  // Since 1.2: details refresh, on an active trust in either direction.
+  'DETAILS_CHANGED',
+  'DETAILS_REQ',
+  'DETAILS_RES',
+] as const;
 
 /**
  * Agent actions that carry a transporter artifact, built by the device, and its
@@ -50,6 +63,9 @@ export const AGENT_TRANSPORTER_ACTIONS = {
   'trust.respond': 'TRUST_RES',
   'artifact.send': 'BTPS_DOC',
   'event.send': 'BTPS_EVENT',
+  'details.changed': 'DETAILS_CHANGED',
+  'details.request': 'DETAILS_REQ',
+  'details.respond': 'DETAILS_RES',
 } as const satisfies Record<string, (typeof TRANSPORTER_ACTIONS)[number]>;
 
 export const IMMEDIATE_ACTIONS = [
@@ -69,6 +85,7 @@ export const AGENT_ACTIONS_REQUIRING_DOCUMENT = [
   'trust.delete',
   ...ARTIFACT_ACTIONS,
   ...EVENT_ACTIONS,
+  ...DETAILS_ACTIONS,
   ...AUTH_ACTIONS,
   'inbox.seen',
   'inbox.delete',

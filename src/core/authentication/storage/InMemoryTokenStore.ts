@@ -6,7 +6,7 @@
  */
 
 import { computeTrustId } from '@core/trust/trustUtils.js';
-import { TokenStore, BTPsTokenDocument } from '../types.js';
+import { TokenStore, BTPsTokenDocument, BTPSealedSuccessor } from '../types.js';
 
 /**
  * In-memory implementation of RefreshTokenStore for storing refresh tokens
@@ -16,6 +16,8 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
   implements TokenStore<T>
 {
   private tokens = new Map<string, T>();
+  /** Each consumed token, until it would have expired: how a second use is told from a made-up one. */
+  private consumed = new Map<string, T>();
 
   /**
    * Store a refresh token in memory
@@ -35,8 +37,10 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
   ): Promise<void> {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + expiryMs);
+    const key = this.makeKey(agentId ?? userIdentity, token);
 
-    this.tokens.set(this.makeKey(agentId ?? userIdentity, token), {
+    this.consumed.delete(key);
+    this.tokens.set(key, {
       token,
       agentId: agentId ?? 'anonymous',
       userIdentity,
@@ -102,7 +106,36 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
     const storedToken = this.tokens.get(key);
     this.tokens.delete(key);
     if (!storedToken || new Date() > new Date(storedToken.expiresAt)) return undefined;
+    this.consumed.set(key, { ...storedToken, consumedAt: new Date().toISOString() });
     return storedToken;
+  }
+
+  /**
+   * The token as it was when consumed, until it would have expired.
+   * @param agentId - The agent ID (or the user identity, for an auth token)
+   * @param token - The token
+   * @returns The consumed token, or undefined when it was never consumed or has expired
+   */
+  async isConsumed(agentId: string, token: string): Promise<T | undefined> {
+    const consumedToken = this.consumed.get(this.makeKey(agentId, token));
+    if (!consumedToken || new Date() > new Date(consumedToken.expiresAt)) return undefined;
+    return consumedToken;
+  }
+
+  /**
+   * Keep the sealed answer a consumed token was rotated with on its mark.
+   * @param agentId - The agent ID
+   * @param token - The consumed token
+   * @param successor - The sealed answer
+   */
+  async markSuccessor(
+    agentId: string,
+    token: string,
+    successor: BTPSealedSuccessor,
+  ): Promise<void> {
+    const key = this.makeKey(agentId, token);
+    const consumedToken = this.consumed.get(key);
+    if (consumedToken) this.consumed.set(key, { ...consumedToken, successor });
   }
 
   /**
@@ -123,6 +156,9 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
     for (const token of expiredTokens) {
       this.tokens.delete(token);
     }
+    for (const [key, consumedToken] of this.consumed.entries()) {
+      if (now > new Date(consumedToken.expiresAt)) this.consumed.delete(key);
+    }
   }
 
   /**
@@ -137,5 +173,6 @@ export class InMemoryTokenStore<T extends BTPsTokenDocument = BTPsTokenDocument>
    */
   clear(): void {
     this.tokens.clear();
+    this.consumed.clear();
   }
 }

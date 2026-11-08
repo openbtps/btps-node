@@ -85,6 +85,30 @@ export const BTP_ERROR_EVENT_UNRELATED: BTPError = {
   status: 400,
 };
 
+/**
+ * Since 1.2: a `withdrawn` or `follows` from the invoice's issuer, a
+ * `withdrawn` that does not take back the payer's own open proposal about the
+ * same invoice, or a `follows` that names no `withdrawn` about it. It
+ * concerns the sender's own events, so the sender is told which.
+ */
+export const BTP_ERROR_EVENT_CHAIN: BTPError = {
+  code: 'BTP_ERROR_EVENT_CHAIN',
+  message: 'Event names an earlier event it cannot follow or withdraw',
+  status: 400,
+};
+
+/**
+ * Since 1.2: an agreement's answer that is not its sender's turn: from someone
+ * who is not a signer, a second answer, out of turn, or after a decline.
+ * Raised by the platform's own check in flight (`agreementOrderCheck`
+ * middleware), never by the server, with the broken rule in its message.
+ */
+export const BTP_ERROR_AGREEMENT_ORDER: BTPError = {
+  code: 'BTP_ERROR_AGREEMENT_ORDER',
+  message: "Answer is not its sender's turn",
+  status: 400,
+};
+
 export const BTP_ERROR_RESOLVE_DNS: BTPError = {
   code: 'BTP_ERROR_RESOLVE_DNS',
   message: 'No valid DNS record found',
@@ -179,9 +203,79 @@ export const BTP_ERROR_AGENT_ID: BTPError = {
   status: 403,
 };
 
+/** Since 1.2: a sync that did not come from a device of its own address. */
+export const BTP_ERROR_SYNC_NOT_ALLOWED: BTPError = {
+  code: 'BTP_ERROR_SYNC_NOT_ALLOWED',
+  message: "A sync comes only from a device of its own address, inside that device's artifact.send",
+  status: 403,
+};
+
+/** Since 1.2: something a trust's permissions do not cover, such as a name the request never asked for. */
+export const BTP_ERROR_PERMISSION: BTPError = {
+  code: 'BTP_ERROR_PERMISSION',
+  message: 'This trust does not permit it',
+  status: 403,
+};
+
+/** Since 1.2: a trust answer that leaves out a required permission, or one that cannot be checked. */
+export const BTP_ERROR_PERMISSION_REQUIRED: BTPError = {
+  code: 'BTP_ERROR_PERMISSION_REQUIRED',
+  message: 'The answer does not grant every permission the request requires',
+  status: 403,
+};
+
+/** Since 1.2: a document whose type is not the documentType its envelope names. */
+export const BTP_ERROR_DOCUMENT_TYPE_MISMATCH: BTPError = {
+  code: 'BTP_ERROR_DOCUMENT_TYPE_MISMATCH',
+  message: 'The document is not the type its envelope names',
+  status: 400,
+};
+
+/** Since 1.2: a details refresh naming a detail its receiver or answerer does not hold by the trust. */
+export const BTP_ERROR_DETAILS_NOT_HELD: BTPError = {
+  code: 'BTP_ERROR_DETAILS_NOT_HELD',
+  message: 'That detail is not held by this trust',
+  status: 403,
+};
+
+/** Since 1.2: a details request over the limit the provider sets; its meta says when to ask again. */
+export const BTP_ERROR_DETAILS_RATE_LIMITED: BTPError = {
+  code: 'BTP_ERROR_DETAILS_RATE_LIMITED',
+  message: 'Too many details requests on this trust. Ask again later',
+  status: 429,
+};
+
 export const BTP_ERROR_KEY_ROTATION_PROOF: BTPError = {
   code: 'BTP_ERROR_KEY_ROTATION_PROOF',
   message: 'A new device key needs a proof signed by that key',
+  status: 401,
+};
+
+/** Since 1.2: the device key is older than the server's maxKeyAgeMs. */
+export const BTP_ERROR_KEY_TOO_OLD: BTPError = {
+  code: 'BTP_ERROR_KEY_TOO_OLD',
+  message: 'This device key is older than the server allows. Move to a new key first',
+  status: 401,
+};
+
+/**
+ * Since 1.2: signed by a key its identity rotated away from, planned, longer
+ * ago than the receiver's retiredKeyGraceSeconds. A stale key: sign again
+ * with the current one.
+ */
+export const BTP_ERROR_KEY_RETIRED: BTPError = {
+  code: 'BTP_ERROR_KEY_RETIRED',
+  message: 'The key that signed this is retired. Sign with the current key',
+  status: 401,
+};
+
+/**
+ * Since 1.2: signed by a key its identity rotated away from with immediate
+ * expiry, or expired: compromised or lost. A security incident, not a stale key.
+ */
+export const BTP_ERROR_KEY_REVOKED: BTPError = {
+  code: 'BTP_ERROR_KEY_REVOKED',
+  message: 'The key that signed this is revoked: it may be in other hands',
   status: 401,
 };
 

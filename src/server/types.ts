@@ -22,8 +22,10 @@ import { BTPErrorException } from '@core/error/index.js';
 import { BTPIdentityRecord } from '@core/storage/types.js';
 import { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 import type { Signer } from '@core/crypto/signer-interface.js';
+import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 import type { z } from 'zod';
 import type {
+  BtpAgreementDocSchema,
   BtpLetterDocSchema,
   BtpPayslipDocSchema,
 } from '@core/server/schemas/btpsDocsSchema.js';
@@ -34,17 +36,33 @@ export interface BtpsTlsOptions extends TlsOptions {
 }
 
 export interface BtpsServerOptions {
-  /** The server's own key, as a PEM key pair or a Signer holding it elsewhere (a KMS). */
+  /**
+   * The server's own key, as a PEM key pair or a Signer holding it elsewhere (a KMS).
+   * `selector` (since 1.2) is the selector its key is published under; `signAnswers` needs it.
+   */
   serverIdentity:
     | {
         identity: string;
         publicKey: string;
         privateKey: string;
+        selector?: string;
       }
     | {
         identity: string;
         signer: Signer;
+        selector?: string;
       };
+  /**
+   * Since 1.2: sign every answer, errors included, as `serverIdentity` under its `selector`, so a
+   * device that requires its server's signature (`requireSignedBy`) can read it. Off by default.
+   * `serverIdentity` is the domain's operator, which signs identity-lookup answers too: one key pair.
+   */
+  signAnswers?: boolean;
+  /**
+   * Since 1.2: finds every key this server checks a signature with (a sender's, a delegator's,
+   * an attestor's), so a provider can cache them. Without it, each is looked up in DNS, as before.
+   */
+  keyResolver?: BtpsKeyResolver;
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tlsOptions: BtpsTlsOptions;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
@@ -58,9 +76,37 @@ export interface BtpsServerOptions {
   maxArtifactSizeKb?: number;
   /** How far an artifact's issuedAt may be from this server's clock, in seconds, either way. Default 300 (5 minutes), minimum 60. */
   maxArtifactAgeSeconds?: number;
-  /** How many requests one connection may have handled at once; at the limit the server stops reading it until one finishes. Default 32, minimum 1. */
+  /** How many requests one connection may have handled at once; at the limit the server stops reading it until one finishes. A request is handled until its answer is written. Default 32, minimum 1. */
   maxInFlightPerConnection?: number;
+  /** Since 1.2: how many lines in a row one connection may send that this server cannot read; it answers the last and ends the connection. Default 10, minimum 1. */
+  maxConsecutiveInvalidLines?: number;
+  /** Since 1.2: how long, in seconds, a key its identity rotated away from as planned still signs for this server. Default 86400 (1 day). A key rotated with immediate expiry gets none. */
+  retiredKeyGraceSeconds?: number;
+  /**
+   * Since 1.2: the longest, in seconds, this server trusts an identity's key chain from a cache,
+   * and so the longest a revoked key can still be taken. Default 300. Used by the server's own
+   * lookups; a `keyResolver` with `resolveKeyChain` keeps its own cache, and must honour it.
+   */
+  keyChainMaxCacheSeconds?: number;
 }
+
+/** Since 1.2: a details request arrived: who asked whom for which details, and when. */
+export interface BTPDetailsRequestedInfo {
+  from: string;
+  to: string;
+  names: string[];
+  /** ISO 8601 */
+  at: string;
+}
+
+/** Since 1.2: a device's details response was taken to be sent: who gave whom which details, and when. */
+export type BTPDetailsSharedInfo = BTPDetailsRequestedInfo;
+
+/** Since 1.2: what `BtpsServer.on(…)` tells its listeners. */
+export type BtpsServerEvents = {
+  detailsRequested: (info: BTPDetailsRequestedInfo) => void;
+  detailsShared: (info: BTPDetailsSharedInfo) => void;
+};
 
 // Middleware Types
 export type Phase = 'before' | 'after';
@@ -296,14 +342,48 @@ export interface BTPInvoiceDoc {
     linkText: string;
     url: string; // should be HTTPS
   };
-  description?: string;
+  description?: BTPNote; // a note with a format since 1.2; a plain string as in 1.1
+  /** Since 1.2: a discount on the whole invoice, before tax */
+  discount?: BTPDiscount;
   attachments?: BTPAttachment[];
   references?: BTPDocReference[];
-  template?: {
-    name: string;
-    data: Record<string, unknown>;
-  };
+  template?: BTPTemplate;
   metadata?: Record<string, unknown>; // the sending platform's own data
+}
+
+/**
+ * A person's note. Since 1.2 it says how it is written, `text` or `markdown`
+ * (CommonMark, raw HTML off), as a letter's body does; a 1.1 note is a plain
+ * string, read as `text`.
+ */
+export type BTPNote = string | { format: 'text' | 'markdown'; content: string };
+
+/** Since 1.2: a discount before tax, an amount in minor units of the currency or whole basis points (1 to 10000). */
+export type BTPDiscount = { amount: number } | { percent: number };
+
+/** A template by reference. Since 1.2 its named data fields, each optional, are well formed when present. */
+export interface BTPTemplate {
+  name: string;
+  data: {
+    version?: string; // a semantic version
+    sha256?: string; // lowercase hex
+    source?: string; // an https address, always with its sha256
+    logo?: { sha256: string; source: string };
+    values?: BTPTemplateValues; // since 1.2, a letter's template only
+    [key: string]: unknown;
+  };
+}
+
+/**
+ * Since 1.2: what a letter template's signature slots show, from the sender and
+ * signed with the document. A drawn signature is integer strokes, `[x, y, x, y, …]`,
+ * on a canvas 1000 by 300: data a receiver draws itself, never markup.
+ */
+export interface BTPTemplateValues {
+  'signature.typed'?: string;
+  'signature.name'?: string;
+  'signature.title'?: string;
+  'signature.drawn'?: { strokes: number[][] };
 }
 
 /** Proof of a payment: the invoice without what asks for payment, plus `payment`. */
@@ -325,5 +405,13 @@ export type BTPPayslipDoc = z.infer<typeof BtpPayslipDocSchema>;
 /** A letter: a title and one body, `text` or `markdown`. */
 export type BTPLetterDoc = z.infer<typeof BtpLetterDocSchema>;
 
+/** Since 1.2: an agreement, a letter that asks its signers to accept it. */
+export type BTPAgreementDoc = z.infer<typeof BtpAgreementDocSchema>;
+
 /** What a `BTPS_DOC` carries. */
-export type BTPDocument = BTPInvoiceDoc | BTPReceiptDoc | BTPPayslipDoc | BTPLetterDoc;
+export type BTPDocument =
+  | BTPInvoiceDoc
+  | BTPReceiptDoc
+  | BTPPayslipDoc
+  | BTPLetterDoc
+  | BTPAgreementDoc;

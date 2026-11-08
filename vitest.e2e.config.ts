@@ -12,5 +12,8 @@ export default defineConfig({
     environment: 'node',
     testTimeout: 30000,
     fileParallelism: false,
+    // The published 1.1.3 SDK the versions journey talks to: bundled like the SDK's own
+    // code, so the journeys' DNS (zone.ts) answers its lookups too.
+    server: { deps: { inline: ['btps-sdk-1-1-3'] } },
   },
 });

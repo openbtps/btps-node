@@ -12,12 +12,14 @@ import { BTPErrorException } from '../error/index.js';
 import { VerifyEncryptedPayload } from './types.js';
 import { BTPTrustReqDoc } from '../trust/types.js';
 import type { Decrypter } from './decrypter-interface.js';
+import { resolveTxt } from 'dns/promises';
 
 vi.mock('./index', () => ({
   decryptBtpPayload: vi.fn(),
   decryptBtpPayloadWithDecrypter: vi.fn(),
   verifySignature: vi.fn(),
 }));
+vi.mock('dns/promises', () => ({ resolveTxt: vi.fn() }));
 
 const mockCrypto = vi.mocked(cryptoIndex);
 
@@ -272,6 +274,55 @@ describe('decryptVerify', () => {
       expect(result.payload).toBeUndefined();
       expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
     });
+
+    describe('since 1.2, a trust request with a verification', () => {
+      const verifiedBy = (identity: string) => ({
+        ...request,
+        verification: {
+          verifiedBy: identity,
+          claims: { 'detail:legalName': 'Acme' },
+          verifiedAt: '2026-11-01T00:00:00.000Z',
+          expiresAt: '2027-11-01T00:00:00.000Z',
+          selector: 'btps1',
+          signature: { algorithmHash: 'sha256', value: 'AA==', fingerprint: 'AA==' },
+        },
+      });
+
+      beforeEach(() => {
+        vi.mocked(resolveTxt).mockImplementation(async (name: string) => {
+          if (name === '_btps.host.saas.example') {
+            return [['v=1.2.0; u=btps.saas.example:3443; s=btps1; op=admin$saas.example']];
+          }
+          throw Object.assign(new Error(`queryTxt ENOTFOUND ${name}`), { code: 'ENOTFOUND' });
+        });
+      });
+
+      it("is refused when its verifier is not its domain's operator", async () => {
+        const result = await opened(verifiedBy('jane$saas.example'));
+        expect(result.payload).toBeUndefined();
+        expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+        expect(String(result.error?.cause)).toBe(
+          'the verifier does not run a BTPS server: jane$saas.example is not the operator of saas.example',
+        );
+      });
+
+      it('is returned when its verifier is the operator', async () => {
+        const result = await opened(verifiedBy('admin$saas.example'));
+        expect(result.error).toBeUndefined();
+      });
+
+      it('is refused to try again when the lookup itself fails, not judged', async () => {
+        vi.mocked(resolveTxt).mockRejectedValue(
+          Object.assign(new Error('queryTxt ETIMEOUT'), { code: 'ETIMEOUT' }),
+        );
+        const result = await opened(verifiedBy('admin$saas.example'));
+        expect(result.payload).toBeUndefined();
+        expect(result.error?.code).toBe('BTP_ERROR_RESOLVE_DNS');
+        expect(String(result.error?.cause)).toBe(
+          "could not look up saas.example's BTPS host record; try again",
+        );
+      });
+    });
   });
 
   it('should handle payloads with delegation', async () => {
@@ -364,5 +415,84 @@ describe('decryptVerify', () => {
       decrypter,
     );
     expect(mockCrypto.decryptBtpPayload).not.toHaveBeenCalled();
+  });
+
+  it('refuses an opened trust request whose values do not match the names it gives', async () => {
+    const request: VerifyEncryptedPayload<string> = {
+      ...encryptedPayload,
+      version: '1.2.0',
+      given: ['detail:dob'],
+      document: 'encrypted-string-data',
+    };
+    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+    mockCrypto.decryptBtpPayload.mockReturnValue({ data: encryptedPayload.document });
+
+    const result = await decryptVerify(senderPubPem, request, privateKey);
+
+    expect(result.payload).toBeUndefined();
+    expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+    expect(result.error?.cause).toBe('detail:dob is given, so own holds its value');
+  });
+
+  it('opens a trust request whose values match the names it gives', async () => {
+    const request: VerifyEncryptedPayload<string> = {
+      ...encryptedPayload,
+      version: '1.2.0',
+      given: ['detail:dob'],
+      document: 'encrypted-string-data',
+    };
+    const document = { ...encryptedPayload.document, own: { 'detail:dob': '1990-04-21' } };
+    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+    mockCrypto.decryptBtpPayload.mockReturnValue({ data: document });
+
+    const result = await decryptVerify(senderPubPem, request, privateKey);
+
+    expect(result.error).toBeUndefined();
+    expect(result.payload?.document).toEqual(document);
+  });
+
+  it('refuses an opened document that is not the documentType its envelope names', async () => {
+    const send: VerifyEncryptedPayload<string> = {
+      ...encryptedPayload,
+      type: 'BTPS_DOC',
+      version: '1.2.0',
+      documentType: 'receipt',
+      document: 'encrypted-string-data',
+    };
+    const invoice = {
+      type: 'invoice',
+      title: 'Invoice',
+      id: 'INV-1',
+      issuedAt: '2025-01-01T00:00:00.000Z',
+      totalAmount: { amount: 100, currency: 'AUD' },
+      lineItems: { columns: ['Item', 'Amount'], rows: [{ Item: 'Build', Amount: 100 }] },
+    };
+    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+    mockCrypto.decryptBtpPayload.mockReturnValue({ data: invoice });
+
+    const result = await decryptVerify(senderPubPem, send, privateKey);
+
+    expect(result.payload).toBeUndefined();
+    expect(result.error?.code).toBe('BTP_ERROR_DOCUMENT_TYPE_MISMATCH');
+  });
+
+  it('refuses an opened details response whose values do not match its names', async () => {
+    const response: VerifyEncryptedPayload<string> = {
+      ...encryptedPayload,
+      type: 'DETAILS_RES',
+      version: '1.2.0',
+      details: ['detail:address', 'detail:phone'],
+      relatesTo: 'req-1',
+      document: 'encrypted-string-data',
+    };
+    mockCrypto.verifySignature.mockReturnValue({ isValid: true });
+    mockCrypto.decryptBtpPayload.mockReturnValue({
+      data: { 'detail:address': '2 Rata Road, Auckland' },
+    });
+
+    const result = await decryptVerify(senderPubPem, response, privateKey);
+
+    expect(result.error?.code).toBe('BTP_ERROR_VALIDATION');
+    expect(result.error?.cause).toBe('detail:phone is named, so the response holds its value');
   });
 });

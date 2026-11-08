@@ -8,6 +8,7 @@
 import {
   BTPErrorException,
   BTP_ERROR_RESOLVE_DNS,
+  BTP_ERROR_SIG_VERIFICATION,
   BTP_ERROR_UNSUPPORTED_ENCRYPT,
   BTP_ERROR_VALIDATION,
   transformToBTPErrorException,
@@ -29,6 +30,7 @@ import type {
   BTPIdentityResDoc,
   AgentAction,
   BTPAgentDocument,
+  BTPQueryResultEntry,
 } from 'server/index.js';
 import type {
   BTPCryptoArtifact,
@@ -38,15 +40,26 @@ import type {
   BTPSigningKey,
 } from '@core/crypto/types.js';
 import { BtpsAgentCommandCallSchema } from './libs/schema.js';
-import { BtpLifecycleEventSchema } from '@core/server/schemas/btpsDocsSchema.js';
+import { BtpEventSchema } from '@core/server/schemas/btpsDocsSchema.js';
+import { BtpTransporterArtifactSchema } from '@core/server/schemas/artifacts/transporterSchema.js';
+import { composeTrustRequestFor } from '@core/trust/shaping.js';
+import type { BTPShaped } from '@core/server/types.js';
 import { validate } from '@core/utils/validation.js';
 import {
   AGENT_ACTIONS_REQUIRING_DOCUMENT,
   AGENT_TRANSPORTER_ACTIONS,
+  artifactVersion,
 } from '@core/server/constants/index.js';
-import { encryptBtpPayload, signBtpPayload, signBtpPayloadWithSigner } from '@core/crypto/index.js';
+import {
+  decryptVerify,
+  encryptBtpPayload,
+  getFingerprintFromPem,
+  signBtpPayload,
+  signBtpPayloadWithSigner,
+} from '@core/crypto/index.js';
 import { randomUUID } from 'crypto';
 import { isValidIdentity } from '@core/utils/index.js';
+import { verifyTransporterSignature } from '@core/delegation/verifyTransporterSignature.js';
 
 const mappedTransporterAction = AGENT_TRANSPORTER_ACTIONS;
 
@@ -110,19 +123,24 @@ export class BtpsAgent extends BtpsClient {
       agentArtifact.document = providedDocument as BTPAgentDocument;
     }
 
+    // An agent artifact that carries a transporter artifact needs a server of that one's version.
+    let carriedVersion: string | undefined;
+    let shaped: BTPShaped | undefined;
     const needForTransport = Object.keys(mappedTransporterAction).includes(actionType);
     if (needForTransport) {
-      const { payload: transporterPayload, error: transporterError } =
-        await this.buildTransportArtifact({
-          ...commandParams,
-          to: commandParams.to,
-        });
+      const built = await this.buildTransportArtifact({
+        ...commandParams,
+        to: commandParams.to,
+      });
+      const { payload: transporterPayload, error: transporterError } = built;
+      shaped = built.shaped;
 
       if (transporterError) {
         return await this.buildClientErrorResponse(transporterError);
       }
       if (transporterPayload) {
         agentArtifact.document = transporterPayload as BTPTransporterArtifact;
+        carriedVersion = transporterPayload.version;
       }
     }
 
@@ -135,7 +153,7 @@ export class BtpsAgent extends BtpsClient {
     agentArtifact.encryption = null;
     agentArtifact.id = randomUUID();
     agentArtifact.issuedAt = new Date().toISOString();
-    agentArtifact.version = this.getProtocolVersion();
+    agentArtifact.version = carriedVersion ?? artifactVersion({ document: agentArtifact.document });
 
     try {
       const signature =
@@ -147,6 +165,7 @@ export class BtpsAgent extends BtpsClient {
       return {
         payload: agentArtifact as BTPCryptoArtifact<BTPDocType>,
         error: undefined,
+        ...(shaped && { shaped }),
       };
     } catch (error) {
       return await this.buildClientErrorResponse(transformToBTPErrorException(error));
@@ -156,7 +175,31 @@ export class BtpsAgent extends BtpsClient {
   protected async buildTransportArtifact(
     commandParams: BtpsAgentCommandParams,
   ): Promise<BTPCryptoResponse<BTPDocType>> {
-    const { document, actionType, to, options } = commandParams;
+    const { actionType, to } = commandParams;
+    let { document, options } = commandParams;
+
+    // Since 1.2: a trust request with permissions goes as its receiver's version allows.
+    let shaped: BTPShaped | undefined;
+    if (actionType === 'trust.request' && options?.permissions !== undefined) {
+      const { permissions, given, entityType, change } = options;
+      const composed = await composeTrustRequestFor(
+        to,
+        { type: 'TRUST_REQ', document, permissions, given, entityType, change },
+        { versionFallback: options.versionFallback, btpMtsOptions: this.options.btpMtsOptions },
+      );
+      if (composed.error) return await this.buildClientErrorResponse(composed.error);
+      if (composed.shaped) {
+        shaped = composed.shaped;
+        document = composed.payload.document as BtpsAgentDoc;
+        options = {
+          ...options,
+          permissions: undefined,
+          given: undefined,
+          entityType: undefined,
+          change: undefined,
+        };
+      }
+    }
 
     // Document validation is already handled by schema validation above
     // This check is redundant but kept for clarity
@@ -164,6 +207,13 @@ export class BtpsAgent extends BtpsClient {
       return await this.buildClientErrorResponse(
         new BTPErrorException(BTP_ERROR_VALIDATION, {
           cause: `Document is required for ${actionType}`,
+        }),
+      );
+    }
+    if (options?.syncOf !== undefined && to.toLowerCase() !== this.options.to.toLowerCase()) {
+      return await this.buildClientErrorResponse(
+        new BTPErrorException(BTP_ERROR_VALIDATION, {
+          cause: `A sync goes to the device's own address, ${this.options.to}, not ${to}`,
         }),
       );
     }
@@ -216,8 +266,7 @@ export class BtpsAgent extends BtpsClient {
     ] as BTPArtifactType;
 
     // An event travels in an artifact with the event's own id.
-    const event =
-      artifactType === 'BTPS_EVENT' ? BtpLifecycleEventSchema.safeParse(document) : undefined;
+    const event = artifactType === 'BTPS_EVENT' ? BtpEventSchema.safeParse(document) : undefined;
 
     // An artifact names the sender's own selector, the one its key is published at.
     const senderSelector = (await this.resolveBtpsHostDnsTxt(this.options.to))?.selector;
@@ -229,10 +278,26 @@ export class BtpsAgent extends BtpsClient {
       );
     }
 
+    // Since 1.2: trust permissions, set on the envelope.
+    const trustFields = {
+      ...(options?.permissions !== undefined && { permissions: options.permissions }),
+      ...(options?.entityType !== undefined && { entityType: options.entityType }),
+      ...(options?.given !== undefined && { given: options.given }),
+      ...(options?.change !== undefined && { change: options.change }),
+      ...(options?.granted !== undefined && { granted: options.granted }),
+    };
+
     const transporterArtifact: Omit<BTPTransporterArtifact, 'signature'> = {
       id: event?.success ? event.data.id : (options?.id ?? randomUUID()),
       issuedAt: new Date().toISOString(),
-      version: this.getProtocolVersion(),
+      // From the document as written, before it is encrypted.
+      version: artifactVersion({
+        type: artifactType,
+        document,
+        syncOf: options?.syncOf,
+        documentType: options?.documentType,
+        ...trustFields,
+      }),
       type: artifactType,
       document: encryptedDocument as BTPDocType | string,
       from: this.options.to,
@@ -240,6 +305,10 @@ export class BtpsAgent extends BtpsClient {
       selector: senderSelector,
       encryption: encryption,
       ...(options?.relatesTo !== undefined && { relatesTo: options.relatesTo }),
+      ...(options?.syncOf !== undefined && { syncOf: options.syncOf }),
+      ...(options?.documentType !== undefined && { documentType: options.documentType }),
+      ...(options?.details !== undefined && { details: options.details }),
+      ...trustFields,
     };
 
     try {
@@ -248,12 +317,29 @@ export class BtpsAgent extends BtpsClient {
           ? await signBtpPayloadWithSigner(transporterArtifact, this.signingKey)
           : signBtpPayload(transporterArtifact, this.signingKey);
 
+      // Since 1.2: a trust request or answer with permissions is checked as its
+      // provider will check it (given what it asks, names, kinds) before it goes.
+      if (Object.keys(trustFields).length > 0) {
+        const checked = BtpTransporterArtifactSchema.safeParse({
+          ...transporterArtifact,
+          signature,
+        });
+        if (!checked.success) {
+          return await this.buildClientErrorResponse(
+            new BTPErrorException(BTP_ERROR_VALIDATION, {
+              cause: checked.error.issues.map((issue) => issue.message).join('; '),
+            }),
+          );
+        }
+      }
+
       return {
         payload: {
           ...transporterArtifact,
           signature,
         } as BTPCryptoArtifact<BTPDocType>,
         error: undefined,
+        ...(shaped && { shaped }),
       };
     } catch (error) {
       return this.buildClientErrorResponse(error as BTPErrorException);
@@ -289,12 +375,62 @@ export class BtpsAgent extends BtpsClient {
       );
     }
 
-    const { payload, error } = await this.getAgentArtifact(commandParams);
+    const { payload, error, shaped } = await this.getAgentArtifact(commandParams);
     if (error) {
       return await this.buildClientErrorResponse(error);
     }
 
-    return this.send(payload as BTPAgentArtifact, timeoutMs);
+    const sent = await this.send(payload as BTPAgentArtifact, timeoutMs);
+    return shaped ? { ...sent, shaped } : sent;
+  }
+
+  /**
+   * Since 1.2: opens an encrypted query result with this device's own key,
+   * through the `agentKey` its provider wrapped for it. Who signed it is checked
+   * as a server checks it on arrival (a delegation and its attestation too), and
+   * the document as any decrypted one is.
+   * @param entry - A query result entry with `agentKey`
+   * @returns The artifact with its document decrypted, or the reason it could not be opened
+   */
+  async openResult(entry: BTPQueryResultEntry): Promise<BTPCryptoResponse<BTPDocType | string>> {
+    const { artifact, agentKey } = entry;
+    const refuse = (cause: string, error = BTP_ERROR_UNSUPPORTED_ENCRYPT) => ({
+      payload: undefined,
+      error: new BTPErrorException(error, { cause }),
+    });
+    if (!agentKey) return refuse('The result has no agentKey for this device');
+    if (!this.decryptionKey) return refuse('This device holds no key to decrypt with');
+    if (!('selector' in artifact) || !artifact.encryption) {
+      return refuse('Only an encrypted transporter artifact is opened with an agentKey');
+    }
+
+    const ownPublicKey =
+      'sign' in this.signingKey
+        ? (await this.signingKey.getPublicKey()).publicKey
+        : this.signingKey.publicKey;
+    if (getFingerprintFromPem(ownPublicKey) !== agentKey.fingerprint) {
+      return refuse(
+        `The agentKey is wrapped to the device key ${agentKey.fingerprint}, not the one this device holds: finish moving to the new key first`,
+      );
+    }
+
+    try {
+      const signed = await verifyTransporterSignature(artifact, this.options.keyResolver);
+      if (!signed.isValid || !signed.signerKey) {
+        return {
+          payload: undefined,
+          error: signed.error ?? new BTPErrorException(BTP_ERROR_SIG_VERIFICATION),
+        };
+      }
+      return await decryptVerify<BTPDocType | string>(
+        signed.signerKey,
+        { ...artifact },
+        this.decryptionKey,
+        agentKey.key,
+      );
+    } catch (error) {
+      return { payload: undefined, error: transformToBTPErrorException(error) };
+    }
   }
 
   destroy(soft: boolean = false) {

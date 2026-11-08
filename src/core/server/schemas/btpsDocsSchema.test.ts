@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import type { ZodTypeAny } from 'zod';
 import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
+import { DOCUMENT_TYPES } from '../constants/permissions.js';
 import {
   BtpDocumentSchema,
   BtpInvoiceDocSchema,
@@ -335,5 +336,13 @@ describe('BtpLetterDocSchema', () => {
 
   it('carries no money', () => {
     expect(BtpLetterDocSchema.safeParse({ ...letter, totalAmount: aud(1) }).success).toBe(false);
+  });
+});
+
+describe('DOCUMENT_TYPES', () => {
+  it('names every document type a BTPS_DOC carries, and no other', () => {
+    expect([...BtpDocumentSchema.innerType().optionsMap.keys()].sort()).toEqual(
+      [...DOCUMENT_TYPES].sort(),
+    );
   });
 });

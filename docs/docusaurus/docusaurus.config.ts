@@ -103,10 +103,12 @@ const config: Config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl: 'https://github.com/btps/btps-docs/tree/main/',
-          // The released docs, at /docs. The working copy in docs/ is not published
-          // until a release candidate shows it as the next version.
+          // The released docs, at /docs. The working copy in docs/ is the next
+          // version, at /docs/next, marked unreleased until it is released.
           lastVersion: '1.1.3',
-          includeCurrentVersion: false,
+          versions: {
+            current: { label: '1.2.0-rc.1 (next)', path: 'next', banner: 'unreleased' },
+          },
         },
         blog: false,
         theme: {

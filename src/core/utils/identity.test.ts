@@ -42,7 +42,7 @@ describe('the identity rule', () => {
   it('refuses any other character in the account, so none can pass for another', () => {
     const lookalikes = [
       'bіlling$vendor.example', // Cyrillic і
-      'billing​$vendor.example', // zero-width space
+      'billing\u200b$vendor.example', // zero-width space
       'bill ing$vendor.example',
       'bill+ing$vendor.example',
       'bill@ing$vendor.example',

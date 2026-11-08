@@ -37,7 +37,7 @@ Trust records are the core data structures that maintain the state and history o
          |----------------------------------------------------->|
 ```
 
-The receiver's server refuses a trust request while trust between the pair is already active, blocked, or before its `retryAfterDate`; the sender sees `BTP_ERROR_TRUST_NOT_ALLOWED`.
+The receiver's server refuses a trust request while trust between the pair is already active, blocked, or before its `retryAfterDate`; the sender sees `BTP_ERROR_TRUST_NOT_ALLOWED`. Since 1.2, an active trust takes one kind of request: a change, one at a time (see Permissions, below).
 
 ## Trust Record Structure
 
@@ -112,11 +112,29 @@ The computed trust ID enforces **explicit, directional trust relationships**. Th
 
 - `publicKeyBase64`: Current public key in base64 format
 - `publicKeyFingerprint`: SHA-256 fingerprint of current public key
-- `keyHistory`: Array of previous public keys and their usage periods
+- `keyHistory`: Array of previous public keys and their usage periods. Each entry's `firstSeen` is when that key came into use and `lastSeen` when it was retired. The current key came into use at the newest entry's `lastSeen`, or at `createdAt` if the key was never rotated; a device's maximum key age (`maxKeyAgeMs`, since 1.2) counts from then
 
 **Privacy & Security:**
 
 - `privacyType`: Agreed privacy level (`unencrypted`, `encrypted`, `mixed`)
+
+**Permissions (since 1.2, optional):**
+
+- `permissions`: what this trust permits, by name (see [Trust permissions](./specifications/transporter-artifact.md#trust-permissions)). A record without it is a 1.1 trust, which permits any document type.
+  - `requested`: what the request asked for, `[{ name, required }]`
+  - `granted`: the names the answer granted
+  - `detailsHeld`: the other side's details this side holds, by name
+  - `detailsShared`: this side's details the other side holds, by name
+  - `pendingChange`: `{ requested, requestedAt }`, a change sent on an active trust, until it is answered
+
+**The platform writes it; the BTPS server only reads it.** As with every other field here, the server never writes a trust record: the platform does, through its trust store, when it sends a request and when its user decides. It must save `permissions` then. `trustPermissionsFromRequest` and `trustPermissionsFromResponse` in `@btps/sdk/trust` compute what to save. The server reads it to check each answer: a `TRUST_RES` whose `granted` leaves out a required name, or arrives where the requester's record has no `permissions`, is refused (`BTP_ERROR_PERMISSION_REQUIRED`), and one granting a name never asked for is refused too (`BTP_ERROR_PERMISSION`). An accepted trust takes an answer only while a change is pending, checked against the change.
+
+**Once a change is answered, the platform clears `pendingChange`,** whichever way it went, or the trust keeps taking answers to a change already decided:
+
+- **Accepted:** save the record `trustPermissionsFromResponse` returns, which has no `pendingChange`. The new grant replaces the old one.
+- **Rejected:** keep the current permissions and remove `pendingChange`, so the trust runs on its old grant.
+
+**A change is the one trust request an active trust takes, one at a time.** A `TRUST_REQ` with `change: true` is taken only while the receiver's record of that trust, from that sender, is active; a 1.1 trust without `permissions` takes one too, to move to permissions. Any other trust request on an active trust is refused, as is a change to a trust that is not active (none, pending, blocked, rejected, expired, or before its `retryAfterDate`). The receiving platform saves a change it takes as `pendingChange` on its own record until its user answers, and a second change is refused until then. All of these read "not allowed" on the wire.
 
 ---
 

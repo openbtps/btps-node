@@ -9,8 +9,9 @@ import { describe, it, expect, beforeEach, vi, afterEach, type Mock } from 'vite
 import { BtpsServer } from '../btpsServer.js';
 import { BtpsClient } from '../../client/btpsClient.js';
 import { AbstractTrustStore } from '../../core/trust/storage/AbstractTrustStore.js';
-import { BTPTrustRecord } from '../../core/trust/types.js';
-import { computeAgentTrustId, computeTrustId } from '../../core/trust/index.js';
+import { BTPKeyChainRecord, BTPTrustRecord } from '../../core/trust/types.js';
+import { computeAgentTrustId, computeTrustId, signKeyRotation } from '../../core/trust/index.js';
+import { BtpServerResponseSchema } from '../../core/server/schemas/responseSchema.js';
 import { EventEmitter } from 'events';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { BTP_PROTOCOL_VERSION, isSupportedVersion } from '../../core/server/constants/index.js';
@@ -24,7 +25,14 @@ import { keyProofPayload } from '../../core/authentication/keyProof.js';
 import { generateKeyPairSync } from 'crypto';
 import path from 'path';
 import fs from 'fs/promises';
-import type { BTPRequestCtx, BTPResponseCtx, ProcessedArtifact, BtpsTlsOptions } from '../types.js';
+import type {
+  BTPRequestCtx,
+  BTPResponseCtx,
+  MiddlewareDefinition,
+  ProcessedArtifact,
+  BtpsTlsOptions,
+} from '../types.js';
+import { detailsRequestLimit } from '../libs/detailsRequestLimit.js';
 import {
   BTPAgentArtifact,
   BTPAttestation,
@@ -36,6 +44,8 @@ import {
 } from '../../core/server/types.js';
 import {
   BTPErrorException,
+  transformToBTPErrorException,
+  BTP_ERROR_IDENTITY_NOT_FOUND,
   BTP_ERROR_TRUST_NOT_ALLOWED,
   BTP_ERROR_TRUST_NON_EXISTENT,
   BTP_ERROR_TRUST_EXPIRED,
@@ -52,6 +62,9 @@ import {
   BTP_ERROR_RATE_LIMITER,
   BTP_ERROR_PRIVACY_TYPE,
   BTP_ERROR_VERSION_UNSUPPORTED,
+  BTP_ERROR_SYNC_NOT_ALLOWED,
+  BTP_ERROR_DETAILS_RATE_LIMITED,
+  type BTPError,
 } from '../../core/error/index.js';
 import { PassThrough } from 'stream';
 import net from 'net';
@@ -93,7 +106,7 @@ class OneIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
     super({ connection: null });
     this.record = record;
   }
-  async getPublicKeyRecord() {
+  async getPublicKeyRecord(): Promise<IdentityPubKeyRecord | undefined> {
     return this.record;
   }
   async getById() {
@@ -2112,8 +2125,36 @@ export default function () {
         });
       });
 
+      it("tells a 429's sender how long to wait, from its meta.retryAfter and nothing else", () => {
+        const error = new BTPErrorException(BTP_ERROR_RATE_LIMITER, {
+          meta: { retryAfter: 30, limit: 100 },
+          cause: new Error('bucket full'),
+        });
+        expect(server['wireStatus'](error)).toEqual({
+          ok: false,
+          code: 429,
+          message: BTP_ERROR_RATE_LIMITER.message,
+          error: BTP_ERROR_RATE_LIMITER.code,
+          retryAfter: 30,
+        });
+      });
+
+      it('sends retryAfter only on a 429, and only as whole seconds', () => {
+        // As middleware sends them with res.sendError.
+        const wait = (error: BTPError, retryAfter: unknown) =>
+          server['wireStatus'](new BTPErrorException(error, { meta: { retryAfter } }), true)
+            .retryAfter;
+        expect(wait(BTP_ERROR_PRIVACY_TYPE, 30)).toBeUndefined();
+        // An exception with a code of its own is no BTPS error: it goes as a 500, with no wait.
+        expect(wait({ code: 429, message: 'Slow down' }, 30)).toBeUndefined();
+        expect(wait(BTP_ERROR_RATE_LIMITER, '2026-12-01T00:00:00.000Z')).toBeUndefined();
+        expect(wait(BTP_ERROR_RATE_LIMITER, 1.5)).toBeUndefined();
+        expect(wait(BTP_ERROR_RATE_LIMITER, -1)).toBeUndefined();
+        expect(wait(BTP_ERROR_RATE_LIMITER, 0)).toBe(0);
+      });
+
       it('sends a numeric code set by middleware as given', () => {
-        expect(server['wireStatus']({ code: 402, message: 'Payment required' })).toEqual({
+        expect(server['wireStatus']({ code: 402, message: 'Payment required' }, true)).toEqual({
           ok: false,
           code: 402,
           message: 'Payment required',
@@ -2129,6 +2170,119 @@ export default function () {
           code: 500,
           message: BTP_ERROR_UNKNOWN.message,
           error: BTP_ERROR_UNKNOWN.code,
+        });
+      });
+
+      it("never sends a thrown error's own numeric code or message, as from a store", async () => {
+        const fromStore = Object.assign(
+          new Error('E11000 duplicate key error collection: btps.trust index: id_1'),
+          { code: 11000 },
+        );
+        const generic = {
+          ok: false,
+          code: 500,
+          message: BTP_ERROR_UNKNOWN.message,
+          error: BTP_ERROR_UNKNOWN.code,
+        };
+        expect(server['wireStatus'](transformToBTPErrorException(fromStore))).toEqual(generic);
+        expect(
+          server['wireStatus'](new BTPErrorException({ code: 402, message: 'Payment required' })),
+        ).toEqual(generic);
+
+        // As it goes out on the wire, from a failure while an artifact was handled.
+        const written: string[] = [];
+        const socket = {
+          destroyed: false,
+          writableEnded: false,
+          writable: true,
+          write: (line: string) => written.push(line) > 0,
+          end: vi.fn(),
+          destroy: vi.fn(),
+        } as unknown as TLSSocket;
+        await server['handleOnSocketError'](
+          transformToBTPErrorException(fromStore),
+          {
+            req: { socket } as unknown as BTPRequestCtx<'before', 'onError'>,
+            res: { socket, reqId: 'req-1' } as unknown as BTPResponseCtx,
+          },
+          'answer',
+        );
+        expect(JSON.parse(written[0] ?? 'null').status).toEqual(generic);
+        expect(written.join('')).not.toContain('E11000');
+      });
+
+      describe('by where it comes from, not how it looks', () => {
+        const generic = {
+          ok: false,
+          code: 500,
+          message: BTP_ERROR_UNKNOWN.message,
+          error: BTP_ERROR_UNKNOWN.code,
+        };
+        const fromSdk = { status: 403, code: 'AccessDenied', message: 'internal bucket acme-keys' };
+        const sdkError = () => Object.assign(new Error(fromSdk.message), fromSdk);
+        const onTheWire = async (error: BTPError) => {
+          const written: string[] = [];
+          const socket = {
+            destroyed: false,
+            writableEnded: false,
+            writable: true,
+            write: (line: string) => written.push(line) > 0,
+            end: vi.fn(),
+            destroy: vi.fn(),
+          } as unknown as TLSSocket;
+          await server['sendBtpsError'](socket, error, 'req-1', undefined, true);
+          return { status: JSON.parse(written[0] ?? 'null').status, text: written.join('') };
+        };
+
+        it('tells a caught error middleware passes on only by a BTPS code: another library’s goes as a 500', async () => {
+          const caught = await onTheWire(sdkError() as unknown as BTPError);
+          expect(caught.status).toEqual(generic);
+          expect(caught.text).not.toContain('acme-keys');
+          expect(server['wireStatus'](new BTPErrorException(fromSdk), true)).toEqual(generic);
+          // Thrown, it is turned into an exception and answered the same way.
+          expect(server['wireStatus'](transformToBTPErrorException(sdkError()))).toEqual(generic);
+        });
+
+        it("sends a platform's own answer, a plain object, as given: its own code, or a BTPS code with its reference", async () => {
+          const alreadyReceived = {
+            code: 'PROVIDER_ALREADY_RECEIVED',
+            message: 'This artifact was already received',
+            status: 409,
+          };
+          expect((await onTheWire(alreadyReceived)).status).toEqual({
+            ok: false,
+            code: 409,
+            message: alreadyReceived.message,
+            error: 'PROVIDER_ALREADY_RECEIVED',
+          });
+          const referenced = {
+            ...BTP_ERROR_RATE_LIMITER,
+            message: `${BTP_ERROR_RATE_LIMITER.message} Reference: AB12-CD34.`,
+          };
+          expect((await onTheWire(referenced)).status).toEqual({
+            ok: false,
+            code: 429,
+            message: referenced.message,
+            error: BTP_ERROR_RATE_LIMITER.code,
+          });
+        });
+
+        it("tells a thrown BTPS error with its detail, and any other message as the constant's own", () => {
+          const withDetail = new BTPErrorException({
+            ...BTP_ERROR_ARTIFACT_TOO_LARGE,
+            message: `${BTP_ERROR_ARTIFACT_TOO_LARGE.message}: 1024 KB`,
+          });
+          expect(server['wireStatus'](withDetail).message).toBe(withDetail.message);
+          const otherwise = new BTPErrorException({
+            ...BTP_ERROR_RATE_LIMITER,
+            message: 'internal queue q-7 is full',
+          });
+          expect(server['wireStatus'](otherwise)).toEqual({
+            ok: false,
+            code: 429,
+            message: BTP_ERROR_RATE_LIMITER.message,
+            error: BTP_ERROR_RATE_LIMITER.code,
+          });
         });
       });
     });
@@ -2216,6 +2370,185 @@ export default function () {
         expect(result.isTrusted).toBe(false);
         expect(result.error).toBeInstanceOf(BTPErrorException);
         expect(result.error?.message).toContain('BTPS trust request is not allowed');
+      });
+
+      describe("since 1.2, a device's send under a trust with permissions", () => {
+        // The user, the biller, asked the payer for a trust; the payer granted invoices.
+        const user = 'billing$acme.com';
+        const payer = 'pay$client.com';
+        const accepted = { status: 'accepted', privacyType: 'mixed', keyHistory: [] };
+        const userRecord = (granted?: string[]) => ({
+          ...accepted,
+          senderId: user,
+          receiverId: payer,
+          ...(granted && {
+            permissions: { requested: [], granted, detailsHeld: [], detailsShared: [] },
+          }),
+        });
+        const holding = (...records: [string, unknown][]) => {
+          const byId = new Map<string, unknown>([
+            [computeAgentTrustId('device-1', user), { ...accepted, senderId: 'device-1' }],
+            ...records,
+          ]);
+          trustStore.getById = vi.fn(async (id: string) => byId.get(id) as BTPTrustRecord);
+        };
+        const send = (documentType?: string) =>
+          ({
+            version: '1.2.0',
+            id: 'agent-artifact',
+            agentId: 'device-1',
+            action: 'artifact.send',
+            to: payer,
+            issuedAt: new Date().toISOString(),
+            signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
+            encryption: null,
+            document: {
+              version: '1.2.0',
+              id: 'invoice-1',
+              type: 'BTPS_DOC',
+              from: user,
+              to: payer,
+              encryption: { algorithm: 'aes-256-gcm' },
+              document: 'ciphertext',
+              ...(documentType && { documentType }),
+            },
+          }) as unknown as BTPAgentArtifact;
+
+        it('takes a send of a document type the receiver granted, before it goes', async () => {
+          holding([computeTrustId(user, payer), userRecord(['send:invoice'])]);
+          expect((await server['verifyAgentTrust'](send('invoice'))).isTrusted).toBe(true);
+        });
+
+        it('refuses a send of a type not granted: BTP_ERROR_PERMISSION', async () => {
+          holding([computeTrustId(user, payer), userRecord(['send:invoice'])]);
+          const result = await server['verifyAgentTrust'](send('receipt'));
+          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+        });
+
+        it('refuses a send that names no document type: BTP_ERROR_PERMISSION', async () => {
+          holding([computeTrustId(user, payer), userRecord(['send:invoice'])]);
+          const result = await server['verifyAgentTrust'](send());
+          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+        });
+
+        it('adds nothing under a 1.1 trust', async () => {
+          holding([computeTrustId(user, payer), userRecord()]);
+          expect((await server['verifyAgentTrust'](send())).isTrusted).toBe(true);
+        });
+
+        it('reads only the trust from the user to the receiver, never the reverse', async () => {
+          // The payer asked the user too and was granted nothing to receive invoices with:
+          // that record is about the other direction and never decides the user's send.
+          holding([
+            computeTrustId(payer, user),
+            { ...userRecord([]), senderId: payer, receiverId: user },
+          ]);
+          expect((await server['verifyAgentTrust'](send('invoice'))).isTrusted).toBe(true);
+        });
+      });
+
+      describe('since 1.2, a details refresh a device sends', () => {
+        // The user, the payer, gave its address to the biller, and holds the biller's email.
+        const user = 'pay$client.com';
+        const biller = 'billing$acme.com';
+        const accepted = { status: 'accepted', privacyType: 'mixed', keyHistory: [] };
+        const records = new Map<string, unknown>([
+          [computeAgentTrustId('device-1', user), { ...accepted, senderId: 'device-1' }],
+          [
+            computeTrustId(biller, user),
+            {
+              ...accepted,
+              senderId: biller,
+              receiverId: user,
+              permissions: {
+                requested: [],
+                granted: [],
+                detailsHeld: ['detail:email'],
+                detailsShared: ['detail:address'],
+              },
+            },
+          ],
+        ]);
+        const send = (
+          action: 'details.changed' | 'details.respond',
+          type: 'DETAILS_CHANGED' | 'DETAILS_RES',
+          names: string[],
+        ) =>
+          ({
+            version: '1.2.0',
+            id: 'agent-artifact',
+            agentId: 'device-1',
+            action,
+            to: biller,
+            issuedAt: new Date().toISOString(),
+            signature: { algorithmHash: 'sha256', value: 'v', fingerprint: 'f' },
+            encryption: null,
+            document: {
+              version: '1.2.0',
+              id: 'details-1',
+              type,
+              from: user,
+              to: biller,
+              details: names,
+              ...(type === 'DETAILS_RES' && { relatesTo: 'req-1' }),
+            },
+          }) as unknown as BTPAgentArtifact;
+
+        beforeEach(() => {
+          trustStore.getById = vi.fn(async (id: string) => records.get(id) as BTPTrustRecord);
+          trustStore.isKnownArtifact = vi.fn(async () => true);
+        });
+
+        it('takes a notice of a detail the user shares, before it goes', async () => {
+          const result = await server['verifyAgentTrust'](
+            send('details.changed', 'DETAILS_CHANGED', ['detail:address']),
+          );
+          expect(result.isTrusted).toBe(true);
+        });
+
+        it('refuses a notice of a detail the user never shared: BTP_ERROR_DETAILS_NOT_HELD', async () => {
+          const result = await server['verifyAgentTrust'](
+            send('details.changed', 'DETAILS_CHANGED', ['detail:phone']),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_DETAILS_NOT_HELD');
+        });
+
+        it('takes a response to a request the user received', async () => {
+          const result = await server['verifyAgentTrust'](
+            send('details.respond', 'DETAILS_RES', ['detail:address']),
+          );
+          expect(result.isTrusted).toBe(true);
+          expect(trustStore.isKnownArtifact).toHaveBeenCalledWith({
+            artifactId: 'req-1',
+            from: biller,
+            to: user,
+          });
+        });
+
+        it('refuses a response to a request the user never received', async () => {
+          trustStore.isKnownArtifact = vi.fn(async () => false);
+          const result = await server['verifyAgentTrust'](
+            send('details.respond', 'DETAILS_RES', ['detail:address']),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+        });
+
+        it('tells its listeners of a response only once it has passed every check', () => {
+          const shared = vi.fn();
+          server.on('detailsShared', shared);
+          server['tellDetails']({
+            type: 'agent',
+            artifact: send('details.respond', 'DETAILS_RES', ['detail:address']),
+          } as ProcessedArtifact);
+          server['tellDetails']({
+            type: 'agent',
+            artifact: send('details.changed', 'DETAILS_CHANGED', ['detail:address']),
+          } as ProcessedArtifact);
+          expect(shared).toHaveBeenCalledTimes(1);
+          expect(shared).toHaveBeenCalledWith(
+            expect.objectContaining({ from: user, to: biller, names: ['detail:address'] }),
+          );
+        });
       });
     });
 
@@ -2414,6 +2747,136 @@ export default function () {
         storeHolding(record(biller, payer));
         const result = await server['verifyTrust'](artifact('BTPS_EVENT', biller, payer));
         expect(result.isTrusted).toBe(true);
+      });
+
+      describe('since 1.2, a send under a trust with permissions', () => {
+        const granting = (...granted: ('send:invoice' | 'send:receipt')[]) => ({
+          ...record(biller, payer),
+          permissions: { requested: [], granted, detailsHeld: [], detailsShared: [] },
+        });
+        const invoice = (documentType?: 'invoice' | 'receipt') => {
+          const sent = artifact('BTPS_DOC', biller, payer);
+          return { ...sent, artifact: { ...sent.artifact, documentType } };
+        };
+
+        it('takes a send naming a document type the trust grants', async () => {
+          storeHolding(granting('send:invoice'));
+          const result = await server['verifyTrust'](invoice('invoice'));
+          expect(result.isTrusted).toBe(true);
+        });
+
+        it('refuses a send of a type not granted: BTP_ERROR_PERMISSION', async () => {
+          storeHolding(granting('send:invoice'));
+          const result = await server['verifyTrust'](invoice('receipt'));
+          expect(result.isTrusted).toBe(false);
+          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+        });
+
+        it('refuses a send that names no document type: BTP_ERROR_PERMISSION', async () => {
+          storeHolding(granting('send:invoice'));
+          const result = await server['verifyTrust'](invoice());
+          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+        });
+
+        it('takes any send under a 1.1 trust, as before', async () => {
+          storeHolding(record(biller, payer));
+          const result = await server['verifyTrust'](invoice());
+          expect(result.isTrusted).toBe(true);
+        });
+      });
+
+      describe('since 1.2, a details refresh', () => {
+        // The biller asked; the payer granted its address. Each record is the receiver's own.
+        const holding = (detailsHeld: string[], detailsShared: string[]) => ({
+          ...record(biller, payer),
+          permissions: {
+            requested: [],
+            granted: [],
+            detailsHeld,
+            detailsShared,
+          } as unknown as BTPTrustRecord['permissions'],
+        });
+        const details = (
+          type: 'DETAILS_CHANGED' | 'DETAILS_REQ' | 'DETAILS_RES',
+          from: string,
+          to: string,
+          names: string[],
+          relatesTo?: string,
+        ) => {
+          const sent = artifact('BTPS_DOC', from, to);
+          return {
+            ...sent,
+            artifact: {
+              ...sent.artifact,
+              version: '1.2.0',
+              type,
+              details: names,
+              ...(relatesTo !== undefined && { relatesTo }),
+            },
+          } as unknown as ProcessedArtifact;
+        };
+
+        it('takes a notice of a detail the receiver holds, over the trust in either direction', async () => {
+          storeHolding(holding(['detail:address'], []));
+          const result = await server['verifyTrust'](
+            details('DETAILS_CHANGED', payer, biller, ['detail:address']),
+          );
+          expect(result.isTrusted).toBe(true);
+        });
+
+        it('refuses a notice of a detail the receiver does not hold: BTP_ERROR_DETAILS_NOT_HELD', async () => {
+          storeHolding(holding(['detail:address'], []));
+          const result = await server['verifyTrust'](
+            details('DETAILS_CHANGED', payer, biller, ['detail:phone']),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_DETAILS_NOT_HELD');
+        });
+
+        it('refuses a request for a detail the answerer does not share', async () => {
+          storeHolding(holding([], ['detail:email']));
+          const result = await server['verifyTrust'](
+            details('DETAILS_REQ', payer, biller, ['detail:phone']),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_DETAILS_NOT_HELD');
+        });
+
+        it('tells its listeners of a request only once it has passed every check', () => {
+          const requested = vi.fn();
+          server.on('detailsRequested', requested);
+          server['tellDetails'](details('DETAILS_REQ', payer, biller, ['detail:email']));
+          server['tellDetails'](details('DETAILS_CHANGED', payer, biller, ['detail:email']));
+          expect(requested).toHaveBeenCalledTimes(1);
+          expect(requested).toHaveBeenCalledWith(
+            expect.objectContaining({ from: payer, to: biller, names: ['detail:email'] }),
+          );
+        });
+
+        it('takes a response to a request it knows, leaving its names to the platform', async () => {
+          storeHolding(holding(['detail:address'], []));
+          const known = vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(true);
+          const result = await server['verifyTrust'](
+            details('DETAILS_RES', payer, biller, ['detail:address'], 'req-1'),
+          );
+          expect(result.isTrusted).toBe(true);
+          expect(known).toHaveBeenCalledWith({ artifactId: 'req-1', from: biller, to: payer });
+        });
+
+        it('refuses a response to a request it does not know: BTP_ERROR_PERMISSION', async () => {
+          storeHolding(holding(['detail:address'], []));
+          vi.spyOn(trustStore, 'isKnownArtifact').mockResolvedValue(false);
+          const result = await server['verifyTrust'](
+            details('DETAILS_RES', payer, biller, ['detail:address'], 'req-1'),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_PERMISSION');
+        });
+
+        it('refuses any details refresh over a 1.1 trust', async () => {
+          storeHolding(record(biller, payer));
+          const result = await server['verifyTrust'](
+            details('DETAILS_CHANGED', payer, biller, ['detail:address']),
+          );
+          expect(result.error?.code).toBe('BTP_ERROR_DETAILS_NOT_HELD');
+        });
       });
 
       describe('through the whole pipeline, an event over either trust must still relate to an invoice', () => {
@@ -2697,6 +3160,42 @@ export default function () {
             code: 400,
             message: `${BTP_ERROR_PRIVACY_TYPE.message}: encrypted`,
             error: BTP_ERROR_PRIVACY_TYPE.code,
+          });
+        });
+
+        it("tells a sender over the provider's details limit so, and when to ask again", async () => {
+          const allow = vi.fn(() => ({ retryAfter: 90 }));
+          server['middlewareManager']['middleware'] = [
+            detailsRequestLimit(allow),
+          ] as MiddlewareDefinition[];
+          server['verifyTrust'] = vi.fn(async () => ({ isTrusted: true }));
+          const socket = buildMockSocket();
+          const request = {
+            ...transporterArtifact(),
+            version: '1.2.0',
+            type: 'DETAILS_REQ',
+            details: ['detail:email'],
+          } as BTPTransporterArtifact;
+          const { reqCtx, resCtx } = buildPipelineCtx(socket, request);
+          resCtx.sendError = (error) => {
+            resCtx.responseSent = true;
+            server['sendBtpsError'](socket, error, resCtx.reqId);
+          };
+
+          await server['executeRequestPipeline'](reqCtx, resCtx);
+
+          expect(allow).toHaveBeenCalledWith({
+            from: request.from,
+            to: request.to,
+            names: ['detail:email'],
+          });
+
+          expect(writtenPayload(socket).status).toEqual({
+            ok: false,
+            code: 429,
+            message: BTP_ERROR_DETAILS_RATE_LIMITED.message,
+            error: BTP_ERROR_DETAILS_RATE_LIMITED.code,
+            retryAfter: 90,
           });
         });
 
@@ -3012,6 +3511,222 @@ export default function () {
     });
   });
 
+  describe("since 1.2, a lookup's answer names its identity, and carries its key chain when asked", () => {
+    const keyPair = () =>
+      generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      });
+    const serverKeys = keyPair();
+    const [k1, k2] = [keyPair(), keyPair()];
+    const record = {
+      selector: 'btps2',
+      publicKey: pemToBase64(k2.publicKey),
+      keyType: 'rsa' as const,
+      version: '1.2.0',
+      createdAt: new Date().toISOString(),
+    };
+
+    class ChainStore extends OneIdentityStore {
+      constructor(private readonly chain: BTPKeyChainRecord[]) {
+        super(record);
+      }
+      async getKeyChain() {
+        return this.chain;
+      }
+    }
+
+    const answer = async (
+      store: AbstractIdentityStore<BTPIdentityRecord>,
+      lookup: { version: string; keyChain?: true },
+    ): Promise<BTPServerResponse> => {
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'admin$vendor.example', ...serverKeys },
+        trustStore: new DummyTrustStore(),
+        identityStore: store,
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const sent = vi.fn();
+      server['sendBtpsResponse'] = sent;
+      const socket = {} as TLSSocket;
+      await server['handleIdentityLookup'](
+        {
+          id: 'lookup-1',
+          issuedAt: new Date().toISOString(),
+          identity: 'billing$vendor.example',
+          from: 'pay$client.example',
+          hostSelector: 'btps1',
+          ...lookup,
+        },
+        {
+          req: { socket } as unknown as BTPRequestCtx,
+          res: { socket, reqId: 'req-1' } as unknown as BTPResponseCtx,
+        },
+      );
+      return sent.mock.calls[0]?.[1];
+    };
+
+    it('names the identity in a 1.2.0 answer, and adds the chain the store holds when asked', async () => {
+      const rotation = await signKeyRotation(
+        {
+          identity: 'billing$vendor.example',
+          from: { selector: 'btps1' },
+          to: { selector: 'btps2' },
+          at: '2026-11-10T00:00:00.000Z',
+          prev: null,
+        },
+        { from: { pemFiles: k1 }, to: { pemFiles: k2 } },
+      );
+      const plain = await answer(new ChainStore([rotation]), { version: '1.2.0' });
+      expect(plain.document).toMatchObject({ identity: 'billing$vendor.example' });
+      expect(plain.document).not.toHaveProperty('keyChain');
+
+      const withChain = await answer(new ChainStore([rotation]), {
+        version: '1.2.0',
+        keyChain: true,
+      });
+      expect(withChain.document).toMatchObject({ keyChain: [rotation] });
+      // Signed by the operator over the whole answer, the chain included.
+      const { signature, ...signed } = withChain;
+      expect(signature && verifySignature(signed, signature, serverKeys.publicKey).isValid).toBe(
+        true,
+      );
+      expect(BtpServerResponseSchema.safeParse(withChain).success).toBe(true);
+    });
+
+    it('answers an empty chain for an identity that never rotated, or a store that keeps none', async () => {
+      const none = await answer(new OneIdentityStore(record), { version: '1.2.0', keyChain: true });
+      expect(none.document).toMatchObject({ keyChain: [] });
+      const empty = await answer(new ChainStore(undefined as unknown as BTPKeyChainRecord[]), {
+        version: '1.2.0',
+        keyChain: true,
+      });
+      expect(empty.document).toMatchObject({ keyChain: [] });
+    });
+
+    it('answers a 1.1 lookup as 1.1 does: no identity, no chain', async () => {
+      const old = await answer(new ChainStore([]), { version: '1.1.0' });
+      expect(old.document).not.toHaveProperty('identity');
+      expect(old.document).not.toHaveProperty('keyChain');
+    });
+
+    it("answers with the chain's current key for an identity whose keys are in DNS, and has no key record here", async () => {
+      class DnsIdentityStore extends ChainStore {
+        async getPublicKeyRecord(): Promise<IdentityPubKeyRecord | undefined> {
+          return undefined;
+        }
+      }
+      const rotation = await signKeyRotation(
+        {
+          identity: 'billing$vendor.example',
+          from: { selector: 'btps1' },
+          to: { selector: 'btps2' },
+          at: '2026-10-10T00:00:00.000Z',
+          prev: null,
+        },
+        { from: { pemFiles: k1 }, to: { pemFiles: k2 } },
+      );
+      const fromChain = await answer(new DnsIdentityStore([rotation]), {
+        version: '1.2.0',
+        keyChain: true,
+      });
+      expect(fromChain.document).toMatchObject({
+        selector: 'btps2',
+        publicKey: k2.publicKey.trim(),
+        keyType: 'rsa',
+        identity: 'billing$vendor.example',
+        keyChain: [rotation],
+      });
+
+      // With neither a key record nor a chain, it is not found, as before.
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'admin$vendor.example', ...serverKeys },
+        trustStore: new DummyTrustStore(),
+        identityStore: new DnsIdentityStore([]),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const sendError = vi.fn();
+      server['sendBtpsError'] = sendError;
+      const socket = {} as TLSSocket;
+      await server['handleIdentityLookup'](
+        {
+          version: '1.2.0',
+          id: 'lookup-2',
+          issuedAt: new Date().toISOString(),
+          identity: 'billing$vendor.example',
+          from: 'pay$client.example',
+          hostSelector: 'btps1',
+          keyChain: true,
+        },
+        {
+          req: { socket } as unknown as BTPRequestCtx,
+          res: { socket, reqId: 'req-2' } as unknown as BTPResponseCtx,
+        },
+      );
+      expect(sendError).toHaveBeenCalledWith(socket, BTP_ERROR_IDENTITY_NOT_FOUND, 'req-2');
+    });
+
+    it('serves a stored fork as stored, never as not found, so the receiver refuses it', async () => {
+      class DnsIdentityStore extends ChainStore {
+        async getPublicKeyRecord(): Promise<IdentityPubKeyRecord | undefined> {
+          return undefined;
+        }
+      }
+      const k3 = keyPair();
+      const rotateTo = (to: { publicKey: string; privateKey: string }, selector: string) =>
+        signKeyRotation(
+          {
+            identity: 'billing$vendor.example',
+            from: { selector: 'btps1' },
+            to: { selector },
+            at: '2026-10-10T00:00:00.000Z',
+            prev: null,
+          },
+          { from: { pemFiles: k1 }, to: { pemFiles: to } },
+        );
+      // btps1 handed on twice: no single current key.
+      const fork = [await rotateTo(k2, 'btps2'), await rotateTo(k3, 'btps3')];
+
+      const served = await answer(new DnsIdentityStore(fork), { version: '1.2.0', keyChain: true });
+      expect(served.status).toMatchObject({ ok: true, code: 200 });
+      // The records exactly as stored, and the last rotation's new key, unverified.
+      expect(served.document).toMatchObject({
+        identity: 'billing$vendor.example',
+        keyChain: fork,
+        selector: 'btps3',
+        publicKey: k3.publicKey.trim(),
+      });
+      expect(BtpServerResponseSchema.safeParse(served).success).toBe(true);
+
+      // A lookup that does not ask for the chain is answered as before: not found here.
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'admin$vendor.example', ...serverKeys },
+        trustStore: new DummyTrustStore(),
+        identityStore: new DnsIdentityStore(fork),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const sendError = vi.fn();
+      server['sendBtpsError'] = sendError;
+      const socket = {} as TLSSocket;
+      await server['handleIdentityLookup'](
+        {
+          version: '1.2.0',
+          id: 'lookup-3',
+          issuedAt: new Date().toISOString(),
+          identity: 'billing$vendor.example',
+          from: 'pay$client.example',
+          hostSelector: 'btps1',
+        },
+        {
+          req: { socket } as unknown as BTPRequestCtx,
+          res: { socket, reqId: 'req-3' } as unknown as BTPResponseCtx,
+        },
+      );
+      expect(sendError).toHaveBeenCalledWith(socket, BTP_ERROR_IDENTITY_NOT_FOUND, 'req-3');
+    });
+  });
+
   describe('artifact size limit', () => {
     const connect = (server: BtpsServer) => {
       const input = new PassThrough();
@@ -3157,21 +3872,85 @@ export default function () {
           ok: false,
           code: 400,
           error: BTP_ERROR_VERSION_UNSUPPORTED.code,
-          message: `${BTP_ERROR_VERSION_UNSUPPORTED.message}: supports 1.1.0 to 1.1.0`,
+          message: `${BTP_ERROR_VERSION_UNSUPPORTED.message}: supports 1.1.0 to 1.2.0`,
         });
         expect(answer.reqId).toBe('old');
-        expect(answer.version).toBe('1.1.0');
+        // The server's own version: what a sender reads to know what it speaks.
+        expect(answer.version).toBe('1.2.0');
       } finally {
         tcp.close();
       }
     });
 
-    it('speaks 1.1, and any 1.1 patch, but not 1.0, 1.2 or a malformed version', () => {
+    it('refuses a sync sent to it directly, by any server, before any signature work', async () => {
+      const btps = new BtpsServer({
+        serverIdentity: { identity: 'host$example.com', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new DummyTrustStore(),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const verify = vi.spyOn(btps as never, 'verifySignature');
+      const tcp = net.createServer((socket) =>
+        btps['handleConnection'](socket as unknown as TLSSocket),
+      );
+      await new Promise<void>((resolve) => tcp.listen(0, '127.0.0.1', resolve));
+      const address = tcp.address();
+      const port = typeof address === 'object' && address ? address.port : 0;
+      const sync = {
+        version: '1.2.0',
+        issuedAt: new Date().toISOString(),
+        id: 'sync-1',
+        type: 'BTPS_DOC',
+        from: 'alice$example.com',
+        to: 'alice$example.com',
+        selector: 'btps1',
+        signature: { algorithmHash: 'sha256', value: 'AA==', fingerprint: 'AA==' },
+        encryption: {
+          algorithm: 'aes-256-gcm',
+          encryptedKey: 'AA==',
+          iv: 'AA==',
+          authTag: 'AA==',
+          type: 'standardEncrypt',
+        },
+        document: 'ciphertext',
+        syncOf: { id: 'artifact-1', sha256: 'a'.repeat(64) },
+      };
+
+      try {
+        const answer = await new Promise<BTPServerResponse>((resolve, reject) => {
+          const client = net.connect(port, '127.0.0.1');
+          let received = '';
+          client.on('data', (data) => {
+            received += data;
+            const end = received.indexOf('\n');
+            if (end !== -1) {
+              client.end();
+              resolve(JSON.parse(received.slice(0, end)));
+            }
+          });
+          client.on('error', reject);
+          client.write(`${JSON.stringify(sync)}\n`);
+        });
+
+        expect(answer.status).toMatchObject({
+          ok: false,
+          code: 403,
+          error: BTP_ERROR_SYNC_NOT_ALLOWED.code,
+        });
+        expect(answer.reqId).toBe('sync-1');
+        expect(verify).not.toHaveBeenCalled();
+      } finally {
+        tcp.close();
+      }
+    });
+
+    it('speaks 1.1 and 1.2, and any patch of them, but not 1.0, 1.3 or a malformed version', () => {
       expect(isSupportedVersion('1.1.0')).toBe(true);
       expect(isSupportedVersion('1.1.7')).toBe(true);
       expect(isSupportedVersion('1.1')).toBe(true);
+      expect(isSupportedVersion('1.2.0')).toBe(true);
+      expect(isSupportedVersion('1.2.3')).toBe(true);
       expect(isSupportedVersion('1.0.0')).toBe(false);
-      expect(isSupportedVersion('1.2.0')).toBe(false);
+      expect(isSupportedVersion('1.3.0')).toBe(false);
       expect(isSupportedVersion('1.0.0.0')).toBe(false);
       expect(isSupportedVersion('v1.1.0')).toBe(false);
       expect(isSupportedVersion(undefined)).toBe(false);
@@ -3596,9 +4375,9 @@ export default function () {
       expect(socket.destroy).not.toHaveBeenCalled();
     });
 
-    it('answers QUIT and ends the connection', async () => {
+    it('answers QUIT and ends the connection, saying so on the answer', async () => {
       const { written, socket } = await control('QUIT');
-      expect(written.status).toEqual({ ok: true, code: 200, message: 'bye' });
+      expect(written.status).toEqual({ ok: true, code: 200, message: 'bye', closing: true });
       expect(socket.end).toHaveBeenCalled();
     });
   });

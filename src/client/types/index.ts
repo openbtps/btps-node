@@ -8,6 +8,7 @@
 import type { BTPCryptoOptions } from '@core/crypto/types.js';
 import type { Signer } from '@core/crypto/signer-interface.js';
 import type { Decrypter } from '@core/crypto/decrypter-interface.js';
+import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 import type { BTPErrorException } from '@core/error/index.js';
 import type { BtpsClient } from 'client/btpsClient.js';
 import type {
@@ -17,6 +18,13 @@ import type {
   BTPIdsPayload,
   BTPAuthReqDoc,
   BTPServerResponse,
+  BTPSyncOf,
+  BTPDocumentType,
+  BTPDetailPermission,
+  BTPEntityType,
+  BTPPermissionName,
+  BTPTrustPermissions,
+  BTPShaped,
   AgentAction,
 } from 'server/index.js';
 import type { ConnectionOptions, TLSSocket } from 'tls';
@@ -41,6 +49,18 @@ export interface BTPClientOptions {
   hostSelector?: string;
   /** With `host`: the identity operating that host, which signs its lookup answers. Otherwise read from DNS (`op`). */
   hostOperator?: string;
+  /**
+   * Since 1.2: take no answer but one signed by this identity under this selector, as a provider's
+   * own app expects of its server: its domain's operator (for example `admin$saas.example`). Unsigned
+   * answers, and those of any other signer, are refused. Off when not set.
+   */
+  requireSignedBy?: { identity: string; selector: string };
+  /**
+   * Since 1.2: finds the keys this client checks and encrypts with: an answer's signer (`verify`)
+   * and, in `resolveIdentity`, the receiver's key (`encrypt`, before asking the receiver's host).
+   * Without it, each is looked up in DNS, as before.
+   */
+  keyResolver?: BtpsKeyResolver;
   version?: string;
   port?: number;
   maxQueue?: number;
@@ -77,8 +97,41 @@ export type BtpsAgentDoc =
   | BTPAgentQuery;
 
 export type BtpsAgentCommandOptions = BTPCryptoOptions & {
-  /** Required on `event.send`, refused elsewhere: the id of the `BTPS_DOC` artifact that delivered the invoice. */
+  /**
+   * Required on `event.send`: the id of the `BTPS_DOC` artifact that delivered the invoice. Since 1.2, required on
+   * `details.respond` (the `DETAILS_REQ` it answers) and allowed on `details.request` (the `DETAILS_CHANGED` it
+   * follows). Refused elsewhere.
+   */
   relatesTo?: string;
+  /**
+   * Since 1.2, required on `details.changed`, `details.request` and `details.respond`, and refused elsewhere: the
+   * `detail:` names the artifact is about, set on its envelope. A `details.respond` is always encrypted.
+   */
+  details?: BTPDetailPermission[];
+  /**
+   * Since 1.2, on `artifact.send` to the device's own address only: this send is a sync, the user's own copy of
+   * the send it names, by the sent artifact's id and the SHA-256 of its RFC 8785 form (`syncOfArtifact`).
+   */
+  syncOf?: BTPSyncOf;
+  /**
+   * Since 1.2, on `artifact.send` only: the document's type, named on the envelope, signed and readable, for a
+   * send under a trust with permissions, whose receiver checks `send:<documentType>` is granted. It is the
+   * document's own `type`, and stamps the artifact `1.2.0`, so leave it out for any other send.
+   */
+  documentType?: BTPDocumentType;
+  /**
+   * Since 1.2, on `trust.request` only: the permissions asked for, one flat list (see Trust permissions). With it,
+   * `entityType` is required, and every detail asked for is given in `given`.
+   */
+  permissions?: BTPTrustPermissions;
+  /** Since 1.2, on `trust.request` and `trust.respond`: what owns the user's address. Required with `permissions` and `granted`. */
+  entityType?: BTPEntityType;
+  /** Since 1.2, on `trust.request` only: the `detail:` names of the details the user gives; their values go in the document. */
+  given?: BTPDetailPermission[];
+  /** Since 1.2, on `trust.request` only: `true` for a change to an active trust, asking for the whole set now wanted. */
+  change?: true;
+  /** Since 1.2, on `trust.respond` only, and only when accepting: the permission names granted. */
+  granted?: BTPPermissionName[];
   /**
    * The id of the artifact the command sends, a UUID. Sending the same document again after a lost answer under
    * the same id lets the receiver keep it once. Without it, a new id. An event always travels under its own id, so
@@ -97,6 +150,7 @@ export type BtpsAgentCommandParams = {
 export interface ConnectionStates {
   isConnecting: boolean;
   isConnected: boolean;
+  /** Always false since 1.2: the socket buffers what it cannot send at once, and the client keeps no queue of its own. */
   isDraining: boolean;
   isDestroyed: boolean;
   shouldRetry: boolean;
@@ -183,6 +237,8 @@ export type TypedEventEmitter<T = BtpsClientEvents> = {
 export interface BTPClientResponse {
   response?: BTPServerResponse;
   error?: BTPErrorException;
+  /** Since 1.2: a trust request sent as its 1.1 receiver allows, and what it left out */
+  shaped?: BTPShaped;
 }
 
 export type BtpsHostDnsTxt = {

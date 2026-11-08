@@ -35,6 +35,8 @@ import type { Decrypter } from './decrypter-interface.js';
 export * from './decryptVerify.js';
 export * from './jcs.js';
 export * from './signEncrypt.js';
+export * from './keyResolver.js';
+export * from './contentKey.js';
 export * from './keygen.js';
 export * from './types.js';
 export * from './signer-interface.js';
@@ -270,6 +272,15 @@ export const getFingerprintFromPem = (pem: string, hashAlgorithm = 'sha256'): st
   const der = keyObj.export({ format: 'der', type: 'spki' }); // binary key
   return crypto.createHash(hashAlgorithm).update(der).digest('base64');
 };
+
+/**
+ * Since 1.2: what a sync names of the send it copies (`syncOf`): the sent
+ * artifact's id, and the lowercase hex SHA-256 of its RFC 8785 form, signature included.
+ */
+export const syncOfArtifact = (artifact: { id: string }): { id: string; sha256: string } => ({
+  id: artifact.id,
+  sha256: crypto.createHash('sha256').update(canonicalizeValue(artifact), 'utf8').digest('hex'),
+});
 
 /** The bytes a signature covers: the RFC 8785 canonical form of the payload. */
 const signedBytes = (payload: unknown): Buffer =>

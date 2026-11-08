@@ -16,7 +16,8 @@ export abstract class AbstractTrustStore<T extends BTPTrustRecord> extends Abstr
    * either direction, as the platform recorded it. Every `BTPS_EVENT` names
    * the artifact that delivered its invoice (`relatesTo`) and is refused
    * unless this answers true, so a sender cannot send events about invoices
-   * that were never exchanged.
+   * that were never exchanged. Since 1.2, a `DETAILS_RES` is refused the same
+   * way unless the request it names (`relatesTo`) is known.
    */
   abstract isKnownArtifact(query: {
     artifactId: string;

@@ -26,10 +26,24 @@ import { createWebRuntime } from '../src/runtimes/web.mjs';
 import { toBase64, utf8 } from '../src/encoding.mjs';
 import {
   addresses,
+  agreements,
+  agreementKeyChains,
+  agreementTimestamps,
+  details,
   deviceKeyProof,
   documents,
+  documents12,
+  eventChain,
+  keyRotation,
+  keyRotationSigners,
+  responses,
   signedArtifacts,
+  sync,
+  templates,
   timeWindow,
+  trustPermissions,
+  versions,
+  withKeyFacts,
 } from './protocol-vectors.mjs';
 
 const VECTORS_DIR = path.resolve(
@@ -244,6 +258,59 @@ write(
   deviceKeyProof(readVector('self-held-signature.vector.json')),
 );
 write('time-window.vectors.json', timeWindow());
+write('versions.vectors.json', versions());
+write('documents-1.2.vectors.json', documents12());
+write('event-chain.vectors.json', eventChain());
+write('sync.vectors.json', sync());
+write('responses.vectors.json', responses());
+write('templates.vectors.json', templates());
+write('trust-permissions.vectors.json', trustPermissions());
+write('details.vectors.json', details());
+// The originator and the guarantor sign with the existing signing keys. The
+// wrap key is only encrypted to, so the other signer, a device and the
+// operator that delegates it get keys of their own, made here.
+const agreementSet = agreements({
+  originator: readVector('kms-signature.vector.json'),
+  signer: newKeyPair(),
+  guarantor: readVector('self-held-signature.vector.json'),
+  device: newKeyPair(),
+  operator: newKeyPair(),
+});
+// Timestamped bundles: a test authority, made at generation, signs real RFC 3161 tokens.
+agreementSet.bundles.push(...(await agreementTimestamps(agreementSet)));
+// Key chain bundles: the bank and the guarantor rotate to keys made here, and the
+// guarantor's operator, with a key made here too, answers for its chain; so does a
+// forger, with a key of its own.
+agreementSet.bundles.push(
+  ...agreementKeyChains(agreementSet, {
+    originator: readVector('kms-signature.vector.json'),
+    originatorNext: newKeyPair(),
+    guarantor: readVector('self-held-signature.vector.json'),
+    guarantorNext: newKeyPair(),
+    guarantorOperator: newKeyPair(),
+    forger: newKeyPair(),
+  }),
+);
+// Each bundle also expects the keys its verifier names.
+agreementSet.bundles = agreementSet.bundles.map(withKeyFacts);
+write('agreements.vectors.json', agreementSet);
+// An identity's four keys, made here, and a fifth under 2048 bits that every verifier refuses.
+const { publicKey: smallPublic, privateKey: smallPrivate } = crypto.generateKeyPairSync('rsa', {
+  modulusLength: 1024,
+  publicKeyEncoding: { type: 'spki', format: 'pem' },
+  privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+});
+write(
+  'key-rotation.vectors.json',
+  keyRotation([
+    newKeyPair(),
+    newKeyPair(),
+    newKeyPair(),
+    newKeyPair(),
+    { publicKeyPem: smallPublic, privateKeyPem: smallPrivate },
+  ]),
+);
+write('key-signers.vectors.json', keyRotationSigners());
 
 // The manifest names every vector file with the SHA-256 of its bytes, so a
 // copy of the set can be checked whole. Rewritten on every run.
@@ -265,9 +332,9 @@ fs.writeFileSync(
   `${JSON.stringify(
     {
       name: 'btps-golden-vectors',
-      protocol: 'BTPS 1.1',
+      protocol: 'BTPS 1.2',
       description:
-        'Every file of the BTPS 1.1 golden vector set, with the lowercase hex SHA-256 of its bytes. See test/vectors/README.md.',
+        'Every file of the BTPS 1.2 golden vector set, which covers 1.1 too, with the lowercase hex SHA-256 of its bytes. See test/vectors/README.md.',
       hashAlgorithm: 'sha256',
       files,
     },

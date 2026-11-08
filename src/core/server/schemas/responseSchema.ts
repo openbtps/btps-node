@@ -8,10 +8,18 @@
 import { z } from 'zod';
 import { BtpSignatureSchema, BtpEncryptionSchema } from './schema.js';
 import { identitySchema } from './shared.js';
-import { BtpAuthResDocSchema, BtpIdentityResDocSchema } from './btpsDocsSchema.js';
-import { BtpTransporterArtifactSchema } from './artifacts/transporterSchema.js';
+import {
+  BtpAuthResDocSchema,
+  BtpCreatedResDocSchema,
+  BtpIdentityResDocSchema,
+} from './btpsDocsSchema.js';
+import {
+  BtpTransporterArtifactSchema,
+  BtpTrustRecordPermissionsSchema,
+} from './artifacts/transporterSchema.js';
 import { boundedArray, boundedRecord } from './bounded.js';
 import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
+import { isVersionBelow } from '../constants/index.js';
 
 const { query, trustRecord, recordKeys } = BTPS_FIELD_LIMITS;
 
@@ -21,6 +29,8 @@ export const BtpStatusSchema = z.object({
   code: z.number(),
   message: z.string().optional(),
   error: z.string().optional(),
+  retryAfter: z.number().int().nonnegative().optional(),
+  closing: z.literal(true).optional(),
 });
 
 // Schema for BTPDeliveryFailureDoc
@@ -71,6 +81,8 @@ export const BtpTrustRecordSchema = z
     privacyType: z.enum(['unencrypted', 'encrypted', 'mixed']),
     retryAfterDate: z.string().datetime().optional(),
     metadata: boundedRecord(z.unknown(), recordKeys).optional(),
+    // Since 1.2: without it, a 1.1 trust.
+    permissions: BtpTrustRecordPermissionsSchema.optional(),
   })
   .refine((record) => record.status === 'pending' || record.decidedAt !== '', {
     message: 'only a pending trust has no decidedAt',
@@ -88,8 +100,26 @@ export const BtpQueryResultEntrySchema = z.object({
     .object({
       seen: z.boolean().optional(),
       seenAt: z.string().datetime().optional(),
+      // Since 1.2: a send's outcome, as its sender's provider knows it.
+      delivery: z
+        .object({
+          status: z.enum(['pending', 'delivered', 'failed']),
+          code: z.string().min(1).optional(),
+          at: z.string().datetime(),
+        })
+        .strict()
+        .optional(),
     })
     .catchall(z.unknown())
+    .optional(),
+  // Since 1.2: the content key wrapped again to the device that asked.
+  agentKey: z
+    .object({
+      key: z.string().min(1),
+      fingerprint: z.string().min(1),
+      wrappedAt: z.string().datetime(),
+    })
+    .strict()
     .optional(),
 });
 
@@ -106,6 +136,7 @@ export const BtpServerResDocsSchema = z.union([
   BtpAuthResDocSchema,
   BtpQueryResultSchema,
   BtpIdentityResDocSchema,
+  BtpCreatedResDocSchema,
 ]);
 
 // Schema for BTPServerResponse
@@ -152,5 +183,50 @@ export const BtpServerResponseSchema = z
         code: z.ZodIssueCode.custom,
         message: 'When encrypted, document must be a string',
       });
+    }
+
+    // Since 1.2, under 1.2.0 only: how long a 429 asks its sender to wait.
+    if (data.status.retryAfter !== undefined) {
+      if (data.status.code !== 429) {
+        ctx.addIssue({
+          path: ['status', 'retryAfter'],
+          code: z.ZodIssueCode.custom,
+          message: 'retryAfter is only on a 429',
+        });
+      }
+      if (isVersionBelow(data.version, '1.2.0')) {
+        ctx.addIssue({
+          path: ['status', 'retryAfter'],
+          code: z.ZodIssueCode.custom,
+          message: 'retryAfter is only in a 1.2.0 response',
+        });
+      }
+    }
+
+    // Since 1.2, under 1.2.0 only: the server ends the connection after this answer.
+    if (data.status.closing !== undefined && isVersionBelow(data.version, '1.2.0')) {
+      ctx.addIssue({
+        path: ['status', 'closing'],
+        code: z.ZodIssueCode.custom,
+        message: 'closing is only in a 1.2.0 response',
+      });
+    }
+
+    // Since 1.2, under 1.2.0 only: an identity lookup's answer (the document
+    // with a keyType) names its identity, and carries its key chain.
+    if (
+      typeof data.document === 'object' &&
+      'keyType' in data.document &&
+      isVersionBelow(data.version, '1.2.0')
+    ) {
+      for (const field of ['identity', 'keyChain'] as const) {
+        if (field in data.document) {
+          ctx.addIssue({
+            path: ['document', field],
+            code: z.ZodIssueCode.custom,
+            message: `${field} is only in a 1.2.0 response`,
+          });
+        }
+      }
     }
   });

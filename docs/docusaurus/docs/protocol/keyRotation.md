@@ -4,34 +4,17 @@ sidebar_label: Key Rotation
 slug: key-rotation
 ---
 
-# Key Rotation in BTPS Protocol
+# Rotating keys
 
-Key rotation is a critical security practice that allows organizations to periodically change their cryptographic keys while maintaining backward compatibility and service continuity. The BTPS protocol implements a sophisticated key rotation mechanism using DNS-based selector resolution.
+An identity's key signs everything it sends, and is the key documents to it are encrypted to. Rotating it moves the identity to a new key without breaking what the old one signed.
 
-## Overview
+Since 1.2, every rotation is a signed record in the identity's **key chain**, which its host serves and every 1.2 server checks each arriving key against. So an old key can be retired from DNS, and its private key deleted, while what it signed stays verifiable, and a compromised key is refused at once, whatever DNS still has. This page is the operator's walk-through: the DNS records, a planned rotation step by step, a compromised or lost key, and deleting the old private key. The code is in the [Key rotation](../features/keyRotation.md) guide, and the rules in the [specification](./specifications/key-rotation.md).
 
-Key rotation in BTPS enables organizations to:
+## The DNS records
 
-- **Maintain security** by regularly updating cryptographic keys
-- **Preserve backward compatibility** during key transitions
-- **Support gradual migration** from old to new keys
-- **Handle multiple key types** for different use cases
-- **Ensure zero-downtime** key updates
+### Key records, by selector
 
-## How Key Rotation Works
-
-### DNS-Based Selector Resolution
-
-BTPS uses DNS TXT records to publish multiple public keys under different selectors. This approach provides:
-
-- **Decentralized key distribution** through DNS
-- **Immediate key availability** without additional infrastructure
-- **Flexible key management** with multiple selectors
-- **Backward compatibility** during transitions
-
-### Selector Naming Convention
-
-Selectors can be any meaningful identifier and follow this naming pattern:
+Each key of an identity is published under a **selector**:
 
 ```
 <selector>._btps.identity.<account>.<domain>
@@ -39,519 +22,121 @@ Selectors can be any meaningful identifier and follow this naming pattern:
 
 `<account>` is the part of the address before `$`: `billing$vendorcorp.com` publishes at `<selector>._btps.identity.billing.vendorcorp.com`.
 
-**Examples:**
-
-```
-btps1._btps.identity.finance.vendorcorp.com  → First generation key
-btps2._btps.identity.finance.vendorcorp.com  → Second generation key
-current._btps.identity.finance.vendorcorp.com → Current production key
-legacy._btps.identity.finance.vendorcorp.com  → Legacy key for backward compatibility
+```dns
+btps1._btps.identity.billing.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
 ```
 
-**Selector Guidelines:**
+- `v=1.1.0`: the protocol version
+- `k=rsa`: the key type. Every key is RSA, at least 2048 bits
+- `p=`: the public key, the DER SPKI in base64, without PEM headers
 
-- Use descriptive names (e.g., `current`, `legacy`, `staging`, `2024q1`)
-- Avoid generic numbers when possible
-- Consider your key rotation strategy when naming
-- Maintain consistency across your organization
+**A new key always gets a new selector.** A selector names one key for the life of the identity; a provider MUST never reuse one for a different key. Name them so they never repeat: `btps1`, `btps2`, ..., or `2026q4`.
 
-### DNS TXT Record Formats
+### The host record
 
-#### 1. Public Key Records
-
-Each selector publishes a DNS TXT record with the following format:
-
-```
-btps1._btps.identity.finance.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
-```
-
-**Record Components:**
-
-- `v=1.1.0` - Protocol version
-- `k=rsa` - Key type
-- `p=<base64-encoded-public-key>` - Public key: base64 SPKI, without PEM headers
-
-#### 2. Selector Resolution Records
-
-The main BTPS selector record must be updated to include the current selector:
-
-```
+```dns
 _btps.host.vendorcorp.com. IN TXT "v=1.1.0;u=btps.vendorcorp.com:3443;s=btps2;op=admin$vendorcorp.com"
 ```
 
-**Record Components:**
+- `u=`: the BTPS host and port
+- `s=`: the domain's current selector
+- `op=`: the domain's operator, which delegates, attests and answers identity lookups for the domain ([The Domain Operator](./specifications/overview.md#the-domain-operator)). Rotating keys never changes it: the operator is an identity, not a key
 
-- `v=1.1.0` - BTPS protocol version
-- `u=<btps_host:port>` - BTPS server host and port
-- `s=<selectorName>` - Current active selector for key resolution
-- `op=<operator_identity>` - The domain's operator, which delegates, attests and answers identity lookups for the domain ([The Domain Operator](./specifications/overview.md#the-domain-operator))
+**`s=` is domain-wide.** Receivers look up keys under it for every address on the domain. Before you change it, every identity on the domain, and the operator, must have a key under the new selector.
 
-**Important:** During key rotation, you must update the `s=` parameter to point to the new selector. Rotating keys does not change `op`: the operator is an identity, not a key.
-
-## Key Rotation Process Flow
+## A planned rotation, step by step
 
 ```mermaid
 graph TD
-    A[Current State: Single Key] --> B[Prepare New Key]
-    B --> C[Generate New Key Pair]
-    C --> D[Publish New Public Key Record]
-    D --> E[Update Selector Resolution Record]
-    E --> F[Test New Key]
-    F --> G[Gradual Migration]
-    G --> H[Monitor and Validate]
-    H --> I[Complete Migration]
-    I --> J[Remove Old Key]
-
-    subgraph "Preparation Phase"
-        B
-        C
-        D
-        E
-        F
-    end
-
-    subgraph "Migration Phase"
-        G
-        H
-    end
-
-    subgraph "Cleanup Phase"
-        I
-        J
-    end
-
-    style A fill:#e1f5fe
-    style G fill:#fff3e0
-    style J fill:#f3e5f5
+    A[Generate the new key pair] --> B[Sign the rotation record with both keys]
+    B --> C[Add it to the identity's chain, at its host]
+    C --> D[Publish the new key under a new selector]
+    D --> E[Moving s=? Re-publish every other key under it first]
+    E --> F[Sign with the new key]
+    F --> G[After the grace, retire the old key's DNS record]
+    G --> H[Side-cars for stored documents, then delete the old private key]
 ```
 
-**Key Steps:**
+1. **Generate the new key pair.**
 
-1. **Publish New Public Key Record**: Create DNS TXT record for new selector
-2. **Update Selector Resolution Record**: Change `s=` in `_btps.host.<domain>` to the new selector
-3. **Test Resolution**: Verify both records resolve correctly
-4. **Gradual Migration**: Start using new selector while maintaining old one
+   ```bash
+   openssl genrsa -out btps2.key.pem 2048
+   openssl rsa -in btps2.key.pem -pubout -out btps2.pub.pem
+   ```
 
-`s=` is domain-wide: senders use it as their own selector and receivers look up keys under it for every address on the domain. Publish a key under the new selector for **every** identity on the domain before changing `s=`. Keep the old selector's records until artifacts signed with it can no longer arrive: a receiver verifies each artifact with the key at the selector it names.
+2. **Sign the rotation record** with the old key and the new one (`signKeyRotation`), its `prev` the hash of the chain's last record (`keyChainRecordHash`), or `null` for the first. `at` is when the new key starts signing.
 
-## Preparation for Key Rotation
+3. **Add it to the identity's chain**, kept on the identity's record in your identity store (`keyChain`). From now on the host answers chain lookups with it. A host answers for an identity whose keys are in DNS from the chain alone.
 
-### 1. Key Generation and Validation
+4. **Publish the new key** under its new selector.
+
+5. **If `s=` moves:** publish a key under the new selector for **every** identity on the domain first, and the operator's. An identity that is not rotating **re-publishes its unchanged key** under the new selector: the same key, which needs no record. Then change `s=`. A 1.2 server takes a chain only when its last key is one DNS publishes, at the chain's last selector or at `s=`.
+
+6. **Sign with the new key**, naming its selector.
+
+7. **Retire the old key's DNS record after the grace.** A 1.2 receiver takes a key rotated away as planned for `retiredKeyGraceSeconds` (a day, by default) after the rotation, and then refuses it (`BTP_ERROR_KEY_RETIRED`), whatever DNS has. A 1.1 receiver reads DNS only: while you talk to 1.1 peers, keep the record at least that long, so artifacts already in flight are taken.
+
+8. **Delete the old private key** once stored documents no longer need it ([below](#deleting-the-old-private-key)).
+
+| When                      | What                                                                                   |
+| ------------------------- | -------------------------------------------------------------------------------------- |
+| Day 0                     | sign the record, keep the chain, publish the new key, move `s=`, sign with the new key |
+| After the grace (a day)   | retire the old key's DNS record                                                        |
+| Once every side-car opens | delete the old private key                                                             |
+
+## A compromised key
+
+1. **Rotate with immediate expiry**, both keys signing, with `compromisedSince` the earliest time the key may have been compromised and `reason: 'compromised'`. A 1.2 receiver refuses the key at once (`BTP_ERROR_KEY_REVOKED`), even for an artifact dated before `compromisedSince`: a thief can date an artifact as they like.
+2. **Remove the old key's DNS record at once.** This is a rule, not a choice. A receiver that cannot reach your host checks the key by DNS alone, and only a removed record refuses it then (`BTP_ERROR_RESOLVE_PUBKEY`), within its DNS time-to-live and any key cache.
+3. **Publish the new key, and move `s=`** as in a planned rotation.
+4. **Take anything already encrypted to the key as exposed.** Side-cars protect what is stored from now on, not what a thief already copied.
+
+**Found later?** A key the identity already rotated away from may turn out to have been compromised before it was left. The identity's current key signs an expiry record (`signKeyExpiry`) naming it and its `compromisedSince`, and the old key is refused from then on; remove its DNS record too, if it is still there. The expiry is dated when it is declared, and an evidence bundle shows a statement that had already arrived before it ([In an evidence bundle](./specifications/key-rotation.md#in-an-evidence-bundle)).
+
+## A lost key
+
+A key you no longer hold cannot sign its own rotation. The new key alone signs a rotation with immediate expiry and `reason: 'lost'`, which names the lost key's public key. Such a rotation counts only where its authority is confirmed online: by the operator's signed answer, for an identity whose keys only its host knows, or by DNS publishing the new key. Offline, it is reported as unconfirmed. Remove the lost key's DNS record at once, as for a compromised key.
+
+## Deleting the old private key
+
+Verifying never needs a private key; opening a document does, and one key both signs and is encrypted to. A signed artifact is never changed, so before deleting an old private key:
+
+1. wait until nothing more is encrypted to it: the DNS time-to-live of its record, caches, `maxArtifactAgeSeconds` and retries;
+2. give each stored document encrypted to it a **side-car**, the content key wrapped to the new key (`wrapContentKeyFor`), kept beside it, outside its signature;
+3. confirm every side-car opens its document with the new key (`contentKeyOpens`), and only then delete the old private key.
+
+The [Key rotation](../features/keyRotation.md#delete-an-old-private-key) guide has the code.
+
+## What a receiver does
+
+A 1.2 server asks the sender's host for its chain on each arrival, keeps it for at most `keyChainMaxCacheSeconds` (300 seconds by default), and checks the key against it:
+
+| The key                                                        | The server                                     |
+| -------------------------------------------------------------- | ---------------------------------------------- |
+| the chain's current key                                        | takes it                                       |
+| rotated away as planned, within the grace                      | takes it                                       |
+| rotated away as planned, past the grace                        | refuses: `BTP_ERROR_KEY_RETIRED` (401)         |
+| expired                                                        | refuses at once: `BTP_ERROR_KEY_REVOKED` (401) |
+| no key of the chain                                            | refuses: `BTP_ERROR_RESOLVE_PUBKEY`            |
+| no chain: never rotated, a 1.1 host, or a host it cannot reach | checks the key by DNS, as in 1.1               |
+
+A provider's own `keyResolver` that gives chains keeps each no longer than `keyChainMaxCacheSeconds` too: that is the longest a revoked key can still be taken.
+
+## Troubleshooting
 
 ```bash
-# Generate new key pair
-openssl genrsa -out new_private_key.pem 2048
-openssl rsa -in new_private_key.pem -pubout -out new_public_key.pem
-
-# Validate key format
-openssl rsa -in new_private_key.pem -check
-```
-
-### 2. DNS Record Preparation
-
-Create the new DNS TXT records before publishing:
-
-#### Public Key Record
-
-```dns
-btps2._btps.identity.finance.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
-```
-
-#### Selector Resolution Record
-
-```dns
-_btps.host.vendorcorp.com. IN TXT "v=1.1.0;u=btps.vendorcorp.com:3443;s=btps2;op=admin$vendorcorp.com"
-```
-
-**Note:** The selector resolution record (`_btps.host.vendorcorp.com`) must be updated to point to the new selector (`s=btps2`) during key rotation.
-
-### 3. Testing Strategy
-
-- **Test new key resolution** using DNS lookup tools
-- **Verify artifact signing** with new key
-- **Test artifact verification** with new public key
-- **Validate backward compatibility** with old key
-
-### 4. Monitoring Setup
-
-- **DNS propagation monitoring** across different regions
-- **Key resolution success rates**
-- **Artifact verification statistics**
-- **Error rate monitoring** for selector-related issues
-
-## Key Rotation Implementation
-
-### 1. Complete Key Rotation Workflow
-
-The key rotation process involves updating two types of DNS records:
-
-#### Step 1: Publish New Public Key Record
-
-```dns
-# Before rotation (existing record)
-btps1._btps.identity.finance.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=OLD_PUBLIC_KEY"
-
-# After rotation (new record added)
-btps2._btps.identity.finance.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=NEW_PUBLIC_KEY"
-```
-
-#### Step 2: Update Selector Resolution Record
-
-```dns
-# Before rotation
-_btps.host.vendorcorp.com. IN TXT "v=1.1.0;u=btps.vendorcorp.com:3443;s=btps1;op=admin$vendorcorp.com"
-
-# After rotation (updated to point to new selector)
-_btps.host.vendorcorp.com. IN TXT "v=1.1.0;u=btps.vendorcorp.com:3443;s=btps2;op=admin$vendorcorp.com"
-```
-
-### 2. Publishing Multiple Keys
-
-```javascript
-// Example: Publishing both old and new keys simultaneously
-const oldSelector = 'btps1';
-const newSelector = 'btps2';
-
-// DNS TXT records (published simultaneously)
-// Public Key Records:
-// btps1._btps.identity.finance.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=OLD_PUBLIC_KEY"
-// btps2._btps.identity.finance.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=NEW_PUBLIC_KEY"
-
-// Selector Resolution Record (updated to point to new selector):
-// _btps.host.vendorcorp.com. IN TXT "v=1.1.0;u=btps.vendorcorp.com:3443;s=btps2;op=admin$vendorcorp.com"
-```
-
-### 2. Artifact Signing with Selectors
-
-```javascript
-import { signEncrypt } from '@btps/sdk/crypto';
-
-// Sign with the new key, naming the new selector
-const { payload: artifact, error } = await signEncrypt(
-  'bob$example.com',
-  {
-    accountName: 'alice',
-    domainName: 'example.com',
-    pemFiles: { privateKey: NEW_PRIVATE_KEY, publicKey: NEW_PUBLIC_KEY },
-  },
-  {
-    version: '1.1.0',
-    type: 'BTPS_DOC',
-    from: 'alice$example.com',
-    to: 'bob$example.com',
-    selector: 'btps2', // Specify new selector
-    document: invoice,
-  },
-  { signature: { algorithmHash: 'sha256' } },
-);
-```
-
-### 3. Verification with Selector Resolution
-
-The receiver resolves the public key published under the artifact's own `selector`, and verifies the signature over the artifact without its `signature` field:
-
-```javascript
-import { resolvePublicKey } from '@btps/sdk';
-import { verifySignature } from '@btps/sdk/crypto';
-
-const { signature, ...signed } = artifact;
-const publicKey = await resolvePublicKey(artifact.from, artifact.selector);
-const { isValid } = verifySignature(signed, signature, publicKey);
-```
-
-`BtpsServer` does this for every artifact it receives (and checks a delegation, when there is one, first).
-
-## Best Practices
-
-### 1. Planning and Preparation
-
-- **Schedule rotations** during low-traffic periods
-- **Maintain key inventory** with creation and expiration dates
-- **Document rotation procedures** for team reference
-- **Test rotation process** in staging environment first
-- **Plan realistic timelines**:
-  - Preparation: 1 to 2 days
-  - Migration: 1 to 2 weeks
-  - Cleanup: 2 - 4 weeks for large platforms depending on messages queuing period
-
-### 2. DNS Management
-
-- **Use TTL values** appropriate for your rotation schedule
-- **Monitor DNS propagation** across different regions
-- **Implement DNS health checks** for key resolution
-- **Maintain DNS backup** and recovery procedures
-
-### 3. Key Security
-
-- **Store private keys securely** using hardware security modules (HSMs) when possible
-- **Implement key backup** and recovery procedures
-- **Use strong key generation** algorithms and key sizes
-- **Regularly audit key usage** and access patterns
-
-### 4. Monitoring and Alerting
-
-- **Monitor key resolution success rates**
-- **Track artifact verification statistics**
-- **Alert on selector-related errors**
-- **Monitor DNS propagation delays**
-- **Extended monitoring for large platforms**:
-  - Track selector usage patterns over 2-3 months
-  - Monitor for any systems still using old selectors
-  - Alert on unexpected usage of deprecated keys
-  - Generate migration progress reports
-
-### 5. Rollback Strategy
-
-- **Maintain old keys** during transition period (2-4 weeks minimum)
-- **Implement quick rollback procedures** for immediate issues
-- **Monitor for issues** that might require rollback
-- **Document rollback decision criteria**
-- **Extended key retention** for large platforms:
-  - Keep old keys for 1 month after migration
-  - Monitor for any systems still using old selectors
-  - Gradual removal based on usage analytics
-
-## Key Rotation Timeline
-
-```mermaid
-gantt
-    title Key Rotation Timeline
-    dateFormat  YYYY-MM-DD
-    section Preparation
-    Key Generation and DNS Record Creation         :done, keygen, 2025-01-01, 1d
-    Testing                  :done, test, after keygen, 1d
-    section Migration
-    Publish New Key          :active, publish, 2025-01-02, 1d
-    Gradual Migration        :migration, after publish, 5d
-    Monitor & Validate       :monitor, after publish, 7d
-    section Cleanup
-    Remove Old Key           :cleanup, after migration, 1d
-    Update Documentation     :docs, after cleanup, 1d
-```
-
-### Timeline Breakdown
-
-#### Preparation Phase (1-2 days)
-
-- **Key Generation**: 1 day
-- **DNS Record Creation**: 1 day
-- **Testing**: 1 day
-- **Total**: 3 days maximum
-
-#### Migration Phase (2 weeks)
-
-- **Gradual Migration**: 1-2 weeks depending on infrastructure and user base
-- **Monitoring & Validation**: Continuous during migration period
-- **Key Factors**:
-  - Number of users and systems
-  - Geographic distribution
-  - DNS propagation requirements
-  - Application deployment cycles
-
-#### Cleanup Phase (2-4 weeks for large platforms)
-
-- **Remove Old Keys**: 2-4 weeks after migration completion
-- **Recommended Timeline**:
-  - **Small platforms** (< 10K users): 1-2 days
-  - **Medium platforms** (10K-100K users): 1-2 weeks
-  - **Large platforms** (> 1M users): 2-4 weeks
-- **Rationale**: Ensures all cached DNS records expire and all systems have migrated
-
-## Error Handling
-
-### Common Issues and Solutions
-
-#### 1. Selector Not Found
-
-**Error:** `BTP_ERROR_RESOLVE_PUBKEY` (401): no key is published at the artifact's selector
-
-**Causes:**
-
-- DNS record not published
-- DNS propagation delay
-- Incorrect selector name
-
-**Solutions:**
-
-- Verify DNS record publication
-- Wait for DNS propagation
-- Check selector naming convention
-
-#### 2. Public Key Resolution Failure
-
-**Error:** `BTP_ERROR_RESOLVE_PUBKEY`
-
-**Causes:**
-
-- Invalid DNS TXT record format
-- Corrupted public key
-- DNS resolution issues
-
-**Solutions:**
-
-- Validate DNS TXT record format
-- Check public key encoding
-- Verify DNS infrastructure
-
-#### 3. Verification Failure
-
-**Error:** Signature verification fails
-
-**Causes:**
-
-- Wrong public key used for verification
-- Key mismatch between signing and verification
-- Selector resolution issues
-
-**Solutions:**
-
-- Verify selector resolution
-- Check key consistency
-- Validate DNS records
-
-## Implementation Examples
-
-### Node.js Implementation
-
-```javascript
-import { parseIdentity, resolvePublicKey } from '@btps/sdk';
-import { signEncrypt, verifySignature } from '@btps/sdk/crypto';
-
-class KeyRotationManager {
-  // keys: the current key pair; selector: the selector it is published under
-  constructor(identity, keys, selector) {
-    this.identity = identity;
-    this.keys = keys;
-    this.selector = selector;
-  }
-
-  // Once the new key is published under newSelector, sign with it from now on
-  rotateTo(newKeys, newSelector) {
-    this.keys = newKeys;
-    this.selector = newSelector;
-  }
-
-  async sign(document, recipient) {
-    const { accountName, domainName } = parseIdentity(this.identity);
-    const { payload, error } = await signEncrypt(
-      recipient,
-      { accountName, domainName, pemFiles: this.keys },
-      {
-        version: '1.1.0',
-        type: 'BTPS_DOC',
-        from: this.identity,
-        to: recipient,
-        selector: this.selector,
-        document,
-      },
-      { signature: { algorithmHash: 'sha256' } },
-    );
-    if (error) throw error;
-    return payload;
-  }
-
-  async verify(artifact) {
-    // The key is resolved from the selector the artifact names
-    const { signature, ...signed } = artifact;
-    const publicKey = await resolvePublicKey(artifact.from, artifact.selector);
-    if (!publicKey) return false;
-    return verifySignature(signed, signature, publicKey).isValid;
-  }
-}
-```
-
-## Security Considerations
-
-### 1. Key Compromise Response
-
-If a key is compromised:
-
-1. **Immediate action:** Publish new key with new selector
-2. **Revoke compromised key:** Remove DNS TXT record
-3. **Monitor for abuse:** Check for artifacts signed with compromised key
-4. **Notify stakeholders:** Inform partners about key compromise
-5. **Investigate:** Determine scope and cause of compromise
-
-### 2. Key Lifecycle Management
-
-- **Key creation:** Use secure key generation procedures
-- **Key distribution:** Secure distribution of public keys
-- **Key usage:** Monitor and log key usage patterns
-- **Key archival:** Secure archival of retired keys
-- **Key destruction:** Secure destruction of compromised keys
-
-### 3. Audit and Compliance
-
-- **Key rotation logs:** Maintain detailed logs of all key rotations
-- **Access controls:** Implement strict access controls for key management
-- **Regular audits:** Conduct regular security audits of key management
-- **Compliance reporting:** Generate compliance reports for key management
-
-## Troubleshooting Guide
-
-### DNS Issues
-
-```bash
-# Check DNS resolution for public key records
-dig TXT btps1._btps.identity.finance.vendorcorp.com
-dig TXT btps2._btps.identity.finance.vendorcorp.com
-
-# Check DNS resolution for selector record
+# The key records, old and new
+dig TXT btps1._btps.identity.billing.vendorcorp.com
+dig TXT btps2._btps.identity.billing.vendorcorp.com
+
+# The host record: the current selector and the operator
 dig TXT _btps.host.vendorcorp.com
-
-# Check DNS propagation
-nslookup btps1._btps.identity.finance.vendorcorp.com
-nslookup btps2._btps.identity.finance.vendorcorp.com
-nslookup _btps.host.vendorcorp.com
 ```
 
-### Key Resolution Issues
+| A receiver refuses with    | Look at                                                                                                                                      |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BTP_ERROR_KEY_RETIRED`    | something still signs with the old key: move it to the new key and selector                                                                  |
+| `BTP_ERROR_KEY_REVOKED`    | the key is expired by the chain: sign with the current key                                                                                   |
+| `BTP_ERROR_RESOLVE_PUBKEY` | the chain's last key is not in DNS at its selector or at `s=`; an identity not re-published under a new `s=`; or a record not yet propagated |
 
-```javascript
-// Test key resolution
-import { resolvePublicKey } from '@btps/sdk';
-
-try {
-  const publicKey = await resolvePublicKey('finance.vendorcorp.com', 'btps1');
-  console.log('Key resolved successfully');
-} catch (error) {
-  console.error('Key resolution failed:', error);
-}
-
-// Test selector resolution
-import { getHostAndSelector } from '@btps/sdk';
-
-const record = await getHostAndSelector('finance$vendorcorp.com');
-if (!record) {
-  console.error('No _btps.host record for vendorcorp.com');
-} else {
-  console.log('Host:', record.hostname, record.port);
-  console.log('Selector:', record.selector);
-}
-```
-
-### Verification Issues
-
-```javascript
-// Test artifact verification against the key its selector names
-import { resolvePublicKey } from '@btps/sdk';
-import { verifySignature } from '@btps/sdk/crypto';
-
-const { signature, ...signed } = artifact;
-const publicKey = await resolvePublicKey(artifact.from, artifact.selector);
-
-if (!publicKey) {
-  console.error(`No key published for ${artifact.from} under selector ${artifact.selector}`);
-} else {
-  const { isValid, error } = verifySignature(signed, signature, publicKey);
-  console.log('Verification result:', isValid, error?.message);
-}
-```
-
-## Conclusion
-
-Key rotation is a fundamental security practice that ensures the long-term security and integrity of BTPS communications. By following the guidelines and best practices outlined in this document, organizations can implement robust key rotation procedures that maintain security while ensuring service continuity.
-
-The selector-based approach provides flexibility and backward compatibility, making key rotation a manageable process that can be executed with minimal disruption to ongoing operations.
-
-For additional support and implementation guidance, refer to the [BTPS SDK documentation](../sdk/overview.md) and [API reference](../sdk/apiReference.md).
+For the rules in full, see the [Key Rotation specification](./specifications/key-rotation.md).

@@ -6,13 +6,22 @@
  */
 
 import { BTPSignature, BTPEncryption } from '@core/crypto/types.js';
-import { BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
+import {
+  BTPDetailValues,
+  BTPKeyChainRecord,
+  BTPTrustReqDoc,
+  BTPTrustResDoc,
+} from '@core/trust/types.js';
 import { BTPDocument } from '../../server/types.js';
 import type { z } from 'zod';
-import type { BtpLifecycleEventSchema } from './schemas/btpsDocsSchema.js';
+import type { BtpAgreementEventSchema, BtpLifecycleEventSchema } from './schemas/btpsDocsSchema.js';
 import {
   AGENT_ACTIONS,
   AGENT_ACTIONS_REQUIRING_DOCUMENT,
+  DETAIL_PERMISSIONS,
+  DOCUMENT_TYPES,
+  ENTITY_TYPES,
+  SEND_PERMISSIONS,
   TRANSPORTER_ACTIONS,
 } from './constants/index.js';
 import { CURRENCY_CODES } from './constants/currency.js';
@@ -27,7 +36,23 @@ export type AgentActionRequiringDocument = (typeof AGENT_ACTIONS_REQUIRING_DOCUM
 /** A lifecycle event: what a `BTPS_EVENT` carries (paid, partially paid, disputed, refund, response). */
 export type BTPLifecycleEvent = z.infer<typeof BtpLifecycleEventSchema>;
 
-export type BTPDocType = BTPDocument | BTPLifecycleEvent | BTPTrustReqDoc | BTPTrustResDoc;
+/** Since 1.2: an agreement's answer, or the statements its originator forwards, as a `BTPS_EVENT` carries them. */
+export type BTPAgreementEvent = z.infer<typeof BtpAgreementEventSchema>;
+
+/** Since 1.2: what a DETAILS_CHANGED or DETAILS_REQ carries: no values, an optional note. */
+export type BTPDetailsNoteDoc = {
+  message?: string | { format: 'text' | 'markdown'; content: string };
+};
+
+export type BTPDocType =
+  | BTPDocument
+  | BTPLifecycleEvent
+  | BTPAgreementEvent
+  | BTPTrustReqDoc
+  | BTPTrustResDoc
+  // Since 1.2: details refresh. A DETAILS_RES carries the values, by name.
+  | BTPDetailsNoteDoc
+  | BTPDetailValues;
 
 export type BTPAttestation = {
   signedBy: string;
@@ -119,6 +144,8 @@ export interface BTPIdentityLookupRequest
   from: string;
   hostSelector: string;
   identitySelector?: string;
+  /** Since 1.2, under 1.2.0 only: answer with the identity's key chain too */
+  keyChain?: true;
 }
 
 export type BTPAgentDocument =
@@ -144,6 +171,62 @@ export interface BTPTransporterArtifact extends BTPGenericArtifact<BTPDocType | 
   selector: string;
   /** On a BTPS_EVENT only: the id of the BTPS_DOC artifact that delivered the invoice it is about. */
   relatesTo?: string;
+  /** Since 1.2, on a sync only (from equals to, inside a device's artifact.send): the send it copies. */
+  syncOf?: BTPSyncOf;
+  /** Since 1.2, on a TRUST_REQ: the permissions it asks for. */
+  permissions?: BTPTrustPermissions;
+  /** Since 1.2, on a TRUST_REQ with permissions and an accepted TRUST_RES: what owns the sender's address. */
+  entityType?: BTPEntityType;
+  /** Since 1.2, on a TRUST_REQ: the details the sender gives about itself, by name. */
+  given?: BTPDetailPermission[];
+  /** Since 1.2, on a TRUST_REQ: a change to an active trust, asking for the whole set now wanted. */
+  change?: true;
+  /** Since 1.2, on an accepted TRUST_RES: the permission names given. */
+  granted?: BTPPermissionName[];
+  /** Since 1.2, on a BTPS_DOC under a trust with permissions: the type of the document it carries. */
+  documentType?: BTPDocumentType;
+  /** Since 1.2, on a DETAILS_CHANGED, DETAILS_REQ or DETAILS_RES: the details it is about, by name. */
+  details?: BTPDetailPermission[];
+}
+
+export type BTPDocumentType = (typeof DOCUMENT_TYPES)[number];
+
+/** Since 1.2: what a trust request leaves out when its receiver's server speaks 1.1. */
+export type BTPShapedField =
+  | 'permissions'
+  | 'given'
+  | 'entityType'
+  | 'change'
+  | 'own'
+  | 'verification';
+
+/**
+ * Since 1.2: a trust request with permissions, sent as its 1.1 receiver allows:
+ * the version it went as, and what it left out. Never silent: the trust it asks
+ * for will carry no permissions.
+ */
+export type BTPShaped = { sentAs: string; leftOut: BTPShapedField[] };
+export type BTPEntityType = (typeof ENTITY_TYPES)[number];
+export type BTPSendPermission = (typeof SEND_PERMISSIONS)[number];
+export type BTPDetailPermission = (typeof DETAIL_PERMISSIONS)[number];
+export type BTPPermissionName = BTPSendPermission | BTPDetailPermission;
+
+/** Since 1.2: one permission a trust request asks for. */
+export interface BTPPermission {
+  name: BTPPermissionName;
+  required: boolean;
+}
+
+/**
+ * Since 1.2: what a trust request asks for, signed and readable on its envelope.
+ * One flat list, the prefix saying each name's kind: each name once, at least one `send:`.
+ */
+export type BTPTrustPermissions = BTPPermission[];
+
+/** Since 1.2: the send a sync copies, by the sent artifact's id and the lowercase hex SHA-256 of its RFC 8785 form. */
+export interface BTPSyncOf {
+  id: string;
+  sha256: string;
 }
 
 export type BTPArtifact =
@@ -158,6 +241,10 @@ export type BTPStatus = {
   message?: string;
   /** On an error, its BTPS code, e.g. 'BTP_ERROR_TRUST_EXPIRED' */
   error?: string;
+  /** Since 1.2, on a 429 only: whole seconds to wait before sending again */
+  retryAfter?: number;
+  /** Since 1.2: the server ends the connection after this answer, so send nothing more on it */
+  closing?: true;
 };
 
 export interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFailureArtifact> {
@@ -165,8 +252,37 @@ export interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFai
   meta?: {
     seen?: boolean;
     seenAt?: string;
+    /** Since 1.2, on a sentbox result: what became of the send, by the provider's own record. */
+    delivery?: BTPDelivery;
     [key: string]: unknown;
   };
+  /** Since 1.2: the encrypted artifact's content key, wrapped again to the device that asked (`wrapForAgent`). */
+  agentKey?: BTPAgentKey;
+}
+
+/**
+ * Since 1.2: an encrypted artifact's AES content key wrapped with RSA-OAEP /
+ * SHA-256 to a device's own key, so the device opens the document without the
+ * identity's key. The artifact itself is untouched, so its signature still verifies.
+ */
+export interface BTPAgentKey {
+  /** The wrapped content key, base64 */
+  key: string;
+  /** The fingerprint of the device key it is wrapped to, as the device's record holds it */
+  fingerprint: string;
+  /** When it was wrapped, as an ISO 8601 timestamp */
+  wrappedAt: string;
+}
+
+/**
+ * Since 1.2: a send's outcome as its sender's provider knows it, with no receipt
+ * from the receiver. `code` is the BTPS error code of a failure.
+ */
+export interface BTPDelivery {
+  status: 'pending' | 'delivered' | 'failed';
+  code?: string;
+  /** When it reached this status, as an ISO 8601 timestamp */
+  at: string;
 }
 
 export interface BTPQueryResult<T = BTPTransporterArtifact | BTPDeliveryFailureArtifact> {
@@ -197,9 +313,24 @@ export interface BTPDeliveryFailureArtifact {
   to: string;
 }
 
-export type BTPIdentityResDoc = Omit<IdentityPubKeyRecord, 'createdAt'>;
+export type BTPIdentityResDoc = Omit<IdentityPubKeyRecord, 'createdAt'> & {
+  /** Since 1.2, in a 1.2.0 answer: the identity it answers for */
+  identity?: string;
+  /** Since 1.2, in a 1.2.0 answer to a lookup that asked: the identity's key chain, oldest first */
+  keyChain?: BTPKeyChainRecord[];
+};
 
-export type BTPServerResDocs = BTPAuthResDoc | BTPQueryResult | BTPIdentityResDoc | string;
+/** "Created, with this id": the answer to a command that makes something, such as `draft.create`. */
+export interface BTPCreatedResDoc {
+  id: string;
+}
+
+export type BTPServerResDocs =
+  | BTPAuthResDoc
+  | BTPQueryResult
+  | BTPIdentityResDoc
+  | BTPCreatedResDoc
+  | string;
 
 export type BTPServerResponse<T = BTPServerResDocs> = {
   version: string;

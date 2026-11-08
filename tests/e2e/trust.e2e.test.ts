@@ -56,7 +56,7 @@ describe('journey: trust between two businesses', () => {
 
   it('each side discovers the other through its published records', async () => {
     expect(await getHostAndSelector(client.identity)).toEqual({
-      version: '1.1.0',
+      version: '1.2.0',
       host: `localhost:${clientHost.port}`,
       selector: 'btps1',
       operator: 'admin$client.test',
@@ -186,6 +186,52 @@ describe('journey: trust between two businesses', () => {
     const { response } = await deliver(request);
 
     expect(response?.status).toMatchObject({ code: 403, error: BTP_ERROR_TRUST_NOT_ALLOWED.code });
+  });
+
+  it('takes a change to an active trust, one at a time, and only from the party it trusts', async () => {
+    const asker = await addUser(vendorHost, 'changes');
+    const answerer = await addUser(clientHost, 'changes');
+    const outsider = await addUser(vendorHost, 'outsider');
+    const permissions = { requested: [], granted: [], detailsHeld: [], detailsShared: [] };
+    await recordTrust(clientHost.trustStore, asker.identity, answerer.identity, 'accepted', {
+      permissions,
+    });
+    const change = (from: typeof asker) =>
+      artifactFrom(from, answerer.identity, 'TRUST_REQ', trustRequest, {
+        extra: {
+          permissions: [{ name: 'send:invoice', required: true }],
+          entityType: 'organisation',
+          given: [],
+          change: true,
+        },
+      });
+
+    const first = await deliver(await change(asker));
+    const second = await deliver(await change(asker));
+    const fromOutsider = await deliver(await change(outsider));
+
+    expect(first.response?.status).toMatchObject({ ok: true, code: 200 });
+    const record = await clientHost.trustStore.getById(
+      computeTrustId(asker.identity, answerer.identity),
+    );
+    expect(record?.status).toBe('accepted');
+    expect(record?.permissions?.pendingChange?.requested).toEqual([
+      { name: 'send:invoice', required: true },
+    ]);
+    expect(second.response?.status).toMatchObject({
+      code: 403,
+      error: BTP_ERROR_TRUST_NOT_ALLOWED.code,
+    });
+    expect(fromOutsider.response?.status).toMatchObject({
+      code: 403,
+      error: BTP_ERROR_TRUST_NOT_ALLOWED.code,
+    });
+
+    // Once its user answers, the platform clears the change, and the trust takes another.
+    await recordTrust(clientHost.trustStore, asker.identity, answerer.identity, 'accepted', {
+      permissions,
+    });
+    expect((await deliver(await change(asker))).response?.status).toMatchObject({ ok: true });
   });
 
   it('tells a sender its trust has expired, so it can ask again', async () => {

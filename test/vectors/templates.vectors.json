@@ -1,0 +1,2910 @@
+{
+  "description": "The BTPS 1.2 template file, formats 1 and 2 (Templates page; JSON Schema at docs/docusaurus/static/schemas/btps-template.schema.json, published with the docs site as schemas/btps-template.schema.json). A template says how a document looks, never what it says: it never carries or changes a value of the document, hides no section with signed fields, names nothing to fetch and runs nothing; its own words are labels from a fixed set and static terms and footer text, each plain text with no markup and no control, hidden or direction-changing character; what they say is the platform's policy. Format 1 is for invoices and receipts. Format 2 is format 1 for them, plus payslips (sections and labels of their own) and letters (the page, a letterhead placing every one of the sender's own fields, and a footer with a sign-off and signature slots, whose values come from the document; never the body). An implementation accepts every \"accept\" template and refuses every \"refuse\" one; `check` is the rule that refuses it: \"schema\" for the JSON Schema, \"contrast\" for the WCAG AA contrast of `page.text` and `page.muted` (4.5:1) and `page.accent` (3:1) against `page.background`. `fingerprint` is a template's RFC 8785 canonical form and the lowercase hex SHA-256 of it, which `template.data.sha256` names.",
+  "fingerprint": {
+    "template": {
+      "format": 1,
+      "kinds": ["invoice", "receipt"],
+      "page": {
+        "font": "source-serif-4",
+        "size": "normal",
+        "density": "comfortable",
+        "background": "#ffffff",
+        "text": "#1f2933",
+        "muted": "#52606d",
+        "accent": "#0b6e4f"
+      },
+      "logo": {
+        "position": "top-left",
+        "size": "medium"
+      },
+      "sections": [
+        "header",
+        "totals",
+        "details",
+        "parties",
+        "lines",
+        "payment",
+        "notes",
+        "terms",
+        "footer"
+      ],
+      "labels": {
+        "title": "Tax invoice",
+        "to": "Bill to",
+        "amountDue": "Amount due"
+      },
+      "lines": {
+        "style": "striped",
+        "header": "accent"
+      },
+      "totals": {
+        "style": "accent"
+      },
+      "text": {
+        "terms": "Payment within 14 days.\nThank you for your business.",
+        "footer": "Kauri Studio"
+      }
+    },
+    "canonical": "{\"format\":1,\"kinds\":[\"invoice\",\"receipt\"],\"labels\":{\"amountDue\":\"Amount due\",\"title\":\"Tax invoice\",\"to\":\"Bill to\"},\"lines\":{\"header\":\"accent\",\"style\":\"striped\"},\"logo\":{\"position\":\"top-left\",\"size\":\"medium\"},\"page\":{\"accent\":\"#0b6e4f\",\"background\":\"#ffffff\",\"density\":\"comfortable\",\"font\":\"source-serif-4\",\"muted\":\"#52606d\",\"size\":\"normal\",\"text\":\"#1f2933\"},\"sections\":[\"header\",\"totals\",\"details\",\"parties\",\"lines\",\"payment\",\"notes\",\"terms\",\"footer\"],\"text\":{\"footer\":\"Kauri Studio\",\"terms\":\"Payment within 14 days.\\nThank you for your business.\"},\"totals\":{\"style\":\"accent\"}}",
+    "sha256": "6008ae880137aa9fef6318647c729ca0c64e73cb687bd8568ddb95e130e30e7b"
+  },
+  "cases": [
+    {
+      "name": "full",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "minimal",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": ["header", "parties", "details", "lines", "totals", "payment", "notes"],
+        "labels": {},
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "short-numbers-in-words",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nLate fees: 2% a month.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "label-at-40-characters",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-later-format",
+      "template": {
+        "format": 3,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "formats 1 and 2 are the ones there are"
+    },
+    {
+      "name": "an-unknown-key",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        },
+        "script": "alert(1)"
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "unknown keys are refused"
+    },
+    {
+      "name": "an-amount",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        },
+        "total": {
+          "amount": 100,
+          "currency": "AUD"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a template never carries or changes an amount"
+    },
+    {
+      "name": "a-party",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        },
+        "to": "pay$client.example"
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a template never carries or changes who a document is from or to"
+    },
+    {
+      "name": "a-payment-value",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        },
+        "payment": {
+          "bsb": "062-000",
+          "account": "12345678"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a template never carries or changes how to pay"
+    },
+    {
+      "name": "a-label-that-is-a-value",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due",
+          "amount": "999"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "labels are from a fixed set of keys, none of them a value"
+    },
+    {
+      "name": "a-section-with-signed-fields-left-out",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": ["header", "parties", "details", "lines", "totals", "notes"],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "every section with signed fields is shown"
+    },
+    {
+      "name": "a-hidden-list",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        },
+        "hidden": ["totals"]
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a template never hides a section"
+    },
+    {
+      "name": "a-section-twice",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "parties",
+          "details",
+          "lines",
+          "totals",
+          "payment",
+          "notes",
+          "notes"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "each section at most once"
+    },
+    {
+      "name": "an-unknown-section",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "parties",
+          "details",
+          "lines",
+          "totals",
+          "payment",
+          "notes",
+          "popup"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "sections are from a fixed list"
+    },
+    {
+      "name": "terms-shown-with-none-given",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a template that shows terms gives them"
+    },
+    {
+      "name": "a-footer-shown-with-none-given",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Thank you."
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a template that shows a footer gives it"
+    },
+    {
+      "name": "a-font-outside-the-list",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "Comic Sans",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "fonts are from a fixed list"
+    },
+    {
+      "name": "a-font-to-fetch",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "https://fonts.example/a.woff2",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a template never fetches anything"
+    },
+    {
+      "name": "a-colour-that-is-a-url",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "url(https://x.example/a.png)",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "colours are #rrggbb"
+    },
+    {
+      "name": "a-colour-in-upper-case",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1F2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "colours are lower-case #rrggbb"
+    },
+    {
+      "name": "a-logo-to-fetch",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium",
+          "url": "https://dev.example/logo.png"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "the logo is the sender's own, from the document: the template says only where and how big"
+    },
+    {
+      "name": "a-logo-size-in-pixels",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": 64
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "sizes are tokens"
+    },
+    {
+      "name": "a-kind-without-a-format-yet",
+      "template": {
+        "format": 1,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "format 1 is for invoices and receipts"
+    },
+    {
+      "name": "a-label-too-long",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a label is 1 to 40 characters"
+    },
+    {
+      "name": "an-empty-label",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a label is 1 to 40 characters"
+    },
+    {
+      "name": "a-label-that-is-markup",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "<b>Invoice</b>",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "plain words, no markup"
+    },
+    {
+      "name": "a-label-with-a-digit-run",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Invoice 10042",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-label-with-an-email-address",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due",
+          "payment": "Pay pay@x.example"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-label-with-a-hidden-character",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill​to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "no hidden character"
+    },
+    {
+      "name": "terms-with-bank-details",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Pay to BSB 062-000 account 1234 5678",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "terms-with-a-btps-address",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Send to pay$kauri.example",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "terms-with-a-url",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Pay at https://pay.example/x",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-footer-with-a-phone-number",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Call 02 9999 0000"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-footer-with-a-web-address",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Pay at www.pay.example"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-footer-that-reads-backwards",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri ‮oiduts"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "no direction-changing character"
+    },
+    {
+      "name": "a-footer-with-a-control-character",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri\u0007Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "no control character"
+    },
+    {
+      "name": "a-footer-too-long",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a footer is at most 300 characters"
+    },
+    {
+      "name": "text-that-cannot-be-read",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#eeeeee",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "contrast",
+      "why": "text contrasts 4.5:1 with the background"
+    },
+    {
+      "name": "muted-text-that-cannot-be-read",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#dddddd",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "contrast",
+      "why": "muted text contrasts 4.5:1 with the background"
+    },
+    {
+      "name": "an-accent-that-cannot-be-seen",
+      "template": {
+        "format": 1,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#f5f5f5"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "contrast",
+      "why": "the accent contrasts 3:1 with the background"
+    },
+    {
+      "name": "format-2-invoice",
+      "template": {
+        "format": 2,
+        "kinds": ["invoice", "receipt"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "totals",
+          "details",
+          "parties",
+          "lines",
+          "payment",
+          "notes",
+          "terms",
+          "footer"
+        ],
+        "labels": {
+          "title": "Tax invoice",
+          "to": "Bill to",
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "terms": "Payment within 14 days.\nThank you for your business.",
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "format-2-payslip",
+      "template": {
+        "format": 2,
+        "kinds": ["payslip"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "parties",
+          "period",
+          "earnings",
+          "deductions",
+          "contributions",
+          "leave",
+          "totals",
+          "footer"
+        ],
+        "labels": {
+          "title": "Payslip",
+          "net": "Net pay",
+          "employer": "Employer"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "format-2-letter",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "format-2-letter-without-a-footer",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "format-2-letter-for-agreements",
+      "template": {
+        "format": 2,
+        "kinds": ["letter", "agreement"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "format-2-agreement",
+      "template": {
+        "format": 2,
+        "kinds": ["agreement"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-letter-template-naming-agreement-twice",
+      "template": {
+        "format": 2,
+        "kinds": ["agreement", "agreement"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "each kind appears once"
+    },
+    {
+      "name": "a-letter-template-for-invoices-too",
+      "template": {
+        "format": 2,
+        "kinds": ["letter", "invoice"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a letter template is for letters and agreements only"
+    },
+    {
+      "name": "a-payslip-with-a-signed-section-left-out",
+      "template": {
+        "format": 2,
+        "kinds": ["payslip"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": ["header", "parties", "period", "earnings", "contributions", "leave", "totals"],
+        "labels": {
+          "title": "Payslip",
+          "net": "Net pay",
+          "employer": "Employer"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "every section with signed fields is shown"
+    },
+    {
+      "name": "a-payslip-with-an-invoice-section",
+      "template": {
+        "format": 2,
+        "kinds": ["payslip"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "parties",
+          "period",
+          "earnings",
+          "deductions",
+          "contributions",
+          "leave",
+          "totals",
+          "lines"
+        ],
+        "labels": {
+          "title": "Payslip",
+          "net": "Net pay",
+          "employer": "Employer"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a payslip's sections are its own groups"
+    },
+    {
+      "name": "a-payslip-with-an-invoice-label",
+      "template": {
+        "format": 2,
+        "kinds": ["payslip"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "parties",
+          "period",
+          "earnings",
+          "deductions",
+          "contributions",
+          "leave",
+          "totals",
+          "footer"
+        ],
+        "labels": {
+          "amountDue": "Amount due"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a payslip's labels are its own keys"
+    },
+    {
+      "name": "a-payslip-in-format-1",
+      "template": {
+        "format": 1,
+        "kinds": ["payslip"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "parties",
+          "period",
+          "earnings",
+          "deductions",
+          "contributions",
+          "leave",
+          "totals",
+          "footer"
+        ],
+        "labels": {
+          "title": "Payslip",
+          "net": "Net pay",
+          "employer": "Employer"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "format 1 has no payslip"
+    },
+    {
+      "name": "a-payslip-and-an-invoice-in-one",
+      "template": {
+        "format": 2,
+        "kinds": ["payslip", "invoice"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "sections": [
+          "header",
+          "parties",
+          "period",
+          "earnings",
+          "deductions",
+          "contributions",
+          "leave",
+          "totals",
+          "footer"
+        ],
+        "labels": {
+          "title": "Payslip",
+          "net": "Net pay",
+          "employer": "Employer"
+        },
+        "lines": {
+          "style": "striped",
+          "header": "accent"
+        },
+        "totals": {
+          "style": "accent"
+        },
+        "text": {
+          "footer": "Kauri Studio"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a payslip template is for payslips only"
+    },
+    {
+      "name": "a-letter-that-styles-the-body",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        },
+        "body": {
+          "font": "geist-mono",
+          "size": "large"
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a letter template never touches the body: it is the sender's own"
+    },
+    {
+      "name": "a-letter-that-reorders-the-body",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        },
+        "sections": ["header", "body", "footer"]
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a letter template has no sections"
+    },
+    {
+      "name": "a-letter-hiding-an-issuer-field",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "the letterhead places every one of the sender's own fields"
+    },
+    {
+      "name": "a-letter-with-an-issuer-field-twice",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "name", "address", "email", "phone"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "each field once"
+    },
+    {
+      "name": "a-letter-with-a-value-in-its-letterhead",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start",
+          "name": "Kauri Studio"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "the letterhead places the document's fields, never values of its own"
+    },
+    {
+      "name": "a-letter-sign-off-with-a-phone-number",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Call 02 9999 0000",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-letter-unknown-slot",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.stamp"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "slots are a fixed list"
+    },
+    {
+      "name": "a-letter-with-a-signature-value-of-its-own",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start",
+            "name": "Jo Bloggs"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "signature values come from the document, never the template"
+    },
+    {
+      "name": "a-letter-with-a-drawn-signature-as-svg",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start",
+            "svg": "<svg/>"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "a template holds no markup, and no signature"
+    },
+    {
+      "name": "a-letter-in-the-signature-font",
+      "template": {
+        "format": 2,
+        "kinds": ["letter"],
+        "page": {
+          "font": "caveat",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "the script font is for the typed signature only"
+    },
+    {
+      "name": "a-letter-in-format-1",
+      "template": {
+        "format": 1,
+        "kinds": ["letter"],
+        "page": {
+          "font": "source-serif-4",
+          "size": "normal",
+          "density": "comfortable",
+          "background": "#ffffff",
+          "text": "#1f2933",
+          "muted": "#52606d",
+          "accent": "#0b6e4f"
+        },
+        "logo": {
+          "position": "top-left",
+          "size": "medium"
+        },
+        "letterhead": {
+          "fields": ["name", "address", "email", "phone", "identifiers"],
+          "align": "start"
+        },
+        "footer": {
+          "signOff": "Yours sincerely,",
+          "signature": {
+            "slots": ["signature.drawn", "signature.typed", "signature.name", "signature.title"],
+            "align": "start"
+          }
+        }
+      },
+      "expect": "refuse",
+      "check": "schema",
+      "why": "format 1 has no letter"
+    }
+  ]
+}

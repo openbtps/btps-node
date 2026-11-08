@@ -83,7 +83,7 @@ describe('canonicalize (JCS, RFC 8785)', () => {
     expectCanonicalJsonError(() => canonicalize('{"a":1'));
     expectCanonicalJsonError(() => canonicalize(''));
     expectCanonicalJsonError(() => canonicalize('"\u0001"'));
-    expectCanonicalJsonError(() => canonicalize('﻿{}'));
+    expectCanonicalJsonError(() => canonicalize('\ufeff{}'));
   });
 });
 

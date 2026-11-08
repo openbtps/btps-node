@@ -139,6 +139,28 @@ describe('signEncrypt', () => {
     expect(mockCrypto.encryptBtpPayload).not.toHaveBeenCalled();
   });
 
+  it("refuses a documentType that is not the document's own type, before encrypting it", async () => {
+    const invoice = {
+      type: 'BTPS_DOC',
+      selector: 'btps1',
+      documentType: 'receipt',
+      document: {
+        type: 'invoice',
+        title: 'Invoice',
+        id: 'INV-1',
+        issuedAt: '2025-01-01T00:00:00.000Z',
+        totalAmount: { amount: 100, currency: 'AUD' },
+      },
+    };
+    const result = await signEncrypt('receiver$example.com', sender, invoice, {
+      signature: { algorithmHash: 'sha256' },
+      encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+    });
+
+    expect(result.error?.code).toBe('BTP_ERROR_DOCUMENT_TYPE_MISMATCH');
+    expect(mockCrypto.encryptBtpPayload).not.toHaveBeenCalled();
+  });
+
   it('refuses a list over its limit before encrypting it', async () => {
     const overLimit = {
       type: 'BTPS_DOC',

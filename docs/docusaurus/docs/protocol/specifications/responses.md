@@ -86,6 +86,8 @@ The status field provides information about the response:
 
 - **message**: Human-readable status message
 - **error**: On an error, its BTPS code, for example `BTP_ERROR_TRUST_EXPIRED`. Branch on this, not on `message`. A 1.0 server does not send it.
+- **retryAfter**: Since 1.2, on a `429` only, in a `1.2.0` response only: the whole seconds, zero or more, to wait before sending again. Without it, a 429 says nothing about when.
+- **closing**: Since 1.2, `true` only, in a `1.2.0` response only, on any answer: the server ends the connection after this answer and reads nothing more on it. A sender that takes the answer writes nothing more to that connection and sends its next artifact on a new one; one that requires its server's signature (`requireSignedBy`) acts on `closing` only in an answer signed as it requires. The connection's end can reach the sender after the answer does, so without `closing`, as from a 1.1 server, a sender cannot tell that an answer was the connection's last.
 
 ### Status Codes
 
@@ -100,7 +102,7 @@ The code tells a sender whether to send the same artifact again:
 | **404** | Not Found: identity lookup found no identity                                                                                                                                   | No                            |
 | **408** | The connection timed out                                                                                                                                                       | Yes                           |
 | **413** | Artifact over the server's size limit                                                                                                                                          | No; split it across documents |
-| **429** | Too Many Requests: rate limit exceeded                                                                                                                                         | Yes, later                    |
+| **429** | Too Many Requests: rate limit exceeded                                                                                                                                         | Yes, later; see `retryAfter`  |
 | **500** | Internal Server Error, including a receiving handler that failed                                                                                                               | Yes, later                    |
 | **503** | Service Unavailable: the server accepts no artifact of this kind, or it is briefly unable to take one (`BTP_ERROR_TEMPORARILY_UNAVAILABLE`)                                    | Yes, later                    |
 
@@ -111,7 +113,7 @@ An error tells a sender what it can fix itself, never what only the receiver kno
 - **Format and crypto errors** are exact: their rules are public, and knowing which check failed does not help anyone forge a signature.
 - **Who exists and who trusts whom** is never told apart. An unknown recipient, a sender never trusted, a revoked trust and a blocked one all answer `BTP_ERROR_TRUST_NOT_ALLOWED`. Only an expired trust has its own code, and only a sender whose signature verified gets that far.
 - **Devices and authentication codes** get one answer each: an unknown device and a wrong device key both answer `BTP_ERROR_SIG_VERIFICATION`, and a wrong or expired code both answer `BTP_ERROR_AUTHENTICATION_INVALID`.
-- **Internal failures** answer `500` with `BTP_UNKNOWN_ERROR` and a generic message, never their own detail.
+- **Internal failures** answer `500` with `BTP_UNKNOWN_ERROR` and a generic message, never their own detail. So does an answer the receiving platform built in a shape no answer allows (since 1.2): the sender is told against its own request's `reqId`, the connection stays open, and the server reports the wrong answer to its `onError`. A 1.1 server closed the connection without answering.
 
 The receiving server keeps the full reason with the response's `id`, so a sender's operator can quote that `id` to the receiver's operator.
 
@@ -212,6 +214,42 @@ Response to query requests (inbox, outbox, etc.):
 - **total**: Total number of results
 - **hasNext**: Boolean indicating if more results are available
 
+An entry's `meta` may hold any other keys a provider adds. Three are named: `seen` and `seenAt`, and since 1.2 `delivery`.
+
+**`delivery`** (since 1.2, on a `sentbox.fetch` result): what became of a send, by the sender's own provider's record. There is no receipt from the receiver.
+
+```json
+{
+  "delivery": {
+    "status": "failed",
+    "code": "BTP_ERROR_TRUST_NOT_ALLOWED",
+    "at": "2026-11-06T09:30:00.000Z"
+  }
+}
+```
+
+- `status`: `pending`, `delivered` or `failed`.
+- `code`: optional, the BTPS error code of a failure.
+- `at`: when it reached that status, always given.
+
+No other key is allowed in `delivery`. A device reads it from `sentbox.fetch` from time to time, matching the ids of the sends it holds, rather than asking again and again whether a send has gone.
+
+**`agentKey`** (since 1.2, beside an entry's `artifact` and `meta`): an encrypted artifact's AES content key, which the provider has wrapped again with RSA-OAEP / SHA-256 to the key of the device that asked. The device reads the document with its own key, never the identity's. The artifact is untouched, so the sender's signature still verifies.
+
+```json
+{
+  "agentKey": {
+    "key": "base64-wrapped-key",
+    "fingerprint": "device-key-fingerprint",
+    "wrappedAt": "2026-11-06T09:30:00.000Z"
+  }
+}
+```
+
+- `fingerprint` is the device key it is wrapped to, as the device's record holds it. A provider always wraps to the key the record holds now, so a device that has not finished moving to a new key can tell the wrap is not for the key it holds.
+- No other key is allowed in `agentKey`.
+- A 1.1 client ignores it.
+
 ### 3. Identity Response Document (`BTPIdentityResDoc`)
 
 Response to identity lookup requests:
@@ -232,7 +270,25 @@ Response to identity lookup requests:
 - **keyType**: Key type (currently "rsa")
 - **version**: Protocol version
 
-### 4. String Response
+### 4. Created Document (`BTPCreatedResDoc`)
+
+Since 1.2. The answer to a command that makes something, such as `draft.create`: the id of what was made.
+
+```json
+{
+  "id": "draft-1"
+}
+```
+
+**Required Fields:**
+
+- **id**: The id of what was made, up to 100 characters
+
+It holds `id` and nothing else, so no other answer is read as one because it has an `id`.
+
+A provider may give it to any `draft.create`. A `draft.create` carries nothing 1.2 adds, so a 1.2 device stamps it `1.1.0` too, and its version cannot tell a 1.1 device from a 1.2 one. A 1.1 device does not check the document of an answer, so it takes this one as it takes any other, and finds the draft with `draft.fetch` as before.
+
+### 5. String Response
 
 Simple string responses for basic operations:
 
@@ -274,6 +330,8 @@ Responses can be digitally signed for authenticity:
 - **signature**: Digital signature for response authenticity
 - **signedBy**: Identity that signed the response
 - **selector**: DNS selector for key management
+
+**Every answer signed (since 1.2).** A server may sign every answer it sends, errors included, as its `serverIdentity` under its selector, over the whole answer with its `reqId`. A device that requires it takes no other answer: an unsigned one, or one signed by anyone but the signer its provider's own app expects, is refused before any key is looked up. The pin is for a device's own connection to its provider; a receiver's key is looked up on a connection of its own, whose answer the domain's operator signs. Answers on one connection go out in the order they were made, however long each signature takes, and a close waits for them. A server signs every answer as its one `serverIdentity`: the domain's operator (for example `admin$<domain>`), the same identity and key that has signed its identity-lookup answers since 1.1. So a provider keeps one key pair, and its app pins the operator. A lookup answer must be the operator's, as every 1.1 and 1.2 client requires, so signing answers as any other identity would leave the host unable to answer lookups.
 
 ### Encryption
 

@@ -1,0 +1,313 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.openbtps.org/schemas/btps-template.schema.json",
+  "title": "BTPS document template, formats 1 and 2",
+  "description": "A template a document names by reference (`template.data.source`, checked against `template.data.sha256`, the SHA-256 of the template's RFC 8785 canonical form). It says how a document looks, never what it says. It never carries or changes a value of the document, hides no section that carries a signed field, names nothing to fetch and holds nothing to run. Format 1 is for invoices and receipts. Format 2 is format 1 for invoices and receipts, and adds payslips and letters: a letter template sets only its page, its letterhead and its footer, never its body. Two rules sit outside this schema, on the Templates page of the BTPS specification: colour contrast, and a size of at most 16 KiB.",
+  "oneOf": [
+    { "$ref": "#/$defs/invoiceTemplate" },
+    { "$ref": "#/$defs/payslipTemplate" },
+    { "$ref": "#/$defs/letterTemplate" }
+  ],
+  "$defs": {
+    "invoiceTemplate": {
+      "description": "An invoice or receipt template: format 1, or the same in format 2.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "kinds", "page", "logo", "sections", "labels", "lines", "totals"],
+      "properties": {
+        "format": { "enum": [1, 2] },
+        "kinds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": { "enum": ["invoice", "receipt"] }
+        },
+        "page": { "$ref": "#/$defs/page" },
+        "logo": { "$ref": "#/$defs/logo" },
+        "sections": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "header",
+              "parties",
+              "details",
+              "lines",
+              "totals",
+              "payment",
+              "notes",
+              "terms",
+              "footer"
+            ]
+          },
+          "allOf": [
+            { "contains": { "const": "header" } },
+            { "contains": { "const": "parties" } },
+            { "contains": { "const": "details" } },
+            { "contains": { "const": "lines" } },
+            { "contains": { "const": "totals" } },
+            { "contains": { "const": "payment" } },
+            { "contains": { "const": "notes" } }
+          ]
+        },
+        "labels": {
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "title",
+              "from",
+              "to",
+              "number",
+              "issued",
+              "due",
+              "description",
+              "quantity",
+              "unitPrice",
+              "tax",
+              "lineTotal",
+              "subtotal",
+              "taxTotal",
+              "total",
+              "amountDue",
+              "paid",
+              "notes",
+              "payment"
+            ]
+          },
+          "additionalProperties": { "$ref": "#/$defs/label" }
+        },
+        "lines": { "$ref": "#/$defs/lines" },
+        "totals": { "$ref": "#/$defs/totals" },
+        "text": { "$ref": "#/$defs/text" }
+      },
+      "allOf": [{ "$ref": "#/$defs/termsGiven" }, { "$ref": "#/$defs/footerGiven" }]
+    },
+    "payslipTemplate": {
+      "description": "A payslip template, format 2: sections from the payslip's own groups, every one that carries signed fields shown.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "kinds", "page", "logo", "sections", "labels", "lines", "totals"],
+      "properties": {
+        "format": { "const": 2 },
+        "kinds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "const": "payslip" }
+        },
+        "page": { "$ref": "#/$defs/page" },
+        "logo": { "$ref": "#/$defs/logo" },
+        "sections": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "header",
+              "parties",
+              "period",
+              "earnings",
+              "deductions",
+              "contributions",
+              "leave",
+              "totals",
+              "terms",
+              "footer"
+            ]
+          },
+          "allOf": [
+            { "contains": { "const": "header" } },
+            { "contains": { "const": "parties" } },
+            { "contains": { "const": "period" } },
+            { "contains": { "const": "earnings" } },
+            { "contains": { "const": "deductions" } },
+            { "contains": { "const": "contributions" } },
+            { "contains": { "const": "leave" } },
+            { "contains": { "const": "totals" } }
+          ]
+        },
+        "labels": {
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "title",
+              "employer",
+              "employee",
+              "employeeId",
+              "payPeriod",
+              "payDate",
+              "payRate",
+              "earnings",
+              "deductions",
+              "contributions",
+              "leave",
+              "description",
+              "rate",
+              "quantity",
+              "amount",
+              "balance",
+              "gross",
+              "taxWithheld",
+              "net",
+              "yearToDate"
+            ]
+          },
+          "additionalProperties": { "$ref": "#/$defs/label" }
+        },
+        "lines": { "$ref": "#/$defs/lines" },
+        "totals": { "$ref": "#/$defs/totals" },
+        "text": { "$ref": "#/$defs/text" }
+      },
+      "allOf": [{ "$ref": "#/$defs/termsGiven" }, { "$ref": "#/$defs/footerGiven" }]
+    },
+    "letterTemplate": {
+      "description": "A letter template, format 2: the page, the letterhead and the footer only. The body is the sender's own text, which a template never styles or reorders. Since 1.2 it also draws an agreement, a letter that asks for acceptance.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "kinds", "page", "logo", "letterhead"],
+      "properties": {
+        "format": { "const": 2 },
+        "kinds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "enum": ["letter", "agreement"] }
+        },
+        "page": { "$ref": "#/$defs/page" },
+        "logo": { "$ref": "#/$defs/logo" },
+        "letterhead": {
+          "description": "Where the sender's own issuer fields go: every one, each once, in this order. Placement only: the values are the document's.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fields", "align"],
+          "properties": {
+            "fields": {
+              "type": "array",
+              "minItems": 5,
+              "maxItems": 5,
+              "uniqueItems": true,
+              "items": { "enum": ["name", "address", "email", "phone", "identifiers"] }
+            },
+            "align": { "$ref": "#/$defs/align" }
+          }
+        },
+        "footer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "signOff": { "type": "string", "$ref": "#/$defs/words", "maxLength": 300 },
+            "signature": {
+              "description": "Where the sender's signature values go, in this order. The values come from the document (`template.data.values`), never from the template.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["slots", "align"],
+              "properties": {
+                "slots": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "enum": [
+                      "signature.drawn",
+                      "signature.typed",
+                      "signature.name",
+                      "signature.title"
+                    ]
+                  }
+                },
+                "align": { "$ref": "#/$defs/align" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["font", "size", "density", "background", "text", "muted", "accent"],
+      "properties": {
+        "font": {
+          "enum": ["geist", "source-serif-4", "atkinson-hyperlegible-next", "geist-mono"]
+        },
+        "size": { "enum": ["small", "normal", "large"] },
+        "density": { "enum": ["compact", "comfortable"] },
+        "background": { "$ref": "#/$defs/colour" },
+        "text": { "$ref": "#/$defs/colour" },
+        "muted": { "$ref": "#/$defs/colour" },
+        "accent": { "$ref": "#/$defs/colour" }
+      }
+    },
+    "logo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["position", "size"],
+      "properties": {
+        "position": { "enum": ["top-left", "top-center", "top-right", "none"] },
+        "size": { "enum": ["small", "medium", "large"] }
+      }
+    },
+    "lines": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["style", "header"],
+      "properties": {
+        "style": { "enum": ["plain", "striped", "boxed"] },
+        "header": { "enum": ["plain", "accent"] }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["style"],
+      "properties": {
+        "style": { "enum": ["plain", "boxed", "accent"] }
+      }
+    },
+    "text": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "terms": { "type": "string", "$ref": "#/$defs/words", "maxLength": 2000 },
+        "footer": { "type": "string", "$ref": "#/$defs/words", "maxLength": 300 }
+      }
+    },
+    "termsGiven": {
+      "if": {
+        "type": "object",
+        "required": ["sections"],
+        "properties": { "sections": { "type": "array", "contains": { "const": "terms" } } }
+      },
+      "then": {
+        "type": "object",
+        "required": ["text"],
+        "properties": {
+          "text": { "type": "object", "required": ["terms"], "properties": { "terms": true } }
+        }
+      }
+    },
+    "footerGiven": {
+      "if": {
+        "type": "object",
+        "required": ["sections"],
+        "properties": { "sections": { "type": "array", "contains": { "const": "footer" } } }
+      },
+      "then": {
+        "type": "object",
+        "required": ["text"],
+        "properties": {
+          "text": { "type": "object", "required": ["footer"], "properties": { "footer": true } }
+        }
+      }
+    },
+    "align": { "enum": ["start", "center", "end"] },
+    "label": { "type": "string", "$ref": "#/$defs/words", "maxLength": 40 },
+    "colour": { "type": "string", "pattern": "^#[0-9a-f]{6}$" },
+    "words": {
+      "description": "Plain text: printable characters and line breaks, with no markup, control, hidden or direction-changing character. What the words may say is the platform's policy, not this schema's.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0000-\\u0009\\u000b-\\u001f\\u007f<>\\u200b-\\u200f\\u202a-\\u202e\\u2066-\\u2069\\ufeff]*$"
+    }
+  }
+}

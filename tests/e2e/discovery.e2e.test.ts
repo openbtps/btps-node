@@ -42,7 +42,7 @@ describe('journey: finding an address and its key', () => {
 
   it("reads a domain's host record: version, host, selector and operator", async () => {
     expect(await getHostAndSelector('anyone$saas.test')).toEqual({
-      version: '1.1.0',
+      version: '1.2.0',
       host: `localhost:${saas.port}`,
       selector: 'btps1',
       operator: 'admin$saas.test',

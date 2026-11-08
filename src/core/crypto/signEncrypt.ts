@@ -8,12 +8,14 @@
 import { randomUUID } from 'crypto';
 import type { ConnectionOptions } from 'tls';
 import {
+  BTP_ERROR_DOCUMENT_TYPE_MISMATCH,
   BTP_ERROR_IDENTITY,
   BTP_ERROR_RESOLVE_PUBKEY,
   BTP_ERROR_VALIDATION,
 } from '@core/error/constant.js';
 import { processBtpDocSchema } from '@core/server/schemas/helpers.js';
-import type { BTPArtifactType } from '@core/server/types.js';
+import type { BTPArtifactType, BTPShaped } from '@core/server/types.js';
+import { composeTrustRequestFor } from '@core/trust/shaping.js';
 import { signBtpPayload, signBtpPayloadWithSigner, encryptBtpPayload } from './index.js';
 import type { Signer } from './signer-interface.js';
 import {
@@ -26,6 +28,7 @@ import {
 } from './types.js';
 import { getHostAndSelector, parseIdentity, resolvePublicKey } from '@core/utils/index.js';
 import { ParsedIdentity } from '@core/utils/types.js';
+import type { BtpsKeyResolver } from './keyResolver.js';
 import { BTPErrorException } from '@core/error/index.js';
 import isEmpty from 'lodash/isEmpty.js';
 
@@ -34,16 +37,18 @@ const genEncryptError = (error: BTPErrorException) => ({
   error,
 });
 
-/** How signEncrypt reaches a receiver's host when DNS has no key for it. */
+/** How signEncrypt finds a receiver's key. */
 export type ReceiverKeyLookup = {
   /** TLS options for the connection to the receiver's host */
   btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
+  /** Since 1.2: asked for the receiver's key (`encrypt`) in place of DNS; its host is still asked after it */
+  keyResolver?: BtpsKeyResolver;
 };
 
 /**
- * A receiver's key as BTPS finds it: in DNS first, then from the receiver's
- * host, in an answer its domain's operator signed. The client is loaded only
- * when DNS has no key, so the core does not depend on it.
+ * A receiver's key as BTPS finds it: in DNS first (or from the keyResolver),
+ * then from the receiver's host, in an answer its domain's operator signed. The
+ * client is loaded only when neither has a key, so the core does not depend on it.
  */
 const findReceiverKey = async (
   to: string,
@@ -51,8 +56,10 @@ const findReceiverKey = async (
   selector: string,
   lookup?: ReceiverKeyLookup,
 ): Promise<string | undefined> => {
-  const inDns = await resolvePublicKey(to, selector);
-  if (inDns) return inDns;
+  const found = lookup?.keyResolver
+    ? await lookup.keyResolver.resolvePublicKey(to, selector, 'encrypt')
+    : await resolvePublicKey(to, selector);
+  if (found) return found;
   const { BtpsClient } = await import('../../client/btpsClient.js');
   const client = new BtpsClient({ to, btpMtsOptions: lookup?.btpMtsOptions, maxRetries: 0 });
   try {
@@ -83,13 +90,33 @@ export const signEncrypt = async <T = unknown>(
   options?: BTPCryptoOptions,
   lookup?: ReceiverKeyLookup,
 ): Promise<BTPCryptoResponse<T>> => {
-  const { document, ...restPayload } = payload;
+  // Since 1.2: a trust request with permissions goes as its receiver's version allows.
+  const composed = to
+    ? await composeTrustRequestFor(to, payload, {
+        versionFallback: options?.versionFallback,
+        btpMtsOptions: lookup?.btpMtsOptions,
+      })
+    : { payload };
+  if (composed.error) return genEncryptError(composed.error);
+  const { shaped } = composed as { shaped?: BTPShaped };
+  const { document, ...restPayload } = composed.payload;
   let encryption: BTPEncryption | null = null;
   let encryptedDoc: string | T = document;
 
+  // Since 1.2: a documentType on the envelope is the document's own type, signed with it.
+  const type = (document as { type?: unknown } | undefined)?.type;
+  if (restPayload.documentType !== undefined && type !== restPayload.documentType) {
+    return genEncryptError(
+      new BTPErrorException(BTP_ERROR_DOCUMENT_TYPE_MISMATCH, {
+        cause: `the document is a ${String(type)}, not the ${String(restPayload.documentType)} its envelope names`,
+      }),
+    );
+  }
+
   if (to && !isEmpty(options?.encryption)) {
     // Once encrypted, no server can read the document, so it is checked here.
-    const docSchema = processBtpDocSchema(restPayload.type as BTPArtifactType);
+    const version = typeof restPayload.version === 'string' ? restPayload.version : undefined;
+    const docSchema = processBtpDocSchema(restPayload.type as BTPArtifactType, version);
     if (docSchema && !docSchema.safeParse(document).success) {
       return genEncryptError(
         new BTPErrorException(BTP_ERROR_VALIDATION, {
@@ -142,5 +169,6 @@ export const signEncrypt = async <T = unknown>(
       signature,
     } as BTPCryptoArtifact<T>,
     error: undefined,
+    ...(shaped && { shaped }),
   };
 };

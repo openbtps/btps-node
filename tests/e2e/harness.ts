@@ -25,6 +25,7 @@ import { JsonIdentityStore } from '../../src/core/storage/JsonIdentityStore.js';
 import { computeTrustId } from '../../src/core/trust/index.js';
 import { computeId, pemToBase64, parseIdentity } from '../../src/core/utils/index.js';
 import {
+  createDefaultKeyResolver,
   getBTPKeyPair,
   getFingerprintFromPem,
   signEncrypt,
@@ -32,6 +33,7 @@ import {
 } from '../../src/core/crypto/index.js';
 import { BTP_PROTOCOL_VERSION } from '../../src/core/server/constants/index.js';
 import type { BTPTrustRecord } from '../../src/core/trust/types.js';
+import type { BTPDetailsEnvelope } from '../../src/core/trust/permissions.js';
 import type {
   BTPArtifactType,
   BTPServerResponse,
@@ -76,6 +78,9 @@ const tlsFiles = (() => {
 /** TLS options a sender uses: it trusts the providers' certificate. */
 export const senderTls = { ca: tlsFiles.cert, servername: 'localhost' };
 
+/** A server's TLS key and certificate, for a provider started outside startProvider. */
+export const serverTls = { key: tlsFiles.key, cert: tlsFiles.cert };
+
 export const newKeys = (): Keys => getBTPKeyPair();
 
 /** Publishes an identity's key the way BTPS reads it: `<selector>._btps.identity.<account>.<domain>`. */
@@ -104,7 +109,7 @@ export const publishHost = (
   );
 };
 
-const freePort = () =>
+export const freePort = () =>
   new Promise<number>((resolve) => {
     const probe = net.createServer();
     probe.listen(0, () => {
@@ -115,18 +120,23 @@ const freePort = () =>
 
 /** A trust store that also knows which artifacts its platform exchanged, as a platform does. */
 class PlatformTrustStore extends JsonTrustStore {
-  readonly exchanged = new Set<string>();
+  readonly exchanged = new Map<string, BTPDetailsEnvelope>();
 
-  remember(artifact: { id: string; from: string; to: string }) {
-    this.exchanged.add(`${artifact.id}|${artifact.from}|${artifact.to}`);
+  remember(artifact: { id: string; from: string; to: string; type?: string; details?: string[] }) {
+    const { id, from, to, type = '', details } = artifact;
+    this.exchanged.set(`${id}|${from}|${to}`, { id, from, to, type, details });
   }
 
   override async isKnownArtifact(query?: { artifactId: string; from: string; to: string }) {
-    if (!query) return false;
+    return query !== undefined && (await this.getArtifact(query)) !== undefined;
+  }
+
+  async getArtifact(query?: { artifactId: string; from: string; to: string }) {
+    if (!query) return undefined;
     const { artifactId, from, to } = query;
     return (
-      this.exchanged.has(`${artifactId}|${from}|${to}`) ||
-      this.exchanged.has(`${artifactId}|${to}|${from}`)
+      this.exchanged.get(`${artifactId}|${from}|${to}`) ??
+      this.exchanged.get(`${artifactId}|${to}|${from}`)
     );
   }
 }
@@ -151,12 +161,16 @@ export async function startProvider(
   const inbox: BTPTransporterArtifact[] = [];
 
   const server = new BtpsServer({
-    serverIdentity: { identity: operator, ...operatorKeys },
+    // The operator: one key pair signs lookup answers and, with signAnswers, every answer.
+    serverIdentity: { identity: operator, ...operatorKeys, selector },
     trustStore,
     identityStore,
     port,
     tlsOptions: { key: tlsFiles.key, cert: tlsFiles.cert },
     connectionTimeoutMs: 5000,
+    // Since 1.2: asks a sender's host for its key chain on every arrival, over
+    // the journeys' own TLS, as this operator.
+    keyResolver: createDefaultKeyResolver({ from: operator, btpMtsOptions: senderTls }),
     ...options.server,
   });
 
@@ -164,7 +178,18 @@ export async function startProvider(
   server.onIncomingArtifact('Transporter', async (artifact) => {
     inbox.push(artifact);
     trustStore.remember(artifact);
-    if (artifact.type === 'TRUST_REQ') {
+    if (artifact.type === 'TRUST_REQ' && artifact.change) {
+      // A change to an active trust waits for its user's answer, one at a time.
+      const id = computeTrustId(artifact.from, artifact.to);
+      const { permissions } = (await trustStore.getById(id)) ?? {};
+      const requested = artifact.permissions ?? [];
+      await trustStore.update(id, {
+        permissions: {
+          ...(permissions ?? { requested, granted: [], detailsHeld: [], detailsShared: [] }),
+          pendingChange: { requested, requestedAt: artifact.issuedAt },
+        },
+      });
+    } else if (artifact.type === 'TRUST_REQ') {
       await recordTrust(trustStore, artifact.from, artifact.to, 'pending');
     }
     if (artifact.type === 'TRUST_RES') {

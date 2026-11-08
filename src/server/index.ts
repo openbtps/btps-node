@@ -9,4 +9,16 @@ export * from '@core/server/types.js';
 export * from '@core/server/constants/index.js';
 export * from '@core/server/helpers/index.js';
 export { BtpsServer } from './btpsServer.js';
+// A platform checks an encrypted event's chain with these once it has opened it.
+export {
+  lifecycleEventChainProblem,
+  lifecycleEventChainReference,
+  lifecycleEventSenderProblem,
+  trustRequestProblem,
+  trustResponseProblem,
+} from '@core/server/schemas/helpers.js';
+// A provider wraps an encrypted result's content key to the device that asked.
+export { wrapForAgent } from './libs/wrapForAgent.js';
+// Who signed a transporter artifact, checked as this server checks it on arrival.
+export { verifyTransporterSignature } from '@core/delegation/verifyTransporterSignature.js';
 export * from './types.js';

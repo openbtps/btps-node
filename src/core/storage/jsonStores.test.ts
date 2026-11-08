@@ -61,6 +61,26 @@ describe('the JSON stores', () => {
     await expect(store.create({ ...record, id: 'x' } as never)).rejects.toThrow(/id/);
   });
 
+  it("JsonIdentityStore gives an identity's key chain as its record holds it, since 1.2", async () => {
+    const store = kept(new JsonIdentityStore({ connection: file() }));
+    const keyChain = [{ rotation: { type: 'btps.keyRotation.v1' } }] as never;
+    const rotated = await store.create({
+      identity: 'alice$example.com',
+      currentSelector: 'btps2',
+      publicKeys: [],
+      keyChain,
+    } as unknown as Omit<BTPIdentityRecord, 'id'>);
+    const never = await store.create({
+      identity: 'bob$example.com',
+      currentSelector: 'btps1',
+      publicKeys: [],
+    } as unknown as Omit<BTPIdentityRecord, 'id'>);
+
+    expect(await store.getKeyChain(rotated.id)).toEqual(keyChain);
+    expect(await store.getKeyChain(never.id)).toBeUndefined();
+    expect(await store.getKeyChain('no-such-id')).toBeUndefined();
+  });
+
   it('does not read its file again for each lookup while it has no records', async () => {
     const store = kept(new JsonTrustStore({ connection: file(), entityName: 'trusted_sender' }));
     const init = vi.spyOn(store as unknown as { init(): Promise<void> }, 'init');

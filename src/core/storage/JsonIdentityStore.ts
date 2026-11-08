@@ -13,6 +13,7 @@ import {
 } from '@core/storage/types.js';
 import { JsonStorageStore } from '@core/storage/JsonStorageStore.js';
 import { computeId } from '@core/utils/index.js';
+import type { BTPKeyChainRecord } from '@core/trust/types.js';
 import { AbstractIdentityStore } from './AbstractIdentityStore.js';
 
 /**
@@ -73,5 +74,10 @@ export class JsonIdentityStore
     if (!record) return undefined;
     const pointer = selector ?? record.currentSelector;
     return record.publicKeys.find((key) => key.selector === pointer);
+  }
+
+  /** Since 1.2: the identity's key chain, as its record holds it. */
+  async getKeyChain(computedId: string): Promise<BTPKeyChainRecord[] | undefined> {
+    return (await super.getById(computedId))?.keyChain;
   }
 }

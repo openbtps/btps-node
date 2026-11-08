@@ -69,6 +69,8 @@ const validateAgentArtifactDocument = (
   return (
     carried.success &&
     carried.data.type ===
-      AGENT_TRANSPORTER_ACTIONS[action as keyof typeof AGENT_TRANSPORTER_ACTIONS]
+      AGENT_TRANSPORTER_ACTIONS[action as keyof typeof AGENT_TRANSPORTER_ACTIONS] &&
+    // A sync is a device's own artifact.send, never another action.
+    (carried.data.syncOf === undefined || action === 'artifact.send')
   );
 };

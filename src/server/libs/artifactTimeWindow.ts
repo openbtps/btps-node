@@ -7,9 +7,10 @@
 
 import { BTPErrorException } from '@core/error/index.js';
 import { BTP_ERROR_ARTIFACT_TIME_WINDOW } from '@core/error/constant.js';
+import { DEFAULT_MAX_ARTIFACT_AGE_SECONDS } from '@core/server/constants/btps-protocol.js';
 
-/** How far a server lets an artifact's `issuedAt` be from its own clock unless it sets `maxArtifactAgeSeconds`: 5 minutes. */
-export const DEFAULT_MAX_ARTIFACT_AGE_SECONDS = 300;
+// Kept in the core constants, where a client checking a lookup's answer reads it too.
+export { DEFAULT_MAX_ARTIFACT_AGE_SECONDS };
 
 /** The smallest time window a server may set: 1 minute. */
 export const MIN_MAX_ARTIFACT_AGE_SECONDS = 60;

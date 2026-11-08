@@ -1,6 +1,6 @@
 {
   "name": "@btps/sdk",
-  "version": "1.1.3",
+  "version": "1.2.0-rc.1",
   "description": "The reference implementation of BTPS, the Billing Trust Protocol Secure: signed, encrypted, trust-first delivery of invoices and documents between organisations.",
   "keywords": [
     "btps",
@@ -65,8 +65,12 @@
       "import": "./dist/core/storage/index.js"
     }
   },
+  "bin": {
+    "btps-verify-evidence": "./bin/verify-evidence-bundle.mjs"
+  },
   "files": [
     "dist",
+    "bin",
     "NOTICE",
     "CHANGELOG.md"
   ],
@@ -81,8 +85,9 @@
     "base64": "bash -c 'base64 -i \"$1\" | tr -d \"\\n\"' --",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
-    "test:e2e": "vitest run -c vitest.e2e.config.ts",
-    "test:security": "vitest run -c vitest.security.config.ts",
+    "bench": "vitest bench --run",
+    "test:e2e": "yarn build && vitest run -c vitest.e2e.config.ts",
+    "test:security": "yarn build && vitest run -c vitest.security.config.ts",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
     "verify:btps-vectors": "node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs --known-failing test/vectors/known-failing.json",
@@ -97,6 +102,8 @@
     "@typescript-eslint/parser": "^6.0.0",
     "@vitest/coverage-v8": "3.2.4",
     "@vitest/ui": "^3.2.4",
+    "ajv": "^8.17.1",
+    "btps-sdk-1-1-3": "https://registry.npmjs.org/@btps/sdk/-/sdk-1.1.3.tgz",
     "chalk": "^5.4.1",
     "cli-table3": "^0.6.5",
     "esbuild": "^0.25.5",
@@ -119,8 +126,10 @@
   },
   "dependencies": {
     "@humanwhocodes/momoa": "^3.3.13",
+    "asn1js": "^4.0.0",
     "canonicalize": "^5.1.0",
     "lodash": "^4.17.21",
+    "pkijs": "^4.0.1",
     "proper-lockfile": "^4.1.2",
     "split2": "^4.2.0",
     "zod": "^3.25.67"

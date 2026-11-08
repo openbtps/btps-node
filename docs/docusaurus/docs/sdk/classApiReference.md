@@ -36,7 +36,7 @@ import { JsonTrustStore } from '@btps/sdk/trust';
 const trustStore = new JsonTrustStore({ connection: './trust.json' });
 const server = new BtpsServer({
   serverIdentity: {
-    identity: 'server$example.com',
+    identity: 'admin$example.com', // the domain's operator: it signs lookup answers, and every answer with signAnswers
     publicKey: '-----BEGIN PUBLIC KEY-----...',
     privateKey: '-----BEGIN PRIVATE KEY-----...',
   },
@@ -147,7 +147,7 @@ Returns the BTPS protocol version string.
 
 **Returns:**
 
-- `string`: Protocol version (e.g., "1.1.0")
+- `string`: Protocol version (e.g., "1.2.0"). Every answer the server sends carries it, whatever the version of what it answers.
 
 **Example:**
 
@@ -285,7 +285,7 @@ if (res.response) {
 const version = client.getProtocolVersion();
 ```
 
-Returns the BTPS protocol version string.
+Returns the newest BTPS protocol version this SDK speaks. It does not decide what an artifact is stamped with: an artifact is stamped `1.1.0` whenever everything in it can be said in 1.1, and `1.2.0` only when it uses something 1.2 adds (`artifactVersion`).
 
 **Returns:**
 
@@ -296,6 +296,29 @@ Returns the BTPS protocol version string.
 ```js
 const version = client.getProtocolVersion();
 console.log('BTPS Protocol Version:', version);
+```
+
+### getServerVersion
+
+```ts
+const { version, error } = await client.getServerVersion();
+```
+
+The protocol version the server speaks, from its answer to a `PING`. The `PING` is stamped `1.1.0`, so every 1.1 and 1.2 server answers it. Use it to learn before sending whether a receiver takes what 1.2 adds; DNS `v=` is a hint only.
+
+`resolveIdentity` gives the same fact as `serverVersion` when it asked the address's host, from the host's signed answer. Its `version` is the key record's.
+
+**Returns:**
+
+- `Promise<{ version: string; error: undefined } | { version: undefined; error: BTPErrorException }>`
+
+**Example:**
+
+```js
+const { version, error } = await client.getServerVersion();
+if (!error && version.startsWith('1.1.')) {
+  // The receiver speaks only 1.1: send it nothing 1.2 adds.
+}
 ```
 
 ### end
@@ -387,8 +410,8 @@ Executes an agent command with optional document payload.
 **Example:**
 
 ```js
-// Authentication request
-const authRes = await agent.command('auth.request', 'server$domain.com', {
+// Authentication request, to the user's own address: its provider answers
+const authRes = await agent.command('auth.request', 'user$domain.com', {
   identity: 'user$domain.com',
   authToken: 'ABC123DEF456',
   publicKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
@@ -429,6 +452,27 @@ const eventRes = await agent.command(
   },
   { signature: { algorithmHash: 'sha256' }, relatesTo: invoiceArtifactId },
 );
+```
+
+### openResult
+
+```ts
+await agent.openResult(entry);
+```
+
+Since 1.2. Opens an encrypted query result with this device's own key, through the `agentKey` its provider wrapped for it (`wrapForAgent`).
+
+- It refuses an `agentKey` wrapped to a key other than the one this device holds, before anything is looked up: that is a device that has not finished moving to a new key.
+- It then checks who signed the artifact as sent, exactly as a server does on arrival (`verifyTransporterSignature`): the sender's own key, or, for an artifact sent through a delegation, the delegation, its attestation, and the delegated agent's signature. Then it decrypts and checks the document as `decryptVerify` does.
+
+- **entry**: [BTPQueryResultEntry](./typesAndInterfaces.md#btpqueryresultentry) – A result with `agentKey`
+- **Returns**: `Promise<BTPCryptoResponse<BTPDocType | string>>` – The artifact with its document decrypted, or the error
+
+```js
+const { response } = await agent.command('inbox.fetch', 'alice$saas.com');
+for (const entry of response?.document?.results ?? []) {
+  const { payload, error } = await agent.openResult(entry);
+}
 ```
 
 ---
@@ -810,6 +854,17 @@ if (result.data) {
   console.error('Reissue failed:', result.error);
 }
 ```
+
+Since 1.2 it also refuses a revoked or blocked device; a key older than `maxKeyAgeMs`, with `BTP_ERROR_KEY_TOO_OLD`, keeping the token so the device can move to a new key with it; and, with a token store that has `isConsumed`, a refresh token used a second time, which revokes the device and fires `refreshTokenReused`. A second use inside `refreshGraceMs` (default 30 seconds) is a retry instead, while the new token is unused: it returns the first answer again.
+
+### on / off
+
+```ts
+auth.on('keyRotated', listener);
+auth.on('refreshTokenReused', listener);
+```
+
+Since 1.2. Listens for a device moving to a new key, and for a refresh token used a second time (the device is then revoked). See [BtpsAuthenticationEvents](./typesAndInterfaces.md#btpsauthenticationevents). With no listener attached, nothing happens; a listener that throws is warned about and never breaks the refresh.
 
 ### storeAuthToken
 
@@ -1495,7 +1550,7 @@ const filtered = await store.getAll('receiver-id');
 await store.isKnownArtifact({ artifactId, from, to });
 ```
 
-Answer whether an artifact with this id passed between these two identities, in either direction. The server asks this for every `BTPS_EVENT`, using the event's `relatesTo`, and refuses the event unless the answer is `true` (`BTP_ERROR_EVENT_UNRELATED` in the server's context, `BTP_ERROR_TRUST_NOT_ALLOWED` on the wire). Only the platform knows which artifacts it delivered, so every trust store must implement it. A store that always answers `false` accepts no events (see [Lifecycle Event](../protocol/specifications/transporter-artifact.md#4-lifecycle-event-btps_event)).
+Answer whether an artifact with this id passed between these two identities, in either direction. The server asks this for every `BTPS_EVENT`, using the event's `relatesTo`, and refuses the event unless the answer is `true` (`BTP_ERROR_EVENT_UNRELATED` in the server's context, `BTP_ERROR_TRUST_NOT_ALLOWED` on the wire). Only the platform knows which artifacts it delivered, so every trust store must implement it. A store that always answers `false` accepts no events (see [Lifecycle Event](../protocol/specifications/transporter-artifact.md#4-lifecycle-event-btps_event)). Since 1.2, the server asks it the same for every `DETAILS_RES`, using the response's `relatesTo` with `from` and `to` as the request's, and refuses with `BTP_ERROR_PERMISSION` a response to a request it does not know (see [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)).
 
 - **artifactId**: `string` – the event's `relatesTo`: the `id` of the `BTPS_DOC` artifact that delivered the invoice
 - **from**: `string` – the event's sender

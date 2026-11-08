@@ -12,6 +12,10 @@ import {
   computeTrustId,
   computeAgentTrustId,
   validateTrustResponse,
+  documentTypeRefusal,
+  detailsNamesRefusal,
+  verifyKeyChain,
+  type BTPKeyChainRecord,
 } from '@core/trust/index.js';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
@@ -22,15 +26,11 @@ import {
   BTP_ERROR_SIG_VERIFICATION,
   BTP_ERROR_INVALID_JSON,
   BTP_ERROR_VALIDATION,
-  BTP_ERROR_RESOLVE_PUBKEY,
   BTP_ERROR_TRUST_NOT_ALLOWED,
   BTP_ERROR_TRUST_NON_EXISTENT,
   BTP_ERROR_TRUST_EXPIRED,
   BTP_ERROR_TRUST_REVOKED,
   BTP_ERROR_TRUST_BLOCKED,
-  BTP_ERROR_DELEGATION_SIG_VERIFICATION,
-  BTP_ERROR_DELEGATION_INVALID,
-  BTP_ERROR_ATTESTATION_VERIFICATION,
   BTP_ERROR_SOCKET_TIMEOUT,
   BTP_ERROR_IDENTITY_NOT_FOUND,
   BTP_ERROR_UNKNOWN,
@@ -41,6 +41,8 @@ import {
   BTP_ERROR_ARTIFACT_NOT_ACCEPTED,
   BTP_ERROR_PRIVACY_TYPE,
   BTP_ERROR_VERSION_UNSUPPORTED,
+  BTP_ERROR_SYNC_NOT_ALLOWED,
+  BTP_ERROR_PERMISSION,
 } from '@core/error/constant.js';
 import {
   assertStrictJson,
@@ -51,12 +53,9 @@ import {
 } from '@core/crypto/index.js';
 import {
   base64ToPem,
-  isDelegationAllowed,
   computeId,
-  getHostAndSelector,
   isBtpsIdentityRequest,
   isBtpsTransportArtifact,
-  resolvePublicKey,
   isBtpsControlArtifact,
   isBtpsAgentArtifact,
   isValidIdentity,
@@ -69,6 +68,7 @@ import type {
   BTPControlArtifact,
   BTPDelegation,
   BTPIdentityLookupRequest,
+  BTPIdentityResDoc,
   BTPServerResponse,
   BTPStatus,
   BTPTransporterArtifact,
@@ -81,8 +81,11 @@ import {
   MAX_SUPPORTED_VERSION,
   MIN_SUPPORTED_VERSION,
   isSupportedVersion,
+  isVersionBelow,
+  DETAILS_ARTIFACT_TYPES,
 } from '../core/server/constants/index.js';
 import type {
+  BtpsServerEvents,
   BtpsServerOptions,
   BTPRequestCtx,
   BTPResponseCtx,
@@ -97,19 +100,54 @@ import type {
 import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.js';
 import { validate } from '@core/utils/validation.js';
 import { MiddlewareManager } from './libs/middlewareManager.js';
+import {
+  verifyAttestation,
+  verifyDelegation,
+  verifyTransporterSignature,
+  type BTPKeyChainCheck,
+} from '@core/delegation/verifyTransporterSignature.js';
+import { createDefaultKeyResolver, type BtpsKeyResolver } from '@core/crypto/keyResolver.js';
+import { resolveKeyChainMaxCacheSeconds, resolveRetiredKeyGraceSeconds } from './libs/keyChains.js';
 import { artifactSizeGuard, resolveMaxArtifactSizeKb } from './libs/artifactSizeGuard.js';
 import {
   artifactTimeWindowError,
   resolveMaxArtifactAgeSeconds,
 } from './libs/artifactTimeWindow.js';
 import { resolveConnectionTimeoutMs } from './libs/connectionTimeout.js';
-import { resolveMaxInFlightPerConnection } from './libs/inFlightLimit.js';
-import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
+import {
+  resolveMaxConsecutiveInvalidLines,
+  resolveMaxInFlightPerConnection,
+} from './libs/inFlightLimit.js';
+import { BtpArtifactSchemaByType } from '@core/server/schemas/artifacts/artifacts.js';
 import { BtpServerResponseSchema } from '@core/server/schemas/responseSchema.js';
 import { BtpAuthReqDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import { keyProofPayload } from '@core/authentication/keyProof.js';
 import type { BTPIdentityRecord } from '@core/storage/types.js';
 import type { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
+import * as BTPS_ERROR_CONSTANTS from '@core/error/constant.js';
+
+/** Since 1.2: the new key of a stored chain's last rotation, as stored and unverified. */
+const lastRotationTo = (chain: BTPKeyChainRecord[]) => {
+  const to = [...chain]
+    .reverse()
+    .find(
+      (record): record is Extract<BTPKeyChainRecord, { rotation: unknown }> => 'rotation' in record,
+    )?.rotation.to;
+  return to && { selector: to.selector, publicKey: base64ToPem(to.publicKey) };
+};
+
+/** Every BTPS error constant, by its code: the only errors a sender is told by name. */
+const BTPS_ERRORS_BY_CODE = new Map<string, BTPError>(
+  Object.values(BTPS_ERROR_CONSTANTS)
+    .filter(
+      (value): value is BTPError =>
+        typeof value === 'object' &&
+        value !== null &&
+        typeof (value as BTPError).code === 'string' &&
+        typeof (value as BTPError).status === 'number',
+    )
+    .map((constant) => [String(constant.code), constant]),
+);
 
 /**
  * BTPS Secure Server over TLS (btps://)
@@ -125,7 +163,16 @@ export class BtpsServer {
   private readonly connectionTimeoutMs: number;
   private readonly maxArtifactSizeKb: number;
   private readonly maxInFlightPerConnection: number;
+  private readonly maxConsecutiveInvalidLines: number;
   private readonly maxArtifactAgeSeconds: number;
+  private readonly signAnswers: boolean;
+  private readonly keyResolver?: BtpsKeyResolver;
+  /** Since 1.2: how a sender's, a delegator's and an attestor's key is checked against its key chain. */
+  private readonly keyChains: BTPKeyChainCheck;
+  /** Since 1.2: what `on(…)` tells its listeners, apart from the artifact handlers. */
+  private readonly events = new EventEmitter();
+  /** With signAnswers: each connection's last answer, which the next waits for. */
+  private readonly answersOnSocket = new WeakMap<TLSSocket, Promise<void>>();
   private readonly dependencies: {
     trustStore: AbstractTrustStore<BTPTrustRecord>;
     identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
@@ -152,7 +199,40 @@ export class BtpsServer {
     this.maxInFlightPerConnection = resolveMaxInFlightPerConnection(
       options.maxInFlightPerConnection,
     );
+    this.maxConsecutiveInvalidLines = resolveMaxConsecutiveInvalidLines(
+      options.maxConsecutiveInvalidLines,
+    );
     this.maxArtifactAgeSeconds = resolveMaxArtifactAgeSeconds(options.maxArtifactAgeSeconds);
+    this.signAnswers = options.signAnswers === true;
+    this.keyResolver = options.keyResolver;
+    // Since 1.2: every arrival's keys are checked against their identity's key
+    // chain, asked of its host as this server's identity, unless the resolver
+    // gives chains itself.
+    const keyChainMaxCacheSeconds = resolveKeyChainMaxCacheSeconds(options.keyChainMaxCacheSeconds);
+    const chains = options.keyResolver?.resolveKeyChain
+      ? options.keyResolver
+      : createDefaultKeyResolver({
+          from: options.serverIdentity.identity,
+          keyChainMaxCacheSeconds,
+        });
+    this.keyChains = {
+      resolveKeyChain: (identity) =>
+        chains.resolveKeyChain?.(identity) ??
+        Promise.resolve({ status: 'unavailable', reason: 'no key chain lookup' }),
+      retiredKeyGraceSeconds: resolveRetiredKeyGraceSeconds(options.retiredKeyGraceSeconds),
+      maxSkewSeconds: this.maxArtifactAgeSeconds,
+      // A chain's signatures are checked once per window, not on every arrival.
+      checked: new Map(),
+      checkedForSeconds: keyChainMaxCacheSeconds,
+    };
+    // Signing every answer is asked for, and without a selector no device could check one.
+    if (this.signAnswers && !options.serverIdentity.selector) {
+      throw new BTPErrorException({
+        code: 'INVALID_CONFIG',
+        message:
+          'signAnswers needs serverIdentity.selector: the selector the key is published under',
+      });
+    }
     this.middlewareManager = new MiddlewareManager(options.middlewarePath);
     this.dependencies = {
       trustStore: this.trustStore,
@@ -317,7 +397,7 @@ export class BtpsServer {
           }
           /* always try to send the error with the reqId */
           const reqId = resCtx?.reqId as string | undefined;
-          this.sendBtpsError(socket, error, reqId, action);
+          this.sendBtpsError(socket, error, reqId, action, true);
         },
         get responseSent() {
           return responseSent;
@@ -330,6 +410,8 @@ export class BtpsServer {
     // Requests on this connection still being handled: while there are any,
     // the idle timeout does not close it.
     let inFlight = 0;
+    // Lines in a row this server could not read: at the limit, the last is answered and the connection ends.
+    let invalidInARow = 0;
 
     stream.on('data', async (line: string) => {
       if (!line.trim()) return;
@@ -392,8 +474,17 @@ export class BtpsServer {
 
         if (parseError || !data) {
           const errorToSend = parseError ?? BTP_ERROR_INVALID_JSON;
+          invalidInARow++;
+          if (invalidInARow >= this.maxConsecutiveInvalidLines) {
+            return this.handleOnSocketError(
+              new BTPErrorException(errorToSend),
+              { req: parseReq as BTPRequestCtx<'before', 'onError'>, res: parseRes },
+              'end',
+            );
+          }
           return this.sendBtpsError(socket, errorToSend);
         }
+        invalidInARow = 0;
 
         // Before any signature work: an artifact of another protocol version is refused.
         if (!isSupportedVersion(data.artifact.version)) {
@@ -405,6 +496,12 @@ export class BtpsServer {
             },
             parseRes.reqId,
           );
+        }
+
+        // A sync is filed by its own address's provider, from that address's own device: one
+        // sent here directly, by any server, is refused before its signature is checked.
+        if (data.type === 'transporter' && data.artifact.syncOf !== undefined) {
+          return this.sendBtpsError(socket, BTP_ERROR_SYNC_NOT_ALLOWED, parseRes.reqId);
         }
 
         // Awaited, so a failure is caught below and answered, and the line stays in flight until it is.
@@ -432,7 +529,7 @@ export class BtpsServer {
         const errorReq = parseReq as BTPRequestCtx<'before', 'onError'>;
         errorReq.error = error;
 
-        console.error('[BtpsServer] Error', error.toJSON());
+        if (!this.takesErrors()) console.error('[BtpsServer] Error', error.toJSON());
         // The failure is this line's alone: answer it and keep the connection, and the other
         // artifacts in flight on it. Only framing, socket, size and timeout failures end it.
         return await this.handleOnSocketError(
@@ -444,6 +541,9 @@ export class BtpsServer {
           'answer',
         );
       } finally {
+        // A line is in flight until its answer is written, signed or not, so the
+        // in-flight limit also bounds answers still waiting to be signed.
+        await this.answersOnSocket.get(socket);
         inFlight--;
         if (stream.isPaused() && !stream.destroyed) stream.resume();
       }
@@ -542,20 +642,42 @@ export class BtpsServer {
   ) {
     const { res } = context;
     const { identity, hostSelector, identitySelector } = artifact;
+    const id = computeId(identity);
 
-    const identityRecord = await this.identityStore?.getPublicKeyRecord(
-      computeId(identity),
-      identitySelector,
-    );
-    if (!identityRecord)
-      return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND, res.reqId);
-
-    const { createdAt, ...restRecord } = identityRecord;
+    // Since 1.2: the key chain, asked only by a 1.2.0 lookup (a 1.1.0 one with
+    // it is refused as not its schema).
+    const keyChain = artifact.keyChain
+      ? ((await this.identityStore?.getKeyChain?.(id)) ?? [])
+      : undefined;
+    const identityRecord = await this.identityStore?.getPublicKeyRecord(id, identitySelector);
+    // An identity whose keys are in DNS has no key record here, only its chain:
+    // the answer then names the chain's current key. A stored chain with no
+    // single current key (a fork, a loop, an invalid record) is still served as
+    // stored, naming its last rotation's new key, unverified: the receiver checks
+    // the chain and refuses it, where an answer of "not found" would leave the
+    // key to DNS alone. The host only reads; the receiver decides.
+    const current = keyChain?.length
+      ? (verifyKeyChain(keyChain, { identity }).keys.at(-1) ?? lastRotationTo(keyChain))
+      : undefined;
+    const restRecord: BTPIdentityResDoc | undefined = identityRecord
+      ? (({ createdAt, ...rest }) => rest)(identityRecord)
+      : current && {
+          selector: current.selector,
+          publicKey: current.publicKey,
+          keyType: 'rsa',
+          version: BTP_PROTOCOL_VERSION,
+        };
+    if (!restRecord) return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND, res.reqId);
+    // Since 1.2, to a 1.2.0 lookup: the answer names its identity, so it cannot
+    // be taken for another's, and carries the key chain when asked.
+    const document: BTPIdentityResDoc = isVersionBelow(artifact.version, '1.2.0')
+      ? restRecord
+      : { ...restRecord, identity, ...(keyChain && { keyChain }) };
     const data: BTPServerResponse = {
       ...this.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }, res.reqId),
       type: 'btps_response',
       selector: hostSelector,
-      document: restRecord,
+      document,
       signedBy: this.serverIdentity.identity,
     };
 
@@ -674,7 +796,8 @@ export class BtpsServer {
       // wire only distinguishes expired from everything else, so an
       // un-upgraded 1.0 peer still just sees "not allowed" for a revoked or
       // never-trusted sender. A sender with an active trust is also told when
-      // it did not encrypt as that trust requires.
+      // it did not encrypt as that trust requires: that concerns only what
+      // the sender itself sent.
       const refusal = reqCtx.error;
       const wireError =
         refusal?.code === BTP_ERROR_TRUST_EXPIRED.code
@@ -684,6 +807,7 @@ export class BtpsServer {
             : BTP_ERROR_TRUST_NOT_ALLOWED;
       return this.sendBtpsError(resCtx.socket, wireError, resCtx.reqId);
     }
+    this.tellDetails(data);
 
     // Execute before onArtifact middleware
     const beforeOnArtifactResponseSent = await this.executeMiddleware(
@@ -926,7 +1050,80 @@ export class BtpsServer {
         }),
       };
     }
-    return { isTrusted: isTrustActive(trustRecord), error: undefined };
+    if (!isTrustActive(trustRecord)) return { isTrusted: false, error: undefined };
+    const carried = artifact.document as BTPTransporterArtifact;
+    if (artifact.action === 'artifact.send' && carried?.type === 'BTPS_DOC') {
+      return this.verifyDocumentSend(carried);
+    }
+    if ((DETAILS_ARTIFACT_TYPES as readonly string[]).includes(carried?.type)) {
+      return this.verifyDetailsSend(carried);
+    }
+    return { isTrusted: true, error: undefined };
+  }
+
+  /**
+   * Since 1.2: a device's send checked by its own provider before it goes, as
+   * its receiver will check it: under a trust with permissions it names a
+   * documentType the receiver granted. A trust without them, or none, adds nothing here.
+   */
+  private async verifyDocumentSend(
+    carried: BTPTransporterArtifact,
+  ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
+    // Documents travel only along the trust's direction, id(from → to), unlike details refresh, which reads either direction.
+    const record = await this.trustStore.getById(computeTrustId(carried.from, carried.to));
+    const refusal = isTrustActive(record) && record && documentTypeRefusal(carried, record);
+    if (refusal) {
+      return {
+        isTrusted: false,
+        error: new BTPErrorException(refusal.error, { cause: refusal.problem }),
+      };
+    }
+    return { isTrusted: true, error: undefined };
+  }
+
+  /**
+   * Since 1.2: a details refresh a device sends, checked by its own provider
+   * before it goes, as its receiver will check it: from the user's own record
+   * of the trust, where what the user shares is what the receiver holds. A
+   * response answers a request the user received from that receiver.
+   */
+  private async verifyDetailsSend(
+    carried: BTPTransporterArtifact,
+  ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
+    const { from, to } = carried;
+    const records = await Promise.all([
+      this.trustStore.getById(computeTrustId(from, to)),
+      this.trustStore.getById(computeTrustId(to, from)),
+    ]);
+    const active = records.filter(isTrustActive);
+    const record = active.find((r) => r?.permissions) ?? active[0];
+    if (!record) return { isTrusted: false, error: this.getTrustRefusalError(records[0]) };
+    const refuse = (refusal: { error: BTPError; problem: string }) => ({
+      isTrusted: false,
+      error: new BTPErrorException(refusal.error, { cause: refusal.problem }),
+    });
+
+    // The receiver's view of the same trust: it holds what this side shares.
+    const { permissions } = record;
+    const asReceiver = permissions && {
+      permissions: {
+        ...permissions,
+        detailsHeld: permissions.detailsShared,
+        detailsShared: permissions.detailsHeld,
+      },
+    };
+    const namesRefusal = detailsNamesRefusal(carried, asReceiver ?? {});
+    if (namesRefusal) return refuse(namesRefusal);
+
+    if (carried.type !== 'DETAILS_RES') return { isTrusted: true, error: undefined };
+    const query = { artifactId: carried.relatesTo ?? '', from: to, to: from };
+    if (!(await this.trustStore.isKnownArtifact(query))) {
+      return refuse({
+        error: BTP_ERROR_PERMISSION,
+        problem: 'a details response answers a request its sender received',
+      });
+    }
+    return { isTrusted: true, error: undefined };
   }
 
   /**
@@ -951,30 +1148,7 @@ export class BtpsServer {
   private async verifyAttestation(
     delegation: Omit<BTPDelegation, 'attestation'> & { attestation: BTPAttestation },
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
-    const { attestation, ...restDelegation } = delegation;
-    const { signature, ...restAttestation } = attestation;
-
-    const attestorPubKey = await resolvePublicKey(attestation.signedBy, attestation.selector);
-    if (!attestorPubKey) {
-      return {
-        isValid: false,
-        error: new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
-          cause: `Attestor ${attestation.signedBy} public key not found`,
-          meta: { attestation },
-        }),
-      };
-    }
-    const signedMsg = { ...restDelegation, attestation: restAttestation };
-    const { isValid, error } = verifySignature(signedMsg, signature, attestorPubKey);
-    return {
-      isValid,
-      error: error
-        ? new BTPErrorException(BTP_ERROR_ATTESTATION_VERIFICATION, {
-            cause: `Attestation signature verification failed of attestor ${attestation.signedBy}`,
-            meta: { attestation },
-          })
-        : undefined,
-    };
+    return verifyAttestation(delegation, this.keyResolver, this.keyChains);
   }
 
   /**
@@ -1021,104 +1195,8 @@ export class BtpsServer {
       delegation: BTPDelegation;
     },
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
-    // Only the sender itself or its domain's operator may delegate, and only
-    // the operator may attest: the receiver learns who that is from DNS.
-    const operator = (await getHostAndSelector(artifactWithDelegation.from))?.operator;
-
-    /* If the artifact is not allowed to be delegated, return an error */
-    if (!isDelegationAllowed(artifactWithDelegation, operator)) {
-      return {
-        isValid: false,
-        error: new BTPErrorException(BTP_ERROR_DELEGATION_INVALID, {
-          cause: operator
-            ? `Delegation is not allowed: ${artifactWithDelegation.delegation.signedBy} is not the operator of ${artifactWithDelegation.from}'s domain`
-            : `Delegation is not allowed: ${artifactWithDelegation.from}'s domain declares no operator`,
-        }),
-      };
-    }
-    const { delegation, ...restArtifact } = artifactWithDelegation;
-    const isAttestationRequired = delegation.signedBy === artifactWithDelegation.from;
-
-    /* If attestation is required, but not provided, return an error */
-    if (isAttestationRequired && !delegation.attestation) {
-      return {
-        isValid: false,
-        error: new BTPErrorException(BTP_ERROR_DELEGATION_INVALID, {
-          cause:
-            'Custom managed domain delegation requires attestation. Either provide attestation or directly send without delegation via transporter',
-          meta: {
-            delegation,
-            from: artifactWithDelegation.from,
-          },
-        }),
-      };
-    }
-
-    /* If attestation is provided, verify it */
-    if (delegation.attestation) {
-      if (delegation.attestation.signedBy !== operator) {
-        return {
-          isValid: false,
-          error: new BTPErrorException(BTP_ERROR_ATTESTATION_VERIFICATION, {
-            cause: `${delegation.attestation.signedBy} is not the operator of ${artifactWithDelegation.from}'s domain`,
-          }),
-        };
-      }
-      const { isValid, error } = await this.verifyAttestation(
-        delegation as Omit<BTPDelegation, 'attestation'> & { attestation: BTPAttestation },
-      );
-      if (!isValid) return { isValid, error };
-    }
-
-    /* Verify the delegation signature against the delegated artifact which includes the original artifact and signed artifact*/
-    const delegatorPubKey = await resolvePublicKey(delegation.signedBy, delegation.selector);
-    if (!delegatorPubKey) {
-      return {
-        isValid: false,
-        error: new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
-          cause: `Delegator ${delegation.signedBy} public key not found`,
-          meta: { delegation },
-        }),
-      };
-    }
-
-    // The delegation is signed before it is attested: the attestation, added
-    // after and signed over the delegation, is not part of what it signed.
-    const { signature, attestation, ...restDelegation } = delegation;
-    const signedMsg = { ...artifactWithDelegation, delegation: restDelegation };
-
-    /* Verify the delegation signature against the delegated artifact which includes the original artifact and signed artifact*/
-    const { isValid: isValidDelegation } = verifySignature(signedMsg, signature, delegatorPubKey);
-    if (!isValidDelegation) {
-      return {
-        isValid: isValidDelegation,
-        error: new BTPErrorException(BTP_ERROR_DELEGATION_SIG_VERIFICATION, {
-          cause: `Delegation signature verification failed of delegator ${delegation.signedBy}`,
-          meta: {
-            delegation,
-          },
-        }),
-      };
-    }
-
-    /* Finally verify the original artifact signature using the delegation agent public key */
-    const { signature: origSignature, ...origSignedMsg } = restArtifact;
-    const { isValid, error } = verifySignature(
-      origSignedMsg,
-      origSignature,
-      delegation.agentPubKey,
-    );
-    return {
-      isValid,
-      error: error
-        ? new BTPErrorException(BTP_ERROR_DELEGATION_SIG_VERIFICATION, {
-            cause: `Delegated artifact's original artifact signature verification failed of agent ${delegation.agentId}`,
-            meta: {
-              delegation,
-            },
-          })
-        : undefined,
-    };
+    // Shared with BtpsAgent.openResult, so the two never check a delegation differently.
+    return verifyDelegation(artifactWithDelegation, this.keyResolver, this.keyChains);
   }
 
   /**
@@ -1130,21 +1208,12 @@ export class BtpsServer {
     const { artifact, type } = data;
     if (type === 'agent') return this.verifyAgentSignature(artifact);
 
-    // check delegation
-    if (artifact.delegation) {
-      return this.verifyDelegation(
-        artifact as Omit<BTPTransporterArtifact, 'delegation'> & { delegation: BTPDelegation },
-      );
-    }
-
-    const { signature, ...signedMsg } = artifact;
-    const publicKey = await resolvePublicKey(artifact.from, artifact.selector);
-
-    if (!publicKey) {
-      return { isValid: false, error: new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY) };
-    }
-
-    return verifySignature(signedMsg, signature, publicKey);
+    const { isValid, error } = await verifyTransporterSignature(
+      artifact,
+      this.keyResolver,
+      this.keyChains,
+    );
+    return { isValid, error };
   }
 
   /**
@@ -1163,14 +1232,103 @@ export class BtpsServer {
     const isKnown =
       relatesTo !== undefined &&
       (await this.trustStore.isKnownArtifact({ artifactId: relatesTo, from, to }));
-    if (isKnown) return { isTrusted: true, error: undefined };
-    return {
+    if (!isKnown) {
+      return {
+        isTrusted: false,
+        error: new BTPErrorException(BTP_ERROR_EVENT_UNRELATED, {
+          cause: `no artifact ${relatesTo} between ${from} and ${to}`,
+          meta: { relatesTo, from, to },
+        }),
+      };
+    }
+    return { isTrusted: true, error: undefined };
+  }
+
+  /**
+   * Since 1.2: a details refresh, on an active trust in either direction, read
+   * from the receiver's own record of it: its names against what each side
+   * holds, and a response against a request it knows. Nothing is decrypted.
+   */
+  private async verifyDetailsTrust(
+    artifact: BTPTransporterArtifact,
+  ): Promise<{ isTrusted: boolean; error?: BTPErrorException }> {
+    const { from, to } = artifact;
+    const records = await Promise.all([
+      this.trustStore.getById(computeTrustId(from, to)),
+      this.trustStore.getById(computeTrustId(to, from)),
+    ]);
+    const active = records.filter(isTrustActive);
+    const record = active.find((r) => r?.permissions) ?? active[0];
+    if (!record) return { isTrusted: false, error: this.getTrustRefusalError(records[0]) };
+    const refuse = (refusal: { error: BTPError; problem: string }) => ({
       isTrusted: false,
-      error: new BTPErrorException(BTP_ERROR_EVENT_UNRELATED, {
-        cause: `no artifact ${relatesTo} between ${from} and ${to}`,
-        meta: { relatesTo, from, to },
-      }),
-    };
+      error: new BTPErrorException(refusal.error, { cause: refusal.problem }),
+    });
+
+    const namesRefusal = detailsNamesRefusal(artifact, record);
+    if (namesRefusal) return refuse(namesRefusal);
+
+    if (artifact.type === 'DETAILS_RES') {
+      const query = { artifactId: artifact.relatesTo ?? '', from: to, to: from };
+      if (!(await this.trustStore.isKnownArtifact(query))) {
+        return refuse({
+          error: BTP_ERROR_PERMISSION,
+          problem: 'a details response answers a request its receiver sent',
+        });
+      }
+    }
+
+    return this.verifyPrivacyType(artifact, record);
+  }
+
+  /**
+   * Since 1.2: tell listeners of a details refresh only once every check has
+   * passed, the platform's own middleware included: a request that arrived,
+   * or a response one of this provider's devices sends.
+   */
+  private tellDetails({ type, artifact }: ProcessedArtifact) {
+    const at = new Date().toISOString();
+    if (type === 'transporter' && artifact.type === 'DETAILS_REQ') {
+      const { from, to, details = [] } = artifact;
+      this.tell('detailsRequested', { from, to, names: [...details], at });
+    }
+    const carried = type === 'agent' ? (artifact.document as BTPTransporterArtifact) : undefined;
+    if (carried?.type === 'DETAILS_RES') {
+      const { from, to, details = [] } = carried;
+      this.tell('detailsShared', { from, to, names: [...details], at });
+    }
+  }
+
+  /**
+   * Since 1.2: tell every listener, each on its own: one that throws is warned
+   * about and never stops the others or the artifact.
+   */
+  private tell<K extends keyof BtpsServerEvents>(
+    event: K,
+    info: Parameters<BtpsServerEvents[K]>[0],
+  ) {
+    for (const listener of this.events.listeners(event)) {
+      try {
+        (listener as BtpsServerEvents[K])(info);
+      } catch (error) {
+        console.warn(`[BtpsServer] Warning: a ${event} listener threw:`, error);
+      }
+    }
+  }
+
+  /**
+   * Since 1.2: listen for `detailsRequested`, emitted when a details request
+   * arrives and passes its checks, and `detailsShared`, emitted when one of
+   * this provider's devices sends a details response that passes them: who
+   * asked or gave whom which details, and when.
+   */
+  public on<K extends keyof BtpsServerEvents>(event: K, listener: BtpsServerEvents[K]): void {
+    this.events.on(event, listener);
+  }
+
+  /** Since 1.2: stop listening. */
+  public off<K extends keyof BtpsServerEvents>(event: K, listener: BtpsServerEvents[K]): void {
+    this.events.off(event, listener);
   }
 
   /**
@@ -1183,11 +1341,16 @@ export class BtpsServer {
 
     if (type === 'agent') return this.verifyAgentTrust(artifact);
 
+    if ((DETAILS_ARTIFACT_TYPES as readonly string[]).includes(artifact.type)) {
+      return this.verifyDetailsTrust(artifact);
+    }
+
     if (artifact.type === 'TRUST_RES') {
       const { isValid, error } = await validateTrustResponse(
         artifact.from,
         artifact.to,
         this.trustStore,
+        artifact,
       );
       return { isTrusted: isValid, error };
     }
@@ -1204,11 +1367,20 @@ export class BtpsServer {
     }
 
     if (artifact.type === 'TRUST_REQ') {
-      const { isValid, error } = validateTrustRequest(trustRecord);
+      const { isValid, error } = validateTrustRequest(trustRecord, artifact);
       return { isTrusted: isValid, error };
     } else {
       if (!isTrustActive(trustRecord)) {
         return { isTrusted: false, error: this.getTrustRefusalError(trustRecord) };
+      }
+      // Since 1.2: under a trust with permissions, a send names a document type it grants.
+      // Documents travel only along the trust's direction, id(from → to), unlike details refresh, which reads either direction.
+      const refusal = trustRecord && documentTypeRefusal(artifact, trustRecord);
+      if (refusal) {
+        return {
+          isTrusted: false,
+          error: new BTPErrorException(refusal.error, { cause: refusal.problem }),
+        };
       }
       return this.verifyPrivacyType(artifact, trustRecord);
     }
@@ -1329,6 +1501,19 @@ export class BtpsServer {
     );
   }
 
+  /**
+   * Whether the implementor takes errors into its own logs, through the
+   * onError option or onError middleware. Then the server does not also write
+   * them to console.error.
+   */
+  private takesErrors(): boolean {
+    return (
+      this.onError !== undefined ||
+      this.middlewareManager.getMiddleware('before', 'onError').length > 0 ||
+      this.middlewareManager.getMiddleware('after', 'onError').length > 0
+    );
+  }
+
   private noHandlerWarning(type: 'agent' | 'transporter'): string {
     const name = type === 'agent' ? 'Agent' : 'Transporter';
     return `no ${name} handler, forwardTo or 'before onArtifact' middleware is registered, so ${type} artifacts are refused. Register one with onIncomingArtifact('${name}', handler).`;
@@ -1400,7 +1585,7 @@ export class BtpsServer {
         return { error: 'VALIDATION', data };
       }
 
-      const validationResult = validate(BtpArtifactServerSchema, data);
+      const validationResult = validate<unknown>(BtpArtifactSchemaByType[type], data);
 
       if (!validationResult.success) {
         return {
@@ -1504,17 +1689,52 @@ export class BtpsServer {
    * Sends a BTPS error response to the client
    */
   /**
-   * What a sender is told about an error. A BTPS error carries its status and
-   * its code; a numeric code set by middleware is sent as given. Anything else
-   * is internal: a generic 500, so no internal detail ever reaches the wire.
-   * The full error stays with the server, keyed by the response id.
+   * What a sender is told about an error. A BTPS error, from its constant,
+   * carries its status and its code; a numeric code middleware sends with
+   * `res.sendError` goes as given. Anything else, a thrown error with a code
+   * of its own included, is internal: a generic 500, so no internal detail
+   * ever reaches the wire. The full error stays with the server, keyed by the
+   * response id. Since 1.2, a 429 also carries its meta.retryAfter, in whole
+   * seconds; nothing else from meta, and never cause.
    */
-  private wireStatus(error: BTPError): BTPStatus {
-    if (typeof error.code === 'number') {
-      return { ok: false, code: error.code, message: error.message };
+  private wireStatus(error: BTPError, fromMiddleware = false): BTPStatus {
+    const status = this.errorStatus(error, fromMiddleware);
+    const retryAfter = error instanceof BTPErrorException ? error.meta?.retryAfter : undefined;
+    if (
+      status.code === 429 &&
+      typeof retryAfter === 'number' &&
+      Number.isSafeInteger(retryAfter) &&
+      retryAfter >= 0
+    ) {
+      return { ...status, retryAfter };
     }
-    if (error.status && error.code) {
-      return { ok: false, code: error.status, message: error.message, error: error.code };
+    return status;
+  }
+
+  private errorStatus(error: BTPError, fromMiddleware: boolean): BTPStatus {
+    // A platform's own answer: a plain object its middleware sends with res.sendError, as given.
+    if (fromMiddleware && !(error instanceof Error)) {
+      if (error.status && typeof error.code === 'string') {
+        return { ok: false, code: error.status, message: error.message, error: error.code };
+      }
+      if (typeof error.code === 'number') {
+        return { ok: false, code: error.code, message: error.message };
+      }
+    }
+    // Anything thrown, or an error passed on as caught: told only as a BTPS error, by its
+    // code, with its constant's status, and its constant's message or that message with
+    // the detail the server adds (`<message>: <detail>`).
+    const constant =
+      typeof error.code === 'string' ? BTPS_ERRORS_BY_CODE.get(error.code) : undefined;
+    if (constant?.status !== undefined) {
+      const ownMessage =
+        error.message === constant.message || error.message.startsWith(`${constant.message}: `);
+      return {
+        ok: false,
+        code: constant.status,
+        message: ownMessage ? error.message : constant.message,
+        error: String(constant.code),
+      };
     }
     return {
       ok: false,
@@ -1529,8 +1749,9 @@ export class BtpsServer {
     error: BTPError,
     reqId?: string,
     action?: BtpsErrorAction,
+    fromMiddleware = false,
   ) {
-    const response = this.prepareBtpsResponse(this.wireStatus(error), reqId);
+    const response = this.prepareBtpsResponse(this.wireStatus(error, fromMiddleware), reqId);
 
     this.sendBtpsResponse(
       socket,
@@ -1549,10 +1770,17 @@ export class BtpsServer {
    */
   private sendBtpsResponse(
     socket: TLSSocket,
-    artifact: BTPServerResponse,
+    response: BTPServerResponse,
     action?: BtpsErrorAction,
   ) {
     if (socket.destroyed || socket.writableEnded || !socket.writable) return;
+
+    // Since 1.2: an answer after which this server ends the connection says so,
+    // before it is signed, so its sender sends nothing more on it.
+    const artifact: BTPServerResponse =
+      action && !response.signature && !isVersionBelow(response.version, '1.2.0')
+        ? { ...response, status: { ...response.status, closing: true } }
+        : response;
 
     // Validate the response artifact using Zod schema
     const validationResult = validate(BtpServerResponseSchema, artifact);
@@ -1562,10 +1790,67 @@ export class BtpsServer {
         meta: { validationErrors: validationResult.error.errors, response: artifact },
       });
       this.onError?.(error);
-      if (!socket.destroyed) socket.destroy();
+      // A wrong answer is the provider's: its sender is told so against its
+      // request, and the connection stays. Only the generic error itself failing ends it.
+      const isGenericError =
+        artifact.type === 'btps_error' && artifact.status?.error === BTP_ERROR_UNKNOWN.code;
+      if (isGenericError) {
+        if (!socket.destroyed) socket.destroy();
+        return;
+      }
+      const reqId = typeof artifact.reqId === 'string' ? artifact.reqId : undefined;
+      this.sendBtpsError(socket, BTP_ERROR_UNKNOWN, reqId, action);
       return;
     }
 
+    if (!this.signAnswers) {
+      this.writeAnswer(socket, artifact, action);
+      return;
+    }
+    // Signed as this server, after its reqId is set. Signing may take time (a KMS), so each
+    // answer on a connection goes out after every earlier one, and so does any close it asks
+    // for: a later answer that ends the connection never drops an earlier one still signing.
+    // An answer that fails is reported, and the ones after it still go out.
+    const earlier = this.answersOnSocket.get(socket) ?? Promise.resolve();
+    const answer = earlier
+      .then(async () => {
+        // A connection that has gone, or that an earlier answer ended, is sent nothing: nothing is signed for it.
+        if (socket.destroyed || socket.writableEnded) return;
+        const signed = artifact.signature ? artifact : await this.signAnswer(artifact);
+        this.writeAnswer(socket, signed, action);
+      })
+      .catch((err: unknown) => this.onError?.(transformToBTPErrorException(err)));
+    this.answersOnSocket.set(socket, answer);
+  }
+
+  /**
+   * The answer signed as this server, under its own selector, so a device that
+   * requires its server's signature can read it, a refusal included. Unsigned
+   * when signing fails, which the failure reports to onError.
+   */
+  private async signAnswer(artifact: BTPServerResponse): Promise<BTPServerResponse> {
+    const unsigned: BTPServerResponse = {
+      ...artifact,
+      signedBy: this.serverIdentity.identity,
+      selector: this.serverIdentity.selector,
+    };
+    try {
+      const signature =
+        'signer' in this.serverIdentity
+          ? await signBtpPayloadWithSigner(unsigned, this.serverIdentity.signer)
+          : signBtpPayload(unsigned, {
+              publicKey: this.serverIdentity.publicKey,
+              privateKey: this.serverIdentity.privateKey,
+            });
+      return { ...unsigned, signature };
+    } catch (error) {
+      this.onError?.(transformToBTPErrorException(error));
+      return artifact;
+    }
+  }
+
+  private writeAnswer(socket: TLSSocket, artifact: BTPServerResponse, action?: BtpsErrorAction) {
+    if (socket.destroyed || socket.writableEnded || !socket.writable) return;
     try {
       socket.write(JSON.stringify(artifact) + '\n');
       this.middlewareManager.onResponseSent(artifact);

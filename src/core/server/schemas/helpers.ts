@@ -5,7 +5,13 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-import { AGENT_ACTIONS_REQUIRING_DOCUMENT } from '../constants/index.js';
+import {
+  AGENT_ACTIONS_REQUIRING_DOCUMENT,
+  AGENT_TRANSPORTER_ACTIONS,
+  MIN_SUPPORTED_VERSION,
+  artifactVersion,
+  isVersionBelow,
+} from '../constants/index.js';
 import { z } from 'zod';
 import {
   BtpAgentMutationSchema,
@@ -17,26 +23,58 @@ import {
   BTPArtifactType,
   AgentAction,
   AgentActionRequiringDocument,
+  BTPAgreementEvent,
   BTPLifecycleEvent,
 } from '../types.js';
 import {
   BtpAuthReqDocSchema,
+  BtpDetailsNoteDocSchema,
   BtpDocumentSchema,
-  BtpLifecycleEventSchema,
+  BtpDocumentV1_1Schema,
+  BtpEventSchema,
+  BtpLifecycleEventV1_1Schema,
   BtpTrustReqDocSchema,
+  BtpTrustReqDocV1_1Schema,
   BtpTrustResDocSchema,
+  BtpTrustResDocV1_1Schema,
 } from './btpsDocsSchema.js';
 import { BTPEncryption } from '@core/crypto/types.js';
-export const processBtpDocSchema = (bptArtifactType: BTPArtifactType) => {
+import type { BTPEventFacts } from '@core/trust/types.js';
+import {
+  BtpDetailsResDocSchema,
+  detailsValuesProblem,
+  trustRequestProblem,
+  trustResponseProblem,
+} from './trustValues.js';
+
+export { trustRequestProblem, trustResponseProblem, BtpDetailValueSchemas } from './trustValues.js';
+export { trustGrantProblem, documentTypeProblem, detailsProblem } from '@core/trust/permissions.js';
+
+/**
+ * The schema a document of this artifact type is read with, under the
+ * artifact's version: 1.2 rules apply to 1.2.0 artifacts only, so a document
+ * valid in 1.1 stays valid under 1.1.0. Without a version, as 1.1 reads it.
+ */
+export const processBtpDocSchema = (
+  bptArtifactType: BTPArtifactType,
+  version: string = MIN_SUPPORTED_VERSION,
+) => {
+  const before1_2 = isVersionBelow(version, '1.2.0');
   switch (bptArtifactType) {
     case 'TRUST_RES':
-      return BtpTrustResDocSchema;
+      return before1_2 ? BtpTrustResDocV1_1Schema : BtpTrustResDocSchema;
     case 'TRUST_REQ':
-      return BtpTrustReqDocSchema;
+      return before1_2 ? BtpTrustReqDocV1_1Schema : BtpTrustReqDocSchema;
     case 'BTPS_DOC':
-      return BtpDocumentSchema;
+      return before1_2 ? BtpDocumentV1_1Schema : BtpDocumentSchema;
     case 'BTPS_EVENT':
-      return BtpLifecycleEventSchema;
+      return before1_2 ? BtpLifecycleEventV1_1Schema : BtpEventSchema;
+    // Since 1.2, under 1.2.0 only: the envelope refuses a details artifact under 1.1.0.
+    case 'DETAILS_CHANGED':
+    case 'DETAILS_REQ':
+      return BtpDetailsNoteDocSchema;
+    case 'DETAILS_RES':
+      return BtpDetailsResDocSchema;
     default:
       return null;
   }
@@ -60,6 +98,88 @@ export const lifecycleEventEnvelopeProblem = (
 };
 
 /**
+ * Since 1.2: the rules between an agreement's event and its artifact: the
+ * event's `id` is the artifact's `id`, and it travels between the agreement's
+ * originator and a signer. Returns what is wrong, or undefined.
+ */
+export const agreementEventEnvelopeProblem = (
+  event: BTPAgreementEvent,
+  envelope: { id: string; from: string; to: string },
+): string | undefined => {
+  if (event.id !== envelope.id) return "an event's id must be the id of the artifact carrying it";
+  const { originator } = event.agreement;
+  if (!sameIdentity(originator, envelope.from) && !sameIdentity(originator, envelope.to)) {
+    return "an agreement's event travels between its originator and a signer";
+  }
+  return undefined;
+};
+
+/** The payer's proposals: the events a `withdrawn` can take back and a `follows` can follow on. */
+const PROPOSALS: readonly string[] = ['paid', 'partially_paid', 'disputed', 'refund_requested'];
+
+/** The id of the earlier event an event names in its chain: a withdrawn's proposal, or the withdrawn a proposal follows. */
+export const lifecycleEventChainReference = (event: BTPLifecycleEvent): string | undefined => {
+  if (event.eventType === 'withdrawn') return event.inReplyTo;
+  return 'follows' in event ? event.follows : undefined;
+};
+
+export const sameIdentity = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/** Whether two events are about the same invoice. */
+const sameDocument = (a: { from: string; id: string }, b: { from: string; id: string }) =>
+  sameIdentity(a.from, b.from) && a.id === b.id;
+
+/**
+ * The chain rule that needs nothing but the event: only the payer, never the
+ * invoice's issuer (`document.from`), withdraws or proposes again, since a
+ * biller's own recorded `paid` is final. Returns what is wrong, or undefined.
+ */
+export const lifecycleEventSenderProblem = (
+  event: BTPLifecycleEvent,
+  envelope: { from: string },
+): string | undefined => {
+  if (lifecycleEventChainReference(event) === undefined) return undefined;
+  if (!sameIdentity(envelope.from, event.document.from)) return undefined;
+  return "only the payer withdraws or proposes again, never the invoice's issuer";
+};
+
+/**
+ * The rules between an event and the earlier event it names in its chain,
+ * given what the platform holds of that one between the same two parties
+ * (undefined when it holds none): the sender rule above; a `withdrawn` takes
+ * back the payer's own proposal, about the same invoice, while it is open; a
+ * proposal sent again follows a `withdrawn` about the same invoice. A server
+ * checks an unencrypted event with it; a platform checks an encrypted one
+ * after decrypting it. Returns what is wrong, or undefined.
+ */
+export const lifecycleEventChainProblem = (
+  event: BTPLifecycleEvent,
+  envelope: { from: string },
+  named: BTPEventFacts | undefined,
+): string | undefined => {
+  if (lifecycleEventChainReference(event) === undefined) return undefined;
+  const senderProblem = lifecycleEventSenderProblem(event, envelope);
+  if (senderProblem) return senderProblem;
+  if (event.eventType === 'withdrawn') {
+    if (!named) return 'a withdrawn must name an event between the same two parties';
+    if (!PROPOSALS.includes(named.eventType)) return 'only a proposal can be withdrawn';
+    if (!sameIdentity(named.from, envelope.from)) return 'only its sender can withdraw a proposal';
+    if (!sameDocument(named.document, event.document)) {
+      return 'a withdrawn is about the same invoice as the proposal it takes back';
+    }
+    if (named.state !== 'open') return 'a proposal already answered or withdrawn stays as it is';
+    return undefined;
+  }
+  if (named?.eventType !== 'withdrawn') {
+    return 'follows must name a withdrawn event between the same two parties';
+  }
+  if (!sameDocument(named.document, event.document)) {
+    return 'a proposal follows a withdrawn about the same invoice';
+  }
+  return undefined;
+};
+
+/**
  * Checks a document that was encrypted as an unencrypted one is checked on
  * arrival: its type's schema (field limits included), then, for an event, the
  * rules between it and its envelope. Returns what is wrong, or undefined.
@@ -68,17 +188,32 @@ export const decryptedDocumentProblem = (
   document: unknown,
   envelope: Record<string, unknown>,
 ): string | undefined => {
-  const schema = processBtpDocSchema(envelope.type as BTPArtifactType);
+  const version = typeof envelope.version === 'string' ? envelope.version : undefined;
+  const schema = processBtpDocSchema(envelope.type as BTPArtifactType, version);
   if (!schema) return undefined;
   const parsed = schema.safeParse(document);
   if (!parsed.success) return 'Document type does not match the artifact type';
+  // Since 1.2: a trust request's or answer's values match the names on its envelope.
+  const names = envelope as { given?: readonly string[]; granted?: readonly string[] };
+  if (envelope.type === 'TRUST_REQ') return trustRequestProblem({ given: names.given, document });
+  if (envelope.type === 'TRUST_RES') {
+    return trustResponseProblem({ granted: names.granted, document });
+  }
+  if (envelope.type === 'DETAILS_RES') {
+    return detailsValuesProblem({
+      details: (envelope as { details?: string[] }).details,
+      document,
+    });
+  }
   if (envelope.type !== 'BTPS_EVENT') return undefined;
-  const event = parsed.data as BTPLifecycleEvent;
+  const event = parsed.data as BTPLifecycleEvent | BTPAgreementEvent;
   const { id, from, to } = envelope;
   if (typeof id !== 'string' || typeof from !== 'string' || typeof to !== 'string') {
     return 'an event must travel in an artifact with an id, from and to';
   }
-  return lifecycleEventEnvelopeProblem(event, { id, from, to });
+  return event.type === 'agreement_event'
+    ? agreementEventEnvelopeProblem(event, { id, from, to })
+    : lifecycleEventEnvelopeProblem(event, { id, from, to });
 };
 
 // Helper function to process document schema based on action type
@@ -89,7 +224,7 @@ export const processBtpDocSchemaForAgent = (actionType: string) => {
     'trust.update': BtpAgentMutationSchema,
     'trust.delete': BtpIdsPayloadSchema,
     'artifact.send': BtpDocumentSchema,
-    'event.send': BtpLifecycleEventSchema,
+    'event.send': BtpEventSchema,
     'auth.request': BtpAuthReqDocSchema,
     'auth.refresh': BtpAuthReqDocSchema,
     'inbox.fetch': BtpAgentQuerySchema,
@@ -137,9 +272,17 @@ export const validateAgentDocument = (
     return false;
   }
 
-  // If document is provided, validate it against the appropriate schema for the action type
+  // If document is provided, validate it against the appropriate schema for the action type.
+  // A document a device sends is checked under the version it will be stamped with, so what
+  // 1.1 can say goes as 1.1 says it.
   if (document) {
-    const expectedSchema = processBtpDocSchemaForAgent(action);
+    const sendsAs =
+      action in AGENT_TRANSPORTER_ACTIONS
+        ? AGENT_TRANSPORTER_ACTIONS[action as keyof typeof AGENT_TRANSPORTER_ACTIONS]
+        : undefined;
+    const expectedSchema = sendsAs
+      ? processBtpDocSchema(sendsAs, artifactVersion({ type: sendsAs, document }))
+      : processBtpDocSchemaForAgent(action);
     if (expectedSchema) {
       const documentValidation = expectedSchema.safeParse(document);
       if (!documentValidation.success) {

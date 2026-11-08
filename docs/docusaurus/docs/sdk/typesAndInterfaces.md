@@ -19,8 +19,10 @@ Configuration options for the BTPS server.
 ```ts
 interface BtpsServerOptions {
   serverIdentity:
-    | { identity: string; publicKey: string; privateKey: string }
-    | { identity: string; signer: Signer };
+    | { identity: string; publicKey: string; privateKey: string; selector?: string }
+    | { identity: string; signer: Signer; selector?: string };
+  signAnswers?: boolean;
+  keyResolver?: BtpsKeyResolver; // since 1.2
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   port?: number;
@@ -35,7 +37,9 @@ interface BtpsServerOptions {
 
 **Properties:**
 
-- `serverIdentity`: Required server identity: its identity, with its PEM public and private key, or with a `signer` holding the key elsewhere, such as a KMS (see [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter))
+- `serverIdentity`: Required server identity: its identity, with its PEM public and private key, or with a `signer` holding the key elsewhere, such as a KMS (see [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter)). Since 1.2, `selector` is the selector its key is published under; `signAnswers` needs it
+- `signAnswers`: Optional, since 1.2. Signs every answer, errors included, as `serverIdentity` under its `selector`, after the answer's `reqId` is set, so a device that requires its server's signature (`requireSignedBy`) can read it. Off by default. `serverIdentity` is the domain's operator (for example `admin$saas.example`), the same identity and key that signs identity-lookup answers, so a provider keeps one key pair. Every 1.1 and 1.2 client takes a lookup answer only from the operator, so a `serverIdentity` of any other identity would leave the host unable to answer lookups
+- `keyResolver`: Optional, since 1.2. Finds every key the server checks a signature with (a sender's, a delegator's, an attestor's), so a provider can cache them; see [BtpsKeyResolver](#btpskeyresolver). Without it, each is looked up in DNS, as before
 - `trustStore`: Required trust store instance for managing trust records
 - `identityStore`: Optional identity store instance for managing identity records
 - `port`: Optional port number (default: 3443)
@@ -45,6 +49,10 @@ interface BtpsServerOptions {
 - `middlewarePath`: Optional path to middleware file
 - `maxArtifactSizeKb`: Optional largest artifact the server can accept, in KB, where 1 KB is 1024 bytes (default: 5120, that is 5 MB). An artifact over it is refused before it is read in full, with the limit in the error message, and the connection is closed. The minimum is 1024 (1 MB): a smaller value logs a warning and 1024 is used, and a value that is not a size logs a warning and the default is used. There is no maximum.
 - `maxArtifactAgeSeconds`: Optional time window, in seconds: how far a signed artifact's `issuedAt` may be from the server's clock, either way (default: 300, that is 5 minutes). An artifact outside it is refused after its signature is checked, with the window in the error message, and the connection stays open. The minimum is 60: a smaller value logs a warning and 60 is used, and a value that is not a time logs a warning and the default is used. There is no maximum. Within the window the same artifact can arrive more than once, so a platform treats `(from, id)` as unique.
+
+The provider's own limit on details requests is middleware, since 1.2: `detailsRequestLimit` (see [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)).
+
+Since 1.2, `server.on('detailsRequested', listener)` tells a listener each time a details request arrives and passes every check, the platform's middleware included, and `server.on('detailsShared', listener)` each time one of this provider's devices sends a details response that passes them: `{ from, to, names, at }`. A listener that throws is warned about and never stops the others; `server.off` removes one.
 
 ---
 
@@ -66,6 +74,8 @@ interface BTPClientOptions {
   host?: string;
   hostSelector?: string;
   hostOperator?: string;
+  requireSignedBy?: { identity: string; selector: string };
+  keyResolver?: BtpsKeyResolver; // since 1.2
   version?: string;
   port?: number;
   maxQueue?: number;
@@ -84,6 +94,8 @@ interface BTPClientOptions {
 - `host`: Optional custom host override
 - `hostSelector`: Optional DNS selector for key management (default: 'btps1')
 - `hostOperator`: Optional, with `host`: the identity operating that host, which must sign its identity lookup answers. Without `host`, the operator comes from DNS (`op` in `_btps.host`)
+- `requireSignedBy`: Optional, since 1.2. Takes no answer but one signed by this identity under this selector, as a provider's own app expects of its server: its domain's operator (for example `admin$saas.example` under `btps1`); an unsigned answer, or one by any other signer, is refused before any key is looked up. The signer's identity compares without case; its selector exactly. The provider's server signs its answers with `signAnswers`. It applies to answers on this client's own connection, a device's commands to its provider: `resolveIdentity` looks a receiver's key up on a connection of its own and checks that the answer is signed by the domain's operator instead, so the pin never stands in the way of a lookup. An identity-lookup answer that arrives on the pinned connection itself is taken: with one key pair, the operator is the pinned signer
+- `keyResolver`: Optional, since 1.2. Finds the keys the client checks and encrypts with: an answer's signer (`verify`), and in `resolveIdentity` the receiver's key (`encrypt`), asked in place of DNS, with the receiver's host still asked after it. `BtpsAgent` and `BtpsTransporter` take it too. See [BtpsKeyResolver](#btpskeyresolver)
 - `version`: Optional protocol version (default: '1.1.0')
 - `port`: Optional custom port override
 - `maxQueue`: Optional maximum queue size for request handling (default: 100)
@@ -132,13 +144,21 @@ Response from a BTPS client operation.
 interface BTPClientResponse {
   response?: BTPServerResponse;
   error?: BTPErrorException;
+  shaped?: BTPShaped; // since 1.2
 }
+
+// Since 1.2: a trust request sent as its 1.1 receiver allows
+type BTPShaped = {
+  sentAs: string; // '1.1.0'
+  leftOut: ('permissions' | 'given' | 'entityType' | 'change' | 'own' | 'verification')[];
+};
 ```
 
 **Properties:**
 
 - `response`: Optional server response if successful
 - `error`: Optional error if the operation failed
+- `shaped`: Since 1.2, only when a trust request with permissions went to a receiver whose server speaks 1.1: the version it went as, and what it left out. The trust it asks for will carry no permissions. See [To a receiver whose server speaks 1.1](../protocol/specifications/transporter-artifact.md#trust-permissions)
 
 ### ConnectionStates
 
@@ -158,7 +178,7 @@ interface ConnectionStates {
 
 - `isConnecting`: Whether the connection is currently being established
 - `isConnected`: Whether the connection is active and ready
-- `isDraining`: Whether the connection is draining (finishing pending operations)
+- `isDraining`: Always `false` since 1.2. The socket buffers what it cannot send at once, and the client keeps no queue of its own
 - `isDestroyed`: Whether the connection has been destroyed
 - `shouldRetry`: Whether the connection should be retried on failure
 
@@ -256,15 +276,36 @@ type BtpsAgentDoc = BTPDocType | BTPAuthReqDoc | BTPAgentMutation | BTPIdsPayloa
 
 ### BtpsAgentCommandOptions
 
-Options for `BtpsAgent.command`: the [BTPCryptoOptions](#btpcryptooptions), plus `relatesTo` for events.
+Options for `BtpsAgent.command`: the [BTPCryptoOptions](#btpcryptooptions), plus `relatesTo` for events and, since 1.2, `syncOf` for a sync.
 
 ```ts
 type BtpsAgentCommandOptions = BTPCryptoOptions & {
   relatesTo?: string;
+  id?: string;
+  syncOf?: BTPSyncOf; // since 1.2
+  documentType?: BTPDocumentType; // since 1.2
+  details?: BTPDetailPermission[]; // since 1.2
+  // Since 1.2, trust permissions:
+  permissions?: BTPTrustPermissions; // trust.request
+  entityType?: BTPEntityType; // trust.request, trust.respond
+  given?: BTPDetailPermission[]; // trust.request
+  change?: true; // trust.request
+  granted?: BTPPermissionName[]; // trust.respond
 };
+
+interface BTPSyncOf {
+  id: string; // the sent artifact's id
+  sha256: string; // lowercase hex SHA-256 of the sent artifact's RFC 8785 form
+}
 ```
 
-- `relatesTo`: Required on `event.send` and refused on every other action: the `id` of the `BTPS_DOC` artifact that delivered the invoice the event is about. It is set on the `BTPS_EVENT` envelope, outside the encrypted document, so the receiving server can check it without decrypting
+- `relatesTo`: Required on `event.send` and refused on every other action but the details ones: the `id` of the `BTPS_DOC` artifact that delivered the invoice the event is about. It is set on the `BTPS_EVENT` envelope, outside the encrypted document, so the receiving server can check it without decrypting. Since 1.2, it is also required on `details.respond` (the `DETAILS_REQ` it answers) and allowed on `details.request` (the `DETAILS_CHANGED` it follows)
+- `details`: Since 1.2, required on `details.changed`, `details.request` and `details.respond`, and refused elsewhere: the `detail:` names the artifact is about, set on its envelope. A `details.respond` also needs `encryption`. See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)
+- `syncOf`: Since 1.2, on `artifact.send` to the device's own address only, and refused elsewhere: this send is a sync, the user's own copy of the send it names. `syncOfArtifact(sentArtifact)` gives it. It is set on the envelope and stamps the artifact `1.2.0`. See [Sync](../protocol/specifications/transporter-artifact.md#sync)
+- `documentType`: Since 1.2, on `artifact.send` only, and refused elsewhere: the document's own `type`, for a send under a trust with permissions, whose receiver checks that `send:<documentType>` is granted. A value that is not the document's type is refused before anything is sent. It is set on the envelope and stamps the artifact `1.2.0`, so leave it out for any other send. See [Trust permissions](../protocol/specifications/transporter-artifact.md#a-sends-document-type)
+- `permissions`, `entityType`, `given`, `change`: Since 1.2, on `trust.request`: the permissions asked for, what owns the user's address, the details the user gives (their values go in the document: see [The values](../protocol/specifications/transporter-artifact.md#the-values-checked-when-opened)), and whether this changes an active trust. `entityType` is required with `permissions`
+- `granted`, `entityType`: Since 1.2, on `trust.respond`, when accepting: the names granted, and what owns the user's address
+- Each of these is set on the envelope and stamps the artifact `1.2.0`. The built artifact is checked as its provider will check it, so a request that does not give what it asks for, or names a permission that is not the protocol's, is refused before it is sent (`BTP_ERROR_VALIDATION`, naming the rule)
 
 ### BTPConnection
 
@@ -343,6 +384,8 @@ interface ServerAuthConfig {
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tokenStore: TokenStore;
   tokenConfig?: TokenConfig;
+  maxKeyAgeMs?: number; // since 1.2
+  refreshGraceMs?: number; // since 1.2, default 30 000
 }
 ```
 
@@ -351,6 +394,8 @@ interface ServerAuthConfig {
 - `trustStore`: Required trust store for managing trust records
 - `tokenStore`: Required token store for managing authentication tokens
 - `tokenConfig`: Optional token configuration
+- `maxKeyAgeMs`: Since 1.2, optional and off by default. The oldest a device key may be: a refresh signed by an older key is refused with `BTP_ERROR_KEY_TOO_OLD`, and the device moves to a new key with the same refresh token. The age runs from when the key came into use (the newest `keyHistory` entry's `lastSeen`, else the record's `createdAt`).
+- `refreshGraceMs`: Since 1.2, default 30 000; `0` is off. How long a just-rotated refresh token's old value still works: a refresh retried inside the window gets the same answer again, the same new token included; after it, a second use is theft. Needs a token store with `isConsumed` and `markSuccessor`; otherwise it is `0`.
 
 ### TokenConfig
 
@@ -462,6 +507,7 @@ Configuration options for BTPS delegator.
 type BtpsDelegatorOptions = {
   identity: string;
   autoInit?: boolean;
+  keyResolver?: BtpsKeyResolver; // since 1.2
 } & ({ privateKey: string } | { signer: Signer });
 ```
 
@@ -471,6 +517,7 @@ type BtpsDelegatorOptions = {
 - `privateKey`: The delegator private key in PEM format, or
 - `signer`: A [Signer](#signer) holding the delegator key elsewhere, such as a KMS
 - `autoInit`: Optional flag to disable auto-initialization (default: true)
+- `keyResolver`: Optional, since 1.2. Finds the delegator's own published key, which it checks its key against (`verify`). Without it, DNS, as before. See [BtpsKeyResolver](#btpskeyresolver)
 
 ---
 
@@ -741,16 +788,57 @@ interface BTPInvoiceDoc {
     linkText: string;
     url: string;
   };
-  description?: string;
+  description?: BTPNote; // a note with a format since 1.2; a plain string as in 1.1
+  discount?: BTPDiscount; // 1.2: a discount on the whole invoice, before tax
   attachments?: BTPAttachment[];
   references?: BTPDocReference[];
-  template?: {
-    name: string;
-    data: Record<string, unknown>;
-  };
+  template?: BTPTemplate;
   metadata?: Record<string, unknown>;
 }
 ```
+
+### BTPNote
+
+A person's note. Since 1.2 it says how it is written, as a letter's body does; a plain string, as in 1.1, is read as `text`. In a `1.2.0` artifact its content is at most 5,000 characters.
+
+```ts
+type BTPNote = string | { format: 'text' | 'markdown'; content: string };
+```
+
+### BTPDiscount
+
+Since 1.2. A discount on a whole invoice or receipt, before tax: an amount in minor units of its currency, or whole basis points from 1 to 10,000.
+
+```ts
+type BTPDiscount = { amount: number } | { percent: number };
+```
+
+### BTPTemplate
+
+A document's template, by reference. Since 1.2, in a `1.2.0` artifact, the named `data` fields are each optional but well formed when present, and a `source` always comes with its `sha256`; other keys stay the provider's. The template file itself is specified on [Templates](../protocol/specifications/templates.md).
+
+```ts
+interface BTPTemplate {
+  name: string;
+  data: {
+    version?: string; // a semantic version
+    sha256?: string; // lowercase hex
+    source?: string; // an https address, always with its sha256
+    logo?: { sha256: string; source: string };
+    values?: BTPTemplateValues; // since 1.2, a letter's template only
+    [key: string]: unknown;
+  };
+}
+
+interface BTPTemplateValues {
+  'signature.typed'?: string; // drawn in the script font Caveat
+  'signature.name'?: string;
+  'signature.title'?: string;
+  'signature.drawn'?: { strokes: number[][] }; // [x, y, x, y, …] on a 1000 by 300 canvas
+}
+```
+
+`values` (since 1.2, in a `1.2.0` artifact, on a letter's template only): what the template's signature slots show, from the sender and signed with the letter. A text value is plain text of 1 to 100 characters. A drawn signature is integer strokes: at most 32 strokes, 512 points a stroke and 2,048 points in all. See [Templates](../protocol/specifications/templates.md#signature-slots-and-their-values).
 
 ### BTPReceiptDoc
 
@@ -780,14 +868,35 @@ interface BTPLifecycleEvent {
   id: string; // a random UUID, the carrying artifact's id
   occurredAt: string; // ISO format
   document: { from: string; id: string; sha256: string }; // the invoice it is about
-  eventType: 'paid' | 'partially_paid' | 'disputed' | 'refund_requested' | 'refund' | 'response';
+  eventType:
+    | 'paid'
+    | 'partially_paid'
+    | 'disputed'
+    | 'refund_requested'
+    | 'refund'
+    | 'response'
+    | 'withdrawn'; // withdrawn: since 1.2
   amount?: { amount: number; currency: CurrencyCode }; // partially_paid, refund: minor units, more than zero
   reason?: string; // disputed: rejected | amount_wrong | not_as_agreed | a prefixed code
   decision?: 'accepted' | 'rejected'; // response
-  inReplyTo?: string; // refund, response: the id of the event answered
+  inReplyTo?: string; // refund, response: the id of the event answered; withdrawn: the proposal taken back
+  follows?: string; // 1.2, on a proposal sent again: the id of the withdrawn it follows
   remainingDueDate?: string; // an accepted response to a partially_paid
-  message?: string; // free text for the other party
+  message?: BTPNote; // free text for the other party; a note with a format since 1.2
 }
+```
+
+### BTPEventFacts
+
+Since 1.2. What a platform holds of a lifecycle event between two parties, as the `getEvent` it gives `eventChainCheck` answers it.
+
+```ts
+type BTPEventFacts = {
+  eventType: string;
+  from: string; // who sent it
+  state: 'open' | 'answered' | 'withdrawn'; // a proposal is open until answered or withdrawn
+  document: { from: string; id: string }; // the invoice it is about: its issuer and id
+};
 ```
 
 ---
@@ -898,6 +1007,34 @@ interface ServerAuthConfig {
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   tokenStore: TokenStore;
   tokenConfig?: TokenConfig;
+  maxKeyAgeMs?: number; // since 1.2: the oldest a device key may be
+  refreshGraceMs?: number; // since 1.2: how long a rotated refresh token still works for a retry; default 30 000, 0 off
+}
+```
+
+### BtpsAuthenticationEvents
+
+Since 1.2: what `auth.on(…)` tells its listeners.
+
+```ts
+type BtpsAuthenticationEvents = {
+  keyRotated: (info: BTPKeyRotatedInfo) => void;
+  refreshTokenReused: (info: BTPRefreshTokenReusedInfo) => void; // the device was revoked
+};
+
+interface BTPKeyRotatedInfo {
+  agentId: string;
+  identity: string;
+  previousFingerprint: string;
+  fingerprint: string;
+  at: string; // ISO 8601
+}
+
+interface BTPRefreshTokenReusedInfo {
+  agentId: string;
+  identity: string;
+  fingerprint?: string; // the revoked device's key, when its record was found
+  at: string; // ISO 8601
 }
 ```
 
@@ -927,6 +1064,16 @@ interface BTPsTokenDocument {
   expiresAt: string;
   decryptBy: string; // Identity to decrypt by when decrypting the document
   metadata?: Record<string, unknown>;
+  successor?: BTPSealedSuccessor; // since 1.2, a consumed refresh token only: its sealed answer
+  consumedAt?: string; // since 1.2, a consumed refresh token only: when consume took it
+}
+
+// Since 1.2: a refresh's answer, sealed under the old token (AES-256-GCM, key by HKDF-SHA256)
+interface BTPSealedSuccessor {
+  at: string; // when the old token was rotated: the grace window runs from here
+  iv: string; // base64
+  ciphertext: string; // base64
+  tag: string; // base64
 }
 ```
 
@@ -958,9 +1105,15 @@ interface TokenStore<T extends BTPsTokenDocument = BTPsTokenDocument> {
   get(agentId: string, token: string): Promise<T | undefined>;
   remove(agentId: string, token: string): Promise<void>;
   consume(agentId: string, token: string): Promise<T | undefined>; // read and remove in one atomic step
+  isConsumed?(agentId: string, token: string): Promise<T | undefined>; // since 1.2, optional
+  markSuccessor?(agentId: string, token: string, successor: BTPSealedSuccessor): Promise<void>; // since 1.2, optional
   cleanup(): Promise<void>;
 }
 ```
+
+`isConsumed` (since 1.2) returns a token `consume` took, as it was, with `consumedAt`, when it was taken, until it would have expired; storing the token again clears it. A second use before the first refresh has an answer, inside `refreshGraceMs`, is told to try again, not taken for theft. With it, a refresh token used a second time revokes the device and fires `refreshTokenReused`. Without it, a second use is refused as in 1.1.
+
+`markSuccessor` (since 1.2) keeps a consumed token's sealed answer on its mark, so `isConsumed` returns it as `successor`. With it, a refresh retried inside `refreshGraceMs` gets the same answer; without it, the window is off. A persistent store should keep only a hash of each token, never its value.
 
 ### AuthSessionStore
 
@@ -1098,6 +1251,7 @@ Decrypts a document for an identity while its private key stays elsewhere. `PemD
 interface Decrypter {
   readonly algorithm: 'aes-256-gcm';
   decrypt(request: DecryptRequest): Promise<Uint8Array>; // the plaintext
+  unwrapKey?(encryptedKey: Uint8Array): Promise<Uint8Array>; // since 1.2, optional: the AES key itself
 }
 
 interface DecryptRequest {
@@ -1108,6 +1262,50 @@ interface DecryptRequest {
   additionalData?: Uint8Array;
 }
 ```
+
+`unwrapKey` (since 1.2, optional) returns the RSA-OAEP-unwrapped AES key itself, so a provider can wrap it again to one of its user's devices (`wrapForAgent`). `PemDecrypter` has it. A KMS decrypter makes the same call inside `decrypt`.
+
+### BtpsKeyResolver
+
+Since 1.2. Finds the public keys BTPS checks and encrypts with, so a provider can put its own cache in front of every lookup. BTPS itself caches nothing. It is the `keyResolver` option of `BtpsServer`, `BtpsClient` (and so `BtpsAgent` and `BtpsTransporter`) and `BtpsDelegator`, and of `signEncrypt`'s `lookup`. It only finds keys: every signature, time window and delegation rule stays inside BTPS, so a resolver cannot loosen any of them.
+
+```ts
+type BTPKeyUse = 'verify' | 'encrypt';
+
+interface BtpsKeyResolver {
+  resolvePublicKey(identity: string, selector: string, use: BTPKeyUse): Promise<string | undefined>; // a PEM key
+}
+```
+
+- `verify`: a signature key (a sender's, a delegator's, an attestor's, the signer of an answer). Without a resolver it is looked up in DNS only.
+- `encrypt`: a receiver's key. Without a resolver it is looked up in DNS, then from the receiver's host. With one, the resolver is asked in place of DNS, and the host is still asked when it has no key.
+- `_btps.host` records are not keys and stay outside the resolver. A local caching DNS resolver covers them.
+
+`createDefaultKeyResolver({ from?, btpMtsOptions? })` (`@btps/sdk/crypto`) is the lookup BTPS does without one, to wrap. Its `encrypt` asks the receiver's host only when given `from`, the sender's own identity.
+
+A cache in front of DNS. Without `from` it never asks a host: BTPS asks the receiver's host itself after the resolver has no key, so wrapping DNS alone is enough.
+
+```ts
+import { createDefaultKeyResolver, type BtpsKeyResolver } from '@btps/sdk/crypto';
+
+const lookup = createDefaultKeyResolver();
+const keys = new Map<string, { pem: string; until: number }>();
+const keyResolver: BtpsKeyResolver = {
+  async resolvePublicKey(identity, selector, use) {
+    const name = `${use}:${identity.toLowerCase()}:${selector}`;
+    const held = keys.get(name);
+    if (held && held.until > Date.now()) return held.pem;
+    const pem = await lookup.resolvePublicKey(identity, selector, use);
+    // A miss is not kept: a key published a moment later is found on the next lookup.
+    if (pem) keys.set(name, { pem, until: Date.now() + 5 * 60_000 }); // as long as the provider chooses
+    return pem;
+  },
+};
+```
+
+- **Keys outlive rotations.** A cached key outlives a rotation by up to the time it is kept, so keep it no longer than a sender's key is expected to stay published after it rotates.
+- **Don't cache a miss for long, or at all.** Otherwise a key published after the lookup stays "not found" for as long as the miss is kept.
+- **With `from`, a miss asks the host twice.** Wrapping `createDefaultKeyResolver({ from })` makes the resolver ask the receiver's host itself, and then BTPS asks it again when the resolver returns nothing. A receiver whose key is in neither place is then asked twice.
 
 ### BTPSigningKey and BTPDecryptionKey
 
@@ -1141,6 +1339,7 @@ Configuration options for the delegator.
 type BtpsDelegatorOptions = {
   identity: string;
   autoInit?: boolean;
+  keyResolver?: BtpsKeyResolver; // since 1.2
 } & ({ privateKey: PemKeys['privateKey'] } | { signer: Signer });
 ```
 
@@ -1190,10 +1389,12 @@ History record for public key usage.
 ```ts
 interface KeyHistory {
   fingerprint: string;
-  firstSeen: string;
-  lastSeen: string;
+  firstSeen: string; // when the key came into use
+  lastSeen: string; // when it was retired
 }
 ```
+
+Since 1.2, `firstSeen` is when the retired key came into use: when the key before it was retired, or when the device registered. Before 1.2 it was the time of the key's last refresh.
 
 ### BTPTrustRecord
 
@@ -1215,6 +1416,16 @@ interface BTPTrustRecord {
   privacyType: BTPEncryptionType;
   retryAfterDate?: string;
   metadata?: Record<string, unknown>;
+  permissions?: BTPTrustRecordPermissions; // since 1.2: written by the platform; without it, a 1.1 trust
+}
+
+// Since 1.2: written by the platform, never the BTPS server, which only reads them
+interface BTPTrustRecordPermissions {
+  requested: BTPTrustPermissions; // what the request asked for
+  granted: BTPPermissionName[]; // what the answer granted
+  detailsHeld: BTPDetailPermission[]; // the other side's details this side holds
+  detailsShared: BTPDetailPermission[]; // this side's details the other side holds
+  pendingChange?: { requested: BTPTrustPermissions; requestedAt: string }; // a change, until answered
 }
 ```
 
@@ -1233,10 +1444,136 @@ interface BTPTrustReqDoc {
   logoUrl?: string;
   displayName?: string;
   websiteUrl?: string;
-  message?: string;
+  message?: BTPNote; // a note with a format since 1.2
   expiresAt?: string;
   privacyType?: BTPEncryptionType;
+  own?: BTPDetailValues; // since 1.2: the values of given details 1.1 has no field for; encrypted
+  verification?: BTPVerification; // since 1.2: a provider's signed statement of what it checked; encrypted
 }
+
+// Since 1.2: see Verification on the Transporter Artifact page
+interface BTPVerification {
+  verifiedBy: string;
+  claims: { entityType?: 'person' | 'organisation' } & BTPDetailValues;
+  verifiedAt: string;
+  expiresAt: string;
+  selector: string;
+  signature: BTPSignature;
+}
+
+interface BTPVerificationFacts {
+  signatureValid: boolean;
+  expired: boolean;
+  verifierServesSender: boolean;
+  verifierIsOperator: boolean;
+}
+
+// Since 1.2: see Agreement on the Transporter Artifact page
+type BTPAgreementRef = { originator: string; id: string; contentSha256: string };
+
+type BTPAgreementStatement = {
+  agreement: BTPAgreementRef;
+  terms: string[];
+  signer: string;
+  decision: 'accepted' | 'declined';
+  signedAt: string;
+  previous?: string; // in a sequential agreement: the SHA-256 of the record before it
+};
+
+// Signed by the signer's identity key at `selector`, or by a device key, carrying the delegated artifact that delivered it
+type BTPStatementRecord = { statement: BTPAgreementStatement; signature: BTPSignature } & (
+  | { selector: string }
+  | { delegatedArtifact: BTPTransporterArtifact & { delegation: BTPDelegation } }
+);
+
+interface BTPStatementSignatureFacts {
+  signatureValid: boolean;
+  keyKind: 'identity' | 'device';
+  delegatedBy?: string; // a device's delegator
+  attestedBy?: string; // and its attestor, if any
+}
+
+// A public key by identity and selector: from DNS, a store, or an evidence bundle
+type BTPKeyOf = (identity: string, selector: string) => string | undefined;
+
+// An agreement's signers, how they answer, and the answers its originator's platform has taken
+type BTPAgreementAnswers = {
+  signers: string[];
+  signingOrder: 'any' | 'sequential';
+  answered: { signer: string; decision: 'accepted' | 'declined'; sha256: string }[];
+};
+
+// What a BTPS_EVENT carries for an agreement: an answer, or statements forwarded by its originator
+type BTPAgreementEvent = {
+  type: 'agreement_event';
+  id: string;
+  occurredAt: string;
+  agreement: BTPAgreementRef;
+} & (
+  | { eventType: 'accepted'; statement: BTPStatementRecord }
+  | { eventType: 'declined'; statement: BTPStatementRecord; message?: BTPNote }
+  | { eventType: 'agreement_progress' | 'agreement_complete'; statements: BTPStatementRecord[] }
+);
+
+// Since 1.2: see The evidence bundle on the Transporter Artifact page
+type BTPEvidenceBundle = {
+  format: 'btps-evidence/1';
+  originator: string;
+  agreement: BTPAgreementDoc;
+  statements: BTPStatementRecord[];
+  keys: { identity: string; selector: string; publicKey: string; fingerprint: string }[];
+  timestamps?: { statementSha256: string; token: string }[]; // RFC 3161 tokens, base64
+};
+
+// What verifyEvidenceBundle reports: facts, never a verdict
+type BTPEvidenceFacts = {
+  contentSha256: string;
+  originatorSignatureValid: boolean;
+  originatorKey: BTPEvidenceKey; // the key it was checked with, from the bundle
+  keysConfirmedOnline: false; // every key is the bundle's own, never looked up online
+  termsAttached: boolean;
+  statements: (BTPStatementSignatureFacts & {
+    signer: string;
+    decision: 'accepted' | 'declined';
+    key: BTPEvidenceKey; // the signer's identity key, or its device's key
+    delegationKey?: BTPEvidenceKey; // for a device: the key its delegation was checked with
+    agreementMatches: boolean;
+    termsMatch: boolean;
+    withinDeadline: boolean;
+    inOrder: boolean;
+    timestamp?: BTPTimestampFacts; // when the bundle has a token for it
+  })[];
+  complete: boolean; // every fact holds against the bundle's own keys, and every signer accepted, once; never a timestamp
+};
+
+// A key a signature was checked with, as the bundle holds it; no fingerprint when it has no usable key
+type BTPEvidenceKey = { identity: string; selector?: string; fingerprint?: string };
+
+// What an RFC 3161 token shows about its statement
+type BTPTimestampFacts = {
+  imprintMatches: boolean;
+  signatureValid: boolean;
+  time?: string;
+  authority?: string;
+  timestampingKeyUsage?: boolean; // its certificate's one usage is timeStamping, critical (RFC 3161 §2.3)
+  trusted?: boolean; // only when trusted roots are given; needs timestampingKeyUsage
+};
+
+// Since 1.2: detail values by permission name, e.g. { "detail:dob": "1990-04-21" }
+type BTPDetailValues = {
+  'detail:legalName'?: string;
+  'detail:profile'?: {
+    displayName: string;
+    logo?: { sha256: string; source: string };
+    website?: string;
+  };
+  'detail:email'?: string;
+  'detail:phone'?: string;
+  'detail:address'?: string;
+  'detail:taxNo'?: { number: string; country: string }; // country: ISO 3166-1 alpha-2
+  'detail:dob'?: string; // YYYY-MM-DD
+  'detail:registrationNumber'?: { number: string; country: string };
+};
 ```
 
 ### BTPTrustResDoc
@@ -1251,8 +1588,9 @@ interface BTPTrustResDoc {
   decidedBy: string;
   expiresAt?: string;
   retryAfterDate?: string;
-  message?: string;
+  message?: BTPNote; // a note with a format since 1.2
   privacyType?: BTPEncryptionType;
+  details?: BTPDetailValues; // since 1.2: the value of every granted detail, by name; encrypted
 }
 ```
 
@@ -1300,7 +1638,43 @@ interface BTPTransporterArtifact {
   delegation?: BTPDelegation;
   selector: string; // Selector used for public key resolution (e.g., 'btps1', 'btps2')
   relatesTo?: string; // BTPS_EVENT only, and required there: the id of the BTPS_DOC artifact that delivered the invoice
+  syncOf?: BTPSyncOf; // since 1.2, a sync only: from and to the same address, inside a device's artifact.send
+  // Since 1.2, trust permissions: see Trust permissions on the Transporter Artifact page.
+  permissions?: BTPTrustPermissions; // TRUST_REQ: what it asks for
+  entityType?: BTPEntityType; // TRUST_REQ with permissions, accepted TRUST_RES: 'person' | 'organisation'
+  given?: BTPDetailPermission[]; // TRUST_REQ: the details the sender gives
+  change?: true; // TRUST_REQ: a change to an active trust
+  granted?: BTPPermissionName[]; // accepted TRUST_RES: the names given
+  documentType?: BTPDocumentType; // BTPS_DOC under a trust with permissions
 }
+```
+
+### Trust permission names
+
+Since 1.2. From `@btps/sdk/trust`, with the lists `DOCUMENT_TYPES`, `DETAIL_TYPES`, `ENTITY_TYPES`, `SEND_PERMISSIONS` and `DETAIL_PERMISSIONS`.
+
+```ts
+type BTPDocumentType = 'invoice' | 'receipt' | 'payslip' | 'letter';
+type BTPEntityType = 'person' | 'organisation';
+type BTPSendPermission = `send:${BTPDocumentType}`;
+type BTPDetailPermission =
+  | 'detail:legalName'
+  | 'detail:profile'
+  | 'detail:email'
+  | 'detail:phone'
+  | 'detail:address'
+  | 'detail:taxNo'
+  | 'detail:dob' // a person's
+  | 'detail:registrationNumber'; // an organisation's
+type BTPPermissionName = BTPSendPermission | BTPDetailPermission;
+
+interface BTPPermission {
+  name: BTPPermissionName;
+  required: boolean;
+}
+
+// One flat list, the prefix saying each name's kind: each name once, at least one send: name
+type BTPTrustPermissions = BTPPermission[];
 ```
 
 ### BTPServerResponse
@@ -1333,6 +1707,8 @@ interface BTPStatus {
   code: number; // 4xx: do not resend as is; 429 and 5xx: resend later
   message?: string;
   error?: string; // on an error, its BTPS code, e.g. 'BTP_ERROR_TRUST_EXPIRED'
+  retryAfter?: number; // since 1.2, on a 429 only: whole seconds to wait before sending again
+  closing?: true; // since 1.2: the server ends the connection after this answer; send nothing more on it
 }
 ```
 
@@ -1430,11 +1806,16 @@ interface BTPAgentQuery {
 Generic document type.
 
 ```ts
-type BTPDocument = BTPInvoiceDoc | BTPReceiptDoc | BTPPayslipDoc | BTPLetterDoc; // what a BTPS_DOC carries
-type BTPDocType = BTPDocument | BTPLifecycleEvent | BTPTrustReqDoc | BTPTrustResDoc;
+type BTPDocument = BTPInvoiceDoc | BTPReceiptDoc | BTPPayslipDoc | BTPLetterDoc | BTPAgreementDoc; // what a BTPS_DOC carries
+type BTPDocType =
+  | BTPDocument
+  | BTPLifecycleEvent
+  | BTPAgreementEvent
+  | BTPTrustReqDoc
+  | BTPTrustResDoc;
 ```
 
-`BTPPayslipDoc` and `BTPLetterDoc` are inferred from their schemas; their fields are in the Transporter Artifact specification.
+`BTPPayslipDoc`, `BTPLetterDoc` and, since 1.2, `BTPAgreementDoc` are inferred from their schemas; their fields are in the Transporter Artifact specification.
 
 ### BTPStringQueryFilter
 
@@ -1510,10 +1891,28 @@ interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFailureArt
   meta?: {
     seen?: boolean;
     seenAt?: string;
+    delivery?: BTPDelivery; // since 1.2, on a sentbox result
     [key: string]: unknown;
   };
+  agentKey?: BTPAgentKey; // since 1.2
+}
+
+interface BTPAgentKey {
+  key: string; // the content key, wrapped with RSA-OAEP / SHA-256 to the device's key, base64
+  fingerprint: string; // the device key it is wrapped to, as the device's record holds it
+  wrappedAt: string; // ISO 8601
+}
+
+interface BTPDelivery {
+  status: 'pending' | 'delivered' | 'failed';
+  code?: string; // the BTPS error code of a failure
+  at: string; // when it reached this status
 }
 ```
+
+`agentKey` (since 1.2): an encrypted artifact's content key, wrapped again by the provider to the device that asked (`wrapForAgent`), so the device opens the document with its own key (`BtpsAgent.openResult`). The artifact is untouched, so its signature still verifies. No other key is allowed in it.
+
+`delivery` (since 1.2) is a send's outcome by its sender's provider's own record, with no receipt from the receiver. No other key is allowed in it.
 
 `artifact` may also be a `BTPTrustRecord`, in an answer to `trust.fetch` (since 1.1.3); such an answer is typed `BTPQueryResult<BTPTrustRecord>`.
 
@@ -1568,7 +1967,22 @@ interface BTPDeliveryFailureArtifact {
 Server response document types.
 
 ```ts
-type BTPServerResDocs = BTPAuthResDoc | BTPQueryResult | string;
+type BTPServerResDocs =
+  | BTPAuthResDoc
+  | BTPQueryResult
+  | BTPIdentityResDoc
+  | BTPCreatedResDoc
+  | string;
+```
+
+### BTPCreatedResDoc
+
+Since 1.2. "Created, with this id": the answer to a command that makes something, such as `draft.create`. It holds `id` (up to 100 characters) and nothing else, so no other answer is read as one because it has an `id`.
+
+```ts
+interface BTPCreatedResDoc {
+  id: string;
+}
 ```
 
 ### AgentAction
@@ -1984,6 +2398,7 @@ interface BTPCryptoOptions {
     algorithm: EncryptionAlgorithmType;
     mode: EncryptionMode;
   };
+  versionFallback?: boolean; // since 1.2: false refuses a trust request with permissions to a 1.1 receiver
 }
 ```
 
@@ -1995,6 +2410,7 @@ Response from cryptographic operations.
 interface BTPCryptoResponse<T = Record<string, unknown>> {
   payload?: BTPCryptoArtifact<T>;
   error?: BTPErrorException;
+  shaped?: BTPShaped; // since 1.2: a trust request sent as its 1.1 receiver allows (see BTPClientResponse)
 }
 ```
 

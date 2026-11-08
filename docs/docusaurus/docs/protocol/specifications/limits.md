@@ -70,6 +70,14 @@ has a limit.
 | `decidedBy` |   254 |
 | `message`   | 5,000 |
 
+### Trust detail values
+
+Since 1.2: a request's `own` and an answer's `details` (see [Trust permissions](./transporter-artifact.md#trust-permissions)). Each value has the limit of the trust request field it stands for, so `detail:legalName` is at most 200 characters, `detail:email` 254, `detail:phone` 32 and `detail:address` 1,000; `detail:profile`'s `displayName` is at most 200, and its `logo.source` and `website` at most 2,048.
+
+| Value                                                 | Limit |
+| ----------------------------------------------------- | ----: |
+| `detail:taxNo`, `detail:registrationNumber`: `number` |    64 |
+
 ### Lifecycle event (`BTPS_EVENT`)
 
 | Field         | Limit |
@@ -80,16 +88,20 @@ has a limit.
 
 ### Documents (`BTPS_DOC`)
 
-Every document type, invoice, receipt, payslip and letter, limits its
+Every document type, invoice, receipt, payslip, letter and agreement, limits its
 identifiers. How many entries its lists may have is under
-[Lists and records](#lists-and-records). Its other content, such as a
-description, is bounded by the [artifact size](#artifact-size).
+[Lists and records](#lists-and-records). Its other content is bounded by the
+[artifact size](#artifact-size), except, since 1.2 and in a `1.2.0` artifact
+only, an invoice's or receipt's description and a template's https sources.
+Under `1.1.0` a description has no limit of its own, as in 1.1.
 
-| Field               | Limit |
-| ------------------- | ----: |
-| `id`                |   100 |
-| `references[].id`   |   100 |
-| `references[].type` |    64 |
+| Field                                        | Limit |
+| -------------------------------------------- | ----: |
+| `id`                                         |   100 |
+| `references[].id`                            |   100 |
+| `references[].type`                          |    64 |
+| `description` (or its `content`), 1.2.0 only | 5,000 |
+| `template.data.source`, `logo.source`, 1.2.0 | 2,048 |
 
 ### Receipt
 
@@ -115,6 +127,26 @@ deduction, contribution or leave, a leave `unit`, `rateUnit`, and
 | `title`        |     200 |
 | `body.content` | 100,000 |
 
+Since 1.2, in a `1.2.0` artifact, a letter's template may carry signature values (`template.data.values`; see [Templates](./templates.md#signature-slots-and-their-values)):
+
+| Field                                                  |                Limit |
+| ------------------------------------------------------ | -------------------: |
+| `signature.typed`, `signature.name`, `signature.title` |                  100 |
+| `signature.drawn`: strokes                             |                   32 |
+| `signature.drawn`: points a stroke                     |                  512 |
+| `signature.drawn`: points in all                       |                2,048 |
+| `signature.drawn`: a point's `x`, `y`                  | 0 to 1,000, 0 to 300 |
+
+### Agreement
+
+Since 1.2, in a `1.2.0` artifact only. An agreement has a letter's limits,
+its template's included, and these:
+
+| Field                |                               Limit |
+| -------------------- | ----------------------------------: |
+| `acceptance.signers` |                             1 to 20 |
+| `acceptance.terms`   | 10, one for each attachment at most |
+
 ## Lists and records
 
 How many entries a list may have, and how many keys a record. These are
@@ -138,6 +170,25 @@ amount of memory to check. Since 1.1.3.
 | a trust record's `keyHistory`                              |    1,000 |
 | `agentInfo` list values                                    |       50 |
 | keys of any record                                         |      100 |
+
+Since 1.2, the lists that trust permissions, details refresh and agreements add. Each name is in a list at most once, so a names list is at most as long as the names it may hold:
+
+| Field                                                                   |   Limit |
+| ----------------------------------------------------------------------- | ------: |
+| a `TRUST_REQ`'s `permissions` (at least one `send:` name)               |      13 |
+| a `TRUST_REQ`'s `given`                                                 |       8 |
+| a `TRUST_RES`'s `granted`                                               |      13 |
+| a details artifact's `details` (at least one)                           |       8 |
+| an agreement's `acceptance.signers`                                     |      20 |
+| the `statements` of an `agreement_progress` or `agreement_complete`     | 1 to 20 |
+| an evidence bundle's `statements`                                       |      20 |
+| an evidence bundle's `keys` (up to four for each signer, plus two more) |      82 |
+| an evidence bundle's `timestamps`                                       |      20 |
+| an evidence bundle's `keyChains` (as many as its `keys`)                |      82 |
+| an evidence bundle's `arrivals`                                         |      20 |
+| an identity's key chain (`keyChain`), in records                        |     100 |
+| a key rotation record's `signatures`                                    |  1 to 2 |
+| a key's `publicKey` in a key rotation record (DER SPKI, base64)         |   2,048 |
 
 A record is any object whose keys the sender chooses: `metadata`,
 `issuer.identifiers`, a payslip's `yearToDate`, `template.data` and
@@ -185,12 +236,15 @@ BTPS_FIELD_LIMITS.lineItems.rows; // 10000
 Each server sets these for what it receives. A value below the minimum is
 raised to the minimum, with a warning; the server still starts.
 
-| Setting                    | Default         | Minimum  | What it bounds                                                                                   |
-| -------------------------- | --------------- | -------- | ------------------------------------------------------------------------------------------------ |
-| `maxArtifactSizeKb`        | 5,120 KB (5 MB) | 1,024 KB | the size of one artifact, attachments included (`BTP_ERROR_ARTIFACT_TOO_LARGE`)                  |
-| `maxArtifactAgeSeconds`    | 300 (5 minutes) | 60       | how far `issuedAt` may be from the server's clock, either way (`BTP_ERROR_ARTIFACT_TIME_WINDOW`) |
-| `connectionTimeoutMs`      | 30,000 (30 s)   | none     | how long a connection with nothing in flight stays open                                          |
-| `maxInFlightPerConnection` | 32              | 1        | how many requests one connection may have handled at once                                        |
+| Setting                      | Default         | Minimum  | What it bounds                                                                                   |
+| ---------------------------- | --------------- | -------- | ------------------------------------------------------------------------------------------------ |
+| `maxArtifactSizeKb`          | 5,120 KB (5 MB) | 1,024 KB | the size of one artifact, attachments included (`BTP_ERROR_ARTIFACT_TOO_LARGE`)                  |
+| `maxArtifactAgeSeconds`      | 300 (5 minutes) | 60       | how far `issuedAt` may be from the server's clock, either way (`BTP_ERROR_ARTIFACT_TIME_WINDOW`) |
+| `connectionTimeoutMs`        | 30,000 (30 s)   | none     | how long a connection with nothing in flight stays open                                          |
+| `maxInFlightPerConnection`   | 32              | 1        | how many requests one connection may have handled at once                                        |
+| `maxConsecutiveInvalidLines` | 10              | 1        | since 1.2: how many lines in a row one connection may send that the server cannot read           |
+| `retiredKeyGraceSeconds`     | 86,400 (1 day)  | 0        | since 1.2: how long a key rotated away as planned still signs (see Key Rotation)                 |
+| `keyChainMaxCacheSeconds`    | 300 (5 minutes) | 0        | since 1.2: the longest a key chain is trusted from a cache: the worst-case revocation delay      |
 
 ### Requests in flight
 
@@ -200,6 +254,14 @@ handled, the server reads nothing more from it until one finishes. The
 sender is then slowed by TCP; nothing is refused, and every artifact is
 answered in turn. Without this, a sender that never waits could make the
 server hold any number of artifacts in memory at once.
+
+A request is handled until its answer is written, a signed answer included,
+so a server that signs its answers (`signAnswers`) signs no more at once than
+the limit. Since 1.2, a connection that sends `maxConsecutiveInvalidLines`
+lines in a row the server cannot read (not JSON, or not a valid artifact) has
+the last one answered and is ended, with `status.closing`; a line it can read
+starts the count again. A connection that has gone is sent nothing, and no
+answer is signed for it.
 
 ### Artifact size
 

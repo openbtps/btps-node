@@ -52,6 +52,15 @@ export const BTPS_FIELD_LIMITS = {
     attachments: 10,
     references: 20,
   },
+  // Since 1.2, an agreement: a letter's limits, and who signs it.
+  agreement: {
+    signers: 20,
+  },
+  // Since 1.2, an identity's key chain: its records, and each key's DER SPKI in base64.
+  keyChain: {
+    records: 100,
+    publicKey: 2048,
+  },
   // An invoice's, a receipt's and a payslip's; a letter has its own.
   attachments: 10,
   references: 20,
@@ -76,4 +85,13 @@ export const BTPS_FIELD_LIMITS = {
   // A document's own id, and the id of a document it references.
   documentId: 100,
   referenceType: 64,
+  // Since 1.2, under 1.2.0: an invoice's or receipt's description, as long as an event's message.
+  note: 5000,
+  // Since 1.2: a template's or logo's https source, as long as a logo or website address.
+  url: 2048,
+  // Since 1.2, under 1.2.0: a letter template's signature values. A drawn signature is
+  // integer strokes on a fixed canvas, `width` by `height`.
+  signature: { text: 100, strokes: 32, strokePoints: 512, points: 2048, width: 1000, height: 300 },
+  // Since 1.2: a trust detail's `{ number, country }` (detail:taxNo, detail:registrationNumber).
+  detailNumber: 64,
 } as const;

@@ -11,3 +11,23 @@ export { default as JsonTrustStore } from './storage/JsonTrustStore.js';
 export { AbstractTrustStore } from './storage/AbstractTrustStore.js';
 export * from './types.js';
 export * from './trustUtils.js';
+export * from './permissions.js';
+export * from './verification.js';
+export * from './agreements.js';
+export * from './evidence.js';
+export * from './timestamps.js';
+export * from './keyRotation.js';
+export { shapeTrustRequestFor11, composeTrustRequestFor } from './shaping.js';
+// The permission names a trust carries, for a client as well as a server.
+export * from '@core/server/constants/permissions.js';
+export type {
+  BTPDocumentType,
+  BTPEntityType,
+  BTPSendPermission,
+  BTPDetailPermission,
+  BTPPermissionName,
+  BTPPermission,
+  BTPTrustPermissions,
+} from '@core/server/types.js';
+// A platform checks an opened trust request's or answer's values with these, as decryptVerify does.
+export { trustRequestProblem, trustResponseProblem } from '@core/server/schemas/trustValues.js';

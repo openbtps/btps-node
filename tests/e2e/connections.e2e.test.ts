@@ -108,9 +108,12 @@ describe('journey: one sender, many artifacts', () => {
     endAfterRefusingOne();
     try {
       const refused = await one.send(await invoice());
+      // The answer says the connection ends after it, so the next send goes on a
+      // new one even when it is written before the end itself arrives.
       expect(refused.response?.status).toMatchObject({
         code: 429,
         error: BTP_ERROR_RATE_LIMITER.code,
+        closing: true,
       });
 
       const next = await one.send(await invoice());

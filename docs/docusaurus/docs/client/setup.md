@@ -344,6 +344,19 @@ client.on('error', (errInfo) => {
 });
 ```
 
+### 6.3 Requiring Your Provider's Signature
+
+Since 1.2, a device that talks only to its own provider can require every answer to be signed by it, so an answer from anyone else is refused. The provider runs its server with `signAnswers: true`, as its domain's operator, with the one key pair it publishes; the device pins that operator and selector:
+
+```js
+const client = new BtpsClient({
+  to: 'alice$saas.example',
+  requireSignedBy: { identity: 'admin$saas.example', selector: 'btps1' },
+});
+```
+
+An answer not signed by `admin$saas.example` under `btps1`, errors included, is refused with `BTP_ERROR_SIG_VERIFICATION` before any key is looked up. The operator's same key signs identity-lookup answers, so the device needs no second key to trust.
+
 ## 7. Development & Testing Overrides
 
 You can override DNS resolution for local development:
@@ -408,7 +421,7 @@ The client manages several internal states:
 
 - **isConnecting**: Establishing TLS connection
 - **isConnected**: Ready to send artifacts
-- **isDraining**: Handling backpressure (network is slow)
+- **isDraining**: Always `false` since 1.2: the socket buffers what it cannot send at once
 - **isDestroyed**: Client has been cleaned up
 - **shouldRetry**: Whether retries are allowed
 

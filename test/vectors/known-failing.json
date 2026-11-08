@@ -1,5 +1,5 @@
 {
-  "description": "Checks that fail on the BTPS 1.1 baseline because the defect they prove is not fixed yet. `verify-btps-vectors --known-failing test/vectors/known-failing.json` passes only while the failing set is exactly this list, so each fix must remove its own entries in the same change that makes them pass. Delete this file once it is empty.",
-  "baseline": "367cd0966687b0f61fbb4aa703f26c5e37e89eca",
+  "description": "Checks that fail on the BTPS 1.2 baseline (release 1.1.3) because the 1.2 rule they prove is not built yet; each value names the 1.2 change that makes it pass. `verify-btps-vectors --known-failing test/vectors/known-failing.json` passes only while the failing set is exactly this list, so each change must remove its own entries in the same pull request that makes them pass. The list is empty again before 1.2 is released.",
+  "baseline": "5b5dafbfecefd845b94d2a2b347b19b588f73f2e",
   "checks": {}
 }

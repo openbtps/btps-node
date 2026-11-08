@@ -430,6 +430,8 @@ signEncrypt<T>(
 **Description:**
 Signs and (optionally) encrypts a BTPS document for secure transmission. Handles key lookup, encryption, and signature in one step. Now supports key rotation through selector-based public key resolution.
 
+Since 1.2, a `TRUST_REQ` payload carrying `permissions` is composed for its receiver's version: one `PING` asks the receiver's server, and to a 1.1 server it is sent as 1.1 allows, reported in the result's `shaped`, or refused with `options.versionFallback: false`. If the receiver's server cannot be asked, that error is returned. A payload without permissions is never asked about. See [To a receiver whose server speaks 1.1](../protocol/specifications/transporter-artifact.md#trust-permissions).
+
 **Arguments:**
 
 - `to` (`string | undefined`, required): Recipient BTPS identity. If undefined, no encryption is performed.
@@ -439,7 +441,7 @@ Signs and (optionally) encrypts a BTPS document for secure transmission. Handles
   - `selector` (`string`, optional): The sender's own selector, the one its signing key is published at (e.g., 'btps2' after a rotation). The receiver uses it to find the key that verifies the signature. The receiver's key for encryption is found at the selector the receiver's own host record names: in DNS first, then, when DNS has none, from the receiver's host, in an answer its domain's operator signed.
   - `[key: string]` (`unknown`): Additional metadata fields.
 - `options` (`BTPCryptoOptions`, optional): Signature and encryption options.
-- `lookup` (`ReceiverKeyLookup`, optional): `{ btpMtsOptions }`, the TLS options for the connection to the receiver's host, used only when DNS has no key.
+- `lookup` (`ReceiverKeyLookup`, optional): `{ btpMtsOptions, keyResolver }`. `btpMtsOptions` is the TLS options for the connection to the receiver's host, used only when DNS has no key. Since 1.2, `keyResolver` ([BtpsKeyResolver](./typesAndInterfaces.md#btpskeyresolver)) is asked for the receiver's key (`encrypt`) in place of DNS, and the host is still asked when it has none.
 
 **Returns:**
 
@@ -474,7 +476,8 @@ const { payload, error } = await signEncrypt(
 decryptVerify<T>(
   senderPubPem: string,
   encryptedPayload: VerifyEncryptedPayload<T>,
-  receiverKey?: BTPDecryptionKey
+  receiverKey?: BTPDecryptionKey,
+  contentKey?: string
 ): Promise<BTPCryptoResponse<T>>
 ```
 
@@ -488,6 +491,7 @@ When it decrypts a `BTPS_EVENT`, it also checks the event as the server checks a
 - `senderPubPem` (`string`, required): Sender's public key (PEM).
 - `encryptedPayload` (`VerifyEncryptedPayload<T>`, required): The received artifact.
 - `receiverKey` (`string | Decrypter`, optional): Receiver's private key (PEM) for decryption, or a [Decrypter](./typesAndInterfaces.md#decrypter) holding it elsewhere.
+- `contentKey` (`string`, optional, since 1.2): the document's content key wrapped to `receiverKey`, in place of the envelope's `encryptedKey`: a device's `agentKey.key`. The signature is still checked over the artifact as sent. `BtpsAgent.openResult` passes it.
 
 **Returns:**
 
@@ -789,6 +793,43 @@ const signature = await signBtpPayloadWithSigner({ foo: 'bar' }, signer);
 
 ---
 
+### syncOfArtifact
+
+```ts
+syncOfArtifact(artifact: { id: string }): { id: string; sha256: string }
+```
+
+**Description:**
+Since 1.2. What a sync names of the send it copies (`syncOf`): the sent artifact's `id`, and the lowercase hex SHA-256 of its RFC 8785 canonical form, signature included. See [Sync](../protocol/specifications/transporter-artifact.md#sync).
+
+**Example:**
+
+```js
+import { syncOfArtifact } from '@btps/sdk/crypto';
+const syncOf = syncOfArtifact(sentArtifact);
+```
+
+---
+
+### trustRequestProblem / trustResponseProblem
+
+```ts
+trustRequestProblem(artifact: { given?: string[]; document?: unknown }): string | undefined
+trustResponseProblem(artifact: { granted?: string[]; document?: unknown }): string | undefined
+```
+
+**Description:**
+Since 1.2. Why an opened trust request's or answer's values do not match the names on its envelope, or `undefined` when they do. A request gives each name in `given` a value, in the 1.1 field it has or else in `own`; an answer holds the value of every granted `detail:` name in `details`; each value has its name's shape. `decryptVerify` runs the same check. See [Trust permissions](../protocol/specifications/transporter-artifact.md#the-values-checked-when-opened).
+
+**Example:**
+
+```js
+import { trustRequestProblem } from '@btps/sdk/trust';
+const problem = trustRequestProblem({ given: artifact.given, document: openedDocument });
+```
+
+---
+
 ### verifySignature
 
 ```ts
@@ -855,6 +896,57 @@ import { generateUserToken } from '@btps/sdk/crypto';
 const token = generateUserToken('alice$btps.com', 12);
 // Returns: "ABC123DEF456"
 ```
+
+---
+
+## Server helpers (`@btps/sdk/server`)
+
+### wrapForAgent
+
+```ts
+wrapForAgent(
+  artifact: Pick<BTPTransporterArtifact, 'encryption'>,
+  identityKey: BTPDecryptionKey,
+  device: Pick<BTPTrustRecord, 'publicKeyBase64' | 'publicKeyFingerprint'>
+): Promise<BTPAgentKey>
+```
+
+**Description:**
+Since 1.2. Builds a query result's `agentKey`. It unwraps an encrypted artifact's AES content key with the identity's key, and wraps it again with RSA-OAEP / SHA-256 to the key the device's record holds now, naming that key's fingerprint. The artifact is untouched. It throws `BTP_ERROR_UNSUPPORTED_ENCRYPT` for an unencrypted artifact, or for a `Decrypter` without `unwrapKey`. See [A device's own key to an encrypted document](../protocol/security/keyManagement.md#a-devices-own-key-to-an-encrypted-document).
+
+Wrap only to a device record of the identity whose key unwraps: the device that asked, as the server's agent authentication identified it. `wrapForAgent` cannot check that pairing. Given another identity's device record, it would hand that device this identity's document.
+
+**Example:**
+
+```js
+import { wrapForAgent } from '@btps/sdk/server';
+// In the provider's inbox.fetch handler, for the device that asked:
+const results = await Promise.all(
+  entries.map(async (entry) =>
+    entry.artifact.encryption
+      ? { ...entry, agentKey: await wrapForAgent(entry.artifact, identityDecrypter, deviceRecord) }
+      : entry,
+  ),
+);
+```
+
+---
+
+### verifyTransporterSignature
+
+```ts
+verifyTransporterSignature(
+  artifact: BTPTransporterArtifact
+): Promise<{ isValid: boolean; error?: BTPErrorException; signerKey?: string }>
+```
+
+**Description:**
+Since 1.2. Who signed a transporter artifact, checked exactly as a `BtpsServer` checks it on arrival:
+
+- **Not delegated:** against the sender's own key from DNS.
+- **Delegated:** the delegation must be allowed, by the sender itself or its domain's operator. It must be attested by the operator when the sender delegates for itself, and signed by its delegator, each against their DNS keys. Then the artifact must be signed by the delegated agent's key.
+
+On success `signerKey` is the key that signed the artifact itself, the one to pass to `decryptVerify`. `BtpsAgent.openResult` uses it, so a device and a server never check a sender differently.
 
 ---
 
@@ -966,18 +1058,20 @@ const deviceRecordId = computeAgentTrustId(
 validateTrustResponse(
   senderId: string,
   receiverId: string,
-  trustStore: AbstractTrustStore<BTPTrustRecord>
+  trustStore: AbstractTrustStore<BTPTrustRecord>,
+  response?: { granted?: BTPPermissionName[] }
 ): Promise<{ isValid: boolean; error?: BTPErrorException }>
 ```
 
 **Description:**
-Validates a `TRUST_RES` by checking if the response is authorized (only the original receiver of a trust request can respond).
+Validates a `TRUST_RES` by checking if the response is authorized (only the original receiver of a trust request can respond). Since 1.2, with `response`, its `granted` is checked against the requester's record (`trustGrantProblem`), and an accepted trust also takes an answer to the change it has pending (`permissions.pendingChange`).
 
 **Arguments:**
 
 - `senderId` (`string`, required): The identity sending the trust response (responder).
 - `receiverId` (`string`, required): The identity receiving the trust response (original requester).
 - `trustStore` (`AbstractTrustStore<BTPTrustRecord>`, required): The trust store instance.
+- `response` (`object`, optional, since 1.2): The answer's envelope. A `granted` that leaves out a required name, or that the record has no permissions to check against, is refused with `BTP_ERROR_PERMISSION_REQUIRED`; a name the request did not ask for, with `BTP_ERROR_PERMISSION`.
 
 **Returns:**
 
@@ -988,6 +1082,311 @@ Validates a `TRUST_RES` by checking if the response is authorized (only the orig
 ```js
 import { validateTrustResponse } from '@btps/sdk/trust';
 const { isValid, error } = await validateTrustResponse('userB$domain', 'userA$domain', trustStore);
+```
+
+---
+
+### trustGrantProblem
+
+```ts
+trustGrantProblem(
+  response: { granted?: BTPPermissionName[] },
+  record: { status: BTPTrustStatus; permissions?: BTPTrustRecordPermissions }
+): string | undefined
+```
+
+**Description:**
+Since 1.2. Why an answer's `granted` does not meet the requester's trust record, or `undefined`: every required name it asked for is granted, and nothing it did not ask for. A pending trust is checked against `permissions.requested`; an accepted trust takes an answer only while a change is pending, and is checked against `permissions.pendingChange.requested`. A record without `permissions` cannot be checked, so `granted` is refused there. An answer without `granted` (a rejection, or a 1.1 answer) is not checked. The server runs it on every `TRUST_RES` through `validateTrustResponse`.
+
+---
+
+### documentTypeProblem
+
+```ts
+documentTypeProblem(
+  artifact: { type: string; documentType?: string; encryption?: unknown; document?: unknown },
+  record: { permissions?: BTPTrustRecordPermissions }
+): string | undefined
+```
+
+**Description:**
+Since 1.2. Why a send does not meet the receiver's trust record, or `undefined`. Under a trust with permissions, a `BTPS_DOC` names its `documentType`, `send:<documentType>` is granted, and a readable document is that type. A trust without permissions (a 1.1 trust) takes any type, and other artifact types are not checked. The server runs it on every send it receives. See [A send's document type](../protocol/specifications/transporter-artifact.md#a-sends-document-type).
+
+---
+
+### shapeTrustRequestFor11 / composeTrustRequestFor
+
+```ts
+shapeTrustRequestFor11<T>(payload: T): { payload: T; shaped: BTPShaped }
+
+composeTrustRequestFor<T>(
+  to: string,
+  payload: T,
+  options?: { versionFallback?: boolean; btpMtsOptions?: ConnectionOptions }
+): Promise<{ payload: T; shaped?: BTPShaped } | { error: BTPErrorException }>
+```
+
+**Description:**
+Since 1.2. `shapeTrustRequestFor11` returns a trust request as a 1.1 receiver allows: without `permissions`, `given`, `entityType` and `change`, and without `own` and `verification` in its document, restamped, with what it left out. `composeTrustRequestFor` asks the receiver's server its version (one `PING`) for a `TRUST_REQ` carrying permissions only, and shapes it for a 1.1 server, refuses it with `versionFallback: false`, or returns the error when the server cannot be asked. `signEncrypt` and `BtpsAgent` call it themselves; a platform that builds artifacts another way calls it before it signs. See [To a receiver whose server speaks 1.1](../protocol/specifications/transporter-artifact.md#trust-permissions).
+
+---
+
+### signVerification
+
+```ts
+signVerification(
+  statement: { subject: string; claims: BTPVerificationClaims; verifiedAt: string; expiresAt: string },
+  verifier: { verifiedBy: string; selector: string } & ({ pemFiles: PemKeys } | { signer: Signer })
+): Promise<BTPVerification>
+```
+
+**Description:**
+Since 1.2. A provider signs a statement that it checked `subject`, the address that will send the trust request carrying it, as `verifiedBy` at `selector`. The result goes in the request's document as `verification`. `claims` are the protocol's names only: `entityType`, and `detail:` names with their values. See [Verification](../protocol/specifications/transporter-artifact.md#verification).
+
+---
+
+### verificationFacts
+
+```ts
+verificationFacts(
+  request: { from: string; document?: unknown },
+  options?: { keyResolver?: BtpsKeyResolver; now?: number }
+): Promise<BTPVerificationFacts | undefined>
+```
+
+**Description:**
+Since 1.2. The facts about an opened trust request's verification, or `undefined` when it carries none: `{ signatureValid, expired, verifierServesSender, verifierIsOperator }`. It refuses nothing and labels no one verified: whose verifications to trust, and which facts to require, are each provider's to decide. `verifiedBy`'s key is looked up in DNS, or through `keyResolver`, and the operator from the sender's `_btps.host`. See [Verification](../protocol/specifications/transporter-artifact.md#verification).
+
+---
+
+### verifierRefusal
+
+```ts
+verifierRefusal(verifiedBy: string): Promise<{ error: BTPError; problem: string } | undefined>
+```
+
+**Description:**
+Since 1.2. Why `verifiedBy` may not verify, or `undefined`: only the operator (`op`) named in `_btps.host` of its own domain, one who runs a BTPS server, may. Anyone else is `BTP_ERROR_VALIDATION`. A lookup that fails (a DNS error or timeout, not a domain without the record) judges no one: it is `BTP_ERROR_RESOLVE_DNS`, to try again. `decryptVerify` runs it on every opened trust request that carries a verification. It only makes a verifier an operator: whose verifications to trust stays each provider's to decide. See [Verification](../protocol/specifications/transporter-artifact.md#verification).
+
+---
+
+### agreementContentSha256, agreementRef
+
+```ts
+agreementContentSha256(agreement: object): string
+agreementRef(agreement: { id: string }, originator: string): BTPAgreementRef
+```
+
+**Description:**
+Since 1.2. The SHA-256, in lowercase hex, of an agreement's RFC 8785 form without `originatorSignature`, and what names the agreement: `{ originator, id, contentSha256 }`. Every signer's copy has the same, whatever its encryption. See [Agreement](../protocol/specifications/transporter-artifact.md#agreement).
+
+---
+
+### signAgreement, originatorSignatureValid
+
+```ts
+signAgreement(
+  content: Omit<BTPAgreementDoc, 'originatorSignature'>,
+  by: { originator: string; selector: string } & ({ pemFiles: PemKeys } | { signer: Signer })
+): Promise<BTPAgreementDoc>
+originatorSignatureValid(agreement: BTPAgreementDoc, originator: string, keyOf: BTPKeyOf): boolean
+```
+
+**Description:**
+Since 1.2. The originator signs an agreement once, over `agreementRef`, and sends each signer its own copy. `originatorSignatureValid` checks the signature against the originator's key at its `selector`, from `keyOf(identity, selector)`: a key from DNS, from a store, or from an evidence bundle.
+
+---
+
+### signStatement, signStatementOnDevice, deviceStatementRecord
+
+```ts
+signStatement(
+  statement: BTPAgreementStatement,
+  by: { selector: string } & ({ pemFiles: PemKeys } | { signer: Signer })
+): Promise<BTPStatementRecord>
+signStatementOnDevice(
+  statement: BTPAgreementStatement,
+  device: { pemFiles: PemKeys } | { signer: Signer }
+): Promise<{ statement: BTPAgreementStatement; signature: BTPSignature }>
+deviceStatementRecord(
+  signed: { statement: BTPAgreementStatement; signature: BTPSignature },
+  delegatedArtifact: BTPTransporterArtifact & { delegation: BTPDelegation }
+): BTPStatementRecord
+```
+
+**Description:**
+Since 1.2. A signer's answer to an agreement, signed over the statement's RFC 8785 form. `signStatement` signs with the signer's identity key, which may be a managed key its provider holds, and names its `selector`. `signStatementOnDevice` signs with a device's key; the originator completes the record with `deviceStatementRecord`, adding the delegated artifact that delivered it, as it arrived, so the record can be checked offline wherever it is forwarded.
+
+---
+
+### statementRecordSha256, statementSignatureFacts
+
+```ts
+statementRecordSha256(record: BTPStatementRecord): string
+statementSignatureFacts(record: BTPStatementRecord, keyOf: BTPKeyOf): BTPStatementSignatureFacts
+```
+
+**Description:**
+Since 1.2. `statementRecordSha256` is the SHA-256 of a record's RFC 8785 form, signature included: what the next statement in a sequential agreement names as `previous`. `statementSignatureFacts` reports what a record's signature shows, from the record and the keys `keyOf` gives: `signatureValid`, `keyKind` (`identity`, or `device` when the record carries a delegated artifact), and for a device `delegatedBy` and `attestedBy`. A device-signed record holds when the delegation is its delegator's over the artifact, a self-delegation (signed by the signer itself) carries an attestation, any attestation is its attestor's, the artifact came from the signer and is signed by the delegated key, and so is the statement; all of these are checked offline. It decides nothing that needs DNS: whether `delegatedBy` or `attestedBy` is the signer's domain's operator (`_btps.host` `op`) is a fact a reader may confirm online.
+
+---
+
+### agreementStatementProblem, agreementOrderProblem
+
+```ts
+agreementStatementProblem(
+  envelope: { from: string; to: string },
+  event: { eventType: string; agreement: BTPAgreementRef; statement?: BTPStatementRecord },
+  agreement: BTPAgreementDoc,
+  earlier: readonly BTPStatementRecord[]
+): string | undefined
+agreementOrderProblem(
+  answer: { from: string; previous?: string },
+  held: BTPAgreementAnswers
+): string | undefined
+agreementTurnProblem(from: string, held: BTPAgreementAnswers): string | undefined
+```
+
+**Description:**
+Since 1.2. Why an agreement's answer does not answer it, or `undefined`: the originator's platform's checks, never the server's. `agreementTurnProblem` needs only the sender: a listed signer who has not answered, and in a sequential agreement the next one, with nothing after a decline. `agreementOrderCheck` runs it in flight. `agreementOrderProblem` adds the statement's `previous`: the SHA-256 of the answer before it in a sequential agreement, and absent in an `any` one. `agreementStatementProblem` is the full check of an opened answer: `envelope` is the answer's own `from` and `to`, `agreement` the receiver's copy, and `earlier` the statement records already taken, in order. The statement's `decision` is the event's `eventType`, it names this agreement (its originator, id and `contentSha256`) and its terms exactly, is its sender's own, is signed no later than `acceptance.by`, and follows the order. Signatures are not part of it: check them with `statementSignatureFacts`. See [Agreement events](../protocol/specifications/transporter-artifact.md#agreement-events).
+
+---
+
+### agreementOrderCheck
+
+```ts
+agreementOrderCheck(lookups: {
+  answers: (query: { relatesTo: string; signer: string; originator: string }) =>
+    Promise<BTPAgreementAnswers | undefined>;
+}): MiddlewareDefinition<'after', 'trustVerification'>
+```
+
+**Description:**
+Since 1.2, from `@btps/sdk/server/core`. Middleware a platform adds to check an agreement's answers in flight, after the server's trust check. From the envelope alone (who sent it, and the copy `relatesTo` names), with the platform's own record of the agreement from `answers`, it refuses an answer that is not its sender's turn (`agreementTurnProblem`) with `BTP_ERROR_AGREEMENT_ORDER`, the broken rule in its message. It needs no decryption. An event whose `relatesTo` is no agreement copy (`answers` gives `undefined`), and an untrusted artifact, pass on. Off until added; the server never checks the order itself. See [Agreement events](../protocol/specifications/transporter-artifact.md#agreement-events).
+
+---
+
+### eventChainCheck
+
+```ts
+eventChainCheck(lookups?: {
+  getEvent?: (query: { id: string; from: string; to: string }) =>
+    Promise<BTPEventFacts | undefined>;
+}): MiddlewareDefinition<'after', 'trustVerification'>
+```
+
+**Description:**
+Since 1.2, from `@btps/sdk/server/core`. Middleware a platform adds to check a lifecycle event's chain in flight, after the server's trust check, with `lifecycleEventChainProblem`. It refuses with `BTP_ERROR_EVENT_CHAIN`, the broken rule in its message. With `getEvent`, the platform's own lookup of the earlier event a `withdrawn` or `follows` names, it checks every rule; without it, only that the payer, never the invoice's issuer, sent it. It reads the event, so an encrypted one passes on, for the platform to check once opened. Off until added; the server never checks a chain itself. See [Lifecycle Event](../protocol/specifications/transporter-artifact.md#4-lifecycle-event-btps_event).
+
+---
+
+### detailsResponseCheck
+
+```ts
+detailsResponseCheck(lookups: {
+  getArtifact: (query: { artifactId: string; from: string; to: string }) =>
+    Promise<BTPDetailsEnvelope | undefined>;
+}): MiddlewareDefinition<'after', 'trustVerification'>
+```
+
+**Description:**
+Since 1.2, from `@btps/sdk/server/core`. Middleware a platform adds to check a `DETAILS_RES` in flight, after the server's trust check: it answers a `DETAILS_REQ` its receiver sent to its sender, and names only what that request asked for (`detailsRequestRefusal`). It refuses with `BTP_ERROR_PERMISSION`, the reason in its message. `getArtifact` is the platform's own record of the request the response names: `artifactId` is its `relatesTo`, `from` the response's receiver and `to` its sender. It reads only envelopes, so it works the same for an encrypted response, arriving or sent by one of this provider's devices. Off until added; the server checks only that the request is known (`isKnownArtifact`). See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh).
+
+---
+
+### detailsRequestLimit
+
+```ts
+detailsRequestLimit(
+  allow: (request: { from: string; to: string; names: string[] }) =>
+    true | { retryAfter: number } | Promise<true | { retryAfter: number }>
+): MiddlewareDefinition<'after', 'trustVerification'>
+```
+
+**Description:**
+Since 1.2, from `@btps/sdk/server/core`. Middleware a provider adds for its own limit on details requests, for example requests per trust per month: `allow` is asked once for each trusted `DETAILS_REQ`. `true` takes it, and `{ retryAfter }`, in whole seconds, refuses it with `BTP_ERROR_DETAILS_RATE_LIMITED`, whose `status.retryAfter` tells the asker how long to wait. Add it after every other check, so the provider counts only requests that are taken. Off until added: the protocol sets no limit. See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh).
+
+---
+
+### verifyEvidenceBundle, buildEvidenceBundle, describeEvidenceFacts
+
+```ts
+verifyEvidenceBundle(
+  bundle: unknown,
+  options?: { trustedTimestampRoots?: string[] }
+): Promise<BTPEvidenceFacts>
+buildEvidenceBundle(
+  parts: { originator: string; agreement: BTPAgreementDoc; statements: BTPStatementRecord[] },
+  keyOf: BTPKeyOf
+): BTPEvidenceBundle
+describeEvidenceFacts(facts: BTPEvidenceFacts): string
+```
+
+**Description:**
+Since 1.2. An agreement's evidence bundle, checked offline. `verifyEvidenceBundle` refuses a file that is not a bundle (`BTP_ERROR_VALIDATION`) and otherwise reports facts, never a verdict: the content's SHA-256, the originator's signature, the terms as attached, and for each statement its signature and key kind, its agreement, terms, deadline and order, and whether the agreement is `complete`. It uses only the keys in the bundle, each counted only when its fingerprint is its own, and names each key it checked a signature with (`originatorKey`, each statement's `key` and, for a device, `delegationKey`); `keysConfirmedOnline` is always `false`, so `complete` means the bundle is consistent with its own keys, not that each key was its identity's. `buildEvidenceBundle` makes one from the opened agreement, its statement records in the order taken, and the keys `keyOf` gives; it refuses one whose key it cannot find (`BTP_ERROR_RESOLVE_PUBKEY`). `describeEvidenceFacts` gives the facts as plain text, as the `btps-verify-evidence` command prints them. A statement with an RFC 3161 token in the bundle's `timestamps` gets a `timestamp` fact (see `timestampFacts`); `trustedTimestampRoots` are the PEM certificates whose timestamps the reader trusts. The deadline fact (`withinDeadline`) is judged by the statement's own `signedAt`, the signer's claim; a trusted timestamp's `time` against `acceptance.by` is independent time, which `describeEvidenceFacts` prints on the line after the statement's, as a fact and which never changes `complete`. See [The evidence bundle](../protocol/specifications/transporter-artifact.md#the-evidence-bundle).
+
+---
+
+### timestampRequest, timestampTokenOf, timestampFacts
+
+```ts
+timestampRequest(record: BTPStatementRecord, options?: { nonce?: number }): Promise<Uint8Array>
+timestampTokenOf(response: Uint8Array): Promise<string>
+timestampFacts(
+  token: string,
+  statementSha256: string,
+  options?: { trustedRoots?: string[] }
+): Promise<BTPTimestampFacts>
+```
+
+**Description:**
+Since 1.2. RFC 3161 trusted timestamps on an agreement's statements. `timestampRequest` builds a DER TimeStampReq over the SHA-256 of a statement record, asking for the authority's certificate; only that hash leaves the provider. The platform sends it to the authority of its choice (`Content-Type: application/timestamp-query`) and gives the reply to `timestampTokenOf`, which returns the token, base64, as a bundle holds it, and refuses a reply that grants none (`BTP_ERROR_VALIDATION`). `timestampFacts` reports facts, never refusing: `imprintMatches` (the token is over this statement), `signatureValid` (signed by the certificate it carries, over a TSTInfo, as its signed content type says), `time`, `authority`, `timestampingKeyUsage` (that certificate's one extended key usage is `id-kp-timeStamping`, critical, as RFC 3161 §2.3 requires of an authority), and, with `trustedRoots`, `trusted` (an authority's certificate, with `timestampingKeyUsage`, that is one of them or chains to one). An unreadable token reports both checks false. `pkijs` and `asn1js` read the tokens, loaded only when a timestamp is used.
+
+---
+
+### detailsProblem
+
+```ts
+detailsProblem(
+  artifact: BTPDetailsEnvelope,
+  record: { permissions?: BTPTrustRecordPermissions },
+  sentRequest?: BTPDetailsEnvelope
+): string | undefined
+```
+
+**Description:**
+Since 1.2. Why a details refresh artifact cannot be taken, or `undefined`. A `DETAILS_CHANGED` or `DETAILS_RES` names only details the receiver holds (`record.permissions.detailsHeld`), a `DETAILS_REQ` only details the answerer shares (`detailsShared`); a record without permissions holds none. A `DETAILS_RES` answers `sentRequest`, the `DETAILS_REQ` it names as its receiver sent it, and names only what it asked for; once opened (its `document` an object), its values match its names. `record` is the receiver's own record of the trust, in either direction. The server checks the names on arrival, and `detailsResponseCheck` the request; a platform without that middleware runs this one with its own sent request. See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh).
+
+---
+
+### trustPermissionsFromRequest / trustPermissionsFromResponse
+
+```ts
+trustPermissionsFromRequest(
+  request: { permissions?: BTPTrustPermissions; change?: true; issuedAt: string },
+  current?: BTPTrustRecordPermissions
+): BTPTrustRecordPermissions | undefined
+
+trustPermissionsFromResponse(
+  response: { granted?: BTPPermissionName[] },
+  request: { permissions?: BTPTrustPermissions; given?: BTPDetailPermission[] }
+): { requester: BTPTrustRecordPermissions; responder: BTPTrustRecordPermissions } | undefined
+```
+
+**Description:**
+Since 1.2. What a platform saves on its trust records. The BTPS server only reads records; the platform writes them, so it must save what these return.
+
+- `trustPermissionsFromRequest`: the requester's record, when it sends a request with permissions. For a change (`change: true`), pass the trust's `current` permissions: the change is added as `pendingChange`, and the trust keeps running on its old grant until it is answered. `undefined` for a request without permissions, a 1.1 trust.
+- `trustPermissionsFromResponse`: both records once a request is accepted. The requester holds the details granted to it (`detailsHeld`) and shares the details it gave (`detailsShared`); the responder holds the reverse. Each side saves its own. `undefined` when the answer grants nothing by name.
+
+**On any answer to a pending change, clear `pendingChange`.** If the change is accepted, save the record `trustPermissionsFromResponse` returns: it has no `pendingChange`. If it is rejected, keep the current permissions and remove `pendingChange`, so the trust runs on its old grant. A `pendingChange` left in place lets the accepted trust keep taking answers to a change already decided.
+
+**Example:**
+
+```js
+import { trustPermissionsFromResponse } from '@btps/sdk/trust';
+const saved = trustPermissionsFromResponse(response, request);
+if (saved) await trustStore.update(trustId, { permissions: saved.requester });
 ```
 
 ---
@@ -1066,7 +1465,7 @@ try {
 
 ## Error Constants (`@btps/sdk/error`)
 
-A constant a server sends carries a `status`: the numeric `status.code` it is answered with, while its `code` goes out as `status.error`. See [Status Codes](../protocol/specifications/responses.md#status-codes) for each status and whether a sender should send again. Middleware can send its own error with a numeric `code` (for example `{ code: 402, message: 'Payment required' }`), which goes out as given. Any other error is treated as internal and answered `500` with `BTP_UNKNOWN_ERROR`, so its detail never reaches the wire.
+A constant a server sends carries a `status`: the numeric `status.code` it is answered with, while its `code` goes out as `status.error`. See [Status Codes](../protocol/specifications/responses.md#status-codes) for each status and whether a sender should send again. Middleware can send its own error with a numeric `code` (for example `{ code: 402, message: 'Payment required' }`) with `res.sendError`, which goes out as given. A plain object middleware sends with `res.sendError` is the platform's own answer and goes out as given, its own string `code` and `status` included. Anything thrown, and any `Error` passed to `res.sendError` as caught, is told only by a BTPS constant's code, with that constant's status and its message (or that message followed by `: ` and a detail); any other (a database's duplicate-key error, an SDK's error with `status: 403` and `code: 'AccessDenied'`) goes out as the generic `500` below, its code and message kept with the server. Since 1.2, a 429 sent as a `BTPErrorException` whose `meta.retryAfter` is whole seconds, zero or more, also goes out with it as `status.retryAfter`, for example `res.sendError(new BTPErrorException(BTP_ERROR_RATE_LIMITER, { meta: { retryAfter: 30 } }))`. Nothing else from `meta` reaches the wire, and `cause` never does. Since 1.2, an answer after which the server ends the connection carries `status.closing: true`, so a `BtpsClient` sends its next artifact on a new connection. Any other error is treated as internal and answered `500` with `BTP_UNKNOWN_ERROR`, so its detail never reaches the wire.
 
 ### BTP_ERROR_IDENTITY
 
@@ -1191,6 +1590,40 @@ Server-side-only error constant for a `BTPS_EVENT` whose `relatesTo` the trust s
 
 ---
 
+### BTP_ERROR_EVENT_CHAIN
+
+```ts
+const BTP_ERROR_EVENT_CHAIN: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a lifecycle event whose chain is wrong: a `withdrawn` or `follows` from the invoice's issuer rather than the payer, a `withdrawn` that does not take back the payer's own open proposal about the same invoice, or a proposal whose `follows` names no `withdrawn` about the same invoice. It concerns the sender's own events, so unlike `BTP_ERROR_EVENT_UNRELATED` it reaches the wire, with the broken rule appended to the message. The `eventChainCheck` middleware raises it in flight; a platform raises it itself from `lifecycleEventChainProblem` (`@btps/sdk/server`) for an encrypted event once opened. The server never raises it.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_EVENT_CHAIN'`
+- `message`: `'Event names an earlier event it cannot follow or withdraw'`
+- `status`: `400`
+
+---
+
+### BTP_ERROR_AGREEMENT_ORDER
+
+```ts
+const BTP_ERROR_AGREEMENT_ORDER: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for an agreement's answer that is not its sender's turn: from someone who is not a signer, a signer's second answer, out of turn in a sequential agreement, or after a decline. The platform's own `agreementOrderCheck` middleware raises it in flight, with the broken rule in its message; the server itself never does.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_AGREEMENT_ORDER'`
+- `message`: `"Answer is not its sender's turn"`
+- `status`: `400`
+
+---
+
 ### BTP_ERROR_TRUST_ALREADY_ACTIVE
 
 ```ts
@@ -1198,7 +1631,7 @@ const BTP_ERROR_TRUST_ALREADY_ACTIVE: BTPError;
 ```
 
 **Description:**
-Error constant for already active trust records.
+Error constant for already active trust records. Since 1.2, an active trust still takes a change (`change: true`) while none is pending; on the wire, every trust request refusal reads `BTP_ERROR_TRUST_NOT_ALLOWED`.
 
 **Properties:**
 
@@ -1447,6 +1880,152 @@ Error constant for an `auth.refresh` that names a new device key without a `keyP
 
 ---
 
+### BTP_ERROR_SYNC_NOT_ALLOWED
+
+```ts
+const BTP_ERROR_SYNC_NOT_ALLOWED: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a transporter artifact with `syncOf` sent to a server directly. A sync comes only inside an `artifact.send` from a live device of its own address, so a server refuses one sent any other way before its signature is checked.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_SYNC_NOT_ALLOWED'`
+- `message`: `"A sync comes only from a device of its own address, inside that device's artifact.send"`
+
+---
+
+### BTP_ERROR_PERMISSION
+
+```ts
+const BTP_ERROR_PERMISSION: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for something a trust's permissions do not cover: a trust answer granting a name its request never asked for, or answering an accepted trust with no change pending. Status 403.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_PERMISSION'`
+- `message`: `'This trust does not permit it'`
+
+---
+
+### BTP_ERROR_PERMISSION_REQUIRED
+
+```ts
+const BTP_ERROR_PERMISSION_REQUIRED: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a trust answer that leaves out a permission its request requires, or whose `granted` cannot be checked because the requester's trust record has no permissions. Status 403.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_PERMISSION_REQUIRED'`
+- `message`: `'The answer does not grant every permission the request requires'`
+
+---
+
+### BTP_ERROR_DOCUMENT_TYPE_MISMATCH
+
+```ts
+const BTP_ERROR_DOCUMENT_TYPE_MISMATCH: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a document whose `type` is not the `documentType` its envelope names: refused on arrival when the document is readable, by `decryptVerify` when it is opened, and by `signEncrypt` before it is sent. Status 400.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_DOCUMENT_TYPE_MISMATCH'`
+- `message`: `'The document is not the type its envelope names'`
+
+---
+
+### BTP_ERROR_DETAILS_NOT_HELD
+
+```ts
+const BTP_ERROR_DETAILS_NOT_HELD: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a details refresh naming a detail the receiver (of a notice or response) or the answerer (of a request) does not hold by the trust, or arriving over a trust without permissions. Status 403.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_DETAILS_NOT_HELD'`
+- `message`: `'That detail is not held by this trust'`
+
+---
+
+### BTP_ERROR_DETAILS_RATE_LIMITED
+
+```ts
+const BTP_ERROR_DETAILS_RATE_LIMITED: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a details request over the limit its provider sets (`detailsRequestLimit`). Status 429. Its `meta.retryAfter` is the whole seconds the provider gave, and goes out as `status.retryAfter`, so the asker knows how long to wait before asking again.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_DETAILS_RATE_LIMITED'`
+- `message`: `'Too many details requests on this trust. Ask again later'`
+
+---
+
+### BTP_ERROR_KEY_TOO_OLD
+
+```ts
+const BTP_ERROR_KEY_TOO_OLD: BTPError;
+```
+
+**Description:**
+Since 1.2. Error constant for a refresh signed by a device key older than the server's `maxKeyAgeMs`. The refresh token stays usable, so the device moves to a new key with it (`BtpsAuthentication.rotateKey`).
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_KEY_TOO_OLD'`
+- `message`: `'This device key is older than the server allows. Move to a new key first'`
+
+---
+
+### BTP_ERROR_KEY_RETIRED
+
+```ts
+const BTP_ERROR_KEY_RETIRED: BTPError;
+```
+
+**Description:**
+Since 1.2. An artifact signed by a key its identity rotated away from as planned, longer ago than the receiver's `retiredKeyGraceSeconds`. A stale key: sign again with the current one. See [Key Rotation](../protocol/specifications/key-rotation.md).
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_KEY_RETIRED'`
+- `message`: `'The key that signed this is retired. Sign with the current key'`
+- `status`: `401`
+
+---
+
+### BTP_ERROR_KEY_REVOKED
+
+```ts
+const BTP_ERROR_KEY_REVOKED: BTPError;
+```
+
+**Description:**
+Since 1.2. An artifact signed by a key its identity rotated away from with immediate expiry, or expired with an expiry record: compromised or lost. Refused whatever the artifact's own time says. A security incident, not a stale key. See [Key Rotation](../protocol/specifications/key-rotation.md).
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_KEY_REVOKED'`
+- `message`: `'The key that signed this is revoked: it may be in other hands'`
+- `status`: `401`
+
+---
+
 ### BTP_ERROR_ARTIFACT_TIME_WINDOW
 
 ```ts
@@ -1519,12 +2098,14 @@ const BTP_ERROR_VERSION_UNSUPPORTED: BTPError;
 ```
 
 **Description:**
-Error constant for an artifact whose `version` the receiving server does not support. A 1.1 server accepts any 1.1.x and refuses 1.0. It is checked before any signature work, and the supported versions are appended to the message.
+Error constant for an artifact whose `version` the receiving server does not support. A 1.2 server accepts any 1.1.x and 1.2.x, and a 1.1 server only 1.1.x; both refuse 1.0. It is checked before any signature work, and the supported versions are appended to the message.
+
+A 1.2 client turns such a refusal into this error, with `meta.receiverVersion` set to the version of the receiver's answer: the version the receiver speaks. `send` then returns the error and the answer together. Identity lookups and `PING` are always stamped `1.1.0`, so every 1.1 and 1.2 server answers them.
 
 **Properties:**
 
 - `code`: `'BTP_ERROR_VERSION_UNSUPPORTED'`
-- `message`: `'This server does not support the artifact protocol version'`, sent as for example `'This server does not support the artifact protocol version: supports 1.1.0 to 1.1.0'`
+- `message`: `'This server does not support the artifact protocol version'`, sent as for example `'This server does not support the artifact protocol version: supports 1.1.0 to 1.2.0'` (a 1.1 server says `supports 1.1.0 to 1.1.0`)
 - `status`: `400`
 
 ---

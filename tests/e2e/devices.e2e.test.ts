@@ -10,18 +10,30 @@
 // provider delegates and delivers, then moves to a new key. A code works once;
 // a device the provider never registered is refused, and so is a phone
 // sending as someone other than its user.
+//
+// An agent action outside IMMEDIATE_ACTIONS is answered 200 once its provider
+// takes it, before delivery, so assert its arrival with vi.waitFor.
 
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { BtpsAuthentication } from '../../src/core/authentication/BtpsAuthentication.js';
 import { InMemoryTokenStore } from '../../src/core/authentication/storage/InMemoryTokenStore.js';
 import { BtpsAgent } from '../../src/client/btpsAgent.js';
 import { BtpsDelegator } from '../../src/core/delegation/BtpsDelegator.js';
+import { PemDecrypter } from '../../src/core/crypto/pem-decrypter.js';
+import { syncOfArtifact } from '../../src/core/crypto/index.js';
+import { computeAgentTrustId } from '../../src/core/trust/trustUtils.js';
+import { wrapForAgent } from '../../src/server/libs/wrapForAgent.js';
 import { AGENT_TRANSPORTER_ACTIONS } from '../../src/core/server/constants/index.js';
 import type { BTPAuthReqDoc, BTPTransporterArtifact } from '../../src/core/server/types.js';
 import type { BTPDocument, BTPInvoiceDoc } from '../../src/server/types.js';
-import { BTP_ERROR_AGENT_ID, BTP_ERROR_SIG_VERIFICATION } from '../../src/core/error/index.js';
+import {
+  BTP_ERROR_AGENT_ID,
+  BTP_ERROR_SIG_VERIFICATION,
+  BTP_ERROR_SYNC_NOT_ALLOWED,
+} from '../../src/core/error/index.js';
 import {
   addUser,
+  artifactFrom,
   deliver,
   invoiceDocument,
   letterDocument,
@@ -56,6 +68,9 @@ describe('journey: a user registers a phone', () => {
   const deviceKeys = newKeys();
   let agentId = '';
   let refreshToken = '';
+  // What the provider sent for the user, and the syncs its devices kept.
+  const sent: BTPTransporterArtifact[] = [];
+  const synced: BTPTransporterArtifact[] = [];
 
   beforeAll(async () => {
     host = await startProvider('saas.test');
@@ -69,7 +84,10 @@ describe('journey: a user registers a phone', () => {
     auth = new BtpsAuthentication({
       trustStore: host.trustStore,
       tokenStore: new InMemoryTokenStore(),
+      // Short, so the journey can retry inside it and again after it.
+      refreshGraceMs: 1000,
     });
+    const identityDecrypter = new PemDecrypter({ privateKey: user.keys.privateKey });
     // The provider sends for its users' devices as its domain's operator.
     const delegator = new BtpsDelegator({
       identity: host.operator,
@@ -108,16 +126,53 @@ describe('journey: a user registers a phone', () => {
         );
         return data ? answer(data) : refuse();
       }
-      if (artifact.action === 'inbox.fetch') return answer({ results: [] });
+      if (artifact.action === 'inbox.fetch') {
+        // The user's inbox, each encrypted entry's key wrapped to the device that asked.
+        const device = await host.trustStore.getById(
+          computeAgentTrustId(artifact.agentId, user.identity),
+        );
+        const results = await Promise.all(
+          host.inbox
+            .filter((received) => received.to === user.identity)
+            .map(async (received) =>
+              received.encryption && device
+                ? {
+                    artifact: received,
+                    agentKey: await wrapForAgent(received, identityDecrypter, device),
+                  }
+                : { artifact: received },
+            ),
+        );
+        return answer({ results });
+      }
+      if (artifact.action === 'sentbox.fetch') {
+        // Each send with the provider's own record of how it went.
+        const at = new Date().toISOString();
+        return answer({
+          results: sent.map((delegated) => ({
+            artifact: delegated,
+            meta: { delivery: { status: 'delivered', at } },
+          })),
+        });
+      }
       if (artifact.action in AGENT_TRANSPORTER_ACTIONS) {
+        const carried = artifact.document as BTPTransporterArtifact;
+        // A sync is the user's own copy of a send: kept, never delivered.
+        if (carried.syncOf) {
+          synced.push(carried);
+          return answer(undefined);
+        }
         // The phone signed the artifact; the provider delegates it and delivers it.
         const delegated = await delegator.delegateArtifact(
           artifact.agentId,
           deviceKeys.publicKey,
-          artifact.document as BTPTransporterArtifact,
+          carried,
         );
         const { response } = await deliver(delegated);
-        if (response?.status.ok) return answer(undefined);
+        if (response?.status.ok) {
+          sent.push(delegated);
+          return answer(undefined);
+        }
         return resCtx.sendError({ code: 502, message: 'The receiver refused it' });
       }
     });
@@ -191,8 +246,15 @@ describe('journey: a user registers a phone', () => {
 
       expect(error).toBeUndefined();
       expect(response?.status).toMatchObject({ ok: true, code: 200 });
-      const arrived = elsewhere.inbox.find(
-        (a) => (a.document as { id?: string }).id === document.id,
+      const arrived = await vi.waitFor(
+        () => {
+          const found = elsewhere.inbox.find(
+            (a) => (a.document as { id?: string }).id === document.id,
+          );
+          expect(found).toBeDefined();
+          return found;
+        },
+        { timeout: 10000 },
       );
       expect(arrived).toMatchObject({
         from: user.identity,
@@ -237,8 +299,12 @@ describe('journey: a user registers a phone', () => {
 
     expect(error).toBeUndefined();
     expect(response?.status).toMatchObject({ ok: true, code: 200 });
-    expect(elsewhere.inbox.some((a) => a.type === 'TRUST_REQ' && a.from === user.identity)).toBe(
-      true,
+    await vi.waitFor(
+      () =>
+        expect(
+          elsewhere.inbox.some((a) => a.type === 'TRUST_REQ' && a.from === user.identity),
+        ).toBe(true),
+      { timeout: 10000 },
     );
   });
 
@@ -285,6 +351,68 @@ describe('journey: a user registers a phone', () => {
     expect(response?.status).toMatchObject({ code: 403, error: BTP_ERROR_AGENT_ID.code });
   });
 
+  it('opens what arrived for the user with its own key, wrapped for it by the provider', async () => {
+    await recordTrust(host.trustStore, receiver.identity, user.identity, 'accepted');
+    const document = invoiceDocument({ id: 'INV-TO-PHONE' });
+    const arrived = await artifactFrom(receiver, user.identity, 'BTPS_DOC', document);
+    expect((await deliver(arrived)).response?.status.ok).toBe(true);
+
+    const { response } = await phone(agentId, deviceKeys, user.identity).command(
+      'inbox.fetch',
+      user.identity,
+      { limit: 10 },
+    );
+    const entry = (
+      response?.document as { results: { artifact: BTPTransporterArtifact; agentKey?: unknown }[] }
+    ).results.find((result) => result.artifact.id === arrived.id)!;
+    const opened = await phone(agentId, deviceKeys, user.identity).openResult(entry as never);
+    const withAnotherKey = await phone(agentId, newKeys(), user.identity).openResult(
+      entry as never,
+    );
+
+    expect(entry.agentKey).toBeDefined();
+    expect(opened.error).toBeUndefined();
+    expect(opened.payload?.document).toEqual(document);
+    expect(withAnotherKey.payload).toBeUndefined();
+    expect(withAnotherKey.error).toBeDefined();
+  });
+
+  it("keeps a send's sync from the phone, and refuses one sent to the provider directly", async () => {
+    const original = sent.at(-1)!;
+    const syncOf = syncOfArtifact(original);
+    const copy = invoiceDocument({ id: 'INV-SYNCED' });
+
+    const viaPhone = await phone(agentId, deviceKeys, user.identity).command(
+      'artifact.send',
+      user.identity,
+      copy as BTPDocument,
+      { signature: { algorithmHash: 'sha256' }, syncOf },
+    );
+    const direct = await artifactFrom(user, user.identity, 'BTPS_DOC', copy, { extra: { syncOf } });
+    const { response: refused } = await deliver(direct);
+
+    expect(viaPhone.error).toBeUndefined();
+    expect(viaPhone.response?.status).toMatchObject({ ok: true, code: 200 });
+    await vi.waitFor(() => expect(synced.map((s) => s.syncOf)).toContainEqual(syncOf));
+    expect(refused?.status).toMatchObject({ ok: false, error: BTP_ERROR_SYNC_NOT_ALLOWED.code });
+  });
+
+  it("reads its sentbox with the provider's own record of each delivery", async () => {
+    const { response, error } = await phone(agentId, deviceKeys, user.identity).command(
+      'sentbox.fetch',
+      user.identity,
+      { limit: 10 },
+    );
+
+    const results = (response?.document as { results: { meta?: { delivery?: unknown } }[] })
+      .results;
+    expect(error).toBeUndefined();
+    expect(results.length).toBeGreaterThan(0);
+    for (const result of results) {
+      expect(result.meta?.delivery).toMatchObject({ status: 'delivered' });
+    }
+  });
+
   it('moves the phone to a new key with a proof, after which only the new key works', async () => {
     const nextKeys = newKeys();
 
@@ -312,5 +440,47 @@ describe('journey: a user registers a phone', () => {
     );
     expect(withNew.response?.status).toMatchObject({ ok: true, code: 200 });
     expect(withOld.response?.status).toMatchObject({ code: 401 });
+  });
+
+  it('answers a refresh retried inside the grace window the same, and takes the old token after it as theft', async () => {
+    // A second phone, so the first keeps its own sign-in.
+    const secondKeys = newKeys();
+    const code = BtpsAuthentication.generateAuthToken(user.identity);
+    await auth.storeAuthToken(code, user.identity, user.identity);
+    const registered = await BtpsAuthentication.authenticate(
+      user.identity,
+      code,
+      secondKeys,
+      { deviceName: "Alice's tablet" },
+      agentOptions,
+    );
+    const secondId = registered.response!.document!.agentId;
+    const token = registered.response!.document!.refreshToken;
+    const reused = vi.fn();
+    auth.on('refreshTokenReused', reused);
+    const refresh = () =>
+      BtpsAuthentication.refreshSession(
+        secondId,
+        user.identity,
+        token,
+        secondKeys,
+        {},
+        agentOptions,
+      );
+
+    const first = await refresh();
+    // The answer was lost: the tablet asks again with the token it still has.
+    const retried = await refresh();
+
+    expect(first.success).toBe(true);
+    expect(retried.success).toBe(true);
+    expect(retried.response?.document?.refreshToken).toBe(first.response?.document?.refreshToken);
+    expect(reused).not.toHaveBeenCalled();
+
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    const late = await refresh();
+
+    expect(late.success).toBe(false);
+    expect(reused).toHaveBeenCalledWith(expect.objectContaining({ agentId: secondId }));
   });
 });

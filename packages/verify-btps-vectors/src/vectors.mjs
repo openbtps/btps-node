@@ -22,6 +22,16 @@ export const VECTOR_FILES = Object.freeze({
   signedArtifacts: 'signed-artifacts.vector.json',
   deviceKeyProof: 'device-key-proof.vector.json',
   timeWindow: 'time-window.vectors.json',
+  versions: 'versions.vectors.json',
+  documents12: 'documents-1.2.vectors.json',
+  eventChain: 'event-chain.vectors.json',
+  sync: 'sync.vectors.json',
+  responses: 'responses.vectors.json',
+  trustPermissions: 'trust-permissions.vectors.json',
+  details: 'details.vectors.json',
+  agreements: 'agreements.vectors.json',
+  keyRotation: 'key-rotation.vectors.json',
+  keyRotationSigners: 'key-signers.vectors.json',
   manifest: 'manifest.json',
 });
 
@@ -116,6 +126,82 @@ export function loadVectorSet(dir) {
     'keyProof',
   ]);
   requireFields(VECTOR_FILES.timeWindow, set.timeWindow, ['now', 'cases']);
+  requireFields(VECTOR_FILES.versions, set.versions, ['supported', 'stamped']);
+  requireFields(VECTOR_FILES.documents12, set.documents12, ['cases']);
+  for (const c of set.documents12.cases) {
+    requireFields(VECTOR_FILES.documents12, c, ['name', 'type', 'version', 'document', 'expect']);
+  }
+  requireFields(VECTOR_FILES.eventChain, set.eventChain, ['cases']);
+  for (const c of set.eventChain.cases) {
+    requireFields(VECTOR_FILES.eventChain, c, ['name', 'event', 'envelope', 'named', 'expect']);
+  }
+  requireFields(VECTOR_FILES.sync, set.sync, ['hash', 'envelopes', 'delivery']);
+  requireFields(VECTOR_FILES.sync, set.sync.hash, ['sent', 'syncOf']);
+  for (const c of set.sync.envelopes) {
+    requireFields(VECTOR_FILES.sync, c, ['name', 'artifact', 'expect']);
+  }
+  for (const c of set.sync.delivery) {
+    requireFields(VECTOR_FILES.sync, c, ['name', 'entry', 'expect']);
+  }
+  requireFields(VECTOR_FILES.responses, set.responses, ['cases']);
+  for (const c of set.responses.cases) {
+    requireFields(VECTOR_FILES.responses, c, ['name', 'response', 'expect']);
+  }
+  const permissionCases = {
+    envelopes: [],
+    opened: [],
+    grant: ['record'],
+    documentType: ['record'],
+  };
+  requireFields(VECTOR_FILES.trustPermissions, set.trustPermissions, Object.keys(permissionCases));
+  for (const [key, more] of Object.entries(permissionCases)) {
+    for (const c of set.trustPermissions[key]) {
+      requireFields(VECTOR_FILES.trustPermissions, c, ['name', 'artifact', ...more, 'expect']);
+    }
+  }
+  requireFields(VECTOR_FILES.details, set.details, ['envelopes', 'held']);
+  for (const c of set.details.envelopes) {
+    requireFields(VECTOR_FILES.details, c, ['name', 'artifact', 'expect']);
+  }
+  for (const c of set.details.held) {
+    requireFields(VECTOR_FILES.details, c, ['name', 'artifact', 'record', 'sentRequest', 'expect']);
+  }
+  const agreementCases = {
+    documents: ['type', 'version', 'document'],
+    events: ['type', 'version', 'document'],
+    envelopes: ['artifact'],
+    documentType: ['artifact', 'record'],
+    stamped: ['artifact'],
+    statements: ['envelope', 'event', 'agreement', 'earlier'],
+    bundles: ['bundle'],
+  };
+  requireFields(VECTOR_FILES.agreements, set.agreements, [
+    ...Object.keys(agreementCases),
+    'contentSha256',
+    'statementSha256',
+  ]);
+  for (const [key, more] of Object.entries(agreementCases)) {
+    for (const c of set.agreements[key]) {
+      requireFields(VECTOR_FILES.agreements, c, ['name', ...more, 'expect']);
+    }
+  }
+  requireFields(VECTOR_FILES.agreements, set.agreements.contentSha256, ['document', 'sha256']);
+  requireFields(VECTOR_FILES.agreements, set.agreements.statementSha256, ['record', 'sha256']);
+  requireFields(VECTOR_FILES.keyRotation, set.keyRotation, ['recordHash', 'chains', 'online']);
+  requireFields(VECTOR_FILES.keyRotation, set.keyRotation.recordHash, ['record', 'sha256']);
+  for (const c of [...set.keyRotation.chains, ...set.keyRotation.online]) {
+    requireFields(VECTOR_FILES.keyRotation, c, ['name', 'chain', 'options', 'expect']);
+  }
+  requireFields(VECTOR_FILES.keyRotationSigners, set.keyRotationSigners, ['cases']);
+  for (const c of set.keyRotationSigners.cases) {
+    requireFields(VECTOR_FILES.keyRotationSigners, c, [
+      'name',
+      'key',
+      'now',
+      'retiredKeyGraceSeconds',
+      'expect',
+    ]);
+  }
   requireFields(VECTOR_FILES.manifest, set.manifest, ['hashAlgorithm', 'files']);
 
   // The only shared key is the encryption key, referenced by name. Resolve it
