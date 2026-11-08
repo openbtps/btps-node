@@ -33,6 +33,7 @@ import {
   documents,
   documents12,
   eventChain,
+  keyRotation,
   responses,
   signedArtifacts,
   sync,
@@ -278,6 +279,22 @@ agreementSet.bundles.push(...(await agreementTimestamps(agreementSet)));
 // Each bundle also expects the keys its verifier names.
 agreementSet.bundles = agreementSet.bundles.map(withKeyFacts);
 write('agreements.vectors.json', agreementSet);
+// An identity's four keys, made here, and a fifth under 2048 bits that every verifier refuses.
+const { publicKey: smallPublic, privateKey: smallPrivate } = crypto.generateKeyPairSync('rsa', {
+  modulusLength: 1024,
+  publicKeyEncoding: { type: 'spki', format: 'pem' },
+  privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+});
+write(
+  'key-rotation.vectors.json',
+  keyRotation([
+    newKeyPair(),
+    newKeyPair(),
+    newKeyPair(),
+    newKeyPair(),
+    { publicKeyPem: smallPublic, privateKeyPem: smallPrivate },
+  ]),
+);
 
 // The manifest names every vector file with the SHA-256 of its bytes, so a
 // copy of the set can be checked whole. Rewritten on every run.

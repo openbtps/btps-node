@@ -16,6 +16,7 @@ export * from './verification.js';
 export * from './agreements.js';
 export * from './evidence.js';
 export * from './timestamps.js';
+export * from './keyRotation.js';
 export { shapeTrustRequestFor11, composeTrustRequestFor } from './shaping.js';
 // The permission names a trust carries, for a client as well as a server.
 export * from '@core/server/constants/permissions.js';

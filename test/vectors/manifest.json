@@ -12,6 +12,7 @@
     "documents.vectors.json": "722ae0a2abeae2999484a04834a0f8ca2b4f673dac71746c0e6ed4014c3e248f",
     "event-chain.vectors.json": "e82ac08db7d166e4d33b28396e8d72d093192d7061659f922861b0b874cede00",
     "jcs.vectors.json": "aac34bc0a6b879a317aca1804f71228f1e0e06a7df4ca138ab4750a4628461d6",
+    "key-rotation.vectors.json": "485766562e43a82a7bede1b710417e6cb92a0bb5a8ceab7095eb248bcddb264b",
     "kms-signature.vector.json": "2ec980707588c541d260250dc8343bd84b86777835293cde0bd8e014d54b11de",
     "oaep-mgf1-sha1.negative.vector.json": "2275824847c6b90f40ba02879734e4ff3ad46a526e8eb74592c1036861352f41",
     "oaep-wrap.vector.json": "7e4953fe061a4f213433efbc02680503541807ccc7b0c111c2b37daebdf3ae35",

@@ -23,6 +23,23 @@ describe('BtpIdentityLookupRequestSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('asks for the key chain in a 1.2.0 lookup only, since 1.2', () => {
+    const lookup = (version: string, keyChain: unknown) =>
+      BtpIdentityLookupRequestSchema.safeParse({
+        version,
+        id: 'test-id-123',
+        issuedAt: '2024-01-01T00:00:00.000Z',
+        identity: 'alice$example.com',
+        from: 'bob$example.com',
+        hostSelector: 'default',
+        keyChain,
+      }).success;
+    expect(lookup('1.2.0', true)).toBe(true);
+    expect(lookup('1.2.0', undefined)).toBe(true);
+    expect(lookup('1.2.0', false)).toBe(false);
+    expect(lookup('1.1.0', true)).toBe(false);
+  });
+
   it('should validate a valid identity lookup request with optional identitySelector', () => {
     const validRequest = {
       version: '1.0.0',

@@ -1,0 +1,2555 @@
+{
+  "description": "Key rotation (since 1.2). `chains`: give `chain` and `options` to the verifier; every fact `expect` lists must be as given (a verifier may report more; a key's `publicKey` is its SPKI PEM). `online`: the refusal a verifier applies online, `accept` or `refuse`. `recordHash`: a record's `prev` value, the SHA-256 of its signed object's RFC 8785 form in lowercase hex.",
+  "recordHash": {
+    "record": {
+      "rotation": {
+        "type": "btps.keyRotation.v1",
+        "identity": "billing$vendor.example",
+        "from": {
+          "selector": "btps1",
+          "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+          "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+        },
+        "to": {
+          "selector": "btps2",
+          "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+          "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+        },
+        "at": "2026-11-10T00:00:00.000Z",
+        "expiry": "planned",
+        "prev": null
+      },
+      "signatures": [
+        {
+          "by": "from",
+          "algorithmHash": "sha256",
+          "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+          "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+        },
+        {
+          "by": "to",
+          "algorithmHash": "sha256",
+          "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+          "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+        }
+      ]
+    },
+    "sha256": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+  },
+  "chains": [
+    {
+      "name": "planned-chain-of-three-keys",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "hZtmSXrRqL321FOU6U4BwBBXUErGynPCZ6OiIwmK/ALcc/q96Pse+PokmktnchloL9oJS4Wecb1R+Icqb3sg9n0W36DZzPfNqTdCnndnrzjPDiZrYRPKuGGprN9RC/z9o7C+B1p5Xo71gGEe2SSu57GBKEWSVNFC53uqaz0FMQntha3P8WRrRIg7sBwqjNKBTO1eD0pGv9+CgRjNaS1oKEhzVEQ2V4sPUWKk0LKGb/SQKxxVhyyoUvVjrP2y1pB6ZH9LQiQTorO1//y5t9pwGmmwebg5TjAk7ZEv5nOZMB455nP2gpwxdSM36hLNvhJOJCJBV3krHBRDULz7u36Yyg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "I52A8iU77pa3EoVbIxXsf+C3ZrODN9OLYxHq3E0UKN6jphBn0YBMXA15M3aKS0HmPUnt1k5IofSPa2MC6I22zq7ugSe0N69i9p33u2fOBLb3DuNCbiYsuxtfzMWd0Vyrhfe8H/fNrzJTk8AF8mDHZgqjOCRdzW1bhsJMnIDbbGNXk72LVcroERSRMFn4mO3q5K1424gWDzqHz2A6w8tPNfDe+Avt47U+xZ81P1tj3FVmzlZL5d89RTziRHPws3Na3F0zATHjEjRzlR7PiFL2dFQ4Jy2WSDgDtkryEwp6uT/zJV/1U0aiC/K1s+TwqCSjOLFsnMIWqiO1BrvHkXgzZA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "expect": {
+        "chainValid": true,
+        "forked": false,
+        "authorityUnverified": false,
+        "keys": [
+          {
+            "selector": "btps1",
+            "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+            "validUntil": "2026-11-10T00:00:00.000Z",
+            "rotatedAway": "planned"
+          },
+          {
+            "selector": "btps2",
+            "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+            "validFrom": "2026-11-10T00:00:00.000Z",
+            "validUntil": "2026-11-20T00:00:00.000Z"
+          },
+          {
+            "selector": "btps3",
+            "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+            "validFrom": "2026-11-20T00:00:00.000Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "records-in-any-order-are-read-by-their-links",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "hZtmSXrRqL321FOU6U4BwBBXUErGynPCZ6OiIwmK/ALcc/q96Pse+PokmktnchloL9oJS4Wecb1R+Icqb3sg9n0W36DZzPfNqTdCnndnrzjPDiZrYRPKuGGprN9RC/z9o7C+B1p5Xo71gGEe2SSu57GBKEWSVNFC53uqaz0FMQntha3P8WRrRIg7sBwqjNKBTO1eD0pGv9+CgRjNaS1oKEhzVEQ2V4sPUWKk0LKGb/SQKxxVhyyoUvVjrP2y1pB6ZH9LQiQTorO1//y5t9pwGmmwebg5TjAk7ZEv5nOZMB455nP2gpwxdSM36hLNvhJOJCJBV3krHBRDULz7u36Yyg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "I52A8iU77pa3EoVbIxXsf+C3ZrODN9OLYxHq3E0UKN6jphBn0YBMXA15M3aKS0HmPUnt1k5IofSPa2MC6I22zq7ugSe0N69i9p33u2fOBLb3DuNCbiYsuxtfzMWd0Vyrhfe8H/fNrzJTk8AF8mDHZgqjOCRdzW1bhsJMnIDbbGNXk72LVcroERSRMFn4mO3q5K1424gWDzqHz2A6w8tPNfDe+Avt47U+xZ81P1tj3FVmzlZL5d89RTziRHPws3Na3F0zATHjEjRzlR7PiFL2dFQ4Jy2WSDgDtkryEwp6uT/zJV/1U0aiC/K1s+TwqCSjOLFsnMIWqiO1BrvHkXgzZA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "expect": {
+        "chainValid": true,
+        "keys": [
+          {
+            "selector": "btps1",
+            "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+            "validUntil": "2026-11-10T00:00:00.000Z",
+            "rotatedAway": "planned"
+          },
+          {
+            "selector": "btps2",
+            "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+            "validFrom": "2026-11-10T00:00:00.000Z",
+            "validUntil": "2026-11-20T00:00:00.000Z"
+          },
+          {
+            "selector": "btps3",
+            "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+            "validFrom": "2026-11-20T00:00:00.000Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "never-rotated-is-an-empty-chain",
+      "chain": [],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "expect": {
+        "chainValid": true,
+        "keys": [],
+        "anchored": false
+      }
+    },
+    {
+      "name": "immediate-expiry-signed-by-both-keys",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "immediate",
+            "compromisedSince": "2026-11-18T00:00:00.000Z",
+            "reason": "compromised",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "FyBb9Mdy2WnUKLcdWEuNUtzqpVxwGGE/te2tUqqPw9qo94Q2hejwHDaNy9zX3MrGS0W3u40+UVcRjQUVKnpBxRoC8iutnuaGgljQfAc89U37n8TUvrJAEnm8cXTOEJk44by9AQkV3K9Y5+MKmy0btHWERNaSB+L9lH9f3bipzPmNjeflQmOtE9wsK/BM99hC1aZfIPgNQWk5uly5VIPZ6XtGCgesEHU8kJajAtjGSIRehVZnGBDy51ojYOJwQngLYDEaSfLjAZqQkdud/cSD3DDSL9tfvmGmWuKCP20UaaFMFvsgC56mmkLlkuhicMkQjOSxl+miUqfo8wpqZSuILA==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "z+chx1k/MWShkN1c7VUvLA5aOweQgOTCJDhq/Q7yGrEJKszQ+/Fv3FVZF3QdjV/biZtygt0hcGLsw/QrKYKWdgjSZq6Vfx3Ou4ARQQ0HCmKvp0QuB0xDc8jpgu+00hdsQL53cS057TEzIiXz4RJ69MP5/4/dZxugoxyKqEhOkr+Vwyzngx5csYNXr/FT41sYstCjo3rjAxgogHPxOA0JCbrIymNr/YWvPi48XYSktKpBGu/lsOEt9iNksBkvcK+SnJaTf2bhAbmujp/647L9iQEapg6RIWV9mh9DImLY/J/BXzcbC1e/8OWtLVi2992dOkmwhys77sK5jEjcRV+nRw==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "expect": {
+        "chainValid": true,
+        "authorityUnverified": false,
+        "keys": [
+          {
+            "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+          },
+          {
+            "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+            "rotatedAway": "immediate",
+            "compromisedSince": "2026-11-18T00:00:00.000Z",
+            "reason": "compromised",
+            "expiredAt": "2026-11-20T00:00:00.000Z"
+          },
+          {
+            "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+            "validFrom": "2026-11-20T00:00:00.000Z"
+          }
+        ]
+      }
+    },
+    {
+      "name": "lost-key-offline-authority-unverified",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "immediate",
+            "compromisedSince": "2026-11-19T00:00:00.000Z",
+            "reason": "lost",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "va1FCL9evCHQd/JpAFFiqSJ7iw0xzI5noJTtKBMqXtdiDvbR+exMOeNK/uNlldv7IIzcNWlflJp1POJWfd03kizRb7fXiC5Ohe6L5nB0kA+8XozpHkuTqsN2GQNMadzrqWV8r4ljndaJoVlTy6RWgpb0D/DFPGFRt5CWLVU/iw0pmB4KnhHpBgEhSKQ5RFggOpg4p4cjd550DR+CCslqZMiahbrvU4pDmqTq6tBYWKJY+vIRWny0ytmqeAtROG2cm8Ed1Z3zoWKfge8SGBHpA5b00XpVG6hV4+AGeH0dcK14Eq3oMVgYmV2VLcvAfJVv375DheSNILCnYVNwTthJpA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example",
+        "anchors": ["iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="]
+      },
+      "expect": {
+        "chainValid": true,
+        "authorityUnverified": true
+      }
+    },
+    {
+      "name": "lost-key-confirmed-by-the-operator-for-a-host-only-identity",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "immediate",
+            "compromisedSince": "2026-11-19T00:00:00.000Z",
+            "reason": "lost",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "va1FCL9evCHQd/JpAFFiqSJ7iw0xzI5noJTtKBMqXtdiDvbR+exMOeNK/uNlldv7IIzcNWlflJp1POJWfd03kizRb7fXiC5Ohe6L5nB0kA+8XozpHkuTqsN2GQNMadzrqWV8r4ljndaJoVlTy6RWgpb0D/DFPGFRt5CWLVU/iw0pmB4KnhHpBgEhSKQ5RFggOpg4p4cjd550DR+CCslqZMiahbrvU4pDmqTq6tBYWKJY+vIRWny0ytmqeAtROG2cm8Ed1Z3zoWKfge8SGBHpA5b00XpVG6hV4+AGeH0dcK14Eq3oMVgYmV2VLcvAfJVv375DheSNILCnYVNwTthJpA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example",
+        "online": {
+          "fromOperator": true,
+          "dnsFingerprint": null
+        }
+      },
+      "expect": {
+        "authorityUnverified": false,
+        "anchored": {
+          "by": "online",
+          "upTo": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+        }
+      }
+    },
+    {
+      "name": "lost-key-confirmed-by-dns-at-its-new-selector",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "immediate",
+            "compromisedSince": "2026-11-19T00:00:00.000Z",
+            "reason": "lost",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "va1FCL9evCHQd/JpAFFiqSJ7iw0xzI5noJTtKBMqXtdiDvbR+exMOeNK/uNlldv7IIzcNWlflJp1POJWfd03kizRb7fXiC5Ohe6L5nB0kA+8XozpHkuTqsN2GQNMadzrqWV8r4ljndaJoVlTy6RWgpb0D/DFPGFRt5CWLVU/iw0pmB4KnhHpBgEhSKQ5RFggOpg4p4cjd550DR+CCslqZMiahbrvU4pDmqTq6tBYWKJY+vIRWny0ytmqeAtROG2cm8Ed1Z3zoWKfge8SGBHpA5b00XpVG6hV4+AGeH0dcK14Eq3oMVgYmV2VLcvAfJVv375DheSNILCnYVNwTthJpA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example",
+        "online": {
+          "fromOperator": true,
+          "dnsFingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+        }
+      },
+      "expect": {
+        "authorityUnverified": false,
+        "anchored": {
+          "by": "online",
+          "upTo": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+        }
+      }
+    },
+    {
+      "name": "expiry-of-a-past-key-voids-nothing-on-the-anchored-path",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "hZtmSXrRqL321FOU6U4BwBBXUErGynPCZ6OiIwmK/ALcc/q96Pse+PokmktnchloL9oJS4Wecb1R+Icqb3sg9n0W36DZzPfNqTdCnndnrzjPDiZrYRPKuGGprN9RC/z9o7C+B1p5Xo71gGEe2SSu57GBKEWSVNFC53uqaz0FMQntha3P8WRrRIg7sBwqjNKBTO1eD0pGv9+CgRjNaS1oKEhzVEQ2V4sPUWKk0LKGb/SQKxxVhyyoUvVjrP2y1pB6ZH9LQiQTorO1//y5t9pwGmmwebg5TjAk7ZEv5nOZMB455nP2gpwxdSM36hLNvhJOJCJBV3krHBRDULz7u36Yyg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "I52A8iU77pa3EoVbIxXsf+C3ZrODN9OLYxHq3E0UKN6jphBn0YBMXA15M3aKS0HmPUnt1k5IofSPa2MC6I22zq7ugSe0N69i9p33u2fOBLb3DuNCbiYsuxtfzMWd0Vyrhfe8H/fNrzJTk8AF8mDHZgqjOCRdzW1bhsJMnIDbbGNXk72LVcroERSRMFn4mO3q5K1424gWDzqHz2A6w8tPNfDe+Avt47U+xZ81P1tj3FVmzlZL5d89RTziRHPws3Na3F0zATHjEjRzlR7PiFL2dFQ4Jy2WSDgDtkryEwp6uT/zJV/1U0aiC/K1s+TwqCSjOLFsnMIWqiO1BrvHkXgzZA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        },
+        {
+          "expiry": {
+            "type": "btps.keyExpiry.v1",
+            "identity": "billing$vendor.example",
+            "key": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            "compromisedSince": "2026-11-05T00:00:00.000Z",
+            "reason": "compromised",
+            "at": "2026-11-25T00:00:00.000Z",
+            "prev": "896e8f577586372de62e37b635fb9a74547b39f1c210a8233091cb71c28ed337"
+          },
+          "signatures": [
+            {
+              "by": "current",
+              "algorithmHash": "sha256",
+              "value": "qvspNBPRaP9MWY5YpmeZ05/p0OdTnrkQv0oLnh5PwHhqS6UjuZi6eYBF0gMFUpbfVLH2qTiYdird/f36WyiM5W032lL0Fi5iykqaSuJoD0BjfdmzAgP2HpTugoeNCZlmm6O8+REWIZTc1dyWN+E4D97eugIWjfVOiiYRGIpFbXd51QC38hCiYasPP19i9sd6erRHryO3EAyiQDmaSgoOi+ldOLRjhZzOCTnf72tZSBWgwEITHiM2FwpfyTXn/fDnNVk47KM57eb32LgTd2Y2iFkIPR7AXuB/+bx+bSK8iFyGTXv7kQEdkaYDcQ6q7PJyqw63HrO7lEL+CK38NzHDmw==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example",
+        "anchors": ["iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="]
+      },
+      "expect": {
+        "chainValid": true,
+        "anchored": {
+          "by": "kept-fingerprint",
+          "upTo": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+        },
+        "keys": [
+          {
+            "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+            "compromisedSince": "2026-11-05T00:00:00.000Z",
+            "expiredAt": "2026-11-25T00:00:00.000Z"
+          },
+          {
+            "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+          },
+          {
+            "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+          }
+        ]
+      }
+    },
+    {
+      "name": "a-kept-fingerprint-anchors-up-to-itself-only",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "hZtmSXrRqL321FOU6U4BwBBXUErGynPCZ6OiIwmK/ALcc/q96Pse+PokmktnchloL9oJS4Wecb1R+Icqb3sg9n0W36DZzPfNqTdCnndnrzjPDiZrYRPKuGGprN9RC/z9o7C+B1p5Xo71gGEe2SSu57GBKEWSVNFC53uqaz0FMQntha3P8WRrRIg7sBwqjNKBTO1eD0pGv9+CgRjNaS1oKEhzVEQ2V4sPUWKk0LKGb/SQKxxVhyyoUvVjrP2y1pB6ZH9LQiQTorO1//y5t9pwGmmwebg5TjAk7ZEv5nOZMB455nP2gpwxdSM36hLNvhJOJCJBV3krHBRDULz7u36Yyg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "I52A8iU77pa3EoVbIxXsf+C3ZrODN9OLYxHq3E0UKN6jphBn0YBMXA15M3aKS0HmPUnt1k5IofSPa2MC6I22zq7ugSe0N69i9p33u2fOBLb3DuNCbiYsuxtfzMWd0Vyrhfe8H/fNrzJTk8AF8mDHZgqjOCRdzW1bhsJMnIDbbGNXk72LVcroERSRMFn4mO3q5K1424gWDzqHz2A6w8tPNfDe+Avt47U+xZ81P1tj3FVmzlZL5d89RTziRHPws3Na3F0zATHjEjRzlR7PiFL2dFQ4Jy2WSDgDtkryEwp6uT/zJV/1U0aiC/K1s+TwqCSjOLFsnMIWqiO1BrvHkXgzZA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example",
+        "anchors": ["fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="]
+      },
+      "expect": {
+        "anchored": {
+          "by": "kept-fingerprint",
+          "upTo": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+        }
+      }
+    },
+    {
+      "name": "the-same-key-under-a-new-selector-needs-no-record",
+      "note": "The domain moved s= to btps9 and re-published btps2's key under it: DNS at btps9 gives the chain's current fingerprint.",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example",
+        "online": {
+          "fromOperator": true,
+          "dnsFingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+        }
+      },
+      "expect": {
+        "chainValid": true,
+        "anchored": {
+          "by": "online",
+          "upTo": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+        }
+      }
+    },
+    {
+      "name": "a-fork-picks-no-branch-without-an-anchor-past-it",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "immediate",
+            "compromisedSince": "2026-11-15T00:00:00.000Z",
+            "reason": "compromised",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "NsQBCmqLk9thKy7xQTqOlCRtGPxulXx8+zy2VWHsQZvi0n6tmKnJVho4W8b5yq9dM/x28OJSzAEFs8QStJC5gEpv8ypwyv/Cwzlt7p4eTmxuFPTlV/HJViIs+ZEj2zwqfqF8bLPjlPAlXvqPqgmQkppY2wQpKJ6g1ivi/oqD4TaVp2epQiC8F1J6b8utGLlOuHcuDVVK31H9mQL96memIrAAM6AhiMGDIBht8Qhwo86zqC9uQ/yVds5x8x+3QSTD8R52Nxm8zS19W3GlJdOx4LRu5HZDB8A0PEUeVeozsjlfexDF2isSq7fGLtB49zE3bAGFnuBgwN9MBv10siNKLQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "waEBL+aSZM+y0Kva9dzLnUY4dyfouGSNp/2Vvk25SBzqg/FJ96Z1Xng4KUhxYr0fJNOSeHCQdaKGs6iXeA/ucgoWTOLbZAnYtIGmpx9WQNSWF0c2BMF7iRSv7tR7EYr3SVYt846FZXlabhAYzYv+8vdYiUlj1Vi5uEVMcMsNwXrhBZdn4N1RNRnOkqfIGIFqO9znCjcPuNp61vpyEEJPGJ+QCcbmTcOYpEPpN8TVBl4mOKncvvuipju9jSQ7cTtRBgfYag3Rdz7obYPVT2IPBXzuI9OWESQlSbL8hCkV5GT7XQ9pMjY0ZwpZE8QD0qLSnp5BtT0qwmkM3gMri0sjYQ==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps4",
+              "fingerprint": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyDnU469S9Fl4nPXIV5hGNnU8hm+MfbfXWOPhdB3DfXa1EZbOaLc/TnysV6RxjnhK6mAFMiHUiY2C7/r+xQzYmp9AA7SUIWrxfvSeJJqnCIR4d0ubBVMYd+7DIIhjRXAJvWOqDbv6A+zO9ad9bj/lpfGOWHX+Mmlq4XJL3nk0qxpOHLMhmT3L15xs9MLPKGSzzmNThlHlVAr4P+RC1BJi+QDSr9ADhHFxG/n2xU9ilZEV56AjuB7tks+LJPYgqfKkGTPxgx0jwdFA6R19fC4AhKnFIMXGVGnZiCRoihHQBUfRLHP0yTr6gWV4DaqoG96sM/WB8hcBpohu6ZIrfjKiaQIDAQAB"
+            },
+            "at": "2026-11-16T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "Hks0LDdAjU8x9DXn0ACHLVgAJe7WYNJxyARXGKIADIhsVEaunK/FEfg5lQNge5Lgx1IfoFzOBgx1BUFrNUqPhdXIXvKj3earpUIJMP0nfVQaucyrQQc5elDZBiSSKAUHx9ook7VcvNpriCJYyFU2pdFzlY3O6xr1DGnfjK8ExTs//iBq00YrkJNZUx30Ko/smyG2/jcP3nBqvSpcTLdqkCwBq7BnTYZHENcW/CfQLf9e0JqMQaNQA2z+22RgKz1wm8NcN8vMlAuWfN3OWLjw3s5AQAIcWxGqf749CkNnQjA9JHymqo08miQ2N8XpQPFqC4Bea5yyG/Oxogc2TLYvkg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "VCyi69pGeUZcOZrjztCtRt4h4iR8z35FJ2h4RPPfigEXX2OIVJ2PeswdFTebNEXYf7rJ0lG43U7U/lIEGi6qLM42dGdLsbiNa7YKEeD/FPzXEJMRvVHmRIvNVvwhYlhiltT2/VoUBOfjnLqZP5i7f3/0GL0fh36xDIN6POSDgqOYvV69kN9soOQc266Uj4OCYuQrk5oInPY7ZVbtYexzBQcAqN3o65wg51/y2HI8wRpApfP5003OWT3npGk5YqgxqQlX/OcRFaXELQQZ8xqwW89h3krzJ4WNgZLpOB4VfRXbQOsATAoUZaz+A2dgLJcn5BVPBcj7I5GkZa8azDBUqw==",
+              "fingerprint": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example",
+        "anchors": ["fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="]
+      },
+      "expect": {
+        "chainValid": true,
+        "forked": true,
+        "keys": [],
+        "anchored": false,
+        "branches": [
+          {
+            "tip": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+            "void": false
+          },
+          {
+            "tip": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k=",
+            "void": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "a-thiefs-branch-off-the-anchored-path-is-void",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "immediate",
+            "compromisedSince": "2026-11-15T00:00:00.000Z",
+            "reason": "compromised",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "NsQBCmqLk9thKy7xQTqOlCRtGPxulXx8+zy2VWHsQZvi0n6tmKnJVho4W8b5yq9dM/x28OJSzAEFs8QStJC5gEpv8ypwyv/Cwzlt7p4eTmxuFPTlV/HJViIs+ZEj2zwqfqF8bLPjlPAlXvqPqgmQkppY2wQpKJ6g1ivi/oqD4TaVp2epQiC8F1J6b8utGLlOuHcuDVVK31H9mQL96memIrAAM6AhiMGDIBht8Qhwo86zqC9uQ/yVds5x8x+3QSTD8R52Nxm8zS19W3GlJdOx4LRu5HZDB8A0PEUeVeozsjlfexDF2isSq7fGLtB49zE3bAGFnuBgwN9MBv10siNKLQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "waEBL+aSZM+y0Kva9dzLnUY4dyfouGSNp/2Vvk25SBzqg/FJ96Z1Xng4KUhxYr0fJNOSeHCQdaKGs6iXeA/ucgoWTOLbZAnYtIGmpx9WQNSWF0c2BMF7iRSv7tR7EYr3SVYt846FZXlabhAYzYv+8vdYiUlj1Vi5uEVMcMsNwXrhBZdn4N1RNRnOkqfIGIFqO9znCjcPuNp61vpyEEJPGJ+QCcbmTcOYpEPpN8TVBl4mOKncvvuipju9jSQ7cTtRBgfYag3Rdz7obYPVT2IPBXzuI9OWESQlSbL8hCkV5GT7XQ9pMjY0ZwpZE8QD0qLSnp5BtT0qwmkM3gMri0sjYQ==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps4",
+              "fingerprint": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyDnU469S9Fl4nPXIV5hGNnU8hm+MfbfXWOPhdB3DfXa1EZbOaLc/TnysV6RxjnhK6mAFMiHUiY2C7/r+xQzYmp9AA7SUIWrxfvSeJJqnCIR4d0ubBVMYd+7DIIhjRXAJvWOqDbv6A+zO9ad9bj/lpfGOWHX+Mmlq4XJL3nk0qxpOHLMhmT3L15xs9MLPKGSzzmNThlHlVAr4P+RC1BJi+QDSr9ADhHFxG/n2xU9ilZEV56AjuB7tks+LJPYgqfKkGTPxgx0jwdFA6R19fC4AhKnFIMXGVGnZiCRoihHQBUfRLHP0yTr6gWV4DaqoG96sM/WB8hcBpohu6ZIrfjKiaQIDAQAB"
+            },
+            "at": "2026-11-16T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "Hks0LDdAjU8x9DXn0ACHLVgAJe7WYNJxyARXGKIADIhsVEaunK/FEfg5lQNge5Lgx1IfoFzOBgx1BUFrNUqPhdXIXvKj3earpUIJMP0nfVQaucyrQQc5elDZBiSSKAUHx9ook7VcvNpriCJYyFU2pdFzlY3O6xr1DGnfjK8ExTs//iBq00YrkJNZUx30Ko/smyG2/jcP3nBqvSpcTLdqkCwBq7BnTYZHENcW/CfQLf9e0JqMQaNQA2z+22RgKz1wm8NcN8vMlAuWfN3OWLjw3s5AQAIcWxGqf749CkNnQjA9JHymqo08miQ2N8XpQPFqC4Bea5yyG/Oxogc2TLYvkg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "VCyi69pGeUZcOZrjztCtRt4h4iR8z35FJ2h4RPPfigEXX2OIVJ2PeswdFTebNEXYf7rJ0lG43U7U/lIEGi6qLM42dGdLsbiNa7YKEeD/FPzXEJMRvVHmRIvNVvwhYlhiltT2/VoUBOfjnLqZP5i7f3/0GL0fh36xDIN6POSDgqOYvV69kN9soOQc266Uj4OCYuQrk5oInPY7ZVbtYexzBQcAqN3o65wg51/y2HI8wRpApfP5003OWT3npGk5YqgxqQlX/OcRFaXELQQZ8xqwW89h3krzJ4WNgZLpOB4VfRXbQOsATAoUZaz+A2dgLJcn5BVPBcj7I5GkZa8azDBUqw==",
+              "fingerprint": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example",
+        "online": {
+          "fromOperator": true,
+          "dnsFingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+        }
+      },
+      "expect": {
+        "forked": true,
+        "anchored": {
+          "by": "online",
+          "upTo": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+        },
+        "branches": [
+          {
+            "tip": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+            "void": false
+          },
+          {
+            "tip": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k=",
+            "void": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "a-rotation-without-the-new-keys-signature",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "the new key proves its holder has it",
+      "expect": {
+        "chainValid": false
+      }
+    },
+    {
+      "name": "a-planned-rotation-signed-by-a-key-it-does-not-name",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "OV+Wjgjp90JnIeOf/CqR70oXzJXIsHjmiOOL/gm2/eBLgrkOLg2K3pugAJ/hEp9PAtSnU5jEjExIjABRThn7hRMYvl8Tvl9Ivrgs2NOCV/orb8XwosDCfzdFUZsm3DCbON7hzmVGftFeyhwHqDdnPBP0cpDdr4KvFoQabMOHEST2fuSQd/jd7swsbbWnKiX2F+2lDqTLnLHnpniDL1M5F/aE4CWp0Z2qAtPUYDXd1Xjphvm3rKQJQr+u09rph+8taep1jovEuBGHU+5oDjShxA0sHMp3Vpuca2PjbBQ5a59EHE+J4/P2kVZnxvjm+S+Vzwe3kU2RkAVuiEdfafIsMQ==",
+              "fingerprint": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "the old key is the authority",
+      "expect": {
+        "chainValid": false
+      }
+    },
+    {
+      "name": "a-stated-fingerprint-that-is-not-the-keys",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "d0Z4q2H3Y5hs+LlyLI65HGK3radH/yrDManZl2ERbHG2L/7AeY9q0zCa0q+OSr3jJrTGuIN8S5dfM71E5sWCiTeeCSBKl2BLuX5g3vJ0Y2AdMVpraGAs/UkAuOiZy/rWpZUVScaD5MTAEDqqLxAw3zT0D9Ft8h5w1TBMqRYaBi2mbNkGFeBZvqCrM5SWbYgZQ+aTxU6JaLY63yty6nuB+eUZyJkppyYFScg3NtIIBM1mvbNo4lzEDQA0mTS8tCLUN28SGpDW+Ke1hn3kYWH3SwBPGwK0Cvqil+HqaU162zHFduyEW1Ufej7N6fsZH2dRobmZTUKjDy2ZcLFfa6yFhg==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "xJZqR6s/5Tmqj7ySNLQW6hmAkhtugRoFHSA++0QkSKvE0kjR01l+yLwcorgPCAKNc3f+RfhfvKG0TfiGUm6igxW+mAqekLiH965fq5cbt56UViq3Sy6WZIJRojQpyGOCwK8sY/YjU62p2jCIioR6CpluMNpZSHixu6m8uT6a/XNX4lfH97yU5t1/8zeSZPfs6RWUVAbOfo3o2FUnWrOmiGcB0oLdH3p2pfqURiwbvStsBvszFKXa5+5iorhtmEtEPCRORAmWe4RXvRwJhDAr3t/zLTP/sw/OGvSdNiyjeCj/lI8lMNOspC9ihJeDifOEUF6EHilPOAVPjIYhzybbNA==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "a fingerprint is computed from the DER SPKI, never taken from the record",
+      "expect": {
+        "chainValid": false
+      }
+    },
+    {
+      "name": "a-key-under-2048-bits",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "IYS+BuYg8P/PMCMyJqrrv3myY4rWMjZb7anBH7QfBvA=",
+              "publicKey": "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC/otdbenJzCQd3wO6B2F7mCVy76O8ukivOW18/xnMVe79GXrvRsS+mlMTSjPAE6SC8UODoVE2xMEnX4MIFcPxpBEeHurZHrkxwZ92AsABKug8hapLpMRU7dQu9pfEvdzypheZtULGNybl9QBpSoAHF7aPijTo2qcLIxg5JUy94pQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "ib7TvPFcyaqBHR2xnJw15U2fFoFl7LGAfzWEbyXPRBQU91akkKuOSF5VMUGslo/PJGvZfRHqdWdeKla++k8QPGU4IJMDkQf/pig+D2NFLgkK/a/eBZWkhu4hho9MP3okjwPjKVTQYbgZosAIEUHRfi9gPKTVmrtQvZKkp31Ug1gIwQqQu3M7CQcDkk4CQZzs9i6WmjyfHNgxnY0wPWDohNU2+M+NMR7tMybtMbgwI/FIUnXq2/MgdevKYYqLmst8B6czMEVmcGd6U140KX50c/FPb+p0sGMyovo+PHi1zDCNruLZo3eKWf0M0GW4s0z/YU5MGzunYABcAaTf/mYa8A==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "eDcN3EeEM9C9d+u1/zK1+RFSySVC8jIcvDs4oQotmW4UeAyP5p60iUuIDeJW5hC/vKO/+iytwJcpp91r5Om2tV5EhDayIKi3r/uVMpNf6/Ehb9C6Y3468XP7CGTjKVLvSz0DANW8wvpVRz4zLVH9X6yUjixMwARbQia93uhIQXs=",
+              "fingerprint": "IYS+BuYg8P/PMCMyJqrrv3myY4rWMjZb7anBH7QfBvA="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "every key is RSA of at least 2048 bits",
+      "expect": {
+        "chainValid": false
+      }
+    },
+    {
+      "name": "a-wrong-type",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v2",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "lxEca1fQQBlS4dveNAFUpiotKD9RNKlBB9m/8yuuL3txTepYbzf+oq/n8YnyZeE+wfGaNjdwGxCeCEW9i1EClEQPcU5M5zuMdOF6WvfP4rzEu8ImaN2QR3rcVBOmWTT7E95QpzB13jqI8OzrbZ5JfHWvawKvJdBn96IMQoJdRwYhzYawUi9GUom89/v6YOJMB9PN0no3QcrY/zSPL6GaYlFOfLJ134ADi8eO6vY7O+JRwIqsf5g4DSBUuSqVzGL1XpRFU5xsbFvsR3C8VWPwccEA37Oy/4tsXc3teI3JAGD/tEhtAZKins+BOzRWvmBQLLrHttX3DRBTeaXCHCV9sw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "oLd1fLdMLrYt8qRpBRTm+td3Kauo9mNP9ocYQtMTW5/u7pgHJAUADGFaOjMvV0DO7xbr5JJNJ+sPhngxglxfUbq8oUnD40E17FzdAAwahG+5sSitD5+LXnZWrhleVCHoBC8E+QRJBihLPSn5cZDKpkp7bEUaD4UitAmgI2W8oAMUZLXmrZl8FY8BvQUWda/RIayCaR3qbW185cCuFb8e3YVzZIQKQhylTORerlkLXYowEcaAGZ8zqqvNDVmylrO/Ln3CyP6GTInU3E8VbGNwGX1jlXgIrOusU5S9iEdl1WUbwiVw9C3Jf8lyUouoWhsuaDk2atWDwh/oZg0D8ATXaw==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "the signed type tag is btps.keyRotation.v1",
+      "expect": {
+        "chainValid": false
+      }
+    },
+    {
+      "name": "another-identitys-record",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "other$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "AmIWtZkQsmFH3uW7LuIjC82AyUCT/cVBcO5d1kVTFelV534VGyGXqlqcyWNf7vdDmdJJ7a9+KVIFyavtPKR14QLV3WFONJ9LpMFaceQLACo+r3IOUybXsfiD4wvTqmicZEnBFvIGNRLwl5Ab1jdJ0u8EyjUADwtYLVHQZ1jE6UzZh2cx3MhaqHnliLEMU4zKMNAbs+8bQrGAM1O0eDS8Q5ottgk4dL6Ldh/OEzt10MGytr1PtKioIHxb14HxhDJM0uUE0LZ3wPahvpqenYBGskXDxWUEGqpYJ7Ny5lfZeGIvi/J/8xPvQE3+uBAMe13873CSkySe2naw3yRgZaXKuA==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "N/MfMl8qaMuHPka6yYfy5RrHd+koWLg2NVaSWKA8H1dgFn5qKxO8vWeBEK6cHcQVUk+J2hhoEH+PDdng6SagkOUHHqeLjYRkRXKxSWbrYGdLrtoBuRKLyG/5hOTWnGn5UJqZdFJGtkVxqBHPpGYIKi/Bxg5MANYFn3ZwNc48uaGrCPDh4OcJuHy65yRlE0t2UTP3FXgr8ojx0x7i2E33VhBbS09ltiQ3r7XCFjfNVu0HtiI0g9XEqSgfTWO7caREgYSS/+TKKSWNg/6AQV0CLzUUG4XNIfPZAAWERQ3tsbc09AO9qvwU+EBCE2/gWJnLFIEk9FXvtXy3xZmY17PwAQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "a record's identity is the identity being resolved",
+      "expect": {
+        "chainValid": false
+      }
+    },
+    {
+      "name": "a-rotation-signed-by-current",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "current",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "a rotation is signed by from and to",
+      "expect": {
+        "chainValid": false
+      }
+    },
+    {
+      "name": "a-broken-prev",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "yv6P2YOOyXyuIIAlPTu4Dl7JMV49WDeUEzr71uy9sGRiQvEhkdA/ywRAl8ReISZ+IWJU9rYfj9T9cpQ+9nWOg5gssqmNB/Vk9tlQcxX29+GR/dqKNcuqjij3lT5JUH4vl2Dd9ZcwdbuhiXyTyQgTFzESgV9gWJQGZadHtHo+rKIYNK6P9dm6bPaRvgT7KiLqBj4zvgg3x1wzWl+9z7X8CYeTwpaId5JvhJtDJuJiB5Lu1HC1d4REd5/8+S1Izncz7ZipzXJXYyp29nI5mhmOnhxn5YHCrDlScpQXOpI0ePgkhBgXpDH2xfqweNGzCUShW8H/QJ2ZZvLDXN8e/XXASA==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "xHjnu069wxy+4cnASTAQ94MbvzkjMrbMcXHL/nfWq5x+DTWEvi68rseLCLBNC8IkLD3xb+reNBkuoRad4ByiiaUm9oJ00MLbGv4B9G3DrM4bLIm5bkzwEM7L2NCFvhW6a+cXTO525Fz4pwSCNcHcTYb2Vl7bxf06t+0iXDkC0q3OtRzVC8DBza4tAcSIuRA+b4G69qwnoSDiY2eiHktOquTq9qsdYYZzBQlAShADMrAi/5VRT/zr8M9u5JPTJxZUOQBmQ8iMOD3xyBUEQV75fSaJuTeXIdj0dDPd5jmlCToykFu6C44y7181S5a/PCHv58/yl6jibWHy4FCyXaOBZg==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "prev names the previous record's hash",
+      "expect": {
+        "chainValid": false
+      }
+    },
+    {
+      "name": "two-first-records",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "to": {
+              "selector": "btps4",
+              "fingerprint": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyDnU469S9Fl4nPXIV5hGNnU8hm+MfbfXWOPhdB3DfXa1EZbOaLc/TnysV6RxjnhK6mAFMiHUiY2C7/r+xQzYmp9AA7SUIWrxfvSeJJqnCIR4d0ubBVMYd+7DIIhjRXAJvWOqDbv6A+zO9ad9bj/lpfGOWHX+Mmlq4XJL3nk0qxpOHLMhmT3L15xs9MLPKGSzzmNThlHlVAr4P+RC1BJi+QDSr9ADhHFxG/n2xU9ilZEV56AjuB7tks+LJPYgqfKkGTPxgx0jwdFA6R19fC4AhKnFIMXGVGnZiCRoihHQBUfRLHP0yTr6gWV4DaqoG96sM/WB8hcBpohu6ZIrfjKiaQIDAQAB"
+            },
+            "at": "2026-11-30T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "oMtl0nGC84+Fgw3oFM95b/Pd6BFWjWdU2cL2m/tT/qJK9oo/jVmW8/BX28tzBPX1i+G83EuZPqSZMojhKxf4oQLnRfhKlqB5FMKuHsq9aHRJL1oMrNNFRi4i9UyASLjPLmNiC6NtCj25J7emBY+IDFX6QvR29RUXdejp+lAOTmLdBsUNn4flFOFoiqUKTq2hXIwNN286bQUvoRuOoaR5DQk9MSXHU6sIhD9xmzAGjjjWoMy+mKFvi88pQIKaqD1j0ovrqyB2bKflXIgGNR0h/N1r0jVTLU8lCWIFt5i21jv0y6WAWu04UVGteUjWKpAxu4g5QSpuAWgOJtFgicz1yQ==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "UPOOKD3WwhH5Z0DzukeWCgzBb4ZnmQfTRFpkGxIHMau3yBDszHEDX442VrWAlQqbPlfYR2OARrqBLLbSrZX6Avy5LTawwPOAGIdKDGqGVMcg3iMT9fTl7nFF0dsRQIDX+RJ887uEwRLSkM8Umgimd/V3c1q4DyNNNvHl8+3872kMrjpHqVzoQtdWb2KTUHH9tEVBnP7R4vx8Xk8BGMVdHIiut2kCa0ka6WxFH+nfTUxK5PO28YfH4i37kqevS64CI9okrCwOGPe/W6pU7YDi3dyypFKIG6XD5KVKmbpK8WQmB7uDMorWEgYyCJD1+w+kzKa8NERjBPdovWcL01qNWA==",
+              "fingerprint": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "only the first record has a null prev",
+      "expect": {
+        "chainValid": false
+      }
+    },
+    {
+      "name": "time-going-backwards",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-05T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "NwrdtBiMj0z0iNr6L6U9xlzp6fUEXwz43L/s2g7qxvIX8IqkhZuRrOYC/9ZQsIfAiT417CCnHP6zCpQoc/f1yy3Io5C2RT2YVzN1/vrc+G6xkmSuYUxEdGMvxkZMtwqLgcYLQFGX7L0bezRptZYHXvWcqrVaRkM8QnHc9zAnCXsBUCRpkhEC8gkd9S6qS0mS+7nzicwbmAumazZprkzDkVSWRJHysD4aZjXWF1rPqSk7TPycE8CFlmqcSTFH0BGQUhQ/4JQLrQdA+l1l3GiGGfZ9x249bIt6MY+fn8WEb/khZYAAwOJ+LigI/1I+YkZU047lEtYOd9yYXUe/Jp32pQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "KdiXjP0ovQdCjfcMZwVKGll4QOccrwP0KzNF9BdEzaqmj1BLpsu1g8s2Lcs5f/sIsA5HMeo6P9njP7OeTAXQDaBvIqe0lVt/5a3MFiXgz+WtjSKByVgw/TsOHlU6aekSam6vEy2kPiTvt1+5C8KggvbAHtdLvMBD2Yd9WqCouCO/cMfuKItrZPtaziS8dD0fwOkulYRMSxyg54yM3chI3PDXIePhLZkXSM3C7mXjjFKdF9KHM/2qdNB3ErVdODxF7/1j4MbSF2F0/T8+0JbkljMdcZVXsAfhqioh8qH81tsUOUbgf83blu29LOv4HA2Tor8lKqrUIgY3TZzVhVQ8qw==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "each record's at is later than the previous one's",
+      "expect": {
+        "chainValid": false
+      }
+    },
+    {
+      "name": "a-key-introduced-twice-a-b-a",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "hZtmSXrRqL321FOU6U4BwBBXUErGynPCZ6OiIwmK/ALcc/q96Pse+PokmktnchloL9oJS4Wecb1R+Icqb3sg9n0W36DZzPfNqTdCnndnrzjPDiZrYRPKuGGprN9RC/z9o7C+B1p5Xo71gGEe2SSu57GBKEWSVNFC53uqaz0FMQntha3P8WRrRIg7sBwqjNKBTO1eD0pGv9+CgRjNaS1oKEhzVEQ2V4sPUWKk0LKGb/SQKxxVhyyoUvVjrP2y1pB6ZH9LQiQTorO1//y5t9pwGmmwebg5TjAk7ZEv5nOZMB455nP2gpwxdSM36hLNvhJOJCJBV3krHBRDULz7u36Yyg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "I52A8iU77pa3EoVbIxXsf+C3ZrODN9OLYxHq3E0UKN6jphBn0YBMXA15M3aKS0HmPUnt1k5IofSPa2MC6I22zq7ugSe0N69i9p33u2fOBLb3DuNCbiYsuxtfzMWd0Vyrhfe8H/fNrzJTk8AF8mDHZgqjOCRdzW1bhsJMnIDbbGNXk72LVcroERSRMFn4mO3q5K1424gWDzqHz2A6w8tPNfDe+Avt47U+xZ81P1tj3FVmzlZL5d89RTziRHPws3Na3F0zATHjEjRzlR7PiFL2dFQ4Jy2WSDgDtkryEwp6uT/zJV/1U0aiC/K1s+TwqCSjOLFsnMIWqiO1BrvHkXgzZA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "to": {
+              "selector": "btps4",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "at": "2026-11-30T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "896e8f577586372de62e37b635fb9a74547b39f1c210a8233091cb71c28ed337"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "vb79oQIC2/2lkCnkuJYAeXAJVdrt19K5QlISwAAu4rIR9Fgg+QRxGEM0i66ttgCdfMDgSdV0SpC8BBESD7BajedzgT0iVJhWfe6xBBX728Nd6pEpR3NoAZQZKJXEeWjUQEAgkhvbLX8TK9M/NYh4kB5zqDAzdZjNgMfpHsrvM33F4bLEJJCdhriDhORbPSGPV0F/VG8NgFMGpgTd/hXnV58ASAH/g+EOi6EVNHa825bPcvZw2aq0bJC65G//VlWYRWGNOSOVtjTNAhfF/arCXw6B9eXfosSPZLTME5ew0YW4/aIznexexphhhoGsJCmeI+81JEkjR9U13JW3q220nA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "lMisBrjSBFmByvEQ1lFWI4KvW0+ifG9g7rod6iWeL0wLexKBVkTg2btv6xPmWeKZj5isMdqTHb7CKFWlbdLldOwyPPOQCoj9l3pS/2iKHDuh3CWG/Gwj8D0U++p1UUERklkzwh4ZF+jgWdLY22QEoPfXVHr6+UBQZGwLpdivh2irX+0+DAqiqiub+Ib29Gtg8SLj3qhfD2thIw4pCCmZU53mWzk7phZj+hkNLnQfwfBbfNxAtp7yk/CPIlD+iBsTo/+vEqmN9YwTyM215i922crHitQcajjCUrVdNTLXNMux1w5+L5uGIGq4ORofI143dX2x33XucGzDdYG3WreUiw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "a key is introduced once",
+      "expect": {
+        "chainValid": false
+      }
+    },
+    {
+      "name": "a-b-a-under-a-second-stated-fingerprint",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "hZtmSXrRqL321FOU6U4BwBBXUErGynPCZ6OiIwmK/ALcc/q96Pse+PokmktnchloL9oJS4Wecb1R+Icqb3sg9n0W36DZzPfNqTdCnndnrzjPDiZrYRPKuGGprN9RC/z9o7C+B1p5Xo71gGEe2SSu57GBKEWSVNFC53uqaz0FMQntha3P8WRrRIg7sBwqjNKBTO1eD0pGv9+CgRjNaS1oKEhzVEQ2V4sPUWKk0LKGb/SQKxxVhyyoUvVjrP2y1pB6ZH9LQiQTorO1//y5t9pwGmmwebg5TjAk7ZEv5nOZMB455nP2gpwxdSM36hLNvhJOJCJBV3krHBRDULz7u36Yyg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "I52A8iU77pa3EoVbIxXsf+C3ZrODN9OLYxHq3E0UKN6jphBn0YBMXA15M3aKS0HmPUnt1k5IofSPa2MC6I22zq7ugSe0N69i9p33u2fOBLb3DuNCbiYsuxtfzMWd0Vyrhfe8H/fNrzJTk8AF8mDHZgqjOCRdzW1bhsJMnIDbbGNXk72LVcroERSRMFn4mO3q5K1424gWDzqHz2A6w8tPNfDe+Avt47U+xZ81P1tj3FVmzlZL5d89RTziRHPws3Na3F0zATHjEjRzlR7PiFL2dFQ4Jy2WSDgDtkryEwp6uT/zJV/1U0aiC/K1s+TwqCSjOLFsnMIWqiO1BrvHkXgzZA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "to": {
+              "selector": "btps4",
+              "fingerprint": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "at": "2026-11-30T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "896e8f577586372de62e37b635fb9a74547b39f1c210a8233091cb71c28ed337"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "czwQkGjbULu3UyVr9DaeXIc83gvLUzgXQjXD/klTRJe9PPcD0o6da/JFgtR74h4GgraCjWfy0IxVkUw4Hlu1zU/difnaRY+nhFJfawKmqfb13Fl9TQRRkZlpzlltAols15Rlxy6yKYanp2jTpnXKC+GPYDk6S270J+0zdFrx9uEu64Ht3YwmFOQ6bR56FTVqgqFwTLVjmu1b64BqAD2/j2BzZFA8xXu/7tQWSp7hm6fqkznC0DUmNcHojMI853hAxFkfrROzBFYO/uE1wzPK0xu2k0uQICQsQRTvPwV8OkIJUXZzKv6rfTP0q/NtlWPbDC465um+89I4RgXd4z0XJQ==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "Vmljcn8nDQ1wdcZmUxwSpVXypjRu+wPLDfU99C8vSk6Wsc3YQ0KfiW34xiwxgk/2HlCfqUNn20lEk8Q2CJ+dtDqMwBXuVyp7jXTGz9hw2YG8BzbAJc4FLdgsOjCvjS3zL82+65DD0gneJAKPW8EeUKZxyWJgPKXKl09RqlRn6d6qrn3C+I1N7RonoKk0etKmvcwCXdggNVDEUzv4iMX43KdveO46Cy145mAW9NEX3FwS4iweagXN9AXLb86LU/GYLx5oHfhpG2fZFWAJqJ61zA3MRqi9WbdRoxuAP0beIBcbVI82LMxuMyFRotOuZjzSgYuEfc4lnOitcWqWmyiAwA==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "a fingerprint is computed, so a key cannot pass as another",
+      "expect": {
+        "chainValid": false
+      }
+    },
+    {
+      "name": "a-reused-selector",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "hZtmSXrRqL321FOU6U4BwBBXUErGynPCZ6OiIwmK/ALcc/q96Pse+PokmktnchloL9oJS4Wecb1R+Icqb3sg9n0W36DZzPfNqTdCnndnrzjPDiZrYRPKuGGprN9RC/z9o7C+B1p5Xo71gGEe2SSu57GBKEWSVNFC53uqaz0FMQntha3P8WRrRIg7sBwqjNKBTO1eD0pGv9+CgRjNaS1oKEhzVEQ2V4sPUWKk0LKGb/SQKxxVhyyoUvVjrP2y1pB6ZH9LQiQTorO1//y5t9pwGmmwebg5TjAk7ZEv5nOZMB455nP2gpwxdSM36hLNvhJOJCJBV3krHBRDULz7u36Yyg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "I52A8iU77pa3EoVbIxXsf+C3ZrODN9OLYxHq3E0UKN6jphBn0YBMXA15M3aKS0HmPUnt1k5IofSPa2MC6I22zq7ugSe0N69i9p33u2fOBLb3DuNCbiYsuxtfzMWd0Vyrhfe8H/fNrzJTk8AF8mDHZgqjOCRdzW1bhsJMnIDbbGNXk72LVcroERSRMFn4mO3q5K1424gWDzqHz2A6w8tPNfDe+Avt47U+xZ81P1tj3FVmzlZL5d89RTziRHPws3Na3F0zATHjEjRzlR7PiFL2dFQ4Jy2WSDgDtkryEwp6uT/zJV/1U0aiC/K1s+TwqCSjOLFsnMIWqiO1BrvHkXgzZA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "to": {
+              "selector": "btps1",
+              "fingerprint": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyDnU469S9Fl4nPXIV5hGNnU8hm+MfbfXWOPhdB3DfXa1EZbOaLc/TnysV6RxjnhK6mAFMiHUiY2C7/r+xQzYmp9AA7SUIWrxfvSeJJqnCIR4d0ubBVMYd+7DIIhjRXAJvWOqDbv6A+zO9ad9bj/lpfGOWHX+Mmlq4XJL3nk0qxpOHLMhmT3L15xs9MLPKGSzzmNThlHlVAr4P+RC1BJi+QDSr9ADhHFxG/n2xU9ilZEV56AjuB7tks+LJPYgqfKkGTPxgx0jwdFA6R19fC4AhKnFIMXGVGnZiCRoihHQBUfRLHP0yTr6gWV4DaqoG96sM/WB8hcBpohu6ZIrfjKiaQIDAQAB"
+            },
+            "at": "2026-11-30T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "896e8f577586372de62e37b635fb9a74547b39f1c210a8233091cb71c28ed337"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "WQcH0l3JhbDkJIotGhv7lS2SZjG647E3ac5LqCXKPB9Ll6JD2W8pVGk1AggJAn+IBBwQiN4Kibv39yrzV7hKUt7lmyZjHF/y/CYvIpU7yLWyd+jkcWtVn5+3HnUGeqd2NXMHdObttueQTP/jB8dDLc7qCogy1BYjvrplHlZj02JmL/kiTTAa9eQYmLbR+EH7+eCUCmRxJYrzEhHbHgo5egH1ULZ4IAPQgVFAty90t5PGOTqmusue1MNEc5Ivb4IZZLC5uAwnmYg+vpD5gJJ3eRkcH8S7Y1VTLcrTik+NBQ6yEYDuGZ3fPkPhVSziFE1+0HMZWQMSlZsl9BJYUn5eYw==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "fU8icSaoRK+Dy1GLr6Fj77fTNfvwzB4+Apxe7tyDW0RqTZb2A5/FFcALkLNSmYO1FFo61nI0lIMZ5HXwTDSQ2aaziO/Pa0HFosEKs0owYJ7Piwrp8poCx527OC7wmbrroLYE+Jkmfy6YDfCpoSbxkw5upPiPYNjNPKufjRUHApZSUF8K8id20sWhrNaRMx/U2yczLXpY2DCZ3MIgAsGvWNnYpr5LHDDY7qgTAHBWiGan8J/HlNG6q+4NoN4kvC13J++F5RWDrzCyNlfO01ih3a65TgO2N7AcpUeawaGzKKBTZ0lfaZ9AYDOZRxWl/DSZnUCPwEGFi22V+GMp2yPZFQ==",
+              "fingerprint": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "a selector names one key for the life of the identity",
+      "expect": {
+        "chainValid": false
+      }
+    },
+    {
+      "name": "an-expiry-not-signed-by-the-current-key",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "hZtmSXrRqL321FOU6U4BwBBXUErGynPCZ6OiIwmK/ALcc/q96Pse+PokmktnchloL9oJS4Wecb1R+Icqb3sg9n0W36DZzPfNqTdCnndnrzjPDiZrYRPKuGGprN9RC/z9o7C+B1p5Xo71gGEe2SSu57GBKEWSVNFC53uqaz0FMQntha3P8WRrRIg7sBwqjNKBTO1eD0pGv9+CgRjNaS1oKEhzVEQ2V4sPUWKk0LKGb/SQKxxVhyyoUvVjrP2y1pB6ZH9LQiQTorO1//y5t9pwGmmwebg5TjAk7ZEv5nOZMB455nP2gpwxdSM36hLNvhJOJCJBV3krHBRDULz7u36Yyg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "I52A8iU77pa3EoVbIxXsf+C3ZrODN9OLYxHq3E0UKN6jphBn0YBMXA15M3aKS0HmPUnt1k5IofSPa2MC6I22zq7ugSe0N69i9p33u2fOBLb3DuNCbiYsuxtfzMWd0Vyrhfe8H/fNrzJTk8AF8mDHZgqjOCRdzW1bhsJMnIDbbGNXk72LVcroERSRMFn4mO3q5K1424gWDzqHz2A6w8tPNfDe+Avt47U+xZ81P1tj3FVmzlZL5d89RTziRHPws3Na3F0zATHjEjRzlR7PiFL2dFQ4Jy2WSDgDtkryEwp6uT/zJV/1U0aiC/K1s+TwqCSjOLFsnMIWqiO1BrvHkXgzZA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        },
+        {
+          "expiry": {
+            "type": "btps.keyExpiry.v1",
+            "identity": "billing$vendor.example",
+            "key": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            "compromisedSince": "2026-11-05T00:00:00.000Z",
+            "reason": "compromised",
+            "at": "2026-11-25T00:00:00.000Z",
+            "prev": "896e8f577586372de62e37b635fb9a74547b39f1c210a8233091cb71c28ed337"
+          },
+          "signatures": [
+            {
+              "by": "current",
+              "algorithmHash": "sha256",
+              "value": "hnxYUlMflP/5hfvUOiKmxyhXYmmCy5UPROOFhOtyWQtM/iQq/bHaL6g6UwgVJ7jCFkIp42XFXkdfvgjqSU6VhVMFnyeAkOfjjKV+CrghpaGG9lBSouId1VbIAY2o3cD5RotNYH2MxmvmDO0ct86M98WUp58CYm3iDu1Kb7qBNGsM1azNthi1IRC7DeY1yfyxRwTFo7eZ/LB+u83v6lrxRIsXHUE1Nyk398pB2I5NE3Yl7g2hy6iqs3UwSkMW/UjQM0+ruV4CQeaLREt/MLYg0Mic69fj9W87hlilTJuE9GNcZGT45VVDUlNm4vmOHZOeP+h9iuoErZgT6wOfjSnowA==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "the current key signs an expiry",
+      "expect": {
+        "chainValid": false
+      }
+    },
+    {
+      "name": "an-expiry-of-the-current-key",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "hZtmSXrRqL321FOU6U4BwBBXUErGynPCZ6OiIwmK/ALcc/q96Pse+PokmktnchloL9oJS4Wecb1R+Icqb3sg9n0W36DZzPfNqTdCnndnrzjPDiZrYRPKuGGprN9RC/z9o7C+B1p5Xo71gGEe2SSu57GBKEWSVNFC53uqaz0FMQntha3P8WRrRIg7sBwqjNKBTO1eD0pGv9+CgRjNaS1oKEhzVEQ2V4sPUWKk0LKGb/SQKxxVhyyoUvVjrP2y1pB6ZH9LQiQTorO1//y5t9pwGmmwebg5TjAk7ZEv5nOZMB455nP2gpwxdSM36hLNvhJOJCJBV3krHBRDULz7u36Yyg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "I52A8iU77pa3EoVbIxXsf+C3ZrODN9OLYxHq3E0UKN6jphBn0YBMXA15M3aKS0HmPUnt1k5IofSPa2MC6I22zq7ugSe0N69i9p33u2fOBLb3DuNCbiYsuxtfzMWd0Vyrhfe8H/fNrzJTk8AF8mDHZgqjOCRdzW1bhsJMnIDbbGNXk72LVcroERSRMFn4mO3q5K1424gWDzqHz2A6w8tPNfDe+Avt47U+xZ81P1tj3FVmzlZL5d89RTziRHPws3Na3F0zATHjEjRzlR7PiFL2dFQ4Jy2WSDgDtkryEwp6uT/zJV/1U0aiC/K1s+TwqCSjOLFsnMIWqiO1BrvHkXgzZA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        },
+        {
+          "expiry": {
+            "type": "btps.keyExpiry.v1",
+            "identity": "billing$vendor.example",
+            "key": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            },
+            "compromisedSince": "2026-11-05T00:00:00.000Z",
+            "reason": "compromised",
+            "at": "2026-11-25T00:00:00.000Z",
+            "prev": "896e8f577586372de62e37b635fb9a74547b39f1c210a8233091cb71c28ed337"
+          },
+          "signatures": [
+            {
+              "by": "current",
+              "algorithmHash": "sha256",
+              "value": "GXabXCz7z3ePyHFcr8/tRV8aZVk+ArbNrErTd9fV3oXJ6CyXADYC0malb8NBbkg0ZiZPTuSWFgOM5qRtcaRppjTbW6e7fHzroYK6DNLxlExEq6AfA/G3PS99bzZfLE54zFyJqUVNMqhCEap7PKvEGCBEzoAR60By2Vs96Bg6V0+QToapHYPlLEIKLV5eGJCRNxJGJEyi4RCkz/KmSOCCTJQGPReGu6VqdVvbBAFWty73TGH6dqLpuKk2Q/V0CkX4+Y4ERHvJYSRg65gDxkYkykTwEs2KoYmJ+EZT/dwjv2aw5p8aFp5srGefAF/lGfooBLMmsNHL8GIgaLEPIl0WIg==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example"
+      },
+      "why": "the current key is expired by rotating it with immediate expiry",
+      "expect": {
+        "chainValid": false
+      }
+    }
+  ],
+  "online": [
+    {
+      "name": "a-chain-ending-at-the-identitys-dns-key",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "hZtmSXrRqL321FOU6U4BwBBXUErGynPCZ6OiIwmK/ALcc/q96Pse+PokmktnchloL9oJS4Wecb1R+Icqb3sg9n0W36DZzPfNqTdCnndnrzjPDiZrYRPKuGGprN9RC/z9o7C+B1p5Xo71gGEe2SSu57GBKEWSVNFC53uqaz0FMQntha3P8WRrRIg7sBwqjNKBTO1eD0pGv9+CgRjNaS1oKEhzVEQ2V4sPUWKk0LKGb/SQKxxVhyyoUvVjrP2y1pB6ZH9LQiQTorO1//y5t9pwGmmwebg5TjAk7ZEv5nOZMB455nP2gpwxdSM36hLNvhJOJCJBV3krHBRDULz7u36Yyg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "I52A8iU77pa3EoVbIxXsf+C3ZrODN9OLYxHq3E0UKN6jphBn0YBMXA15M3aKS0HmPUnt1k5IofSPa2MC6I22zq7ugSe0N69i9p33u2fOBLb3DuNCbiYsuxtfzMWd0Vyrhfe8H/fNrzJTk8AF8mDHZgqjOCRdzW1bhsJMnIDbbGNXk72LVcroERSRMFn4mO3q5K1424gWDzqHz2A6w8tPNfDe+Avt47U+xZ81P1tj3FVmzlZL5d89RTziRHPws3Na3F0zATHjEjRzlR7PiFL2dFQ4Jy2WSDgDtkryEwp6uT/zJV/1U0aiC/K1s+TwqCSjOLFsnMIWqiO1BrvHkXgzZA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example",
+        "fromOperator": true,
+        "dnsFingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-host-only-identitys-chain-from-the-operator",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "hZtmSXrRqL321FOU6U4BwBBXUErGynPCZ6OiIwmK/ALcc/q96Pse+PokmktnchloL9oJS4Wecb1R+Icqb3sg9n0W36DZzPfNqTdCnndnrzjPDiZrYRPKuGGprN9RC/z9o7C+B1p5Xo71gGEe2SSu57GBKEWSVNFC53uqaz0FMQntha3P8WRrRIg7sBwqjNKBTO1eD0pGv9+CgRjNaS1oKEhzVEQ2V4sPUWKk0LKGb/SQKxxVhyyoUvVjrP2y1pB6ZH9LQiQTorO1//y5t9pwGmmwebg5TjAk7ZEv5nOZMB455nP2gpwxdSM36hLNvhJOJCJBV3krHBRDULz7u36Yyg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "I52A8iU77pa3EoVbIxXsf+C3ZrODN9OLYxHq3E0UKN6jphBn0YBMXA15M3aKS0HmPUnt1k5IofSPa2MC6I22zq7ugSe0N69i9p33u2fOBLb3DuNCbiYsuxtfzMWd0Vyrhfe8H/fNrzJTk8AF8mDHZgqjOCRdzW1bhsJMnIDbbGNXk72LVcroERSRMFn4mO3q5K1424gWDzqHz2A6w8tPNfDe+Avt47U+xZ81P1tj3FVmzlZL5d89RTziRHPws3Na3F0zATHjEjRzlR7PiFL2dFQ4Jy2WSDgDtkryEwp6uT/zJV/1U0aiC/K1s+TwqCSjOLFsnMIWqiO1BrvHkXgzZA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example",
+        "fromOperator": true,
+        "dnsFingerprint": null
+      },
+      "expect": "accept"
+    },
+    {
+      "name": "a-truncated-chain",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example",
+        "fromOperator": true,
+        "dnsFingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+      },
+      "why": "it does not end at the key DNS publishes",
+      "expect": "refuse"
+    },
+    {
+      "name": "a-chain-not-from-the-operator",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "hZtmSXrRqL321FOU6U4BwBBXUErGynPCZ6OiIwmK/ALcc/q96Pse+PokmktnchloL9oJS4Wecb1R+Icqb3sg9n0W36DZzPfNqTdCnndnrzjPDiZrYRPKuGGprN9RC/z9o7C+B1p5Xo71gGEe2SSu57GBKEWSVNFC53uqaz0FMQntha3P8WRrRIg7sBwqjNKBTO1eD0pGv9+CgRjNaS1oKEhzVEQ2V4sPUWKk0LKGb/SQKxxVhyyoUvVjrP2y1pB6ZH9LQiQTorO1//y5t9pwGmmwebg5TjAk7ZEv5nOZMB455nP2gpwxdSM36hLNvhJOJCJBV3krHBRDULz7u36Yyg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "I52A8iU77pa3EoVbIxXsf+C3ZrODN9OLYxHq3E0UKN6jphBn0YBMXA15M3aKS0HmPUnt1k5IofSPa2MC6I22zq7ugSe0N69i9p33u2fOBLb3DuNCbiYsuxtfzMWd0Vyrhfe8H/fNrzJTk8AF8mDHZgqjOCRdzW1bhsJMnIDbbGNXk72LVcroERSRMFn4mO3q5K1424gWDzqHz2A6w8tPNfDe+Avt47U+xZ81P1tj3FVmzlZL5d89RTziRHPws3Na3F0zATHjEjRzlR7PiFL2dFQ4Jy2WSDgDtkryEwp6uT/zJV/1U0aiC/K1s+TwqCSjOLFsnMIWqiO1BrvHkXgzZA==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example",
+        "fromOperator": false,
+        "dnsFingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+      },
+      "why": "online, a chain comes in the operator's signed answer",
+      "expect": "refuse"
+    },
+    {
+      "name": "a-forked-chain",
+      "chain": [
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps1",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAydGMPjdxV/CaeDKMc0y6SrY3OdU8bmskw22d7Mhc0neyI1MIRjqqfc9rFM4ytB1L4CJB4vE6Re3/eYk4Q6h1PtFOD/99NRDezI7nDO/blfSpOyTvMXzu6+p1a1ZVByFD8CSPHFQ1m0xEhWXoTOD4Steyry4OkzLNinjO0PsW1hEXl21VkWFYtY96KMr0L4t05iehOzYDtDvCodlnftmiC6qvPa0ZVw+znbSjnG3SZjCRTdQ3u7bkPlb+Jp8Edtc7EtdcpKXyp1KNhcW0dW6xR0IV9kotyTkclvfg1ca+Lzl32m8CZcnVQp8Z5qnB4AYWotx4zWc/ZAGBSez+bG1uJwIDAQAB"
+            },
+            "to": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "at": "2026-11-10T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": null
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "IrpLee9x7mXQaAEjwCkTeqOxnbneWby0kiWfcWYVTjRZ8ktfxtwZDCCTDiQtXvZyNObCXjEosZPxgSuzKpyVT9ly7SyhqaJiGr+zCjfbBFl6j7v2DhoTSQwa4JOB4FuLjJgickKXywLffyn9scFAo/kbyoZYc8uU1NyKLBibZYts9KxMYj3so7SGn+xj0JstngDXoQu8DnDNRcqDoLx0H/eTjMlddwAtT7cTDZ8jO/3aC9W/JV4KyBSW7Rq2b+eARA2OBBVQ6P4j7h/QMIy9fgyufQZXCBJmkEvXnxoB6rnkSVyEiz8a7Rpe232Nz26Ncf4NMSEIU4wXNEKHw25Huw==",
+              "fingerprint": "fBkTnLcPmqSewbr2T2TABlTZu/drxJA61loG+/njqTg="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "sILkfisRV61WcUkQDchAG6bKkHPj3NQ9qyhZ93UtnHjkJ7c/W3UQ/XcLv1ACIIXSyGAJwzrAwfuawjpw3S6IkO4kYjP9brjYW2DVtQ6nrkeT9YTrfzgzPYMbLJhp98eK/VFmC5RXn5Rmi22pRtA3eCEeYyu/ObglY1Cb1MdY1JI+s173KLIS4Z5bA2GQYOkodm0cOJYfUTOyzOck8SfZ6vBPCzLyuTiYlUFIDSkt2GKpGpCecQ7QjDzqg8y4MB8ozDtKvA8y0IuhpdMs2oQ/hk8qub96irE96USLyPXEWciCYY2nhxOsl2QZOh6mz+ereqQh5EzSFkuP2kD1Gq7SoQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps3",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3jKDKblmbWoznhzuUJngdgXMZzEQ6/xv6GA9bH0hI1qeuvo7/7CbMMTOWwEf9i7czEs7UY8RRlnZGObgKHdqYQShvlwEDqNAkLayPgL+/Z70Xri1XEXpaFs1tCHgjc808hQB4NW9mOUopK8L6E7bjJaX8mFmDslay4YE3TXgmEwh1KHsaY/Njy8XyG9MwouxfiLZ7MxML4BzHe4Kyb1YxMRp2hwWltP/+jV8IGpXRxu1rf2m9SkE7yEobXrnw73rVQFVjWxGk/mnmQPtpFL6ESNkpatlGPU/jhr/yiPpRAgkCOoV+NrrsB8KxfiLPVAH8Qxr4pAfEhyo/2iuI60CxQIDAQAB"
+            },
+            "at": "2026-11-20T00:00:00.000Z",
+            "expiry": "immediate",
+            "compromisedSince": "2026-11-15T00:00:00.000Z",
+            "reason": "compromised",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "NsQBCmqLk9thKy7xQTqOlCRtGPxulXx8+zy2VWHsQZvi0n6tmKnJVho4W8b5yq9dM/x28OJSzAEFs8QStJC5gEpv8ypwyv/Cwzlt7p4eTmxuFPTlV/HJViIs+ZEj2zwqfqF8bLPjlPAlXvqPqgmQkppY2wQpKJ6g1ivi/oqD4TaVp2epQiC8F1J6b8utGLlOuHcuDVVK31H9mQL96memIrAAM6AhiMGDIBht8Qhwo86zqC9uQ/yVds5x8x+3QSTD8R52Nxm8zS19W3GlJdOx4LRu5HZDB8A0PEUeVeozsjlfexDF2isSq7fGLtB49zE3bAGFnuBgwN9MBv10siNKLQ==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "waEBL+aSZM+y0Kva9dzLnUY4dyfouGSNp/2Vvk25SBzqg/FJ96Z1Xng4KUhxYr0fJNOSeHCQdaKGs6iXeA/ucgoWTOLbZAnYtIGmpx9WQNSWF0c2BMF7iRSv7tR7EYr3SVYt846FZXlabhAYzYv+8vdYiUlj1Vi5uEVMcMsNwXrhBZdn4N1RNRnOkqfIGIFqO9znCjcPuNp61vpyEEJPGJ+QCcbmTcOYpEPpN8TVBl4mOKncvvuipju9jSQ7cTtRBgfYag3Rdz7obYPVT2IPBXzuI9OWESQlSbL8hCkV5GT7XQ9pMjY0ZwpZE8QD0qLSnp5BtT0qwmkM3gMri0sjYQ==",
+              "fingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+            }
+          ]
+        },
+        {
+          "rotation": {
+            "type": "btps.keyRotation.v1",
+            "identity": "billing$vendor.example",
+            "from": {
+              "selector": "btps2",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0tHhxDsqQEdYfkzwWXDrKg/C14ZNs4QSLGYsVCwc4DIfqrRGdh5o0spw6vxPzmfX9L3D+rOikCVIJQVWPNsF+UumYfcI+FjkCmDal9XcSWgm6/28C22OoezRdZ8QDMUFXTovLH5DzsilU1NtBdWj61zWbUI49ArTw56diN7fWffbISF7xawd2uBfYBFQf4OjsZl1qRD3Th5DPBLlHqYnenzWv06kNkcQAEKBPXtDCe0FLFPiVahq0YniBvmBLVSgD6VyRgQ66uQRZnD9h0TNy/i3ZEHn+qBj4G21XRhlcHotxw4btVq2KtXh4zeN5dwSzgIeQS7m9S4/rihhmiBlVQIDAQAB"
+            },
+            "to": {
+              "selector": "btps4",
+              "fingerprint": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k=",
+              "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyDnU469S9Fl4nPXIV5hGNnU8hm+MfbfXWOPhdB3DfXa1EZbOaLc/TnysV6RxjnhK6mAFMiHUiY2C7/r+xQzYmp9AA7SUIWrxfvSeJJqnCIR4d0ubBVMYd+7DIIhjRXAJvWOqDbv6A+zO9ad9bj/lpfGOWHX+Mmlq4XJL3nk0qxpOHLMhmT3L15xs9MLPKGSzzmNThlHlVAr4P+RC1BJi+QDSr9ADhHFxG/n2xU9ilZEV56AjuB7tks+LJPYgqfKkGTPxgx0jwdFA6R19fC4AhKnFIMXGVGnZiCRoihHQBUfRLHP0yTr6gWV4DaqoG96sM/WB8hcBpohu6ZIrfjKiaQIDAQAB"
+            },
+            "at": "2026-11-16T00:00:00.000Z",
+            "expiry": "planned",
+            "prev": "e869b67907a211a6ce121c434e4d39da8574f4fb3799454c0ae3dc8de1d903ab"
+          },
+          "signatures": [
+            {
+              "by": "from",
+              "algorithmHash": "sha256",
+              "value": "Hks0LDdAjU8x9DXn0ACHLVgAJe7WYNJxyARXGKIADIhsVEaunK/FEfg5lQNge5Lgx1IfoFzOBgx1BUFrNUqPhdXIXvKj3earpUIJMP0nfVQaucyrQQc5elDZBiSSKAUHx9ook7VcvNpriCJYyFU2pdFzlY3O6xr1DGnfjK8ExTs//iBq00YrkJNZUx30Ko/smyG2/jcP3nBqvSpcTLdqkCwBq7BnTYZHENcW/CfQLf9e0JqMQaNQA2z+22RgKz1wm8NcN8vMlAuWfN3OWLjw3s5AQAIcWxGqf749CkNnQjA9JHymqo08miQ2N8XpQPFqC4Bea5yyG/Oxogc2TLYvkg==",
+              "fingerprint": "/fdMJiZQV3F7v7nanLtoxVyygA1CnVuBUxzjp5nFnnE="
+            },
+            {
+              "by": "to",
+              "algorithmHash": "sha256",
+              "value": "VCyi69pGeUZcOZrjztCtRt4h4iR8z35FJ2h4RPPfigEXX2OIVJ2PeswdFTebNEXYf7rJ0lG43U7U/lIEGi6qLM42dGdLsbiNa7YKEeD/FPzXEJMRvVHmRIvNVvwhYlhiltT2/VoUBOfjnLqZP5i7f3/0GL0fh36xDIN6POSDgqOYvV69kN9soOQc266Uj4OCYuQrk5oInPY7ZVbtYexzBQcAqN3o65wg51/y2HI8wRpApfP5003OWT3npGk5YqgxqQlX/OcRFaXELQQZ8xqwW89h3krzJ4WNgZLpOB4VfRXbQOsATAoUZaz+A2dgLJcn5BVPBcj7I5GkZa8azDBUqw==",
+              "fingerprint": "5sKTOWpRBp4UvC1jiLVYWWJ/D8RlLheZNlx8uymW95k="
+            }
+          ]
+        }
+      ],
+      "options": {
+        "identity": "billing$vendor.example",
+        "fromOperator": true,
+        "dnsFingerprint": "iRYjpbzPYbcEJjAKI62aqeYFrT/kBIA4oO13ydNiNlI="
+      },
+      "why": "online, a key has one successor",
+      "expect": "refuse"
+    }
+  ]
+}

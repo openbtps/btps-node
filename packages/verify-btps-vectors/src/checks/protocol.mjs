@@ -263,6 +263,7 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
       ]),
     ),
     ...agreementChecks(set.agreements),
+    ...keyRotationChecks(set.keyRotation),
   ];
 
   // Since 1.2: agreements, their answers, and the evidence bundle.
@@ -329,21 +330,38 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
         check(`agreements/bundle/${c.name}`, async () => {
           // `options` (since 1.2's timestamps): the timestamp roots a reader trusts.
           const facts = await named('verifyEvidenceBundle')(c.bundle, c.options);
-          // Every fact the vector lists must be as given; a verifier may report more.
-          const differ = (expected, found, at) => {
-            if (expected === null || typeof expected !== 'object') {
-              return expected === found ? [] : [`${at}: ${JSON.stringify(found)}`];
-            }
-            if (found === null || typeof found !== 'object') return [`${at}: missing`];
-            if (Array.isArray(expected) && expected.length !== found.length) {
-              return [`${at}: ${found.length} entries, not ${expected.length}`];
-            }
-            return Object.entries(expected).flatMap(([key, value]) =>
-              differ(value, found[key], `${at}.${key}`),
-            );
-          };
           const wrong = differ(c.expect, facts, 'facts');
           ensure(wrong.length === 0, `reported ${wrong.join('; ')}`);
+        }),
+      ),
+    ];
+  }
+
+  // Since 1.2: key rotation, an identity's chain of signed key records.
+  function keyRotationChecks(keyRotation) {
+    const named = (name) => {
+      const rule = rules.agreements?.[name];
+      ensure(typeof rule === 'function', `the SDK has no ${name}`);
+      return rule;
+    };
+    return [
+      check('key-rotation/record-hash', () => {
+        const { record, sha256 } = keyRotation.recordHash;
+        const found = named('keyChainRecordHash')(record);
+        ensure(found === sha256, `the SDK hashes the record to ${found}`);
+      }),
+      ...keyRotation.chains.map((c) =>
+        check(`key-rotation/chain/${c.name}`, () => {
+          const facts = named('verifyKeyChain')(c.chain, c.options);
+          const wrong = differ(c.expect, facts, 'facts');
+          ensure(wrong.length === 0, `reported ${wrong.join('; ')}${c.why ? ` (${c.why})` : ''}`);
+        }),
+      ),
+      ...keyRotation.online.map((c) =>
+        check(`key-rotation/online/${c.name}`, () => {
+          const problem = named('keyChainProblem')(c.chain, c.options);
+          if (c.expect === 'accept') ensure(problem === undefined, `refused: ${problem}`);
+          else ensure(problem !== undefined, `accepted; expected it refused: ${c.why}`);
         }),
       ),
     ];
@@ -359,4 +377,18 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
       else ensure(problem !== undefined, `accepted; expected it refused: ${c.why}`);
     });
   }
+}
+
+/** Every fact a vector lists must be as given; a verifier may report more. */
+function differ(expected, found, at) {
+  if (expected === null || typeof expected !== 'object') {
+    return expected === found ? [] : [`${at}: ${JSON.stringify(found)}`];
+  }
+  if (found === null || typeof found !== 'object') return [`${at}: missing`];
+  if (Array.isArray(expected) && expected.length !== found.length) {
+    return [`${at}: ${found.length} entries, not ${expected.length}`];
+  }
+  return Object.entries(expected).flatMap(([key, value]) =>
+    differ(value, found[key], `${at}.${key}`),
+  );
 }

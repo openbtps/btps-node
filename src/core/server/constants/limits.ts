@@ -56,6 +56,11 @@ export const BTPS_FIELD_LIMITS = {
   agreement: {
     signers: 20,
   },
+  // Since 1.2, an identity's key chain: its records, and each key's DER SPKI in base64.
+  keyChain: {
+    records: 100,
+    publicKey: 2048,
+  },
   // An invoice's, a receipt's and a payslip's; a letter has its own.
   attachments: 10,
   references: 20,

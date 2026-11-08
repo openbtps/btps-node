@@ -66,6 +66,7 @@ import type {
   BTPControlArtifact,
   BTPDelegation,
   BTPIdentityLookupRequest,
+  BTPIdentityResDoc,
   BTPServerResponse,
   BTPStatus,
   BTPTransporterArtifact,
@@ -614,11 +615,22 @@ export class BtpsServer {
       return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND, res.reqId);
 
     const { createdAt, ...restRecord } = identityRecord;
+    // Since 1.2, to a 1.2.0 lookup: the answer names its identity, so it cannot
+    // be taken for another's, and carries the key chain when asked.
+    const document: BTPIdentityResDoc = isVersionBelow(artifact.version, '1.2.0')
+      ? restRecord
+      : {
+          ...restRecord,
+          identity,
+          ...(artifact.keyChain && {
+            keyChain: (await this.identityStore?.getKeyChain?.(computeId(identity))) ?? [],
+          }),
+        };
     const data: BTPServerResponse = {
       ...this.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }, res.reqId),
       type: 'btps_response',
       selector: hostSelector,
-      document: restRecord,
+      document,
       signedBy: this.serverIdentity.identity,
     };
 

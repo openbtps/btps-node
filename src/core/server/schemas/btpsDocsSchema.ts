@@ -10,6 +10,7 @@ import { CURRENCY_CODES } from '../constants/currency.js';
 import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
 import { BtpSignatureSchema, identitySchema } from './shared.js';
 import { boundedArray, boundedRecord } from './bounded.js';
+import { BtpKeyChainSchema } from './keyChainSchema.js';
 
 const {
   trustRequest,
@@ -851,12 +852,15 @@ export const BtpAuthResDocSchema = z.object({
   decryptBy: identitySchema,
 });
 
-// Schema for BTPIdentityResDoc (the answer to an identity lookup)
+// Schema for BTPIdentityResDoc (the answer to an identity lookup). Since 1.2,
+// in a 1.2.0 answer: the identity it answers for, and its key chain when asked.
 export const BtpIdentityResDocSchema = z.object({
   selector: z.string(),
   publicKey: z.string(),
   keyType: z.literal('rsa'),
   version: z.string(),
+  identity: identitySchema.optional(),
+  keyChain: BtpKeyChainSchema.optional(),
 });
 
 /**

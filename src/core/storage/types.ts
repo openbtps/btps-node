@@ -5,6 +5,8 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
+import type { BTPKeyChainRecord } from '@core/trust/types.js';
+
 export interface BTPStorageRecord {
   id: string; // unique computed id of the storage record
   createdAt: string; // date and time of the storage record creation in ISO Format
@@ -16,6 +18,7 @@ export interface BTPIdentityRecord extends BTPStorageRecord {
   identity: string; // unique identity of the storage record
   currentSelector: string; // unique selector of the storage record
   publicKeys: IdentityPubKeyRecord[]; // current base64 public key of the identity
+  keyChain?: BTPKeyChainRecord[]; // since 1.2: the identity's key rotations, oldest first; none until it rotates
 }
 
 export type IdentityPubKeyRecord = {
