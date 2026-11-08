@@ -13,6 +13,10 @@ export {
 } from './artifactTimeWindow.js';
 export { DEFAULT_CONNECTION_TIMEOUT_MS } from './connectionTimeout.js';
 export {
+  DEFAULT_KEY_CHAIN_MAX_CACHE_SECONDS,
+  DEFAULT_RETIRED_KEY_GRACE_SECONDS,
+} from './keyChains.js';
+export {
   DEFAULT_MAX_IN_FLIGHT_PER_CONNECTION,
   MIN_MAX_IN_FLIGHT_PER_CONNECTION,
 } from './inFlightLimit.js';

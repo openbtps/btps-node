@@ -286,6 +286,23 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   which an identity store gives with `getKeyChain`. Nothing changes for an
   identity that never rotates. See
   [Key Rotation](https://www.openbtps.org/docs/next/protocol/specifications/key-rotation).
+- **Keys checked against their chain on arrival.** A server asks the
+  sender's host for its key chain (the sender's, a delegator's, an
+  attestor's) and refuses a key rotated away as planned past
+  `retiredKeyGraceSeconds` (default a day) with `BTP_ERROR_KEY_RETIRED`, and
+  an expired key at once, whatever the artifact's time, with
+  `BTP_ERROR_KEY_REVOKED`, though DNS still has it. A chain is kept for at
+  most `keyChainMaxCacheSeconds` (default 300): the longest a revoked key can
+  still be taken. A host that cannot be reached, or speaks 1.1, leaves the
+  key to DNS, as in 1.1; so a provider removes an expired key's DNS record at
+  once. `BtpsClient.lookupKeyChain` asks a host for a chain, and a
+  `keyResolver` may give chains (`resolveKeyChain`). A host answers a chain
+  lookup for an identity whose keys are in DNS from its chain alone.
+- **Content-key side-cars.** `wrapContentKeyFor` wraps a stored artifact's
+  content key to a new key, checked to open the document, and
+  `contentKeyOpens` confirms it; the artifact is never changed, and
+  `decryptVerify` opens it with the side-car. A provider deletes an old
+  private key once every side-car opens.
 
 ### Changed
 
@@ -315,6 +332,11 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
 - A server whose implementor takes errors, through the `onError` option or
   `onError` middleware, no longer also writes each failed artifact to
   `console.error`. With neither, it writes as before.
+- An identity lookup goes out as `1.2.0`, and again as `1.1.0` when a 1.1
+  host refuses the version. Its answer is refused unless it answers this
+  lookup (`reqId`), is fresh (`issuedAt` within 300 seconds), and names the
+  identity asked about; a 1.1 answer carries none of these. A host that does
+  not answer is given up on after the client's reply timeout.
 
 ### Fixed
 

@@ -202,6 +202,8 @@ An answer signed by anyone else is refused, even with a valid signature. A domai
 
 The requester asks the host only when DNS has no record for the identity: a lookup is DNS first, then the host.
 
+Since 1.2, the requester sends a `1.2.0` lookup, and asks again as `1.1.0` when a 1.1 host refuses the version. The answer to a `1.2.0` lookup is also refused unless its `reqId` is the lookup's `id`, its `issuedAt` is within 300 seconds of the requester's clock, and its document's `identity` is the identity asked about (and it carries `keyChain` when asked). So an old answer cannot be replayed, nor one about another identity passed off. A key chain is asked of the host even when DNS has the identity's key: see [Key Rotation](./key-rotation.md#checking-keys-on-arrival).
+
 ### Identity Storage
 
 Servers implementing identity lookup must:

@@ -34,6 +34,7 @@ import {
   documents12,
   eventChain,
   keyRotation,
+  keyRotationSigners,
   responses,
   signedArtifacts,
   sync,
@@ -295,6 +296,7 @@ write(
     { publicKeyPem: smallPublic, privateKeyPem: smallPrivate },
   ]),
 );
+write('key-signers.vectors.json', keyRotationSigners());
 
 // The manifest names every vector file with the SHA-256 of its bytes, so a
 // copy of the set can be checked whole. Rewritten on every run.

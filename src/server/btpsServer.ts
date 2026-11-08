@@ -14,6 +14,7 @@ import {
   validateTrustResponse,
   documentTypeRefusal,
   detailsNamesRefusal,
+  verifyKeyChain,
 } from '@core/trust/index.js';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
@@ -102,8 +103,10 @@ import {
   verifyAttestation,
   verifyDelegation,
   verifyTransporterSignature,
+  type BTPKeyChainCheck,
 } from '@core/delegation/verifyTransporterSignature.js';
-import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
+import { createDefaultKeyResolver, type BtpsKeyResolver } from '@core/crypto/keyResolver.js';
+import { resolveKeyChainMaxCacheSeconds, resolveRetiredKeyGraceSeconds } from './libs/keyChains.js';
 import { artifactSizeGuard, resolveMaxArtifactSizeKb } from './libs/artifactSizeGuard.js';
 import {
   artifactTimeWindowError,
@@ -153,6 +156,8 @@ export class BtpsServer {
   private readonly maxArtifactAgeSeconds: number;
   private readonly signAnswers: boolean;
   private readonly keyResolver?: BtpsKeyResolver;
+  /** Since 1.2: how a sender's, a delegator's and an attestor's key is checked against its key chain. */
+  private readonly keyChains: BTPKeyChainCheck;
   /** Since 1.2: what `on(…)` tells its listeners, apart from the artifact handlers. */
   private readonly events = new EventEmitter();
   /** With signAnswers: each connection's last answer, which the next waits for. */
@@ -189,6 +194,26 @@ export class BtpsServer {
     this.maxArtifactAgeSeconds = resolveMaxArtifactAgeSeconds(options.maxArtifactAgeSeconds);
     this.signAnswers = options.signAnswers === true;
     this.keyResolver = options.keyResolver;
+    // Since 1.2: every arrival's keys are checked against their identity's key
+    // chain, asked of its host as this server's identity, unless the resolver
+    // gives chains itself.
+    const keyChainMaxCacheSeconds = resolveKeyChainMaxCacheSeconds(options.keyChainMaxCacheSeconds);
+    const chains = options.keyResolver?.resolveKeyChain
+      ? options.keyResolver
+      : createDefaultKeyResolver({
+          from: options.serverIdentity.identity,
+          keyChainMaxCacheSeconds,
+        });
+    this.keyChains = {
+      resolveKeyChain: (identity) =>
+        chains.resolveKeyChain?.(identity) ??
+        Promise.resolve({ status: 'unavailable', reason: 'no key chain lookup' }),
+      retiredKeyGraceSeconds: resolveRetiredKeyGraceSeconds(options.retiredKeyGraceSeconds),
+      maxSkewSeconds: this.maxArtifactAgeSeconds,
+      // A chain's signatures are checked once per window, not on every arrival.
+      checked: new Map(),
+      checkedForSeconds: keyChainMaxCacheSeconds,
+    };
     // Signing every answer is asked for, and without a selector no device could check one.
     if (this.signAnswers && !options.serverIdentity.selector) {
       throw new BTPErrorException({
@@ -606,26 +631,33 @@ export class BtpsServer {
   ) {
     const { res } = context;
     const { identity, hostSelector, identitySelector } = artifact;
+    const id = computeId(identity);
 
-    const identityRecord = await this.identityStore?.getPublicKeyRecord(
-      computeId(identity),
-      identitySelector,
-    );
-    if (!identityRecord)
-      return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND, res.reqId);
-
-    const { createdAt, ...restRecord } = identityRecord;
+    // Since 1.2: the key chain, asked only by a 1.2.0 lookup (a 1.1.0 one with
+    // it is refused as not its schema).
+    const keyChain = artifact.keyChain
+      ? ((await this.identityStore?.getKeyChain?.(id)) ?? [])
+      : undefined;
+    const identityRecord = await this.identityStore?.getPublicKeyRecord(id, identitySelector);
+    // An identity whose keys are in DNS has no key record here, only its chain:
+    // the answer then names the chain's current key.
+    const current = keyChain?.length
+      ? verifyKeyChain(keyChain, { identity }).keys.at(-1)
+      : undefined;
+    const restRecord: BTPIdentityResDoc | undefined = identityRecord
+      ? (({ createdAt, ...rest }) => rest)(identityRecord)
+      : current && {
+          selector: current.selector,
+          publicKey: current.publicKey,
+          keyType: 'rsa',
+          version: BTP_PROTOCOL_VERSION,
+        };
+    if (!restRecord) return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND, res.reqId);
     // Since 1.2, to a 1.2.0 lookup: the answer names its identity, so it cannot
     // be taken for another's, and carries the key chain when asked.
     const document: BTPIdentityResDoc = isVersionBelow(artifact.version, '1.2.0')
       ? restRecord
-      : {
-          ...restRecord,
-          identity,
-          ...(artifact.keyChain && {
-            keyChain: (await this.identityStore?.getKeyChain?.(computeId(identity))) ?? [],
-          }),
-        };
+      : { ...restRecord, identity, ...(keyChain && { keyChain }) };
     const data: BTPServerResponse = {
       ...this.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }, res.reqId),
       type: 'btps_response',
@@ -1101,7 +1133,7 @@ export class BtpsServer {
   private async verifyAttestation(
     delegation: Omit<BTPDelegation, 'attestation'> & { attestation: BTPAttestation },
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
-    return verifyAttestation(delegation, this.keyResolver);
+    return verifyAttestation(delegation, this.keyResolver, this.keyChains);
   }
 
   /**
@@ -1149,7 +1181,7 @@ export class BtpsServer {
     },
   ): Promise<{ isValid: boolean; error?: BTPErrorException }> {
     // Shared with BtpsAgent.openResult, so the two never check a delegation differently.
-    return verifyDelegation(artifactWithDelegation, this.keyResolver);
+    return verifyDelegation(artifactWithDelegation, this.keyResolver, this.keyChains);
   }
 
   /**
@@ -1161,7 +1193,11 @@ export class BtpsServer {
     const { artifact, type } = data;
     if (type === 'agent') return this.verifyAgentSignature(artifact);
 
-    const { isValid, error } = await verifyTransporterSignature(artifact, this.keyResolver);
+    const { isValid, error } = await verifyTransporterSignature(
+      artifact,
+      this.keyResolver,
+      this.keyChains,
+    );
     return { isValid, error };
   }
 

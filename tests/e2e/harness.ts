@@ -25,6 +25,7 @@ import { JsonIdentityStore } from '../../src/core/storage/JsonIdentityStore.js';
 import { computeTrustId } from '../../src/core/trust/index.js';
 import { computeId, pemToBase64, parseIdentity } from '../../src/core/utils/index.js';
 import {
+  createDefaultKeyResolver,
   getBTPKeyPair,
   getFingerprintFromPem,
   signEncrypt,
@@ -167,6 +168,9 @@ export async function startProvider(
     port,
     tlsOptions: { key: tlsFiles.key, cert: tlsFiles.cert },
     connectionTimeoutMs: 5000,
+    // Since 1.2: asks a sender's host for its key chain on every arrival, over
+    // the journeys' own TLS, as this operator.
+    keyResolver: createDefaultKeyResolver({ from: operator, btpMtsOptions: senderTls }),
     ...options.server,
   });
 

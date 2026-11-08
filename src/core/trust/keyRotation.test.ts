@@ -16,11 +16,13 @@ import {
   keyAt,
   keyChainProblem,
   keyChainRecordHash,
+  keyChainSignerProblem,
   signKeyExpiry,
   signKeyRotation,
   verifyKeyChain,
 } from './keyRotation.js';
 import { PemSigner, getFingerprintFromPem } from '../crypto/index.js';
+import { BTP_ERROR_KEY_RETIRED, BTP_ERROR_KEY_REVOKED } from '../error/constant.js';
 import type { BTPKeyChainDns, BTPKeyChainRecord } from './types.js';
 
 const ME = 'billing$vendor.example';
@@ -35,7 +37,8 @@ const keyPair = (modulusLength = 2048) => {
 const [k1, k2, k3, k4] = [keyPair(), keyPair(), keyPair(), keyPair()];
 const fp = (keys: { publicKey: string }) => getFingerprintFromPem(keys.publicKey);
 const held = (keys: { publicKey: string; privateKey: string }) => ({ pemFiles: keys });
-const at = (day: number) => `2026-11-${String(day).padStart(2, '0')}T00:00:00.000Z`;
+// Days of a past month: online, a record dated in the future is refused.
+const at = (day: number) => `2026-10-${String(day).padStart(2, '0')}T00:00:00.000Z`;
 const hostOnly = { kind: 'hostOnly' } as const;
 const published = (...fingerprints: string[]) => ({ kind: 'published' as const, fingerprints });
 
@@ -578,5 +581,45 @@ describe('keyChainProblem, online', () => {
     const options = { identity: ME, fromOperator: true, dns: published(fp(k3)) };
     expect(keyChainProblem([first, a, b], options)).toMatch(/forks/);
     expect(keyChainProblem([{}], options)).toMatch(/not a key chain/);
+  });
+});
+
+describe('a key of a verified chain, for a live artifact', () => {
+  const key = { selector: 'btps1', fingerprint: 'f', publicKey: 'p' };
+  const now = Date.parse(at(20));
+  const ago = (seconds: number) => new Date(now - seconds * 1000).toISOString();
+  const problem = (k: typeof key & Record<string, string>) =>
+    keyChainSignerProblem(k, { now, retiredKeyGraceSeconds: 60 });
+
+  it('passes the current key, and a key retired as planned within its grace', () => {
+    expect(problem(key)).toBeUndefined();
+    expect(problem({ ...key, validUntil: ago(60) })).toBeUndefined();
+  });
+
+  it('refuses a key retired longer ago than its grace, and an expired key at once', () => {
+    expect(problem({ ...key, validUntil: ago(61) })).toBe(BTP_ERROR_KEY_RETIRED);
+    expect(problem({ ...key, validUntil: ago(1), compromisedSince: ago(5) })).toBe(
+      BTP_ERROR_KEY_REVOKED,
+    );
+  });
+
+  it('is judged by the clock now when none is given', () => {
+    expect(
+      keyChainSignerProblem({ ...key, validUntil: at(1) }, { retiredKeyGraceSeconds: 60 }),
+    ).toBe(BTP_ERROR_KEY_RETIRED);
+  });
+});
+
+describe('a record dated in the future, online', () => {
+  it('is refused past the allowed skew, by the given clock or the clock now', async () => {
+    const chain = await plannedChain();
+    const options = { identity: ME, fromOperator: true, dns: published(fp(k3)) };
+    const now = Date.parse(at(20));
+    expect(keyChainProblem(chain, { ...options, now, maxSkewSeconds: 0 })).toBeUndefined();
+    expect(keyChainProblem(chain, { ...options, now: now - 1000, maxSkewSeconds: 0 })).toMatch(
+      /record 1: it is dated in the future/,
+    );
+    expect(keyChainProblem(chain, { ...options, now: now - 1000 })).toBeUndefined();
+    expect(keyChainProblem(chain, options)).toBeUndefined();
   });
 });

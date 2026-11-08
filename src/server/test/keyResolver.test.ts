@@ -115,7 +115,8 @@ describe('finding keys', () => {
       'verify',
     );
     expect(isValid).toBe(true);
-    expect(dns).not.toHaveBeenCalled();
+    // No key from DNS: only, since 1.2, the sender's host record, to ask its host for a key chain.
+    for (const [name] of dns.mock.calls) expect(name).toMatch(/^_btps\.host\./);
   });
 
   it("a client asks its keyResolver for the key of a server's signed answer", async () => {
@@ -287,5 +288,85 @@ describe('the default key resolver', () => {
       await createDefaultKeyResolver().resolvePublicKey('pay$client.example', 'btps1', 'encrypt'),
     ).toBeUndefined();
     expect(connect).not.toHaveBeenCalled();
+  });
+
+  describe("since 1.2, an identity's key chain", () => {
+    const chain = { status: 'chain' as const, records: [] };
+    const serverWith = (more: object = {}) => {
+      vi.spyOn(tls, 'createServer').mockReturnValue(new EventEmitter() as unknown as tls.Server);
+      return new BtpsServer({
+        serverIdentity: { identity: 'host$client.example', publicKey: 'pub', privateKey: 'priv' },
+        trustStore: new JsonTrustStore({ connection: 'unused-trust-store.json' }),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+        ...more,
+      });
+    };
+
+    it("keeps the host's answer for keyChainMaxCacheSeconds, and never an answer that fails its checks", async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        const lookup = vi
+          .spyOn(BtpsClient.prototype, 'lookupKeyChain')
+          .mockResolvedValueOnce(chain)
+          .mockResolvedValueOnce({ status: 'invalid', reason: 'stale' })
+          .mockResolvedValueOnce({ status: 'invalid', reason: 'stale' })
+          .mockResolvedValue({ status: 'unavailable', reason: 'a 1.1 host' });
+        const resolver = createDefaultKeyResolver({
+          from: 'host$client.example',
+          keyChainMaxCacheSeconds: 60,
+        });
+
+        expect(await resolver.resolveKeyChain?.('alice$vendor.example')).toEqual(chain);
+        expect(await resolver.resolveKeyChain?.('ALICE$vendor.example')).toEqual(chain);
+        expect(lookup).toHaveBeenCalledTimes(1);
+        expect(lookup).toHaveBeenCalledWith('alice$vendor.example', 'host$client.example');
+
+        vi.setSystemTime(Date.now() + 61_000);
+        expect((await resolver.resolveKeyChain?.('alice$vendor.example'))?.status).toBe('invalid');
+        expect((await resolver.resolveKeyChain?.('alice$vendor.example'))?.status).toBe('invalid');
+        expect((await resolver.resolveKeyChain?.('alice$vendor.example'))?.status).toBe(
+          'unavailable',
+        );
+        expect((await resolver.resolveKeyChain?.('alice$vendor.example'))?.status).toBe(
+          'unavailable',
+        );
+        expect(lookup).toHaveBeenCalledTimes(4);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('is none to be had without an identity to ask as', async () => {
+      const lookup = vi.spyOn(BtpsClient.prototype, 'lookupKeyChain');
+      expect(
+        (await createDefaultKeyResolver().resolveKeyChain?.('alice$vendor.example'))?.status,
+      ).toBe('unavailable');
+      expect(lookup).not.toHaveBeenCalled();
+    });
+
+    it("is asked of the server's keyResolver when it gives chains", async () => {
+      const keyResolver = {
+        ...resolverReturning(sender.publicKey),
+        resolveKeyChain: vi.fn(async () => chain),
+      };
+      const { isValid } = await serverWith({ keyResolver })['verifySignature']({
+        type: 'transporter',
+        artifact: signedArtifact(),
+      });
+
+      expect(isValid).toBe(true);
+      expect(keyResolver.resolveKeyChain).toHaveBeenCalledWith('alice$vendor.example');
+    });
+
+    it('takes a usable grace and cache time, and warns about any other', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const server = serverWith({ retiredKeyGraceSeconds: 0, keyChainMaxCacheSeconds: -1 });
+      expect(server['keyChains'].retiredKeyGraceSeconds).toBe(0);
+      expect(
+        serverWith({ retiredKeyGraceSeconds: Number.NaN })['keyChains'].retiredKeyGraceSeconds,
+      ).toBe(86_400);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('keyChainMaxCacheSeconds -1'));
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('retiredKeyGraceSeconds NaN'));
+    });
   });
 });

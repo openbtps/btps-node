@@ -2537,7 +2537,8 @@
         "dns": {
           "kind": "published",
           "fingerprints": ["GTIyTL/KKX+eOIXncNzNWGMrvMV1SIcUCnayyoCkppk="]
-        }
+        },
+        "now": 1796083200000
       },
       "expect": "accept"
     },
@@ -2620,7 +2621,8 @@
             "ZX1FSKtFLgqF73+FXYidJhpcDgkk15SKlJkvvlWAB8s=",
             "GTIyTL/KKX+eOIXncNzNWGMrvMV1SIcUCnayyoCkppk="
           ]
-        }
+        },
+        "now": 1796083200000
       },
       "expect": "accept"
     },
@@ -2699,7 +2701,8 @@
         "fromOperator": true,
         "dns": {
           "kind": "hostOnly"
-        }
+        },
+        "now": 1796083200000
       },
       "expect": "accept"
     },
@@ -2746,7 +2749,8 @@
         "dns": {
           "kind": "published",
           "fingerprints": ["GTIyTL/KKX+eOIXncNzNWGMrvMV1SIcUCnayyoCkppk="]
-        }
+        },
+        "now": 1796083200000
       },
       "why": "it does not end at the key DNS publishes",
       "expect": "refuse"
@@ -2823,7 +2827,8 @@
         "dns": {
           "kind": "published",
           "fingerprints": []
-        }
+        },
+        "now": 1796083200000
       },
       "why": "for an identity that publishes its key, no record where the chain ends is never host-only",
       "expect": "refuse"
@@ -2904,7 +2909,8 @@
         "dns": {
           "kind": "published",
           "fingerprints": ["fjMGAv4F3reecbftYuL5MPekTk3SIsZbUwcHyiWjpdg="]
-        }
+        },
+        "now": 1796083200000
       },
       "why": "the chain's last key is not a key DNS publishes for the identity",
       "expect": "refuse"
@@ -2985,7 +2991,8 @@
         "dns": {
           "kind": "published",
           "fingerprints": ["GTIyTL/KKX+eOIXncNzNWGMrvMV1SIcUCnayyoCkppk="]
-        }
+        },
+        "now": 1796083200000
       },
       "why": "online, a chain comes in the operator's signed answer",
       "expect": "refuse"
@@ -3101,7 +3108,8 @@
         "dns": {
           "kind": "published",
           "fingerprints": ["GTIyTL/KKX+eOIXncNzNWGMrvMV1SIcUCnayyoCkppk="]
-        }
+        },
+        "now": 1796083200000
       },
       "why": "online, a key has one successor",
       "expect": "refuse"

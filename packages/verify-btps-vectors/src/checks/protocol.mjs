@@ -264,6 +264,18 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
     ),
     ...agreementChecks(set.agreements),
     ...keyRotationChecks(set.keyRotation),
+    ...set.keyRotationSigners.cases.map((c) =>
+      check(`key-rotation/signer/${c.name}`, () => {
+        const rule = rules.agreements?.keyChainSignerProblem;
+        ensure(typeof rule === 'function', 'the SDK has no keyChainSignerProblem');
+        const refusal = rule(c.key, {
+          now: c.now,
+          retiredKeyGraceSeconds: c.retiredKeyGraceSeconds,
+        });
+        const found = refusal === undefined ? 'accept' : refusal.code;
+        ensure(found === c.expect, `${found}; expected ${c.expect}`);
+      }),
+    ),
   ];
 
   // Since 1.2: agreements, their answers, and the evidence bundle.

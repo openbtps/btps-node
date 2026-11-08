@@ -31,6 +31,7 @@ export const VECTOR_FILES = Object.freeze({
   details: 'details.vectors.json',
   agreements: 'agreements.vectors.json',
   keyRotation: 'key-rotation.vectors.json',
+  keyRotationSigners: 'key-signers.vectors.json',
   manifest: 'manifest.json',
 });
 
@@ -190,6 +191,16 @@ export function loadVectorSet(dir) {
   requireFields(VECTOR_FILES.keyRotation, set.keyRotation.recordHash, ['record', 'sha256']);
   for (const c of [...set.keyRotation.chains, ...set.keyRotation.online]) {
     requireFields(VECTOR_FILES.keyRotation, c, ['name', 'chain', 'options', 'expect']);
+  }
+  requireFields(VECTOR_FILES.keyRotationSigners, set.keyRotationSigners, ['cases']);
+  for (const c of set.keyRotationSigners.cases) {
+    requireFields(VECTOR_FILES.keyRotationSigners, c, [
+      'name',
+      'key',
+      'now',
+      'retiredKeyGraceSeconds',
+      'expect',
+    ]);
   }
   requireFields(VECTOR_FILES.manifest, set.manifest, ['hashAlgorithm', 'files']);
 

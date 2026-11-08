@@ -51,6 +51,7 @@ import type {
 } from '@core/server/types.js';
 import {
   BTP_PROTOCOL_VERSION,
+  DEFAULT_MAX_ARTIFACT_AGE_SECONDS,
   MIN_SUPPORTED_VERSION,
   artifactVersion,
   isVersionBelow,
@@ -62,9 +63,12 @@ import { decryptVerify } from '@core/crypto/decryptVerify.js';
 import { assertStrictJson } from '@core/crypto/jcs.js';
 import { validate } from '@core/utils/validation.js';
 import { BtpArtifactServerSchema } from '@core/server/schemas/artifacts/artifacts.js';
+import { sameIdentity } from '@core/server/schemas/helpers.js';
+import type { BTPKeyChainLookup } from '@core/trust/types.js';
 import {
   DEFAULT_CONNECT_TIMEOUT_MS,
   DEFAULT_REPLY_TIMEOUT_MS,
+  KEY_CHAIN_REPLY_TIMEOUT_MS,
   MIN_CONNECT_TIMEOUT_MS,
   MIN_REPLY_TIMEOUT_MS,
   resolveTimeoutMs,
@@ -993,146 +997,289 @@ export class BtpsClient {
         );
       }
 
-      return await new Promise((resolve) => {
-        const socket = tls.connect({ ...this.options.btpMtsOptions, host: hostname, port });
-        // The connection closes once there is an answer, and not before.
-        let settled = false;
-        const settle: typeof resolve = (value) => {
-          settled = true;
-          socket.destroy();
-          resolve(value);
-        };
-        const fail = (error: BTPErrorException) => {
-          if (!settled) settle(this.buildClientErrorResponse(error));
-        };
-
-        const identityLookupRequest: BTPIdentityLookupRequest = {
-          identity,
-          from,
-          hostSelector: selector,
-          // A lookup says nothing 1.2 adds, so every 1.1 and 1.2 host answers it.
-          version: MIN_SUPPORTED_VERSION,
-          id: randomUUID(),
-          issuedAt: new Date().toISOString(),
-        };
-        socket.write(JSON.stringify(identityLookupRequest) + '\n');
-
-        let received = '';
-        // Once the whole answer is read, the host closing the connection no longer fails the lookup.
-        let answerRead = false;
-        socket.on('data', async (chunk) => {
-          received += chunk.toString();
-          const end = received.indexOf('\n');
-          if (end === -1) return;
-          socket.removeAllListeners('data');
-          answerRead = true;
-          try {
-            await verifyAnswer(received.slice(0, end));
-          } catch (error) {
-            fail(transformToBTPErrorException(error));
-          }
-        });
-
-        const verifyAnswer = async (line: string) => {
-          let msg: BTPServerResponse;
-          try {
-            assertStrictJson(line);
-            msg = JSON.parse(line);
-          } catch (error) {
-            fail(new BTPErrorException(BTP_ERROR_VALIDATION, { cause: error }));
-            return;
-          }
-          const { signature, signedBy, selector: signedWith, type, status } = msg;
-
-          if (type === 'btps_error' || !status.ok) {
-            fail(
-              new BTPErrorException(BTP_ERROR_IDENTITY_NOT_FOUND, {
-                cause: `Server returned error for identity: ${identity}`,
-                meta: msg,
-              }),
-            );
-            return;
-          }
-
-          /* resolving the identity from the server must be signed and have signedBy and selector */
-          if (!signature || !signedBy || !signedWith) {
-            fail(
-              new BTPErrorException(BTP_ERROR_VALIDATION, {
-                cause: 'Message is not signed or does not have signedBy',
-                meta: msg,
-              }),
-            );
-            return;
-          }
-
-          if (signedBy !== operator) {
-            fail(
-              new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
-                cause: `The answer is signed by ${signedBy}, not by ${operator}, the operator of ${identity}'s domain`,
-              }),
-            );
-            return;
-          }
-
-          const hostPubPem = await this.signatureKey(signedBy, signedWith);
-          if (!hostPubPem) {
-            fail(
-              new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
-                cause: `SignedBy is present but public key is not found for identity: ${signedBy} and selector: ${signedWith}`,
-                meta: msg,
-              }),
-            );
-            return;
-          }
-
-          // Verified as signed: adding a field it was not signed with would fail it.
-          const { payload: decryptedPayload, error: decryptError } =
-            await this.decryptVerifyArtifact(
-              msg as VerifyEncryptedPayload<BTPServerResponse>,
-              hostPubPem,
-              receiverKey,
-            );
-
-          if (decryptError) {
-            fail(decryptError);
-            return;
-          }
-
-          const { document } = (decryptedPayload as BTPServerResponse) || {};
-          if (!document) {
-            fail(
-              new BTPErrorException(BTP_ERROR_VALIDATION, {
-                cause: 'document is not present in the message',
-                meta: msg,
-              }),
-            );
-            return;
-          }
-
-          settle({
-            response: {
-              ...(document as BTPIdentityResDoc),
-              hostname,
-              port,
-              version,
-              serverVersion: msg.version,
-            },
-            error: undefined,
-          });
-        };
-        socket.on('error', (err) => {
-          if (!answerRead) fail(transformToBTPErrorException(err));
-        });
-        socket.on('close', () => {
-          if (!answerRead)
-            fail(
-              new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, { cause: 'connection closed' }),
-            );
-        });
-      });
+      // Since 1.2, a 1.2.0 lookup, so the answer names its identity and is
+      // checked as this lookup's. A 1.1 host refuses its version, and is asked
+      // again as 1.1 asks.
+      const host = { hostname, port, selector, operator };
+      let asked = await this.askHost(identity, from, host, BTP_PROTOCOL_VERSION, receiverKey);
+      if (asked.kind === 'refused' && asked.code === BTP_ERROR_VERSION_UNSUPPORTED.code) {
+        asked = await this.askHost(identity, from, host, MIN_SUPPORTED_VERSION, receiverKey);
+      }
+      if (asked.kind !== 'answer') return await this.buildClientErrorResponse(asked.error);
+      return {
+        response: {
+          ...asked.document,
+          hostname,
+          port,
+          version,
+          serverVersion: asked.serverVersion,
+        },
+        error: undefined,
+      };
     } catch (error) {
       return await this.buildClientErrorResponse(transformToBTPErrorException(error));
     }
+  }
+
+  /**
+   * Since 1.2: `identity`'s key chain, from its host: the operator's signed
+   * answer to a 1.2.0 lookup that asks for it, checked as `askHost` checks
+   * it. A host that cannot be reached, or answers with an error (a 1.1 host
+   * refuses the lookup), gives no chain: `unavailable`, and the identity's
+   * keys are checked by DNS. An answer that fails its checks is `invalid`.
+   *
+   * It is asked for on an arrival, which waits for it, so the host gets the
+   * client's connect timeout and then `replyTimeoutMs` (default
+   * KEY_CHAIN_REPLY_TIMEOUT_MS, 5 seconds) to answer, not the send's.
+   */
+  async lookupKeyChain(
+    identity: string,
+    from: string,
+    options: { replyTimeoutMs?: number } = {},
+  ): Promise<BTPKeyChainLookup> {
+    if (!isValidIdentity(identity)) {
+      return { status: 'invalid', reason: `invalid identity: ${identity}` };
+    }
+    // An asker that is no address cannot ask: no chain to be had, never a refusal.
+    if (!isValidIdentity(from)) {
+      return { status: 'unavailable', reason: `cannot ask as ${from}: not an address` };
+    }
+    let dns: BtpsHostDnsTxt | undefined;
+    try {
+      dns = await this.resolveBtpsHostDnsTxt(identity);
+    } catch (error) {
+      return { status: 'unavailable', reason: transformToBTPErrorException(error).message };
+    }
+    if (!dns?.hostname || !dns.operator) {
+      return { status: 'unavailable', reason: `${identity}'s domain names no host or operator` };
+    }
+    const { hostname, port, selector, operator } = dns;
+    const asked = await this.askHost(
+      identity,
+      from,
+      { hostname, port, selector, operator },
+      BTP_PROTOCOL_VERSION,
+      undefined,
+      true,
+      {
+        connectMs: this.connectTimeoutMs,
+        replyMs: options.replyTimeoutMs ?? KEY_CHAIN_REPLY_TIMEOUT_MS,
+      },
+    );
+    if (asked.kind === 'answer') {
+      return { status: 'chain', records: asked.document.keyChain ?? [] };
+    }
+    const { message, cause } = asked.error;
+    const reason = typeof cause === 'string' ? `${message}: ${cause}` : message;
+    return asked.kind === 'failed'
+      ? { status: 'invalid', reason }
+      : { status: 'unavailable', reason };
+  }
+
+  /**
+   * Asks `identity`'s host, as its domain's operator answers: one lookup over
+   * its own connection, taken only when signed by `host.operator`. Since 1.2,
+   * a 1.2.0 lookup's answer must be this lookup's (`reqId`), fresh (`issuedAt`
+   * within the default maxArtifactAgeSeconds), about this identity, and carry
+   * the key chain when asked. The host gets `timeouts.connectMs` to take the
+   * connection and `timeouts.replyMs` to answer: the client's own, unless given.
+   */
+  private askHost(
+    identity: string,
+    from: string,
+    host: { hostname: string; port: number; selector: string; operator: string },
+    lookupVersion: string,
+    receiverKey?: BTPDecryptionKey,
+    keyChain?: true,
+    timeouts = { connectMs: this.connectTimeoutMs, replyMs: this.replyTimeoutMs },
+  ): Promise<
+    | { kind: 'answer'; document: BTPIdentityResDoc; serverVersion: string }
+    // The host answered with an error; `code` is its BTPS code.
+    | { kind: 'refused'; error: BTPErrorException; code?: string }
+    // The answer came, and fails its checks.
+    | { kind: 'failed'; error: BTPErrorException }
+    // No answer: the host could not be reached, or closed, or took too long.
+    | { kind: 'unreachable'; error: BTPErrorException }
+  > {
+    const { hostname, port, selector, operator } = host;
+    type Asked = Awaited<ReturnType<BtpsClient['askHost']>>;
+    return new Promise((resolve) => {
+      const socket = tls.connect({ ...this.options.btpMtsOptions, host: hostname, port });
+      // The connection closes once there is an answer, and not before.
+      let settled = false;
+      const settle = (value: Asked) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        socket.destroy();
+        resolve(value);
+      };
+      const fail = (error: BTPErrorException) => settle({ kind: 'failed', error });
+      // The connect timeout until connected, then the reply timeout.
+      const giveUp = (what: string, ms: number) =>
+        setTimeout(
+          () =>
+            settle({
+              kind: 'unreachable',
+              error: new BTPErrorException(BTP_ERROR_TIMEOUT, {
+                cause: `${hostname} did not ${what} within ${ms} ms`,
+              }),
+            }),
+          ms,
+        );
+      let timer = giveUp('take the connection', timeouts.connectMs);
+      let connected = false;
+      const replying = () => {
+        if (connected) return;
+        connected = true;
+        clearTimeout(timer);
+        timer = giveUp('answer the lookup', timeouts.replyMs);
+      };
+      socket.once('connect', replying);
+      socket.once('secureConnect', replying);
+
+      const identityLookupRequest: BTPIdentityLookupRequest = {
+        identity,
+        from,
+        hostSelector: selector,
+        version: lookupVersion,
+        id: randomUUID(),
+        issuedAt: new Date().toISOString(),
+        ...(keyChain && { keyChain }),
+      };
+      socket.write(JSON.stringify(identityLookupRequest) + '\n');
+
+      let received = '';
+      // Once the whole answer is read, the host closing the connection no longer fails the lookup.
+      let answerRead = false;
+      socket.on('data', async (chunk) => {
+        received += chunk.toString();
+        const end = received.indexOf('\n');
+        if (end === -1) return;
+        socket.removeAllListeners('data');
+        answerRead = true;
+        try {
+          await verifyAnswer(received.slice(0, end));
+        } catch (error) {
+          fail(transformToBTPErrorException(error));
+        }
+      });
+
+      const verifyAnswer = async (line: string) => {
+        let msg: BTPServerResponse;
+        try {
+          assertStrictJson(line);
+          msg = JSON.parse(line);
+        } catch (error) {
+          fail(new BTPErrorException(BTP_ERROR_VALIDATION, { cause: error }));
+          return;
+        }
+        const { signature, signedBy, selector: signedWith, type, status } = msg;
+
+        if (type === 'btps_error' || !status.ok) {
+          settle({
+            kind: 'refused',
+            code: status?.error,
+            error: new BTPErrorException(BTP_ERROR_IDENTITY_NOT_FOUND, {
+              cause: `Server returned error for identity: ${identity}`,
+              meta: msg,
+            }),
+          });
+          return;
+        }
+
+        /* resolving the identity from the server must be signed and have signedBy and selector */
+        if (!signature || !signedBy || !signedWith) {
+          fail(
+            new BTPErrorException(BTP_ERROR_VALIDATION, {
+              cause: 'Message is not signed or does not have signedBy',
+              meta: msg,
+            }),
+          );
+          return;
+        }
+
+        if (signedBy !== operator) {
+          fail(
+            new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, {
+              cause: `The answer is signed by ${signedBy}, not by ${operator}, the operator of ${identity}'s domain`,
+            }),
+          );
+          return;
+        }
+
+        const hostPubPem = await this.signatureKey(signedBy, signedWith);
+        if (!hostPubPem) {
+          fail(
+            new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
+              cause: `SignedBy is present but public key is not found for identity: ${signedBy} and selector: ${signedWith}`,
+              meta: msg,
+            }),
+          );
+          return;
+        }
+
+        // Verified as signed: adding a field it was not signed with would fail it.
+        const { payload: decryptedPayload, error: decryptError } = await this.decryptVerifyArtifact(
+          msg as VerifyEncryptedPayload<BTPServerResponse>,
+          hostPubPem,
+          receiverKey,
+        );
+
+        if (decryptError) {
+          fail(decryptError);
+          return;
+        }
+
+        const { document } = (decryptedPayload as BTPServerResponse) || {};
+        if (!document) {
+          fail(
+            new BTPErrorException(BTP_ERROR_VALIDATION, {
+              cause: 'document is not present in the message',
+              meta: msg,
+            }),
+          );
+          return;
+        }
+
+        const answered = document as BTPIdentityResDoc;
+        if (!isVersionBelow(lookupVersion, '1.2.0')) {
+          const age = Math.abs(Date.now() - Date.parse(msg.issuedAt));
+          const problem =
+            msg.reqId !== identityLookupRequest.id
+              ? 'it answers another lookup'
+              : !(age <= DEFAULT_MAX_ARTIFACT_AGE_SECONDS * 1000)
+                ? 'it is not fresh'
+                : answered.identity === undefined || !sameIdentity(answered.identity, identity)
+                  ? `it does not name ${identity}`
+                  : keyChain && !Array.isArray(answered.keyChain)
+                    ? 'it carries no key chain'
+                    : undefined;
+          if (problem) {
+            fail(
+              new BTPErrorException(BTP_ERROR_VALIDATION, {
+                cause: `The answer to the lookup of ${identity} is refused: ${problem}`,
+              }),
+            );
+            return;
+          }
+        }
+
+        settle({ kind: 'answer', document: answered, serverVersion: msg.version });
+      };
+      socket.on('error', (err) => {
+        if (!answerRead) settle({ kind: 'unreachable', error: transformToBTPErrorException(err) });
+      });
+      socket.on('close', () => {
+        if (!answerRead)
+          settle({
+            kind: 'unreachable',
+            error: new BTPErrorException(BTP_ERROR_CONNECTION_CLOSED, {
+              cause: 'connection closed',
+            }),
+          });
+      });
+    });
   }
 
   /**

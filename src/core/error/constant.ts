@@ -258,6 +258,27 @@ export const BTP_ERROR_KEY_TOO_OLD: BTPError = {
   status: 401,
 };
 
+/**
+ * Since 1.2: signed by a key its identity rotated away from, planned, longer
+ * ago than the receiver's retiredKeyGraceSeconds. A stale key: sign again
+ * with the current one.
+ */
+export const BTP_ERROR_KEY_RETIRED: BTPError = {
+  code: 'BTP_ERROR_KEY_RETIRED',
+  message: 'The key that signed this is retired. Sign with the current key',
+  status: 401,
+};
+
+/**
+ * Since 1.2: signed by a key its identity rotated away from with immediate
+ * expiry, or expired: compromised or lost. A security incident, not a stale key.
+ */
+export const BTP_ERROR_KEY_REVOKED: BTPError = {
+  code: 'BTP_ERROR_KEY_REVOKED',
+  message: 'The key that signed this is revoked: it may be in other hands',
+  status: 401,
+};
+
 export const BTP_ERROR_ARTIFACT_TIME_WINDOW: BTPError = {
   code: 'BTP_ERROR_ARTIFACT_TIME_WINDOW',
   message: 'Artifact was not issued within the time window of this server',

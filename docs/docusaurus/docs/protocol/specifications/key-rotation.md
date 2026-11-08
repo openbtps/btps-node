@@ -117,9 +117,61 @@ From `@btps/sdk/trust`:
 | `verifyKeyChain(records, options)`        | the facts, refusing nothing: `chainValid`, `problem`, `keys` with their windows, `forked`, `branches`, `anchored`, `authorityUnverified` |
 | `keyChainProblem(records, options)`       | why a verifier online refuses a chain, or `undefined`: invalid, forked, or not ending at the key DNS publishes                           |
 | `keyAt(facts, { selector, fingerprint })` | one key of a verified chain, and its window                                                                                              |
+| `keyChainSignerProblem(key, options)`     | why a live artifact signed by that key is refused now (`BTP_ERROR_KEY_RETIRED`, `BTP_ERROR_KEY_REVOKED`), or `undefined`                 |
+
+From `@btps/sdk/crypto`: `wrapContentKeyFor` and `contentKeyOpens`, for [side-cars](#deleting-an-old-private-key). From `@btps/sdk/client`: `BtpsClient.lookupKeyChain(identity, from)`, an identity's chain from its host.
 
 The SDK never needs a provider to keep a private key: once a rotation is signed, the old key may be deleted.
 
 ## Where a chain is published
 
-At the identity's BTPS host: a `1.2.0` [identity lookup](./identity-lookup-artifact.md) with `keyChain: true` is answered with the chain, inside the operator's signed answer. The provider writes the chain and keeps it in its identity store (`getKeyChain`); the server only reads it. The chain and its records are bounded (see [Limits](./limits.md)).
+At the identity's BTPS host: a `1.2.0` [identity lookup](./identity-lookup-artifact.md) with `keyChain: true` is answered with the chain, inside the operator's signed answer. The provider writes the chain and keeps it in its identity store (`getKeyChain`); the server only reads it. For an identity whose keys are in DNS, the host holds no key record, only the chain: its answer names the chain's current key. The chain and its records are bounded (see [Limits](./limits.md)).
+
+## Checking keys on arrival
+
+A 1.2 server checks every arriving artifact's signing key against its identity's chain: the sender's, and a delegator's and an attestor's. It asks the identity's host for the chain, as its own identity, in a `1.2.0` lookup, and checks the answer as every lookup's answer is checked. Then:
+
+| The chain                                                                          | The server                                                                                                               |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| none to be had: a 1.1 host, an unreachable one, or one that answers with an error  | checks the key by DNS, as in 1.1                                                                                         |
+| empty: the identity never rotated                                                  | checks the key by DNS, as in 1.1                                                                                         |
+| an answer that fails its checks, or a chain `keyChainProblem` refuses              | refuses: `BTP_ERROR_RESOLVE_PUBKEY`                                                                                      |
+| a chain, and the artifact's selector names its current key                         | takes it                                                                                                                 |
+| ... a key rotated away as planned, within `retiredKeyGraceSeconds` of its rotation | takes it                                                                                                                 |
+| ... a key rotated away as planned, past the grace                                  | refuses: `BTP_ERROR_KEY_RETIRED` (401)                                                                                   |
+| ... an expired key (rotated with immediate expiry, or named by an expiry record)   | refuses at once, whatever the artifact's own time says: `BTP_ERROR_KEY_REVOKED` (401)                                    |
+| ... no key of the chain                                                            | refuses: `BTP_ERROR_RESOLVE_PUBKEY`. A key the chain names, published under a later selector (the same key), is that key |
+
+A key still in DNS never overrides the chain: a retired or expired key is refused whatever DNS has.
+
+**What DNS says.** Online, the chain must end at a key DNS publishes for the identity, at the chain's last selector or the domain's `s=`. The identity is host-only only when DNS has a record at neither; a DNS lookup that fails is refused, never taken for host-only. A record in the chain dated more than the server's `maxArtifactAgeSeconds` in the future is refused.
+
+**How soon a revocation counts.** A server keeps a chain for at most `keyChainMaxCacheSeconds` (default 300). A key revoked by its owner is refused live within that time, plus the DNS time-to-live of the records the lookup itself needs (`_btps.host` and the operator's key) if those change in the same incident. A `keyResolver` that gives chains itself (`resolveKeyChain`) keeps its own cache, and must keep a chain no longer.
+
+**A known limit: the host cannot be reached.** A chain lookup waits the client's connect timeout (5 seconds) and then 5 seconds for the answer, since the arrival waits for it; a host that takes longer is not reached. Then the server checks the key by DNS alone, as 1.1 does. An attacker who can stop a server reaching the sender's host gets that, and it is safe only because **a provider removes an expired key's DNS record at once**: a rule, not a choice. With the record gone, the key is refused (`BTP_ERROR_RESOLVE_PUBKEY`) within its DNS time-to-live and any key cache. A provider that also talks to 1.1 peers keeps a retired key's record for the grace after a planned rotation, so a 1.1 verifier, which reads DNS only, takes artifacts already in flight.
+
+**A known limit: a client checking its provider's answer.** A client or device checks a signed answer (`requireSignedBy`, an identity lookup's answer) and a result it opens by DNS alone, not by the operator's key chain. An answer signed by an expired operator key is refused once that key's DNS record is removed, within its DNS time-to-live; the same rule, removing an expired key's record at once, covers it.
+
+**Server options:** `retiredKeyGraceSeconds` (default 86,400, a day) and `keyChainMaxCacheSeconds` (default 300). See [Limits](./limits.md).
+
+## Lookups, checked
+
+Since 1.2, a client sends a `1.2.0` lookup, and asks a 1.1 host again as `1.1.0` when it refuses the version. The answer to a `1.2.0` lookup is taken only when:
+
+- its `reqId` is the lookup's `id`;
+- its `issuedAt` is within 300 seconds of the client's clock;
+- it names the identity asked about (`identity`), and carries `keyChain` when it was asked for.
+
+An old answer replayed, an answer to another lookup, and one about another identity are refused. The answer to a `1.1.0` lookup carries none of these, as in 1.1.
+
+## Deleting an old private key
+
+Verifying never needs a private key; opening a document does, and one key both signs and is encrypted to. A signed artifact is never changed: its signature covers `encryption.encryptedKey`. So before a provider deletes an old private key:
+
+1. it waits until nothing more is encrypted to the old key: the DNS time-to-live of its record, caches, `maxArtifactAgeSeconds` and retries;
+2. for each stored artifact wrapped to the old key, it keeps a **side-car** beside it, outside its signature: `wrapContentKeyFor(artifact, oldKey, newPublicKey)` gives `{ encryptedKey, recipientFingerprint }`, the content key wrapped to the new key, once it has checked that the content key opens the document;
+3. it deletes the old private key only once every side-car opens its artifact with the new key: `contentKeyOpens(artifact, sidecar, newKey)`.
+
+`decryptVerify(senderKey, artifact, newKey, sidecar.encryptedKey)` opens the artifact with its side-car, and still verifies its untouched signature. Side-cars never enter an evidence bundle: a bundle's artifacts only have to verify.
+
+For a key expired because it is compromised, anything already encrypted to it should be taken as exposed: a side-car protects what is stored from then on, not what a thief already copied.
