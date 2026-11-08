@@ -167,6 +167,19 @@ export type BTPKeyChainKey = {
   expiredAt?: string;
 };
 
+/**
+ * Since 1.2: what DNS says of an identity, for checking its key chain online.
+ * - `hostOnly`: there is no DNS key record for the identity at the domain's
+ *   current `s=`; its keys are its host's to answer, so the operator's signed
+ *   answer anchors its chain.
+ * - `published`: the fingerprints of the keys DNS publishes for the identity,
+ *   at the chain's last `to.selector` and at the domain's `s=`, empty when
+ *   neither has one. The chain anchors only when its last key is one of them.
+ * "No record where the chain ends" is `published` with no fingerprints, never
+ * `hostOnly`: otherwise a host could anchor a chain of its own making.
+ */
+export type BTPKeyChainDns = { kind: 'hostOnly' } | { kind: 'published'; fingerprints: string[] };
+
 /** Since 1.2: the facts about a key chain. It decides nothing; `keyChainProblem` is the online refusal. */
 export type BTPKeyChainFacts = {
   /** Every record is well-formed and signed as its kind requires, `prev` links hold, and the chain rules hold */

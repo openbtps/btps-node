@@ -75,7 +75,8 @@ A verifier refuses a chain unless all of these hold. Together they make every va
 3. **Each key once.** A key is introduced (as the first `from`, or as a `to`) at most once, by its computed fingerprint, so `A → B → A` is refused even under a second stated fingerprint. The same key published under a later selector needs no record.
 4. **One key per selector**, for the life of the identity.
 5. **Time moves forward.** Each record's `at` is later than the previous record's, and `compromisedSince` is never after its record's `at`.
-6. **Each rotation leaves the current key**, and each expiry names a past key and is signed by the current one.
+6. **Each rotation leaves the current key**, and each expiry names a past key, under a selector the chain names that key under, and is signed by the current one.
+7. **Every record is reached** from the first record by its links.
 
 ## Validity windows
 
@@ -92,13 +93,15 @@ A signature is in its key's window when the time it claims is in `[validFrom, va
 
 A chain proves which key followed which; what ties it to the identity comes from outside the chain. No DNS record changes in 1.2.
 
-| Anchor                                    | When    | What it confirms                                                                                                                                                                                                     |
-| ----------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **The operator's signed answer, and DNS** | online  | the whole chain, when it came in the operator's signed [identity lookup](./identity-lookup-artifact.md) answer and its current key is the key DNS publishes for the identity (or the identity has no DNS key record) |
-| **A fingerprint the reader kept**         | offline | that key, and the records leading up to it; never a record after it, which a thief holding that key could have signed                                                                                                |
-| **None**                                  | offline | nothing: the chain is consistent but unconfirmed                                                                                                                                                                     |
+| Anchor                                    | When    | What it confirms                                                                                                                                                                                                                                             |
+| ----------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **The operator's signed answer, and DNS** | online  | the whole chain, when it came in the operator's signed [identity lookup](./identity-lookup-artifact.md) answer and its current key is a key DNS publishes for the identity, at the chain's last selector or the domain's `s=` (or the identity is host-only) |
+| **A fingerprint the reader kept**         | offline | that key, and the records leading up to it; never a record after it, which a thief holding that key could have signed                                                                                                                                        |
+| **None**                                  | offline | nothing: the chain is consistent but unconfirmed                                                                                                                                                                                                             |
 
-A rotation without `from`'s signature (a lost key) is confirmed only online: by the operator, for an identity with no DNS key record, or by DNS publishing its new key, which every later record of the chain is signed onward from. Offline, it is reported `authorityUnverified`.
+**Host-only** means there is no DNS key record for the identity at the domain's current `s=`: its keys are its host's to answer, so the operator's signed answer anchors its chain. For an identity that publishes a key, a DNS record missing where the chain ends is **never** taken as host-only: the chain is unanchored and refused online, or a host could anchor a chain of its own making. In the SDK, `dns` is `{ kind: 'hostOnly' }` or `{ kind: 'published', fingerprints }`, with the fingerprints DNS has at the chain's last selector and at `s=`.
+
+A rotation without `from`'s signature (a lost key) is confirmed only online: by the operator, for a host-only identity, or by DNS publishing its new key, which every later record of the chain is signed onward from. Offline, it is reported `authorityUnverified`.
 
 **Forks and the void rule.** Online, a fork is refused. Offline, it is reported, with each branch's last key; an anchor past the fork picks a branch. Off the anchored branch, a branch whose first record was signed by a key at or after that key's `compromisedSince` is **void**, and so is every key it named: that is a thief's. On the anchored branch nothing is voided, so the record that sets `compromisedSince`, and the keys after it, always stand.
 

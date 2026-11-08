@@ -4132,10 +4132,24 @@ export function keyRotation(keys) {
   });
   const thief = rotation(k2, 'btps2', k4, 'btps4', 16, r1);
   const anchors = (...ks) => ({ identity: ME, anchors: ks.map(fp) });
-  const online = (dnsFingerprint, fromOperator = true) => ({
+  // What DNS says of the identity: no key record at the domain's s= (host-only),
+  // or the keys it publishes at the chain's last selector and at s=, maybe none.
+  const hostOnly = { kind: 'hostOnly' };
+  const published = (...ks) => ({ kind: 'published', fingerprints: ks.map(fp) });
+  const online = (dns, fromOperator = true) => ({
     identity: ME,
-    online: { fromOperator, dnsFingerprint },
+    online: { fromOperator, dns },
   });
+  const checked = (dns, fromOperator = true) => ({ identity: ME, fromOperator, dns });
+  // A host's own chain for an identity that publishes its key in DNS: to a key
+  // of the host's, under a selector DNS has no record at.
+  const hostsLost = rotation(k2, 'btps2', k4, 'btps9', 20, r1, {
+    immediate: { since: 19, reason: 'lost' },
+    signers: [['to', k4]],
+  });
+  const hostsPlanned = rotation(k2, 'btps2', k4, 'btps9', 20, r1);
+  // btps2's key, re-published under btps5 when the domain moved, rotates away from there.
+  const moved = rotation(k2, 'btps5', k3, 'btps6', 20, r1);
   const refused = (name, chain, why) => ({
     name,
     chain,
@@ -4201,14 +4215,27 @@ export function keyRotation(keys) {
       {
         name: 'lost-key-confirmed-by-the-operator-for-a-host-only-identity',
         chain: [r1, lost],
-        options: online(null),
+        options: online(hostOnly),
         expect: { authorityUnverified: false, anchored: { by: 'online', upTo: fp(k3) } },
       },
       {
         name: 'lost-key-confirmed-by-dns-at-its-new-selector',
         chain: [r1, lost],
-        options: online(fp(k3)),
+        options: online(published(k3)),
         expect: { authorityUnverified: false, anchored: { by: 'online', upTo: fp(k3) } },
+      },
+      {
+        name: 'a-hosts-lost-key-chain-for-a-dns-identity-with-no-record-where-it-ends',
+        note: "DNS has no record at btps9, the chain's last selector, and the identity's real key at s=: published, never host-only.",
+        chain: [r1, hostsLost],
+        options: online(published(k2)),
+        expect: { chainValid: true, anchored: false, authorityUnverified: true },
+      },
+      {
+        name: 'an-expiry-under-the-later-selector-a-key-was-published-under',
+        chain: [r1, moved, expiry(k2, 'btps5', 15, 25, moved, k3)],
+        options: { identity: ME },
+        expect: { chainValid: true, keys: [{}, { compromisedSince: day(15) }, {}] },
       },
       {
         name: 'expiry-of-a-past-key-voids-nothing-on-the-anchored-path',
@@ -4234,7 +4261,7 @@ export function keyRotation(keys) {
         name: 'the-same-key-under-a-new-selector-needs-no-record',
         note: "The domain moved s= to btps9 and re-published btps2's key under it: DNS at btps9 gives the chain's current fingerprint.",
         chain: [r1],
-        options: online(fp(k2)),
+        options: online(published(k2)),
         expect: { chainValid: true, anchored: { by: 'online', upTo: fp(k2) } },
       },
       {
@@ -4255,7 +4282,7 @@ export function keyRotation(keys) {
       {
         name: 'a-thiefs-branch-off-the-anchored-path-is-void',
         chain: [r1, owner, thief],
-        options: online(fp(k3)),
+        options: online(published(k3)),
         expect: {
           forked: true,
           anchored: { by: 'online', upTo: fp(k3) },
@@ -4377,38 +4404,63 @@ export function keyRotation(keys) {
         [r1, r2, expiry(k3, 'btps3', 5, 25, r2, k3)],
         'the current key is expired by rotating it with immediate expiry',
       ),
+      refused(
+        'an-expiry-under-a-selector-the-chain-never-names-that-key-under',
+        [r1, r2, expiry(k1, 'btps2', 5, 25, r2, k3)],
+        'an expiry names its key under a selector the chain names it under',
+      ),
     ],
     online: [
       {
         name: 'a-chain-ending-at-the-identitys-dns-key',
         chain: [r1, r2],
-        options: { identity: ME, fromOperator: true, dnsFingerprint: fp(k3) },
+        options: checked(published(k3)),
+        expect: 'accept',
+      },
+      {
+        name: 'a-chain-ending-at-the-key-dns-has-at-either-selector',
+        chain: [r1, r2],
+        options: checked(published(k4, k3)),
         expect: 'accept',
       },
       {
         name: 'a-host-only-identitys-chain-from-the-operator',
         chain: [r1, r2],
-        options: { identity: ME, fromOperator: true, dnsFingerprint: null },
+        options: checked(hostOnly),
         expect: 'accept',
       },
       {
         name: 'a-truncated-chain',
         chain: [r1],
-        options: { identity: ME, fromOperator: true, dnsFingerprint: fp(k3) },
+        options: checked(published(k3)),
         why: 'it does not end at the key DNS publishes',
+        expect: 'refuse',
+      },
+      {
+        name: 'a-hosts-lost-key-chain-where-dns-has-no-record-of-its-last-key',
+        chain: [r1, hostsLost],
+        options: checked(published()),
+        why: 'for an identity that publishes its key, no record where the chain ends is never host-only',
+        expect: 'refuse',
+      },
+      {
+        name: 'a-hosts-planned-chain-where-dns-has-only-the-identitys-real-key',
+        chain: [r1, hostsPlanned],
+        options: checked(published(k2)),
+        why: "the chain's last key is not a key DNS publishes for the identity",
         expect: 'refuse',
       },
       {
         name: 'a-chain-not-from-the-operator',
         chain: [r1, r2],
-        options: { identity: ME, fromOperator: false, dnsFingerprint: fp(k3) },
+        options: checked(published(k3), false),
         why: "online, a chain comes in the operator's signed answer",
         expect: 'refuse',
       },
       {
         name: 'a-forked-chain',
         chain: [r1, owner, thief],
-        options: { identity: ME, fromOperator: true, dnsFingerprint: fp(k3) },
+        options: checked(published(k3)),
         why: 'online, a key has one successor',
         expect: 'refuse',
       },

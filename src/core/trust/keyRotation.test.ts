@@ -21,7 +21,7 @@ import {
   verifyKeyChain,
 } from './keyRotation.js';
 import { PemSigner, getFingerprintFromPem } from '../crypto/index.js';
-import type { BTPKeyChainRecord } from './types.js';
+import type { BTPKeyChainDns, BTPKeyChainRecord } from './types.js';
 
 const ME = 'billing$vendor.example';
 const keyPair = (modulusLength = 2048) => {
@@ -36,6 +36,8 @@ const [k1, k2, k3, k4] = [keyPair(), keyPair(), keyPair(), keyPair()];
 const fp = (keys: { publicKey: string }) => getFingerprintFromPem(keys.publicKey);
 const held = (keys: { publicKey: string; privateKey: string }) => ({ pemFiles: keys });
 const at = (day: number) => `2026-11-${String(day).padStart(2, '0')}T00:00:00.000Z`;
+const hostOnly = { kind: 'hostOnly' } as const;
+const published = (...fingerprints: string[]) => ({ kind: 'published' as const, fingerprints });
 
 const rotate = (
   from: { publicKey: string; privateKey: string },
@@ -166,7 +168,7 @@ describe('a verified chain', () => {
       anchored: false,
     });
     expect(
-      keyChainProblem([], { identity: ME, fromOperator: true, dnsFingerprint: fp(k1) }),
+      keyChainProblem([], { identity: ME, fromOperator: true, dns: published(fp(k1)) }),
     ).toBeUndefined();
   });
 });
@@ -219,18 +221,57 @@ describe('immediate expiry', () => {
     // Online: the operator's answer, and DNS publishing the new key, confirm it.
     const online = verifyKeyChain([first, lost], {
       identity: ME,
-      online: { fromOperator: true, dnsFingerprint: fp(k3) },
+      online: { fromOperator: true, dns: published(fp(k3)) },
     });
     expect(online).toMatchObject({
       authorityUnverified: false,
       anchored: { by: 'online', upTo: fp(k3) },
     });
     // A host-only identity: the operator's answer alone.
-    const hostOnly = verifyKeyChain([first, lost], {
+    const operatorOnly = verifyKeyChain([first, lost], {
       identity: ME,
-      online: { fromOperator: true, dnsFingerprint: null },
+      online: { fromOperator: true, dns: hostOnly },
     });
-    expect(hostOnly.authorityUnverified).toBe(false);
+    expect(operatorOnly.authorityUnverified).toBe(false);
+  });
+
+  it('never confirms a chain for an identity DNS publishes a key for, where DNS has no record of its last key', async () => {
+    // A host serving a chain of its own making: a lost-key rotation to its key, and a planned one.
+    const first = await rotate(k1, 'btps1', k2, 'btps2', 10, null);
+    const lost = await signKeyRotation(
+      {
+        identity: ME,
+        from: { selector: 'btps2', publicKey: k2.publicKey },
+        to: { selector: 'btps9' },
+        at: at(20),
+        prev: keyChainRecordHash(first),
+        expiry: 'immediate',
+        compromisedSince: at(19),
+        reason: 'lost',
+      },
+      { to: held(k4) },
+    );
+    const planned = await rotate(k2, 'btps2', k4, 'btps9', 20, first);
+    for (const chain of [
+      [first, lost],
+      [first, planned],
+    ]) {
+      const nothing = { identity: ME, online: { fromOperator: true, dns: published() } };
+      expect(verifyKeyChain(chain, nothing)).toMatchObject({ anchored: false });
+      expect(
+        keyChainProblem(chain, { identity: ME, fromOperator: true, dns: published() }),
+      ).toMatch(/not the key DNS publishes/);
+      // The identity's real key, at the domain's s=, is not the chain's last key either.
+      expect(
+        keyChainProblem(chain, { identity: ME, fromOperator: true, dns: published(fp(k2)) }),
+      ).toMatch(/not the key DNS publishes/);
+    }
+    expect(
+      verifyKeyChain([first, lost], {
+        identity: ME,
+        online: { fromOperator: true, dns: published() },
+      }).authorityUnverified,
+    ).toBe(true);
   });
 
   it('marks a past key compromised with an expiry record, voiding nothing on the anchored path', async () => {
@@ -280,7 +321,12 @@ describe('immediate expiry', () => {
     );
     expect(problemOf([first, second, await expire(k3, 'btps3', k3)])).toMatch(/not a past key/);
     expect(problemOf([first, second, await expire(k4, 'btps4', k3)])).toMatch(/not a past key/);
-    expect(problemOf([first, second, await expire(k1, 'btps2', k3)])).toMatch(/names two keys/);
+    // An expiry names a key under a selector the chain names it under, never another.
+    for (const selector of ['btps2', 'btps7']) {
+      expect(problemOf([first, second, await expire(k1, selector, k3)])).toMatch(
+        new RegExp(`never names that key under selector ${selector}`),
+      );
+    }
     const once = await expire(k1, 'btps1', k3);
     const twice = await signKeyExpiry(
       {
@@ -294,6 +340,30 @@ describe('immediate expiry', () => {
       held(k3),
     );
     expect(problemOf([first, second, once, twice])).toMatch(/already expired/);
+  });
+
+  it('names a key under the later selector it was published under, as the chain names it', async () => {
+    // btps1's key, re-published under btps5 when the domain moved, rotates away from there.
+    const first = await rotate(k1, 'btps1', k2, 'btps2', 10, null);
+    const moved = await rotate(k2, 'btps5', k3, 'btps6', 20, first);
+    const expiry = (selector: string) =>
+      signKeyExpiry(
+        {
+          identity: ME,
+          key: { selector, fingerprint: fp(k2) },
+          compromisedSince: at(15),
+          reason: 'compromised',
+          at: at(25),
+          prev: keyChainRecordHash(moved),
+        },
+        held(k3),
+      );
+    for (const selector of ['btps2', 'btps5']) {
+      expect(
+        verifyKeyChain([first, moved, await expiry(selector)], { identity: ME }).chainValid,
+      ).toBe(true);
+    }
+    expect(problemOf([first, moved, await expiry('btps6')])).toMatch(/never names that key/);
   });
 });
 
@@ -457,7 +527,7 @@ describe('forks and anchors', () => {
   it("void the thief's branch once the owner's is anchored", async () => {
     const facts = verifyKeyChain(await forkedChain(), {
       identity: ME,
-      online: { fromOperator: true, dnsFingerprint: fp(k3) },
+      online: { fromOperator: true, dns: published(fp(k3)) },
     });
     expect(facts.keys.at(-1)?.fingerprint).toBe(fp(k3));
     expect(facts.anchored).toEqual({ by: 'online', upTo: fp(k3) });
@@ -490,20 +560,22 @@ describe('forks and anchors', () => {
 describe('keyChainProblem, online', () => {
   it("takes the operator's chain that ends at the identity's DNS key", async () => {
     const chain = await plannedChain();
-    const check = (fromOperator: boolean, dnsFingerprint: string | null) =>
-      keyChainProblem(chain, { identity: ME, fromOperator, dnsFingerprint });
-    expect(check(true, fp(k3))).toBeUndefined();
-    expect(check(true, null)).toBeUndefined();
+    const check = (fromOperator: boolean, dns: BTPKeyChainDns) =>
+      keyChainProblem(chain, { identity: ME, fromOperator, dns });
+    expect(check(true, published(fp(k3)))).toBeUndefined();
+    // At the chain's last selector or the domain's s=: either may be the one DNS has.
+    expect(check(true, published(fp(k4), fp(k3)))).toBeUndefined();
+    expect(check(true, hostOnly)).toBeUndefined();
     // A truncated chain (or a stale one) does not end at the DNS key.
-    expect(check(true, fp(k4))).toMatch(/not the key DNS publishes/);
-    expect(check(false, fp(k3))).toMatch(/operator's signed answer/);
+    expect(check(true, published(fp(k4)))).toMatch(/not the key DNS publishes/);
+    expect(check(false, published(fp(k3)))).toMatch(/operator's signed answer/);
   });
 
   it('refuses a fork, and any invalid chain', async () => {
     const first = await rotate(k1, 'btps1', k2, 'btps2', 10, null);
     const a = await rotate(k2, 'btps2', k3, 'btps3', 20, first);
     const b = await rotate(k2, 'btps2', k4, 'btps4', 21, first);
-    const options = { identity: ME, fromOperator: true, dnsFingerprint: fp(k3) };
+    const options = { identity: ME, fromOperator: true, dns: published(fp(k3)) };
     expect(keyChainProblem([first, a, b], options)).toMatch(/forks/);
     expect(keyChainProblem([{}], options)).toMatch(/not a key chain/);
   });

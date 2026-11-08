@@ -32,6 +32,7 @@ import { BtpKeyChainSchema } from '@core/server/schemas/keyChainSchema.js';
 import { sameIdentity } from '@core/server/schemas/helpers.js';
 import { base64ToPem, pemToBase64 } from '@core/utils/index.js';
 import type {
+  BTPKeyChainDns,
   BTPKeyChainFacts,
   BTPKeyChainKey,
   BTPKeyChainRecord,
@@ -233,11 +234,15 @@ const keyFrom = (key: { selector: string; fingerprint: string; publicKey: string
 const walk = (nodes: ChainNode[]): ChainPath | string => {
   const keys: BTPKeyChainKey[] = [];
   const selectors = new Map<string, string>();
+  // Every selector the path names each key under: the one that introduced it,
+  // and a later one it was published under when it rotated away.
+  const namedUnder = new Map<string, Set<string>>();
   let lastAt = -Infinity;
   let lost = false;
   const names = (selector: string, fingerprint: string) => {
     const named = selectors.get(selector);
     selectors.set(selector, fingerprint);
+    namedUnder.set(fingerprint, (namedUnder.get(fingerprint) ?? new Set()).add(selector));
     return named === undefined || named === fingerprint;
   };
   for (const { record, index } of nodes) {
@@ -282,8 +287,8 @@ const walk = (nodes: ChainNode[]): ChainPath | string => {
       if (!target || target === current) {
         return `record ${index}: it expires a key that is not a past key of the chain`;
       }
-      if (!names(expiry.key.selector, expiry.key.fingerprint)) {
-        return `record ${index}: selector ${expiry.key.selector} names two keys`;
+      if (!namedUnder.get(expiry.key.fingerprint)?.has(expiry.key.selector)) {
+        return `record ${index}: the chain never names that key under selector ${expiry.key.selector}`;
       }
       if (target.compromisedSince !== undefined)
         return `record ${index}: the key is already expired`;
@@ -312,19 +317,19 @@ const invalid = (problem: string): BTPKeyChainFacts => ({
  * - `anchors`: fingerprints the reader kept, each the identity's key when the
  *   reader saw it. One anchors itself and the records leading to it, never a
  *   record after it, which a thief holding that key could have signed.
- * - `online`: the chain came in the operator's signed answer, and what DNS
- *   publishes for the identity at the chain's last selector (or at the
- *   domain's selector, for the same key under a new one), or null when the
- *   identity has no DNS key record. It anchors the whole chain when its last
- *   key is that key. A rotation without the old key's signature (a lost key)
- *   is confirmed only so: every later record is signed by the key it named.
+ * - `online`: whether the chain came in the operator's signed answer, and
+ *   what DNS says of the identity (BTPKeyChainDns). It anchors the whole chain
+ *   when the chain's last key is a key DNS publishes for the identity, or,
+ *   for a host-only identity, on the operator's answer alone. A rotation
+ *   without the old key's signature (a lost key) is confirmed only so: every
+ *   later record is signed by the key it named.
  */
 export const verifyKeyChain = (
   records: unknown[],
   options: {
     identity: string;
     anchors?: string[];
-    online?: { fromOperator: boolean; dnsFingerprint: string | null };
+    online?: { fromOperator: boolean; dns: BTPKeyChainDns };
   },
 ): BTPKeyChainFacts => {
   const parsed = BtpKeyChainSchema.safeParse(records);
@@ -374,6 +379,10 @@ export const verifyKeyChain = (
     for (const node of next) extend([...line, node]);
   };
   extend([root]);
+  // A cycle would need a SHA-256 preimage; still, no record is ever silently left out.
+  if (new Set(lines.flat()).size !== nodes.length) {
+    return invalid('a record is not reached from the first record');
+  }
   const paths: ChainPath[] = [];
   for (const line of lines) {
     const path = walk(line);
@@ -386,7 +395,7 @@ export const verifyKeyChain = (
   const online = options.online;
   const onlineAnchors = (path: ChainPath) =>
     !!online?.fromOperator &&
-    (online.dnsFingerprint === null || online.dnsFingerprint === tipOf(path));
+    (online.dns.kind === 'hostOnly' || online.dns.fingerprints.includes(tipOf(path)));
   const anchors = new Set(options.anchors ?? []);
   // A kept fingerprint picks a branch only when it is past the fork, on one branch alone.
   const keptOn = (path: ChainPath) =>
@@ -438,16 +447,15 @@ export const verifyKeyChain = (
 /**
  * Since 1.2: why a verifier online refuses an identity's key chain, or
  * undefined. It came in the operator's signed answer (`fromOperator`), and
- * `dnsFingerprint` is the key DNS publishes for the identity at the chain's
- * last selector (or null, for an identity with no DNS key record). A chain
- * that forks, or does not end at that key, is refused.
+ * `dns` is what DNS says of the identity. A chain that forks, or does not end
+ * at a key DNS publishes for an identity that publishes one, is refused.
  */
 export const keyChainProblem = (
   records: unknown[],
-  options: { identity: string; fromOperator: boolean; dnsFingerprint: string | null },
+  options: { identity: string; fromOperator: boolean; dns: BTPKeyChainDns },
 ): string | undefined => {
-  const { identity, fromOperator, dnsFingerprint } = options;
-  const facts = verifyKeyChain(records, { identity, online: { fromOperator, dnsFingerprint } });
+  const { identity, fromOperator, dns } = options;
+  const facts = verifyKeyChain(records, { identity, online: { fromOperator, dns } });
   if (!facts.chainValid) return facts.problem;
   if (facts.forked) return 'the chain forks: a key has two successors';
   if (facts.keys.length > 0 && !facts.anchored) {
