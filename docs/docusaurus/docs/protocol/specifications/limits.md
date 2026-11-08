@@ -184,6 +184,9 @@ Since 1.2, the lists that trust permissions, details refresh and agreements add.
 | an evidence bundle's `statements`                                       |      20 |
 | an evidence bundle's `keys` (three for each signer, and the originator) |      61 |
 | an evidence bundle's `timestamps`                                       |      20 |
+| an identity's key chain (`keyChain`), in records                        |     100 |
+| a key rotation record's `signatures`                                    |  1 to 2 |
+| a key's `publicKey` in a key rotation record (DER SPKI, base64)         |   2,048 |
 
 A record is any object whose keys the sender chooses: `metadata`,
 `issuer.identifiers`, a payslip's `yearToDate`, `template.data` and

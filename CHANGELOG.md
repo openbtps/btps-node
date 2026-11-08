@@ -274,6 +274,18 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   `BTP_ERROR_CONNECTION_ENDED`. A 1.1 server's answers say nothing, so with
   one the client still only lets in an end that has already arrived, as in
   1.1.
+- **Key rotation records.** An identity's keys form a key chain: each
+  rotation is signed by the old key and the new one (`signKeyRotation`), a
+  rotation with immediate expiry marks a compromised or lost key, and an
+  expiry record (`signKeyExpiry`) marks a key the identity already left.
+  `verifyKeyChain` reports a chain's facts (each key's window, forks,
+  anchors, a lost key's authority) and `keyChainProblem` is the refusal a
+  verifier applies online. Fingerprints are computed from each key, never
+  taken from the record. A `1.2.0` identity lookup may ask for the chain
+  (`keyChain: true`); its answer names its identity and carries the chain,
+  which an identity store gives with `getKeyChain`. Nothing changes for an
+  identity that never rotates. See
+  [Key Rotation](https://www.openbtps.org/docs/next/protocol/specifications/key-rotation).
 
 ### Changed
 

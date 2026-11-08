@@ -30,6 +30,7 @@ export const VECTOR_FILES = Object.freeze({
   trustPermissions: 'trust-permissions.vectors.json',
   details: 'details.vectors.json',
   agreements: 'agreements.vectors.json',
+  keyRotation: 'key-rotation.vectors.json',
   manifest: 'manifest.json',
 });
 
@@ -185,6 +186,11 @@ export function loadVectorSet(dir) {
   }
   requireFields(VECTOR_FILES.agreements, set.agreements.contentSha256, ['document', 'sha256']);
   requireFields(VECTOR_FILES.agreements, set.agreements.statementSha256, ['record', 'sha256']);
+  requireFields(VECTOR_FILES.keyRotation, set.keyRotation, ['recordHash', 'chains', 'online']);
+  requireFields(VECTOR_FILES.keyRotation, set.keyRotation.recordHash, ['record', 'sha256']);
+  for (const c of [...set.keyRotation.chains, ...set.keyRotation.online]) {
+    requireFields(VECTOR_FILES.keyRotation, c, ['name', 'chain', 'options', 'expect']);
+  }
   requireFields(VECTOR_FILES.manifest, set.manifest, ['hashAlgorithm', 'files']);
 
   // The only shared key is the encryption key, referenced by name. Resolve it

@@ -37,6 +37,7 @@ Identity lookup artifacts (`BTPIdentityLookupRequest`) are designed for requesti
 ## Optional Fields
 
 - **identitySelector**: Specific selector for the identity (if different from hostSelector)
+- **keyChain** (since 1.2, in a `1.2.0` lookup only): `true` asks for the identity's [key chain](./key-rotation.md) too
 
 ## Use Cases
 
@@ -159,6 +160,13 @@ The response document contains the identity's public key information:
 - **keyType**: Key type (currently "rsa")
 - **version**: Protocol version
 
+**Since 1.2, in the answer to a `1.2.0` lookup:**
+
+- **identity**: the identity the answer is for, so that an answer can never be taken for another identity's
+- **keyChain**: when the lookup asked, the identity's [key chain](./key-rotation.md), oldest record first; `[]` for an identity that never rotated
+
+An answer to a `1.1.0` lookup carries neither. Both are inside the signed answer, so the operator's signature covers the chain.
+
 ## Error Handling
 
 ### Common Error Scenarios
@@ -200,7 +208,7 @@ Servers implementing identity lookup must:
 
 1. **Store Identity Records**: Maintain identity public key records
 2. **Audit Logging**: Log all identity lookup requests
-3. **Key Rotation**: Support key rotation and management
+3. **Key Rotation**: Support key rotation and management. Since 1.2, an identity store may implement `getKeyChain(computedId)`, returning the identity's key chain, which the server sends to a lookup that asks. The provider writes the chain; the server only reads it. `JsonIdentityStore` reads it from the record's `keyChain`.
 
 ## Best Practices
 

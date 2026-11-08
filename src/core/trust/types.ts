@@ -103,6 +103,101 @@ export type BTPVerificationFacts = {
   verifierIsOperator: boolean;
 };
 
+/** Since 1.2: a key in a key rotation record. */
+export type BTPRotatedKey = {
+  selector: string;
+  /** SHA-256 of the key's DER SPKI, base64; a verifier computes it from `publicKey` */
+  fingerprint: string;
+  /** The key's DER SPKI, base64, as a DNS key record's `p=` */
+  publicKey: string;
+};
+
+export type BTPKeyExpiryReason = 'compromised' | 'lost';
+
+/** Since 1.2: what a key rotation record signs: the identity's key `from` hands over to `to`. */
+export type BTPKeyRotation = {
+  type: 'btps.keyRotation.v1';
+  identity: string;
+  from: BTPRotatedKey;
+  to: BTPRotatedKey;
+  /** When `to` starts signing */
+  at: string;
+  /** SHA-256 of the previous record's signed object, lowercase hex; null on the first record only */
+  prev: string | null;
+} & (
+  | { expiry: 'planned' }
+  | { expiry: 'immediate'; compromisedSince: string; reason: BTPKeyExpiryReason }
+);
+
+/** Since 1.2: what a key expiry record signs: a key the identity already rotated away from, found compromised. */
+export type BTPKeyExpiry = {
+  type: 'btps.keyExpiry.v1';
+  identity: string;
+  key: { selector: string; fingerprint: string };
+  compromisedSince: string;
+  reason: BTPKeyExpiryReason;
+  at: string;
+  prev: string;
+};
+
+/** `from` and `to` sign a rotation; the identity's `current` key signs an expiry. */
+export type BTPKeyChainSignature = BTPSignature & { by: 'from' | 'to' | 'current' };
+
+/** Since 1.2: one record of an identity's key chain, with an optional RFC 3161 token over the same bytes. */
+export type BTPKeyChainRecord =
+  | { rotation: BTPKeyRotation; signatures: BTPKeyChainSignature[]; timestamp?: string }
+  | { expiry: BTPKeyExpiry; signatures: BTPKeyChainSignature[]; timestamp?: string };
+
+/** Since 1.2: one key of a verified chain, and its window. */
+export type BTPKeyChainKey = {
+  selector: string;
+  fingerprint: string;
+  /** SPKI PEM */
+  publicKey: string;
+  /** The `at` of the record that introduced it; none for the chain's start */
+  validFrom?: string;
+  /** The `at` of the rotation away from it; none for the current key */
+  validUntil?: string;
+  /** How it was rotated away, if it was */
+  rotatedAway?: 'planned' | 'immediate';
+  /** Set by a rotation with immediate expiry, or by an expiry record */
+  compromisedSince?: string;
+  reason?: BTPKeyExpiryReason;
+  /** When the expiry was declared: the record's own `at` */
+  expiredAt?: string;
+};
+
+/**
+ * Since 1.2: what DNS says of an identity, for checking its key chain online.
+ * - `hostOnly`: there is no DNS key record for the identity at the domain's
+ *   current `s=`; its keys are its host's to answer, so the operator's signed
+ *   answer anchors its chain.
+ * - `published`: the fingerprints of the keys DNS publishes for the identity,
+ *   at the chain's last `to.selector` and at the domain's `s=`, empty when
+ *   neither has one. The chain anchors only when its last key is one of them.
+ * "No record where the chain ends" is `published` with no fingerprints, never
+ * `hostOnly`: otherwise a host could anchor a chain of its own making.
+ */
+export type BTPKeyChainDns = { kind: 'hostOnly' } | { kind: 'published'; fingerprints: string[] };
+
+/** Since 1.2: the facts about a key chain. It decides nothing; `keyChainProblem` is the online refusal. */
+export type BTPKeyChainFacts = {
+  /** Every record is well-formed and signed as its kind requires, `prev` links hold, and the chain rules hold */
+  chainValid: boolean;
+  /** The first rule broken, when not valid */
+  problem?: string;
+  /** A rotation without its `from` signature (a lost key) whose authority the anchor cannot confirm */
+  authorityUnverified: boolean;
+  /** A key has two successors */
+  forked: boolean;
+  /** The chain's keys in order, start first: the only path, or the one branch an anchor picks; empty otherwise */
+  keys: BTPKeyChainKey[];
+  /** Each branch's last key, when forked; `void` when its first record is signed by a key expired at the time */
+  branches?: { tip: string; void: boolean }[];
+  /** What confirms the chain, and up to which key: a kept fingerprint anchors itself and the records leading to it */
+  anchored: { by: 'kept-fingerprint' | 'online'; upTo: string } | false;
+};
+
 /** Since 1.2: an agreement, by its originator, its id and the SHA-256 of its content. */
 export type BTPAgreementRef = { originator: string; id: string; contentSha256: string };
 
