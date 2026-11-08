@@ -27,6 +27,7 @@ import { BTP_ERROR_RESOLVE_PUBKEY, BTP_ERROR_VALIDATION } from '@core/error/cons
 import { BtpEvidenceBundleSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import { sameIdentity } from '@core/server/schemas/helpers.js';
 import type { BTPServerResponse } from '@core/server/types.js';
+import { getHostAndSelector, parseIdentity } from '@core/utils/index.js';
 import {
   onlineKeyChain,
   signatureKey,
@@ -101,7 +102,11 @@ export type BTPEvidenceOperatorAnswerFacts = {
   signatureValid: boolean;
   /** It names this chain's identity and carries this chain, record for record */
   answersThisChain: boolean;
-  /** The operator's key is a fingerprint the reader kept (`anchors`), or was confirmed online */
+  /**
+   * Its key is the one the reader named as the operator of the chain
+   * identity's domain (`operators`), or, online, `signedBy` is the operator
+   * DNS names there (`op=`) and its key is confirmed as `signedBy`'s
+   */
   operatorKeyAnchored: boolean;
 };
 
@@ -272,12 +277,15 @@ const inWindow = (key: BTPKeyChainKey, time: string) => {
 
 /**
  * A chain's operator answer: whether it is signed by the key the bundle holds
- * for its signer, for this chain, and whether that key is anchored: a
- * fingerprint the reader kept, or confirmed online (`keyConfirmedOnline`).
+ * for its signer, for this chain, and whether that key is anchored as the
+ * operator of the chain identity's domain: the fingerprint the reader named
+ * for that domain (`operators`), or confirmed online as the operator DNS names
+ * (`keyConfirmedOnline`). A plain anchor never counts here: it vouches for the
+ * key's own records, not for what that key says of another identity.
  */
 const operatorAnswerFacts = (
   chain: BTPEvidenceKeyChain,
-  context: { anchors?: string[]; keyOf: BTPKeyOf; keyConfirmedOnline: boolean },
+  context: { operators?: Record<string, string>; keyOf: BTPKeyOf; keyConfirmedOnline: boolean },
 ): BTPEvidenceOperatorAnswerFacts | undefined => {
   const answer = chain.operatorAnswer;
   if (!answer?.signedBy) return undefined;
@@ -285,6 +293,10 @@ const operatorAnswerFacts = (
   const key = answer.selector ? context.keyOf(answer.signedBy, answer.selector) : undefined;
   const fingerprint = fingerprintOf(key);
   const document = answer.document as { identity?: string; keyChain?: unknown } | undefined;
+  const domain = parseIdentity(chain.identity)?.domainName.toLowerCase();
+  const named = Object.entries(context.operators ?? {}).find(
+    ([operatorOf]) => operatorOf.toLowerCase() === domain,
+  )?.[1];
   return {
     signedBy: answer.signedBy,
     signatureValid: !!key && !!signature && verifySignature(signed, signature, key).isValid,
@@ -293,8 +305,7 @@ const operatorAnswerFacts = (
       sameIdentity(document.identity, chain.identity) &&
       canonicalizeValue(document.keyChain) === canonicalizeValue(chain.records),
     operatorKeyAnchored:
-      fingerprint !== undefined &&
-      ((context.anchors ?? []).includes(fingerprint) || context.keyConfirmedOnline),
+      fingerprint !== undefined && (fingerprint === named || context.keyConfirmedOnline),
   };
 };
 
@@ -309,6 +320,7 @@ const keyChainFactsFor = (
   times: { claimed: string; timestamped?: string; independent?: string },
   context: {
     anchors?: string[];
+    operators?: Record<string, string>;
     online?: BTPKeyChainFacts;
     keyOf: BTPKeyOf;
     operatorKeyConfirmedOnline: boolean;
@@ -326,7 +338,7 @@ const keyChainFactsFor = (
   const { timestamped, independent } = times;
   const expiredAt = key?.expiredAt;
   const operatorAnswer = operatorAnswerFacts(chain, {
-    anchors: context.anchors,
+    operators: context.operators,
     keyOf: context.keyOf,
     keyConfirmedOnline: context.operatorKeyConfirmedOnline,
   });
@@ -383,8 +395,11 @@ const keyChainFactsFor = (
  *
  * Since 1.2, each signing key is reported against its identity's key chain
  * when the bundle carries one (`keyChains`), and each statement's signed
- * arrival (`arrivals`) with it. `anchors` are fingerprints the reader kept.
- * `online` confirms each key now as its identity's (`onlineKeyChain`): a key
+ * arrival (`arrivals`) with it. `anchors` are signing-key fingerprints the
+ * reader kept. `operators` are the fingerprints the reader kept of domains'
+ * operators, by domain: an operator's answer in the bundle confirms a lost
+ * key's rotation only by the one named for the chain identity's domain, or
+ * online, by the operator DNS names there. `online` confirms each key now as its identity's (`onlineKeyChain`): a key
  * of its identity's chain, which must hold online as a server requires, or its
  * DNS key when there is no chain; only then is `keysConfirmedOnline` true. A
  * key since rotated away or expired is still its identity's: when it was
@@ -395,6 +410,7 @@ export const verifyEvidenceBundle = async (
   options: {
     trustedTimestampRoots?: string[];
     anchors?: string[];
+    operators?: Record<string, string>;
     online?: BTPKeyChainCheck;
   } = {},
 ): Promise<BTPEvidenceFacts> => {
@@ -501,14 +517,20 @@ export const verifyEvidenceBundle = async (
   }
   const keyChains = (parsed.data.keyChains ?? []) as BTPEvidenceKeyChain[];
   const chainOf = (identity: string) => keyChains.find((c) => sameIdentity(c.identity, identity));
-  // Online, an operator answer's key is confirmed as its signer's, as a signing key is.
+  // Online, an operator answer counts only when its signer is the operator DNS names for the
+  // chain identity's domain (`op=`), and its key is confirmed as that signer's.
   const operatorKeysOnline = new Map<BTPEvidenceKeyChain, boolean>();
   if (options.online) {
     for (const chain of keyChains) {
       const { signedBy, selector } = chain.operatorAnswer ?? {};
-      if (signedBy && selector) {
-        operatorKeysOnline.set(chain, await confirmedOnline(options.online, [signedBy, selector]));
-      }
+      if (!signedBy || !selector) continue;
+      const operator = (await getHostAndSelector(chain.identity).catch(() => undefined))?.operator;
+      operatorKeysOnline.set(
+        chain,
+        operator !== undefined &&
+          sameIdentity(operator, signedBy) &&
+          (await confirmedOnline(options.online, [signedBy, selector])),
+      );
     }
   }
   const onlineFactsOf = (identity: string) => {
@@ -524,6 +546,7 @@ export const verifyEvidenceBundle = async (
     if (!chain) return undefined;
     return keyChainFactsFor(chain, fingerprint, times, {
       anchors: options.anchors,
+      operators: options.operators,
       online: onlineFactsOf(identity),
       keyOf,
       operatorKeyConfirmedOnline: operatorKeysOnline.get(chain) ?? false,

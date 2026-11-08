@@ -4191,7 +4191,10 @@ export function agreementKeyChains(set, keys) {
     ],
   });
   // An operator key is the bundle's own: its answer confirms the rotation only when the
-  // reader kept that key's fingerprint (or confirmed it online).
+  // reader named that key's fingerprint as the operator of the guarantor's domain
+  // (`operators`; or confirmed it online as the operator DNS names). A plain anchor
+  // vouches for a key's own records, never for what it says of another identity.
+  const namedOperator = { operators: { 'guarantor.example': fp(guarantorOperator) } };
   const answerFacts = (operatorKeyAnchored) => ({
     signedBy: OPERATOR,
     signatureValid: true,
@@ -4261,7 +4264,7 @@ export function agreementKeyChains(set, keys) {
       },
     ),
     withFacts(
-      'a-lost-keys-rotation-confirmed-by-its-operators-answer-by-a-kept-key',
+      'a-lost-keys-rotation-confirmed-by-the-operator-named-for-its-domain',
       answeredBy(guarantorOperator),
       {
         statements: {
@@ -4273,10 +4276,27 @@ export function agreementKeyChains(set, keys) {
           },
         },
       },
+      namedOperator,
+    ),
+    // The operator's real key, kept only as a plain anchor: it confirms nothing it says.
+    withFacts(
+      'an-operators-answer-by-a-key-kept-only-as-an-anchor',
+      answeredBy(guarantorOperator),
+      {
+        statements: {
+          1: {
+            keyChain: chainFacts(guarantorNext, {
+              ...lostFacts,
+              authorityUnverified: true,
+              operatorAnswer: answerFacts(false),
+            }),
+          },
+        },
+      },
       { anchors: [fp(guarantorOperator)] },
     ),
     // A forger's answer, signed by a key it put in the bundle as the operator's: the
-    // reader kept the real operator's fingerprint, and the forged one confirms nothing.
+    // reader named the real operator, and the forged one confirms nothing.
     withFacts(
       'a-lost-keys-rotation-with-a-forged-operators-answer',
       answeredBy(forger),
@@ -4291,7 +4311,7 @@ export function agreementKeyChains(set, keys) {
           },
         },
       },
-      { anchors: [fp(guarantorOperator)] },
+      namedOperator,
     ),
   ];
 }

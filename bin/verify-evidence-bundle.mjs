@@ -13,12 +13,15 @@
  * prints each one's fingerprint for a reader to check.
  *
  *   npx -p @btps/sdk btps-verify-evidence <bundle.json> [--json] [--timestamp-root <ca.pem>]...
- *     [--anchor <fingerprint>]... [--online <your-identity>]
+ *     [--anchor <fingerprint>]... [--operator <domain>=<fingerprint>]... [--online <your-identity>]
  *
  *   --json                    print the facts as JSON instead of text
  *   --timestamp-root <file>   a PEM certificate whose timestamps you trust; repeat for more
- *   --anchor <fingerprint>    since 1.2: a key fingerprint you kept, as an identity's
- *                             key when you saw it; repeat for more
+ *   --anchor <fingerprint>    since 1.2: a signing key's fingerprint you kept, as an
+ *                             identity's key when you saw it; repeat for more
+ *   --operator <domain>=<fp>  since 1.2: the fingerprint you kept of a domain's operator's
+ *                             key; only it confirms an operator's answer in the bundle for an
+ *                             identity at that domain, offline; repeat for more domains
  *   --online <identity>       since 1.2: also confirm each key now as its identity's: a key
  *                             of its identity's chain from its host (asked as this identity),
  *                             anchored on DNS, or its DNS key. Only this confirms keys online
@@ -33,21 +36,34 @@ import { describeEvidenceFacts, verifyEvidenceBundle } from '@btps/sdk/trust';
 import { createDefaultKeyResolver } from '@btps/sdk/crypto';
 
 const USAGE =
-  'usage: btps-verify-evidence <bundle.json> [--json] [--timestamp-root <ca.pem>]... [--anchor <fingerprint>]... [--online <your-identity>]';
+  'usage: btps-verify-evidence <bundle.json> [--json] [--timestamp-root <ca.pem>]... [--anchor <fingerprint>]... [--operator <domain>=<fingerprint>]... [--online <your-identity>]';
 
 const args = process.argv.slice(2);
 const roots = [];
 const anchors = [];
+const operators = {};
+let badOperator = false;
 let asking;
 const rest = [];
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--timestamp-root') roots.push(args[++i]);
   else if (args[i] === '--anchor') anchors.push(args[++i]);
-  else if (args[i] === '--online') asking = args[++i] ?? '';
+  else if (args[i] === '--operator') {
+    // A fingerprint is base64 and may end in '=': split at the first '=' only.
+    const [domain, fingerprint] = (args[++i] ?? '').split(/=(.*)/s);
+    if (domain && fingerprint) operators[domain] = fingerprint;
+    else badOperator = true;
+  } else if (args[i] === '--online') asking = args[++i] ?? '';
   else rest.push(args[i]);
 }
 const file = rest.find((arg) => !arg.startsWith('--'));
-if (!file || roots.includes(undefined) || anchors.includes(undefined) || asking === '') {
+if (
+  !file ||
+  roots.includes(undefined) ||
+  anchors.includes(undefined) ||
+  badOperator ||
+  asking === ''
+) {
   console.error(USAGE);
   process.exit(2);
 }
@@ -60,6 +76,7 @@ try {
   facts = await verifyEvidenceBundle(bundle, {
     ...(roots.length && { trustedTimestampRoots }),
     ...(anchors.length && { anchors }),
+    ...(Object.keys(operators).length && { operators }),
     ...(resolver && {
       online: {
         resolveKeyChain: (identity) => resolver.resolveKeyChain(identity),

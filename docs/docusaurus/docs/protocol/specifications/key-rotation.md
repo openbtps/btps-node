@@ -168,7 +168,13 @@ An old answer replayed, an answer to another lookup, and one about another ident
 
 An agreement's [evidence bundle](./transporter-artifact.md#the-evidence-bundle) is read long after it was signed, when the keys that signed it may have been rotated away, their DNS records retired, or found compromised. So a bundle may carry each signing identity's chain, and the facts report each signing key against it.
 
-- **`keyChains`**: `[{ identity, records, operatorAnswer? }]`. `records` is the identity's chain; `operatorAnswer` is the operator's signed answer to the lookup that served it, kept whole (`lookupKeyChain`'s `answer`), so its signature checks offline with the operator's key in the bundle's `keys`. That key, like every key in a bundle, is the bundle's own: whoever built the bundle put it there. So the answer confirms a lost key's rotation only when the operator's key is **anchored**: its fingerprint is one the reader kept (`anchors`), or it is confirmed online. Otherwise it shows only what the builder was given. A key whose DNS record is retired is taken from its identity's chain.
+- **`keyChains`**: `[{ identity, records, operatorAnswer? }]`. `records` is the identity's chain; `operatorAnswer` is the operator's signed answer to the lookup that served it, kept whole (`lookupKeyChain`'s `answer`), so its signature checks offline with the operator's key in the bundle's `keys`. That key, like every key in a bundle, is the bundle's own: whoever built the bundle put it there. So the answer confirms a lost key's rotation only when its key is **anchored as the operator of the chain identity's domain**:
+
+  - offline, its fingerprint is the one the reader names for that domain (`operators`, `{ [domain]: fingerprint }`; `--operator <domain>=<fingerprint>`). A plain anchor never counts here: a signing key's anchor vouches only for that key's own records, while an operator's answer vouches for another identity's. Otherwise a counterparty whose key the reader kept could answer "as operator" for anyone;
+  - online, `signedBy` is the operator DNS names for that domain (its `_btps.host` record's `op=`), and its key is confirmed as `signedBy`'s, as a signing key is.
+
+  Otherwise it shows only what the builder was given. A key whose DNS record is retired is taken from its identity's chain.
+
 - **`arrivals`**: `[{ statementSha256, arrivedAt, receivedBy, selector, signature }]`. The builder's platform signs one as each statement arrives (`signArrival`), over the RFC 8785 form of `{ type: "btps.arrival.v1", statementSha256, arrivedAt, receivedBy, selector }`: the receiver's record of when it had the statement, which the signer could not set.
 
 For each signing key (the originator's, and each statement's: a device's is its delegator's), with its identity's chain in the bundle:
@@ -190,7 +196,7 @@ For each signing key (the originator's, and each statement's: a device's is its 
 
 **Disowned after the fact.** A party may, after signing, expire its own key from a date before its signature. The expiry stands on the chain, and `signedInWindow` is false. The bundle shows what it can against that: an independent time for the statement (a trusted timestamp's, else a signed arrival's) at or after `compromisedSince` and before the expiry was declared makes `disownedAfterTheFact` true. What follows from it is the reader's to decide. None of these facts changes `complete`.
 
-Offline, `anchors` (fingerprints the reader kept) anchor a chain. Online (`verifyEvidenceBundle`'s `online`, `btps-verify-evidence --online`), each signing key is confirmed now as its identity's: a key of its identity's chain, which must hold online [as a server requires](#checking-keys-on-arrival), or its DNS key when there is no chain. `keysConfirmedOnline` is true only when every one is. A bundle's signatures are past, so a key since rotated away or expired is still its identity's: when it was valid is in the facts above.
+Offline, `anchors` (signing-key fingerprints the reader kept) anchor a chain, and `operators` (operator fingerprints the reader kept, by domain) let an operator's answer confirm a lost key's rotation. Online (`verifyEvidenceBundle`'s `online`, `btps-verify-evidence --online`), each signing key is confirmed now as its identity's: a key of its identity's chain, which must hold online [as a server requires](#checking-keys-on-arrival), or its DNS key when there is no chain. `keysConfirmedOnline` is true only when every one is. A bundle's signatures are past, so a key since rotated away or expired is still its identity's: when it was valid is in the facts above.
 
 ## Deleting an old private key
 

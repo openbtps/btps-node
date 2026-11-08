@@ -351,13 +351,21 @@ describe('journey: keys rotate along a signed chain', () => {
         operatorKeyAnchored: false,
       },
     });
-    // A reader who kept the operator's fingerprint takes the answer.
-    const operatorKept = await verifyEvidenceBundle(bundle, {
-      anchors: [fingerprintOf(vendorHost.operatorKeys.publicKey)],
+    // A reader who names the operator's fingerprint for Jane's domain takes the answer;
+    // kept only as a plain anchor, it vouches for nothing the key says of others.
+    const operatorFingerprint = fingerprintOf(vendorHost.operatorKeys.publicKey);
+    const operatorNamed = await verifyEvidenceBundle(bundle, {
+      operators: { 'vendor.example': operatorFingerprint },
     });
-    expect(operatorKept.statements[0]?.keyChain).toMatchObject({
+    expect(operatorNamed.statements[0]?.keyChain).toMatchObject({
       authorityUnverified: false,
       operatorAnswer: { operatorKeyAnchored: true },
+    });
+    const operatorAnchored = await verifyEvidenceBundle(bundle, {
+      anchors: [operatorFingerprint],
+    });
+    expect(operatorAnchored.statements[0]?.keyChain).toMatchObject({
+      authorityUnverified: true,
     });
 
     // The bin as shipped (test:e2e builds the package), anchored on a fingerprint kept.
@@ -373,7 +381,14 @@ describe('journey: keys rotate along a signed chain', () => {
       by: 'kept-fingerprint',
       upTo: fingerprintOf(k3.publicKey),
     });
+    const named = run('--json', '--operator', `vendor.example=${operatorFingerprint}`);
+    expect(named.status, named.stderr).toBe(0);
+    expect(JSON.parse(named.stdout).statements[0].keyChain).toMatchObject({
+      authorityUnverified: false,
+      operatorAnswer: { operatorKeyAnchored: true },
+    });
     expect(run('--anchor').status).toBe(2);
+    expect(run('--operator', operatorFingerprint).status).toBe(2);
     expect(run('--online').status).toBe(2);
     fs.rmSync(dir, { recursive: true, force: true });
   });

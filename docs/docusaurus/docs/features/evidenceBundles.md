@@ -172,7 +172,7 @@ A key counts only when its fingerprint is its own: a bundle cannot pair one key 
 
 **What `complete` means, plainly.** The bundle is consistent with the keys it carries. It does **not** say each key was its identity's when it signed: a bundle forged with fresh keys labelled as the parties is consistent too. That is why every fingerprint is printed: a reader who needs more anchors the key chains on a fingerprint they kept (`anchors`, `--anchor`), or checks the keys online (`online`, `--online`). Providers make that possible: they never reuse a selector for a different key, and publish a key rotation record for every new key ([Key rotation](./keyRotation.md)).
 
-**A key chain** reports, for a signing key: whether the chain is valid and the key is in it, whether it is anchored, and on what; whether a lost key's rotation in it is unconfirmed (`authorityUnverified`); the operator's answer, when the bundle keeps one (`operatorAnswer`: who signed it, whether its signature holds, whether it is for this chain, and whether the operator's key is anchored). An operator's answer confirms a lost key's rotation only when its key is anchored: a fingerprint you kept (`--anchor`), or confirmed online (`--online`). A forger can sign an "operator's answer" with a key they put in the bundle themselves, so an answer by a key nobody anchored confirms nothing; when the key was rotated away (`rotatedAt`) or expired (`expiredImmediately`); whether the time the signer claims is in the key's window (`signedInWindow`), and the timestamp's time too (`signedInWindowIndependently`). When an owner expires its key from before a statement that, by its timestamp or its signed arrival, had already arrived, `disownedAfterTheFact` says so. The facts in full: [In an evidence bundle](../protocol/specifications/key-rotation.md#in-an-evidence-bundle). A key chain fact never changes `complete`.
+**A key chain** reports, for a signing key: whether the chain is valid and the key is in it, whether it is anchored, and on what; whether a lost key's rotation in it is unconfirmed (`authorityUnverified`); the operator's answer, when the bundle keeps one (`operatorAnswer`: who signed it, whether its signature holds, whether it is for this chain, and whether the operator's key is anchored). An operator's answer confirms a lost key's rotation only when its key is anchored as the operator of the chain identity's domain: the fingerprint you name for that domain (`operators`, `--operator <domain>=<fingerprint>`), or, online, the key of the operator DNS names there (`--online`). A forger can sign an "operator's answer" with a key they put in the bundle themselves, and a counterparty whose key you kept could sign one for anyone, so a plain `--anchor` never confirms an answer, and an answer by a key nobody named confirms nothing; when the key was rotated away (`rotatedAt`) or expired (`expiredImmediately`); whether the time the signer claims is in the key's window (`signedInWindow`), and the timestamp's time too (`signedInWindowIndependently`). When an owner expires its key from before a statement that, by its timestamp or its signed arrival, had already arrived, `disownedAfterTheFact` says so. The facts in full: [In an evidence bundle](../protocol/specifications/key-rotation.md#in-an-evidence-bundle). A key chain fact never changes `complete`.
 
 **A timestamp** reports `imprintMatches` (over this statement), `signatureValid`, `time`, `authority`, `timestampingKeyUsage` (the signer's certificate is a timestamp authority's: its one extended key usage is timeStamping, critical, as RFC 3161 requires, so a TLS server's certificate under a trusted root is not) and `trusted`, given the roots the reader trusts. A timestamp never changes `complete`.
 
@@ -265,7 +265,8 @@ import { verifyEvidenceBundle, describeEvidenceFacts } from '@btps/sdk/trust';
 
 const facts = await verifyEvidenceBundle(bundle, {
   trustedTimestampRoots: [tsaRootPem],
-  anchors: [keptFingerprint], // a key fingerprint you kept, as its identity's key when you saw it
+  anchors: [keptFingerprint], // a signing key's fingerprint you kept, as its identity's key when you saw it
+  operators: { 'client.example': keptOperatorFingerprint }, // a domain's operator's key you kept
 });
 console.log(describeEvidenceFacts(facts));
 ```
@@ -279,10 +280,11 @@ npx -p @btps/sdk btps-verify-evidence bundle.json
 npx -p @btps/sdk btps-verify-evidence bundle.json --json
 npx -p @btps/sdk btps-verify-evidence bundle.json --timestamp-root tsa-root.pem
 npx -p @btps/sdk btps-verify-evidence bundle.json --anchor P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs=
+npx -p @btps/sdk btps-verify-evidence bundle.json --operator client.example=MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys=
 npx -p @btps/sdk btps-verify-evidence bundle.json --online 'you$your.example'
 ```
 
-`--anchor` is repeatable. `--online` asks each signing identity's host for its chain as the identity you give, and checks DNS.
+`--anchor` and `--operator` are repeatable. `--online` asks each signing identity's host for its chain as the identity you give, and checks DNS.
 
 | Exit code | Means                                                    |
 | --------- | -------------------------------------------------------- |

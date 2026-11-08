@@ -315,12 +315,15 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   `rotatedAt`, `expiredImmediately`, `authorityUnverified`, and
   `disownedAfterTheFact` when an owner expired its key from before a
   statement that had already arrived. The operator's answer is reported
-  (`operatorAnswer`) and confirms a lost key's rotation only when the
-  operator's key is anchored or confirmed online: its key is otherwise the
-  bundle's own, which a forger could have put there. `anchors` are
-  fingerprints a reader kept; `online` confirms each key now, and only then
-  is `keysConfirmedOnline` true. `btps-verify-evidence` takes `--anchor` and
-  `--online`. None of these changes `complete`.
+  (`operatorAnswer`) and confirms a lost key's rotation only by the operator
+  of the chain identity's domain: the fingerprint the reader names for that
+  domain (`operators`), or, online, the operator DNS names there (`op=`),
+  its key confirmed. Its key is otherwise the bundle's own, which a forger
+  could have put there. `anchors` are signing-key fingerprints a reader
+  kept; `online` confirms each key now, and only then is
+  `keysConfirmedOnline` true. `btps-verify-evidence` takes `--anchor`,
+  `--operator <domain>=<fingerprint>` and `--online`. None of these changes
+  `complete`.
 
 ### Changed
 

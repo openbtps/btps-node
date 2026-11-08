@@ -5,7 +5,7 @@
   "hashAlgorithm": "sha256",
   "files": {
     "addresses.vectors.json": "cea6afc30d9a91aaa5d1310c3b5d0ec3981304cf66e3a2a3e53333ebecab6bab",
-    "agreements.vectors.json": "cfdbf67d01c4179f5eea3f3c06d32a50032dcd88cb0a073ee6bf8406637e8122",
+    "agreements.vectors.json": "00c37182fe5b4d5f4f09ecc12b1dbded662fddcb993e994816a5f4197d4325de",
     "details.vectors.json": "dc6d7f7602781485d83842b16b38530e0d4609ba2f404c72ed1dc77f7d794a96",
     "device-key-proof.vector.json": "ef08791a6eac8df8540b57c112634d9feda8b82461bcd0737175bf0e9cbf4805",
     "documents-1.2.vectors.json": "772533af0bd46e4cc3de8eed8478c2d75ac174b944b2522118807be75e2c5568",
