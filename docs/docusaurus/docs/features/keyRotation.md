@@ -226,6 +226,10 @@ export async function sidecarsFor(
 | `BTP_ERROR_KEY_REVOKED`    | 401    | the server  | an expired key, at once, whatever the artifact's own time says                         |
 | `BTP_ERROR_RESOLVE_PUBKEY` | 401    | the server  | no key of the chain, a chain that fails its checks, or a chain not ending at a DNS key |
 
+The security suite (`tests/security/keyRotation.security.test.ts`) attacks running servers over TLS with each of these: a fabricated, forked or rule-breaking chain, a replayed lookup answer, a stolen key before and after its rotation (as a signer, a delegator and an attestor), DNS that fails, a chain at and past its length limit, a host that hides its chain, and a forged authority in an evidence bundle. Each is refused, with nothing delivered.
+
+A host whose own stored chain has no single current key (a fork, a loop) answers a lookup for an identity whose keys are in DNS as an identity it does not know, and receivers then check the key by DNS, as for a host they cannot reach. That is why an expired key's DNS record is removed at once.
+
 ## Protocol and platform
 
 The protocol defines the records, the chain rules, and how a server checks a key against a chain. Signing records, keeping the chain, publishing and retiring DNS records, side-cars, and when to rotate are the provider's. The rules in full: [Key Rotation](../protocol/specifications/key-rotation.md). A step-by-step guide for operators: [Rotating keys](../protocol/keyRotation.md).
