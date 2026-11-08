@@ -228,7 +228,7 @@ export async function sidecarsFor(
 
 The security suite (`tests/security/keyRotation.security.test.ts`) attacks running servers over TLS with each of these: a fabricated, forked or rule-breaking chain, a replayed lookup answer, a stolen key before and after its rotation (as a signer, a delegator and an attestor), DNS that fails, a chain at and past its length limit, a host that hides its chain, and a forged authority in an evidence bundle. Each is refused, with nothing delivered.
 
-A host whose own stored chain has no single current key (a fork, a loop) answers a lookup for an identity whose keys are in DNS as an identity it does not know, and receivers then check the key by DNS, as for a host they cannot reach. That is why an expired key's DNS record is removed at once.
+A host serves the chain it stores exactly as stored, valid or not: a fork, a loop or a broken record included. Whether a chain holds is the receiver's to decide, and it refuses one that doesn't. A host that cannot be reached, or hides its chain, leaves the key to DNS, as in 1.1, which is why an expired key's DNS record is removed at once.
 
 ## Protocol and platform
 

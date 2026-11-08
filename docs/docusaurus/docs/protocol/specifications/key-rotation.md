@@ -125,7 +125,9 @@ The SDK never needs a provider to keep a private key: once a rotation is signed,
 
 ## Where a chain is published
 
-At the identity's BTPS host: a `1.2.0` [identity lookup](./identity-lookup-artifact.md) with `keyChain: true` is answered with the chain, inside the operator's signed answer. The provider writes the chain and keeps it in its identity store (`getKeyChain`); the server only reads it. For an identity whose keys are in DNS, the host holds no key record, only the chain: its answer names the chain's current key. The chain and its records are bounded (see [Limits](./limits.md)).
+At the identity's BTPS host: a `1.2.0` [identity lookup](./identity-lookup-artifact.md) with `keyChain: true` is answered with the chain, inside the operator's signed answer. The provider writes the chain and keeps it in its identity store (`getKeyChain`); the server only reads it. For an identity whose keys are in DNS, the host holds no key record, only the chain: its answer names the chain's current key.
+
+**A host serves what it stores.** It answers with the stored records exactly as stored, and never checks them first: whether a chain holds is the receiver's to decide. A stored chain with no single current key (a fork, a loop, a record that fails its checks) is still answered with `200`, naming its last rotation's new key, unverified, for an identity whose keys are in DNS; never as an identity the host does not know. The receiver then refuses the chain (`BTP_ERROR_RESOLVE_PUBKEY`), where "not found" would have left the key to DNS alone. A lookup that does not ask for the chain is answered as before. The chain and its records are bounded (see [Limits](./limits.md)).
 
 ## Checking keys on arrival
 

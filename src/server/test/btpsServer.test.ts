@@ -3666,6 +3666,65 @@ export default function () {
       );
       expect(sendError).toHaveBeenCalledWith(socket, BTP_ERROR_IDENTITY_NOT_FOUND, 'req-2');
     });
+
+    it('serves a stored fork as stored, never as not found, so the receiver refuses it', async () => {
+      class DnsIdentityStore extends ChainStore {
+        async getPublicKeyRecord(): Promise<IdentityPubKeyRecord | undefined> {
+          return undefined;
+        }
+      }
+      const k3 = keyPair();
+      const rotateTo = (to: { publicKey: string; privateKey: string }, selector: string) =>
+        signKeyRotation(
+          {
+            identity: 'billing$vendor.example',
+            from: { selector: 'btps1' },
+            to: { selector },
+            at: '2026-10-10T00:00:00.000Z',
+            prev: null,
+          },
+          { from: { pemFiles: k1 }, to: { pemFiles: to } },
+        );
+      // btps1 handed on twice: no single current key.
+      const fork = [await rotateTo(k2, 'btps2'), await rotateTo(k3, 'btps3')];
+
+      const served = await answer(new DnsIdentityStore(fork), { version: '1.2.0', keyChain: true });
+      expect(served.status).toMatchObject({ ok: true, code: 200 });
+      // The records exactly as stored, and the last rotation's new key, unverified.
+      expect(served.document).toMatchObject({
+        identity: 'billing$vendor.example',
+        keyChain: fork,
+        selector: 'btps3',
+        publicKey: k3.publicKey.trim(),
+      });
+      expect(BtpServerResponseSchema.safeParse(served).success).toBe(true);
+
+      // A lookup that does not ask for the chain is answered as before: not found here.
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'admin$vendor.example', ...serverKeys },
+        trustStore: new DummyTrustStore(),
+        identityStore: new DnsIdentityStore(fork),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const sendError = vi.fn();
+      server['sendBtpsError'] = sendError;
+      const socket = {} as TLSSocket;
+      await server['handleIdentityLookup'](
+        {
+          version: '1.2.0',
+          id: 'lookup-3',
+          issuedAt: new Date().toISOString(),
+          identity: 'billing$vendor.example',
+          from: 'pay$client.example',
+          hostSelector: 'btps1',
+        },
+        {
+          req: { socket } as unknown as BTPRequestCtx,
+          res: { socket, reqId: 'req-3' } as unknown as BTPResponseCtx,
+        },
+      );
+      expect(sendError).toHaveBeenCalledWith(socket, BTP_ERROR_IDENTITY_NOT_FOUND, 'req-3');
+    });
   });
 
   describe('artifact size limit', () => {

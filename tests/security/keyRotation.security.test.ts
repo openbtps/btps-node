@@ -453,9 +453,7 @@ describe('4. a key stolen after its immediate expiry', () => {
 
 /**
  * A compromised host for `domain`, serving each identity the chain it holds
- * for it as is, in a well-formed answer signed by its operator. (A BtpsServer
- * checks its own store's chain before it answers: a chain with no single
- * current key, it answers as an identity it does not know.)
+ * for it as is, in a well-formed answer signed by its operator.
  */
 const servingHost = async (
   domain: string,
@@ -476,40 +474,70 @@ const servingHost = async (
 };
 
 describe("5. a thief's fork, served by the host", () => {
-  it('is refused: a key with a second successor, though the owner signs too', async () => {
-    const identity = 'billing$forked.example';
+  /** The owner's btps1 → btps2 → btps3, and the thief's btps2 → btps4. */
+  const forkOf = async (identity: string) => {
     const [k1, k2, k3, thief] = [newKeys(), newKeys(), newKeys(), newKeys()];
     const first = await rotation(identity, [k1, 'btps1'], [k2, 'btps2'], secondsAgo(60), null);
     const second = await rotation(identity, [k2, 'btps2'], [k3, 'btps3'], secondsAgo(30), first);
     // The thief holds btps2, and hands it on to a key of its own.
     const fork = await rotation(identity, [k2, 'btps2'], [thief, 'btps4'], secondsAgo(20), first);
-    // DNS publishes the owner's current key only.
-    publishKey(identity, 'btps3', k3.publicKey);
-    const host = await servingHost(
-      'forked.example',
-      new Map([[identity, { chain: [first, second, fork], current: [k3, 'btps3'] as Ends }]]),
-    );
-    const client = await receiver('forked-client.example', [identity]);
+    return { chain: [first, second, fork], owner: k3, thief };
+  };
 
+  /** Neither the thief's key nor the owner's own current key is taken while the fork is served. */
+  const bothRefused = async (host: Provider, identity: string, owner: Keys, thief: Keys) => {
+    const client = await receiver(`${host.domain.replace('.example', '')}-client.example`, [
+      identity,
+    ]);
     const forged = await invoice(as(host, identity, thief, 'btps4'), client);
     expect(await attempt(forged, client)).toMatchObject(refusedWith(BTP_ERROR_RESOLVE_PUBKEY));
-    // The fork is refused itself, not only the thief's unpublished key.
-    const owners = await invoice(as(host, identity, k3, 'btps3'), client);
+    const owners = await invoice(as(host, identity, owner, 'btps3'), client);
     expect(await attempt(owners, client)).toMatchObject(refusedWith(BTP_ERROR_RESOLVE_PUBKEY));
+  };
+
+  it("is refused from a host's own store, though DNS has the thief's key too", async () => {
+    const host = await provider('forked.example');
+    const identity = 'billing$forked.example';
+    const { chain, owner, thief } = await forkOf(identity);
+    // Stored as is: the host serves it, and the receiver refuses it, never DNS alone.
+    await keepChain(host, identity, chain);
+    publishKey(identity, 'btps3', owner.publicKey);
+    publishKey(identity, 'btps4', thief.publicKey);
+
+    await bothRefused(host, identity, owner, thief);
+  });
+
+  it('is refused served raw by a compromised host', async () => {
+    const identity = 'billing$forked-raw.example';
+    const { chain, owner, thief } = await forkOf(identity);
+    // DNS publishes the owner's current key only.
+    publishKey(identity, 'btps3', owner.publicKey);
+    const host = await servingHost(
+      'forked-raw.example',
+      new Map([[identity, { chain, current: [owner, 'btps3'] as Ends }]]),
+    );
+
+    await bothRefused(host, identity, owner, thief);
   });
 });
 
 describe('6. a chain that breaks a rule, served by the host', () => {
-  let host: Provider;
+  let own: Provider;
+  let raw: Provider;
   let client: User;
   const accounts = ['loop', 'reused', 'future'];
+  const hosts = ['own', 'raw'] as const;
   const served = new Map<string, { chain: BTPKeyChainRecord[]; current: Ends }>();
 
   beforeAll(async () => {
-    host = await servingHost('broken.example', served);
+    // A host's own store, and a compromised host serving chains raw.
+    own = await provider('broken.example');
+    raw = await servingHost('broken-raw.example', served);
     client = await receiver(
       'broken-client.example',
-      accounts.map((account) => `${account}$broken.example`),
+      hosts.flatMap((host) =>
+        accounts.map((account) => `${account}$${host === 'own' ? own.domain : raw.domain}`),
+      ),
     );
   });
 
@@ -548,19 +576,22 @@ describe('6. a chain that breaks a rule, served by the host', () => {
       },
     };
 
-  it.each(Object.keys(chains).map((name, i) => [name, accounts[i]!] as const))(
-    'refuses %s',
-    async (name, account) => {
-      const identity = `${account}$broken.example`;
-      const [chain, last, selector] = await chains[name]!(identity);
-      served.set(identity, { chain, current: [last, selector] });
-      // DNS publishes the chain's last key, as its owner would: only the rule refuses it.
-      publishKey(identity, selector, last.publicKey);
+  it.each(
+    hosts.flatMap((host) =>
+      Object.keys(chains).map((name, i) => [name, host, accounts[i]!] as const),
+    ),
+  )('refuses %s, served from the %s host', async (name, which, account) => {
+    const host = which === 'own' ? own : raw;
+    const identity = `${account}$${host.domain}`;
+    const [chain, last, selector] = await chains[name]!(identity);
+    if (which === 'own') await keepChain(own, identity, chain);
+    else served.set(identity, { chain, current: [last, selector] });
+    // DNS publishes the chain's last key, as its owner would: only the rule refuses it.
+    publishKey(identity, selector, last.publicKey);
 
-      const artifact = await invoice(as(host, identity, last, selector), client);
-      expect(await attempt(artifact, client)).toMatchObject(refusedWith(BTP_ERROR_RESOLVE_PUBKEY));
-    },
-  );
+    const artifact = await invoice(as(host, identity, last, selector), client);
+    expect(await attempt(artifact, client)).toMatchObject(refusedWith(BTP_ERROR_RESOLVE_PUBKEY));
+  });
 });
 
 describe('7. DNS that fails while a chain is checked', () => {
