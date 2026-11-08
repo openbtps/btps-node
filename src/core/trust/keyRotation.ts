@@ -219,10 +219,11 @@ const recordProblem = (record: BTPKeyChainRecord, identity: string): string | un
   return undefined;
 };
 
-type ChainNode = { record: BTPKeyChainRecord; index: number; hash: string };
+/** Since 1.2: a record of a checked chain, with its place in the list and its hash. */
+export type BTPKeyChainNode = { record: BTPKeyChainRecord; index: number; hash: string };
 
 /** One path from the chain's first record to a last one, with the keys it leaves. */
-type ChainPath = { nodes: ChainNode[]; keys: BTPKeyChainKey[]; lost: boolean };
+export type BTPKeyChainPath = { nodes: BTPKeyChainNode[]; keys: BTPKeyChainKey[]; lost: boolean };
 
 const keyFrom = (key: { selector: string; fingerprint: string; publicKey: string }) => ({
   selector: key.selector,
@@ -236,7 +237,7 @@ const keyFrom = (key: { selector: string; fingerprint: string; publicKey: string
  * time moves forward; an expiry names a past key and is signed by the current
  * one. Returns the path's keys, or the first rule broken.
  */
-const walk = (nodes: ChainNode[]): ChainPath | string => {
+const walk = (nodes: BTPKeyChainNode[]): BTPKeyChainPath | string => {
   const keys: BTPKeyChainKey[] = [];
   const selectors = new Map<string, string>();
   // Every selector the path names each key under: the one that introduced it,
@@ -317,6 +318,69 @@ const invalid = (problem: string): BTPKeyChainFacts => ({
 });
 
 /**
+ * Since 1.2: a key chain checked once: its shape, every record's signatures,
+ * and the chain rules, along every path. The facts for any anchor follow from
+ * it (`keyChainFactsOf`) without checking a signature again, so a verifier
+ * that sees the same chain often keeps this.
+ */
+export type BTPCheckedKeyChain =
+  | { problem: string }
+  | { problem?: undefined; records: BTPKeyChainRecord[]; paths: BTPKeyChainPath[] };
+
+export const checkKeyChain = (records: unknown[], identity: string): BTPCheckedKeyChain => {
+  const parsed = BtpKeyChainSchema.safeParse(records);
+  if (!parsed.success) {
+    const [issue] = parsed.error.issues;
+    return { problem: `not a key chain: ${issue?.path.join('.')} ${issue?.message}`.trim() };
+  }
+  const checked = parsed.data as BTPKeyChainRecord[];
+  if (checked.length === 0) return { records: checked, paths: [] };
+  const nodes = checked.map((record, index) => ({
+    record,
+    index,
+    hash: keyChainRecordHash(record),
+  }));
+  const byHash = new Map<string, BTPKeyChainNode>();
+  for (const node of nodes) {
+    const problem = recordProblem(node.record, identity);
+    if (problem) return { problem: `record ${node.index}: ${problem}` };
+    if (byHash.has(node.hash)) return { problem: `record ${node.index}: it appears twice` };
+    byHash.set(node.hash, node);
+  }
+  const roots = nodes.filter((node) => signedObjectOf(node.record).prev === null);
+  if (roots.length !== 1) return { problem: 'the chain does not have exactly one first record' };
+  const [root] = roots as [BTPKeyChainNode];
+  const children = new Map<string, BTPKeyChainNode[]>();
+  for (const node of nodes) {
+    const { prev } = signedObjectOf(node.record);
+    if (prev === null) continue;
+    if (!byHash.has(prev))
+      return { problem: `record ${node.index}: its prev names no record of the chain` };
+    children.set(prev, [...(children.get(prev) ?? []), node]);
+  }
+
+  // Every path from the first record to a last one: one unless the chain forks.
+  const lines: BTPKeyChainNode[][] = [];
+  const extend = (line: BTPKeyChainNode[]) => {
+    const next = children.get(line.at(-1)!.hash) ?? [];
+    if (next.length === 0) lines.push(line);
+    for (const node of next) extend([...line, node]);
+  };
+  extend([root]);
+  // A cycle would need a SHA-256 preimage; still, no record is ever silently left out.
+  if (new Set(lines.flat()).size !== nodes.length) {
+    return { problem: 'a record is not reached from the first record' };
+  }
+  const paths: BTPKeyChainPath[] = [];
+  for (const line of lines) {
+    const path = walk(line);
+    if (typeof path === 'string') return { problem: path };
+    paths.push(path);
+  }
+  return { records: checked, paths };
+};
+
+/**
  * Since 1.2: the facts about an identity's key chain, refusing nothing.
  *
  * - `anchors`: fingerprints the reader kept, each the identity's key when the
@@ -336,13 +400,16 @@ export const verifyKeyChain = (
     anchors?: string[];
     online?: { fromOperator: boolean; dns: BTPKeyChainDns };
   },
+): BTPKeyChainFacts => keyChainFactsOf(checkKeyChain(records, options.identity), options);
+
+/** Since 1.2: `verifyKeyChain`'s facts, from a chain already checked (`checkKeyChain`). */
+export const keyChainFactsOf = (
+  checked: BTPCheckedKeyChain,
+  options: { anchors?: string[]; online?: { fromOperator: boolean; dns: BTPKeyChainDns } },
 ): BTPKeyChainFacts => {
-  const parsed = BtpKeyChainSchema.safeParse(records);
-  if (!parsed.success) {
-    const [issue] = parsed.error.issues;
-    return invalid(`not a key chain: ${issue?.path.join('.')} ${issue?.message}`.trim());
-  }
-  if (parsed.data.length === 0) {
+  if (checked.problem !== undefined) return invalid(checked.problem);
+  const { paths } = checked;
+  if (paths.length === 0) {
     return {
       chainValid: true,
       authorityUnverified: false,
@@ -351,59 +418,16 @@ export const verifyKeyChain = (
       anchored: false,
     };
   }
-  const nodes = (parsed.data as BTPKeyChainRecord[]).map((record, index) => ({
-    record,
-    index,
-    hash: keyChainRecordHash(record),
-  }));
-  const byHash = new Map<string, ChainNode>();
-  for (const node of nodes) {
-    const problem = recordProblem(node.record, options.identity);
-    if (problem) return invalid(`record ${node.index}: ${problem}`);
-    if (byHash.has(node.hash)) return invalid(`record ${node.index}: it appears twice`);
-    byHash.set(node.hash, node);
-  }
-  const roots = nodes.filter((node) => signedObjectOf(node.record).prev === null);
-  if (roots.length !== 1) return invalid('the chain does not have exactly one first record');
-  const [root] = roots as [ChainNode];
-  if (!('rotation' in root.record)) return invalid('the first record is not a rotation');
-  const children = new Map<string, ChainNode[]>();
-  for (const node of nodes) {
-    const { prev } = signedObjectOf(node.record);
-    if (prev === null) continue;
-    if (!byHash.has(prev))
-      return invalid(`record ${node.index}: its prev names no record of the chain`);
-    children.set(prev, [...(children.get(prev) ?? []), node]);
-  }
-
-  // Every path from the first record to a last one: one unless the chain forks.
-  const lines: ChainNode[][] = [];
-  const extend = (line: ChainNode[]) => {
-    const next = children.get(line.at(-1)!.hash) ?? [];
-    if (next.length === 0) lines.push(line);
-    for (const node of next) extend([...line, node]);
-  };
-  extend([root]);
-  // A cycle would need a SHA-256 preimage; still, no record is ever silently left out.
-  if (new Set(lines.flat()).size !== nodes.length) {
-    return invalid('a record is not reached from the first record');
-  }
-  const paths: ChainPath[] = [];
-  for (const line of lines) {
-    const path = walk(line);
-    if (typeof path === 'string') return invalid(path);
-    paths.push(path);
-  }
   const forked = paths.length > 1;
-  const tipOf = (path: ChainPath) => path.keys.at(-1)!.fingerprint;
+  const tipOf = (path: BTPKeyChainPath) => path.keys.at(-1)!.fingerprint;
 
   const online = options.online;
-  const onlineAnchors = (path: ChainPath) =>
+  const onlineAnchors = (path: BTPKeyChainPath) =>
     !!online?.fromOperator &&
     (online.dns.kind === 'hostOnly' || online.dns.fingerprints.includes(tipOf(path)));
   const anchors = new Set(options.anchors ?? []);
   // A kept fingerprint picks a branch only when it is past the fork, on one branch alone.
-  const keptOn = (path: ChainPath) =>
+  const keptOn = (path: BTPKeyChainPath) =>
     path.keys.filter(
       (key) =>
         anchors.has(key.fingerprint) &&
@@ -466,12 +490,18 @@ export const keyChainProblem = (
     now?: number;
     maxSkewSeconds?: number;
   },
+): string | undefined => keyChainProblemOf(checkKeyChain(records, options.identity), options);
+
+/** Since 1.2: `keyChainProblem`, for a chain already checked (`checkKeyChain`). */
+export const keyChainProblemOf = (
+  checked: BTPCheckedKeyChain,
+  options: { fromOperator: boolean; dns: BTPKeyChainDns; now?: number; maxSkewSeconds?: number },
 ): string | undefined => {
-  const { identity, fromOperator, dns } = options;
-  const facts = verifyKeyChain(records, { identity, online: { fromOperator, dns } });
-  if (!facts.chainValid) return facts.problem;
+  const { fromOperator, dns } = options;
+  const facts = keyChainFactsOf(checked, { online: { fromOperator, dns } });
+  if (checked.problem !== undefined || !facts.chainValid) return facts.problem;
   const latest = (options.now ?? Date.now()) + (options.maxSkewSeconds ?? 300) * 1000;
-  const future = (records as BTPKeyChainRecord[]).findIndex(
+  const future = checked.records.findIndex(
     (record) => Date.parse(signedObjectOf(record).at) > latest,
   );
   if (future !== -1) return `record ${future}: it is dated in the future`;

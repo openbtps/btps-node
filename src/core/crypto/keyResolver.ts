@@ -77,8 +77,13 @@ export const createDefaultKeyResolver = (options?: {
       const client = await clientFor(identity);
       try {
         const lookup = await client.lookupKeyChain(identity, options.from);
+        const now = Date.now();
         if (lookup.status === 'invalid') chains.delete(key);
-        else chains.set(key, { lookup, until: Date.now() + maxAgeMs });
+        else chains.set(key, { lookup, until: now + maxAgeMs });
+        // Past this many identities, answers whose time has passed are let go.
+        if (chains.size > 10_000) {
+          for (const [name, kept] of chains) if (kept.until <= now) chains.delete(name);
+        }
         return lookup;
       } finally {
         client.destroy();

@@ -179,6 +179,40 @@ describe("a signing key, checked against its identity's key chain", () => {
     const { error } = await check('btps2', chainOf(found([await rotated(ahead)])));
     expect(String(error?.cause)).toContain('dated in the future');
   });
+
+  it('checks a chain once per window, while its records are the same', async () => {
+    const records = [await rotated(minutesAgo(10))];
+    const checked: NonNullable<BTPKeyChainCheck['checked']> = new Map();
+    const keyChains = { ...chainOf(found(records)), checked, checkedForSeconds: 60 };
+
+    expect((await check('btps2', keyChains)).key).toBe(k2.publicKey.trim());
+    const kept = checked.get(ME);
+    expect(kept?.chain).toMatchObject({ records });
+
+    // Kept: the same records are not checked again.
+    checked.set(ME, { ...kept!, chain: { problem: 'the kept check' } });
+    expect(String((await check('btps2', keyChains)).error?.cause)).toContain('the kept check');
+
+    // Other records, or the window passed: checked again.
+    const other = [await rotated(minutesAgo(11))];
+    expect((await check('btps2', { ...keyChains, ...chainOf(found(other)), checked })).key).toBe(
+      k2.publicKey.trim(),
+    );
+    checked.set(ME, { ...checked.get(ME)!, chain: { problem: 'the kept check' }, until: 0 });
+    expect((await check('btps2', { ...keyChains, ...chainOf(found(other)), checked })).key).toBe(
+      k2.publicKey.trim(),
+    );
+  });
+
+  it('lets go of checks whose window has passed, past ten thousand identities', async () => {
+    const records = [await rotated(minutesAgo(10))];
+    const checked: NonNullable<BTPKeyChainCheck['checked']> = new Map();
+    for (let i = 0; i < 10_000; i++) {
+      checked.set(`gone${i}$vendor.example`, { hash: 'h', chain: { problem: 'old' }, until: 0 });
+    }
+    await check('btps2', { ...chainOf(found(records)), checked, checkedForSeconds: 60 });
+    expect([...checked.keys()]).toEqual([ME]);
+  });
 });
 
 describe('an arriving artifact, checked against its sender’s key chain', () => {

@@ -95,9 +95,11 @@ export const wrapContentKeyFor = async (
 
 /**
  * Since 1.2: whether a side-car opens its artifact with `newKey`: the content
- * key unwraps, and the document's AES-GCM tag checks. Only when every stored
- * artifact wrapped to an old key has a side-car that opens may that old
- * private key be deleted.
+ * key unwraps, and the document's AES-GCM tag checks. Given a PEM private
+ * key, the side-car must also name it (`recipientFingerprint`), so one stored
+ * against another key fails even when the unwrap happens to work. Only when
+ * every stored artifact wrapped to an old key has a side-car that opens may
+ * that old private key be deleted.
  */
 export const contentKeyOpens = async (
   artifact: Encrypted,
@@ -105,6 +107,12 @@ export const contentKeyOpens = async (
   newKey: BTPDecryptionKey,
 ): Promise<boolean> => {
   try {
+    if (typeof newKey === 'string') {
+      const publicKey = crypto.createPublicKey(newKey).export({ type: 'spki', format: 'pem' });
+      if (getFingerprintFromPem(publicKey.toString()) !== sidecar.recipientFingerprint) {
+        return false;
+      }
+    }
     return opens(await unwrap(sidecar.encryptedKey, newKey), artifact);
   } catch {
     return false;

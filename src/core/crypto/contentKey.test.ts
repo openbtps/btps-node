@@ -102,6 +102,25 @@ describe('a content-key side-car', () => {
     expect(await contentKeyOpens(stored(), sidecar, newKey.privateKey)).toBe(false);
   });
 
+  it('is not confirmed when it names another key, though its content key unwraps', async () => {
+    const artifact = stored();
+    const sidecar = await wrapContentKeyFor(artifact, oldKey.privateKey, newKey.publicKey);
+    const misfiled = {
+      ...sidecar,
+      recipientFingerprint: getFingerprintFromPem(otherKey.publicKey),
+    };
+
+    expect(await contentKeyOpens(artifact, misfiled, newKey.privateKey)).toBe(false);
+    // A Decrypter shows no key to compare: its unwrap and the tag decide.
+    expect(
+      await contentKeyOpens(
+        artifact,
+        misfiled,
+        new PemDecrypter({ privateKey: newKey.privateKey }),
+      ),
+    ).toBe(true);
+  });
+
   it('is refused when the old key does not open the document', async () => {
     const artifact = stored();
     // The right key for the wrap, the wrong document: its tag does not check.

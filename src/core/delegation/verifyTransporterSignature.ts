@@ -20,8 +20,10 @@ import {
   BTP_ERROR_DELEGATION_SIG_VERIFICATION,
   BTP_ERROR_RESOLVE_PUBKEY,
 } from '@core/error/constant.js';
+import { createHash } from 'crypto';
 import type { BTPError } from '@core/error/types.js';
 import { getFingerprintFromPem, verifySignature } from '@core/crypto/index.js';
+import { canonicalizeValue } from '@core/crypto/jcs.js';
 import {
   getDnsIdentityParts,
   getHostAndSelector,
@@ -31,12 +33,14 @@ import {
 import type { BTPAttestation, BTPDelegation, BTPTransporterArtifact } from '@core/server/types.js';
 import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 import {
+  checkKeyChain,
   keyAt,
-  keyChainProblem,
+  keyChainFactsOf,
+  keyChainProblemOf,
   keyChainSignerProblem,
-  verifyKeyChain,
+  type BTPCheckedKeyChain,
 } from '@core/trust/keyRotation.js';
-import type { BTPKeyChainDns, BTPKeyChainLookup } from '@core/trust/types.js';
+import type { BTPKeyChainDns, BTPKeyChainLookup, BTPKeyChainRecord } from '@core/trust/types.js';
 
 type Verified = { isValid: boolean; error?: BTPErrorException };
 
@@ -55,6 +59,37 @@ export type BTPKeyChainCheck = {
   resolveKeyChain: (identity: string) => Promise<BTPKeyChainLookup>;
   retiredKeyGraceSeconds: number;
   maxSkewSeconds?: number;
+  /**
+   * Chains already checked, by identity, each kept for `checkedForSeconds`
+   * while its records are the same, so a chain's signatures are checked once
+   * per window, not on every arrival.
+   */
+  checked?: Map<string, { hash: string; chain: BTPCheckedKeyChain; until: number }>;
+  checkedForSeconds?: number;
+};
+
+// Past this many identities, entries whose time has passed are let go.
+const CHECKED_SWEEP_AT = 10_000;
+
+/** A chain checked once per window, while its records are the same. */
+const checkedChainOf = (
+  identity: string,
+  records: BTPKeyChainRecord[],
+  keyChains: BTPKeyChainCheck,
+): BTPCheckedKeyChain => {
+  const { checked, checkedForSeconds = 0 } = keyChains;
+  if (!checked || checkedForSeconds <= 0) return checkKeyChain(records, identity);
+  const key = identity.toLowerCase();
+  const hash = createHash('sha256').update(canonicalizeValue(records), 'utf8').digest('hex');
+  const now = Date.now();
+  const kept = checked.get(key);
+  if (kept && kept.hash === hash && kept.until > now) return kept.chain;
+  const chain = checkKeyChain(records, identity);
+  if (checked.size >= CHECKED_SWEEP_AT) {
+    for (const [name, entry] of checked) if (entry.until <= now) checked.delete(name);
+  }
+  checked.set(key, { hash, chain, until: now + checkedForSeconds * 1000 });
+  return chain;
 };
 
 const refused = (error: BTPError, cause: string) => ({
@@ -94,14 +129,15 @@ export const checkedSignatureKey = async (
   if (lookup.status === 'unavailable' || lookup.records.length === 0) {
     return { key: await signatureKey(identity, selector, keyResolver) };
   }
-  const { records } = lookup;
+  // Checked once: every signature and rule. The facts for each anchor follow from it.
+  const chain = checkedChainOf(identity, lookup.records, keyChains);
   let dns: BTPKeyChainDns;
   try {
     const fingerprintAt = async (at: string | undefined) => {
       const pem = at === undefined ? undefined : await getDnsIdentityParts(identity, at, 'pem');
       return typeof pem === 'string' ? getFingerprintFromPem(pem) : undefined;
     };
-    const last = verifyKeyChain(records, { identity }).keys.at(-1)?.selector;
+    const last = keyChainFactsOf(chain, {}).keys.at(-1)?.selector;
     const domain = (await getHostAndSelector(identity))?.selector;
     const fingerprints = [await fingerprintAt(last), await fingerprintAt(domain)].filter(
       (fingerprint): fingerprint is string => fingerprint !== undefined,
@@ -113,8 +149,7 @@ export const checkedSignatureKey = async (
       `could not read ${identity}'s keys in DNS: ${error instanceof Error ? error.message : error}`,
     );
   }
-  const problem = keyChainProblem(records, {
-    identity,
+  const problem = keyChainProblemOf(chain, {
     fromOperator: true,
     dns,
     maxSkewSeconds: keyChains.maxSkewSeconds,
@@ -122,7 +157,7 @@ export const checkedSignatureKey = async (
   if (problem) {
     return refused(BTP_ERROR_RESOLVE_PUBKEY, `${identity}'s key chain is refused: ${problem}`);
   }
-  const facts = verifyKeyChain(records, { identity, online: { fromOperator: true, dns } });
+  const facts = keyChainFactsOf(chain, { online: { fromOperator: true, dns } });
   let key = keyAt(facts, { selector });
   if (!key) {
     const published = await signatureKey(identity, selector, keyResolver);

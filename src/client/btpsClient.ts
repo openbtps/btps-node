@@ -68,6 +68,7 @@ import type { BTPKeyChainLookup } from '@core/trust/types.js';
 import {
   DEFAULT_CONNECT_TIMEOUT_MS,
   DEFAULT_REPLY_TIMEOUT_MS,
+  KEY_CHAIN_REPLY_TIMEOUT_MS,
   MIN_CONNECT_TIMEOUT_MS,
   MIN_REPLY_TIMEOUT_MS,
   resolveTimeoutMs,
@@ -1026,8 +1027,16 @@ export class BtpsClient {
    * it. A host that cannot be reached, or answers with an error (a 1.1 host
    * refuses the lookup), gives no chain: `unavailable`, and the identity's
    * keys are checked by DNS. An answer that fails its checks is `invalid`.
+   *
+   * It is asked for on an arrival, which waits for it, so the host gets the
+   * client's connect timeout and then `replyTimeoutMs` (default
+   * KEY_CHAIN_REPLY_TIMEOUT_MS, 5 seconds) to answer, not the send's.
    */
-  async lookupKeyChain(identity: string, from: string): Promise<BTPKeyChainLookup> {
+  async lookupKeyChain(
+    identity: string,
+    from: string,
+    options: { replyTimeoutMs?: number } = {},
+  ): Promise<BTPKeyChainLookup> {
     if (!isValidIdentity(identity)) {
       return { status: 'invalid', reason: `invalid identity: ${identity}` };
     }
@@ -1052,6 +1061,10 @@ export class BtpsClient {
       BTP_PROTOCOL_VERSION,
       undefined,
       true,
+      {
+        connectMs: this.connectTimeoutMs,
+        replyMs: options.replyTimeoutMs ?? KEY_CHAIN_REPLY_TIMEOUT_MS,
+      },
     );
     if (asked.kind === 'answer') {
       return { status: 'chain', records: asked.document.keyChain ?? [] };
@@ -1068,7 +1081,8 @@ export class BtpsClient {
    * its own connection, taken only when signed by `host.operator`. Since 1.2,
    * a 1.2.0 lookup's answer must be this lookup's (`reqId`), fresh (`issuedAt`
    * within the default maxArtifactAgeSeconds), about this identity, and carry
-   * the key chain when asked. The host gets the client's reply timeout.
+   * the key chain when asked. The host gets `timeouts.connectMs` to take the
+   * connection and `timeouts.replyMs` to answer: the client's own, unless given.
    */
   private askHost(
     identity: string,
@@ -1077,6 +1091,7 @@ export class BtpsClient {
     lookupVersion: string,
     receiverKey?: BTPDecryptionKey,
     keyChain?: true,
+    timeouts = { connectMs: this.connectTimeoutMs, replyMs: this.replyTimeoutMs },
   ): Promise<
     | { kind: 'answer'; document: BTPIdentityResDoc; serverVersion: string }
     // The host answered with an error; `code` is its BTPS code.
@@ -1100,16 +1115,28 @@ export class BtpsClient {
         resolve(value);
       };
       const fail = (error: BTPErrorException) => settle({ kind: 'failed', error });
-      const timer = setTimeout(
-        () =>
-          settle({
-            kind: 'unreachable',
-            error: new BTPErrorException(BTP_ERROR_TIMEOUT, {
-              cause: `${hostname} did not answer the lookup within ${this.replyTimeoutMs} ms`,
+      // The connect timeout until connected, then the reply timeout.
+      const giveUp = (what: string, ms: number) =>
+        setTimeout(
+          () =>
+            settle({
+              kind: 'unreachable',
+              error: new BTPErrorException(BTP_ERROR_TIMEOUT, {
+                cause: `${hostname} did not ${what} within ${ms} ms`,
+              }),
             }),
-          }),
-        this.replyTimeoutMs,
-      );
+          ms,
+        );
+      let timer = giveUp('take the connection', timeouts.connectMs);
+      let connected = false;
+      const replying = () => {
+        if (connected) return;
+        connected = true;
+        clearTimeout(timer);
+        timer = giveUp('answer the lookup', timeouts.replyMs);
+      };
+      socket.once('connect', replying);
+      socket.once('secureConnect', replying);
 
       const identityLookupRequest: BTPIdentityLookupRequest = {
         identity,

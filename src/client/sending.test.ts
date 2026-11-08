@@ -12,9 +12,11 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import net, { type AddressInfo, type Socket } from 'net';
 import tls from 'tls';
+import { Duplex } from 'stream';
 import { generateKeyPairSync } from 'crypto';
 import { resolveTxt } from 'dns/promises';
 import { BtpsClient } from './btpsClient.js';
+import { KEY_CHAIN_REPLY_TIMEOUT_MS } from './libs/timeouts.js';
 import { signBtpPayload } from '../core/crypto/index.js';
 import { pemToBase64 } from '../core/utils/index.js';
 import {
@@ -704,5 +706,60 @@ describe("since 1.2, looking an identity's key chain up from its host", () => {
     expect((await noHost.lookupKeyChain('bob$saas.test', 'alice$other.test')).status).toBe(
       'unavailable',
     );
+  });
+
+  it('waits the connect timeout, then KEY_CHAIN_REPLY_TIMEOUT_MS, by default', async () => {
+    const delays: number[] = [];
+    const real = globalThis.setTimeout;
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation(((fn: () => void, ms?: number) => {
+      delays.push(ms ?? 0);
+      return real(fn, ms);
+    }) as typeof setTimeout);
+    const found = await lookUpChain((line, socket) =>
+      reply(socket, chainAnswer(JSON.parse(line).id, { ...current, keyChain: [] })),
+    );
+
+    expect(found.status).toBe('chain');
+    expect(delays).toEqual(expect.arrayContaining([5000, KEY_CHAIN_REPLY_TIMEOUT_MS]));
+    expect(delays).not.toContain(20000);
+  });
+
+  it('gives up on a host that does not take the connection within the connect timeout', async () => {
+    // A connection that never opens: it takes what is written and says nothing.
+    const pending = new Duplex({ read() {}, write: (_chunk, _encoding, done) => done() });
+    vi.spyOn(tls, 'connect').mockReturnValue(pending as unknown as tls.TLSSocket);
+    const client = track(
+      clientFor({
+        hostOperator: 'admin$saas.test',
+        keyResolver: resolverFor(operatorKeys.publicKey),
+      }),
+    );
+    client['connectTimeoutMs'] = 50;
+
+    const found = await client.lookupKeyChain('bob$saas.test', 'alice$other.test');
+
+    expect(found).toMatchObject({
+      status: 'unavailable',
+      reason: expect.stringContaining('did not take the connection within 50 ms'),
+    });
+  });
+
+  it('takes a shorter reply cap when asked', async () => {
+    track((await receiver(() => {})).tcp);
+    const client = track(
+      clientFor({
+        hostOperator: 'admin$saas.test',
+        keyResolver: resolverFor(operatorKeys.publicKey),
+      }),
+    );
+
+    const found = await client.lookupKeyChain('bob$saas.test', 'alice$other.test', {
+      replyTimeoutMs: 50,
+    });
+
+    expect(found).toMatchObject({
+      status: 'unavailable',
+      reason: expect.stringContaining('did not answer the lookup within 50 ms'),
+    });
   });
 });

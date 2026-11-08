@@ -197,11 +197,12 @@ export class BtpsServer {
     // Since 1.2: every arrival's keys are checked against their identity's key
     // chain, asked of its host as this server's identity, unless the resolver
     // gives chains itself.
+    const keyChainMaxCacheSeconds = resolveKeyChainMaxCacheSeconds(options.keyChainMaxCacheSeconds);
     const chains = options.keyResolver?.resolveKeyChain
       ? options.keyResolver
       : createDefaultKeyResolver({
           from: options.serverIdentity.identity,
-          keyChainMaxCacheSeconds: resolveKeyChainMaxCacheSeconds(options.keyChainMaxCacheSeconds),
+          keyChainMaxCacheSeconds,
         });
     this.keyChains = {
       resolveKeyChain: (identity) =>
@@ -209,6 +210,9 @@ export class BtpsServer {
         Promise.resolve({ status: 'unavailable', reason: 'no key chain lookup' }),
       retiredKeyGraceSeconds: resolveRetiredKeyGraceSeconds(options.retiredKeyGraceSeconds),
       maxSkewSeconds: this.maxArtifactAgeSeconds,
+      // A chain's signatures are checked once per window, not on every arrival.
+      checked: new Map(),
+      checkedForSeconds: keyChainMaxCacheSeconds,
     };
     // Signing every answer is asked for, and without a selector no device could check one.
     if (this.signAnswers && !options.serverIdentity.selector) {
