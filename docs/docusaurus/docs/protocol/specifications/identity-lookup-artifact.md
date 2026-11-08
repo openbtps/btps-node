@@ -163,7 +163,7 @@ The response document contains the identity's public key information:
 **Since 1.2, in the answer to a `1.2.0` lookup:**
 
 - **identity**: the identity the answer is for, so that an answer can never be taken for another identity's
-- **keyChain**: when the lookup asked, the identity's [key chain](./key-rotation.md), oldest record first; `[]` for an identity that never rotated
+- **keyChain**: when the lookup asked, the identity's [key chain](./key-rotation.md), oldest record first, exactly as the host stores it: the host never checks it, the receiver does (see [Where a chain is published](./key-rotation.md#where-a-chain-is-published)); `[]` for an identity that never rotated
 
 An answer to a `1.1.0` lookup carries neither. Both are inside the signed answer, so the operator's signature covers the chain.
 
