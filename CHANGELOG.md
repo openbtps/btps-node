@@ -6,6 +6,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [1.2.0-rc.1] — 2026-11-08 (beta, release candidate)
 
+What's new, with a guide for each feature: [What's new in 1.2](https://www.openbtps.org/docs/next/whats-new/1-2).
+Upgrading a 1.1 provider: [Migrating from 1.1 to 1.2](https://www.openbtps.org/docs/next/whats-new/1-2/migration).
+
 ### Added
 
 - **BTPS 1.2 speaks 1.1 and 1.2.** A 1.2 server takes any 1.1.x and 1.2.x
@@ -337,56 +340,23 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
 
 A 1.1 provider upgrades without changing what it sends: a 1.2 server and
 client take 1.1 artifacts and talk to 1.1 providers, and a trust record
-without `permissions` is a 1.1 trust, checked as 1.1 checks it.
+without `permissions` is a 1.1 trust, checked as 1.1 checks it. In short:
 
-**The trust store.** `AbstractTrustStore` has no new method to implement.
-`isKnownArtifact` is also asked, for a `DETAILS_RES`, about the `DETAILS_REQ`
-it answers (`relatesTo`), so a platform that takes details responses keeps a
-record of the requests it sends. A record may carry `permissions`, which the
-platform writes from `trustPermissionsFromRequest` and
-`trustPermissionsFromResponse`, `pendingChange` included while a change waits
-for its user; the server only reads it.
+- **Answers a caller now handles:** `send`'s `error` beside the `response`
+  when the receiver refuses the artifact's version; `decryptVerify` refusing
+  every signature that does not verify; no `console.error` beside `onError`;
+  `getConnectionStates().isDraining` always `false`.
+- **The token store** may add `isConsumed` and `markSuccessor`, and record
+  `consumedAt`, to revoke a device whose refresh token is used twice.
+- **The trust store** has no new method; `isKnownArtifact` is also asked
+  about the `DETAILS_REQ` a `DETAILS_RES` answers. A record may carry
+  `permissions`, which the platform writes.
+- **The refusals for what 1.2 adds** (`eventChainCheck`,
+  `detailsResponseCheck`, `agreementOrderCheck`, `detailsRequestLimit`) are
+  middleware the platform registers, from `@btps/sdk/server/core`.
 
-**The token store.** `TokenStore` has two new, optional methods,
-`isConsumed` and `markSuccessor`. With both, a refresh token used twice
-revokes the device and fires `refreshTokenReused`, and a refresh retried
-inside `refreshGraceMs` gets the same answer. Without them a second use is
-refused as in 1.1, there is no grace window, and `BtpsAuthentication` warns
-once. `InMemoryTokenStore` has both.
-
-**Answers a caller now handles.** Of the changes above, these reach code
-written for 1.1: `send` returns an `error` beside the `response` when the
-receiver refuses the artifact's version; `decryptVerify` refuses every
-signature that does not verify; a server with `onError` no longer also writes
-failed artifacts to `console.error`; and `getConnectionStates().isDraining` is
-always `false`.
-
-**New options**, each off or as in 1.1 until set, but the grace window:
-
-| Where                                                                 | Option                                        | Without it                                         |
-| --------------------------------------------------------------------- | --------------------------------------------- | -------------------------------------------------- |
-| `BtpsServer`                                                          | `signAnswers`, with `serverIdentity.selector` | answers are not signed                             |
-| `BtpsServer`, `BtpsClient`, `BtpsDelegator`, `signEncrypt`'s `lookup` | `keyResolver`                                 | every key is looked up as in 1.1                   |
-| `BtpsClient` (and `BtpsAgent`)                                        | `requireSignedBy: { identity, selector }`     | any answer is taken, as in 1.1                     |
-| `BtpsAuthentication`                                                  | `refreshGraceMs`                              | 30 s, with a token store that has both new methods |
-| `BtpsAuthentication`                                                  | `maxKeyAgeMs`                                 | a device key never ages out                        |
-
-**Refusals a platform registers.** A 1.2 server checks structure, signatures,
-the trust and its permissions, and `isKnownArtifact`; it reads no other record
-of the platform's. These 1.2 refusals happen only when the platform adds their
-middleware, from `@btps/sdk/server/core`, with its own lookups. Without it,
-the artifact is taken and checking it is the platform's, with the plain
-function named:
-
-| Refusal                                                                         | Middleware                              | Plain function                                  |
-| ------------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------- |
-| `BTP_ERROR_EVENT_CHAIN`: a `withdrawn` or `follows` that breaks the chain       | `eventChainCheck({ getEvent })`         | `lifecycleEventChainProblem`                    |
-| `BTP_ERROR_PERMISSION`: a `DETAILS_RES` naming what its request did not ask for | `detailsResponseCheck({ getArtifact })` | `detailsProblem`, `detailsRequestRefusal`       |
-| `BTP_ERROR_AGREEMENT_ORDER`: an agreement's answer out of turn                  | `agreementOrderCheck({ answers })`      | `agreementTurnProblem`, `agreementOrderProblem` |
-| `BTP_ERROR_DETAILS_RATE_LIMITED`: a `DETAILS_REQ` over the provider's own limit | `detailsRequestLimit(allow)`            | none: the limit is the provider's               |
-
-Each lookup goes to its middleware, not the trust store.
-`detailsRequestLimit` takes `retryAfter` in whole seconds.
+The steps, in a safe order with rollback at each, the code, and the order to
+adopt each feature in: [Migrating from 1.1 to 1.2](https://www.openbtps.org/docs/next/whats-new/1-2/migration).
 
 ## [1.1.3] — 2026-10-30 (alpha)
 

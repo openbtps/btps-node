@@ -23,6 +23,31 @@ const sidebars: SidebarsConfig = {
     'roadmap',
     {
       type: 'category',
+      label: "What's new",
+      collapsed: false,
+      items: ['whats-new/version-1-2', 'whats-new/version-1-2-migration'],
+    },
+    {
+      type: 'category',
+      label: 'Features',
+      collapsed: false,
+      items: [
+        'features/trustPermissions',
+        'features/documentTypes',
+        'features/detailsRefresh',
+        'features/verification',
+        'features/agreements',
+        'features/evidenceBundles',
+        'features/withdrawingProposals',
+        'features/devices',
+        'features/refreshTokens',
+        'features/notesDiscountsTemplates',
+        'features/versions',
+        'features/platformChecks',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Getting Started',
       collapsed: false,
       items: [
