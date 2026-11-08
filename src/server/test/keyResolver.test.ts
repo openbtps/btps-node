@@ -336,12 +336,14 @@ describe('the default key resolver', () => {
       }
     });
 
-    it('is none to be had without an identity to ask as', async () => {
-      const lookup = vi.spyOn(BtpsClient.prototype, 'lookupKeyChain');
-      expect(
-        (await createDefaultKeyResolver().resolveKeyChain?.('alice$vendor.example'))?.status,
-      ).toBe('unavailable');
-      expect(lookup).not.toHaveBeenCalled();
+    it('has no chain lookup without an identity to ask as, so a server given it asks itself', async () => {
+      expect(createDefaultKeyResolver().resolveKeyChain).toBeUndefined();
+
+      const lookup = vi.spyOn(BtpsClient.prototype, 'lookupKeyChain').mockResolvedValue(chain);
+      await serverWith({ keyResolver: createDefaultKeyResolver() })['keyChains'].resolveKeyChain(
+        'alice$vendor.example',
+      );
+      expect(lookup).toHaveBeenCalledWith('alice$vendor.example', 'host$client.example');
     });
 
     it("is asked of the server's keyResolver when it gives chains", async () => {

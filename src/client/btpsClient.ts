@@ -1067,7 +1067,7 @@ export class BtpsClient {
       },
     );
     if (asked.kind === 'answer') {
-      return { status: 'chain', records: asked.document.keyChain ?? [] };
+      return { status: 'chain', records: asked.document.keyChain ?? [], answer: asked.response };
     }
     const { message, cause } = asked.error;
     const reason = typeof cause === 'string' ? `${message}: ${cause}` : message;
@@ -1093,7 +1093,12 @@ export class BtpsClient {
     keyChain?: true,
     timeouts = { connectMs: this.connectTimeoutMs, replyMs: this.replyTimeoutMs },
   ): Promise<
-    | { kind: 'answer'; document: BTPIdentityResDoc; serverVersion: string }
+    | {
+        kind: 'answer';
+        document: BTPIdentityResDoc;
+        serverVersion: string;
+        response: BTPServerResponse;
+      }
     // The host answered with an error; `code` is its BTPS code.
     | { kind: 'refused'; error: BTPErrorException; code?: string }
     // The answer came, and fails its checks.
@@ -1265,7 +1270,7 @@ export class BtpsClient {
           }
         }
 
-        settle({ kind: 'answer', document: answered, serverVersion: msg.version });
+        settle({ kind: 'answer', document: answered, serverVersion: msg.version, response: msg });
       };
       socket.on('error', (err) => {
         if (!answerRead) settle({ kind: 'unreachable', error: transformToBTPErrorException(err) });

@@ -24,6 +24,8 @@ This page is our recommendation for doing it safely: what changes for you, the o
 - [ ] `isKnownArtifact` is also asked about the `DETAILS_REQ` a `DETAILS_RES` answers.
 - [ ] Your `TokenStore` can add `isConsumed` and `markSuccessor`, and record `consumedAt`, to detect stolen refresh tokens.
 - [ ] The refusals for what 1.2 adds (event chains, details responses, agreement order, details request limits) are middleware you register.
+- [ ] Each arriving key is checked against its identity's key chain, from its host: a key rotated away is refused past `retiredKeyGraceSeconds` (`BTP_ERROR_KEY_RETIRED`), an expired one at once (`BTP_ERROR_KEY_REVOKED`). A key whose identity never rotated is checked by DNS, as in 1.1.
+- [ ] Rotating a key is a signed record in its chain, with rules for your DNS records and old private keys ([Rotating keys](#rotating-keys)).
 
 **If you build a client or a device app:**
 
@@ -233,6 +235,49 @@ Turn them on one at a time, in this order. Each is safe to turn on when its cond
 | 9   | [Verification](../features/verification.md)                                                                     | you have a process for checking who your senders are, and a list of verifiers you trust                                                         |
 | 10  | [Notes, discounts and templates](../features/notesDiscountsTemplates.md)                                        | the receivers you send them to run 1.2; to a 1.1 server they are refused, never shaped                                                          |
 | 11  | [Agreements](../features/agreements.md) and [evidence bundles](../features/evidenceBundles.md)                  | last: trusts grant `send:agreement`, `agreementOrderCheck` is registered, and you keep every answer to build a bundle from                      |
+| 12  | [Key rotation](../features/keyRotation.md)                                                                      | your identity store keeps each identity's `keyChain` (`getKeyChain`), and you follow the [rules for rotating keys](#rotating-keys)              |
+
+## Rotating keys
+
+Since 1.2, a rotation is a signed record in the identity's key chain, and every 1.2 server checks each arriving key against it ([Key rotation](../features/keyRotation.md)). Four rules keep that safe. Each is yours to follow: the SDK cannot see your DNS records or your stored documents.
+
+**Remove an expired key's DNS record at once.** A server that cannot reach your host for the chain (it is down, or slower than the lookup's 5 seconds to connect and 5 to answer) checks the key by DNS alone, as 1.1 does. Only a removed record refuses a compromised or lost key then. A key rotated away as planned keeps its record for the grace (`retiredKeyGraceSeconds`, a day), and should while you talk to 1.1 peers, which read DNS only.
+
+**Re-publish unchanged keys under a new `s=`.** `s=` is domain-wide: senders look up the key to encrypt to under it, for every address on the domain, and a 1.2 server takes a chain only when its last key is in DNS at its last selector or at `s=`. Before you move it, publish a key under the new selector for every identity on the domain, and for the operator. An identity that is not rotating re-publishes its unchanged key, which needs no rotation record.
+
+**Delete an old private key only once its side-cars open.** Stored documents encrypted to the old key open only with it. Before deleting it, give each one a side-car (`wrapContentKeyFor`) and confirm that every side-car opens its document with the new key (`contentKeyOpens`). [Delete an old private key](../features/keyRotation.md#delete-an-old-private-key) has the code.
+
+**A custom `keyResolver` honours `keyChainMaxCacheSeconds`.** A server keeps a chain for at most `keyChainMaxCacheSeconds` (default 300): the longest a revoked key can still be taken. A `keyResolver` that gives chains (`resolveKeyChain`) keeps its own cache, and must keep each chain no longer. The simplest is to take chains from `createDefaultKeyResolver`, given the same number, and cache only keys yourself:
+
+```ts check
+import { createDefaultKeyResolver, type BtpsKeyResolver } from '@btps/sdk/crypto';
+
+// The same number you give BtpsServer as keyChainMaxCacheSeconds.
+const KEY_CHAIN_MAX_CACHE_SECONDS = 300;
+// Keys are kept for a while too, so a removed record stops counting.
+const KEY_CACHE_MS = 5 * 60_000;
+
+const lookup = createDefaultKeyResolver({
+  from: 'admin$yourdomain.example', // your server's own identity: it asks hosts for chains as this
+  keyChainMaxCacheSeconds: KEY_CHAIN_MAX_CACHE_SECONDS,
+});
+const keys = new Map<string, { key: string; until: number }>();
+
+export const keyResolver: BtpsKeyResolver = {
+  async resolvePublicKey(identity, selector, use) {
+    const id = `${identity} ${selector} ${use}`;
+    const kept = keys.get(id);
+    if (kept && kept.until > Date.now()) return kept.key;
+    const key = await lookup.resolvePublicKey(identity, selector, use);
+    if (key) keys.set(id, { key, until: Date.now() + KEY_CACHE_MS }); // only keys found
+    return key;
+  },
+  // Chains from the SDK's lookup, each kept for KEY_CHAIN_MAX_CACHE_SECONDS at most.
+  resolveKeyChain: lookup.resolveKeyChain,
+};
+```
+
+A resolver without `resolveKeyChain` leaves chains to the server, which asks for them as its own identity, for no longer than its `keyChainMaxCacheSeconds`.
 
 ## Mixed fleets: talking to 1.1 during the transition
 
@@ -258,6 +303,7 @@ An implementation in another language reads the vector files directly; each says
 - [ ] The four middleware are registered: a `withdrawn` sent by the invoice's issuer is refused with `BTP_ERROR_EVENT_CHAIN`.
 - [ ] Your `res.sendError` calls send your own `{ code, message, status }`, never a caught error.
 - [ ] An invoice to a 1.1 provider is still delivered, stamped `1.1.0`.
+- [ ] Your `keyResolver`, if it gives chains, keeps each no longer than your `keyChainMaxCacheSeconds`.
 
 ### Common mistakes
 
@@ -266,5 +312,8 @@ An implementation in another language reads the vector files directly; each says
 - **Passing a caught error to `res.sendError`.** A database's duplicate-key error goes out as the generic 500, its detail kept on your server. Send your own answer, such as `{ code: 'PROVIDER_ALREADY_RECEIVED', message, status: 409 }`.
 - **Not recording the details requests you send.** `isKnownArtifact` is asked about each one a `DETAILS_RES` answers; without the record, every answer is refused.
 - **Turning on `requireSignedBy` before every server signs.** The app refuses every unsigned answer, from a server you have not upgraded yet.
+- **Moving `s=` before every key is published under it.** An identity that did not rotate is no longer found under the new selector, and its chain no longer anchors. Re-publish its unchanged key first.
+- **Keeping an expired key's DNS record.** A receiver that cannot reach your host takes the compromised key by DNS. Remove the record when you expire the key.
+- **Deleting an old private key before its side-cars open.** Every stored document encrypted to it is lost for good.
 
 Every change is in the [changelog](https://github.com/openbtps/btps-node/blob/release/1.2/CHANGELOG.md).

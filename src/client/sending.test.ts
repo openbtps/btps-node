@@ -17,7 +17,7 @@ import { generateKeyPairSync } from 'crypto';
 import { resolveTxt } from 'dns/promises';
 import { BtpsClient } from './btpsClient.js';
 import { KEY_CHAIN_REPLY_TIMEOUT_MS } from './libs/timeouts.js';
-import { signBtpPayload } from '../core/crypto/index.js';
+import { signBtpPayload, verifySignature } from '../core/crypto/index.js';
 import { pemToBase64 } from '../core/utils/index.js';
 import {
   BTP_ERROR_CONNECTION_CLOSED,
@@ -660,7 +660,12 @@ describe("since 1.2, looking an identity's key chain up from its host", () => {
       reply(socket, chainAnswer(asked.id as string, { ...current, keyChain: [] }));
     });
 
-    expect(found).toEqual({ status: 'chain', records: [] });
+    expect(found).toMatchObject({ status: 'chain', records: [] });
+    // The answer as it came, for an evidence bundle to keep: its signature checks without the host.
+    const answer = found.status === 'chain' ? found.answer : undefined;
+    expect(answer).toMatchObject({ signedBy: 'admin$saas.test', document: { keyChain: [] } });
+    const { signature, ...unsigned } = answer!;
+    expect(verifySignature(unsigned, signature!, operatorKeys.publicKey).isValid).toBe(true);
     expect(asked).toMatchObject({ version: '1.2.0', keyChain: true, identity: 'bob$saas.test' });
   });
 

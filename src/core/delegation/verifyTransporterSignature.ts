@@ -40,7 +40,12 @@ import {
   keyChainSignerProblem,
   type BTPCheckedKeyChain,
 } from '@core/trust/keyRotation.js';
-import type { BTPKeyChainDns, BTPKeyChainLookup, BTPKeyChainRecord } from '@core/trust/types.js';
+import type {
+  BTPKeyChainDns,
+  BTPKeyChainFacts,
+  BTPKeyChainLookup,
+  BTPKeyChainRecord,
+} from '@core/trust/types.js';
 
 type Verified = { isValid: boolean; error?: BTPErrorException };
 
@@ -97,6 +102,75 @@ const refused = (error: BTPError, cause: string) => ({
 });
 
 /**
+ * Since 1.2: `identity`'s key chain as a verifier online takes it: asked of its
+ * host, checked once, and anchored on what DNS publishes for it.
+ *
+ * - `none`: no chain to be had (a 1.1 host, an unreachable one) or an empty
+ *   one: its keys are DNS's, as in 1.1;
+ * - `refused`: an answer that fails its checks, a DNS lookup that fails (never
+ *   taken for host-only), or a chain `keyChainProblem` refuses;
+ * - `checked`: the chain's facts, anchored online.
+ *
+ * The chain must end at a key DNS publishes for the identity, at its last
+ * selector or the domain's `s=`; only when DNS has neither is it host-only.
+ */
+export const onlineKeyChain = async (
+  identity: string,
+  keyChains: BTPKeyChainCheck,
+): Promise<
+  | { status: 'none' }
+  | { status: 'refused'; error: BTPErrorException }
+  | { status: 'checked'; facts: BTPKeyChainFacts }
+> => {
+  const lookup = await keyChains.resolveKeyChain(identity);
+  if (lookup.status === 'invalid') {
+    return {
+      status: 'refused',
+      ...refused(BTP_ERROR_RESOLVE_PUBKEY, `${identity}'s key chain is refused: ${lookup.reason}`),
+    };
+  }
+  if (lookup.status === 'unavailable' || lookup.records.length === 0) return { status: 'none' };
+  // Checked once: every signature and rule. The facts for each anchor follow from it.
+  const chain = checkedChainOf(identity, lookup.records, keyChains);
+  let dns: BTPKeyChainDns;
+  try {
+    const fingerprintAt = async (at: string | undefined) => {
+      const pem = at === undefined ? undefined : await getDnsIdentityParts(identity, at, 'pem');
+      return typeof pem === 'string' ? getFingerprintFromPem(pem) : undefined;
+    };
+    const last = keyChainFactsOf(chain, {}).keys.at(-1)?.selector;
+    const domain = (await getHostAndSelector(identity))?.selector;
+    const fingerprints = [await fingerprintAt(last), await fingerprintAt(domain)].filter(
+      (fingerprint): fingerprint is string => fingerprint !== undefined,
+    );
+    dns = fingerprints.length ? { kind: 'published', fingerprints } : { kind: 'hostOnly' };
+  } catch (error) {
+    return {
+      status: 'refused',
+      ...refused(
+        BTP_ERROR_RESOLVE_PUBKEY,
+        `could not read ${identity}'s keys in DNS: ${error instanceof Error ? error.message : error}`,
+      ),
+    };
+  }
+  const problem = keyChainProblemOf(chain, {
+    fromOperator: true,
+    dns,
+    maxSkewSeconds: keyChains.maxSkewSeconds,
+  });
+  if (problem) {
+    return {
+      status: 'refused',
+      ...refused(BTP_ERROR_RESOLVE_PUBKEY, `${identity}'s key chain is refused: ${problem}`),
+    };
+  }
+  return {
+    status: 'checked',
+    facts: keyChainFactsOf(chain, { online: { fromOperator: true, dns } }),
+  };
+};
+
+/**
  * Since 1.2: the key `identity` signs with at `selector`, checked against its
  * key chain when `keyChains` is given. With no chain to be had (a 1.1 host, an
  * unreachable one) or an empty one, it is the DNS key, as in 1.1. Otherwise:
@@ -119,45 +193,10 @@ export const checkedSignatureKey = async (
   keyChains?: BTPKeyChainCheck,
 ): Promise<{ key?: string; error?: BTPErrorException }> => {
   if (!keyChains) return { key: await signatureKey(identity, selector, keyResolver) };
-  const lookup = await keyChains.resolveKeyChain(identity);
-  if (lookup.status === 'invalid') {
-    return refused(
-      BTP_ERROR_RESOLVE_PUBKEY,
-      `${identity}'s key chain is refused: ${lookup.reason}`,
-    );
-  }
-  if (lookup.status === 'unavailable' || lookup.records.length === 0) {
-    return { key: await signatureKey(identity, selector, keyResolver) };
-  }
-  // Checked once: every signature and rule. The facts for each anchor follow from it.
-  const chain = checkedChainOf(identity, lookup.records, keyChains);
-  let dns: BTPKeyChainDns;
-  try {
-    const fingerprintAt = async (at: string | undefined) => {
-      const pem = at === undefined ? undefined : await getDnsIdentityParts(identity, at, 'pem');
-      return typeof pem === 'string' ? getFingerprintFromPem(pem) : undefined;
-    };
-    const last = keyChainFactsOf(chain, {}).keys.at(-1)?.selector;
-    const domain = (await getHostAndSelector(identity))?.selector;
-    const fingerprints = [await fingerprintAt(last), await fingerprintAt(domain)].filter(
-      (fingerprint): fingerprint is string => fingerprint !== undefined,
-    );
-    dns = fingerprints.length ? { kind: 'published', fingerprints } : { kind: 'hostOnly' };
-  } catch (error) {
-    return refused(
-      BTP_ERROR_RESOLVE_PUBKEY,
-      `could not read ${identity}'s keys in DNS: ${error instanceof Error ? error.message : error}`,
-    );
-  }
-  const problem = keyChainProblemOf(chain, {
-    fromOperator: true,
-    dns,
-    maxSkewSeconds: keyChains.maxSkewSeconds,
-  });
-  if (problem) {
-    return refused(BTP_ERROR_RESOLVE_PUBKEY, `${identity}'s key chain is refused: ${problem}`);
-  }
-  const facts = keyChainFactsOf(chain, { online: { fromOperator: true, dns } });
+  const online = await onlineKeyChain(identity, keyChains);
+  if (online.status === 'refused') return { error: online.error };
+  if (online.status === 'none') return { key: await signatureKey(identity, selector, keyResolver) };
+  const { facts } = online;
   let key = keyAt(facts, { selector });
   if (!key) {
     const published = await signatureKey(identity, selector, keyResolver);

@@ -44,7 +44,8 @@ export interface BtpsKeyResolver {
  * Since 1.2, it also gives an identity's key chain from its host, asking as
  * `from`, and keeps each answer (a chain, or none to be had) for
  * `keyChainMaxCacheSeconds`. An answer that fails its checks is not kept.
- * Without `from`, no chain is to be had.
+ * Without `from`, it has no `resolveKeyChain`, so a server given it still
+ * asks for chains itself, as its own identity.
  */
 export const createDefaultKeyResolver = (options?: {
   from?: string;
@@ -58,6 +59,7 @@ export const createDefaultKeyResolver = (options?: {
   };
   const maxAgeMs = (options?.keyChainMaxCacheSeconds ?? DEFAULT_KEY_CHAIN_MAX_CACHE_SECONDS) * 1000;
   const chains = new Map<string, { lookup: BTPKeyChainLookup; until: number }>();
+  const from = options?.from;
   return {
     async resolvePublicKey(identity, selector, use) {
       const inDns = await resolvePublicKey(identity, selector);
@@ -69,25 +71,27 @@ export const createDefaultKeyResolver = (options?: {
         client.destroy();
       }
     },
-    async resolveKeyChain(identity) {
-      if (!options?.from) return { status: 'unavailable', reason: 'no identity to ask as' };
-      const key = identity.toLowerCase();
-      const cached = chains.get(key);
-      if (cached && cached.until > Date.now()) return cached.lookup;
-      const client = await clientFor(identity);
-      try {
-        const lookup = await client.lookupKeyChain(identity, options.from);
-        const now = Date.now();
-        if (lookup.status === 'invalid') chains.delete(key);
-        else chains.set(key, { lookup, until: now + maxAgeMs });
-        // Past this many identities, answers whose time has passed are let go.
-        if (chains.size > 10_000) {
-          for (const [name, kept] of chains) if (kept.until <= now) chains.delete(name);
+    // Without `from`, no chain lookup at all: a server given this resolver asks with its own.
+    ...(from && {
+      async resolveKeyChain(identity: string): Promise<BTPKeyChainLookup> {
+        const key = identity.toLowerCase();
+        const cached = chains.get(key);
+        if (cached && cached.until > Date.now()) return cached.lookup;
+        const client = await clientFor(identity);
+        try {
+          const lookup = await client.lookupKeyChain(identity, from);
+          const now = Date.now();
+          if (lookup.status === 'invalid') chains.delete(key);
+          else chains.set(key, { lookup, until: now + maxAgeMs });
+          // Past this many identities, answers whose time has passed are let go.
+          if (chains.size > 10_000) {
+            for (const [name, kept] of chains) if (kept.until <= now) chains.delete(name);
+          }
+          return lookup;
+        } finally {
+          client.destroy();
         }
-        return lookup;
-      } finally {
-        client.destroy();
-      }
-    },
+      },
+    }),
   };
 };

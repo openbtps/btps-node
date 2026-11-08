@@ -24,7 +24,9 @@ Start with [Migrating from 1.1 to 1.2](./version-1-2-migration.md): what changes
 
 **[Agreements](../features/agreements.md).** A new document type that asks to be accepted, such as a contract or a phone plan, signed by each signer in turn or in any order.
 
-**[Evidence bundles and timestamps](../features/evidenceBundles.md).** One file that proves an agreement offline, with optional RFC 3161 timestamps, made and checked from code or the command line.
+**[Evidence bundles and timestamps](../features/evidenceBundles.md).** One file that proves an agreement offline, with optional RFC 3161 timestamps and the signers' key chains, made and checked from code or the command line.
+
+**[Key rotation](../features/keyRotation.md).** An identity's keys form a signed chain its host serves, and every server checks each arriving key against it: a key rotated away is taken for a day's grace, a compromised one is refused at once, whatever DNS still has. Old keys can be retired and deleted, and what they signed stays verifiable.
 
 **[Withdrawing proposals](../features/withdrawingProposals.md).** A payer takes back an unanswered proposal (`paid`, `disputed`, …) and may propose again later, with the chain kept traceable.
 

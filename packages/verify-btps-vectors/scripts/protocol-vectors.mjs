@@ -4050,6 +4050,198 @@ export async function agreementTimestamps(set) {
 }
 
 /**
+ * BTPS 1.2: key chain cases for the agreement vectors, made from the complete
+ * sequential bundle in `set`: the bundle keeps signing identities' chains
+ * (`keyChains`, with an operator's signed answer) and statements' signed
+ * arrivals (`arrivals`), and each signing key is reported against its chain.
+ * `keys`: the originator's and the guarantor's signing keys, each one's next
+ * key, and the guarantor's operator's key, `{ publicKeyPem, privateKeyPem }`.
+ */
+export function agreementKeyChains(set, keys) {
+  const { originator, originatorNext, guarantor, guarantorNext, guarantorOperator } = keys;
+  const BANK = 'loans$bank.example';
+  const SAM = 'sam$guarantor.example';
+  const OPERATOR = 'admin$guarantor.example';
+  const day = (d, time = '00:00:00') => `2026-11-${String(d).padStart(2, '0')}T${time}.000Z`;
+  const fp = (k) => fingerprintOf(k.publicKeyPem);
+  const keyOf = (k, selector) => ({
+    selector,
+    fingerprint: fp(k),
+    publicKey: crypto
+      .createPublicKey(k.publicKeyPem)
+      .export({ format: 'der', type: 'spki' })
+      .toString('base64'),
+  });
+  // A first rotation, btps1 to btps2: planned and signed by both keys unless `immediate`;
+  // a lost key's rotation names its public key, and only `to` signs it (`signers`).
+  const rotation = (identity, from, to, d, more = {}) => {
+    const { immediate, signers } = more;
+    const object = {
+      type: 'btps.keyRotation.v1',
+      identity,
+      from: keyOf(from, 'btps1'),
+      to: keyOf(to, 'btps2'),
+      at: day(d),
+      expiry: immediate ? 'immediate' : 'planned',
+      ...(immediate && { compromisedSince: day(immediate.since), reason: immediate.reason }),
+      prev: null,
+    };
+    return {
+      rotation: object,
+      signatures: (
+        signers ?? [
+          ['from', from],
+          ['to', to],
+        ]
+      ).map(([by, k]) => ({ by, ...signatureBy(k, object) })),
+    };
+  };
+
+  const base = set.bundles.find((c) => c.name === 'complete-sequential-with-identity-keys');
+  const [, samRecord] = base.bundle.statements;
+  // A signing key against its chain, each fact as the spec's "In an evidence bundle" defines it.
+  const chainFacts = (next, more) => ({
+    chainValid: true,
+    keyInChain: true,
+    authorityUnverified: false,
+    forked: false,
+    reachesKey: fp(next),
+    anchored: false,
+    rotatedAt: day(20),
+    signedInWindow: true,
+    ...more,
+  });
+  const withFacts = (name, bundle, facts, options) => ({
+    name,
+    bundle: { ...base.bundle, ...bundle },
+    ...(options && { options }),
+    expect: {
+      ...base.expect,
+      ...(facts.originator && { originatorKeyChain: facts.originator }),
+      statements: base.expect.statements.map((fact, i) => ({ ...fact, ...facts.statements?.[i] })),
+    },
+  });
+
+  // The bank rotates away from the key it signed with, as planned, after it signed.
+  const bankChain = [{ identity: BANK, records: [rotation(BANK, originator, originatorNext, 20)] }];
+  const bankFacts = chainFacts(originatorNext);
+  const anchored = {
+    ...bankFacts,
+    anchored: { by: 'kept-fingerprint', upTo: fp(originatorNext) },
+  };
+  // The guarantor's key, expired on the 20th from the 1st: before the guarantor signed, on the 3rd.
+  const samExpired = [
+    {
+      identity: SAM,
+      records: [
+        rotation(SAM, guarantor, guarantorNext, 20, {
+          immediate: { since: 1, reason: 'compromised' },
+        }),
+      ],
+    },
+  ];
+  const expired = {
+    expiredImmediately: { at: day(20), compromisedSince: day(1), reason: 'compromised' },
+    signedInWindow: false,
+  };
+  // The bank's platform received the guarantor's statement on the 3rd, and signed that then.
+  const arrival = (arrivedAt) => {
+    const unsigned = {
+      statementSha256: hashOf(samRecord),
+      arrivedAt,
+      receivedBy: BANK,
+      selector: 'btps1',
+    };
+    const signed = { type: 'btps.arrival.v1', ...unsigned };
+    return { ...unsigned, signature: signatureBy(originator, signed) };
+  };
+  const received = arrival(day(3, '00:00:05'));
+  // The guarantor's key, lost on the 20th: only the new key signs its rotation.
+  const lost = rotation(SAM, guarantor, guarantorNext, 20, {
+    immediate: { since: 20, reason: 'lost' },
+    signers: [['to', guarantorNext]],
+  });
+  const lostFacts = {
+    expiredImmediately: { at: day(20), compromisedSince: day(20), reason: 'lost' },
+  };
+  // The operator's signed answer to the lookup that served the chain, kept whole.
+  const answered = {
+    version: '1.2.0',
+    status: { ok: true, code: 200 },
+    id: 'e9d1c0b2-7a64-4f3e-9b28-5c1d0e7f6a43',
+    issuedAt: day(21),
+    type: 'btps_response',
+    reqId: '0b7c2e4d-8f15-4a96-b3d7-6e2f1a9c8d50',
+    document: { identity: SAM, keyChain: [lost] },
+    signedBy: OPERATOR,
+    selector: 'btps1',
+  };
+  const operatorAnswer = { ...answered, signature: signatureBy(guarantorOperator, answered) };
+  const operatorKey = {
+    identity: OPERATOR,
+    selector: 'btps1',
+    publicKey: guarantorOperator.publicKeyPem,
+    fingerprint: fp(guarantorOperator),
+  };
+
+  return [
+    withFacts(
+      'a-signing-key-rotated-away-after-it-signed',
+      { keyChains: bankChain },
+      { originator: bankFacts, statements: { 2: { keyChain: bankFacts } } },
+    ),
+    withFacts(
+      'a-kept-fingerprint-anchors-the-chain-up-to-itself',
+      { keyChains: bankChain },
+      { originator: anchored, statements: { 2: { keyChain: anchored } } },
+      { anchors: [fp(originatorNext)] },
+    ),
+    withFacts(
+      'a-key-expired-from-before-it-signed-received-before-the-expiry',
+      { keyChains: samExpired, arrivals: [received] },
+      {
+        statements: {
+          1: {
+            arrival: { at: received.arrivedAt, receivedBy: BANK, signatureValid: true },
+            keyChain: chainFacts(guarantorNext, { ...expired, disownedAfterTheFact: true }),
+          },
+        },
+      },
+    ),
+    // Its time changed after it was signed: the arrival is reported, and gives no time.
+    withFacts(
+      'an-arrival-whose-signature-does-not-hold',
+      { keyChains: samExpired, arrivals: [{ ...received, arrivedAt: day(2) }] },
+      {
+        statements: {
+          1: {
+            arrival: { at: day(2), receivedBy: BANK, signatureValid: false },
+            keyChain: chainFacts(guarantorNext, expired),
+          },
+        },
+      },
+    ),
+    withFacts(
+      'a-lost-keys-rotation-unconfirmed-offline',
+      { keyChains: [{ identity: SAM, records: [lost] }] },
+      {
+        statements: {
+          1: { keyChain: chainFacts(guarantorNext, { ...lostFacts, authorityUnverified: true }) },
+        },
+      },
+    ),
+    withFacts(
+      'a-lost-keys-rotation-confirmed-by-its-operators-answer',
+      {
+        keys: [...base.bundle.keys, operatorKey],
+        keyChains: [{ identity: SAM, records: [lost], operatorAnswer }],
+      },
+      { statements: { 1: { keyChain: chainFacts(guarantorNext, lostFacts) } } },
+    ),
+  ];
+}
+
+/**
  * BTPS 1.2 key rotation: an identity's chain of signed key rotation and expiry
  * records, the facts a verifier reports about a chain (`chains`), and whether
  * a verifier online refuses one (`online`). `keys` are five test keys made at

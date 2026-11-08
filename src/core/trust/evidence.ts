@@ -14,11 +14,25 @@
 
 import crypto from 'crypto';
 import type { z } from 'zod';
-import { getFingerprintFromPem } from '@core/crypto/index.js';
+import {
+  getFingerprintFromPem,
+  signBtpPayload,
+  signBtpPayloadWithSigner,
+  verifySignature,
+} from '@core/crypto/index.js';
+import { canonicalizeValue } from '@core/crypto/jcs.js';
+import type { BTPSignature } from '@core/crypto/types.js';
 import { BTPErrorException } from '@core/error/index.js';
 import { BTP_ERROR_RESOLVE_PUBKEY, BTP_ERROR_VALIDATION } from '@core/error/constant.js';
 import { BtpEvidenceBundleSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import { sameIdentity } from '@core/server/schemas/helpers.js';
+import type { BTPServerResponse } from '@core/server/types.js';
+import {
+  onlineKeyChain,
+  signatureKey,
+  type BTPKeyChainCheck,
+} from '@core/delegation/verifyTransporterSignature.js';
+import { checkKeyChain, keyAt, keyChainFactsOf, type BTPKeyHolder } from './keyRotation.js';
 import {
   agreementContentSha256,
   agreementOrderProblem,
@@ -31,6 +45,10 @@ import {
 import { timestampFacts, type BTPTimestampFacts } from './timestamps.js';
 import type {
   BTPAgreementAnswers,
+  BTPKeyChainFacts,
+  BTPKeyChainKey,
+  BTPKeyChainRecord,
+  BTPKeyExpiryReason,
   BTPStatementRecord,
   BTPStatementSignatureFacts,
 } from './types.js';
@@ -52,6 +70,57 @@ export type BTPEvidenceBundle = Omit<z.infer<typeof BtpEvidenceBundleSchema>, 's
  */
 export type BTPEvidenceKey = { identity: string; selector?: string; fingerprint?: string };
 
+/**
+ * Since 1.2: a signing identity's key chain, as a bundle carries it, with the
+ * operator's signed lookup answer that served it, when the builder kept it.
+ */
+export type BTPEvidenceKeyChain = {
+  identity: string;
+  records: BTPKeyChainRecord[];
+  operatorAnswer?: BTPServerResponse;
+};
+
+/** Since 1.2: when the bundle's builder received a statement, signed by it at the time. */
+export type BTPEvidenceArrival = {
+  statementSha256: string;
+  arrivedAt: string;
+  receivedBy: string;
+  selector: string;
+  signature: BTPSignature;
+};
+
+/** Since 1.2: a signature's key, against its identity's key chain. Facts, never a verdict. */
+export type BTPEvidenceKeyChainFacts = {
+  /** Every record is well-formed and signed as its kind requires, and the chain rules hold */
+  chainValid: boolean;
+  /** The first rule broken, when not valid */
+  problem?: string;
+  /** The key that signed is a key of the chain */
+  keyInChain: boolean;
+  /** A lost key's rotation that neither an operator's answer in the bundle nor an online anchor confirms */
+  authorityUnverified: boolean;
+  /** The bundle's chain gives a key two successors */
+  forked: boolean;
+  /** The fingerprint of the chain's last key */
+  reachesKey?: string;
+  /** What confirms the chain, and up to which key: a kept fingerprint, or online */
+  anchored: BTPKeyChainFacts['anchored'];
+  /** When the key that signed was rotated away from, if it was */
+  rotatedAt?: string;
+  /** When the key that signed was expired, from when, and why */
+  expiredImmediately?: { at: string; compromisedSince: string; reason: BTPKeyExpiryReason };
+  /** The time the signer claims is in the key's window, before any compromisedSince */
+  signedInWindow: boolean;
+  /** The same, by a trusted timestamp's time; absent without one */
+  signedInWindowIndependently?: boolean;
+  /**
+   * The key's owner declared it expired from before a statement it had
+   * already received (by a signed arrival or a trusted timestamp): the
+   * owner moved the line back past it. Absent without such a time.
+   */
+  disownedAfterTheFact?: boolean;
+};
+
 /** Since 1.2: what an evidence bundle shows. BTPS reports these and decides nothing. */
 export type BTPEvidenceFacts = {
   /** The SHA-256 of the agreement's content, as the bundle holds it */
@@ -60,8 +129,13 @@ export type BTPEvidenceFacts = {
   originatorSignatureValid: boolean;
   /** The key the originator's signature was checked with */
   originatorKey: BTPEvidenceKey;
-  /** Always false: every key is the bundle's own, not looked up online */
-  keysConfirmedOnline: false;
+  /** Since 1.2: the originator's key against its key chain, when the bundle carries one */
+  originatorKeyChain?: BTPEvidenceKeyChainFacts;
+  /**
+   * False unless checked `online`: then true when every key a signature was
+   * checked with is its identity's, by its chain anchored online or by DNS.
+   */
+  keysConfirmedOnline: boolean;
   /** Each term is the SHA-256 of one of its attachments, as attached */
   termsAttached: boolean;
   /** Each statement, in the bundle's order */
@@ -82,6 +156,10 @@ export type BTPEvidenceFacts = {
     inOrder: boolean;
     /** Its RFC 3161 timestamp, when the bundle has one for it */
     timestamp?: BTPTimestampFacts;
+    /** Since 1.2: when the bundle's builder received it, and whether that is signed by it */
+    arrival?: { at: string; receivedBy: string; signatureValid: boolean };
+    /** Since 1.2: its signing key (a device's: its delegator's) against its key chain */
+    keyChain?: BTPEvidenceKeyChainFacts;
   })[];
   /**
    * Every fact above holds, and every signer accepted, once. A timestamp is
@@ -137,6 +215,113 @@ const keysOf = (bundle: Pick<BTPEvidenceBundle, 'keys'>): BTPKeyOf => {
       ?.publicKey;
 };
 
+/** What an arrival signs: typed, so it is never taken for another BTPS signature. */
+const arrivalSigned = (arrival: Omit<BTPEvidenceArrival, 'signature'>) => ({
+  type: 'btps.arrival.v1',
+  ...arrival,
+});
+
+/**
+ * Since 1.2: that the bundle's builder received a statement, at `arrivedAt`,
+ * signed then by `receivedBy` (the party that received it) at `selector`. A
+ * platform signs each when the statement arrives and keeps it for the
+ * bundle: it is the receiver's record, independent of the signer.
+ */
+export const signArrival = async (
+  arrival: Omit<BTPEvidenceArrival, 'signature'>,
+  holder: BTPKeyHolder,
+): Promise<BTPEvidenceArrival> => {
+  const signed = arrivalSigned(arrival);
+  const signature =
+    'signer' in holder
+      ? await signBtpPayloadWithSigner(signed, holder.signer)
+      : signBtpPayload(signed, holder.pemFiles);
+  return { ...arrival, signature };
+};
+
+/** Whether `time` is in a key's window: from it, before it was left, and before any compromise. */
+const inWindow = (key: BTPKeyChainKey, time: string) => {
+  const at = Date.parse(time);
+  return (
+    (key.validFrom === undefined || at >= Date.parse(key.validFrom)) &&
+    (key.validUntil === undefined || at < Date.parse(key.validUntil)) &&
+    (key.compromisedSince === undefined || at < Date.parse(key.compromisedSince))
+  );
+};
+
+/** A chain's operator answer holds: signed by its operator's key in the bundle, for this chain. */
+const operatorAnswerHolds = (chain: BTPEvidenceKeyChain, keyOf: BTPKeyOf) => {
+  const answer = chain.operatorAnswer;
+  if (!answer?.signature || !answer.signedBy || !answer.selector) return false;
+  const { signature, ...signed } = answer;
+  const key = keyOf(answer.signedBy, answer.selector);
+  const document = answer.document as { identity?: string; keyChain?: unknown } | undefined;
+  return (
+    !!key &&
+    verifySignature(signed, signature, key).isValid &&
+    document?.identity !== undefined &&
+    sameIdentity(document.identity, chain.identity) &&
+    canonicalizeValue(document.keyChain) === canonicalizeValue(chain.records)
+  );
+};
+
+/**
+ * A signature's key against its identity's chain in the bundle, at the time it
+ * claims and at a time the signer could not set (`independent`: a trusted
+ * timestamp's, or a signed arrival's). Online facts, when given, anchor it.
+ */
+const keyChainFactsFor = (
+  chain: BTPEvidenceKeyChain,
+  fingerprint: string | undefined,
+  times: { claimed: string; timestamped?: string; independent?: string },
+  context: { anchors?: string[]; online?: BTPKeyChainFacts; keyOf: BTPKeyOf },
+): BTPEvidenceKeyChainFacts => {
+  const facts = keyChainFactsOf(checkKeyChain(chain.records, chain.identity), {
+    anchors: context.anchors,
+  });
+  const key = fingerprint === undefined ? undefined : keyAt(facts, { fingerprint });
+  const { online } = context;
+  const anchored =
+    online?.anchored && fingerprint !== undefined && keyAt(online, { fingerprint })
+      ? online.anchored
+      : facts.anchored;
+  const { timestamped, independent } = times;
+  const expiredAt = key?.expiredAt;
+  return {
+    chainValid: facts.chainValid,
+    ...(facts.problem !== undefined && { problem: facts.problem }),
+    keyInChain: key !== undefined,
+    authorityUnverified:
+      facts.authorityUnverified &&
+      (anchored === false || anchored.by !== 'online') &&
+      !operatorAnswerHolds(chain, context.keyOf),
+    forked: facts.forked,
+    ...(facts.keys.length > 0 && { reachesKey: facts.keys.at(-1)?.fingerprint }),
+    anchored,
+    ...(key?.validUntil !== undefined && { rotatedAt: key.validUntil }),
+    ...(key?.compromisedSince !== undefined &&
+      expiredAt !== undefined &&
+      key.reason !== undefined && {
+        expiredImmediately: {
+          at: expiredAt,
+          compromisedSince: key.compromisedSince,
+          reason: key.reason,
+        },
+      }),
+    signedInWindow: key !== undefined && inWindow(key, times.claimed),
+    ...(timestamped !== undefined && {
+      signedInWindowIndependently: key !== undefined && inWindow(key, timestamped),
+    }),
+    ...(key?.compromisedSince !== undefined &&
+      expiredAt !== undefined &&
+      independent !== undefined && {
+        disownedAfterTheFact:
+          Date.parse(independent) < Date.parse(expiredAt) &&
+          Date.parse(independent) >= Date.parse(key.compromisedSince),
+      }),
+  };
+};
+
 /**
  * Since 1.2: the facts of an agreement's evidence bundle, checked offline from
  * the bundle alone. A bundle that is not well formed is refused
@@ -145,10 +330,23 @@ const keysOf = (bundle: Pick<BTPEvidenceBundle, 'keys'>): BTPKeyOf => {
  * a reader may confirm online; the bundle embeds the keys so it checks without.
  * A statement's RFC 3161 timestamp, when there is one, is reported with it;
  * with `trustedTimestampRoots` (PEM), whether its authority is trusted too.
+ *
+ * Since 1.2, each signing key is reported against its identity's key chain
+ * when the bundle carries one (`keyChains`), and each statement's signed
+ * arrival (`arrivals`) with it. `anchors` are fingerprints the reader kept.
+ * `online` confirms each key now as its identity's (`onlineKeyChain`): a key
+ * of its identity's chain, which must hold online as a server requires, or its
+ * DNS key when there is no chain; only then is `keysConfirmedOnline` true. A
+ * key since rotated away or expired is still its identity's: when it was
+ * valid is in the key chain facts.
  */
 export const verifyEvidenceBundle = async (
   bundle: unknown,
-  options: { trustedTimestampRoots?: string[] } = {},
+  options: {
+    trustedTimestampRoots?: string[];
+    anchors?: string[];
+    online?: BTPKeyChainCheck;
+  } = {},
 ): Promise<BTPEvidenceFacts> => {
   const parsed = BtpEvidenceBundleSchema.safeParse(bundle);
   if (!parsed.success) {
@@ -208,7 +406,92 @@ export const verifyEvidenceBundle = async (
     }),
   );
 
+  // Since 1.2: online, each key a signature was checked with, but a device's own, is
+  // confirmed now as its identity's: the originator's, each statement's or its
+  // delegator's, and an attestor's.
+  type Signing = [identity: string, selector: string | undefined, fingerprint?: string];
+  const signing: Signing[] = [
+    [originator, agreement.originatorSignature.selector],
+    ...timestamped.flatMap((s, i): Signing[] => {
+      const used = s.delegationKey ?? s.key;
+      const attestation = statements[i]?.delegatedArtifact?.delegation.attestation;
+      return [
+        [used.identity, used.selector, used.fingerprint],
+        ...(attestation ? [[attestation.signedBy, attestation.selector] as Signing] : []),
+      ];
+    }),
+  ];
+  const onlineChains = new Map<string, Awaited<ReturnType<typeof onlineKeyChain>>>();
+  let confirmed = options.online !== undefined;
+  if (options.online) {
+    for (const [identity, selector, fingerprint] of signing) {
+      const id = identity.toLowerCase();
+      if (!onlineChains.has(id))
+        onlineChains.set(id, await onlineKeyChain(identity, options.online));
+      const online = onlineChains.get(id)!;
+      const used = fingerprint ?? fingerprintOf(selector && keyOf(identity, selector));
+      if (online.status === 'checked') {
+        confirmed &&=
+          used !== undefined && keyAt(online.facts, { fingerprint: used }) !== undefined;
+      } else if (online.status === 'none' && selector !== undefined && used !== undefined) {
+        // DNS that cannot be read confirms nothing; the bundle's facts still stand.
+        const inDns = await signatureKey(identity, selector).catch(() => undefined);
+        confirmed &&= fingerprintOf(inDns) === used;
+      } else confirmed = false;
+    }
+  }
+  const chainOf = (identity: string) =>
+    (parsed.data.keyChains as BTPEvidenceKeyChain[] | undefined)?.find((c) =>
+      sameIdentity(c.identity, identity),
+    );
+  const onlineFactsOf = (identity: string) => {
+    const online = onlineChains.get(identity.toLowerCase());
+    return online?.status === 'checked' ? online.facts : undefined;
+  };
+  const chainFacts = (
+    identity: string,
+    fingerprint: string | undefined,
+    times: { claimed: string; timestamped?: string; independent?: string },
+  ) => {
+    const chain = chainOf(identity);
+    if (!chain) return undefined;
+    return keyChainFactsFor(chain, fingerprint, times, {
+      anchors: options.anchors,
+      online: onlineFactsOf(identity),
+      keyOf,
+    });
+  };
+  const arrivals = new Map(
+    (parsed.data.arrivals ?? []).map((arrival) => {
+      const { signature, ...unsigned } = arrival;
+      const key = keyOf(arrival.receivedBy, arrival.selector);
+      const signatureValid =
+        !!key && verifySignature(arrivalSigned(unsigned), signature, key).isValid;
+      return [
+        arrival.statementSha256,
+        { at: arrival.arrivedAt, receivedBy: arrival.receivedBy, signatureValid },
+      ];
+    }),
+  );
+  const withChains = timestamped.map((facts, i) => {
+    const arrival = arrivals.get(answered[i]?.sha256 ?? '');
+    const stamp = facts.timestamp;
+    const timestampedAt =
+      stamp?.trusted && stamp.imprintMatches && stamp.signatureValid ? stamp.time : undefined;
+    const used = facts.delegationKey ?? facts.key;
+    const keyChain = chainFacts(used.identity, used.fingerprint, {
+      claimed: statements[i]?.statement.signedAt ?? '',
+      timestamped: timestampedAt,
+      independent: timestampedAt ?? (arrival?.signatureValid ? arrival.at : undefined),
+    });
+    return { ...facts, ...(arrival && { arrival }), ...(keyChain && { keyChain }) };
+  });
+
   const originatorValid = originatorSignatureValid(agreement, originator, keyOf);
+  const originatorKey = bundleKey(keyOf, originator, agreement.originatorSignature.selector);
+  const originatorKeyChain = chainFacts(originator, originatorKey.fingerprint, {
+    claimed: agreement.issuedAt,
+  });
   const complete =
     originatorValid &&
     termsAttached &&
@@ -225,10 +508,11 @@ export const verifyEvidenceBundle = async (
   return {
     contentSha256: agreementContentSha256(agreement),
     originatorSignatureValid: originatorValid,
-    originatorKey: bundleKey(keyOf, originator, agreement.originatorSignature.selector),
-    keysConfirmedOnline: false,
+    originatorKey,
+    ...(originatorKeyChain && { originatorKeyChain }),
+    keysConfirmedOnline: confirmed,
     termsAttached,
-    statements: timestamped,
+    statements: withChains,
     complete,
   };
 };
@@ -239,14 +523,23 @@ export const verifyEvidenceBundle = async (
  * the originator's, each signer's, and each device's delegator and attestor.
  * A key it cannot find is refused (`BTP_ERROR_RESOLVE_PUBKEY`): a bundle
  * without it would not check offline.
+ *
+ * Since 1.2, optional: `keyChains`, each signing identity's key chain (from
+ * `BtpsClient.lookupKeyChain`), with the operator's answer that served it (its
+ * `answer`, as `operatorAnswer`); a
+ * key `keyOf` no longer finds (its DNS record retired) is taken from its
+ * identity's chain. And `arrivals`, signed with `signArrival` as each
+ * statement arrived. Their signers' keys join `keys`.
  */
 export const buildEvidenceBundle = (
   parts: Pick<BTPEvidenceBundle, 'originator' | 'agreement'> & {
     statements: BTPStatementRecord[];
+    keyChains?: BTPEvidenceKeyChain[];
+    arrivals?: BTPEvidenceArrival[];
   },
   keyOf: BTPKeyOf,
 ): BTPEvidenceBundle => {
-  const { originator, agreement, statements } = parts;
+  const { originator, agreement, statements, keyChains, arrivals } = parts;
   const needed: [string, string][] = [[originator, agreement.originatorSignature.selector]];
   for (const record of statements) {
     if (record.selector !== undefined) {
@@ -259,12 +552,24 @@ export const buildEvidenceBundle = (
       needed.push([delegation.attestation.signedBy, delegation.attestation.selector]);
     }
   }
+  for (const chain of keyChains ?? []) {
+    const answer = chain.operatorAnswer;
+    if (answer?.signedBy && answer.selector) needed.push([answer.signedBy, answer.selector]);
+  }
+  for (const arrival of arrivals ?? []) needed.push([arrival.receivedBy, arrival.selector]);
+  // A key its identity rotated away from is in its chain, though DNS no longer has it.
+  const chainKeyOf = (identity: string, selector: string) => {
+    const chain = keyChains?.find((c) => sameIdentity(c.identity, identity));
+    if (!chain) return undefined;
+    const facts = keyChainFactsOf(checkKeyChain(chain.records, chain.identity), {});
+    return keyAt(facts, { selector })?.publicKey;
+  };
   const keys: BTPEvidenceBundle['keys'] = [];
   for (const [identity, selector] of needed) {
     if (keys.some((key) => sameIdentity(key.identity, identity) && key.selector === selector)) {
       continue;
     }
-    const publicKey = keyOf(identity, selector);
+    const publicKey = keyOf(identity, selector) ?? chainKeyOf(identity, selector);
     if (publicKey === undefined) {
       throw new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY, {
         cause: `no key for ${identity} at ${selector}`,
@@ -272,7 +577,15 @@ export const buildEvidenceBundle = (
     }
     keys.push({ identity, selector, publicKey, fingerprint: getFingerprintFromPem(publicKey) });
   }
-  return { format: 'btps-evidence/1', originator, agreement, statements, keys };
+  return {
+    format: 'btps-evidence/1',
+    originator,
+    agreement,
+    statements,
+    keys,
+    ...(keyChains?.length && { keyChains }),
+    ...(arrivals?.length && { arrivals }),
+  } as BTPEvidenceBundle;
 };
 
 /**
@@ -285,10 +598,33 @@ export const describeEvidenceFacts = (facts: BTPEvidenceFacts): string => {
   const line = (label: string, value: string) => `${label.padEnd(27)}${value}`;
   const keyText = ({ identity, selector, fingerprint }: BTPEvidenceKey) =>
     `${identity}${selector ? ` at ${selector}` : ''}, fingerprint ${fingerprint ?? 'none in the bundle'}`;
+  // Since 1.2: a signing key against its identity's key chain.
+  const chainText = (c: BTPEvidenceKeyChainFacts, indent: string) => {
+    const anchored = c.anchored ? `${c.anchored.by}, up to ${c.anchored.upTo}` : 'NO';
+    const independently =
+      c.signedInWindowIndependently === undefined
+        ? ''
+        : `, by its timestamp ${mark(c.signedInWindowIndependently)}`;
+    return [
+      `${indent}key chain valid ${mark(c.chainValid)}${c.problem ? ` (${c.problem})` : ''}, key in it ${mark(c.keyInChain)}, forked ${c.forked ? 'YES' : 'no'}`,
+      `${indent}   anchored ${anchored}${c.authorityUnverified ? ", a lost key's rotation unconfirmed" : ''}`,
+      `${indent}   signed while the key was its ${mark(c.signedInWindow)}${independently}`,
+      ...(c.rotatedAt ? [`${indent}   rotated away ${c.rotatedAt}`] : []),
+      ...(c.expiredImmediately
+        ? [
+            `${indent}   EXPIRED ${c.expiredImmediately.at} (${c.expiredImmediately.reason}), compromised since ${c.expiredImmediately.compromisedSince}`,
+          ]
+        : []),
+      ...(c.disownedAfterTheFact
+        ? [`${indent}   DISOWNED after the fact: it arrived before the expiry was declared`]
+        : []),
+    ];
+  };
   const lines = [
     line('content sha256', facts.contentSha256),
     line("originator's signature", mark(facts.originatorSignatureValid)),
     line("originator's key", keyText(facts.originatorKey)),
+    ...(facts.originatorKeyChain ? chainText(facts.originatorKeyChain, '') : []),
     line('terms are its attachments', mark(facts.termsAttached)),
   ];
   facts.statements.forEach((s, i) => {
@@ -313,11 +649,21 @@ export const describeEvidenceFacts = (facts: BTPEvidenceFacts): string => {
         `   timestamped ${stamp.time ?? 'unreadable'} by ${stamp.authority ?? 'unknown'}: over this statement ${mark(stamp.imprintMatches)}, signed ${mark(stamp.signatureValid)}${authority}, trusted ${trusted}`,
       );
     }
+    if (s.arrival) {
+      lines.push(
+        `   arrived ${s.arrival.at}, received by ${s.arrival.receivedBy}, signed ${mark(s.arrival.signatureValid)}`,
+      );
+    }
+    if (s.keyChain) lines.push(...chainText(s.keyChain, '   '));
   });
   lines.push(
     '',
-    'keys from the bundle, not confirmed online: complete says the bundle is',
-    "consistent, not that each key was its identity's when it signed",
+    ...(facts.keysConfirmedOnline
+      ? ["keys confirmed online: each key was its identity's, by its chain or DNS, now"]
+      : [
+          'keys from the bundle, not confirmed online: complete says the bundle is',
+          "consistent, not that each key was its identity's when it signed",
+        ]),
     line('complete', mark(facts.complete)),
   );
   return lines.join('\n');
