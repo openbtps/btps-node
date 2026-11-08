@@ -409,6 +409,15 @@ without `permissions` is a 1.1 trust, checked as 1.1 checks it. In short:
 - **The refusals for what 1.2 adds** (`eventChainCheck`,
   `detailsResponseCheck`, `agreementOrderCheck`, `detailsRequestLimit`) are
   middleware the platform registers, from `@btps/sdk/server/core`.
+- **Arriving keys are checked against their identity's key chain:** a key
+  rotated away past `retiredKeyGraceSeconds` (a day) is refused, an expired
+  one at once. A chain is kept for at most `keyChainMaxCacheSeconds` (300
+  seconds), and a `keyResolver` that gives chains keeps each no longer. A
+  key whose identity never rotated is checked by DNS, as in 1.1.
+- **Rotating a key** is a signed record the identity store keeps
+  (`keyChain`, `getKeyChain`), with the provider's rules: remove an expired
+  key's DNS record at once, re-publish unchanged keys under a new `s=`, and
+  delete an old private key only once its side-cars open.
 
 The steps, in a safe order with rollback at each, the code, and the order to
 adopt each feature in: [Migrating from 1.1 to 1.2](https://www.openbtps.org/docs/next/whats-new/1-2/migration).

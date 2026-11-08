@@ -173,7 +173,42 @@ export async function rotateLost(
 }
 ```
 
-A compromised key you still hold signs too, with `reason: 'compromised'`. Then **remove its DNS record at once**: a receiver that cannot reach your host checks the key by DNS alone. `signKeyExpiry(expiry, { pemFiles: currentKeys })` expires a key the identity already left.
+A compromised key you still hold signs too, with `reason: 'compromised'`. Then **remove its DNS record at once**: a receiver that cannot reach your host checks the key by DNS alone.
+
+### A compromise found later
+
+A key the identity already rotated away from may turn out to have been compromised before it was left. Nothing rotates: the identity's **current** key signs an expiry record naming the old key, from when it was compromised:
+
+```ts check
+import { getFingerprintFromPem, type PemKeys } from '@btps/sdk/crypto';
+import { keyChainRecordHash, signKeyExpiry, type BTPKeyChainRecord } from '@btps/sdk/trust';
+
+export async function expireLeftKey(
+  identity: string,
+  chain: BTPKeyChainRecord[],
+  left: { selector: string; publicKey: string },
+  current: PemKeys,
+  compromisedSince: string,
+): Promise<BTPKeyChainRecord[]> {
+  const last = chain.at(-1);
+  if (!last) throw new Error('an identity that never rotated has no key it left');
+  const record = await signKeyExpiry(
+    {
+      identity,
+      // Under a selector the chain names it under, and never the current key.
+      key: { selector: left.selector, fingerprint: getFingerprintFromPem(left.publicKey) },
+      compromisedSince, // when it may first have been compromised; never after `at`
+      reason: 'compromised',
+      at: new Date().toISOString(),
+      prev: keyChainRecordHash(last),
+    },
+    { pemFiles: current },
+  );
+  return [...chain, record];
+}
+```
+
+From then on a 1.2 server refuses the old key at once (`BTP_ERROR_KEY_REVOKED`), and an evidence bundle reports what it signed from `compromisedSince` on as out of its window. Remove its DNS record too, if it is still there.
 
 ### On the receiving server
 

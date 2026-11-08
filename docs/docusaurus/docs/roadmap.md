@@ -59,10 +59,23 @@ phone plan can be signed over BTPS:
   by when, and by whom, in turn or in any order;
 - each signer answers `accepted` or `declined` with a signed statement, by its
   own device key or by its identity key, and which kind signed is recorded;
-- an **evidence bundle** (the signed agreement, every signed answer and the
-  keys used) that anyone can check offline, from the command line too;
+- an **evidence bundle** (the signed agreement, every signed answer, the keys
+  used and their key chains) that anyone can check offline, from the command
+  line too;
 - an optional **trusted timestamp** on each answer, so it still proves when it
   was signed after keys have rotated.
+
+### Key rotation
+
+An identity's keys form a signed **key chain**: each new key is handed over by
+the old one, and the identity's host serves the chain.
+
+- **Every server checks each arriving key against it:** a key rotated away is
+  taken for a day's grace, then refused; a compromised key is refused at once,
+  whatever DNS still has.
+- **A lost key can be replaced**, on its operator's authority.
+- **Old keys can be retired and deleted**, and what they signed stays
+  verifiable, in an evidence bundle too, years later.
 
 ### Safer devices
 
