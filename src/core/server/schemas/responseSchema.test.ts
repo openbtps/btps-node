@@ -194,6 +194,30 @@ describe('BtpServerResponseSchema', () => {
     });
   });
 
+  describe("an identity lookup's identity and key chain, since 1.2", () => {
+    const answer = (document: object, version = '1.2.0') =>
+      validate(BtpServerResponseSchema, {
+        version,
+        status: { ok: true, code: 200 },
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        issuedAt: '2025-01-01T00:00:00.000Z',
+        type: 'btps_response',
+        document: { selector: 'btps1', publicKey: 'MIIB', keyType: 'rsa', version, ...document },
+      }).success;
+
+    it('are in a 1.2.0 answer only', () => {
+      expect(answer({ identity: 'alice$example.com', keyChain: [] })).toBe(true);
+      expect(answer({ identity: 'alice$example.com' }, '1.1.0')).toBe(false);
+      expect(answer({ keyChain: [] }, '1.1.0')).toBe(false);
+      expect(answer({}, '1.1.0')).toBe(true);
+    });
+
+    it('are an identity, and a key chain of records', () => {
+      expect(answer({ identity: 'not-an-identity' })).toBe(false);
+      expect(answer({ keyChain: [{ rotation: {} }] })).toBe(false);
+    });
+  });
+
   describe('a trust.fetch answer listing trust records', () => {
     const trustRecord = {
       id: 'fb275f18c0d1',

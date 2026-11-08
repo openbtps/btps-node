@@ -73,9 +73,9 @@
       "items": { "$ref": "#/$defs/record" }
     },
     "keys": {
-      "description": "The public key behind each signature: the originator's, each identity-signed statement's, and each device's delegator and attestor. A device's own key is its delegation's agentPubKey.",
+      "description": "The public key behind each signature: the originator's, each identity-signed statement's, each device's delegator and attestor, each key chain's operator, and the arrivals' builder. A device's own key is its delegation's agentPubKey.",
       "type": "array",
-      "maxItems": 61,
+      "maxItems": 82,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -101,6 +101,62 @@
           "token": { "type": "string", "minLength": 1 }
         }
       }
+    },
+    "keyChains": {
+      "description": "Since 1.2, optional: a signing identity's key chain, with the operator's signed lookup answer that served it, if any, kept whole.",
+      "type": "array",
+      "maxItems": 82,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["identity", "records"],
+        "properties": {
+          "identity": { "$ref": "#/$defs/address" },
+          "records": {
+            "type": "array",
+            "maxItems": 100,
+            "items": { "$ref": "#/$defs/keyChainRecord" }
+          },
+          "operatorAnswer": {
+            "type": "object",
+            "required": ["signedBy", "selector", "signature", "document"],
+            "properties": {
+              "signedBy": { "$ref": "#/$defs/address" },
+              "selector": { "type": "string", "minLength": 1 },
+              "signature": { "$ref": "#/$defs/signature" },
+              "document": {
+                "type": "object",
+                "required": ["identity", "keyChain"],
+                "properties": {
+                  "identity": { "$ref": "#/$defs/address" },
+                  "keyChain": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": { "$ref": "#/$defs/keyChainRecord" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "arrivals": {
+      "description": "Since 1.2, optional: when each statement arrived, signed by the bundle's builder over the RFC 8785 form of {type: \"btps.arrival.v1\", statementSha256, arrivedAt, receivedBy, selector}.",
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["statementSha256", "arrivedAt", "receivedBy", "selector", "signature"],
+        "properties": {
+          "statementSha256": { "$ref": "#/$defs/sha256" },
+          "arrivedAt": { "type": "string", "format": "date-time" },
+          "receivedBy": { "$ref": "#/$defs/address" },
+          "selector": { "type": "string", "minLength": 1 },
+          "signature": { "$ref": "#/$defs/signature" }
+        }
+      }
     }
   },
   "$defs": {
@@ -110,6 +166,32 @@
       "pattern": "^[^$\\s]+\\$[^$\\s]+$"
     },
     "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "keyChainRecord": {
+      "description": "A key rotation or expiry record, as the key rotation specification defines it. That it is signed by the keys it names, and that the records form one chain, is checked by a verifier, not here.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signatures"],
+      "properties": {
+        "rotation": { "type": "object" },
+        "expiry": { "type": "object" },
+        "signatures": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "allOf": [{ "$ref": "#/$defs/signature" }],
+            "required": ["by"],
+            "properties": { "by": { "enum": ["from", "to", "current"] } }
+          }
+        },
+        "timestamp": { "type": "string", "minLength": 1 }
+      },
+      "oneOf": [
+        { "properties": { "rotation": { "type": "object" } }, "required": ["rotation"] },
+        { "properties": { "expiry": { "type": "object" } }, "required": ["expiry"] }
+      ]
+    },
     "signature": {
       "type": "object",
       "required": ["algorithmHash", "value", "fingerprint"],

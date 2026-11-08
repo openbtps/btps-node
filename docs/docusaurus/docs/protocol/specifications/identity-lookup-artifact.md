@@ -37,6 +37,7 @@ Identity lookup artifacts (`BTPIdentityLookupRequest`) are designed for requesti
 ## Optional Fields
 
 - **identitySelector**: Specific selector for the identity (if different from hostSelector)
+- **keyChain** (since 1.2, in a `1.2.0` lookup only): `true` asks for the identity's [key chain](./key-rotation.md) too
 
 ## Use Cases
 
@@ -159,6 +160,13 @@ The response document contains the identity's public key information:
 - **keyType**: Key type (currently "rsa")
 - **version**: Protocol version
 
+**Since 1.2, in the answer to a `1.2.0` lookup:**
+
+- **identity**: the identity the answer is for, so that an answer can never be taken for another identity's
+- **keyChain**: when the lookup asked, the identity's [key chain](./key-rotation.md), oldest record first; `[]` for an identity that never rotated
+
+An answer to a `1.1.0` lookup carries neither. Both are inside the signed answer, so the operator's signature covers the chain.
+
 ## Error Handling
 
 ### Common Error Scenarios
@@ -194,13 +202,15 @@ An answer signed by anyone else is refused, even with a valid signature. A domai
 
 The requester asks the host only when DNS has no record for the identity: a lookup is DNS first, then the host.
 
+Since 1.2, the requester sends a `1.2.0` lookup, and asks again as `1.1.0` when a 1.1 host refuses the version. The answer to a `1.2.0` lookup is also refused unless its `reqId` is the lookup's `id`, its `issuedAt` is within 300 seconds of the requester's clock, and its document's `identity` is the identity asked about (and it carries `keyChain` when asked). So an old answer cannot be replayed, nor one about another identity passed off. A key chain is asked of the host even when DNS has the identity's key: see [Key Rotation](./key-rotation.md#checking-keys-on-arrival).
+
 ### Identity Storage
 
 Servers implementing identity lookup must:
 
 1. **Store Identity Records**: Maintain identity public key records
 2. **Audit Logging**: Log all identity lookup requests
-3. **Key Rotation**: Support key rotation and management
+3. **Key Rotation**: Support key rotation and management. Since 1.2, an identity store may implement `getKeyChain(computedId)`, returning the identity's key chain, which the server sends to a lookup that asks. The provider writes the chain; the server only reads it. `JsonIdentityStore` reads it from the record's `keyChain`.
 
 ## Best Practices
 

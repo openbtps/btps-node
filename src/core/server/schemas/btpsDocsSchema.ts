@@ -10,6 +10,7 @@ import { CURRENCY_CODES } from '../constants/currency.js';
 import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
 import { BtpSignatureSchema, identitySchema } from './shared.js';
 import { boundedArray, boundedRecord } from './bounded.js';
+import { BtpKeyChainSchema } from './keyChainSchema.js';
 
 const {
   trustRequest,
@@ -809,6 +810,43 @@ const BtpEvidenceKeySchema = z
   })
   .strict();
 
+// The identities a bundle names keys for: the originator, each signer, each
+// device's delegator and attestor, each chain's operator, and whoever signed
+// its arrivals.
+const evidenceIdentities = agreement.signers * 4 + 2;
+
+/**
+ * Since 1.2: a signing identity's key chain in an evidence bundle. With the
+ * operator's signed lookup answer that served it, kept whole so its signature
+ * checks offline: that confirms a lost key's rotation for a host-only identity.
+ */
+const BtpEvidenceKeyChainSchema = z
+  .object({
+    identity: identitySchema,
+    records: BtpKeyChainSchema,
+    operatorAnswer: z
+      .object({
+        signedBy: identitySchema,
+        selector: z.string().min(1),
+        signature: BtpSignatureSchema,
+        document: z.object({ identity: identitySchema, keyChain: BtpKeyChainSchema }).passthrough(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .strict();
+
+/** Since 1.2: when the bundle's builder received a statement, signed by it at the time. */
+const BtpEvidenceArrivalSchema = z
+  .object({
+    statementSha256: sha256Hex,
+    arrivedAt: z.string().datetime(),
+    receivedBy: identitySchema,
+    selector: z.string().min(1),
+    signature: BtpSignatureSchema,
+  })
+  .strict();
+
 /**
  * Since 1.2: an agreement's evidence bundle, a file a party creates to show
  * what was agreed: the opened agreement with its originator's signature,
@@ -821,13 +859,18 @@ export const BtpEvidenceBundleSchema = z
     originator: identitySchema,
     agreement: BtpAgreementDocSchema,
     statements: statements,
-    // The originator's, each signer's, and each device's delegator and attestor.
-    keys: boundedArray(BtpEvidenceKeySchema, agreement.signers * 3 + 1),
+    // The originator's, each signer's, each device's delegator and attestor,
+    // each chain's operator, and the arrivals' signer.
+    keys: boundedArray(BtpEvidenceKeySchema, evidenceIdentities),
     // Optional RFC 3161 tokens, base64, each over the SHA-256 of a statement record.
     timestamps: boundedArray(
       z.object({ statementSha256: sha256Hex, token: z.string().min(1) }).strict(),
       agreement.signers,
     ).optional(),
+    // Since 1.2, optional: each signing identity's key chain, so a key it rotated away from still checks.
+    keyChains: boundedArray(BtpEvidenceKeyChainSchema, evidenceIdentities).optional(),
+    // Since 1.2, optional: when each statement arrived, signed by the bundle's builder.
+    arrivals: boundedArray(BtpEvidenceArrivalSchema, agreement.signers).optional(),
   })
   .strict();
 
@@ -851,12 +894,15 @@ export const BtpAuthResDocSchema = z.object({
   decryptBy: identitySchema,
 });
 
-// Schema for BTPIdentityResDoc (the answer to an identity lookup)
+// Schema for BTPIdentityResDoc (the answer to an identity lookup). Since 1.2,
+// in a 1.2.0 answer: the identity it answers for, and its key chain when asked.
 export const BtpIdentityResDocSchema = z.object({
   selector: z.string(),
   publicKey: z.string(),
   keyType: z.literal('rsa'),
   version: z.string(),
+  identity: identitySchema.optional(),
+  keyChain: BtpKeyChainSchema.optional(),
 });
 
 /**

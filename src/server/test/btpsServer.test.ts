@@ -9,8 +9,9 @@ import { describe, it, expect, beforeEach, vi, afterEach, type Mock } from 'vite
 import { BtpsServer } from '../btpsServer.js';
 import { BtpsClient } from '../../client/btpsClient.js';
 import { AbstractTrustStore } from '../../core/trust/storage/AbstractTrustStore.js';
-import { BTPTrustRecord } from '../../core/trust/types.js';
-import { computeAgentTrustId, computeTrustId } from '../../core/trust/index.js';
+import { BTPKeyChainRecord, BTPTrustRecord } from '../../core/trust/types.js';
+import { computeAgentTrustId, computeTrustId, signKeyRotation } from '../../core/trust/index.js';
+import { BtpServerResponseSchema } from '../../core/server/schemas/responseSchema.js';
 import { EventEmitter } from 'events';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { BTP_PROTOCOL_VERSION, isSupportedVersion } from '../../core/server/constants/index.js';
@@ -44,6 +45,7 @@ import {
 import {
   BTPErrorException,
   transformToBTPErrorException,
+  BTP_ERROR_IDENTITY_NOT_FOUND,
   BTP_ERROR_TRUST_NOT_ALLOWED,
   BTP_ERROR_TRUST_NON_EXISTENT,
   BTP_ERROR_TRUST_EXPIRED,
@@ -104,7 +106,7 @@ class OneIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
     super({ connection: null });
     this.record = record;
   }
-  async getPublicKeyRecord() {
+  async getPublicKeyRecord(): Promise<IdentityPubKeyRecord | undefined> {
     return this.record;
   }
   async getById() {
@@ -3506,6 +3508,163 @@ export default function () {
       const { signature, ...signed } = response;
       expect(signed.signedBy).toBe('host$example.com');
       expect(signature && verifySignature(signed, signature, keys.publicKey).isValid).toBe(true);
+    });
+  });
+
+  describe("since 1.2, a lookup's answer names its identity, and carries its key chain when asked", () => {
+    const keyPair = () =>
+      generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      });
+    const serverKeys = keyPair();
+    const [k1, k2] = [keyPair(), keyPair()];
+    const record = {
+      selector: 'btps2',
+      publicKey: pemToBase64(k2.publicKey),
+      keyType: 'rsa' as const,
+      version: '1.2.0',
+      createdAt: new Date().toISOString(),
+    };
+
+    class ChainStore extends OneIdentityStore {
+      constructor(private readonly chain: BTPKeyChainRecord[]) {
+        super(record);
+      }
+      async getKeyChain() {
+        return this.chain;
+      }
+    }
+
+    const answer = async (
+      store: AbstractIdentityStore<BTPIdentityRecord>,
+      lookup: { version: string; keyChain?: true },
+    ): Promise<BTPServerResponse> => {
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'admin$vendor.example', ...serverKeys },
+        trustStore: new DummyTrustStore(),
+        identityStore: store,
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const sent = vi.fn();
+      server['sendBtpsResponse'] = sent;
+      const socket = {} as TLSSocket;
+      await server['handleIdentityLookup'](
+        {
+          id: 'lookup-1',
+          issuedAt: new Date().toISOString(),
+          identity: 'billing$vendor.example',
+          from: 'pay$client.example',
+          hostSelector: 'btps1',
+          ...lookup,
+        },
+        {
+          req: { socket } as unknown as BTPRequestCtx,
+          res: { socket, reqId: 'req-1' } as unknown as BTPResponseCtx,
+        },
+      );
+      return sent.mock.calls[0]?.[1];
+    };
+
+    it('names the identity in a 1.2.0 answer, and adds the chain the store holds when asked', async () => {
+      const rotation = await signKeyRotation(
+        {
+          identity: 'billing$vendor.example',
+          from: { selector: 'btps1' },
+          to: { selector: 'btps2' },
+          at: '2026-11-10T00:00:00.000Z',
+          prev: null,
+        },
+        { from: { pemFiles: k1 }, to: { pemFiles: k2 } },
+      );
+      const plain = await answer(new ChainStore([rotation]), { version: '1.2.0' });
+      expect(plain.document).toMatchObject({ identity: 'billing$vendor.example' });
+      expect(plain.document).not.toHaveProperty('keyChain');
+
+      const withChain = await answer(new ChainStore([rotation]), {
+        version: '1.2.0',
+        keyChain: true,
+      });
+      expect(withChain.document).toMatchObject({ keyChain: [rotation] });
+      // Signed by the operator over the whole answer, the chain included.
+      const { signature, ...signed } = withChain;
+      expect(signature && verifySignature(signed, signature, serverKeys.publicKey).isValid).toBe(
+        true,
+      );
+      expect(BtpServerResponseSchema.safeParse(withChain).success).toBe(true);
+    });
+
+    it('answers an empty chain for an identity that never rotated, or a store that keeps none', async () => {
+      const none = await answer(new OneIdentityStore(record), { version: '1.2.0', keyChain: true });
+      expect(none.document).toMatchObject({ keyChain: [] });
+      const empty = await answer(new ChainStore(undefined as unknown as BTPKeyChainRecord[]), {
+        version: '1.2.0',
+        keyChain: true,
+      });
+      expect(empty.document).toMatchObject({ keyChain: [] });
+    });
+
+    it('answers a 1.1 lookup as 1.1 does: no identity, no chain', async () => {
+      const old = await answer(new ChainStore([]), { version: '1.1.0' });
+      expect(old.document).not.toHaveProperty('identity');
+      expect(old.document).not.toHaveProperty('keyChain');
+    });
+
+    it("answers with the chain's current key for an identity whose keys are in DNS, and has no key record here", async () => {
+      class DnsIdentityStore extends ChainStore {
+        async getPublicKeyRecord(): Promise<IdentityPubKeyRecord | undefined> {
+          return undefined;
+        }
+      }
+      const rotation = await signKeyRotation(
+        {
+          identity: 'billing$vendor.example',
+          from: { selector: 'btps1' },
+          to: { selector: 'btps2' },
+          at: '2026-10-10T00:00:00.000Z',
+          prev: null,
+        },
+        { from: { pemFiles: k1 }, to: { pemFiles: k2 } },
+      );
+      const fromChain = await answer(new DnsIdentityStore([rotation]), {
+        version: '1.2.0',
+        keyChain: true,
+      });
+      expect(fromChain.document).toMatchObject({
+        selector: 'btps2',
+        publicKey: k2.publicKey.trim(),
+        keyType: 'rsa',
+        identity: 'billing$vendor.example',
+        keyChain: [rotation],
+      });
+
+      // With neither a key record nor a chain, it is not found, as before.
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'admin$vendor.example', ...serverKeys },
+        trustStore: new DummyTrustStore(),
+        identityStore: new DnsIdentityStore([]),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const sendError = vi.fn();
+      server['sendBtpsError'] = sendError;
+      const socket = {} as TLSSocket;
+      await server['handleIdentityLookup'](
+        {
+          version: '1.2.0',
+          id: 'lookup-2',
+          issuedAt: new Date().toISOString(),
+          identity: 'billing$vendor.example',
+          from: 'pay$client.example',
+          hostSelector: 'btps1',
+          keyChain: true,
+        },
+        {
+          req: { socket } as unknown as BTPRequestCtx,
+          res: { socket, reqId: 'req-2' } as unknown as BTPResponseCtx,
+        },
+      );
+      expect(sendError).toHaveBeenCalledWith(socket, BTP_ERROR_IDENTITY_NOT_FOUND, 'req-2');
     });
   });
 

@@ -6,7 +6,12 @@
  */
 
 import { BTPSignature, BTPEncryption } from '@core/crypto/types.js';
-import { BTPDetailValues, BTPTrustReqDoc, BTPTrustResDoc } from '@core/trust/types.js';
+import {
+  BTPDetailValues,
+  BTPKeyChainRecord,
+  BTPTrustReqDoc,
+  BTPTrustResDoc,
+} from '@core/trust/types.js';
 import { BTPDocument } from '../../server/types.js';
 import type { z } from 'zod';
 import type { BtpAgreementEventSchema, BtpLifecycleEventSchema } from './schemas/btpsDocsSchema.js';
@@ -139,6 +144,8 @@ export interface BTPIdentityLookupRequest
   from: string;
   hostSelector: string;
   identitySelector?: string;
+  /** Since 1.2, under 1.2.0 only: answer with the identity's key chain too */
+  keyChain?: true;
 }
 
 export type BTPAgentDocument =
@@ -306,7 +313,12 @@ export interface BTPDeliveryFailureArtifact {
   to: string;
 }
 
-export type BTPIdentityResDoc = Omit<IdentityPubKeyRecord, 'createdAt'>;
+export type BTPIdentityResDoc = Omit<IdentityPubKeyRecord, 'createdAt'> & {
+  /** Since 1.2, in a 1.2.0 answer: the identity it answers for */
+  identity?: string;
+  /** Since 1.2, in a 1.2.0 answer to a lookup that asked: the identity's key chain, oldest first */
+  keyChain?: BTPKeyChainRecord[];
+};
 
 /** "Created, with this id": the answer to a command that makes something, such as `draft.create`. */
 export interface BTPCreatedResDoc {

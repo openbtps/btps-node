@@ -1,0 +1,87 @@
+{
+  "description": "Key rotation, live (since 1.2): give `key` (a key of a verified chain, with its window), `now` (ms) and `retiredKeyGraceSeconds` to the verifier's rule for an arriving artifact. `expect` is `accept`, or the BTPS error code it refuses with.",
+  "cases": [
+    {
+      "name": "the-current-key",
+      "key": {
+        "selector": "btps1",
+        "fingerprint": "not-checked-here",
+        "publicKey": "not-checked-here"
+      },
+      "now": 1796083200000,
+      "retiredKeyGraceSeconds": 86400,
+      "expect": "accept"
+    },
+    {
+      "name": "retired-as-planned-within-its-grace",
+      "key": {
+        "selector": "btps1",
+        "fingerprint": "not-checked-here",
+        "publicKey": "not-checked-here",
+        "validUntil": "2026-11-30T00:00:00.000Z",
+        "rotatedAway": "planned"
+      },
+      "now": 1796083200000,
+      "retiredKeyGraceSeconds": 86400,
+      "expect": "accept"
+    },
+    {
+      "name": "retired-as-planned-past-its-grace",
+      "key": {
+        "selector": "btps1",
+        "fingerprint": "not-checked-here",
+        "publicKey": "not-checked-here",
+        "validUntil": "2026-11-29T23:59:59.000Z",
+        "rotatedAway": "planned"
+      },
+      "now": 1796083200000,
+      "retiredKeyGraceSeconds": 86400,
+      "expect": "BTP_ERROR_KEY_RETIRED"
+    },
+    {
+      "name": "retired-with-no-grace",
+      "key": {
+        "selector": "btps1",
+        "fingerprint": "not-checked-here",
+        "publicKey": "not-checked-here",
+        "validUntil": "2026-11-30T23:59:59.000Z",
+        "rotatedAway": "planned"
+      },
+      "now": 1796083200000,
+      "retiredKeyGraceSeconds": 0,
+      "expect": "BTP_ERROR_KEY_RETIRED"
+    },
+    {
+      "name": "rotated-with-immediate-expiry-at-once",
+      "key": {
+        "selector": "btps1",
+        "fingerprint": "not-checked-here",
+        "publicKey": "not-checked-here",
+        "validUntil": "2026-11-30T23:59:59.000Z",
+        "rotatedAway": "immediate",
+        "compromisedSince": "2026-11-30T23:59:00.000Z",
+        "reason": "compromised",
+        "expiredAt": "2026-11-30T23:59:59.000Z"
+      },
+      "now": 1796083200000,
+      "retiredKeyGraceSeconds": 86400,
+      "expect": "BTP_ERROR_KEY_REVOKED"
+    },
+    {
+      "name": "expired-after-the-fact-within-what-was-its-grace",
+      "key": {
+        "selector": "btps1",
+        "fingerprint": "not-checked-here",
+        "publicKey": "not-checked-here",
+        "validUntil": "2026-11-30T23:59:30.000Z",
+        "rotatedAway": "planned",
+        "compromisedSince": "2026-11-30T23:55:00.000Z",
+        "reason": "compromised",
+        "expiredAt": "2026-11-30T23:59:59.000Z"
+      },
+      "now": 1796083200000,
+      "retiredKeyGraceSeconds": 86400,
+      "expect": "BTP_ERROR_KEY_REVOKED"
+    }
+  ]
+}

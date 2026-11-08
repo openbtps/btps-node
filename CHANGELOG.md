@@ -209,8 +209,8 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   signature. `verifyEvidenceBundle` checks it offline and reports facts
   (`BTPEvidenceFacts`), never a verdict; `describeEvidenceFacts` prints them,
   as the new `btps-verify-evidence` command does. Providers never reuse a
-  selector for a different key, and keep old keys answerable while documents
-  signed with them are kept.
+  selector for a different key, and publish a key rotation record for every
+  new key.
 - **Trusted timestamps.** An evidence bundle may carry RFC 3161 tokens, each
   over a statement record's SHA-256 (`timestamps`). `timestampRequest` builds
   the request (only the hash leaves the provider), `timestampTokenOf` reads the
@@ -274,6 +274,56 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   `BTP_ERROR_CONNECTION_ENDED`. A 1.1 server's answers say nothing, so with
   one the client still only lets in an end that has already arrived, as in
   1.1.
+- **Key rotation records.** An identity's keys form a key chain: each
+  rotation is signed by the old key and the new one (`signKeyRotation`), a
+  rotation with immediate expiry marks a compromised or lost key, and an
+  expiry record (`signKeyExpiry`) marks a key the identity already left.
+  `verifyKeyChain` reports a chain's facts (each key's window, forks,
+  anchors, a lost key's authority) and `keyChainProblem` is the refusal a
+  verifier applies online. Fingerprints are computed from each key, never
+  taken from the record. A `1.2.0` identity lookup may ask for the chain
+  (`keyChain: true`); its answer names its identity and carries the chain,
+  which an identity store gives with `getKeyChain`. Nothing changes for an
+  identity that never rotates. See
+  [Key Rotation](https://www.openbtps.org/docs/next/protocol/specifications/key-rotation).
+- **Keys checked against their chain on arrival.** A server asks the
+  sender's host for its key chain (the sender's, a delegator's, an
+  attestor's) and refuses a key rotated away as planned past
+  `retiredKeyGraceSeconds` (default a day) with `BTP_ERROR_KEY_RETIRED`, and
+  an expired key at once, whatever the artifact's time, with
+  `BTP_ERROR_KEY_REVOKED`, though DNS still has it. A chain is kept for at
+  most `keyChainMaxCacheSeconds` (default 300): the longest a revoked key can
+  still be taken. A host that cannot be reached, or speaks 1.1, leaves the
+  key to DNS, as in 1.1; so a provider removes an expired key's DNS record at
+  once. `BtpsClient.lookupKeyChain` asks a host for a chain, with the
+  operator's signed `answer` it came in, and a `keyResolver` may give chains
+  (`resolveKeyChain`), kept no longer than `keyChainMaxCacheSeconds`.
+  `createDefaultKeyResolver` gives them only with `from`; without it, a
+  server given it asks for chains itself. A host answers a chain lookup for
+  an identity whose keys are in DNS from its chain alone.
+- **Content-key side-cars.** `wrapContentKeyFor` wraps a stored artifact's
+  content key to a new key, checked to open the document, and
+  `contentKeyOpens` confirms it; the artifact is never changed, and
+  `decryptVerify` opens it with the side-car. A provider deletes an old
+  private key once every side-car opens.
+- **Key chains in evidence bundles.** A bundle may keep each signing
+  identity's chain, with the operator's signed answer that served it
+  (`keyChains`), and when each statement arrived, signed by the builder then
+  (`arrivals`, `signArrival`); a key whose DNS record is retired is taken
+  from its chain. `verifyEvidenceBundle` reports each signing key against its
+  chain (`originatorKeyChain`, each statement's `keyChain`): its window,
+  `rotatedAt`, `expiredImmediately`, `authorityUnverified`, and
+  `disownedAfterTheFact` when an owner expired its key from before a
+  statement that had already arrived. The operator's answer is reported
+  (`operatorAnswer`) and confirms a lost key's rotation only by the operator
+  of the chain identity's domain: the fingerprint the reader names for that
+  domain (`operators`), or, online, the operator DNS names there (`op=`),
+  its key confirmed. Its key is otherwise the bundle's own, which a forger
+  could have put there. `anchors` are signing-key fingerprints a reader
+  kept; `online` confirms each key now, and only then is
+  `keysConfirmedOnline` true. `btps-verify-evidence` takes `--anchor`,
+  `--operator <domain>=<fingerprint>` and `--online`. None of these changes
+  `complete`.
 
 ### Changed
 
@@ -303,6 +353,11 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
 - A server whose implementor takes errors, through the `onError` option or
   `onError` middleware, no longer also writes each failed artifact to
   `console.error`. With neither, it writes as before.
+- An identity lookup goes out as `1.2.0`, and again as `1.1.0` when a 1.1
+  host refuses the version. Its answer is refused unless it answers this
+  lookup (`reqId`), is fresh (`issuedAt` within 300 seconds), and names the
+  identity asked about; a 1.1 answer carries none of these. A host that does
+  not answer is given up on after the client's reply timeout.
 
 ### Fixed
 

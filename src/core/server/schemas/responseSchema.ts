@@ -211,4 +211,22 @@ export const BtpServerResponseSchema = z
         message: 'closing is only in a 1.2.0 response',
       });
     }
+
+    // Since 1.2, under 1.2.0 only: an identity lookup's answer (the document
+    // with a keyType) names its identity, and carries its key chain.
+    if (
+      typeof data.document === 'object' &&
+      'keyType' in data.document &&
+      isVersionBelow(data.version, '1.2.0')
+    ) {
+      for (const field of ['identity', 'keyChain'] as const) {
+        if (field in data.document) {
+          ctx.addIssue({
+            path: ['document', field],
+            code: z.ZodIssueCode.custom,
+            message: `${field} is only in a 1.2.0 response`,
+          });
+        }
+      }
+    }
   });

@@ -15,6 +15,7 @@
  *   transporter, agent, response, bundle  the artifact or file itself
  *   permissions                           a trust record's `permissions`
  *   record                                a trust record
+ *   keyChainRecord                        a key rotation or expiry record
  *   document:<TYPE>                       an opened document of that artifact type, under 1.2.0
  *
  * A TypeScript example fenced ```ts check is typechecked against the SDK's source,
@@ -36,6 +37,7 @@ import {
   BtpTrustRecordSchema,
 } from '../src/core/server/schemas/responseSchema.js';
 import { BtpEvidenceBundleSchema } from '../src/core/server/schemas/btpsDocsSchema.js';
+import { BtpKeyChainRecordSchema } from '../src/core/server/schemas/keyChainSchema.js';
 import { processBtpDocSchema } from '../src/core/server/schemas/helpers.js';
 import type { BTPArtifactType } from '../src/core/server/types.js';
 
@@ -56,6 +58,7 @@ const schemaFor = (kind: string): z.ZodTypeAny => {
     bundle: BtpEvidenceBundleSchema,
     permissions: BtpTrustRecordPermissionsSchema,
     record: BtpTrustRecordSchema,
+    keyChainRecord: BtpKeyChainRecordSchema,
   };
   const schema = schemas[kind];
   if (!schema) throw new Error(`no schema for btps=${kind}`);

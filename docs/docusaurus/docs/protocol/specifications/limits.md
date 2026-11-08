@@ -182,8 +182,13 @@ Since 1.2, the lists that trust permissions, details refresh and agreements add.
 | an agreement's `acceptance.signers`                                     |      20 |
 | the `statements` of an `agreement_progress` or `agreement_complete`     | 1 to 20 |
 | an evidence bundle's `statements`                                       |      20 |
-| an evidence bundle's `keys` (three for each signer, and the originator) |      61 |
+| an evidence bundle's `keys` (up to four for each signer, plus two more) |      82 |
 | an evidence bundle's `timestamps`                                       |      20 |
+| an evidence bundle's `keyChains` (as many as its `keys`)                |      82 |
+| an evidence bundle's `arrivals`                                         |      20 |
+| an identity's key chain (`keyChain`), in records                        |     100 |
+| a key rotation record's `signatures`                                    |  1 to 2 |
+| a key's `publicKey` in a key rotation record (DER SPKI, base64)         |   2,048 |
 
 A record is any object whose keys the sender chooses: `metadata`,
 `issuer.identifiers`, a payslip's `yearToDate`, `template.data` and
@@ -238,6 +243,8 @@ raised to the minimum, with a warning; the server still starts.
 | `connectionTimeoutMs`        | 30,000 (30 s)   | none     | how long a connection with nothing in flight stays open                                          |
 | `maxInFlightPerConnection`   | 32              | 1        | how many requests one connection may have handled at once                                        |
 | `maxConsecutiveInvalidLines` | 10              | 1        | since 1.2: how many lines in a row one connection may send that the server cannot read           |
+| `retiredKeyGraceSeconds`     | 86,400 (1 day)  | 0        | since 1.2: how long a key rotated away as planned still signs (see Key Rotation)                 |
+| `keyChainMaxCacheSeconds`    | 300 (5 minutes) | 0        | since 1.2: the longest a key chain is trusted from a cache: the worst-case revocation delay      |
 
 ### Requests in flight
 

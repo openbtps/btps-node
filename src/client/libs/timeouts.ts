@@ -18,6 +18,13 @@ export const MIN_REPLY_TIMEOUT_MS = 10000;
 export const DEFAULT_REPLY_TIMEOUT_MS = 20000;
 
 /**
+ * Since 1.2: how long a key chain lookup waits for its answer once connected:
+ * 5 seconds. It holds an arriving artifact until it is answered, so a host
+ * that cannot answer is given up on soon, and its keys left to DNS.
+ */
+export const KEY_CHAIN_REPLY_TIMEOUT_MS = 5000;
+
+/**
  * A wait the client uses, in milliseconds. One it cannot use as given never
  * stops the client: it is warned about and replaced by the minimum (when too
  * short) or the default (when not a number of milliseconds at all).

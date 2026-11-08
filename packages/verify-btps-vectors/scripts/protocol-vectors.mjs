@@ -4048,3 +4048,759 @@ export async function agreementTimestamps(set) {
     ),
   ];
 }
+
+/**
+ * BTPS 1.2: key chain cases for the agreement vectors, made from the complete
+ * sequential bundle in `set`: the bundle keeps signing identities' chains
+ * (`keyChains`, with an operator's signed answer) and statements' signed
+ * arrivals (`arrivals`), and each signing key is reported against its chain.
+ * `keys`: the originator's and the guarantor's signing keys, each one's next
+ * key, the guarantor's operator's key, and a forger's, `{ publicKeyPem, privateKeyPem }`.
+ */
+export function agreementKeyChains(set, keys) {
+  const { originator, originatorNext, guarantor, guarantorNext, guarantorOperator, forger } = keys;
+  const BANK = 'loans$bank.example';
+  const SAM = 'sam$guarantor.example';
+  const OPERATOR = 'admin$guarantor.example';
+  const day = (d, time = '00:00:00') => `2026-11-${String(d).padStart(2, '0')}T${time}.000Z`;
+  const fp = (k) => fingerprintOf(k.publicKeyPem);
+  const keyOf = (k, selector) => ({
+    selector,
+    fingerprint: fp(k),
+    publicKey: crypto
+      .createPublicKey(k.publicKeyPem)
+      .export({ format: 'der', type: 'spki' })
+      .toString('base64'),
+  });
+  // A first rotation, btps1 to btps2: planned and signed by both keys unless `immediate`;
+  // a lost key's rotation names its public key, and only `to` signs it (`signers`).
+  const rotation = (identity, from, to, d, more = {}) => {
+    const { immediate, signers } = more;
+    const object = {
+      type: 'btps.keyRotation.v1',
+      identity,
+      from: keyOf(from, 'btps1'),
+      to: keyOf(to, 'btps2'),
+      at: day(d),
+      expiry: immediate ? 'immediate' : 'planned',
+      ...(immediate && { compromisedSince: day(immediate.since), reason: immediate.reason }),
+      prev: null,
+    };
+    return {
+      rotation: object,
+      signatures: (
+        signers ?? [
+          ['from', from],
+          ['to', to],
+        ]
+      ).map(([by, k]) => ({ by, ...signatureBy(k, object) })),
+    };
+  };
+
+  const base = set.bundles.find((c) => c.name === 'complete-sequential-with-identity-keys');
+  const [, samRecord] = base.bundle.statements;
+  // A signing key against its chain, each fact as the spec's "In an evidence bundle" defines it.
+  const chainFacts = (next, more) => ({
+    chainValid: true,
+    keyInChain: true,
+    authorityUnverified: false,
+    forked: false,
+    reachesKey: fp(next),
+    anchored: false,
+    rotatedAt: day(20),
+    signedInWindow: true,
+    ...more,
+  });
+  const withFacts = (name, bundle, facts, options) => ({
+    name,
+    bundle: { ...base.bundle, ...bundle },
+    ...(options && { options }),
+    expect: {
+      ...base.expect,
+      ...(facts.originator && { originatorKeyChain: facts.originator }),
+      statements: base.expect.statements.map((fact, i) => ({ ...fact, ...facts.statements?.[i] })),
+    },
+  });
+
+  // The bank rotates away from the key it signed with, as planned, after it signed.
+  const bankChain = [{ identity: BANK, records: [rotation(BANK, originator, originatorNext, 20)] }];
+  const bankFacts = chainFacts(originatorNext);
+  const anchored = {
+    ...bankFacts,
+    anchored: { by: 'kept-fingerprint', upTo: fp(originatorNext) },
+  };
+  // The guarantor's key, expired on the 20th from the 1st: before the guarantor signed, on the 3rd.
+  const samExpired = [
+    {
+      identity: SAM,
+      records: [
+        rotation(SAM, guarantor, guarantorNext, 20, {
+          immediate: { since: 1, reason: 'compromised' },
+        }),
+      ],
+    },
+  ];
+  const expired = {
+    expiredImmediately: { at: day(20), compromisedSince: day(1), reason: 'compromised' },
+    signedInWindow: false,
+  };
+  // The bank's platform received the guarantor's statement on the 3rd, and signed that then.
+  const arrival = (arrivedAt) => {
+    const unsigned = {
+      statementSha256: hashOf(samRecord),
+      arrivedAt,
+      receivedBy: BANK,
+      selector: 'btps1',
+    };
+    const signed = { type: 'btps.arrival.v1', ...unsigned };
+    return { ...unsigned, signature: signatureBy(originator, signed) };
+  };
+  const received = arrival(day(3, '00:00:05'));
+  // The guarantor's key, lost on the 20th: only the new key signs its rotation.
+  const lost = rotation(SAM, guarantor, guarantorNext, 20, {
+    immediate: { since: 20, reason: 'lost' },
+    signers: [['to', guarantorNext]],
+  });
+  const lostFacts = {
+    expiredImmediately: { at: day(20), compromisedSince: day(20), reason: 'lost' },
+  };
+  // The operator's signed answer to the lookup that served the chain, kept whole.
+  const answered = {
+    version: '1.2.0',
+    status: { ok: true, code: 200 },
+    id: 'e9d1c0b2-7a64-4f3e-9b28-5c1d0e7f6a43',
+    issuedAt: day(21),
+    type: 'btps_response',
+    reqId: '0b7c2e4d-8f15-4a96-b3d7-6e2f1a9c8d50',
+    document: { identity: SAM, keyChain: [lost] },
+    signedBy: OPERATOR,
+    selector: 'btps1',
+  };
+  // The answer, and the operator's key the bundle holds, signed and put there by `by`.
+  const answeredBy = (by) => ({
+    keys: [
+      ...base.bundle.keys,
+      { identity: OPERATOR, selector: 'btps1', publicKey: by.publicKeyPem, fingerprint: fp(by) },
+    ],
+    keyChains: [
+      {
+        identity: SAM,
+        records: [lost],
+        operatorAnswer: { ...answered, signature: signatureBy(by, answered) },
+      },
+    ],
+  });
+  // An operator key is the bundle's own: its answer confirms the rotation only when the
+  // reader named that key's fingerprint as the operator of the guarantor's domain
+  // (`operators`; or confirmed it online as the operator DNS names). A plain anchor
+  // vouches for a key's own records, never for what it says of another identity.
+  const namedOperator = { operators: { 'guarantor.example': fp(guarantorOperator) } };
+  const answerFacts = (operatorKeyAnchored) => ({
+    signedBy: OPERATOR,
+    signatureValid: true,
+    answersThisChain: true,
+    operatorKeyAnchored,
+  });
+
+  return [
+    withFacts(
+      'a-signing-key-rotated-away-after-it-signed',
+      { keyChains: bankChain },
+      { originator: bankFacts, statements: { 2: { keyChain: bankFacts } } },
+    ),
+    withFacts(
+      'a-kept-fingerprint-anchors-the-chain-up-to-itself',
+      { keyChains: bankChain },
+      { originator: anchored, statements: { 2: { keyChain: anchored } } },
+      { anchors: [fp(originatorNext)] },
+    ),
+    withFacts(
+      'a-key-expired-from-before-it-signed-received-before-the-expiry',
+      { keyChains: samExpired, arrivals: [received] },
+      {
+        statements: {
+          1: {
+            arrival: { at: received.arrivedAt, receivedBy: BANK, signatureValid: true },
+            keyChain: chainFacts(guarantorNext, { ...expired, disownedAfterTheFact: true }),
+          },
+        },
+      },
+    ),
+    // Its time changed after it was signed: the arrival is reported, and gives no time.
+    withFacts(
+      'an-arrival-whose-signature-does-not-hold',
+      { keyChains: samExpired, arrivals: [{ ...received, arrivedAt: day(2) }] },
+      {
+        statements: {
+          1: {
+            arrival: { at: day(2), receivedBy: BANK, signatureValid: false },
+            keyChain: chainFacts(guarantorNext, expired),
+          },
+        },
+      },
+    ),
+    withFacts(
+      'a-lost-keys-rotation-unconfirmed-offline',
+      { keyChains: [{ identity: SAM, records: [lost] }] },
+      {
+        statements: {
+          1: { keyChain: chainFacts(guarantorNext, { ...lostFacts, authorityUnverified: true }) },
+        },
+      },
+    ),
+    withFacts(
+      'a-lost-keys-rotation-with-its-operators-answer-by-a-key-not-kept',
+      answeredBy(guarantorOperator),
+      {
+        statements: {
+          1: {
+            keyChain: chainFacts(guarantorNext, {
+              ...lostFacts,
+              authorityUnverified: true,
+              operatorAnswer: answerFacts(false),
+            }),
+          },
+        },
+      },
+    ),
+    withFacts(
+      'a-lost-keys-rotation-confirmed-by-the-operator-named-for-its-domain',
+      answeredBy(guarantorOperator),
+      {
+        statements: {
+          1: {
+            keyChain: chainFacts(guarantorNext, {
+              ...lostFacts,
+              operatorAnswer: answerFacts(true),
+            }),
+          },
+        },
+      },
+      namedOperator,
+    ),
+    // The operator's real key, kept only as a plain anchor: it confirms nothing it says.
+    withFacts(
+      'an-operators-answer-by-a-key-kept-only-as-an-anchor',
+      answeredBy(guarantorOperator),
+      {
+        statements: {
+          1: {
+            keyChain: chainFacts(guarantorNext, {
+              ...lostFacts,
+              authorityUnverified: true,
+              operatorAnswer: answerFacts(false),
+            }),
+          },
+        },
+      },
+      { anchors: [fp(guarantorOperator)] },
+    ),
+    // A forger's answer, signed by a key it put in the bundle as the operator's: the
+    // reader named the real operator, and the forged one confirms nothing.
+    withFacts(
+      'a-lost-keys-rotation-with-a-forged-operators-answer',
+      answeredBy(forger),
+      {
+        statements: {
+          1: {
+            keyChain: chainFacts(guarantorNext, {
+              ...lostFacts,
+              authorityUnverified: true,
+              operatorAnswer: answerFacts(false),
+            }),
+          },
+        },
+      },
+      namedOperator,
+    ),
+  ];
+}
+
+/**
+ * BTPS 1.2 key rotation: an identity's chain of signed key rotation and expiry
+ * records, the facts a verifier reports about a chain (`chains`), and whether
+ * a verifier online refuses one (`online`). `keys` are five test keys made at
+ * generation, `{ publicKeyPem, privateKeyPem }`, the last of them 1024 bits.
+ */
+export function keyRotation(keys) {
+  const [k1, k2, k3, k4, small] = keys;
+  const ME = 'billing$vendor.example';
+  const day = (d) => `2026-11-${String(d).padStart(2, '0')}T00:00:00.000Z`;
+  const NOW = Date.parse('2026-12-01T00:00:00.000Z');
+  const fp = (k) => fingerprintOf(k.publicKeyPem);
+  const keyOf = (k, selector) => ({
+    selector,
+    fingerprint: fp(k),
+    publicKey: crypto
+      .createPublicKey(k.publicKeyPem)
+      .export({ format: 'der', type: 'spki' })
+      .toString('base64'),
+  });
+  const signedOf = (record) => record.rotation ?? record.expiry;
+  // What the next record names as `prev`: the SHA-256 of the signed object only, lowercase hex.
+  const prevOf = (record) => (record ? hashOf(signedOf(record)) : null);
+  const signed = (kind, object, signers) => ({
+    [kind]: object,
+    signatures: signers.map(([by, k]) => ({
+      by,
+      algorithmHash: 'sha256',
+      value: signWith(k.privateKeyPem, object),
+      fingerprint: fp(k),
+    })),
+  });
+  const rotation = (from, fromSelector, to, toSelector, d, prev, more = {}) => {
+    const { immediate, signers, change = (o) => o } = more;
+    const object = change({
+      type: 'btps.keyRotation.v1',
+      identity: ME,
+      from: keyOf(from, fromSelector),
+      to: keyOf(to, toSelector),
+      at: day(d),
+      expiry: immediate ? 'immediate' : 'planned',
+      ...(immediate && { compromisedSince: day(immediate.since), reason: immediate.reason }),
+      prev: prevOf(prev),
+    });
+    return signed(
+      'rotation',
+      object,
+      signers ?? [
+        ['from', from],
+        ['to', to],
+      ],
+    );
+  };
+  const expiry = (key, selector, since, d, prev, current) =>
+    signed(
+      'expiry',
+      {
+        type: 'btps.keyExpiry.v1',
+        identity: ME,
+        key: { selector, fingerprint: fp(key) },
+        compromisedSince: day(since),
+        reason: 'compromised',
+        at: day(d),
+        prev: prevOf(prev),
+      },
+      [['current', current]],
+    );
+
+  const r1 = rotation(k1, 'btps1', k2, 'btps2', 10, null);
+  const r2 = rotation(k2, 'btps2', k3, 'btps3', 20, r1);
+  const urgent = rotation(k2, 'btps2', k3, 'btps3', 20, r1, {
+    immediate: { since: 18, reason: 'compromised' },
+  });
+  const lost = rotation(k2, 'btps2', k3, 'btps3', 20, r1, {
+    immediate: { since: 19, reason: 'lost' },
+    signers: [['to', k3]],
+  });
+  const pastExpiry = expiry(k1, 'btps1', 5, 25, r2, k3);
+  // The owner rotates away from btps2, compromised from day 15; a thief holding it forks on day 16.
+  const owner = rotation(k2, 'btps2', k3, 'btps3', 20, r1, {
+    immediate: { since: 15, reason: 'compromised' },
+  });
+  const thief = rotation(k2, 'btps2', k4, 'btps4', 16, r1);
+  const anchors = (...ks) => ({ identity: ME, anchors: ks.map(fp) });
+  // What DNS says of the identity: no key record at the domain's s= (host-only),
+  // or the keys it publishes at the chain's last selector and at s=, maybe none.
+  const hostOnly = { kind: 'hostOnly' };
+  const published = (...ks) => ({ kind: 'published', fingerprints: ks.map(fp) });
+  const online = (dns, fromOperator = true) => ({
+    identity: ME,
+    online: { fromOperator, dns },
+  });
+  // `now` (ms): the verifier's clock, after every record, so no case depends on the day it runs.
+  const checked = (dns, fromOperator = true) => ({ identity: ME, fromOperator, dns, now: NOW });
+  // A host's own chain for an identity that publishes its key in DNS: to a key
+  // of the host's, under a selector DNS has no record at.
+  const hostsLost = rotation(k2, 'btps2', k4, 'btps9', 20, r1, {
+    immediate: { since: 19, reason: 'lost' },
+    signers: [['to', k4]],
+  });
+  const hostsPlanned = rotation(k2, 'btps2', k4, 'btps9', 20, r1);
+  // btps2's key, re-published under btps5 when the domain moved, rotates away from there.
+  const moved = rotation(k2, 'btps5', k3, 'btps6', 20, r1);
+  const refused = (name, chain, why) => ({
+    name,
+    chain,
+    options: { identity: ME },
+    why,
+    expect: { chainValid: false },
+  });
+  const three = [
+    { selector: 'btps1', fingerprint: fp(k1), validUntil: day(10), rotatedAway: 'planned' },
+    { selector: 'btps2', fingerprint: fp(k2), validFrom: day(10), validUntil: day(20) },
+    { selector: 'btps3', fingerprint: fp(k3), validFrom: day(20) },
+  ];
+
+  return {
+    description:
+      "Key rotation (since 1.2). `chains`: give `chain` and `options` to the verifier; every fact `expect` lists must be as given (a verifier may report more; a key's `publicKey` is its SPKI PEM). `online`: the refusal a verifier applies online, `accept` or `refuse`. `recordHash`: a record's `prev` value, the SHA-256 of its signed object's RFC 8785 form in lowercase hex.",
+    recordHash: { record: r1, sha256: hashOf(r1.rotation) },
+    chains: [
+      {
+        name: 'planned-chain-of-three-keys',
+        chain: [r1, r2],
+        options: { identity: ME },
+        expect: { chainValid: true, forked: false, authorityUnverified: false, keys: three },
+      },
+      {
+        name: 'records-in-any-order-are-read-by-their-links',
+        chain: [r2, r1],
+        options: { identity: ME },
+        expect: { chainValid: true, keys: three },
+      },
+      {
+        name: 'never-rotated-is-an-empty-chain',
+        chain: [],
+        options: { identity: ME },
+        expect: { chainValid: true, keys: [], anchored: false },
+      },
+      {
+        name: 'immediate-expiry-signed-by-both-keys',
+        chain: [r1, urgent],
+        options: { identity: ME },
+        expect: {
+          chainValid: true,
+          authorityUnverified: false,
+          keys: [
+            { fingerprint: fp(k1) },
+            {
+              fingerprint: fp(k2),
+              rotatedAway: 'immediate',
+              compromisedSince: day(18),
+              reason: 'compromised',
+              expiredAt: day(20),
+            },
+            { fingerprint: fp(k3), validFrom: day(20) },
+          ],
+        },
+      },
+      {
+        name: 'lost-key-offline-authority-unverified',
+        chain: [r1, lost],
+        options: anchors(k3),
+        expect: { chainValid: true, authorityUnverified: true },
+      },
+      {
+        name: 'lost-key-confirmed-by-the-operator-for-a-host-only-identity',
+        chain: [r1, lost],
+        options: online(hostOnly),
+        expect: { authorityUnverified: false, anchored: { by: 'online', upTo: fp(k3) } },
+      },
+      {
+        name: 'lost-key-confirmed-by-dns-at-its-new-selector',
+        chain: [r1, lost],
+        options: online(published(k3)),
+        expect: { authorityUnverified: false, anchored: { by: 'online', upTo: fp(k3) } },
+      },
+      {
+        name: 'a-hosts-lost-key-chain-for-a-dns-identity-with-no-record-where-it-ends',
+        note: "DNS has no record at btps9, the chain's last selector, and the identity's real key at s=: published, never host-only.",
+        chain: [r1, hostsLost],
+        options: online(published(k2)),
+        expect: { chainValid: true, anchored: false, authorityUnverified: true },
+      },
+      {
+        name: 'an-expiry-under-the-later-selector-a-key-was-published-under',
+        chain: [r1, moved, expiry(k2, 'btps5', 15, 25, moved, k3)],
+        options: { identity: ME },
+        expect: { chainValid: true, keys: [{}, { compromisedSince: day(15) }, {}] },
+      },
+      {
+        name: 'expiry-of-a-past-key-voids-nothing-on-the-anchored-path',
+        chain: [r1, r2, pastExpiry],
+        options: anchors(k3),
+        expect: {
+          chainValid: true,
+          anchored: { by: 'kept-fingerprint', upTo: fp(k3) },
+          keys: [
+            { fingerprint: fp(k1), compromisedSince: day(5), expiredAt: day(25) },
+            { fingerprint: fp(k2) },
+            { fingerprint: fp(k3) },
+          ],
+        },
+      },
+      {
+        name: 'a-kept-fingerprint-anchors-up-to-itself-only',
+        chain: [r1, r2],
+        options: anchors(k1),
+        expect: { anchored: { by: 'kept-fingerprint', upTo: fp(k1) } },
+      },
+      {
+        name: 'the-same-key-under-a-new-selector-needs-no-record',
+        note: "The domain moved s= to btps9 and re-published btps2's key under it: DNS at btps9 gives the chain's current fingerprint.",
+        chain: [r1],
+        options: online(published(k2)),
+        expect: { chainValid: true, anchored: { by: 'online', upTo: fp(k2) } },
+      },
+      {
+        name: 'a-fork-picks-no-branch-without-an-anchor-past-it',
+        chain: [r1, owner, thief],
+        options: anchors(k1),
+        expect: {
+          chainValid: true,
+          forked: true,
+          keys: [],
+          anchored: false,
+          branches: [
+            { tip: fp(k3), void: false },
+            { tip: fp(k4), void: false },
+          ],
+        },
+      },
+      {
+        name: 'a-thiefs-branch-off-the-anchored-path-is-void',
+        chain: [r1, owner, thief],
+        options: online(published(k3)),
+        expect: {
+          forked: true,
+          anchored: { by: 'online', upTo: fp(k3) },
+          branches: [
+            { tip: fp(k3), void: false },
+            { tip: fp(k4), void: true },
+          ],
+        },
+      },
+      refused(
+        'a-rotation-without-the-new-keys-signature',
+        [rotation(k1, 'btps1', k2, 'btps2', 10, null, { signers: [['from', k1]] })],
+        'the new key proves its holder has it',
+      ),
+      refused(
+        'a-planned-rotation-signed-by-a-key-it-does-not-name',
+        [
+          rotation(k1, 'btps1', k2, 'btps2', 10, null, {
+            signers: [
+              ['from', k4],
+              ['to', k2],
+            ],
+          }),
+        ],
+        'the old key is the authority',
+      ),
+      refused(
+        'a-stated-fingerprint-that-is-not-the-keys',
+        [
+          rotation(k1, 'btps1', k2, 'btps2', 10, null, {
+            change: (o) => ({ ...o, to: { ...o.to, fingerprint: fp(k4) } }),
+          }),
+        ],
+        'a fingerprint is computed from the DER SPKI, never taken from the record',
+      ),
+      refused(
+        'a-key-under-2048-bits',
+        [rotation(k1, 'btps1', small, 'btps2', 10, null)],
+        'every key is RSA of at least 2048 bits',
+      ),
+      refused(
+        'a-wrong-type',
+        [
+          rotation(k1, 'btps1', k2, 'btps2', 10, null, {
+            change: (o) => ({ ...o, type: 'btps.keyRotation.v2' }),
+          }),
+        ],
+        'the signed type tag is btps.keyRotation.v1',
+      ),
+      refused(
+        'another-identitys-record',
+        [
+          rotation(k1, 'btps1', k2, 'btps2', 10, null, {
+            change: (o) => ({ ...o, identity: 'other$vendor.example' }),
+          }),
+        ],
+        "a record's identity is the identity being resolved",
+      ),
+      refused(
+        'a-rotation-signed-by-current',
+        [
+          rotation(k1, 'btps1', k2, 'btps2', 10, null, {
+            signers: [
+              ['to', k2],
+              ['current', k1],
+            ],
+          }),
+        ],
+        'a rotation is signed by from and to',
+      ),
+      refused(
+        'a-broken-prev',
+        [
+          r1,
+          rotation(k2, 'btps2', k3, 'btps3', 20, r1, {
+            change: (o) => ({ ...o, prev: 'f'.repeat(64) }),
+          }),
+        ],
+        "prev names the previous record's hash",
+      ),
+      refused(
+        'two-first-records',
+        [r1, rotation(k3, 'btps3', k4, 'btps4', 30, null)],
+        'only the first record has a null prev',
+      ),
+      refused(
+        'time-going-backwards',
+        [r1, rotation(k2, 'btps2', k3, 'btps3', 5, r1)],
+        "each record's at is later than the previous one's",
+      ),
+      refused(
+        'a-key-introduced-twice-a-b-a',
+        [r1, r2, rotation(k3, 'btps3', k1, 'btps4', 30, r2)],
+        'a key is introduced once',
+      ),
+      refused(
+        'a-b-a-under-a-second-stated-fingerprint',
+        [
+          r1,
+          r2,
+          rotation(k3, 'btps3', k1, 'btps4', 30, r2, {
+            change: (o) => ({ ...o, to: { ...o.to, fingerprint: fp(k4) } }),
+          }),
+        ],
+        'a fingerprint is computed, so a key cannot pass as another',
+      ),
+      refused(
+        'a-reused-selector',
+        [r1, r2, rotation(k3, 'btps3', k4, 'btps1', 30, r2)],
+        'a selector names one key for the life of the identity',
+      ),
+      refused(
+        'an-expiry-not-signed-by-the-current-key',
+        [r1, r2, expiry(k1, 'btps1', 5, 25, r2, k2)],
+        'the current key signs an expiry',
+      ),
+      refused(
+        'an-expiry-of-the-current-key',
+        [r1, r2, expiry(k3, 'btps3', 5, 25, r2, k3)],
+        'the current key is expired by rotating it with immediate expiry',
+      ),
+      refused(
+        'an-expiry-under-a-selector-the-chain-never-names-that-key-under',
+        [r1, r2, expiry(k1, 'btps2', 5, 25, r2, k3)],
+        'an expiry names its key under a selector the chain names it under',
+      ),
+    ],
+    online: [
+      {
+        name: 'a-chain-ending-at-the-identitys-dns-key',
+        chain: [r1, r2],
+        options: checked(published(k3)),
+        expect: 'accept',
+      },
+      {
+        name: 'a-chain-ending-at-the-key-dns-has-at-either-selector',
+        chain: [r1, r2],
+        options: checked(published(k4, k3)),
+        expect: 'accept',
+      },
+      {
+        name: 'a-host-only-identitys-chain-from-the-operator',
+        chain: [r1, r2],
+        options: checked(hostOnly),
+        expect: 'accept',
+      },
+      {
+        name: 'a-truncated-chain',
+        chain: [r1],
+        options: checked(published(k3)),
+        why: 'it does not end at the key DNS publishes',
+        expect: 'refuse',
+      },
+      {
+        name: 'a-hosts-lost-key-chain-where-dns-has-no-record-of-its-last-key',
+        chain: [r1, hostsLost],
+        options: checked(published()),
+        why: 'for an identity that publishes its key, no record where the chain ends is never host-only',
+        expect: 'refuse',
+      },
+      {
+        name: 'a-hosts-planned-chain-where-dns-has-only-the-identitys-real-key',
+        chain: [r1, hostsPlanned],
+        options: checked(published(k2)),
+        why: "the chain's last key is not a key DNS publishes for the identity",
+        expect: 'refuse',
+      },
+      {
+        name: 'a-chain-not-from-the-operator',
+        chain: [r1, r2],
+        options: checked(published(k3), false),
+        why: "online, a chain comes in the operator's signed answer",
+        expect: 'refuse',
+      },
+      {
+        name: 'a-forked-chain',
+        chain: [r1, owner, thief],
+        options: checked(published(k3)),
+        why: 'online, a key has one successor',
+        expect: 'refuse',
+      },
+    ],
+  };
+}
+
+/**
+ * BTPS 1.2 key rotation, live: whether a verifier takes an artifact signed by
+ * a key of a verified chain, now. The current key, and a key rotated away as
+ * planned within its grace, are taken; past the grace, `BTP_ERROR_KEY_RETIRED`;
+ * an expired key, whatever the time, `BTP_ERROR_KEY_REVOKED`.
+ */
+export function keyRotationSigners() {
+  const NOW = '2026-12-01T00:00:00.000Z';
+  const before = (seconds) => new Date(Date.parse(NOW) - seconds * 1000).toISOString();
+  const key = { selector: 'btps1', fingerprint: 'not-checked-here', publicKey: 'not-checked-here' };
+  const signer = (name, more, grace, expect) => ({
+    name,
+    key: { ...key, ...more },
+    now: Date.parse(NOW),
+    retiredKeyGraceSeconds: grace,
+    expect,
+  });
+  return {
+    description:
+      "Key rotation, live (since 1.2): give `key` (a key of a verified chain, with its window), `now` (ms) and `retiredKeyGraceSeconds` to the verifier's rule for an arriving artifact. `expect` is `accept`, or the BTPS error code it refuses with.",
+    cases: [
+      signer('the-current-key', {}, 86400, 'accept'),
+      signer(
+        'retired-as-planned-within-its-grace',
+        { validUntil: before(86400), rotatedAway: 'planned' },
+        86400,
+        'accept',
+      ),
+      signer(
+        'retired-as-planned-past-its-grace',
+        { validUntil: before(86401), rotatedAway: 'planned' },
+        86400,
+        'BTP_ERROR_KEY_RETIRED',
+      ),
+      signer(
+        'retired-with-no-grace',
+        { validUntil: before(1), rotatedAway: 'planned' },
+        0,
+        'BTP_ERROR_KEY_RETIRED',
+      ),
+      signer(
+        'rotated-with-immediate-expiry-at-once',
+        {
+          validUntil: before(1),
+          rotatedAway: 'immediate',
+          compromisedSince: before(60),
+          reason: 'compromised',
+          expiredAt: before(1),
+        },
+        86400,
+        'BTP_ERROR_KEY_REVOKED',
+      ),
+      signer(
+        'expired-after-the-fact-within-what-was-its-grace',
+        {
+          validUntil: before(30),
+          rotatedAway: 'planned',
+          compromisedSince: before(300),
+          reason: 'compromised',
+          expiredAt: before(1),
+        },
+        86400,
+        'BTP_ERROR_KEY_REVOKED',
+      ),
+    ],
+  };
+}
