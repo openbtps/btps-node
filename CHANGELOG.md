@@ -300,7 +300,11 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   (`resolveKeyChain`), kept no longer than `keyChainMaxCacheSeconds`.
   `createDefaultKeyResolver` gives them only with `from`; without it, a
   server given it asks for chains itself. A host answers a chain lookup for
-  an identity whose keys are in DNS from its chain alone.
+  an identity whose keys are in DNS from its chain alone. A host serves the
+  chain it stores exactly as stored and never checks it: a stored fork, loop
+  or broken record is answered with `200` and the last rotation's new key,
+  never as an unknown identity, so the receiver refuses it rather than
+  checking the key by DNS alone.
 - **Content-key side-cars.** `wrapContentKeyFor` wraps a stored artifact's
   content key to a new key, checked to open the document, and
   `contentKeyOpens` confirms it; the artifact is never changed, and

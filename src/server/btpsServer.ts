@@ -15,6 +15,7 @@ import {
   documentTypeRefusal,
   detailsNamesRefusal,
   verifyKeyChain,
+  type BTPKeyChainRecord,
 } from '@core/trust/index.js';
 import tls, { TlsOptions, TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
@@ -124,6 +125,16 @@ import { keyProofPayload } from '@core/authentication/keyProof.js';
 import type { BTPIdentityRecord } from '@core/storage/types.js';
 import type { AbstractIdentityStore } from '@core/storage/AbstractIdentityStore.js';
 import * as BTPS_ERROR_CONSTANTS from '@core/error/constant.js';
+
+/** Since 1.2: the new key of a stored chain's last rotation, as stored and unverified. */
+const lastRotationTo = (chain: BTPKeyChainRecord[]) => {
+  const to = [...chain]
+    .reverse()
+    .find(
+      (record): record is Extract<BTPKeyChainRecord, { rotation: unknown }> => 'rotation' in record,
+    )?.rotation.to;
+  return to && { selector: to.selector, publicKey: base64ToPem(to.publicKey) };
+};
 
 /** Every BTPS error constant, by its code: the only errors a sender is told by name. */
 const BTPS_ERRORS_BY_CODE = new Map<string, BTPError>(
@@ -640,9 +651,13 @@ export class BtpsServer {
       : undefined;
     const identityRecord = await this.identityStore?.getPublicKeyRecord(id, identitySelector);
     // An identity whose keys are in DNS has no key record here, only its chain:
-    // the answer then names the chain's current key.
+    // the answer then names the chain's current key. A stored chain with no
+    // single current key (a fork, a loop, an invalid record) is still served as
+    // stored, naming its last rotation's new key, unverified: the receiver checks
+    // the chain and refuses it, where an answer of "not found" would leave the
+    // key to DNS alone. The host only reads; the receiver decides.
     const current = keyChain?.length
-      ? verifyKeyChain(keyChain, { identity }).keys.at(-1)
+      ? (verifyKeyChain(keyChain, { identity }).keys.at(-1) ?? lastRotationTo(keyChain))
       : undefined;
     const restRecord: BTPIdentityResDoc | undefined = identityRecord
       ? (({ createdAt, ...rest }) => rest)(identityRecord)
