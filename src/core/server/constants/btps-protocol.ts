@@ -11,6 +11,9 @@ export const BTP_PROTOCOL_VERSION = '1.2.0';
 export const MIN_SUPPORTED_VERSION = '1.1.0';
 export const MAX_SUPPORTED_VERSION = '1.2.0';
 
+/** How far a server lets an artifact's `issuedAt` be from its own clock unless it sets `maxArtifactAgeSeconds`: 5 minutes. */
+export const DEFAULT_MAX_ARTIFACT_AGE_SECONDS = 300;
+
 /** A version by major and minor, so a later 1.1.x is still 1.1; undefined when it is not a version. */
 const rank = (version: string): number | undefined => {
   const match = /^(\d+)\.(\d+)(?:\.\d+)?$/.exec(version);

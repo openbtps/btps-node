@@ -20,10 +20,23 @@ import {
   BTP_ERROR_DELEGATION_SIG_VERIFICATION,
   BTP_ERROR_RESOLVE_PUBKEY,
 } from '@core/error/constant.js';
-import { verifySignature } from '@core/crypto/index.js';
-import { getHostAndSelector, isDelegationAllowed, resolvePublicKey } from '@core/utils/index.js';
+import type { BTPError } from '@core/error/types.js';
+import { getFingerprintFromPem, verifySignature } from '@core/crypto/index.js';
+import {
+  getDnsIdentityParts,
+  getHostAndSelector,
+  isDelegationAllowed,
+  resolvePublicKey,
+} from '@core/utils/index.js';
 import type { BTPAttestation, BTPDelegation, BTPTransporterArtifact } from '@core/server/types.js';
 import type { BtpsKeyResolver } from '@core/crypto/keyResolver.js';
+import {
+  keyAt,
+  keyChainProblem,
+  keyChainSignerProblem,
+  verifyKeyChain,
+} from '@core/trust/keyRotation.js';
+import type { BTPKeyChainDns, BTPKeyChainLookup } from '@core/trust/types.js';
 
 type Verified = { isValid: boolean; error?: BTPErrorException };
 
@@ -33,19 +46,117 @@ export const signatureKey = (identity: string, selector: string, keyResolver?: B
     ? keyResolver.resolvePublicKey(identity, selector, 'verify')
     : resolvePublicKey(identity, selector);
 
+/**
+ * Since 1.2: how a verifier checks a signing key against its identity's key
+ * chain, when it does: where it gets a chain, how long a key rotated away as
+ * planned is still taken, and how far ahead of its clock a record may be dated.
+ */
+export type BTPKeyChainCheck = {
+  resolveKeyChain: (identity: string) => Promise<BTPKeyChainLookup>;
+  retiredKeyGraceSeconds: number;
+  maxSkewSeconds?: number;
+};
+
+const refused = (error: BTPError, cause: string) => ({
+  error: new BTPErrorException(error, { cause }),
+});
+
+/**
+ * Since 1.2: the key `identity` signs with at `selector`, checked against its
+ * key chain when `keyChains` is given. With no chain to be had (a 1.1 host, an
+ * unreachable one) or an empty one, it is the DNS key, as in 1.1. Otherwise:
+ *
+ * - the chain must come checked from the host, and end at a key DNS
+ *   publishes for the identity, at the chain's last selector or the domain's
+ *   `s=`. Only when DNS has neither is the identity host-only. A DNS lookup
+ *   that fails refuses: it is never taken for host-only;
+ * - the key is the chain's key at `selector`, or the chain's key DNS
+ *   publishes there (the same key under a later selector);
+ * - an expired key is `BTP_ERROR_KEY_REVOKED`, and a key rotated away as
+ *   planned past the grace `BTP_ERROR_KEY_RETIRED`.
+ *
+ * No key and no error: none found, refused by the caller as before.
+ */
+export const checkedSignatureKey = async (
+  identity: string,
+  selector: string,
+  keyResolver?: BtpsKeyResolver,
+  keyChains?: BTPKeyChainCheck,
+): Promise<{ key?: string; error?: BTPErrorException }> => {
+  if (!keyChains) return { key: await signatureKey(identity, selector, keyResolver) };
+  const lookup = await keyChains.resolveKeyChain(identity);
+  if (lookup.status === 'invalid') {
+    return refused(
+      BTP_ERROR_RESOLVE_PUBKEY,
+      `${identity}'s key chain is refused: ${lookup.reason}`,
+    );
+  }
+  if (lookup.status === 'unavailable' || lookup.records.length === 0) {
+    return { key: await signatureKey(identity, selector, keyResolver) };
+  }
+  const { records } = lookup;
+  let dns: BTPKeyChainDns;
+  try {
+    const fingerprintAt = async (at: string | undefined) => {
+      const pem = at === undefined ? undefined : await getDnsIdentityParts(identity, at, 'pem');
+      return typeof pem === 'string' ? getFingerprintFromPem(pem) : undefined;
+    };
+    const last = verifyKeyChain(records, { identity }).keys.at(-1)?.selector;
+    const domain = (await getHostAndSelector(identity))?.selector;
+    const fingerprints = [await fingerprintAt(last), await fingerprintAt(domain)].filter(
+      (fingerprint): fingerprint is string => fingerprint !== undefined,
+    );
+    dns = fingerprints.length ? { kind: 'published', fingerprints } : { kind: 'hostOnly' };
+  } catch (error) {
+    return refused(
+      BTP_ERROR_RESOLVE_PUBKEY,
+      `could not read ${identity}'s keys in DNS: ${error instanceof Error ? error.message : error}`,
+    );
+  }
+  const problem = keyChainProblem(records, {
+    identity,
+    fromOperator: true,
+    dns,
+    maxSkewSeconds: keyChains.maxSkewSeconds,
+  });
+  if (problem) {
+    return refused(BTP_ERROR_RESOLVE_PUBKEY, `${identity}'s key chain is refused: ${problem}`);
+  }
+  const facts = verifyKeyChain(records, { identity, online: { fromOperator: true, dns } });
+  let key = keyAt(facts, { selector });
+  if (!key) {
+    const published = await signatureKey(identity, selector, keyResolver);
+    key = published ? keyAt(facts, { fingerprint: getFingerprintFromPem(published) }) : undefined;
+    if (!key) {
+      return refused(
+        BTP_ERROR_RESOLVE_PUBKEY,
+        `${selector} names no key of ${identity}'s key chain`,
+      );
+    }
+  }
+  const refusal = keyChainSignerProblem(key, {
+    retiredKeyGraceSeconds: keyChains.retiredKeyGraceSeconds,
+  });
+  if (refusal) return refused(refusal, `${identity}'s key at ${selector}`);
+  return { key: key.publicKey };
+};
+
 /** A delegation's attestation, signed by the attestor over the delegation. */
 export const verifyAttestation = async (
   delegation: Omit<BTPDelegation, 'attestation'> & { attestation: BTPAttestation },
   keyResolver?: BtpsKeyResolver,
+  keyChains?: BTPKeyChainCheck,
 ): Promise<Verified> => {
   const { attestation, ...restDelegation } = delegation;
   const { signature, ...restAttestation } = attestation;
 
-  const attestorPubKey = await signatureKey(
+  const { key: attestorPubKey, error: keyError } = await checkedSignatureKey(
     attestation.signedBy,
     attestation.selector,
     keyResolver,
+    keyChains,
   );
+  if (keyError) return { isValid: false, error: keyError };
   if (!attestorPubKey) {
     return {
       isValid: false,
@@ -78,6 +189,7 @@ export const verifyDelegation = async (
     delegation: BTPDelegation;
   },
   keyResolver?: BtpsKeyResolver,
+  keyChains?: BTPKeyChainCheck,
 ): Promise<Verified> => {
   // Only the sender itself or its domain's operator may delegate, and only
   // the operator may attest: the receiver learns who that is from DNS.
@@ -125,12 +237,19 @@ export const verifyDelegation = async (
     const { isValid, error } = await verifyAttestation(
       delegation as Omit<BTPDelegation, 'attestation'> & { attestation: BTPAttestation },
       keyResolver,
+      keyChains,
     );
     if (!isValid) return { isValid, error };
   }
 
   /* Verify the delegation signature against the delegated artifact which includes the original artifact and signed artifact*/
-  const delegatorPubKey = await signatureKey(delegation.signedBy, delegation.selector, keyResolver);
+  const { key: delegatorPubKey, error: keyError } = await checkedSignatureKey(
+    delegation.signedBy,
+    delegation.selector,
+    keyResolver,
+    keyChains,
+  );
+  if (keyError) return { isValid: false, error: keyError };
   if (!delegatorPubKey) {
     return {
       isValid: false,
@@ -181,16 +300,19 @@ export const verifyDelegation = async (
  * checks it on arrival. Signed by its sender's own key from DNS, or, when it is
  * delegated, through `verifyDelegation`. On success it also gives the key that
  * signed the artifact itself, the one to verify it against when decrypting.
- * Since 1.2, every key is found through `keyResolver` when one is given.
+ * Since 1.2, every key is found through `keyResolver` when one is given, and,
+ * with `keyChains`, checked against its identity's key chain.
  */
 export const verifyTransporterSignature = async (
   artifact: BTPTransporterArtifact,
   keyResolver?: BtpsKeyResolver,
+  keyChains?: BTPKeyChainCheck,
 ): Promise<Verified & { signerKey?: string }> => {
   if (artifact.delegation) {
     const delegated = await verifyDelegation(
       artifact as Omit<BTPTransporterArtifact, 'delegation'> & { delegation: BTPDelegation },
       keyResolver,
+      keyChains,
     );
     return delegated.isValid
       ? { ...delegated, signerKey: artifact.delegation.agentPubKey }
@@ -198,7 +320,13 @@ export const verifyTransporterSignature = async (
   }
 
   const { signature, ...signedMsg } = artifact;
-  const publicKey = await signatureKey(artifact.from, artifact.selector, keyResolver);
+  const { key: publicKey, error: keyError } = await checkedSignatureKey(
+    artifact.from,
+    artifact.selector,
+    keyResolver,
+    keyChains,
+  );
+  if (keyError) return { isValid: false, error: keyError };
 
   if (!publicKey) {
     return { isValid: false, error: new BTPErrorException(BTP_ERROR_RESOLVE_PUBKEY) };

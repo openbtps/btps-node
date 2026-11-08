@@ -80,6 +80,14 @@ export interface BtpsServerOptions {
   maxInFlightPerConnection?: number;
   /** Since 1.2: how many lines in a row one connection may send that this server cannot read; it answers the last and ends the connection. Default 10, minimum 1. */
   maxConsecutiveInvalidLines?: number;
+  /** Since 1.2: how long, in seconds, a key its identity rotated away from as planned still signs for this server. Default 86400 (1 day). A key rotated with immediate expiry gets none. */
+  retiredKeyGraceSeconds?: number;
+  /**
+   * Since 1.2: the longest, in seconds, this server trusts an identity's key chain from a cache,
+   * and so the longest a revoked key can still be taken. Default 300. Used by the server's own
+   * lookups; a `keyResolver` with `resolveKeyChain` keeps its own cache, and must honour it.
+   */
+  keyChainMaxCacheSeconds?: number;
 }
 
 /** Since 1.2: a details request arrived: who asked whom for which details, and when. */

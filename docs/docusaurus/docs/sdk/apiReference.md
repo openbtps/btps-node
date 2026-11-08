@@ -1992,6 +1992,40 @@ Since 1.2. Error constant for a refresh signed by a device key older than the se
 
 ---
 
+### BTP_ERROR_KEY_RETIRED
+
+```ts
+const BTP_ERROR_KEY_RETIRED: BTPError;
+```
+
+**Description:**
+Since 1.2. An artifact signed by a key its identity rotated away from as planned, longer ago than the receiver's `retiredKeyGraceSeconds`. A stale key: sign again with the current one. See [Key Rotation](../protocol/specifications/key-rotation.md).
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_KEY_RETIRED'`
+- `message`: `'The key that signed this is retired. Sign with the current key'`
+- `status`: `401`
+
+---
+
+### BTP_ERROR_KEY_REVOKED
+
+```ts
+const BTP_ERROR_KEY_REVOKED: BTPError;
+```
+
+**Description:**
+Since 1.2. An artifact signed by a key its identity rotated away from with immediate expiry, or expired with an expiry record: compromised or lost. Refused whatever the artifact's own time says. A security incident, not a stale key. See [Key Rotation](../protocol/specifications/key-rotation.md).
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_KEY_REVOKED'`
+- `message`: `'The key that signed this is revoked: it may be in other hands'`
+- `status`: `401`
+
+---
+
 ### BTP_ERROR_ARTIFACT_TIME_WINDOW
 
 ```ts

@@ -25,6 +25,7 @@ import {
   BTP_ERROR_RESOLVE_DNS,
   BTP_ERROR_RESOLVE_PUBKEY,
   BTP_ERROR_SIG_VERIFICATION,
+  BTP_ERROR_TIMEOUT,
   BTP_ERROR_VALIDATION,
 } from '../core/error/index.js';
 import type { BTPArtifact, BTPServerResponse } from '../core/server/types.js';
@@ -401,15 +402,19 @@ describe("a server's signed answer", () => {
 
 describe('looking an identity up from its host', () => {
   // The operator's signed answer with bob's key, as a host gives it.
-  const answerWithKey = (reqId: string) =>
+  // A 1.2 host names the identity in its answer to a 1.2.0 lookup.
+  const keyDocument = {
+    selector: 'btps1',
+    publicKey: bobKeys.publicKey,
+    keyType: 'rsa',
+    version: '1.0.0',
+    identity: 'bob$saas.test',
+  };
+  const answerWithKey = (reqId: string, more: Partial<BTPServerResponse> = {}) =>
     signed(
       answerTo(reqId, {
-        document: {
-          selector: 'btps1',
-          publicKey: bobKeys.publicKey,
-          keyType: 'rsa',
-          version: '1.0.0',
-        } as BTPServerResponse['document'],
+        document: keyDocument as BTPServerResponse['document'],
+        ...more,
       }),
     );
 
@@ -551,5 +556,153 @@ describe('looking an identity up from its host', () => {
     const { error } = await lookUp((_line, socket) => socket.destroy());
 
     expect(error?.code).toBe(BTP_ERROR_CONNECTION_CLOSED.code);
+  });
+
+  describe('since 1.2, as a 1.2.0 lookup', () => {
+    const refusedFor = async (more: (reqId: string) => Partial<BTPServerResponse>) => {
+      const { error } = await lookUp((line, socket) => {
+        const { id } = JSON.parse(line);
+        reply(socket, answerWithKey(id, more(id)));
+      });
+      expect(error?.code).toBe(BTP_ERROR_VALIDATION.code);
+      return String(error?.cause);
+    };
+    const named = (identity?: string) =>
+      ({ ...keyDocument, identity }) as BTPServerResponse['document'];
+
+    it('takes only an answer to this lookup', async () => {
+      expect(await refusedFor(() => ({ reqId: 'another-lookup' }))).toContain(
+        'answers another lookup',
+      );
+    });
+
+    it('takes only a fresh answer', async () => {
+      const stale = new Date(Date.now() - 10 * 60_000).toISOString();
+      expect(await refusedFor(() => ({ issuedAt: stale }))).toContain('not fresh');
+    });
+
+    it('takes only an answer naming the identity asked about', async () => {
+      expect(await refusedFor(() => ({ document: named('eve$saas.test') }))).toContain(
+        'does not name bob$saas.test',
+      );
+      expect(await refusedFor(() => ({ document: named(undefined) }))).toContain('does not name');
+    });
+
+    it('asks a 1.1 host again as 1.1 asks, when it refuses the version', async () => {
+      const versions: string[] = [];
+      const { response, error } = await lookUp((line, socket) => {
+        const { id, version } = JSON.parse(line);
+        versions.push(version);
+        reply(
+          socket,
+          version === '1.2.0'
+            ? answerTo(id, {
+                type: 'btps_error',
+                status: { ok: false, code: 400, error: 'BTP_ERROR_VERSION_UNSUPPORTED' },
+              })
+            : answerWithKey(id, { document: named(undefined), version: '1.1.0' }),
+        );
+      });
+
+      expect(error).toBeUndefined();
+      expect(response?.publicKey).toBe(bobKeys.publicKey);
+      expect(versions).toEqual(['1.2.0', '1.1.0']);
+    });
+
+    it('gives up on a host that does not answer in time', async () => {
+      track((await receiver(() => {})).tcp);
+      const client = track(
+        clientFor({
+          hostOperator: 'admin$saas.test',
+          keyResolver: resolverFor(operatorKeys.publicKey),
+        }),
+      );
+      client['replyTimeoutMs'] = 50;
+
+      const { error } = await client.resolveIdentity('bob$saas.test', 'alice$other.test');
+
+      expect(error?.code).toBe(BTP_ERROR_TIMEOUT.code);
+    });
+  });
+});
+
+describe("since 1.2, looking an identity's key chain up from its host", () => {
+  const lookUpChain = async (
+    answer: Answer | undefined,
+    options: Partial<ConstructorParameters<typeof BtpsClient>[0]> = {},
+  ) => {
+    if (answer) track((await receiver(answer)).tcp);
+    const client = track(
+      clientFor({
+        hostOperator: 'admin$saas.test',
+        keyResolver: resolverFor(operatorKeys.publicKey),
+        ...options,
+      }),
+    );
+    return client.lookupKeyChain('bob$saas.test', 'alice$other.test');
+  };
+  const chainAnswer = (reqId: string, document: Record<string, unknown>) =>
+    signed(answerTo(reqId, { document: document as BTPServerResponse['document'] }));
+  const current = {
+    selector: 'btps1',
+    publicKey: bobKeys.publicKey,
+    keyType: 'rsa',
+    version: '1.2.0',
+    identity: 'bob$saas.test',
+  };
+
+  it("gives the chain in the operator's signed answer to a 1.2.0 lookup that asks for it", async () => {
+    let asked: Record<string, unknown> = {};
+    const found = await lookUpChain((line, socket) => {
+      asked = JSON.parse(line);
+      reply(socket, chainAnswer(asked.id as string, { ...current, keyChain: [] }));
+    });
+
+    expect(found).toEqual({ status: 'chain', records: [] });
+    expect(asked).toMatchObject({ version: '1.2.0', keyChain: true, identity: 'bob$saas.test' });
+  });
+
+  it('is invalid when the answer fails its checks', async () => {
+    const noChain = await lookUpChain((line, socket) =>
+      reply(socket, chainAnswer(JSON.parse(line).id, current)),
+    );
+    expect(noChain).toMatchObject({
+      status: 'invalid',
+      reason: expect.stringContaining('no key chain'),
+    });
+
+    const unsigned = await lookUpChain((line, socket) =>
+      reply(
+        socket,
+        answerTo(JSON.parse(line).id, { document: current as BTPServerResponse['document'] }),
+      ),
+    );
+    expect(unsigned.status).toBe('invalid');
+
+    const client = track(clientFor());
+    expect((await client.lookupKeyChain('bob', 'alice$other.test')).status).toBe('invalid');
+  });
+
+  it('is unavailable from a host that refuses the lookup, cannot be reached, or names no operator', async () => {
+    // A 1.1 host refuses a lookup with keyChain as not its schema.
+    const refused = await lookUpChain((line, socket) =>
+      reply(
+        socket,
+        answerTo(JSON.parse(line).id, {
+          type: 'btps_error',
+          status: { ok: false, code: 400, error: 'BTP_ERROR_VALIDATION' },
+        }),
+      ),
+    );
+    expect(refused.status).toBe('unavailable');
+    expect((await lookUpChain((_line, socket) => socket.destroy())).status).toBe('unavailable');
+    expect((await lookUpChain(undefined, { hostOperator: undefined })).status).toBe('unavailable');
+
+    // A DNS failure reading the host record.
+    dns.mockRejectedValue(Object.assign(new Error('queryTxt ETIMEOUT'), { code: 'ETIMEOUT' }));
+    const noHost = track(new BtpsClient({ to: 'bob$saas.test', maxRetries: 0 }));
+    expect((await noHost.lookupKeyChain('bob$saas.test', 'alice$other.test')).status).toBe(
+      'unavailable',
+    );
   });
 });

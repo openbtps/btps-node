@@ -180,6 +180,21 @@ export type BTPKeyChainKey = {
  */
 export type BTPKeyChainDns = { kind: 'hostOnly' } | { kind: 'published'; fingerprints: string[] };
 
+/**
+ * Since 1.2: what asking an identity's host for its key chain gave.
+ * - `chain`: the operator's signed answer, checked; `[]` for an identity that
+ *   never rotated.
+ * - `unavailable`: no chain to be had (a 1.1 host, an unreachable one, or one
+ *   that answered with an error): the identity's keys are checked by DNS, as
+ *   in 1.1.
+ * - `invalid`: an answer that fails its checks (its signature, its `reqId`,
+ *   its time, the identity it names): refused, never taken for unavailable.
+ */
+export type BTPKeyChainLookup =
+  | { status: 'chain'; records: BTPKeyChainRecord[] }
+  | { status: 'unavailable'; reason: string }
+  | { status: 'invalid'; reason: string };
+
 /** Since 1.2: the facts about a key chain. It decides nothing; `keyChainProblem` is the online refusal. */
 export type BTPKeyChainFacts = {
   /** Every record is well-formed and signed as its kind requires, `prev` links hold, and the chain rules hold */

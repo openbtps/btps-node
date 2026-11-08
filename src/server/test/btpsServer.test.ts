@@ -45,6 +45,7 @@ import {
 import {
   BTPErrorException,
   transformToBTPErrorException,
+  BTP_ERROR_IDENTITY_NOT_FOUND,
   BTP_ERROR_TRUST_NOT_ALLOWED,
   BTP_ERROR_TRUST_NON_EXISTENT,
   BTP_ERROR_TRUST_EXPIRED,
@@ -105,7 +106,7 @@ class OneIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
     super({ connection: null });
     this.record = record;
   }
-  async getPublicKeyRecord() {
+  async getPublicKeyRecord(): Promise<IdentityPubKeyRecord | undefined> {
     return this.record;
   }
   async getById() {
@@ -3608,6 +3609,62 @@ export default function () {
       const old = await answer(new ChainStore([]), { version: '1.1.0' });
       expect(old.document).not.toHaveProperty('identity');
       expect(old.document).not.toHaveProperty('keyChain');
+    });
+
+    it("answers with the chain's current key for an identity whose keys are in DNS, and has no key record here", async () => {
+      class DnsIdentityStore extends ChainStore {
+        async getPublicKeyRecord(): Promise<IdentityPubKeyRecord | undefined> {
+          return undefined;
+        }
+      }
+      const rotation = await signKeyRotation(
+        {
+          identity: 'billing$vendor.example',
+          from: { selector: 'btps1' },
+          to: { selector: 'btps2' },
+          at: '2026-10-10T00:00:00.000Z',
+          prev: null,
+        },
+        { from: { pemFiles: k1 }, to: { pemFiles: k2 } },
+      );
+      const fromChain = await answer(new DnsIdentityStore([rotation]), {
+        version: '1.2.0',
+        keyChain: true,
+      });
+      expect(fromChain.document).toMatchObject({
+        selector: 'btps2',
+        publicKey: k2.publicKey.trim(),
+        keyType: 'rsa',
+        identity: 'billing$vendor.example',
+        keyChain: [rotation],
+      });
+
+      // With neither a key record nor a chain, it is not found, as before.
+      const server = new BtpsServer({
+        serverIdentity: { identity: 'admin$vendor.example', ...serverKeys },
+        trustStore: new DummyTrustStore(),
+        identityStore: new DnsIdentityStore([]),
+        tlsOptions: { key: 'test-key', cert: 'test-cert' },
+      });
+      const sendError = vi.fn();
+      server['sendBtpsError'] = sendError;
+      const socket = {} as TLSSocket;
+      await server['handleIdentityLookup'](
+        {
+          version: '1.2.0',
+          id: 'lookup-2',
+          issuedAt: new Date().toISOString(),
+          identity: 'billing$vendor.example',
+          from: 'pay$client.example',
+          hostSelector: 'btps1',
+          keyChain: true,
+        },
+        {
+          req: { socket } as unknown as BTPRequestCtx,
+          res: { socket, reqId: 'req-2' } as unknown as BTPResponseCtx,
+        },
+      );
+      expect(sendError).toHaveBeenCalledWith(socket, BTP_ERROR_IDENTITY_NOT_FOUND, 'req-2');
     });
   });
 

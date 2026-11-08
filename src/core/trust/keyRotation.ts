@@ -27,7 +27,12 @@ import { canonicalizeValue } from '@core/crypto/jcs.js';
 import type { PemKeys } from '@core/crypto/types.js';
 import type { Signer } from '@core/crypto/signer-interface.js';
 import { BTPErrorException } from '@core/error/index.js';
-import { BTP_ERROR_VALIDATION } from '@core/error/constant.js';
+import {
+  BTP_ERROR_KEY_RETIRED,
+  BTP_ERROR_KEY_REVOKED,
+  BTP_ERROR_VALIDATION,
+} from '@core/error/constant.js';
+import type { BTPError } from '@core/error/types.js';
 import { BtpKeyChainSchema } from '@core/server/schemas/keyChainSchema.js';
 import { sameIdentity } from '@core/server/schemas/helpers.js';
 import { base64ToPem, pemToBase64 } from '@core/utils/index.js';
@@ -448,15 +453,28 @@ export const verifyKeyChain = (
  * Since 1.2: why a verifier online refuses an identity's key chain, or
  * undefined. It came in the operator's signed answer (`fromOperator`), and
  * `dns` is what DNS says of the identity. A chain that forks, or does not end
- * at a key DNS publishes for an identity that publishes one, is refused.
+ * at a key DNS publishes for an identity that publishes one, is refused, and
+ * so is a record dated more than `maxSkewSeconds` (default 300, the server's
+ * maxArtifactAgeSeconds) past `now`.
  */
 export const keyChainProblem = (
   records: unknown[],
-  options: { identity: string; fromOperator: boolean; dns: BTPKeyChainDns },
+  options: {
+    identity: string;
+    fromOperator: boolean;
+    dns: BTPKeyChainDns;
+    now?: number;
+    maxSkewSeconds?: number;
+  },
 ): string | undefined => {
   const { identity, fromOperator, dns } = options;
   const facts = verifyKeyChain(records, { identity, online: { fromOperator, dns } });
   if (!facts.chainValid) return facts.problem;
+  const latest = (options.now ?? Date.now()) + (options.maxSkewSeconds ?? 300) * 1000;
+  const future = (records as BTPKeyChainRecord[]).findIndex(
+    (record) => Date.parse(signedObjectOf(record).at) > latest,
+  );
+  if (future !== -1) return `record ${future}: it is dated in the future`;
   if (facts.forked) return 'the chain forks: a key has two successors';
   if (facts.keys.length > 0 && !facts.anchored) {
     return fromOperator
@@ -480,3 +498,20 @@ export const keyAt = (
       ? key.fingerprint === ref.fingerprint
       : key.selector === ref.selector,
   );
+
+/**
+ * Since 1.2: why a live artifact signed by this key of a verified chain is
+ * refused now, or undefined. Expired (a rotation with immediate expiry, or an
+ * expiry record): `BTP_ERROR_KEY_REVOKED`, whatever the artifact's own time
+ * says. Rotated away as planned more than `retiredKeyGraceSeconds` ago:
+ * `BTP_ERROR_KEY_RETIRED`. The current key, and a key within its grace, pass.
+ */
+export const keyChainSignerProblem = (
+  key: BTPKeyChainKey,
+  options: { now?: number; retiredKeyGraceSeconds: number },
+): BTPError | undefined => {
+  if (key.compromisedSince !== undefined) return BTP_ERROR_KEY_REVOKED;
+  if (key.validUntil === undefined) return undefined;
+  const retiredFor = (options.now ?? Date.now()) - Date.parse(key.validUntil);
+  return retiredFor > options.retiredKeyGraceSeconds * 1000 ? BTP_ERROR_KEY_RETIRED : undefined;
+};

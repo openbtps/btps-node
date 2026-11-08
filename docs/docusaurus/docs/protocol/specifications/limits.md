@@ -241,6 +241,8 @@ raised to the minimum, with a warning; the server still starts.
 | `connectionTimeoutMs`        | 30,000 (30 s)   | none     | how long a connection with nothing in flight stays open                                          |
 | `maxInFlightPerConnection`   | 32              | 1        | how many requests one connection may have handled at once                                        |
 | `maxConsecutiveInvalidLines` | 10              | 1        | since 1.2: how many lines in a row one connection may send that the server cannot read           |
+| `retiredKeyGraceSeconds`     | 86,400 (1 day)  | 0        | since 1.2: how long a key rotated away as planned still signs (see Key Rotation)                 |
+| `keyChainMaxCacheSeconds`    | 300 (5 minutes) | 0        | since 1.2: the longest a key chain is trusted from a cache: the worst-case revocation delay      |
 
 ### Requests in flight
 

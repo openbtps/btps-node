@@ -4059,6 +4059,7 @@ export function keyRotation(keys) {
   const [k1, k2, k3, k4, small] = keys;
   const ME = 'billing$vendor.example';
   const day = (d) => `2026-11-${String(d).padStart(2, '0')}T00:00:00.000Z`;
+  const NOW = Date.parse('2026-12-01T00:00:00.000Z');
   const fp = (k) => fingerprintOf(k.publicKeyPem);
   const keyOf = (k, selector) => ({
     selector,
@@ -4140,7 +4141,8 @@ export function keyRotation(keys) {
     identity: ME,
     online: { fromOperator, dns },
   });
-  const checked = (dns, fromOperator = true) => ({ identity: ME, fromOperator, dns });
+  // `now` (ms): the verifier's clock, after every record, so no case depends on the day it runs.
+  const checked = (dns, fromOperator = true) => ({ identity: ME, fromOperator, dns, now: NOW });
   // A host's own chain for an identity that publishes its key in DNS: to a key
   // of the host's, under a selector DNS has no record at.
   const hostsLost = rotation(k2, 'btps2', k4, 'btps9', 20, r1, {
@@ -4464,6 +4466,74 @@ export function keyRotation(keys) {
         why: 'online, a key has one successor',
         expect: 'refuse',
       },
+    ],
+  };
+}
+
+/**
+ * BTPS 1.2 key rotation, live: whether a verifier takes an artifact signed by
+ * a key of a verified chain, now. The current key, and a key rotated away as
+ * planned within its grace, are taken; past the grace, `BTP_ERROR_KEY_RETIRED`;
+ * an expired key, whatever the time, `BTP_ERROR_KEY_REVOKED`.
+ */
+export function keyRotationSigners() {
+  const NOW = '2026-12-01T00:00:00.000Z';
+  const before = (seconds) => new Date(Date.parse(NOW) - seconds * 1000).toISOString();
+  const key = { selector: 'btps1', fingerprint: 'not-checked-here', publicKey: 'not-checked-here' };
+  const signer = (name, more, grace, expect) => ({
+    name,
+    key: { ...key, ...more },
+    now: Date.parse(NOW),
+    retiredKeyGraceSeconds: grace,
+    expect,
+  });
+  return {
+    description:
+      "Key rotation, live (since 1.2): give `key` (a key of a verified chain, with its window), `now` (ms) and `retiredKeyGraceSeconds` to the verifier's rule for an arriving artifact. `expect` is `accept`, or the BTPS error code it refuses with.",
+    cases: [
+      signer('the-current-key', {}, 86400, 'accept'),
+      signer(
+        'retired-as-planned-within-its-grace',
+        { validUntil: before(86400), rotatedAway: 'planned' },
+        86400,
+        'accept',
+      ),
+      signer(
+        'retired-as-planned-past-its-grace',
+        { validUntil: before(86401), rotatedAway: 'planned' },
+        86400,
+        'BTP_ERROR_KEY_RETIRED',
+      ),
+      signer(
+        'retired-with-no-grace',
+        { validUntil: before(1), rotatedAway: 'planned' },
+        0,
+        'BTP_ERROR_KEY_RETIRED',
+      ),
+      signer(
+        'rotated-with-immediate-expiry-at-once',
+        {
+          validUntil: before(1),
+          rotatedAway: 'immediate',
+          compromisedSince: before(60),
+          reason: 'compromised',
+          expiredAt: before(1),
+        },
+        86400,
+        'BTP_ERROR_KEY_REVOKED',
+      ),
+      signer(
+        'expired-after-the-fact-within-what-was-its-grace',
+        {
+          validUntil: before(30),
+          rotatedAway: 'planned',
+          compromisedSince: before(300),
+          reason: 'compromised',
+          expiredAt: before(1),
+        },
+        86400,
+        'BTP_ERROR_KEY_REVOKED',
+      ),
     ],
   };
 }
