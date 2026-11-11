@@ -126,9 +126,10 @@ From the envelope alone:
 
 - a field on another artifact type, or in a `1.1.0` artifact;
 - a name that is not the protocol's, or a name twice in one list, required or not;
+- a `1.2.0` `TRUST_REQ` without `permissions`: a request for everything is a `1.1.0` one;
 - `permissions` without a `send:` name;
 - `permissions` or `granted` without `entityType`;
-- **a request that does not give what it asks for:** every detail asked for is in `given`. `detail:dob` and `detail:registrationNumber` swap between kinds: a person gives its date of birth and an organisation its registration number, never the other, so asking for either is met by giving your own. The sender's `entityType` decides which;
+- **a request that does not give what it asks for:** every detail asked for is in `given`. `detail:dob` and `detail:registrationNumber` swap between kinds: a person gives its date of birth and an organisation its registration number, never the other, so asking for either is met by giving your own. The sender's `entityType` decides which. An organisation's request is always held to it. A person's is held to it unless the receiver is an organisation: a person asking a business gives nothing in return. The receiver's kind is known only to its own server, from its platform (`entityTypeOf`); without that, the receiver is held to be a person;
 - a person giving or granting `detail:registrationNumber`, or an organisation giving or granting `detail:dob`.
 
 And where the document is readable (not encrypted):
@@ -136,7 +137,9 @@ And where the document is readable (not encrypted):
 - a request carrying its own values (`own`), or an answer carrying the granted values (`details`, keyed by name, so `detail:profile` sits inside it as `{ displayName, logo?, website? }`): those are always encrypted;
 - an answer that is not `accepted` but carries `granted`.
 
-An address's kind is published nowhere but the envelope.
+An address's kind is published nowhere but the envelope, and a receiving platform's own knowledge of its addresses.
+
+Every one of these refusals reaches the sender as itself, `BTP_ERROR_VALIDATION` with the broken rule; so do a grant's (`BTP_ERROR_PERMISSION_REQUIRED`, `BTP_ERROR_PERMISSION`), a send whose type is not granted (`BTP_ERROR_PERMISSION`) or is not its document's (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`) and a detail not held (`BTP_ERROR_DETAILS_NOT_HELD`). Only a trust's state stays hidden: those all read `BTP_ERROR_TRUST_NOT_ALLOWED`.
 
 **Sending one.** A device sets these with `BtpsAgent`'s `trust.request` options `permissions`, `entityType`, `given` and `change`, and `trust.respond` options `granted` and `entityType`; the agent checks the artifact as its provider will before it goes. A platform sending server to server puts the same fields on the payload it gives `signEncrypt`, which signs them with the envelope, and stamps the artifact with `artifactVersion`.
 
@@ -755,6 +758,7 @@ Since 1.2, in a `1.2.0` artifact only: a letter that asks its signers to accept 
 
 - **`terms`** repeats the agreement's `acceptance.terms` exactly, in the same order. **`decision`** is `accepted` or `declined`. **`signedAt`** is the signer's own signed time, which the deadline is checked against.
 - **`previous`**, in a `sequential` agreement only, on every statement after the first: the SHA-256 of the statement record before it, in its RFC 8785 form, signature included.
+- **`visualSignature`**, optional, on an `accepted` statement only: the signer's own signature as data, `{ "type": "typed", "text": "Alice Ng" }` or `{ "type": "drawn", "strokes": [[x, y, x, y, …]] }`, with a letter's limits (plain text of at most 100 characters; integer strokes on a 1000 by 300 canvas, at most 32 strokes and 2048 points). It is inside the statement, so the statement's signature covers it, and it travels into the evidence bundle with it. Signing with the key is the consent; the visual signature is what a reader is shown. Whether one is required is the platform's choice.
 - **The record** is `{ statement, signature, selector }` when the signer signs with its identity key, which may be a managed key its provider holds. When a device signs it, the record is `{ statement, signature, delegatedArtifact }`: the whole event artifact that delivered it, as it arrived (envelope, ciphertext, the device's signature and its delegation), which the originator adds on receipt. A BTPS delegation signs the artifact it travels with, so the record keeps that artifact to stay checkable offline. Its ciphertext only has to verify, never to open.
 - **The key kind is a fact, not a field:** a record with a delegated artifact was signed by a device, and one without by the identity, so the two can never disagree. A device's record checks when its delegation is its delegator's over that artifact, a self-delegation (signed by the signer itself) carries an attestation, as a server requires on arrival, any attestation is its attestor's, the artifact came from the signer and is signed by the delegated key, and so is the statement. All of these are checked offline. Who delegated it, and who attested it, are reported as facts: whether the delegator, or the attestor, is the signer's domain's operator needs DNS (`_btps.host` `op`), which a reader may confirm online; it is never a verdict.
 - **An answer is final.** A statement is never withdrawn; a change is a new agreement.

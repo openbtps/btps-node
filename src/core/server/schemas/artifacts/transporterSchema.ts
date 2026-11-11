@@ -27,6 +27,7 @@ import {
 } from '../helpers.js';
 import { BtpAgreementEventSchema, BtpLifecycleEventSchema, sha256Hex } from '../btpsDocsSchema.js';
 import { boundedArray } from '../bounded.js';
+import type { BTPEntityType } from '../../types.js';
 
 /**
  * Since 1.2, on a sync: the send it copies, by the id of the sent artifact and
@@ -101,6 +102,28 @@ export const BtpTransporterArtifactBaseSchema = z.object({
 type TransporterEnvelope = z.infer<typeof BtpTransporterArtifactBaseSchema>;
 
 /**
+ * Since 1.2: what a trust request owes for the details it asks, and does not give. You give
+ * what you ask for, a date of birth and a registration number swapping between kinds; empty
+ * when it gives all it owes. Every request from an organisation is held to it on arrival. A
+ * person's is held to it unless the receiver is an organisation (the receiving server knows,
+ * from its `entityTypeOf` option): a person asking an organisation gives nothing in return.
+ */
+export function detailsOwed(
+  permissions: readonly { name: string }[],
+  entityType: BTPEntityType,
+  given: readonly string[] = [],
+): { asked: string; owed: string }[] {
+  const identities: string[] = Object.values(IDENTITY_DETAIL);
+  return permissions
+    .filter(({ name }) => name.startsWith('detail:'))
+    .map(({ name }) => ({
+      asked: name,
+      owed: identities.includes(name) ? IDENTITY_DETAIL[entityType] : name,
+    }))
+    .filter(({ owed }) => !given.includes(owed));
+}
+
+/**
  * Since 1.2: the trust permission rules a server checks on arrival, from the
  * envelope alone, and from the document only where it is readable.
  */
@@ -126,6 +149,15 @@ function permissionEnvelopeProblems(data: TransporterEnvelope): [string, string]
     if (twice) problems.push([field, `${twice} appears more than once`]);
   }
 
+  // A 1.2.0 trust request says what it asks for, and so what its asker is. One that asks for
+  // everything is a 1.1.0 request, as before 1.2, which every server still takes.
+  if (data.type === 'TRUST_REQ' && !isVersionBelow(data.version, '1.2.0') && !data.permissions) {
+    problems.push([
+      'permissions',
+      'a 1.2.0 TRUST_REQ asks for permissions; a request for everything is a 1.1.0 one',
+    ]);
+  }
+
   const { entityType } = data;
   const other = entityType && IDENTITY_DETAIL[entityType === 'person' ? 'organisation' : 'person'];
   if (data.permissions && !entityType) {
@@ -134,16 +166,11 @@ function permissionEnvelopeProblems(data: TransporterEnvelope): [string, string]
   if (data.granted && !entityType) {
     problems.push(['entityType', 'entityType comes with granted']);
   }
-  if (data.permissions && entityType) {
-    // You give what you ask for; a date of birth and a registration number swap between kinds.
-    const given: readonly string[] = data.given ?? [];
-    const identities: string[] = Object.values(IDENTITY_DETAIL);
-    for (const { name } of data.permissions) {
-      if (!name.startsWith('detail:')) continue;
-      const gives = identities.includes(name) ? IDENTITY_DETAIL[entityType] : name;
-      if (!given.includes(gives)) {
-        problems.push(['given', `asks for ${name} without giving ${gives}`]);
-      }
+  if (data.permissions && entityType === 'organisation') {
+    // An organisation gives what it asks for, to anyone. A person's request is held to it by
+    // the receiving server, which alone knows what the receiver is (detailsOwed).
+    for (const { asked, owed } of detailsOwed(data.permissions, entityType, data.given)) {
+      problems.push(['given', `asks for ${asked} without giving ${owed}`]);
     }
   }
   if (other && data.given?.includes(other)) {

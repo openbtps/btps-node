@@ -117,7 +117,13 @@ describe("a device's sync", () => {
   });
 
   it('travels only inside its artifact.send', () => {
-    const request = { ...artifact('alice$saas.example', 'alice$saas.example'), type: 'TRUST_REQ' };
+    // A 1.2.0 trust request asks for permissions; it differs from the sync only by syncOf.
+    const request = {
+      ...artifact('alice$saas.example', 'alice$saas.example'),
+      type: 'TRUST_REQ',
+      permissions: [{ name: 'send:invoice', required: true }],
+      entityType: 'person',
+    };
     const { syncOf: _syncOf, ...plainRequest } = request;
     const trustRequest = (document: object) =>
       BtpAgentArtifactSchema.safeParse({ ...agentArtifact('trust.request'), document }).success;
