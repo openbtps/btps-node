@@ -3261,6 +3261,11 @@ export function agreements(keys) {
     stated(BANK, 'accepted', at(4), hashOf(samAfterDevice)),
   );
   const aliceDeclines = byIdentity(keys.signer, stated(ALICE, 'declined', at(2)));
+  // Since 1.2: a signer's own signature on its acceptance, inside what it signs.
+  const signedWith = (decision, visualSignature) =>
+    byIdentity(keys.signer, { ...stated(ALICE, decision, at(2)), visualSignature });
+  const typed = { type: 'typed', text: 'Alice Ng' };
+  const drawn = { type: 'drawn', strokes: [[40, 200, 120, 80, 260, 210, 400, 90]] };
 
   // Answer events, as an opened BTPS_EVENT carries them.
   const answer = (eventType, record, more = {}) => ({
@@ -3410,6 +3415,34 @@ export function agreements(keys) {
     ),
     eventCase(accept, 'agreement-progress', forwarded('agreement_progress', [alice])),
     eventCase(accept, 'agreement-complete', forwarded('agreement_complete', [alice, sam, bank])),
+    eventCase(
+      accept,
+      'accepted-with-a-typed-signature',
+      answer('accepted', signedWith('accepted', typed)),
+    ),
+    eventCase(
+      accept,
+      'accepted-with-a-drawn-signature',
+      answer('accepted', signedWith('accepted', drawn)),
+    ),
+    eventCase(
+      refuse,
+      'declined-with-a-signature',
+      answer('declined', signedWith('declined', typed)),
+      'only an acceptance carries a visualSignature',
+    ),
+    eventCase(
+      refuse,
+      'typed-signature-with-markup',
+      answer('accepted', signedWith('accepted', { type: 'typed', text: '<b>Alice</b>' })),
+      'a typed signature is plain text',
+    ),
+    eventCase(
+      refuse,
+      'drawn-signature-off-the-canvas',
+      answer('accepted', signedWith('accepted', { type: 'drawn', strokes: [[0, 0, 1001, 10]] })),
+      'a drawn signature is x, y pairs on a 1000 by 300 canvas',
+    ),
     eventCase(
       refuse,
       'accepted-with-a-note',

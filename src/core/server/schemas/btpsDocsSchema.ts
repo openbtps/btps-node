@@ -275,38 +275,44 @@ const signatureText = z
  * A drawn signature as data, never markup: strokes of integer points
  * `[x, y, x, y, …]` on a canvas `width` by `height`, which a receiver draws itself.
  */
-const drawnSignature = z
-  .object({
-    strokes: boundedArray(
-      boundedArray(z.number().int().min(0), signature.strokePoints * 2, 2),
-      signature.strokes,
-      1,
-    ),
-  })
-  .strict()
-  .superRefine(({ strokes }, ctx) => {
-    let points = 0;
-    strokes.forEach((stroke, index) => {
-      points += stroke.length / 2;
-      const onCanvas = stroke.every((value, at) =>
-        at % 2 === 0 ? value <= signature.width : value <= signature.height,
-      );
-      if (stroke.length % 2 !== 0 || !onCanvas) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `each stroke is x, y pairs on a ${signature.width} by ${signature.height} canvas`,
-          path: ['strokes', index],
-        });
-      }
-    });
-    if (points > signature.points) {
+const strokes = boundedArray(
+  boundedArray(z.number().int().min(0), signature.strokePoints * 2, 2),
+  signature.strokes,
+  1,
+);
+const strokesOnCanvas = ({ strokes }: { strokes: number[][] }, ctx: z.RefinementCtx) => {
+  let points = 0;
+  strokes.forEach((stroke, index) => {
+    points += stroke.length / 2;
+    const onCanvas = stroke.every((value, at) =>
+      at % 2 === 0 ? value <= signature.width : value <= signature.height,
+    );
+    if (stroke.length % 2 !== 0 || !onCanvas) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: `a drawn signature has at most ${signature.points} points`,
-        path: ['strokes'],
+        message: `each stroke is x, y pairs on a ${signature.width} by ${signature.height} canvas`,
+        path: ['strokes', index],
       });
     }
   });
+  if (points > signature.points) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `a drawn signature has at most ${signature.points} points`,
+      path: ['strokes'],
+    });
+  }
+};
+const drawnSignature = z.object({ strokes }).strict().superRefine(strokesOnCanvas);
+
+/**
+ * Since 1.2, under 1.2.0: a signer's own signature on an agreement it accepts, typed or
+ * drawn, as a letter's is. Inside the statement, so its signature covers it.
+ */
+const BtpVisualSignatureSchema = z.union([
+  z.object({ type: z.literal('typed'), text: signatureText }).strict(),
+  z.object({ type: z.literal('drawn'), strokes }).strict().superRefine(strokesOnCanvas),
+]);
 
 /**
  * Since 1.2, under 1.2.0, on a letter's or an agreement's template only: the
@@ -711,8 +717,13 @@ export const BtpAgreementStatementSchema = z
     decision: z.enum(['accepted', 'declined']),
     signedAt: z.string().datetime(),
     previous: sha256Hex.optional(),
+    visualSignature: BtpVisualSignatureSchema.optional(),
   })
-  .strict();
+  .strict()
+  .refine((s) => s.visualSignature === undefined || s.decision === 'accepted', {
+    message: 'only an acceptance carries a visualSignature',
+    path: ['visualSignature'],
+  });
 
 /**
  * A signed statement: by the signer's identity key at `selector`, or by a

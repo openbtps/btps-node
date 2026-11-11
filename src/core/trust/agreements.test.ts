@@ -117,6 +117,22 @@ describe('a statement', () => {
     expect(statementSignatureFacts(record, () => undefined).signatureValid).toBe(false);
   });
 
+  it("covers the signer's visual signature: another one, or none, no longer checks", async () => {
+    const signed = {
+      ...statement,
+      visualSignature: { type: 'typed' as const, text: 'Alice Ng' },
+    };
+    const record = await signStatement(signed, { selector: 'btps1', pemFiles: keys[ALICE] });
+    expect(statementSignatureFacts(record, keyOf).signatureValid).toBe(true);
+    const swapped = {
+      ...record,
+      statement: { ...signed, visualSignature: { type: 'typed' as const, text: 'Someone Else' } },
+    };
+    expect(statementSignatureFacts(swapped, keyOf).signatureValid).toBe(false);
+    const dropped = { ...record, statement };
+    expect(statementSignatureFacts(dropped, keyOf).signatureValid).toBe(false);
+  });
+
   it('is named by the next one by the SHA-256 of its record, signature included', async () => {
     const record = await signStatement(statement, { selector: 'btps1', pemFiles: keys[ALICE] });
     const sha256 = createHash('sha256').update(canonicalizeValue(record), 'utf8').digest('hex');
