@@ -31,7 +31,10 @@ import {
   signEncrypt,
   decryptVerify,
 } from '../../src/core/crypto/index.js';
-import { BTP_PROTOCOL_VERSION } from '../../src/core/server/constants/index.js';
+import {
+  BTP_PROTOCOL_VERSION,
+  MIN_SUPPORTED_VERSION,
+} from '../../src/core/server/constants/index.js';
 import type { BTPTrustRecord } from '../../src/core/trust/types.js';
 import type { BTPDetailsEnvelope } from '../../src/core/trust/permissions.js';
 import type {
@@ -309,7 +312,11 @@ export async function artifactFrom(
     to,
     { accountName, domainName, pemFiles: from.keys },
     {
-      version: BTP_PROTOCOL_VERSION,
+      // A request for everything is a 1.1.0 one, as every sender stamps it (artifactVersion).
+      version:
+        type === 'TRUST_REQ' && options.extra?.permissions === undefined
+          ? MIN_SUPPORTED_VERSION
+          : BTP_PROTOCOL_VERSION,
       type,
       from: from.identity,
       to,

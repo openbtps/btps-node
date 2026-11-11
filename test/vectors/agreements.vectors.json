@@ -24,9 +24,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -75,9 +73,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -122,9 +118,7 @@
           }
         ],
         "acceptance": {
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -222,9 +216,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "signer1$party.example"
@@ -324,9 +316,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -383,9 +373,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "signer1$party.example"
@@ -489,9 +477,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [],
           "signingOrder": "sequential"
         },
@@ -531,9 +517,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -580,9 +564,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice@client.example"
@@ -626,9 +608,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -678,9 +658,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -729,9 +707,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-          ],
+          "terms": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -834,9 +810,7 @@
         ],
         "acceptance": {
           "by": "end of November",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -920,9 +894,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -964,9 +936,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -1008,9 +978,7 @@
         },
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -1052,9 +1020,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -1103,9 +1069,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -1141,9 +1105,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -1213,9 +1175,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "declined",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -1256,9 +1216,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -1296,9 +1254,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -1317,9 +1273,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -1339,9 +1293,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -1379,9 +1331,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z",
@@ -1421,26 +1371,13 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z",
             "visualSignature": {
               "type": "drawn",
-              "strokes": [
-                [
-                  40,
-                  200,
-                  120,
-                  80,
-                  260,
-                  210,
-                  400,
-                  90
-                ]
-              ]
+              "strokes": [[40, 200, 120, 80, 260, 210, 400, 90]]
             }
           },
           "selector": "btps1",
@@ -1474,9 +1411,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "declined",
             "signedAt": "2026-11-02T00:00:00.000Z",
@@ -1517,9 +1452,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z",
@@ -1560,22 +1493,13 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z",
             "visualSignature": {
               "type": "drawn",
-              "strokes": [
-                [
-                  0,
-                  0,
-                  1001,
-                  10
-                ]
-              ]
+              "strokes": [[0, 0, 1001, 10]]
             }
           },
           "selector": "btps1",
@@ -1610,9 +1534,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -1653,9 +1575,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "declined",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -1692,9 +1612,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -1766,9 +1684,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -1804,9 +1720,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "maybe",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -1842,9 +1756,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted"
           },
@@ -1900,9 +1812,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -1921,9 +1831,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -1942,9 +1850,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -1963,9 +1869,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -1984,9 +1888,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2005,9 +1907,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2026,9 +1926,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2047,9 +1945,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2068,9 +1964,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2089,9 +1983,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2110,9 +2002,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2131,9 +2021,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2152,9 +2040,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2173,9 +2059,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2194,9 +2078,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2215,9 +2097,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2236,9 +2116,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2257,9 +2135,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2278,9 +2154,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2299,9 +2173,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2320,9 +2192,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2360,9 +2230,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2504,9 +2372,7 @@
         "status": "accepted",
         "permissions": {
           "requested": [],
-          "granted": [
-            "send:agreement"
-          ],
+          "granted": ["send:agreement"],
           "detailsHeld": [],
           "detailsShared": []
         }
@@ -2542,9 +2408,7 @@
         "status": "accepted",
         "permissions": {
           "requested": [],
-          "granted": [
-            "send:letter"
-          ],
+          "granted": ["send:letter"],
           "detailsHeld": [],
           "detailsShared": []
         }
@@ -2590,9 +2454,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -2652,9 +2514,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -2694,9 +2554,7 @@
       ],
       "acceptance": {
         "by": "2026-11-30T00:00:00.000Z",
-        "terms": [
-          "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-        ],
+        "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
         "signers": [
           {
             "address": "alice$client.example"
@@ -2729,9 +2587,7 @@
           "id": "AGR-1",
           "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
         },
-        "terms": [
-          "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-        ],
+        "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
         "signer": "alice$client.example",
         "decision": "accepted",
         "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2769,9 +2625,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2804,9 +2658,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -2855,9 +2707,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "sam$guarantor.example",
             "decision": "accepted",
             "signedAt": "2026-11-03T00:00:00.000Z",
@@ -2891,9 +2741,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -2924,9 +2772,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2964,9 +2810,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "declined",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -2999,9 +2843,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -3050,9 +2892,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "sam$guarantor.example",
             "decision": "accepted",
             "signedAt": "2026-11-03T00:00:00.000Z",
@@ -3086,9 +2926,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -3119,9 +2957,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -3193,9 +3029,7 @@
               "id": "AGR-1",
               "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "sam$guarantor.example",
             "decision": "accepted",
             "signedAt": "2026-11-03T00:00:00.000Z"
@@ -3228,9 +3062,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -3276,9 +3108,7 @@
               "id": "AGR-1",
               "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "eve$other.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -3311,9 +3141,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -3360,9 +3188,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -3395,9 +3221,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -3447,9 +3271,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "sam$guarantor.example",
             "decision": "accepted",
             "signedAt": "2026-11-03T00:00:00.000Z"
@@ -3482,9 +3304,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -3534,9 +3354,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "sam$guarantor.example",
             "decision": "accepted",
             "signedAt": "2026-11-03T00:00:00.000Z"
@@ -3569,9 +3387,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -3602,9 +3418,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -3643,9 +3457,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "sam$guarantor.example",
             "decision": "accepted",
             "signedAt": "2026-11-03T00:00:00.000Z",
@@ -3679,9 +3491,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -3712,9 +3522,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -3753,9 +3561,7 @@
               "id": "AGR-1",
               "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "sam$guarantor.example",
             "decision": "accepted",
             "signedAt": "2026-11-03T00:00:00.000Z",
@@ -3789,9 +3595,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -3871,9 +3675,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -3923,9 +3725,7 @@
               "id": "AGR-1",
               "contentSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -3958,9 +3758,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -4010,9 +3808,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-12-01T00:00:00.000Z"
@@ -4045,9 +3841,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -4097,9 +3891,7 @@
               "id": "AGR-1",
               "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "declined",
             "signedAt": "2026-11-03T00:00:00.000Z"
@@ -4132,9 +3924,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -4162,9 +3952,7 @@
               "id": "AGR-1",
               "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -4203,9 +3991,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "sam$guarantor.example",
             "decision": "accepted",
             "signedAt": "2026-11-03T00:00:00.000Z",
@@ -4239,9 +4025,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -4272,9 +4056,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "declined",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -4313,9 +4095,7 @@
               "id": "AGR-1",
               "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
             },
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signer": "alice$client.example",
             "decision": "accepted",
             "signedAt": "2026-11-02T00:00:00.000Z"
@@ -4348,9 +4128,7 @@
         ],
         "acceptance": {
           "by": "2026-11-30T00:00:00.000Z",
-          "terms": [
-            "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-          ],
+          "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
           "signers": [
             {
               "address": "alice$client.example"
@@ -4404,9 +4182,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -4437,9 +4213,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -4458,9 +4232,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -4480,9 +4252,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -4608,9 +4378,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -4641,9 +4409,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -4696,9 +4462,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -4718,9 +4482,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -4851,9 +4613,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -4881,9 +4641,7 @@
                 "id": "AGR-1",
                 "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z"
@@ -4902,9 +4660,7 @@
                 "id": "AGR-1",
                 "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z"
@@ -5014,9 +4770,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -5047,9 +4801,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "declined",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -5144,9 +4896,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -5177,9 +4927,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -5198,9 +4946,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -5311,9 +5057,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -5344,9 +5088,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -5365,9 +5107,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -5387,9 +5127,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -5515,9 +5253,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -5548,9 +5284,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -5569,9 +5303,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-05T00:00:00.000Z",
@@ -5591,9 +5323,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -5719,9 +5449,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -5752,9 +5480,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -5888,9 +5614,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -5921,9 +5645,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z"
@@ -6018,9 +5740,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -6051,9 +5771,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-12-01T00:00:00.000Z"
@@ -6148,9 +5866,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -6240,9 +5956,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -6273,9 +5987,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -6363,9 +6075,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -6393,9 +6103,7 @@
                 "id": "AGR-1",
                 "contentSha256": "49bcbcb2ffb524920ad612e29baf4bc07b17003941c31995c38797910b18a9b4"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z"
@@ -6517,9 +6225,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -6550,9 +6256,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -6571,9 +6275,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -6593,9 +6295,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -6740,9 +6440,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -6773,9 +6471,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -6794,9 +6490,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -6816,9 +6510,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -6963,9 +6655,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -6996,9 +6686,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -7017,9 +6705,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -7039,9 +6725,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -7186,9 +6870,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -7219,9 +6901,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -7240,9 +6920,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -7262,9 +6940,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -7450,9 +7126,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -7483,9 +7157,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -7504,9 +7176,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -7526,9 +7196,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -7610,9 +7278,7 @@
         ]
       },
       "options": {
-        "anchors": [
-          "vd1kVR4PODNh7XMjtA1xZadEt123JUR4e5VM8YTutXU="
-        ]
+        "anchors": ["vd1kVR4PODNh7XMjtA1xZadEt123JUR4e5VM8YTutXU="]
       },
       "expect": {
         "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
@@ -7725,9 +7391,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -7758,9 +7422,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -7779,9 +7441,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -7801,9 +7461,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -8005,9 +7663,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -8038,9 +7694,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -8059,9 +7713,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -8081,9 +7733,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -8284,9 +7934,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -8317,9 +7965,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -8338,9 +7984,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -8360,9 +8004,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -8539,9 +8181,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -8572,9 +8212,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -8593,9 +8231,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -8615,9 +8251,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -8858,9 +8492,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -8891,9 +8523,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -8912,9 +8542,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -8934,9 +8562,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -9182,9 +8808,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -9215,9 +8839,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -9236,9 +8858,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -9258,9 +8878,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",
@@ -9396,9 +9014,7 @@
         ]
       },
       "options": {
-        "anchors": [
-          "IWlt9ZTiWEgueJD3DK+F3jWhwheW113+IfrQP57hH2s="
-        ]
+        "anchors": ["IWlt9ZTiWEgueJD3DK+F3jWhwheW113+IfrQP57hH2s="]
       },
       "expect": {
         "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc",
@@ -9506,9 +9122,7 @@
           ],
           "acceptance": {
             "by": "2026-11-30T00:00:00.000Z",
-            "terms": [
-              "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-            ],
+            "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
             "signers": [
               {
                 "address": "alice$client.example"
@@ -9539,9 +9153,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "alice$client.example",
               "decision": "accepted",
               "signedAt": "2026-11-02T00:00:00.000Z"
@@ -9560,9 +9172,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "sam$guarantor.example",
               "decision": "accepted",
               "signedAt": "2026-11-03T00:00:00.000Z",
@@ -9582,9 +9192,7 @@
                 "id": "AGR-1",
                 "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
               },
-              "terms": [
-                "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
-              ],
+              "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
               "signer": "loans$bank.example",
               "decision": "accepted",
               "signedAt": "2026-11-04T00:00:00.000Z",

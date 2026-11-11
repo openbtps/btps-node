@@ -161,14 +161,16 @@ const BTPS_ERRORS_BY_CODE = new Map<string, BTPError>(
  * type its trust does not let through, or a detail it names that the trust
  * does not hold. Every refusal about the trust's own state reads "not allowed".
  */
-const TOLD_AS_ITSELF: ReadonlySet<string> = new Set([
-  BTP_ERROR_VALIDATION.code,
-  BTP_ERROR_PRIVACY_TYPE.code,
-  BTP_ERROR_PERMISSION.code,
-  BTP_ERROR_PERMISSION_REQUIRED.code,
-  BTP_ERROR_DOCUMENT_TYPE_MISMATCH.code,
-  BTP_ERROR_DETAILS_NOT_HELD.code,
-].map(String));
+const TOLD_AS_ITSELF: ReadonlySet<string> = new Set(
+  [
+    BTP_ERROR_VALIDATION.code,
+    BTP_ERROR_PRIVACY_TYPE.code,
+    BTP_ERROR_PERMISSION.code,
+    BTP_ERROR_PERMISSION_REQUIRED.code,
+    BTP_ERROR_DOCUMENT_TYPE_MISMATCH.code,
+    BTP_ERROR_DETAILS_NOT_HELD.code,
+  ].map(String),
+);
 
 /**
  * BTPS Secure Server over TLS (btps://)

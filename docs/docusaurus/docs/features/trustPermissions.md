@@ -16,7 +16,7 @@ slug: trust-permissions
 
 **Why.** A receiver sees what it agrees to, can say yes to invoices and no to letters, and both sides know which details they may hold and later refresh ([Details refresh](./detailsRefresh.md)). Each name travels on the envelope, **signed and readable**, so the receiving server checks it on arrival without decrypting anything. The **values** (a date of birth, an address) are in the document, always encrypted.
 
-A trust without permissions (one made before 1.2, or with a 1.1 provider) is all or nothing: any document type, no details by name.
+A trust without permissions (one made before 1.2, or with a 1.1 provider) is all or nothing: any document type, no details by name. A `1.2.0` request always says what it asks for: one without `permissions` is refused on arrival, and a request for everything goes as `1.1.0`, which every server still takes.
 
 ## The flow
 
@@ -81,6 +81,27 @@ The vendor asks for invoices (required) and receipts (optional), and for the cli
 ```
 
 Opened, the document gives each name in `given` its value: in the request's own field where there is one (`detail:legalName` is `name`, `detail:address` is `address`), otherwise in `own`, by name.
+
+### You give what you ask for
+
+A requester that asks for a detail gives its own of the same kind, in `given`. The two identity details swap: an organisation asking for `detail:dob` gives its `detail:registrationNumber`, and a person asking for `detail:registrationNumber` gives their `detail:dob`. Whether it applies depends on who asks whom:
+
+| Asks         | Of           | Gives what it asks for |
+| ------------ | ------------ | ---------------------- |
+| organisation | organisation | yes                    |
+| organisation | person       | yes                    |
+| person       | person       | yes                    |
+| person       | organisation | no                     |
+
+A person asking a business for its details gives nothing of their own in return, as when you ask a shop for its tax number. The request says what its asker is (`entityType`), so an organisation's request is checked on arrival by any server. Only the receiver's own server knows what the **receiver** is, from the platform: give it `entityTypeOf` ([Server options](../sdk/typesAndInterfaces.md#btpsserveroptions)). Without it, every receiver is held to be a person, so a person's request must give what it asks for, as it always did.
+
+```ts
+const server = new BtpsServer({
+  // ...the rest of the options
+  // The platform knows its own addresses: a business's, or a person's.
+  entityTypeOf: async (identity) => (await accounts.find(identity))?.kind,
+});
+```
 
 ```json btps=document:TRUST_REQ
 {
@@ -289,22 +310,25 @@ The permissions journey adds `send:letter` and `detail:email` to a trust that gr
 
 ## Errors
 
-| Code                            | Status | Who refuses                                 | When                                                                                                                                                                                                                                                                                                    |
-| ------------------------------- | ------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BTP_ERROR_VALIDATION`          | 400    | the receiving server, on arrival            | a name that is not the protocol's, a name twice, `permissions` without a `send:` name, `permissions` or `granted` without `entityType`, a request that does not give what it asks for, a person's `detail:registrationNumber` or an organisation's `detail:dob`, values on a readable request or answer |
-| `BTP_ERROR_VALIDATION`          | 400    | `decryptVerify`, when the platform opens it | values that do not match their names, or not in their shapes                                                                                                                                                                                                                                            |
-| `BTP_ERROR_PERMISSION_REQUIRED` | 403    | the requester's server, on the answer       | a required name not granted, or a record it cannot check                                                                                                                                                                                                                                                |
-| `BTP_ERROR_PERMISSION`          | 403    | the requester's server, on the answer       | a name granted that was never asked for                                                                                                                                                                                                                                                                 |
-| `BTP_ERROR_TRUST_NOT_ALLOWED`   | 403    | the receiving server                        | a plain request on an active trust (a change is the one it takes), a change to a trust that is not active, or a second change while one is pending. All read "not allowed" on the wire, so a stranger learns nothing of the trust's state                                                               |
-| `BTP_ERROR_VERSION_UNSUPPORTED` | 400    | the sender's own SDK                        | a request to a 1.1 server with `versionFallback: false`                                                                                                                                                                                                                                                 |
+Each refusal below reaches the sender as itself, with its code, so a platform can tell its user what to fix. The one exception is the state of a trust: those refusals all read `BTP_ERROR_TRUST_NOT_ALLOWED`.
+
+| Code                            | Status | Who refuses                                 | When                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------- | ------ | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BTP_ERROR_VALIDATION`          | 400    | the receiving server, on arrival            | a name that is not the protocol's, a name twice, a `1.2.0` request without `permissions`, `permissions` without a `send:` name, `permissions` or `granted` without `entityType`, a request that does not give what it asks for ([who must](#you-give-what-you-ask-for)), a person's `detail:registrationNumber` or an organisation's `detail:dob`, values on a readable request or answer |
+| `BTP_ERROR_VALIDATION`          | 400    | `decryptVerify`, when the platform opens it | values that do not match their names, or not in their shapes                                                                                                                                                                                                                                                                                                                              |
+| `BTP_ERROR_PERMISSION_REQUIRED` | 403    | the requester's server, on the answer       | a required name not granted, or a record it cannot check                                                                                                                                                                                                                                                                                                                                  |
+| `BTP_ERROR_PERMISSION`          | 403    | the requester's server, on the answer       | a name granted that was never asked for                                                                                                                                                                                                                                                                                                                                                   |
+| `BTP_ERROR_TRUST_NOT_ALLOWED`   | 403    | the receiving server                        | a plain request on an active trust (a change is the one it takes), a change to a trust that is not active, or a second change while one is pending. All read "not allowed" on the wire, so a stranger learns nothing of the trust's state                                                                                                                                                 |
+| `BTP_ERROR_VERSION_UNSUPPORTED` | 400    | the sender's own SDK                        | a request to a 1.1 server with `versionFallback: false`                                                                                                                                                                                                                                                                                                                                   |
 
 ## Protocol and platform
 
-| The protocol (the server)                                                       | The platform (you)                                                                        |
-| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| checks every name, kind and "gives what it asks" on arrival                     | decides what to ask for, and shows the user what is asked                                 |
-| checks an answer's `granted` against the requester's record                     | saves both records, with `trustPermissionsFromRequest` and `trustPermissionsFromResponse` |
-| refuses a send whose type is not granted ([Document types](./documentTypes.md)) | answers the user's grant, all or part                                                     |
-| refuses a second pending change                                                 | saves `pendingChange` and answers it when the user does                                   |
+| The protocol (the server)                                                               | The platform (you)                                                                        |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| checks every name, kind and "gives what it asks" on arrival                             | decides what to ask for, and shows the user what is asked                                 |
+| holds a person's request to "gives what it asks" unless the receiver is an organisation | tells its server what each of its addresses is, with `entityTypeOf`                       |
+| checks an answer's `granted` against the requester's record                             | saves both records, with `trustPermissionsFromRequest` and `trustPermissionsFromResponse` |
+| refuses a send whose type is not granted ([Document types](./documentTypes.md))         | answers the user's grant, all or part                                                     |
+| refuses a second pending change                                                         | saves `pendingChange` and answers it when the user does                                   |
 
 Helpers in `@btps/sdk/trust`: `trustRequestProblem`, `trustResponseProblem` (the values, once opened), `trustGrantProblem` (a grant against a record), `trustPermissionsFromRequest`, `trustPermissionsFromResponse`, `DOCUMENT_TYPES`, `SEND_PERMISSIONS`, `DETAIL_PERMISSIONS`. The rules in full: [Trust permissions](../protocol/specifications/transporter-artifact.md#trust-permissions).

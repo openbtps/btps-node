@@ -95,7 +95,9 @@ export interface BtpsServerOptions {
    * details gives nothing in return; every other request gives what it asks for. Without this
    * option every receiver is held to be a person, so every request gives what it asks for.
    */
-  entityTypeOf?: (identity: string) => BTPEntityType | undefined | Promise<BTPEntityType | undefined>;
+  entityTypeOf?: (
+    identity: string,
+  ) => BTPEntityType | undefined | Promise<BTPEntityType | undefined>;
 }
 
 /** Since 1.2: a details request arrived: who asked whom for which details, and when. */

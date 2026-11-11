@@ -328,8 +328,27 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   `keysConfirmedOnline` true. `btps-verify-evidence` takes `--anchor`,
   `--operator <domain>=<fingerprint>` and `--online`. None of these changes
   `complete`.
+- **A signer's own signature on its acceptance.** An agreement statement may
+  carry `visualSignature`, typed (`{ type: 'typed', text }`) or drawn
+  (`{ type: 'drawn', strokes }`), with a letter signature's limits, on an
+  `accepted` statement only. It is inside the statement, so the statement's
+  signature covers it and the evidence bundle keeps it. It is optional in the
+  protocol; a platform may require one.
+- The server option `entityTypeOf`: whether one of the platform's own
+  addresses is a person or an organisation, so the server can tell what a
+  person's trust request owes (see Changed).
 
 ### Changed
+
+- A `1.2.0` trust request carries `permissions`. One without them is refused
+  on arrival; a request for everything is a `1.1.0` one, which every server
+  still takes.
+- A person asking an organisation for details gives nothing in return. An
+  organisation's request still gives what it asks for to anyone, and a
+  person's to another person. Only the receiver's own server knows what the
+  receiver is, so a person's request is now checked there, against
+  `entityTypeOf`, instead of by the schema; without the option, every receiver
+  is held to be a person, as before.
 
 - A client no longer keeps a copy of an artifact the socket could not send at
   once. It queued one, as though the write had failed, and never sent or freed
@@ -365,6 +384,13 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
 
 ### Fixed
 
+- A refusal of a trust's permissions reaches the sender as itself:
+  `BTP_ERROR_PERMISSION_REQUIRED` for a grant that withholds a required name,
+  `BTP_ERROR_PERMISSION` for a name not granted or not asked for,
+  `BTP_ERROR_DOCUMENT_TYPE_MISMATCH` and `BTP_ERROR_DETAILS_NOT_HELD`. Each
+  read `BTP_ERROR_TRUST_NOT_ALLOWED` on the wire, so a platform could not tell
+  its user what to fix. Refusals about a trust's state still read "not
+  allowed", so a stranger learns nothing of it.
 - A change to an active trust (`TRUST_REQ` with `change: true`) reaches its
   receiver. The server refused every trust request on an active trust, a
   change too, so permissions could never be added or removed later. It now

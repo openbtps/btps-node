@@ -129,12 +129,7 @@
           }
         ],
         "entityType": "person",
-        "given": [
-          "detail:legalName",
-          "detail:email",
-          "detail:phone",
-          "detail:dob"
-        ]
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
       },
       "expect": "accept"
     },
@@ -229,12 +224,7 @@
           }
         ],
         "entityType": "person",
-        "given": [
-          "detail:legalName",
-          "detail:email",
-          "detail:phone",
-          "detail:dob"
-        ]
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
       },
       "expect": "accept"
     },
@@ -332,11 +322,7 @@
           }
         ],
         "entityType": "organisation",
-        "given": [
-          "detail:legalName",
-          "detail:email",
-          "detail:address"
-        ]
+        "given": ["detail:legalName", "detail:email", "detail:address"]
       },
       "expect": "accept"
     },
@@ -1139,12 +1125,7 @@
           }
         ],
         "entityType": "organisation",
-        "given": [
-          "detail:legalName",
-          "detail:email",
-          "detail:phone",
-          "detail:registrationNumber"
-        ]
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:registrationNumber"]
       },
       "expect": "refuse",
       "why": "every detail asked for is given"
@@ -1303,11 +1284,7 @@
           }
         ],
         "entityType": "person",
-        "given": [
-          "detail:legalName",
-          "detail:email",
-          "detail:phone"
-        ]
+        "given": ["detail:legalName", "detail:email", "detail:phone"]
       },
       "expect": "accept",
       "why": "a person's request is held to what it gives by the receiving server, which alone knows whether the receiver is an organisation"
@@ -1350,11 +1327,7 @@
           }
         ],
         "entityType": "person",
-        "given": [
-          "detail:legalName",
-          "detail:email",
-          "detail:phone"
-        ]
+        "given": ["detail:legalName", "detail:email", "detail:phone"]
       },
       "expect": "accept",
       "why": "a person's request is held to what it gives by the receiving server, which alone knows whether the receiver is an organisation"
@@ -1424,12 +1397,7 @@
           }
         ],
         "entityType": "organisation",
-        "given": [
-          "detail:legalName",
-          "detail:email",
-          "detail:phone",
-          "detail:address"
-        ]
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:address"]
       },
       "expect": "refuse",
       "why": "an organisation asking for a date of birth gives its registration number"
@@ -1766,11 +1734,7 @@
           "detail:address",
           "detail:registrationNumber"
         ],
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ]
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
       },
       "expect": "refuse",
       "why": "granted is only on a TRUST_RES"
@@ -1798,11 +1762,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "person"
       },
       "expect": "accept"
@@ -1881,11 +1841,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ]
+        "granted": ["send:invoice", "detail:legalName", "detail:email"]
       },
       "expect": "refuse",
       "why": "entityType comes with granted"
@@ -1913,11 +1869,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "company"
       },
       "expect": "refuse",
@@ -1946,12 +1898,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email",
-          "detail:dob"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:dob"],
         "entityType": "person"
       },
       "expect": "accept"
@@ -2046,12 +1993,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email",
-          "detail:dob"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:dob"],
         "entityType": "organisation"
       },
       "expect": "refuse",
@@ -2079,11 +2021,7 @@
           "decidedAt": "2026-10-19T00:00:00.000Z",
           "decidedBy": "bob$client.example"
         },
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "person"
       },
       "expect": "refuse",
@@ -2112,11 +2050,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "person"
       },
       "expect": "refuse",
@@ -2145,12 +2079,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email",
-          "detail:nickname"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:nickname"],
         "entityType": "person"
       },
       "expect": "refuse",
@@ -2179,12 +2108,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email",
-          "send:invoice"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "send:invoice"],
         "entityType": "person"
       },
       "expect": "refuse",
@@ -2216,11 +2140,7 @@
             "detail:email": "bob@client.example"
           }
         },
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "person"
       },
       "expect": "refuse",
@@ -2249,11 +2169,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "person",
         "given": [
           "detail:legalName",
@@ -2319,10 +2235,7 @@
             "currency": "AUD"
           },
           "lineItems": {
-            "columns": [
-              "Item",
-              "Amount"
-            ],
+            "columns": ["Item", "Amount"],
             "rows": [
               {
                 "Item": "Website build",
@@ -2559,12 +2472,7 @@
           }
         ],
         "entityType": "person",
-        "given": [
-          "detail:legalName",
-          "detail:email",
-          "detail:phone",
-          "detail:dob"
-        ]
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
       },
       "expect": "accept"
     },
@@ -2621,11 +2529,7 @@
           }
         ],
         "entityType": "organisation",
-        "given": [
-          "detail:legalName",
-          "detail:email",
-          "detail:address"
-        ]
+        "given": ["detail:legalName", "detail:email", "detail:address"]
       },
       "expect": "accept"
     },
@@ -3173,12 +3077,7 @@
           }
         ],
         "entityType": "person",
-        "given": [
-          "detail:legalName",
-          "detail:email",
-          "detail:phone",
-          "detail:dob"
-        ]
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
       },
       "expect": "refuse",
       "why": "a date of birth is YYYY-MM-DD"
@@ -3232,12 +3131,7 @@
           }
         ],
         "entityType": "person",
-        "given": [
-          "detail:legalName",
-          "detail:email",
-          "detail:phone",
-          "detail:dob"
-        ]
+        "given": ["detail:legalName", "detail:email", "detail:phone", "detail:dob"]
       },
       "expect": "refuse",
       "why": "a date of birth is a YYYY-MM-DD string"
@@ -3624,11 +3518,7 @@
             "detail:email": "bob@client.example"
           }
         },
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "person"
       },
       "expect": "accept"
@@ -3673,12 +3563,7 @@
             }
           }
         },
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email",
-          "detail:profile"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:profile"],
         "entityType": "person"
       },
       "expect": "accept"
@@ -3716,12 +3601,7 @@
             "detail:dob": "1990-04-21"
           }
         },
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email",
-          "detail:dob"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:dob"],
         "entityType": "person"
       },
       "expect": "accept"
@@ -3836,12 +3716,7 @@
             "detail:dob": "21/04/1990"
           }
         },
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email",
-          "detail:dob"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:dob"],
         "entityType": "person"
       },
       "expect": "refuse",
@@ -3922,11 +3797,7 @@
             "detail:legalName": "Robert Smith"
           }
         },
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "person"
       },
       "expect": "refuse",
@@ -3965,11 +3836,7 @@
             "detail:phone": "+64 21 000 000"
           }
         },
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "person"
       },
       "expect": "refuse",
@@ -4008,11 +3875,7 @@
             "send:invoice": true
           }
         },
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "person"
       },
       "expect": "refuse",
@@ -4056,12 +3919,7 @@
             }
           }
         },
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email",
-          "detail:profile"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:profile"],
         "entityType": "person"
       },
       "expect": "refuse",
@@ -4102,12 +3960,7 @@
             }
           }
         },
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email",
-          "detail:profile"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "detail:profile"],
         "entityType": "person"
       },
       "expect": "refuse",
@@ -4138,11 +3991,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "person"
       },
       "record": {
@@ -4331,11 +4180,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "organisation"
       },
       "record": {
@@ -4484,12 +4329,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email",
-          "send:letter"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "send:letter"],
         "entityType": "person"
       },
       "record": {
@@ -4517,15 +4357,8 @@
               "required": false
             }
           ],
-          "granted": [
-            "send:invoice",
-            "detail:legalName",
-            "detail:email"
-          ],
-          "detailsHeld": [
-            "detail:legalName",
-            "detail:email"
-          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
           "detailsShared": [
             "detail:legalName",
             "detail:email",
@@ -4589,10 +4422,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName"
-        ],
+        "granted": ["send:invoice", "detail:legalName"],
         "entityType": "person"
       },
       "record": {
@@ -4651,12 +4481,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email",
-          "send:payslip"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email", "send:payslip"],
         "entityType": "person"
       },
       "record": {
@@ -4715,11 +4540,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "person"
       },
       "record": {
@@ -4751,11 +4572,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "person"
       },
       "record": {
@@ -4783,15 +4600,8 @@
               "required": false
             }
           ],
-          "granted": [
-            "send:invoice",
-            "detail:legalName",
-            "detail:email"
-          ],
-          "detailsHeld": [
-            "detail:legalName",
-            "detail:email"
-          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
           "detailsShared": [
             "detail:legalName",
             "detail:email",
@@ -4827,11 +4637,7 @@
           "type": "standardEncrypt"
         },
         "document": "ciphertext",
-        "granted": [
-          "send:invoice",
-          "detail:legalName",
-          "detail:email"
-        ],
+        "granted": ["send:invoice", "detail:legalName", "detail:email"],
         "entityType": "person"
       },
       "record": {
@@ -4859,15 +4665,8 @@
               "required": false
             }
           ],
-          "granted": [
-            "send:invoice",
-            "detail:legalName",
-            "detail:email"
-          ],
-          "detailsHeld": [
-            "detail:legalName",
-            "detail:email"
-          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
           "detailsShared": [
             "detail:legalName",
             "detail:email",
@@ -4961,15 +4760,8 @@
               "required": false
             }
           ],
-          "granted": [
-            "send:invoice",
-            "detail:legalName",
-            "detail:email"
-          ],
-          "detailsHeld": [
-            "detail:legalName",
-            "detail:email"
-          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
           "detailsShared": [
             "detail:legalName",
             "detail:email",
@@ -5007,10 +4799,7 @@
             "currency": "AUD"
           },
           "lineItems": {
-            "columns": [
-              "Item",
-              "Amount"
-            ],
+            "columns": ["Item", "Amount"],
             "rows": [
               {
                 "Item": "Website build",
@@ -5046,15 +4835,8 @@
               "required": false
             }
           ],
-          "granted": [
-            "send:invoice",
-            "detail:legalName",
-            "detail:email"
-          ],
-          "detailsHeld": [
-            "detail:legalName",
-            "detail:email"
-          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
           "detailsShared": [
             "detail:legalName",
             "detail:email",
@@ -5116,15 +4898,8 @@
               "required": false
             }
           ],
-          "granted": [
-            "send:invoice",
-            "detail:legalName",
-            "detail:email"
-          ],
-          "detailsHeld": [
-            "detail:legalName",
-            "detail:email"
-          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
           "detailsShared": [
             "detail:legalName",
             "detail:email",
@@ -5214,15 +4989,8 @@
               "required": false
             }
           ],
-          "granted": [
-            "send:invoice",
-            "detail:legalName",
-            "detail:email"
-          ],
-          "detailsHeld": [
-            "detail:legalName",
-            "detail:email"
-          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
           "detailsShared": [
             "detail:legalName",
             "detail:email",
@@ -5285,15 +5053,8 @@
               "required": false
             }
           ],
-          "granted": [
-            "send:invoice",
-            "detail:legalName",
-            "detail:email"
-          ],
-          "detailsHeld": [
-            "detail:legalName",
-            "detail:email"
-          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
           "detailsShared": [
             "detail:legalName",
             "detail:email",
@@ -5367,15 +5128,8 @@
               "required": false
             }
           ],
-          "granted": [
-            "send:invoice",
-            "detail:legalName",
-            "detail:email"
-          ],
-          "detailsHeld": [
-            "detail:legalName",
-            "detail:email"
-          ],
+          "granted": ["send:invoice", "detail:legalName", "detail:email"],
+          "detailsHeld": ["detail:legalName", "detail:email"],
           "detailsShared": [
             "detail:legalName",
             "detail:email",

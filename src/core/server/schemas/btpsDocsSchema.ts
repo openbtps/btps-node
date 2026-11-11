@@ -311,7 +311,10 @@ const drawnSignature = z.object({ strokes }).strict().superRefine(strokesOnCanva
  */
 const BtpVisualSignatureSchema = z.union([
   z.object({ type: z.literal('typed'), text: signatureText }).strict(),
-  z.object({ type: z.literal('drawn'), strokes }).strict().superRefine(strokesOnCanvas),
+  z
+    .object({ type: z.literal('drawn'), strokes })
+    .strict()
+    .superRefine(strokesOnCanvas),
 ]);
 
 /**
