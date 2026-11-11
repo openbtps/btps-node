@@ -127,6 +127,11 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
         decision: 'accepted',
         signedAt: new Date().toISOString(),
         ...(previous && { previous }),
+        // Each signer's own signature, inside what it signs: typed, or drawn.
+        visualSignature:
+          signer === alice
+            ? { type: 'typed', text: 'Alice Ng' }
+            : { type: 'drawn', strokes: [[40, 200, 120, 80, 260, 210, 400, 90]] },
       },
       { selector: signer.selector, pemFiles: signer.keys },
     );

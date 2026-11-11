@@ -43,6 +43,9 @@ import {
   BTP_ERROR_VERSION_UNSUPPORTED,
   BTP_ERROR_SYNC_NOT_ALLOWED,
   BTP_ERROR_PERMISSION,
+  BTP_ERROR_PERMISSION_REQUIRED,
+  BTP_ERROR_DOCUMENT_TYPE_MISMATCH,
+  BTP_ERROR_DETAILS_NOT_HELD,
 } from '@core/error/constant.js';
 import {
   assertStrictJson,
@@ -67,12 +70,14 @@ import type {
   BTPAuthReqDoc,
   BTPControlArtifact,
   BTPDelegation,
+  BTPEntityType,
   BTPIdentityLookupRequest,
   BTPIdentityResDoc,
   BTPServerResponse,
   BTPStatus,
   BTPTransporterArtifact,
 } from '@core/server/types.js';
+import { detailsOwed } from '@core/server/schemas/artifacts/transporterSchema.js';
 import { BTPErrorException, transformToBTPErrorException } from '@core/error/index.js';
 import {
   AGENT_TRANSPORTER_ACTIONS,
@@ -150,6 +155,24 @@ const BTPS_ERRORS_BY_CODE = new Map<string, BTPError>(
 );
 
 /**
+ * Since 1.2: the trust refusals a sender with an active trust is told by name,
+ * because each concerns only what the sender itself sent or answered: its
+ * encryption, a permission its answer leaves out or grants unasked, a document
+ * type its trust does not let through, or a detail it names that the trust
+ * does not hold. Every refusal about the trust's own state reads "not allowed".
+ */
+const TOLD_AS_ITSELF: ReadonlySet<string> = new Set(
+  [
+    BTP_ERROR_VALIDATION.code,
+    BTP_ERROR_PRIVACY_TYPE.code,
+    BTP_ERROR_PERMISSION.code,
+    BTP_ERROR_PERMISSION_REQUIRED.code,
+    BTP_ERROR_DOCUMENT_TYPE_MISMATCH.code,
+    BTP_ERROR_DETAILS_NOT_HELD.code,
+  ].map(String),
+);
+
+/**
  * BTPS Secure Server over TLS (btps://)
  * Handles encrypted JSON message delivery between trusted parties.
  */
@@ -167,6 +190,8 @@ export class BtpsServer {
   private readonly maxArtifactAgeSeconds: number;
   private readonly signAnswers: boolean;
   private readonly keyResolver?: BtpsKeyResolver;
+  /** Since 1.2: what each of this server's identities is, as its platform says. */
+  private readonly entityTypeOf?: BtpsServerOptions['entityTypeOf'];
   /** Since 1.2: how a sender's, a delegator's and an attestor's key is checked against its key chain. */
   private readonly keyChains: BTPKeyChainCheck;
   /** Since 1.2: what `on(…)` tells its listeners, apart from the artifact handlers. */
@@ -194,6 +219,7 @@ export class BtpsServer {
     this.tlsOptions = options.tlsOptions;
     this.trustStore = options.trustStore;
     this.identityStore = options.identityStore;
+    this.entityTypeOf = options.entityTypeOf;
     this.connectionTimeoutMs = resolveConnectionTimeoutMs(options.connectionTimeoutMs);
     this.maxArtifactSizeKb = resolveMaxArtifactSizeKb(options.maxArtifactSizeKb);
     this.maxInFlightPerConnection = resolveMaxInFlightPerConnection(
@@ -795,14 +821,15 @@ export class BtpsServer {
       // precise server-side reason (never-trusted, expired, revoked); the
       // wire only distinguishes expired from everything else, so an
       // un-upgraded 1.0 peer still just sees "not allowed" for a revoked or
-      // never-trusted sender. A sender with an active trust is also told when
-      // it did not encrypt as that trust requires: that concerns only what
-      // the sender itself sent.
+      // never-trusted sender. A sender with an active trust is also told
+      // the refusals that concern only what the sender itself sent
+      // (TOLD_AS_ITSELF): it did not encrypt as that trust requires, or what
+      // it sent or answered is not what the trust's permissions allow.
       const refusal = reqCtx.error;
       const wireError =
         refusal?.code === BTP_ERROR_TRUST_EXPIRED.code
           ? BTP_ERROR_TRUST_EXPIRED
-          : refusal && refusal.code === BTP_ERROR_PRIVACY_TYPE.code
+          : refusal && TOLD_AS_ITSELF.has(String(refusal.code))
             ? refusal
             : BTP_ERROR_TRUST_NOT_ALLOWED;
       return this.sendBtpsError(resCtx.socket, wireError, resCtx.reqId);
@@ -1367,6 +1394,8 @@ export class BtpsServer {
     }
 
     if (artifact.type === 'TRUST_REQ') {
+      const owes = await this.detailsOwedByPerson(artifact);
+      if (owes) return { isTrusted: false, error: owes };
       const { isValid, error } = validateTrustRequest(trustRecord, artifact);
       return { isTrusted: isValid, error };
     } else {
@@ -1384,6 +1413,31 @@ export class BtpsServer {
       }
       return this.verifyPrivacyType(artifact, trustRecord);
     }
+  }
+
+  /**
+   * Since 1.2: a person's trust request that asks for details without giving its own. It is
+   * refused unless its receiver is an organisation, as `entityTypeOf` says: a person asking an
+   * organisation gives nothing in return. A receiver this server cannot say is held to be a
+   * person. An organisation's request is held to it by the schema, whoever receives it.
+   */
+  private async detailsOwedByPerson(
+    artifact: BTPTransporterArtifact,
+  ): Promise<BTPErrorException | undefined> {
+    const { permissions, entityType, given } = artifact;
+    if (!permissions || entityType !== 'person') return undefined;
+    const [first] = detailsOwed(permissions, entityType, given);
+    if (!first) return undefined;
+    let receiver: BTPEntityType | undefined;
+    try {
+      receiver = await this.entityTypeOf?.(artifact.to);
+    } catch {
+      receiver = undefined;
+    }
+    if (receiver === 'organisation') return undefined;
+    return new BTPErrorException(BTP_ERROR_VALIDATION, {
+      cause: `asks for ${first.asked} without giving ${first.owed}`,
+    });
   }
 
   /**

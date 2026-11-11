@@ -23,6 +23,9 @@ interface BtpsServerOptions {
     | { identity: string; signer: Signer; selector?: string };
   signAnswers?: boolean;
   keyResolver?: BtpsKeyResolver; // since 1.2
+  entityTypeOf?: (
+    identity: string,
+  ) => BTPEntityType | undefined | Promise<BTPEntityType | undefined>; // since 1.2
   trustStore: AbstractTrustStore<BTPTrustRecord>;
   identityStore?: AbstractIdentityStore<BTPIdentityRecord>;
   port?: number;
@@ -40,6 +43,7 @@ interface BtpsServerOptions {
 - `serverIdentity`: Required server identity: its identity, with its PEM public and private key, or with a `signer` holding the key elsewhere, such as a KMS (see [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter)). Since 1.2, `selector` is the selector its key is published under; `signAnswers` needs it
 - `signAnswers`: Optional, since 1.2. Signs every answer, errors included, as `serverIdentity` under its `selector`, after the answer's `reqId` is set, so a device that requires its server's signature (`requireSignedBy`) can read it. Off by default. `serverIdentity` is the domain's operator (for example `admin$saas.example`), the same identity and key that signs identity-lookup answers, so a provider keeps one key pair. Every 1.1 and 1.2 client takes a lookup answer only from the operator, so a `serverIdentity` of any other identity would leave the host unable to answer lookups
 - `keyResolver`: Optional, since 1.2. Finds every key the server checks a signature with (a sender's, a delegator's, an attestor's), so a provider can cache them; see [BtpsKeyResolver](#btpskeyresolver). Without it, each is looked up in DNS, as before
+- `entityTypeOf`: Optional, since 1.2. Whether one of the platform's own addresses is a `person` or an `organisation`, asked when a person's trust request for details arrives for it: a person asking an organisation gives nothing in return, and asking a person gives what it asks for ([You give what you ask for](../features/trustPermissions.md#you-give-what-you-ask-for)). Without it, or when it returns `undefined` or throws, the receiver is held to be a person
 - `trustStore`: Required trust store instance for managing trust records
 - `identityStore`: Optional identity store instance for managing identity records
 - `port`: Optional port number (default: 3443)
@@ -1478,7 +1482,11 @@ type BTPAgreementStatement = {
   decision: 'accepted' | 'declined';
   signedAt: string;
   previous?: string; // in a sequential agreement: the SHA-256 of the record before it
+  visualSignature?: BTPVisualSignature; // on an acceptance only
 };
+
+// The signer's own signature, typed or drawn on a 1000 by 300 canvas, as a letter's is
+type BTPVisualSignature = { type: 'typed'; text: string } | { type: 'drawn'; strokes: number[][] };
 
 // Signed by the signer's identity key at `selector`, or by a device key, carrying the delegated artifact that delivered it
 type BTPStatementRecord = { statement: BTPAgreementStatement; signature: BTPSignature } & (

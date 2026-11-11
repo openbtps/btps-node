@@ -232,7 +232,8 @@ export type BTPAgreementAnswers = {
 /**
  * Since 1.2: a signer's answer to an agreement, signed over its RFC 8785 form.
  * `previous`, in a sequential agreement, is the SHA-256 of the statement
- * record before it.
+ * record before it. `visualSignature`, on an acceptance only, is the signer's
+ * own signature, typed or drawn on the same 1000 by 300 canvas as a letter's.
  */
 export type BTPAgreementStatement = {
   agreement: BTPAgreementRef;
@@ -241,7 +242,13 @@ export type BTPAgreementStatement = {
   decision: 'accepted' | 'declined';
   signedAt: string;
   previous?: string;
+  visualSignature?: BTPVisualSignature;
 };
+
+/** Since 1.2: a signer's signature as data, never markup, which a receiver draws itself. */
+export type BTPVisualSignature =
+  | { type: 'typed'; text: string }
+  | { type: 'drawn'; strokes: number[][] };
 
 /**
  * Since 1.2: a signed statement. Signed by the signer's identity key at

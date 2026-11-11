@@ -197,6 +197,8 @@ server.on('detailsShared', ({ from, to, names, at }) =>
 | `BTP_ERROR_VALIDATION`           | 400    | `decryptVerify`                                   | an opened response whose values do not match its names                                                                                      |
 | `BTP_ERROR_VALIDATION`           | 400    | a 1.1 server                                      | it does not know these types, so the sender is not told it speaks 1.1                                                                       |
 
+The receiving server's refusals reach the sender as themselves, with their code, so its platform can say which detail the trust does not cover.
+
 `isKnownArtifact` is the trust store's: a platform that takes details responses records the requests it sends. `JsonTrustStore` keeps no artifacts, so a server using it as is takes no `DETAILS_RES`.
 
 ## Protocol and platform
