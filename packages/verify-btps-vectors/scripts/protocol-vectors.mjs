@@ -1830,7 +1830,7 @@ export function trustPermissions() {
   });
   return {
     description:
-      "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: [{ name, required }]`, one flat list in which the prefix says each name's kind, each name once and at least one `send:` name, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`; `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `details` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
+      "BTPS 1.2 trust permissions. Every permission name travels on the transporter envelope, signed and readable, so the BTPS server checks it on arrival without decrypting; only the values are encrypted. A name is `send:<invoice|receipt|payslip|letter>` or `detail:<legalName|profile|email|phone|address|taxNo|dob|registrationNumber>`, and nothing else. A `TRUST_REQ` carries `permissions: [{ name, required }]`, one flat list in which the prefix says each name's kind, each name once and at least one `send:` name, `entityType` (person or organisation) and `given`, the `detail:` names the sender offers about itself as permissions, and every detail it asks for it gives (1.1's always-present `name`, `email` and `phone` are listed only when asked for), with one swap: a person gives `detail:dob` and an organisation `detail:registrationNumber`, never the other, so asking for either is met by giving the sender's own, by the sender's envelope `entityType`. An organisation's request is held to this by its envelope; a person's by the receiving server, which takes it without anything given when the receiver is an organisation (a person asking an organisation gives nothing in return), and so its envelope cases here are accepted. A `1.2.0` `TRUST_REQ` always carries `permissions`; one that asks for everything is a `1.1.0` request. `change: true` marks a change to an active trust. A `TRUST_RES` carries `granted`, the names given, and the responder's `entityType`, which decides which of `detail:dob` and `detail:registrationNumber` it may grant; a rejected one carries no `granted`, and may omit `entityType`. A `BTPS_DOC` under a trust with permissions carries `documentType`. All are 1.2.0 only. The values: a request's 1.1 fields hold what 1.1 has a field for (`name` is `detail:legalName`; `email`, `phone`, `address`; `displayName`, `logoUrl` and `websiteUrl` are `detail:profile`) and `own` holds the rest by name; a response's `details` holds each granted detail by name; `taxNo` and `registrationNumber` are `{ number, country }`, `dob` is `YYYY-MM-DD`, and `detail:profile` in a response is `{ displayName, logo?: { sha256, source }, website? }`. A document holding a value is encrypted. `envelopes` are checked by the transporter schema; `opened` by `trustRequestProblem` or `trustResponseProblem`, on the decrypted document; `grant` by `trustGrantProblem(response, requesterRecord)`; `documentType` by `documentTypeProblem(artifact, receiverRecord)`. A record is the part of the trust record the check reads: `status` and `permissions: { requested, granted, detailsHeld, detailsShared, pendingChange? }`; a record without `permissions` is a 1.1 trust.",
     envelopes: [
       named('request', request, 'accept'),
       named(
@@ -1973,14 +1973,22 @@ export function trustPermissions() {
       named(
         'request-from-a-person-asking-a-date-of-birth-without-giving-one',
         fromAPerson([ask('detail:dob')], { given: personGiven.slice(0, 3) }),
-        'refuse',
-        'a person asking for a date of birth gives its own',
+        'accept',
+        "a person's request is held to what it gives by the receiving server, which alone knows whether the receiver is an organisation",
       ),
       named(
         'request-from-a-person-asking-a-registration-number-giving-nothing-for-it',
         fromAPerson([ask('detail:registrationNumber')], { given: personGiven.slice(0, 3) }),
+        'accept',
+        "a person's request is held to what it gives by the receiving server, which alone knows whether the receiver is an organisation",
+      ),
+      named(
+        'request-1.2.0-asking-for-nothing',
+        (({ permissions: _permissions, entityType: _entityType, given: _given, ...rest }) => rest)(
+          request,
+        ),
         'refuse',
-        'a person asking for a registration number gives its date of birth',
+        'a 1.2.0 trust request asks for permissions; one that asks for everything is a 1.1.0 request',
       ),
       named(
         'request-from-an-organisation-asking-a-date-of-birth-giving-nothing-for-it',
@@ -3253,6 +3261,11 @@ export function agreements(keys) {
     stated(BANK, 'accepted', at(4), hashOf(samAfterDevice)),
   );
   const aliceDeclines = byIdentity(keys.signer, stated(ALICE, 'declined', at(2)));
+  // Since 1.2: a signer's own signature on its acceptance, inside what it signs.
+  const signedWith = (decision, visualSignature) =>
+    byIdentity(keys.signer, { ...stated(ALICE, decision, at(2)), visualSignature });
+  const typed = { type: 'typed', text: 'Alice Ng' };
+  const drawn = { type: 'drawn', strokes: [[40, 200, 120, 80, 260, 210, 400, 90]] };
 
   // Answer events, as an opened BTPS_EVENT carries them.
   const answer = (eventType, record, more = {}) => ({
@@ -3402,6 +3415,34 @@ export function agreements(keys) {
     ),
     eventCase(accept, 'agreement-progress', forwarded('agreement_progress', [alice])),
     eventCase(accept, 'agreement-complete', forwarded('agreement_complete', [alice, sam, bank])),
+    eventCase(
+      accept,
+      'accepted-with-a-typed-signature',
+      answer('accepted', signedWith('accepted', typed)),
+    ),
+    eventCase(
+      accept,
+      'accepted-with-a-drawn-signature',
+      answer('accepted', signedWith('accepted', drawn)),
+    ),
+    eventCase(
+      refuse,
+      'declined-with-a-signature',
+      answer('declined', signedWith('declined', typed)),
+      'only an acceptance carries a visualSignature',
+    ),
+    eventCase(
+      refuse,
+      'typed-signature-with-markup',
+      answer('accepted', signedWith('accepted', { type: 'typed', text: '<b>Alice</b>' })),
+      'a typed signature is plain text',
+    ),
+    eventCase(
+      refuse,
+      'drawn-signature-off-the-canvas',
+      answer('accepted', signedWith('accepted', { type: 'drawn', strokes: [[0, 0, 1001, 10]] })),
+      'a drawn signature is x, y pairs on a 1000 by 300 canvas',
+    ),
     eventCase(
       refuse,
       'accepted-with-a-note',

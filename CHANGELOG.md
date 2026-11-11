@@ -4,6 +4,45 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.0-rc.2] — 2026-11-11 (beta, release candidate)
+
+What eBill found running 1.2.0-rc.1. Everything in rc.1 below still holds.
+
+### Added
+
+- **A signer's own signature on its acceptance.** An agreement statement may
+  carry `visualSignature`, typed (`{ type: 'typed', text }`) or drawn
+  (`{ type: 'drawn', strokes }`), with a letter signature's limits, on an
+  `accepted` statement only. It is inside the statement, so the statement's
+  signature covers it and the evidence bundle keeps it. It is optional in the
+  protocol; a platform may require one. A 1.2.0-rc.1 receiver refuses a
+  statement that carries one.
+- The server option `entityTypeOf`: whether one of the platform's own
+  addresses is a person or an organisation, so the server can tell what a
+  person's trust request owes (see Changed).
+
+### Changed
+
+- A `1.2.0` trust request carries `permissions`. One without them is refused
+  on arrival; a request for everything is a `1.1.0` one, which every server
+  still takes.
+- A person asking an organisation for details gives nothing in return. An
+  organisation's request still gives what it asks for to anyone, and a
+  person's to another person. Only the receiver's own server knows what the
+  receiver is, so a person's request is now checked there, against
+  `entityTypeOf`, instead of by the schema; without the option, every receiver
+  is held to be a person, as before.
+
+### Fixed
+
+- A refusal of a trust's permissions reaches the sender as itself:
+  `BTP_ERROR_PERMISSION_REQUIRED` for a grant that withholds a required name,
+  `BTP_ERROR_PERMISSION` for a name not granted or not asked for,
+  `BTP_ERROR_DOCUMENT_TYPE_MISMATCH` and `BTP_ERROR_DETAILS_NOT_HELD`. Each
+  read `BTP_ERROR_TRUST_NOT_ALLOWED` on the wire, so a platform could not tell
+  its user what to fix. Refusals about a trust's state still read "not
+  allowed", so a stranger learns nothing of it.
+
 ## [1.2.0-rc.1] — 2026-11-08 (beta, release candidate)
 
 What's new, with a guide for each feature: [What's new in 1.2](https://www.openbtps.org/docs/next/whats-new/1-2).

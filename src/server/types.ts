@@ -29,6 +29,7 @@ import type {
   BtpLetterDocSchema,
   BtpPayslipDocSchema,
 } from '@core/server/schemas/btpsDocsSchema.js';
+import type { BTPEntityType } from '@core/server/types.js';
 
 export interface BtpsTlsOptions extends TlsOptions {
   cert: string;
@@ -88,6 +89,15 @@ export interface BtpsServerOptions {
    * lookups; a `keyResolver` with `resolveKeyChain` keeps its own cache, and must honour it.
    */
   keyChainMaxCacheSeconds?: number;
+  /**
+   * Since 1.2: whether one of this server's own identities is a person or an organisation, as
+   * its platform knows it; undefined when it does not say. A person asking an organisation for
+   * details gives nothing in return; every other request gives what it asks for. Without this
+   * option every receiver is held to be a person, so every request gives what it asks for.
+   */
+  entityTypeOf?: (
+    identity: string,
+  ) => BTPEntityType | undefined | Promise<BTPEntityType | undefined>;
 }
 
 /** Since 1.2: a details request arrived: who asked whom for which details, and when. */

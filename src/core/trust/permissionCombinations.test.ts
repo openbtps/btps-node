@@ -189,6 +189,14 @@ describe('every grant and request on the envelope, for each kind of address', ()
   });
   const takes = (artifact: object) => BtpTransporterArtifactSchema.safeParse(artifact).success;
 
+  it('asks for permissions in every 1.2.0 request; one that asks for everything is a 1.1.0 one', () => {
+    const permissions = [{ name: 'send:invoice', required: true }];
+    expect(takes(envelope('TRUST_REQ', { permissions, entityType: 'organisation' }))).toBe(true);
+    expect(takes(envelope('TRUST_REQ', {}))).toBe(false);
+    expect(takes(envelope('TRUST_REQ', { change: true }))).toBe(false);
+    expect(takes({ ...envelope('TRUST_REQ', {}), version: '1.1.0' })).toBe(true);
+  });
+
   it("grants any names but the other kind's own identity detail", () => {
     for (const entityType of ENTITY_TYPES) {
       const other = IDENTITY_DETAIL[entityType === 'person' ? 'organisation' : 'person'];
@@ -201,30 +209,41 @@ describe('every grant and request on the envelope, for each kind of address', ()
     }
   });
 
-  it('asks for details only by giving each in return, a date of birth and a registration number swapping', () => {
-    for (const entityType of ENTITY_TYPES) {
-      const gives = (name: BTPDetailPermission) =>
-        (Object.values(IDENTITY_DETAIL) as string[]).includes(name)
-          ? IDENTITY_DETAIL[entityType]
-          : name;
-      for (const details of subsets(DETAIL_PERMISSIONS).filter((names) => names.length > 0)) {
-        const permissions = [
-          { name: 'send:invoice', required: true },
-          ...details.map((name) => ({ name, required: false })),
-        ];
-        const owed = [...new Set(details.map(gives))];
-        const request = (given: string[]) =>
-          envelope('TRUST_REQ', { permissions, entityType, given });
-        const label = `${entityType} asking [${details.join(', ')}]`;
+  it('holds an organisation to giving each detail it asks for, a date of birth swapping for a registration number', () => {
+    const gives = (name: BTPDetailPermission) =>
+      (Object.values(IDENTITY_DETAIL) as string[]).includes(name)
+        ? IDENTITY_DETAIL.organisation
+        : name;
+    for (const details of subsets(DETAIL_PERMISSIONS).filter((names) => names.length > 0)) {
+      const permissions = [
+        { name: 'send:invoice', required: true },
+        ...details.map((name) => ({ name, required: false })),
+      ];
+      const owed = [...new Set(details.map(gives))];
+      const request = (given: string[]) =>
+        envelope('TRUST_REQ', { permissions, entityType: 'organisation', given });
+      const label = `organisation asking [${details.join(', ')}]`;
 
-        expect(takes(request(owed)), label).toBe(true);
-        for (const left of owed) {
-          expect(
-            takes(request(owed.filter((name) => name !== left))),
-            `${label} without ${left}`,
-          ).toBe(false);
-        }
+      expect(takes(request(owed)), label).toBe(true);
+      for (const left of owed) {
+        expect(
+          takes(request(owed.filter((name) => name !== left))),
+          `${label} without ${left}`,
+        ).toBe(false);
       }
+    }
+  });
+
+  it("leaves a person's request to the receiving server, which alone knows what the receiver is", () => {
+    for (const details of subsets(DETAIL_PERMISSIONS).filter((names) => names.length > 0)) {
+      const permissions = [
+        { name: 'send:invoice', required: true },
+        ...details.map((name) => ({ name, required: false })),
+      ];
+      expect(
+        takes(envelope('TRUST_REQ', { permissions, entityType: 'person', given: [] })),
+        `person asking [${details.join(', ')}]`,
+      ).toBe(true);
     }
   });
 });

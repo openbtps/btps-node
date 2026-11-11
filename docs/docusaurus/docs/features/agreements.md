@@ -134,6 +134,7 @@ A signer answers with an `agreement_event` in a `BTPS_EVENT`, whose `relatesTo` 
 - **Identity or device.** A record with `selector` was signed by the signer's identity key, which may be a managed key its provider holds. One signed on a device carries instead `delegatedArtifact`: the whole event artifact that delivered it, as it arrived, which the originator adds on receipt so the record stays checkable offline. The key kind is a fact of the record, never a field.
 - **`previous`**, in a sequential agreement, on every statement after the first: the SHA-256 of the record before it (`statementRecordSha256`), signature included.
 - **`terms`** repeats the agreement's terms exactly; **`signedAt`** is the signer's own signed time, which the deadline is checked against.
+- **`visualSignature`**, optional, on an acceptance only: the signer's own signature, typed (`{ type: "typed", text }`) or drawn (`{ type: "drawn", strokes }`), with a letter's limits. It is inside the statement, so the signature covers it: another one, or none, no longer checks. A platform may require one before it lets its user accept.
 - **An answer is final.** It is never withdrawn; a change is a new agreement.
 
 A decline may carry a note:
@@ -234,6 +235,7 @@ const record = await signStatement(
     decision: 'accepted',
     signedAt: new Date().toISOString(),
     previous: statementRecordSha256(alicesRecord), // sequential, after the first
+    visualSignature: { type: 'typed', text: 'Sam Lee' }, // optional, an acceptance only
   },
   { selector: 'btps1', pemFiles: samKeys },
 );
