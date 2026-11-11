@@ -51,6 +51,12 @@ import type {
   BTPTrustPermissions,
 } from '../../src/core/server/types.js';
 import type { BTPTrustRecordPermissions } from '../../src/core/trust/types.js';
+import {
+  BTP_ERROR_DETAILS_NOT_HELD,
+  BTP_ERROR_PERMISSION,
+  BTP_ERROR_PERMISSION_REQUIRED,
+  BTP_ERROR_VALIDATION,
+} from '../../src/core/error/index.js';
 
 vi.mock('dns/promises', async () => (await import('./zone.js')).dnsModule);
 
@@ -270,8 +276,41 @@ describe('journey: trust permissions in every combination that matters', () => {
         const { vendor, client } = await parties();
         const request = await ask(vendor, client, asked(['send:invoice']));
         const refused = await answer(vendor, client, kind, request, ['send:receipt']);
-        expect(refused?.status.ok).toBe(false);
+        // Told as itself on the wire: it concerns only what the client answered.
+        expect(refused?.status).toMatchObject({
+          ok: false,
+          code: 403,
+          error: BTP_ERROR_PERMISSION_REQUIRED.code,
+        });
         expectExactly(await tryAll(vendor, client), []);
+      });
+
+      it('tells the vendor, by name, a document type or a detail its trust does not let through', async () => {
+        const { vendor, client } = await parties();
+        const request = await ask(vendor, client, asked());
+        expect((await answer(vendor, client, kind, request, ['send:invoice']))?.status.ok).toBe(
+          true,
+        );
+        const letter = await artifactFrom(vendor, client.identity, 'BTPS_DOC', DOCUMENTS.letter, {
+          extra: { documentType: 'letter' },
+        });
+        expect((await deliver(letter)).response?.status).toMatchObject({
+          ok: false,
+          code: 403,
+          error: BTP_ERROR_PERMISSION.code,
+        });
+        const details = await artifactFrom(
+          vendor,
+          client.identity,
+          'DETAILS_REQ',
+          {},
+          { extra: { details: ['detail:email'] } },
+        );
+        expect((await deliver(details)).response?.status).toMatchObject({
+          ok: false,
+          code: 403,
+          error: BTP_ERROR_DETAILS_NOT_HELD.code,
+        });
       });
 
       it('takes what a later change adds, and stops taking what it removes', async () => {
@@ -299,4 +338,73 @@ describe('journey: trust permissions in every combination that matters', () => {
       });
     });
   }
+});
+
+describe("journey: a person's request for details, held by the receiving server", () => {
+  // A person gives what they ask for to another person, never to an organisation; only the
+  // receiver's server knows which it is, from its entityTypeOf option.
+  let personHost: Provider;
+  let shopHost: Provider;
+  let plainHost: Provider;
+  let users = 0;
+
+  beforeAll(async () => {
+    personHost = await startProvider('people.test');
+    shopHost = await startProvider('shops.test', {
+      server: { entityTypeOf: (id) => (id.startsWith('shop') ? 'organisation' : 'person') },
+    });
+    plainHost = await startProvider('plain.test');
+  });
+
+  afterAll(() => {
+    personHost.stop();
+    shopHost.stop();
+    plainHost.stop();
+  });
+
+  const permissions: BTPTrustPermissions = [
+    { name: 'send:letter', required: true },
+    { name: 'detail:email', required: false },
+    { name: 'detail:dob', required: false },
+  ];
+  const request = {
+    id: 'req-1',
+    name: 'Robert Smith',
+    email: 'bob@people.example',
+    reason: 'To write to you',
+    phone: '+61 400 000 002',
+    address: '3 Totara Lane, Dunedin',
+    displayName: 'Bob',
+  };
+
+  const ask = async (to: Provider, account: string, given: BTPDetailPermission[]) => {
+    users++;
+    const asker = await addUser(personHost, `bob${users}`);
+    const receiver = await addUser(to, `${account}${users}`);
+    const artifact = await artifactFrom(asker, receiver.identity, 'TRUST_REQ', request, {
+      extra: { permissions, entityType: 'person', given, issuedAt: new Date().toISOString() },
+    });
+    return (await deliver(artifact)).response?.status;
+  };
+
+  it('takes it for an organisation, which a person gives nothing in return', async () => {
+    expect(await ask(shopHost, 'shop', [])).toMatchObject({ ok: true });
+  });
+
+  it('refuses it for a person unless the asker gives each detail it asks for', async () => {
+    const refused = { ok: false, code: 400, error: BTP_ERROR_VALIDATION.code };
+    expect(await ask(shopHost, 'alice', [])).toMatchObject(refused);
+    expect(await ask(shopHost, 'alice', ['detail:email'])).toMatchObject(refused);
+    expect(await ask(shopHost, 'alice', ['detail:email', 'detail:dob'])).toMatchObject({
+      ok: true,
+    });
+  });
+
+  it('holds every receiver to be a person on a server that does not say', async () => {
+    expect(await ask(plainHost, 'shop', [])).toMatchObject({
+      ok: false,
+      code: 400,
+      error: BTP_ERROR_VALIDATION.code,
+    });
+  });
 });
