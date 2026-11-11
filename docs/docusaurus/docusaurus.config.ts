@@ -107,7 +107,7 @@ const config: Config = {
           // version, at /docs/next, marked unreleased until it is released.
           lastVersion: '1.1.3',
           versions: {
-            current: { label: '1.2.0-rc.1 (next)', path: 'next', banner: 'unreleased' },
+            current: { label: '1.2.0-rc.2 (next)', path: 'next', banner: 'unreleased' },
           },
         },
         blog: false,
