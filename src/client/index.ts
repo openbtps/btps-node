@@ -13,18 +13,9 @@ export * from './constants/index.js';
 // Whether an opened document's BoundView may be shown, as a server checks it.
 export {
   checkBoundView,
-  boundViewResultOf,
   writtenValue,
   type BTPBoundViewResult,
 } from '@core/server/schemas/boundViewChecks.js';
-export { boundValue, type BoundValue } from '@core/server/schemas/boundViewBindings.js';
-export {
-  BtpBoundViewSchema,
-  isPathData,
-  type BTPBoundView,
-  type BTPBoundViewElement,
-  type BTPBoundViewFont,
-} from '@core/server/schemas/boundViewSchema.js';
 export {
   MIN_CONNECT_TIMEOUT_MS,
   DEFAULT_CONNECT_TIMEOUT_MS,

@@ -13,7 +13,7 @@
  * preview showed it (`writtenValue`), so a binding can never change a fact.
  */
 
-import { boundValue, writtenValue, type BoundValue } from '@btps/sdk/client';
+import { boundValue, writtenValue, type BoundValue } from '@btps/sdk/boundview';
 
 /** A line of one text node as laid out: its text, and each character's box. */
 export type Run = {

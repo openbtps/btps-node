@@ -75,6 +75,11 @@ const entryPoints: Array<[string, () => Promise<Record<string, unknown>>, string
     () => import('./core/storage/index.js'),
     ['AbstractStorageStore', 'AbstractIdentityStore', 'JsonStorageStore', 'JsonIdentityStore'],
   ],
+  [
+    '@btps/sdk/boundview',
+    () => import('./boundview.js'),
+    ['BtpBoundViewSchema', 'boundValue', 'checkBoundView', 'boundViewResultOf', 'writtenValue'],
+  ],
 ];
 
 describe('package entry points', () => {

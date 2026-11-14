@@ -13,8 +13,8 @@
  */
 
 import { initWasm, Resvg } from '@resvg/resvg-wasm';
-import { boundViewResultOf } from '@btps/sdk/client';
-import type { BTPBoundView } from '@btps/sdk/server';
+import { boundViewResultOf } from '@btps/sdk/boundview';
+import type { BTPBoundView } from '@btps/sdk/boundview';
 import { boundViewToSvg } from './svg.js';
 
 /** What the engine's WebAssembly is loaded from: its bytes, a compiled module, a URL or a fetch response. */

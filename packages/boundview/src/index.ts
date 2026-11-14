@@ -7,3 +7,4 @@
 
 export { renderBoundView, initBoundViewEngine, type BoundViewEngineSource } from './render.js';
 export { boundViewToSvg, SIGNATURE_STROKE } from './svg.js';
+export { snapshotBoundView, BoundViewSnapshotError, type SnapshotOptions } from './snapshot/index.js';

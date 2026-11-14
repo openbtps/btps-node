@@ -207,11 +207,16 @@ export const pathData = (commands: Command[], matrix: Matrix): string =>
     .map((command) => {
       if (command.type === 'Z') return 'Z';
       const to = place(command.to, matrix);
-      if (command.type === 'M' || command.type === 'L') return `${command.type}${r(to[0])} ${r(to[1])}`;
-      const c1 = place(command.c1, matrix);
-      if (command.type === 'Q') return `Q${r(c1[0])} ${r(c1[1])} ${r(to[0])} ${r(to[1])}`;
-      const c2 = place(command.c2, matrix);
-      return `C${r(c1[0])} ${r(c1[1])} ${r(c2[0])} ${r(c2[1])} ${r(to[0])} ${r(to[1])}`;
+      if (command.type === 'Q') {
+        const c1 = place(command.c1, matrix);
+        return `Q${r(c1[0])} ${r(c1[1])} ${r(to[0])} ${r(to[1])}`;
+      }
+      if (command.type === 'C') {
+        const c1 = place(command.c1, matrix);
+        const c2 = place(command.c2, matrix);
+        return `C${r(c1[0])} ${r(c1[1])} ${r(c2[0])} ${r(c2[1])} ${r(to[0])} ${r(to[1])}`;
+      }
+      return `${command.type}${r(to[0])} ${r(to[1])}`;
     })
     .join('');
 

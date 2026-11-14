@@ -12,7 +12,7 @@
  * side only, with opentype.js.
  */
 
-import type { BTPBoundViewFont } from '@btps/sdk/client';
+import type { BTPBoundViewFont } from '@btps/sdk/boundview';
 
 /** The parts of an opentype.js font a glyph table is read from. */
 export type OpenTypeFont = {

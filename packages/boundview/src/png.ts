@@ -14,7 +14,7 @@
  */
 
 import { unzlibSync, zlibSync } from 'fflate';
-import type { BTPBoundView } from '@btps/sdk/server';
+import type { BTPBoundView } from '@btps/sdk/boundview';
 
 type Image = NonNullable<BTPBoundView['images']>[string];
 

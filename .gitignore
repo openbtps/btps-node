@@ -39,4 +39,5 @@ test
 !/test/docsUrls.test.ts
 !/test/vectors.json
 !/packages/verify-btps-vectors/test/
+!/packages/boundview/test/
 coverage

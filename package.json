@@ -63,6 +63,9 @@
     },
     "./storage": {
       "import": "./dist/core/storage/index.js"
+    },
+    "./boundview": {
+      "import": "./dist/boundview.js"
     }
   },
   "bin": {

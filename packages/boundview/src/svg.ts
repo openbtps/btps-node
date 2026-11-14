@@ -12,8 +12,8 @@
  * checked pixels. No value from a canvas is copied in as markup.
  */
 
-import { boundValue, writtenValue } from '@btps/sdk/client';
-import type { BTPBoundView, BTPBoundViewElement, BTPBoundViewFont } from '@btps/sdk/server';
+import { boundValue, writtenValue } from '@btps/sdk/boundview';
+import type { BTPBoundView, BTPBoundViewElement, BTPBoundViewFont } from '@btps/sdk/boundview';
 import bundled from './bundledGlyphs.json' with { type: 'json' };
 import { pngOf } from './png.js';
 
