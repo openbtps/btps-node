@@ -14,14 +14,19 @@
  */
 
 import { CURRENCY_DECIMALS } from '../constants/currency.js';
-import type { BTPBoundView, BTPBoundViewElement, BTPBoundViewFont } from './boundViewSchema.js';
+import {
+  BtpBoundViewSchema,
+  type BTPBoundView,
+  type BTPBoundViewElement,
+  type BTPBoundViewFont,
+} from './boundViewSchema.js';
 import { boundValue, type BoundValue } from './boundViewBindings.js';
 
 type Doc = Record<string, unknown>;
 type TextElement = Extract<BTPBoundViewElement, { type: 'text' }>;
 type Paint = NonNullable<Extract<BTPBoundViewElement, { type: 'rect' }>['fill']>;
 
-export type BTPBoundViewCheck = 'keyFacts' | 'shownInFull' | 'notHidden';
+export type BTPBoundViewCheck = 'wellFormed' | 'keyFacts' | 'shownInFull' | 'notHidden';
 
 export type BTPBoundViewProblem = {
   check: BTPBoundViewCheck;
@@ -598,4 +603,17 @@ export const checkBoundView = (document: Doc, view: BTPBoundView): BTPBoundViewR
   });
 
   return problems.length === 0 ? { show: true } : { show: false, problems };
+};
+
+/**
+ * Whether an opened document's BoundView may be shown, or undefined when it
+ * carries none. A document is checked against its schema before it is opened;
+ * one that was not, and whose BoundView is not well formed, is never shown.
+ */
+export const boundViewResultOf = (document: unknown): BTPBoundViewResult | undefined => {
+  if (typeof document !== 'object' || document === null || !('boundView' in document)) return undefined;
+  const parsed = BtpBoundViewSchema.safeParse(document.boundView);
+  return parsed.success
+    ? checkBoundView(document as Doc, parsed.data)
+    : { show: false, problems: [{ check: 'wellFormed', message: 'the BoundView is not well formed' }] };
 };

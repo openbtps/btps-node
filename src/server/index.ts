@@ -17,6 +17,15 @@ export {
   trustRequestProblem,
   trustResponseProblem,
 } from '@core/server/schemas/helpers.js';
+// Whether a BoundView may be shown, and each bound value as a receiver draws it.
+export {
+  checkBoundView,
+  writtenValue,
+  CONTRAST_WORK_LIMIT,
+  type BTPBoundViewResult,
+  type BTPBoundViewProblem,
+  type BTPBoundViewCheck,
+} from '@core/server/schemas/boundViewChecks.js';
 // A provider wraps an encrypted result's content key to the device that asked.
 export { wrapForAgent } from './libs/wrapForAgent.js';
 // Who signed a transporter artifact, checked as this server checks it on arrival.

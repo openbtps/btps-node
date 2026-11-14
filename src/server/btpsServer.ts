@@ -78,6 +78,10 @@ import type {
   BTPTransporterArtifact,
 } from '@core/server/types.js';
 import { detailsOwed } from '@core/server/schemas/artifacts/transporterSchema.js';
+import {
+  boundViewResultOf,
+  type BTPBoundViewResult,
+} from '@core/server/schemas/boundViewChecks.js';
 import { BTPErrorException, transformToBTPErrorException } from '@core/error/index.js';
 import {
   AGENT_TRANSPORTER_ACTIONS,
@@ -1599,12 +1603,18 @@ export class BtpsServer {
 
       if (this.isResponseSent(resCtx)) return true;
     } else {
+      // Since 1.2: a readable document's BoundView is checked here, once its
+      // signature and trust are, so its handlers know whether it may be shown.
+      const boundView =
+        artifact.type === 'BTPS_DOC' ? boundViewResultOf(artifact.document) : undefined;
+      if (boundView) data = { ...data, boundView };
       // Success is answered only once every handler has returned; one that
       // throws is answered as an error, so the sender knows to try again.
       const listeners = this.emitter.listeners('transporterArtifact') as ((
         a: BTPTransporterArtifact,
+        boundView?: BTPBoundViewResult,
       ) => unknown)[];
-      await Promise.all(listeners.map(async (listener) => listener(artifact)));
+      await Promise.all(listeners.map(async (listener) => listener(artifact, boundView)));
     }
     await this._forwardArtifact(data);
     return false;
@@ -1985,9 +1995,13 @@ export class BtpsServer {
   ): void;
 
   // Function overload for 'Transporter'
+  // Since 1.2, `boundView` says whether a readable document's BoundView may be shown.
   public onIncomingArtifact(
     type: 'Transporter',
-    handler: (artifact: BTPTransporterArtifact) => void | Promise<void>,
+    handler: (
+      artifact: BTPTransporterArtifact,
+      boundView?: BTPBoundViewResult,
+    ) => void | Promise<void>,
   ): void;
 
   /**
@@ -1997,7 +2011,7 @@ export class BtpsServer {
     type: 'Agent' | 'Transporter',
     handler:
       | ((artifact: BTPAgentArtifact & { respondNow: boolean }, resCtx: ArtifactResCtx) => void)
-      | ((artifact: BTPTransporterArtifact) => void | Promise<void>),
+      | ((artifact: BTPTransporterArtifact, boundView?: BTPBoundViewResult) => void | Promise<void>),
   ) {
     if (type === 'Agent') {
       this.emitter.on(
@@ -2008,7 +2022,10 @@ export class BtpsServer {
         ) => void,
       );
     } else {
-      this.emitter.on('transporterArtifact', handler as (artifact: BTPTransporterArtifact) => void);
+      this.emitter.on(
+        'transporterArtifact',
+        handler as (artifact: BTPTransporterArtifact, boundView?: BTPBoundViewResult) => void,
+      );
     }
   }
 

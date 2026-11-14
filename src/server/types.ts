@@ -30,6 +30,7 @@ import type {
   BtpPayslipDocSchema,
 } from '@core/server/schemas/btpsDocsSchema.js';
 import type { BTPBoundView } from '@core/server/schemas/boundViewSchema.js';
+import type { BTPBoundViewResult } from '@core/server/schemas/boundViewChecks.js';
 import type { BTPEntityType } from '@core/server/types.js';
 
 export interface BtpsTlsOptions extends TlsOptions {
@@ -203,10 +204,13 @@ type HasIdentity<P extends Phase, S extends Step> = S extends 'parsing'
     : true
   : true;
 
-// Utility type to add respondNow only for 'agent'
+// Utility type to add respondNow only for 'agent'. Since 1.2, a readable
+// document's BoundView comes checked: whether it may be shown.
 type WithRespondNow<K extends string, T> = K extends 'agent'
   ? { artifact: T; type: K; respondNow: boolean }
-  : { artifact: T; type: K };
+  : K extends 'transporter'
+    ? { artifact: T; type: K; boundView?: BTPBoundViewResult }
+    : { artifact: T; type: K };
 
 // Mapped type for strict correlation between 'type' and 'artifact'
 type ArtifactMap = {
