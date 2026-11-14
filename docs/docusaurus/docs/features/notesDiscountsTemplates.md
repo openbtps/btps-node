@@ -29,7 +29,7 @@ sequenceDiagram
     S->>R: BTPS_DOC (1.2.0)
     R->>R: schema: the note's format, the discount's shape, the view's canvas
     R->>R: checkLayout: key facts shown, in full, not hidden
-    R->>R: draw the view, every binding from the signed fields; or its own view
+    R->>R: draw the view, every binding from the signed fields, or its own view
 ```
 
 ## Notes
@@ -43,6 +43,17 @@ An invoice or receipt may carry `discount`: `{ amount }` in minor units, or `{ p
 ## The document view
 
 A document carries its view in `template.layout`: a canvas captured from the sender's own preview when it is sent. Text that shows a fact is a **binding** to a signed field, never text: the receiver draws the field's value. Fonts travel as glyph outlines and images as pixels, so nothing is fetched and no font or image file is read. The receiver checks the view wherever the document is opened, and shows its own view of the data when a check fails.
+
+**You build none of it.** Design your preview in HTML as you already do; `@btps/view` turns it into the view when you send, and draws a received view into a picture you display. The SDK checks every view it opens without being asked.
+
+```ts
+import { snapshotLayout, renderLayout } from '@btps/view';
+
+const layout = await snapshotLayout(previewElement, document); // in the browser showing the preview
+await agent.command('artifact.send', to, { ...document, template: { layout } });
+
+const png = await renderLayout(openedDocument); // null when the view failed a check
+```
 
 An invoice with a markdown note and a discount, with line roles a view binds to:
 
@@ -63,7 +74,7 @@ An invoice with a markdown note and a discount, with line roles a view binds to:
 }
 ```
 
-A full invoice and a letter, each with its view, are on [Document view examples](../protocol/specifications/document-view/examples.md); the canvas, its bindings, the checks and how it is drawn are on [Document view](../protocol/specifications/document-view/overview.md). Making a view from a preview, and drawing one, is the `@btps/view` package's: `snapshotLayout` on the sender's side, `renderLayout` on the receiver's.
+The format itself, for anyone building their own builder or renderer, is specified on [Document view](../protocol/specifications/document-view/overview.md), with a full invoice and a letter on its [examples](../protocol/specifications/document-view/examples.md) page.
 
 ## A letter's signatory
 

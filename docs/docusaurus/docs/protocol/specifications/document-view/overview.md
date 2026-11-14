@@ -17,6 +17,37 @@ text and images at fixed positions. It is made by taking a snapshot of the
 sender's preview when the document is sent, and drawn on the receiving side
 by one renderer.
 
+## You do not build any of this
+
+BTPS ships the builder and the renderer in the `@btps/view` package. A
+platform designs its preview in HTML, as it already does, and the rest
+happens for it:
+
+- **Sending.** Hand the preview's HTML element and the document to
+  `snapshotLayout`, in the browser where the preview is shown. It captures
+  the canvas, binds every fact to its field, takes glyph outlines and pixels,
+  and checks the result. Put what it returns in `template.layout` and send as
+  usual.
+- **Receiving.** The SDK checks the view whenever the document is opened, on
+  the server or on the device, with nothing to call. `renderLayout` draws a
+  view that passed into a finished picture, and the app only displays it.
+
+```ts
+import { snapshotLayout, renderLayout } from '@btps/view';
+
+// Sending: the preview you already show, and the document it shows
+const layout = await snapshotLayout(previewElement, document);
+await agent.command('artifact.send', to, { ...document, template: { layout } });
+
+// Receiving: a PNG to display, or null when the view failed a check
+const png = await renderLayout(openedDocument);
+```
+
+There is no format to learn and no template to write. **The pages below are
+the specification**: the exact format, checks and drawing rules, for anyone
+building their own builder or renderer, or checking that one is right. A
+platform that uses `@btps/view` never needs them.
+
 ## What BTPS promises
 
 | BTPS guarantees | How |
@@ -41,7 +72,7 @@ sequenceDiagram
     participant R as Receiver (server or device)
     P->>P: Build the unsigned document and show its preview
     P->>S: Snapshot the preview with the document
-    S->>S: Bind facts by value, glyph outlines, pixels; check
+    S->>S: Bind facts by value, take glyph outlines and pixels, and check
     S->>S: Put the canvas in template.layout, sign, encrypt
     S->>R: Send
     R->>R: Decrypt, verify the signature
@@ -91,7 +122,10 @@ accepts it and draws nothing from it.
 A provider that does not draw views still accepts and checks documents that
 carry one, and shows its own view of the signed data.
 
-## Pages
+## The specification
+
+For building a builder or renderer of your own. `@btps/view` already follows
+every rule here.
 
 | Page | What it covers |
 | --- | --- |

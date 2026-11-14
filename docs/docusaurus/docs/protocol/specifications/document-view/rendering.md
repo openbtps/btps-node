@@ -6,6 +6,12 @@ slug: /protocol/specifications/document-view/rendering
 
 # Rendering
 
+:::note Reference
+`@btps/view` makes and draws views for you, from the HTML preview you
+already have ([Overview](./overview.md#you-do-not-build-any-of-this)). This
+page is the specification, for building your own builder or renderer.
+:::
+
 How a canvas is drawn, so every receiver draws it the same way. The
 `@btps/view` package's `renderLayout` draws by these rules with one engine,
 compiled to WebAssembly, and gives a finished picture; a receiver's app only

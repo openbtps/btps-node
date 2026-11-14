@@ -6,6 +6,12 @@ slug: /protocol/specifications/document-view/checks
 
 # Checks
 
+:::note Reference
+`@btps/view` makes and draws views for you, from the HTML preview you
+already have ([Overview](./overview.md#you-do-not-build-any-of-this)). This
+page is the specification, for building your own builder or renderer.
+:::
+
 A receiver checks a view against the signed document **wherever the document
 is opened**, before anything is shown: on the receiving server when it can
 read the document, and on the receiver's device when only the device holds

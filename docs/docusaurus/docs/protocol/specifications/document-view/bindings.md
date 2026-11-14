@@ -6,6 +6,12 @@ slug: /protocol/specifications/document-view/bindings
 
 # Bindings and formats
 
+:::note Reference
+`@btps/view` makes and draws views for you, from the HTML preview you
+already have ([Overview](./overview.md#you-do-not-build-any-of-this)). This
+page is the specification, for building your own builder or renderer.
+:::
+
 A `text` element's `bind` names a signed field and says how its value is
 written. A receiver draws the value it finds in the document, never text
 from the canvas, so a view cannot show a fact the document does not carry.

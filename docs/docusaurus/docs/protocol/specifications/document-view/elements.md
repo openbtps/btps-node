@@ -6,6 +6,12 @@ slug: /protocol/specifications/document-view/elements
 
 # Elements
 
+:::note Reference
+`@btps/view` makes and draws views for you, from the HTML preview you
+already have ([Overview](./overview.md#you-do-not-build-any-of-this)). This
+page is the specification, for building your own builder or renderer.
+:::
+
 A canvas's `elements` are drawn in the order listed: each one over those
 before it. Every element has a `type`; the others are below.
 

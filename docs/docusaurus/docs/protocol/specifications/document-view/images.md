@@ -6,6 +6,12 @@ slug: /protocol/specifications/document-view/images
 
 # Images
 
+:::note Reference
+`@btps/view` makes and draws views for you, from the HTML preview you
+already have ([Overview](./overview.md#you-do-not-build-any-of-this)). This
+page is the specification, for building your own builder or renderer.
+:::
+
 A view's images, a logo or anything else the sender's preview showed, travel
 as their **pixels**: every pixel, full colour with transparency, compressed
 without loss. A canvas never carries an image file, and a receiver never

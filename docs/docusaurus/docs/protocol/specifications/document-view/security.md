@@ -6,6 +6,12 @@ slug: /protocol/specifications/document-view/security
 
 # Security model
 
+:::note Reference
+`@btps/view` makes and draws views for you, from the HTML preview you
+already have ([Overview](./overview.md#you-do-not-build-any-of-this)). This
+page is the specification, for building your own builder or renderer.
+:::
+
 What a view guarantees, against whom, and what a receiver must do for those
 guarantees to hold.
 

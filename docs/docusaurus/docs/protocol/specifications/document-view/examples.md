@@ -6,6 +6,12 @@ slug: /protocol/specifications/document-view/examples
 
 # Examples
 
+:::note Reference
+`@btps/view` makes and draws views for you, from the HTML preview you
+already have ([Overview](./overview.md#you-do-not-build-any-of-this)). This
+page is the specification, for building your own builder or renderer.
+:::
+
 Glyph outlines and pixel data are shortened with `…`; every other value is as
 a sender would send it.
 

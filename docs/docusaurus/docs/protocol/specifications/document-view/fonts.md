@@ -6,6 +6,12 @@ slug: /protocol/specifications/document-view/fonts
 
 # Fonts and glyphs
 
+:::note Reference
+`@btps/view` makes and draws views for you, from the HTML preview you
+already have ([Overview](./overview.md#you-do-not-build-any-of-this)). This
+page is the specification, for building your own builder or renderer.
+:::
+
 A view's text is drawn from **glyph outlines**: the shape of each character
 the document needs, as data. A canvas never carries a font file, and a
 receiver never reads one from a sender.

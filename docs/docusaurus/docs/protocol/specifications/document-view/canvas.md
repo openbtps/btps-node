@@ -6,6 +6,12 @@ slug: /protocol/specifications/document-view/canvas
 
 # Canvas
 
+:::note Reference
+`@btps/view` makes and draws views for you, from the HTML preview you
+already have ([Overview](./overview.md#you-do-not-build-any-of-this)). This
+page is the specification, for building your own builder or renderer.
+:::
+
 A document's view is the canvas in its `template.layout`. Since 1.2, under
 `1.2.0`, `template` on an invoice, a receipt, a payslip, a letter or an
 agreement is exactly `{ "layout": { … } }`.
