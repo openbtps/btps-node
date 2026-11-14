@@ -5,10 +5,10 @@
   "hashAlgorithm": "sha256",
   "files": {
     "addresses.vectors.json": "cea6afc30d9a91aaa5d1310c3b5d0ec3981304cf66e3a2a3e53333ebecab6bab",
-    "agreements.vectors.json": "58e198a28662bebae181bc34c2bded509d2f7d653f318ac8660f1786021b9f67",
+    "agreements.vectors.json": "ffdc06b0a7ef23dd79be1d00fa2461700165331ed4ff2c74c0a21df8121d81c1",
     "details.vectors.json": "dc6d7f7602781485d83842b16b38530e0d4609ba2f404c72ed1dc77f7d794a96",
     "device-key-proof.vector.json": "ef08791a6eac8df8540b57c112634d9feda8b82461bcd0737175bf0e9cbf4805",
-    "documents-1.2.vectors.json": "772533af0bd46e4cc3de8eed8478c2d75ac174b944b2522118807be75e2c5568",
+    "documents-1.2.vectors.json": "293be3e9c2de5bc6cb30e19162f92b6bb46a36e18a2e957807a8b2fb6f6a6b7c",
     "documents.vectors.json": "722ae0a2abeae2999484a04834a0f8ca2b4f673dac71746c0e6ed4014c3e248f",
     "event-chain.vectors.json": "e82ac08db7d166e4d33b28396e8d72d093192d7061659f922861b0b874cede00",
     "jcs.vectors.json": "aac34bc0a6b879a317aca1804f71228f1e0e06a7df4ca138ab4750a4628461d6",
@@ -23,9 +23,8 @@
     "self-held-signature.vector.json": "ecf0b6725fb06f43176f3e803bdcac18142e3644c61bac53a5ea69e0142c045f",
     "signed-artifacts.vector.json": "5876fb3439adac0559110aaa8636cf983624728592587c41af161cfe65877ea7",
     "sync.vectors.json": "9824a6f90d052606ce97ba8b7d8e4cbc12c7df959acb5264dc71007779424dee",
-    "templates.vectors.json": "f9b51aff17302b2e513fb762ed0c940ddc808d083c866daae14aee1e25ccc187",
     "time-window.vectors.json": "9135f8c26d7bdbb3bd35e349e01af599f127d950a030d58134d6591944d2ee57",
     "trust-permissions.vectors.json": "4b333ae0adb7cd2fe8a25335e28553fec082581fcdff1f00e575611016213732",
-    "versions.vectors.json": "33e37ad791949ce11d241f15b784bc92e0cafe6fb9988c42983d1078731f5256"
+    "versions.vectors.json": "e5ec2fd93ad00b76c27ccb2e5bd625f6465e1991e4e69b643ffa8f7473df94fb"
   }
 }

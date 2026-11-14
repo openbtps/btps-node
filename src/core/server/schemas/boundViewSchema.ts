@@ -12,7 +12,7 @@
  */
 
 import { z } from 'zod';
-import { unzlibSync } from 'fflate';
+import { Unzlib } from 'fflate';
 import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
 import { boundedArray, boundedRecord } from './bounded.js';
 
@@ -244,14 +244,25 @@ const font = z
 
 const base64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
-/** Whether `data` inflates to exactly `length` bytes. It never holds more than one byte past that. */
+/**
+ * Whether `data` inflates to exactly `length` bytes. It is fed a kilobyte at a
+ * time and stops as soon as the output passes `length`, so a small payload
+ * that expands without end costs no more than that.
+ */
 const inflatesTo = (data: string, length: number): boolean => {
+  const bytes = Buffer.from(data, 'base64');
+  let total = 0;
+  const stream = new Unzlib((chunk) => {
+    total += chunk.length;
+  });
   try {
-    const out = unzlibSync(Buffer.from(data, 'base64'), { out: new Uint8Array(length + 1) });
-    return out.length === length;
+    for (let at = 0; at < bytes.length && total <= length; at += 1024) {
+      stream.push(bytes.subarray(at, at + 1024), at + 1024 >= bytes.length);
+    }
   } catch {
     return false;
   }
+  return total === length;
 };
 
 const image = z
@@ -319,7 +330,8 @@ export const BtpBoundViewSchema = z.preprocess(
       let texts = 0;
       let paths = 0;
       view.elements.forEach((item, index) => {
-        if ('strokeWidth' in item && (item.stroke === undefined) !== (item.strokeWidth === undefined)) {
+        const stroked = item.type === 'rect' || item.type === 'path';
+        if (stroked && (item.stroke === undefined) !== (item.strokeWidth === undefined)) {
           issue('stroke and strokeWidth come together', ['elements', index, 'strokeWidth']);
         }
         if (item.type === 'text' || item.type === 'label' || item.type === 'signature') texts++;

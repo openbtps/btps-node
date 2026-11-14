@@ -11,6 +11,7 @@
  */
 
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import { canonicalize, canonicalizeValue } from '../src/jcs.mjs';
 import { oaepEncrypt } from '../src/oaep-reference.mjs';
 
@@ -734,9 +735,8 @@ const note = (content, format = 'markdown') => ({ format, content });
 const under = (version, more = {}) => ({ version, ...more });
 const templateData = {
   version: '1.2.0',
-  sha256: SHA,
   source: 'https://templates.example/acme/classic-invoice@1.2.0',
-  logo: { sha256: SHA, source: 'https://templates.example/logos/acme.png' },
+  accent: '#0747a6',
 };
 
 /** The versions a 1.2 implementation speaks, and the version it stamps each artifact with. */
@@ -842,10 +842,21 @@ export function versions() {
       stamped('invoice-discount', doc({ ...base.invoice, discount: { percent: 1000 } }), V12),
       stamped('receipt-discount', doc({ ...base.receipt, discount: { amount: 500 } }), V12),
       stamped(
-        'letter-template',
-        doc({ ...base.letter, template: { name: 'acme/letter', data: {} } }),
+        'letter-signatory',
+        doc({ ...base.letter, signatory: { name: 'Jo Bloggs' } }),
         V12,
       ),
+      stamped('invoice-recipient', doc({ ...base.invoice, recipient: { name: 'Sam Lee' } }), V12),
+      stamped('invoice-tax-amount', doc({ ...base.invoice, taxAmount: aud(13636) }), V12),
+      stamped(
+        'invoice-line-roles',
+        doc({
+          ...base.invoice,
+          lineItems: { ...base.invoice.lineItems, roles: { Item: 'description' } },
+        }),
+        V12,
+      ),
+      stamped('invoice-bound-view', doc({ ...base.invoice, boundView: boundView([]) }), V12),
       stamped(
         'sync',
         doc(base.invoice, {
@@ -918,116 +929,250 @@ export function versions() {
 }
 
 /** The 1.2 document rules, and the 1.1 documents they must leave as they are. */
-/** A letter template's signature values, `template.data.values`: 1.2.0, a letter's template only. */
-function signatureValueCases(template, v12) {
-  const drawn = { strokes: [[0, 0, 500, 150, 1000, 300]] };
-  const values = {
-    'signature.typed': 'Jo Bloggs',
-    'signature.name': 'Jo Bloggs',
-    'signature.title': 'Director, 2nd floor',
-    'signature.drawn': drawn,
-  };
-  const letter = (more) => ({
-    ...base.letter,
-    template: template({ values: { ...values, ...more } }),
-  });
+/** A letter's or an agreement's signatory: its sign-off, 1.2.0 only. */
+function signatoryCases(v12) {
+  const drawn = { type: 'drawn', strokes: [[0, 0, 500, 150, 1000, 300]] };
+  const signatory = { name: 'Jo Bloggs', title: 'Director, 2nd floor', visualSignature: drawn };
+  const letter = (more) => ({ ...base.letter, signatory: { ...signatory, ...more } });
+  const strokes = (list) => letter({ visualSignature: { type: 'drawn', strokes: list } });
   const stroke = (points) => Array.from({ length: points * 2 }, (_, at) => (at % 2 ? 150 : 500));
-  const refuseLetter = (name, more, why) => refuse(name, 'BTPS_DOC', letter(more), why, v12);
+  const refuseLetter = (name, document, why) => refuse(name, 'BTPS_DOC', document, why, v12);
   return [
-    accept('letter-signature-values', 'BTPS_DOC', letter({}), v12),
+    accept('letter-signatory', 'BTPS_DOC', letter({}), v12),
     accept(
-      'letter-signature-at-every-limit',
+      'letter-signatory-typed',
       'BTPS_DOC',
-      letter({
-        'signature.name': 'x'.repeat(100),
-        'signature.drawn': {
-          strokes: [...Array.from({ length: 3 }, () => stroke(512)), stroke(512)],
-        },
-      }),
+      letter({ visualSignature: { type: 'typed', text: 'Jo Bloggs' } }),
       v12,
     ),
-    refuseLetter(
-      'letter-signature-naming-a-document-field',
-      { totalAmount: { amount: 100, currency: 'AUD' } },
-      'a value fills a fixed slot, never a document field',
+    accept('letter-signatory-name-only', 'BTPS_DOC', { ...base.letter, signatory: { name: 'Jo' } }, v12),
+    accept(
+      'letter-signatory-at-every-limit',
+      'BTPS_DOC',
+      {
+        ...strokes([...Array.from({ length: 3 }, () => stroke(512)), stroke(512)]),
+        signatory: {
+          name: 'x'.repeat(100),
+          title: 'x'.repeat(100),
+          visualSignature: { type: 'drawn', strokes: Array.from({ length: 4 }, () => stroke(512)) },
+        },
+      },
+      v12,
     ),
+    refuse('letter-signatory-under-1-1', 'BTPS_DOC', letter({}), '1.1 letters have no signatory', under(V11)),
     refuseLetter(
-      'letter-signature-unknown-slot',
-      { 'signature.stamp': 'Approved' },
-      'slot names are a fixed list',
+      'letter-signatory-without-a-name',
+      { ...base.letter, signatory: { title: 'Director' } },
+      'a signatory has a name',
     ),
+    refuseLetter('letter-signatory-unknown-key', letter({ stamp: 'Approved' }), 'a signatory is closed'),
     refuseLetter(
-      'letter-signature-drawn-as-svg',
-      { 'signature.drawn': '<svg><path d="M0 0L10 10"/></svg>' },
+      'letter-signatory-drawn-as-svg',
+      letter({ visualSignature: '<svg><path d="M0 0L10 10"/></svg>' }),
       'a drawn signature is integer strokes, never markup',
     ),
     refuseLetter(
-      'letter-signature-drawn-with-markup',
-      { 'signature.drawn': { svg: '<path d="M0 0"/>' } },
+      'letter-signatory-drawn-with-markup',
+      letter({ visualSignature: { type: 'drawn', svg: '<path d="M0 0"/>' } }),
       'a drawn signature holds strokes only',
     ),
+    refuseLetter('letter-signatory-stroke-outside-the-canvas', strokes([[0, 0, 1001, 150]]), 'the canvas is 1000 by 300'),
+    refuseLetter('letter-signatory-stroke-below-the-canvas', strokes([[0, 0, 500, 301]]), 'the canvas is 1000 by 300'),
+    refuseLetter('letter-signatory-stroke-odd', strokes([[0, 0, 500]]), 'a stroke is x, y pairs'),
+    refuseLetter('letter-signatory-stroke-not-integers', strokes([[0, 0, 500.5, 150]]), 'points are integers'),
     refuseLetter(
-      'letter-signature-stroke-outside-the-canvas',
-      { 'signature.drawn': { strokes: [[0, 0, 1001, 150]] } },
-      'the canvas is 1000 by 300',
-    ),
-    refuseLetter(
-      'letter-signature-stroke-below-the-canvas',
-      { 'signature.drawn': { strokes: [[0, 0, 500, 301]] } },
-      'the canvas is 1000 by 300',
-    ),
-    refuseLetter(
-      'letter-signature-stroke-odd',
-      { 'signature.drawn': { strokes: [[0, 0, 500]] } },
-      'a stroke is x, y pairs',
-    ),
-    refuseLetter(
-      'letter-signature-stroke-not-integers',
-      { 'signature.drawn': { strokes: [[0, 0, 500.5, 150]] } },
-      'points are integers',
-    ),
-    refuseLetter(
-      'letter-signature-too-many-strokes',
-      { 'signature.drawn': { strokes: Array.from({ length: 33 }, () => [0, 0, 1, 1]) } },
+      'letter-signatory-too-many-strokes',
+      strokes(Array.from({ length: 33 }, () => [0, 0, 1, 1])),
       'at most 32 strokes',
     ),
+    refuseLetter('letter-signatory-stroke-too-long', strokes([stroke(513)]), 'at most 512 points a stroke'),
     refuseLetter(
-      'letter-signature-stroke-too-long',
-      { 'signature.drawn': { strokes: [stroke(513)] } },
-      'at most 512 points a stroke',
-    ),
-    refuseLetter(
-      'letter-signature-too-many-points',
-      { 'signature.drawn': { strokes: Array.from({ length: 5 }, () => stroke(410)) } },
+      'letter-signatory-too-many-points',
+      strokes(Array.from({ length: 5 }, () => stroke(410))),
       'at most 2048 points in all',
     ),
+    refuseLetter('letter-signatory-name-one-over', letter({ name: 'x'.repeat(101) }), 'a name is at most 100 characters'),
+    refuseLetter('letter-signatory-name-with-markup', letter({ name: '<b>Jo</b>' }), 'a name is plain text'),
     refuseLetter(
-      'letter-signature-name-one-over',
-      { 'signature.name': 'x'.repeat(101) },
-      'a signature text is at most 100 characters',
-    ),
-    refuseLetter(
-      'letter-signature-name-with-markup',
-      { 'signature.name': '<b>Jo</b>' },
-      'a signature text is plain text',
-    ),
-    refuseLetter(
-      'letter-signature-name-reads-backwards',
-      { 'signature.name': 'Jo \u202eSggolb' },
+      'letter-signatory-name-reads-backwards',
+      letter({ name: 'Jo \u202eSggolb' }),
       'no direction-changing character',
     ),
+    refuseLetter('invoice-signatory', { ...base.invoice, signatory }, 'a signatory is on a letter or an agreement'),
+    refuseLetter('payslip-signatory', { ...base.payslip, signatory }, 'a signatory is on a letter or an agreement'),
+  ];
+}
+
+/** Pixels, `width × height × 4` bytes of `fill`, as an image's `rgba8-deflate` data. */
+const pixelData = (bytes, fill = 0) =>
+  zlib.deflateSync(Buffer.alloc(bytes, fill)).toString('base64');
+
+/** A small font: `A` and a space, as glyph outlines. */
+const viewFont = {
+  unitsPerEm: 1000,
+  ascent: 900,
+  descent: 200,
+  glyphs: { A: { advance: 600, path: 'M0 0L300 -700L600 0Z' }, ' ': { advance: 250 } },
+};
+
+/** A BoundView on a 600 by 400 page with one font, `body`. */
+const boundView = (elements, more = {}) => ({
+  format: 1,
+  page: { width: 600, height: 400 },
+  fonts: { body: viewFont },
+  elements,
+  ...more,
+});
+
+/** A bound text element in `body`, 12 pixels, its baseline at 40. */
+const boundText = (bind, more = {}) => ({
+  type: 'text',
+  bind,
+  x: 10,
+  y: 40,
+  width: 200,
+  align: 'start',
+  font: 'body',
+  size: 12,
+  colour: '#0f1b2d',
+  ...more,
+});
+
+/** Totals, line roles and the recipient (1.2.0), and a BoundView's shape and what it may bind. */
+function boundViewCases(v12, v11) {
+  const inv = base.invoice;
+  const money = { money: { group: ',', decimal: '.', prefix: 'A$' } };
+  const withView = (elements, more, document = inv) => ({ ...document, boundView: boundView(elements, more) });
+  const binds = (name, bind, document = inv) =>
+    accept(name, 'BTPS_DOC', withView([boundText(bind)], {}, document), v12);
+  const refusesBinding = (name, bind, why, document = inv) =>
+    refuse(name, 'BTPS_DOC', withView([boundText(bind)], {}, document), why, v12);
+  const shape = (name, elements, more, why) =>
+    refuse(name, 'BTPS_DOC', withView(elements, more), why, v12);
+  const image = (data, width = 2, height = 2) => ({ width, height, encoding: 'rgba8-deflate', data });
+  const drawImage = { type: 'image', image: 'logo', x: 0, y: 0, width: 20, height: 20 };
+  const path = (d) => ({ type: 'path', d, fill: '#f2f6ff' });
+  const signature = { type: 'signature', x: 10, y: 60, width: 200, height: 60, colour: '#0f1b2d' };
+  const signed = { ...base.letter, signatory: { name: 'Jo', visualSignature: { type: 'typed', text: 'Jo' } } };
+  return [
+    // Totals before tax and line roles, on an invoice or receipt.
+    accept('invoice-totals', 'BTPS_DOC', { ...inv, subtotalAmount: aud(136364), taxAmount: aud(13636) }, v12),
+    refuse('invoice-totals-under-1-1', 'BTPS_DOC', { ...inv, taxAmount: aud(13636) }, '1.1 has no taxAmount', v11),
     refuse(
-      'invoice-template-with-values',
+      'invoice-tax-in-another-currency',
       'BTPS_DOC',
-      { ...base.invoice, template: template({ values }) },
-      "values are only on a letter's or an agreement's template",
+      { ...inv, taxAmount: { amount: 13636, currency: 'USD' } },
+      'is in the currency of totalAmount',
+      v12,
+    ),
+    accept(
+      'invoice-line-roles',
+      'BTPS_DOC',
+      { ...inv, lineItems: { ...inv.lineItems, roles: { Item: 'description', Amount: 'lineTotal' } } },
       v12,
     ),
     refuse(
-      'payslip-template-with-values',
+      'invoice-line-role-twice',
       'BTPS_DOC',
-      { ...base.payslip, template: template({ values }) },
-      "values are only on a letter's or an agreement's template",
+      { ...inv, lineItems: { ...inv.lineItems, roles: { Item: 'lineTotal', Amount: 'lineTotal' } } },
+      'each role appears at most once',
+      v12,
+    ),
+    refuse(
+      'invoice-line-role-on-no-column',
+      'BTPS_DOC',
+      { ...inv, lineItems: { ...inv.lineItems, roles: { Price: 'unitPrice' } } },
+      'each role names one of columns',
+      v12,
+    ),
+    refuse(
+      'invoice-line-role-unknown',
+      'BTPS_DOC',
+      { ...inv, lineItems: { ...inv.lineItems, roles: { Item: 'total' } } },
+      'a role is one of the six',
+      v12,
+    ),
+    accept('invoice-recipient', 'BTPS_DOC', { ...inv, recipient: { name: 'Sam Lee' } }, v12),
+    accept('letter-recipient', 'BTPS_DOC', { ...base.letter, recipient: { name: 'Sam Lee' } }, v12),
+    refuse(
+      'invoice-recipient-name-one-over',
+      'BTPS_DOC',
+      { ...inv, recipient: { name: 'x'.repeat(201) } },
+      'a recipient name is at most 200 characters',
+      v12,
+    ),
+    refuse('payslip-recipient', 'BTPS_DOC', { ...base.payslip, recipient: { name: 'Sam Lee' } }, "a payslip's recipient is its employee", v12),
+
+    // A BoundView: on any document, 1.2.0 only, closed, every fact bound.
+    binds('invoice-bound-view', { field: 'totalAmount', format: money }),
+    refuse('invoice-bound-view-under-1-1', 'BTPS_DOC', withView([]), '1.1 has no BoundView', v11),
+    binds('letter-bound-view', { field: 'body.content', range: [0, 5] }, base.letter),
+    binds('payslip-bound-view', { field: 'net', format: money }, base.payslip),
+    binds('bound-view-date', { field: 'issuedAt', format: { date: 'd MMM yyyy' } }),
+    binds('bound-view-line-cell-money', { field: 'lineItems.rows.0.Amount', format: money }),
+    binds('bound-view-line-cell-text', { field: 'lineItems.rows.0.Item' }),
+    binds('bound-view-groups', { field: 'id', format: { groups: { sizes: [2, 3], separator: ' ' } } }),
+    refusesBinding('bound-view-missing-field', { field: 'dueAt', format: { date: 'd MMM yyyy' } }, 'binds a field the document does not carry'),
+    refusesBinding('bound-view-unbindable-field', { field: 'metadata.note' }, 'metadata cannot be bound'),
+    refusesBinding('bound-view-payment-link', { field: 'paymentLink.url' }, 'a payment link cannot be bound'),
+    refusesBinding('bound-view-money-without-format', { field: 'totalAmount' }, 'a money field is written with a money format'),
+    refusesBinding('bound-view-text-as-money', { field: 'id', format: money }, 'text is written as it is, or in groups'),
+    refusesBinding('bound-view-range-past-the-end', { field: 'id', range: [0, 9] }, "a range lies inside the value's characters"),
+    refusesBinding(
+      'bound-view-groups-not-adding-up',
+      { field: 'id', format: { groups: { sizes: [2, 2], separator: ' ' } } },
+      "a groups format's sizes add up to the value's length",
+    ),
+    refusesBinding(
+      'bound-view-date-pattern-unknown',
+      { field: 'issuedAt', format: { date: 'YYYY' } },
+      'a date pattern is one of the list',
+    ),
+    refusesBinding(
+      'bound-view-money-same-separators',
+      { field: 'totalAmount', format: { money: { group: '.', decimal: '.' } } },
+      'group and decimal differ',
+    ),
+    shape('bound-view-unknown-key', [], { script: 'x' }, 'a BoundView is closed'),
+    shape('bound-view-unknown-font', [boundText({ field: 'id' }, { font: 'other' })], {}, 'names a font the BoundView has'),
+    shape('bound-view-gradient-text', [boundText({ field: 'id' }, { colour: '#0f1b2d80' })], {}, 'a fact is drawn at full opacity'),
+    shape('bound-view-size-under-6', [boundText({ field: 'id' }, { size: 5 })], {}, 'size is 6 to 400'),
+    shape('bound-view-three-decimals', [boundText({ field: 'id' }, { x: 10.125 })], {}, 'at most two decimal places'),
+    accept('bound-view-path', 'BTPS_DOC', withView([path('M0 0L10 10.25H20V30Q1 2 3 4C1 2 3 4 5 6Z')]), v12),
+    shape('bound-view-path-relative', [path('M0 0l10 10Z')], {}, 'only absolute commands'),
+    shape('bound-view-path-arc', [path('M0 0A5 5 0 0 1 10 10')], {}, 'no arc'),
+    shape('bound-view-path-not-starting-with-move', [path('L10 10Z')], {}, 'an outline starts with M'),
+    shape('bound-view-path-missing-number', [path('M0 0L10Z')], {}, 'each command has its numbers'),
+    shape('bound-view-stroke-without-width', [{ ...path('M0 0L1 1Z'), stroke: '#000000' }], {}, 'stroke and strokeWidth come together'),
+    shape(
+      'bound-view-fallback-only-font-for-a-fact',
+      [boundText({ field: 'id' }, { font: 'arimo' })],
+      { fonts: { body: viewFont, arimo: { unitsPerEm: 1000, ascent: 900, descent: 200, fallback: ['arimo'] } } },
+      "a bound value is drawn with its font's own glyphs",
+    ),
+    accept(
+      'bound-view-image',
+      'BTPS_DOC',
+      withView([drawImage], { images: { logo: image(pixelData(16)) } }),
+      v12,
+    ),
+    shape('bound-view-image-one-byte-over', [drawImage], { images: { logo: image(pixelData(17)) } }, 'inflates to exactly width × height × 4 bytes'),
+    shape('bound-view-image-one-byte-under', [drawImage], { images: { logo: image(pixelData(15)) } }, 'inflates to exactly width × height × 4 bytes'),
+    shape('bound-view-image-not-zlib', [drawImage], { images: { logo: image('bm90IHpsaWI=') } }, 'data is zlib deflate'),
+    shape(
+      'bound-view-image-expanding-without-end',
+      [drawImage],
+      { images: { logo: image(pixelData(64 * 1024 * 1024)) } },
+      'stops inflating once past width × height × 4 bytes',
+    ),
+    shape('bound-view-image-too-many-pixels', [drawImage], { images: { logo: image(pixelData(16), 1024, 512) } }, 'at most 262144 pixels'),
+    shape('bound-view-unknown-image', [drawImage], {}, 'names an image the BoundView has'),
+    accept('bound-view-signature', 'BTPS_DOC', { ...signed, boundView: boundView([signature]) }, v12),
+    refuse(
+      'bound-view-signature-without-signatory',
+      'BTPS_DOC',
+      { ...base.letter, boundView: boundView([signature]) },
+      "a signature is drawn from the signatory's visualSignature",
       v12,
     ),
   ];
@@ -1284,89 +1429,23 @@ export function documents12() {
       v11,
     ),
 
-    // Templates and logos by reference.
+    // A template keeps its 1.1 form in any version, on an invoice or receipt.
     accept(
-      'invoice-template-named-fields',
+      'invoice-template-free-data',
       'BTPS_DOC',
-      { ...inv, template: template(templateData) },
-      v12,
-    ),
-    accept(
-      'invoice-template-other-keys',
-      'BTPS_DOC',
-      { ...inv, template: template({ accent: '#0747a6' }) },
-      v12,
-    ),
-    refuse(
-      'invoice-template-source-without-sha256',
-      'BTPS_DOC',
-      { ...inv, template: template({ source: templateData.source }) },
-      'a source comes with the sha256 of what it serves',
+      { ...inv, template: template({ source: 'http://templates.example/a', accent: '#0747a6' }) },
       v12,
     ),
     accept(
-      'invoice-template-sha256-without-source',
-      'BTPS_DOC',
-      { ...inv, template: template({ sha256: SHA }) },
-      v12,
-    ),
-    accept(
-      'invoice-template-source-without-sha256-under-1-1',
-      'BTPS_DOC',
-      { ...inv, template: template({ source: templateData.source }) },
-      v11,
-    ),
-    refuse(
-      'invoice-template-sha256-not-hex',
-      'BTPS_DOC',
-      { ...inv, template: template({ ...templateData, sha256: 'ABC' }) },
-      'sha256 is 64 lowercase hex characters',
-      v12,
-    ),
-    refuse(
-      'invoice-template-source-not-https',
-      'BTPS_DOC',
-      { ...inv, template: template({ ...templateData, source: 'http://templates.example/a' }) },
-      'source is an https URL',
-      v12,
-    ),
-    refuse(
-      'invoice-template-version-not-semver',
-      'BTPS_DOC',
-      { ...inv, template: template({ ...templateData, version: 'latest' }) },
-      'version is a semantic version',
-      v12,
-    ),
-    refuse(
-      'invoice-template-logo-not-https',
-      'BTPS_DOC',
-      {
-        ...inv,
-        template: template({
-          ...templateData,
-          logo: { sha256: SHA, source: 'ftp://logos.example/a' },
-        }),
-      },
-      'logo.source is an https URL',
-      v12,
-    ),
-    accept(
-      'invoice-template-own-shapes-under-1-1',
+      'invoice-template-free-data-under-1-1',
       'BTPS_DOC',
       { ...inv, template: template({ logo: 'acme.png', sha256: 'ABC', version: 'latest' }) },
       v11,
     ),
-    accept('letter-template', 'BTPS_DOC', { ...base.letter, template: template({}) }, v12),
-    accept('payslip-template', 'BTPS_DOC', { ...base.payslip, template: template({}) }, v12),
-    refuse(
-      'letter-template-under-1-1',
-      'BTPS_DOC',
-      { ...base.letter, template: template({}) },
-      '1.1 letters have no template',
-      v11,
-    ),
-    // A letter template's signature values: the sender's own, signed with the document.
-    ...signatureValueCases(template, v12),
+    refuse('letter-template', 'BTPS_DOC', { ...base.letter, template: template({}) }, 'a letter has no template', v12),
+    refuse('payslip-template', 'BTPS_DOC', { ...base.payslip, template: template({}) }, 'a payslip has no template', v12),
+    ...signatoryCases(v12),
+    ...boundViewCases(v12, v11),
   ];
   return {
     description:
@@ -2774,355 +2853,6 @@ export function details() {
   };
 }
 
-/** The 1.2 template file, format 1: what a template may say, and each thing it must never do. */
-export function templates() {
-  const signed = ['header', 'parties', 'details', 'lines', 'totals', 'payment', 'notes'];
-  const full = {
-    format: 1,
-    kinds: ['invoice', 'receipt'],
-    page: {
-      font: 'source-serif-4',
-      size: 'normal',
-      density: 'comfortable',
-      background: '#ffffff',
-      text: '#1f2933',
-      muted: '#52606d',
-      accent: '#0b6e4f',
-    },
-    logo: { position: 'top-left', size: 'medium' },
-    sections: [
-      'header',
-      'totals',
-      'details',
-      'parties',
-      'lines',
-      'payment',
-      'notes',
-      'terms',
-      'footer',
-    ],
-    labels: { title: 'Tax invoice', to: 'Bill to', amountDue: 'Amount due' },
-    lines: { style: 'striped', header: 'accent' },
-    totals: { style: 'accent' },
-    text: {
-      terms: 'Payment within 14 days.\nThank you for your business.',
-      footer: 'Kauri Studio',
-    },
-  };
-  const minimal = { ...full, kinds: ['invoice'], sections: signed, labels: {}, text: undefined };
-  const accept = (name, template) => ({ name, template, expect: 'accept' });
-  const refuse = (name, template, why, check = 'schema') => ({
-    name,
-    template,
-    expect: 'refuse',
-    check,
-    why,
-  });
-  const page = (more) => ({ ...full, page: { ...full.page, ...more } });
-  const labels = (more) => ({ ...full, labels: { ...full.labels, ...more } });
-  const text = (more) => ({ ...full, text: { ...full.text, ...more } });
-  // Format 2: a payslip like an invoice, and a letter that sets only its page, letterhead and footer.
-  const payslipSigned = [
-    'header',
-    'parties',
-    'period',
-    'earnings',
-    'deductions',
-    'contributions',
-    'leave',
-    'totals',
-  ];
-  const payslip = {
-    format: 2,
-    kinds: ['payslip'],
-    page: full.page,
-    logo: full.logo,
-    sections: [...payslipSigned, 'footer'],
-    labels: { title: 'Payslip', net: 'Net pay', employer: 'Employer' },
-    lines: full.lines,
-    totals: full.totals,
-    text: { footer: 'Kauri Studio' },
-  };
-  const letter = {
-    format: 2,
-    kinds: ['letter'],
-    page: full.page,
-    logo: full.logo,
-    letterhead: { fields: ['name', 'address', 'email', 'phone', 'identifiers'], align: 'start' },
-    footer: {
-      signOff: 'Yours sincerely,',
-      signature: {
-        slots: ['signature.drawn', 'signature.typed', 'signature.name', 'signature.title'],
-        align: 'start',
-      },
-    },
-  };
-  const { footer: _footer, ...letterWithoutFooter } = letter;
-  const signatureSlots = (slots) => ({
-    ...letter,
-    footer: { ...letter.footer, signature: { ...letter.footer.signature, slots } },
-  });
-  const format2 = [
-    accept('format-2-invoice', { ...full, format: 2 }),
-    accept('format-2-payslip', payslip),
-    accept('format-2-letter', letter),
-    accept('format-2-letter-without-a-footer', letterWithoutFooter),
-    // Since 1.2 an agreement is a letter that asks for acceptance: a letter template draws it too.
-    accept('format-2-letter-for-agreements', { ...letter, kinds: ['letter', 'agreement'] }),
-    accept('format-2-agreement', { ...letter, kinds: ['agreement'] }),
-    refuse(
-      'a-letter-template-naming-agreement-twice',
-      { ...letter, kinds: ['agreement', 'agreement'] },
-      'each kind appears once',
-    ),
-    refuse(
-      'a-letter-template-for-invoices-too',
-      { ...letter, kinds: ['letter', 'invoice'] },
-      'a letter template is for letters and agreements only',
-    ),
-    refuse(
-      'a-payslip-with-a-signed-section-left-out',
-      { ...payslip, sections: payslipSigned.filter((s) => s !== 'deductions') },
-      'every section with signed fields is shown',
-    ),
-    refuse(
-      'a-payslip-with-an-invoice-section',
-      { ...payslip, sections: [...payslipSigned, 'lines'] },
-      "a payslip's sections are its own groups",
-    ),
-    refuse(
-      'a-payslip-with-an-invoice-label',
-      { ...payslip, labels: { amountDue: 'Amount due' } },
-      "a payslip's labels are its own keys",
-    ),
-    refuse('a-payslip-in-format-1', { ...payslip, format: 1 }, 'format 1 has no payslip'),
-    refuse(
-      'a-payslip-and-an-invoice-in-one',
-      { ...payslip, kinds: ['payslip', 'invoice'] },
-      'a payslip template is for payslips only',
-    ),
-    refuse(
-      'a-letter-that-styles-the-body',
-      { ...letter, body: { font: 'geist-mono', size: 'large' } },
-      "a letter template never touches the body: it is the sender's own",
-    ),
-    refuse(
-      'a-letter-that-reorders-the-body',
-      { ...letter, sections: ['header', 'body', 'footer'] },
-      'a letter template has no sections',
-    ),
-    refuse(
-      'a-letter-hiding-an-issuer-field',
-      {
-        ...letter,
-        letterhead: { ...letter.letterhead, fields: ['name', 'address', 'email', 'phone'] },
-      },
-      "the letterhead places every one of the sender's own fields",
-    ),
-    refuse(
-      'a-letter-with-an-issuer-field-twice',
-      {
-        ...letter,
-        letterhead: {
-          ...letter.letterhead,
-          fields: ['name', 'name', 'address', 'email', 'phone'],
-        },
-      },
-      'each field once',
-    ),
-    refuse(
-      'a-letter-with-a-value-in-its-letterhead',
-      { ...letter, letterhead: { ...letter.letterhead, name: 'Kauri Studio' } },
-      "the letterhead places the document's fields, never values of its own",
-    ),
-    accept('a-letter-sign-off-with-a-phone-number', {
-      ...letter,
-      footer: { ...letter.footer, signOff: 'Call 02 9999 0000' },
-    }),
-    refuse('a-letter-unknown-slot', signatureSlots(['signature.stamp']), 'slots are a fixed list'),
-    refuse(
-      'a-letter-with-a-signature-value-of-its-own',
-      {
-        ...letter,
-        footer: {
-          ...letter.footer,
-          signature: { ...letter.footer.signature, name: 'Jo Bloggs' },
-        },
-      },
-      'signature values come from the document, never the template',
-    ),
-    refuse(
-      'a-letter-with-a-drawn-signature-as-svg',
-      {
-        ...letter,
-        footer: { ...letter.footer, signature: { ...letter.footer.signature, svg: '<svg/>' } },
-      },
-      'a template holds no markup, and no signature',
-    ),
-    refuse(
-      'a-letter-in-the-signature-font',
-      { ...letter, page: { ...letter.page, font: 'caveat' } },
-      'the script font is for the typed signature only',
-    ),
-    refuse('a-letter-in-format-1', { ...letter, format: 1 }, 'format 1 has no letter'),
-  ];
-  return {
-    description:
-      'The BTPS 1.2 template file, formats 1 and 2 (Templates page; JSON Schema at docs/docusaurus/static/schemas/btps-template.schema.json, published with the docs site as schemas/btps-template.schema.json). A template says how a document looks, never what it says: it never carries or changes a value of the document, hides no section with signed fields, names nothing to fetch and runs nothing; its own words are labels from a fixed set and static terms and footer text, each plain text with no markup and no control, hidden or direction-changing character; what they say is the platform\'s policy. Format 1 is for invoices and receipts. Format 2 is format 1 for them, plus payslips (sections and labels of their own) and letters (the page, a letterhead placing every one of the sender\'s own fields, and a footer with a sign-off and signature slots, whose values come from the document; never the body). An implementation accepts every "accept" template and refuses every "refuse" one; `check` is the rule that refuses it: "schema" for the JSON Schema, "contrast" for the WCAG AA contrast of `page.text` and `page.muted` (4.5:1) and `page.accent` (3:1) against `page.background`. `fingerprint` is a template\'s RFC 8785 canonical form and the lowercase hex SHA-256 of it, which `template.data.sha256` names.',
-    fingerprint: {
-      template: full,
-      canonical: canonicalizeValue(full),
-      sha256: crypto.createHash('sha256').update(canonicalizeValue(full), 'utf8').digest('hex'),
-    },
-    cases: [
-      accept('full', full),
-      accept('minimal', minimal),
-      accept(
-        'short-numbers-in-words',
-        text({ terms: 'Payment within 14 days.\nLate fees: 2% a month.' }),
-      ),
-      accept('label-at-40-characters', labels({ title: 'x'.repeat(40) })),
-      refuse('a-later-format', { ...full, format: 3 }, 'formats 1 and 2 are the ones there are'),
-      refuse('an-unknown-key', { ...full, script: 'alert(1)' }, 'unknown keys are refused'),
-      refuse(
-        'an-amount',
-        { ...full, total: { amount: 100, currency: 'AUD' } },
-        'a template never carries or changes an amount',
-      ),
-      refuse(
-        'a-party',
-        { ...full, to: 'pay$client.example' },
-        'a template never carries or changes who a document is from or to',
-      ),
-      refuse(
-        'a-payment-value',
-        { ...full, payment: { bsb: '062-000', account: '12345678' } },
-        'a template never carries or changes how to pay',
-      ),
-      refuse(
-        'a-label-that-is-a-value',
-        labels({ amount: '999' }),
-        'labels are from a fixed set of keys, none of them a value',
-      ),
-      refuse(
-        'a-section-with-signed-fields-left-out',
-        { ...full, sections: ['header', 'parties', 'details', 'lines', 'totals', 'notes'] },
-        'every section with signed fields is shown',
-      ),
-      refuse('a-hidden-list', { ...full, hidden: ['totals'] }, 'a template never hides a section'),
-      refuse(
-        'a-section-twice',
-        { ...full, sections: [...signed, 'notes'] },
-        'each section at most once',
-      ),
-      refuse(
-        'an-unknown-section',
-        { ...full, sections: [...signed, 'popup'] },
-        'sections are from a fixed list',
-      ),
-      refuse(
-        'terms-shown-with-none-given',
-        { ...full, text: { footer: 'Kauri Studio' } },
-        'a template that shows terms gives them',
-      ),
-      refuse(
-        'a-footer-shown-with-none-given',
-        { ...full, text: { terms: 'Thank you.' } },
-        'a template that shows a footer gives it',
-      ),
-      refuse(
-        'a-font-outside-the-list',
-        page({ font: 'Comic Sans' }),
-        'fonts are from a fixed list',
-      ),
-      refuse(
-        'a-font-to-fetch',
-        page({ font: 'https://fonts.example/a.woff2' }),
-        'a template never fetches anything',
-      ),
-      refuse(
-        'a-colour-that-is-a-url',
-        page({ background: 'url(https://x.example/a.png)' }),
-        'colours are #rrggbb',
-      ),
-      refuse('a-colour-in-upper-case', page({ text: '#1F2933' }), 'colours are lower-case #rrggbb'),
-      refuse(
-        'a-logo-to-fetch',
-        { ...full, logo: { ...full.logo, url: 'https://dev.example/logo.png' } },
-        "the logo is the sender's own, from the document: the template says only where and how big",
-      ),
-      refuse(
-        'a-logo-size-in-pixels',
-        { ...full, logo: { position: 'top-left', size: 64 } },
-        'sizes are tokens',
-      ),
-      refuse(
-        'a-kind-without-a-format-yet',
-        { ...full, kinds: ['letter'] },
-        'format 1 is for invoices and receipts',
-      ),
-      refuse(
-        'a-label-too-long',
-        labels({ title: 'x'.repeat(41) }),
-        'a label is 1 to 40 characters',
-      ),
-      refuse('an-empty-label', labels({ title: '' }), 'a label is 1 to 40 characters'),
-      refuse(
-        'a-label-that-is-markup',
-        labels({ title: '<b>Invoice</b>' }),
-        'plain words, no markup',
-      ),
-      // What a template's words say is the platform's policy: digits and addresses are plain text.
-      accept('a-label-with-a-digit-run', labels({ title: 'Invoice 10042' })),
-      accept('a-label-with-an-email-address', labels({ payment: 'Pay pay@x.example' })),
-      refuse(
-        'a-label-with-a-hidden-character',
-        labels({ to: 'Bill\u200bto' }),
-        'no hidden character',
-      ),
-      accept('terms-with-bank-details', text({ terms: 'Pay to BSB 062-000 account 1234 5678' })),
-      accept('terms-with-a-btps-address', text({ terms: 'Send to pay$kauri.example' })),
-      accept('terms-with-a-url', text({ terms: 'Pay at https://pay.example/x' })),
-      accept('a-footer-with-a-phone-number', text({ footer: 'Call 02 9999 0000' })),
-      accept('a-footer-with-a-web-address', text({ footer: 'Pay at www.pay.example' })),
-      refuse(
-        'a-footer-that-reads-backwards',
-        text({ footer: 'Kauri \u202eoiduts' }),
-        'no direction-changing character',
-      ),
-      refuse(
-        'a-footer-with-a-control-character',
-        text({ footer: 'Kauri\u0007Studio' }),
-        'no control character',
-      ),
-      refuse(
-        'a-footer-too-long',
-        text({ footer: 'x'.repeat(301) }),
-        'a footer is at most 300 characters',
-      ),
-      refuse(
-        'text-that-cannot-be-read',
-        page({ text: '#eeeeee' }),
-        'text contrasts 4.5:1 with the background',
-        'contrast',
-      ),
-      refuse(
-        'muted-text-that-cannot-be-read',
-        page({ muted: '#dddddd' }),
-        'muted text contrasts 4.5:1 with the background',
-        'contrast',
-      ),
-      refuse(
-        'an-accent-that-cannot-be-seen',
-        page({ accent: '#f5f5f5' }),
-        'the accent contrasts 3:1 with the background',
-        'contrast',
-      ),
-      ...format2,
-    ],
-  };
-}
-
 const sha256Hex = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 /** The SHA-256 of a value's RFC 8785 form, in lowercase hex. */
 const hashOf = (value) => sha256Hex(Buffer.from(canonicalizeValue(value), 'utf8'));
@@ -3312,9 +3042,9 @@ export function agreements(keys) {
       'agreement-with-twenty-signers',
       withAcceptance({ ...content.acceptance, signers: signers(20) }),
     ),
-    docCase(accept, 'agreement-with-a-letter-template', {
+    docCase(accept, 'agreement-with-a-signatory', {
       ...agreement,
-      template: { name: 'bank/letterhead', data: { values: { 'signature.name': 'Loans team' } } },
+      signatory: { name: 'Loans team', visualSignature: { type: 'typed', text: 'Loans team' } },
     }),
     docCase(
       refuse,
