@@ -19,6 +19,13 @@ export {
 } from '@core/server/schemas/boundViewChecks.js';
 export { boundValue, type BoundValue } from '@core/server/schemas/boundViewBindings.js';
 export {
+  BtpBoundViewSchema,
+  isPathData,
+  type BTPBoundView,
+  type BTPBoundViewElement,
+  type BTPBoundViewFont,
+} from '@core/server/schemas/boundViewSchema.js';
+export {
   MIN_CONNECT_TIMEOUT_MS,
   DEFAULT_CONNECT_TIMEOUT_MS,
   MIN_REPLY_TIMEOUT_MS,
