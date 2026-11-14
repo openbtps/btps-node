@@ -1,18 +1,19 @@
 ---
-title: Why the Document View
-sidebar_label: Why it exists
-slug: /protocol/specifications/document-view/why
-description: Why BTPS carries a document's view - the gap between verified data and the page a person reads, how the view closes it, and what email, PDFs, e-invoicing networks and portals cannot do.
+title: Why BoundView Was Created
+sidebar_label: Why it was created
+slug: /protocol/specifications/boundview/why
+description: The problem BoundView was created to solve - the gap between verified data and the page a person reads - how it closes that gap, and what email, PDFs, e-invoicing networks and portals cannot do.
 ---
 
-# Why the document view
+# Why BoundView was created
 
 BTPS proved who sent a document and that its data was not altered. It did
-not prove that the page a person looks at matches that data. The document
-view closes that gap: the sender keeps its own design, and the receiver gets
-a guarantee that the page shows the signed data.
+not prove that the page a person looks at matches that data. BoundView was
+created to close that gap: we built it so that the sender keeps its own
+design, and the receiver gets a guarantee that the page shows the signed
+data. What you see is what was signed.
 
-## The trust BTPS already gave
+## Where we started: the trust BTPS already gave
 
 Before 1.2, BTPS promised four things about a billing document:
 
@@ -27,50 +28,55 @@ email and supplier portals are used today. It is not a replacement for TLS.
 TLS protects a connection; BTPS adds proof and protection to the message
 itself, and they last after delivery.
 
-## The gap: the page a person reads
+## The problem we set out to solve
 
 People pay from a page, not from JSON. And a business wants its documents to
-look like its own. Before the view, there were two ways to show a document,
-and each lost something.
+look like its own. Before BoundView, there were two ways to show a
+document, and each lost something.
 
 | Choice | What it keeps | What it loses |
 | --- | --- | --- |
 | **The receiver draws its own view of the data** | Trust: the page is drawn from the signed data | The sender's design does not travel, and the document looks different on every provider |
 | **The sender's own design travels**, as an HTML email, a PDF or a template | The look the sender designed | Nothing ties the amount or the bank details shown to the signed data. And the file is an attack surface: its fonts, images and scripts are parsed on the receiver's device, and remote images are used to track when it is read |
 
+We wanted both: the sender's design, and a page the receiver can trust.
+
 :::note Templates by reference
 The earlier 1.2 release candidates had templates by reference: a template
 named by its address and hash, fetched from that address. They did not
-guarantee that the receiver saw what the sender saw. The document view
-replaces them.
+guarantee that the receiver saw what the sender saw. BoundView was built to
+replace them.
 :::
 
-## How the view closes it
+## How we built it
 
-Each step is already specified; follow the links for the detail.
+BoundView was designed so that each part of the problem has its own answer.
+Each one is specified; follow the links for the detail.
 
-| What | How | Specified on |
+| What we needed | How BoundView does it | Specified on |
 | --- | --- | --- |
 | The sender keeps its design | The sender's own HTML preview is captured when the document is sent, and the canvas is signed inside the document | [Using it](./using.md), [Canvas](./canvas.md) |
 | The page shows the signed data | Facts are bindings drawn from the signed fields, never text | [Bindings and formats](./bindings.md) |
 | Nothing is parsed from a sender's file, nothing is fetched | Fonts travel as glyph outlines and images as pixels | [Fonts and glyphs](./fonts.md), [Images](./images.md) |
 | Nothing is hidden | The receiver checks wherever the document is opened: every key fact shown, in full, not hidden. When a check fails, it shows its own view, and the document is never lost | [Checks](./checks.md) |
 | The same page on every receiver | One engine draws the canvas, in a closed WebAssembly box | [Rendering](./rendering.md) |
-| The view cannot pose as the sender | The verified sender, the links and the attachments are shown outside the view | [What the receiving app shows around the view](./using.md#what-the-receiving-app-shows-around-the-view) |
+| A BoundView cannot pose as the sender | The verified sender, the links and the attachments are shown outside the BoundView | [What the receiving app shows around a BoundView](./using.md#what-the-receiving-app-shows-around-a-boundview) |
 
 ## What it adds to the trust claim
 
-BTPS's claim was **who sent it, and that it is unaltered**. With the view, it
-is **who sent it, that it is unaltered, and that what you see is what was
+BTPS's claim was **who sent it, and that it is unaltered**. With BoundView,
+it is **who sent it, that it is unaltered, and that what you see is what was
 signed**.
 
 :::warning The limit
 BTPS does not claim that the content is true. A mistake the sender typed,
-and the sender's own words on the view, remain the sender's. The receiver
+and the sender's own words on a BoundView, remain the sender's. The receiver
 decides whom to trust ([Security model](./security.md)).
 :::
 
-## What current systems cannot do
+## What existing systems cannot do
+
+These are the systems BoundView was designed against, and the gap each leaves.
 
 ### Email
 
@@ -134,10 +140,10 @@ apply or is not made here.
 | **Supplier portal** | — | ✗ | ✓ | ✗ the receiver loads the sender's website and runs its scripts | ✗ a log-in for each portal |
 | **TLS** | Partly: the server it connects to, in transit, not who wrote the document | ✗ | — | — | — |
 | **BTPS before 1.2**, the receiver's own view | ✓ signatures, keys in DNS | ✓ the receiver draws the data itself | ✗ | ✓ | ✓ |
-| **BTPS with the document view** | ✓ shown outside the view | ✓ bindings, checked wherever it is opened | ✓ | ✓ glyph outlines and pixels, nothing fetched | ✓ |
+| **BTPS with BoundView** | ✓ shown outside the BoundView | ✓ bindings, checked wherever it is opened | ✓ | ✓ glyph outlines and pixels, nothing fetched | ✓ |
 
 ## Next
 
-- [Overview](./overview.md): what the view is and what BTPS promises.
-- [Using the document view](./using.md): the few lines a platform needs.
+- [Overview](./overview.md): what BoundView is and what BTPS promises.
+- [Using BoundView](./using.md): the few lines a platform needs.
 - [Security model](./security.md): threats, guarantees and what a receiver must do.

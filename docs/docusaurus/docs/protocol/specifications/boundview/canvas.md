@@ -1,41 +1,41 @@
 ---
 title: Canvas
 sidebar_label: Canvas
-slug: /protocol/specifications/document-view/canvas
-description: The layout object in template.layout - page, fonts, images, elements, coordinates, colours and paints, and its limits.
+slug: /protocol/specifications/boundview/canvas
+description: The signed canvas a BoundView carries in boundView - page, fonts, images, elements, coordinates, colours and paints, and its limits.
 ---
 
 # Canvas
 
 :::info Reference for implementers
-Part of the document view specification, for building your own builder or
-renderer, or checking one. A platform that uses `@btps/view` does not need
-it: see [Using the document view](./using.md).
+Part of the BoundView specification, for building your own builder or
+renderer, or checking one. A platform that uses `@btps/boundview` does not need
+it: see [Using BoundView](./using.md).
 :::
 
-A document's view is the canvas in its `template.layout`. Since 1.2, under
-`1.2.0`, `template` on an invoice, a receipt, a payslip, a letter or an
-agreement is exactly `{ "layout": { … } }`.
+A BoundView is a signed canvas, carried in the document's top-level
+`boundView` field. Since 1.2, under `1.2.0`, an invoice, a receipt, a
+payslip, a letter or an agreement may carry `boundView`, and the
+`boundView` object is the canvas itself: `{ "format": 1, "page": { … }, "elements": [ … ] }`,
+with `fonts` and `images` when it has them.
 
 ```json
 {
-  "template": {
-    "layout": {
-      "format": 1,
-      "page": { "width": 600, "height": 900, "background": "#ffffff" },
-      "fonts": {
-        "body": { "unitsPerEm": 1000, "ascent": 940, "descent": 240, "glyphs": { "A": { "advance": 640, "path": "M12 0L292 -712L348 -712L628 0Z" } } }
-      },
-      "images": {
-        "logo": { "width": 320, "height": 120, "encoding": "rgba8-deflate", "data": "eJzt…" }
-      },
-      "elements": [
-        { "type": "rect", "x": 0, "y": 0, "width": 600, "height": 900, "fill": "#ffffff" },
-        { "type": "image", "image": "logo", "x": 36, "y": 36, "width": 160, "height": 60 },
-        { "type": "text", "bind": { "field": "totalAmount", "format": { "money": { "group": ",", "decimal": ".", "prefix": "A$" } } },
-          "x": 450, "y": 380, "width": 120, "align": "end", "font": "body", "size": 18, "colour": "#0f1b2d" }
-      ]
-    }
+  "boundView": {
+    "format": 1,
+    "page": { "width": 600, "height": 900, "background": "#ffffff" },
+    "fonts": {
+      "body": { "unitsPerEm": 1000, "ascent": 940, "descent": 240, "glyphs": { "A": { "advance": 640, "path": "M12 0L292 -712L348 -712L628 0Z" } } }
+    },
+    "images": {
+      "logo": { "width": 320, "height": 120, "encoding": "rgba8-deflate", "data": "eJzt…" }
+    },
+    "elements": [
+      { "type": "rect", "x": 0, "y": 0, "width": 600, "height": 900, "fill": "#ffffff" },
+      { "type": "image", "image": "logo", "x": 36, "y": 36, "width": 160, "height": 60 },
+      { "type": "text", "bind": { "field": "totalAmount", "format": { "money": { "group": ",", "decimal": ".", "prefix": "A$" } } },
+        "x": 450, "y": 380, "width": 120, "align": "end", "font": "body", "size": 18, "colour": "#0f1b2d" }
+    ]
   }
 }
 ```
@@ -65,7 +65,7 @@ schema. Any other key is refused.
 | --- | --- | --- | --- |
 | `width`, `height` | number | Yes | The canvas's size in pixels: CSS pixels, 96 to the inch, at 1×. |
 | `background` | colour | No | The colour behind everything. White when absent. |
-| `breaks` | array of numbers | No | Where a printed copy starts a new page, as `y` positions in increasing order. A view is one canvas on a screen; `breaks` only matter when it is printed. |
+| `breaks` | array of numbers | No | Where a printed copy starts a new page, as `y` positions in increasing order. A BoundView is one canvas on a screen; `breaks` only matter when it is printed. |
 
 A long document is one tall canvas. A receiver shows a canvas wider than its
 screen scaled down to fit, and lets the reader zoom.
@@ -129,4 +129,4 @@ How a gradient is drawn is on [Rendering](./rendering.md#shapes).
 | A position or size | -20,000 to 20,000 |
 
 The limits for fonts, images, paths and text are on their own pages, and all
-of them on [Limits](../limits.md#document-view).
+of them on [Limits](../limits.md#boundview).

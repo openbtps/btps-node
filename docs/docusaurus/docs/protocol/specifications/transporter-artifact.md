@@ -476,7 +476,8 @@ The invoice is described first; the others share its money, attachments and refe
 - **recipient** (1.2): Who the document is for, `{ "name": "Northwind Studio" }` (see Totals, line roles and the recipient)
 - **attachments**: Files carried with the document (see Attachments)
 - **references**: Links to other signed documents (see References)
-- **template**: Since 1.2, under `1.2.0`, the document's view, `{ "layout": { … } }` (see Document view); on every document type
+- **template**: The 1.1 form, `{ "name": "…", "data": { … } }`, in any version, read as 1.1 reads it; a receiver draws nothing from it
+- **boundView** (1.2): The document's BoundView, a signed canvas (see BoundView); on every document type
 - **metadata**: The sending platform's own data; carried and signed, never read by the protocol
 
 **Notes (since 1.2):**
@@ -497,9 +498,9 @@ A person's note says how it is written: `{ "format": "text" | "markdown", "conte
 
 Each travels in a `1.2.0` artifact.
 
-**Document view (since 1.2):**
+**BoundView (since 1.2):**
 
-In a `1.2.0` artifact, `template` is the document's view: `{ "layout": { … } }`, a canvas captured from the sender's own preview, whose facts are bound to the document's signed fields. A receiver checks it wherever the document is opened and draws it, or shows its own view of the data when a check fails. The canvas, its bindings, its checks and how it is drawn are on [Document view](./document-view/overview.md). Under `1.1.0`, `template` is `{ "name": "…", "data": { … } }` with free `data`, as in 1.1, and a 1.2 receiver draws nothing from it.
+What you see is what was signed. In a `1.2.0` artifact, a document may carry `boundView`: its BoundView, a signed canvas captured from the sender's own preview, whose facts are bound to the document's signed fields. A receiver checks it wherever the document is opened and draws it, or shows its own view of the data when a check fails. The canvas, its bindings, its checks and how it is drawn are on [BoundView](./boundview/overview.md). `template` keeps its 1.1 form, `{ "name": "…", "data": { … } }` with free `data`, in any version, and is read as 1.1 reads it; a receiver draws nothing from it.
 
 A document carries no status: whether an invoice is paid, partly paid, disputed or refunded comes from the lifecycle events exchanged about it. The schema is strict, so a field it does not name (such as 1.0's `status`) is refused.
 
@@ -677,7 +678,7 @@ An employee's pay for a period. Earnings, deductions, contributions and leave ar
 
 **Required:** `type`, `title`, `id`, `issuedAt`, `employee` (with `name`), `earnings`, `deductions`, `contributions` (each may be empty), `gross`, `net`.
 
-**Optional:** `issuer` (the employer), `jurisdiction` (ISO 3166-1 alpha-2, e.g. `AU`), `payPeriod`, `payDate`, `payRate` (`amount`, `unit` such as `annual`, `asAt`), `leave`, `taxWithheld`, `yearToDate`, `attachments`, `references`, `metadata`; since 1.2, `template` (its [view](./document-view/overview.md)).
+**Optional:** `issuer` (the employer), `jurisdiction` (ISO 3166-1 alpha-2, e.g. `AU`), `payPeriod`, `payDate`, `payRate` (`amount`, `unit` such as `annual`, `asAt`), `leave`, `taxWithheld`, `yearToDate`, `attachments`, `references`, `metadata`; since 1.2, `boundView` (its [BoundView](./boundview/overview.md)).
 
 - **Decimals are text.** `rate`, `quantity` and a leave `balance`, `accrued` or `taken` are decimals written as text (`"48.75"`), never as numbers. Every amount of money is minor units.
 - **Leave** lists each kind the employer tracks, in its `unit` (`hours`, `days`, `weeks`). A balance may be negative where an employer allows it. Leave taken and paid in the period also appears as an earnings line, as payslips print it.
@@ -705,13 +706,13 @@ Anything else: a notice, a statement, a plan change. It has a title and one body
 - **body.format** is `text` or `markdown`, one per letter, never mixed.
 - **`text`** is shown exactly as written.
 - **`markdown`** is CommonMark with raw HTML off. A receiver renders it without inline images and follows only `https` links. There is no HTML body: an HTML body would need sanitising by every receiver, and a mistake in that is a vulnerability.
-- **Optional:** `issuer`, `attachments` (up to 10), `references` (up to 20), `metadata`; since 1.2, `recipient`, `signatory` and `template` (its [view](./document-view/overview.md)).
+- **Optional:** `issuer`, `attachments` (up to 10), `references` (up to 20), `metadata`; since 1.2, `recipient`, `signatory` and `boundView` (its [BoundView](./boundview/overview.md)).
 - **signatory** (since 1.2, a letter and an agreement): the sender's sign-off, `{ "name": "Jo Bloggs", "title": "Director", "visualSignature": { "type": "drawn", "strokes": [[40, 200, 180, 90]] } }`. `name` is required, `title` and `visualSignature` optional; the name and title are plain text of at most 100 characters, and `visualSignature` is typed or drawn exactly as an agreement signer's is. It is the sender's own, signed with the letter.
 - A letter never carries `acceptance`.
 
 #### Agreement
 
-Since 1.2, in a `1.2.0` artifact only: a letter that asks its signers to accept it, such as a loan contract, a tenancy or a phone plan. It has every field a letter has, and a template for letters draws it too. It also carries `acceptance`, which is required, and `originatorSignature`. A 1.1 receiver refuses it by version.
+Since 1.2, in a `1.2.0` artifact only: a letter that asks its signers to accept it, such as a loan contract, a tenancy or a phone plan. It has every field a letter has, and may carry a BoundView and a signatory as a letter does. It also carries `acceptance`, which is required, and `originatorSignature`. A 1.1 receiver refuses it by version.
 
 ```json
 {

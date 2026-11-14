@@ -1,16 +1,16 @@
 ---
 title: Elements
 sidebar_label: Elements
-slug: /protocol/specifications/document-view/elements
+slug: /protocol/specifications/boundview/elements
 description: Every element a canvas can draw - rect, line, path, image, text, label and signature - with its fields.
 ---
 
 # Elements
 
 :::info Reference for implementers
-Part of the document view specification, for building your own builder or
-renderer, or checking one. A platform that uses `@btps/view` does not need
-it: see [Using the document view](./using.md).
+Part of the BoundView specification, for building your own builder or
+renderer, or checking one. A platform that uses `@btps/boundview` does not need
+it: see [Using BoundView](./using.md).
 :::
 
 A canvas's `elements` are drawn in the order listed: each one over those
@@ -187,4 +187,4 @@ The signatory's `name` and `title` are `text` elements bound to
 | `size` | 6 to 400 |
 | `strokeWidth` | 0 to 100 |
 
-All of them are on [Limits](../limits.md#document-view).
+All of them are on [Limits](../limits.md#boundview).

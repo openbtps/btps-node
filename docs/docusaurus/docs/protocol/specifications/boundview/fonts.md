@@ -1,26 +1,26 @@
 ---
 title: Fonts and Glyphs
 sidebar_label: Fonts and glyphs
-slug: /protocol/specifications/document-view/fonts
-description: A view's text is drawn from glyph outlines carried in the canvas - never a font file - with kerning and bundled fallbacks.
+slug: /protocol/specifications/boundview/fonts
+description: A BoundView's text is drawn from glyph outlines carried in the canvas - never a font file - with kerning and bundled fallbacks.
 ---
 
 # Fonts and glyphs
 
 :::info Reference for implementers
-Part of the document view specification, for building your own builder or
-renderer, or checking one. A platform that uses `@btps/view` does not need
-it: see [Using the document view](./using.md).
+Part of the BoundView specification, for building your own builder or
+renderer, or checking one. A platform that uses `@btps/boundview` does not need
+it: see [Using BoundView](./using.md).
 :::
 
-A view's text is drawn from **glyph outlines**: the shape of each character
+A BoundView's text is drawn from **glyph outlines**: the shape of each character
 the document needs, as data. A canvas never carries a font file, and a
 receiver never reads one from a sender.
 
 :::note Why outlines, not font files
 A font file is a complex format, and the code that reads fonts has been a
 route for attacks. An outline is a list of points a receiver checks like
-the rest of the canvas. So the view gets the sender's exact letters, and a
+the rest of the canvas. So the BoundView gets the sender's exact letters, and a
 receiver reads nothing it cannot check completely.
 :::
 
@@ -71,7 +71,7 @@ of its money prefixes and suffixes. A receiver can then draw any value the
 document's bindings name with the same glyphs.
 
 Each character of a bound value has a glyph in its font or a fallback the
-receiver holds, or the view fails a check ([Shown in full](./checks.md#shown-in-full)).
+receiver holds, or the BoundView fails a check ([Shown in full](./checks.md#shown-in-full)).
 
 ## Fallbacks
 
@@ -105,4 +105,4 @@ this text with Arial's widths" when it could not capture the font it used.
 | Kerning pairs a font | 4,096 |
 | A `fallback` | 4 names |
 
-All of them are on [Limits](../limits.md#document-view).
+All of them are on [Limits](../limits.md#boundview).

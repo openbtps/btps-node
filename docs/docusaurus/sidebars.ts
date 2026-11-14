@@ -109,28 +109,28 @@ const sidebars: SidebarsConfig = {
             'protocol/specifications/responses',
             {
               type: 'category',
-              label: 'Document view',
-              link: { type: 'doc', id: 'protocol/specifications/document-view/overview' },
+              label: 'BoundView',
+              link: { type: 'doc', id: 'protocol/specifications/boundview/overview' },
               items: [
-                // For everyone: the problem it solves and how other systems compare.
-                'protocol/specifications/document-view/why',
-                // For platforms: @btps/view does the work, no format to learn.
-                'protocol/specifications/document-view/using',
+                // For everyone: why it was created, and how other systems compare.
+                'protocol/specifications/boundview/why',
+                // For platforms: @btps/boundview does the work, no format to learn.
+                'protocol/specifications/boundview/using',
                 // For implementers building or checking their own builder or renderer.
                 {
                   type: 'category',
                   label: 'Specification',
                   collapsed: true,
                   items: [
-                    'protocol/specifications/document-view/canvas',
-                    'protocol/specifications/document-view/elements',
-                    'protocol/specifications/document-view/bindings',
-                    'protocol/specifications/document-view/fonts',
-                    'protocol/specifications/document-view/images',
-                    'protocol/specifications/document-view/checks',
-                    'protocol/specifications/document-view/rendering',
-                    'protocol/specifications/document-view/security',
-                    'protocol/specifications/document-view/examples',
+                    'protocol/specifications/boundview/canvas',
+                    'protocol/specifications/boundview/elements',
+                    'protocol/specifications/boundview/bindings',
+                    'protocol/specifications/boundview/fonts',
+                    'protocol/specifications/boundview/images',
+                    'protocol/specifications/boundview/checks',
+                    'protocol/specifications/boundview/rendering',
+                    'protocol/specifications/boundview/security',
+                    'protocol/specifications/boundview/examples',
                   ],
                 },
               ],

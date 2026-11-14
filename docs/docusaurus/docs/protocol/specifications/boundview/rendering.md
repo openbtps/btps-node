@@ -1,21 +1,21 @@
 ---
 title: Rendering
 sidebar_label: Rendering
-slug: /protocol/specifications/document-view/rendering
+slug: /protocol/specifications/boundview/rendering
 description: How a canvas is drawn so every receiver draws it the same way, and the closed WebAssembly engine that draws it.
 ---
 
 # Rendering
 
 :::info Reference for implementers
-Part of the document view specification, for building your own builder or
-renderer, or checking one. A platform that uses `@btps/view` does not need
-it: `renderLayout` draws by these rules. See
-[Using the document view](./using.md#show-a-received-view).
+Part of the BoundView specification, for building your own builder or
+renderer, or checking one. A platform that uses `@btps/boundview` does not need
+it: `renderBoundView` draws by these rules. See
+[Using BoundView](./using.md#show-a-received-boundview).
 :::
 
 How a canvas is drawn, so every receiver draws it the same way. The
-`@btps/view` package's `renderLayout` draws by these rules with one engine,
+`@btps/boundview` package's `renderBoundView` draws by these rules with one engine,
 compiled to WebAssembly, and gives a finished picture; a receiver's app only
 displays it. A receiver that draws a canvas some other way must draw it as
 these rules say.
@@ -78,21 +78,21 @@ are the canvas's.
 
 ## The engine: a closed box
 
-`renderLayout` draws with resvg and its rasterizer, tiny-skia, written in
+`renderBoundView` draws with resvg and its rasterizer, tiny-skia, written in
 Rust and compiled to WebAssembly.
 
 :::danger Not optional
-The engine is part of `@btps/view`, not an option: every receiver that draws
-a view draws it with the same code, in a browser, on a server and in an app.
+The engine is part of `@btps/boundview`, not an option: every receiver that draws
+a BoundView draws it with the same code, in a browser, on a server and in an app.
 :::
 
 A WebAssembly module runs in a closed box. It has its own block of memory and
 cannot read or write anything outside it, and it can reach only the functions
-its host hands it. `renderLayout` hands it none that reach the outside world:
+its host hands it. `renderBoundView` hands it none that reach the outside world:
 
 | The engine has | The engine has no |
 | --- | --- |
-| The drawing, as shapes, glyph paths and pixels | Network: it cannot fetch an address, so a view cannot report that it was opened |
+| The drawing, as shapes, glyph paths and pixels | Network: it cannot fetch an address, so a BoundView cannot report that it was opened |
 | Its own memory, sized to the canvas's limits | Files: it cannot read the device's fonts, images or anything else |
 | | Page or DOM: it is not HTML, so there is no script, style or link to run or follow |
 | | System fonts: none are given it, and it needs none, because text arrives as paths |
@@ -109,29 +109,29 @@ flowchart LR
 
 What goes into the box and what comes out:
 
-1. **In.** `renderLayout` first runs every [check](./checks.md) and refuses a
-   view that fails one. It then builds the drawing from validated values
+1. **In.** `renderBoundView` first runs every [check](./checks.md) and refuses a
+   BoundView that fails one. It then builds the drawing from validated values
    only: numbers, colours as `#rrggbb` or `#rrggbbaa`, path commands from the closed list, glyph
    outlines (bound values are drawn with them, from the signed fields), and
    each image's pixels after they are inflated and their length is checked.
    The sender's bytes are never passed to the engine as they arrived: no font
    file and no image file ever reaches it. An image's pixels are encoded
-   again by `renderLayout` itself before the engine decodes them.
+   again by `renderBoundView` itself before the engine decodes them.
 2. **Inside.** The engine draws the page by the rules above. The canvas's
    [limits](./canvas.md#limits) bound how much it can be asked to draw, so a
    crafted canvas cannot make it run without end or exhaust memory.
 3. **Out.** A PNG, and nothing else: pixels the app displays as an image. No
-   text, markup or link comes back out, so nothing in a view can become
+   text, markup or link comes back out, so nothing in a BoundView can become
    something the app runs.
 
 ### What the engine reads
 
-`renderLayout` builds the drawing the engine reads itself, from validated
+`renderBoundView` builds the drawing the engine reads itself, from validated
 values only:
 
 - rectangles, paths and images, with numeric attributes and colours;
 - every glyph already turned into a path;
-- each image, re-encoded by `renderLayout`.
+- each image, re-encoded by `renderBoundView`.
 
 The drawing never holds text, a font, a style, a script, a link or a
 reference to anything outside it. No value from a canvas is ever copied into
@@ -139,7 +139,7 @@ it as markup: only numbers and colours that passed the schema.
 
 A fault in the engine stays inside the box. The worst a crafted canvas can do
 there is fail to draw, and then the receiver shows its own view of the
-signed data, as it does for a view that fails a check.
+signed data, as it does for a BoundView that fails a check.
 
 ## The same picture everywhere
 

@@ -764,7 +764,7 @@ interface BTPDocReference {
 
 ### BTPInvoiceDoc
 
-Invoice document structure. It carries no status: that comes from lifecycle events. Every amount is a whole number in the ISO 4217 minor units of `totalAmount.currency` (`4997` AUD is 49.97); BTPS never converts amounts (see the Transporter Artifact specification, Money Amounts).
+Invoice document structure. It carries no status: that comes from lifecycle events. Every amount is a whole number in the ISO 4217 minor units of `totalAmount.currency` (`4997` AUD is 49.97); BTPS never converts amounts (see the Transporter Artifact specification, Money Amounts). Since 1.2 it may carry its [BoundView](#btpboundview) in `boundView`, as a receipt, a payslip, a letter and an agreement may.
 
 ```ts
 interface BTPInvoiceDoc {
@@ -801,6 +801,7 @@ interface BTPInvoiceDoc {
   attachments?: BTPAttachment[];
   references?: BTPDocReference[];
   template?: BTPTemplate;
+  boundView?: BTPBoundView; // since 1.2
   metadata?: Record<string, unknown>;
 }
 ```
@@ -823,7 +824,7 @@ type BTPDiscount = { amount: number } | { percent: number };
 
 ### BTPLineRole
 
-Since 1.2. What a line-item column holds, so a [document view](../protocol/specifications/document-view/overview.md) knows which cells are key facts.
+Since 1.2. What a line-item column holds, so a [BoundView](../protocol/specifications/boundview/overview.md) knows which cells are key facts.
 
 ```ts
 type BTPLineRole = 'description' | 'quantity' | 'unitPrice' | 'discount' | 'tax' | 'lineTotal';
@@ -831,22 +832,26 @@ type BTPLineRole = 'description' | 'quantity' | 'unitPrice' | 'discount' | 'tax'
 
 ### BTPTemplate
 
-A document's view. In a `1.1.0` artifact it is `{ name, data }`, read as 1.1 reads it. Since 1.2, in a `1.2.0` artifact, it is `{ layout }`: a canvas captured from the sender's preview, signed with the document and checked by the receiver (`checkLayout`). Specified on [Document view](../protocol/specifications/document-view/overview.md), with every field on its subpages.
+A template by name, with free data: `{ name, data }`, the 1.1 form, read as 1.1 reads it in any version. A receiver draws nothing from it. A document's view is its [BoundView](#btpboundview).
 
 ```ts
-type BTPTemplate =
-  | { name: string; data: Record<string, unknown> } // 1.1.0 only
-  | { layout: BTPLayout }; // since 1.2
+type BTPTemplate = { name: string; data: Record<string, unknown> };
+```
 
-interface BTPLayout {
+### BTPBoundView
+
+Since 1.2, in a `1.2.0` artifact: a document's BoundView, carried in its `boundView` field. What you see is what was signed: a signed canvas captured from the sender's preview, signed with the document and checked by the receiver (`checkBoundView`). Specified on [BoundView](../protocol/specifications/boundview/overview.md), with every field on its subpages.
+
+```ts
+interface BTPBoundView {
   format: 1;
   page: { width: number; height: number; background?: string; breaks?: number[] };
-  fonts?: Record<string, BTPLayoutFont>; // glyph outlines, never a font file
-  images?: Record<string, BTPLayoutImage>; // pixels, never an image file
-  elements: BTPLayoutElement[]; // drawn in order
+  fonts?: Record<string, BTPBoundViewFont>; // glyph outlines, never a font file
+  images?: Record<string, BTPBoundViewImage>; // pixels, never an image file
+  elements: BTPBoundViewElement[]; // drawn in order
 }
 
-interface BTPLayoutFont {
+interface BTPBoundViewFont {
   unitsPerEm: number;
   ascent: number;
   descent: number;
@@ -855,14 +860,14 @@ interface BTPLayoutFont {
   fallback?: Array<'arimo' | 'tinos' | 'cousine' | 'carlito' | 'caladea' | 'sans-serif' | 'serif' | 'monospace'>; // up to 4, tried in order: the first one the receiver holds
 }
 
-interface BTPLayoutImage {
+interface BTPBoundViewImage {
   width: number;
   height: number;
   encoding: 'rgba8-deflate';
   data: string; // base64 of RFC 1950 deflate of width × height × 4 bytes
 }
 
-type BTPLayoutElement =
+type BTPBoundViewElement =
   | { type: 'rect'; x: number; y: number; width: number; height: number; radius?: number | number[]; fill?: BTPPaint; stroke?: BTPPaint; strokeWidth?: number; opacity?: number }
   | { type: 'line'; from: [number, number]; to: [number, number]; stroke: BTPPaint; strokeWidth: number; dash?: [number, number]; opacity?: number }
   | { type: 'path'; d: string; fill?: BTPPaint; stroke?: BTPPaint; strokeWidth?: number; opacity?: number; fillRule?: 'nonzero' | 'evenodd' }
@@ -890,11 +895,11 @@ interface BTPBinding {
 }
 ```
 
-`BTPPaint` is a colour (`#rrggbb` or `#rrggbbaa`) or a linear or radial gradient of 2 to 8 stops; `BTPBindingFormat` is a money, date, percent or groups format. Both are on [Canvas](../protocol/specifications/document-view/canvas.md#colours-and-paints) and [Bindings and formats](../protocol/specifications/document-view/bindings.md#formats).
+`BTPPaint` is a colour (`#rrggbb` or `#rrggbbaa`) or a linear or radial gradient of 2 to 8 stops; `BTPBindingFormat` is a money, date, percent or groups format. Both are on [Canvas](../protocol/specifications/boundview/canvas.md#colours-and-paints) and [Bindings and formats](../protocol/specifications/boundview/bindings.md#formats).
 
 ### BTPSignatory
 
-Since 1.2. A letter's or an agreement's sign-off, signed with it: drawn by a view's `signature` element and shown by a receiver without one. Decoration, never proof of agreement.
+Since 1.2. A letter's or an agreement's sign-off, signed with it: drawn by a BoundView's `signature` element and shown by a receiver without one. Decoration, never proof of agreement.
 
 ```ts
 interface BTPSignatory {

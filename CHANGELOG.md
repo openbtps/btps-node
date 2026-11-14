@@ -46,19 +46,19 @@ Upgrading a 1.1 provider: [Migrating from 1.1 to 1.2](https://www.openbtps.org/d
   minor units or `{ percent }` in whole basis points (1 to 10,000), applied
   before tax (`BTPDiscount`). In a `1.2.0` artifact a line's `discount` cell is
   an amount of at least 0.
-- **The document view.** A document may carry its view in
-  `template.layout` (`BTPLayout`), `1.2.0` only: a canvas captured from the
+- **BoundView.** A document may carry its BoundView in
+  `boundView` (`BTPBoundView`), `1.2.0` only: a canvas captured from the
   sender's own preview, signed with the document, so the receiver sees what
   the sender saw. Text that shows a fact binds a signed field and is drawn from
   it, never carried as text; fonts travel as glyph outlines and images as
   pixels, so nothing is fetched and no font or image file is parsed. A
-  receiver checks a view wherever the document is opened (`checkLayout`): a
-  view that breaks its schema or a limit, or binds a missing field, is refused
+  receiver checks a BoundView wherever the document is opened (`checkBoundView`): a
+  BoundView that breaks its schema or a limit, or binds a missing field, is refused
   with the document; one that hides, shrinks or leaves out a key fact is not
   shown, and the receiver shows its own view of the data. Specified on the new
-  Document view pages. Replaces templates by reference and the template file
-  formats of the earlier 1.2 release candidates; a `1.1.0` artifact's
-  `template` reads as 1.1 reads it.
+  BoundView pages. Replaces templates by reference and the template file
+  formats of the earlier 1.2 release candidates; `template` reads as 1.1
+  reads it, in any version.
 - **Totals, line roles and the recipient.** An invoice or receipt may carry
   `subtotalAmount` and `taxAmount`, and name what each line-item column holds
   (`lineItems.roles`, `BTPLineRole`); an invoice, receipt, letter or agreement

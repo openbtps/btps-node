@@ -92,7 +92,7 @@ Every document type, invoice, receipt, payslip, letter and agreement, limits its
 identifiers. How many entries its lists may have is under
 [Lists and records](#lists-and-records). Its other content is bounded by the
 [artifact size](#artifact-size), except, since 1.2 and in a `1.2.0` artifact
-only, an invoice's or receipt's description, a document's view and a
+only, an invoice's or receipt's description, a document's BoundView and a
 letter's signatory. Under `1.1.0` a description has no limit of its own, as
 in 1.1.
 
@@ -139,15 +139,15 @@ Since 1.2, in a `1.2.0` artifact, a letter may carry its sender's `signatory`:
 | `signatory.visualSignature.strokes`: points in all          |                2,048 |
 | `signatory.visualSignature.strokes`: a point's `x`, `y`     | 0 to 1,000, 0 to 300 |
 
-### Document view
+### BoundView
 
-Since 1.2, in a `1.2.0` artifact: a document's view, `template.layout`, on any
+Since 1.2, in a `1.2.0` artifact: a document's BoundView, `boundView`, on any
 document type. Each limit is described on its
-[Document view](./document-view/overview.md) page.
+[BoundView](./boundview/overview.md) page.
 
 | What                                                   |              Limit |
 | ------------------------------------------------------ | -----------------: |
-| a view, as JSON                                        |            384 KiB |
+| a BoundView, as JSON                                   |            384 KiB |
 | `page.width`                                           |           1 to 2,000 |
 | `page.height`                                          |          1 to 20,000 |
 | `page.breaks`                                          |                100 |
@@ -172,7 +172,7 @@ document type. Each limit is described on its
 ### Agreement
 
 Since 1.2, in a `1.2.0` artifact only. An agreement has a letter's limits,
-its signatory's and its view's included, and these:
+its signatory's and its BoundView's included, and these:
 
 | Field                |                               Limit |
 | -------------------- | ----------------------------------: |

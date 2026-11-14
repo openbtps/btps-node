@@ -1,21 +1,21 @@
 ---
 title: Bindings and Formats
 sidebar_label: Bindings and formats
-slug: /protocol/specifications/document-view/bindings
-description: How a text element binds a signed field, which fields each document type lets a view bind, and how money, dates, percents and grouped text are written.
+slug: /protocol/specifications/boundview/bindings
+description: How a text element binds a signed field, which fields each document type lets a BoundView bind, and how money, dates, percents and grouped text are written.
 ---
 
 # Bindings and formats
 
 :::info Reference for implementers
-Part of the document view specification, for building your own builder or
-renderer, or checking one. A platform that uses `@btps/view` does not need
-it: see [Using the document view](./using.md).
+Part of the BoundView specification, for building your own builder or
+renderer, or checking one. A platform that uses `@btps/boundview` does not need
+it: see [Using BoundView](./using.md).
 :::
 
 A `text` element's `bind` names a signed field and says how its value is
 written. A receiver draws the value it finds in the document, never text
-from the canvas, so a view cannot show a fact the document does not carry.
+from the canvas, so a BoundView cannot show a fact the document does not carry.
 
 ```json
 { "field": "totalAmount", "format": { "money": { "group": ",", "decimal": ".", "prefix": "A$" } } }
@@ -94,8 +94,8 @@ The value column says which [format](#formats) a field takes: **Money**,
 
 A field that is not in these tables cannot be bound: `metadata`, an
 attachment, a reference, a payment link, the envelope's addresses. The
-receiving app shows those around the view
-([Using the document view](./using.md#what-the-receiving-app-shows-around-the-view)).
+receiving app shows those around the BoundView
+([Using BoundView](./using.md#what-the-receiving-app-shows-around-a-boundview)).
 
 :::warning Refused, not skipped
 A binding to a field the document does not have is refused, and with it the

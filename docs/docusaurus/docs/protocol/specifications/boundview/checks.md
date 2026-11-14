@@ -1,23 +1,23 @@
 ---
 title: Checks
 sidebar_label: Checks
-slug: /protocol/specifications/document-view/checks
-description: What a receiver checks in a view before showing it - key facts, shown in full, not hidden - and what happens when a check fails.
+slug: /protocol/specifications/boundview/checks
+description: What a receiver checks in a BoundView before showing it - key facts, shown in full, not hidden - and what happens when a check fails.
 ---
 
 # Checks
 
 :::info Reference for implementers
-Part of the document view specification, for building your own builder or
-renderer, or checking one. A platform that uses `@btps/view` does not need
+Part of the BoundView specification, for building your own builder or
+renderer, or checking one. A platform that uses `@btps/boundview` does not need
 it: the SDK runs these checks for you. See
-[Using the document view](./using.md#when-a-check-fails).
+[Using BoundView](./using.md#when-a-check-fails).
 :::
 
-A receiver checks a view against the signed document **wherever the document
+A receiver checks a BoundView against the signed document **wherever the document
 is opened**, before anything is shown: on the receiving server when it can
 read the document, and on the receiver's device when only the device holds
-the key. The SDK does both the same way (`checkLayout`). A sender's SDK runs
+the key. The SDK does both the same way (`checkBoundView`). A sender's SDK runs
 the same checks before it signs, so an honest sender finds a problem before
 sending.
 
@@ -32,19 +32,19 @@ sending.
 | What is wrong | Outcome |
 | --- | --- |
 | The canvas breaks its [schema](./canvas.md) or a limit, or binds a field the document does not have | The **document is refused**, as a document with any other malformed field is. |
-| The canvas is well formed but fails a check below | The **document is accepted** and the **view is not shown**. The receiver shows its own view of the signed data, with a notice saying why. |
+| The canvas is well formed but fails a check below | The **document is accepted** and the **BoundView is not shown**. The receiver shows its own view of the signed data, with a notice saying why. |
 
 ```mermaid
 flowchart TD
     A["The document is opened"] --> B{"Is the canvas well formed: its schema, its limits, and only fields the document has?"}
     B -- "No" --> C["The document is refused"]
     B -- "Yes" --> D{"Does it pass every check below?"}
-    D -- "No" --> E["The document is accepted. The view is not shown: the receiver shows its own view of the signed data, with a notice"]
-    D -- "Yes" --> F["The view is drawn, every binding filled from the signed fields"]
+    D -- "No" --> E["The document is accepted. The BoundView is not shown: the receiver shows its own view of the signed data, with a notice"]
+    D -- "Yes" --> F["The BoundView is drawn, every binding filled from the signed fields"]
 ```
 
 :::note Never in part, never lost
-A view that fails a check is never shown in part, and the document behind it
+A BoundView that fails a check is never shown in part, and the document behind it
 is never lost.
 :::
 
@@ -52,14 +52,14 @@ is never lost.
 
 | Check | In short |
 | --- | --- |
-| [Key facts](#key-facts) | Every key fact of the document is on the view, bound |
+| [Key facts](#key-facts) | Every key fact of the document is on the BoundView, bound |
 | [Shown in full](#shown-in-full) | Every bound value fits its box, with glyphs for every character |
 | [Not hidden](#not-hidden) | Nothing covers a fact, and every fact stands out from what is behind it |
 | [Nothing to fetch, nothing to run](#nothing-to-fetch-nothing-to-run) | Every value is one the schema names |
 
 ### Key facts
 
-The view shows each of its document's key facts at least once, as a bound
+The BoundView shows each of its document's key facts at least once, as a bound
 `text` element. A key fact the document does not carry is not required.
 
 | Document | Key facts |
@@ -75,7 +75,7 @@ A line's description and line total are its cells in the columns
 names no roles, every cell of every line is a key fact.
 
 Every other signed field is shown by the receiving app's **all details**
-view, which every receiver offers whether a view is shown or not.
+view, which every receiver offers whether a BoundView is shown or not.
 
 ### Shown in full
 
