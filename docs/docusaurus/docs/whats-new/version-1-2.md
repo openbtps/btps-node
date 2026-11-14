@@ -34,7 +34,7 @@ Start with [Migrating from 1.1 to 1.2](./version-1-2-migration.md): what changes
 
 **[Refresh tokens](../features/refreshTokens.md).** A token used twice revokes the device; a lost answer can be retried within a grace window; a racing refresh is told to wait; keys can be rotated with a proof.
 
-**[Notes, discounts and templates](../features/notesDiscountsTemplates.md).** Notes with a format, discounts before tax, templates by reference, payslip and letter templates, and signature slots.
+**[Notes, discounts and the document view](../features/notesDiscountsTemplates.md).** Notes with a format, discounts before tax, a [document view](../protocol/specifications/document-view/overview.md) the receiver sees exactly as the sender previewed it, with every fact drawn from signed data, and a letter's signatory.
 
 **[Protocol versions](../features/versions.md).** How 1.1 and 1.2 talk: each artifact stamped with the lowest version that can say it, version refusals, trust requests shaped for a 1.1 receiver, and the closing signal.
 

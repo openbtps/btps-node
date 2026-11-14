@@ -92,8 +92,9 @@ Every document type, invoice, receipt, payslip, letter and agreement, limits its
 identifiers. How many entries its lists may have is under
 [Lists and records](#lists-and-records). Its other content is bounded by the
 [artifact size](#artifact-size), except, since 1.2 and in a `1.2.0` artifact
-only, an invoice's or receipt's description and a template's https sources.
-Under `1.1.0` a description has no limit of its own, as in 1.1.
+only, an invoice's or receipt's description, a document's view and a
+letter's signatory. Under `1.1.0` a description has no limit of its own, as
+in 1.1.
 
 | Field                                        | Limit |
 | -------------------------------------------- | ----: |
@@ -101,7 +102,7 @@ Under `1.1.0` a description has no limit of its own, as in 1.1.
 | `references[].id`                            |   100 |
 | `references[].type`                          |    64 |
 | `description` (or its `content`), 1.2.0 only | 5,000 |
-| `template.data.source`, `logo.source`, 1.2.0 | 2,048 |
+| `recipient.name`, 1.2.0 only                 |   200 |
 
 ### Receipt
 
@@ -127,20 +128,51 @@ deduction, contribution or leave, a leave `unit`, `rateUnit`, and
 | `title`        |     200 |
 | `body.content` | 100,000 |
 
-Since 1.2, in a `1.2.0` artifact, a letter's template may carry signature values (`template.data.values`; see [Templates](./templates.md#signature-slots-and-their-values)):
+Since 1.2, in a `1.2.0` artifact, a letter may carry its sender's `signatory`:
 
-| Field                                                  |                Limit |
-| ------------------------------------------------------ | -------------------: |
-| `signature.typed`, `signature.name`, `signature.title` |                  100 |
-| `signature.drawn`: strokes                             |                   32 |
-| `signature.drawn`: points a stroke                     |                  512 |
-| `signature.drawn`: points in all                       |                2,048 |
-| `signature.drawn`: a point's `x`, `y`                  | 0 to 1,000, 0 to 300 |
+| Field                                                       |                Limit |
+| ----------------------------------------------------------- | -------------------: |
+| `signatory.name`, `signatory.title`                         |                  100 |
+| `signatory.visualSignature.text` (typed)                    |                  100 |
+| `signatory.visualSignature.strokes` (drawn): strokes        |                   32 |
+| `signatory.visualSignature.strokes`: points a stroke        |                  512 |
+| `signatory.visualSignature.strokes`: points in all          |                2,048 |
+| `signatory.visualSignature.strokes`: a point's `x`, `y`     | 0 to 1,000, 0 to 300 |
+
+### Document view
+
+Since 1.2, in a `1.2.0` artifact: a document's view, `template.layout`, on any
+document type. Each limit is described on its
+[Document view](./document-view/overview.md) page.
+
+| What                                                   |              Limit |
+| ------------------------------------------------------ | -----------------: |
+| a view, as JSON                                        |            384 KiB |
+| `page.width`                                           |           1 to 2,000 |
+| `page.height`                                          |          1 to 20,000 |
+| `page.breaks`                                          |                100 |
+| elements                                               |              2,000 |
+| text, label and signature elements together            |              1,000 |
+| a position or size                                     | -20,000 to 20,000 |
+| a label's `text`                                       |                500 |
+| a path's `d`                                           |             20,000 |
+| all paths' `d` together                                |            100,000 |
+| a gradient's stops                                     |                  8 |
+| fonts                                                  |                  4 |
+| glyphs a font                                          |                256 |
+| a glyph's `path`                                       |              4,000 |
+| kerning pairs a font                                   |              4,096 |
+| a font's `fallback`                                    |            4 names |
+| images                                                 |                  8 |
+| an image's `width`, `height`                           |           1 to 1,024 |
+| pixels an image                                        |            262,144 |
+| an image's `data` (base64)                             |            256 KiB |
+| a money format's `prefix`, `suffix`                    |                  8 |
 
 ### Agreement
 
 Since 1.2, in a `1.2.0` artifact only. An agreement has a letter's limits,
-its template's included, and these:
+its signatory's and its view's included, and these:
 
 | Field                |                               Limit |
 | -------------------- | ----------------------------------: |
@@ -191,8 +223,8 @@ Since 1.2, the lists that trust permissions, details refresh and agreements add.
 | a key's `publicKey` in a key rotation record (DER SPKI, base64)         |   2,048 |
 
 A record is any object whose keys the sender chooses: `metadata`,
-`issuer.identifiers`, a payslip's `yearToDate`, `template.data` and
-`agentInfo`.
+`issuer.identifiers`, a payslip's `yearToDate`, a `1.1.0` artifact's
+`template.data`, and `agentInfo`.
 
 A list over its limit is refused with one issue naming it, before any entry
 in it is read. A list of more than 100 entries is checked one entry at a

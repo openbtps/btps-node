@@ -1,20 +1,21 @@
 ---
-title: Notes, discounts and templates
-sidebar_label: Notes, discounts and templates
+title: Notes, discounts and the document view
+sidebar_label: Notes, discounts and the view
 slug: notes-discounts-templates
 ---
 
-# Notes, discounts and templates
+# Notes, discounts and the document view
 
 > **Since 1.2.** Each travels in `1.2.0` artifacts only. A document without them reads exactly as before in a `1.1.0` artifact.
 
-Three things a document can say about itself: how its notes are written, what was taken off, and how it should look.
+Four things a document can say about itself: how its notes are written, what was taken off, how it looked when it was sent, and who signed a letter off.
 
-| What                                     | Why                                                                                                            |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **Notes say how they are written**       | a note in markdown renders as markdown, not as asterisks                                                       |
-| **Discounts**                            | an invoice or receipt says what was taken off, before tax, instead of hiding it in a line                      |
-| **Templates by reference, and format 2** | a document names how it should look, payslips and letters included, and a letter can carry a signature to show |
+| What                                 | Why                                                                                                                       |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| **Notes say how they are written**   | a note in markdown renders as markdown, not as asterisks                                                                  |
+| **Discounts**                        | an invoice or receipt says what was taken off, before tax, instead of hiding it in a line                                 |
+| **The document view**                | a receiver on any provider sees the document as the sender saw it in its preview, with every fact drawn from signed data |
+| **A letter's signatory**             | a letter or an agreement carries the sender's sign-off: a name, a title and a typed or drawn signature                    |
 
 ## The flow
 
@@ -23,11 +24,12 @@ sequenceDiagram
     autonumber
     participant S as Sender's platform
     participant R as Receiver's platform
-    S->>S: document: description as { format, content }, discount, template { name, data }
+    S->>S: document: description as { format, content }, discount, signatory
+    S->>S: snapshot the preview into template.layout
     S->>R: BTPS_DOC (1.2.0)
-    R->>R: schema: the note's format, the discount's shape, the template's named data
-    R->>R: fetch the template by its source, keep it by its sha256 (the receiver's choice)
-    R->>R: render: the template sets the look, the document's signed values fill it
+    R->>R: schema: the note's format, the discount's shape, the view's canvas
+    R->>R: checkLayout: key facts shown, in full, not hidden
+    R->>R: draw the view, every binding from the signed fields; or its own view
 ```
 
 ## Notes
@@ -38,11 +40,11 @@ An invoice's and a receipt's `description`, an event's `message`, and a trust re
 
 An invoice or receipt may carry `discount`: `{ amount }` in minor units, or `{ percent }` in whole basis points (1 to 10,000, so `1000` is 10%), applied before tax. Under `1.2.0`, a line's own `discount` cell is an amount of at least 0.
 
-## Templates by reference
+## The document view
 
-A document names its template, `template: { name, data }`. Under `1.2.0` the named `data` fields are checked when present: `version` (semantic), `sha256` (the template file's fingerprint: the SHA-256 of its RFC 8785 form), `source` (an https address, always with its `sha256`), and `logo` (`{ sha256, source }`). Other keys stay the provider's.
+A document carries its view in `template.layout`: a canvas captured from the sender's own preview when it is sent. Text that shows a fact is a **binding** to a signed field, never text: the receiver draws the field's value. Fonts travel as glyph outlines and images as pixels, so nothing is fetched and no font or image file is read. The receiver checks the view wherever the document is opened, and shows its own view of the data when a check fails.
 
-An invoice with all three:
+An invoice with a markdown note and a discount, with line roles a view binds to:
 
 ```json btps=document:BTPS_DOC
 {
@@ -53,31 +55,19 @@ An invoice with all three:
   "totalAmount": { "amount": 135000, "currency": "AUD" },
   "lineItems": {
     "columns": ["Item", "Amount"],
+    "roles": { "Item": "description", "Amount": "lineTotal" },
     "rows": [{ "Item": "Website build", "Amount": 150000 }]
   },
   "description": { "format": "markdown", "content": "**Thank you** for your business." },
-  "discount": { "percent": 1000 },
-  "template": {
-    "name": "acme/classic",
-    "data": {
-      "version": "2.1.0",
-      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-      "source": "https://templates.acme.example/classic-2.1.0.json"
-    }
-  }
+  "discount": { "percent": 1000 }
 }
 ```
 
-**The template file** says how a document looks, never what it says. Format 1 is for invoices and receipts. **Format 2** is format 1 for them, plus:
+A full invoice and a letter, each with its view, are on [Document view examples](../protocol/specifications/document-view/examples.md); the canvas, its bindings, the checks and how it is drawn are on [Document view](../protocol/specifications/document-view/overview.md). Making a view from a preview, and drawing one, is the `@btps/view` package's: `snapshotLayout` on the sender's side, `renderLayout` on the receiver's.
 
-- a **payslip** template: the payslip's own sections and labels, every one with signed fields shown;
-- a **letter** template, which draws agreements too: the page, a letterhead placing the sender's own fields, and a footer with a sign-off and signature slots. Never the body.
+## A letter's signatory
 
-A template never carries or changes a value of the document, hides no section with signed fields, fetches nothing and runs nothing; its own words are plain text. The format, its JSON Schema (`schemas/btps-template.schema.json`) and its golden vectors are on the [Templates](../protocol/specifications/templates.md) page. **The SDK renders nothing:** rendering is the platform's.
-
-## A letter's signature
-
-A letter's template carries the values its signature slots show, in `template.data.values`, signed with the letter: a typed signature (drawn in the open-licence script font Caveat), a name, a title, and a drawn signature as integer strokes on a 1,000 by 300 canvas, never markup.
+A letter or an agreement carries its sender's sign-off in `signatory`, signed with it: a name, a title, and a visual signature, typed (set in the open-licence script font Caveat) or drawn as integer strokes on a 1,000 by 300 canvas, never markup. It has the same shape as the visual signature an agreement's signer gives when it accepts.
 
 ```json btps=document:BTPS_DOC
 {
@@ -86,16 +76,10 @@ A letter's template carries the values its signature slots show, in `template.da
   "id": "LET-7",
   "issuedAt": "2026-11-08T06:00:00.000Z",
   "body": { "format": "markdown", "content": "Dear Alice,\n\nYour new plan starts on 1 December." },
-  "template": {
-    "name": "acme/letter",
-    "data": {
-      "values": {
-        "signature.typed": "Jo Bloggs",
-        "signature.name": "Jo Bloggs",
-        "signature.title": "Customer care",
-        "signature.drawn": { "strokes": [[10, 200, 120, 80, 240, 210, 380, 90]] }
-      }
-    }
+  "signatory": {
+    "name": "Jo Bloggs",
+    "title": "Customer care",
+    "visualSignature": { "type": "drawn", "strokes": [[10, 200, 120, 80, 240, 210, 380, 90]] }
   }
 }
 ```
@@ -104,14 +88,16 @@ A letter's template carries the values its signature slots show, in `template.da
 
 ## The code
 
-Nothing new to call: these are fields of the document a platform already sends. From a device, the `artifact.send` checks them under the version the agent will stamp; from a server, `signEncrypt` does. The feature journey (`tests/e2e/features.e2e.test.ts`) sends an invoice with a markdown note and a discount, and a letter with a template, and each arrives intact.
+Nothing new to call to send these: they are fields of the document a platform already sends. From a device, the `artifact.send` checks them under the version the agent will stamp; from a server, `signEncrypt` does. A receiver's SDK checks a view with `checkLayout` when it opens the document. The feature journey (`tests/e2e/features.e2e.test.ts`) sends an invoice with a markdown note, a discount and a view, and a letter with its signatory, and each arrives intact.
 
 ## Errors
 
-| Code                   | Status | Who refuses                                                                     | When                                                                                                                                                                                                                                                                              |
-| ---------------------- | ------ | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BTP_ERROR_VALIDATION` | 400    | the receiving server (readable), `decryptVerify` (opened), the sender's own SDK | a note over 5,000 characters or of another format, a discount with both or neither field or out of range, a template's `source` without its `sha256`, `values` on anything but a letter's or agreement's template, a stroke off the canvas, or any of these in a `1.1.0` artifact |
+| Code                   | Status | Who refuses                                                                     | When                                                                                                                                                                                                                                         |
+| ---------------------- | ------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BTP_ERROR_VALIDATION` | 400    | the receiving server (readable), `decryptVerify` (opened), the sender's own SDK | a note over 5,000 characters or of another format, a discount with both or neither field or out of range, a view that breaks its schema or a limit or binds a field the document lacks, a signatory's stroke off its canvas, or any of these in a `1.1.0` artifact |
+
+A view that is well formed but fails a check is not an error: the document is accepted and the receiver shows its own view of the data ([Checks](../protocol/specifications/document-view/checks.md)).
 
 ## Protocol and platform
 
-The protocol checks the shapes. What a template's words may say (for example, refusing digit runs and web, email and BTPS addresses, where a fake payment detail would hide), when to fetch it, and how to render it are the platform's; the Templates page recommends what to refuse.
+The protocol checks the shapes and the view's checks. What a sender's labels say is the sender's, as its notes are; the sender's SDK warns when a label looks like a fact that is not bound. How a receiver shows a view, beside the verified sender, the title, the attachments and the all-details view, is described on [Document view](../protocol/specifications/document-view/overview.md#what-the-receiving-app-shows-around-the-view).

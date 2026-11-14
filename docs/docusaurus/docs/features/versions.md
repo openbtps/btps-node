@@ -34,7 +34,7 @@ sequenceDiagram
 
 ## Stamping
 
-`artifactVersion` decides: `1.1.0` unless the artifact uses something 1.2 adds (permission fields, `documentType`, `syncOf`, an agreement, a `withdrawn`, a note with a format, a discount, a template's values, and the rest). Identity lookups and control artifacts are always `1.1.0`, so every 1.1 and 1.2 server answers them. The agent and `signEncrypt` stamp for you.
+`artifactVersion` decides: `1.1.0` unless the artifact uses something 1.2 adds (permission fields, `documentType`, `syncOf`, an agreement, a `withdrawn`, a note with a format, a discount, a document view, a signatory, and the rest). Identity lookups and control artifacts are always `1.1.0`, so every 1.1 and 1.2 server answers them. The agent and `signEncrypt` stamp for you.
 
 ## A 1.2 artifact to a 1.1 server
 

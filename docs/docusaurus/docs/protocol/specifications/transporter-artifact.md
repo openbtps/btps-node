@@ -472,9 +472,11 @@ The invoice is described first; the others share its money, attachments and refe
 - **paymentLink**: Payment link information
 - **description**: A note for the other party (see Notes)
 - **discount** (1.2, invoice and receipt): A discount on the whole document, applied before tax (see Discounts)
+- **subtotalAmount**, **taxAmount** (1.2, invoice and receipt): The total before tax and the tax, as the sender worked them out (see Totals, line roles and the recipient)
+- **recipient** (1.2): Who the document is for, `{ "name": "Northwind Studio" }` (see Totals, line roles and the recipient)
 - **attachments**: Files carried with the document (see Attachments)
 - **references**: Links to other signed documents (see References)
-- **template**: The document's template, by reference (see Templates); on a letter or payslip since 1.2
+- **template**: Since 1.2, under `1.2.0`, the document's view, `{ "layout": { … } }` (see Document view); on every document type
 - **metadata**: The sending platform's own data; carried and signed, never read by the protocol
 
 **Notes (since 1.2):**
@@ -487,9 +489,17 @@ A person's note says how it is written: `{ "format": "text" | "markdown", "conte
 - On a line: a `discount` column, whose cell is an amount in minor units of at least 0. 1.1 already carries such a column, so it is taken under `1.1.0` as 1.1 had it.
 - Rounding is each platform's own; the protocol fixes only how money is written.
 
-**Templates (by reference):**
+**Totals, line roles and the recipient (since 1.2):**
 
-`template` is `{ "name": "acme/classic-invoice", "data": { … } }`. Since 1.2, in a `1.2.0` artifact, `data`'s named fields are each optional but well formed when present: `version` (a semantic version), `sha256` (64 lowercase hex characters), `source` (an https address, always with its `sha256`), and `logo: { sha256, source }`. A letter's or an agreement's template may also carry `values`, its signature slots' values, signed with the document: `signature.typed`, `signature.name` and `signature.title` as plain text of at most 100 characters, and `signature.drawn` as integer strokes on a 1,000 by 300 canvas (see [Templates](./templates.md#signature-slots-and-their-values)). Any other key in `values`, or `values` on another document's template, is refused. Other keys stay the provider's. Under `1.1.0`, `data` is free, as in 1.1. A receiving platform draws the document with the template only when the template's fingerprint matches `sha256`; anything that fails falls back to the standard view. Since 1.2 a letter, an agreement and a payslip may name a template too. The template file's own format, and what a template must never do, are on [Templates](./templates.md).
+- `subtotalAmount` and `taxAmount` are the total before tax and the tax, as the sender worked them out, in the currency of `totalAmount`. The protocol carries them and never adds them up.
+- `lineItems.roles` names what a column holds, so a receiver knows it whatever the sender calls it: `{ "Amount (incl. tax)": "lineTotal" }`. A role is `description`, `quantity`, `unitPrice`, `discount`, `tax` or `lineTotal`; each names one of `columns`, and each appears at most once.
+- `recipient` is who the document is for: `{ "name": "Northwind Studio" }`, the name as the sender writes it. It is on an invoice, a receipt, a letter and an agreement; a payslip's is its `employee`.
+
+Each travels in a `1.2.0` artifact.
+
+**Document view (since 1.2):**
+
+In a `1.2.0` artifact, `template` is the document's view: `{ "layout": { … } }`, a canvas captured from the sender's own preview, whose facts are bound to the document's signed fields. A receiver checks it wherever the document is opened and draws it, or shows its own view of the data when a check fails. The canvas, its bindings, its checks and how it is drawn are on [Document view](./document-view/overview.md). Under `1.1.0`, `template` is `{ "name": "…", "data": { … } }` with free `data`, as in 1.1, and a 1.2 receiver draws nothing from it.
 
 A document carries no status: whether an invoice is paid, partly paid, disputed or refunded comes from the lifecycle events exchanged about it. The schema is strict, so a field it does not name (such as 1.0's `status`) is refused.
 
@@ -667,7 +677,7 @@ An employee's pay for a period. Earnings, deductions, contributions and leave ar
 
 **Required:** `type`, `title`, `id`, `issuedAt`, `employee` (with `name`), `earnings`, `deductions`, `contributions` (each may be empty), `gross`, `net`.
 
-**Optional:** `issuer` (the employer), `jurisdiction` (ISO 3166-1 alpha-2, e.g. `AU`), `payPeriod`, `payDate`, `payRate` (`amount`, `unit` such as `annual`, `asAt`), `leave`, `taxWithheld`, `yearToDate`, `attachments`, `references`, `metadata`.
+**Optional:** `issuer` (the employer), `jurisdiction` (ISO 3166-1 alpha-2, e.g. `AU`), `payPeriod`, `payDate`, `payRate` (`amount`, `unit` such as `annual`, `asAt`), `leave`, `taxWithheld`, `yearToDate`, `attachments`, `references`, `metadata`; since 1.2, `template` (its [view](./document-view/overview.md)).
 
 - **Decimals are text.** `rate`, `quantity` and a leave `balance`, `accrued` or `taken` are decimals written as text (`"48.75"`), never as numbers. Every amount of money is minor units.
 - **Leave** lists each kind the employer tracks, in its `unit` (`hours`, `days`, `weeks`). A balance may be negative where an employer allows it. Leave taken and paid in the period also appears as an earnings line, as payslips print it.
@@ -695,7 +705,8 @@ Anything else: a notice, a statement, a plan change. It has a title and one body
 - **body.format** is `text` or `markdown`, one per letter, never mixed.
 - **`text`** is shown exactly as written.
 - **`markdown`** is CommonMark with raw HTML off. A receiver renders it without inline images and follows only `https` links. There is no HTML body: an HTML body would need sanitising by every receiver, and a mistake in that is a vulnerability.
-- **Optional:** `issuer`, `attachments` (up to 10), `references` (up to 20), `metadata`.
+- **Optional:** `issuer`, `attachments` (up to 10), `references` (up to 20), `metadata`; since 1.2, `recipient`, `signatory` and `template` (its [view](./document-view/overview.md)).
+- **signatory** (since 1.2, a letter and an agreement): the sender's sign-off, `{ "name": "Jo Bloggs", "title": "Director", "visualSignature": { "type": "drawn", "strokes": [[40, 200, 180, 90]] } }`. `name` is required, `title` and `visualSignature` optional; the name and title are plain text of at most 100 characters, and `visualSignature` is typed or drawn exactly as an agreement signer's is. It is the sender's own, signed with the letter.
 - A letter never carries `acceptance`.
 
 #### Agreement

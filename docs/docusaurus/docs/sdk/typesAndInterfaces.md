@@ -777,8 +777,11 @@ interface BTPInvoiceDoc {
     amount: number; // integer ISO 4217 minor units: 12345 USD is 123.45, 12345 JPY is ¥12,345
     currency: CurrencyCode;
   };
+  subtotalAmount?: BTPInvoiceDoc['totalAmount']; // since 1.2: before tax, in the same currency
+  taxAmount?: BTPInvoiceDoc['totalAmount']; // since 1.2
   lineItems: {
     columns: string[];
+    roles?: Record<string, BTPLineRole>; // since 1.2: column name to what it holds, each role once at most
     rows: Array<Record<string, string | number>>; // money cells in integer minor units
   };
   issuer?: {
@@ -788,6 +791,7 @@ interface BTPInvoiceDoc {
     address?: string;
     identifiers?: Record<string, string>; // e.g. { 'au:abn': '51824753556' }
   };
+  recipient?: { name: string }; // since 1.2: who the document is for, as the sender names them
   paymentLink?: {
     linkText: string;
     url: string;
@@ -817,32 +821,88 @@ Since 1.2. A discount on a whole invoice or receipt, before tax: an amount in mi
 type BTPDiscount = { amount: number } | { percent: number };
 ```
 
-### BTPTemplate
+### BTPLineRole
 
-A document's template, by reference. Since 1.2, in a `1.2.0` artifact, the named `data` fields are each optional but well formed when present, and a `source` always comes with its `sha256`; other keys stay the provider's. The template file itself is specified on [Templates](../protocol/specifications/templates.md).
+Since 1.2. What a line-item column holds, so a [document view](../protocol/specifications/document-view/overview.md) knows which cells are key facts.
 
 ```ts
-interface BTPTemplate {
-  name: string;
-  data: {
-    version?: string; // a semantic version
-    sha256?: string; // lowercase hex
-    source?: string; // an https address, always with its sha256
-    logo?: { sha256: string; source: string };
-    values?: BTPTemplateValues; // since 1.2, a letter's template only
-    [key: string]: unknown;
-  };
+type BTPLineRole = 'description' | 'quantity' | 'unitPrice' | 'discount' | 'tax' | 'lineTotal';
+```
+
+### BTPTemplate
+
+A document's view. In a `1.1.0` artifact it is `{ name, data }`, read as 1.1 reads it. Since 1.2, in a `1.2.0` artifact, it is `{ layout }`: a canvas captured from the sender's preview, signed with the document and checked by the receiver (`checkLayout`). Specified on [Document view](../protocol/specifications/document-view/overview.md), with every field on its subpages.
+
+```ts
+type BTPTemplate =
+  | { name: string; data: Record<string, unknown> } // 1.1.0 only
+  | { layout: BTPLayout }; // since 1.2
+
+interface BTPLayout {
+  format: 1;
+  page: { width: number; height: number; background?: string; breaks?: number[] };
+  fonts?: Record<string, BTPLayoutFont>; // glyph outlines, never a font file
+  images?: Record<string, BTPLayoutImage>; // pixels, never an image file
+  elements: BTPLayoutElement[]; // drawn in order
 }
 
-interface BTPTemplateValues {
-  'signature.typed'?: string; // drawn in the script font Caveat
-  'signature.name'?: string;
-  'signature.title'?: string;
-  'signature.drawn'?: { strokes: number[][] }; // [x, y, x, y, …] on a 1000 by 300 canvas
+interface BTPLayoutFont {
+  unitsPerEm: number;
+  ascent: number;
+  descent: number;
+  glyphs: Record<string, { advance: number; path?: string }>; // one character to its outline
+  kerning?: Record<string, number>; // a pair of characters to an adjustment
+  fallback?: 'arimo' | 'tinos' | 'cousine' | 'carlito' | 'caladea' | 'sans-serif' | 'serif' | 'monospace';
+}
+
+interface BTPLayoutImage {
+  width: number;
+  height: number;
+  encoding: 'rgba8-deflate';
+  data: string; // base64 of RFC 1950 deflate of width × height × 4 bytes
+}
+
+type BTPLayoutElement =
+  | { type: 'rect'; x: number; y: number; width: number; height: number; radius?: number | number[]; fill?: BTPPaint; stroke?: BTPPaint; strokeWidth?: number; opacity?: number }
+  | { type: 'line'; from: [number, number]; to: [number, number]; stroke: BTPPaint; strokeWidth: number; dash?: [number, number]; opacity?: number }
+  | { type: 'path'; d: string; fill?: BTPPaint; stroke?: BTPPaint; strokeWidth?: number; opacity?: number; fillRule?: 'nonzero' | 'evenodd' }
+  | { type: 'image'; image: string; x: number; y: number; width: number; height: number; opacity?: number }
+  | ({ type: 'text'; bind: BTPBinding } & BTPTextBox)
+  | ({ type: 'label'; text: string } & BTPTextBox)
+  | { type: 'signature'; x: number; y: number; width: number; height: number; colour: string };
+
+interface BTPTextBox {
+  x: number;
+  y: number; // the baseline
+  width: number;
+  align: 'start' | 'centre' | 'end';
+  font: string;
+  size: number;
+  colour: string; // #rrggbb
+  letterSpacing?: number;
+  transform?: 'uppercase' | 'lowercase';
+}
+
+interface BTPBinding {
+  field: string; // a signed field's path, e.g. 'totalAmount' or 'lineItems.rows.0.Amount'
+  format?: BTPBindingFormat;
+  range?: [number, number]; // a text field's part, in code points
 }
 ```
 
-`values` (since 1.2, in a `1.2.0` artifact, on a letter's template only): what the template's signature slots show, from the sender and signed with the letter. A text value is plain text of 1 to 100 characters. A drawn signature is integer strokes: at most 32 strokes, 512 points a stroke and 2,048 points in all. See [Templates](../protocol/specifications/templates.md#signature-slots-and-their-values).
+`BTPPaint` is a colour (`#rrggbb` or `#rrggbbaa`) or a linear or radial gradient of 2 to 8 stops; `BTPBindingFormat` is a money, date, percent or groups format. Both are on [Canvas](../protocol/specifications/document-view/canvas.md#colours-and-paints) and [Bindings and formats](../protocol/specifications/document-view/bindings.md#formats).
+
+### BTPSignatory
+
+Since 1.2. A letter's or an agreement's sign-off, signed with it: drawn by a view's `signature` element and shown by a receiver without one. Decoration, never proof of agreement.
+
+```ts
+interface BTPSignatory {
+  name: string; // 1 to 100 characters, plain text
+  title?: string; // 1 to 100 characters, plain text
+  visualSignature?: BTPVisualSignature; // typed, or drawn on a 1000 by 300 canvas
+}
+```
 
 ### BTPReceiptDoc
 
