@@ -850,9 +850,9 @@ interface BTPLayoutFont {
   unitsPerEm: number;
   ascent: number;
   descent: number;
-  glyphs: Record<string, { advance: number; path?: string }>; // one character to its outline
+  glyphs?: Record<string, { advance: number; path?: string }>; // one character to its outline; absent only when the font is just a fallback
   kerning?: Record<string, number>; // a pair of characters to an adjustment
-  fallback?: 'arimo' | 'tinos' | 'cousine' | 'carlito' | 'caladea' | 'sans-serif' | 'serif' | 'monospace';
+  fallback?: Array<'arimo' | 'tinos' | 'cousine' | 'carlito' | 'caladea' | 'sans-serif' | 'serif' | 'monospace'>; // up to 4, tried in order: the first one the receiver holds
 }
 
 interface BTPLayoutImage {

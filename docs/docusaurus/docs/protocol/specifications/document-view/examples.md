@@ -2,18 +2,26 @@
 title: Document View Examples
 sidebar_label: Examples
 slug: /protocol/specifications/document-view/examples
+description: A complete invoice and a letter with its signatory, each with its view, and what a receiver checks in them.
 ---
 
 # Examples
 
-:::note Reference
-`@btps/view` makes and draws views for you, from the HTML preview you
-already have ([Overview](./overview.md#you-do-not-build-any-of-this)). This
-page is the specification, for building your own builder or renderer.
+:::info Reference for implementers
+Part of the document view specification, for building your own builder or
+renderer, or checking one. A platform that uses `@btps/view` never writes a
+canvas: `snapshotLayout` makes one like these from its HTML preview. See
+[Using the document view](./using.md).
 :::
 
-Glyph outlines and pixel data are shortened with `…`; every other value is as
-a sender would send it.
+Two documents, each with its own fields and then its view in
+`template.layout`. Glyph outlines and pixel data are shortened with `…`;
+every other value is as a sender would send it.
+
+| Example | Shows |
+| --- | --- |
+| [An invoice](#an-invoice) | An image, labels, a line and a tinted box; money, date and grouped formats; line item cells bound by their column |
+| [A letter with its signatory](#a-letter-with-its-signatory) | A body bound line by line with `range`; a `signature` element with the signatory's name and title |
 
 ## An invoice
 
@@ -86,11 +94,27 @@ amount due in a tinted box, the lines, the totals and the note.
 }
 ```
 
-What the receiver checks, among the rest: every key fact (the number, both
-dates, the three amounts, the sender's and the recipient's names, the note,
-and each line's description and amount) has a bound element; each fits its
-box; none is covered; the amount due's colour has 3:1 contrast against the
-tinted box beneath it.
+### What to notice
+
+- **Facts are bindings.** The sender's name, the ABN, the address, the
+  number, the names, both dates and the amount due are `text` elements with
+  a `bind`. None of their values appears in the canvas.
+- **Words are labels.** "Tax invoice", "ABN", "Bill to", "Issued", "Due" and
+  "Amount due" are the sender's own words, drawn as `label` elements.
+- **Line item cells are bound by their column's name**, as the document
+  writes it: `lineItems.rows.0.Description`, `lineItems.rows.0.Amount`. The
+  document's `lineItems.roles` names `Description` and `Amount` as each
+  line's description and line total, which makes them key facts.
+- **The ABN is grouped** with a [`groups`](./bindings.md#groups) format, so
+  `51824753556` is drawn `51 824 753 556`.
+
+### What the receiver checks
+
+Among the rest: every key fact (the number, both dates, the three amounts,
+the sender's and the recipient's names, the note, and each line's
+description and amount) has a bound element; each fits its box; none is
+covered; the amount due's colour has 3:1 contrast against the tinted box
+beneath it. See [Checks](./checks.md).
 
 ## A letter with its signatory
 
@@ -130,6 +154,15 @@ tinted box beneath it.
 }
 ```
 
-The body is bound line by line with `range`; together the ranges cover every
-word of it. The signature is drawn from `signatory.visualSignature`, never
-from pixels in the canvas.
+### What to notice
+
+- **The body is bound line by line with `range`.** `[0, 39]` is "Our office
+  closes on Friday 19 December" and `[40, 76]` is "and opens again on Monday
+  5 January.". Together the ranges cover every word of it, as a letter's
+  [key facts](./checks.md#key-facts) require.
+- **The signature is drawn from `signatory.visualSignature`**, never from
+  pixels in the canvas. The `signature` element holds only its box and ink
+  colour ([Elements](./elements.md#signature)).
+- **The signatory's name and title are bindings** to `signatory.name` and
+  `signatory.title`.
+- **"Dear" and "Yours sincerely," are labels**, the sender's own words.

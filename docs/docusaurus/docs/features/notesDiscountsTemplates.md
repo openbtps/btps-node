@@ -44,7 +44,9 @@ An invoice or receipt may carry `discount`: `{ amount }` in minor units, or `{ p
 
 A document carries its view in `template.layout`: a canvas captured from the sender's own preview when it is sent. Text that shows a fact is a **binding** to a signed field, never text: the receiver draws the field's value. Fonts travel as glyph outlines and images as pixels, so nothing is fetched and no font or image file is read. The receiver checks the view wherever the document is opened, and shows its own view of the data when a check fails.
 
-**You build none of it.** Design your preview in HTML as you already do; `@btps/view` turns it into the view when you send, and draws a received view into a picture you display. The SDK checks every view it opens without being asked.
+:::tip You build none of it
+Design your preview in HTML as you already do; `@btps/view` turns it into the view when you send, and draws a received view into a picture you display. The SDK checks every view it opens without being asked. [Using the document view](../protocol/specifications/document-view/using.md) is all a platform needs.
+:::
 
 ```ts
 import { snapshotLayout, renderLayout } from '@btps/view';
@@ -54,6 +56,12 @@ await agent.command('artifact.send', to, { ...document, template: { layout } });
 
 const png = await renderLayout(openedDocument); // null when the view failed a check
 ```
+
+| Who | What happens |
+| --- | --- |
+| The sender | `snapshotLayout` captures the preview, binds every fact to its field, and checks the result before the document is signed |
+| The receiver | The SDK checks the view wherever the document is opened, on the server or on the device. `renderLayout` gives a PNG to display, or `null` |
+| The receiving app | Shows the verified sender, the title, the attachments, the references, the payment link and an all-details view around the view, and its own view of the data when a check fails |
 
 An invoice with a markdown note and a discount, with line roles a view binds to:
 
@@ -74,7 +82,9 @@ An invoice with a markdown note and a discount, with line roles a view binds to:
 }
 ```
 
-The format itself, for anyone building their own builder or renderer, is specified on [Document view](../protocol/specifications/document-view/overview.md), with a full invoice and a letter on its [examples](../protocol/specifications/document-view/examples.md) page.
+:::note For implementers
+The format itself, for anyone building their own builder or renderer, is specified on [Document view](../protocol/specifications/document-view/overview.md#the-specification), with a full invoice and a letter on its [examples](../protocol/specifications/document-view/examples.md) page.
+:::
 
 ## A letter's signatory
 
@@ -107,8 +117,10 @@ Nothing new to call to send these: they are fields of the document a platform al
 | ---------------------- | ------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `BTP_ERROR_VALIDATION` | 400    | the receiving server (readable), `decryptVerify` (opened), the sender's own SDK | a note over 5,000 characters or of another format, a discount with both or neither field or out of range, a view that breaks its schema or a limit or binds a field the document lacks, a signatory's stroke off its canvas, or any of these in a `1.1.0` artifact |
 
-A view that is well formed but fails a check is not an error: the document is accepted and the receiver shows its own view of the data ([Checks](../protocol/specifications/document-view/checks.md)).
+:::note A failed check is not an error
+A view that is well formed but fails a check is not an error: the document is accepted and the receiver shows its own view of the data ([Checks](../protocol/specifications/document-view/checks.md#two-outcomes)).
+:::
 
 ## Protocol and platform
 
-The protocol checks the shapes and the view's checks. What a sender's labels say is the sender's, as its notes are; the sender's SDK warns when a label looks like a fact that is not bound. How a receiver shows a view, beside the verified sender, the title, the attachments and the all-details view, is described on [Document view](../protocol/specifications/document-view/overview.md#what-the-receiving-app-shows-around-the-view).
+The protocol checks the shapes and the view's checks. What a sender's labels say is the sender's, as its notes are; the sender's SDK warns when a label looks like a fact that is not bound. How a receiver shows a view, beside the verified sender, the title, the attachments and the all-details view, is described on [Using the document view](../protocol/specifications/document-view/using.md#what-the-receiving-app-shows-around-the-view).

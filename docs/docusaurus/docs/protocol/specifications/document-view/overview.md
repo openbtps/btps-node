@@ -2,20 +2,30 @@
 title: Document View
 sidebar_label: Overview
 slug: /protocol/specifications/document-view
+description: A document's view travels inside the signed document, every fact on it is drawn from signed fields, and the receiver checks it wherever the document is opened.
 ---
 
 # Document view
 
-Since 1.2. A sender can send a document with its **view**: how it looked in
-the sender's own preview when it was sent. A receiver on any provider shows
-it the same way. The view travels inside the signed document, every fact on
-it is drawn from the document's own signed fields, and it is checked when it
-arrives.
+> **Since 1.2.** A view travels in `1.2.0` artifacts only.
+
+A sender can send a document with its **view**: how it looked in the sender's
+own preview when it was sent. A receiver on any provider shows it the same
+way. The view travels inside the signed document, every fact on it is drawn
+from the document's own signed fields, and it is checked when it arrives.
 
 The view is the document's `template.layout`: a **canvas**, a page of shapes,
 text and images at fixed positions. It is made by taking a snapshot of the
 sender's preview when the document is sent, and drawn on the receiving side
 by one renderer.
+
+## Where to start
+
+| You are | Read |
+| --- | --- |
+| **A platform** sending or showing documents | [Using the document view](./using.md): the few lines of code, what your app shows around the view, and what happens when a check fails. It is all you need. |
+| **An implementer** building your own builder or renderer, or checking one | The [specification](#the-specification): the exact format, checks and drawing rules. |
+| **Reviewing what BTPS guarantees** | [What BTPS promises](#what-btps-promises), below, then the [security model](./security.md). |
 
 ## You do not build any of this
 
@@ -43,25 +53,29 @@ await agent.command('artifact.send', to, { ...document, template: { layout } });
 const png = await renderLayout(openedDocument);
 ```
 
-There is no format to learn and no template to write. **The pages below are
-the specification**: the exact format, checks and drawing rules, for anyone
-building their own builder or renderer, or checking that one is right. A
-platform that uses `@btps/view` never needs them.
+:::tip There is no format to learn
+There is no template to write either. The [specification](#the-specification)
+pages are for anyone building their own builder or renderer, or checking that
+one is right. A platform that uses `@btps/view` never needs them: start with
+[Using the document view](./using.md).
+:::
 
 ## What BTPS promises
 
 | BTPS guarantees | How |
 | --- | --- |
 | **No tampering.** What was signed is what arrives, the view included. | The view is inside the document, so the artifact's signature covers it. |
-| **No spoofing.** The document comes from its sender. | The signature and the trust record. The receiving app shows the verified sender outside the view, never inside it. |
+| **No spoofing.** The document comes from its sender. | The signature and the trust record. The receiving app shows the verified sender [outside the view](./using.md#what-the-receiving-app-shows-around-the-view), never inside it. |
 | **No active content, no tracking.** Nothing runs, and nothing is fetched when a document is viewed. | A view holds only data: shapes, glyph outlines and pixels. It names no address, font file or image file. |
 | **The view shows what the document says.** | Every fact on the view is a [binding](./bindings.md) to a signed field and is drawn from that field. The view must show the document's [key facts](./checks.md#key-facts), each in full. |
 | **The same look on every receiver**, apart from a screen's own colour and edge rendering. | [Fonts as glyph outlines](./fonts.md), [images as pixels](./images.md) and one [rendering contract](./rendering.md), drawn by one engine in a [closed WebAssembly box](./rendering.md#the-engine-a-closed-box) that gives back only a picture. |
 
+:::warning What BTPS does not promise
 BTPS does **not** claim that a document's content is true or correct. A
 wrong amount the sender typed is the sender's, and so are the sender's own
 words on the view (its [labels](./elements.md#label)). The receiver decides
 whom to trust, and can reject, block or stop trusting a sender.
+:::
 
 ## How it works
 
@@ -97,21 +111,11 @@ sequenceDiagram
 5. The view is drawn with every binding filled from the signed fields, in
    the format the canvas records.
 
-## What the receiving app shows around the view
-
-Some of a document is shown by the receiving app itself, around the view,
-never by the view:
-
-- **Who sent it**: the verified sender, with its trust status.
-- **Its title.**
-- **Its attachments**, as files the receiver can open or save.
-- **Its references** to other documents, and its **payment link**, each
-  with the address it goes to.
-- **All its details**: a way to see every signed field, including any the
-  view does not draw.
-
-So a view cannot pose as the sender, hide an attachment, or disguise where
-a link goes.
+Some of a document is never part of the view: the verified sender, the
+title, attachments, references, the payment link and every signed field.
+The receiving app shows those around it, as
+[Using the document view](./using.md#what-the-receiving-app-shows-around-the-view)
+describes.
 
 ## Versions
 
@@ -124,8 +128,8 @@ carry one, and shows its own view of the signed data.
 
 ## The specification
 
-For building a builder or renderer of your own. `@btps/view` already follows
-every rule here.
+For building a builder or renderer of your own, or checking one.
+`@btps/view` already follows every rule here.
 
 | Page | What it covers |
 | --- | --- |
@@ -138,3 +142,7 @@ every rule here.
 | [Rendering](./rendering.md) | How a canvas is drawn, so every receiver draws it the same way |
 | [Security model](./security.md) | Threats, guarantees and what a receiver must do |
 | [Examples](./examples.md) | A complete invoice and a letter with its signatory |
+
+Every limit is also collected on [Limits](../limits.md#document-view). The
+[golden vectors](../golden-vectors.md) include views to test a checker and
+a renderer against.

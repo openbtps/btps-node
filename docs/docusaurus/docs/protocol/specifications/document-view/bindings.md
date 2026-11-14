@@ -2,14 +2,15 @@
 title: Bindings and Formats
 sidebar_label: Bindings and formats
 slug: /protocol/specifications/document-view/bindings
+description: How a text element binds a signed field, which fields each document type lets a view bind, and how money, dates, percents and grouped text are written.
 ---
 
 # Bindings and formats
 
-:::note Reference
-`@btps/view` makes and draws views for you, from the HTML preview you
-already have ([Overview](./overview.md#you-do-not-build-any-of-this)). This
-page is the specification, for building your own builder or renderer.
+:::info Reference for implementers
+Part of the document view specification, for building your own builder or
+renderer, or checking one. A platform that uses `@btps/view` does not need
+it: see [Using the document view](./using.md).
 :::
 
 A `text` element's `bind` names a signed field and says how its value is
@@ -24,17 +25,21 @@ from the canvas, so a view cannot show a fact the document does not carry.
 { "field": "lineItems.rows.2.Unit price", "format": { "money": { "group": ",", "decimal": "." , "prefix": "A$" } } }
 ```
 
-| Field | What it says |
-| --- | --- |
-| `field` | The signed field, as a path (below). |
-| `format` | How the value is written. Required for money, dates, a discount's percent and grouped text; absent for text written as it is. |
-| `range` | Optional, text only. `[start, end]`: the characters of the value this element shows, counted in code points, `end` excluded. It is how a value shown over several lines, or part of a line, is bound. |
+| Field | Type | Required | What it says |
+| --- | --- | --- | --- |
+| `field` | string | Yes | The signed field, as a path ([below](#fields-that-can-be-bound)). |
+| `format` | format | Yes for money, dates and a discount's percent. For text, only to write it in groups. | How the value is written ([Formats](#formats)). Absent for text written as it is. |
+| `range` | `[start, end]` | No, text only | The characters of the value this element shows, counted in code points, `end` excluded. It is how a value shown over several lines, or part of a line, is bound. |
 
 ## Fields that can be bound
 
 A path names a field by its keys, joined by `.`. A list's entry is named by
 its index from 0: `lineItems.rows.2.Unit price`, `earnings.0.amount`. A
 line item cell is named by its column's name as the document writes it.
+
+The value column says which [format](#formats) a field takes: **Money**,
+**Date** and **Percent** take that format, and **Text** takes
+[groups](#groups) or none.
 
 ### Invoice and receipt
 
@@ -85,13 +90,27 @@ line item cell is named by its column's name as the document writes it.
 | `signatory.name`, `signatory.title` | Text |
 | `acceptance.by` | Date (an agreement) |
 
+### Fields that cannot be bound
+
 A field that is not in these tables cannot be bound: `metadata`, an
 attachment, a reference, a payment link, the envelope's addresses. The
 receiving app shows those around the view
-([Overview](./overview.md#what-the-receiving-app-shows-around-the-view)).
-A binding to a field the document does not have is refused.
+([Using the document view](./using.md#what-the-receiving-app-shows-around-the-view)).
+
+:::warning Refused, not skipped
+A binding to a field the document does not have is refused, and with it the
+document ([Checks](./checks.md#two-outcomes)).
+:::
 
 ## Formats
+
+| Format | For | Example | Drawn |
+| --- | --- | --- | --- |
+| [`money`](#money) | Money | `{ "money": { "group": ",", "decimal": ".", "prefix": "A$" } }` | `A$1,452.00` |
+| [`date`](#date) | Dates | `{ "date": "d MMM yyyy" }` | `25 Nov 2026` |
+| [`percent`](#percent) | `discount.percent` | `{ "percent": { "decimals": 0, "decimal": "." } }` | `10%` |
+| [`groups`](#groups) | Text written in groups | `{ "groups": { "sizes": [2, 3, 3, 3], "separator": " " } }` | `51 824 753 556` |
+| [none](#text) | Text written as it is | | The value, or its `range` |
 
 ### Money
 
@@ -99,11 +118,11 @@ A binding to a field the document does not have is refused.
 { "money": { "group": ",", "decimal": ".", "prefix": "A$", "suffix": "" } }
 ```
 
-| Field | What it says |
-| --- | --- |
-| `group` | The thousands separator: `,`, `.`, ` ` (space), `'`, or `""` for none. |
-| `decimal` | The decimal mark: `.` or `,`. Not the same as `group`. |
-| `prefix`, `suffix` | Optional. Up to 8 characters each, written before and after the number: `A$`, `€`, ` AUD`, `kr`. |
+| Field | Type | Required | What it says |
+| --- | --- | --- | --- |
+| `group` | string | Yes | The thousands separator: `,`, `.`, ` ` (space), `'`, or `""` for none. |
+| `decimal` | string | Yes | The decimal mark: `.` or `,`. Not the same as `group`. |
+| `prefix`, `suffix` | string | No | Up to 8 characters each, written before and after the number: `A$`, `€`, ` AUD`, `kr`. |
 
 The digits come from the amount: an integer in the minor units of its
 currency, with as many decimal places as ISO 4217 gives that currency. A
@@ -116,8 +135,10 @@ negative amount is written with `-` before the prefix.
 | 4997 JPY | `group ","`, `decimal "."`, `prefix "¥"` | `¥4,997` |
 | -2500 AUD | `group ","`, `decimal "."`, `prefix "A$"` | `-A$25.00` |
 
+:::note
 The prefix and suffix are the sender's words, as a label is. The number is
 always the signed amount.
+:::
 
 ### Date
 
@@ -169,3 +190,12 @@ No `format`: the value as the document writes it, or the part of it `range`
 names. A note's or a letter body's `range` counts the characters of its
 `content` as written. A markdown body's formatting marks (`#`, `*`, `_`,
 `` ` ``, `>`, a list's `-`) need not be inside a range; its words must be.
+
+```json
+{ "field": "body.content", "range": [0, 39] }
+{ "field": "body.content", "range": [40, 76] }
+```
+
+Together, the ranges of a letter's body cover every word of it: each word
+is a [key fact](./checks.md#key-facts). The [letter example](./examples.md#a-letter-with-its-signatory)
+binds a body over two lines this way.

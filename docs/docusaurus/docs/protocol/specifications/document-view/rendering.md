@@ -2,14 +2,16 @@
 title: Rendering
 sidebar_label: Rendering
 slug: /protocol/specifications/document-view/rendering
+description: How a canvas is drawn so every receiver draws it the same way, and the closed WebAssembly engine that draws it.
 ---
 
 # Rendering
 
-:::note Reference
-`@btps/view` makes and draws views for you, from the HTML preview you
-already have ([Overview](./overview.md#you-do-not-build-any-of-this)). This
-page is the specification, for building your own builder or renderer.
+:::info Reference for implementers
+Part of the document view specification, for building your own builder or
+renderer, or checking one. A platform that uses `@btps/view` does not need
+it: `renderLayout` draws by these rules. See
+[Using the document view](./using.md#show-a-received-view).
 :::
 
 How a canvas is drawn, so every receiver draws it the same way. The
@@ -77,9 +79,12 @@ are the canvas's.
 ## The engine: a closed box
 
 `renderLayout` draws with resvg and its rasterizer, tiny-skia, written in
-Rust and compiled to WebAssembly. The engine is part of `@btps/view`, not an
-option: every receiver that draws a view draws it with the same code, in a
-browser, on a server and in an app.
+Rust and compiled to WebAssembly.
+
+:::danger Not optional
+The engine is part of `@btps/view`, not an option: every receiver that draws
+a view draws it with the same code, in a browser, on a server and in an app.
+:::
 
 A WebAssembly module runs in a closed box. It has its own block of memory and
 cannot read or write anything outside it, and it can reach only the functions
@@ -92,11 +97,21 @@ its host hands it. `renderLayout` hands it none that reach the outside world:
 | | Page or DOM: it is not HTML, so there is no script, style or link to run or follow |
 | | System fonts: none are given it, and it needs none, because text arrives as paths |
 
+```mermaid
+flowchart LR
+    D["Signed document with its canvas"] --> C["Every check"]
+    C -- "fails" --> O["The receiver's own view of the signed data"]
+    C -- "passes" --> V["Validated values only"]
+    V --> E["Engine, in its WebAssembly box"]
+    E -- "a fault" --> O
+    E --> P["A PNG, and nothing else"]
+```
+
 What goes into the box and what comes out:
 
 1. **In.** `renderLayout` first runs every [check](./checks.md) and refuses a
    view that fails one. It then builds the drawing from validated values
-   only: numbers, `#rrggbb` colours, path commands from the closed list, glyph
+   only: numbers, colours as `#rrggbb` or `#rrggbbaa`, path commands from the closed list, glyph
    outlines (bound values are drawn with them, from the signed fields), and
    each image's pixels after they are inflated and their length is checked.
    The sender's bytes are never passed to the engine as they arrived: no font
@@ -109,11 +124,27 @@ What goes into the box and what comes out:
    text, markup or link comes back out, so nothing in a view can become
    something the app runs.
 
+### What the engine reads
+
+`renderLayout` builds the drawing the engine reads itself, from validated
+values only:
+
+- rectangles, paths and images, with numeric attributes and colours;
+- every glyph already turned into a path;
+- each image, re-encoded by `renderLayout`.
+
+The drawing never holds text, a font, a style, a script, a link or a
+reference to anything outside it. No value from a canvas is ever copied into
+it as markup: only numbers and colours that passed the schema.
+
 A fault in the engine stays inside the box. The worst a crafted canvas can do
 there is fail to draw, and then the receiver shows its own view of the
 signed data, as it does for a view that fails a check.
 
+## The same picture everywhere
+
 WebAssembly runs the same instructions the same way on every device, so the
-same canvas is meant to give the same picture, byte for byte. The SDK's [golden vectors](../golden-vectors.md) include canvases with the
-SHA-256 of the picture each must give, so a receiver can confirm its engine
-draws as every other one does.
+same canvas is meant to give the same picture, byte for byte. The SDK's
+[golden vectors](../golden-vectors.md) include canvases with the SHA-256 of
+the picture each must give, so a receiver can confirm its engine draws as
+every other one does.

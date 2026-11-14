@@ -2,14 +2,16 @@
 title: Checks
 sidebar_label: Checks
 slug: /protocol/specifications/document-view/checks
+description: What a receiver checks in a view before showing it - key facts, shown in full, not hidden - and what happens when a check fails.
 ---
 
 # Checks
 
-:::note Reference
-`@btps/view` makes and draws views for you, from the HTML preview you
-already have ([Overview](./overview.md#you-do-not-build-any-of-this)). This
-page is the specification, for building your own builder or renderer.
+:::info Reference for implementers
+Part of the document view specification, for building your own builder or
+renderer, or checking one. A platform that uses `@btps/view` does not need
+it: the SDK runs these checks for you. See
+[Using the document view](./using.md#when-a-check-fails).
 :::
 
 A receiver checks a view against the signed document **wherever the document
@@ -19,6 +21,12 @@ the key. The SDK does both the same way (`checkLayout`). A sender's SDK runs
 the same checks before it signs, so an honest sender finds a problem before
 sending.
 
+| Where | When |
+| --- | --- |
+| The sender's SDK | Before it signs |
+| The receiving server | When it can read the document |
+| The receiver's device | When only the device holds the key |
+
 ## Two outcomes
 
 | What is wrong | Outcome |
@@ -26,10 +34,28 @@ sending.
 | The canvas breaks its [schema](./canvas.md) or a limit, or binds a field the document does not have | The **document is refused**, as a document with any other malformed field is. |
 | The canvas is well formed but fails a check below | The **document is accepted** and the **view is not shown**. The receiver shows its own view of the signed data, with a notice saying why. |
 
+```mermaid
+flowchart TD
+    A["The document is opened"] --> B{"Is the canvas well formed: its schema, its limits, and only fields the document has?"}
+    B -- "No" --> C["The document is refused"]
+    B -- "Yes" --> D{"Does it pass every check below?"}
+    D -- "No" --> E["The document is accepted. The view is not shown: the receiver shows its own view of the signed data, with a notice"]
+    D -- "Yes" --> F["The view is drawn, every binding filled from the signed fields"]
+```
+
+:::note Never in part, never lost
 A view that fails a check is never shown in part, and the document behind it
 is never lost.
+:::
 
 ## The checks
+
+| Check | In short |
+| --- | --- |
+| [Key facts](#key-facts) | Every key fact of the document is on the view, bound |
+| [Shown in full](#shown-in-full) | Every bound value fits its box, with glyphs for every character |
+| [Not hidden](#not-hidden) | Nothing covers a fact, and every fact stands out from what is behind it |
+| [Nothing to fetch, nothing to run](#nothing-to-fetch-nothing-to-run) | Every value is one the schema names |
 
 ### Key facts
 
