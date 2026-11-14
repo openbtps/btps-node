@@ -46,30 +46,37 @@ Upgrading a 1.1 provider: [Migrating from 1.1 to 1.2](https://www.openbtps.org/d
   minor units or `{ percent }` in whole basis points (1 to 10,000), applied
   before tax (`BTPDiscount`). In a `1.2.0` artifact a line's `discount` cell is
   an amount of at least 0.
-- **Templates by reference.** In a `1.2.0` artifact a template's named `data`
-  fields (`version`, `sha256`, `source`, `logo`) are well formed when present
-  (`BTPTemplate`), a `source` always comes with its `sha256`, and a letter or
-  payslip may name a template. The template file's format is specified on the
-  new Templates page, with a JSON Schema published with the docs
-  (`schemas/btps-template.schema.json`) and golden vectors
-  (`templates.vectors.json`). Format 1 says how an invoice or receipt looks,
-  never what it says: it never carries or changes a value, hides no section
-  with signed fields, fetches nothing and runs nothing, and its labels, terms
-  and footer are plain text, with no markup and no control, hidden or
-  direction-changing character. What those words say is the platform's
-  policy; the Templates page recommends refusing digit runs and web, email
-  and BTPS addresses, where a fake payment detail would hide. Its fingerprint is the
-  SHA-256 of its RFC 8785 canonical form. The SDK renders nothing.
-- **Template format 2: payslips and letters.** Format 2 is format 1 for
-  invoices and receipts, plus a payslip template (the payslip's own sections
-  and labels, every one with signed fields shown) and a letter template, which
-  sets only the page, a letterhead placing the sender's own fields, and a
-  footer with a sign-off and signature slots, never the body. A letter's
-  template carries the slots' values in `template.data.values`
-  (`BTPTemplateValues`), signed with the letter, 1.2.0 only: a typed
-  signature, drawn in the open-licence script font Caveat, a name, a title, and
-  a drawn signature as integer strokes on a 1,000 by 300 canvas, never markup.
-  Such a signature is decoration and proves no agreement.
+- **BoundView.** A document may carry its BoundView in
+  `boundView` (`BTPBoundView`), `1.2.0` only: a canvas captured from the
+  sender's own preview, signed with the document, so the receiver sees what
+  the sender saw. Text that shows a fact binds a signed field and is drawn from
+  it, never carried as text; fonts travel as glyph outlines and images as
+  pixels, so nothing is fetched and no font or image file is parsed. A
+  receiver checks a BoundView wherever the document is opened (`checkBoundView`): a
+  BoundView that breaks its schema or a limit, or binds a missing field, is refused
+  with the document; one that hides, shrinks or leaves out a key fact is not
+  shown, and the receiver shows its own view of the data. `decryptVerify`
+  returns whether an opened document's BoundView may be shown (`boundView`,
+  `BTPBoundViewResult`), and a server hands its transporter handlers the same,
+  once an artifact's signature and trust are checked. `checkBoundView` and
+  `writtenValue` are exported from `@btps/sdk/server` and `@btps/sdk/client`.
+  Images inflate with fflate, a new dependency (MIT, no dependencies of its
+  own), stopping once past their stated length. Specified on the new
+  BoundView pages, with golden vectors for the schema in
+  `documents-1.2.vectors.json` and for the checks in `boundview.vectors.json`.
+  Replaces templates by reference and the template file
+  formats of the earlier 1.2 release candidates; `template` reads as 1.1
+  reads it, in any version.
+- **Totals, line roles and the recipient.** An invoice or receipt may carry
+  `subtotalAmount` and `taxAmount`, and name what each line-item column holds
+  (`lineItems.roles`, `BTPLineRole`); an invoice, receipt, letter or agreement
+  may name its `recipient`. `1.2.0` only.
+- **A letter's signatory.** A letter or an agreement may carry `signatory`
+  (`BTPSignatory`), `1.2.0` only: a name, a title, and a visual signature,
+  typed (drawn in the open-licence script font Caveat) or drawn as integer
+  strokes on a 1,000 by 300 canvas, never markup. It replaces a letter
+  template's signature values. Such a signature is decoration and proves no
+  agreement.
 - Every 1.2 document rule applies under `1.2.0` only: a document valid in 1.1
   reads exactly as before in a `1.1.0` artifact. The schemas 1.1 reads with are
   kept beside the newest (`Btp…V1_1Schema`). A device checks what it sends
@@ -180,8 +187,7 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   that asks its signers to accept it (`BTPAgreementDoc`). It carries a required
   `acceptance` (`by`, `terms` naming its attachments, 1 to 20 `signers`,
   `signingOrder` `any` or `sequential`) and `originatorSignature`, and a letter
-  never carries `acceptance`. `send:agreement` joins the permission names, and
-  letter templates draw agreements too (`kinds` `letter`, `agreement`).
+  never carries `acceptance`, and `send:agreement` joins the permission names.
 - **Agreements are signed over their content.** `signAgreement` signs
   `{ originator, id, contentSha256 }` (`agreementRef`, `agreementContentSha256`),
   and `originatorSignatureValid` checks it. A signer's answer is a statement

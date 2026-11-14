@@ -107,7 +107,34 @@ const sidebars: SidebarsConfig = {
             'protocol/specifications/control-artifact',
             'protocol/specifications/delivery-failure-artifact',
             'protocol/specifications/responses',
-            'protocol/specifications/templates',
+            {
+              type: 'category',
+              label: 'BoundView',
+              link: { type: 'doc', id: 'protocol/specifications/boundview/overview' },
+              items: [
+                // For everyone: why it was created, and how other systems compare.
+                'protocol/specifications/boundview/why',
+                // For platforms: @btps/boundview does the work, no format to learn.
+                'protocol/specifications/boundview/using',
+                // For implementers building or checking their own builder or renderer.
+                {
+                  type: 'category',
+                  label: 'Specification',
+                  collapsed: true,
+                  items: [
+                    'protocol/specifications/boundview/canvas',
+                    'protocol/specifications/boundview/elements',
+                    'protocol/specifications/boundview/bindings',
+                    'protocol/specifications/boundview/fonts',
+                    'protocol/specifications/boundview/images',
+                    'protocol/specifications/boundview/checks',
+                    'protocol/specifications/boundview/rendering',
+                    'protocol/specifications/boundview/security',
+                    'protocol/specifications/boundview/examples',
+                  ],
+                },
+              ],
+            },
           ],
         },
         'protocol/trustRecord',

@@ -50,14 +50,14 @@ describe('a list too long to take', () => {
     expect(issues(artifact('DETAILS_REQ', {}, { details: many('x') }))).toBeLessThan(5);
   });
 
-  it("is one issue in a letter's drawn signature, by its strokes or by one stroke's points", () => {
+  it("is one issue in a signatory's drawn signature, by its strokes or by one stroke's points", () => {
     const letter = (strokes: unknown) => ({
       type: 'letter',
       title: 'Your new plan',
       id: 'LET-1',
       issuedAt,
       body: { format: 'text', content: 'Hello' },
-      template: { name: 'acme/classic', data: { values: { 'signature.drawn': { strokes } } } },
+      signatory: { name: 'Jo Bloggs', visualSignature: { type: 'drawn', strokes } },
     });
     // The letter's own schema, as a document is checked once opened, too.
     const letterIssues = (strokes: unknown) => {

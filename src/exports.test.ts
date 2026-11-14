@@ -13,7 +13,14 @@ const entryPoints: Array<[string, () => Promise<Record<string, unknown>>, string
   [
     '@btps/sdk/server',
     () => import('./server/index.js'),
-    ['BtpsServer', 'BTPS_FIELD_LIMITS', 'CURRENCY_CODES', 'MIN_SUPPORTED_VERSION'],
+    [
+      'BtpsServer',
+      'BTPS_FIELD_LIMITS',
+      'CURRENCY_CODES',
+      'MIN_SUPPORTED_VERSION',
+      'checkBoundView',
+      'writtenValue',
+    ],
   ],
   [
     '@btps/sdk/server/core',
@@ -47,6 +54,7 @@ const entryPoints: Array<[string, () => Promise<Record<string, unknown>>, string
       'DEFAULT_CONNECT_TIMEOUT_MS',
       'MIN_REPLY_TIMEOUT_MS',
       'BTP_TRANSPORTER_DEFAULT_MAX_CONNECTIONS',
+      'checkBoundView',
     ],
   ],
   [

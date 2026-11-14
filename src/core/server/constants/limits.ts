@@ -80,7 +80,7 @@ export const BTPS_FIELD_LIMITS = {
   trustRecord: {
     keyHistory: 1000,
   },
-  // Every record: metadata, identifiers, yearToDate, agentInfo, template data.
+  // Every record: metadata, identifiers, yearToDate, agentInfo, a 1.1 template's data.
   recordKeys: 100,
   // A document's own id, and the id of a document it references.
   documentId: 100,
@@ -89,9 +89,36 @@ export const BTPS_FIELD_LIMITS = {
   note: 5000,
   // Since 1.2: a template's or logo's https source, as long as a logo or website address.
   url: 2048,
-  // Since 1.2, under 1.2.0: a letter template's signature values. A drawn signature is
-  // integer strokes on a fixed canvas, `width` by `height`.
+  // Since 1.2, under 1.2.0: a signatory's name, title and visual signature, and an agreement
+  // signer's. A drawn signature is integer strokes on a fixed canvas, `width` by `height`.
   signature: { text: 100, strokes: 32, strokePoints: 512, points: 2048, width: 1000, height: 300 },
+  // Since 1.2, under 1.2.0: the name of who a document is for.
+  recipientName: 200,
+  // Since 1.2, under 1.2.0: a document's BoundView, its signed canvas. Sizes in bytes.
+  boundView: {
+    json: 384 * 1024,
+    pageWidth: 2000,
+    pageHeight: 20000,
+    breaks: 100,
+    elements: 2000,
+    textElements: 1000,
+    position: 20000,
+    label: 500,
+    path: 20000,
+    paths: 100000,
+    stops: 8,
+    fonts: 4,
+    glyphs: 256,
+    glyphPath: 4000,
+    kerning: 4096,
+    fallback: 4,
+    images: 8,
+    imageSide: 1024,
+    imagePixels: 262144,
+    imageData: 256 * 1024,
+    affix: 8,
+    groups: 32,
+  },
   // Since 1.2: a trust detail's `{ number, country }` (detail:taxNo, detail:registrationNumber).
   detailNumber: 64,
 } as const;

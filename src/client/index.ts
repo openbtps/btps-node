@@ -10,6 +10,12 @@ export { BtpsAgent } from './btpsAgent.js';
 export { BtpsClient } from './btpsClient.js';
 export { BtpsTransporter } from './btpsTransporter.js';
 export * from './constants/index.js';
+// Whether an opened document's BoundView may be shown, as a server checks it.
+export {
+  checkBoundView,
+  writtenValue,
+  type BTPBoundViewResult,
+} from '@core/server/schemas/boundViewChecks.js';
 export {
   MIN_CONNECT_TIMEOUT_MS,
   DEFAULT_CONNECT_TIMEOUT_MS,

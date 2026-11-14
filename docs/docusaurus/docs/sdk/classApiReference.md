@@ -89,7 +89,7 @@ server.forwardTo(handler);
 
 Forwards all verified artifacts to a custom handler function.
 
-- **handler**: `(msg: ProcessedArtifact) => Promise<void>` – Handler for incoming artifacts ([ProcessedArtifact](./typesAndInterfaces.md#processedartifact))
+- **handler**: `(msg: ProcessedArtifact) => Promise<void>` – Handler for incoming artifacts ([ProcessedArtifact](./typesAndInterfaces.md#processedartifact)). Since 1.2, a transporter artifact's `msg.boundView` is its document's [checked BoundView](./typesAndInterfaces.md#btpboundviewresult), when the server can read the document
 
 **Example:**
 
@@ -114,7 +114,7 @@ Registers a handler for specific types of incoming artifacts.
 - **type**: `'Agent' | 'Transporter'` – Type of artifact to handle
 - **handler**: Function to handle the artifact
   - For Agent: `(artifact: BTPAgentArtifact & { respondNow: boolean }, resCtx: ArtifactResCtx) => void`
-  - For Transporter: `(artifact: BTPTransporterArtifact) => void | Promise<void>`
+  - For Transporter: `(artifact: BTPTransporterArtifact, boundView?: BTPBoundViewResult) => void | Promise<void>`. Since 1.2, `boundView` is the document's [checked BoundView](./typesAndInterfaces.md#btpboundviewresult), checked once the signature and trust are, for a document the server can read; absent when there is none
 
 The server answers a transporter artifact with success only after every Transporter handler has returned, so a handler should return once the artifact is safely stored or queued. If a handler throws, the sender gets an error instead and can send again.
 

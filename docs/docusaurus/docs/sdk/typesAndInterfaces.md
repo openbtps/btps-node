@@ -612,13 +612,13 @@ Represents a processed artifact that has been parsed and validated.
 
 ```ts
 type ProcessedArtifact =
-  | { artifact: BTPTransporterArtifact; isAgentArtifact: false }
+  | { artifact: BTPTransporterArtifact; isAgentArtifact: false; boundView?: BTPBoundViewResult } // since 1.2
   | { artifact: BTPAgentArtifact; isAgentArtifact: true; respondNow: boolean };
 ```
 
 **Variants:**
 
-- **Transporter Artifact**: Regular BTPS artifact with `isAgentArtifact: false`
+- **Transporter Artifact**: Regular BTPS artifact with `isAgentArtifact: false`. Since 1.2, `boundView` is the [checked BoundView](#btpboundviewresult) of a document the server can read, once its signature and trust are checked
 - **Agent Artifact**: Agent-specific artifact with `isAgentArtifact: true` and `respondNow` flag
 
 ### BTPContext
@@ -764,7 +764,7 @@ interface BTPDocReference {
 
 ### BTPInvoiceDoc
 
-Invoice document structure. It carries no status: that comes from lifecycle events. Every amount is a whole number in the ISO 4217 minor units of `totalAmount.currency` (`4997` AUD is 49.97); BTPS never converts amounts (see the Transporter Artifact specification, Money Amounts).
+Invoice document structure. It carries no status: that comes from lifecycle events. Every amount is a whole number in the ISO 4217 minor units of `totalAmount.currency` (`4997` AUD is 49.97); BTPS never converts amounts (see the Transporter Artifact specification, Money Amounts). Since 1.2 it may carry its [BoundView](#btpboundview) in `boundView`, as a receipt, a payslip, a letter and an agreement may.
 
 ```ts
 interface BTPInvoiceDoc {
@@ -777,8 +777,11 @@ interface BTPInvoiceDoc {
     amount: number; // integer ISO 4217 minor units: 12345 USD is 123.45, 12345 JPY is ¥12,345
     currency: CurrencyCode;
   };
+  subtotalAmount?: BTPInvoiceDoc['totalAmount']; // since 1.2: before tax, in the same currency
+  taxAmount?: BTPInvoiceDoc['totalAmount']; // since 1.2
   lineItems: {
     columns: string[];
+    roles?: Record<string, BTPLineRole>; // since 1.2: column name to what it holds, each role once at most
     rows: Array<Record<string, string | number>>; // money cells in integer minor units
   };
   issuer?: {
@@ -788,6 +791,7 @@ interface BTPInvoiceDoc {
     address?: string;
     identifiers?: Record<string, string>; // e.g. { 'au:abn': '51824753556' }
   };
+  recipient?: { name: string }; // since 1.2: who the document is for, as the sender names them
   paymentLink?: {
     linkText: string;
     url: string;
@@ -797,6 +801,7 @@ interface BTPInvoiceDoc {
   attachments?: BTPAttachment[];
   references?: BTPDocReference[];
   template?: BTPTemplate;
+  boundView?: BTPBoundView; // since 1.2
   metadata?: Record<string, unknown>;
 }
 ```
@@ -817,32 +822,107 @@ Since 1.2. A discount on a whole invoice or receipt, before tax: an amount in mi
 type BTPDiscount = { amount: number } | { percent: number };
 ```
 
-### BTPTemplate
+### BTPLineRole
 
-A document's template, by reference. Since 1.2, in a `1.2.0` artifact, the named `data` fields are each optional but well formed when present, and a `source` always comes with its `sha256`; other keys stay the provider's. The template file itself is specified on [Templates](../protocol/specifications/templates.md).
+Since 1.2. What a line-item column holds, so a [BoundView](../protocol/specifications/boundview/overview.md) knows which cells are key facts.
 
 ```ts
-interface BTPTemplate {
-  name: string;
-  data: {
-    version?: string; // a semantic version
-    sha256?: string; // lowercase hex
-    source?: string; // an https address, always with its sha256
-    logo?: { sha256: string; source: string };
-    values?: BTPTemplateValues; // since 1.2, a letter's template only
-    [key: string]: unknown;
-  };
+type BTPLineRole = 'description' | 'quantity' | 'unitPrice' | 'discount' | 'tax' | 'lineTotal';
+```
+
+### BTPTemplate
+
+A template by name, with free data: `{ name, data }`, the 1.1 form, read as 1.1 reads it in any version. A receiver draws nothing from it. A document's view is its [BoundView](#btpboundview).
+
+```ts
+type BTPTemplate = { name: string; data: Record<string, unknown> };
+```
+
+### BTPBoundView
+
+Since 1.2, in a `1.2.0` artifact: a document's BoundView, carried in its `boundView` field. What you see is what was signed: a signed canvas captured from the sender's preview, signed with the document and checked by the receiver (`checkBoundView`). Specified on [BoundView](../protocol/specifications/boundview/overview.md), with every field on its subpages.
+
+```ts
+interface BTPBoundView {
+  format: 1;
+  page: { width: number; height: number; background?: string; breaks?: number[] };
+  fonts?: Record<string, BTPBoundViewFont>; // glyph outlines, never a font file
+  images?: Record<string, BTPBoundViewImage>; // pixels, never an image file
+  elements: BTPBoundViewElement[]; // drawn in order
 }
 
-interface BTPTemplateValues {
-  'signature.typed'?: string; // drawn in the script font Caveat
-  'signature.name'?: string;
-  'signature.title'?: string;
-  'signature.drawn'?: { strokes: number[][] }; // [x, y, x, y, …] on a 1000 by 300 canvas
+interface BTPBoundViewFont {
+  unitsPerEm: number;
+  ascent: number;
+  descent: number;
+  glyphs?: Record<string, { advance: number; path?: string }>; // one character to its outline; absent only when the font is just a fallback, named only by labels
+  kerning?: Record<string, number>; // a pair of characters to an adjustment
+  fallback?: Array<'arimo' | 'tinos' | 'cousine' | 'carlito' | 'caladea' | 'sans-serif' | 'serif' | 'monospace'>; // up to 4, tried in order: the first one the receiver holds. For labels only, never a bound value
+}
+
+interface BTPBoundViewImage {
+  width: number;
+  height: number;
+  encoding: 'rgba8-deflate';
+  data: string; // base64 of RFC 1950 deflate of width × height × 4 bytes
+}
+
+type BTPBoundViewElement =
+  | { type: 'rect'; x: number; y: number; width: number; height: number; radius?: number | number[]; fill?: BTPPaint; stroke?: BTPPaint; strokeWidth?: number; opacity?: number }
+  | { type: 'line'; from: [number, number]; to: [number, number]; stroke: BTPPaint; strokeWidth: number; dash?: [number, number]; opacity?: number }
+  | { type: 'path'; d: string; fill?: BTPPaint; stroke?: BTPPaint; strokeWidth?: number; opacity?: number; fillRule?: 'nonzero' | 'evenodd' }
+  | { type: 'image'; image: string; x: number; y: number; width: number; height: number; opacity?: number }
+  | ({ type: 'text'; bind: BTPBinding } & BTPTextBox)
+  | ({ type: 'label'; text: string } & BTPTextBox)
+  | { type: 'signature'; x: number; y: number; width: number; height: number; colour: string /* #rrggbb */ };
+
+interface BTPTextBox {
+  x: number;
+  y: number; // the baseline
+  width: number;
+  align: 'start' | 'centre' | 'end';
+  font: string;
+  size: number;
+  colour: string; // #rrggbb
+  letterSpacing?: number;
+  transform?: 'uppercase' | 'lowercase';
+}
+
+interface BTPBinding {
+  field: string; // a signed field's path, e.g. 'totalAmount' or 'lineItems.rows.0.Amount'
+  format?: BTPBindingFormat;
+  range?: [number, number]; // a text field's part, in code points
 }
 ```
 
-`values` (since 1.2, in a `1.2.0` artifact, on a letter's template only): what the template's signature slots show, from the sender and signed with the letter. A text value is plain text of 1 to 100 characters. A drawn signature is integer strokes: at most 32 strokes, 512 points a stroke and 2,048 points in all. See [Templates](../protocol/specifications/templates.md#signature-slots-and-their-values).
+`BTPPaint` is a colour (`#rrggbb` or `#rrggbbaa`) or a linear or radial gradient of 2 to 8 stops; `BTPBindingFormat` is a money, date, percent or groups format. Both are on [Canvas](../protocol/specifications/boundview/canvas.md#colours-and-paints) and [Bindings and formats](../protocol/specifications/boundview/bindings.md#formats).
+
+### BTPBoundViewResult
+
+Since 1.2. Whether a document's BoundView may be shown, as the SDK's check finds it: given by `decryptVerify` (`BTPCryptoResponse.boundView`), to a server's transporter handler as its second argument, and to `forwardTo` as `data.boundView`. `checkBoundView(document, boundView)` returns it, and `writtenValue(value, bind)` gives the exact string a binding draws; both are exported from `@btps/sdk/server` and `@btps/sdk/client`. See [Checks](../protocol/specifications/boundview/checks.md#the-result).
+
+```ts
+type BTPBoundViewResult = { show: true } | { show: false; problems: BTPBoundViewProblem[] };
+
+interface BTPBoundViewProblem {
+  check: 'wellFormed' | 'keyFacts' | 'shownInFull' | 'notHidden';
+  message: string;
+  element?: number; // the element's index in elements
+  field?: string; // the key fact it is about
+}
+```
+
+### BTPSignatory
+
+Since 1.2. A letter's or an agreement's sign-off, signed with it: drawn by a BoundView's `signature` element and shown by a receiver without one. Decoration, never proof of agreement.
+
+```ts
+interface BTPSignatory {
+  name: string; // 1 to 100 characters, plain text
+  title?: string; // 1 to 100 characters, plain text
+  visualSignature?: BTPVisualSignature; // typed, or drawn on a 1000 by 300 canvas
+}
+```
 
 ### BTPReceiptDoc
 
@@ -2419,6 +2499,7 @@ interface BTPCryptoResponse<T = Record<string, unknown>> {
   payload?: BTPCryptoArtifact<T>;
   error?: BTPErrorException;
   shaped?: BTPShaped; // since 1.2: a trust request sent as its 1.1 receiver allows (see BTPClientResponse)
+  boundView?: BTPBoundViewResult; // since 1.2: from decryptVerify, absent when the document carries no BoundView
 }
 ```
 

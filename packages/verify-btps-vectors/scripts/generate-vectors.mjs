@@ -27,6 +27,7 @@ import { toBase64, utf8 } from '../src/encoding.mjs';
 import {
   addresses,
   agreements,
+  boundViewChecks,
   agreementKeyChains,
   agreementTimestamps,
   details,
@@ -39,7 +40,6 @@ import {
   responses,
   signedArtifacts,
   sync,
-  templates,
   timeWindow,
   trustPermissions,
   versions,
@@ -260,10 +260,10 @@ write(
 write('time-window.vectors.json', timeWindow());
 write('versions.vectors.json', versions());
 write('documents-1.2.vectors.json', documents12());
+write('boundview.vectors.json', boundViewChecks());
 write('event-chain.vectors.json', eventChain());
 write('sync.vectors.json', sync());
 write('responses.vectors.json', responses());
-write('templates.vectors.json', templates());
 write('trust-permissions.vectors.json', trustPermissions());
 write('details.vectors.json', details());
 // The originator and the guarantor sign with the existing signing keys. The
