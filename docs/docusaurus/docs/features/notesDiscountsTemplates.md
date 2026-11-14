@@ -44,6 +44,8 @@ An invoice or receipt may carry `discount`: `{ amount }` in minor units, or `{ p
 
 A document carries its view in `template.layout`: a canvas captured from the sender's own preview when it is sent. Text that shows a fact is a **binding** to a signed field, never text: the receiver draws the field's value. Fonts travel as glyph outlines and images as pixels, so nothing is fetched and no font or image file is read. The receiver checks the view wherever the document is opened, and shows its own view of the data when a check fails.
 
+Why BTPS carries a view at all, and what email, signed PDFs and e-invoicing networks cannot do: [Why the document view](../protocol/specifications/document-view/why.md).
+
 :::tip You build none of it
 Design your preview in HTML as you already do; `@btps/view` turns it into the view when you send, and draws a received view into a picture you display. The SDK checks every view it opens without being asked. [Using the document view](../protocol/specifications/document-view/using.md) is all a platform needs.
 :::

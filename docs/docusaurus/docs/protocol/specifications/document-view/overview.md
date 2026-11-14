@@ -19,10 +19,21 @@ text and images at fixed positions. It is made by taking a snapshot of the
 sender's preview when the document is sent, and drawn on the receiving side
 by one renderer.
 
+## Why it exists
+
+BTPS already proved who sent a document and that its data arrived
+unaltered, but not that the page a person reads matches that data. Until
+now, a receiver either drew its own generic view of the data, or showed the
+sender's HTML or PDF, which nothing ties to the data. The view keeps the
+sender's design and guarantees that the page shows what was signed. The
+full reasoning, and how email, signed PDFs, e-invoicing networks and portals
+compare, is on [Why the document view](./why.md).
+
 ## Where to start
 
 | You are | Read |
 | --- | --- |
+| **Asking why it exists**, and how it differs from email, PDFs and e-invoicing | [Why the document view](./why.md) |
 | **A platform** sending or showing documents | [Using the document view](./using.md): the few lines of code, what your app shows around the view, and what happens when a check fails. It is all you need. |
 | **An implementer** building your own builder or renderer, or checking one | The [specification](#the-specification): the exact format, checks and drawing rules. |
 | **Reviewing what BTPS guarantees** | [What BTPS promises](#what-btps-promises), below, then the [security model](./security.md). |

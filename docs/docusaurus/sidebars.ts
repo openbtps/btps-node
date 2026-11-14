@@ -112,6 +112,8 @@ const sidebars: SidebarsConfig = {
               label: 'Document view',
               link: { type: 'doc', id: 'protocol/specifications/document-view/overview' },
               items: [
+                // For everyone: the problem it solves and how other systems compare.
+                'protocol/specifications/document-view/why',
                 // For platforms: @btps/view does the work, no format to learn.
                 'protocol/specifications/document-view/using',
                 // For implementers building or checking their own builder or renderer.
