@@ -167,3 +167,34 @@ export const CURRENCY_CODES = [
   'ZMW', // Zambian Kwacha
   'ZWL', // Zimbabwean Dollar
 ] as const;
+
+/**
+ * The decimal places ISO 4217 gives each currency whose minor unit is not two
+ * hundredths. Every other code has 2. Fixed here rather than read from a
+ * runtime's Intl data, so every receiver writes an amount the same way.
+ */
+export const CURRENCY_DECIMALS: Partial<Record<(typeof CURRENCY_CODES)[number], number>> = {
+  BIF: 0,
+  CLP: 0,
+  DJF: 0,
+  GNF: 0,
+  ISK: 0,
+  JPY: 0,
+  KMF: 0,
+  KRW: 0,
+  PYG: 0,
+  RWF: 0,
+  UGX: 0,
+  VND: 0,
+  VUV: 0,
+  XAF: 0,
+  XOF: 0,
+  XPF: 0,
+  BHD: 3,
+  IQD: 3,
+  JOD: 3,
+  KWD: 3,
+  LYD: 3,
+  OMR: 3,
+  TND: 3,
+};
