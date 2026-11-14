@@ -29,6 +29,7 @@ import type {
   BtpLetterDocSchema,
   BtpPayslipDocSchema,
 } from '@core/server/schemas/btpsDocsSchema.js';
+import type { BTPBoundView } from '@core/server/schemas/boundViewSchema.js';
 import type { BTPEntityType } from '@core/server/types.js';
 
 export interface BtpsTlsOptions extends TlsOptions {
@@ -337,8 +338,12 @@ export interface BTPInvoiceDoc {
     amount: number; // integer minor units: 12345 is 123.45
     currency: CurrencyCode; // e.g. 'AUD', 'USD', etc.
   };
+  /** Since 1.2: the total before tax, and the tax, in the currency of `totalAmount` */
+  subtotalAmount?: BTPInvoiceDoc['totalAmount'];
+  taxAmount?: BTPInvoiceDoc['totalAmount'];
   lineItems: {
     columns: string[]; // must include at minimum: ['Description', 'Amount']
+    roles?: Record<string, BTPLineRole>; // since 1.2: column to what it holds, each role once at most
     rows: Array<Record<string, string | number>>; // money cells in integer minor units
   };
   issuer?: {
@@ -348,6 +353,8 @@ export interface BTPInvoiceDoc {
     address?: string;
     identifiers?: Record<string, string>; // namespaced, e.g. { 'au:abn': '51824753556' }
   };
+  /** Since 1.2: who the document is for, as the sender names them */
+  recipient?: { name: string };
   paymentLink?: {
     linkText: string;
     url: string; // should be HTTPS
@@ -358,6 +365,8 @@ export interface BTPInvoiceDoc {
   attachments?: BTPAttachment[];
   references?: BTPDocReference[];
   template?: BTPTemplate;
+  /** Since 1.2: its BoundView, a signed canvas whose facts are drawn from these fields */
+  boundView?: BTPBoundView;
   metadata?: Record<string, unknown>; // the sending platform's own data
 }
 
@@ -371,30 +380,23 @@ export type BTPNote = string | { format: 'text' | 'markdown'; content: string };
 /** Since 1.2: a discount before tax, an amount in minor units of the currency or whole basis points (1 to 10000). */
 export type BTPDiscount = { amount: number } | { percent: number };
 
-/** A template by reference. Since 1.2 its named data fields, each optional, are well formed when present. */
+/** A template by name, with free data: the 1.1 form, in any version. A receiver draws nothing from it. */
 export interface BTPTemplate {
   name: string;
-  data: {
-    version?: string; // a semantic version
-    sha256?: string; // lowercase hex
-    source?: string; // an https address, always with its sha256
-    logo?: { sha256: string; source: string };
-    values?: BTPTemplateValues; // since 1.2, a letter's template only
-    [key: string]: unknown;
-  };
+  data: Record<string, unknown>;
 }
 
-/**
- * Since 1.2: what a letter template's signature slots show, from the sender and
- * signed with the document. A drawn signature is integer strokes, `[x, y, x, y, …]`,
- * on a canvas 1000 by 300: data a receiver draws itself, never markup.
- */
-export interface BTPTemplateValues {
-  'signature.typed'?: string;
-  'signature.name'?: string;
-  'signature.title'?: string;
-  'signature.drawn'?: { strokes: number[][] };
-}
+/** Since 1.2: what a line-item column holds. */
+export type BTPLineRole = 'description' | 'quantity' | 'unitPrice' | 'discount' | 'tax' | 'lineTotal';
+
+/** Since 1.2: a letter's or an agreement's sign-off. Decoration: it proves no agreement. */
+export type BTPSignatory = NonNullable<BTPLetterDoc['signatory']>;
+
+export type {
+  BTPBoundView,
+  BTPBoundViewElement,
+  BTPBoundViewFont,
+} from '@core/server/schemas/boundViewSchema.js';
 
 /** Proof of a payment: the invoice without what asks for payment, plus `payment`. */
 export interface BTPReceiptDoc
