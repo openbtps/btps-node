@@ -56,7 +56,7 @@ platform that uses `@btps/view` never needs them.
 | **No spoofing.** The document comes from its sender. | The signature and the trust record. The receiving app shows the verified sender outside the view, never inside it. |
 | **No active content, no tracking.** Nothing runs, and nothing is fetched when a document is viewed. | A view holds only data: shapes, glyph outlines and pixels. It names no address, font file or image file. |
 | **The view shows what the document says.** | Every fact on the view is a [binding](./bindings.md) to a signed field and is drawn from that field. The view must show the document's [key facts](./checks.md#key-facts), each in full. |
-| **The same look on every receiver**, apart from a screen's own colour and edge rendering. | [Fonts as glyph outlines](./fonts.md), [images as pixels](./images.md) and one [rendering contract](./rendering.md). |
+| **The same look on every receiver**, apart from a screen's own colour and edge rendering. | [Fonts as glyph outlines](./fonts.md), [images as pixels](./images.md) and one [rendering contract](./rendering.md), drawn by one engine in a [closed WebAssembly box](./rendering.md#the-engine-a-closed-box) that gives back only a picture. |
 
 BTPS does **not** claim that a document's content is true or correct. A
 wrong amount the sender typed is the sender's, and so are the sender's own

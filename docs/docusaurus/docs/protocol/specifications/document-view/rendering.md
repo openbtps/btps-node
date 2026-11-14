@@ -74,9 +74,46 @@ A receiver's screen shows the finished picture with its own colour and
 edge rendering, as it shows any image. Positions, shapes, letters and pixels
 are the canvas's.
 
-## The engine
+## The engine: a closed box
 
-`renderLayout` draws with resvg and its rasterizer, tiny-skia, compiled to
-WebAssembly: the same code in a browser, on a server and in an app. The SDK's
-[golden vectors](../golden-vectors.md) include canvases with the pictures
-they must give.
+`renderLayout` draws with resvg and its rasterizer, tiny-skia, written in
+Rust and compiled to WebAssembly. The engine is part of `@btps/view`, not an
+option: every receiver that draws a view draws it with the same code, in a
+browser, on a server and in an app.
+
+A WebAssembly module runs in a closed box. It has its own block of memory and
+cannot read or write anything outside it, and it can reach only the functions
+its host hands it. `renderLayout` hands it none that reach the outside world:
+
+| The engine has | The engine has no |
+| --- | --- |
+| The drawing, as shapes, glyph paths and pixels | Network: it cannot fetch an address, so a view cannot report that it was opened |
+| Its own memory, sized to the canvas's limits | Files: it cannot read the device's fonts, images or anything else |
+| | Page or DOM: it is not HTML, so there is no script, style or link to run or follow |
+| | System fonts: none are given it, and it needs none, because text arrives as paths |
+
+What goes into the box and what comes out:
+
+1. **In.** `renderLayout` first runs every [check](./checks.md) and refuses a
+   view that fails one. It then builds the drawing from validated values
+   only: numbers, `#rrggbb` colours, path commands from the closed list, glyph
+   outlines (bound values are drawn with them, from the signed fields), and
+   each image's pixels after they are inflated and their length is checked.
+   The sender's bytes are never passed to the engine as they arrived: no font
+   file and no image file ever reaches it. An image's pixels are encoded
+   again by `renderLayout` itself before the engine decodes them.
+2. **Inside.** The engine draws the page by the rules above. The canvas's
+   [limits](./canvas.md#limits) bound how much it can be asked to draw, so a
+   crafted canvas cannot make it run without end or exhaust memory.
+3. **Out.** A PNG, and nothing else: pixels the app displays as an image. No
+   text, markup or link comes back out, so nothing in a view can become
+   something the app runs.
+
+A fault in the engine stays inside the box. The worst a crafted canvas can do
+there is fail to draw, and then the receiver shows its own view of the
+signed data, as it does for a view that fails a check.
+
+WebAssembly runs the same instructions the same way on every device, so the
+same canvas is meant to give the same picture, byte for byte. The SDK's [golden vectors](../golden-vectors.md) include canvases with the
+SHA-256 of the picture each must give, so a receiver can confirm its engine
+draws as every other one does.

@@ -38,6 +38,7 @@ send at all.
 | A dishonest sender | Hide where a link goes, or what a file is | Links and attachments are shown by the receiving app, never by the view. |
 | A crafted font or image | Attack the receiver's font or image decoder | A view carries no font or image file: glyph outlines and pixels only. |
 | A crafted canvas | Inject markup, or exhaust the receiver | Strict schema, closed lists, limits on every count and size; values are never passed to anything that reads markup. |
+| A crafted canvas | Break the renderer to reach the device | The engine runs as WebAssembly in a [closed box](./rendering.md#the-engine-a-closed-box): no network, no files, no page, only validated values in and a PNG out. A fault stays inside it, and the receiver shows its own view instead. |
 | A view that tracks its reader | Learn when, or whether, a document is read | Nothing in a view is fetched: no address, no font, no image from anywhere. |
 
 ## What a receiver must do
