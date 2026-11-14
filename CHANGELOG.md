@@ -55,8 +55,16 @@ Upgrading a 1.1 provider: [Migrating from 1.1 to 1.2](https://www.openbtps.org/d
   receiver checks a BoundView wherever the document is opened (`checkBoundView`): a
   BoundView that breaks its schema or a limit, or binds a missing field, is refused
   with the document; one that hides, shrinks or leaves out a key fact is not
-  shown, and the receiver shows its own view of the data. Specified on the new
-  BoundView pages. Replaces templates by reference and the template file
+  shown, and the receiver shows its own view of the data. `decryptVerify`
+  returns whether an opened document's BoundView may be shown (`boundView`,
+  `BTPBoundViewResult`), and a server hands its transporter handlers the same,
+  once an artifact's signature and trust are checked. `checkBoundView` and
+  `writtenValue` are exported from `@btps/sdk/server` and `@btps/sdk/client`.
+  Images inflate with fflate, a new dependency (MIT, no dependencies of its
+  own), stopping once past their stated length. Specified on the new
+  BoundView pages, with golden vectors for the schema in
+  `documents-1.2.vectors.json` and for the checks in `boundview.vectors.json`.
+  Replaces templates by reference and the template file
   formats of the earlier 1.2 release candidates; `template` reads as 1.1
   reads it, in any version.
 - **Totals, line roles and the recipient.** An invoice or receipt may carry

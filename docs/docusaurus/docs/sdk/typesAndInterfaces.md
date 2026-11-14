@@ -612,13 +612,13 @@ Represents a processed artifact that has been parsed and validated.
 
 ```ts
 type ProcessedArtifact =
-  | { artifact: BTPTransporterArtifact; isAgentArtifact: false }
+  | { artifact: BTPTransporterArtifact; isAgentArtifact: false; boundView?: BTPBoundViewResult } // since 1.2
   | { artifact: BTPAgentArtifact; isAgentArtifact: true; respondNow: boolean };
 ```
 
 **Variants:**
 
-- **Transporter Artifact**: Regular BTPS artifact with `isAgentArtifact: false`
+- **Transporter Artifact**: Regular BTPS artifact with `isAgentArtifact: false`. Since 1.2, `boundView` is the [checked BoundView](#btpboundviewresult) of a document the server can read, once its signature and trust are checked
 - **Agent Artifact**: Agent-specific artifact with `isAgentArtifact: true` and `respondNow` flag
 
 ### BTPContext
@@ -896,6 +896,21 @@ interface BTPBinding {
 ```
 
 `BTPPaint` is a colour (`#rrggbb` or `#rrggbbaa`) or a linear or radial gradient of 2 to 8 stops; `BTPBindingFormat` is a money, date, percent or groups format. Both are on [Canvas](../protocol/specifications/boundview/canvas.md#colours-and-paints) and [Bindings and formats](../protocol/specifications/boundview/bindings.md#formats).
+
+### BTPBoundViewResult
+
+Since 1.2. Whether a document's BoundView may be shown, as the SDK's check finds it: given by `decryptVerify` (`BTPCryptoResponse.boundView`), to a server's transporter handler as its second argument, and to `forwardTo` as `data.boundView`. `checkBoundView(document, boundView)` returns it, and `writtenValue(value, bind)` gives the exact string a binding draws; both are exported from `@btps/sdk/server` and `@btps/sdk/client`. See [Checks](../protocol/specifications/boundview/checks.md#the-result).
+
+```ts
+type BTPBoundViewResult = { show: true } | { show: false; problems: BTPBoundViewProblem[] };
+
+interface BTPBoundViewProblem {
+  check: 'wellFormed' | 'keyFacts' | 'shownInFull' | 'notHidden';
+  message: string;
+  element?: number; // the element's index in elements
+  field?: string; // the key fact it is about
+}
+```
 
 ### BTPSignatory
 
@@ -2484,6 +2499,7 @@ interface BTPCryptoResponse<T = Record<string, unknown>> {
   payload?: BTPCryptoArtifact<T>;
   error?: BTPErrorException;
   shaped?: BTPShaped; // since 1.2: a trust request sent as its 1.1 receiver allows (see BTPClientResponse)
+  boundView?: BTPBoundViewResult; // since 1.2: from decryptVerify, absent when the document carries no BoundView
 }
 ```
 

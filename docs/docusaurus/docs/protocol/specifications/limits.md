@@ -168,6 +168,8 @@ document type. Each limit is described on its
 | pixels an image                                        |            262,144 |
 | an image's `data` (base64)                             |            256 KiB |
 | a money format's `prefix`, `suffix`                    |                  8 |
+| a groups format's `sizes`                              |            1 to 32 |
+| contrast tests on one BoundView                        |         20,000,000 |
 
 ### Agreement
 

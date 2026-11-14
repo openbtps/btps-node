@@ -48,6 +48,24 @@ A BoundView that fails a check is never shown in part, and the document behind i
 is never lost.
 :::
 
+## The result
+
+`checkBoundView(document, boundView)` gives `{ show: true }`, or
+`{ show: false, problems }`, where each problem names the check that failed
+and what it is about:
+
+| Field | Type | Required | What it says |
+| --- | --- | --- | --- |
+| `check` | `wellFormed`, `keyFacts`, `shownInFull` or `notHidden` | Yes | The check that failed |
+| `message` | string | Yes | Why, in words |
+| `field` | string | No | The key fact it is about |
+| `element` | number | No | The index in `elements` of the element it is about |
+
+A document that is validated first never reaches the checks with a
+malformed BoundView: it is refused. If a document reaches the check without
+having been validated, and its BoundView turns out not to be well formed,
+the BoundView is not shown, with a `wellFormed` problem.
+
 ## The checks
 
 | Check | In short |
@@ -157,6 +175,12 @@ It checks what the reader actually sees behind the fact, point by point. An
 honest design, such as white text on a dark band, passes; a hidden fact, in
 a colour close to what lies behind it anywhere in its box, never does.
 :::
+
+**The work budget.** The contrast check makes at most 20,000,000 tests on
+one BoundView. Count, for every sample row of every fact, each edge of each
+`path` beneath it, plus each sample point times each fill beneath it. A
+BoundView that needs more fails "Not hidden", so a receiver is never made to
+work without end.
 
 ### Nothing to fetch, nothing to run
 

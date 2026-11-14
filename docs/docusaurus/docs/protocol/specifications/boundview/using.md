@@ -81,6 +81,42 @@ When `renderBoundView` gives `null`, show your own view of the signed data
 instead, with a notice saying why. The document is still accepted: only its
 BoundView is not shown.
 
+### The check's result
+
+The SDK hands you the result of its check with the document, so your app
+knows before drawing whether the BoundView may be shown. It is
+`{ show: true }`, or `{ show: false, problems }`, and it is absent when the
+document carries no BoundView. Each problem names its `check`
+(`wellFormed`, `keyFacts`, `shownInFull` or `notHidden`), a `message`, and
+the `field` or `element` it is about ([The result](./checks.md#the-result)).
+
+**On a device or a platform**, `decryptVerify(...)` returns it beside the
+document:
+
+```ts
+const { payload, error, boundView } = await decryptVerify(/* … */);
+if (boundView && !boundView.show) {
+  // show your own view of the signed data, with a notice from boundView.problems
+}
+```
+
+**On a server**, a transporter handler gets it as a second argument, and a
+`forwardTo` handler gets it as `data.boundView`. It is checked once the
+artifact's signature and trust are, for a document the server can read. A
+document encrypted to a device is checked by `decryptVerify` on that device.
+
+```ts
+server.onIncomingArtifact('Transporter', (artifact, boundView) => {
+  // boundView: { show: true }, { show: false, problems }, or undefined
+});
+```
+
+:::tip Checking or drawing yourself
+`checkBoundView(document, boundView)` and `writtenValue(value, bind)`, the
+exact string a binding draws, are exported from `@btps/sdk/server` and
+`@btps/sdk/client`, for anyone checking or drawing a BoundView themselves.
+:::
+
 :::note Drawing is always done by `@btps/boundview`
 The drawing engine is part of `@btps/boundview`, not an option: every
 receiver that draws a BoundView draws it with the same code, in a browser, on

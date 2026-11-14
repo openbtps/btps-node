@@ -180,8 +180,8 @@ For `discount.percent`, whole basis points: 1000 is drawn `10%` with
 
 For text written in groups, such as a company number: the value's
 characters, spaces removed, in groups of these sizes joined by `separator`
-(one character). `51824753556` with `[2, 3, 3, 3]` is drawn
-`51 824 753 556`. The sizes add up to the value's length, or the binding is
+(one character), with 1 to 32 sizes. `51824753556` with `[2, 3, 3, 3]` is
+drawn `51 824 753 556`. The sizes add up to the value's length, or the binding is
 refused.
 
 ### Text

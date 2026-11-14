@@ -127,6 +127,7 @@ How a gradient is drawn is on [Rendering](./rendering.md#shapes).
 | Elements | 2,000 |
 | Text, label and signature elements together | 1,000 |
 | A position or size | -20,000 to 20,000 |
+| Contrast tests on one BoundView | 20,000,000 ([Checks](./checks.md#contrast)) |
 
 The limits for fonts, images, paths and text are on their own pages, and all
 of them on [Limits](../limits.md#boundview).
