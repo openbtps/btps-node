@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { checkBoundView, writtenValue } from './boundViewChecks.js';
+import { boundViewResultOf, checkBoundView, writtenValue } from './boundViewChecks.js';
 import { BtpBoundViewSchema, type BTPBoundView } from './boundViewSchema.js';
 
 const issuedAt = '2026-11-25T03:00:00.000Z';
@@ -219,6 +219,130 @@ describe('not hidden', () => {
       message: 'it is too complex to check what lies beneath it',
     });
     expect(performance.now() - started).toBeLessThan(3000);
+  });
+});
+
+describe('measuring and placing', () => {
+  it('measures with kerning, letter spacing and the case it is drawn in', () => {
+    // inv-7 at three quarters of 12: 5 glyphs of 4.5, less 0.45 for the kerned "in", plus 2 after each.
+    const kerned = { ...font, kerning: { in: -50 } };
+    const id = (width: number) =>
+      facts().map((element, index) =>
+        index === 0 ? { ...element, width, letterSpacing: 2, transform: 'lowercase' } : element,
+      );
+    expect(check(id(32.05), invoice, { fonts: { body: kerned } }).show).toBe(true);
+    expect(check(id(32.04), invoice, { fonts: { body: kerned } }).show).toBe(false);
+    const lower = { ...font, glyphs: Object.fromEntries(Object.entries(font.glyphs).filter(([c]) => c !== 'i')) };
+    expect(failed(check(id(200), invoice, { fonts: { body: lower } }))).toEqual([
+      { check: 'shownInFull', element: 0, field: undefined },
+    ]);
+  });
+
+  it('boxes a later line, a stroked path and a label by what they cover', () => {
+    const later = [
+      { type: 'line', from: [0, 300], to: [600, 300], stroke: '#000000', strokeWidth: 2 },
+      { type: 'path', d: 'M0 350L600 350L600 360Z', stroke: '#000000', strokeWidth: 4 },
+      { type: 'label', text: 'A', x: 0, y: 390, width: 10, align: 'centre', font: 'body', size: 12, colour: '#000000' },
+    ];
+    expect(check([...facts(), ...later])).toEqual({ show: true });
+    const over = { type: 'line', from: [0, 30], to: [600, 30], stroke: '#000000', strokeWidth: 1, dash: [2, 2] };
+    expect(failed(check([...facts(), over]))).toEqual([{ check: 'notHidden', element: 0, field: undefined }]);
+  });
+
+  it('reads a radial gradient at each point, and a stop pair at one offset', () => {
+    const glow = {
+      type: 'rect',
+      x: 0,
+      y: 0,
+      width: 600,
+      height: 400,
+      fill: { radial: { centre: [0, 0], radius: 1000, stops: [[0, '#ffffff'], [0.5, '#ffffff'], [0.5, '#0f1b2d'], [1, '#0f1b2d']] } },
+      stroke: '#000000',
+      strokeWidth: 1,
+    };
+    expect(check([glow, ...facts()])).toEqual({ show: true });
+    const dark = { ...glow, fill: { radial: { centre: [0, 0], radius: 0, stops: [[0, '#ffffff'], [1, '#0f1b2d']] } } };
+    expect(failed(check([dark, ...facts()])).length).toBe(5);
+    const flat = { ...glow, fill: { linear: { from: [5, 5], to: [5, 5], stops: [[0, '#ffffff'], [1, '#0f1b2d']] } } };
+    expect(check([flat, ...facts()])).toEqual({ show: true });
+  });
+
+  it('tests a path drawn in curves and lines, and a rect with four radii', () => {
+    const blob = { type: 'path', d: 'M0 0Q300 -20 600 0V400C400 420 200 420 0 400Z', fill: '#f2f6ff', opacity: 0.5 };
+    const card = { type: 'rect', x: 0, y: 0, width: 600, height: 400, radius: [4, 8, 12, 16], fill: '#f2f6ff' };
+    expect(check([blob, card, ...facts()])).toEqual({ show: true });
+  });
+});
+
+describe('the key facts of each document type', () => {
+  const money = (amount: number) => ({ amount, currency: 'AUD' });
+  let row = 0;
+  const bound = (field: string, format?: object) => ({
+    ...text(field),
+    y: 20 + 15 * row++,
+    bind: { field, ...(format && { format }) },
+  });
+  const date = { date: 'd MMM yyyy' };
+  const aud = { money: { group: ',', decimal: '.' } };
+
+  it('names every amount and date of a payslip', () => {
+    row = 0;
+    const payslip = {
+      type: 'payslip',
+      title: 'Pay',
+      id: 'PAY-1',
+      issuedAt,
+      employee: { name: 'Sam' },
+      earnings: [{ category: 'ordinary', amount: money(1000) }],
+      deductions: [],
+      contributions: [{ amount: money(100) }],
+      gross: money(1000),
+      net: money(900),
+    };
+    const shown = [
+      bound('id'),
+      bound('issuedAt', date),
+      bound('employee.name'),
+      bound('gross', aud),
+      bound('net', aud),
+      bound('earnings.0.amount', aud),
+    ];
+    expect(failed(check(shown, payslip))).toEqual([
+      { check: 'keyFacts', field: 'contributions.0.amount', element: undefined },
+    ]);
+    expect(check([...shown, bound('contributions.0.amount', aud)], payslip)).toEqual({ show: true });
+  });
+
+  it("names a receipt's payment, a discount by percent, and an agreement's acceptance date", () => {
+    row = 0;
+    const receipt = {
+      type: 'receipt',
+      title: 'Paid',
+      id: 'R-1',
+      issuedAt,
+      totalAmount: money(1000),
+      discount: { percent: 1000 },
+      payment: { amount: money(1000), paidAt: issuedAt },
+    };
+    const shown = [bound('id'), bound('issuedAt', date), bound('totalAmount', aud), bound('payment.amount', aud), bound('payment.paidAt', date)];
+    expect(failed(check(shown, receipt))).toEqual([{ check: 'keyFacts', field: 'discount.percent', element: undefined }]);
+    row = 0;
+    const agreement = { type: 'agreement', title: 'A', id: 'A-1', issuedAt, body: { format: 'text', content: 'Hi' }, acceptance: { by: issuedAt } };
+    expect(failed(check([bound('issuedAt', date), bound('body.content')], agreement))).toEqual([
+      { check: 'keyFacts', field: 'acceptance.by', element: undefined },
+    ]);
+  });
+});
+
+describe('the result for an opened document', () => {
+  it('is absent without a BoundView, and never shown when one was not validated', () => {
+    expect(boundViewResultOf('ciphertext')).toBeUndefined();
+    expect(boundViewResultOf(invoice)).toBeUndefined();
+    expect(boundViewResultOf({ ...invoice, boundView: { format: 2 } })).toEqual({
+      show: false,
+      problems: [{ check: 'wellFormed', message: 'the BoundView is not well formed' }],
+    });
+    expect(boundViewResultOf({ ...invoice, boundView: view(facts()) })).toEqual({ show: true });
   });
 });
 
