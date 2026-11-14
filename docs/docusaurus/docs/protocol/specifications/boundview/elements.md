@@ -170,7 +170,7 @@ The sender's sign-off on a letter or an agreement, from the document's
 | Field | Type | Required | What it says |
 | --- | --- | --- | --- |
 | `x`, `y`, `width`, `height` | number | Yes | Its box. A drawn signature's 1,000 by 300 canvas is scaled to fit it; a typed one is set in the script font Caveat to fit it. |
-| `colour` | colour | Yes | Its ink colour. |
+| `colour` | colour | Yes | Its ink colour, never a gradient, at full opacity (`#rrggbb`), as a `text`'s is. |
 
 The signatory's `name` and `title` are `text` elements bound to
 `signatory.name` and `signatory.title`. How a signature is drawn is on

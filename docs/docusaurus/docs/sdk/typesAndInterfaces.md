@@ -855,9 +855,9 @@ interface BTPBoundViewFont {
   unitsPerEm: number;
   ascent: number;
   descent: number;
-  glyphs?: Record<string, { advance: number; path?: string }>; // one character to its outline; absent only when the font is just a fallback
+  glyphs?: Record<string, { advance: number; path?: string }>; // one character to its outline; absent only when the font is just a fallback, named only by labels
   kerning?: Record<string, number>; // a pair of characters to an adjustment
-  fallback?: Array<'arimo' | 'tinos' | 'cousine' | 'carlito' | 'caladea' | 'sans-serif' | 'serif' | 'monospace'>; // up to 4, tried in order: the first one the receiver holds
+  fallback?: Array<'arimo' | 'tinos' | 'cousine' | 'carlito' | 'caladea' | 'sans-serif' | 'serif' | 'monospace'>; // up to 4, tried in order: the first one the receiver holds. For labels only, never a bound value
 }
 
 interface BTPBoundViewImage {
@@ -874,7 +874,7 @@ type BTPBoundViewElement =
   | { type: 'image'; image: string; x: number; y: number; width: number; height: number; opacity?: number }
   | ({ type: 'text'; bind: BTPBinding } & BTPTextBox)
   | ({ type: 'label'; text: string } & BTPTextBox)
-  | { type: 'signature'; x: number; y: number; width: number; height: number; colour: string };
+  | { type: 'signature'; x: number; y: number; width: number; height: number; colour: string /* #rrggbb */ };
 
 interface BTPTextBox {
   x: number;

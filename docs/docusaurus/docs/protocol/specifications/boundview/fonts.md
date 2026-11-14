@@ -50,11 +50,11 @@ names its font by that key.
 | --- | --- | --- | --- |
 | `unitsPerEm` | number | Yes | The font's own unit: an outline is drawn at `size / unitsPerEm` pixels per unit. 16 to 16,384. |
 | `ascent`, `descent` | number | Yes | How far the font reaches above and below the baseline, in its units. A text's box is its baseline minus `ascent` to its baseline plus `descent`. |
-| `glyphs` | object, by character | Yes, unless the font is only a [`fallback`](#fallbacks) | One entry per character, keyed by the character itself. |
+| `glyphs` | object, by character | Yes, unless the font is only a [`fallback`](#fallbacks), named only by labels | One entry per character, keyed by the character itself. |
 | `glyphs.<char>.advance` | number | Yes | How far the next character starts after this one, in the font's units. |
 | `glyphs.<char>.path` | string | No (a space has none) | The character's outline, in the font's units, with the baseline at 0 and `y` growing down. The same commands as a [path](./elements.md#path-commands). |
 | `kerning` | object, by pair | No | Adjustments for pairs of characters, keyed by the two characters, in the font's units. |
-| `fallback` | list of names | No | Up to 4 names, tried in order: what to draw a character with when the font has no glyph for it ([Fallbacks](#fallbacks)). |
+| `fallback` | list of names | No | Up to 4 names, tried in order: what to draw a label's character with when the font has no glyph for it. Never used for a bound value ([Fallbacks](#fallbacks)). |
 
 A glyph is the character as the sender's text showed it. Where the sender's
 text used a font's alternative forms, such as tabular figures, the glyph is
@@ -70,13 +70,25 @@ bound to it, and the digits `0` to `9` with `.`, `,`, `-` and the characters
 of its money prefixes and suffixes. A receiver can then draw any value the
 document's bindings name with the same glyphs.
 
-Each character of a bound value has a glyph in its font or a fallback the
-receiver holds, or the BoundView fails a check ([Shown in full](./checks.md#shown-in-full)).
+Every character of a bound `text` value has a glyph in that element's own
+font, or the BoundView fails a check ([Shown in full](./checks.md#shown-in-full)).
+A font's fallbacks are never used for a bound value, so every receiver
+measures a bound value with the same glyphs and reaches the same result.
 
 ## Fallbacks
 
-When a font has no glyph for a character, the receiver draws it with the
-first name in the font's `fallback` it holds:
+Fallbacks are for labels only. When a font has no glyph for a character of
+a `label`, the receiver draws it with the first name in the font's
+`fallback` it holds. A label is the sender's design and is not checked, so
+its look may vary with the fallback a receiver holds. A bound value never
+uses a fallback.
+
+| Uses the font's | A bound `text` value | A `label` |
+| --- | --- | --- |
+| `glyphs` | Always: every character must have one | When it has one |
+| `fallback` | Never | For a character with no glyph |
+
+The names a `fallback` may hold:
 
 | Name | What it is | Where it comes from |
 | --- | --- | --- |
@@ -92,7 +104,10 @@ every receiver; the last three are a receiver's own.
 
 :::tip A font that could not be captured
 A font that is only `fallback`, with no `glyphs`, is how a sender says "draw
-this text with Arial's widths" when it could not capture the font it used.
+this label with Arial's widths" when it could not capture the font it used.
+Only labels can name such a font. A `text` element that names it is
+refused, with the document, as a schema rule: it is knowable from the canvas
+alone, like naming a font the canvas lacks ([Two outcomes](./checks.md#two-outcomes)).
 :::
 
 ## Limits

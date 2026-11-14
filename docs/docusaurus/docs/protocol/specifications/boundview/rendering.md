@@ -51,8 +51,10 @@ string is its `text`. Then:
 
 1. `transform`, when present, makes the string upper or lower case, character
    by character, as Unicode's simple case mapping does with no locale.
-2. Each character is drawn with its font's glyph, or its
-   [fallback](./fonts.md#fallbacks).
+2. Each character is drawn with its font's glyph. A `label`'s character
+   that has no glyph is drawn with the font's
+   [fallback](./fonts.md#fallbacks). A bound value never uses a fallback:
+   every character of it has a glyph ([Shown in full](./checks.md#shown-in-full)).
 3. Characters are placed along the baseline at `y`. After each character the
    pen moves by its `advance`, plus the kerning for it and the next
    character, scaled by `size / unitsPerEm`, plus `letterSpacing` (after

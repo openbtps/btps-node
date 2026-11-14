@@ -31,7 +31,7 @@ sending.
 
 | What is wrong | Outcome |
 | --- | --- |
-| The canvas breaks its [schema](./canvas.md) or a limit, or binds a field the document does not have | The **document is refused**, as a document with any other malformed field is. |
+| The canvas breaks its [schema](./canvas.md) or a limit, or binds a field the document does not have, or a `text` element names a font that is only a `fallback` | The **document is refused**, as a document with any other malformed field is. |
 | The canvas is well formed but fails a check below | The **document is accepted** and the **BoundView is not shown**. The receiver shows its own view of the signed data, with a notice saying why. |
 
 ```mermaid
@@ -84,8 +84,10 @@ element's `width`. A receiver may draw it smaller to fit, down to three
 quarters of its `size` and never below 6 pixels; if it still does not fit,
 the check fails. A value is never cut short, wrapped or hidden.
 
-Each character of a bound value has a glyph in its font or a
-[fallback](./fonts.md#fallbacks) the receiver holds.
+Each character of a bound value has a glyph in that element's own font. A
+character with no glyph there fails the check: a font's
+[fallback](./fonts.md#fallbacks) is never used for a bound value, so every
+receiver measures it with the same glyphs and reaches the same result.
 
 ### Not hidden
 
@@ -94,13 +96,67 @@ For each bound `text` element and each `signature`:
 - its box lies wholly inside the page;
 - no element drawn after it overlaps its box;
 - no `image` lies under it;
-- its colour has a contrast of at least 3:1 with what is directly beneath
-  its box: the page's background, or the topmost earlier `rect` or `path`
-  whose fill covers the box. Against a gradient, every stop counts. The
-  contrast is WCAG 2's.
+- its colour has a WCAG 2 contrast of at least 3:1 with the colour beneath
+  it at **every** sample point of its box ([Contrast](#contrast)).
 
 A label, a shape and an image may be drawn anywhere: they are the sender's
 design.
+
+#### Contrast
+
+The contrast test is exact: every receiver samples the same points and
+computes the same colours, so two implementations always agree.
+
+**The box.** For a bound `text` element: from `x` to `x + width`, and from
+its baseline minus its font's `ascent` to its baseline plus its `descent`,
+as [Elements](./elements.md#text) says, in pixels at the element's declared
+`size`, never the smaller size a value may be drawn at to fit. The box at
+the declared size contains the drawn one, so this is the stricter of the
+two, and the same on every receiver.
+For a `signature`: its box, `x` to `x + width` and `y` to `y + height`.
+
+**Sample points.** A grid inside the box, every 1 pixel in `x` and `y`, at
+pixel centres. For a box from `x0` to `x1` and from `y0` to `y1`, the points
+in `x` are `x0 + 0.5 + k`, for `k` = 0, 1, 2, … for as long as the point
+is at most `x1`, and the same in `y` from `y0` to `y1`: every pair of them.
+If a side gets no point, because the box is under half a pixel that way,
+its one point is the middle of that side.
+
+**The colour beneath a point.**
+
+1. Start from the page's `background`, white when absent. A `background`
+   with alpha is first blended over white.
+2. For each earlier `rect` and `path` that has a `fill`, in the order of
+   `elements`, whose fill covers the point: blend its fill colour at that
+   point over the colour so far, source-over:
+   `out = src × a + below × (1 − a)`, where `a` is the fill's alpha times
+   the element's `opacity`.
+3. A gradient's colour at the point is interpolated as
+   [Rendering](./rendering.md#shapes) says.
+4. Blending is in sRGB, each channel a real number from 0 to 255, never
+   rounded along the way. WCAG 2 relative luminance is computed from these
+   unrounded values.
+5. Strokes and `line` elements are ignored. An `image` beneath the fact is
+   already refused, above.
+
+**Covers.**
+
+- A `rect` covers a point inside its box, with its rounded corners tested
+  exactly.
+- A `path` covers a point by its `fillRule`, `nonzero` or `evenodd`. Its
+  curves are first flattened into straight segments, each `Q` and `C`
+  subdivided into 16 equal parameter steps.
+- A point exactly on an edge counts as covered.
+
+**The test.** The fact's `colour` has a WCAG 2 contrast of at least 3:1 with
+the colour beneath it at every sample point. One point below 3:1 fails the
+check.
+
+:::note Why it is exact
+It checks what the reader actually sees behind the fact, point by point. An
+honest design, such as white text on a dark band, passes; a hidden fact, in
+a colour close to what lies behind it anywhere in its box, never does.
+:::
 
 ### Nothing to fetch, nothing to run
 
