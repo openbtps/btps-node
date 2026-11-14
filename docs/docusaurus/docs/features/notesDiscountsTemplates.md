@@ -56,7 +56,7 @@ import { snapshotBoundView, renderBoundView } from '@btps/boundview';
 const boundView = await snapshotBoundView(previewElement, document); // in the browser showing the preview
 await agent.command('artifact.send', to, { ...document, boundView });
 
-const png = await renderBoundView(openedDocument); // null when the view failed a check
+const png = await renderBoundView(openedDocument); // PNG bytes, or null when there is no BoundView or it failed a check
 ```
 
 | Who | What happens |

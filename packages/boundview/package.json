@@ -1,0 +1,40 @@
+{
+  "name": "@btps/boundview",
+  "version": "1.2.0-rc.3",
+  "description": "BoundView for BTPS: capture a document's HTML preview as a signed canvas bound to its data, and draw a received one in a closed WebAssembly engine.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openbtps/btps-node.git",
+    "directory": "packages/boundview"
+  },
+  "homepage": "https://www.openbtps.org/docs/next/protocol/specifications/boundview",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./engine.wasm": "./dist/engine.wasm"
+  },
+  "files": [
+    "dist",
+    "NOTICE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node -e \"require('fs').copyFileSync(require.resolve('@resvg/resvg-wasm/index_bg.wasm'), 'dist/engine.wasm')\"",
+    "generate-glyphs": "node scripts/generate-bundled-glyphs.mjs"
+  },
+  "dependencies": {
+    "@resvg/resvg-wasm": "2.6.2",
+    "fflate": "^0.8.3",
+    "opentype.js": "^2.0.0"
+  },
+  "peerDependencies": {
+    "@btps/sdk": ">=1.2.0-rc.3"
+  }
+}

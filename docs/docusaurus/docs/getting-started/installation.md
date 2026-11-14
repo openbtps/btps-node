@@ -31,6 +31,12 @@ Your code encrypts and signs a document with `signEncrypt`; the agent or transpo
 npm install @btps/sdk
 ```
 
+To send documents with their look, or show received ones, add `@btps/boundview` as well ([Using BoundView](./../protocol/specifications/boundview/using.md)):
+
+```bash
+npm install @btps/boundview
+```
+
 ```js
 import { BtpsServer } from '@btps/sdk/server';
 import { BtpsTransporter } from '@btps/sdk/client';

@@ -19,6 +19,17 @@ npm install @btps/sdk
 yarn add @btps/sdk
 ```
 
+### BoundView: `@btps/boundview`
+
+Since 1.2, a separate package captures a document's HTML preview as its
+[BoundView](../protocol/specifications/boundview/overview.md) and draws a
+received one. It needs `@btps/sdk` 1.2.0-rc.3 or later beside it. See
+[Using BoundView](../protocol/specifications/boundview/using.md).
+
+```sh
+npm install @btps/boundview
+```
+
 ## ⚠️ Node.js Compatibility
 
 This package is **ESM-only** and requires **Node.js ≥ 24**.
@@ -68,6 +79,7 @@ import type { BTPArtifact, BTPInvoiceDoc } from '@btps/sdk/server';
 | `@btps/sdk/delegation`     | Delegation utilities             |
 | `@btps/sdk/error`          | Error types and helpers          |
 | `@btps/sdk/storage`        | Storage utilities                |
+| `@btps/sdk/boundview`      | Since 1.2. Browser-safe: the [BoundView](../protocol/specifications/boundview/overview.md) schema, bindings and checks only (`BtpBoundViewSchema`, `isPathData`, `boundValue`, `bindingProblem`, `checkBoundView`, `boundViewResultOf`, `writtenValue`, `CONTRAST_WORK_LIMIT` and the types), for a browser or app that draws or captures a BoundView without the rest of the SDK |
 
 ---
 
@@ -90,6 +102,8 @@ dist/
 │   │   └── index.js         ← @btps/sdk/authentication
 │   ├── delegation/
 │   │   └── index.js         ← @btps/sdk/delegation
+│   ├── server/schemas/
+│   │   └── boundView.js     ← @btps/sdk/boundview
 │   └── storage/
 │       └── index.js         ← @btps/sdk/storage
 ├── client/

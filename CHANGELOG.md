@@ -67,6 +67,17 @@ Upgrading a 1.1 provider: [Migrating from 1.1 to 1.2](https://www.openbtps.org/d
   Replaces templates by reference and the template file
   formats of the earlier 1.2 release candidates; `template` reads as 1.1
   reads it, in any version.
+- **`@btps/boundview`, a new package.** `snapshotBoundView` captures a
+  platform's own HTML preview as a BoundView in the browser: every fact found
+  by its value, fonts read as glyph outlines, images as pixels, an SVG logo as
+  outlines when they draw as the browser drew it. It throws
+  `BoundViewSnapshotError` with what a receiver would refuse or not show.
+  `renderBoundView` draws a received one with resvg compiled to WebAssembly,
+  handed only checked values, and gives a PNG, the same bytes everywhere
+  (`boundview-pictures.vectors.json`), or null when a check fails. It bundles
+  open-licence glyph outlines for label fallbacks and typed signatures.
+- **`@btps/sdk/boundview`.** A BoundView's schema, bindings and checks alone,
+  for a browser or app without the rest of the SDK.
 - **Totals, line roles and the recipient.** An invoice or receipt may carry
   `subtotalAmount` and `taxAmount`, and name what each line-item column holds
   (`lineItems.roles`, `BTPLineRole`); an invoice, receipt, letter or agreement

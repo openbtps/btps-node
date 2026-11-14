@@ -61,7 +61,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@btps/sdk@workspace:."
   dependencies:
+    "@fontsource/arimo": "npm:^5.3.0"
+    "@fontsource/caladea": "npm:^5.3.0"
+    "@fontsource/carlito": "npm:^5.3.0"
+    "@fontsource/caveat": "npm:^5.3.0"
+    "@fontsource/cousine": "npm:^5.3.0"
+    "@fontsource/tinos": "npm:^5.3.0"
     "@humanwhocodes/momoa": "npm:^3.3.13"
+    "@resvg/resvg-wasm": "npm:2.6.2"
     "@types/lodash": "npm:^4"
     "@types/proper-lockfile": "npm:^4"
     "@types/split2": "npm:^4"
@@ -86,8 +93,10 @@ __metadata:
     fflate: "npm:^0.8.3"
     lodash: "npm:^4.17.21"
     nodemon: "npm:^3.0.0"
+    opentype.js: "npm:^2.0.0"
     ora: "npm:^8.2.0"
     pkijs: "npm:^4.0.1"
+    playwright-core: "npm:^1.56.0"
     prettier: "npm:^3.0.0"
     proper-lockfile: "npm:^4.1.2"
     rimraf: "npm:^6.0.1"
@@ -356,6 +365,48 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@fontsource/arimo@npm:^5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/arimo@npm:5.3.0"
+  checksum: 10c0/87cfd2a0a184ba7091d056906427181220ed1492ab6bede6dca1e260d69596b0380abfe578298ba41de3a9b1d3279e7f2ce86e95a96191501868d24552573a8a
+  languageName: node
+  linkType: hard
+
+"@fontsource/caladea@npm:^5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/caladea@npm:5.3.0"
+  checksum: 10c0/d9091d8ec8653a7b4e1fa56190b5ff18e3fac58889983165231529f8972e44bf329f6737c509f1c4e5bc72e3674748f8ea715b6e5152a98cab5b0214c7772710
+  languageName: node
+  linkType: hard
+
+"@fontsource/carlito@npm:^5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/carlito@npm:5.3.0"
+  checksum: 10c0/0a41dd1ef555d8619f727530f1c236d6aab5b219297ff485794d6b0519a44cffdda7d5fb930654b08c9e3b52489c922d2ae7ba0eaabad5f4aa4fb60078b54e3b
+  languageName: node
+  linkType: hard
+
+"@fontsource/caveat@npm:^5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/caveat@npm:5.3.0"
+  checksum: 10c0/90b25e1c23783f8a2e11b245518447aaf6704ac7f26b0ae6f288bd8fb647509da64e5fe50d97ec9b5c56fcd5f16eebb4979c9b57cb3a677cf8733e708a4e5a80
+  languageName: node
+  linkType: hard
+
+"@fontsource/cousine@npm:^5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/cousine@npm:5.3.0"
+  checksum: 10c0/30669b1664363d0f5eb684ee99b78a7f6e15a70d6227e6d5019803fc1833cee996bcd9e4bf845aefbf3240eae03199f29da41a2c6362bba55482a03f3aa94295
+  languageName: node
+  linkType: hard
+
+"@fontsource/tinos@npm:^5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/tinos@npm:5.3.0"
+  checksum: 10c0/a6cbae046206235b5f5bd490205c0ef84a6b0e7f0b86a34a7b5c36f4ac6af844dc7ee1d55a691b9e2ebe0076614e8128a6c39275545f2685644c964d6096d072
+  languageName: node
+  linkType: hard
+
 "@humanwhocodes/config-array@npm:^0.13.0":
   version: 0.13.0
   resolution: "@humanwhocodes/config-array@npm:0.13.0"
@@ -561,6 +612,13 @@ __metadata:
   version: 1.0.0-next.29
   resolution: "@polka/url@npm:1.0.0-next.29"
   checksum: 10c0/0d58e081844095cb029d3c19a659bfefd09d5d51a2f791bc61eba7ea826f13d6ee204a8a448c2f5a855c17df07b37517373ff916dd05801063c0568ae9937684
+  languageName: node
+  linkType: hard
+
+"@resvg/resvg-wasm@npm:2.6.2":
+  version: 2.6.2
+  resolution: "@resvg/resvg-wasm@npm:2.6.2"
+  checksum: 10c0/74eb061c53510dad516e42375d1802a5b70ff531abd3c858921178add5acd136382a2f0afc1bd83fa72ec2c2c9bd40a636000572a152b53a9b04e9c131ba0223
   languageName: node
   linkType: hard
 
@@ -3817,6 +3875,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"opentype.js@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "opentype.js@npm:2.0.0"
+  bin:
+    ot: bin/ot
+  checksum: 10c0/85539aca7b99ec10019adcdd2bcc74d0ab2757277f775394826db0fb465c5e075fa67cff83ce30082c990640225c1c678ddd23c1ba1c9580d167335ad5300b91
+  languageName: node
+  linkType: hard
+
 "optionator@npm:^0.9.3":
   version: 0.9.4
   resolution: "optionator@npm:0.9.4"
@@ -4000,6 +4067,15 @@ __metadata:
   peerDependencies:
     asn1js: ^4.0.0
   checksum: 10c0/818a44ac45e056bd690b981bd9bb1fe1fc96d297f3b3b2624e24c505fe0bcd86421d3123bb631ef1591ce344be8c8f7b478b034c0cc3a04ad3ae2bcc7447a7fd
+  languageName: node
+  linkType: hard
+
+"playwright-core@npm:^1.56.0":
+  version: 1.65.1
+  resolution: "playwright-core@npm:1.65.1"
+  bin:
+    playwright-core: cli.js
+  checksum: 10c0/4406d4f8eff668a93aaada8382d25fcce8da5f679e9f31311888178d631ed0270eb40c0288129e41e15709c957a31932cac9753fdb332547a19bc3541d317e44
   languageName: node
   linkType: hard
 

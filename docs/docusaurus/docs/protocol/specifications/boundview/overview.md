@@ -60,14 +60,21 @@ happens for it:
   `renderBoundView` draws a BoundView that passed into a finished picture,
   and the app only displays it.
 
+```bash
+npm install @btps/boundview
+```
+
 ```ts
-import { snapshotBoundView, renderBoundView } from '@btps/boundview';
+import { initBoundViewEngine, snapshotBoundView, renderBoundView } from '@btps/boundview';
+
+// In a browser or app, load the engine once (in Node it loads by itself)
+await initBoundViewEngine(new URL('@btps/boundview/engine.wasm', import.meta.url));
 
 // Sending: the preview you already show, and the document it shows
 const boundView = await snapshotBoundView(previewElement, document);
 await agent.command('artifact.send', to, { ...document, boundView });
 
-// Receiving: a PNG to display, or null when the view failed a check
+// Receiving: PNG bytes to display, or null when there is no BoundView or it failed a check
 const png = await renderBoundView(openedDocument);
 ```
 
