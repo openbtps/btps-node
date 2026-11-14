@@ -6,6 +6,7 @@
   "files": {
     "addresses.vectors.json": "cea6afc30d9a91aaa5d1310c3b5d0ec3981304cf66e3a2a3e53333ebecab6bab",
     "agreements.vectors.json": "ffdc06b0a7ef23dd79be1d00fa2461700165331ed4ff2c74c0a21df8121d81c1",
+    "boundview.vectors.json": "e7b29412aa9e9b147ba4357442ed0bb47cdca88f904363c8ba33efdf79c56c89",
     "details.vectors.json": "dc6d7f7602781485d83842b16b38530e0d4609ba2f404c72ed1dc77f7d794a96",
     "device-key-proof.vector.json": "ef08791a6eac8df8540b57c112634d9feda8b82461bcd0737175bf0e9cbf4805",
     "documents-1.2.vectors.json": "293be3e9c2de5bc6cb30e19162f92b6bb46a36e18a2e957807a8b2fb6f6a6b7c",

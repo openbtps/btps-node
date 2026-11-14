@@ -1178,6 +1178,199 @@ function boundViewCases(v12, v11) {
   ];
 }
 
+/**
+ * BTPS 1.2 BoundView checks (Checks page), on well-formed BoundViews: whether
+ * each may be shown, and which check each problem fails; and bound values as
+ * a receiver writes them (Bindings and formats).
+ */
+export function boundViewChecks() {
+  // Every printable ASCII character, 500 units wide: 6 pixels at size 12.
+  const font = {
+    unitsPerEm: 1000,
+    ascent: 800,
+    descent: 200,
+    glyphs: Object.fromEntries(
+      Array.from({ length: 95 }, (_, i) => [String.fromCharCode(32 + i), { advance: 500 }]),
+    ),
+  };
+  const money = { money: { group: ',', decimal: '.', prefix: 'A$' } };
+  // A fact on row `row`: its baseline at 30 + 20 × row, its box from 9.6 above it to 2.4 below.
+  const fact = (row, field, more = {}) => ({
+    type: 'text',
+    bind: { field, ...more.bind },
+    x: 10,
+    y: 30 + 20 * row,
+    width: 200,
+    align: 'start',
+    font: 'body',
+    size: 12,
+    colour: '#0f1b2d',
+    ...more.element,
+  });
+  const invoice = {
+    ...base.invoice,
+    id: 'INV-7',
+    issuedAt: '2026-11-25T03:00:00.000Z',
+    totalAmount: aud(145200),
+    lineItems: {
+      columns: ['Item', 'Amount'],
+      roles: { Item: 'description', Amount: 'lineTotal' },
+      rows: [{ Item: 'Web', Amount: 145200 }],
+    },
+  };
+  const facts = [
+    fact(0, 'id'),
+    fact(1, 'issuedAt', { bind: { format: { date: 'd MMM yyyy' } } }),
+    fact(2, 'totalAmount', { bind: { format: money } }),
+    fact(3, 'lineItems.rows.0.Item'),
+    fact(4, 'lineItems.rows.0.Amount', { bind: { format: money } }),
+  ];
+  const view = (elements, more = {}) => ({
+    format: 1,
+    page: { width: 600, height: 400 },
+    fonts: { body: font },
+    elements,
+    ...more,
+  });
+  const shown = (name, document) => ({ name, document, expect: { show: true } });
+  const hidden = (name, document, problems) => ({ name, document, expect: { show: false, problems } });
+  const withView = (elements, more, document = invoice) => ({ ...document, boundView: view(elements, more) });
+  const at = (index, more) => facts.map((element, i) => (i === index ? { ...element, ...more } : element));
+  const white = facts.map((element) => ({ ...element, colour: '#ffffff' }));
+  const rect = (more) => ({ type: 'rect', x: 0, y: 0, width: 600, height: 400, ...more });
+  const letter = {
+    ...base.letter,
+    issuedAt: '2026-11-25T03:00:00.000Z',
+    body: { format: 'markdown', content: '# Hello **Alice**' },
+  };
+  const body = (row, range) => fact(row, 'body.content', { bind: { range } });
+  const date = fact(0, 'issuedAt', { bind: { format: { date: 'd MMM yyyy' } } });
+  const signed = {
+    ...letter,
+    body: { format: 'text', content: 'Hi' },
+    signatory: { name: 'Jo', visualSignature: { type: 'typed', text: 'Jo' } },
+  };
+  const signedFacts = [date, fact(1, 'body.content'), fact(2, 'signatory.name')];
+  const signature = { type: 'signature', x: 300, y: 10, width: 200, height: 60, colour: '#0f1b2d' };
+  const pixels = { width: 1, height: 1, encoding: 'rgba8-deflate', data: pixelData(4) };
+  const written = (name, value, bind, expect) => ({ name, value, bind: { field: 'x', ...bind }, expect });
+
+  return {
+    description:
+      'BTPS 1.2 BoundView checks. Each case is a document whose BoundView is well formed; `expect.show` is whether a receiver shows it, and `expect.problems` lists each failed check by `check` (`keyFacts`, `shownInFull` or `notHidden`) with the key fact (`field`) or element index (`element`) it is about, in any order. `written` gives a bound value (`value`: text, money in minor units, a date, or basis points) and its binding, and the exact string a receiver draws.',
+    cases: [
+      shown('every-key-fact-shown-in-full-unhidden', withView(facts)),
+      hidden('a-key-fact-not-shown', withView(facts.slice(1)), [{ check: 'keyFacts', field: 'id' }]),
+      hidden(
+        'every-cell-is-a-key-fact-without-roles',
+        withView(facts, {}, {
+          ...invoice,
+          lineItems: { columns: ['Item', 'Amount', 'Note'], rows: [{ Item: 'Web', Amount: 145200, Note: 'x' }] },
+        }),
+        [{ check: 'keyFacts', field: 'lineItems.rows.0.Note' }],
+      ),
+      shown('a-body-shown-over-ranges-without-its-markdown-marks', withView([date, body(1, [2, 7]), body(2, [10, 15])], {}, letter)),
+      hidden('a-word-of-the-body-not-shown', withView([date, body(1, [2, 7])], {}, letter), [
+        { check: 'keyFacts', field: 'body.content' },
+      ]),
+      hidden('a-signature-not-drawn', withView(signedFacts, {}, signed), [
+        { check: 'keyFacts', field: 'signatory.visualSignature' },
+      ]),
+      shown('a-signature-drawn', withView([...signedFacts, signature], {}, signed)),
+      // A$1,452.00 is 10 characters: 60 pixels at 12, 45 at 9, three quarters of 12.
+      shown('a-value-fitting-at-three-quarters-of-its-size', withView(at(2, { width: 45 }))),
+      hidden('a-value-not-fitting-at-three-quarters-of-its-size', withView(at(2, { width: 44.99 })), [
+        { check: 'shownInFull', element: 2 },
+      ]),
+      hidden(
+        'a-character-without-a-glyph-in-its-font',
+        withView(facts, {
+          fonts: {
+            body: { ...font, glyphs: Object.fromEntries(Object.entries(font.glyphs).filter(([char]) => char !== '$')) },
+          },
+        }),
+        [
+          { check: 'shownInFull', element: 2 },
+          { check: 'shownInFull', element: 4 },
+        ],
+      ),
+      hidden('a-fact-outside-the-page', withView(at(0, { x: -1 })), [{ check: 'notHidden', element: 0 }]),
+      hidden('a-fact-covered-by-a-later-element', withView([...facts, rect({ width: 50, height: 50, fill: '#ffffff' })]), [
+        { check: 'notHidden', element: 0 },
+        { check: 'notHidden', element: 1 },
+      ]),
+      hidden(
+        'a-fact-over-an-image',
+        withView([{ type: 'image', image: 'logo', x: 0, y: 0, width: 50, height: 22 }, ...facts], { images: { logo: pixels } }),
+        [{ check: 'notHidden', element: 1 }],
+      ),
+      // The first fact's box runs from 20.4 to 32.4: its last row of points is at 31.9.
+      shown('white-on-a-dark-band-under-every-point', withView([rect({ height: 32, fill: '#0f1b2d' }), ...at(0, { colour: '#ffffff' })])),
+      hidden(
+        'white-on-a-dark-band-missing-its-last-row',
+        withView([rect({ height: 31, fill: '#0f1b2d' }), ...at(0, { colour: '#ffffff' })]),
+        [{ check: 'notHidden', element: 1 }],
+      ),
+      shown('a-light-translucent-tint', withView([rect({ fill: '#0f1b2d1a' }), ...facts])),
+      hidden(
+        'a-dark-translucent-tint',
+        withView([rect({ fill: '#0f1b2dcc' }), ...facts]),
+        [1, 2, 3, 4, 5].map((element) => ({ check: 'notHidden', element })),
+      ),
+      shown(
+        'a-gradient-light-where-the-facts-are',
+        withView([rect({ fill: { linear: { from: [0, 0], to: [600, 0], stops: [[0, '#ffffff'], [1, '#0f1b2d']] } } }), ...facts]),
+      ),
+      hidden(
+        'a-gradient-dark-where-the-facts-are',
+        withView([rect({ fill: { linear: { from: [0, 0], to: [100, 0], stops: [[0, '#ffffff'], [1, '#0f1b2d']] } } }), ...facts]),
+        [1, 2, 3, 4, 5].map((element) => ({ check: 'notHidden', element })),
+      ),
+      hidden(
+        'an-even-odd-hole-under-only-the-first-two-facts',
+        withView([{ type: 'path', d: 'M0 0H600V400H0Z M0 0H300V60H0Z', fill: '#0f1b2d', fillRule: 'evenodd' }, ...facts]),
+        [3, 4, 5].map((element) => ({ check: 'notHidden', element })),
+      ),
+      // The corner's circle is centred at (125, 135), radius 120: each fact's point (10.5, baseline −
+      // 9.1) lies outside it for the first four facts, and inside it for the fifth.
+      hidden(
+        'a-rounded-corner-leaving-the-first-four-facts-partly-on-the-page',
+        withView([rect({ x: 5, y: 15, width: 300, height: 300, radius: 120, fill: '#0f1b2d' }), ...white]),
+        [1, 2, 3, 4].map((element) => ({ check: 'notHidden', element })),
+      ),
+    ],
+    written: [
+      written('money-in-dollars', { kind: 'money', amount: 145200, currency: 'AUD' }, { format: money }, 'A$1,452.00'),
+      written(
+        'money-in-euros',
+        { kind: 'money', amount: 145200, currency: 'EUR' },
+        { format: { money: { group: '.', decimal: ',', suffix: ' €' } } },
+        '1.452,00 €',
+      ),
+      written(
+        'money-in-yen-without-decimals',
+        { kind: 'money', amount: 4997, currency: 'JPY' },
+        { format: { money: { group: ',', decimal: '.', prefix: '¥' } } },
+        '¥4,997',
+      ),
+      written('money-negative', { kind: 'money', amount: -2500, currency: 'AUD' }, { format: money }, '-A$25.00'),
+      written('money-in-dinars-three-decimals', { kind: 'money', amount: 5, currency: 'KWD' }, { format: money }, 'A$0.005'),
+      written('date-from-its-utc-day', { kind: 'date', date: '2026-11-25T23:30:00.000-05:00' }, { format: { date: 'd MMM yyyy' } }, '26 Nov 2026'),
+      written('date-month-first', { kind: 'date', date: '2026-11-25T03:00:00.000Z' }, { format: { date: 'MMMM d, yyyy' } }, 'November 25, 2026'),
+      written('date-numeric', { kind: 'date', date: '2026-01-05T03:00:00.000Z' }, { format: { date: 'dd/MM/yyyy' } }, '05/01/2026'),
+      written('percent-whole', { kind: 'percent', basisPoints: 1000 }, { format: { percent: { decimals: 0, decimal: '.' } } }, '10%'),
+      written('percent-two-decimals', { kind: 'percent', basisPoints: 1050 }, { format: { percent: { decimals: 2, decimal: ',' } } }, '10,50%'),
+      written(
+        'text-in-groups',
+        { kind: 'text', text: '51824753556' },
+        { format: { groups: { sizes: [2, 3, 3, 3], separator: ' ' } } },
+        '51 824 753 556',
+      ),
+      written('text-in-a-range', { kind: 'text', text: '79 Barlow Boulevard' }, { range: [3, 9] }, 'Barlow'),
+    ],
+  };
+}
+
 export function documents12() {
   const inv = base.invoice;
   const rows = (discount) => ({
