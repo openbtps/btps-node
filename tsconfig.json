@@ -9,13 +9,15 @@
     "noEmit": true,
     "baseUrl": "./src",
     "paths": {
-      "@core/*": ["core/*"]
+      "@core/*": ["core/*"],
+      "@btps/sdk/client": ["client/index.ts"],
+      "@btps/sdk/server": ["server/index.ts"]
     },
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "isolatedModules": true
   },
-  "include": ["src", "**/*.test.ts", "**/*.spec.ts"],
+  "include": ["src", "packages/boundview/src", "**/*.test.ts", "**/*.spec.ts"],
   "exclude": ["node_modules", "dist", "examples"]
 }

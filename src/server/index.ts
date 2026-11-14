@@ -18,8 +18,10 @@ export {
   trustResponseProblem,
 } from '@core/server/schemas/helpers.js';
 // Whether a BoundView may be shown, and each bound value as a receiver draws it.
+export { boundValue, type BoundValue } from '@core/server/schemas/boundViewBindings.js';
 export {
   checkBoundView,
+  boundViewResultOf,
   writtenValue,
   CONTRAST_WORK_LIMIT,
   type BTPBoundViewResult,

@@ -94,6 +94,13 @@
     "build:strip-comments": "node build/stripComments.mjs"
   },
   "devDependencies": {
+    "@fontsource/arimo": "^5.3.0",
+    "@fontsource/caladea": "^5.3.0",
+    "@fontsource/carlito": "^5.3.0",
+    "@fontsource/caveat": "^5.3.0",
+    "@fontsource/cousine": "^5.3.0",
+    "@fontsource/tinos": "^5.3.0",
+    "@resvg/resvg-wasm": "2.6.2",
     "@types/lodash": "^4",
     "@types/proper-lockfile": "^4",
     "@types/split2": "^4",
@@ -114,7 +121,9 @@
     "eslint-plugin-import": "^2.29.0",
     "fast-glob": "^3.3.3",
     "nodemon": "^3.0.0",
+    "opentype.js": "^2.0.0",
     "ora": "^8.2.0",
+    "playwright-core": "^1.56.0",
     "prettier": "^3.0.0",
     "rimraf": "^6.0.1",
     "strip-comments": "^2.0.1",
