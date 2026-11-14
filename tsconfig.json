@@ -10,7 +10,7 @@
     "baseUrl": "./src",
     "paths": {
       "@core/*": ["core/*"],
-      "@btps/sdk/boundview": ["boundview.ts"]
+      "@btps/sdk/boundview": ["core/server/schemas/boundView.ts"]
     },
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,

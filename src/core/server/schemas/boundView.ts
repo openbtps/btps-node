@@ -13,8 +13,8 @@ export {
   type BTPBoundView,
   type BTPBoundViewElement,
   type BTPBoundViewFont,
-} from '@core/server/schemas/boundViewSchema.js';
-export { boundValue, bindingProblem, type BoundValue } from '@core/server/schemas/boundViewBindings.js';
+} from './boundViewSchema.js';
+export { boundValue, bindingProblem, type BoundValue } from './boundViewBindings.js';
 export {
   checkBoundView,
   boundViewResultOf,
@@ -23,4 +23,4 @@ export {
   type BTPBoundViewResult,
   type BTPBoundViewProblem,
   type BTPBoundViewCheck,
-} from '@core/server/schemas/boundViewChecks.js';
+} from './boundViewChecks.js';

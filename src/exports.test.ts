@@ -77,7 +77,7 @@ const entryPoints: Array<[string, () => Promise<Record<string, unknown>>, string
   ],
   [
     '@btps/sdk/boundview',
-    () => import('./boundview.js'),
+    () => import('./core/server/schemas/boundView.js'),
     ['BtpBoundViewSchema', 'boundValue', 'checkBoundView', 'boundViewResultOf', 'writtenValue'],
   ],
 ];
