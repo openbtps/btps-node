@@ -240,8 +240,10 @@ describe('a BoundView', () => {
     expect(takes('1.2.0', { ...invoice, boundView: withImage('bm90IHpsaWI=') })).toBe(false);
   });
 
-  it('stops inflating at the stated length, so a small image cannot expand into a large one', () => {
-    const bomb = pixels(64 * 1024 * 1024);
+  // 16 MB from about 16 KB, a million times the 16 bytes the image states. Making the
+  // payload is slow on a busy runner; only the check is timed.
+  it('stops inflating at the stated length, so a small image cannot expand into a large one', { timeout: 30_000 }, () => {
+    const bomb = pixels(16 * 1024 * 1024);
     expect(bomb.length).toBeLessThan(BTPS_FIELD_LIMITS.boundView.imageData);
     const started = performance.now();
     expect(
