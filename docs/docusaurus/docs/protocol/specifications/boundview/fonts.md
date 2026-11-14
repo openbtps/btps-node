@@ -97,10 +97,11 @@ The names a `fallback` may hold:
 | `cousine` | An open font with Courier New's widths | Bundled with the BTPS renderer |
 | `carlito` | An open font with Calibri's widths | Bundled with the BTPS renderer |
 | `caladea` | An open font with Cambria's widths | Bundled with the BTPS renderer |
-| `sans-serif`, `serif`, `monospace` | A receiver's own font of that kind | The receiver |
+| `sans-serif`, `serif`, `monospace` | Drawn with Arimo, Tinos and Cousine respectively | Bundled with the BTPS renderer |
 
-The first five are bundled with the BTPS renderer, so they look the same on
-every receiver; the last three are a receiver's own.
+Every name is drawn with a font bundled with the BTPS renderer: `sans-serif`,
+`serif` and `monospace` are Arimo, Tinos and Cousine. So a label looks the
+same on every receiver.
 
 :::tip A font that could not be captured
 A font that is only `fallback`, with no `glyphs`, is how a sender says "draw

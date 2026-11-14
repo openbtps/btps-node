@@ -23,7 +23,7 @@
   ],
   "sideEffects": false,
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && node -e \"require('fs').copyFileSync(require.resolve('@resvg/resvg-wasm/index_bg.wasm'), 'dist/engine.wasm')\"",

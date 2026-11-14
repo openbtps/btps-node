@@ -22,7 +22,9 @@ these rules say.
 
 ## Order and the page
 
-1. The page is filled with `page.background`, white when absent.
+1. The page is filled with white, then `page.background`, when present, is
+   drawn over it: a background with alpha is blended over white, as
+   [Checks](./checks.md#contrast) says.
 2. Each element is drawn in the order of `elements`, over those before it.
 3. Nothing outside the page is drawn.
 
@@ -67,10 +69,13 @@ string is its `text`. Then:
 
 ## Signatures
 
-A drawn signature's strokes, on their 1,000 by 300 canvas, are scaled to fit
-the `signature` element's box, keeping their proportions, centred, and
-stroked with round ends and joins in `colour`. A typed signature is set in
-Caveat, bundled with the renderer, sized to fit the box.
+- **Drawn.** The strokes, on their 1,000 by 300 canvas, are scaled to fit
+  the `signature` element's box, keeping their proportions, and centred.
+  They are stroked in `colour` with a width of 8 units of that canvas,
+  scaled with it, with round ends and joins.
+- **Typed.** The text is set in Caveat, bundled with the renderer, at the
+  size where it fills the box's width or its height (the font's ascent plus
+  descent), whichever is smaller, and centred both ways.
 
 ## What may differ
 
