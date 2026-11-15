@@ -44,8 +44,8 @@ describe('an image as a PNG', () => {
 
   // Making and reading the payload is slow on a busy runner, so it has time of its own.
   it('never inflates past width × height × 4 bytes, whatever the data holds', { timeout: 30_000 }, () => {
-    // 16 MB of zeros for an image that states 2 by 2: the output is held to 16 bytes.
-    const bomb = base64(zlibSync(new Uint8Array(16 * 1024 * 1024)));
+    // 64 MB of zeros for an image that states 2 by 2: the output is held to 16 bytes.
+    const bomb = base64(zlibSync(new Uint8Array(64 * 1024 * 1024)));
     const png = Buffer.from(pngOf({ width: 2, height: 2, encoding: 'rgba8-deflate', data: bomb }), 'base64');
     expect(pixelsOf(png, 2)).toEqual(new Array(16).fill(0));
   });
