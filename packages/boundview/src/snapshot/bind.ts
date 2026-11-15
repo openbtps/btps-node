@@ -418,14 +418,14 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
   // A place inside a longer match of another field is that field's (a description "Studio" in the name "Ζήτα Studio").
   const longer = fields
     .filter(({ field }) => !field.startsWith('lineItems.rows.'))
-    .flatMap(({ field, value }) => placesOf(field, value).map(({ placed }) => new Set(placed.map(({ run, at }) => `${run}:${at}`))));
-  /** `whole`: the match `placed` is part of; another field's match of exactly that text is the same value, not longer. */
-  const insideLonger = (placed: Placed, whole: Placed = placed) =>
+    .flatMap(({ field, value }) => placesOf(field, value).map(({ placed }) => ({ kind: value.kind, at: new Set(placed.map(({ run, at }) => `${run}:${at}`)) })));
+  /** `whole`: the match `placed` is part of; another field's match of exactly that text, and of its kind, is the same value, not longer. */
+  const insideLonger = (placed: Placed, whole: Placed = placed, kind?: BoundValue['kind']) =>
     longer.some(
       (other) =>
-        other.size > placed.length &&
-        placed.every(({ run, at }) => other.has(`${run}:${at}`)) &&
-        !(other.size === whole.length && whole.every(({ run, at }) => other.has(`${run}:${at}`))),
+        other.at.size > placed.length &&
+        placed.every(({ run, at }) => other.at.has(`${run}:${at}`)) &&
+        !(other.kind === kind && other.at.size === whole.length && whole.every(({ run, at }) => other.at.has(`${run}:${at}`))),
     );
   const lineHeight = (span: Span) => Math.max(1, span.bottom - span.top);
 
@@ -448,12 +448,15 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
       .filter(({ placed }) => !placed.some(({ run, at }) => used.has(`${run}:${at}`)) && !insideLonger(placed))
       .map((place) => {
         const span = spanOf(place.placed);
-        const near = { top: span.top, bottom: span.bottom + 1.5 * (cells.length + 1) * lineHeight(span) };
+        // Above it too: a cell of several lines aligned to the middle of its row starts above its description.
+        const reach = 1.5 * (cells.length + 1) * lineHeight(span);
+        const near = { top: span.top - reach, bottom: span.bottom + reach };
         // Which of its other cells stand near it, and how near: a description is where its own cells are.
+        // In whole lines: a cell aligned to the middle of its row is no further than one on its first line.
         const distances = others.flatMap(({ field, value }) => {
           const tops = placesOf(field, value, within(near))
             .filter(({ placed }) => !insideLonger(placed))
-            .map(({ placed }) => Math.abs(top((placed[0] as Placed[number]).run) - span.top));
+            .map(({ placed }) => Math.floor(Math.abs(top((placed[0] as Placed[number]).run) - span.top) / lineHeight(span)));
           return tops.length > 0 ? [Math.min(...tops)] : [];
         });
         const distance = distances.reduce((sum, d) => sum + d, 0);
@@ -461,7 +464,11 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
       })
       // Most of its cells near it; then after the row before it; then nearest them; then first on the page.
       .sort((a, b) => b.close - a.close || Number(b.below) - Number(a.below) || a.distance - b.distance || a.span.top - b.span.top);
-    const best = candidates[0];
+    // Rows written alike are in their order: of places as good but for a line a cell, the first on the page.
+    const first = candidates[0];
+    const best = first && candidates
+      .filter((c) => c.close === first.close && c.below === first.below && c.distance <= first.distance + others.length)
+      .reduce((a, b) => (b.span.top < a.span.top ? b : a));
     if (best) for (const { run, at } of best.place.placed) used.add(`${run}:${at}`);
     chosen.push({ cells: ordered, ...(best && { anchor: { ...best.place, value: anchorCell.value }, span: best.span }) });
   }
@@ -479,11 +486,13 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
     const from = previous?.bottom ?? span.top - reach;
     const to = next?.top ?? span.bottom + reach;
     const stretch = (run: number) => bottom(run) > from && top(run) < to;
-    for (const { field, value } of cells) {
+    // The longest written first, so an amount "CHF 3 150,00" is its own before a tax "CHF 150,00" looks inside it.
+    const written = (cell: (typeof cells)[number]) => Math.max(0, ...writings(cell.field, cell.value).map(({ text }) => [...text].length));
+    for (const { field, value } of [...cells].sort((a, b) => written(b) - written(a))) {
       if (field === anchor.bind.field) continue;
       // Never a place inside a longer match of another field: a quantity "10" in a date "10/02/2026".
       // An amount by its digits: "A1" is an invoice number, not the amount 1 with a prefix "A".
-      const own = (only: (run: number) => boolean) => placesOf(field, value, only).find(({ placed, core }) => !insideLonger(core ?? placed, placed));
+      const own = (only: (run: number) => boolean) => placesOf(field, value, only).find(({ placed, core }) => !insideLonger(core ?? placed, placed, value.kind));
       const place = own(within(span)) ?? own(stretch);
       if (place) take(place, value);
     }
