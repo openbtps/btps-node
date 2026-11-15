@@ -13,14 +13,15 @@
  * same result.
  */
 
-import { CURRENCY_DECIMALS } from '../constants/currency.js';
 import {
   BtpBoundViewSchema,
   type BTPBoundView,
   type BTPBoundViewElement,
   type BTPBoundViewFont,
 } from './boundViewSchema.js';
-import { boundValue, type BoundValue } from './boundViewBindings.js';
+import { boundValue, markdownHidden, writtenValue, type BoundValue } from './boundViewBindings.js';
+
+export { writtenValue };
 
 type Doc = Record<string, unknown>;
 type TextElement = Extract<BTPBoundViewElement, { type: 'text' }>;
@@ -39,78 +40,6 @@ export type BTPBoundViewProblem = {
 
 /** Whether a BoundView may be shown, and why not when it may not. */
 export type BTPBoundViewResult = { show: true } | { show: false; problems: BTPBoundViewProblem[] };
-
-// ---- Writing a bound value ----
-
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
-const grouped = (digits: string, separator: string) =>
-  digits.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
-
-const writeDate = (iso: string, pattern: string): string => {
-  const date = new Date(iso);
-  const d = String(date.getUTCDate());
-  const dd = d.padStart(2, '0');
-  const MM = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const month = MONTHS[date.getUTCMonth()] ?? '';
-  const yyyy = String(date.getUTCFullYear());
-  const written: Record<string, string> = {
-    'd MMM yyyy': `${d} ${month.slice(0, 3)} ${yyyy}`,
-    'd MMMM yyyy': `${d} ${month} ${yyyy}`,
-    'MMM d, yyyy': `${month.slice(0, 3)} ${d}, ${yyyy}`,
-    'MMMM d, yyyy': `${month} ${d}, ${yyyy}`,
-    'dd/MM/yyyy': `${dd}/${MM}/${yyyy}`,
-    'MM/dd/yyyy': `${MM}/${dd}/${yyyy}`,
-    'dd.MM.yyyy': `${dd}.${MM}.${yyyy}`,
-    'dd-MM-yyyy': `${dd}-${MM}-${yyyy}`,
-    'yyyy-MM-dd': `${yyyy}-${MM}-${dd}`,
-  };
-  return written[pattern] ?? '';
-};
-
-/** A bound value as the receiver draws it, by its binding's format and range (Bindings and formats). */
-export const writtenValue = (value: BoundValue, bind: TextElement['bind']): string => {
-  const format = bind.format;
-  if (value.kind === 'money' && format && 'money' in format) {
-    const { group, decimal, prefix = '', suffix = '' } = format.money;
-    const places = CURRENCY_DECIMALS[value.currency as keyof typeof CURRENCY_DECIMALS] ?? 2;
-    const digits = String(Math.abs(value.amount)).padStart(places + 1, '0');
-    const whole = grouped(digits.slice(0, digits.length - places), group);
-    const number = places > 0 ? `${whole}${decimal}${digits.slice(-places)}` : whole;
-    return `${value.amount < 0 ? '-' : ''}${prefix}${number}${suffix}`;
-  }
-  if (value.kind === 'date' && format && 'date' in format) return writeDate(value.date, format.date);
-  if (value.kind === 'percent' && format && 'percent' in format) {
-    const { decimals, decimal } = format.percent;
-    return `${(value.basisPoints / 100).toFixed(decimals).replace('.', decimal)}%`;
-  }
-  if (value.kind !== 'text') return '';
-  if (format && 'groups' in format) {
-    const characters = [...value.text.replace(/ /g, '')];
-    const parts: string[] = [];
-    let at = 0;
-    for (const size of format.groups.sizes) {
-      parts.push(characters.slice(at, at + size).join(''));
-      at += size;
-    }
-    return parts.join(format.groups.separator);
-  }
-  const characters = [...value.text];
-  return bind.range ? characters.slice(bind.range[0], bind.range[1]).join('') : value.text;
-};
 
 const transformed = (text: string, transform?: 'uppercase' | 'lowercase') =>
   [...text]
@@ -449,9 +378,11 @@ const keyFacts = (document: Doc): string[] => {
   );
 };
 
-/** The characters of a text a BoundView must show: all but spaces, and in markdown its formatting marks. */
-const requiredCharacters = (text: string, markdown: boolean): boolean[] =>
-  [...text].map((char) => !/\s/u.test(char) && !(markdown && /[#*_`>-]/.test(char)));
+/** The characters of a written value a BoundView must show: all but spaces, and in markdown what is not drawn. */
+const requiredCharacters = (text: string, markdown: boolean): boolean[] => {
+  const hidden = markdown ? markdownHidden(text) : [];
+  return [...text].map((char, at) => !/\s/u.test(char) && !hidden[at]);
+};
 
 const isMarkdown = (document: Doc, field: string) => {
   const value = field === 'body.content' ? document.body : field === 'description' ? document.description : undefined;
@@ -471,22 +402,37 @@ export const checkBoundView = (document: Doc, view: BTPBoundView): BTPBoundViewR
     .map((element, index) => ({ element, index }))
     .filter((entry): entry is { element: TextElement; index: number } => entry.element.type === 'text');
 
-  // Key facts: each one the document carries is bound, a text one in every character it must show.
+  // Key facts: each one the document carries is written on the page, in every character it must show. A text shows a
+  // fact when it is bound to it, or to another field whose value it writes exactly the same (a receipt's total and the
+  // amount paid; its date and the day it was paid): what the page shows is that fact's value either way.
   for (const field of keyFacts(document)) {
-    const binds = texts.filter(({ element }) => element.bind.field === field).map(({ element }) => element.bind);
     const value = boundValue(document, field);
-    if (binds.length === 0) {
-      problems.push({ check: 'keyFacts', field, message: `${field} is a key fact and is not shown` });
-    } else if (value?.kind === 'text' && !binds.some((bind) => bind.range === undefined)) {
-      const shown = [...value.text].map(() => false);
-      for (const { range } of binds) {
-        for (let at = range?.[0] ?? 0; at < (range?.[1] ?? 0); at++) shown[at] = true;
-      }
-      const required = requiredCharacters(value.text, isMarkdown(document, field));
-      if (required.some((needed, at) => needed && !shown[at])) {
-        problems.push({ check: 'keyFacts', field, message: `every word of ${field} is shown` });
-      }
+    if (value === undefined) continue;
+    const markdown = isMarkdown(document, field);
+    // Each way the fact is written on the page, and which of its characters are shown that way.
+    const ways = new Map<string, { written: string[]; shown: boolean[] }>();
+    for (const { element } of texts) {
+      const other = boundValue(document, element.bind.field);
+      if (other === undefined || other.kind !== value.kind) continue;
+      const format = { format: element.bind.format } as TextElement['bind'];
+      const written = writtenValue(value, { ...format, field } as TextElement['bind']);
+      if (written === '' || writtenValue(other, { ...format, field: element.bind.field } as TextElement['bind']) !== written) continue;
+      if (element.bind.field !== field && isMarkdown(document, element.bind.field) !== markdown) continue;
+      const key = JSON.stringify(element.bind.format ?? null);
+      const way = ways.get(key) ?? { written: [...written], shown: [...written].map(() => false) };
+      const [from, to] = element.bind.range ?? [0, way.written.length];
+      for (let at = from; at < Math.min(to, way.written.length); at++) way.shown[at] = true;
+      ways.set(key, way);
     }
+    if (ways.size === 0) {
+      problems.push({ check: 'keyFacts', field, message: `${field} is a key fact and is not shown` });
+      continue;
+    }
+    const whole = [...ways.values()].some(({ written, shown }) => {
+      const required = requiredCharacters(written.join(''), markdown);
+      return required.every((needed, at) => !needed || shown[at]);
+    });
+    if (!whole) problems.push({ check: 'keyFacts', field, message: `every word of ${field} is shown` });
   }
   const signatory = (document.signatory ?? {}) as { visualSignature?: unknown };
   if (signatory.visualSignature !== undefined && !view.elements.some(({ type }) => type === 'signature')) {

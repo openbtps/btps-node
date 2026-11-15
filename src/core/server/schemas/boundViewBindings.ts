@@ -11,6 +11,9 @@
  * document does not carry, is refused with the document.
  */
 
+import { CURRENCY_DECIMALS } from '../constants/currency.js';
+import type { BTPBoundViewElement } from './boundViewSchema.js';
+
 export type BoundKind = 'text' | 'money' | 'date' | 'percent';
 
 /** A bound field's value: text, a date, whole basis points, or an amount in minor units of its currency. */
@@ -167,8 +170,8 @@ type Bind = {
   range?: [number, number];
 };
 
-/** Why a binding cannot be drawn from `document`, or undefined when it can. */
-export const bindingProblem = (document: Doc, bind: Bind): string | undefined => {
+/** Why a binding's format cannot write `document`'s value, or undefined when it can. */
+const formatProblem = (document: Doc, bind: Bind): string | undefined => {
   const value = boundValue(document, bind.field);
   if (value === undefined) return `binds ${bind.field}, which a BoundView may not bind or the document does not carry`;
   const format = bind.format ?? {};
@@ -184,8 +187,139 @@ export const bindingProblem = (document: Doc, bind: Bind): string | undefined =>
     const sum = format.groups.sizes.reduce((total, part) => total + part, 0);
     if (sum !== length) return "a groups format's sizes add up to the value's length";
   }
-  if (bind.range !== undefined && bind.range[1] > [...value.text].length) {
-    return "a range lies inside the value's characters";
-  }
   return undefined;
+};
+
+/** Why a binding's range cannot be drawn, or undefined when it can: it lies inside the value as written. */
+const rangeProblem = (document: Doc, bind: Bind): string | undefined => {
+  if (bind.range === undefined) return undefined;
+  const value = boundValue(document, bind.field);
+  if (value === undefined) return undefined;
+  const written = [...writtenValue(value, { ...bind, range: undefined } as WrittenBind)];
+  return bind.range[1] > written.length ? "a range lies inside the value's characters as written" : undefined;
+};
+
+/** Why a binding cannot be drawn from `document`, or undefined when it can. */
+export const bindingProblem = (document: Doc, bind: Bind): string | undefined =>
+  formatProblem(document, bind) ?? rangeProblem(document, bind);
+
+// ---- Writing a bound value ----
+
+type WrittenBind = Extract<BTPBoundViewElement, { type: 'text' }>['bind'];
+
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+const grouped = (digits: string, separator: string) =>
+  digits.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+
+const writeDate = (iso: string, pattern: string): string => {
+  const date = new Date(iso);
+  const d = String(date.getUTCDate());
+  const dd = d.padStart(2, '0');
+  const MM = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const month = MONTHS[date.getUTCMonth()] ?? '';
+  const yyyy = String(date.getUTCFullYear());
+  const written: Record<string, string> = {
+    'd MMM yyyy': `${d} ${month.slice(0, 3)} ${yyyy}`,
+    'd MMMM yyyy': `${d} ${month} ${yyyy}`,
+    'MMM d, yyyy': `${month.slice(0, 3)} ${d}, ${yyyy}`,
+    'MMMM d, yyyy': `${month} ${d}, ${yyyy}`,
+    'dd/MM/yyyy': `${dd}/${MM}/${yyyy}`,
+    'MM/dd/yyyy': `${MM}/${dd}/${yyyy}`,
+    'dd.MM.yyyy': `${dd}.${MM}.${yyyy}`,
+    'dd-MM-yyyy': `${dd}-${MM}-${yyyy}`,
+    'yyyy-MM-dd': `${yyyy}-${MM}-${dd}`,
+  };
+  return written[pattern] ?? '';
+};
+
+/** A bound value written whole, by its binding's format. */
+const writtenWhole = (value: BoundValue, format: WrittenBind['format']): string => {
+  if (value.kind === 'money' && format && 'money' in format) {
+    const { group, decimal, prefix = '', suffix = '' } = format.money;
+    const places = CURRENCY_DECIMALS[value.currency as keyof typeof CURRENCY_DECIMALS] ?? 2;
+    const digits = String(Math.abs(value.amount)).padStart(places + 1, '0');
+    const whole = grouped(digits.slice(0, digits.length - places), group);
+    const number = places > 0 ? `${whole}${decimal}${digits.slice(-places)}` : whole;
+    return `${value.amount < 0 ? '-' : ''}${prefix}${number}${suffix}`;
+  }
+  if (value.kind === 'date' && format && 'date' in format) return writeDate(value.date, format.date);
+  if (value.kind === 'percent' && format && 'percent' in format) {
+    const { decimals, decimal } = format.percent;
+    return `${(value.basisPoints / 100).toFixed(decimals).replace('.', decimal)}%`;
+  }
+  if (value.kind !== 'text') return '';
+  if (format && 'groups' in format) {
+    const characters = [...value.text.replace(/ /g, '')];
+    const parts: string[] = [];
+    let at = 0;
+    for (const size of format.groups.sizes) {
+      parts.push(characters.slice(at, at + size).join(''));
+      at += size;
+    }
+    return parts.join(format.groups.separator);
+  }
+  return value.text;
+};
+
+/**
+ * A bound value as the receiver draws it, by its binding's format and range (Bindings and formats): the value written
+ * by its format, and of that, the code points its range names, when it has one.
+ */
+export const writtenValue = (value: BoundValue, bind: WrittenBind): string => {
+  const whole = writtenWhole(value, bind.format);
+  return bind.range ? [...whole].slice(bind.range[0], bind.range[1]).join('') : whole;
+};
+
+/**
+ * Which characters of markdown text a renderer does not draw as themselves (Checks: Key facts): its marks
+ * (`# * _ \` > - +`), a backslash that escapes the next character, a link's brackets and destination, and an ordered
+ * list's number, which is drawn as the list's marker rather than as text.
+ */
+export const markdownHidden = (text: string): boolean[] => {
+  const characters = [...text];
+  const hidden = characters.map((char) => /[#*_`>+-]/.test(char));
+  const mark = (from: number, to: number) => {
+    for (let at = from; at < to; at++) hidden[at] = true;
+  };
+  characters.forEach((char, at) => {
+    if (char === '\\' && /[\p{P}\p{S}]/u.test(characters[at + 1] ?? '')) hidden[at] = true;
+  });
+  const joined = characters.join('');
+  // Offsets below are in UTF-16 units; map them to code points.
+  const index: number[] = [];
+  characters.forEach((char, at) => {
+    for (let unit = 0; unit < char.length; unit++) index.push(at);
+  });
+  index.push(characters.length);
+  const cp = (unit: number) => index[unit] ?? characters.length;
+  for (const match of joined.matchAll(/\[([^\]\n]*)\]\(([^)\n]*)\)/g)) {
+    const start = match.index ?? 0;
+    const labelEnd = start + 1 + (match[1] ?? '').length;
+    mark(cp(start), cp(start + 1));
+    mark(cp(labelEnd), cp(start + match[0].length));
+  }
+  for (const match of joined.matchAll(/<(https?:\/\/[^>\s]+)>/g)) {
+    const start = match.index ?? 0;
+    mark(cp(start), cp(start + 1));
+    mark(cp(start + match[0].length - 1), cp(start + match[0].length));
+  }
+  for (const match of joined.matchAll(/^([ \t]*)(\d{1,9}[.)])(?=[ \t])/gm)) {
+    const start = (match.index ?? 0) + (match[1] ?? '').length;
+    mark(cp(start), cp(start + (match[2] ?? '').length));
+  }
+  return hidden;
 };

@@ -212,3 +212,105 @@ describe('binding a preview by value', () => {
     ]);
   });
 });
+
+/** A line of text where the page laid it out: its left edge, baseline, and the text node it is a line of. */
+const laid = (text: string, { left = 0, baseline = 0, node }: { left?: number; baseline?: number; node?: number } = {}): Run => ({
+  text,
+  chars: [...text].map((_, i) => ({ left: left + i * 6, right: left + i * 6 + 6 })),
+  baseline,
+  top: baseline - 10,
+  bottom: baseline + 3,
+  ...(node !== undefined && { node }),
+  size: 12,
+});
+const facts = (document: Record<string, unknown>, runs: Run[]) =>
+  shown(runs, bindRuns(document, runs))
+    .filter((segment) => segment.bind)
+    .map(({ text, bind }) => [text, bind?.field, bind?.range]);
+
+describe('binding a value however the page lays it out (the design agreed 2026-11-14)', () => {
+  const sale = (rows: Record<string, unknown>[], extra: Record<string, unknown> = {}) => ({
+    type: 'invoice',
+    title: 'Care',
+    id: 'INV-0042',
+    issuedAt: '2026-11-15T00:00:00.000Z',
+    totalAmount: { amount: 49500, currency: 'AUD' },
+    lineItems: { columns: ['Description', 'Amount'], roles: { Description: 'description', Amount: 'lineTotal' }, rows },
+    ...extra,
+  });
+
+  it('finds a line whose description wraps over two lines, and its amount beside it', () => {
+    const invoice = sale([{ Description: 'Website maintenance and security updates', Amount: 49500 }]);
+    // In the page's order: the description's text node, both of its lines, then the amount's.
+    const runs = [
+      laid('Website maintenance and', { baseline: 100, node: 1 }),
+      laid('security updates', { baseline: 116, node: 1 }),
+      laid('A$495.00', { left: 400, baseline: 100, node: 2 }),
+    ];
+    expect(facts(invoice, runs)).toEqual([
+      ['Website maintenance and', 'lineItems.rows.0.Description', [0, 23]],
+      ['security updates', 'lineItems.rows.0.Description', [24, 40]],
+      ['A$495.00', 'lineItems.rows.0.Amount', undefined],
+    ]);
+  });
+
+  it('finds a line laid out as a card: its amount on the line below its description', () => {
+    const invoice = sale([
+      { Description: 'Website care', Amount: 49500 },
+      { Description: 'Hosting', Amount: 1200 },
+    ], { totalAmount: { amount: 50700, currency: 'AUD' } });
+    const runs = [
+      laid('Website care', { baseline: 100, node: 1 }),
+      laid('A$495.00', { baseline: 116, node: 2 }),
+      laid('Hosting', { baseline: 140, node: 3 }),
+      laid('A$12.00', { baseline: 156, node: 4 }),
+      laid('Total A$507.00', { baseline: 200, node: 5 }),
+    ];
+    expect(facts(invoice, runs).map(([text, field]) => [text, field])).toEqual([
+      ['Website care', 'lineItems.rows.0.Description'],
+      ['A$495.00', 'lineItems.rows.0.Amount'],
+      ['Hosting', 'lineItems.rows.1.Description'],
+      ['A$12.00', 'lineItems.rows.1.Amount'],
+      ['A$507.00', 'totalAmount'],
+    ]);
+  });
+
+  it('joins a name split across elements, "300 Empire" in an <h1> and an <h2>', () => {
+    const invoice = sale([], { issuer: { name: '300 Empire' } });
+    const runs = [laid('300', { baseline: 30, node: 1 }), laid('Empire', { baseline: 60, node: 2 })];
+    expect(facts(invoice, runs)).toEqual([
+      ['300', 'issuer.name', [0, 3]],
+      ['Empire', 'issuer.name', [4, 10]],
+    ]);
+  });
+
+  it('joins a number set in two touching elements, <span>INV-</span><b>0042</b>', () => {
+    const runs = [laid('INV-', { baseline: 30, node: 1 }), laid('0042', { left: 24, baseline: 30, node: 2 })];
+    expect(facts(sale([]), runs)).toEqual([
+      ['INV-', 'id', [0, 4]],
+      ['0042', 'id', [4, 8]],
+    ]);
+  });
+
+  it('finds a value after a label in the same element, "Note: …"', () => {
+    const invoice = sale([], { description: 'Thanks for your business.' });
+    expect(facts(invoice, [laid('Note: Thanks for your business.')])).toEqual([['Thanks for your business.', 'description', undefined]]);
+  });
+
+  it('binds an amount the page breaks inside its number, by its ranges as written', () => {
+    const runs = [laid('A$49', { baseline: 30, node: 1 }), laid('5.00', { baseline: 46, node: 1 })];
+    expect(facts(sale([]), runs)).toEqual([
+      ['A$49', 'totalAmount', [0, 4]],
+      ['5.00', 'totalAmount', [4, 8]],
+    ]);
+  });
+
+  it('binds an invoice number holding its date, and the date shown on its own', () => {
+    const invoice = sale([], { id: 'INV-2026-11-15' });
+    const runs = [laid('INV-2026-11-15', { node: 1 }), laid('Issued 15 Nov 2026', { baseline: 20, node: 2 })];
+    expect(facts(invoice, runs).map(([text, field]) => [text, field])).toEqual([
+      ['INV-2026-11-15', 'id'],
+      ['15 Nov 2026', 'issuedAt'],
+    ]);
+  });
+});

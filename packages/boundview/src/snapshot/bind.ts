@@ -8,20 +8,32 @@
 /*
  * Binding by value: which text in a preview shows which signed field, and in
  * which format. The preview is the platform's own; nothing in it is marked.
- * A run's text is matched against every way each field may be written, and a
- * binding is kept only when the receiver would write the field exactly as the
- * preview showed it (`writtenValue`), so a binding can never change a fact.
+ *
+ * The page's text is read as one stream, in the order the page has it, with
+ * each break between its lines and elements: a value may be split across
+ * elements (<h1>300</h1><h2>Empire</h2>, <span>INV-</span><b>0042</b>) or
+ * wrapped over lines, and is found whole all the same, then bound in the
+ * pieces it is drawn in, each by its range of the value as written. A binding
+ * is kept only when the receiver would write the field exactly as the preview
+ * showed it (`writtenValue`), so a binding can never change a fact.
  */
 
-import { boundValue, writtenValue, type BoundValue } from '@btps/sdk/boundview';
+import { boundValue, markdownHidden, writtenValue, type BoundValue } from '@btps/sdk/boundview';
 
 /** A line of one text node as laid out: its text, and each character's box. */
 export type Run = {
   text: string;
   /** One box a code point of `text`: left and right edges. */
   chars: { left: number; right: number }[];
-  /** The line's baseline, used to tell rows of a table apart. */
+  /** The line's baseline. */
   baseline: number;
+  /** The line's top and bottom; a pixel either side of its baseline when not given. */
+  top?: number;
+  bottom?: number;
+  /** Which text node it is a line of: the lines of one node are one text, wrapped. */
+  node?: number;
+  /** Its font size in pixels. */
+  size?: number;
 };
 
 type Bind = {
@@ -100,135 +112,235 @@ const writings = (field: string, value: BoundValue): { text: string; bind: Bind 
 };
 
 const isSpace = (char: string | undefined) => char === undefined || /\s/u.test(char);
-/**
- * Where a run's text `want` stands in `value` from `at`: the pieces of it that are the value's own characters, and
- * where the value goes on after it; undefined where it does not stand there. A space the run draws for other whitespace
- * in the value (a line break laid out as a space) ends a piece, so that each piece writes exactly what it shows.
- */
-const piecesAt = (value: string[], at: number, want: string[]) => {
-  const pieces: { from: number; to: number; at: number }[] = [];
-  let [i, v, start, valueStart] = [0, at, 0, at];
-  while (i < want.length) {
-    if (want[i] === value[v]) {
-      i++;
-      v++;
-    } else if (isSpace(want[i]) && value[v] !== undefined && isSpace(value[v])) {
-      if (i > start) pieces.push({ from: start, to: i, at: valueStart });
-      while (i < want.length && isSpace(want[i])) i++;
-      while (v < value.length && isSpace(value[v])) v++;
-      [start, valueStart] = [i, v];
-    } else {
-      return undefined;
-    }
-  }
-  if (i > start) pieces.push({ from: start, to: i, at: valueStart });
-  return { pieces, end: v };
-};
 /** Whether `field` is written in markdown (a letter's content, or a note), whose marks are not drawn. */
 const markdownOf = (document: Doc, field: string) => {
   const value = field === 'body.content' ? document.body : field === 'description' ? document.description : undefined;
   return typeof value === 'object' && value !== null && (value as { format?: unknown }).format === 'markdown';
 };
 /** A match starts and ends a word: nothing but space or punctuation beside it. */
-const isEdge = (char: string | undefined) => char === undefined || /[\s,.;:()[\]{}"'“”‘’!?/|–—-]/u.test(char);
+const isEdge = (char: string | undefined) => char === undefined || /[\s,.;:()[\]{}"'“”‘’!?/|–—·•-]/u.test(char);
+
+/*
+ * The stream: every run's characters in order, with a break between runs.
+ * - `wrap`: the next line of the same text node;
+ * - `join`: another element touching it on the same line (its own span or bold);
+ * - `space`: another element on the same line, a space or so apart;
+ * - `break`: anything else (another line, another block).
+ * A space in a value matches any break or whitespace; a value runs on without
+ * a space only across a `wrap` or a `join`.
+ */
+type Gap = 'wrap' | 'join' | 'space' | 'break';
+type Item = { run: number; at: number; char: string } | { gap: Gap };
+
+/** A value found in the stream: each of its characters' place, by run and code point, and its own index. */
+type Placed = { run: number; at: number; of: number }[];
 
 /**
  * Binds the preview's runs to `document`'s fields. Line items first, a row at
- * a time on its own band, so a line's amount is never taken for a total;
- * then every other field, the longest writing first, every place it appears.
- * Whatever is left is the sender's own words.
+ * a time where its cells stand together, so a line's amount is never taken for
+ * a total; then every other field, the longest writing first. Fields written
+ * alike share their places. Whatever is left is the sender's own words.
  */
 export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
   const characters = runs.map((run) => [...run.text]);
   const taken = characters.map((chars) => chars.map(() => false));
   const segments: Segment[] = [];
-  const free = (run: number, from: number, to: number) =>
-    taken[run]?.slice(from, to).every((used) => !used) ?? false;
-  const take = (run: number, from: number, to: number, bind: Bind) => {
-    for (let at = from; at < to; at++) (taken[run] as boolean[])[at] = true;
-    segments.push({ run, from, to, bind });
+  const top = (run: number) => runs[run]?.top ?? (runs[run]?.baseline ?? 0) - 1;
+  const bottom = (run: number) => runs[run]?.bottom ?? (runs[run]?.baseline ?? 0) + 1;
+
+  // ---- The stream ----
+  const stream: Item[] = [];
+  const startOf: number[] = [];
+  runs.forEach((run, index) => {
+    if (index > 0) {
+      const before = runs[index - 1] as Run;
+      const sameLine = Math.abs(before.baseline - run.baseline) < 2;
+      const gap = (run.chars[0]?.left ?? 0) - (before.chars.at(-1)?.right ?? 0);
+      const size = run.size ?? before.size ?? 12;
+      stream.push({
+        gap:
+          run.node !== undefined && run.node === before.node
+            ? 'wrap'
+            : sameLine && gap >= -1 && gap <= 0.15 * size
+              ? 'join'
+              : sameLine && gap > 0 && gap <= 1.2 * size
+                ? 'space'
+                : 'break',
+      });
+    }
+    startOf.push(stream.length);
+    (characters[index] as string[]).forEach((char, at) => stream.push({ run: index, at, char }));
+  });
+  /** Where each character first appears in the stream, so a search starts only where a value can. */
+  const byChar = new Map<string, number[]>();
+  stream.forEach((item, at) => {
+    if ('char' in item) byChar.set(item.char, [...(byChar.get(item.char) ?? []), at]);
+  });
+
+  const isFree = (placed: Placed) => placed.every(({ run, at }) => !(taken[run] as boolean[])[at]);
+  const charAt = (at: number) => {
+    const item = stream[at];
+    return item && 'char' in item ? item.char : undefined;
+  };
+  /** Whether what stands before `at` (or after `to`) ends a word: a break, an edge character, or nothing. */
+  const edgeBefore = (at: number) => {
+    const item = stream[at - 1];
+    return item === undefined || 'gap' in item ? item?.gap !== 'join' && item?.gap !== 'wrap' : isEdge(item.char);
+  };
+  const edgeAfter = (at: number) => {
+    const item = stream[at];
+    return item === undefined || 'gap' in item ? item?.gap !== 'join' && item?.gap !== 'wrap' : isEdge(item.char);
   };
 
   /**
-   * Where `text` stands in a run, from `after` on: as a whole word, or for an
-   * amount anywhere, its prefix and suffix being checked by `moneyAt`.
+   * `want` matched from stream position `start`: its characters' places, and where the stream goes on after it;
+   * undefined where it does not stand there. A space in `want` matches any run of whitespace and breaks; a character
+   * `hidden` says is not drawn (a markdown mark) may be missing.
    */
-  const find = (run: number, text: string, after = 0, whole = true): number => {
-    const chars = characters[run] as string[];
-    const want = [...text];
-    for (let at = after; at + want.length <= chars.length; at++) {
-      if (want.every((char, i) => chars[at + i] === char) && free(run, at, at + want.length)) {
-        if (!whole || (isEdge(chars[at - 1]) && isEdge(chars[at + want.length]))) return at;
-      }
-    }
-    return -1;
-  };
-
-  /** A money writing with its prefix and suffix: a currency sign or code beside the number. */
-  const moneyAt = (run: number, at: number, length: number, bind: Bind, value: BoundValue) => {
-    const chars = characters[run] as string[];
-    let from = at;
-    while (from > 0 && !isSpace(chars[from - 1]) && at - from < 8 && !/\d/.test(chars[from - 1] ?? '')) from--;
-    // A code before the number with a space between: "AUD 1,452.00".
-    if (from === at && chars[at - 1] === ' ' && /^[A-Z]{3}$/.test(chars.slice(at - 4, at - 1).join('')) && isSpace(chars[at - 5])) {
-      from = at - 4;
-    }
-    let to = at + length;
-    while (to < chars.length && !isSpace(chars[to]) && to - (at + length) < 8 && !/\d/.test(chars[to] ?? '')) to++;
-    if (to === at + length && chars[to] === ' ' && /^[A-Z]{3}$/.test(chars.slice(to + 1, to + 4).join('')) && isSpace(chars[to + 4])) {
-      to += 4;
-    }
-    // A negative amount is written with '-' before its prefix.
-    const sign = value.kind === 'money' && value.amount < 0 && chars[from] === '-' ? 1 : 0;
-    const prefix = chars.slice(from + sign, at).join('');
-    const suffix = chars.slice(at + length, to).join('');
-    if (!isEdge(chars[from - 1]) || !isEdge(chars[to])) return undefined;
-    const format = (bind.format as { money: { group: string; decimal: string } }).money;
-    const full: Bind = {
-      field: bind.field,
-      format: { money: { ...format, ...(prefix && { prefix }), ...(suffix && { suffix }) } },
-    };
-    const shown = chars.slice(from, to).join('');
-    return writtenValue(value, full as never) === shown && free(run, from, to) ? { from, to, bind: full } : undefined;
-  };
-
-  /**
-   * Binds every place a writing of `field` appears, in `only` runs if given; with `one`, only the first place free (a
-   * line's cell, which another cell of the same value may stand beside); with `look`, only says whether there is one.
-   */
-  const bindEverywhere = (field: string, value: BoundValue, only?: (run: number) => boolean, mode: 'all' | 'one' | 'look' = 'all') => {
-    let found = false;
-    for (const { text, bind } of writings(field, value).sort((a, b) => b.text.length - a.text.length)) {
-      const money = value.kind === 'money';
-      // An amount is found by its digits: its sign and prefix come before them.
-      const number = money && value.amount < 0 ? text.slice(1) : text;
-      for (let run = 0; run < runs.length; run++) {
-        if (only && !only(run)) continue;
-        for (let at = find(run, number, 0, !money); at !== -1; at = find(run, number, at + 1, !money)) {
-          if (money) {
-            const placed = moneyAt(run, at, [...number].length, bind, value);
-            if (placed) {
-              if (mode === 'look') return true;
-              take(run, placed.from, placed.to, placed.bind);
-              if (mode === 'one') return true;
-              found = true;
-            }
-          } else {
-            if (mode === 'look') return true;
-            take(run, at, at + [...number].length, bind);
-            if (mode === 'one') return true;
-            found = true;
-          }
+  const matchAt = (want: string[], hidden: boolean[], start: number): { placed: Placed; end: number } | undefined => {
+    const placed: Placed = [];
+    let w = 0;
+    let s = start;
+    while (w < want.length) {
+      const char = want[w] as string;
+      if (isSpace(char)) {
+        const from = w;
+        while (w < want.length && isSpace(want[w])) w++;
+        const spaces: Placed = [];
+        let broke = false;
+        let crossed = 0;
+        while (s < stream.length) {
+          const item = stream[s] as Item;
+          if ('gap' in item) broke = true;
+          else if (isSpace(item.char)) spaces.push({ run: item.run, at: item.at, of: from + spaces.length });
+          else break;
+          s++;
+          crossed++;
         }
+        // Spaces drawn as the value has them, the same characters on one line, are part of the piece; anything else
+        // (a line break in the value laid out as a space) divides it, so each piece writes exactly what it shows.
+        const same = spaces.every((space) => (characters[space.run] as string[])[space.at] === want[space.of]);
+        if (!broke && spaces.length === w - from && same) placed.push(...spaces);
+        if (crossed === 0) {
+          // A space the page does not draw: allowed only where a markdown mark beside it is not drawn either.
+          if (!(hidden[from - 1] || hidden[w] || from === 0)) return undefined;
+        }
+        continue;
       }
-      if (found) return true;
+      const item = stream[s];
+      if (item !== undefined && 'gap' in item && (item.gap === 'wrap' || item.gap === 'join') && placed.length > 0) {
+        s++;
+        continue;
+      }
+      if (item !== undefined && 'char' in item && item.char === char) {
+        placed.push({ run: item.run, at: item.at, of: w });
+        w++;
+        s++;
+        continue;
+      }
+      if (hidden[w]) {
+        w++;
+        continue;
+      }
+      return undefined;
+    }
+    return placed.length > 0 ? { placed, end: s } : undefined;
+  };
+
+  /** Every place `text` is written in the stream, whole, as a word (`word`), each free of any fact already bound. */
+  const findAll = (text: string, { word, markdown }: { word: boolean; markdown: boolean }): Placed[] => {
+    const want = [...text];
+    const hidden = markdown ? markdownHidden(text) : want.map(() => false);
+    let first = 0;
+    while (first < want.length && (hidden[first] || isSpace(want[first]))) first++;
+    if (first === want.length) return [];
+    const found: Placed[] = [];
+    let after = -1;
+    for (const start of byChar.get(want[first] as string) ?? []) {
+      if (start < after) continue;
+      if (word && !edgeBefore(start)) continue;
+      const match = matchAt(want.slice(first), hidden.slice(first), start);
+      if (!match || !isFree(match.placed)) continue;
+      if (word && !edgeAfter(match.end)) continue;
+      found.push(match.placed.map((place) => ({ ...place, of: place.of + first })));
+      after = match.end;
     }
     return found;
   };
 
+  /** An amount found by its digits, with its sign, prefix and suffix from the runs it starts and ends in. */
+  const moneyPlace = (placed: Placed, bind: Bind, value: BoundValue): { placed: Placed; bind: Bind } | undefined => {
+    const firstPlace = placed[0] as Placed[number];
+    const lastPlace = placed.at(-1) as Placed[number];
+    const head = characters[firstPlace.run] as string[];
+    const tail = characters[lastPlace.run] as string[];
+    const at = firstPlace.at;
+    let from = at;
+    while (from > 0 && !isSpace(head[from - 1]) && at - from < 8 && !/\d/.test(head[from - 1] ?? '')) from--;
+    // A code before the number with a space between: "AUD 1,452.00".
+    if (from === at && head[at - 1] === ' ' && /^[A-Z]{3}$/.test(head.slice(at - 4, at - 1).join('')) && isSpace(head[at - 5])) {
+      from = at - 4;
+    }
+    const end = lastPlace.at + 1;
+    let to = end;
+    while (to < tail.length && !isSpace(tail[to]) && to - end < 8 && !/\d/.test(tail[to] ?? '')) to++;
+    if (to === end && tail[to] === ' ' && /^[A-Z]{3}$/.test(tail.slice(to + 1, to + 4).join('')) && isSpace(tail[to + 4])) to += 4;
+    // A negative amount is written with '-' before its prefix.
+    const sign = value.kind === 'money' && value.amount < 0 && head[from] === '-' ? 1 : 0;
+    const prefix = head.slice(from + sign, at).join('');
+    const suffix = tail.slice(end, to).join('');
+    if (!isEdge(head[from - 1]) || !isEdge(tail[to])) return undefined;
+    const format = (bind.format as { money: { group: string; decimal: string } }).money;
+    const full: Bind = { field: bind.field, format: { money: { ...format, ...(prefix && { prefix }), ...(suffix && { suffix }) } } };
+    const lead = at - from;
+    const whole: Placed = [
+      ...Array.from({ length: lead }, (_, i) => ({ run: firstPlace.run, at: from + i, of: i })),
+      ...placed.map((place) => ({ ...place, of: place.of + lead })),
+      ...Array.from({ length: to - end }, (_, i) => ({ run: lastPlace.run, at: end + i, of: lead + placed.length + i })),
+    ];
+    const shown = whole.map(({ run, at: index }) => (characters[run] as string[])[index]).join('');
+    return writtenValue(value, full as never) === shown && isFree(whole) ? { placed: whole, bind: full } : undefined;
+  };
+
+  /** Every place a field is written, with the binding that writes it there: the longest writing first. */
+  const placesOf = (field: string, value: BoundValue, only?: (run: number) => boolean): { placed: Placed; bind: Bind }[] => {
+    const out: { placed: Placed; bind: Bind }[] = [];
+    const markdown = markdownOf(document, field);
+    for (const { text, bind } of writings(field, value).sort((a, b) => [...b.text].length - [...a.text].length)) {
+      const money = value.kind === 'money';
+      // An amount is found by its digits: its sign and prefix come before them.
+      const number = money && value.amount < 0 ? text.slice(1) : text;
+      for (const placed of findAll(number, { word: !money, markdown })) {
+        if (only && !placed.every(({ run }) => only(run))) continue;
+        const full = money ? moneyPlace(placed, bind, value) : { placed, bind };
+        if (full && !out.some((other) => other.placed.some((a) => full.placed.some((b) => a.run === b.run && a.at === b.at)))) out.push(full);
+      }
+      if (out.length > 0) break;
+    }
+    return out;
+  };
+
+  /** Binds a field where it was found: each piece it is drawn in, by its range of the value as written. */
+  const take = ({ placed, bind }: { placed: Placed; bind: Bind }, value: BoundValue) => {
+    const length = [...writtenValue(value, { ...bind, range: undefined } as never)].length;
+    const pieces: { run: number; from: number; to: number; of: number; end: number }[] = [];
+    for (const { run, at, of } of placed) {
+      (taken[run] as boolean[])[at] = true;
+      const last = pieces.at(-1);
+      if (last && last.run === run && last.to === at && last.end === of) {
+        last.to++;
+        last.end++;
+      } else pieces.push({ run, from: at, to: at + 1, of, end: of + 1 });
+    }
+    for (const { run, from, to, of, end } of pieces) {
+      const whole = pieces.length === 1 && of === 0 && end === length;
+      segments.push({ run, from, to, bind: { ...bind, ...(!whole && { range: [of, end] as [number, number] }) } });
+    }
+  };
+
   /** Text shown in groups: "51 824 753 556" for "51824753556". */
-  const bindGroups = (field: string, text: string) => {
-    const want = [...text.replace(/ /g, '')];
+  const bindGroups = (field: string, value: BoundValue & { kind: 'text' }) => {
+    const want = [...value.text.replace(/ /g, '')];
     if (want.length < 4) return false;
     for (let run = 0; run < runs.length; run++) {
       const chars = characters[run] as string[];
@@ -251,8 +363,9 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
             i++;
           } else break;
         }
-        if (matched === want.length && separator !== undefined && isEdge(chars[i]) && free(run, at, i)) {
-          take(run, at, i, { field, format: { groups: { sizes: [...sizes, size], separator } } });
+        const placed = Array.from({ length: i - at }, (_, n) => ({ run, at: at + n, of: n }));
+        if (matched === want.length && separator !== undefined && isEdge(chars[i]) && isFree(placed)) {
+          take({ placed, bind: { field, format: { groups: { sizes: [...sizes, size], separator } } } }, value);
           return true;
         }
       }
@@ -260,63 +373,64 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
     return false;
   };
 
-  /** A long text over several runs: each run that is part of it, bound by its range, in order. */
-  const bindRanges = (field: string, text: string) => {
-    const value = [...text];
-    // What a run may skip of the text before it: what is never drawn, its spaces, and in markdown its marks.
-    const skippable = markdownOf(document, field) ? /[\s#*_`>-]/u : /\s/u;
-    let cursor = 0;
-    let found = false;
-    for (let run = 0; run < runs.length; run++) {
-      const trimmed = (characters[run] as string[]).join('').trim();
-      if (trimmed.length < 2 || !free(run, 0, (characters[run] as string[]).length)) continue;
-      const lead = (characters[run] as string[]).findIndex((char) => !isSpace(char));
-      const want = [...trimmed];
-      for (let at = cursor; at < value.length; at++) {
-        const placed = piecesAt(value, at, want);
-        if (placed === undefined) continue;
-        // A run continues the text only where it picks up after the last: one that would skip its words is some
-        // other field's (a letterhead's "Studio" before a letter that ends "Studio") and is left to it.
-        if (value.slice(cursor, at).every((char) => skippable.test(char))) {
-          for (const piece of placed.pieces) {
-            take(run, lead + piece.from, lead + piece.to, { field, range: [piece.at, piece.at + piece.to - piece.from] });
-          }
-          cursor = placed.end;
-          found = true;
-        }
-        break;
-      }
-    }
-    return found;
-  };
-
   const fields = bindableFields(document);
 
-  // Line items, a row at a time: each cell only on its band, never loose, where a total or a title could be.
+  // ---- Line items: a row at a time, where its cells stand together ----
   const lines = fields.filter(({ field }) => field.startsWith('lineItems.rows.'));
   const rows = new Map<string, typeof lines>();
   for (const line of lines) {
     const row = line.field.split('.').slice(0, 3).join('.');
     rows.set(row, [...(rows.get(row) ?? []), line]);
   }
-  const onBand = (band: number) => (run: number) => Math.abs((runs[run] as Run).baseline - band) < 2;
+  const roles = ((document.lineItems as { roles?: Record<string, string> } | undefined)?.roles ?? {}) as Record<string, string>;
+  type Span = { top: number; bottom: number };
+  const spanOf = (placed: Placed): Span => ({
+    top: Math.min(...placed.map(({ run }) => top(run))),
+    bottom: Math.max(...placed.map(({ run }) => bottom(run))),
+  });
+  const within = (span: Span) => (run: number) => top(run) < span.bottom && bottom(run) > span.top;
+
+  // First where each row is: its text cell (the description) where most of its other cells stand beside it.
+  const chosen: { cells: typeof lines; anchor?: { placed: Placed; bind: Bind; value: BoundValue }; span?: Span }[] = [];
+  const used = new Set<string>();
   for (const cells of rows.values()) {
     const ordered = [...cells].sort((a, b) => Number(a.value.kind === 'money') - Number(b.value.kind === 'money'));
-    const [first, ...others] = ordered;
-    // A row is anchored by its text: one with none is left to the rest.
-    if (first === undefined || first.value.kind !== 'text') continue;
-    // Its band: of the lines its first text is written on, the one where most of its other cells are found too. Its
-    // description is often in the title as well ("Website care, December" over a line "Website care").
-    const bands = [...new Set(runs.flatMap((r, at) => (bindEverywhere(first.field, first.value, (run) => run === at, 'look') ? [r.baseline] : [])))];
-    const together = (band: number) => others.filter(({ field, value }) => bindEverywhere(field, value, onBand(band), 'look')).length;
-    const band = bands.reduce<number | undefined>((best, line) => (best === undefined || together(line) > together(best) ? line : best), undefined);
-    if (band === undefined) continue;
-    // Each cell once, the first place free on its line, in the order the document lists its columns: a unit price and
-    // an amount that are the same (one of something, no tax) stand side by side, the price first.
-    for (const { field, value } of ordered) bindEverywhere(field, value, onBand(band), 'one');
+    const anchorCell =
+      ordered.find(({ field, value }) => value.kind === 'text' && roles[field.split('.').slice(3).join('.')] === 'description') ??
+      ordered.find(({ value }) => value.kind === 'text');
+    if (!anchorCell) {
+      chosen.push({ cells: ordered });
+      continue;
+    }
+    const others = ordered.filter((cell) => cell !== anchorCell);
+    const previous = [...chosen].reverse().find((row) => row.span)?.span;
+    const candidates = placesOf(anchorCell.field, anchorCell.value)
+      .filter(({ placed }) => !placed.some(({ run, at }) => used.has(`${run}:${at}`)))
+      .map((place) => {
+        const span = spanOf(place.placed);
+        const together = others.filter(({ field, value }) => placesOf(field, value, within(span)).length > 0).length;
+        return { place, span, together, below: previous === undefined || span.top >= previous.top - 1 };
+      })
+      .sort((a, b) => Number(b.below) - Number(a.below) || b.together - a.together);
+    const best = candidates[0];
+    if (best) for (const { run, at } of best.place.placed) used.add(`${run}:${at}`);
+    chosen.push({ cells: ordered, ...(best && { anchor: { ...best.place, value: anchorCell.value }, span: best.span }) });
   }
+  // Then each row's cells, once each, in the order the document lists its columns: on the row's lines, or below them
+  // before the next row (a row laid out as a card). A unit price and an amount that are the same stand side by side.
+  chosen.forEach(({ cells, anchor, span }, index) => {
+    if (!anchor || !span) return;
+    take(anchor, anchor.value);
+    const next = chosen.slice(index + 1).find((row) => row.span)?.span;
+    const below = (run: number) => top(run) >= span.top && (next === undefined || top(run) < next.top);
+    for (const { field, value } of cells) {
+      if (field === anchor.bind.field) continue;
+      const place = placesOf(field, value, within(span))[0] ?? placesOf(field, value, below)[0];
+      if (place) take(place, value);
+    }
+  });
 
-  // Everything else, longest writing first so "A$1,452.00" is not taken as "1,452".
+  // ---- Everything else, longest writing first so "A$1,452.00" is not taken as "1,452" ----
   const rest = fields
     .filter(({ field }) => !field.startsWith('lineItems.rows.'))
     .sort((a, b) => {
@@ -326,10 +440,15 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
   // Fields written alike (a receipt's total and the amount paid, its date and the day it was paid) share their places:
   // each takes the first free, and the last of them every one left.
   const alike = (entry: (typeof fields)[number]) => JSON.stringify(writings(entry.field, entry.value).map(({ text }) => text).sort());
-  for (const [at, { field, value }] of rest.entries()) {
-    const twin = rest.slice(at + 1).some((later) => alike(later) === alike(rest[at] as (typeof fields)[number]));
-    if (bindEverywhere(field, value, undefined, twin ? 'one' : 'all')) continue;
-    if (value.kind === 'text' && !bindGroups(field, value.text)) bindRanges(field, value.text);
+  for (const [at, entry] of rest.entries()) {
+    const { field, value } = entry;
+    const twin = rest.slice(at + 1).some((later) => alike(later) === alike(entry));
+    const places = placesOf(field, value);
+    if (places.length > 0) {
+      for (const place of twin ? places.slice(0, 1) : places) take(place, value);
+      continue;
+    }
+    if (value.kind === 'text') bindGroups(field, value);
   }
 
   // The sender's own words: every stretch of a run no field took.

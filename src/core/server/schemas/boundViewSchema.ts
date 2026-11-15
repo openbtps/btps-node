@@ -142,7 +142,10 @@ const format = z.union([
     .strict(),
 ]);
 
-/** Which signed field a text shows, how it is written, and which part of it. */
+/**
+ * Which signed field a text shows, how it is written, and which part of it: a range is the code points of the value
+ * as its format writes it, for a value the page wraps over lines or splits across elements.
+ */
 const binding = z
   .object({
     field: z.string().min(1).max(BTPS_FIELD_LIMITS.documentId * 4),
@@ -152,11 +155,7 @@ const binding = z
       .refine(([start, end]) => start < end, 'a range starts before it ends')
       .optional(),
   })
-  .strict()
-  .refine((bind) => bind.range === undefined || bind.format === undefined, {
-    message: 'a range is for text written as it is',
-    path: ['range'],
-  });
+  .strict();
 
 const textBox = {
   x: position,

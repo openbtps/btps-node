@@ -17,9 +17,12 @@ import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { parse } from 'opentype.js';
+import * as opentype from 'opentype.js';
+// @ts-expect-error fontkit ships no types; only its create() is used, typed below.
 import * as fontkit from 'fontkit';
 import { decompress } from 'brotli/decompress';
+
+const parse = opentype.parse as (buffer: ArrayBuffer) => { unitsPerEm: number; glyphs: { get(index: number): { advanceWidth: number } } };
 import { isWoff2, woff2ToSfnt } from '../src/snapshot/woff2.js';
 
 const require = createRequire(import.meta.url);
@@ -45,8 +48,9 @@ describe('a WOFF2 font', () => {
     for (const file of files) {
       const name = path.basename(file);
       const sfnt = woff2ToSfnt(buffer(file), decompress);
-      const theirs = fontkit.create(readFileSync(file)) as unknown as Font;
-      const ours = fontkit.create(Buffer.from(sfnt)) as unknown as Font;
+      const create = (fontkit as { create(data: Buffer): unknown }).create;
+      const theirs = create(readFileSync(file)) as Font;
+      const ours = create(Buffer.from(sfnt)) as Font;
       expect(ours.numGlyphs, name).toBe(theirs.numGlyphs);
       for (let i = 0; i < theirs.numGlyphs; i++) {
         const [a, b] = [ours.getGlyph(i), theirs.getGlyph(i)];

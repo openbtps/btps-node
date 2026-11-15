@@ -367,14 +367,18 @@ const textRuns = (root: HTMLElement, origin: DOMRect): LaidRun[] => {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const range = document.createRange();
   const measure = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+  let index = 0;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const parent = node.parentElement;
     if (!parent || parent.closest('svg') || !node.textContent?.trim()) continue;
+    // Text the page does not draw: hidden, or in an element not laid out (display: none, a closed details).
     if (getComputedStyle(parent).visibility === 'hidden') continue;
+    if (typeof parent.checkVisibility === 'function' && !parent.checkVisibility()) continue;
     const css = getComputedStyle(parent);
     measure.font = `${css.fontStyle} ${css.fontWeight} ${css.fontSize} ${css.fontFamily}`;
     const ascent = measure.measureText('Hg').fontBoundingBoxAscent;
     const style = styleOf(parent);
+    const nodeIndex = index++;
     let line: LaidRun | undefined;
     let offset = 0;
     for (const char of node.textContent) {
@@ -382,6 +386,7 @@ const textRuns = (root: HTMLElement, origin: DOMRect): LaidRun[] => {
       range.setEnd(node, offset + char.length);
       offset += char.length;
       const rect = range.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0 && !/\s/.test(char)) continue;
       if (rect.width === 0 && /\s/.test(char)) {
         if (line) {
           line.text += ' ';
@@ -390,9 +395,19 @@ const textRuns = (root: HTMLElement, origin: DOMRect): LaidRun[] => {
         continue;
       }
       if (!line || Math.abs(rect.top - origin.top - line.top) > 2) {
-        line = { text: '', chars: [], baseline: r2(rect.top - origin.top + ascent), top: rect.top - origin.top, style };
+        line = {
+          text: '',
+          chars: [],
+          baseline: r2(rect.top - origin.top + ascent),
+          top: rect.top - origin.top,
+          bottom: rect.bottom - origin.top,
+          node: nodeIndex,
+          size: style.size,
+          style,
+        };
         runs.push(line);
       }
+      line.bottom = Math.max(line.bottom ?? 0, rect.bottom - origin.top);
       line.text += /\s/.test(char) ? ' ' : char;
       line.chars.push({ left: rect.left - origin.left, right: rect.right - origin.left });
     }

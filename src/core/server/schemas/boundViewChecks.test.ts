@@ -327,9 +327,22 @@ describe('the key facts of each document type', () => {
     const shown = [bound('id'), bound('issuedAt', date), bound('totalAmount', aud), bound('payment.amount', aud), bound('payment.paidAt', date)];
     expect(failed(check(shown, receipt))).toEqual([{ check: 'keyFacts', field: 'discount.percent', element: undefined }]);
     row = 0;
-    const agreement = { type: 'agreement', title: 'A', id: 'A-1', issuedAt, body: { format: 'text', content: 'Hi' }, acceptance: { by: issuedAt } };
+    const later = '2026-12-09T00:00:00.000Z';
+    const agreement = { type: 'agreement', title: 'A', id: 'A-1', issuedAt, body: { format: 'text', content: 'Hi' }, acceptance: { by: later } };
     expect(failed(check([bound('issuedAt', date), bound('body.content')], agreement))).toEqual([
       { check: 'keyFacts', field: 'acceptance.by', element: undefined },
+    ]);
+  });
+
+  it('counts a fact shown by any text that writes its value, as another field bound there writes it', () => {
+    row = 0;
+    const receipt = { type: 'receipt', title: 'Paid', id: 'R-1', issuedAt, totalAmount: money(1000), payment: { amount: money(1000), paidAt: issuedAt } };
+    // One date and one amount on the page: each is both facts' value.
+    expect(failed(check([bound('id'), bound('issuedAt', date), bound('totalAmount', aud)], receipt))).toEqual([]);
+    row = 0;
+    const part = { ...receipt, payment: { amount: money(400), paidAt: issuedAt } };
+    expect(failed(check([bound('id'), bound('issuedAt', date), bound('totalAmount', aud)], part))).toEqual([
+      { check: 'keyFacts', field: 'payment.amount', element: undefined },
     ]);
   });
 });
