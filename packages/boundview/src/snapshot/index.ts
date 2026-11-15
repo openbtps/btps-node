@@ -30,8 +30,9 @@ import { initBoundViewEngine, type BoundViewEngineSource } from '../render.js';
 import { boundViewToSvg } from '../svg.js';
 import { loadBundledFonts } from '../glyphs.js';
 import { bindRuns, type Run, type Segment } from './bind.js';
-import { fallbackFor, glyphTable, type OpenTypeFont } from './fonts.js';
+import { fallbackFor, glyphTable, variationFor, type OpenTypeFont } from './fonts.js';
 import { normalizePath, pathData, shapeOutline, type Matrix } from './svgPath.js';
+import { isWoff2, woff2ToSfnt } from './woff2.js';
 
 type Doc = Record<string, unknown>;
 type Element = BTPBoundViewElement;
@@ -248,16 +249,51 @@ const drawsAlike = async (svg: SVGSVGElement, box: Box, paths: Element[]) => {
 
 // ---- Fonts ----
 
-const fontFiles = new Map<string, Promise<OpenTypeFont | undefined>>();
+/** A font file the page draws a family with, and the characters it is for (`unicode-range`); none means all. */
+type FontFile = { font: OpenTypeFont; ranges?: [number, number][] };
 
-/** The font file the page uses for a family, weight and style, from its own @font-face rules. */
-const fontFile = (family: string, weight: number, style: string): Promise<OpenTypeFont | undefined> => {
+const fontFiles = new Map<string, Promise<FontFile[] | undefined>>();
+
+/** A `unicode-range` as code point ranges. */
+const unicodeRanges = (css: string): [number, number][] | undefined => {
+  const ranges = css
+    .split(',')
+    .map((part) => part.trim().replace(/^U\+/i, ''))
+    .filter(Boolean)
+    .map((part): [number, number] => {
+      if (part.includes('?')) return [parseInt(part.replace(/\?/g, '0'), 16), parseInt(part.replace(/\?/g, 'F'), 16)];
+      const [from, to = from] = part.split('-');
+      return [parseInt(from as string, 16), parseInt(to as string, 16)];
+    });
+  return ranges.length > 0 && ranges.every(([from, to]) => Number.isFinite(from) && Number.isFinite(to)) ? ranges : undefined;
+};
+
+/** Reads a font file: a woff or ttf as it is, a woff2 decompressed first (woff2.ts, with Brotli loaded only then). */
+const readFont = async (url: string): Promise<OpenTypeFont | undefined> => {
+  try {
+    let bytes = await (await fetch(url)).arrayBuffer();
+    if (isWoff2(bytes)) {
+      const { decompress } = await import('brotli/decompress');
+      bytes = woff2ToSfnt(bytes, decompress);
+    }
+    return parseFont(bytes) as unknown as OpenTypeFont;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * The font files the page uses for a family, weight and style, from its own @font-face rules: the nearest weight, and
+ * every file of it a `unicode-range` splits it into (latin, latin-ext, cyrillic…). The browser drew each character
+ * with the file whose range holds it, and so do we.
+ */
+const fontFile = (family: string, weight: number, style: string): Promise<FontFile[] | undefined> => {
   const key = `${family}|${weight}|${style}`;
   if (!fontFiles.has(key)) {
     fontFiles.set(
       key,
       (async () => {
-        let best: { url: string; distance: number } | undefined;
+        const candidates: { url: string; distance: number; ranges?: [number, number][] }[] = [];
         for (const sheet of document.styleSheets) {
           let rules: CSSRuleList;
           try {
@@ -270,26 +306,40 @@ const fontFile = (family: string, weight: number, style: string): Promise<OpenTy
             const name = rule.style.getPropertyValue('font-family').replace(/["']/g, '').trim();
             if (name.toLowerCase() !== family.toLowerCase()) continue;
             if ((rule.style.getPropertyValue('font-style').trim() || 'normal') !== style) continue;
-            const weights = (rule.style.getPropertyValue('font-weight').trim() || '400').split(/\s+/).map(Number);
+            const weights = (rule.style.getPropertyValue('font-weight').trim() || '400')
+              .split(/\s+/)
+              .map((value) => (value === 'bold' ? 700 : value === 'normal' ? 400 : Number(value)));
             const distance = weights.length === 2 && weight >= (weights[0] ?? 0) && weight <= (weights[1] ?? 0) ? 0 : Math.abs((weights[0] ?? 400) - weight);
-            // A woff or ttf source: opentype.js reads those, not woff2.
+            // A woff or ttf where the rule offers one (read as it is), else its woff2.
             const sources = [...rule.style.getPropertyValue('src').matchAll(/url\(["']?([^"')]+)["']?\)/g)].map((m) => m[1] as string);
-            const readable = sources.find((src) => !/\.woff2(\?|#|$)/i.test(src));
-            if (readable && (!best || distance < best.distance)) {
-              best = { url: new URL(readable, sheet.href ?? location.href).href, distance };
-            }
+            const source = sources.find((src) => !/\.woff2(\?|#|$)/i.test(src)) ?? sources[0];
+            if (!source) continue;
+            const ranges = unicodeRanges(rule.style.getPropertyValue('unicode-range'));
+            candidates.push({ url: new URL(source, sheet.href ?? location.href).href, distance, ...(ranges && { ranges }) });
           }
         }
-        if (!best) return undefined;
-        try {
-          return parseFont(await (await fetch(best.url)).arrayBuffer()) as unknown as OpenTypeFont;
-        } catch {
-          return undefined;
-        }
+        if (candidates.length === 0) return undefined;
+        const nearest = Math.min(...candidates.map(({ distance }) => distance));
+        const read = await Promise.all(
+          candidates
+            .filter(({ distance }) => distance === nearest)
+            .map(async ({ url, ranges }) => {
+              const font = await readFont(url);
+              return font ? { font, ...(ranges && { ranges }) } : undefined;
+            }),
+        );
+        const files = read.filter((file): file is FontFile => file !== undefined);
+        return files.length > 0 ? files : undefined;
       })(),
     );
   }
-  return fontFiles.get(key) as Promise<OpenTypeFont | undefined>;
+  return fontFiles.get(key) as Promise<FontFile[] | undefined>;
+};
+
+/** Which of a family's files draws `char`: the first whose range holds it, as the browser chooses. */
+const fileFor = (files: FontFile[], char: string): FontFile | undefined => {
+  const code = char.codePointAt(0) ?? 0;
+  return files.find(({ ranges }) => ranges === undefined || ranges.some(([from, to]) => code >= from && code <= to));
 };
 
 // ---- Reading the preview ----
@@ -518,6 +568,26 @@ const paint = async (root: HTMLElement, origin: DOMRect, images: Record<string, 
   return out;
 };
 
+/** A glyph scaled to another font's units: its advance and every coordinate of its outline. */
+const scaledGlyph = (glyph: { advance: number; path?: string }, scale: number) => ({
+  advance: r2(glyph.advance * scale),
+  ...(glyph.path !== undefined && { path: glyph.path.replace(/-?\d+(?:\.\d+)?/g, (n) => String(r2(Number(n) * scale))) }),
+});
+
+/**
+ * A text in the case CSS draws it, by simple case mapping as a receiver draws it: a character that would become
+ * several (ß in capitals) stays as it is, so every receiver measures and draws the same characters.
+ */
+const transformed = (text: string, transform?: 'uppercase' | 'lowercase') =>
+  transform === undefined
+    ? text
+    : [...text]
+        .map((char) => {
+          const changed = transform === 'uppercase' ? char.toUpperCase() : char.toLowerCase();
+          return [...changed].length === 1 ? changed : char;
+        })
+        .join('');
+
 const FACT_LIKE: [string, RegExp][] = [
   ['an amount', /(A\$|NZ\$|US\$|\$|£|€|¥)\s?\d|\d[\d,]*\.\d{2}\b|\b[A-Z]{3}\s?\d/],
   ['a date', /\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s\d{4}\b/i],
@@ -567,6 +637,7 @@ export const snapshotBoundView = async (
   let index = 0;
   for (const [key, { style, segments: used }] of styles) {
     const characters = new Set<string>();
+    const boundCharacters = new Set<string>();
     for (const segment of used) {
       const run = runs[segment.run] as LaidRun;
       const text = segment.bind
@@ -576,19 +647,48 @@ export const snapshotBoundView = async (
           })()
         : [...run.text].slice(segment.from, segment.to).join('');
       // Each text's own case: one font may draw a heading in capitals and a name as written.
-      const { transform } = run.style;
-      const shown = transform === 'uppercase' ? text.toUpperCase() : transform === 'lowercase' ? text.toLowerCase() : text;
-      for (const char of shown) characters.add(char);
+      const shown = transformed(text, run.style.transform);
+      for (const char of shown) {
+        characters.add(char);
+        if (segment.bind) boundCharacters.add(char);
+      }
     }
-    const file = await fontFile(style.family, style.weight, style.style);
+    const files = await fontFile(style.family, style.weight, style.style);
     const fallback = fallbackFor(style.family);
-    if (file) {
-      const { font: table, missing } = glyphTable(file, characters, { tabular: style.tabular });
-      if (missing.length > 0 && used.some((segment) => segment.bind)) {
-        problems.push(`${style.family} has no glyph for ${missing.map((c) => JSON.stringify(c)).join(', ')}`);
+    if (files) {
+      // Each character from the file the browser drew it with, at the page's weight (and size, for optical sizes).
+      const first = (files[0] as FontFile).font;
+      const table: BTPBoundViewFont = { unitsPerEm: first.unitsPerEm, ascent: 0, descent: 0, glyphs: {} };
+      const kerning: Record<string, number> = {};
+      const byFile = new Map<FontFile, string[]>();
+      const unread: string[] = [];
+      for (const char of characters) {
+        const file = fileFor(files, char);
+        if (file && file.font.unitsPerEm === first.unitsPerEm) byFile.set(file, [...(byFile.get(file) ?? []), char]);
+        else unread.push(char);
+      }
+      if (byFile.size === 0) byFile.set(files[0] as FontFile, []);
+      for (const [file, chars] of byFile) {
+        const variation = variationFor(file.font, { weight: style.weight, italic: style.style === 'italic', size: style.size });
+        const { font: part, missing } = glyphTable(file.font, chars, { tabular: style.tabular, ...(variation && { variation }) });
+        Object.assign(table.glyphs as object, part.glyphs);
+        Object.assign(kerning, part.kerning);
+        table.ascent = Math.max(table.ascent, part.ascent);
+        table.descent = Math.max(table.descent, part.descent);
+        unread.push(...missing);
+      }
+      // A character the page's font has no glyph for: the browser drew it with a fallback, and so do we.
+      if (unread.length > 0) {
+        const bundledFont = (await loadBundledFonts([fallback]))[fallback] as BTPBoundViewFont;
+        const scale = table.unitsPerEm / bundledFont.unitsPerEm;
+        for (const char of unread) {
+          const glyph = bundledFont.glyphs?.[char];
+          if (glyph) (table.glyphs as Record<string, unknown>)[char] = scaledGlyph(glyph, scale);
+          else if (boundCharacters.has(char)) problems.push(`no font has a glyph for ${JSON.stringify(char)}, which ${style.family} shows`);
+        }
       }
       const name = `font${index++}`;
-      fonts[name] = { ...table, fallback: [fallback] };
+      fonts[name] = { ...table, ...(Object.keys(kerning).length > 0 && { kerning }), fallback: [fallback] };
       fontKey.set(key, name);
       continue;
     }
@@ -599,6 +699,9 @@ export const snapshotBoundView = async (
       ...fonts[name]?.glyphs,
       ...Object.fromEntries([...characters, ...'0123456789.,-+%$€£¥/: '].flatMap((char) => (bundledFont.glyphs?.[char] ? [[char, bundledFont.glyphs[char]]] : []))),
     };
+    for (const char of boundCharacters) {
+      if (!bundledFont.glyphs?.[char]) problems.push(`no font has a glyph for ${JSON.stringify(char)}, which ${style.family} shows`);
+    }
     fonts[name] = { unitsPerEm: bundledFont.unitsPerEm, ascent: bundledFont.ascent, descent: bundledFont.descent, glyphs, fallback: [fallback] };
     shared.set(fallback, name);
     fontKey.set(key, name);
@@ -630,7 +733,7 @@ export const snapshotBoundView = async (
       // A fact's box is as wide as its value drawn with these glyphs, so every receiver measures the same.
       const value = boundValue(document, segment.bind.field);
       const text = value ? writtenValue(value, segment.bind as never) : '';
-      const shown = style.transform === 'uppercase' ? text.toUpperCase() : style.transform === 'lowercase' ? text.toLowerCase() : text;
+      const shown = transformed(text, style.transform);
       const chars = [...shown];
       const width = chars.reduce((sum, char, i) => {
         const glyph = table.glyphs?.[char];
