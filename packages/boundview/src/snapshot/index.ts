@@ -13,7 +13,7 @@
  * an SVG logo as its outlines when they draw exactly as the browser did.
  */
 
-import opentype from 'opentype.js';
+import * as opentypeModule from 'opentype.js';
 import { zlibSync } from 'fflate';
 import { Resvg } from '@resvg/resvg-wasm';
 import {
@@ -59,6 +59,17 @@ export class BoundViewSnapshotError extends Error {
     this.name = 'BoundViewSnapshotError';
   }
 }
+
+/**
+ * opentype.js's `parse`, from whichever build the app's bundler or Node chose: its ES module build names it and has no
+ * default export (a strict bundler refuses a default import of it); its UMD build is a default export holding it.
+ */
+const parseFont = (buffer: ArrayBuffer): unknown => {
+  const named = opentypeModule.parse;
+  // Read by reflection: a bundler that sees `.default` on a module without one warns about it.
+  const umd = Reflect.get(opentypeModule, 'default') as { parse(buffer: ArrayBuffer): unknown };
+  return (named ?? umd.parse)(buffer);
+};
 
 const r2 = (value: number) => Math.round(value * 100) / 100;
 const ceil2 = (value: number) => Math.ceil(value * 100 - 1e-6) / 100;
@@ -268,7 +279,7 @@ const fontFile = (family: string, weight: number, style: string): Promise<OpenTy
         }
         if (!best) return undefined;
         try {
-          return opentype.parse(await (await fetch(best.url)).arrayBuffer()) as unknown as OpenTypeFont;
+          return parseFont(await (await fetch(best.url)).arrayBuffer()) as unknown as OpenTypeFont;
         } catch {
           return undefined;
         }
