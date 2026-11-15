@@ -109,4 +109,29 @@ describe('binding a preview by value', () => {
       format: { money: { group: ',', decimal: '.', prefix: 'A$' } },
     });
   });
+
+  // Found sending a one-line invoice from eBill: its title repeated its line's description, so the row was taken to stand
+  // on the title's line, and its amount, the total's value too, was never bound to the row.
+  it("finds a line where its cells stand together, not where its description is first written", () => {
+    const care = {
+      type: 'invoice',
+      title: 'Website care, December',
+      id: 'INV-0102',
+      issuedAt: '2026-11-15T00:00:00.000Z',
+      totalAmount: { amount: 30000, currency: 'AUD' },
+      lineItems: {
+        columns: ['Description', 'Amount (incl. tax)'],
+        roles: { Description: 'description', 'Amount (incl. tax)': 'lineTotal' },
+        rows: [{ Description: 'Website care', 'Amount (incl. tax)': 30000 }],
+      },
+    };
+    const runs = [run('Website care, December'), run('Website care', 40), run('A$300.00', 40), run('Total A$300.00', 80)];
+    const bound = shown(runs, bindRuns(care, runs)).filter((segment) => segment.bind);
+    expect(bound.map(({ text, bind }) => [text, bind?.field])).toEqual([
+      ['Website care, December', 'title'],
+      ['Website care', 'lineItems.rows.0.Description'],
+      ['A$300.00', 'lineItems.rows.0.Amount (incl. tax)'],
+      ['A$300.00', 'totalAmount'],
+    ]);
+  });
 });

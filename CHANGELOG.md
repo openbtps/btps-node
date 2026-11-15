@@ -402,6 +402,12 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
 
 ### Fixed
 
+- `@btps/boundview`: `snapshotBoundView` finds a line item where its cells
+  stand together. 1.2.0-rc.3 anchored a line where its description was first
+  written, so a title that repeated it ("Website care, December" over a line
+  "Website care") took the line's description, the line's amount went unbound,
+  and the BoundView failed its key-facts check. A line's description is now
+  bound only on its own line.
 - A refusal of a trust's permissions reaches the sender as itself:
   `BTP_ERROR_PERMISSION_REQUIRED` for a grant that withholds a required name,
   `BTP_ERROR_PERMISSION` for a name not granted or not asked for,
