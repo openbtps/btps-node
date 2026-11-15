@@ -4,6 +4,24 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.0-rc.3.1] — 2026-11-15 (beta, release candidate)
+
+Two fixes to `@btps/boundview`'s `snapshotBoundView`, found adding BoundView to
+a platform. Nothing else changes: everything in rc.3 below holds.
+
+### Fixed
+
+- `@btps/boundview`: `snapshotBoundView` builds in an app whose bundler takes
+  opentype.js's ES module build, as Next.js's Turbopack does. 1.2.0-rc.3
+  imported opentype.js's default export, which that build does not have, and
+  such a build failed. It now reads `parse` from either build.
+- `@btps/boundview`: `snapshotBoundView` finds a line item where its cells
+  stand together. 1.2.0-rc.3 anchored a line where its description was first
+  written, so a title that repeated it ("Website care, December" over a line
+  "Website care") took the line's description, the line's amount went unbound,
+  and the BoundView failed its key-facts check. A line's description is now
+  bound only on its own line.
+
 ## [1.2.0-rc.3] — 2026-11-15 (beta, release candidate)
 
 BoundView: a document's own look, signed with it, every fact drawn from its
