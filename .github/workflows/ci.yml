@@ -146,7 +146,7 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/pack-smoke"
           npm install --no-audit --no-fund typescript@5.8.3 @types/node@24.0.3
-          for entry in '' /server /server/core /client /crypto /trust /authentication /delegation /error /storage; do
+          for entry in '' /server /server/core /client /crypto /trust /authentication /delegation /error /storage /boundview; do
             echo "export * as m$(echo "$entry" | tr -c 'a-z\n' '_') from '@btps/sdk$entry';"
           done > index.mts
           echo '{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","strict":true,"skipLibCheck":false,"noEmit":true,"types":["node"]},"files":["index.mts"]}' > tsconfig.json
@@ -166,6 +166,49 @@ jobs:
           status=0
           npx --no-install btps-verify-evidence declined.json || status=$?
           test "$status" -eq 1
+      # Since 1.2: @btps/boundview, published from packages/boundview by the
+      # same tag. Built as publish.yml builds it, packed, installed beside the
+      # SDK's tarball (its @btps/sdk dependency pinned to that tarball, the pair
+      # a release ships), type-checked, and asked to draw a BoundView in Node
+      # with the engine its package carries.
+      - name: Build and pack @btps/boundview
+        run: |
+          node_modules/.bin/tsc -p packages/boundview/tsconfig.build.json
+          cp node_modules/@resvg/resvg-wasm/index_bg.wasm packages/boundview/dist/engine.wasm
+          cd packages/boundview
+          npm pack --pack-destination "$RUNNER_TEMP"
+          mv "$RUNNER_TEMP"/btps-boundview-*.tgz "$RUNNER_TEMP/btps-boundview.tgz"
+      - name: Install @btps/boundview from its tarball, and draw a BoundView with it
+        run: |
+          cd "$RUNNER_TEMP/pack-smoke"
+          node -e "
+            const p = require('./package.json');
+            p.overrides = { '@btps/sdk': '\$@btps/sdk' };
+            require('fs').writeFileSync('package.json', JSON.stringify(p, null, 2));
+          "
+          npm install --no-audit --no-fund "$RUNNER_TEMP/btps-boundview.tgz"
+          test -d node_modules/@btps/boundview && test ! -L node_modules/@btps/boundview
+          test -f node_modules/@btps/boundview/dist/engine.wasm
+          node --input-type=module -e "
+            import { renderBoundView } from '@btps/boundview';
+            const font = { unitsPerEm: 1000, ascent: 800, descent: 200, glyphs: Object.fromEntries([...'INV-0123456789.,: '].map((c) => [c, { advance: 500 }])) };
+            const document = {
+              type: 'invoice', title: 'Smoke', id: 'INV-1', issuedAt: '2026-11-25T00:00:00.000Z',
+              totalAmount: { amount: 100, currency: 'AUD' },
+              lineItems: { columns: ['Item'], rows: [] },
+              boundView: { format: 1, page: { width: 200, height: 60 }, fonts: { body: font }, elements: [
+                { type: 'text', bind: { field: 'id' }, x: 10, y: 30, width: 100, align: 'start', font: 'body', size: 12, colour: '#0f1b2d' },
+                { type: 'text', bind: { field: 'issuedAt', format: { date: 'yyyy-MM-dd' } }, x: 10, y: 50, width: 100, align: 'start', font: 'body', size: 12, colour: '#0f1b2d' },
+                { type: 'text', bind: { field: 'totalAmount', format: { money: { group: ',', decimal: '.' } } }, x: 120, y: 30, width: 70, align: 'start', font: 'body', size: 12, colour: '#0f1b2d' },
+              ] },
+            };
+            const png = await renderBoundView(document);
+            if (!png || png[1] !== 0x50) { console.error('renderBoundView gave no PNG'); process.exit(1); }
+            console.log('renderBoundView OK: ' + png.length + ' bytes from the installed tarball');
+          "
+          echo "export * as boundview from '@btps/boundview';" > boundview.mts
+          echo '{"compilerOptions":{"target":"ES2022","module":"NodeNext","moduleResolution":"NodeNext","strict":true,"skipLibCheck":false,"noEmit":true,"lib":["ES2022","DOM","DOM.Iterable"],"types":["node"]},"files":["boundview.mts"]}' > tsconfig.json
+          npx tsc -p .
 
   test:
     name: ci/test
