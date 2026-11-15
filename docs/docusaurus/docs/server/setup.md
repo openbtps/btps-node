@@ -3,6 +3,9 @@ title: BTPS Server Setup
 sidebar_label: Setup
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Setting Up the BTPS Server
 
 This guide walks you through installing, configuring, and running a secure BTPS server using the Server SDK. You'll learn how to set up TLS, configure your trust store, load middleware, and start the server for production or development.
@@ -11,9 +14,29 @@ This guide walks you through installing, configuring, and running a secure BTPS 
 
 Install the SDK from npm:
 
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
 ```bash
 npm install @btps/sdk
 ```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/sdk
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/sdk
+```
+
+</TabItem>
+</Tabs>
 
 ## 2. Trust Store Selection
 

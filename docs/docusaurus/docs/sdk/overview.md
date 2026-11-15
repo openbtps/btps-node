@@ -3,6 +3,9 @@ title: SDK Overview
 sidebar_label: Overview
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # BTPS SDK Usage & Reference
 
 ## Overview
@@ -13,22 +16,62 @@ The BTPS SDK (`@btps/sdk`) provides all the building blocks for secure, trust-ba
 
 ## 🚀 Installation
 
-```sh
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
+```bash
 npm install @btps/sdk
-# or
+```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
 yarn add @btps/sdk
 ```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/sdk
+```
+
+</TabItem>
+</Tabs>
 
 ### BoundView: `@btps/boundview`
 
 Since 1.2, a separate package captures a document's HTML preview as its
 [BoundView](../protocol/specifications/boundview/overview.md) and draws a
-received one. It needs `@btps/sdk` 1.2.0-rc.3 or later beside it. See
+received one. It brings `@btps/sdk` with it. See
 [Using BoundView](../protocol/specifications/boundview/using.md).
+For a platform with separate frontend and backend apps, see
+[which app installs what](../protocol/specifications/boundview/using.md#frontend-and-backend-apps).
 
-```sh
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
+```bash
 npm install @btps/boundview
 ```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/boundview
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/boundview
+```
+
+</TabItem>
+</Tabs>
 
 ## ⚠️ Node.js Compatibility
 

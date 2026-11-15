@@ -3,6 +3,9 @@ title: Overview & Installation
 sidebar_label: Installation
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Overview
 
 BTPS (Billing Trust Protocol Secure) is a federated system that enables secure, trust-based document exchange between organizations. The system consists of three core components that work together to ensure secure, verifiable communication:
@@ -27,15 +30,55 @@ Your code encrypts and signs a document with `signEncrypt`; the agent or transpo
 
 ### Quick Start
 
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
 ```bash
 npm install @btps/sdk
 ```
 
-To send documents with their look, or show received ones, add `@btps/boundview` as well ([Using BoundView](./../protocol/specifications/boundview/using.md)):
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/sdk
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/sdk
+```
+
+</TabItem>
+</Tabs>
+
+`@btps/boundview` is optional and a separate package: add it only to send documents with their look, or to draw received ones ([which app installs what](./../protocol/specifications/boundview/using.md#frontend-and-backend-apps)):
+
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
 
 ```bash
 npm install @btps/boundview
 ```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/boundview
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/boundview
+```
+
+</TabItem>
+</Tabs>
 
 ```js
 import { BtpsServer } from '@btps/sdk/server';

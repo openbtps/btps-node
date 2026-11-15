@@ -4,6 +4,9 @@ sidebar_label: Migrating from 1.1
 slug: /whats-new/1-2/migration
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Migrating from 1.1 to 1.2
 
 A 1.1 provider upgrades to 1.2 without changing what it sends. A 1.2 server and client take 1.1 artifacts and talk to 1.1 providers. A 1.2 sender stamps an artifact `1.1.0` unless it uses something only 1.2 has. A trust record without `permissions` is checked exactly as 1.1 checks it. So the upgrade itself is small; adopting what 1.2 adds is a series of separate, later steps, each one switched on when you are ready for it.
@@ -51,10 +54,32 @@ Each step can be rolled back on its own until step 5. Up to there, everything 1.
 
 ### 1. Bump the SDK
 
-```sh
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
+```bash
+npm install @btps/sdk@next     # the release candidate
+npm install @btps/sdk@^1.2.0   # once 1.2.0 is released
+```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
 yarn add @btps/sdk@next     # the release candidate
 yarn add @btps/sdk@^1.2.0   # once 1.2.0 is released
 ```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/sdk@next     # the release candidate
+pnpm add @btps/sdk@^1.2.0   # once 1.2.0 is released
+```
+
+</TabItem>
+</Tabs>
 
 **Rollback:** pin `@btps/sdk@1.1.3` again. Nothing you send has changed: with no 1.2 feature in use, every artifact is still stamped `1.1.0`.
 

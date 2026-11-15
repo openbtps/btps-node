@@ -5,6 +5,9 @@ slug: /protocol/specifications/boundview/using
 description: For platforms. Send a document with its BoundView and show a received one with @btps/boundview, in a few lines and with no format to learn.
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Using BoundView
 
 For platforms that send documents or show them. `@btps/boundview` does the
@@ -21,12 +24,36 @@ for implementers and you do not need it.
 
 ## Install
 
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
 ```bash
 npm install @btps/boundview
 ```
 
-`@btps/boundview` needs `@btps/sdk` 1.2.0-rc.3 or later beside it. It draws
-with one engine, compiled to WebAssembly and shipped in the package as
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/boundview
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/boundview
+```
+
+</TabItem>
+</Tabs>
+
+`@btps/boundview` depends on `@btps/sdk` (`^1.2.0-rc.3`), so installing it
+alone brings what it needs, with any package manager. It uses only the SDK's
+browser-safe entry, `@btps/sdk/boundview` (schema, bindings and checks), so a
+frontend bundle never includes the SDK's server or client code.
+
+`@btps/boundview` draws with one engine, compiled to WebAssembly and shipped in the package as
 `@btps/boundview/engine.wasm`. In Node it loads by itself. In a browser or
 an app, serve that file with your app and load it once, before the first
 snapshot or picture:
@@ -37,6 +64,41 @@ import { initBoundViewEngine } from '@btps/boundview';
 // Or whatever URL your bundler gives @btps/boundview/engine.wasm
 await initBoundViewEngine(new URL('@btps/boundview/engine.wasm', import.meta.url));
 ```
+
+## Frontend and backend apps
+
+`@btps/boundview` is kept apart from `@btps/sdk` so the SDK stays small: the
+drawing engine is about 2.5 MB of WebAssembly, the bundled glyph outlines are
+about 800 KB, and opentype.js is used only when sending. A platform that
+never draws or captures a BoundView never downloads them. Received
+BoundViews are still checked automatically by `@btps/sdk` alone
+(`decryptVerify`'s `boundView` result, the server handler's second argument).
+
+| Platform | Install |
+| --- | --- |
+| Sends or receives documents, no BoundView | `@btps/sdk` only |
+| Sends with a BoundView, or draws received ones | `@btps/sdk` and `@btps/boundview` |
+
+`snapshotBoundView` needs a browser, because it reads the browser's layout.
+`renderBoundView` runs in a browser, an app, or Node. A platform with a
+separate frontend app and backend API splits the work like this:
+
+1. **Frontend** shows the preview and calls `snapshotBoundView`. It needs
+   `@btps/boundview`.
+2. The frontend sends the returned `boundView` JSON with the draft to its own
+   API.
+3. **Backend** puts it in the document's `boundView` field, then signs and
+   sends with `@btps/sdk`. The SDK checks it again before signing.
+4. **Receiving:** the checks run where the document is opened (the backend's
+   server, or the device that decrypts), with `@btps/sdk`.
+5. **Drawing a received one:** either the frontend calls `renderBoundView`
+   (the frontend has `@btps/boundview`), or the backend calls
+   `renderBoundView` in Node and serves the PNG (then the backend installs
+   `@btps/boundview` too).
+
+Keep the frontend's and the backend's BTPS packages on the same 1.2 release,
+so the checks a sender's frontend runs and the checks its backend runs before
+signing never disagree.
 
 ## Send a document with its BoundView
 

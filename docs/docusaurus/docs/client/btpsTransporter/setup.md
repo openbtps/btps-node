@@ -3,6 +3,9 @@ title: BTPS Transporter Setup
 sidebar_label: Setup
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # BTPS Transporter Setup
 
 This guide covers how to set up and configure the BTPS Transporter for direct message delivery between BTPS servers and applications.
@@ -11,9 +14,29 @@ The transporter delivers artifacts; it does not sign them and holds no keys. You
 
 ## 📦 Installation
 
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
 ```bash
 npm install @btps/sdk
 ```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/sdk
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/sdk
+```
+
+</TabItem>
+</Tabs>
 
 Node.js 24 or higher.
 

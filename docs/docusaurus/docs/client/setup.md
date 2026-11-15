@@ -3,6 +3,9 @@ title: BTPS Client Setup
 sidebar_label: Setup
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Setting Up the BTPS Client
 
 This guide walks you through installing, configuring, and using the BTPS Client SDK (`BtpsClient`) to send secure, trust-based messages.
@@ -114,9 +117,29 @@ graph TB
 
 Install the SDK from npm (Node.js 24 or higher):
 
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
 ```bash
 npm install @btps/sdk
 ```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/sdk
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/sdk
+```
+
+</TabItem>
+</Tabs>
 
 ## 2. BtpsClient Constructor Options
 

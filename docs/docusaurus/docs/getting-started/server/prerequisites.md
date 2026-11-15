@@ -3,6 +3,9 @@ title: Prerequisites
 sidebar_label: Prerequisites
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Prerequisites
 
 Before setting up your BTPS server, you'll need to ensure your development environment meets the requirements and understand the fundamental concepts of the BTPS protocol.
@@ -41,10 +44,31 @@ BTPS uses RSA key pairs for signing and encrypting messages. You'll need to gene
 
 Use the BTPS SDK's built-in key generation utility:
 
-```bash
-# Install the BTPS SDK
-npm install @btps/sdk
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
 
+```bash
+npm install @btps/sdk
+```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/sdk
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/sdk
+```
+
+</TabItem>
+</Tabs>
+
+```bash
 # Generate keys for your server identity
 npx @btps/sdk generate-keys your-server-identity
 ```

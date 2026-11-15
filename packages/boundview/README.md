@@ -11,9 +11,14 @@ designing its preview in HTML.
 
 ```bash
 npm install @btps/boundview
+# or
+yarn add @btps/boundview
+# or
+pnpm add @btps/boundview
 ```
 
-It needs `@btps/sdk` 1.2.0-rc.3 or later beside it.
+It brings `@btps/sdk` with it (a dependency, `^1.2.0-rc.3`), so you install
+nothing else.
 
 ## Use
 

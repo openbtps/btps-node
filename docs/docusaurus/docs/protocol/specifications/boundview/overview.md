@@ -5,6 +5,9 @@ slug: /protocol/specifications/boundview
 description: BoundView - what you see is what was signed. A document's view, bound to its signed data, signed with the document and checked wherever it is opened.
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # BoundView
 
 > **Since 1.2.** A BoundView travels in `1.2.0` artifacts only.
@@ -60,9 +63,29 @@ happens for it:
   `renderBoundView` draws a BoundView that passed into a finished picture,
   and the app only displays it.
 
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
 ```bash
 npm install @btps/boundview
 ```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/boundview
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/boundview
+```
+
+</TabItem>
+</Tabs>
 
 ```ts
 import { initBoundViewEngine, snapshotBoundView, renderBoundView } from '@btps/boundview';
