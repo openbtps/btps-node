@@ -13,12 +13,15 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import opentype from 'opentype.js';
 import { isPathData } from '@btps/sdk/boundview';
 import { ALWAYS, fallbackFor, glyphTable, type OpenTypeFont } from '../src/snapshot/fonts.js';
 
+const require = createRequire(import.meta.url);
+// Node loads opentype.js's UMD build: its module is what `parse` is on.
+const opentype = require('opentype.js') as { parse(buffer: ArrayBuffer): unknown };
+
 const load = (name: string) => {
-  const bytes = readFileSync(createRequire(import.meta.url).resolve(`@fontsource/${name}/files/${name}-latin-400-normal.woff`));
+  const bytes = readFileSync(require.resolve(`@fontsource/${name}/files/${name}-latin-400-normal.woff`));
   return opentype.parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length)) as unknown as OpenTypeFont;
 };
 
