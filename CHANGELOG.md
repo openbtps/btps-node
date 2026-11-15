@@ -358,6 +358,10 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
 
 ### Changed
 
+- A BoundView carries up to 8 fonts (`BTPS_FIELD_LIMITS.boundView.fonts`),
+  where it carried 4. Each weight, and each style with tabular figures, is a
+  font of its own, so a design that sets one family in several weights, with
+  and without tabular figures, needs more than 4.
 - A `1.2.0` trust request carries `permissions`. One without them is refused
   on arrival; a request for everything is a `1.1.0` one, which every server
   still takes.
@@ -402,6 +406,10 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
 
 ### Fixed
 
+- `@btps/boundview`: `snapshotBoundView` draws every style whose font file it
+  cannot read with one shared bundled font, which carries every glyph they
+  draw. Each such style carried its own copy of the same bundled font, which
+  pushed a template past the font limit.
 - `@btps/boundview`: `snapshotBoundView` builds in an app whose bundler takes
   opentype.js's ES module build, as Next.js's Turbopack does. 1.2.0-rc.3
   imported opentype.js's default export, which that build does not have, and

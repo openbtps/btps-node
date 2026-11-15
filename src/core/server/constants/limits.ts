@@ -107,7 +107,7 @@ export const BTPS_FIELD_LIMITS = {
     path: 20000,
     paths: 100000,
     stops: 8,
-    fonts: 4,
+    fonts: 8,
     glyphs: 256,
     glyphPath: 4000,
     kerning: 4096,

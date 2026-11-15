@@ -192,7 +192,11 @@ It reads the preview as the browser laid it out:
   checks.
 - **Fonts:** read from the page's own `@font-face` files. A woff, ttf or otf
   source is needed: a font offered only as woff2 is drawn with the bundled
-  font of the same widths, with a warning. A preview uses at most 4 fonts.
+  font of the same widths, with a warning. So is a system font with no
+  `@font-face` file. Every style drawn with the same bundled font shares one
+  font in the BoundView, which carries every glyph they draw. A font the
+  snapshot can read is one font for each style: family, weight, style and
+  tabular figures. A preview uses at most 8 fonts, counted after sharing.
 
 **Facts are found by their value.** Every way a field may be written is
 tried: money separators, prefix and suffix, the nine date patterns,
