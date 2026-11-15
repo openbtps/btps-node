@@ -5,8 +5,8 @@
  * https://www.apache.org/licenses/LICENSE-2.0
  */
 
-// opentype.js ships no types; the snapshot reads a font through OpenTypeFont (snapshot/fonts.ts).
+// opentype.js ships no types; the snapshot reads a font through OpenTypeFont (snapshot/fonts.ts). Its ES module build
+// names `parse` and has no default export; its UMD build, which Node loads, is a default export holding `parse`.
 declare module 'opentype.js' {
-  const opentype: { parse(buffer: ArrayBuffer): unknown };
-  export default opentype;
+  export const parse: ((buffer: ArrayBuffer) => unknown) | undefined;
 }

@@ -1,6 +1,6 @@
 {
   "name": "@btps/boundview",
-  "version": "1.2.0-rc.3",
+  "version": "1.2.0-rc.3.1",
   "description": "BoundView for BTPS: capture a document's HTML preview as a signed canvas bound to its data, and draw a received one in a closed WebAssembly engine.",
   "type": "module",
   "license": "Apache-2.0",

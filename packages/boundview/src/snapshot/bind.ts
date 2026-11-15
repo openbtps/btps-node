@@ -163,8 +163,8 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
     return writtenValue(value, full as never) === shown && free(run, from, to) ? { from, to, bind: full } : undefined;
   };
 
-  /** Binds every place a writing of `field` appears, in `only` runs if given. */
-  const bindEverywhere = (field: string, value: BoundValue, only?: (run: number) => boolean) => {
+  /** Binds every place a writing of `field` appears, in `only` runs if given; with `look`, only says whether there is one. */
+  const bindEverywhere = (field: string, value: BoundValue, only?: (run: number) => boolean, look = false) => {
     let found = false;
     for (const { text, bind } of writings(field, value).sort((a, b) => b.text.length - a.text.length)) {
       const money = value.kind === 'money';
@@ -176,10 +176,12 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
           if (money) {
             const placed = moneyAt(run, at, [...number].length, bind, value);
             if (placed) {
+              if (look) return true;
               take(run, placed.from, placed.to, placed.bind);
               found = true;
             }
           } else {
+            if (look) return true;
             take(run, at, at + [...number].length, bind);
             found = true;
           }
@@ -248,24 +250,26 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
 
   const fields = bindableFields(document);
 
-  // Line items, a row at a time: each cell only on its description's band.
+  // Line items, a row at a time: each cell only on its band, never loose, where a total or a title could be.
   const lines = fields.filter(({ field }) => field.startsWith('lineItems.rows.'));
   const rows = new Map<string, typeof lines>();
   for (const line of lines) {
     const row = line.field.split('.').slice(0, 3).join('.');
     rows.set(row, [...(rows.get(row) ?? []), line]);
   }
+  const onBand = (band: number) => (run: number) => Math.abs((runs[run] as Run).baseline - band) < 2;
   for (const cells of rows.values()) {
     const ordered = [...cells].sort((a, b) => Number(a.value.kind === 'money') - Number(b.value.kind === 'money'));
-    let band: number | undefined;
-    for (const { field, value } of ordered) {
-      // A row's amounts are only taken on the band its text anchors: never loose, where a total could be.
-      if (band === undefined && value.kind !== 'text') break;
-      const before = segments.length;
-      bindEverywhere(field, value, (run) => band === undefined || Math.abs((runs[run] as Run).baseline - band) < 2);
-      const placed = segments[before];
-      if (band === undefined && placed !== undefined) band = (runs[placed.run] as Run).baseline;
-    }
+    const [first, ...others] = ordered;
+    // A row is anchored by its text: one with none is left to the rest.
+    if (first === undefined || first.value.kind !== 'text') continue;
+    // Its band: of the lines its first text is written on, the one where most of its other cells are found too. Its
+    // description is often in the title as well ("Website care, December" over a line "Website care").
+    const bands = [...new Set(runs.flatMap((r, at) => (bindEverywhere(first.field, first.value, (run) => run === at, true) ? [r.baseline] : [])))];
+    const together = (band: number) => others.filter(({ field, value }) => bindEverywhere(field, value, onBand(band), true)).length;
+    const band = bands.reduce<number | undefined>((best, line) => (best === undefined || together(line) > together(best) ? line : best), undefined);
+    if (band === undefined) continue;
+    for (const { field, value } of ordered) bindEverywhere(field, value, onBand(band));
   }
 
   // Everything else, longest writing first so "A$1,452.00" is not taken as "1,452".

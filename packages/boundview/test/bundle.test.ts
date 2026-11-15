@@ -21,8 +21,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
 const entry = path.join(root, 'packages/boundview/src/index.ts');
 
-/** The files in the chunk an app loads up front, and in each chunk it loads on demand. */
-const bundle = async (names: string[]) => {
+/**
+ * The files in the chunk an app loads up front, and in each chunk it loads on demand, and what the bundler said.
+ * `mainFields`: which of a package's builds it takes, as the app's bundler would.
+ */
+const bundle = async (names: string[], mainFields?: string[]) => {
   const result = await build({
     stdin: {
       contents: `import { ${names.join(', ')} } from '${entry}'; globalThis.used = [${names.join(', ')}];`,
@@ -39,6 +42,7 @@ const bundle = async (names: string[]) => {
     platform: 'browser',
     tsconfig: path.join(root, 'tsconfig.json'),
     external: ['node:*'],
+    ...(mainFields ? { mainFields } : {}),
     logLevel: 'silent',
   });
   const outputs = Object.values(result.metafile.outputs).filter((output) => Object.keys(output.inputs).length > 0);
@@ -50,6 +54,7 @@ const bundle = async (names: string[]) => {
   return {
     upFront: main ? inputsOf(main) : [],
     onDemand: outputs.filter((output) => output !== main).map(inputsOf),
+    warnings: result.warnings.map((warning) => warning.text),
   };
 };
 
@@ -67,6 +72,16 @@ describe("an app's bundle", () => {
     const { upFront } = await bundle(['snapshotBoundView']);
     expect(has(upFront, 'snapshot/index.ts')).toBe(true);
     expect(has(upFront, 'opentype.js')).toBe(true);
+  });
+
+  // 1.2.0-rc.3 imported opentype.js's default export, which its ES module build does not have: a bundler that takes
+  // that build (Turbopack, as Next.js uses it) refused the snapshot.
+  it('takes opentype.js from its ES module build as well as from its UMD build, saying nothing of either', async () => {
+    for (const mainFields of [['module'], ['main']]) {
+      const { upFront, warnings } = await bundle(['snapshotBoundView'], mainFields);
+      expect(has(upFront, 'opentype.js')).toBe(true);
+      expect(warnings).toEqual([]);
+    }
   });
 
   it('loads each bundled font only when a drawing needs it, in a chunk of its own', async () => {
