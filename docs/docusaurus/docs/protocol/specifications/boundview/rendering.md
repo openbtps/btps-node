@@ -43,12 +43,14 @@ these rules say.
 
 An `image` element draws its image scaled to its box, with bilinear
 filtering. The image's pixels are drawn as stored: no colour profile is
-applied.
+applied. An image with a `radius` is clipped to its box with those corners
+rounded, clamped to half the shorter side, as a `rect`'s are.
 
 ## Text
 
 A `text` element's string is its bound value written in its
-[format](./bindings.md#formats), or the part `range` names. A `label`'s
+[format](./bindings.md#formats), or, when it has a
+[`range`](./bindings.md#ranges), that part of the written value. A `label`'s
 string is its `text`. Then:
 
 1. `transform`, when present, makes the string upper or lower case, character
@@ -75,7 +77,25 @@ string is its `text`. Then:
   scaled with it, with round ends and joins.
 - **Typed.** The text is set in Caveat, bundled with the renderer, at the
   size where it fills the box's width or its height (the font's ascent plus
-  descent), whichever is smaller, and centred both ways.
+  descent), whichever is smaller, and centred both ways. A character Caveat
+  has no glyph for, such as one in another script, is drawn in Arimo, as a
+  label's character falls back.
+
+## Bundled fonts
+
+The renderer bundles six open fonts as glyph tables: Arimo, Tinos, Cousine,
+Carlito and Caladea for [fallbacks](./fonts.md#fallbacks), and Caveat for
+typed signatures. Each is two files:
+
+| File | Holds |
+| --- | --- |
+| `<name>.json` | Printable ASCII and Latin-1, and `€ – — ‘ ’ “ ” • …`, with the font's kerning for them |
+| `<name>-more.json` | Latin Extended-A and -B, Latin Extended Additional (Vietnamese), Greek, Cyrillic, General Punctuation, Currency Symbols (`₹ ₩ ₪ ₺ ₽ ₱` and others), Letterlike Symbols (`№`, `™` and others), Arrows, and `− ≈ ≠ ≤ ≥ ∞`, as far as each font has them. No kerning. |
+
+`@btps/boundview` loads the second file only when a text needs one of its
+characters: `loadBundledFonts(names, characters)` takes the characters, and
+`bundledCharactersFor(document, boundView)` names them, from the labels and
+a typed signature.
 
 ## What may differ
 

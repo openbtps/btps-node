@@ -362,6 +362,46 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   where it carried 4. Each weight, and each style with tabular figures, is a
   font of its own, so a design that sets one family in several weights, with
   and without tabular figures, needs more than 4.
+- A BoundView's key facts leave out what the receiving app shows apart from
+  it (`issuer.name`, `recipient.name`), what follows from what is shown
+  (`subtotalAmount`, `discount`), and what does not change what is owed,
+  paid or said (an invoice's or receipt's `issuedAt`, `payment.method`,
+  `payment.reference`; a payslip's `employee.employeeId`, `issuedAt`,
+  `payRate`, `leave`, `yearToDate`; a letter's `id`). Each earning's and
+  deduction's description is now a key fact. 1.2.0-rc.3.1 required
+  `issuedAt` and `issuer.name` on every type, and `recipient.name`,
+  `subtotalAmount` and `discount` where a type carries them, but no
+  earning's or deduction's description. The Checks page lists each type's;
+  `keyFacts(document)` (`@btps/sdk/boundview`) gives a document's.
+- A key fact counts as shown when an element bound to another field writes
+  it exactly the same in the same format: a receipt's total and amount paid,
+  or two dates on one day, share one element. 1.2.0-rc.3.1 counted only an
+  element bound to the fact itself.
+- A binding's `range` is the code points of the value as its format writes
+  it, for any format, so a wrapped or split amount or date is bound in
+  pieces. 1.2.0-rc.3.1 refused a range with a format ("a range is for text
+  written as it is"). For text, a range means what it did.
+- In a markdown note or body, a key fact need not show what a renderer does
+  not draw: the marks `#`, `*`, `_`, `` ` ``, `>`, `-` and `+`, a backslash
+  that escapes the next character, a link's brackets and destination, the
+  angle brackets of an autolink, and an ordered list's number.
+  `markdownHidden` (`@btps/sdk/boundview`) marks them. 1.2.0-rc.3.1 excused
+  only the marks, without `+`.
+- An `image` element may carry `radius`, as a `rect` does; the receiver
+  clips the image to its rounded corners.
+- "Not hidden" counts two boxes as overlapping only when they share more
+  than 0.005 pixels each way, half the format's 0.01 pixel precision, so
+  boxes that touch through the rounding of a sum do not cover each other,
+  and a box past the page's edge by no more than that is inside the page.
+  1.2.0-rc.3.1 counted any overlap, and any reach past the edge.
+- `@btps/boundview`: each bundled font also carries Latin Extended
+  (Vietnamese included), Greek, Cyrillic, general punctuation, currency signs
+  (`₹ ₩ ₪ ₺ ₽ ₱`), letterlike symbols (`№`), arrows and `− ≈ ≠ ≤ ≥ ∞`, as
+  far as the font has them, in a second file (`<name>-more.json`) loaded
+  only when a text needs one of them. `loadBundledFonts(names, characters?)`
+  takes the characters needed, and `bundledCharactersFor(document, view)`
+  names them. A typed signature's characters Caveat lacks are drawn in
+  Arimo. 1.2.0-rc.3.1 bundled Latin and Latin-1 only.
 - A `1.2.0` trust request carries `permissions`. One without them is refused
   on arrival; a request for everything is a `1.1.0` one, which every server
   still takes.
@@ -435,14 +475,13 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   place, so a receipt whose total equalled the amount paid could never show
   `payment.amount`, and a page that wrote the date twice still could not
   show `payment.paidAt`. The BoundView failed its key-facts check, and the
-  sender's app sent the document without a picture. A page must still write
-  each such fact: a date shown once satisfies only one of two fields with
-  that date.
+  sender's app sent the document without a picture. A value written once
+  now shows every field written alike (see Changed).
 - `@btps/boundview`: `snapshotBoundView` binds long text over several lines,
   a letter's `body.content` or a markdown description, in order: each line
   picks up where the last left off. A line is taken only when all it skips
-  is whitespace, or, for markdown, whitespace and the marks `#`, `*`, `_`,
-  `` ` ``, `>` and `-`, which are not drawn. A line break in the text that
+  is whitespace, or, for markdown, whitespace and what a renderer does not
+  draw (see Changed). A line break in the text that
   the page lays out as a space ends one bound piece and starts the next, so
   each piece writes exactly what it shows. In 1.2.0-rc.3.1 a line was
   matched anywhere after the last, so a word another field shows first (a
@@ -451,6 +490,52 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   never matched. Either way `body.content` went unbound, the BoundView
   failed its key-facts check, and the sender's app sent the document without
   a picture.
+- `@btps/boundview`: `snapshotBoundView` reads a page's woff2 fonts,
+  decompressed with Brotli, which it loads only for a woff2 file, and reads
+  a variable font at the page's weight and optical size. 1.2.0-rc.3.1 drew a
+  font offered only as woff2 with a bundled font of the same widths, and a
+  variable font at its default instance.
+- `@btps/boundview`: `snapshotBoundView` reads every file of a family split
+  by `unicode-range`, and takes each character from the file the browser
+  drew it with: the last rule that holds it first, the next where that one
+  has no glyph. A character no page font has is drawn with the bundled font
+  of the same widths; only a bound value no font can draw fails. 1.2.0-rc.3.1
+  read one file of the family.
+- `@btps/boundview`: `snapshotBoundView` finds a value however the page lays
+  it out: split across elements ("300" in an `<h1>` and "Empire" in an
+  `<h2>`, "INV-" and "0042" in touching spans), or wrapped over lines, an
+  amount wrapped at a space between its groups included. It binds the
+  pieces by range. Where values overlap, the longest match takes the place,
+  so "1,452" in "A$1,452.00" is the amount's. It also finds a line item
+  whose cells stand above or below its description, as a table row or a
+  card lays them out. A line is placed where most of its cells stand,
+  nearest them, so a heading repeating its description is not taken for
+  it, and a cell is never taken from inside another field's longer match
+  (a quantity "10" in "10/02/2026", an amount 1 in the invoice number "A1").
+  1.2.0-rc.3.1 matched each line of text on its own and bound only long
+  text over several lines, so a split or wrapped value went unbound and the
+  BoundView failed its key-facts check.
+- `@btps/boundview`: `snapshotBoundView` emits the `signature` element where
+  the page draws the document's visual signature: an SVG of exactly its
+  strokes, or the line that is exactly its typed text, in the page's rarest
+  typeface. 1.2.0-rc.3.1 emitted none, so a letter or agreement with a
+  visual signature always failed its key-facts check.
+- `@btps/boundview`: `snapshotBoundView` makes a text's box no wider than
+  the browser drew it, rounded down, so text touching what follows it is not
+  covered by it. 1.2.0-rc.3.1 rounded the box up from the value's measured
+  width, which could reach into the next element and fail "Not hidden".
+- `@btps/boundview`: `snapshotBoundView` makes the page the preview's box
+  plus any overflow that is not clipped. 1.2.0-rc.3.1 used the box alone, so
+  a fact drawn in the overflow lay outside the page and failed "Not hidden".
+- `@btps/boundview`: `BoundViewSnapshotError` carries `view`, the BoundView
+  a receiver would not show, when the snapshot made one.
+- `@btps/boundview`: `renderBoundView` and the snapshot's SVG logo check
+  free the drawing engine's WebAssembly memory after each drawing. In
+  1.2.0-rc.3.1, after some tens of thousands of drawings in one page, every
+  drawing failed.
+- `@btps/sdk/boundview`: the BoundView schema checks an image's data with
+  `atob`. 1.2.0-rc.3.1 used Node's `Buffer`, so the check failed in a
+  browser without it.
 - A refusal of a trust's permissions reaches the sender as itself:
   `BTP_ERROR_PERMISSION_REQUIRED` for a grant that withholds a required name,
   `BTP_ERROR_PERMISSION` for a name not granted or not asked for,

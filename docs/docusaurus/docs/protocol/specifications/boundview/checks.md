@@ -70,37 +70,157 @@ the BoundView is not shown, with a `wellFormed` problem.
 
 | Check | In short |
 | --- | --- |
-| [Key facts](#key-facts) | Every key fact of the document is on the BoundView, bound |
+| [Key facts](#key-facts) | Every key fact of the document is on the BoundView, written from its signed value |
 | [Shown in full](#shown-in-full) | Every bound value fits its box, with glyphs for every character |
 | [Not hidden](#not-hidden) | Nothing covers a fact, and every fact stands out from what is behind it |
 | [Nothing to fetch, nothing to run](#nothing-to-fetch-nothing-to-run) | Every value is one the schema names |
 
 ### Key facts
 
-The BoundView shows each of its document's key facts at least once, as a bound
-`text` element. A key fact the document does not carry is not required.
+The BoundView shows each of its document's key facts at least once. The
+tables below say, for each document type, which fields are key facts and
+which may be left out. A field the document does not carry is not required.
 
-| Document | Key facts |
+A BoundView is the sender's own presentation, shown exactly as it was
+signed. The signed data is the record, and the receiving app's **all
+details** view shows every signed field, whether a BoundView is shown or
+not. So a BoundView must show the key facts, and everything it shows is the
+signed value, but it need not show every field. A design that does show
+every field passes too.
+
+A field may be left out when it is:
+
+- **What the receiving app shows apart from the BoundView:** who sent it,
+  verified, and who it is for.
+- **What follows from what is shown:** a subtotal, and a discount the total
+  already takes off.
+- **What does not change what is owed, paid or said:** an issue date beside
+  a due date, or how a payment was made.
+
+#### Invoice
+
+| Field | Must be shown |
 | --- | --- |
-| Invoice | `id`, `issuedAt`, `dueAt`, `totalAmount`, `subtotalAmount`, `taxAmount`, `discount`, `issuer.name`, `recipient.name`, `description`, and every line's description and line total |
-| Receipt | As an invoice, without `dueAt`, with `payment.amount` and `payment.paidAt` |
-| Payslip | `id`, `issuedAt`, `issuer.name`, `employee.name`, `payPeriod.start`, `payPeriod.end`, `payDate`, `gross`, `taxWithheld`, `net`, and every earning's, deduction's and contribution's amount |
-| Letter | `issuedAt`, `issuer.name`, `recipient.name`, every word of `body.content`, and the `signatory` (its name, title and visual signature) |
-| Agreement | As a letter, with `acceptance.by` |
+| `id` | Yes |
+| `dueAt` | Yes |
+| `totalAmount` | Yes |
+| `taxAmount` | Yes |
+| `description`, the note | Yes |
+| Each line's description and line total | Yes ([Line items](#line-items)) |
+| `issuer.name` | No: the receiving app shows who sent it |
+| `recipient.name` | No: the receiving app shows who it is for |
+| `issuedAt` | No |
+| `subtotalAmount` | No: it follows from the lines |
+| `discount`, as `amount` or `percent` | No: the total already takes it off |
+| A line's other cells: quantity, unit price, tax, a line's discount | No |
+| Any other field, such as `title`, or the issuer's address or identifiers | No |
+
+#### Receipt
+
+| Field | Must be shown |
+| --- | --- |
+| `id` | Yes |
+| `totalAmount` | Yes |
+| `taxAmount` | Yes |
+| `description`, the note | Yes |
+| `payment.amount` | Yes |
+| `payment.paidAt` | Yes |
+| Each line's description and line total | Yes ([Line items](#line-items)) |
+| `issuer.name` | No: the receiving app shows who sent it |
+| `recipient.name` | No: the receiving app shows who it is for |
+| `issuedAt` | No |
+| `subtotalAmount` | No: it follows from the lines |
+| `discount`, as `amount` or `percent` | No: the total already takes it off |
+| `payment.method`, `payment.reference` | No: how it was paid does not change what was paid |
+| A line's other cells: quantity, unit price, tax, a line's discount | No |
+| Any other field, such as `title`, or the issuer's address or identifiers | No |
+
+#### Payslip
+
+| Field | Must be shown |
+| --- | --- |
+| `id` | Yes |
+| `employee.name` | Yes |
+| `payPeriod.start`, `payPeriod.end` | Yes |
+| `payDate` | Yes |
+| `gross`, `taxWithheld`, `net` | Yes |
+| Each earning's `description` and `amount` | Yes |
+| Each deduction's `description` and `amount` | Yes |
+| Each contribution's `amount` | Yes. A contribution has no `description`. |
+| `issuer.name`, the employer | No: the receiving app shows who sent it |
+| `employee.employeeId` | No |
+| `issuedAt` | No |
+| `payRate` | No |
+| `leave` | No |
+| `yearToDate` | No |
+| Any other field, such as `title`, or an earning's `category` or `rate` | No |
+
+#### Letter
+
+| Field | Must be shown |
+| --- | --- |
+| `issuedAt` | Yes |
+| `body.content` | Yes, every word of it |
+| `signatory.name`, `signatory.title` | Yes |
+| `signatory.visualSignature` | Yes, as a [`signature`](./elements.md#signature) element |
+| `issuer.name` | No: the receiving app shows who sent it |
+| `recipient.name` | No: the receiving app shows who it is for |
+| `id` | No |
+| Any other field, such as `title`, or the issuer's address | No |
+
+#### Agreement
+
+As a letter, and `acceptance.by` must be shown too.
+
+#### Line items
 
 A line's description and line total are its cells in the columns
 `lineItems.roles` names `description` and `lineTotal`. When the document
-names no roles, every cell of every line is a key fact.
+names no roles, every cell of every line is a key fact. A discount written
+as a line item of its own is a line, and is shown as one.
 
-Every other signed field is shown by the receiving app's **all details**
-view, which every receiver offers whether a BoundView is shown or not.
+#### When a key fact is shown
+
+A key fact is shown when `text` elements write its value:
+
+- **Bound to it, or to a field written the same.** An element bound to
+  another field counts when it writes that field's value exactly as it would
+  write the key fact's, in the same format. Equal values share: on a receipt
+  whose total equals the amount paid, one element bound to `totalAmount`
+  shows `payment.amount` too, and one date shows both `issuedAt` and
+  `payment.paidAt` when they fall on the same day. A field written in
+  markdown shares only with another written in markdown.
+- **In full.** A value shown in pieces, each element bound to a
+  [range](./bindings.md#ranges) of it, counts when its pieces, in one
+  format, together cover every character that must be shown. A space need
+  not be shown.
+
+`signatory.visualSignature` is shown when the BoundView has a `signature`
+element.
+
+#### Markdown
+
+In a field written in markdown, a note or a body with `format: "markdown"`,
+the characters a renderer does not draw as text need not be shown:
+
+| Characters | Why |
+| --- | --- |
+| The marks `#`, `*`, `_`, `` ` ``, `>`, `-` and `+`, wherever they are | They are formatting marks. One drawn as text, such as a hyphen, may still be shown. |
+| A backslash before a punctuation mark or a symbol | It escapes the next character and is never drawn |
+| A link's `[` and its `](destination)` | Only the link's text is drawn, and it must be shown |
+| The `<` and `>` of an address written `<https://…>` or `<http://…>` | They are never drawn |
+| An ordered list item's number, 1 to 9 digits and its `.` or `)`, at the start of a line after any spaces or tabs and followed by a space or tab | It is drawn as the list's marker, not as text |
+
+Every other character but a space must be shown. `markdownHidden(text)`,
+from `@btps/sdk/boundview`, marks these characters in a text, and
+`keyFacts(document)` lists a document's key facts.
 
 ### Shown in full
 
-Each bound value, written in its format and drawn with its glyphs, fits its
-element's `width`. A receiver may draw it smaller to fit, down to three
-quarters of its `size` and never below 6 pixels; if it still does not fit,
-the check fails. A value is never cut short, wrapped or hidden.
+Each bound value, written in its format, or the part of it its `range`
+names, and drawn with its glyphs, fits its element's `width`. A receiver may
+draw it smaller to fit, down to three quarters of its `size` and never below
+6 pixels; if it still does not fit, the check fails. A value is never cut short, wrapped or hidden.
 
 Each character of a bound value has a glyph in that element's own font. A
 character with no glyph there fails the check: a font's
@@ -116,6 +236,13 @@ For each bound `text` element and each `signature`:
 - no `image` lies under it;
 - its colour has a WCAG 2 contrast of at least 3:1 with the colour beneath
   it at **every** sample point of its box ([Contrast](#contrast)).
+
+Two boxes overlap when they share more than 0.005 pixels across and more
+than 0.005 pixels down: half of 0.01 pixels, the precision a canvas writes
+positions to ([Canvas](./canvas.md)). Boxes that only touch, or meet by
+less through the rounding of a sum, do not overlap. The same test decides
+whether an `image` lies under a fact. In the same way, a box counts as
+inside the page when it reaches past an edge by 0.005 pixels or less.
 
 A label, a shape and an image may be drawn anywhere: they are the sender's
 design.

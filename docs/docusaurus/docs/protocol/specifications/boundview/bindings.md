@@ -29,7 +29,7 @@ from the canvas, so a BoundView cannot show a fact the document does not carry.
 | --- | --- | --- | --- |
 | `field` | string | Yes | The signed field, as a path ([below](#fields-that-can-be-bound)). |
 | `format` | format | Yes for money, dates and a discount's percent. For text, only to write it in groups. | How the value is written ([Formats](#formats)). Absent for text written as it is. |
-| `range` | `[start, end]` | No, text only | The characters of the value this element shows, counted in code points, `end` excluded. It is how a value shown over several lines, or part of a line, is bound. |
+| `range` | `[start, end]` | No | The characters this element shows of the value as its format writes it, counted in code points, `end` excluded. It is how a value the page wraps over lines or splits across elements is bound ([Ranges](#ranges)). |
 
 ## Fields that can be bound
 
@@ -110,7 +110,7 @@ document ([Checks](./checks.md#two-outcomes)).
 | [`date`](#date) | Dates | `{ "date": "d MMM yyyy" }` | `25 Nov 2026` |
 | [`percent`](#percent) | `discount.percent` | `{ "percent": { "decimals": 0, "decimal": "." } }` | `10%` |
 | [`groups`](#groups) | Text written in groups | `{ "groups": { "sizes": [2, 3, 3, 3], "separator": " " } }` | `51 824 753 556` |
-| [none](#text) | Text written as it is | | The value, or its `range` |
+| [none](#text) | Text written as it is | | The value |
 
 ### Money
 
@@ -186,16 +186,44 @@ refused.
 
 ### Text
 
-No `format`: the value as the document writes it, or the part of it `range`
-names. A note's or a letter body's `range` counts the characters of its
-`content` as written. A markdown body's formatting marks (`#`, `*`, `_`,
-`` ` ``, `>`, a list's `-`) need not be inside a range; its words must be.
+No `format`: the value as the document writes it. A note's or a letter
+body's written value is its `content`, as written.
+
+## Ranges
+
+A `range` names part of a value: the code points `start` to `end`, `end`
+excluded, of the value **as its format writes it**. It works the same for
+every format: money, dates, percents, groups and text. For text with no
+format, the written value is the text itself.
+
+A value the page wraps over two lines, or splits across two elements, is
+bound in pieces, one `text` element a piece. `25 November 2026`, wrapped
+after `November`:
+
+```json
+{ "field": "dueAt", "format": { "date": "d MMMM yyyy" }, "range": [0, 11] }
+{ "field": "dueAt", "format": { "date": "d MMMM yyyy" }, "range": [12, 16] }
+```
+
+`INV-0042`, drawn as `INV-` and `0042` in two elements side by side:
+
+```json
+{ "field": "id", "range": [0, 4] }
+{ "field": "id", "range": [4, 8] }
+```
+
+A letter's body, over two lines:
 
 ```json
 { "field": "body.content", "range": [0, 39] }
 { "field": "body.content", "range": [40, 76] }
 ```
 
-Together, the ranges of a letter's body cover every word of it: each word
-is a [key fact](./checks.md#key-facts). The [letter example](./examples.md#a-letter-with-its-signatory)
-binds a body over two lines this way.
+`start` is less than `end`. A range that ends past the value as written is
+refused, with the document ([Two outcomes](./checks.md#two-outcomes)).
+
+For a key fact, the pieces together cover every character of it, except
+spaces and, in markdown, the characters a renderer does not draw
+([When a key fact is shown](./checks.md#when-a-key-fact-is-shown)). The
+[letter example](./examples.md#a-letter-with-its-signatory) binds a body
+over two lines this way.
