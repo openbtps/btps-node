@@ -200,7 +200,7 @@ const svgPaths = (svg: SVGSVGElement, origin: DOMRect, offset: [number, number] 
 };
 
 /** The browser's own picture of an SVG in its box, at `scale`, over white. */
-const browserPixels = async (svg: SVGSVGElement, box: Box, scale: number) => {
+const browserPixels = async (svg: SVGSVGElement, box: Box, scale: number, floor = false) => {
   const copy = svg.cloneNode(true) as SVGSVGElement;
   copy.setAttribute('width', String(box.width));
   copy.setAttribute('height', String(box.height));
@@ -208,8 +208,9 @@ const browserPixels = async (svg: SVGSVGElement, box: Box, scale: number) => {
   try {
     const image = await loaded(url);
     const canvas = document.createElement('canvas');
-    canvas.width = Math.round(box.width * scale);
-    canvas.height = Math.round(box.height * scale);
+    const round = floor ? Math.floor : Math.round;
+    canvas.width = Math.max(1, round(box.width * scale));
+    canvas.height = Math.max(1, round(box.height * scale));
     const context = canvas.getContext('2d') as CanvasRenderingContext2D;
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
@@ -454,7 +455,31 @@ const linearGradient = (css: string, box: Box): unknown => {
 };
 
 /** Boxes with a fill, a gradient or a border, images and SVG logos, in the order the page paints them. */
-const paint = async (root: HTMLElement, origin: DOMRect, images: Record<string, Image>, problems: string[], engine: boolean) => {
+/**
+ * Whether an SVG draws a signature's strokes: one line a stroke, each from the stroke's own points, in the canvas the
+ * strokes are in (1,000 by 300), as a page draws the signature it was given.
+ */
+const drawsStrokes = (svg: SVGSVGElement, strokes: number[][]) => {
+  const lines = [...svg.querySelectorAll('polyline, path')];
+  if (lines.length !== strokes.length) return false;
+  return lines.every((line, i) => {
+    const source = line.tagName.toLowerCase() === 'path' ? line.getAttribute('d') : line.getAttribute('points');
+    const numbers = (source?.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+    const stroke = strokes[i] as number[];
+    return numbers.length === stroke.length && numbers.every((value, at) => Math.abs(value - (stroke[at] ?? NaN)) <= 0.5);
+  });
+};
+
+type Signed = { strokes?: number[][]; text?: string; found: Element[] };
+
+const paint = async (
+  root: HTMLElement,
+  origin: DOMRect,
+  images: Record<string, Image>,
+  problems: string[],
+  engine: boolean,
+  signature: Signed = { found: [] },
+) => {
   const out: Element[] = [];
   const all = [root, ...root.querySelectorAll('*')];
   for (const element of all) {
@@ -555,6 +580,13 @@ const paint = async (root: HTMLElement, origin: DOMRect, images: Record<string, 
       }
     }
     try {
+      // The sender's drawn signature: the receiver draws it from the signed strokes, in this box.
+      if (svg && signature.strokes && drawsStrokes(svg, signature.strokes)) {
+        const ink = svg.querySelector('polyline, path');
+        const colour = ink ? hex(getComputedStyle(ink).stroke) : undefined;
+        signature.found.push({ type: 'signature', x: box.left, y: box.top, width: box.width, height: box.height, colour: solid(colour ?? '#000000') } as Element);
+        continue;
+      }
       if (svg && engine) {
         const paths = svgPaths(svg, origin);
         const local = svgPaths(svg, origin, [box.left, box.top]);
@@ -565,8 +597,10 @@ const paint = async (root: HTMLElement, origin: DOMRect, images: Record<string, 
       }
       const key = `image${Object.keys(images).length}`;
       if (svg) {
-        const pixels = await browserPixels(svg, box, Math.min(2, 1024 / box.width, 1024 / box.height));
-        const width = Math.round(box.width * Math.min(2, 1024 / box.width, 1024 / box.height));
+        // Within the image limits: 1,024 a side and 262,144 pixels (as capturePixels), rounded down so never over.
+        const scale = Math.min(2, 1024 / box.width, 1024 / box.height, Math.sqrt(262144 / (box.width * box.height)));
+        const pixels = await browserPixels(svg, box, scale, true);
+        const width = Math.max(1, Math.floor(box.width * scale));
         const height = pixels.length / 4 / width;
         images[key] = { width, height, encoding: 'rgba8-deflate', data: toBase64(zlibSync(new Uint8Array(pixels.buffer))) };
       } else {
@@ -633,9 +667,36 @@ export const snapshotBoundView = async (
     }
   }
   const images: Record<string, Image> = {};
-  const shapes = await paint(preview, origin, images, problems, canVerify);
+  // The sender's visual signature, drawn by the receiver from the signed data where the page shows it.
+  const visual = ((document.signatory ?? {}) as { visualSignature?: { type: string; strokes?: number[][]; text?: string } }).visualSignature;
+  const signature: Signed = {
+    found: [],
+    ...(visual?.type === 'drawn' && visual.strokes && { strokes: visual.strokes }),
+    ...(visual?.type === 'typed' && visual.text && { text: visual.text }),
+  };
+  const shapes = await paint(preview, origin, images, problems, canVerify, signature);
   const runs = textRuns(preview, origin);
-  const segments = bindRuns(document, runs);
+  let segments = bindRuns(document, runs);
+  // A typed signature: the line that is its text, set apart, is drawn by the receiver as the signature.
+  if (signature.text !== undefined) {
+    const line = segments.find(
+      (segment) => !segment.bind && [...(runs[segment.run] as LaidRun).text].slice(segment.from, segment.to).join('') === signature.text,
+    );
+    if (line) {
+      const run = runs[line.run] as LaidRun;
+      const left = (run.chars[line.from] as { left: number }).left;
+      const right = (run.chars[line.to - 1] as { right: number }).right;
+      signature.found.push({
+        type: 'signature',
+        x: r2(left),
+        y: r2(run.top),
+        width: r2(right - left),
+        height: r2((run.bottom ?? run.top + run.style.size) - run.top),
+        colour: run.style.colour,
+      } as Element);
+      segments = segments.filter((segment) => segment !== line);
+    }
+  }
 
   // A font a style: its own glyphs, read from the page's font file, or the bundled font with its widths.
   const styles = new Map<string, { style: Style; segments: Segment[] }>();
@@ -755,7 +816,10 @@ export const snapshotBoundView = async (
         const kerning = table.kerning?.[`${char}${chars[i + 1] ?? ''}`] ?? 0;
         return sum + ((glyph?.advance ?? 0) + kerning) * (style.size / table.unitsPerEm) + (style.spacing ?? 0);
       }, 0);
-      texts.push({ type: 'text', bind: segment.bind, ...base, width: ceil2(width) } as Element);
+      // No wider than the browser drew it: what follows on the line (a comma, the next word) starts where the page put
+      // it, and a box reaching past that would be covered by it. A receiver fits the value to its box.
+      const drawn = last.right - first.left;
+      texts.push({ type: 'text', bind: segment.bind, ...base, width: ceil2(drawn > 0 ? Math.min(width, drawn) : width) } as Element);
     } else {
       const text = [...run.text].slice(segment.from, segment.to).join('');
       texts.push({ type: 'label', text, ...base, width: ceil2(Math.max(0, last.right - first.left)) } as Element);
@@ -771,7 +835,7 @@ export const snapshotBoundView = async (
     page: { width: ceil2(origin.width), height: ceil2(origin.height), ...(background && { background: solid(background) }) },
     ...(Object.keys(fonts).length > 0 && { fonts }),
     ...(Object.keys(images).length > 0 && { images }),
-    elements: [...shapes, ...texts],
+    elements: [...shapes, ...texts, ...signature.found],
   };
   if (problems.length > 0) throw new BoundViewSnapshotError('The preview cannot be sent as a BoundView', problems);
 

@@ -70,6 +70,13 @@ class Drawing {
     this.parts.push(part);
   }
 
+  /** A clip to an outline, defined once, as an attribute. */
+  clip(outline: string): string {
+    const id = `c${this.gradients++}`;
+    this.defs.push(`<clipPath id="${id}"><path d="${outline}"/></clipPath>`);
+    return ` clip-path="url(#${id})"`;
+  }
+
   toString(width: number, height: number, background: string) {
     const [hex, alpha] = colourOf(background);
     return [
@@ -262,8 +269,13 @@ export const boundViewToSvg = (document: Doc, view: BTPBoundView, bundled: Bundl
       case 'image': {
         const image = view.images?.[element.image];
         if (image === undefined) break;
+        const radius = element.radius ?? 0;
+        const radii = Array.isArray(radius) ? radius : [radius, radius, radius, radius];
+        const clip = radii.some((r) => r > 0)
+          ? drawing.clip(roundedRect(element.x, element.y, element.width, element.height, radii))
+          : '';
         drawing.push(
-          `<image x="${n(element.x)}" y="${n(element.y)}" width="${n(element.width)}" height="${n(element.height)}" preserveAspectRatio="none" href="data:image/png;base64,${pngOf(image)}"${opacity}/>`,
+          `<image x="${n(element.x)}" y="${n(element.y)}" width="${n(element.width)}" height="${n(element.height)}" preserveAspectRatio="none" href="data:image/png;base64,${pngOf(image)}"${clip}${opacity}/>`,
         );
         break;
       }

@@ -200,7 +200,14 @@ const element = z.discriminatedUnion('type', [
     })
     .strict(),
   z
-    .object({ type: z.literal('image'), image: z.string().min(1), ...box, opacity: opacity.optional() })
+    .object({
+      type: z.literal('image'),
+      image: z.string().min(1),
+      ...box,
+      // Its corners rounded, as a rect's: a rounded logo or photo.
+      radius: z.union([size, z.tuple([size, size, size, size])]).optional(),
+      opacity: opacity.optional(),
+    })
     .strict(),
   z.object({ type: z.literal('text'), bind: binding, ...textBox }).strict(),
   z

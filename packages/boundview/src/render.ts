@@ -35,6 +35,10 @@ export const initBoundViewEngine = (source?: BoundViewEngineSource): Promise<voi
     const wasm = createRequire(import.meta.url).resolve('@resvg/resvg-wasm/index_bg.wasm');
     return initWasm(await readFile(wasm));
   })();
+  // A load that failed (a wrong URL, a network error) is not kept: the next call tries again.
+  engine.catch(() => {
+    engine = undefined;
+  });
   return engine;
 };
 
