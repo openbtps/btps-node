@@ -5,6 +5,9 @@ slug: /protocol/specifications/boundview
 description: BoundView - what you see is what was signed. A document's view, bound to its signed data, signed with the document and checked wherever it is opened.
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # BoundView
 
 > **Since 1.2.** A BoundView travels in `1.2.0` artifacts only.
@@ -60,14 +63,41 @@ happens for it:
   `renderBoundView` draws a BoundView that passed into a finished picture,
   and the app only displays it.
 
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
+```bash
+npm install @btps/boundview
+```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/boundview
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/boundview
+```
+
+</TabItem>
+</Tabs>
+
 ```ts
-import { snapshotBoundView, renderBoundView } from '@btps/boundview';
+import { initBoundViewEngine, snapshotBoundView, renderBoundView } from '@btps/boundview';
+
+// In a browser or app, load the engine once (in Node it loads by itself)
+await initBoundViewEngine(new URL('@btps/boundview/engine.wasm', import.meta.url));
 
 // Sending: the preview you already show, and the document it shows
 const boundView = await snapshotBoundView(previewElement, document);
 await agent.command('artifact.send', to, { ...document, boundView });
 
-// Receiving: a PNG to display, or null when the view failed a check
+// Receiving: PNG bytes to display, or null when there is no BoundView or it failed a check
 const png = await renderBoundView(openedDocument);
 ```
 
@@ -138,9 +168,14 @@ describes.
 ## Versions
 
 A document with a BoundView is a `1.2.0` artifact: `boundView` travels in
-`1.2.0` artifacts only. `template` keeps its 1.1 form, a name and free data,
-in any version, and is read as 1.1 reads it. A receiver draws nothing from
-it.
+`1.2.0` artifacts only. It is optional: a platform that does not want its
+design to travel sends none, and the receiver shows its own view of the
+data.
+
+`template` is `1.1.0` only. In a `1.1.0` invoice or receipt it is read
+exactly as 1.1 reads it, a name and free data, and a receiver draws nothing
+from it. In a `1.2.0` artifact it is refused: there, a document's look is
+its BoundView. A letter or a payslip has no `template` in any version.
 
 A provider that does not draw BoundViews still accepts and checks documents
 that carry one, and shows its own view of the signed data.

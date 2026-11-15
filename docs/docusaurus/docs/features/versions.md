@@ -36,6 +36,8 @@ sequenceDiagram
 
 `artifactVersion` decides: `1.1.0` unless the artifact uses something 1.2 adds (permission fields, `documentType`, `syncOf`, an agreement, a `withdrawn`, a note with a format, a discount, a BoundView, a signatory, and the rest). Identity lookups and control artifacts are always `1.1.0`, so every 1.1 and 1.2 server answers them. The agent and `signEncrypt` stamp for you.
 
+One 1.1 field goes the other way: `template` is `1.1.0` only. An invoice or receipt with a `template` and nothing from 1.2 is stamped `1.1.0` and read as before. Add anything from 1.2 to it and it is stamped `1.2.0`, and refused, by the sender's own SDK before sending, until `template` is removed. In 1.2 a document's look is its optional [BoundView](../protocol/specifications/boundview/overview.md).
+
 ## A 1.2 artifact to a 1.1 server
 
 | Sent                                            | A 1.1.3 server answers                                                                         |
@@ -122,6 +124,7 @@ A server that ends a connection after an answer (a refusal that ends it, `QUIT`,
 | `BTP_ERROR_VERSION_UNSUPPORTED` | 400    | a 1.1 server; the sender's own SDK with `versionFallback: false` | a `1.2.0` artifact to a 1.1 server; the error's `meta.receiverVersion` is its version |
 | `BTP_ERROR_VALIDATION`          | 400    | a 1.1 server                                                     | a details artifact: a type it does not know                                           |
 | `BTP_ERROR_VALIDATION`          | 400    | a 1.2 server                                                     | a 1.2-only field in a `1.1.0` artifact, or `status.closing` in a `1.1.0` response     |
+| `BTP_ERROR_VALIDATION`          | 400    | a 1.2 server; the sender's own SDK                               | a `template` in a `1.2.0` artifact: `template` is `1.1.0` only                        |
 
 ## Protocol and platform
 

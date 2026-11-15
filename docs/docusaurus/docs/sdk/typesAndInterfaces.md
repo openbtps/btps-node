@@ -800,7 +800,7 @@ interface BTPInvoiceDoc {
   discount?: BTPDiscount; // 1.2: a discount on the whole invoice, before tax
   attachments?: BTPAttachment[];
   references?: BTPDocReference[];
-  template?: BTPTemplate;
+  template?: BTPTemplate; // 1.1.0 only: refused in a 1.2.0 artifact
   boundView?: BTPBoundView; // since 1.2
   metadata?: Record<string, unknown>;
 }
@@ -832,7 +832,7 @@ type BTPLineRole = 'description' | 'quantity' | 'unitPrice' | 'discount' | 'tax'
 
 ### BTPTemplate
 
-A template by name, with free data: `{ name, data }`, the 1.1 form, read as 1.1 reads it in any version. A receiver draws nothing from it. A document's view is its [BoundView](#btpboundview).
+`1.1.0` only. A template by name, with free data: `{ name, data }`, the 1.1 form. In a `1.1.0` invoice or receipt it is read as 1.1 reads it, and a receiver draws nothing from it. In a `1.2.0` artifact it is refused with `template is 1.1.0 only; in 1.2.0 a document's look is its boundView`: there, a document's look is its optional [BoundView](#btpboundview). A letter or a payslip has none in any version.
 
 ```ts
 type BTPTemplate = { name: string; data: Record<string, unknown> };
@@ -840,7 +840,7 @@ type BTPTemplate = { name: string; data: Record<string, unknown> };
 
 ### BTPBoundView
 
-Since 1.2, in a `1.2.0` artifact: a document's BoundView, carried in its `boundView` field. What you see is what was signed: a signed canvas captured from the sender's preview, signed with the document and checked by the receiver (`checkBoundView`). Specified on [BoundView](../protocol/specifications/boundview/overview.md), with every field on its subpages.
+Since 1.2, in a `1.2.0` artifact: a document's BoundView, carried in its `boundView` field. What you see is what was signed: a signed canvas captured from the sender's preview, signed with the document and checked by the receiver (`checkBoundView`). Specified on [BoundView](../protocol/specifications/boundview/overview.md), with every field on its subpages. The types, schema and checks are also in the browser-safe `@btps/sdk/boundview`; the `@btps/boundview` package captures and draws a BoundView ([Using BoundView](../protocol/specifications/boundview/using.md)).
 
 ```ts
 interface BTPBoundView {
@@ -899,7 +899,7 @@ interface BTPBinding {
 
 ### BTPBoundViewResult
 
-Since 1.2. Whether a document's BoundView may be shown, as the SDK's check finds it: given by `decryptVerify` (`BTPCryptoResponse.boundView`), to a server's transporter handler as its second argument, and to `forwardTo` as `data.boundView`. `checkBoundView(document, boundView)` returns it, and `writtenValue(value, bind)` gives the exact string a binding draws; both are exported from `@btps/sdk/server` and `@btps/sdk/client`. See [Checks](../protocol/specifications/boundview/checks.md#the-result).
+Since 1.2. Whether a document's BoundView may be shown, as the SDK's check finds it: given by `decryptVerify` (`BTPCryptoResponse.boundView`), to a server's transporter handler as its second argument, and to `forwardTo` as `data.boundView`. `checkBoundView(document, boundView)` returns it, and `writtenValue(value, bind)` gives the exact string a binding draws; both are exported from `@btps/sdk/server`, `@btps/sdk/client` and the browser-safe `@btps/sdk/boundview`, with these types. See [Checks](../protocol/specifications/boundview/checks.md#the-result).
 
 ```ts
 type BTPBoundViewResult = { show: true } | { show: false; problems: BTPBoundViewProblem[] };

@@ -3,6 +3,9 @@ title: BTPS Server SDK Overview
 sidebar_label: Overview
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # BTPS Server SDK Overview
 
 The **BTPS Server SDK** enables you to run a secure, multi-tenant BTPS server for business document exchange, trust management, and extensible business logic. It is designed for SaaS, enterprise, and large-scale deployments, supporting:
@@ -15,9 +18,29 @@ The **BTPS Server SDK** enables you to run a secure, multi-tenant BTPS server fo
 
 ## Installation
 
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
 ```bash
 npm install @btps/sdk
 ```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/sdk
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/sdk
+```
+
+</TabItem>
+</Tabs>
 
 ## High-Level Architecture
 

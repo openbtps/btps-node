@@ -5,6 +5,9 @@ slug: /protocol/specifications/boundview/using
 description: For platforms. Send a document with its BoundView and show a received one with @btps/boundview, in a few lines and with no format to learn.
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Using BoundView
 
 For platforms that send documents or show them. `@btps/boundview` does the
@@ -12,11 +15,117 @@ work: you keep designing your preview in HTML, and you never write or read a
 canvas yourself. The [specification](./overview.md#the-specification) is
 for implementers and you do not need it.
 
+A BoundView is optional. If you do not want your design to travel, send
+none: the receiver shows its own view of the document's data.
+
 | Step | Where it runs | What you call |
 | --- | --- | --- |
+| [Install and load the engine](#install) | Once, where you capture or draw | `initBoundViewEngine(...)` in a browser or app; automatic in Node |
 | [Send a document with its BoundView](#send-a-document-with-its-boundview) | The browser where your preview is shown | `snapshotBoundView(previewElement, document)` |
 | Check a received BoundView | The receiving server, or the device that holds the key | Nothing: the SDK checks it whenever the document is opened |
 | [Show a received BoundView](#show-a-received-boundview) | Wherever your app displays documents | `renderBoundView(openedDocument)` |
+
+## Install
+
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
+```bash
+npm install @btps/boundview
+```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/boundview
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/boundview
+```
+
+</TabItem>
+</Tabs>
+
+`@btps/boundview` depends on `@btps/sdk` (`^1.2.0-rc.3`), so installing it
+alone brings what it needs, with any package manager. It uses only the SDK's
+browser-safe entry, `@btps/sdk/boundview` (schema, bindings and checks), so a
+frontend bundle never includes the SDK's server or client code.
+
+`@btps/boundview` draws with one engine, compiled to WebAssembly and shipped in the package as
+`@btps/boundview/engine.wasm`. In Node it loads by itself. In a browser or
+an app, serve that file with your app and load it once, before the first
+snapshot or picture:
+
+```ts
+import { initBoundViewEngine } from '@btps/boundview';
+
+// Or whatever URL your bundler gives @btps/boundview/engine.wasm
+await initBoundViewEngine(new URL('@btps/boundview/engine.wasm', import.meta.url));
+```
+
+## Frontend and backend apps
+
+`@btps/boundview` is kept apart from `@btps/sdk` so the SDK stays small: the
+drawing engine is about 2.5 MB of WebAssembly, the bundled glyph outlines are
+about 800 KB, and opentype.js is used only when sending. A platform that
+never draws or captures a BoundView never downloads them. Received
+BoundViews are still checked automatically by `@btps/sdk` alone
+(`decryptVerify`'s `boundView` result, the server handler's second argument).
+
+| Platform | Install |
+| --- | --- |
+| Sends or receives documents, no BoundView | `@btps/sdk` only |
+| Sends with a BoundView, or draws received ones | `@btps/sdk` and `@btps/boundview` |
+
+### What an app downloads
+
+`@btps/boundview` is tree-shakable (`sideEffects: false`), so an app's
+bundle holds only what it imports. Measured with code splitting, as Vite and
+Next.js bundle:
+
+| The app calls | Loaded up front | Gzipped |
+| --- | --- | --- |
+| `renderBoundView` only | About 104 KB, with no snapshot code and no font reader | About 32 KB |
+| `snapshotBoundView` only | About 367 KB, mostly opentype.js, which reads the page's fonts | About 108 KB |
+| Both | The same as `snapshotBoundView` alone | The same |
+
+Two things are never in that up-front load:
+
+- **The engine's WebAssembly** (about 2.5 MB) is never in a bundle. It is
+  fetched from the URL the app passes to `initBoundViewEngine`, and only
+  when the engine is used. For a sender, that means only when the preview
+  has an SVG logo and `engine` was given.
+- **The bundled fonts** (Arimo, Tinos, Cousine, Carlito and Caladea for
+  label fallbacks, Caveat for typed signatures) are each in a chunk of their
+  own, from about 75 KB to 310 KB. A drawing downloads one only when it uses
+  it: a label character missing from its own font, a typed signature, or a
+  page font the snapshot couldn't read. Most BoundViews need none.
+
+`snapshotBoundView` needs a browser, because it reads the browser's layout.
+`renderBoundView` runs in a browser, an app, or Node. A platform with a
+separate frontend app and backend API splits the work like this:
+
+1. **Frontend** shows the preview and calls `snapshotBoundView`. It needs
+   `@btps/boundview`.
+2. The frontend sends the returned `boundView` JSON with the draft to its own
+   API.
+3. **Backend** puts it in the document's `boundView` field, then signs and
+   sends with `@btps/sdk`. The SDK checks it again before signing.
+4. **Receiving:** the checks run where the document is opened (the backend's
+   server, or the device that decrypts), with `@btps/sdk`.
+5. **Drawing a received one:** either the frontend calls `renderBoundView`
+   (the frontend has `@btps/boundview`), or the backend calls
+   `renderBoundView` in Node and serves the PNG (then the backend installs
+   `@btps/boundview` too).
+
+Keep the frontend's and the backend's BTPS packages on the same 1.2 release,
+so the checks a sender's frontend runs and the checks its backend runs before
+signing never disagree.
 
 ## Send a document with its BoundView
 
@@ -25,12 +134,28 @@ Hand the preview's HTML element and the document it shows to
 returns in the document's `boundView` field, and send the document as usual.
 
 ```ts
-import { snapshotBoundView } from '@btps/boundview';
+import { snapshotBoundView, BoundViewSnapshotError } from '@btps/boundview';
 
-// The preview you already show, and the document it shows
-const boundView = await snapshotBoundView(previewElement, document);
-await agent.command('artifact.send', to, { ...document, boundView });
+try {
+  // The preview you already show, and the document it shows
+  const boundView = await snapshotBoundView(previewElement, document, {
+    engine: new URL('@btps/boundview/engine.wasm', import.meta.url), // optional
+    onWarning: (message) => console.warn(message), // the default
+  });
+  await agent.command('artifact.send', to, { ...document, boundView });
+} catch (error) {
+  if (error instanceof BoundViewSnapshotError) {
+    // error.problems: why a receiver would not accept or show it,
+    // e.g. "subtotalAmount: … not shown"
+  }
+  throw error;
+}
 ```
+
+| Option | What it does |
+| --- | --- |
+| `engine` | Where your app serves `@btps/boundview/engine.wasm`. With it, an SVG logo can travel as outlines; without it, as pixels. |
+| `onWarning` | Told about a label that looks like a fact but is not bound, and about a font with no readable font file, whose text is then drawn with the bundled font of the same widths. `console.warn` when absent. |
 
 `snapshotBoundView` captures the preview as a canvas. Text that shows a
 signed value is recorded as a [binding](./bindings.md) to that field, fonts
@@ -39,9 +164,41 @@ instructions are needed from you.
 
 It then checks the result. The sender's SDK runs the same
 [checks](./checks.md) a receiver runs before it signs, so a problem is found
-before sending, not after. It also warns, without refusing, when a label's
-text looks like an amount, a date, an account number or an address but is
-not bound: most often an example left in a design by mistake.
+before sending, not after. When the preview cannot make a BoundView a
+receiver would accept and show, `snapshotBoundView` throws a
+`BoundViewSnapshotError` whose `problems` say why. It also warns, without
+refusing, when a label's text looks like an amount, a date, an account
+number or an address but is not bound: most often an example left in a
+design by mistake.
+
+### What the snapshot reads
+
+It reads the preview as the browser laid it out:
+
+- **Text:** each line, and each character's position.
+- **Boxes:** solid backgrounds, CSS `linear-gradient` backgrounds, rounded
+  corners, and uniform or per-side borders. Decoration it cannot carry, such
+  as `box-shadow` or filters, is simply not captured.
+- **Images:** `<img>` and CSS background images, as pixels at twice their
+  size within the [limits](./images.md#limits). An image must come from the
+  same site or allow it (CORS); otherwise the snapshot throws, naming the
+  image.
+- **SVG:** inline `<svg>` and SVG `<img>`. A logo travels as outlines when
+  the engine's picture of the outlines matches the browser's picture of the
+  SVG: over white at 2×, a mean difference of at most 3 a channel, and at
+  most 1% of pixels differing by more than 64. Anything else (filters,
+  masks, clip paths, text, embedded images, gradients by reference, dashes)
+  travels as pixels. This is how the builder chooses, not a rule a receiver
+  checks.
+- **Fonts:** read from the page's own `@font-face` files. A woff, ttf or otf
+  source is needed: a font offered only as woff2 is drawn with the bundled
+  font of the same widths, with a warning. A preview uses at most 4 fonts.
+
+**Facts are found by their value.** Every way a field may be written is
+tried: money separators, prefix and suffix, the nine date patterns,
+percents, groups, and ranges for wrapped text. A binding is kept only when
+the receiver would write the field exactly as shown. A line item's amount is
+taken only on its own row's band, so it is never mistaken for a total.
 
 ### A preview that passes
 
@@ -73,13 +230,17 @@ app only displays it.
 ```ts
 import { renderBoundView } from '@btps/boundview';
 
-// A PNG to display, or null when the view failed a check
-const png = await renderBoundView(openedDocument);
+// PNG bytes (Uint8Array) at 2× by default, or null
+const png = await renderBoundView(openedDocument, { scale: 2 });
+if (png) {
+  img.src = URL.createObjectURL(new Blob([png], { type: 'image/png' }));
+}
 ```
 
-When `renderBoundView` gives `null`, show your own view of the signed data
-instead, with a notice saying why. The document is still accepted: only its
-BoundView is not shown.
+`renderBoundView` gives `null` when the document has no BoundView or it
+fails a check. Then show your own view of the signed data instead, with a
+notice saying why. The document is still accepted: only its BoundView is not
+shown.
 
 ### The check's result
 
@@ -115,6 +276,19 @@ server.onIncomingArtifact('Transporter', (artifact, boundView) => {
 `checkBoundView(document, boundView)` and `writtenValue(value, bind)`, the
 exact string a binding draws, are exported from `@btps/sdk/server` and
 `@btps/sdk/client`, for anyone checking or drawing a BoundView themselves.
+A browser or app that draws or captures a BoundView without the rest of the
+SDK can import from `@btps/sdk/boundview`, which is browser-safe and holds
+only the schema, bindings and checks: `BtpBoundViewSchema`, `isPathData`,
+`boundValue`, `bindingProblem`, `checkBoundView`, `boundViewResultOf`,
+`writtenValue`, `CONTRAST_WORK_LIMIT` and the types.
+
+Advanced: `boundViewToSvg(document, boundView, bundled?)` from
+`@btps/boundview` gives the drawing the engine reads, for a BoundView that
+already passed the checks
+([What the engine reads](./rendering.md#what-the-engine-reads)). Its
+optional third argument is the bundled fonts the drawing needs:
+`await loadBundledFonts(bundledFontsFor(document, boundView))`. Both helpers
+are exported from `@btps/boundview`, and `renderBoundView` does this itself.
 :::
 
 :::note Drawing is always done by `@btps/boundview`
@@ -161,8 +335,14 @@ behind it is never lost.
 
 ## Versions
 
-`boundView` travels in `1.2.0` artifacts only. `template` keeps its 1.1
-form in any version, and a receiver draws nothing from it
+`boundView` travels in `1.2.0` artifacts only, and it is optional. Without
+one, the receiver shows its own view of the data.
+
+`template` is `1.1.0` only. A document that carries one and nothing from 1.2
+is still sent as `1.1.0` and works as before. Once you add anything from
+1.2 to it, a BoundView included, it is stamped `1.2.0`, and your own SDK
+refuses it before sending until `template` is removed. To keep the
+document's look, send a BoundView instead
 ([Versions](./overview.md#versions)).
 
 ## Next

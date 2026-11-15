@@ -1,0 +1,10 @@
+@btps/boundview
+Copyright (c) 2025 Bhupendra Tamang. Licensed under the Apache License, Version 2.0.
+
+This package bundles:
+
+- Glyph outlines from the fonts Arimo, Tinos, Cousine, Carlito, Caladea and
+  Caveat, under the SIL Open Font License 1.1, read from their @fontsource
+  packages by scripts/generate-bundled-glyphs.mjs.
+- The WebAssembly build of resvg (@resvg/resvg-wasm), under the Mozilla
+  Public License 2.0, unmodified, as dist/engine.wasm.

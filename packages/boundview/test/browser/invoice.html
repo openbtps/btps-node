@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <!-- A platform's own invoice preview: its fonts, colours and logo. Nothing in it is marked for BTPS. -->
+    <style>
+      @font-face { font-family: 'Arimo'; font-weight: 400; src: url('/fonts/arimo-latin-400-normal.woff') format('woff'); }
+      @font-face { font-family: 'Arimo'; font-weight: 700; src: url('/fonts/arimo-latin-700-normal.woff') format('woff'); }
+      @font-face { font-family: 'Tinos'; font-weight: 400; src: url('/fonts/tinos-latin-400-normal.woff') format('woff'); }
+      body { margin: 0; background: #e9edf3; }
+      #preview { width: 560px; background: #ffffff; font-family: 'Arimo'; color: #0f1b2d; }
+      .band { height: 72px; background: linear-gradient(90deg, #1e4fc2 0%, #7c3aed 100%); display: flex; align-items: center; gap: 12px; padding: 0 24px; }
+      .band b { color: #ffffff; font-size: 20px; }
+      .body { padding: 20px 24px 28px; }
+      .muted { color: #4e5a6d; font-size: 12px; }
+      .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e6eaf0; font-size: 13px; }
+      .due { margin-top: 16px; background: #f2f6ff; border-radius: 10px; padding: 12px 14px; }
+      .due .label { color: #1e4fc2; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; }
+      .due .amount { font-size: 20px; font-weight: 700; margin-top: 4px; }
+      .note { font-family: 'Tinos'; font-size: 13px; margin-top: 16px; }
+    </style>
+  </head>
+  <body>
+    <div id="preview">
+      <div class="band">
+        <svg width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="#ffffff" /><path d="M10 24 L18 10 L26 24 Z" fill="#1e4fc2" /></svg>
+        <b>Apexworld</b>
+      </div>
+      <div class="body">
+        <div class="muted">ABN 51 824 753 556</div>
+        <div class="muted">INV-0042 · Issued 25 Nov 2026 · Due 09/12/2026</div>
+        <div style="margin-top: 14px; font-size: 13px">Bill to <b>Northwind Studio</b></div>
+        <div style="margin-top: 14px">
+          <div class="row"><span>Website care</span><span>A$1,320.00</span></div>
+          <div class="row"><span>GST</span><span>A$132.00</span></div>
+        </div>
+        <div class="due">
+          <div class="label">Amount due</div>
+          <div class="amount">A$1,452.00</div>
+        </div>
+        <div class="note">Thanks for your business.</div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,60 @@
+# @btps/boundview
+
+BoundView for BTPS: what you see is what was signed.
+
+This package captures a document's HTML preview as its BoundView, a signed
+canvas bound to the document's data, and draws a received BoundView in a
+closed WebAssembly engine. A platform builds nothing else: it keeps
+designing its preview in HTML.
+
+## Install
+
+```bash
+npm install @btps/boundview
+# or
+yarn add @btps/boundview
+# or
+pnpm add @btps/boundview
+```
+
+It brings `@btps/sdk` with it (a dependency, `^1.2.0-rc.3`), so you install
+nothing else.
+
+## Use
+
+```ts
+import { initBoundViewEngine, snapshotBoundView, renderBoundView } from '@btps/boundview';
+
+// In a browser or app, load the engine once. In Node it loads by itself.
+await initBoundViewEngine(new URL('@btps/boundview/engine.wasm', import.meta.url));
+
+// Sending, in the browser where the preview is shown
+const boundView = await snapshotBoundView(previewElement, document);
+await agent.command('artifact.send', to, { ...document, boundView });
+
+// Receiving: PNG bytes, or null when there is no BoundView or it failed a check
+const png = await renderBoundView(openedDocument);
+```
+
+`snapshotBoundView` throws a `BoundViewSnapshotError`, whose `problems` say
+why, when the preview cannot make a BoundView a receiver would accept and
+show.
+
+The package is tree-shakable (`sideEffects: false`), so a bundle holds only
+what an app imports. An app that only calls `renderBoundView` loads about
+104 KB up front (32 KB gzipped). The engine's WebAssembly (about 2.5 MB) is
+never bundled: it is fetched from the URL given to `initBoundViewEngine`, and
+only when the engine is used. Each bundled font is a chunk of its own,
+downloaded only when a drawing uses it.
+
+## Documentation
+
+- [BoundView](https://www.openbtps.org/docs/next/protocol/specifications/boundview): what it is and what it guarantees
+- [Using BoundView](https://www.openbtps.org/docs/next/protocol/specifications/boundview/using): the calls, options and what the snapshot reads
+- [Why BoundView was created](https://www.openbtps.org/docs/next/protocol/specifications/boundview/why)
+
+## Licence
+
+Apache-2.0. The package bundles glyph outlines of Arimo, Tinos, Cousine,
+Carlito, Caladea and Caveat (SIL Open Font License 1.1) and the WebAssembly
+build of resvg (Mozilla Public License 2.0). See [NOTICE](./NOTICE).

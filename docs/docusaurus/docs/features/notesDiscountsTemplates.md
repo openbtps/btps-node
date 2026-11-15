@@ -44,6 +44,12 @@ An invoice or receipt may carry `discount`: `{ amount }` in minor units, or `{ p
 
 What you see is what was signed. A document carries its BoundView in its top-level `boundView` field: a signed canvas captured from the sender's own preview when it is sent. Text that shows a fact is a **binding** to a signed field, never text: the receiver draws the field's value. Fonts travel as glyph outlines and images as pixels, so nothing is fetched and no font or image file is read. The receiver checks the BoundView wherever the document is opened, and shows its own view of the data when a check fails.
 
+A BoundView is optional. A platform that does not want its design to travel sends none, and the receiver shows its own view of the data.
+
+:::warning `template` is 1.1.0 only
+A 1.1 invoice or receipt may carry `template`, `{ name, data }`, and is still sent as `1.1.0` and read as before. Add anything from 1.2 to it, such as a BoundView, a discount or a note with a format, and it is stamped `1.2.0`: the sender's own SDK then refuses it until `template` is removed. To keep the document's look, send a BoundView instead.
+:::
+
 Why BoundView was created, and what email, signed PDFs and e-invoicing networks cannot do: [Why BoundView was created](../protocol/specifications/boundview/why.md).
 
 :::tip You build none of it
@@ -56,7 +62,7 @@ import { snapshotBoundView, renderBoundView } from '@btps/boundview';
 const boundView = await snapshotBoundView(previewElement, document); // in the browser showing the preview
 await agent.command('artifact.send', to, { ...document, boundView });
 
-const png = await renderBoundView(openedDocument); // null when the view failed a check
+const png = await renderBoundView(openedDocument); // PNG bytes, or null when there is no BoundView or it failed a check
 ```
 
 | Who | What happens |
@@ -117,7 +123,7 @@ Nothing new to call to send these: they are fields of the document a platform al
 
 | Code                   | Status | Who refuses                                                                     | When                                                                                                                                                                                                                                         |
 | ---------------------- | ------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BTP_ERROR_VALIDATION` | 400    | the receiving server (readable), `decryptVerify` (opened), the sender's own SDK | a note over 5,000 characters or of another format, a discount with both or neither field or out of range, a BoundView that breaks its schema or a limit or binds a field the document lacks, a signatory's stroke off its canvas, or any of these in a `1.1.0` artifact |
+| `BTP_ERROR_VALIDATION` | 400    | the receiving server (readable), `decryptVerify` (opened), the sender's own SDK | a note over 5,000 characters or of another format, a discount with both or neither field or out of range, a BoundView that breaks its schema or a limit or binds a field the document lacks, a signatory's stroke off its canvas, a `template` in a `1.2.0` artifact, or any of these in a `1.1.0` artifact |
 
 :::note A failed check is not an error
 A BoundView that is well formed but fails a check is not an error: the document is accepted and the receiver shows its own view of the data ([Checks](../protocol/specifications/boundview/checks.md#two-outcomes)).

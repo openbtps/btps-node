@@ -456,6 +456,8 @@ The invoice is described first; the others share its money, attachments and refe
 }
 ```
 
+This example carries `template` and nothing 1.2 adds, so it is a `1.1.0` artifact. A `1.2.0` invoice leaves `template` out, and may carry a `boundView` instead.
+
 **Required Fields:**
 
 - **type**: `invoice`
@@ -476,7 +478,7 @@ The invoice is described first; the others share its money, attachments and refe
 - **recipient** (1.2): Who the document is for, `{ "name": "Northwind Studio" }` (see Totals, line roles and the recipient)
 - **attachments**: Files carried with the document (see Attachments)
 - **references**: Links to other signed documents (see References)
-- **template**: The 1.1 form, `{ "name": "…", "data": { … } }`, in any version, read as 1.1 reads it; a receiver draws nothing from it
+- **template** (`1.1.0` only): The 1.1 form, `{ "name": "…", "data": { … } }`, read as 1.1 reads it; a receiver draws nothing from it. Refused in a `1.2.0` artifact, where a document's look is its `boundView` (see BoundView)
 - **boundView** (1.2): The document's BoundView, a signed canvas (see BoundView); on every document type
 - **metadata**: The sending platform's own data; carried and signed, never read by the protocol
 
@@ -500,7 +502,9 @@ Each travels in a `1.2.0` artifact.
 
 **BoundView (since 1.2):**
 
-What you see is what was signed. In a `1.2.0` artifact, a document may carry `boundView`: its BoundView, a signed canvas captured from the sender's own preview, whose facts are bound to the document's signed fields. A receiver checks it wherever the document is opened and draws it, or shows its own view of the data when a check fails. The canvas, its bindings, its checks and how it is drawn are on [BoundView](./boundview/overview.md). `template` keeps its 1.1 form, `{ "name": "…", "data": { … } }` with free `data`, in any version, and is read as 1.1 reads it; a receiver draws nothing from it.
+What you see is what was signed. In a `1.2.0` artifact, a document may carry `boundView`: its BoundView, a signed canvas captured from the sender's own preview, whose facts are bound to the document's signed fields. A receiver checks it wherever the document is opened and draws it, or shows its own view of the data when a check fails. The canvas, its bindings, its checks and how it is drawn are on [BoundView](./boundview/overview.md). `boundView` is optional: a platform that does not want its design to travel sends none, and the receiver shows its own view of the data.
+
+`template` is `1.1.0` only. In a `1.1.0` invoice or receipt it is read exactly as 1.1 reads it: `{ "name": "…", "data": { … } }` with free `data`, and a receiver draws nothing from it. In a `1.2.0` artifact it is refused with `template is 1.1.0 only; in 1.2.0 a document's look is its boundView`. A letter or a payslip has no `template` in any version. A platform moving to 1.2 drops `template` from a document as soon as it adds anything 1.2 to it, and sends a BoundView to keep the document's look ([Migrating from 1.1 to 1.2](../../whats-new/version-1-2-migration.md#dropping-template)).
 
 A document carries no status: whether an invoice is paid, partly paid, disputed or refunded comes from the lifecycle events exchanged about it. The schema is strict, so a field it does not name (such as 1.0's `status`) is refused.
 

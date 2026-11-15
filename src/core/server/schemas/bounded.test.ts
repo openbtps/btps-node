@@ -11,6 +11,7 @@ import { boundedArray, boundedRecord, PRECHECK_THRESHOLD } from './bounded.js';
 import {
   BtpAuthReqDocSchema,
   BtpInvoiceDocSchema,
+  BtpInvoiceDocV1_1Schema,
   BtpLetterDocSchema,
   BtpPayslipDocSchema,
 } from './btpsDocsSchema.js';
@@ -213,9 +214,10 @@ describe('every limit is accepted at its maximum and refused one over', () => {
         }),
     ],
     [
+      // A template is 1.1.0 only.
       'template data keys',
       L.recordKeys,
-      BtpInvoiceDocSchema,
+      BtpInvoiceDocV1_1Schema,
       (n) => invoice({ template: { name: 't', data: keys(n) } }),
     ],
     [

@@ -3,6 +3,9 @@ title: BTPS Agent Setup
 sidebar_label: Setup
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Setting Up the BTPS Agent
 
 This guide walks you through installing, configuring, and using the BTPS Agent (`BtpsAgent`) to send commands to BTPS servers. The BtpsAgent provides a high-level API for executing agent actions with automatic validation, security, and error handling.
@@ -23,9 +26,29 @@ This guide walks you through installing, configuring, and using the BTPS Agent (
 
 Install the SDK from npm (Node.js 24 or higher):
 
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
 ```bash
 npm install @btps/sdk
 ```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/sdk
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/sdk
+```
+
+</TabItem>
+</Tabs>
 
 ## 2. BtpsAgent Constructor Options
 
