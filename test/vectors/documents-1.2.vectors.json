@@ -1020,7 +1020,7 @@
       "expect": "accept"
     },
     {
-      "name": "invoice-template-free-data",
+      "name": "invoice-template-under-1-2",
       "type": "BTPS_DOC",
       "document": {
         "type": "invoice",
@@ -1049,7 +1049,8 @@
         }
       },
       "version": "1.2.0",
-      "expect": "accept"
+      "expect": "refuse",
+      "why": "template is 1.1.0 only; in 1.2.0 a document's look is its boundView"
     },
     {
       "name": "invoice-template-free-data-under-1-1",

@@ -8,7 +8,7 @@
 /*
  * BTPS 1.2 document fields, by the version of the artifact they travel in: a
  * note that says how it is written, discounts, totals, line roles, a
- * recipient, a signatory and a BoundView. A template keeps its 1.1 form.
+ * recipient, a signatory and a BoundView. A template is 1.1.0 only.
  * Under 1.1.0 a document reads exactly as 1.1 reads it, so what was valid
  * stays valid; 1.2's rules apply under 1.2.0, on arrival and on decryption.
  */
@@ -101,9 +101,9 @@ const letter = {
 describe('a template', () => {
   const template = { name: 'acme/classic', data: { source: 'http://templates.example/a' } };
 
-  it('keeps its 1.1 form in any version, on an invoice or receipt only', () => {
+  it('is 1.1.0 only, on an invoice or receipt: in 1.2.0 a document\'s look is its BoundView', () => {
     expect(takes('1.1.0', { ...invoice, template })).toBe(true);
-    expect(takes('1.2.0', { ...invoice, template })).toBe(true);
+    expect(takes('1.2.0', { ...invoice, template })).toBe(false);
     expect(takes('1.2.0', { ...letter, template })).toBe(false);
   });
 });

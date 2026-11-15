@@ -239,7 +239,7 @@ export const BtpReceiptDocV1_1Schema = BtpInvoiceDocV1_1Schema.omit({
  * an invoice or receipt may carry a discount, its totals before tax, and what
  * its line-item columns hold; a line's `discount` cell is an amount of at
  * least 0; a document may name its recipient and carry its BoundView; and a
- * letter or agreement may carry its signatory. `template` keeps its 1.1 form.
+ * letter or agreement may carry its signatory. `template` is 1.1.0 only.
  */
 
 /** An https address, as long as a logo or website address may be. */
@@ -372,6 +372,14 @@ const documentFields1_2 = {
   discount: BtpDiscountSchema.optional(),
   subtotalAmount: BtpMoneySchema.optional(),
   taxAmount: BtpMoneySchema.optional(),
+  // 1.1's template is 1.1.0 only: in 1.2.0 a document's look is its BoundView.
+  template: z
+    .never({
+      errorMap: () => ({
+        message: "template is 1.1.0 only; in 1.2.0 a document's look is its boundView",
+      }),
+    })
+    .optional(),
 };
 
 /** An invoice: what a `BTPS_DOC` may carry as one, 1.2's fields included. */

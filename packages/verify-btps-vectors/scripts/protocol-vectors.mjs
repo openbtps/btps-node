@@ -1622,11 +1622,12 @@ export function documents12() {
       v11,
     ),
 
-    // A template keeps its 1.1 form in any version, on an invoice or receipt.
-    accept(
-      'invoice-template-free-data',
+    // A template is 1.1.0 only, on an invoice or receipt: in 1.2.0 a document's look is its BoundView.
+    refuse(
+      'invoice-template-under-1-2',
       'BTPS_DOC',
       { ...inv, template: template({ source: 'http://templates.example/a', accent: '#0747a6' }) },
+      "template is 1.1.0 only; in 1.2.0 a document's look is its boundView",
       v12,
     ),
     accept(
