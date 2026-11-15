@@ -239,7 +239,7 @@ const drawSignature = (
  * The drawing for a BoundView that passed every check, with each binding
  * filled from `document`. Never call it on one that did not: `renderBoundView`
  * checks first. `bundled` holds the bundled fonts it needs
- * (`loadBundledFonts(bundledFontsFor(document, view))`); most need none.
+ * (`loadBundledFonts(bundledFontsFor(document, view), bundledCharactersFor(document, view))`); most need none.
  */
 export const boundViewToSvg = (document: Doc, view: BTPBoundView, bundled: BundledFonts = {}): string => {
   const drawing = new Drawing();

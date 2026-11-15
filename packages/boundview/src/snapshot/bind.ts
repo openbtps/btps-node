@@ -289,7 +289,7 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
   };
 
   /** An amount found by its digits, with its sign, prefix and suffix from the runs it starts and ends in. */
-  const moneyPlace = (placed: Placed, bind: Bind, value: BoundValue): { placed: Placed; bind: Bind } | undefined => {
+  const moneyPlace = (placed: Placed, bind: Bind, value: BoundValue): { placed: Placed; bind: Bind; core: Placed } | undefined => {
     const firstPlace = placed[0] as Placed[number];
     const lastPlace = placed.at(-1) as Placed[number];
     const head = characters[firstPlace.run] as string[];
@@ -323,12 +323,13 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
     const shows = whole.every(({ run, at: index, of }) => (characters[run] as string[])[index] === written[of]);
     const covered = new Set(whole.map(({ of }) => of));
     const complete = written.every((char, index) => covered.has(index) || isSpace(char));
-    return shows && complete && isFree(whole) ? { placed: whole, bind: full } : undefined;
+    return shows && complete && isFree(whole) ? { placed: whole, bind: full, core: placed } : undefined;
   };
 
   /** Every place a field is written, with the binding that writes it there: the longest writing first. */
-  const placesOf = (field: string, value: BoundValue, only?: (run: number) => boolean): { placed: Placed; bind: Bind }[] => {
-    const out: { placed: Placed; bind: Bind }[] = [];
+  /** `core`: an amount's digits, without the sign, prefix or suffix found beside them. */
+  const placesOf = (field: string, value: BoundValue, only?: (run: number) => boolean): { placed: Placed; bind: Bind; core?: Placed }[] => {
+    const out: { placed: Placed; bind: Bind; core?: Placed }[] = [];
     const markdown = markdownOf(document, field);
     for (const { text, bind } of writings(field, value).sort((a, b) => [...b.text].length - [...a.text].length)) {
       const money = value.kind === 'money';
@@ -418,8 +419,14 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
   const longer = fields
     .filter(({ field }) => !field.startsWith('lineItems.rows.'))
     .flatMap(({ field, value }) => placesOf(field, value).map(({ placed }) => new Set(placed.map(({ run, at }) => `${run}:${at}`))));
-  const insideLonger = (placed: Placed) =>
-    longer.some((other) => other.size > placed.length && placed.every(({ run, at }) => other.has(`${run}:${at}`)));
+  /** `whole`: the match `placed` is part of; another field's match of exactly that text is the same value, not longer. */
+  const insideLonger = (placed: Placed, whole: Placed = placed) =>
+    longer.some(
+      (other) =>
+        other.size > placed.length &&
+        placed.every(({ run, at }) => other.has(`${run}:${at}`)) &&
+        !(other.size === whole.length && whole.every(({ run, at }) => other.has(`${run}:${at}`))),
+    );
   const lineHeight = (span: Span) => Math.max(1, span.bottom - span.top);
 
   // First where each row is: its text cell (the description) where most of its other cells stand beside it, on its
@@ -441,12 +448,19 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
       .filter(({ placed }) => !placed.some(({ run, at }) => used.has(`${run}:${at}`)) && !insideLonger(placed))
       .map((place) => {
         const span = spanOf(place.placed);
-        const near = { top: span.top, bottom: span.bottom + 3 * lineHeight(span) };
-        const together = others.filter(({ field, value }) => placesOf(field, value, within(span)).length > 0).length;
-        const close = others.filter(({ field, value }) => placesOf(field, value, within(near)).length > 0).length;
-        return { place, span, together, close, below: previous === undefined || span.top >= previous.top - 1 };
+        const near = { top: span.top, bottom: span.bottom + 1.5 * (cells.length + 1) * lineHeight(span) };
+        // Which of its other cells stand near it, and how near: a description is where its own cells are.
+        const distances = others.flatMap(({ field, value }) => {
+          const tops = placesOf(field, value, within(near))
+            .filter(({ placed }) => !insideLonger(placed))
+            .map(({ placed }) => Math.abs(top((placed[0] as Placed[number]).run) - span.top));
+          return tops.length > 0 ? [Math.min(...tops)] : [];
+        });
+        const distance = distances.reduce((sum, d) => sum + d, 0);
+        return { place, span, close: distances.length, distance, below: previous === undefined || span.top >= previous.top - 1 };
       })
-      .sort((a, b) => Number(b.below) - Number(a.below) || b.close - a.close || a.span.top - b.span.top || b.together - a.together);
+      // Most of its cells near it; then after the row before it; then nearest them; then first on the page.
+      .sort((a, b) => b.close - a.close || Number(b.below) - Number(a.below) || a.distance - b.distance || a.span.top - b.span.top);
     const best = candidates[0];
     if (best) for (const { run, at } of best.place.placed) used.add(`${run}:${at}`);
     chosen.push({ cells: ordered, ...(best && { anchor: { ...best.place, value: anchorCell.value }, span: best.span }) });
@@ -457,17 +471,20 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
     if (!anchor || !span) return;
     take(anchor, anchor.value);
     // The row's own stretch of the page: from just after the row before it to just before the row after it, so a cell
-    // set above its description (a table's cells aligned to the middle) or below it (a card) is found, a few lines
-    // either side at most.
+    // set above its description (a table's cells aligned to the middle) or below it (a card, a line a cell) is found.
+    // The first and last rows have no neighbour that side: as far as a line a cell, and some, would reach.
     const previous = [...chosen.slice(0, index)].reverse().find((row) => row.span)?.span;
     const next = chosen.slice(index + 1).find((row) => row.span)?.span;
-    const reach = 3 * lineHeight(span);
-    const from = Math.max(previous?.bottom ?? -Infinity, span.top - reach);
-    const to = Math.min(next?.top ?? Infinity, span.bottom + reach);
+    const reach = 1.5 * (cells.length + 1) * lineHeight(span);
+    const from = previous?.bottom ?? span.top - reach;
+    const to = next?.top ?? span.bottom + reach;
     const stretch = (run: number) => bottom(run) > from && top(run) < to;
     for (const { field, value } of cells) {
       if (field === anchor.bind.field) continue;
-      const place = placesOf(field, value, within(span))[0] ?? placesOf(field, value, stretch)[0];
+      // Never a place inside a longer match of another field: a quantity "10" in a date "10/02/2026".
+      // An amount by its digits: "A1" is an invoice number, not the amount 1 with a prefix "A".
+      const own = (only: (run: number) => boolean) => placesOf(field, value, only).find(({ placed, core }) => !insideLonger(core ?? placed, placed));
+      const place = own(within(span)) ?? own(stretch);
       if (place) take(place, value);
     }
   });

@@ -239,7 +239,11 @@ const browserPixels = async (svg: SVGSVGElement, box: Box, scale: number, floor 
 const drawsAlike = async (svg: SVGSVGElement, box: Box, paths: Element[]) => {
   const view = { format: 1, page: { width: box.width, height: box.height }, elements: paths } as unknown as BTPBoundView;
   const engine = new Resvg(boundViewToSvg({}, view), { fitTo: { mode: 'zoom', value: 2 }, font: { loadSystemFonts: false } });
-  const ours = engine.render().pixels;
+  // The engine's memory freed by hand, as the renderer frees it.
+  const rendered = engine.render();
+  const ours = rendered.pixels.slice();
+  rendered.free();
+  engine.free();
   const theirs = await browserPixels(svg, box, 2);
   if (ours.length !== theirs.length) return false;
   let total = 0;
@@ -789,7 +793,7 @@ export const snapshotBoundView = async (
       }
       // A character the page's font has no glyph for: the browser drew it with a fallback, and so do we.
       if (unread.length > 0) {
-        const bundledFont = (await loadBundledFonts([fallback]))[fallback] as BTPBoundViewFont;
+        const bundledFont = (await loadBundledFonts([fallback], unread))[fallback] as BTPBoundViewFont;
         const scale = table.unitsPerEm / bundledFont.unitsPerEm;
         for (const char of unread) {
           const glyph = bundledFont.glyphs?.[char];
@@ -803,7 +807,7 @@ export const snapshotBoundView = async (
       continue;
     }
     // No font file the page lets us read: its text is drawn with the bundled font of the same widths.
-    const bundledFont = (await loadBundledFonts([fallback]))[fallback] as BTPBoundViewFont;
+    const bundledFont = (await loadBundledFonts([fallback], characters))[fallback] as BTPBoundViewFont;
     const name = shared.get(fallback) ?? `font${index++}`;
     const glyphs = {
       ...fonts[name]?.glyphs,

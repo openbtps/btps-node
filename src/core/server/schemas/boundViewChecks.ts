@@ -496,7 +496,9 @@ export const checkBoundView = (document: Doc, view: BTPBoundView): BTPBoundViewR
     if (element.type !== 'text' && element.type !== 'signature') return;
     const box = boxes[index] as Box;
     const hidden = (message: string) => problems.push({ check: 'notHidden', element: index, message });
-    if (box.left < 0 || box.top < 0 || box.right > view.page.width || box.bottom > view.page.height) {
+    // As for overlaps, a box that meets the page's edge by the rounding of a sum is inside it.
+    const t = OVERLAP_TOLERANCE;
+    if (box.left < -t || box.top < -t || box.right > view.page.width + t || box.bottom > view.page.height + t) {
       hidden('it lies outside the page');
     }
     if (boxes.slice(index + 1).some((later) => overlaps(box, later))) hidden('an element drawn after it covers it');
