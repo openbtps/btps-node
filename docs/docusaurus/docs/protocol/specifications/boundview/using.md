@@ -15,6 +15,9 @@ work: you keep designing your preview in HTML, and you never write or read a
 canvas yourself. The [specification](./overview.md#the-specification) is
 for implementers and you do not need it.
 
+A BoundView is optional. If you do not want your design to travel, send
+none: the receiver shows its own view of the document's data.
+
 | Step | Where it runs | What you call |
 | --- | --- | --- |
 | [Install and load the engine](#install) | Once, where you capture or draw | `initBoundViewEngine(...)` in a browser or app; automatic in Node |
@@ -332,8 +335,14 @@ behind it is never lost.
 
 ## Versions
 
-`boundView` travels in `1.2.0` artifacts only. `template` keeps its 1.1
-form in any version, and a receiver draws nothing from it
+`boundView` travels in `1.2.0` artifacts only, and it is optional. Without
+one, the receiver shows its own view of the data.
+
+`template` is `1.1.0` only. A document that carries one and nothing from 1.2
+is still sent as `1.1.0` and works as before. Once you add anything from
+1.2 to it, a BoundView included, it is stamped `1.2.0`, and your own SDK
+refuses it before sending until `template` is removed. To keep the
+document's look, send a BoundView instead
 ([Versions](./overview.md#versions)).
 
 ## Next

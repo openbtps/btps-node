@@ -800,7 +800,7 @@ interface BTPInvoiceDoc {
   discount?: BTPDiscount; // 1.2: a discount on the whole invoice, before tax
   attachments?: BTPAttachment[];
   references?: BTPDocReference[];
-  template?: BTPTemplate;
+  template?: BTPTemplate; // 1.1.0 only: refused in a 1.2.0 artifact
   boundView?: BTPBoundView; // since 1.2
   metadata?: Record<string, unknown>;
 }
@@ -832,7 +832,7 @@ type BTPLineRole = 'description' | 'quantity' | 'unitPrice' | 'discount' | 'tax'
 
 ### BTPTemplate
 
-A template by name, with free data: `{ name, data }`, the 1.1 form, read as 1.1 reads it in any version. A receiver draws nothing from it. A document's view is its [BoundView](#btpboundview).
+`1.1.0` only. A template by name, with free data: `{ name, data }`, the 1.1 form. In a `1.1.0` invoice or receipt it is read as 1.1 reads it, and a receiver draws nothing from it. In a `1.2.0` artifact it is refused with `template is 1.1.0 only; in 1.2.0 a document's look is its boundView`: there, a document's look is its optional [BoundView](#btpboundview). A letter or a payslip has none in any version.
 
 ```ts
 type BTPTemplate = { name: string; data: Record<string, unknown> };

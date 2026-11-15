@@ -168,9 +168,14 @@ describes.
 ## Versions
 
 A document with a BoundView is a `1.2.0` artifact: `boundView` travels in
-`1.2.0` artifacts only. `template` keeps its 1.1 form, a name and free data,
-in any version, and is read as 1.1 reads it. A receiver draws nothing from
-it.
+`1.2.0` artifacts only. It is optional: a platform that does not want its
+design to travel sends none, and the receiver shows its own view of the
+data.
+
+`template` is `1.1.0` only. In a `1.1.0` invoice or receipt it is read
+exactly as 1.1 reads it, a name and free data, and a receiver draws nothing
+from it. In a `1.2.0` artifact it is refused: there, a document's look is
+its BoundView. A letter or a payslip has no `template` in any version.
 
 A provider that does not draw BoundViews still accepts and checks documents
 that carry one, and shows its own view of the signed data.

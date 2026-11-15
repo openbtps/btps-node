@@ -65,8 +65,9 @@ Upgrading a 1.1 provider: [Migrating from 1.1 to 1.2](https://www.openbtps.org/d
   BoundView pages, with golden vectors for the schema in
   `documents-1.2.vectors.json` and for the checks in `boundview.vectors.json`.
   Replaces templates by reference and the template file
-  formats of the earlier 1.2 release candidates; `template` reads as 1.1
-  reads it, in any version.
+  formats of the earlier 1.2 release candidates. `template` is 1.1.0 only: a
+  `1.1.0` artifact's is read as 1.1 reads it, and a `1.2.0` artifact with one
+  is refused, so a platform drops it when it adopts anything from 1.2.
 - **`@btps/boundview`, a new package.** `snapshotBoundView` captures a
   platform's own HTML preview as a BoundView in the browser: every fact found
   by its value, fonts read as glyph outlines, images as pixels, an SVG logo as

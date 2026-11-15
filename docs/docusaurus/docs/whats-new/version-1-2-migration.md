@@ -258,9 +258,18 @@ Turn them on one at a time, in this order. Each is safe to turn on when its cond
 | 7   | [Document types on sends](../features/documentTypes.md)                                                         | comes with 6: every send under a trust with permissions names its `documentType`                                                                                                                                                                       |
 | 8   | [Details refresh](../features/detailsRefresh.md)                                                                | trusts with permissions exist, `isKnownArtifact` knows your `DETAILS_REQ`s, and `detailsResponseCheck` and `detailsRequestLimit` are registered                                                                                                        |
 | 9   | [Verification](../features/verification.md)                                                                     | you have a process for checking who your senders are, and a list of verifiers you trust                                                                                                                                                                |
-| 10  | [Notes, discounts and BoundView](../features/notesDiscountsTemplates.md)                                        | the receivers you send them to run 1.2; to a 1.1 server they are refused, never shaped                                                                                                                                                                 |
+| 10  | [Notes, discounts and BoundView](../features/notesDiscountsTemplates.md)                                        | the receivers you send them to run 1.2; to a 1.1 server they are refused, never shaped. Drop `template` from any document you add them to ([below](#dropping-template))                                                                                |
 | 11  | [Agreements](../features/agreements.md) and [evidence bundles](../features/evidenceBundles.md)                  | last: trusts grant `send:agreement`, `agreementOrderCheck` is registered, and you keep every answer to build a bundle from                                                                                                                             |
 | 12  | [Key rotation](../features/keyRotation.md)                                                                      | your identity store keeps each identity's `keyChain` (`getKeyChain`), and you follow the [rules for rotating keys](#rotating-keys)                                                                                                                     |
+
+### Dropping `template`
+
+`template` is `1.1.0` only. Nothing changes for a document you leave as it is.
+
+- A document that carries a `template` and nothing from 1.2 is still stamped and sent as `1.1.0`, and works exactly as before.
+- Once you add anything from 1.2 to that document (a BoundView, a discount, a note with a format, totals, line roles, a recipient, a signatory, …), it is stamped `1.2.0`, and your own SDK refuses it before sending until `template` is removed.
+
+So drop `template` when you adopt 1.2 features. To keep the document's look, send a [BoundView](../protocol/specifications/boundview/using.md) instead. A BoundView is optional: without one, the receiver shows its own view of the data.
 
 ## Rotating keys
 
@@ -339,6 +348,7 @@ An implementation in another language reads the vector files directly; each says
 - **Turning on `requireSignedBy` before every server signs.** The app refuses every unsigned answer, from a server you have not upgraded yet.
 - **Moving `s=` before every key is published under it.** An identity that did not rotate is no longer found under the new selector, and its chain no longer anchors. Re-publish its unchanged key first.
 - **Keeping an expired key's DNS record.** A receiver that cannot reach your host takes the compromised key by DNS. Remove the record when you expire the key.
+- **Keeping `template` on a document with 1.2 fields.** Your own SDK refuses it before sending: `template is 1.1.0 only; in 1.2.0 a document's look is its boundView`. Remove `template`, and send a BoundView to keep the look ([Dropping `template`](#dropping-template)).
 - **Deleting an old private key before its side-cars open.** Every stored document encrypted to it is lost for good.
 
 Every change is in the [changelog](https://github.com/openbtps/btps-node/blob/release/1.2/CHANGELOG.md).
