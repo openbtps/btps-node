@@ -61,7 +61,13 @@ describe.skipIf(!chrome)('a preview captured in a real browser', () => {
     }
     // The logo is plain shapes, so it travels as its outlines, not its pixels.
     expect(parsed.images).toBeUndefined();
-    expect(parsed.elements.filter(({ type }) => type === 'path')).toHaveLength(2);
+    // Its two shapes, in the band at the top (the page's borders and rounded boxes are paths too).
+    const inLogo = (element: (typeof parsed.elements)[number]) => {
+      if (element.type !== 'path') return false;
+      const [x = 0, y = 0] = element.d.slice(1).split(/[ A-Z]/).map(Number);
+      return x < 80 && y < 72;
+    };
+    expect(parsed.elements.filter(inLogo)).toHaveLength(2);
   });
 
   it('draws as the browser showed the preview', async () => {
@@ -120,8 +126,10 @@ describe.skipIf(!chrome)('a preview captured in a real browser', () => {
       `<img alt="" src="data:image/png;base64,${wide.toString('base64')}" style="display:block;width:116px;height:116px;object-fit:contain"></div>`;
     const { view, error } = await browser.capture(invoice, { extraHtml });
     expect(error).toBeUndefined();
-    const border = view?.elements.find((element) => element.type === 'rect' && 'stroke' in element && element.stroke === '#cccccc');
-    expect(border).toMatchObject({ radius: 11 });
+    // The border: the ring between its outer and inner edges, both with curved corners (12px out, 10px in).
+    const border = view?.elements.find((element) => element.type === 'path' && element.fill === '#cccccc');
+    expect(border).toMatchObject({ fillRule: 'evenodd' });
+    expect((border as { d: string }).d.match(/C/g)).toHaveLength(8);
     const [image] = Object.values(view?.images ?? {});
     expect(image).toBeDefined();
     const { width, height, data } = image as { width: number; height: number; data: string };

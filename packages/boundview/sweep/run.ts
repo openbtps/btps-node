@@ -13,7 +13,7 @@
  * them by what failed.
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -128,7 +128,57 @@ if (process.env.INSPECT) {
   server.close();
   process.exit(0);
 }
-await Promise.all(Array.from({ length: pages }, worker));
+// LOOKS=<limit>: each case also drawn and compared with Chrome's own picture of the page, cell by cell; a cell whose mean
+// difference passes the limit (of 255) fails it. Both pictures of a failure are kept in sweep-looks/ by its seed.
+const limit = Number(process.env.LOOKS ?? 0);
+const worsts: number[] = [];
+const looksDir = path.join(root, 'sweep-looks');
+const looker = async () => {
+  const page = await browser.newPage({ viewport: { width: 900, height: 900 }, deviceScaleFactor: 1 });
+  page.on('pageerror', (error) => console.error('page error', error.message));
+  await page.goto(`http://127.0.0.1:${port}/`);
+  await page.waitForFunction(() => 'looks' in window);
+  type Looks = { failure?: Result; drawn?: string };
+  type Compared = { worst: number; cells: number; at?: string; x?: number; y?: number };
+  while (next < from + count) {
+    const seed = next++;
+    const looks = (await page.evaluate((s) => (window as unknown as { looks: (n: number) => Promise<Looks> }).looks(s), seed)) as Looks;
+    if (looks.failure) failures.push(looks.failure);
+    else {
+      const shot = (await page.locator('#preview').screenshot({ animations: 'disabled' })).toString('base64');
+      const compared = (await page.evaluate(
+        ([a, b]) => (window as unknown as { compare: (x: string, y: string) => Promise<Compared> }).compare(a as string, b as string),
+        [looks.drawn, shot],
+      )) as Compared;
+      worsts.push(compared.worst);
+      if (compared.worst > limit) {
+        failures.push({ seed, stage: 'looks', error: `differs from the page by ${compared.worst} at ${compared.at}`, notes: [`${compared.cells} cells over 24, worst at ${compared.x},${compared.y}`] });
+        mkdirSync(looksDir, { recursive: true });
+        writeFileSync(path.join(looksDir, `${seed}-drawn.png`), Buffer.from(looks.drawn as string, 'base64'));
+        writeFileSync(path.join(looksDir, `${seed}-page.png`), Buffer.from(shot, 'base64'));
+      }
+    }
+    done++;
+    if (done % 250 === 0) {
+      const rate = done / ((Date.now() - started) / 1000);
+      console.log(`${done}/${count} cases, ${failures.length} failed, ${rate.toFixed(1)}/s`);
+    }
+  }
+  await page.close();
+};
+await Promise.all(Array.from({ length: pages }, limit ? looker : worker));
+if (limit) {
+  // Which effects the failing cases have, most first: where the drawing parts from the page.
+  const tally = new Map<string, number>();
+  for (const failure of failures) {
+    const effects = failure.notes.find((note) => note.startsWith('effects '))?.slice(8).split(', ') ?? [];
+    for (const effect of effects) if (effect !== 'none') tally.set(effect, (tally.get(effect) ?? 0) + 1);
+  }
+  console.log(`effects in failing cases: ${[...tally].sort((a, b) => b[1] - a[1]).map(([e, n]) => `${e} ${n}`).join(', ')}`);
+  const sorted = [...worsts].sort((a, b) => a - b);
+  const q = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
+  console.log(`worst cell, of ${sorted.length} drawn: median ${q(0.5)}, 90% ${q(0.9)}, 99% ${q(0.99)}, max ${sorted.at(-1)}`);
+}
 await browser.close();
 server.close();
 

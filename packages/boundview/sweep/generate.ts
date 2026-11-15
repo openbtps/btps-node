@@ -254,18 +254,18 @@ const valueHtml = (r: Random, text: string, prefix?: string) => {
   return `${prefix !== undefined ? `${esc(prefix)} ` : ''}<span>${esc(text)}</span>`;
 };
 
-const logoHtml = (r: Random) => {
+const logoHtml = (r: Random, extra = '') => {
   const kind = r.pick(['none', 'none', 'png', 'png-round', 'svg-inline', 'svg-img']);
   const size = r.pick([32, 48, 64, 96]);
   switch (kind) {
     case 'png':
-      return `<img src="/logo.png" alt="" width="${size}" height="${size}" style="display:block">`;
+      return `<img src="/logo.png" alt="" width="${size}" height="${size}" style="display:block;${extra}">`;
     case 'png-round':
-      return `<img src="/logo.png" alt="" width="${size}" height="${size}" style="display:block;border-radius:${r.pick([6, 12, size / 2])}px">`;
+      return `<img src="/logo.png" alt="" width="${size}" height="${size}" style="display:block;border-radius:${r.pick([6, 12, size / 2])}px;${extra}">`;
     case 'svg-inline':
-      return `<svg width="${size}" height="${size}" viewBox="0 0 64 64"><rect x="4" y="4" width="56" height="56" rx="12" fill="#1d4ed8"/><circle cx="32" cy="32" r="14" fill="#ffffff"/></svg>`;
+      return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" style="${extra}"><rect x="4" y="4" width="56" height="56" rx="12" fill="#1d4ed8"/><circle cx="32" cy="32" r="14" fill="#ffffff"/></svg>`;
     case 'svg-img':
-      return `<img src="/logo.svg" alt="" width="${size * 2}" height="${size}" style="display:block">`;
+      return `<img src="/logo.svg" alt="" width="${size * 2}" height="${size}" style="display:block;${extra}">`;
     default:
       return '';
   }
@@ -286,12 +286,87 @@ const signatureHtml = (signatory: { name: string; title?: string; visualSignatur
   }</div>`;
 };
 
+// ---- Effects: the rest of CSS a designer reaches for, on any element ----
+
+/**
+ * From its own stream (so a seed's layout stays as it was): styles for the page's boxes, its logo and its labels, and
+ * the decorations and rules beside them. A fact's text keeps its contrast: an effect that fades or blurs is put only on
+ * what holds no fact. `used` names each effect a case has, so a failure says which.
+ */
+const effectsFor = (seed: number, look: Look) => {
+  const r = random((seed * 2654435761) ^ 0x5bd1e995);
+  const used: string[] = [];
+  const maybe = (p: number, name: string, value: () => string) => {
+    if (!r.chance(p)) return '';
+    used.push(name);
+    return value();
+  };
+  const alphaOf = (colour: string, a: number) => {
+    const n = parseInt(colour.slice(1), 16);
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  };
+  /** A box: borders of every kind, corners, shadows, outlines, gradients, a background image. */
+  const box = (where: string) =>
+    [
+      maybe(0.12, `${where}:border-dashed`, () => `border:${r.pick([1, 2])}px ${r.pick(['dashed', 'dotted'])} ${look.muted};`),
+      maybe(0.08, `${where}:border-double`, () => `border:3px double ${look.muted};`),
+      maybe(0.1, `${where}:border-sides`, () => `border-left:${r.pick([3, 4, 6])}px solid ${look.accent};border-bottom:1px solid ${look.muted};`),
+      maybe(0.1, `${where}:radius-corners`, () => `border-radius:${r.pick([0, 4, 12])}px ${r.pick([8, 16])}px ${r.pick([0, 6])}px ${r.pick([10, 20])}px;`),
+      maybe(0.12, `${where}:shadow`, () => `box-shadow:${r.pick(['0 1px 3px rgba(0,0,0,.2)', '0 4px 12px rgba(0,0,0,.15)', `2px 2px 0 ${look.accent}`, 'inset 0 0 0 2px rgba(0,0,0,.08)'])};`),
+      maybe(0.06, `${where}:outline`, () => `outline:2px ${r.pick(['solid', 'dashed'])} ${look.accent};outline-offset:${r.pick([0, 2, 4])}px;`),
+      maybe(0.1, `${where}:radial`, () => `background:radial-gradient(circle at ${r.pick(['top left', 'center', '80% 20%'])}, ${look.band}, ${look.background});`),
+      maybe(0.08, `${where}:linear-angle`, () => `background:linear-gradient(${r.pick([30, 135, 200])}deg, ${look.band} 0%, ${look.background} 60%, ${look.band} 100%);`),
+      maybe(0.06, `${where}:repeating`, () => `background:repeating-linear-gradient(45deg, ${look.background} 0 8px, ${look.band} 8px 16px);`),
+      maybe(0.06, `${where}:bg-alpha`, () => `background-color:${alphaOf(look.accent, 0.08)};`),
+      maybe(0.05, `${where}:bg-image`, () => `background-image:url(/logo.png);background-repeat:no-repeat;background-size:${r.pick(['24px', 'contain', 'auto 70%'])};background-position:${r.pick(['right top', 'right 8px center', '95% 90%'])};`),
+    ].join('');
+  /** The logo: placed, fitted, turned, clipped, filtered as a designer may. */
+  const logo = () =>
+    [
+      maybe(0.15, 'logo:object-fit', () => `object-fit:${r.pick(['contain', 'cover', 'none', 'scale-down', 'fill'])};object-position:${r.pick(['center', 'left top', '30% 70%'])};width:${r.pick([60, 120])}px;height:${r.pick([40, 60])}px;`),
+      maybe(0.1, 'logo:rotate', () => `transform:rotate(${r.pick([-8, -3, 5, 12])}deg);`),
+      maybe(0.08, 'logo:skew', () => `transform:skew(${r.pick([-12, 8])}deg, ${r.pick([0, 4])}deg);`),
+      maybe(0.08, 'logo:scale', () => `transform:scale(${r.pick([0.8, 1.25])});transform-origin:left top;`),
+      maybe(0.08, 'logo:opacity', () => `opacity:${r.pick([0.5, 0.8])};`),
+      maybe(0.08, 'logo:filter', () => `filter:${r.pick(['grayscale(1)', 'sepia(.6)', 'drop-shadow(2px 2px 2px rgba(0,0,0,.4))', 'blur(1px)', 'brightness(1.2) contrast(1.3)'])};`),
+      maybe(0.08, 'logo:clip', () => `clip-path:${r.pick(['circle(45%)', 'inset(4px round 8px)', 'polygon(0 0, 100% 0, 85% 100%, 0 100%)'])};`),
+      maybe(0.06, 'logo:shadow-radius', () => `border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.3);`),
+      maybe(0.05, 'logo:blend', () => `mix-blend-mode:multiply;`),
+    ].join('');
+  /** A label's text: underlined, struck, shadowed, small capitals, translucent ink. */
+  const label = () =>
+    [
+      maybe(0.08, 'label:underline', () => `text-decoration:underline ${r.pick(['solid', 'dotted', 'wavy'])} ${look.accent};text-underline-offset:3px;`),
+      maybe(0.04, 'label:line-through', () => `text-decoration:line-through;`),
+      maybe(0.06, 'label:text-shadow', () => `text-shadow:1px 1px 0 ${look.band};`),
+      maybe(0.06, 'label:small-caps', () => `font-variant:small-caps;`),
+      maybe(0.06, 'label:ink-alpha', () => `color:${alphaOf(look.ink, 0.7)};`),
+      maybe(0.04, 'label:italic', () => `font-style:italic;`),
+    ].join('');
+  /** Decorations beside the facts: a rotated stamp, a rule, a faded badge, a heading bar made by ::before. */
+  const extras = [
+    maybe(0.1, 'extra:stamp', () => `<div style="position:absolute;right:${r.pick([16, 40])}px;top:${r.pick([60, 120])}px;transform:rotate(${r.pick([-15, 10])}deg);border:3px solid ${look.accent};color:${look.accent};padding:2px 10px;font-weight:700;opacity:${r.pick([0.6, 0.9])};pointer-events:none">${r.pick(['PAID', 'COPY', 'THANK YOU'])}</div>`),
+    maybe(0.12, 'extra:hr', () => `<hr style="border:0;border-top:${r.pick([1, 2])}px ${r.pick(['solid', 'dashed'])} ${look.muted};margin:12px 0">`),
+    maybe(0.06, 'extra:svg-gradient', () => `<svg width="120" height="8" style="display:block"><defs><linearGradient id="g${seed}"><stop offset="0" stop-color="${look.accent}"/><stop offset="1" stop-color="${look.band}"/></linearGradient></defs><rect width="120" height="8" rx="4" fill="url(#g${seed})"/></svg>`),
+  ].join('');
+  const css = [
+    maybe(0.12, 'css:before-bar', () => `#preview .label::before{content:'';display:inline-block;width:4px;height:0.8em;margin-right:6px;background:${look.accent};vertical-align:-1px}`),
+    maybe(0.1, 'css:after-colon', () => `#preview .label::after{content:':'}`),
+    maybe(0.08, 'css:page-shadow', () => `#preview{box-shadow:0 2px 10px rgba(0,0,0,.12);border-radius:${r.pick([0, 8])}px}`),
+    maybe(0.06, 'css:page-border-top', () => `#preview{border-top:6px solid ${look.accent}}`),
+    maybe(0.08, 'css:table-cells', () => `#preview td,#preview th{border:1px solid ${look.band}}#preview th{background:${look.band}}`),
+    maybe(0.06, 'css:first-letter', () => `#preview footer::first-letter{font-size:1.4em;color:${look.accent}}`),
+  ].join('\n');
+  return { box, logo, label, extras, css, used };
+};
+
 // ---- Documents and their pages ----
 
 const bill = (r: Random, seed: number, type: 'invoice' | 'receipt'): Case => {
   const notes: string[] = [];
   const wide = r.chance(0.12);
   const look = lookFor(r, wide);
+  const fx = effectsFor(seed, look);
   const lines = linesFor(r, look.money.places);
   const issuedAt = dayIso(r);
   const dueAt = addDays(issuedAt, r.pick([0, 7, 14, 30]));
@@ -360,7 +435,7 @@ const bill = (r: Random, seed: number, type: 'invoice' | 'receipt'): Case => {
   const numberStyle = `font-family:'${look.numberFamily}';${look.tabular ? 'font-variant-numeric:tabular-nums;' : ''}`;
   let linesHtml: string;
   if (layout === 'table') {
-    linesHtml = `<table style="width:100%;border-collapse:collapse;margin:12px 0">
+    linesHtml = `<table style="width:100%;border-collapse:collapse;margin:12px 0;${fx.box('table')}">
       <thead><tr>${columns.map((c, i) => `<th style="text-align:${i === 0 ? 'left' : 'right'};padding:6px 4px;border-bottom:1px solid ${look.muted};color:${look.muted};font-weight:600">${esc(c)}</th>`).join('')}</tr></thead>
       <tbody>${rows
         .map(
@@ -383,7 +458,7 @@ const bill = (r: Random, seed: number, type: 'invoice' | 'receipt'): Case => {
     linesHtml = rows
       .map(
         (row) =>
-          `<div style="padding:8px;margin:8px 0;border:1px solid ${look.band};border-radius:8px"><div style="font-weight:600">${cell(columns[0] as string, row)}</div>${columns
+          `<div style="padding:8px;margin:8px 0;border:1px solid ${look.band};border-radius:8px;${fx.box('card')}"><div style="font-weight:600">${cell(columns[0] as string, row)}</div>${columns
             .slice(1)
             .map((c) => `<div style="display:flex;justify-content:space-between">${label(look, c)}<span style="${numberStyle}">${cell(c, row)}</span></div>`)
             .join('')}</div>`,
@@ -392,7 +467,7 @@ const bill = (r: Random, seed: number, type: 'invoice' | 'receipt'): Case => {
   }
   notes.push(`layout ${layout}, ${lines.length} lines, ${look.money.code} ${JSON.stringify(look.money)}, ${look.datePattern}, ${look.family}/${look.headingFamily}/${look.numberFamily}`);
 
-  const amountBox = `<div style="background:${look.band};padding:${r.pick([4, 12])}px;border-radius:${r.pick([0, 8])}px">${label(look, type === 'invoice' ? 'Amount due' : 'Amount paid', 'div')}<div style="font-size:${look.size + 8}px;font-weight:700;${numberStyle}">${m(type === 'invoice' ? total : paid)}</div></div>`;
+  const amountBox = `<div style="background:${look.band};padding:${r.pick([4, 12])}px;border-radius:${r.pick([0, 8])}px;${fx.box('amount')}">${label(look, type === 'invoice' ? 'Amount due' : 'Amount paid', 'div')}<div style="font-size:${look.size + 8}px;font-weight:700;${numberStyle}">${m(type === 'invoice' ? total : paid)}</div></div>`;
   const nameSplit = issuer.includes(' ') && r.chance(0.3);
   const issuerHtml = nameSplit
     ? `<h1 style="font-family:'${look.headingFamily}';margin:0;font-size:22px">${esc(issuer.split(' ')[0] as string)}</h1><h2 style="font-family:'${look.headingFamily}';margin:0;font-size:16px">${esc(issuer.split(' ').slice(1).join(' '))}</h2>`
@@ -401,35 +476,38 @@ const bill = (r: Random, seed: number, type: 'invoice' | 'receipt'): Case => {
   const shows = { issuer: r.chance(0.8), issued: r.chance(0.8), recipient: r.chance(0.8), subtotal: r.chance(0.7) };
   notes.push(`leaves out ${Object.entries(shows).filter(([, shown]) => !shown).map(([what]) => what).join(', ') || 'nothing'}`);
   const sections = {
-    header: `<header style="display:flex;gap:12px;align-items:${r.pick(['center', 'flex-start'])};justify-content:${r.pick(['flex-start', 'space-between'])}">${logoHtml(r)}<div>${shows.issuer ? issuerHtml : ''}</div><div style="text-align:right">${label(look, type === 'invoice' ? (tax ? 'Tax invoice' : 'Invoice') : 'Receipt', 'div')}<div>${valueHtml(r, id, r.chance(0.5) ? 'No.' : undefined)}</div></div></header>`,
+    header: `<header style="display:flex;gap:12px;align-items:${r.pick(['center', 'flex-start'])};justify-content:${r.pick(['flex-start', 'space-between'])};${fx.box('header')}">${logoHtml(r, fx.logo())}<div>${shows.issuer ? issuerHtml : ''}</div><div style="text-align:right">${label(look, type === 'invoice' ? (tax ? 'Tax invoice' : 'Invoice') : 'Receipt', 'div')}<div>${valueHtml(r, id, r.chance(0.5) ? 'No.' : undefined)}</div></div></header>`,
     details: `<div style="display:${r.pick(['flex', 'grid', 'block'])};gap:16px;margin:12px 0;grid-template-columns:1fr 1fr">
       ${shows.issued ? `<div>${label(look, 'Issued')} ${valueHtml(r, d(issuedAt))}</div>` : ''}
       ${type === 'invoice' ? `<div>${label(look, 'Due')} ${valueHtml(r, d(dueAt))}</div>` : `<div>${label(look, 'Paid on')} ${valueHtml(r, d(paidAt))}</div>`}
       ${recipient && shows.recipient ? `<div>${label(look, 'Bill to')} <b>${esc(recipient)}</b></div>` : ''}
     </div>`,
     lines: linesHtml,
-    totals: `<div style="margin-left:auto;max-width:${r.pick(['260px', '50%', '100%'])}">
+    totals: `<div style="margin-left:auto;max-width:${r.pick(['260px', '50%', '100%'])};${fx.box('totals')}">
       ${tax !== 0 && shows.subtotal ? `<div style="display:flex;justify-content:space-between">${label(look, 'Subtotal')}<span style="${numberStyle}">${m(subtotal)}</span></div>` : ''}
       ${tax !== 0 ? `<div style="display:flex;justify-content:space-between">${label(look, 'Tax')}<span style="${numberStyle}">${m(tax)}</span></div>` : ''}
       <div style="display:flex;justify-content:space-between;font-weight:700">${label(look, 'Total')}<span style="${numberStyle}">${m(total)}</span></div>
       ${amountBox}
     </div>`,
     notes: description
-      ? `<div style="margin-top:12px">${label(look, 'Notes', 'div')}${isMarkdown(description) ? markdownHtml(description) : `<p style="white-space:pre-wrap;margin:4px 0">${esc(description)}</p>`}</div>`
+      ? `<div style="margin-top:12px;${fx.box('notes')}">${label(look, 'Notes', 'div')}${isMarkdown(description) ? markdownHtml(description) : `<p style="white-space:pre-wrap;margin:4px 0">${esc(description)}</p>`}</div>`
       : '',
     footer: r.chance(0.4) ? `<footer style="margin-top:16px;color:${look.muted};font-size:11px">${esc(r.pick(['Kauri Studio', 'Thank you', 'Registered in Australia']))}</footer>` : '',
   };
   const order = r.chance(0.5)
     ? (['header', 'details', 'lines', 'totals', 'notes', 'footer'] as const)
     : (['header', 'totals', 'details', 'lines', 'notes', 'footer'] as const);
-  const html = `<div id="preview" class="page">${order.map((key) => sections[key]).join('')}</div>`;
-  const css = pageCss(look);
+  const labelFx = fx.label();
+  const html = `<div id="preview" class="page">${order.map((key, i) => (i === 1 ? fx.extras : '') + sections[key]).join('')}</div>`;
+  const css = `${pageCss(look)}\n#preview{position:relative}\n${labelFx ? `#preview .label{${labelFx}}` : ''}\n${fx.css}`;
+  notes.push(`effects ${fx.used.join(', ') || 'none'}`);
   return { seed, document, html, css, notes };
 };
 
 const letter = (r: Random, seed: number): Case => {
   const wide = r.chance(0.12);
   const look = lookFor(r, wide);
+  const fx = effectsFor(seed, look);
   const issuedAt = dayIso(r);
   const issuer = wide ? r.pick(NAMES_WIDE) : r.pick(NAMES_LATIN);
   const recipient = r.pick(['Demo', 'Northwind Studio', 'Jane Doe', ...(wide ? NAMES_WIDE : [])]);
@@ -470,9 +548,9 @@ const letter = (r: Random, seed: number): Case => {
         .split(/\n{2,}/)
         .map((p) => `<p style="white-space:pre-wrap">${esc(p)}</p>`)
         .join('');
-  const html = `<div id="preview" class="page"><header style="display:flex;justify-content:space-between">${logoHtml(r)}<div style="text-align:right"><b style="font-family:'${look.headingFamily}'">${esc(issuer)}</b><div>${esc(writeDate(issuedAt, look.datePattern))}</div></div></header>
-    <p><b>${esc(recipient)}</b></p>${bodyHtml}${'signatory' in document ? signatureHtml(document.signatory as never, look) : ''}</div>`;
-  return { seed, document, html, css: pageCss(look), notes: [`letter, ${markdown ? 'markdown' : 'text'}, ${paragraphs} paragraphs, signature ${visual?.type ?? 'none'}, ${look.family}`] };
+  const html = `<div id="preview" class="page"><header style="display:flex;justify-content:space-between;${fx.box('header')}">${logoHtml(r, fx.logo())}<div style="text-align:right"><b style="font-family:'${look.headingFamily}'">${esc(issuer)}</b><div>${esc(writeDate(issuedAt, look.datePattern))}</div></div></header>
+    ${fx.extras}<p><b>${esc(recipient)}</b></p>${bodyHtml}${'signatory' in document ? signatureHtml(document.signatory as never, look) : ''}</div>`;
+  return { seed, document, html, css: `${pageCss(look)}\n#preview{position:relative}\n${fx.css}`, notes: [`letter, ${markdown ? 'markdown' : 'text'}, ${paragraphs} paragraphs, signature ${visual?.type ?? 'none'}, ${look.family}`, `effects ${fx.used.join(', ') || 'none'}`] };
 };
 
 const pageCss = (look: Look) => `
