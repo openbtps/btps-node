@@ -158,7 +158,7 @@ document type. Each limit is described on its
 | a path's `d`                                           |             20,000 |
 | all paths' `d` together                                |            100,000 |
 | a gradient's stops                                     |                  8 |
-| fonts                                                  |                  4 |
+| fonts                                                  |                  8 |
 | glyphs a font                                          |                256 |
 | a glyph's `path`                                       |              4,000 |
 | kerning pairs a font                                   |              4,096 |

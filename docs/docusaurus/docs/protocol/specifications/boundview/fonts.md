@@ -26,7 +26,7 @@ receiver reads nothing it cannot check completely.
 
 ## A font
 
-A canvas's `fonts` holds up to four fonts, each by a key the canvas chooses.
+A canvas's `fonts` holds up to eight fonts, each by a key the canvas chooses.
 A [`text`](./elements.md#text) or [`label`](./elements.md#label) element
 names its font by that key.
 
@@ -115,7 +115,7 @@ alone, like naming a font the canvas lacks ([Two outcomes](./checks.md#two-outco
 
 | What | Limit |
 | --- | --- |
-| Fonts | 4 |
+| Fonts | 8 |
 | Glyphs a font | 256 |
 | A glyph's `path` | 4,000 characters |
 | Kerning pairs a font | 4,096 |

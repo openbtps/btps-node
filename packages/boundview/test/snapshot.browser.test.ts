@@ -98,6 +98,18 @@ describe.skipIf(!chrome)('a preview captured in a real browser', () => {
     expect(far / pixels).toBeLessThan(0.02);
   });
 
+  // Found adding a Marketplace template to eBill: its serif in three weights, with and without tabular figures, came from
+  // woff2 files the snapshot cannot read, and each style carried its own copy of the same bundled font, past the limit.
+  it('draws every style whose font file it cannot read with one bundled font, not a copy each', async () => {
+    const styles = ['400', '600', '700', '400;font-style:italic', '600;font-variant-numeric:tabular-nums', '700;font-variant-numeric:tabular-nums'];
+    const extraHtml = styles.map((style) => `<div style="font-family:Georgia;font-size:12px;padding:0 24px;font-weight:${style}">Kind regards</div>`).join('');
+    const plain = await browser.capture(invoice);
+    const { view, error, warnings } = await browser.capture(invoice, { extraHtml });
+    expect(error).toBeUndefined();
+    expect(warnings.filter((warning) => warning.startsWith('Georgia')).length).toBeGreaterThan(1);
+    expect(Object.keys(view?.fonts ?? {})).toHaveLength(Object.keys(plain.view?.fonts ?? {}).length + 1);
+  });
+
   it('refuses a preview that does not show a key fact, and says which', async () => {
     const { error } = await browser.capture({ ...invoice, subtotalAmount: { amount: 99, currency: 'AUD' } });
     expect(error).toContain('subtotalAmount');

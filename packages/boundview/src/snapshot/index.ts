@@ -71,6 +71,9 @@ const parseFont = (buffer: ArrayBuffer): unknown => {
   return (named ?? umd.parse)(buffer);
 };
 
+/** The most fonts a BoundView carries (the specification's Limits page; the SDK's BTPS_FIELD_LIMITS.boundView.fonts). */
+const MAX_FONTS = 8;
+
 const r2 = (value: number) => Math.round(value * 100) / 100;
 const ceil2 = (value: number) => Math.ceil(value * 100 - 1e-6) / 100;
 
@@ -556,9 +559,11 @@ export const snapshotBoundView = async (
     const key = `${style.family}|${style.weight}|${style.style}|${style.tabular}`;
     styles.set(key, { style, segments: [...(styles.get(key)?.segments ?? []), segment] });
   }
-  if (styles.size > 4) problems.push(`the preview uses ${styles.size} fonts; a BoundView carries at most 4`);
   const fonts: Record<string, BTPBoundViewFont> = {};
   const fontKey = new Map<string, string>();
+  // Styles whose page font cannot be read are drawn with the bundled font they fall back to: they share it, one font
+  // with every glyph they draw, rather than each carrying a copy of it.
+  const shared = new Map<string, string>();
   let index = 0;
   for (const [key, { style, segments: used }] of styles) {
     const characters = new Set<string>();
@@ -577,24 +582,30 @@ export const snapshotBoundView = async (
     }
     const file = await fontFile(style.family, style.weight, style.style);
     const fallback = fallbackFor(style.family);
-    let font: BTPBoundViewFont;
     if (file) {
       const { font: table, missing } = glyphTable(file, characters, { tabular: style.tabular });
-      font = { ...table, fallback: [fallback] };
       if (missing.length > 0 && used.some((segment) => segment.bind)) {
         problems.push(`${style.family} has no glyph for ${missing.map((c) => JSON.stringify(c)).join(', ')}`);
       }
-    } else {
-      // No font file the page lets us read: its text is drawn with the bundled font of the same widths.
-      const bundledFont = (await loadBundledFonts([fallback]))[fallback] as BTPBoundViewFont;
-      const glyphs = Object.fromEntries([...characters, ...'0123456789.,-+%$€£¥/: '].flatMap((char) => (bundledFont.glyphs?.[char] ? [[char, bundledFont.glyphs[char]]] : [])));
-      font = { unitsPerEm: bundledFont.unitsPerEm, ascent: bundledFont.ascent, descent: bundledFont.descent, glyphs, fallback: [fallback] };
-      onWarning(`${style.family} ${style.weight} has no font file this page can read; its text is drawn with ${fallback}`);
+      const name = `font${index++}`;
+      fonts[name] = { ...table, fallback: [fallback] };
+      fontKey.set(key, name);
+      continue;
     }
-    const name = `font${index++}`;
-    fonts[name] = font;
+    // No font file the page lets us read: its text is drawn with the bundled font of the same widths.
+    const bundledFont = (await loadBundledFonts([fallback]))[fallback] as BTPBoundViewFont;
+    const name = shared.get(fallback) ?? `font${index++}`;
+    const glyphs = {
+      ...fonts[name]?.glyphs,
+      ...Object.fromEntries([...characters, ...'0123456789.,-+%$€£¥/: '].flatMap((char) => (bundledFont.glyphs?.[char] ? [[char, bundledFont.glyphs[char]]] : []))),
+    };
+    fonts[name] = { unitsPerEm: bundledFont.unitsPerEm, ascent: bundledFont.ascent, descent: bundledFont.descent, glyphs, fallback: [fallback] };
+    shared.set(fallback, name);
     fontKey.set(key, name);
+    onWarning(`${style.family} ${style.weight} has no font file this page can read; its text is drawn with ${fallback}`);
   }
+  const fontCount = Object.keys(fonts).length;
+  if (fontCount > MAX_FONTS) problems.push(`the preview uses ${fontCount} fonts; a BoundView carries at most ${MAX_FONTS}`);
 
   // The text: each fact bound to its field, each of the sender's words a label, on its own baseline.
   const texts: Element[] = [];
