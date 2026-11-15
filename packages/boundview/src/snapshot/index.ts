@@ -117,9 +117,13 @@ const toBase64 = (bytes: Uint8Array) => {
   return btoa(text);
 };
 
-/** An image as the browser shows it, at twice its box where the limits allow: every pixel, compressed losslessly. */
-const capturePixels = (draw: (context: CanvasRenderingContext2D, width: number, height: number) => void, box: Box): Image => {
-  const scale = Math.min(2, 1024 / box.width, 1024 / box.height, Math.sqrt(262144 / (box.width * box.height)));
+/**
+ * An image as the browser shows it, at twice its box or at its own resolution if that is more (a logo drawn small from a
+ * larger file stays sharp when the view is enlarged), where the limits allow: every pixel, compressed losslessly.
+ */
+const capturePixels = (draw: (context: CanvasRenderingContext2D, width: number, height: number) => void, box: Box, own?: { width: number; height: number }): Image => {
+  const wanted = Math.max(2, own ? Math.min(own.width / box.width, own.height / box.height) : 0);
+  const scale = Math.min(wanted, 1024 / box.width, 1024 / box.height, Math.sqrt(262144 / (box.width * box.height)));
   const width = Math.max(1, Math.round(box.width * scale));
   const height = Math.max(1, Math.round(box.height * scale));
   const canvas = document.createElement('canvas');
@@ -130,6 +134,32 @@ const capturePixels = (draw: (context: CanvasRenderingContext2D, width: number, 
   // Throws for an image from another site that does not allow it: the caller says so.
   const rgba = context.getImageData(0, 0, width, height).data;
   return { width, height, encoding: 'rgba8-deflate', data: toBase64(zlibSync(new Uint8Array(rgba.buffer))) };
+};
+
+/**
+ * Where an <img> draws in its box of `width` by `height` (at `scale` to the page), as its object-fit and object-position
+ * place it: a logo kept in proportion in a box of another shape is never stretched to the box.
+ */
+const fitted = (image: HTMLImageElement, css: CSSStyleDeclaration, width: number, height: number, scale: number): [number, number, number, number] => {
+  const own = { width: image.naturalWidth * scale, height: image.naturalHeight * scale };
+  if (!own.width || !own.height || css.objectFit === 'fill' || !css.objectFit) return [0, 0, width, height];
+  const fit = Math.min(width / own.width, height / own.height);
+  const ratio =
+    css.objectFit === 'contain' ? fit
+    : css.objectFit === 'cover' ? Math.max(width / own.width, height / own.height)
+    : css.objectFit === 'scale-down' ? Math.min(1, fit)
+    : 1;
+  const w = own.width * ratio;
+  const h = own.height * ratio;
+  // Each of object-position's two values: a percentage of the room left, a length from the edge, or a keyword.
+  const at = (value: string | undefined, room: number) => {
+    const keyword = { left: 0, top: 0, center: 50, right: 100, bottom: 100 }[value ?? 'center'];
+    if (keyword !== undefined) return (room * keyword) / 100;
+    if (value?.endsWith('%')) return (room * parseFloat(value)) / 100;
+    return (parseFloat(value ?? '') || 0) * scale;
+  };
+  const [x, y] = (css.objectPosition || '50% 50%').split(/\s+/);
+  return [at(x, width - w), at(y ?? x, height - h), w, h];
 };
 
 const loaded = (src: string) =>
@@ -561,12 +591,16 @@ const paint = async (
       const colours = sides.map((side) => (css[`border${side}Style`] === 'none' ? undefined : hex(css[`border${side}Color`])));
       if (widths.every((w) => w > 0 && w === widths[0]) && colours.every((c) => c && c === colours[0])) {
         const half = (widths[0] as number) / 2;
+        // Its corners as the box's: the stroke's middle runs half the border in, so each radius is half the border less.
+        const inset = (value: number) => r2(Math.max(0, value - half));
+        const rounded = radii.some(Boolean) ? { radius: typeof corners === 'number' ? inset(corners) : radii.map(inset) } : {};
         out.push({
           type: 'rect',
           x: r2(box.left + half),
           y: r2(box.top + half),
           width: r2(box.width - 2 * half),
           height: r2(box.height - 2 * half),
+          ...rounded,
           stroke: colours[0],
           strokeWidth: r2(widths[0] as number),
         } as Element);
@@ -639,7 +673,10 @@ const paint = async (
         images[key] = { width, height, encoding: 'rgba8-deflate', data: toBase64(zlibSync(new Uint8Array(pixels.buffer))) };
       } else {
         const image = element as HTMLImageElement;
-        images[key] = capturePixels((context, width, height) => context.drawImage(image, 0, 0, width, height), box);
+        images[key] = capturePixels((context, width, height) => context.drawImage(image, ...fitted(image, css, width, height, width / box.width)), box, {
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+        });
       }
       out.push({ type: 'image', image: key, ...shape } as Element);
     } catch {

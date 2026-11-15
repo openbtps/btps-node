@@ -16,6 +16,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { writeFileSync } from 'node:fs';
 import { Resvg } from '@resvg/resvg-wasm';
+import { unzlibSync } from 'fflate';
 import { BtpBoundViewSchema, checkBoundView, type BTPBoundView } from '@btps/sdk/boundview';
 import { initBoundViewEngine, renderBoundView, boundViewToSvg } from '../src/index.js';
 import { chrome, previewInvoice as invoice, startCapture } from './browser/capture.js';
@@ -108,6 +109,28 @@ describe.skipIf(!chrome)('a preview captured in a real browser', () => {
     expect(error).toBeUndefined();
     expect(warnings.filter((warning) => warning.startsWith('Georgia')).length).toBeGreaterThan(1);
     expect(Object.keys(view?.fonts ?? {})).toHaveLength(Object.keys(plain.view?.fonts ?? {}).length + 1);
+  });
+
+  // Found in eBill's Kauri template: a wide logo in a square box with object-fit: contain was stretched to the box, and a
+  // rounded, bordered logo box lost its round corners.
+  it('keeps an image in proportion as object-fit places it, and a rounded border round', async () => {
+    const wide = Buffer.from(new Resvg('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="#ff0000"/></svg>').render().asPng());
+    const extraHtml =
+      `<div style="margin:0 24px 12px;width:120px;height:120px;border:2px solid #cccccc;border-radius:12px">` +
+      `<img alt="" src="data:image/png;base64,${wide.toString('base64')}" style="display:block;width:116px;height:116px;object-fit:contain"></div>`;
+    const { view, error } = await browser.capture(invoice, { extraHtml });
+    expect(error).toBeUndefined();
+    const border = view?.elements.find((element) => element.type === 'rect' && 'stroke' in element && element.stroke === '#cccccc');
+    expect(border).toMatchObject({ radius: 11 });
+    const [image] = Object.values(view?.images ?? {});
+    expect(image).toBeDefined();
+    const { width, height, data } = image as { width: number; height: number; data: string };
+    const rgba = unzlibSync(Buffer.from(data, 'base64'));
+    const red = (x: number, y: number) => rgba[(y * width + x) * 4] === 255 && rgba[(y * width + x) * 4 + 1] === 0 && (rgba[(y * width + x) * 4 + 3] ?? 0) > 0;
+    // 2:1 in a square: red across the middle, nothing in the top and bottom quarters.
+    expect(red(Math.floor(width / 2), Math.floor(height / 2))).toBe(true);
+    expect(red(Math.floor(width / 2), Math.floor(height / 8))).toBe(false);
+    expect(red(Math.floor(width / 2), Math.floor((height * 7) / 8))).toBe(false);
   });
 
   it('refuses a preview that does not show a key fact, and says which', async () => {
