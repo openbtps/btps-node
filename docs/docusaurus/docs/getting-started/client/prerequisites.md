@@ -4,6 +4,9 @@ description: Required libraries and dependencies for setting up BTPS client appl
 sidebar_label: Prerequisites
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Client Prerequisites
 
 Before setting up your BTPS client application, ensure you have the necessary libraries, dependencies, and understanding of the BTPS client architecture.
@@ -12,9 +15,29 @@ Before setting up your BTPS client application, ensure you have the necessary li
 
 ### Core BTPS SDK
 
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
 ```bash
 npm install @btps/sdk
 ```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/sdk
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/sdk
+```
+
+</TabItem>
+</Tabs>
 
 The `@btps/sdk` package provides all the core BTPS client components:
 

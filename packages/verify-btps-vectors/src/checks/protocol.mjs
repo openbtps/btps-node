@@ -184,6 +184,32 @@ export function protocolSdkChecks(sdk, set, receiverPrivateKeyPem) {
         else ensure(!success, `accepted under ${c.version}; expected it refused: ${c.why}`);
       }),
     ),
+    ...set.boundView.cases.map((c) =>
+      check(`boundview/${c.name}`, () => {
+        const { checkBoundView } = rules.boundView;
+        ensure(typeof checkBoundView === 'function', 'the SDK has no checkBoundView');
+        const result = checkBoundView(c.document, c.document.boundView);
+        ensure(result.show === c.expect.show, `show is ${result.show}; expected ${c.expect.show}`);
+        const failed = (problems = []) =>
+          problems
+            .map(({ check: name, element, field }) => JSON.stringify([name, element ?? null, field ?? null]))
+            .sort();
+        const got = failed(result.problems);
+        const want = failed(c.expect.problems);
+        ensure(
+          JSON.stringify(got) === JSON.stringify(want),
+          `failed ${got.join(', ') || 'nothing'}; expected ${want.join(', ') || 'nothing'}`,
+        );
+      }),
+    ),
+    ...set.boundView.written.map((c) =>
+      check(`boundview/written/${c.name}`, () => {
+        const { writtenValue } = rules.boundView;
+        ensure(typeof writtenValue === 'function', 'the SDK has no writtenValue');
+        const drawn = writtenValue(c.value, c.bind);
+        ensure(drawn === c.expect, `drawn ${JSON.stringify(drawn)}; expected ${JSON.stringify(c.expect)}`);
+      }),
+    ),
     ...set.eventChain.cases.map((c) =>
       check(`event-chain/${c.name}`, () => {
         const { lifecycleEventChainProblem } = rules.helpers;

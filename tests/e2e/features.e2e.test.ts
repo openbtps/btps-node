@@ -7,7 +7,8 @@
 
 // Journey: what 1.2 adds between two providers, over real servers. A payer
 // takes back a proposal, checked in flight by the biller's own middleware; a
-// document with a template, a formatted note and a discount arrives intact; a
+// document with a BoundView, a signatory, a formatted note and a discount
+// arrives intact, its BoundView checked where it is opened; a
 // provider puts a cache in front of every key lookup; details are asked for
 // within the provider's limit and answered with only what was asked; and a
 // trust request carries a verification its receiver can check.
@@ -174,23 +175,85 @@ describe('journey: what 1.2 adds between two providers', () => {
     });
   });
 
-  it('carries a template, a formatted note and a discount, intact', async () => {
-    const documents = [
-      invoiceDocument({
-        description: { format: 'markdown', content: '**Thanks** for your business' },
-        discount: { amount: 500 },
-      }),
-      letterDocument({ template: { name: 'acme/letter', data: {} } }),
-    ];
-    for (const document of documents) {
+  it('carries a BoundView, a signatory, a formatted note and a discount, intact', async () => {
+    // Every printable ASCII character, 500 units wide: 6 pixels at size 12.
+    const font = {
+      unitsPerEm: 1000,
+      ascent: 800,
+      descent: 200,
+      glyphs: Object.fromEntries(
+        Array.from({ length: 95 }, (_, i) => [String.fromCharCode(32 + i), { advance: 500 }]),
+      ),
+    };
+    let row = 0;
+    const fact = (field: string, format?: object) => ({
+      type: 'text',
+      bind: { field, ...(format && { format }) },
+      x: 20,
+      y: 30 + 24 * row++,
+      width: 400,
+      align: 'start',
+      font: 'body',
+      size: 12,
+      colour: '#0f1b2d',
+    });
+    const money = { money: { group: ',', decimal: '.', prefix: 'A$' } };
+    const boundView = {
+      format: 1,
+      page: { width: 600, height: 400 },
+      fonts: { body: font },
+      elements: [
+        fact('id'),
+        fact('issuedAt', { date: 'd MMM yyyy' }),
+        fact('totalAmount', money),
+        fact('discount.amount', money),
+        fact('description'),
+        fact('lineItems.rows.0.Item'),
+        fact('lineItems.rows.0.Amount', money),
+      ],
+    };
+    const invoice = invoiceDocument({
+      description: { format: 'markdown', content: '**Thanks** for your business' },
+      discount: { amount: 500 },
+      lineItems: {
+        columns: ['Item', 'Amount'],
+        roles: { Item: 'description', Amount: 'lineTotal' },
+        rows: [{ Item: 'Website build', Amount: 150000 }],
+      },
+      boundView,
+    });
+    // The same BoundView with a white panel drawn over every fact: accepted, never shown.
+    const covered = {
+      ...invoice,
+      boundView: {
+        ...boundView,
+        elements: [
+          ...boundView.elements,
+          { type: 'rect', x: 0, y: 0, width: 600, height: 400, fill: '#ffffff' },
+        ],
+      },
+    };
+    const letter = letterDocument({
+      signatory: { name: 'Jo Bloggs', visualSignature: { type: 'typed', text: 'Jo Bloggs' } },
+    });
+    const expected = [
+      [invoice, { show: true }],
+      [covered, { show: false }],
+      [letter, undefined],
+    ] as const;
+    for (const [document, shown] of expected) {
       const sent = await artifactFrom(vendor, client.identity, 'BTPS_DOC', document);
       expect(sent.version).toBe('1.2.0');
       expect((await deliver(sent)).response?.status.ok).toBe(true);
 
       const arrived = clientHost.inbox.find((a) => a.id === sent.id)!;
-      const { payload, error } = await open<BTPTransporterArtifact>(client, arrived);
+      const { payload, error, boundView: result } = await open<BTPTransporterArtifact>(
+        client,
+        arrived,
+      );
       expect(error).toBeUndefined();
       expect(payload?.document).toEqual(document);
+      expect(result === undefined ? undefined : { show: result.show }).toEqual(shown);
     }
   });
 
