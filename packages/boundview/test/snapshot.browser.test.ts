@@ -14,117 +14,24 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { createServer, type Server } from 'node:http';
-import { createRequire } from 'node:module';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { build } from 'esbuild';
-import { chromium, type Browser, type Page } from 'playwright-core';
+import { writeFileSync } from 'node:fs';
 import { Resvg } from '@resvg/resvg-wasm';
 import { BtpBoundViewSchema, checkBoundView, type BTPBoundView } from '@btps/sdk/boundview';
 import { initBoundViewEngine, renderBoundView, boundViewToSvg } from '../src/index.js';
-
-const here = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(here, '../../..');
-const require = createRequire(import.meta.url);
-
-const chrome = [
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  (() => {
-    try {
-      return execSync('command -v google-chrome || command -v chromium', { encoding: 'utf8' }).trim();
-    } catch {
-      return '';
-    }
-  })(),
-].find((candidate) => candidate && existsSync(candidate));
-
-const invoice = {
-  type: 'invoice',
-  title: 'November',
-  id: 'INV-0042',
-  issuedAt: '2026-11-25T00:00:00.000Z',
-  dueAt: '2026-12-09T00:00:00.000Z',
-  totalAmount: { amount: 145200, currency: 'AUD' },
-  taxAmount: { amount: 13200, currency: 'AUD' },
-  issuer: { name: 'Apexworld', identifiers: { 'au:abn': '51824753556' } },
-  recipient: { name: 'Northwind Studio' },
-  description: 'Thanks for your business.',
-  lineItems: {
-    columns: ['Item', 'Amount'],
-    roles: { Item: 'description', Amount: 'lineTotal' },
-    rows: [{ Item: 'Website care', Amount: 132000 }],
-  },
-};
+import { chrome, previewInvoice as invoice, startCapture } from './browser/capture.js';
 
 describe.skipIf(!chrome)('a preview captured in a real browser', () => {
-  let server: Server;
-  let browser: Browser;
-  let page: Page;
-  let port = 0;
+  let browser: Awaited<ReturnType<typeof startCapture>>;
 
   beforeAll(async () => {
-    const bundle = await build({
-      entryPoints: [path.join(root, 'packages/boundview/src/index.ts')],
-      bundle: true,
-      format: 'esm',
-      platform: 'browser',
-      write: false,
-      tsconfig: path.join(root, 'tsconfig.json'),
-      external: ['node:*'],
-      logLevel: 'silent',
-    });
-    const files: Record<string, [string, Buffer | string]> = {
-      '/': ['text/html', readFileSync(path.join(here, 'browser/invoice.html'))],
-      '/boundview.js': ['text/javascript', bundle.outputFiles[0]?.text ?? ''],
-      '/resvg.wasm': ['application/wasm', readFileSync(require.resolve('@resvg/resvg-wasm/index_bg.wasm'))],
-    };
-    for (const name of ['arimo-latin-400-normal', 'arimo-latin-700-normal', 'tinos-latin-400-normal']) {
-      const font = name.split('-')[0] as string;
-      files[`/fonts/${name}.woff`] = ['font/woff', readFileSync(require.resolve(`@fontsource/${font}/files/${name}.woff`))];
-    }
-    server = createServer((request, response) => {
-      const file = files[request.url ?? ''];
-      response.writeHead(file ? 200 : 404, file ? { 'content-type': file[0] } : {});
-      response.end(file?.[1]);
-    });
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-    port = (server.address() as { port: number }).port;
-    browser = await chromium.launch({ executablePath: chrome, headless: true });
-    page = await browser.newPage({ viewport: { width: 640, height: 640 }, deviceScaleFactor: 1 });
-    await page.goto(`http://127.0.0.1:${port}/`);
-    await page.addScriptTag({ type: 'module', content: `import * as boundview from '/boundview.js'; window.boundview = boundview;` });
-    await page.waitForFunction(() => 'boundview' in window && document.fonts.status === 'loaded');
+    browser = await startCapture();
     await initBoundViewEngine();
   }, 60_000);
 
-  afterAll(async () => {
-    await browser?.close();
-    server?.close();
-  });
-
-  const snapshot = (document: object) =>
-    page.evaluate(
-      async ([doc]) => {
-        const warnings: string[] = [];
-        const { snapshotBoundView } = (window as unknown as { boundview: typeof import('../src/index.js') }).boundview;
-        try {
-          const view = await snapshotBoundView(window.document.getElementById('preview') as HTMLElement, doc as never, {
-            engine: '/resvg.wasm',
-            onWarning: (warning) => warnings.push(warning),
-          });
-          return { view, warnings };
-        } catch (error) {
-          return { error: String(error), warnings };
-        }
-      },
-      [document] as const,
-    );
+  afterAll(() => browser?.close());
 
   it('binds every fact by its value, and a receiver accepts and shows it', async () => {
-    const { view, error, warnings } = await snapshot(invoice);
+    const { view, error, warnings } = await browser.capture(invoice);
     expect(error).toBeUndefined();
     expect(warnings).toEqual([]);
     const parsed = BtpBoundViewSchema.parse(view);
@@ -157,11 +64,11 @@ describe.skipIf(!chrome)('a preview captured in a real browser', () => {
   });
 
   it('draws as the browser showed the preview', async () => {
-    const { view } = await snapshot(invoice);
+    const { view } = await browser.capture(invoice);
     const document = { ...invoice, boundView: view as BTPBoundView };
     const png = await renderBoundView(document, { scale: 1 });
     expect(png).not.toBeNull();
-    const screenshot = await (await page.$('#preview'))?.screenshot();
+    const screenshot = await (await browser.page.$('#preview'))?.screenshot();
     const { width, height } = (view as BTPBoundView).page;
     // Both pictures read back as pixels by the engine, at the same size.
     const pixelsOf = (bytes: Uint8Array) =>
@@ -192,7 +99,15 @@ describe.skipIf(!chrome)('a preview captured in a real browser', () => {
   });
 
   it('refuses a preview that does not show a key fact, and says which', async () => {
-    const { error } = await snapshot({ ...invoice, subtotalAmount: { amount: 99, currency: 'AUD' } });
+    const { error } = await browser.capture({ ...invoice, subtotalAmount: { amount: 99, currency: 'AUD' } });
     expect(error).toContain('subtotalAmount');
+  });
+
+  it("warns the sender of a label that looks like a payment detail but is not the document's", async () => {
+    const { view, warnings } = await browser.capture(invoice, {
+      extraHtml: '<div style="font-size:12px;padding:0 24px 12px">Pay to BSB 062-000 Account 1234 5678</div>',
+    });
+    expect(view).toBeDefined();
+    expect(warnings.some((warning) => /looks like an account number/.test(warning))).toBe(true);
   });
 });
