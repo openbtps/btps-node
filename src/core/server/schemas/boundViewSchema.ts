@@ -256,7 +256,13 @@ const base64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$
  * that expands without end costs no more than that.
  */
 const inflatesTo = (data: string, length: number): boolean => {
-  const bytes = Buffer.from(data, 'base64');
+  // atob, not Buffer: a browser that checks a BoundView has no Buffer. Data that is not base64 inflates to nothing.
+  let bytes: Uint8Array;
+  try {
+    bytes = Uint8Array.from(atob(data), (char) => char.charCodeAt(0));
+  } catch {
+    return false;
+  }
   let total = 0;
   const stream = new Unzlib((chunk) => {
     total += chunk.length;

@@ -285,18 +285,19 @@ export const writtenValue = (value: BoundValue, bind: WrittenBind): string => {
 };
 
 /**
- * Which characters of markdown text a renderer does not draw as themselves (Checks: Key facts): its marks
- * (`# * _ \` > - +`), a backslash that escapes the next character, a link's brackets and destination, and an ordered
- * list's number, which is drawn as the list's marker rather than as text.
+ * Which characters of markdown text a renderer may not draw as themselves (Checks: Key facts), each: 0 drawn; 1 a mark
+ * (`# * _ \` > - +`), which is not drawn as formatting but is as text (a hyphen); 2 never drawn: a backslash that
+ * escapes the next character, a link's brackets and destination, and an ordered list's number, which is drawn as the
+ * list's marker rather than as text.
  */
-export const markdownHidden = (text: string): boolean[] => {
+export const markdownHidden = (text: string): (0 | 1 | 2)[] => {
   const characters = [...text];
-  const hidden = characters.map((char) => /[#*_`>+-]/.test(char));
+  const hidden: (0 | 1 | 2)[] = characters.map((char) => (/[#*_`>+-]/.test(char) ? 1 : 0));
   const mark = (from: number, to: number) => {
-    for (let at = from; at < to; at++) hidden[at] = true;
+    for (let at = from; at < to; at++) hidden[at] = 2;
   };
   characters.forEach((char, at) => {
-    if (char === '\\' && /[\p{P}\p{S}]/u.test(characters[at + 1] ?? '')) hidden[at] = true;
+    if (char === '\\' && /[\p{P}\p{S}]/u.test(characters[at + 1] ?? '')) hidden[at] = 2;
   });
   const joined = characters.join('');
   // Offsets below are in UTF-16 units; map them to code points.

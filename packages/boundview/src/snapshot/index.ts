@@ -55,6 +55,8 @@ export class BoundViewSnapshotError extends Error {
   constructor(
     message: string,
     readonly problems: string[],
+    /** The BoundView a receiver would refuse, when one was made: to see which element and why. */
+    readonly view?: BTPBoundView,
   ) {
     super(`${message}: ${problems.join('; ')}`);
     this.name = 'BoundViewSnapshotError';
@@ -77,6 +79,13 @@ const MAX_FONTS = 8;
 
 const r2 = (value: number) => Math.round(value * 100) / 100;
 const ceil2 = (value: number) => Math.ceil(value * 100 - 1e-6) / 100;
+const floor2 = (value: number) => Math.floor(value * 100 + 1e-6) / 100;
+
+/**
+ * A text's box width from its (rounded) left edge to where the browser drew its right edge, rounded down: text that
+ * touches what follows it (a value split across elements, a comma) must not reach into it.
+ */
+const boxWidth = (x: number, right: number) => Math.max(0, floor2(floor2(right) - x));
 
 // ---- Colour ----
 
@@ -337,10 +346,14 @@ const fontFile = (family: string, weight: number, style: string): Promise<FontFi
   return fontFiles.get(key) as Promise<FontFile[] | undefined>;
 };
 
-/** Which of a family's files draws `char`: the first whose range holds it, as the browser chooses. */
+/**
+ * Which of a family's files draws `char`, as the browser chooses (CSS Fonts, unicode-range): of the files whose range
+ * holds it, the last defined first, and the next where one has no glyph for it.
+ */
 const fileFor = (files: FontFile[], char: string): FontFile | undefined => {
   const code = char.codePointAt(0) ?? 0;
-  return files.find(({ ranges }) => ranges === undefined || ranges.some(([from, to]) => code >= from && code <= to));
+  const holding = files.filter(({ ranges }) => ranges === undefined || ranges.some(([from, to]) => code >= from && code <= to)).reverse();
+  return holding.find(({ font }) => font.charToGlyph(char).index !== 0) ?? holding[0];
 };
 
 // ---- Reading the preview ----
@@ -363,7 +376,7 @@ const styleOf = (element: globalThis.Element): Style => {
 };
 
 /** Each text node as runs, one a line it was laid out on, with each character's box and the line's baseline. */
-const textRuns = (root: HTMLElement, origin: DOMRect): LaidRun[] => {
+export const textRuns = (root: HTMLElement, origin: DOMRect): LaidRun[] => {
   const runs: LaidRun[] = [];
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const range = document.createRange();
@@ -676,16 +689,19 @@ export const snapshotBoundView = async (
   };
   const shapes = await paint(preview, origin, images, problems, canVerify, signature);
   const runs = textRuns(preview, origin);
-  let segments = bindRuns(document, runs);
-  // A typed signature: the line that is its text, set apart, is drawn by the receiver as the signature.
+  // A typed signature: the line that is exactly its text, in a hand of its own (a typeface the page's other text is not
+  // set in), else the last such line, is drawn by the receiver as the signature. It is set aside before anything is
+  // bound: the same words may also be a fact (the signatory's name).
   if (signature.text !== undefined) {
-    const line = segments.find(
-      (segment) => !segment.bind && [...(runs[segment.run] as LaidRun).text].slice(segment.from, segment.to).join('') === signature.text,
-    );
-    if (line) {
-      const run = runs[line.run] as LaidRun;
-      const left = (run.chars[line.from] as { left: number }).left;
-      const right = (run.chars[line.to - 1] as { right: number }).right;
+    const families = new Map<string, number>();
+    for (const run of runs) families.set(run.style.family, (families.get(run.style.family) ?? 0) + [...run.text].length);
+    const body = [...families.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    const lines = runs.filter((run) => run.text.trim() === signature.text);
+    const run = lines.find((line) => line.style.family !== body) ?? lines.at(-1);
+    if (run) {
+      const lead = [...run.text].findIndex((char) => !/\s/.test(char));
+      const left = (run.chars[lead] as { left: number }).left;
+      const right = (run.chars[lead + [...signature.text].length - 1] as { right: number }).right;
       signature.found.push({
         type: 'signature',
         x: r2(left),
@@ -694,9 +710,10 @@ export const snapshotBoundView = async (
         height: r2((run.bottom ?? run.top + run.style.size) - run.top),
         colour: run.style.colour,
       } as Element);
-      segments = segments.filter((segment) => segment !== line);
+      runs.splice(runs.indexOf(run), 1);
     }
   }
+  const segments = bindRuns(document, runs);
 
   // A font a style: its own glyphs, read from the page's font file, or the bundled font with its widths.
   const styles = new Map<string, { style: Style; segments: Segment[] }>();
@@ -819,10 +836,10 @@ export const snapshotBoundView = async (
       // No wider than the browser drew it: what follows on the line (a comma, the next word) starts where the page put
       // it, and a box reaching past that would be covered by it. A receiver fits the value to its box.
       const drawn = last.right - first.left;
-      texts.push({ type: 'text', bind: segment.bind, ...base, width: ceil2(drawn > 0 ? Math.min(width, drawn) : width) } as Element);
+      texts.push({ type: 'text', bind: segment.bind, ...base, width: drawn > 0 ? boxWidth(base.x, Math.min(first.left + width, last.right)) : ceil2(width) } as Element);
     } else {
       const text = [...run.text].slice(segment.from, segment.to).join('');
-      texts.push({ type: 'label', text, ...base, width: ceil2(Math.max(0, last.right - first.left)) } as Element);
+      texts.push({ type: 'label', text, ...base, width: boxWidth(base.x, last.right) } as Element);
       for (const [what, pattern] of FACT_LIKE) {
         if (pattern.test(text)) onWarning(`"${text}" looks like ${what} but is not bound to the signed data`);
       }
@@ -851,6 +868,7 @@ export const snapshotBoundView = async (
     throw new BoundViewSnapshotError(
       'A receiver would not show this BoundView',
       result.problems.map(({ message, field, element }) => (field ? `${field}: ${message}` : `element ${element}: ${message}`)),
+      parsed.data,
     );
   }
   return parsed.data;

@@ -182,22 +182,27 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
     const item = stream[at];
     return item && 'char' in item ? item.char : undefined;
   };
-  /** Whether what stands before `at` (or after `to`) ends a word: a break, an edge character, or nothing. */
-  const edgeBefore = (at: number) => {
-    const item = stream[at - 1];
-    return item === undefined || 'gap' in item ? item?.gap !== 'join' && item?.gap !== 'wrap' : isEdge(item.char);
+  /**
+   * Whether what stands beside a match ends a word: nothing, a break, or an edge character, looking through a `join`
+   * or `wrap` to the character beyond it ("No. " and "A1" in touching elements).
+   */
+  const edgeAt = (at: number, step: -1 | 1): boolean => {
+    for (let i = at; ; i += step) {
+      const item = stream[i];
+      if (item === undefined) return true;
+      if ('char' in item) return isEdge(item.char);
+      if (item.gap === 'space' || item.gap === 'break') return true;
+    }
   };
-  const edgeAfter = (at: number) => {
-    const item = stream[at];
-    return item === undefined || 'gap' in item ? item?.gap !== 'join' && item?.gap !== 'wrap' : isEdge(item.char);
-  };
+  const edgeBefore = (at: number) => edgeAt(at - 1, -1);
+  const edgeAfter = (at: number) => edgeAt(at, 1);
 
   /**
    * `want` matched from stream position `start`: its characters' places, and where the stream goes on after it;
    * undefined where it does not stand there. A space in `want` matches any run of whitespace and breaks; a character
    * `hidden` says is not drawn (a markdown mark) may be missing.
    */
-  const matchAt = (want: string[], hidden: boolean[], start: number): { placed: Placed; end: number } | undefined => {
+  const matchAt = (want: string[], hidden: (0 | 1 | 2)[], start: number): { placed: Placed; end: number } | undefined => {
     const placed: Placed = [];
     let w = 0;
     let s = start;
@@ -227,6 +232,11 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
         }
         continue;
       }
+      // What is never drawn (a link's destination) is never looked for on the page.
+      if (hidden[w] === 2) {
+        w++;
+        continue;
+      }
       const item = stream[s];
       if (item !== undefined && 'gap' in item && (item.gap === 'wrap' || item.gap === 'join') && placed.length > 0) {
         s++;
@@ -250,7 +260,7 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
   /** Every place `text` is written in the stream, whole, as a word (`word`), each free of any fact already bound. */
   const findAll = (text: string, { word, markdown }: { word: boolean; markdown: boolean }): Placed[] => {
     const want = [...text];
-    const hidden = markdown ? markdownHidden(text) : want.map(() => false);
+    const hidden: (0 | 1 | 2)[] = markdown ? markdownHidden(text) : want.map(() => 0);
     let first = 0;
     while (first < want.length && (hidden[first] || isSpace(want[first]))) first++;
     if (first === want.length) return [];
@@ -298,8 +308,12 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
       ...placed.map((place) => ({ ...place, of: place.of + lead })),
       ...Array.from({ length: to - end }, (_, i) => ({ run: lastPlace.run, at: end + i, of: lead + placed.length + i })),
     ];
-    const shown = whole.map(({ run, at: index }) => (characters[run] as string[])[index]).join('');
-    return writtenValue(value, full as never) === shown && isFree(whole) ? { placed: whole, bind: full } : undefined;
+    // Every character shown is the value's own, as written, and every one but a space (where it wraps) is shown.
+    const written = [...writtenValue(value, full as never)];
+    const shows = whole.every(({ run, at: index, of }) => (characters[run] as string[])[index] === written[of]);
+    const covered = new Set(whole.map(({ of }) => of));
+    const complete = written.every((char, index) => covered.has(index) || isSpace(char));
+    return shows && complete && isFree(whole) ? { placed: whole, bind: full } : undefined;
   };
 
   /** Every place a field is written, with the binding that writes it there: the longest writing first. */
@@ -390,7 +404,16 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
   });
   const within = (span: Span) => (run: number) => top(run) < span.bottom && bottom(run) > span.top;
 
-  // First where each row is: its text cell (the description) where most of its other cells stand beside it.
+  // A place inside a longer match of another field is that field's (a description "Studio" in the name "Ζήτα Studio").
+  const longer = fields
+    .filter(({ field }) => !field.startsWith('lineItems.rows.'))
+    .flatMap(({ field, value }) => placesOf(field, value).map(({ placed }) => new Set(placed.map(({ run, at }) => `${run}:${at}`))));
+  const insideLonger = (placed: Placed) =>
+    longer.some((other) => other.size > placed.length && placed.every(({ run, at }) => other.has(`${run}:${at}`)));
+  const lineHeight = (span: Span) => Math.max(1, span.bottom - span.top);
+
+  // First where each row is: its text cell (the description) where most of its other cells stand beside it, on its
+  // lines or (a row laid out as a card) just below them.
   const chosen: { cells: typeof lines; anchor?: { placed: Placed; bind: Bind; value: BoundValue }; span?: Span }[] = [];
   const used = new Set<string>();
   for (const cells of rows.values()) {
@@ -405,13 +428,15 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
     const others = ordered.filter((cell) => cell !== anchorCell);
     const previous = [...chosen].reverse().find((row) => row.span)?.span;
     const candidates = placesOf(anchorCell.field, anchorCell.value)
-      .filter(({ placed }) => !placed.some(({ run, at }) => used.has(`${run}:${at}`)))
+      .filter(({ placed }) => !placed.some(({ run, at }) => used.has(`${run}:${at}`)) && !insideLonger(placed))
       .map((place) => {
         const span = spanOf(place.placed);
+        const near = { top: span.top, bottom: span.bottom + 3 * lineHeight(span) };
         const together = others.filter(({ field, value }) => placesOf(field, value, within(span)).length > 0).length;
-        return { place, span, together, below: previous === undefined || span.top >= previous.top - 1 };
+        const close = others.filter(({ field, value }) => placesOf(field, value, within(near)).length > 0).length;
+        return { place, span, together, close, below: previous === undefined || span.top >= previous.top - 1 };
       })
-      .sort((a, b) => Number(b.below) - Number(a.below) || b.together - a.together);
+      .sort((a, b) => Number(b.below) - Number(a.below) || b.together - a.together || b.close - a.close);
     const best = candidates[0];
     if (best) for (const { run, at } of best.place.placed) used.add(`${run}:${at}`);
     chosen.push({ cells: ordered, ...(best && { anchor: { ...best.place, value: anchorCell.value }, span: best.span }) });
@@ -430,25 +455,29 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
     }
   });
 
-  // ---- Everything else, longest writing first so "A$1,452.00" is not taken as "1,452" ----
-  const rest = fields
-    .filter(({ field }) => !field.startsWith('lineItems.rows.'))
-    .sort((a, b) => {
-      const length = (entry: (typeof fields)[number]) => Math.max(0, ...writings(entry.field, entry.value).map(({ text }) => text.length));
-      return length(b) - length(a);
-    });
-  // Fields written alike (a receipt's total and the amount paid, its date and the day it was paid) share their places:
-  // each takes the first free, and the last of them every one left.
-  const alike = (entry: (typeof fields)[number]) => JSON.stringify(writings(entry.field, entry.value).map(({ text }) => text).sort());
-  for (const [at, entry] of rest.entries()) {
-    const { field, value } = entry;
-    const twin = rest.slice(at + 1).some((later) => alike(later) === alike(entry));
-    const places = placesOf(field, value);
-    if (places.length > 0) {
-      for (const place of twin ? places.slice(0, 1) : places) take(place, value);
-      continue;
-    }
-    if (value.kind === 'text') bindGroups(field, value);
+  // ---- Everything else: every place each field is written, the longest match first ----
+  // A match inside a longer one is the longer one's: "2026-12-17" in "INV-2026-12-17" is the invoice number's, and
+  // "1,452" in "A$1,452.00" is the amount's. Fields written alike (a receipt's total and the amount paid) share their
+  // places, each taking the first free, so every one of them is bound where it can be.
+  const rest = fields.filter(({ field }) => !field.startsWith('lineItems.rows.'));
+  const candidates = rest.flatMap(({ field, value }, order) =>
+    placesOf(field, value).map((place, nth) => ({ ...place, value, order, nth })),
+  );
+  candidates.sort((a, b) => b.placed.length - a.placed.length || a.nth - b.nth || a.order - b.order);
+  const takes = new Map<string, number>();
+  const where = (placed: Placed) => placed.map(({ run, at }) => `${run}:${at}`).join(',');
+  for (const candidate of candidates) {
+    if (!isFree(candidate.placed)) continue;
+    // Of the fields that could be bound here, the one bound the fewest times yet.
+    const here = where(candidate.placed);
+    const chosen = candidates
+      .filter((other) => where(other.placed) === here)
+      .sort((a, b) => (takes.get(a.bind.field) ?? 0) - (takes.get(b.bind.field) ?? 0) || a.order - b.order)[0] as typeof candidate;
+    take(chosen, chosen.value);
+    takes.set(chosen.bind.field, (takes.get(chosen.bind.field) ?? 0) + 1);
+  }
+  for (const { field, value } of rest) {
+    if (!takes.has(field) && value.kind === 'text') bindGroups(field, value);
   }
 
   // The sender's own words: every stretch of a run no field took.
