@@ -134,4 +134,81 @@ describe('binding a preview by value', () => {
       ['A$300.00', 'totalAmount'],
     ]);
   });
+
+  // Found sending an untaxed one-line invoice from eBill: its unit price and its amount were the same value side by side,
+  // and the unit price took both, so the amount, a key fact, was never shown.
+  it('binds each cell of a line once, so two cells of one value side by side are both shown', () => {
+    const plain = {
+      type: 'invoice',
+      title: 'Hosting',
+      id: 'INV-0103',
+      issuedAt: '2026-11-15T00:00:00.000Z',
+      totalAmount: { amount: 30000, currency: 'AUD' },
+      lineItems: {
+        columns: ['Description', 'Unit price', 'Amount'],
+        roles: { Description: 'description', Amount: 'lineTotal' },
+        rows: [{ Description: 'Website care', 'Unit price': 30000, Amount: 30000 }],
+      },
+    };
+    const runs = [run('Website care', 40), run('A$300.00', 40), run('A$300.00', 40), run('Total A$300.00', 80)];
+    const bound = shown(runs, bindRuns(plain, runs)).filter((segment) => segment.bind);
+    expect(bound.map(({ text, bind }) => [text, bind?.field])).toEqual([
+      ['Website care', 'lineItems.rows.0.Description'],
+      ['A$300.00', 'lineItems.rows.0.Unit price'],
+      ['A$300.00', 'lineItems.rows.0.Amount'],
+      ['A$300.00', 'totalAmount'],
+    ]);
+  });
+
+  // Found sending a receipt from eBill: the total took every A$300.00 and the issue date every 15 Nov 2026, so the amount
+  // paid and the day it was paid, key facts written just as they are, were never shown.
+  it('shares the places of fields written alike, so each of them is shown', () => {
+    const receipt = {
+      type: 'receipt',
+      title: 'Website care',
+      id: 'RCT-0007',
+      issuedAt: '2026-11-15T00:00:00.000Z',
+      totalAmount: { amount: 30000, currency: 'AUD' },
+      payment: { amount: { amount: 30000, currency: 'AUD' }, paidAt: '2026-11-15T00:00:00.000Z' },
+    };
+    const runs = [run('Paid on 15 Nov 2026'), run('Amount received A$300.00', 20), run('Issued 15 Nov 2026', 40), run('Total A$300.00', 60)];
+    const fields = bindRuns(receipt, runs).flatMap(({ bind }) => (bind ? [bind.field] : []));
+    expect(fields.sort()).toEqual(['issuedAt', 'payment.amount', 'payment.paidAt', 'totalAmount']);
+  });
+
+  // Found sending a letter from eBill: its letterhead's "Studio" came before a letter that ends "Studio", was taken as the
+  // content's last word, and left the rest of the content with nowhere to go.
+  it("binds a letter's content run by run in order, never from a word some other field shows before it", () => {
+    const letter = {
+      type: 'letter',
+      title: 'Your new care plan',
+      id: 'LTR-1',
+      issuedAt: '2026-11-15T00:00:00.000Z',
+      issuer: { name: 'Studio' },
+      body: { format: 'markdown', content: 'Dear Demo,\n\nYour **new care plan** starts on 1 December.\n\n- hosting\n\nKind regards,\nStudio' },
+    };
+    const runs = [
+      run('Studio'),
+      run('Your new care plan', 20),
+      run('Dear Demo,', 40),
+      run('Your ', 60),
+      run('new care plan', 60),
+      run(' starts on 1 December.', 60),
+      run('hosting', 80),
+      // A line break in the content, laid out as a space (markdown's soft break): one line, one run.
+      run('Kind regards, Studio', 100),
+    ];
+    const bound = shown(runs, bindRuns(letter, runs)).filter((segment) => segment.bind);
+    expect(bound.map(({ text, bind }) => [text, bind?.field])).toEqual([
+      ['Studio', 'issuer.name'],
+      ['Your new care plan', 'title'],
+      ['Dear Demo,', 'body.content'],
+      ['Your', 'body.content'],
+      ['new care plan', 'body.content'],
+      ['starts on 1 December.', 'body.content'],
+      ['hosting', 'body.content'],
+      ['Kind regards,', 'body.content'],
+      ['Studio', 'body.content'],
+    ]);
+  });
 });

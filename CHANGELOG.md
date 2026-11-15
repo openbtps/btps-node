@@ -420,6 +420,37 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   "Website care") took the line's description, the line's amount went unbound,
   and the BoundView failed its key-facts check. A line's description is now
   bound only on its own line.
+- `@btps/boundview`: `snapshotBoundView` binds each of a line's cells once,
+  at the first free place on the line, in the order the document lists its
+  columns. In 1.2.0-rc.3.1 a cell took every place its value was written on
+  its line, so on an untaxed line of one item, whose unit price and amount
+  are the same ("A$300.00" twice side by side), the unit price took both.
+  The line's amount went unbound, the BoundView failed its key-facts check,
+  and the sender's app sent the document without a picture.
+- `@btps/boundview`: `snapshotBoundView` shares the places a value is written
+  between fields written alike, outside line items: a receipt's
+  `totalAmount` and `payment.amount`, or its `issuedAt` and `payment.paidAt`
+  on the same day. Each takes the first free place, and the last of them
+  takes every place left. In 1.2.0-rc.3.1 the first such field took every
+  place, so a receipt whose total equalled the amount paid could never show
+  `payment.amount`, and a page that wrote the date twice still could not
+  show `payment.paidAt`. The BoundView failed its key-facts check, and the
+  sender's app sent the document without a picture. A page must still write
+  each such fact: a date shown once satisfies only one of two fields with
+  that date.
+- `@btps/boundview`: `snapshotBoundView` binds long text over several lines,
+  a letter's `body.content` or a markdown description, in order: each line
+  picks up where the last left off. A line is taken only when all it skips
+  is whitespace, or, for markdown, whitespace and the marks `#`, `*`, `_`,
+  `` ` ``, `>` and `-`, which are not drawn. A line break in the text that
+  the page lays out as a space ends one bound piece and starts the next, so
+  each piece writes exactly what it shows. In 1.2.0-rc.3.1 a line was
+  matched anywhere after the last, so a word another field shows first (a
+  letterhead's "Studio" before a letter signed "Kind regards, Studio") took
+  the match past the letter's text, and a soft line break drawn as a space
+  never matched. Either way `body.content` went unbound, the BoundView
+  failed its key-facts check, and the sender's app sent the document without
+  a picture.
 - A refusal of a trust's permissions reaches the sender as itself:
   `BTP_ERROR_PERMISSION_REQUIRED` for a grant that withholds a required name,
   `BTP_ERROR_PERMISSION` for a name not granted or not asked for,

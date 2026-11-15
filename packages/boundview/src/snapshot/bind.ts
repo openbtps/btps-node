@@ -100,6 +100,35 @@ const writings = (field: string, value: BoundValue): { text: string; bind: Bind 
 };
 
 const isSpace = (char: string | undefined) => char === undefined || /\s/u.test(char);
+/**
+ * Where a run's text `want` stands in `value` from `at`: the pieces of it that are the value's own characters, and
+ * where the value goes on after it; undefined where it does not stand there. A space the run draws for other whitespace
+ * in the value (a line break laid out as a space) ends a piece, so that each piece writes exactly what it shows.
+ */
+const piecesAt = (value: string[], at: number, want: string[]) => {
+  const pieces: { from: number; to: number; at: number }[] = [];
+  let [i, v, start, valueStart] = [0, at, 0, at];
+  while (i < want.length) {
+    if (want[i] === value[v]) {
+      i++;
+      v++;
+    } else if (isSpace(want[i]) && value[v] !== undefined && isSpace(value[v])) {
+      if (i > start) pieces.push({ from: start, to: i, at: valueStart });
+      while (i < want.length && isSpace(want[i])) i++;
+      while (v < value.length && isSpace(value[v])) v++;
+      [start, valueStart] = [i, v];
+    } else {
+      return undefined;
+    }
+  }
+  if (i > start) pieces.push({ from: start, to: i, at: valueStart });
+  return { pieces, end: v };
+};
+/** Whether `field` is written in markdown (a letter's content, or a note), whose marks are not drawn. */
+const markdownOf = (document: Doc, field: string) => {
+  const value = field === 'body.content' ? document.body : field === 'description' ? document.description : undefined;
+  return typeof value === 'object' && value !== null && (value as { format?: unknown }).format === 'markdown';
+};
 /** A match starts and ends a word: nothing but space or punctuation beside it. */
 const isEdge = (char: string | undefined) => char === undefined || /[\s,.;:()[\]{}"'“”‘’!?/|–—-]/u.test(char);
 
@@ -163,8 +192,11 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
     return writtenValue(value, full as never) === shown && free(run, from, to) ? { from, to, bind: full } : undefined;
   };
 
-  /** Binds every place a writing of `field` appears, in `only` runs if given; with `look`, only says whether there is one. */
-  const bindEverywhere = (field: string, value: BoundValue, only?: (run: number) => boolean, look = false) => {
+  /**
+   * Binds every place a writing of `field` appears, in `only` runs if given; with `one`, only the first place free (a
+   * line's cell, which another cell of the same value may stand beside); with `look`, only says whether there is one.
+   */
+  const bindEverywhere = (field: string, value: BoundValue, only?: (run: number) => boolean, mode: 'all' | 'one' | 'look' = 'all') => {
     let found = false;
     for (const { text, bind } of writings(field, value).sort((a, b) => b.text.length - a.text.length)) {
       const money = value.kind === 'money';
@@ -176,13 +208,15 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
           if (money) {
             const placed = moneyAt(run, at, [...number].length, bind, value);
             if (placed) {
-              if (look) return true;
+              if (mode === 'look') return true;
               take(run, placed.from, placed.to, placed.bind);
+              if (mode === 'one') return true;
               found = true;
             }
           } else {
-            if (look) return true;
+            if (mode === 'look') return true;
             take(run, at, at + [...number].length, bind);
+            if (mode === 'one') return true;
             found = true;
           }
         }
@@ -229,6 +263,8 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
   /** A long text over several runs: each run that is part of it, bound by its range, in order. */
   const bindRanges = (field: string, text: string) => {
     const value = [...text];
+    // What a run may skip of the text before it: what is never drawn, its spaces, and in markdown its marks.
+    const skippable = markdownOf(document, field) ? /[\s#*_`>-]/u : /\s/u;
     let cursor = 0;
     let found = false;
     for (let run = 0; run < runs.length; run++) {
@@ -236,13 +272,19 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
       if (trimmed.length < 2 || !free(run, 0, (characters[run] as string[]).length)) continue;
       const lead = (characters[run] as string[]).findIndex((char) => !isSpace(char));
       const want = [...trimmed];
-      for (let at = cursor; at + want.length <= value.length; at++) {
-        if (want.every((char, i) => value[at + i] === char)) {
-          take(run, lead, lead + want.length, { field, range: [at, at + want.length] });
-          cursor = at + want.length;
+      for (let at = cursor; at < value.length; at++) {
+        const placed = piecesAt(value, at, want);
+        if (placed === undefined) continue;
+        // A run continues the text only where it picks up after the last: one that would skip its words is some
+        // other field's (a letterhead's "Studio" before a letter that ends "Studio") and is left to it.
+        if (value.slice(cursor, at).every((char) => skippable.test(char))) {
+          for (const piece of placed.pieces) {
+            take(run, lead + piece.from, lead + piece.to, { field, range: [piece.at, piece.at + piece.to - piece.from] });
+          }
+          cursor = placed.end;
           found = true;
-          break;
         }
+        break;
       }
     }
     return found;
@@ -265,11 +307,13 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
     if (first === undefined || first.value.kind !== 'text') continue;
     // Its band: of the lines its first text is written on, the one where most of its other cells are found too. Its
     // description is often in the title as well ("Website care, December" over a line "Website care").
-    const bands = [...new Set(runs.flatMap((r, at) => (bindEverywhere(first.field, first.value, (run) => run === at, true) ? [r.baseline] : [])))];
-    const together = (band: number) => others.filter(({ field, value }) => bindEverywhere(field, value, onBand(band), true)).length;
+    const bands = [...new Set(runs.flatMap((r, at) => (bindEverywhere(first.field, first.value, (run) => run === at, 'look') ? [r.baseline] : [])))];
+    const together = (band: number) => others.filter(({ field, value }) => bindEverywhere(field, value, onBand(band), 'look')).length;
     const band = bands.reduce<number | undefined>((best, line) => (best === undefined || together(line) > together(best) ? line : best), undefined);
     if (band === undefined) continue;
-    for (const { field, value } of ordered) bindEverywhere(field, value, onBand(band));
+    // Each cell once, the first place free on its line, in the order the document lists its columns: a unit price and
+    // an amount that are the same (one of something, no tax) stand side by side, the price first.
+    for (const { field, value } of ordered) bindEverywhere(field, value, onBand(band), 'one');
   }
 
   // Everything else, longest writing first so "A$1,452.00" is not taken as "1,452".
@@ -279,8 +323,12 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
       const length = (entry: (typeof fields)[number]) => Math.max(0, ...writings(entry.field, entry.value).map(({ text }) => text.length));
       return length(b) - length(a);
     });
-  for (const { field, value } of rest) {
-    if (bindEverywhere(field, value)) continue;
+  // Fields written alike (a receipt's total and the amount paid, its date and the day it was paid) share their places:
+  // each takes the first free, and the last of them every one left.
+  const alike = (entry: (typeof fields)[number]) => JSON.stringify(writings(entry.field, entry.value).map(({ text }) => text).sort());
+  for (const [at, { field, value }] of rest.entries()) {
+    const twin = rest.slice(at + 1).some((later) => alike(later) === alike(rest[at] as (typeof fields)[number]));
+    if (bindEverywhere(field, value, undefined, twin ? 'one' : 'all')) continue;
     if (value.kind === 'text' && !bindGroups(field, value.text)) bindRanges(field, value.text);
   }
 
