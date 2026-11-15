@@ -17,6 +17,7 @@ export {
 export { boundValue, bindingProblem, markdownHidden, type BoundValue } from './boundViewBindings.js';
 export {
   checkBoundView,
+  keyFacts,
   boundViewResultOf,
   writtenValue,
   CONTRAST_WORK_LIMIT,

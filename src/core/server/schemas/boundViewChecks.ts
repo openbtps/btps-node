@@ -76,8 +76,16 @@ const measured = (
 
 type Box = { left: number; top: number; right: number; bottom: number };
 
+/**
+ * Whether two boxes overlap by more than the format's precision allows for: positions are written to hundredths of a
+ * pixel, so boxes that touch may meet by the rounding of a sum (231.3 + 32.29 is 263.59000000000003).
+ */
+const OVERLAP_TOLERANCE = 0.005;
 const overlaps = (a: Box, b: Box) =>
-  a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+  a.left < b.right - OVERLAP_TOLERANCE &&
+  b.left < a.right - OVERLAP_TOLERANCE &&
+  a.top < b.bottom - OVERLAP_TOLERANCE &&
+  b.top < a.bottom - OVERLAP_TOLERANCE;
 
 const textBox = (element: { x: number; y: number; width: number; size: number; font: string }, view: BTPBoundView): Box => {
   const font = view.fonts?.[element.font];
@@ -322,7 +330,7 @@ const samples = (start: number, end: number): number[] => {
 // ---- Key facts ----
 
 /** The key facts a document's BoundView shows, by field, among those it carries (Checks: Key facts). */
-const keyFacts = (document: Doc): string[] => {
+export const keyFacts = (document: Doc): string[] => {
   const type = document.type;
   const lines = (): string[] => {
     const items = document.lineItems as
@@ -336,29 +344,21 @@ const keyFacts = (document: Doc): string[] => {
       columns.filter((column) => row[column] !== undefined).map((column) => `lineItems.rows.${index}.${column}`),
     );
   };
-  const listAmounts = (key: string) =>
-    Array.isArray(document[key]) ? (document[key] as unknown[]).map((_, index) => `${key}.${index}.amount`) : [];
-  const discount = document.discount as { amount?: number; percent?: number } | undefined;
-  const bill = [
-    'id',
-    'issuedAt',
-    'totalAmount',
-    'subtotalAmount',
-    'taxAmount',
-    ...(discount === undefined ? [] : [discount.amount !== undefined ? 'discount.amount' : 'discount.percent']),
-    'issuer.name',
-    'recipient.name',
-    'description',
-    ...lines(),
-  ];
-  const letter = ['issuedAt', 'issuer.name', 'recipient.name', 'body.content', 'signatory.name', 'signatory.title'];
+  // Each earning, deduction or contribution: what it is, and how much.
+  const entries = (key: string) =>
+    Array.isArray(document[key])
+      ? (document[key] as unknown[]).flatMap((_, index) => [`${key}.${index}.description`, `${key}.${index}.amount`])
+      : [];
+  // What a document carries is shown, but for what the receiver's app shows apart from the BoundView (who sent it, who
+  // it is for), what follows from what is shown (a subtotal; a discount the total already takes off), and what does
+  // not change what is owed, paid or said (an issue date beside a due date; how a payment was made).
+  const bill = ['id', 'totalAmount', 'taxAmount', 'description', ...lines()];
+  const letter = ['issuedAt', 'body.content', 'signatory.name', 'signatory.title'];
   const facts: Record<string, string[]> = {
     invoice: [...bill, 'dueAt'],
     receipt: [...bill, 'payment.amount', 'payment.paidAt'],
     payslip: [
       'id',
-      'issuedAt',
-      'issuer.name',
       'employee.name',
       'payPeriod.start',
       'payPeriod.end',
@@ -366,9 +366,9 @@ const keyFacts = (document: Doc): string[] => {
       'gross',
       'taxWithheld',
       'net',
-      ...listAmounts('earnings'),
-      ...listAmounts('deductions'),
-      ...listAmounts('contributions'),
+      ...entries('earnings'),
+      ...entries('deductions'),
+      ...entries('contributions'),
     ],
     letter,
     agreement: [...letter, 'acceptance.by'],

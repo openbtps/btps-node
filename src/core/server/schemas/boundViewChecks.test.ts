@@ -313,6 +313,32 @@ describe('the key facts of each document type', () => {
     expect(check([...shown, bound('contributions.0.amount', aud)], payslip)).toEqual({ show: true });
   });
 
+  it('lets a design leave out what the receiver sees apart from it, or what follows from what is shown', () => {
+    row = 0;
+    const invoice = {
+      type: 'invoice',
+      title: 'November',
+      id: 'INV-1',
+      issuedAt,
+      dueAt: '2026-12-09T00:00:00.000Z',
+      totalAmount: money(9000),
+      subtotalAmount: money(9000),
+      discount: { percent: 1000 },
+      issuer: { name: 'Studio' },
+      recipient: { name: 'Demo' },
+    };
+    // Sender, recipient, issue date, subtotal and discount all carried, none shown.
+    expect(check([bound('id'), bound('dueAt', date), bound('totalAmount', aud)], invoice)).toEqual({ show: true });
+    row = 0;
+    expect(failed(check([bound('id'), bound('totalAmount', aud)], invoice))).toEqual([{ check: 'keyFacts', field: 'dueAt', element: undefined }]);
+    row = 0;
+    const payslip = { type: 'payslip', title: 'Pay', id: 'P', issuedAt, employee: { name: 'Sam' }, earnings: [{ category: 'ordinary', description: 'Salary', amount: money(1000) }] };
+    // An earning is shown as what it is and how much.
+    expect(failed(check([bound('id'), bound('employee.name'), bound('earnings.0.amount', aud)], payslip))).toEqual([
+      { check: 'keyFacts', field: 'earnings.0.description', element: undefined },
+    ]);
+  });
+
   it("names a receipt's payment, a discount by percent, and an agreement's acceptance date", () => {
     row = 0;
     const receipt = {
@@ -324,8 +350,9 @@ describe('the key facts of each document type', () => {
       discount: { percent: 1000 },
       payment: { amount: money(1000), paidAt: issuedAt },
     };
-    const shown = [bound('id'), bound('issuedAt', date), bound('totalAmount', aud), bound('payment.amount', aud), bound('payment.paidAt', date)];
-    expect(failed(check(shown, receipt))).toEqual([{ check: 'keyFacts', field: 'discount.percent', element: undefined }]);
+    // The discount is not a key fact: the total takes it off. The day it was paid is.
+    const shown = [bound('id'), bound('totalAmount', aud), bound('payment.amount', aud)];
+    expect(failed(check(shown, receipt))).toEqual([{ check: 'keyFacts', field: 'payment.paidAt', element: undefined }]);
     row = 0;
     const later = '2026-12-09T00:00:00.000Z';
     const agreement = { type: 'agreement', title: 'A', id: 'A-1', issuedAt, body: { format: 'text', content: 'Hi' }, acceptance: { by: later } };

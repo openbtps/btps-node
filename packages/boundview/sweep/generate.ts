@@ -397,16 +397,20 @@ const bill = (r: Random, seed: number, type: 'invoice' | 'receipt'): Case => {
   const issuerHtml = nameSplit
     ? `<h1 style="font-family:'${look.headingFamily}';margin:0;font-size:22px">${esc(issuer.split(' ')[0] as string)}</h1><h2 style="font-family:'${look.headingFamily}';margin:0;font-size:16px">${esc(issuer.split(' ').slice(1).join(' '))}</h2>`
     : `<h1 style="font-family:'${look.headingFamily}';margin:0;font-size:${r.pick([18, 22, 28])}px;text-transform:${r.chance(0.15) ? 'uppercase' : 'none'}">${esc(issuer)}</h1>`;
+  // What a design may leave out though the document carries it (the exceptions, decided 2026-11-16).
+  const shows = { issuer: r.chance(0.8), issued: r.chance(0.8), recipient: r.chance(0.8), subtotal: r.chance(0.7) };
+  notes.push(`leaves out ${Object.entries(shows).filter(([, shown]) => !shown).map(([what]) => what).join(', ') || 'nothing'}`);
   const sections = {
-    header: `<header style="display:flex;gap:12px;align-items:${r.pick(['center', 'flex-start'])};justify-content:${r.pick(['flex-start', 'space-between'])}">${logoHtml(r)}<div>${issuerHtml}</div><div style="text-align:right">${label(look, type === 'invoice' ? (tax ? 'Tax invoice' : 'Invoice') : 'Receipt', 'div')}<div>${valueHtml(r, id, r.chance(0.5) ? 'No.' : undefined)}</div></div></header>`,
+    header: `<header style="display:flex;gap:12px;align-items:${r.pick(['center', 'flex-start'])};justify-content:${r.pick(['flex-start', 'space-between'])}">${logoHtml(r)}<div>${shows.issuer ? issuerHtml : ''}</div><div style="text-align:right">${label(look, type === 'invoice' ? (tax ? 'Tax invoice' : 'Invoice') : 'Receipt', 'div')}<div>${valueHtml(r, id, r.chance(0.5) ? 'No.' : undefined)}</div></div></header>`,
     details: `<div style="display:${r.pick(['flex', 'grid', 'block'])};gap:16px;margin:12px 0;grid-template-columns:1fr 1fr">
-      <div>${label(look, 'Issued')} ${valueHtml(r, d(issuedAt))}</div>
+      ${shows.issued ? `<div>${label(look, 'Issued')} ${valueHtml(r, d(issuedAt))}</div>` : ''}
       ${type === 'invoice' ? `<div>${label(look, 'Due')} ${valueHtml(r, d(dueAt))}</div>` : `<div>${label(look, 'Paid on')} ${valueHtml(r, d(paidAt))}</div>`}
-      ${recipient ? `<div>${label(look, 'Bill to')} <b>${esc(recipient)}</b></div>` : ''}
+      ${recipient && shows.recipient ? `<div>${label(look, 'Bill to')} <b>${esc(recipient)}</b></div>` : ''}
     </div>`,
     lines: linesHtml,
     totals: `<div style="margin-left:auto;max-width:${r.pick(['260px', '50%', '100%'])}">
-      ${tax !== 0 ? `<div style="display:flex;justify-content:space-between">${label(look, 'Subtotal')}<span style="${numberStyle}">${m(subtotal)}</span></div><div style="display:flex;justify-content:space-between">${label(look, 'Tax')}<span style="${numberStyle}">${m(tax)}</span></div>` : ''}
+      ${tax !== 0 && shows.subtotal ? `<div style="display:flex;justify-content:space-between">${label(look, 'Subtotal')}<span style="${numberStyle}">${m(subtotal)}</span></div>` : ''}
+      ${tax !== 0 ? `<div style="display:flex;justify-content:space-between">${label(look, 'Tax')}<span style="${numberStyle}">${m(tax)}</span></div>` : ''}
       <div style="display:flex;justify-content:space-between;font-weight:700">${label(look, 'Total')}<span style="${numberStyle}">${m(total)}</span></div>
       ${amountBox}
     </div>`,

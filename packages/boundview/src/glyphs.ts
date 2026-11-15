@@ -69,7 +69,11 @@ export const bundledFontsFor = (document: Record<string, unknown>, view: BTPBoun
     }
     if (element.type === 'signature') {
       const signatory = document.signatory as { visualSignature?: { type?: string } } | undefined;
-      if (signatory?.visualSignature?.type === 'typed') names.add('caveat');
+      // In Caveat, and what Caveat has no glyph for (another script) in Arimo.
+      if (signatory?.visualSignature?.type === 'typed') {
+        names.add('caveat');
+        names.add('arimo');
+      }
     }
   }
   return [...names];

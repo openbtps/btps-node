@@ -111,8 +111,8 @@ describe.skipIf(!chrome)('a preview captured in a real browser', () => {
   });
 
   it('refuses a preview that does not show a key fact, and says which', async () => {
-    const { error } = await browser.capture({ ...invoice, subtotalAmount: { amount: 99, currency: 'AUD' } });
-    expect(error).toContain('subtotalAmount');
+    const { error } = await browser.capture({ ...invoice, taxAmount: { amount: 99, currency: 'AUD' } });
+    expect(error).toContain('taxAmount');
   });
 
   it("warns the sender of a label that looks like a payment detail but is not the document's", async () => {

@@ -381,6 +381,14 @@ export const textRuns = (root: HTMLElement, origin: DOMRect): LaidRun[] => {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const range = document.createRange();
   const measure = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
+  // The block each text flows in: its nearest ancestor that is not inline.
+  const blocks = new Map<globalThis.Element, number>();
+  const blockOf = (element: globalThis.Element) => {
+    let at: globalThis.Element = element;
+    while (at !== root && at.parentElement && ['inline', 'contents'].includes(getComputedStyle(at).display)) at = at.parentElement;
+    if (!blocks.has(at)) blocks.set(at, blocks.size);
+    return blocks.get(at) as number;
+  };
   let index = 0;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const parent = node.parentElement;
@@ -393,7 +401,9 @@ export const textRuns = (root: HTMLElement, origin: DOMRect): LaidRun[] => {
     const ascent = measure.measureText('Hg').fontBoundingBoxAscent;
     const style = styleOf(parent);
     const nodeIndex = index++;
+    const block = blockOf(parent);
     let line: LaidRun | undefined;
+    let lastRight = -Infinity;
     let offset = 0;
     for (const char of node.textContent) {
       range.setStart(node, offset);
@@ -408,22 +418,29 @@ export const textRuns = (root: HTMLElement, origin: DOMRect): LaidRun[] => {
         }
         continue;
       }
-      if (!line || Math.abs(rect.top - origin.top - line.top) > 2) {
+      // A new line where the text goes back to the left lower down; a character from another font file (another
+      // script) may sit a little higher or lower on the same line.
+      const top = rect.top - origin.top;
+      const newLine = !line || (Math.abs(top - line.top) > 2 && (rect.left - origin.left < lastRight - 1 || top >= (line.bottom ?? line.top) - 2));
+      if (newLine) {
         line = {
           text: '',
           chars: [],
-          baseline: r2(rect.top - origin.top + ascent),
-          top: rect.top - origin.top,
+          baseline: r2(top + ascent),
+          top,
           bottom: rect.bottom - origin.top,
           node: nodeIndex,
+          block,
           size: style.size,
           style,
         };
         runs.push(line);
       }
-      line.bottom = Math.max(line.bottom ?? 0, rect.bottom - origin.top);
-      line.text += /\s/.test(char) ? ' ' : char;
-      line.chars.push({ left: rect.left - origin.left, right: rect.right - origin.left });
+      const current = line as LaidRun;
+      current.bottom = Math.max(current.bottom ?? 0, rect.bottom - origin.top);
+      current.text += /\s/.test(char) ? ' ' : char;
+      current.chars.push({ left: rect.left - origin.left, right: rect.right - origin.left });
+      lastRight = rect.right - origin.left;
     }
   }
   return runs;
@@ -689,15 +706,15 @@ export const snapshotBoundView = async (
   };
   const shapes = await paint(preview, origin, images, problems, canVerify, signature);
   const runs = textRuns(preview, origin);
-  // A typed signature: the line that is exactly its text, in a hand of its own (a typeface the page's other text is not
-  // set in), else the last such line, is drawn by the receiver as the signature. It is set aside before anything is
-  // bound: the same words may also be a fact (the signatory's name).
+  // A typed signature: of the lines that are exactly its text, the one in the page's rarest typeface (a hand of its
+  // own), the last where they tie, is drawn by the receiver as the signature. It is set aside before anything is
+  // bound: the same words may also be a fact (the sender's or the signatory's name).
   if (signature.text !== undefined) {
     const families = new Map<string, number>();
     for (const run of runs) families.set(run.style.family, (families.get(run.style.family) ?? 0) + [...run.text].length);
-    const body = [...families.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
     const lines = runs.filter((run) => run.text.trim() === signature.text);
-    const run = lines.find((line) => line.style.family !== body) ?? lines.at(-1);
+    const rarity = (line: LaidRun) => families.get(line.style.family) ?? 0;
+    const run = lines.reduce<LaidRun | undefined>((best, line) => (best === undefined || rarity(line) <= rarity(best) ? line : best), undefined);
     if (run) {
       const lead = [...run.text].findIndex((char) => !/\s/.test(char));
       const left = (run.chars[lead] as { left: number }).left;
@@ -846,10 +863,19 @@ export const snapshotBoundView = async (
     }
   }
 
-  const background = hex(getComputedStyle(preview).backgroundColor);
+  const css = getComputedStyle(preview);
+  const background = hex(css.backgroundColor);
+  // The page as the browser draws it: the preview's box, and what overflows it where its overflow is not clipped, to
+  // the furthest edge of anything drawn (scrollWidth is rounded down to whole pixels).
+  const edges = [...shapes, ...texts].map((element) => {
+    const e = element as { x?: number; y?: number; width?: number; height?: number; size?: number };
+    return { right: (e.x ?? 0) + (e.width ?? 0), bottom: (e.y ?? 0) + (e.height ?? e.size ?? 0) };
+  });
+  const width = css.overflowX === 'visible' ? Math.max(origin.width, preview.scrollWidth, ...edges.map(({ right }) => right)) : origin.width;
+  const height = css.overflowY === 'visible' ? Math.max(origin.height, preview.scrollHeight, ...edges.map(({ bottom }) => bottom)) : origin.height;
   const view = {
     format: 1,
-    page: { width: ceil2(origin.width), height: ceil2(origin.height), ...(background && { background: solid(background) }) },
+    page: { width: ceil2(width), height: ceil2(height), ...(background && { background: solid(background) }) },
     ...(Object.keys(fonts).length > 0 && { fonts }),
     ...(Object.keys(images).length > 0 && { images }),
     elements: [...shapes, ...texts, ...signature.found],

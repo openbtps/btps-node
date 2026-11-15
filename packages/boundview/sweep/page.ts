@@ -52,6 +52,9 @@ const run = async (seed: number): Promise<Result | undefined> => {
         if (mine && Math.abs(theirs.y - mine.y) < 30 && theirs.l < mine.r && theirs.r > mine.l) notes.push(`  by ${at + 1 + n} ${JSON.stringify(later).slice(0, 200)}`);
       });
     }
+    for (const [, index] of (error instanceof Error ? error.message : '').matchAll(/element (\d+): it lies outside the page/g)) {
+      notes.push(`outside ${JSON.stringify(refused?.elements[Number(index)])} page ${JSON.stringify((refused as { page?: unknown } | undefined)?.page)}`);
+    }
     // A key fact not shown: the labels the page has where its words are, as the snapshot read them.
     for (const [, field] of (error instanceof Error ? error.message : '').matchAll(/([\w.]+): \1 is a key fact and is not shown/g)) {
       const value = JSON.stringify(field?.split('.').reduce<unknown>((at, key) => (at as Record<string, unknown>)?.[key], made.document));

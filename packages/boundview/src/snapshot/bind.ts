@@ -18,7 +18,7 @@
  * showed it (`writtenValue`), so a binding can never change a fact.
  */
 
-import { boundValue, markdownHidden, writtenValue, type BoundValue } from '@btps/sdk/boundview';
+import { boundValue, keyFacts, markdownHidden, writtenValue, type BoundValue } from '@btps/sdk/boundview';
 
 /** A line of one text node as laid out: its text, and each character's box. */
 export type Run = {
@@ -32,6 +32,8 @@ export type Run = {
   bottom?: number;
   /** Which text node it is a line of: the lines of one node are one text, wrapped. */
   node?: number;
+  /** Which block it flows in: text in inline elements of one block wraps from one element into the next. */
+  block?: number;
   /** Its font size in pixels. */
   size?: number;
 };
@@ -123,13 +125,16 @@ const isEdge = (char: string | undefined) => char === undefined || /[\s,.;:()[\]
 /*
  * The stream: every run's characters in order, with a break between runs.
  * - `wrap`: the next line of the same text node;
+ * - `flow`: the next line of the same block's inline text, in another element
+ *   (a line breaks only where a word may end, so it ends one; a value may still
+ *   run on across it, as "INV-" and "0042" do);
  * - `join`: another element touching it on the same line (its own span or bold);
  * - `space`: another element on the same line, a space or so apart;
- * - `break`: anything else (another line, another block).
+ * - `break`: anything else (another block, far apart).
  * A space in a value matches any break or whitespace; a value runs on without
- * a space only across a `wrap` or a `join`.
+ * a space only across a `wrap`, a `flow` or a `join`.
  */
-type Gap = 'wrap' | 'join' | 'space' | 'break';
+type Gap = 'wrap' | 'flow' | 'join' | 'space' | 'break';
 type Item = { run: number; at: number; char: string } | { gap: Gap };
 
 /** A value found in the stream: each of its characters' place, by run and code point, and its own index. */
@@ -157,15 +162,20 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
       const sameLine = Math.abs(before.baseline - run.baseline) < 2;
       const gap = (run.chars[0]?.left ?? 0) - (before.chars.at(-1)?.right ?? 0);
       const size = run.size ?? before.size ?? 12;
+      // The next line of the same text, or of the same block's inline text: a wrap. Beside it on one line: touching,
+      // a join; a space or so apart, a space. Anything else (another block, far apart): a break.
+      const wraps = run.node !== undefined && run.node === before.node;
+      const flows = !sameLine && run.block !== undefined && run.block === before.block;
       stream.push({
-        gap:
-          run.node !== undefined && run.node === before.node
-            ? 'wrap'
+        gap: wraps
+          ? 'wrap'
+          : flows
+            ? 'flow'
             : sameLine && gap >= -1 && gap <= 0.15 * size
-              ? 'join'
-              : sameLine && gap > 0 && gap <= 1.2 * size
-                ? 'space'
-                : 'break',
+            ? 'join'
+            : sameLine && gap > 0 && gap <= 1.2 * size
+              ? 'space'
+              : 'break',
       });
     }
     startOf.push(stream.length);
@@ -184,14 +194,14 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
   };
   /**
    * Whether what stands beside a match ends a word: nothing, a break, or an edge character, looking through a `join`
-   * or `wrap` to the character beyond it ("No. " and "A1" in touching elements).
+   * or `wrap` to the character beyond it ("No. " and "A1" in touching elements); a `flow` ends a word.
    */
   const edgeAt = (at: number, step: -1 | 1): boolean => {
     for (let i = at; ; i += step) {
       const item = stream[i];
       if (item === undefined) return true;
       if ('char' in item) return isEdge(item.char);
-      if (item.gap === 'space' || item.gap === 'break') return true;
+      if (item.gap === 'space' || item.gap === 'break' || item.gap === 'flow') return true;
     }
   };
   const edgeBefore = (at: number) => edgeAt(at - 1, -1);
@@ -238,7 +248,7 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
         continue;
       }
       const item = stream[s];
-      if (item !== undefined && 'gap' in item && (item.gap === 'wrap' || item.gap === 'join') && placed.length > 0) {
+      if (item !== undefined && 'gap' in item && item.gap !== 'space' && item.gap !== 'break' && placed.length > 0) {
         s++;
         continue;
       }
@@ -436,7 +446,7 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
         const close = others.filter(({ field, value }) => placesOf(field, value, within(near)).length > 0).length;
         return { place, span, together, close, below: previous === undefined || span.top >= previous.top - 1 };
       })
-      .sort((a, b) => Number(b.below) - Number(a.below) || b.together - a.together || b.close - a.close);
+      .sort((a, b) => Number(b.below) - Number(a.below) || b.close - a.close || a.span.top - b.span.top || b.together - a.together);
     const best = candidates[0];
     if (best) for (const { run, at } of best.place.placed) used.add(`${run}:${at}`);
     chosen.push({ cells: ordered, ...(best && { anchor: { ...best.place, value: anchorCell.value }, span: best.span }) });
@@ -446,11 +456,18 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
   chosen.forEach(({ cells, anchor, span }, index) => {
     if (!anchor || !span) return;
     take(anchor, anchor.value);
+    // The row's own stretch of the page: from just after the row before it to just before the row after it, so a cell
+    // set above its description (a table's cells aligned to the middle) or below it (a card) is found, a few lines
+    // either side at most.
+    const previous = [...chosen.slice(0, index)].reverse().find((row) => row.span)?.span;
     const next = chosen.slice(index + 1).find((row) => row.span)?.span;
-    const below = (run: number) => top(run) >= span.top && (next === undefined || top(run) < next.top);
+    const reach = 3 * lineHeight(span);
+    const from = Math.max(previous?.bottom ?? -Infinity, span.top - reach);
+    const to = Math.min(next?.top ?? Infinity, span.bottom + reach);
+    const stretch = (run: number) => bottom(run) > from && top(run) < to;
     for (const { field, value } of cells) {
       if (field === anchor.bind.field) continue;
-      const place = placesOf(field, value, within(span))[0] ?? placesOf(field, value, below)[0];
+      const place = placesOf(field, value, within(span))[0] ?? placesOf(field, value, stretch)[0];
       if (place) take(place, value);
     }
   });
@@ -466,13 +483,20 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
   candidates.sort((a, b) => b.placed.length - a.placed.length || a.nth - b.nth || a.order - b.order);
   const takes = new Map<string, number>();
   const where = (placed: Placed) => placed.map(({ run, at }) => `${run}:${at}`).join(',');
+  const key = new Set(keyFacts(document));
   for (const candidate of candidates) {
     if (!isFree(candidate.placed)) continue;
-    // Of the fields that could be bound here, the one bound the fewest times yet.
+    // Of the fields that could be bound here, the one bound the fewest times yet; where text could be either of two
+    // (02/01/2026: one date day first, another month first), a fact the document must show before one it need not.
     const here = where(candidate.placed);
     const chosen = candidates
       .filter((other) => where(other.placed) === here)
-      .sort((a, b) => (takes.get(a.bind.field) ?? 0) - (takes.get(b.bind.field) ?? 0) || a.order - b.order)[0] as typeof candidate;
+      .sort(
+        (a, b) =>
+          (takes.get(a.bind.field) ?? 0) - (takes.get(b.bind.field) ?? 0) ||
+          Number(key.has(b.bind.field)) - Number(key.has(a.bind.field)) ||
+          a.order - b.order,
+      )[0] as typeof candidate;
     take(chosen, chosen.value);
     takes.set(chosen.bind.field, (takes.get(chosen.bind.field) ?? 0) + 1);
   }

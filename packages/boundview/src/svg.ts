@@ -203,12 +203,14 @@ const drawSignature = (
     );
     return;
   }
-  const caveat = bundled.caveat;
+  // In Caveat; a character it has no glyph for (another script) in Arimo, as a label falls back.
+  const caveat = bundled.caveat === undefined ? undefined : { ...bundled.caveat, fallback: ['arimo' as const] };
   if (caveat === undefined) return;
   const characters = [...signature.text];
   const units = characters.reduce((width, char, i) => {
-    const glyph = caveat.glyphs?.[char];
-    return width + (glyph?.advance ?? 0) + (caveat.kerning?.[`${char}${characters[i + 1] ?? ''}`] ?? 0);
+    const found = glyphFor(caveat, char, true, bundled);
+    const advance = found ? (found.glyph.advance * caveat.unitsPerEm) / found.font.unitsPerEm : 0;
+    return width + advance + (caveat.kerning?.[`${char}${characters[i + 1] ?? ''}`] ?? 0);
   }, 0);
   const tall = caveat.ascent + caveat.descent;
   const size = Math.min(units > 0 ? (box.width * caveat.unitsPerEm) / units : Infinity, (box.height * caveat.unitsPerEm) / tall);
