@@ -156,12 +156,8 @@
             "name": "acme/classic",
             "data": {
               "version": "1.2.0",
-              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
               "source": "https://templates.example/acme/classic-invoice@1.2.0",
-              "logo": {
-                "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "source": "https://templates.example/logos/acme.png"
-              }
+              "accent": "#0747a6"
             }
           }
         },
@@ -424,7 +420,7 @@
       "expect": "1.2.0"
     },
     {
-      "name": "letter-template",
+      "name": "letter-signatory",
       "artifact": {
         "type": "BTPS_DOC",
         "from": "billing$vendor.example",
@@ -438,9 +434,158 @@
             "format": "markdown",
             "content": "# Welcome\n\nYour plan starts on **1 November**."
           },
-          "template": {
-            "name": "acme/letter",
-            "data": {}
+          "signatory": {
+            "name": "Jo Bloggs"
+          }
+        },
+        "encryption": null
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "invoice-recipient",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000
+              }
+            ]
+          },
+          "recipient": {
+            "name": "Sam Lee"
+          }
+        },
+        "encryption": null
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "invoice-tax-amount",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000
+              }
+            ]
+          },
+          "taxAmount": {
+            "amount": 13636,
+            "currency": "AUD"
+          }
+        },
+        "encryption": null
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "invoice-line-roles",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000
+              }
+            ],
+            "roles": {
+              "Item": "description"
+            }
+          }
+        },
+        "encryption": null
+      },
+      "expect": "1.2.0"
+    },
+    {
+      "name": "invoice-bound-view",
+      "artifact": {
+        "type": "BTPS_DOC",
+        "from": "billing$vendor.example",
+        "to": "pay$client.example",
+        "document": {
+          "type": "invoice",
+          "title": "October",
+          "id": "INV-1",
+          "issuedAt": "2026-10-19T00:00:00.000Z",
+          "totalAmount": {
+            "amount": 150000,
+            "currency": "AUD"
+          },
+          "lineItems": {
+            "columns": ["Item", "Amount"],
+            "rows": [
+              {
+                "Item": "Website build",
+                "Amount": 150000
+              }
+            ]
+          },
+          "boundView": {
+            "format": 1,
+            "page": {
+              "width": 600,
+              "height": 400
+            },
+            "fonts": {
+              "body": {
+                "unitsPerEm": 1000,
+                "ascent": 900,
+                "descent": 200,
+                "glyphs": {
+                  "A": {
+                    "advance": 600,
+                    "path": "M0 0L300 -700L600 0Z"
+                  },
+                  " ": {
+                    "advance": 250
+                  }
+                }
+              }
+            },
+            "elements": []
           }
         },
         "encryption": null

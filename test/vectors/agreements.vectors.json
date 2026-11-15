@@ -294,7 +294,7 @@
       "expect": "accept"
     },
     {
-      "name": "agreement-with-a-letter-template",
+      "name": "agreement-with-a-signatory",
       "type": "BTPS_DOC",
       "document": {
         "type": "agreement",
@@ -338,12 +338,11 @@
             "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
           }
         },
-        "template": {
-          "name": "bank/letterhead",
-          "data": {
-            "values": {
-              "signature.name": "Loans team"
-            }
+        "signatory": {
+          "name": "Loans team",
+          "visualSignature": {
+            "type": "typed",
+            "text": "Loans team"
           }
         }
       },

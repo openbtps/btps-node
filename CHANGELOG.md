@@ -4,6 +4,75 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.0-rc.3] — 2026-11-15 (beta, release candidate)
+
+BoundView: a document's own look, signed with it, every fact drawn from its
+signed data. It replaces rc.1's templates. Everything in rc.2 and rc.1 below
+still holds, except where this section changes it.
+
+### Added
+
+- **BoundView.** A document may carry its BoundView in
+  `boundView` (`BTPBoundView`), `1.2.0` only: a canvas captured from the
+  sender's own preview, signed with the document, so the receiver sees what
+  the sender saw. Text that shows a fact binds a signed field and is drawn from
+  it, never carried as text; fonts travel as glyph outlines and images as
+  pixels, so nothing is fetched and no font or image file is parsed. A
+  receiver checks a BoundView wherever the document is opened (`checkBoundView`): a
+  BoundView that breaks its schema or a limit, or binds a missing field, is refused
+  with the document; one that hides, shrinks or leaves out a key fact is not
+  shown, and the receiver shows its own view of the data. `decryptVerify`
+  returns whether an opened document's BoundView may be shown (`boundView`,
+  `BTPBoundViewResult`), and a server hands its transporter handlers the same,
+  once an artifact's signature and trust are checked. `checkBoundView` and
+  `writtenValue` are exported from `@btps/sdk/server` and `@btps/sdk/client`.
+  Images inflate with fflate, a new dependency (MIT, no dependencies of its
+  own), stopping once past their stated length. Specified on the new
+  BoundView pages, with golden vectors for the schema in
+  `documents-1.2.vectors.json` and for the checks in `boundview.vectors.json`.
+  A BoundView is optional: without one, a receiver shows its own view of the
+  data.
+- **`@btps/boundview`, a new package.** `snapshotBoundView` captures a
+  platform's own HTML preview as a BoundView in the browser: every fact found
+  by its value, fonts read as glyph outlines, images as pixels, an SVG logo as
+  outlines when they draw as the browser drew it. It throws
+  `BoundViewSnapshotError` with what a receiver would refuse or not show.
+  `renderBoundView` draws a received one with resvg compiled to WebAssembly,
+  handed only checked values, and gives a PNG, the same bytes everywhere
+  (`boundview-pictures.vectors.json`), or null when a check fails. It bundles
+  open-licence glyph outlines for label fallbacks and typed signatures.
+- **`@btps/sdk/boundview`.** A BoundView's schema, bindings and checks alone,
+  for a browser or app without the rest of the SDK.
+- **Totals, line roles and the recipient.** An invoice or receipt may carry
+  `subtotalAmount` and `taxAmount`, and name what each line-item column holds
+  (`lineItems.roles`, `BTPLineRole`); an invoice, receipt, letter or agreement
+  may name its `recipient`. `1.2.0` only.
+- **A letter's signatory.** A letter or an agreement may carry `signatory`
+  (`BTPSignatory`), `1.2.0` only: a name, a title, and a visual signature,
+  typed (drawn in the open-licence script font Caveat) or drawn as integer
+  strokes on a 1,000 by 300 canvas, never markup. Such a signature is
+  decoration and proves no agreement.
+
+### Changed
+
+- **`template` is `1.1.0` only.** A `1.1.0` invoice or receipt's `template`
+  is read as 1.1 reads it, `{ name, data }` with free data, and nothing is
+  drawn from it. A `1.2.0` artifact with one is refused: "template is 1.1.0
+  only; in 1.2.0 a document's look is its boundView". A document with a
+  `template` and nothing from 1.2 is still sent as `1.1.0`; once a platform
+  adds anything from 1.2 to it, its own SDK refuses it until `template` is
+  removed. See Migrating from 1.1 to 1.2, Dropping `template`.
+
+### Removed
+
+- **Templates by reference, and template formats 1 and 2** (rc.1). A `1.2.0`
+  template's named data fields (`version`, `sha256`, `source`, `logo`), a
+  letter's or payslip's template, and a letter template's signature values
+  (`template.data.values`, `BTPTemplateValues`) are gone: a document's look is
+  its BoundView, and a letter's sign-off its `signatory`. Removed with them:
+  the Templates page, `schemas/btps-template.schema.json` and
+  `templates.vectors.json`.
+
 ## [1.2.0-rc.2] — 2026-11-11 (beta, release candidate)
 
 What eBill found running 1.2.0-rc.1. Everything in rc.1 below still holds.

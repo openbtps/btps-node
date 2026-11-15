@@ -74,12 +74,16 @@ const USES_1_2: ((artifact: BTPVersionedArtifact) => boolean)[] = [
   (artifact) => documentOf(artifact)?.discount !== undefined,
   // An agreement: 1.1 has no such document.
   (artifact) => documentOf(artifact)?.type === 'agreement',
-  // A template on a letter or payslip. An invoice's or receipt's 1.1 already carries.
+  // A BoundView, a recipient, a signatory, totals before tax, or line roles. `template` 1.1 already carries.
   (artifact) => {
     const document = documentOf(artifact);
+    const lineItems = document?.lineItems;
     return (
-      (document?.type === 'letter' || document?.type === 'payslip') &&
-      document.template !== undefined
+      document !== undefined &&
+      (['boundView', 'recipient', 'signatory', 'subtotalAmount', 'taxAmount'].some(
+        (field) => document[field] !== undefined,
+      ) ||
+        (typeof lineItems === 'object' && lineItems !== null && 'roles' in lineItems))
     );
   },
   // Trust permissions on the envelope: names, kind, grants and a send's documentType.

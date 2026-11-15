@@ -1,4 +1,8 @@
-# Publish @btps/sdk to npm, staged.
+# Publish @btps/sdk and @btps/boundview to npm, staged.
+#
+# One tag publishes both, at one version: @btps/boundview (packages/boundview)
+# is released in step with the SDK, and each must match the tag. Each package
+# has its own trusted publisher on npm, set to this workflow and environment.
 #
 # A tag vX.Y.Z on master starts it. The job runs in the npm-publish
 # environment, so it waits for the maintainer's approval on GitHub. It then
@@ -46,13 +50,16 @@ jobs:
           registry-url: https://registry.npmjs.org
       - name: Enable Yarn via Corepack, and an npm with `npm stage`
         run: npm install -g corepack@0.34.7 npm@11.19.0 && corepack enable
-      - name: The tag is on master and matches package.json
+      - name: The tag is on master and matches both packages' versions
         run: |
           git merge-base --is-ancestor "$GITHUB_SHA" origin/master \
             || { echo "::error::$GITHUB_REF_NAME is not on master"; exit 1; }
           version=$(node -p "require('./package.json').version")
           [ "v$version" = "$GITHUB_REF_NAME" ] \
             || { echo "::error::tag $GITHUB_REF_NAME does not match package.json version $version"; exit 1; }
+          boundview=$(node -p "require('./packages/boundview/package.json').version")
+          [ "$boundview" = "$version" ] \
+            || { echo "::error::packages/boundview is $boundview, not $version: the two are released in step"; exit 1; }
           case "$version" in
             *-*) echo "NPM_TAG=next" >> "$GITHUB_ENV" ;;
             *) echo "NPM_TAG=latest" >> "$GITHUB_ENV" ;;
@@ -61,5 +68,12 @@ jobs:
         run: yarn install --immutable
       - name: Build @btps/sdk
         run: yarn build
-      - name: Stage on npm
+      - name: Build @btps/boundview (its types come from the SDK just built)
+        run: |
+          node_modules/.bin/tsc -p packages/boundview/tsconfig.build.json
+          cp node_modules/@resvg/resvg-wasm/index_bg.wasm packages/boundview/dist/engine.wasm
+      - name: Stage @btps/sdk on npm
+        run: npm stage publish --tag "$NPM_TAG"
+      - name: Stage @btps/boundview on npm
+        working-directory: packages/boundview
         run: npm stage publish --tag "$NPM_TAG"

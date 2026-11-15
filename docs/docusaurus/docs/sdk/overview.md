@@ -3,6 +3,9 @@ title: SDK Overview
 sidebar_label: Overview
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # BTPS SDK Usage & Reference
 
 ## Overview
@@ -13,11 +16,64 @@ The BTPS SDK (`@btps/sdk`) provides all the building blocks for secure, trust-ba
 
 ## 🚀 Installation
 
-```sh
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
+```bash
 npm install @btps/sdk
-# or
+```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
 yarn add @btps/sdk
 ```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/sdk
+```
+
+</TabItem>
+</Tabs>
+
+### BoundView: `@btps/boundview`
+
+Since 1.2, a separate package captures a document's HTML preview as its
+[BoundView](../protocol/specifications/boundview/overview.md) and draws a
+received one. It brings `@btps/sdk` with it. See
+[Using BoundView](../protocol/specifications/boundview/using.md).
+For a platform with separate frontend and backend apps, see
+[which app installs what](../protocol/specifications/boundview/using.md#frontend-and-backend-apps).
+It is tree-shakable, so an app downloads only what it uses: see
+[what an app downloads](../protocol/specifications/boundview/using.md#what-an-app-downloads).
+
+<Tabs groupId="package-manager">
+<TabItem value="npm" label="npm">
+
+```bash
+npm install @btps/boundview
+```
+
+</TabItem>
+<TabItem value="yarn" label="yarn">
+
+```bash
+yarn add @btps/boundview
+```
+
+</TabItem>
+<TabItem value="pnpm" label="pnpm">
+
+```bash
+pnpm add @btps/boundview
+```
+
+</TabItem>
+</Tabs>
 
 ## ⚠️ Node.js Compatibility
 
@@ -68,6 +124,7 @@ import type { BTPArtifact, BTPInvoiceDoc } from '@btps/sdk/server';
 | `@btps/sdk/delegation`     | Delegation utilities             |
 | `@btps/sdk/error`          | Error types and helpers          |
 | `@btps/sdk/storage`        | Storage utilities                |
+| `@btps/sdk/boundview`      | Since 1.2. Browser-safe: the [BoundView](../protocol/specifications/boundview/overview.md) schema, bindings and checks only (`BtpBoundViewSchema`, `isPathData`, `boundValue`, `bindingProblem`, `checkBoundView`, `boundViewResultOf`, `writtenValue`, `CONTRAST_WORK_LIMIT` and the types), for a browser or app that draws or captures a BoundView without the rest of the SDK |
 
 ---
 
@@ -90,6 +147,8 @@ dist/
 │   │   └── index.js         ← @btps/sdk/authentication
 │   ├── delegation/
 │   │   └── index.js         ← @btps/sdk/delegation
+│   ├── server/schemas/
+│   │   └── boundView.js     ← @btps/sdk/boundview
 │   └── storage/
 │       └── index.js         ← @btps/sdk/storage
 ├── client/
