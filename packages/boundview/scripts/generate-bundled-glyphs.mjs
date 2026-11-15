@@ -7,8 +7,8 @@
  */
 
 /*
- * Writes src/bundledGlyphs.json: the fonts the renderer bundles, as BoundView
- * glyph tables. The five fallback fonts a label may name (arimo, tinos,
+ * Writes src/glyphs/<name>.json: the fonts the renderer bundles, as BoundView
+ * glyph tables, one file a font so an app downloads only those it draws with. The five fallback fonts a label may name (arimo, tinos,
  * cousine, carlito, caladea) and Caveat, which a typed signature is set in.
  * Each is the open-licence font's Latin characters, read once here from its
  * @fontsource package, so the renderer never parses a font file at all.
@@ -93,6 +93,9 @@ for (const name of FONTS) {
   console.log(`${name}: ${Object.keys(glyphs).length} glyphs, ${Object.keys(kerning).length} kerning pairs`);
 }
 
-const out = path.join(here, '../src/bundledGlyphs.json');
-fs.writeFileSync(out, `${JSON.stringify(tables)}\n`);
-console.log(`wrote ${path.relative(process.cwd(), out)} (${(fs.statSync(out).size / 1024).toFixed(0)} KB)`);
+fs.mkdirSync(path.join(here, '../src/glyphs'), { recursive: true });
+for (const [name, table] of Object.entries(tables)) {
+  const out = path.join(here, `../src/glyphs/${name}.json`);
+  fs.writeFileSync(out, `${JSON.stringify(table)}\n`);
+  console.log(`wrote ${path.relative(process.cwd(), out)} (${(fs.statSync(out).size / 1024).toFixed(0)} KB)`);
+}

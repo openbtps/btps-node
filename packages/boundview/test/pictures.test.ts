@@ -23,7 +23,9 @@ import { fileURLToPath } from 'node:url';
 import { zlibSync } from 'fflate';
 import { boundViewResultOf } from '@btps/sdk/boundview';
 import { renderBoundView } from '../src/index.js';
-import bundled from '../src/bundledGlyphs.json' with { type: 'json' };
+import { loadBundledFonts } from '../src/index.js';
+
+const bundled = await loadBundledFonts(['arimo', 'tinos']);
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FILE = path.resolve(here, '../../../test/vectors/boundview-pictures.vectors.json');

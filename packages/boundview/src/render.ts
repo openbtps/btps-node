@@ -16,6 +16,7 @@ import { initWasm, Resvg } from '@resvg/resvg-wasm';
 import { boundViewResultOf } from '@btps/sdk/boundview';
 import type { BTPBoundView } from '@btps/sdk/boundview';
 import { boundViewToSvg } from './svg.js';
+import { bundledFontsFor, loadBundledFonts } from './glyphs.js';
 
 /** What the engine's WebAssembly is loaded from: its bytes, a compiled module, a URL or a fetch response. */
 export type BoundViewEngineSource = Parameters<typeof initWasm>[0];
@@ -50,7 +51,8 @@ export const renderBoundView = async (
   if (result === undefined || !result.show) return null;
   await initBoundViewEngine();
   const doc = document as Record<string, unknown> & { boundView: BTPBoundView };
-  const resvg = new Resvg(boundViewToSvg(doc, doc.boundView), {
+  const bundled = await loadBundledFonts(bundledFontsFor(doc, doc.boundView));
+  const resvg = new Resvg(boundViewToSvg(doc, doc.boundView, bundled), {
     fitTo: { mode: 'zoom', value: scale },
     font: { loadSystemFonts: false },
   });

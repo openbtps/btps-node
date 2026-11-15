@@ -14,26 +14,12 @@
 
 import { boundValue, writtenValue } from '@btps/sdk/boundview';
 import type { BTPBoundView, BTPBoundViewElement, BTPBoundViewFont } from '@btps/sdk/boundview';
-import bundled from './bundledGlyphs.json' with { type: 'json' };
+import { FALLBACK_FONT, type BundledFonts } from './glyphs.js';
 import { pngOf } from './png.js';
 
 type Paint = NonNullable<Extract<BTPBoundViewElement, { type: 'rect' }>['fill']>;
 type TextLike = Extract<BTPBoundViewElement, { type: 'text' | 'label' }>;
 type Doc = Record<string, unknown>;
-
-const BUNDLED = bundled as Record<string, BTPBoundViewFont>;
-
-/** What each fallback name is drawn with: the bundled font of that name, or the bundled one of that kind. */
-const FALLBACK_FONT: Record<string, string> = {
-  arimo: 'arimo',
-  tinos: 'tinos',
-  cousine: 'cousine',
-  carlito: 'carlito',
-  caladea: 'caladea',
-  'sans-serif': 'arimo',
-  serif: 'tinos',
-  monospace: 'cousine',
-};
 
 /** A drawn signature's stroke, in units of its 1,000 by 300 canvas. */
 export const SIGNATURE_STROKE = 8;
@@ -115,12 +101,13 @@ const roundedRect = (x: number, y: number, w: number, h: number, radii: number[]
 };
 
 /** The font a character is drawn with: its own font's glyph, or for a label, its first bundled fallback. */
-const glyphFor = (font: BTPBoundViewFont, char: string, label: boolean) => {
+const glyphFor = (font: BTPBoundViewFont, char: string, label: boolean, bundled: BundledFonts) => {
   const own = font.glyphs?.[char];
   if (own !== undefined) return { glyph: own, font };
   if (!label) return undefined;
   for (const name of font.fallback ?? []) {
-    const fallback = BUNDLED[FALLBACK_FONT[name] ?? ''];
+    const named = FALLBACK_FONT[name];
+    const fallback = named === undefined ? undefined : bundled[named];
     const glyph = fallback?.glyphs?.[char];
     if (fallback !== undefined && glyph !== undefined) return { glyph, font: fallback };
   }
@@ -128,12 +115,18 @@ const glyphFor = (font: BTPBoundViewFont, char: string, label: boolean) => {
 };
 
 /** A line of text as glyph paths on its baseline, placed by its alignment, shrunk to fit a bound value's box. */
-const drawText = (drawing: Drawing, element: TextLike, text: string, font: BTPBoundViewFont) => {
+const drawText = (
+  drawing: Drawing,
+  element: TextLike,
+  text: string,
+  font: BTPBoundViewFont,
+  bundled: BundledFonts,
+) => {
   const characters = [...text];
   const spacing = element.letterSpacing ?? 0;
   const widthAt = (size: number) =>
     characters.reduce((width, char, i) => {
-      const found = glyphFor(font, char, element.type === 'label');
+      const found = glyphFor(font, char, element.type === 'label', bundled);
       if (found === undefined) return width + spacing;
       const scale = size / found.font.unitsPerEm;
       const kerning = found.font.kerning?.[`${char}${characters[i + 1] ?? ''}`] ?? 0;
@@ -150,7 +143,7 @@ const drawText = (drawing: Drawing, element: TextLike, text: string, font: BTPBo
   let x = element.align === 'end' ? element.x + element.width - width : element.align === 'centre' ? element.x + (element.width - width) / 2 : element.x;
   const paths: string[] = [];
   characters.forEach((char, i) => {
-    const found = glyphFor(font, char, element.type === 'label');
+    const found = glyphFor(font, char, element.type === 'label', bundled);
     if (found === undefined) {
       x += spacing;
       return;
@@ -181,6 +174,7 @@ const drawSignature = (
   drawing: Drawing,
   box: { x: number; y: number; width: number; height: number; colour: string },
   signature: Signature,
+  bundled: BundledFonts,
 ) => {
   if (signature.type === 'drawn') {
     const scale = Math.min(box.width / 1000, box.height / 300);
@@ -202,7 +196,8 @@ const drawSignature = (
     );
     return;
   }
-  const caveat = BUNDLED.caveat as BTPBoundViewFont;
+  const caveat = bundled.caveat;
+  if (caveat === undefined) return;
   const characters = [...signature.text];
   const units = characters.reduce((width, char, i) => {
     const glyph = caveat.glyphs?.[char];
@@ -227,15 +222,17 @@ const drawSignature = (
     },
     signature.text,
     caveat,
+    bundled,
   );
 };
 
 /**
  * The drawing for a BoundView that passed every check, with each binding
  * filled from `document`. Never call it on one that did not: `renderBoundView`
- * checks first.
+ * checks first. `bundled` holds the bundled fonts it needs
+ * (`loadBundledFonts(bundledFontsFor(document, view))`); most need none.
  */
-export const boundViewToSvg = (document: Doc, view: BTPBoundView): string => {
+export const boundViewToSvg = (document: Doc, view: BTPBoundView, bundled: BundledFonts = {}): string => {
   const drawing = new Drawing();
   for (const element of view.elements) {
     const opacity = 'opacity' in element && element.opacity !== undefined ? ` opacity="${n(element.opacity)}"` : '';
@@ -274,17 +271,17 @@ export const boundViewToSvg = (document: Doc, view: BTPBoundView): string => {
         const font = view.fonts?.[element.font];
         const value = boundValue(document, element.bind.field);
         if (font === undefined || value === undefined) break;
-        drawText(drawing, element, transformed(writtenValue(value, element.bind), element.transform), font);
+        drawText(drawing, element, transformed(writtenValue(value, element.bind), element.transform), font, bundled);
         break;
       }
       case 'label': {
         const font = view.fonts?.[element.font];
-        if (font !== undefined) drawText(drawing, element, transformed(element.text, element.transform), font);
+        if (font !== undefined) drawText(drawing, element, transformed(element.text, element.transform), font, bundled);
         break;
       }
       case 'signature': {
         const signatory = document.signatory as { visualSignature?: Signature } | undefined;
-        if (signatory?.visualSignature) drawSignature(drawing, element, signatory.visualSignature);
+        if (signatory?.visualSignature) drawSignature(drawing, element, signatory.visualSignature, bundled);
         break;
       }
     }

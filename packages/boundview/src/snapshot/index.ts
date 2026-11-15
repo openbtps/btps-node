@@ -26,9 +26,9 @@ import {
   type BTPBoundViewFont,
   type BTPBoundViewResult,
 } from '@btps/sdk/boundview';
-import bundled from '../bundledGlyphs.json' with { type: 'json' };
 import { initBoundViewEngine, type BoundViewEngineSource } from '../render.js';
 import { boundViewToSvg } from '../svg.js';
+import { loadBundledFonts } from '../glyphs.js';
 import { bindRuns, type Run, type Segment } from './bind.js';
 import { fallbackFor, glyphTable, type OpenTypeFont } from './fonts.js';
 import { normalizePath, pathData, shapeOutline, type Matrix } from './svgPath.js';
@@ -60,7 +60,6 @@ export class BoundViewSnapshotError extends Error {
   }
 }
 
-const BUNDLED = bundled as Record<string, BTPBoundViewFont>;
 const r2 = (value: number) => Math.round(value * 100) / 100;
 const ceil2 = (value: number) => Math.ceil(value * 100 - 1e-6) / 100;
 
@@ -576,7 +575,7 @@ export const snapshotBoundView = async (
       }
     } else {
       // No font file the page lets us read: its text is drawn with the bundled font of the same widths.
-      const bundledFont = BUNDLED[fallback] as BTPBoundViewFont;
+      const bundledFont = (await loadBundledFonts([fallback]))[fallback] as BTPBoundViewFont;
       const glyphs = Object.fromEntries([...characters, ...'0123456789.,-+%$€£¥/: '].flatMap((char) => (bundledFont.glyphs?.[char] ? [[char, bundledFont.glyphs[char]]] : [])));
       font = { unitsPerEm: bundledFont.unitsPerEm, ascent: bundledFont.ascent, descent: bundledFont.descent, glyphs, fallback: [fallback] };
       onWarning(`${style.family} ${style.weight} has no font file this page can read; its text is drawn with ${fallback}`);

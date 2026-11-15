@@ -16,7 +16,9 @@ import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { zlibSync } from 'fflate';
 import { boundViewToSvg, renderBoundView } from '../src/index.js';
-import bundled from '../src/bundledGlyphs.json' with { type: 'json' };
+import { loadBundledFonts } from '../src/index.js';
+
+const bundled = await loadBundledFonts(['arimo', 'tinos']);
 
 const arimo = (bundled as Record<string, object>).arimo;
 const money = { money: { group: ',', decimal: '.', prefix: 'A$' } };
