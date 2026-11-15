@@ -77,6 +77,12 @@ const toBase64 = (bytes: Uint8Array) => {
   return btoa(text);
 };
 
-/** A checked image's pixels as a PNG, in base64. */
-export const pngOf = (image: Image): string =>
-  toBase64(encodePng(image.width, image.height, unzlibSync(fromBase64(image.data))));
+/**
+ * A checked image's pixels as a PNG, in base64. They are inflated into a
+ * buffer of exactly width × height × 4 bytes: the schema already measured
+ * them to that length, and this never allocates more whatever it is given.
+ */
+export const pngOf = (image: Image): string => {
+  const pixels = unzlibSync(fromBase64(image.data), { out: new Uint8Array(image.width * image.height * 4) });
+  return toBase64(encodePng(image.width, image.height, pixels));
+};

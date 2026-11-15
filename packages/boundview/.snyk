@@ -1,0 +1,16 @@
+# Snyk (https://snyk.io) policy file: findings we have checked and accepted, each with why.
+version: v1.25.0
+ignore:
+  SNYK-JS-FFLATE-22392372:
+    - '*':
+        reason: >-
+          Not reachable. The flaw is in fflate's ZIP extraction (unzipSync), which
+          allocates whatever uncompressed size a crafted ZIP entry declares. This
+          package never extracts ZIP: the snapshot only compresses (zlibSync), and the
+          renderer inflates an image's zlib data (unzlibSync) into a buffer of exactly
+          width x height x 4 bytes, after @btps/sdk has measured it to that length
+          (png.ts, png.test.ts). No fixed fflate exists yet: when this expires, check
+          for one.
+        expires: 2027-02-15T00:00:00.000Z
+        created: 2026-11-15T00:00:00.000Z
+patch: {}
