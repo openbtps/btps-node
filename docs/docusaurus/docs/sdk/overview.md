@@ -48,6 +48,8 @@ received one. It brings `@btps/sdk` with it. See
 [Using BoundView](../protocol/specifications/boundview/using.md).
 For a platform with separate frontend and backend apps, see
 [which app installs what](../protocol/specifications/boundview/using.md#frontend-and-backend-apps).
+It is tree-shakable, so an app downloads only what it uses: see
+[what an app downloads](../protocol/specifications/boundview/using.md#what-an-app-downloads).
 
 <Tabs groupId="package-manager">
 <TabItem value="npm" label="npm">

@@ -40,6 +40,13 @@ const png = await renderBoundView(openedDocument);
 why, when the preview cannot make a BoundView a receiver would accept and
 show.
 
+The package is tree-shakable (`sideEffects: false`), so a bundle holds only
+what an app imports. An app that only calls `renderBoundView` loads about
+104 KB up front (32 KB gzipped). The engine's WebAssembly (about 2.5 MB) is
+never bundled: it is fetched from the URL given to `initBoundViewEngine`, and
+only when the engine is used. Each bundled font is a chunk of its own,
+downloaded only when a drawing uses it.
+
 ## Documentation
 
 - [BoundView](https://www.openbtps.org/docs/next/protocol/specifications/boundview): what it is and what it guarantees

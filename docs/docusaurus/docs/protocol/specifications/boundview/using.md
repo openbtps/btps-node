@@ -79,6 +79,30 @@ BoundViews are still checked automatically by `@btps/sdk` alone
 | Sends or receives documents, no BoundView | `@btps/sdk` only |
 | Sends with a BoundView, or draws received ones | `@btps/sdk` and `@btps/boundview` |
 
+### What an app downloads
+
+`@btps/boundview` is tree-shakable (`sideEffects: false`), so an app's
+bundle holds only what it imports. Measured with code splitting, as Vite and
+Next.js bundle:
+
+| The app calls | Loaded up front | Gzipped |
+| --- | --- | --- |
+| `renderBoundView` only | About 104 KB, with no snapshot code and no font reader | About 32 KB |
+| `snapshotBoundView` only | About 367 KB, mostly opentype.js, which reads the page's fonts | About 108 KB |
+| Both | The same as `snapshotBoundView` alone | The same |
+
+Two things are never in that up-front load:
+
+- **The engine's WebAssembly** (about 2.5 MB) is never in a bundle. It is
+  fetched from the URL the app passes to `initBoundViewEngine`, and only
+  when the engine is used. For a sender, that means only when the preview
+  has an SVG logo and `engine` was given.
+- **The bundled fonts** (Arimo, Tinos, Cousine, Carlito and Caladea for
+  label fallbacks, Caveat for typed signatures) are each in a chunk of their
+  own, from about 75 KB to 310 KB. A drawing downloads one only when it uses
+  it: a label character missing from its own font, a typed signature, or a
+  page font the snapshot couldn't read. Most BoundViews need none.
+
 `snapshotBoundView` needs a browser, because it reads the browser's layout.
 `renderBoundView` runs in a browser, an app, or Node. A platform with a
 separate frontend app and backend API splits the work like this:
@@ -255,9 +279,13 @@ only the schema, bindings and checks: `BtpBoundViewSchema`, `isPathData`,
 `boundValue`, `bindingProblem`, `checkBoundView`, `boundViewResultOf`,
 `writtenValue`, `CONTRAST_WORK_LIMIT` and the types.
 
-Advanced: `boundViewToSvg(document, boundView)` from `@btps/boundview`
-gives the drawing the engine reads, for a BoundView that already passed the
-checks ([What the engine reads](./rendering.md#what-the-engine-reads)).
+Advanced: `boundViewToSvg(document, boundView, bundled?)` from
+`@btps/boundview` gives the drawing the engine reads, for a BoundView that
+already passed the checks
+([What the engine reads](./rendering.md#what-the-engine-reads)). Its
+optional third argument is the bundled fonts the drawing needs:
+`await loadBundledFonts(bundledFontsFor(document, boundView))`. Both helpers
+are exported from `@btps/boundview`, and `renderBoundView` does this itself.
 :::
 
 :::note Drawing is always done by `@btps/boundview`
