@@ -402,6 +402,10 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
 
 ### Fixed
 
+- `@btps/boundview`: `snapshotBoundView` builds in an app whose bundler takes
+  opentype.js's ES module build, as Next.js's Turbopack does. 1.2.0-rc.3
+  imported opentype.js's default export, which that build does not have, and
+  such a build failed. It now reads `parse` from either build.
 - A refusal of a trust's permissions reaches the sender as itself:
   `BTP_ERROR_PERMISSION_REQUIRED` for a grant that withholds a required name,
   `BTP_ERROR_PERMISSION` for a name not granted or not asked for,
