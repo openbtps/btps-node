@@ -24,6 +24,7 @@ export const VECTOR_FILES = Object.freeze({
   timeWindow: 'time-window.vectors.json',
   versions: 'versions.vectors.json',
   documents12: 'documents-1.2.vectors.json',
+  boundView: 'boundview.vectors.json',
   eventChain: 'event-chain.vectors.json',
   sync: 'sync.vectors.json',
   responses: 'responses.vectors.json',
@@ -130,6 +131,11 @@ export function loadVectorSet(dir) {
   requireFields(VECTOR_FILES.documents12, set.documents12, ['cases']);
   for (const c of set.documents12.cases) {
     requireFields(VECTOR_FILES.documents12, c, ['name', 'type', 'version', 'document', 'expect']);
+  }
+  requireFields(VECTOR_FILES.boundView, set.boundView, ['cases', 'written']);
+  for (const c of set.boundView.cases) requireFields(VECTOR_FILES.boundView, c, ['name', 'document', 'expect']);
+  for (const c of set.boundView.written) {
+    requireFields(VECTOR_FILES.boundView, c, ['name', 'value', 'bind', 'expect']);
   }
   requireFields(VECTOR_FILES.eventChain, set.eventChain, ['cases']);
   for (const c of set.eventChain.cases) {

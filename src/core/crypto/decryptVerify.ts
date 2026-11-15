@@ -13,6 +13,7 @@ import {
   BTP_ERROR_VALIDATION,
 } from '@core/error/constant.js';
 import { decryptedDocumentProblem } from '@core/server/schemas/helpers.js';
+import { boundViewResultOf } from '@core/server/schemas/boundViewChecks.js';
 import { verifierRefusal } from '@core/trust/verification.js';
 import isEmpty from 'lodash/isEmpty.js';
 
@@ -107,8 +108,13 @@ export const decryptVerify = async <T = unknown>(
     decryptedPayload.delegation = delegation;
   }
 
+  // Since 1.2: a BoundView is checked wherever its document is opened.
+  const boundView =
+    restEncryptedPayload.type === 'BTPS_DOC' ? boundViewResultOf(decryptedData) : undefined;
+
   return {
     payload: decryptedPayload as BTPCryptoResponse<T>['payload'],
     error: undefined,
+    ...(boundView && { boundView }),
   };
 };

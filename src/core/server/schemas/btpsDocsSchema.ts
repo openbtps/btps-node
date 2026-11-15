@@ -11,6 +11,8 @@ import { BTPS_FIELD_LIMITS } from '../constants/limits.js';
 import { BtpSignatureSchema, identitySchema } from './shared.js';
 import { boundedArray, boundedRecord } from './bounded.js';
 import { BtpKeyChainSchema } from './keyChainSchema.js';
+import { BtpBoundViewSchema } from './boundViewSchema.js';
+import { bindingProblem } from './boundViewBindings.js';
 
 const {
   trustRequest,
@@ -234,9 +236,10 @@ export const BtpReceiptDocV1_1Schema = BtpInvoiceDocV1_1Schema.omit({
 
 /*
  * What 1.2 adds to documents, under 1.2.0 only: a note says how it is written;
- * an invoice or receipt may carry a discount; a line's `discount` cell is an
- * amount of at least 0; a template's named data fields are well formed when
- * present; and letters and payslips may name a template too.
+ * an invoice or receipt may carry a discount, its totals before tax, and what
+ * its line-item columns hold; a line's `discount` cell is an amount of at
+ * least 0; a document may name its recipient and carry its BoundView; and a
+ * letter or agreement may carry its signatory. `template` keeps its 1.1 form.
  */
 
 /** An https address, as long as a logo or website address may be. */
@@ -245,11 +248,6 @@ export const httpsUrl = z
   .max(BTPS_FIELD_LIMITS.url)
   .url()
   .refine((url) => url.startsWith('https://'), 'must be an https URL');
-
-/** A version as semantic versioning writes it: `1.2.0`, `2.0.0-beta.1`. */
-const semver = z
-  .string()
-  .regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/, 'must be a semantic version');
 
 const { signature } = BTPS_FIELD_LIMITS;
 
@@ -303,11 +301,10 @@ const strokesOnCanvas = ({ strokes }: { strokes: number[][] }, ctx: z.Refinement
     });
   }
 };
-const drawnSignature = z.object({ strokes }).strict().superRefine(strokesOnCanvas);
-
 /**
- * Since 1.2, under 1.2.0: a signer's own signature on an agreement it accepts, typed or
- * drawn, as a letter's is. Inside the statement, so its signature covers it.
+ * Since 1.2, under 1.2.0: a visual signature, typed or drawn: a signatory's on a
+ * letter or agreement, or a signer's on an agreement it accepts, inside the
+ * statement so its signature covers it.
  */
 const BtpVisualSignatureSchema = z.union([
   z.object({ type: z.literal('typed'), text: signatureText }).strict(),
@@ -317,52 +314,19 @@ const BtpVisualSignatureSchema = z.union([
     .superRefine(strokesOnCanvas),
 ]);
 
-/**
- * Since 1.2, under 1.2.0, on a letter's or an agreement's template only: the
- * values its slots show, from the sender, signed with the document. Slot names
- * are a fixed list, none of them a document field.
- */
-const BtpTemplateValuesSchema = z
+/** Since 1.2, under 1.2.0, on a letter or an agreement: its sender's sign-off, decoration that proves no agreement. */
+const BtpSignatorySchema = z
   .object({
-    'signature.typed': signatureText.optional(),
-    'signature.name': signatureText.optional(),
-    'signature.title': signatureText.optional(),
-    'signature.drawn': drawnSignature.optional(),
+    name: signatureText,
+    title: signatureText.optional(),
+    visualSignature: BtpVisualSignatureSchema.optional(),
   })
   .strict();
 
-/**
- * A template by reference: its name and data. The named data fields, each
- * optional, are well formed when present; other keys stay the provider's. A
- * `source` comes with its `sha256`, as a logo's does: the fingerprint is what
- * makes it trustworthy, so a receiver never draws whatever an address serves.
- * Only a letter's or an agreement's template carries `values`.
- */
-const templateSchema = (withValues: boolean) =>
-  z.object({
-    name: z.string(),
-    data: boundedRecord(z.unknown(), recordKeys).pipe(
-      z
-        .object({
-          version: semver.optional(),
-          sha256: sha256Hex.optional(),
-          source: httpsUrl.optional(),
-          logo: z.object({ sha256: sha256Hex, source: httpsUrl }).strict().optional(),
-          values: withValues
-            ? BtpTemplateValuesSchema.optional()
-            : z.undefined({
-                invalid_type_error: "values are only on a letter's or an agreement's template",
-              }),
-        })
-        .catchall(z.unknown())
-        .refine((data) => data.source === undefined || data.sha256 !== undefined, {
-          message: 'a source comes with the sha256 of what it serves',
-          path: ['sha256'],
-        }),
-    ),
-  });
-const BtpTemplateSchema = templateSchema(false);
-const BtpLetterTemplateSchema = templateSchema(true);
+/** Since 1.2, under 1.2.0: who a document is for, as the sender names them. */
+const BtpRecipientSchema = z
+  .object({ name: z.string().min(1).max(BTPS_FIELD_LIMITS.recipientName) })
+  .strict();
 
 /** A discount on a whole document, before tax: an amount in its currency's minor units, or whole basis points. */
 const BtpDiscountSchema = z.union([
@@ -370,20 +334,44 @@ const BtpDiscountSchema = z.union([
   z.object({ percent: z.number().int().min(1).max(10000) }).strict(),
 ]);
 
-/** Line items whose `discount` cells, when a row has one, are amounts in minor units of at least 0. */
-const BtpDiscountedLineItemsSchema = BtpLineItemsSchema.refine(
-  ({ rows }) =>
-    rows.every(
-      (row) =>
-        row.discount === undefined || (typeof row.discount === 'number' && row.discount >= 0),
-    ),
-  { message: 'a line discount is an integer of at least 0', path: ['rows'] },
-);
+const LINE_ROLES = ['description', 'quantity', 'unitPrice', 'discount', 'tax', 'lineTotal'] as const;
+
+/**
+ * Line items whose `discount` cells, when a row has one, are amounts in minor
+ * units of at least 0, and which may name what a column holds: each role names
+ * one of `columns`, and each appears at most once.
+ */
+const BtpDiscountedLineItemsSchema = BtpLineItemsSchema.extend({
+  roles: boundedRecord(z.enum(LINE_ROLES), lineItems.columns).optional(),
+})
+  .refine(
+    ({ rows }) =>
+      rows.every(
+        (row) =>
+          row.discount === undefined || (typeof row.discount === 'number' && row.discount >= 0),
+      ),
+    { message: 'a line discount is an integer of at least 0', path: ['rows'] },
+  )
+  .refine(
+    ({ columns, roles }) =>
+      roles === undefined ||
+      (Object.keys(roles).every((column) => columns.includes(column)) &&
+        new Set(Object.values(roles)).size === Object.keys(roles).length),
+    { message: 'each role names one of columns, and appears at most once', path: ['roles'] },
+  );
+
+/** What 1.2 adds to every document: who it is for, and its BoundView. */
+const viewFields1_2 = {
+  recipient: BtpRecipientSchema.optional(),
+  boundView: BtpBoundViewSchema.optional(),
+};
 
 const documentFields1_2 = {
+  ...viewFields1_2,
   description: BtpNoteSchema(note).optional(),
   discount: BtpDiscountSchema.optional(),
-  template: BtpTemplateSchema.optional(),
+  subtotalAmount: BtpMoneySchema.optional(),
+  taxAmount: BtpMoneySchema.optional(),
 };
 
 /** An invoice: what a `BTPS_DOC` may carry as one, 1.2's fields included. */
@@ -507,14 +495,15 @@ export const BtpLetterDocV1_1Schema = z
   })
   .strict();
 
-/** A payslip, which since 1.2 may name a template. */
+/** A payslip, which since 1.2 may carry its BoundView. Its recipient is its `employee`. */
 export const BtpPayslipDocSchema = BtpPayslipDocV1_1Schema.extend({
-  template: BtpTemplateSchema.optional(),
+  boundView: BtpBoundViewSchema.optional(),
 }).strict();
 
-/** A letter, which since 1.2 may name a template. */
+/** A letter, which since 1.2 may name its recipient, carry its signatory and its BoundView. */
 export const BtpLetterDocSchema = BtpLetterDocV1_1Schema.extend({
-  template: BtpLetterTemplateSchema.optional(),
+  ...viewFields1_2,
+  signatory: BtpSignatorySchema.optional(),
 }).strict();
 
 /** What a 1.1.0 `BTPS_DOC` carries, as 1.1 reads it. */
@@ -570,15 +559,33 @@ export const BtpDocumentSchema = z
     BtpAgreementDocSchema,
   ])
   .superRefine((document, ctx) => {
-    if (document.type !== 'agreement') return;
-    const attached = new Set(document.attachments?.map(({ sha256 }) => sha256));
-    if (document.acceptance.terms.some((term) => !attached.has(term))) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'each term is the sha256 of one of its attachments',
-        path: ['acceptance', 'terms'],
-      });
+    const issue = (message: string, path: (string | number)[]) =>
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message, path });
+    if (document.type === 'agreement') {
+      const attached = new Set(document.attachments?.map(({ sha256 }) => sha256));
+      if (document.acceptance.terms.some((term) => !attached.has(term))) {
+        issue('each term is the sha256 of one of its attachments', ['acceptance', 'terms']);
+      }
     }
+    if (document.type === 'invoice' || document.type === 'receipt') {
+      for (const field of ['subtotalAmount', 'taxAmount'] as const) {
+        const currency = document[field]?.currency;
+        if (currency !== undefined && currency !== document.totalAmount.currency) {
+          issue("is in the currency of totalAmount", [field, 'currency']);
+        }
+      }
+    }
+    // A BoundView binds only fields its document carries, and draws a signature only from a signatory's.
+    document.boundView?.elements.forEach((element, index) => {
+      if (element.type === 'text') {
+        const problem = bindingProblem(document, element.bind);
+        if (problem !== undefined) issue(problem, ['boundView', 'elements', index, 'bind']);
+      }
+      const signatory = 'signatory' in document ? document.signatory : undefined;
+      if (element.type === 'signature' && signatory?.visualSignature === undefined) {
+        issue("a signature is drawn from the signatory's visualSignature", ['boundView', 'elements', index]);
+      }
+    });
   });
 
 /*

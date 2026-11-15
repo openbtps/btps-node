@@ -17,7 +17,6 @@ keys
 certs
 .well-known
 btp*.json
-!docs/docusaurus/static/schemas/btps-template.schema.json
 !docs/docusaurus/static/schemas/btps-evidence.schema.json
 .DS_Store
 client
@@ -35,7 +34,6 @@ test
 !/test/decrypter-conformance.test.ts
 !/test/conventions.test.ts
 !/test/licenseHeaders.test.ts
-!/test/templates.test.ts
 !/test/evidence.test.ts
 !/test/guideExamples.test.ts
 !/test/docsUrls.test.ts

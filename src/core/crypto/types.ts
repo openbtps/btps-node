@@ -17,6 +17,7 @@ import {
 } from '@core/server/types.js';
 import type { Signer } from './signer-interface.js';
 import type { Decrypter } from './decrypter-interface.js';
+import type { BTPBoundViewResult } from '@core/server/schemas/boundViewChecks.js';
 
 export type EncryptionMode = 'none' | 'standardEncrypt' | '2faEncrypt';
 
@@ -77,6 +78,8 @@ export interface BTPCryptoResponse<T = BTPDocType> {
   error?: BTPErrorException;
   /** Since 1.2: a trust request sent as its 1.1 receiver allows, and what it left out */
   shaped?: BTPShaped;
+  /** Since 1.2: whether the opened document's BoundView may be shown, when it carries one */
+  boundView?: BTPBoundViewResult;
 }
 
 export interface VerifyEncryptedPayload<T = unknown | string> {
