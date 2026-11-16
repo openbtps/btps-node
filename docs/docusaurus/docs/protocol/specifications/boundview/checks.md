@@ -233,19 +233,21 @@ For each bound `text` element and each `signature`:
 
 - its box lies wholly inside the page;
 - no element drawn after it overlaps its box;
-- no `image` lies under it;
 - its colour has a WCAG 2 contrast of at least 3:1 with the colour beneath
   it at **every** sample point of its box ([Contrast](#contrast)).
 
 Two boxes overlap when they share more than 0.005 pixels across and more
 than 0.005 pixels down: half of 0.01 pixels, the precision a canvas writes
 positions to ([Canvas](./canvas.md)). Boxes that only touch, or meet by
-less through the rounding of a sum, do not overlap. The same test decides
-whether an `image` lies under a fact. In the same way, a box counts as
-inside the page when it reaches past an edge by 0.005 pixels or less.
+less through the rounding of a sum, do not overlap. In the same way, a box
+counts as inside the page when it reaches past an edge by 0.005 pixels or
+less.
 
 A label, a shape and an image may be drawn anywhere: they are the sender's
-design.
+design. An image under a fact is not refused for being there: the contrast
+test reads it by its own pixels, as it reads a shape by its paint. A faint
+watermark or a soft background picture behind a fact passes; a dark or busy
+one where the fact lies fails.
 
 #### Contrast
 
@@ -271,23 +273,34 @@ its one point is the middle of that side.
 
 1. Start from the page's `background`, white when absent. A `background`
    with alpha is first blended over white.
-2. For each earlier `rect` and `path` that has a `fill`, in the order of
-   `elements`, whose fill covers the point: blend its fill colour at that
-   point over the colour so far, source-over:
-   `out = src × a + below × (1 − a)`, where `a` is the fill's alpha times
-   the element's `opacity`.
+2. For each earlier `rect` and `path` that has a `fill`, and each earlier
+   `image`, in the order of `elements`, that covers the point: blend its
+   colour at that point over the colour so far, source-over:
+   `out = src × a + below × (1 − a)`. For a `rect` or `path`, `src` is its
+   fill colour at the point and `a` is the fill's alpha times the element's
+   `opacity`. For an `image`, `src` is its pixel at the point and `a` is
+   that pixel's alpha, 0 to 255 scaled to 0 to 1, times the element's
+   `opacity`.
 3. A gradient's colour at the point is interpolated as
-   [Rendering](./rendering.md#shapes) says.
+   [Rendering](./rendering.md#shapes) says. An image's pixel at the point
+   `(px, py)` is the one at column `floor((px − x) / width × image width)`
+   and row `floor((py − y) / height × image height)` of its
+   [pixels](./images.md#an-image), each clamped to the image's own columns
+   and rows: the nearest pixel, never interpolated. Here `x`, `y`, `width`
+   and `height` are the element's, and the image's width and height are its
+   pixels'. A renderer draws the image with bilinear filtering; the check
+   reads the stored pixel, so every receiver reads the same one.
 4. Blending is in sRGB, each channel a real number from 0 to 255, never
    rounded along the way. WCAG 2 relative luminance is computed from these
    unrounded values.
-5. Strokes and `line` elements are ignored. An `image` beneath the fact is
-   already refused, above.
+5. Strokes and `line` elements are ignored.
 
 **Covers.**
 
 - A `rect` covers a point inside its box, with its rounded corners tested
   exactly.
+- An `image` covers a point inside its box, `x` to `x + width` and `y` to
+  `y + height`, with its `radius` corners tested exactly, as for a `rect`.
 - A `path` covers a point by its `fillRule`, `nonzero` or `evenodd`. Its
   curves are first flattened into straight segments, each `Q` and `C`
   subdivided into 16 equal parameter steps.
@@ -305,9 +318,10 @@ a colour close to what lies behind it anywhere in its box, never does.
 
 **The work budget.** The contrast check makes at most 20,000,000 tests on
 one BoundView. Count, for every sample row of every fact, each edge of each
-`path` beneath it, plus each sample point times each fill beneath it. A
-BoundView that needs more fails "Not hidden", so a receiver is never made to
-work without end.
+`path` beneath it, plus each sample point times each fill and each image
+beneath it, plus each image's pixels (`width × height`) once in the
+BoundView, when the image is first read. A BoundView that needs more fails
+"Not hidden", so a receiver is never made to work without end.
 
 ### Nothing to fetch, nothing to run
 

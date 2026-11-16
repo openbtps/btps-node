@@ -394,6 +394,13 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   boxes that touch through the rounding of a sum do not cover each other,
   and a box past the page's edge by no more than that is inside the page.
   1.2.0-rc.3.1 counted any overlap, and any reach past the edge.
+- BoundView: an image under a fact is checked by its pixels for contrast,
+  not refused. Each pixel is blended beneath the fact as a shape's fill is,
+  so a faint watermark or soft background picture passes and a dark or busy
+  one where the fact lies fails the 3:1 contrast. A watermark or background
+  picture behind a fact is common in invoice designs, and contrast is what
+  keeps a fact readable. 1.2.0-rc.3.1 refused any image under a fact ("an
+  image lies under it").
 - `@btps/boundview`: each bundled font also carries Latin Extended
   (Vietnamese included), Greek, Cyrillic, general punctuation, currency signs
   (`₹ ₩ ₪ ₺ ₽ ₱`), letterlike symbols (`№`), arrows and `− ≈ ≠ ≤ ≥ ∞`, as

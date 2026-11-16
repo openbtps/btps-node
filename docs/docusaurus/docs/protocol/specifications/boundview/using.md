@@ -273,9 +273,10 @@ break:
   hidden. A receiver may draw it smaller to fit its box, down to three
   quarters of its size and never below 6 pixels, and no further
   ([Shown in full](./checks.md#shown-in-full)).
-- **Nothing covers a fact.** No element is drawn over it and no image lies
-  under it, it lies wholly on the page, and its colour has a contrast of at
-  least 3:1 with what is behind it ([Not hidden](./checks.md#not-hidden)).
+- **Nothing covers a fact.** No element is drawn over it, it lies wholly on
+  the page, and its colour has a contrast of at least 3:1 with what is
+  behind it, an image's pixels included: a faint watermark behind a fact is
+  fine, a dark one is not ([Not hidden](./checks.md#not-hidden)).
 
 Labels, shapes and images are your design, and may go anywhere.
 

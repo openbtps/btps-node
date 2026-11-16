@@ -466,7 +466,7 @@ export const checkBoundView = (document: Doc, view: BTPBoundView): BTPBoundViewR
     }
   }
 
-  // Not hidden: inside the page, nothing drawn over it, no image under it, 3:1 contrast at every point.
+  // Not hidden: inside the page, nothing drawn over it, 3:1 contrast at every point with what is beneath (images by their pixels).
   const boxOf = (element: BTPBoundViewElement): Box => {
     switch (element.type) {
       case 'text':
