@@ -12,6 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { zlibSync } from 'fflate';
 import { boundViewResultOf, checkBoundView, writtenValue } from './boundViewChecks.js';
 import { BtpBoundViewSchema, type BTPBoundView } from './boundViewSchema.js';
 
@@ -156,14 +157,12 @@ describe('not hidden', () => {
     expect(failed(check([{ ...first, x: -1 }, ...rest]))).toEqual([{ check: 'notHidden', element: 0, field: undefined }]);
   });
 
-  it('has nothing drawn over it, and no image under it', () => {
+  it('has nothing drawn over it; an image under it is read by its pixels (a clear one hides nothing)', () => {
     const cover = { type: 'rect', x: 0, y: 0, width: 50, height: 50, fill: '#ffffff' };
     expect(failed(check([...facts(), cover])).map(({ element }) => element)).toEqual([0, 1]);
     const pixels = { width: 1, height: 1, encoding: 'rgba8-deflate', data: 'eJxjYGBgAAAABAAB' };
     const image = { type: 'image', image: 'logo', x: 0, y: 0, width: 50, height: 22 };
-    expect(failed(check([image, ...facts()], invoice, { images: { logo: pixels } }))).toEqual([
-      { check: 'notHidden', element: 1, field: undefined },
-    ]);
+    expect(check([image, ...facts()], invoice, { images: { logo: pixels } })).toEqual({ show: true });
   });
 
   it('passes white text on a dark band, and fails it where any point of its box is light', () => {
@@ -182,6 +181,23 @@ describe('not hidden', () => {
     expect(check([tint(fade), ...facts()])).toEqual({ show: true });
     const late = { linear: { from: [0, 0], to: [100, 0], stops: [[0, '#ffffff'], [1, '#0f1b2d']] } };
     expect(failed(check([tint(late), ...facts()])).length).toBe(5);
+  });
+
+  it("reads an image under a fact by its own pixels: a faint watermark passes, a dark picture where the fact is fails", () => {
+    // 4 × 4 pixels stretched over the page: light on the left half, the given colour on the right.
+    const picture = (right: [number, number, number]) => {
+      const rgba = new Uint8Array(4 * 4 * 4);
+      for (let i = 0; i < 16; i++) rgba.set([...(i % 4 < 2 ? [238, 238, 238] : right), 255], i * 4);
+      return { width: 4, height: 4, encoding: 'rgba8-deflate', data: Buffer.from(zlibSync(rgba)).toString('base64') };
+    };
+    const under = { type: 'image', image: 'mark', x: 0, y: 0, width: 600, height: 400 };
+    expect(check([under, ...facts()], invoice, { images: { mark: picture([230, 236, 245]) } })).toEqual({ show: true });
+    // Every fact starts at x 10, on the light half; one reaching past 300 meets the dark half.
+    const wide = facts().map((element, index) => (index === 0 ? { ...element, width: 400 } : element));
+    expect(check([under, ...facts()], invoice, { images: { mark: picture([20, 20, 30]) } })).toEqual({ show: true });
+    expect(failed(check([under, ...wide], invoice, { images: { mark: picture([20, 20, 30]) } }))).toEqual([{ check: 'notHidden', element: 1, field: undefined }]);
+    // Half transparent over the page, the dark half is light enough again.
+    expect(check([{ ...under, opacity: 0.1 }, ...wide], invoice, { images: { mark: picture([20, 20, 30]) } })).toEqual({ show: true });
   });
 
   it("tests a rounded corner and a path's fill rule exactly", () => {

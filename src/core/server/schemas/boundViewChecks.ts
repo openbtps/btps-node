@@ -19,7 +19,18 @@ import {
   type BTPBoundViewElement,
   type BTPBoundViewFont,
 } from './boundViewSchema.js';
+import { unzlibSync } from 'fflate';
 import { boundValue, markdownHidden, writtenValue, type BoundValue } from './boundViewBindings.js';
+
+/** An image's RGBA pixels from its data (base64 of zlib-deflated rgba8): nothing where it is not that. */
+const pixelsOf = (data: string): Uint8Array | undefined => {
+  try {
+    // atob, not Buffer: a browser that checks a BoundView has no Buffer.
+    return unzlibSync(Uint8Array.from(atob(data), (c) => c.charCodeAt(0)));
+  } catch {
+    return undefined;
+  }
+};
 
 export { writtenValue };
 
@@ -491,6 +502,8 @@ export const checkBoundView = (document: Doc, view: BTPBoundView): BTPBoundViewR
   const page = parse(view.page.background ?? '#ffffff');
   const pageColour = over([255, 255, 255], page);
   let work = 0;
+  // Each image's pixels, read once, when a fact or signature lies on it.
+  const decoded = new Map<string, Uint8Array | undefined>();
 
   view.elements.forEach((element, index) => {
     if (element.type !== 'text' && element.type !== 'signature') return;
@@ -502,19 +515,23 @@ export const checkBoundView = (document: Doc, view: BTPBoundView): BTPBoundViewR
       hidden('it lies outside the page');
     }
     if (boxes.slice(index + 1).some((later) => overlaps(box, later))) hidden('an element drawn after it covers it');
-    if (view.elements.slice(0, index).some((earlier, at) => earlier.type === 'image' && overlaps(box, boxes[at] as Box))) {
-      hidden('an image lies under it');
-    }
     const ink = over(pageColour, parse(element.colour));
+    // Everything drawn under it: shapes by their paint, images by their own pixels.
     const beneath = view.elements
       .slice(0, index)
       .map((earlier, at) => ({ earlier, at }))
       .filter(
         ({ earlier, at }) =>
-          (earlier.type === 'rect' || earlier.type === 'path') &&
-          earlier.fill !== undefined &&
+          (((earlier.type === 'rect' || earlier.type === 'path') && earlier.fill !== undefined) || earlier.type === 'image') &&
           overlaps(box, boxes[at] as Box),
       );
+    for (const { earlier } of beneath) {
+      if (earlier.type === 'image' && !decoded.has(earlier.image)) {
+        const image = view.images?.[earlier.image];
+        work += image ? image.width * image.height : 0;
+        decoded.set(earlier.image, image ? pixelsOf(image.data) : undefined);
+      }
+    }
     const xs = samples(box.left, box.right);
     let readable = true;
     for (const y of samples(box.top, box.bottom)) {
@@ -529,6 +546,17 @@ export const checkBoundView = (document: Doc, view: BTPBoundView): BTPBoundViewR
       for (const x of xs) {
         let colour = pageColour;
         beneath.forEach(({ earlier }, n) => {
+          if (earlier.type === 'image') {
+            // The image's pixel at this point, as it is drawn there: stretched to its box, its corners rounded.
+            const image = view.images?.[earlier.image];
+            const pixels = decoded.get(earlier.image);
+            if (!image || !pixels || !rectCovers(earlier, [x, y])) return;
+            const px = Math.min(image.width - 1, Math.max(0, Math.floor(((x - earlier.x) / earlier.width) * image.width)));
+            const py = Math.min(image.height - 1, Math.max(0, Math.floor(((y - earlier.y) / earlier.height) * image.height)));
+            const i = (py * image.width + px) * 4;
+            colour = over(colour, [pixels[i] ?? 0, pixels[i + 1] ?? 0, pixels[i + 2] ?? 0, ((pixels[i + 3] ?? 0) / 255) * (earlier.opacity ?? 1)]);
+            return;
+          }
           if ((earlier.type !== 'rect' && earlier.type !== 'path') || earlier.fill === undefined) return;
           const row = rows[n];
           const covers =
