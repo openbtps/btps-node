@@ -20,7 +20,7 @@ import {
   type BTPBoundViewFont,
 } from './boundViewSchema.js';
 import { unzlibSync } from 'fflate';
-import { boundValue, markdownHidden, writtenValue, type BoundValue } from './boundViewBindings.js';
+import { boundValue, markdownHidden, writtenValue } from './boundViewBindings.js';
 
 /** An image's RGBA pixels from its data (base64 of zlib-deflated rgba8): nothing where it is not that. */
 const pixelsOf = (data: string): Uint8Array | undefined => {

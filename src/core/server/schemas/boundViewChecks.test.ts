@@ -63,7 +63,10 @@ const facts = () => {
     text('issuedAt'),
     { ...text('totalAmount'), bind: { field: 'totalAmount', format: money } },
     text('lineItems.rows.0.Item'),
-    { ...text('lineItems.rows.0.Amount'), bind: { field: 'lineItems.rows.0.Amount', format: money } },
+    {
+      ...text('lineItems.rows.0.Amount'),
+      bind: { field: 'lineItems.rows.0.Amount', format: money },
+    },
   ];
 };
 const view = (elements: object[], more: object = {}): BTPBoundView =>
@@ -77,7 +80,9 @@ const view = (elements: object[], more: object = {}): BTPBoundView =>
 const check = (elements: object[], document: object = invoice, more: object = {}) =>
   checkBoundView(document as Record<string, unknown>, view(elements, more));
 const failed = (result: ReturnType<typeof checkBoundView>) =>
-  result.show ? [] : result.problems.map(({ check, field, element }) => ({ check, field, element }));
+  result.show
+    ? []
+    : result.problems.map(({ check, field, element }) => ({ check, field, element }));
 
 describe('a BoundView that shows every key fact, in full, unhidden', () => {
   it('is shown', () => {
@@ -87,12 +92,21 @@ describe('a BoundView that shows every key fact, in full, unhidden', () => {
 
 describe('key facts', () => {
   it('fails when one the document carries is not bound', () => {
-    expect(failed(check(facts().slice(1)))).toEqual([{ check: 'keyFacts', field: 'id', element: undefined }]);
+    expect(failed(check(facts().slice(1)))).toEqual([
+      { check: 'keyFacts', field: 'id', element: undefined },
+    ]);
   });
 
   it("names each line's description and total by its roles, and every cell without them", () => {
     const { roles: _roles, ...noRoles } = invoice.lineItems;
-    const withoutRoles = { ...invoice, lineItems: { ...noRoles, columns: ['Item', 'Amount', 'Note'], rows: [{ Item: 'Web', Amount: 145200, Note: 'x' }] } };
+    const withoutRoles = {
+      ...invoice,
+      lineItems: {
+        ...noRoles,
+        columns: ['Item', 'Amount', 'Note'],
+        rows: [{ Item: 'Web', Amount: 145200, Note: 'x' }],
+      },
+    };
     expect(failed(check(facts(), withoutRoles))).toEqual([
       { check: 'keyFacts', field: 'lineItems.rows.0.Note', element: undefined },
     ]);
@@ -107,7 +121,10 @@ describe('key facts', () => {
       body: { format: 'markdown', content: '# Hello **Alice**' },
     };
     line = 0;
-    const body = (range: [number, number]) => ({ ...text('body.content'), bind: { field: 'body.content', range } });
+    const body = (range: [number, number]) => ({
+      ...text('body.content'),
+      bind: { field: 'body.content', range },
+    });
     expect(check([text('issuedAt'), body([2, 7]), body([10, 15])], letter)).toEqual({ show: true });
     expect(failed(check([text('issuedAt'), body([2, 7])], letter))).toEqual([
       { check: 'keyFacts', field: 'body.content', element: undefined },
@@ -128,7 +145,14 @@ describe('key facts', () => {
     expect(failed(check(shown, letter))).toEqual([
       { check: 'keyFacts', field: 'signatory.visualSignature', element: undefined },
     ]);
-    const signature = { type: 'signature', x: 300, y: 10, width: 200, height: 60, colour: '#0f1b2d' };
+    const signature = {
+      type: 'signature',
+      x: 300,
+      y: 10,
+      width: 200,
+      height: 60,
+      colour: '#0f1b2d',
+    };
     expect(check([...shown, signature], letter)).toEqual({ show: true });
   });
 });
@@ -136,9 +160,12 @@ describe('key facts', () => {
 describe('shown in full', () => {
   it('fits its box, drawn down to three quarters of its size and no smaller', () => {
     // A$1,452.00 is 10 characters: 60 pixels at 12, 45 at 9.
-    const total = (width: number) => facts().map((element, index) => (index === 2 ? { ...element, width } : element));
+    const total = (width: number) =>
+      facts().map((element, index) => (index === 2 ? { ...element, width } : element));
     expect(check(total(45))).toEqual({ show: true });
-    expect(failed(check(total(44.99)))).toEqual([{ check: 'shownInFull', element: 2, field: undefined }]);
+    expect(failed(check(total(44.99)))).toEqual([
+      { check: 'shownInFull', element: 2, field: undefined },
+    ]);
   });
 
   it("draws every character with its font's own glyph", () => {
@@ -154,7 +181,9 @@ describe('shown in full', () => {
 describe('not hidden', () => {
   it('lies wholly inside the page', () => {
     const [first, ...rest] = facts();
-    expect(failed(check([{ ...first, x: -1 }, ...rest]))).toEqual([{ check: 'notHidden', element: 0, field: undefined }]);
+    expect(failed(check([{ ...first, x: -1 }, ...rest]))).toEqual([
+      { check: 'notHidden', element: 0, field: undefined },
+    ]);
   });
 
   it('has nothing drawn over it; an image under it is read by its pixels (a clear one hides nothing)', () => {
@@ -162,49 +191,127 @@ describe('not hidden', () => {
     expect(failed(check([...facts(), cover])).map(({ element }) => element)).toEqual([0, 1]);
     const pixels = { width: 1, height: 1, encoding: 'rgba8-deflate', data: 'eJxjYGBgAAAABAAB' };
     const image = { type: 'image', image: 'logo', x: 0, y: 0, width: 50, height: 22 };
-    expect(check([image, ...facts()], invoice, { images: { logo: pixels } })).toEqual({ show: true });
+    expect(check([image, ...facts()], invoice, { images: { logo: pixels } })).toEqual({
+      show: true,
+    });
   });
 
   it('passes white text on a dark band, and fails it where any point of its box is light', () => {
-    const band = (height: number) => ({ type: 'rect', x: 0, y: 0, width: 600, height, fill: '#0f1b2d' });
-    const white = facts().map((element, index) => (index === 0 ? { ...element, colour: '#ffffff' } : element));
+    const band = (height: number) => ({
+      type: 'rect',
+      x: 0,
+      y: 0,
+      width: 600,
+      height,
+      fill: '#0f1b2d',
+    });
+    const white = facts().map((element, index) =>
+      index === 0 ? { ...element, colour: '#ffffff' } : element,
+    );
     // The first fact's box runs from y 20.4 to 32.4: its last row of points is at 31.9.
     expect(check([band(32), ...white])).toEqual({ show: true });
-    expect(failed(check([band(31), ...white]))).toEqual([{ check: 'notHidden', element: 1, field: undefined }]);
+    expect(failed(check([band(31), ...white]))).toEqual([
+      { check: 'notHidden', element: 1, field: undefined },
+    ]);
   });
 
   it('blends a translucent fill over what is beneath it, and reads a gradient at each point', () => {
     const tint = (fill: unknown) => ({ type: 'rect', x: 0, y: 0, width: 600, height: 400, fill });
     expect(check([tint('#0f1b2d1a'), ...facts()])).toEqual({ show: true });
     expect(failed(check([tint('#0f1b2dcc'), ...facts()])).length).toBe(5);
-    const fade = { linear: { from: [0, 0], to: [600, 0], stops: [[0, '#ffffff'], [1, '#0f1b2d']] } };
+    const fade = {
+      linear: {
+        from: [0, 0],
+        to: [600, 0],
+        stops: [
+          [0, '#ffffff'],
+          [1, '#0f1b2d'],
+        ],
+      },
+    };
     expect(check([tint(fade), ...facts()])).toEqual({ show: true });
-    const late = { linear: { from: [0, 0], to: [100, 0], stops: [[0, '#ffffff'], [1, '#0f1b2d']] } };
+    const late = {
+      linear: {
+        from: [0, 0],
+        to: [100, 0],
+        stops: [
+          [0, '#ffffff'],
+          [1, '#0f1b2d'],
+        ],
+      },
+    };
     expect(failed(check([tint(late), ...facts()])).length).toBe(5);
   });
 
-  it("reads an image under a fact by its own pixels: a faint watermark passes, a dark picture where the fact is fails", () => {
+  it('reads an image under a fact by its own pixels: a faint watermark passes, a dark picture where the fact is fails', () => {
     // 4 × 4 pixels stretched over the page: light on the left half, the given colour on the right.
     const picture = (right: [number, number, number]) => {
       const rgba = new Uint8Array(4 * 4 * 4);
       for (let i = 0; i < 16; i++) rgba.set([...(i % 4 < 2 ? [238, 238, 238] : right), 255], i * 4);
-      return { width: 4, height: 4, encoding: 'rgba8-deflate', data: Buffer.from(zlibSync(rgba)).toString('base64') };
+      return {
+        width: 4,
+        height: 4,
+        encoding: 'rgba8-deflate',
+        data: Buffer.from(zlibSync(rgba)).toString('base64'),
+      };
     };
     const under = { type: 'image', image: 'mark', x: 0, y: 0, width: 600, height: 400 };
-    expect(check([under, ...facts()], invoice, { images: { mark: picture([230, 236, 245]) } })).toEqual({ show: true });
+    expect(
+      check([under, ...facts()], invoice, { images: { mark: picture([230, 236, 245]) } }),
+    ).toEqual({ show: true });
     // Every fact starts at x 10, on the light half; one reaching past 300 meets the dark half.
-    const wide = facts().map((element, index) => (index === 0 ? { ...element, width: 400 } : element));
-    expect(check([under, ...facts()], invoice, { images: { mark: picture([20, 20, 30]) } })).toEqual({ show: true });
-    expect(failed(check([under, ...wide], invoice, { images: { mark: picture([20, 20, 30]) } }))).toEqual([{ check: 'notHidden', element: 1, field: undefined }]);
+    const wide = facts().map((element, index) =>
+      index === 0 ? { ...element, width: 400 } : element,
+    );
+    expect(
+      check([under, ...facts()], invoice, { images: { mark: picture([20, 20, 30]) } }),
+    ).toEqual({ show: true });
+    expect(
+      failed(check([under, ...wide], invoice, { images: { mark: picture([20, 20, 30]) } })),
+    ).toEqual([{ check: 'notHidden', element: 1, field: undefined }]);
     // Half transparent over the page, the dark half is light enough again.
-    expect(check([{ ...under, opacity: 0.1 }, ...wide], invoice, { images: { mark: picture([20, 20, 30]) } })).toEqual({ show: true });
+    expect(
+      check([{ ...under, opacity: 0.1 }, ...wide], invoice, {
+        images: { mark: picture([20, 20, 30]) },
+      }),
+    ).toEqual({ show: true });
+  });
+
+  it('refuses a fact on a picture of its own colour, however few its pixels', () => {
+    const [first] = facts();
+    const ink = (first as { colour: string }).colour;
+    const one = Uint8Array.from([...Buffer.from(ink.slice(1, 7), 'hex'), 255]);
+    const pixels = {
+      width: 1,
+      height: 1,
+      encoding: 'rgba8-deflate',
+      data: Buffer.from(zlibSync(one)).toString('base64'),
+    };
+    const under = { type: 'image', image: 'cover', x: 0, y: 0, width: 600, height: 400 };
+    expect(
+      failed(check([under, ...facts()], invoice, { images: { cover: pixels } })).map(
+        ({ check: name }) => name,
+      ),
+    ).toContain('notHidden');
   });
 
   it("tests a rounded corner and a path's fill rule exactly", () => {
-    const rounded = { type: 'rect', x: 5, y: 15, width: 300, height: 300, radius: 120, fill: '#0f1b2d' };
+    const rounded = {
+      type: 'rect',
+      x: 5,
+      y: 15,
+      width: 300,
+      height: 300,
+      radius: 120,
+      fill: '#0f1b2d',
+    };
     const white = facts().map((element) => ({ ...element, colour: '#ffffff' }));
     // The rounded corner leaves the first fact's top-left on the white page.
-    expect(failed(check([rounded, ...white]))[0]).toEqual({ check: 'notHidden', element: 1, field: undefined });
+    expect(failed(check([rounded, ...white]))[0]).toEqual({
+      check: 'notHidden',
+      element: 1,
+      field: undefined,
+    });
     const ring = {
       type: 'path',
       d: 'M0 0H600V400H0Z M0 0H300V60H0Z',
@@ -214,12 +321,17 @@ describe('not hidden', () => {
     // Even-odd leaves a white hole under the first facts: dark text there is readable.
     const [first, second, ...rest] = facts();
     expect(check([ring, first, second])).toEqual({ show: false, problems: expect.any(Array) });
-    expect(failed(check([ring, first, second, ...rest])).map(({ element }) => element)).toEqual([3, 4, 5]);
+    expect(failed(check([ring, first, second, ...rest])).map(({ element }) => element)).toEqual([
+      3, 4, 5,
+    ]);
   });
 
   it('fails a BoundView too complex to check, rather than working without end', () => {
     // Curves flatten to 16 edges each, every one crossing every row of a tall fact's box.
-    const curves = Array.from({ length: 800 }, (_, i) => `C${i % 600} 0 ${i % 600} 2000 ${(i + 1) % 600} 0`);
+    const curves = Array.from(
+      { length: 800 },
+      (_, i) => `C${i % 600} 0 ${i % 600} 2000 ${(i + 1) % 600} 0`,
+    );
     const paths = Array.from({ length: 5 }, () => ({
       type: 'path',
       d: `M0 0${curves.join('')}Z`,
@@ -228,7 +340,9 @@ describe('not hidden', () => {
     // The curves reach y 888, so the tall fact's box (380 to 780) lies over every one.
     const tall = { ...text('title'), x: 0, y: 700, size: 400, width: 600 };
     const started = performance.now();
-    const result = check([...paths, ...facts(), tall], invoice, { page: { width: 600, height: 2000 } });
+    const result = check([...paths, ...facts(), tall], invoice, {
+      page: { width: 600, height: 2000 },
+    });
     expect(result.show ? [] : result.problems).toContainEqual({
       check: 'notHidden',
       element: 10,
@@ -248,7 +362,10 @@ describe('measuring and placing', () => {
       );
     expect(check(id(32.05), invoice, { fonts: { body: kerned } }).show).toBe(true);
     expect(check(id(32.04), invoice, { fonts: { body: kerned } }).show).toBe(false);
-    const lower = { ...font, glyphs: Object.fromEntries(Object.entries(font.glyphs).filter(([c]) => c !== 'i')) };
+    const lower = {
+      ...font,
+      glyphs: Object.fromEntries(Object.entries(font.glyphs).filter(([c]) => c !== 'i')),
+    };
     expect(failed(check(id(200), invoice, { fonts: { body: lower } }))).toEqual([
       { check: 'shownInFull', element: 0, field: undefined },
     ]);
@@ -258,11 +375,30 @@ describe('measuring and placing', () => {
     const later = [
       { type: 'line', from: [0, 300], to: [600, 300], stroke: '#000000', strokeWidth: 2 },
       { type: 'path', d: 'M0 350L600 350L600 360Z', stroke: '#000000', strokeWidth: 4 },
-      { type: 'label', text: 'A', x: 0, y: 390, width: 10, align: 'centre', font: 'body', size: 12, colour: '#000000' },
+      {
+        type: 'label',
+        text: 'A',
+        x: 0,
+        y: 390,
+        width: 10,
+        align: 'centre',
+        font: 'body',
+        size: 12,
+        colour: '#000000',
+      },
     ];
     expect(check([...facts(), ...later])).toEqual({ show: true });
-    const over = { type: 'line', from: [0, 30], to: [600, 30], stroke: '#000000', strokeWidth: 1, dash: [2, 2] };
-    expect(failed(check([...facts(), over]))).toEqual([{ check: 'notHidden', element: 0, field: undefined }]);
+    const over = {
+      type: 'line',
+      from: [0, 30],
+      to: [600, 30],
+      stroke: '#000000',
+      strokeWidth: 1,
+      dash: [2, 2],
+    };
+    expect(failed(check([...facts(), over]))).toEqual([
+      { check: 'notHidden', element: 0, field: undefined },
+    ]);
   });
 
   it('reads a radial gradient at each point, and a stop pair at one offset', () => {
@@ -272,20 +408,68 @@ describe('measuring and placing', () => {
       y: 0,
       width: 600,
       height: 400,
-      fill: { radial: { centre: [0, 0], radius: 1000, stops: [[0, '#ffffff'], [0.5, '#ffffff'], [0.5, '#0f1b2d'], [1, '#0f1b2d']] } },
+      fill: {
+        radial: {
+          centre: [0, 0],
+          radius: 1000,
+          stops: [
+            [0, '#ffffff'],
+            [0.5, '#ffffff'],
+            [0.5, '#0f1b2d'],
+            [1, '#0f1b2d'],
+          ],
+        },
+      },
       stroke: '#000000',
       strokeWidth: 1,
     };
     expect(check([glow, ...facts()])).toEqual({ show: true });
-    const dark = { ...glow, fill: { radial: { centre: [0, 0], radius: 0, stops: [[0, '#ffffff'], [1, '#0f1b2d']] } } };
+    const dark = {
+      ...glow,
+      fill: {
+        radial: {
+          centre: [0, 0],
+          radius: 0,
+          stops: [
+            [0, '#ffffff'],
+            [1, '#0f1b2d'],
+          ],
+        },
+      },
+    };
     expect(failed(check([dark, ...facts()])).length).toBe(5);
-    const flat = { ...glow, fill: { linear: { from: [5, 5], to: [5, 5], stops: [[0, '#ffffff'], [1, '#0f1b2d']] } } };
+    const flat = {
+      ...glow,
+      fill: {
+        linear: {
+          from: [5, 5],
+          to: [5, 5],
+          stops: [
+            [0, '#ffffff'],
+            [1, '#0f1b2d'],
+          ],
+        },
+      },
+    };
     expect(check([flat, ...facts()])).toEqual({ show: true });
   });
 
   it('tests a path drawn in curves and lines, and a rect with four radii', () => {
-    const blob = { type: 'path', d: 'M0 0Q300 -20 600 0V400C400 420 200 420 0 400Z', fill: '#f2f6ff', opacity: 0.5 };
-    const card = { type: 'rect', x: 0, y: 0, width: 600, height: 400, radius: [4, 8, 12, 16], fill: '#f2f6ff' };
+    const blob = {
+      type: 'path',
+      d: 'M0 0Q300 -20 600 0V400C400 420 200 420 0 400Z',
+      fill: '#f2f6ff',
+      opacity: 0.5,
+    };
+    const card = {
+      type: 'rect',
+      x: 0,
+      y: 0,
+      width: 600,
+      height: 400,
+      radius: [4, 8, 12, 16],
+      fill: '#f2f6ff',
+    };
     expect(check([blob, card, ...facts()])).toEqual({ show: true });
   });
 });
@@ -326,7 +510,9 @@ describe('the key facts of each document type', () => {
     expect(failed(check(shown, payslip))).toEqual([
       { check: 'keyFacts', field: 'contributions.0.amount', element: undefined },
     ]);
-    expect(check([...shown, bound('contributions.0.amount', aud)], payslip)).toEqual({ show: true });
+    expect(check([...shown, bound('contributions.0.amount', aud)], payslip)).toEqual({
+      show: true,
+    });
   });
 
   it('lets a design leave out what the receiver sees apart from it, or what follows from what is shown', () => {
@@ -344,15 +530,28 @@ describe('the key facts of each document type', () => {
       recipient: { name: 'Demo' },
     };
     // Sender, recipient, issue date, subtotal and discount all carried, none shown.
-    expect(check([bound('id'), bound('dueAt', date), bound('totalAmount', aud)], invoice)).toEqual({ show: true });
+    expect(check([bound('id'), bound('dueAt', date), bound('totalAmount', aud)], invoice)).toEqual({
+      show: true,
+    });
     row = 0;
-    expect(failed(check([bound('id'), bound('totalAmount', aud)], invoice))).toEqual([{ check: 'keyFacts', field: 'dueAt', element: undefined }]);
-    row = 0;
-    const payslip = { type: 'payslip', title: 'Pay', id: 'P', issuedAt, employee: { name: 'Sam' }, earnings: [{ category: 'ordinary', description: 'Salary', amount: money(1000) }] };
-    // An earning is shown as what it is and how much.
-    expect(failed(check([bound('id'), bound('employee.name'), bound('earnings.0.amount', aud)], payslip))).toEqual([
-      { check: 'keyFacts', field: 'earnings.0.description', element: undefined },
+    expect(failed(check([bound('id'), bound('totalAmount', aud)], invoice))).toEqual([
+      { check: 'keyFacts', field: 'dueAt', element: undefined },
     ]);
+    row = 0;
+    const payslip = {
+      type: 'payslip',
+      title: 'Pay',
+      id: 'P',
+      issuedAt,
+      employee: { name: 'Sam' },
+      earnings: [{ category: 'ordinary', description: 'Salary', amount: money(1000) }],
+    };
+    // An earning is shown as what it is and how much.
+    expect(
+      failed(
+        check([bound('id'), bound('employee.name'), bound('earnings.0.amount', aud)], payslip),
+      ),
+    ).toEqual([{ check: 'keyFacts', field: 'earnings.0.description', element: undefined }]);
   });
 
   it("names a receipt's payment, a discount by percent, and an agreement's acceptance date", () => {
@@ -368,10 +567,19 @@ describe('the key facts of each document type', () => {
     };
     // The discount is not a key fact: the total takes it off. The day it was paid is.
     const shown = [bound('id'), bound('totalAmount', aud), bound('payment.amount', aud)];
-    expect(failed(check(shown, receipt))).toEqual([{ check: 'keyFacts', field: 'payment.paidAt', element: undefined }]);
+    expect(failed(check(shown, receipt))).toEqual([
+      { check: 'keyFacts', field: 'payment.paidAt', element: undefined },
+    ]);
     row = 0;
     const later = '2026-12-09T00:00:00.000Z';
-    const agreement = { type: 'agreement', title: 'A', id: 'A-1', issuedAt, body: { format: 'text', content: 'Hi' }, acceptance: { by: later } };
+    const agreement = {
+      type: 'agreement',
+      title: 'A',
+      id: 'A-1',
+      issuedAt,
+      body: { format: 'text', content: 'Hi' },
+      acceptance: { by: later },
+    };
     expect(failed(check([bound('issuedAt', date), bound('body.content')], agreement))).toEqual([
       { check: 'keyFacts', field: 'acceptance.by', element: undefined },
     ]);
@@ -379,14 +587,23 @@ describe('the key facts of each document type', () => {
 
   it('counts a fact shown by any text that writes its value, as another field bound there writes it', () => {
     row = 0;
-    const receipt = { type: 'receipt', title: 'Paid', id: 'R-1', issuedAt, totalAmount: money(1000), payment: { amount: money(1000), paidAt: issuedAt } };
+    const receipt = {
+      type: 'receipt',
+      title: 'Paid',
+      id: 'R-1',
+      issuedAt,
+      totalAmount: money(1000),
+      payment: { amount: money(1000), paidAt: issuedAt },
+    };
     // One date and one amount on the page: each is both facts' value.
-    expect(failed(check([bound('id'), bound('issuedAt', date), bound('totalAmount', aud)], receipt))).toEqual([]);
+    expect(
+      failed(check([bound('id'), bound('issuedAt', date), bound('totalAmount', aud)], receipt)),
+    ).toEqual([]);
     row = 0;
     const part = { ...receipt, payment: { amount: money(400), paidAt: issuedAt } };
-    expect(failed(check([bound('id'), bound('issuedAt', date), bound('totalAmount', aud)], part))).toEqual([
-      { check: 'keyFacts', field: 'payment.amount', element: undefined },
-    ]);
+    expect(
+      failed(check([bound('id'), bound('issuedAt', date), bound('totalAmount', aud)], part)),
+    ).toEqual([{ check: 'keyFacts', field: 'payment.amount', element: undefined }]);
   });
 });
 
@@ -408,8 +625,18 @@ describe('a bound value, written', () => {
 
   it('writes money in its currency’s decimal places, with its separators, prefix and suffix', () => {
     expect(written({ kind: 'money', amount: 145200, currency: 'AUD' }, money)).toBe('A$1,452.00');
-    expect(written({ kind: 'money', amount: 145200, currency: 'EUR' }, { money: { group: '.', decimal: ',', suffix: ' €' } })).toBe('1.452,00 €');
-    expect(written({ kind: 'money', amount: 4997, currency: 'JPY' }, { money: { group: ',', decimal: '.', prefix: '¥' } })).toBe('¥4,997');
+    expect(
+      written(
+        { kind: 'money', amount: 145200, currency: 'EUR' },
+        { money: { group: '.', decimal: ',', suffix: ' €' } },
+      ),
+    ).toBe('1.452,00 €');
+    expect(
+      written(
+        { kind: 'money', amount: 4997, currency: 'JPY' },
+        { money: { group: ',', decimal: '.', prefix: '¥' } },
+      ),
+    ).toBe('¥4,997');
     expect(written({ kind: 'money', amount: -2500, currency: 'AUD' }, money)).toBe('-A$25.00');
     expect(written({ kind: 'money', amount: 5, currency: 'KWD' }, money)).toBe('A$0.005');
   });
@@ -422,8 +649,17 @@ describe('a bound value, written', () => {
   });
 
   it('writes a percent from basis points, and text in groups', () => {
-    expect(written({ kind: 'percent', basisPoints: 1000 }, { percent: { decimals: 0, decimal: '.' } })).toBe('10%');
-    expect(written({ kind: 'percent', basisPoints: 1050 }, { percent: { decimals: 2, decimal: ',' } })).toBe('10,50%');
-    expect(written({ kind: 'text', text: '51824753556' }, { groups: { sizes: [2, 3, 3, 3], separator: ' ' } })).toBe('51 824 753 556');
+    expect(
+      written({ kind: 'percent', basisPoints: 1000 }, { percent: { decimals: 0, decimal: '.' } }),
+    ).toBe('10%');
+    expect(
+      written({ kind: 'percent', basisPoints: 1050 }, { percent: { decimals: 2, decimal: ',' } }),
+    ).toBe('10,50%');
+    expect(
+      written(
+        { kind: 'text', text: '51824753556' },
+        { groups: { sizes: [2, 3, 3, 3], separator: ' ' } },
+      ),
+    ).toBe('51 824 753 556');
   });
 });

@@ -188,10 +188,6 @@ export const bindRuns = (document: Doc, runs: Run[]): Segment[] => {
   });
 
   const isFree = (placed: Placed) => placed.every(({ run, at }) => !(taken[run] as boolean[])[at]);
-  const charAt = (at: number) => {
-    const item = stream[at];
-    return item && 'char' in item ? item.char : undefined;
-  };
   /**
    * Whether what stands beside a match ends a word: nothing, a break, or an edge character, looking through a `join`
    * or `wrap` to the character beyond it ("No. " and "A1" in touching elements); a `flow` ends a word.
