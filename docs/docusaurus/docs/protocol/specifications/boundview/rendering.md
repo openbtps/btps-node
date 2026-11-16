@@ -43,12 +43,14 @@ these rules say.
 
 An `image` element draws its image scaled to its box, with bilinear
 filtering. The image's pixels are drawn as stored: no colour profile is
-applied.
+applied. An image with a `radius` is clipped to its box with those corners
+rounded, clamped to half the shorter side, as a `rect`'s are.
 
 ## Text
 
 A `text` element's string is its bound value written in its
-[format](./bindings.md#formats), or the part `range` names. A `label`'s
+[format](./bindings.md#formats), or, when it has a
+[`range`](./bindings.md#ranges), that part of the written value. A `label`'s
 string is its `text`. Then:
 
 1. `transform`, when present, makes the string upper or lower case, character
@@ -69,13 +71,44 @@ string is its `text`. Then:
 
 ## Signatures
 
-- **Drawn.** The strokes, on their 1,000 by 300 canvas, are scaled to fit
-  the `signature` element's box, keeping their proportions, and centred.
-  They are stroked in `colour` with a width of 8 units of that canvas,
-  scaled with it, with round ends and joins.
+- **Drawn.** The strokes are on their 1,000 by 300 canvas.
+  1. Each stroke's points are taken in order. A point repeated immediately
+     is counted once.
+  2. A stroke left with one point is a filled disc as wide as the pen:
+     radius 4 units of the canvas.
+  3. Any other stroke is a line through its points. All such lines are one
+     path.
+  4. The pen is 8 units of the canvas wide (`SIGNATURE_STROKE`), with round
+     caps and joins. The path has no fill.
+  5. The canvas is scaled to fit the `signature` element's box, keeping its
+     proportions (the scale is the smaller of `width / 1000` and
+     `height / 300`), and centred. The pen and the discs scale with it.
+  6. The discs are drawn first, then the path, all in `colour`.
+
+  `signatureDrawing` and `signatureSvg` in `@btps/boundview` draw by this
+  rule, and the engine draws a `signature` element with the same function
+  ([A visual signature](./using.md#a-visual-signature)).
 - **Typed.** The text is set in Caveat, bundled with the renderer, at the
   size where it fills the box's width or its height (the font's ascent plus
-  descent), whichever is smaller, and centred both ways.
+  descent), whichever is smaller, and centred both ways. A character Caveat
+  has no glyph for, such as one in another script, is drawn in Arimo, as a
+  label's character falls back.
+
+## Bundled fonts
+
+The renderer bundles six open fonts as glyph tables: Arimo, Tinos, Cousine,
+Carlito and Caladea for [fallbacks](./fonts.md#fallbacks), and Caveat for
+typed signatures. Each is two files:
+
+| File | Holds |
+| --- | --- |
+| `<name>.json` | Printable ASCII and Latin-1, and `€ – — ‘ ’ “ ” • …`, with the font's kerning for them |
+| `<name>-more.json` | Latin Extended-A and -B, Latin Extended Additional (Vietnamese), Greek, Cyrillic, General Punctuation, Currency Symbols (`₹ ₩ ₪ ₺ ₽ ₱` and others), Letterlike Symbols (`№`, `™` and others), Arrows, and `− ≈ ≠ ≤ ≥ ∞`, as far as each font has them. No kerning. |
+
+`@btps/boundview` loads the second file only when a text needs one of its
+characters: `loadBundledFonts(names, characters)` takes the characters, and
+`bundledCharactersFor(document, boundView)` names them, from the labels and
+a typed signature.
 
 ## What may differ
 
