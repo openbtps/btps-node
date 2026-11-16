@@ -141,6 +141,21 @@ describe.skipIf(!chrome)('a preview captured in a real browser', () => {
     expect(red(Math.floor(width / 2), Math.floor((height * 7) / 8))).toBe(false);
   });
 
+  // Found in eBill: a drawn signature with a dot in it (a stroke of one point), which a page draws as a circle, was not
+  // found, and the receiver refused the letter for not showing its signature.
+  it('finds a drawn signature whose dots are drawn as circles', async () => {
+    const strokes = [[100, 200, 300, 80, 500, 220], [700, 60], [800, 150, 950, 150]];
+    const extraHtml =
+      `<svg viewBox="0 0 1000 300" width="200" height="60" style="display:block;margin:0 24px 12px;color:#1e3a8a">` +
+      `<polyline points="100,200 300,80 500,220" fill="none" stroke="currentColor" stroke-width="6"/>` +
+      `<circle cx="700" cy="60" r="3" fill="currentColor"/>` +
+      `<polyline points="800,150 950,150" fill="none" stroke="currentColor" stroke-width="6"/></svg>`;
+    const signed = { ...invoice, signatory: { visualSignature: { type: 'drawn', strokes } } };
+    const { view, error } = await browser.capture(signed, { extraHtml });
+    expect(error).toBeUndefined();
+    expect(view?.elements.filter((element) => element.type === 'signature')).toHaveLength(1);
+  });
+
   it('refuses a preview that does not show a key fact, and says which', async () => {
     const { error } = await browser.capture({ ...invoice, taxAmount: { amount: 99, currency: 'AUD' } });
     expect(error).toContain('taxAmount');

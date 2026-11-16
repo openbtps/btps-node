@@ -851,13 +851,16 @@ const throughMatrix = (
 /** Boxes with a fill, a gradient or a border, images and SVG logos, in the order the page paints them. */
 /**
  * Whether an SVG draws a signature's strokes: one line a stroke, each from the stroke's own points, in the canvas the
- * strokes are in (1,000 by 300), as a page draws the signature it was given.
+ * strokes are in (1,000 by 300), as a page draws the signature it was given. A stroke of one point (a dot) may be drawn
+ * as a circle at it.
  */
 const drawsStrokes = (svg: SVGSVGElement, strokes: number[][]) => {
-  const lines = [...svg.querySelectorAll('polyline, path')];
+  const lines = [...svg.querySelectorAll('polyline, path, circle')];
   if (lines.length !== strokes.length) return false;
   return lines.every((line, i) => {
-    const source = line.tagName.toLowerCase() === 'path' ? line.getAttribute('d') : line.getAttribute('points');
+    const tag = line.tagName.toLowerCase();
+    const source =
+      tag === 'circle' ? `${line.getAttribute('cx')} ${line.getAttribute('cy')}` : tag === 'path' ? line.getAttribute('d') : line.getAttribute('points');
     const numbers = (source?.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
     const stroke = strokes[i] as number[];
     return numbers.length === stroke.length && numbers.every((value, at) => Math.abs(value - (stroke[at] ?? NaN)) <= 0.5);
