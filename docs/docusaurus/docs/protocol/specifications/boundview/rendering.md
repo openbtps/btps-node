@@ -71,10 +71,23 @@ string is its `text`. Then:
 
 ## Signatures
 
-- **Drawn.** The strokes, on their 1,000 by 300 canvas, are scaled to fit
-  the `signature` element's box, keeping their proportions, and centred.
-  They are stroked in `colour` with a width of 8 units of that canvas,
-  scaled with it, with round ends and joins.
+- **Drawn.** The strokes are on their 1,000 by 300 canvas.
+  1. Each stroke's points are taken in order. A point repeated immediately
+     is counted once.
+  2. A stroke left with one point is a filled disc as wide as the pen:
+     radius 4 units of the canvas.
+  3. Any other stroke is a line through its points. All such lines are one
+     path.
+  4. The pen is 8 units of the canvas wide (`SIGNATURE_STROKE`), with round
+     caps and joins. The path has no fill.
+  5. The canvas is scaled to fit the `signature` element's box, keeping its
+     proportions (the scale is the smaller of `width / 1000` and
+     `height / 300`), and centred. The pen and the discs scale with it.
+  6. The discs are drawn first, then the path, all in `colour`.
+
+  `signatureDrawing` and `signatureSvg` in `@btps/boundview` draw by this
+  rule, and the engine draws a `signature` element with the same function
+  ([A visual signature](./using.md#a-visual-signature)).
 - **Typed.** The text is set in Caveat, bundled with the renderer, at the
   size where it fills the box's width or its height (the font's ascent plus
   descent), whichever is smaller, and centred both ways. A character Caveat

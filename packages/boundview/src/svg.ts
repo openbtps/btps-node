@@ -16,16 +16,11 @@ import { boundValue, writtenValue } from '@btps/sdk/boundview';
 import type { BTPBoundView, BTPBoundViewElement, BTPBoundViewFont } from '@btps/sdk/boundview';
 import { FALLBACK_FONT, type BundledFonts } from './glyphs.js';
 import { pngOf } from './png.js';
+import { n, signatureShapes } from './signature.js';
 
 type Paint = NonNullable<Extract<BTPBoundViewElement, { type: 'rect' }>['fill']>;
 type TextLike = Extract<BTPBoundViewElement, { type: 'text' | 'label' }>;
 type Doc = Record<string, unknown>;
-
-/** A drawn signature's stroke, in units of its 1,000 by 300 canvas. */
-export const SIGNATURE_STROKE = 8;
-
-/** A number as the drawing writes it: finite, at most four decimals. */
-const n = (value: number) => (Number.isFinite(value) ? String(Math.round(value * 10000) / 10000) : '0');
 
 /** A colour as `fill`/`stroke` and its opacity. Colours passed the schema: `#rrggbb` or `#rrggbbaa`. */
 const colourOf = (colour: string): [string, number] => [
@@ -147,7 +142,12 @@ const drawText = (
     size = Math.max(fit, Math.max(element.size * 0.75, 6));
   }
   const width = widthAt(size);
-  let x = element.align === 'end' ? element.x + element.width - width : element.align === 'centre' ? element.x + (element.width - width) / 2 : element.x;
+  let x =
+    element.align === 'end'
+      ? element.x + element.width - width
+      : element.align === 'centre'
+        ? element.x + (element.width - width) / 2
+        : element.x;
   const paths: string[] = [];
   characters.forEach((char, i) => {
     const found = glyphFor(font, char, element.type === 'label', bundled);
@@ -157,7 +157,9 @@ const drawText = (
     }
     const scale = size / found.font.unitsPerEm;
     if (found.glyph.path !== undefined) {
-      paths.push(`<path transform="translate(${n(x)} ${n(element.y)}) scale(${n(scale)})" d="${found.glyph.path}"/>`);
+      paths.push(
+        `<path transform="translate(${n(x)} ${n(element.y)}) scale(${n(scale)})" d="${found.glyph.path}"/>`,
+      );
     }
     const kerning = found.font.kerning?.[`${char}${characters[i + 1] ?? ''}`] ?? 0;
     x += (found.glyph.advance + kerning) * scale + spacing;
@@ -184,27 +186,22 @@ const drawSignature = (
   bundled: BundledFonts,
 ) => {
   if (signature.type === 'drawn') {
+    // By the one rule a platform's page shows it with (signature.ts), fitted to the box, centred.
     const scale = Math.min(box.width / 1000, box.height / 300);
     const left = box.x + (box.width - 1000 * scale) / 2;
     const top = box.y + (box.height - 300 * scale) / 2;
-    const d = signature.strokes
-      .map((stroke) =>
-        stroke
-          .reduce<string[]>((points, value, i) => {
-            if (i % 2 === 0) points.push(`${points.length === 0 ? 'M' : 'L'}${n(left + value * scale)} `);
-            else points[points.length - 1] += n(top + value * scale);
-            return points;
-          }, [])
-          .join(''),
-      )
-      .join('');
-    drawing.push(
-      `<path d="${d}" fill="none" stroke="${box.colour}" stroke-width="${n(SIGNATURE_STROKE * scale)}" stroke-linecap="round" stroke-linejoin="round"/>`,
-    );
+    for (const shape of signatureShapes(
+      signature.strokes,
+      (x, y) => [left + x * scale, top + y * scale],
+      scale,
+      box.colour,
+    ))
+      drawing.push(shape);
     return;
   }
   // In Caveat; a character it has no glyph for (another script) in Arimo, as a label falls back.
-  const caveat = bundled.caveat === undefined ? undefined : { ...bundled.caveat, fallback: ['arimo' as const] };
+  const caveat =
+    bundled.caveat === undefined ? undefined : { ...bundled.caveat, fallback: ['arimo' as const] };
   if (caveat === undefined) return;
   const characters = [...signature.text];
   const units = characters.reduce((width, char, i) => {
@@ -213,7 +210,10 @@ const drawSignature = (
     return width + advance + (caveat.kerning?.[`${char}${characters[i + 1] ?? ''}`] ?? 0);
   }, 0);
   const tall = caveat.ascent + caveat.descent;
-  const size = Math.min(units > 0 ? (box.width * caveat.unitsPerEm) / units : Infinity, (box.height * caveat.unitsPerEm) / tall);
+  const size = Math.min(
+    units > 0 ? (box.width * caveat.unitsPerEm) / units : Infinity,
+    (box.height * caveat.unitsPerEm) / tall,
+  );
   const scale = size / caveat.unitsPerEm;
   const baseline = box.y + (box.height - tall * scale) / 2 + caveat.ascent * scale;
   drawText(
@@ -241,28 +241,43 @@ const drawSignature = (
  * checks first. `bundled` holds the bundled fonts it needs
  * (`loadBundledFonts(bundledFontsFor(document, view), bundledCharactersFor(document, view))`); most need none.
  */
-export const boundViewToSvg = (document: Doc, view: BTPBoundView, bundled: BundledFonts = {}): string => {
+export const boundViewToSvg = (
+  document: Doc,
+  view: BTPBoundView,
+  bundled: BundledFonts = {},
+): string => {
   const drawing = new Drawing();
   for (const element of view.elements) {
-    const opacity = 'opacity' in element && element.opacity !== undefined ? ` opacity="${n(element.opacity)}"` : '';
+    const opacity =
+      'opacity' in element && element.opacity !== undefined
+        ? ` opacity="${n(element.opacity)}"`
+        : '';
     switch (element.type) {
       case 'rect': {
         const radius = element.radius ?? 0;
         const radii = Array.isArray(radius) ? radius : [radius, radius, radius, radius];
         const outline = roundedRect(element.x, element.y, element.width, element.height, radii);
-        const stroke = element.stroke ? `${drawing.paint('stroke', element.stroke)} stroke-width="${n(element.strokeWidth ?? 0)}"` : '';
-        drawing.push(`<path d="${outline}"${drawing.paint('fill', element.fill)}${stroke}${opacity}/>`);
+        const stroke = element.stroke
+          ? `${drawing.paint('stroke', element.stroke)} stroke-width="${n(element.strokeWidth ?? 0)}"`
+          : '';
+        drawing.push(
+          `<path d="${outline}"${drawing.paint('fill', element.fill)}${stroke}${opacity}/>`,
+        );
         break;
       }
       case 'line': {
-        const dash = element.dash ? ` stroke-dasharray="${n(element.dash[0])} ${n(element.dash[1])}"` : '';
+        const dash = element.dash
+          ? ` stroke-dasharray="${n(element.dash[0])} ${n(element.dash[1])}"`
+          : '';
         drawing.push(
           `<path d="M${n(element.from[0])} ${n(element.from[1])}L${n(element.to[0])} ${n(element.to[1])}" fill="none"${drawing.paint('stroke', element.stroke)} stroke-width="${n(element.strokeWidth)}" stroke-linecap="butt"${dash}${opacity}/>`,
         );
         break;
       }
       case 'path': {
-        const stroke = element.stroke ? `${drawing.paint('stroke', element.stroke)} stroke-width="${n(element.strokeWidth ?? 0)}"` : '';
+        const stroke = element.stroke
+          ? `${drawing.paint('stroke', element.stroke)} stroke-width="${n(element.strokeWidth ?? 0)}"`
+          : '';
         drawing.push(
           `<path d="${element.d}" fill-rule="${element.fillRule ?? 'nonzero'}"${drawing.paint('fill', element.fill)}${stroke}${opacity}/>`,
         );
@@ -285,17 +300,25 @@ export const boundViewToSvg = (document: Doc, view: BTPBoundView, bundled: Bundl
         const font = view.fonts?.[element.font];
         const value = boundValue(document, element.bind.field);
         if (font === undefined || value === undefined) break;
-        drawText(drawing, element, transformed(writtenValue(value, element.bind), element.transform), font, bundled);
+        drawText(
+          drawing,
+          element,
+          transformed(writtenValue(value, element.bind), element.transform),
+          font,
+          bundled,
+        );
         break;
       }
       case 'label': {
         const font = view.fonts?.[element.font];
-        if (font !== undefined) drawText(drawing, element, transformed(element.text, element.transform), font, bundled);
+        if (font !== undefined)
+          drawText(drawing, element, transformed(element.text, element.transform), font, bundled);
         break;
       }
       case 'signature': {
         const signatory = document.signatory as { visualSignature?: Signature } | undefined;
-        if (signatory?.visualSignature) drawSignature(drawing, element, signatory.visualSignature, bundled);
+        if (signatory?.visualSignature)
+          drawSignature(drawing, element, signatory.visualSignature, bundled);
         break;
       }
     }

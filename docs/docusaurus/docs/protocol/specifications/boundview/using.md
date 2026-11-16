@@ -222,11 +222,12 @@ It reads the preview as the browser laid it out:
   preview's overflow is not clipped (`overflow: visible`).
 - **A visual signature:** where the page draws the document's
   `signatory.visualSignature`, the snapshot puts a `signature` element, which
-  the receiver draws from the signed data. A drawn signature is found as an
-  SVG of exactly its strokes: one line or path a stroke, from the stroke's
-  own points. A typed one is found as a line of text that is exactly its
-  text; of several, the one in the page's rarest typeface, the one it sets
-  the fewest characters in, and the last where they tie.
+  the receiver draws from the signed data. A drawn signature is found only
+  when the page draws it by the one rule the engine uses
+  ([A visual signature](#a-visual-signature)). A typed one is found as a
+  line of text that is exactly its text; of several, the one in the page's
+  rarest typeface, the one it sets the fewest characters in, and the last
+  where they tie.
 
 **Facts are found by their value.** Every way a field may be written is
 tried: money separators, prefix and suffix, the nine date patterns,
@@ -257,6 +258,82 @@ the field exactly as shown.
   ([When a key fact is shown](./checks.md#when-a-key-fact-is-shown)). Where
   a place could be either of two fields, such as `02/01/2026` for one date
   written day first and another month first, a key fact takes it first.
+
+### A visual signature
+
+A drawn signature has one rule, on its 1,000 by 300 canvas: each stroke's
+points in order, a point repeated immediately counted once; a stroke of one
+point is a disc as wide as the pen; any other stroke is a line through its
+points; all those lines are one path, 8 units wide (`SIGNATURE_STROKE`),
+with round caps and joins ([Signatures](./rendering.md#signatures)). The
+engine draws a `signature` element by this rule. Show the signature on your
+page by the same rule, and your page and the receiver's picture cannot
+differ, whatever the strokes.
+
+`@btps/boundview` gives you the rule. Import it from
+`@btps/boundview/signature`, a small entry with no engine, safe to load in
+any page:
+
+| Export | What it gives |
+| --- | --- |
+| `SIGNATURE_STROKE` | The pen's width, 8 units of the canvas. A dot is this wide. |
+| `signatureDrawing(strokes)` | `{ dots: { cx, cy, r }[], line: { d, strokeWidth } \| null }`, every attribute as the exact string the drawing writes. |
+| `signatureSvg(strokes, colour = 'currentColor')` | A whole `<svg viewBox="0 0 1000 300">` string. |
+
+<Tabs groupId="signature-markup">
+<TabItem value="react" label="React">
+
+```tsx
+import { signatureDrawing } from '@btps/boundview/signature';
+
+export function Signature({ strokes }: { strokes: number[][] }) {
+  const { dots, line } = signatureDrawing(strokes);
+  return (
+    <svg viewBox="0 0 1000 300" width={220} height={66}>
+      {dots.map((dot, i) => (
+        <circle key={i} cx={dot.cx} cy={dot.cy} r={dot.r} fill="currentColor" />
+      ))}
+      {line && (
+        <path
+          d={line.d}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={line.strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+    </svg>
+  );
+}
+```
+
+</TabItem>
+<TabItem value="dom" label="Plain DOM">
+
+```ts
+import { signatureSvg } from '@btps/boundview/signature';
+
+// The svg has no size of its own: size it with CSS, e.g. width: 220px
+signatureBox.innerHTML = signatureSvg(document.signatory.visualSignature.strokes);
+```
+
+</TabItem>
+</Tabs>
+
+The snapshot finds the signature by comparing your SVG with what
+`signatureSvg` draws for the signed strokes, shape for shape: each shape's
+tag and its `d`, `cx`, `cy`, `r` and `stroke-width`, in order. The SVG's
+`viewBox` must be `0 0 1000 300`. The ink colour is read from the first
+shape: its stroke, or its fill for a dot. Use your page's text colour
+(`currentColor`) or any colour you set.
+
+:::warning Any other drawing is not the signature
+Polylines, another pen width, a rounded or moved point: any other drawing of
+the strokes is not taken as the signature. A signature is a key fact when
+the document carries one, so `snapshotBoundView` then throws. You can still
+send the document without a BoundView.
+:::
 
 ### A preview that passes
 
@@ -378,6 +455,15 @@ BoundView, never by it:
 
 So a BoundView cannot pose as the sender, hide an attachment, or disguise
 where a link goes.
+
+Your own view of the signed data is the truth, not the BoundView. Every fact
+on a BoundView is written from the signed fields, but the shapes of its
+characters are drawn from the sender's glyph outlines, and nothing checks
+that a glyph's shape is the character it stands for
+([Glyph shapes are the sender's](./security.md#glyph-shapes-are-the-senders)).
+Show your own view alongside the BoundView or a press away, and say near the
+BoundView that amounts and other facts are confirmed there. eBill, for
+example, shows a note to confirm amounts in its own view.
 
 :::warning A receiver must show these
 Showing the verified sender, the title, the attachments, the references and

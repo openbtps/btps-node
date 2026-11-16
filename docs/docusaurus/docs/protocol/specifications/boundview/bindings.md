@@ -14,8 +14,11 @@ it: see [Using BoundView](./using.md).
 :::
 
 A `text` element's `bind` names a signed field and says how its value is
-written. A receiver draws the value it finds in the document, never text
-from the canvas, so a BoundView cannot show a fact the document does not carry.
+written. A receiver writes the value it finds in the document itself,
+character by character, never text from the canvas, so a bound element
+cannot write characters the document does not carry. The shapes of those
+characters are the sender's glyph outlines, which are not checked
+([Glyph shapes are the sender's](./security.md#glyph-shapes-are-the-senders)).
 
 ```json
 { "field": "totalAmount", "format": { "money": { "group": ",", "decimal": ".", "prefix": "A$" } } }

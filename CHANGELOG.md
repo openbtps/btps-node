@@ -79,6 +79,13 @@ Upgrading a 1.1 provider: [Migrating from 1.1 to 1.2](https://www.openbtps.org/d
   open-licence glyph outlines for label fallbacks and typed signatures.
 - **`@btps/sdk/boundview`.** A BoundView's schema, bindings and checks alone,
   for a browser or app without the rest of the SDK.
+- `@btps/boundview`: one rule for a drawn signature, in the new
+  `@btps/boundview/signature` entry (no engine, safe in any page) and the
+  package root: `SIGNATURE_STROKE` (8), `signatureDrawing(strokes)`, the
+  shapes with every attribute as the drawing writes it, and
+  `signatureSvg(strokes, colour?)`, a whole `<svg viewBox="0 0 1000 300">`.
+  The engine draws a `signature` element by the same function, so a page that
+  shows a signature this way and the receiver's picture cannot differ.
 - **Totals, line roles and the recipient.** An invoice or receipt may carry
   `subtotalAmount` and `taxAmount`, and name what each line-item column holds
   (`lineItems.roles`, `BTPLineRole`); an invoice, receipt, letter or agreement
@@ -409,6 +416,9 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   takes the characters needed, and `bundledCharactersFor(document, view)`
   names them. A typed signature's characters Caveat lacks are drawn in
   Arimo. 1.2.0-rc.3.1 bundled Latin and Latin-1 only.
+- `@btps/boundview`: a drawn signature's stroke of one point is drawn as a
+  dot as wide as the pen, and a point repeated at once counts once
+  (`signatureDrawing`). 1.2.0-rc.3.1 drew a stroke of one point as nothing.
 - A `1.2.0` trust request carries `permissions`. One without them is refused
   on arrival; a request for everything is a `1.1.0` one, which every server
   still takes.
@@ -523,9 +533,10 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
   text over several lines, so a split or wrapped value went unbound and the
   BoundView failed its key-facts check.
 - `@btps/boundview`: `snapshotBoundView` emits the `signature` element where
-  the page draws the document's visual signature: an SVG of exactly its
-  strokes, or the line that is exactly its typed text, in the page's rarest
-  typeface. 1.2.0-rc.3.1 emitted none, so a letter or agreement with a
+  the page draws the document's visual signature: an SVG that draws, shape
+  for shape, what `signatureSvg` draws for its strokes, or the line that is
+  exactly its typed text, in the page's rarest typeface. Any other drawing
+  of the strokes is not taken as the signature. 1.2.0-rc.3.1 emitted none, so a letter or agreement with a
   visual signature always failed its key-facts check.
 - `@btps/boundview`: `snapshotBoundView` makes a text's box no wider than
   the browser drew it, rounded down, so text touching what follows it is not
@@ -579,6 +590,12 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
 - An error thrown, or passed on as caught, reaches the sender only as a BTPS
   constant, else as the generic 500; a platform's own plain answer sent with
   `res.sendError` goes as given.
+- BoundView: a font's glyph outlines are the sender's. A receiver checks
+  that every character of a bound value has a glyph and fits, not that a
+  glyph's shape is the character it stands for, so a dishonest sender could
+  draw a 1 as a 7. This is accepted and documented: the receiving app's own
+  view of the signed data is authoritative, and is shown alongside the
+  BoundView or a press away (Security model, "Glyph shapes are the sender's").
 
 ### Upgrading from 1.1
 

@@ -28,6 +28,7 @@ import {
 } from '@btps/sdk/boundview';
 import { initBoundViewEngine, type BoundViewEngineSource } from '../render.js';
 import { boundViewToSvg } from '../svg.js';
+import { signatureSvg } from '../signature.js';
 import { loadBundledFonts } from '../glyphs.js';
 import { bindRuns, type Run, type Segment } from './bind.js';
 import { fallbackFor, glyphTable, variationFor, type OpenTypeFont } from './fonts.js';
@@ -1145,44 +1146,37 @@ const throughMatrix = (
   }
 };
 
-/** Boxes with a fill, a gradient or a border, images and SVG logos, in the order the page paints them. */
-/** Every shape SVG has, each read as the points it is drawn through: a circle or an ellipse as its centre (a dot). */
-const STROKE_SHAPES = 'polyline, polygon, path, line, circle, ellipse';
-
-const pointsOf = (shape: SVGElement): number[] => {
-  const tag = shape.tagName.toLowerCase();
-  const attributes =
-    tag === 'circle' || tag === 'ellipse'
-      ? ['cx', 'cy']
-      : tag === 'line'
-        ? ['x1', 'y1', 'x2', 'y2']
-        : tag === 'path'
-          ? ['d']
-          : ['points'];
-  const source = attributes.map((name) => shape.getAttribute(name) ?? '').join(' ');
-  return (source.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
-};
+/** A drawn signature's shapes as their geometry, in order: what a page shows of it, and what signatureSvg draws. */
+const geometryOf = (root: globalThis.Element): string[] =>
+  [...root.querySelectorAll('circle, path')].map((shape) =>
+    [
+      shape.tagName.toLowerCase(),
+      ...['d', 'cx', 'cy', 'r', 'stroke-width'].map((name) => shape.getAttribute(name) ?? ''),
+    ].join('|'),
+  );
 
 /**
- * Whether an SVG draws a signature's strokes: one shape a stroke, in order, each through the stroke's own points, in
- * the canvas the strokes are in (1,000 by 300), as a page draws the signature it was given. What is compared is the
- * points; which shape a page draws a stroke with (a line, a path, a dot as a circle) is the page's own.
+ * Whether an SVG is the signed signature: the one signatureSvg draws for its strokes, on the 1,000 by 300 canvas, shape
+ * for shape. A platform shows that; the engine draws it by the same rule, so the two cannot differ whatever the strokes.
  */
-const drawsStrokes = (svg: SVGSVGElement, strokes: number[][]) => {
-  const shapes = [...svg.querySelectorAll<SVGElement>(STROKE_SHAPES)];
-  if (shapes.length !== strokes.length) return false;
-  return shapes.every((shape, i) => {
-    const numbers = pointsOf(shape);
-    const stroke = strokes[i] as number[];
-    return (
-      numbers.length === stroke.length &&
-      numbers.every((value, at) => Math.abs(value - (stroke[at] ?? NaN)) <= 0.5)
-    );
-  });
+const drawsSignature = (svg: SVGSVGElement, strokes: number[][]) => {
+  const box = (svg.getAttribute('viewBox') ?? '')
+    .trim()
+    .split(/[\s,]+/)
+    .map(Number);
+  if (box.join(' ') !== '0 0 1000 300') return false;
+  const signed = new DOMParser().parseFromString(
+    signatureSvg(strokes),
+    'image/svg+xml',
+  ).documentElement;
+  const shown = geometryOf(svg);
+  const drawn = geometryOf(signed);
+  return shown.length === drawn.length && shown.every((shape, i) => shape === drawn[i]);
 };
 
 type Signed = { strokes?: number[][]; text?: string; found: Element[] };
 
+/** Boxes with a fill, a gradient or a border, images and SVG logos, in the order the page paints them. */
 const paint = async (
   root: HTMLElement,
   origin: DOMRect,
@@ -1405,9 +1399,9 @@ const paint = async (
     }
     try {
       // The sender's drawn signature: the receiver draws it from the signed strokes, in this box.
-      if (svg && signature.strokes && drawsStrokes(svg, signature.strokes)) {
+      if (svg && signature.strokes && drawsSignature(svg, signature.strokes)) {
         // Its ink: the first shape's stroke, or its fill where it has none (a dot).
-        const ink = svg.querySelector(STROKE_SHAPES);
+        const ink = svg.querySelector('path, circle');
         const style = ink ? getComputedStyle(ink) : undefined;
         const colour = style ? hex(style.stroke === 'none' ? style.fill : style.stroke) : undefined;
         signature.found.push({

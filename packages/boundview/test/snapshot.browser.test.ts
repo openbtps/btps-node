@@ -18,7 +18,12 @@ import { writeFileSync } from 'node:fs';
 import { Resvg } from '@resvg/resvg-wasm';
 import { unzlibSync } from 'fflate';
 import { BtpBoundViewSchema, checkBoundView, type BTPBoundView } from '@btps/sdk/boundview';
-import { initBoundViewEngine, renderBoundView, boundViewToSvg } from '../src/index.js';
+import {
+  initBoundViewEngine,
+  renderBoundView,
+  boundViewToSvg,
+  signatureSvg,
+} from '../src/index.js';
 import { chrome, previewInvoice as invoice, startCapture } from './browser/capture.js';
 
 describe.skipIf(!chrome)('a preview captured in a real browser', () => {
@@ -175,75 +180,61 @@ describe.skipIf(!chrome)('a preview captured in a real browser', () => {
     expect(red(Math.floor(width / 2), Math.floor((height * 7) / 8))).toBe(false);
   });
 
-  // Found in eBill: a drawn signature with a dot in it (a stroke of one point), which a page draws as a circle, was not
-  // found, and the receiver refused the letter for not showing its signature. What is matched is the points; the shape a
-  // page draws each stroke with is its own: any signature, drawn with any of SVG's shapes, is found.
-  describe('a drawn signature, by its points, whatever shapes draw it', () => {
-    const LINES = ['polyline', 'path', 'polygon', 'line'] as const;
-    const DOTS = ['circle', 'ellipse', 'polyline', 'path'] as const;
+  // Found in eBill: a drawn signature with dots, drawn by the page one way and by the engine another, was not found, and
+  // was drawn bolder and without its dots. Now one rule draws it (signature.ts): a page shows signatureSvg, the engine
+  // draws by the same function, and the snapshot finds it by equality, whatever the strokes.
+  describe('a drawn signature, by the one rule both the page and the engine draw it with', () => {
     let seed = 7;
     const random = (below: number) => {
       seed = (seed * 48271) % 2147483647;
       return seed % below;
     };
+    // Dots, two-point lines, strokes of up to 40 points, and a point repeated at once (a pen held still).
     const signatureOf = () =>
       Array.from({ length: 1 + random(8) }, () => {
-        // A dot, a straight line (two points, as `line` draws), or a stroke of up to 40 points.
         const points = [1, 2, 2 + random(39)][random(3)] as number;
-        return Array.from({ length: points }, () => [random(1001), random(301)]).flat();
+        const stroke = Array.from({ length: points }, () => [random(1001), random(301)]).flat();
+        return random(4) === 0 ? [...stroke.slice(0, 2), ...stroke] : stroke;
       });
-    const shapeOf = (stroke: number[], turn: number) => {
-      const pairs = stroke.reduce<string[]>(
-        (all, value, at) =>
-          at % 2 ? [...all.slice(0, -1), `${all.at(-1)},${value}`] : [...all, String(value)],
-        [],
-      );
-      const ink = 'fill="none" stroke="currentColor" stroke-width="6"';
-      const [x1, y1, x2, y2] = stroke;
-      const tag =
-        stroke.length === 2
-          ? DOTS[turn % DOTS.length]
-          : stroke.length === 4
-            ? [...LINES][turn % LINES.length]
-            : LINES[turn % 3];
-      if (tag === 'circle') return `<circle cx="${x1}" cy="${y1}" r="3" fill="currentColor"/>`;
-      if (tag === 'ellipse')
-        return `<ellipse cx="${x1}" cy="${y1}" rx="3" ry="3" fill="currentColor"/>`;
-      if (tag === 'line') return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" ${ink}/>`;
-      if (tag === 'path') return `<path d="M${pairs.join(' L')}" ${ink}/>`;
-      return `<${tag} points="${pairs.join(' ')}" ${ink}/>`;
-    };
-    const page = (strokes: number[][], turn: number) =>
-      `<svg viewBox="0 0 1000 300" width="200" height="60" style="display:block;margin:0 24px 12px;color:#1e3a8a">` +
-      strokes.map((stroke, at) => shapeOf(stroke, turn + at)).join('') +
-      `</svg>`;
+    const shown = (svg: string) =>
+      `<div style="width:200px;height:60px;margin:0 24px 12px;color:#1e3a8a">${svg.replace('<svg ', '<svg width="200" height="60" ')}</div>`;
     const signed = (strokes: number[][]) => ({
       ...invoice,
       signatory: { visualSignature: { type: 'drawn', strokes } },
     });
 
-    it('finds each of 40 signatures, with dots, lines and long strokes, drawn with every shape in turn', async () => {
+    it('finds each of 40 signatures a page shows as signatureSvg draws them', async () => {
       for (let turn = 0; turn < 40; turn++) {
         const strokes = signatureOf();
         const { view, error } = await browser.capture(signed(strokes), {
-          extraHtml: page(strokes, turn),
+          extraHtml: shown(signatureSvg(strokes)),
         });
         expect(error, JSON.stringify(strokes)).toBeUndefined();
         expect(view?.elements.filter((element) => element.type === 'signature')).toHaveLength(1);
       }
     });
 
-    it('does not take a drawing as the signature when one point of it is elsewhere', async () => {
+    it('does not take another drawing as the signature: one point elsewhere, or the same points drawn by another rule', async () => {
       const strokes = [
         [100, 200, 300, 80, 500, 220],
         [700, 60],
       ];
-      const moved = [
-        [100, 200, 300, 83, 500, 220],
-        [700, 60],
-      ];
-      const { error } = await browser.capture(signed(strokes), { extraHtml: page(moved, 0) });
-      expect(error).toContain('signature');
+      const moved = await browser.capture(signed(strokes), {
+        extraHtml: shown(
+          signatureSvg([
+            [100, 200, 300, 83, 500, 220],
+            [700, 60],
+          ]),
+        ),
+      });
+      expect(moved.error).toContain('signature');
+      const other = await browser.capture(signed(strokes), {
+        extraHtml: shown(
+          '<svg viewBox="0 0 1000 300"><polyline points="100,200 300,80 500,220" fill="none" stroke="currentColor" stroke-width="6"/>' +
+            '<circle cx="700" cy="60" r="3" fill="currentColor"/></svg>',
+        ),
+      });
+      expect(other.error).toContain('signature');
     });
   });
 
