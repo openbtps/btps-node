@@ -53,7 +53,15 @@ import {
   type Corners,
   type Side,
 } from './decor.js';
-import { apply, flatten, isIdentity, isUpright, materialize, scaleOf, transformPath } from './layers.js';
+import {
+  apply,
+  flatten,
+  isIdentity,
+  isUpright,
+  materialize,
+  scaleOf,
+  transformPath,
+} from './layers.js';
 
 type Doc = Record<string, unknown>;
 type Element = BTPBoundViewElement;
@@ -134,7 +142,8 @@ const solid = (colour: string) => colour.slice(0, 7);
 
 const toBase64 = (bytes: Uint8Array) => {
   let text = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  for (let i = 0; i < bytes.length; i += 0x8000)
+    text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(text);
 };
 
@@ -142,9 +151,18 @@ const toBase64 = (bytes: Uint8Array) => {
  * An image as the browser shows it, at twice its box or at its own resolution if that is more (a logo drawn small from a
  * larger file stays sharp when the view is enlarged), where the limits allow: every pixel, compressed losslessly.
  */
-const capturePixels = (draw: (context: CanvasRenderingContext2D, width: number, height: number) => void, box: Box, own?: { width: number; height: number }): Image => {
+const capturePixels = (
+  draw: (context: CanvasRenderingContext2D, width: number, height: number) => void,
+  box: Box,
+  own?: { width: number; height: number },
+): Image => {
   const wanted = Math.max(2, own ? Math.min(own.width / box.width, own.height / box.height) : 0);
-  const scale = Math.min(wanted, 1024 / box.width, 1024 / box.height, Math.sqrt(262144 / (box.width * box.height)));
+  const scale = Math.min(
+    wanted,
+    1024 / box.width,
+    1024 / box.height,
+    Math.sqrt(262144 / (box.width * box.height)),
+  );
   // Rounded down, so never past the limits.
   const width = Math.max(1, Math.floor(box.width * scale));
   const height = Math.max(1, Math.floor(box.height * scale));
@@ -155,22 +173,37 @@ const capturePixels = (draw: (context: CanvasRenderingContext2D, width: number, 
   draw(context, width, height);
   // Throws for an image from another site that does not allow it: the caller says so.
   const rgba = context.getImageData(0, 0, width, height).data;
-  return { width, height, encoding: 'rgba8-deflate', data: toBase64(zlibSync(new Uint8Array(rgba.buffer))) };
+  return {
+    width,
+    height,
+    encoding: 'rgba8-deflate',
+    data: toBase64(zlibSync(new Uint8Array(rgba.buffer))),
+  };
 };
 
 /**
  * Where an <img> draws in its box of `width` by `height` (at `scale` to the page), as its object-fit and object-position
  * place it: a logo kept in proportion in a box of another shape is never stretched to the box.
  */
-const fitted = (natural: { width: number; height: number }, css: CSSStyleDeclaration, width: number, height: number, scale: number): [number, number, number, number] => {
+const fitted = (
+  natural: { width: number; height: number },
+  css: CSSStyleDeclaration,
+  width: number,
+  height: number,
+  scale: number,
+): [number, number, number, number] => {
   const own = { width: natural.width * scale, height: natural.height * scale };
-  if (!own.width || !own.height || css.objectFit === 'fill' || !css.objectFit) return [0, 0, width, height];
+  if (!own.width || !own.height || css.objectFit === 'fill' || !css.objectFit)
+    return [0, 0, width, height];
   const fit = Math.min(width / own.width, height / own.height);
   const ratio =
-    css.objectFit === 'contain' ? fit
-    : css.objectFit === 'cover' ? Math.max(width / own.width, height / own.height)
-    : css.objectFit === 'scale-down' ? Math.min(1, fit)
-    : 1;
+    css.objectFit === 'contain'
+      ? fit
+      : css.objectFit === 'cover'
+        ? Math.max(width / own.width, height / own.height)
+        : css.objectFit === 'scale-down'
+          ? Math.min(1, fit)
+          : 1;
   const w = own.width * ratio;
   const h = own.height * ratio;
   // Each of object-position's two values: a percentage of the room left, a length from the edge, or a keyword.
@@ -188,28 +221,53 @@ const fitted = (natural: { width: number; height: number }, css: CSSStyleDeclara
  * A clip-path's basic shape (circle, ellipse, inset with its rounding, polygon) in a box of `width` by `height` pixels,
  * `scale` of them to a page pixel; undefined for none, or a shape this does not read.
  */
-const clipPathOf = (value: string, width: number, height: number, scale: number): Path2D | undefined => {
+const clipPathOf = (
+  value: string,
+  width: number,
+  height: number,
+  scale: number,
+): Path2D | undefined => {
   const match = /^(circle|ellipse|inset|polygon)\((.*)\)/.exec(value.trim());
   if (!match) return undefined;
   const [, shape, args = ''] = match;
-  const len = (v: string, of: number) => (v.endsWith('%') ? (parseFloat(v) / 100) * of : parseFloat(v) * scale);
+  const len = (v: string, of: number) =>
+    v.endsWith('%') ? (parseFloat(v) / 100) * of : parseFloat(v) * scale;
   const path = new Path2D();
   if (shape === 'polygon') {
-    const points = args.replace(/^(nonzero|evenodd),/, '').split(',').map((pair) => pair.trim().split(/\s+/));
-    points.forEach(([x = '0', y = '0'], i) => (i === 0 ? path.moveTo(len(x, width), len(y, height)) : path.lineTo(len(x, width), len(y, height))));
+    const points = args
+      .replace(/^(nonzero|evenodd),/, '')
+      .split(',')
+      .map((pair) => pair.trim().split(/\s+/));
+    points.forEach(([x = '0', y = '0'], i) =>
+      i === 0
+        ? path.moveTo(len(x, width), len(y, height))
+        : path.lineTo(len(x, width), len(y, height)),
+    );
     path.closePath();
     return path;
   }
   const [size = '', at = '50% 50%'] = args.split(/\s+at\s+/);
   const [cx = '50%', cy = '50%'] = at.trim().split(/\s+/);
   if (shape === 'circle') {
-    const r = size.endsWith('%') ? (parseFloat(size) / 100) * Math.hypot(width, height) / Math.SQRT2 : size && size !== 'closest-side' ? len(size, width) : Math.min(width, height) / 2;
+    const r = size.endsWith('%')
+      ? ((parseFloat(size) / 100) * Math.hypot(width, height)) / Math.SQRT2
+      : size && size !== 'closest-side'
+        ? len(size, width)
+        : Math.min(width, height) / 2;
     path.arc(len(cx, width), len(cy, height), r, 0, Math.PI * 2);
     return path;
   }
   if (shape === 'ellipse') {
     const [rx = '50%', ry = rx] = size.trim().split(/\s+/).filter(Boolean);
-    path.ellipse(len(cx, width), len(cy, height), len(rx, width), len(ry, height), 0, 0, Math.PI * 2);
+    path.ellipse(
+      len(cx, width),
+      len(cy, height),
+      len(rx, width),
+      len(ry, height),
+      0,
+      0,
+      Math.PI * 2,
+    );
     return path;
   }
   // inset(t r b l round radius)
@@ -239,20 +297,34 @@ const IGNORED = new Set(['defs', 'title', 'desc', 'metadata', 'style', 'g', 'svg
 const SHAPES = new Set(['path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon']);
 
 /** An SVG's shapes as BoundView paths on the page, or undefined when it holds anything a path cannot carry. */
-const svgPaths = (svg: SVGSVGElement, origin: DOMRect, offset: [number, number] = [0, 0]): Element[] | undefined => {
+const svgPaths = (
+  svg: SVGSVGElement,
+  origin: DOMRect,
+  offset: [number, number] = [0, 0],
+): Element[] | undefined => {
   const out: Element[] = [];
   for (const node of svg.querySelectorAll('*')) {
     const tag = node.tagName.toLowerCase();
     if (node.closest('defs, clipPath, mask, symbol, pattern') && tag !== 'defs') continue;
     if (IGNORED.has(tag)) {
-      if (node.getAttribute('filter') || node.getAttribute('mask') || node.getAttribute('clip-path')) return undefined;
+      if (
+        node.getAttribute('filter') ||
+        node.getAttribute('mask') ||
+        node.getAttribute('clip-path')
+      )
+        return undefined;
       continue;
     }
     if (!SHAPES.has(tag)) return undefined;
     const shape = node as SVGGraphicsElement;
     const style = getComputedStyle(shape);
     if (style.display === 'none' || style.visibility === 'hidden') continue;
-    if (style.filter !== 'none' || style.mask !== 'none' || style.clipPath !== 'none' || style.strokeDasharray !== 'none') {
+    if (
+      style.filter !== 'none' ||
+      style.mask !== 'none' ||
+      style.clipPath !== 'none' ||
+      style.strokeDasharray !== 'none'
+    ) {
       return undefined;
     }
     const number = (name: string) => {
@@ -262,17 +334,34 @@ const svgPaths = (svg: SVGSVGElement, origin: DOMRect, offset: [number, number] 
     let d: string | undefined;
     if (tag === 'path') d = shape.getAttribute('d') ?? undefined;
     else if (tag === 'polyline' || tag === 'polygon') {
-      const points = (shape.getAttribute('points') ?? '').trim().split(/[\s,]+/).map(Number);
-      d = points.reduce((path, value, i) => path + (i % 2 === 0 ? `${i === 0 ? 'M' : 'L'}${value}` : ` ${value}`), '');
+      const points = (shape.getAttribute('points') ?? '')
+        .trim()
+        .split(/[\s,]+/)
+        .map(Number);
+      d = points.reduce(
+        (path, value, i) => path + (i % 2 === 0 ? `${i === 0 ? 'M' : 'L'}${value}` : ` ${value}`),
+        '',
+      );
       if (tag === 'polygon') d += 'Z';
     } else d = shapeOutline(tag, number);
     const commands = d ? normalizePath(d) : undefined;
     const ctm = shape.getScreenCTM();
     if (!commands || !ctm) return undefined;
-    const matrix: Matrix = [ctm.a, ctm.b, ctm.c, ctm.d, ctm.e - origin.left - offset[0], ctm.f - origin.top - offset[1]];
+    const matrix: Matrix = [
+      ctm.a,
+      ctm.b,
+      ctm.c,
+      ctm.d,
+      ctm.e - origin.left - offset[0],
+      ctm.f - origin.top - offset[1],
+    ];
     // The opacity inside the SVG; its box's own (and its page ancestors') is applied to every drawn element alike.
     let opacity = 1;
-    for (let at: Element | globalThis.Element | null = shape; at && at !== svg; at = (at as globalThis.Element).parentElement) {
+    for (
+      let at: Element | globalThis.Element | null = shape;
+      at && at !== svg;
+      at = (at as globalThis.Element).parentElement
+    ) {
       opacity *= Number(getComputedStyle(at as globalThis.Element).opacity);
     }
     const paint = (css: string, alpha: string) => {
@@ -280,7 +369,9 @@ const svgPaths = (svg: SVGSVGElement, origin: DOMRect, offset: [number, number] 
       if (css.startsWith('url(')) return null;
       const colour = hex(css);
       if (colour === undefined) return undefined;
-      const a = Math.round((colour.length === 9 ? parseInt(colour.slice(7), 16) / 255 : 1) * Number(alpha) * 255);
+      const a = Math.round(
+        (colour.length === 9 ? parseInt(colour.slice(7), 16) / 255 : 1) * Number(alpha) * 255,
+      );
       return a >= 255 ? solid(colour) : `${solid(colour)}${a.toString(16).padStart(2, '0')}`;
     };
     const fill = paint(style.fill, style.fillOpacity);
@@ -303,11 +394,19 @@ const svgPaths = (svg: SVGSVGElement, origin: DOMRect, offset: [number, number] 
 
 /** The browser's own picture of an SVG in its box, at `scale`, over white. */
 /** `white`: over white, to compare with the engine's picture; else as it is, its transparency kept, to travel as an image. */
-const browserPixels = async (svg: SVGSVGElement, box: Box, scale: number, floor = false, white = true) => {
+const browserPixels = async (
+  svg: SVGSVGElement,
+  box: Box,
+  scale: number,
+  floor = false,
+  white = true,
+) => {
   const copy = svg.cloneNode(true) as SVGSVGElement;
   copy.setAttribute('width', String(box.width));
   copy.setAttribute('height', String(box.height));
-  const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(copy)], { type: 'image/svg+xml' }));
+  const url = URL.createObjectURL(
+    new Blob([new XMLSerializer().serializeToString(copy)], { type: 'image/svg+xml' }),
+  );
   try {
     const image = await loaded(url);
     const canvas = document.createElement('canvas');
@@ -333,8 +432,15 @@ const browserPixels = async (svg: SVGSVGElement, box: Box, scale: number, floor 
  * (an effect the outlines could not carry) and the logo travels as pixels.
  */
 const drawsAlike = async (svg: SVGSVGElement, box: Box, paths: Element[]) => {
-  const view = { format: 1, page: { width: box.width, height: box.height }, elements: paths } as unknown as BTPBoundView;
-  const engine = new Resvg(boundViewToSvg({}, view), { fitTo: { mode: 'zoom', value: 2 }, font: { loadSystemFonts: false } });
+  const view = {
+    format: 1,
+    page: { width: box.width, height: box.height },
+    elements: paths,
+  } as unknown as BTPBoundView;
+  const engine = new Resvg(boundViewToSvg({}, view), {
+    fitTo: { mode: 'zoom', value: 2 },
+    font: { loadSystemFonts: false },
+  });
   // The engine's memory freed by hand, as the renderer frees it.
   const rendered = engine.render();
   const ours = rendered.pixels.slice();
@@ -371,11 +477,15 @@ const unicodeRanges = (css: string): [number, number][] | undefined => {
     .map((part) => part.trim().replace(/^U\+/i, ''))
     .filter(Boolean)
     .map((part): [number, number] => {
-      if (part.includes('?')) return [parseInt(part.replace(/\?/g, '0'), 16), parseInt(part.replace(/\?/g, 'F'), 16)];
+      if (part.includes('?'))
+        return [parseInt(part.replace(/\?/g, '0'), 16), parseInt(part.replace(/\?/g, 'F'), 16)];
       const [from, to = from] = part.split('-');
       return [parseInt(from as string, 16), parseInt(to as string, 16)];
     });
-  return ranges.length > 0 && ranges.every(([from, to]) => Number.isFinite(from) && Number.isFinite(to)) ? ranges : undefined;
+  return ranges.length > 0 &&
+    ranges.every(([from, to]) => Number.isFinite(from) && Number.isFinite(to))
+    ? ranges
+    : undefined;
 };
 
 /** Reads a font file: a woff or ttf as it is, a woff2 decompressed first (woff2.ts, with Brotli loaded only then). */
@@ -397,7 +507,11 @@ const readFont = async (url: string): Promise<OpenTypeFont | undefined> => {
  * every file of it a `unicode-range` splits it into (latin, latin-ext, cyrillic…). The browser drew each character
  * with the file whose range holds it, and so do we.
  */
-const fontFile = (family: string, weight: number, style: string): Promise<FontFile[] | undefined> => {
+const fontFile = (
+  family: string,
+  weight: number,
+  style: string,
+): Promise<FontFile[] | undefined> => {
   const key = `${family}|${weight}|${style}`;
   if (!fontFiles.has(key)) {
     fontFiles.set(
@@ -419,13 +533,22 @@ const fontFile = (family: string, weight: number, style: string): Promise<FontFi
             const weights = (rule.style.getPropertyValue('font-weight').trim() || '400')
               .split(/\s+/)
               .map((value) => (value === 'bold' ? 700 : value === 'normal' ? 400 : Number(value)));
-            const distance = weights.length === 2 && weight >= (weights[0] ?? 0) && weight <= (weights[1] ?? 0) ? 0 : Math.abs((weights[0] ?? 400) - weight);
+            const distance =
+              weights.length === 2 && weight >= (weights[0] ?? 0) && weight <= (weights[1] ?? 0)
+                ? 0
+                : Math.abs((weights[0] ?? 400) - weight);
             // A woff or ttf where the rule offers one (read as it is), else its woff2.
-            const sources = [...rule.style.getPropertyValue('src').matchAll(/url\(["']?([^"')]+)["']?\)/g)].map((m) => m[1] as string);
+            const sources = [
+              ...rule.style.getPropertyValue('src').matchAll(/url\(["']?([^"')]+)["']?\)/g),
+            ].map((m) => m[1] as string);
             const source = sources.find((src) => !/\.woff2(\?|#|$)/i.test(src)) ?? sources[0];
             if (!source) continue;
             const ranges = unicodeRanges(rule.style.getPropertyValue('unicode-range'));
-            candidates.push({ url: new URL(source, sheet.href ?? location.href).href, distance, ...(ranges && { ranges }) });
+            candidates.push({
+              url: new URL(source, sheet.href ?? location.href).href,
+              distance,
+              ...(ranges && { ranges }),
+            });
           }
         }
         if (candidates.length === 0) return undefined;
@@ -452,13 +575,24 @@ const fontFile = (family: string, weight: number, style: string): Promise<FontFi
  */
 const fileFor = (files: FontFile[], char: string): FontFile | undefined => {
   const code = char.codePointAt(0) ?? 0;
-  const holding = files.filter(({ ranges }) => ranges === undefined || ranges.some(([from, to]) => code >= from && code <= to)).reverse();
+  const holding = files
+    .filter(
+      ({ ranges }) =>
+        ranges === undefined || ranges.some(([from, to]) => code >= from && code <= to),
+    )
+    .reverse();
   return holding.find(({ font }) => font.charToGlyph(char).index !== 0) ?? holding[0];
 };
 
 // ---- Reading the preview ----
 
-type Decoration = { line: 'underline' | 'overline' | 'line-through'; style: string; colour: string; thickness?: number; offset: number };
+type Decoration = {
+  line: 'underline' | 'overline' | 'line-through';
+  style: string;
+  colour: string;
+  thickness?: number;
+  offset: number;
+};
 type TextShadow = { x: number; y: number; blur: number; colour: string; alpha: number };
 /**
  * A text's look. `alpha`: its ink's, below 1 for a translucent colour. `decorations`: the lines drawn with it, its own
@@ -496,7 +630,14 @@ const decorationsOf = (element: globalThis.Element, root: globalThis.Element): D
       });
     }
     // A decoration is not carried into an inline block, or out of one positioned or floated.
-    if (at === root || /^inline-/.test(css.display) || css.position === 'absolute' || css.position === 'fixed' || css.float !== 'none') break;
+    if (
+      at === root ||
+      /^inline-/.test(css.display) ||
+      css.position === 'absolute' ||
+      css.position === 'fixed' ||
+      css.float !== 'none'
+    )
+      break;
   }
   return out;
 };
@@ -511,7 +652,13 @@ const styleOf = (element: globalThis.Element, root?: globalThis.Element): Style 
   const ink = hex(css.color) ?? '#000000';
   const alpha = ink.length === 9 ? parseInt(ink.slice(7), 16) / 255 : 1;
   const decorations = root ? decorationsOf(element, root) : [];
-  const shadows = shadowsOf(css.textShadow, hex).map(({ x, y, blur, colour, alpha: a }) => ({ x, y, blur, colour, alpha: a }));
+  const shadows = shadowsOf(css.textShadow, hex).map(({ x, y, blur, colour, alpha: a }) => ({
+    x,
+    y,
+    blur,
+    colour,
+    alpha: a,
+  }));
   return {
     family: (css.fontFamily.split(',')[0] ?? '').replace(/["']/g, '').trim(),
     weight: Number(css.fontWeight) || 400,
@@ -519,7 +666,9 @@ const styleOf = (element: globalThis.Element, root?: globalThis.Element): Style 
     size: parseFloat(css.fontSize),
     colour: solid(ink),
     spacing: css.letterSpacing === 'normal' ? 0 : parseFloat(css.letterSpacing) || 0,
-    ...(css.textTransform === 'uppercase' || css.textTransform === 'lowercase' ? { transform: css.textTransform } : {}),
+    ...(css.textTransform === 'uppercase' || css.textTransform === 'lowercase'
+      ? { transform: css.textTransform }
+      : {}),
     tabular: css.fontVariantNumeric.includes('tabular'),
     ...(alpha < 1 && { alpha }),
     ...(/small-caps/.test(css.fontVariantCaps) && { smallCaps: true }),
@@ -538,7 +687,12 @@ export const textRuns = (root: HTMLElement, origin: DOMRect): LaidRun[] => {
   const blocks = new Map<globalThis.Element, number>();
   const blockOf = (element: globalThis.Element) => {
     let at: globalThis.Element = element;
-    while (at !== root && at.parentElement && ['inline', 'contents'].includes(getComputedStyle(at).display)) at = at.parentElement;
+    while (
+      at !== root &&
+      at.parentElement &&
+      ['inline', 'contents'].includes(getComputedStyle(at).display)
+    )
+      at = at.parentElement;
     if (!blocks.has(at)) blocks.set(at, blocks.size);
     return blocks.get(at) as number;
   };
@@ -574,7 +728,10 @@ export const textRuns = (root: HTMLElement, origin: DOMRect): LaidRun[] => {
       // A new line where the text goes back to the left lower down; a character from another font file (another
       // script) may sit a little higher or lower on the same line.
       const top = rect.top - origin.top;
-      const newLine = !line || (Math.abs(top - line.top) > 2 && (rect.left - origin.left < lastRight - 1 || top >= (line.bottom ?? line.top) - 2));
+      const newLine =
+        !line ||
+        (Math.abs(top - line.top) > 2 &&
+          (rect.left - origin.left < lastRight - 1 || top >= (line.bottom ?? line.top) - 2));
       if (newLine) {
         line = {
           text: '',
@@ -602,16 +759,32 @@ export const textRuns = (root: HTMLElement, origin: DOMRect): LaidRun[] => {
 
 // ---- List markers: drawn by the browser, not in the page's text ----
 
-const ROMAN: [number, string][] = [[1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'], [100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'], [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']];
-const roman = (n: number) => ROMAN.reduce((out, [value, letters]) => {
-  let text = out;
-  while (n >= value) {
-    text += letters;
-    n -= value;
-  }
-  return text;
-}, '');
-const alpha = (n: number): string => (n <= 0 ? '' : alpha(Math.floor((n - 1) / 26)) + String.fromCharCode(97 + ((n - 1) % 26)));
+const ROMAN: [number, string][] = [
+  [1000, 'm'],
+  [900, 'cm'],
+  [500, 'd'],
+  [400, 'cd'],
+  [100, 'c'],
+  [90, 'xc'],
+  [50, 'l'],
+  [40, 'xl'],
+  [10, 'x'],
+  [9, 'ix'],
+  [5, 'v'],
+  [4, 'iv'],
+  [1, 'i'],
+];
+const roman = (n: number) =>
+  ROMAN.reduce((out, [value, letters]) => {
+    let text = out;
+    while (n >= value) {
+      text += letters;
+      n -= value;
+    }
+    return text;
+  }, '');
+const alpha = (n: number): string =>
+  n <= 0 ? '' : alpha(Math.floor((n - 1) / 26)) + String.fromCharCode(97 + ((n - 1) % 26));
 
 /** A counter as a list-style-type writes it, or undefined for a type this does not write (then nothing is drawn). */
 const counterText = (type: string, n: number): string | undefined => {
@@ -628,7 +801,9 @@ const counterText = (type: string, n: number): string | undefined => {
 const ordinal = (item: HTMLLIElement) => {
   if (item.hasAttribute('value')) return item.value;
   const list = item.parentElement;
-  const items = list ? [...list.children].filter((child) => getComputedStyle(child).display === 'list-item') : [item];
+  const items = list
+    ? [...list.children].filter((child) => getComputedStyle(child).display === 'list-item')
+    : [item];
   const position = items.indexOf(item);
   if (list instanceof HTMLOListElement) {
     const reversed = list.reversed;
@@ -649,7 +824,13 @@ const listMarkers = (root: HTMLElement, origin: DOMRect): { runs: LaidRun[]; sha
   const measure = document.createElement('canvas').getContext('2d') as CanvasRenderingContext2D;
   for (const item of root.querySelectorAll('li, [style*="list-item"]')) {
     const css = getComputedStyle(item);
-    if (css.display !== 'list-item' || css.listStyleType === 'none' || css.visibility === 'hidden' || css.listStyleImage !== 'none') continue;
+    if (
+      css.display !== 'list-item' ||
+      css.listStyleType === 'none' ||
+      css.visibility === 'hidden' ||
+      css.listStyleImage !== 'none'
+    )
+      continue;
     // The first line's baseline, as the item's text is laid out.
     const walker = document.createTreeWalker(item, NodeFilter.SHOW_TEXT);
     let first: Text | undefined;
@@ -669,7 +850,8 @@ const listMarkers = (root: HTMLElement, origin: DOMRect): { runs: LaidRun[]; sha
     measure.font = `${textCss.fontStyle} ${textCss.fontWeight} ${textCss.fontSize} ${textCss.fontFamily}`;
     const baseline = r2(line.top - origin.top + measure.measureText('Hg').fontBoundingBoxAscent);
     const box = item.getBoundingClientRect();
-    const contentLeft = box.left - origin.left + parseFloat(css.borderLeftWidth) + parseFloat(css.paddingLeft);
+    const contentLeft =
+      box.left - origin.left + parseFloat(css.borderLeftWidth) + parseFloat(css.paddingLeft);
     const inside = css.listStylePosition === 'inside';
     const marker = getComputedStyle(item, '::marker');
     measure.font = `${marker.fontStyle} ${marker.fontWeight} ${marker.fontSize} ${marker.fontFamily}`;
@@ -684,15 +866,33 @@ const listMarkers = (root: HTMLElement, origin: DOMRect): { runs: LaidRun[]; sha
       shapes.push({
         element:
           type === 'circle'
-            ? ({ type: 'rect', x: r2(x + 0.5), y: r2(y + 0.5), width: size - 1, height: size - 1, radius: r2((size - 1) / 2), stroke: colour, strokeWidth: 1 } as Element)
-            : ({ type: 'rect', x, y, width: size, height: size, ...(type === 'disc' && { radius: r2(size / 2) }), fill: colour } as Element),
+            ? ({
+                type: 'rect',
+                x: r2(x + 0.5),
+                y: r2(y + 0.5),
+                width: size - 1,
+                height: size - 1,
+                radius: r2((size - 1) / 2),
+                stroke: colour,
+                strokeWidth: 1,
+              } as Element)
+            : ({
+                type: 'rect',
+                x,
+                y,
+                width: size,
+                height: size,
+                ...(type === 'disc' && { radius: r2(size / 2) }),
+                fill: colour,
+              } as Element),
         source: item,
       });
       continue;
     }
     // A string marker (list-style-type: "→ ") as written; a counter as its type writes it, then ". ".
     const quoted = /^"(.*)"$/.exec(type)?.[1];
-    const counter = quoted === undefined ? counterText(type, ordinal(item as HTMLLIElement)) : undefined;
+    const counter =
+      quoted === undefined ? counterText(type, ordinal(item as HTMLLIElement)) : undefined;
     const text = quoted ?? (counter === undefined ? undefined : `${counter}. `);
     if (!text) continue;
     const style: Style = {
@@ -712,7 +912,18 @@ const listMarkers = (root: HTMLElement, origin: DOMRect): { runs: LaidRun[]; sha
       left = right;
       return box;
     });
-    runs.push({ text, chars, baseline, top: line.top - origin.top, bottom: line.bottom - origin.top, node: -1, block: -1, size: style.size, style, element: item });
+    runs.push({
+      text,
+      chars,
+      baseline,
+      top: line.top - origin.top,
+      bottom: line.bottom - origin.top,
+      node: -1,
+      block: -1,
+      size: style.size,
+      style,
+      element: item,
+    });
   }
   return { runs, shapes };
 };
@@ -720,19 +931,31 @@ const listMarkers = (root: HTMLElement, origin: DOMRect): { runs: LaidRun[]; sha
 /** `over` with `ink` laid on it at `alpha`: two #rrggbb colours mixed. */
 const mixed = (over: string, ink: string, alpha: number) => {
   const channel = (c: string, i: number) => parseInt(c.slice(1 + i * 2, 3 + i * 2), 16);
-  return `#${[0, 1, 2].map((i) => Math.round(channel(ink, i) * alpha + channel(over, i) * (1 - alpha)).toString(16).padStart(2, '0')).join('')}`;
+  return `#${[0, 1, 2]
+    .map((i) =>
+      Math.round(channel(ink, i) * alpha + channel(over, i) * (1 - alpha))
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
 };
 
 // ---- Through a transform ----
 
-type Paint = string | { linear: { from: [number, number]; to: [number, number]; stops: unknown } } | { radial: { centre: [number, number]; radius: number; stops: unknown } };
+type Paint =
+  | string
+  | { linear: { from: [number, number]; to: [number, number]; stops: unknown } }
+  | { radial: { centre: [number, number]; radius: number; stops: unknown } };
 
 const paintThrough = (paint: unknown, m: DOMMatrix): unknown => {
   if (typeof paint !== 'object' || paint === null) return paint;
   const p = paint as Exclude<Paint, string>;
   const at = ([x, y]: [number, number]) => apply(m, x, y).map(r2) as [number, number];
-  if ('linear' in p) return { linear: { ...p.linear, from: at(p.linear.from), to: at(p.linear.to) } };
-  return { radial: { ...p.radial, centre: at(p.radial.centre), radius: r2(p.radial.radius * scaleOf(m)) } };
+  if ('linear' in p)
+    return { linear: { ...p.linear, from: at(p.linear.from), to: at(p.linear.to) } };
+  return {
+    radial: { ...p.radial, centre: at(p.radial.centre), radius: r2(p.radial.radius * scaleOf(m)) },
+  };
 };
 
 /**
@@ -743,11 +966,23 @@ const paintThrough = (paint: unknown, m: DOMMatrix): unknown => {
 const throughMatrix = (
   element: Element,
   m: DOMMatrix,
-  { images, fonts, problems }: { images: Record<string, Image>; fonts: Record<string, BTPBoundViewFont>; problems: string[] },
+  {
+    images,
+    fonts,
+    problems,
+  }: { images: Record<string, Image>; fonts: Record<string, BTPBoundViewFont>; problems: string[] },
 ): Element[] => {
-  const fills = (e: { fill?: unknown; stroke?: unknown; strokeWidth?: number; opacity?: number }) => ({
+  const fills = (e: {
+    fill?: unknown;
+    stroke?: unknown;
+    strokeWidth?: number;
+    opacity?: number;
+  }) => ({
     ...(e.fill !== undefined && { fill: paintThrough(e.fill, m) }),
-    ...(e.stroke !== undefined && { stroke: paintThrough(e.stroke, m), strokeWidth: r2((e.strokeWidth ?? 0) * scaleOf(m)) }),
+    ...(e.stroke !== undefined && {
+      stroke: paintThrough(e.stroke, m),
+      strokeWidth: r2((e.strokeWidth ?? 0) * scaleOf(m)),
+    }),
     ...(e.opacity !== undefined && { opacity: e.opacity }),
   });
   switch (element.type) {
@@ -759,12 +994,29 @@ const throughMatrix = (
     }
     case 'path': {
       const d = transformPath(element.d, m);
-      return d ? [{ type: 'path', d, ...(element.fillRule && { fillRule: element.fillRule }), ...fills(element) } as Element] : [];
+      return d
+        ? [
+            {
+              type: 'path',
+              d,
+              ...(element.fillRule && { fillRule: element.fillRule }),
+              ...fills(element),
+            } as Element,
+          ]
+        : [];
     }
     case 'line': {
       const from = apply(m, element.from[0], element.from[1]).map(r2);
       const to = apply(m, element.to[0], element.to[1]).map(r2);
-      return [{ ...element, from, to, strokeWidth: r2(element.strokeWidth * scaleOf(m)), ...(element.stroke && { stroke: paintThrough(element.stroke, m) }) } as Element];
+      return [
+        {
+          ...element,
+          from,
+          to,
+          strokeWidth: r2(element.strokeWidth * scaleOf(m)),
+          ...(element.stroke && { stroke: paintThrough(element.stroke, m) }),
+        } as Element,
+      ];
     }
     case 'image': {
       const data = images[element.image];
@@ -773,7 +1025,15 @@ const throughMatrix = (
       const source = document.createElement('canvas');
       source.width = data.width;
       source.height = data.height;
-      (source.getContext('2d') as CanvasRenderingContext2D).putImageData(new ImageData(new Uint8ClampedArray(rgba.buffer, rgba.byteOffset, rgba.length), data.width, data.height), 0, 0);
+      (source.getContext('2d') as CanvasRenderingContext2D).putImageData(
+        new ImageData(
+          new Uint8ClampedArray(rgba.buffer, rgba.byteOffset, rgba.length),
+          data.width,
+          data.height,
+        ),
+        0,
+        0,
+      );
       const points = [
         [element.x, element.y],
         [element.x + element.width, element.y],
@@ -782,7 +1042,12 @@ const throughMatrix = (
       ].map(([x, y]) => apply(m, x as number, y as number));
       const xs = points.map(([x]) => x);
       const ys = points.map(([, y]) => y);
-      const box: Box = { left: r2(Math.min(...xs)), top: r2(Math.min(...ys)), width: r2(Math.max(...xs) - Math.min(...xs)), height: r2(Math.max(...ys) - Math.min(...ys)) };
+      const box: Box = {
+        left: r2(Math.min(...xs)),
+        top: r2(Math.min(...ys)),
+        width: r2(Math.max(...xs) - Math.min(...xs)),
+        height: r2(Math.max(...ys) - Math.min(...ys)),
+      };
       const radius = element.radius ?? 0;
       const radii = Array.isArray(radius) ? radius : [radius, radius, radius, radius];
       images[element.image] = capturePixels(
@@ -790,13 +1055,27 @@ const throughMatrix = (
           const s = width / box.width;
           context.setTransform(s, 0, 0, s, -box.left * s, -box.top * s);
           context.transform(m.a, m.b, m.c, m.d, m.e, m.f);
-          if (radii.some((r) => r > 0)) context.clip(new Path2D(roundedRect(element, radii.map((r) => [r, r]) as Corners)));
+          if (radii.some((r) => r > 0))
+            context.clip(new Path2D(roundedRect(element, radii.map((r) => [r, r]) as Corners)));
           context.drawImage(source, element.x, element.y, element.width, element.height);
         },
         box,
-        { width: (data.width * box.width) / element.width, height: (data.height * box.height) / element.height },
+        {
+          width: (data.width * box.width) / element.width,
+          height: (data.height * box.height) / element.height,
+        },
       );
-      return [{ type: 'image', image: element.image, x: box.left, y: box.top, width: box.width, height: box.height, ...(element.opacity !== undefined && { opacity: element.opacity }) } as Element];
+      return [
+        {
+          type: 'image',
+          image: element.image,
+          x: box.left,
+          y: box.top,
+          width: box.width,
+          height: box.height,
+          ...(element.opacity !== undefined && { opacity: element.opacity }),
+        } as Element,
+      ];
     }
     case 'label': {
       // Its glyphs' outlines, placed as the label places them, through the matrix.
@@ -810,7 +1089,10 @@ const throughMatrix = (
       chars.forEach((char, i) => {
         const glyph = font.glyphs?.[char];
         if (glyph?.path) {
-          const piece = transformPath(glyph.path, m.multiply(new DOMMatrix([scale, 0, 0, scale, x, element.y])));
+          const piece = transformPath(
+            glyph.path,
+            m.multiply(new DOMMatrix([scale, 0, 0, scale, x, element.y])),
+          );
           if (piece) {
             if (d.length + piece.length > 19000) {
               out.push({ type: 'path', d, fill: element.colour } as Element);
@@ -819,7 +1101,9 @@ const throughMatrix = (
             d += piece;
           }
         }
-        x += ((glyph?.advance ?? 0) + (font.kerning?.[`${char}${chars[i + 1] ?? ''}`] ?? 0)) * scale + (element.letterSpacing ?? 0);
+        x +=
+          ((glyph?.advance ?? 0) + (font.kerning?.[`${char}${chars[i + 1] ?? ''}`] ?? 0)) * scale +
+          (element.letterSpacing ?? 0);
       });
       if (d) out.push({ type: 'path', d, fill: element.colour } as Element);
       return out;
@@ -827,11 +1111,22 @@ const throughMatrix = (
     case 'text':
     case 'signature': {
       if (!isUpright(m)) {
-        problems.push(`${element.type === 'text' ? element.bind.field : 'the signature'} is turned or slanted by a CSS transform; a BoundView draws it upright`);
+        problems.push(
+          `${element.type === 'text' ? element.bind.field : 'the signature'} is turned or slanted by a CSS transform; a BoundView draws it upright`,
+        );
         return [element];
       }
       const [x, y] = apply(m, element.x, element.y);
-      if (element.type === 'signature') return [{ ...element, x: r2(x), y: r2(y), width: r2(element.width * m.a), height: r2(element.height * m.a) }];
+      if (element.type === 'signature')
+        return [
+          {
+            ...element,
+            x: r2(x),
+            y: r2(y),
+            width: r2(element.width * m.a),
+            height: r2(element.height * m.a),
+          },
+        ];
       return [
         {
           ...element,
@@ -839,7 +1134,9 @@ const throughMatrix = (
           y: r2(y),
           width: r2(element.width * m.a),
           size: r2(element.size * m.a),
-          ...(element.letterSpacing !== undefined && { letterSpacing: r2(element.letterSpacing * m.a) }),
+          ...(element.letterSpacing !== undefined && {
+            letterSpacing: r2(element.letterSpacing * m.a),
+          }),
         },
       ];
     }
@@ -849,21 +1146,38 @@ const throughMatrix = (
 };
 
 /** Boxes with a fill, a gradient or a border, images and SVG logos, in the order the page paints them. */
+/** Every shape SVG has, each read as the points it is drawn through: a circle or an ellipse as its centre (a dot). */
+const STROKE_SHAPES = 'polyline, polygon, path, line, circle, ellipse';
+
+const pointsOf = (shape: SVGElement): number[] => {
+  const tag = shape.tagName.toLowerCase();
+  const attributes =
+    tag === 'circle' || tag === 'ellipse'
+      ? ['cx', 'cy']
+      : tag === 'line'
+        ? ['x1', 'y1', 'x2', 'y2']
+        : tag === 'path'
+          ? ['d']
+          : ['points'];
+  const source = attributes.map((name) => shape.getAttribute(name) ?? '').join(' ');
+  return (source.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+};
+
 /**
- * Whether an SVG draws a signature's strokes: one line a stroke, each from the stroke's own points, in the canvas the
- * strokes are in (1,000 by 300), as a page draws the signature it was given. A stroke of one point (a dot) may be drawn
- * as a circle at it.
+ * Whether an SVG draws a signature's strokes: one shape a stroke, in order, each through the stroke's own points, in
+ * the canvas the strokes are in (1,000 by 300), as a page draws the signature it was given. What is compared is the
+ * points; which shape a page draws a stroke with (a line, a path, a dot as a circle) is the page's own.
  */
 const drawsStrokes = (svg: SVGSVGElement, strokes: number[][]) => {
-  const lines = [...svg.querySelectorAll('polyline, path, circle')];
-  if (lines.length !== strokes.length) return false;
-  return lines.every((line, i) => {
-    const tag = line.tagName.toLowerCase();
-    const source =
-      tag === 'circle' ? `${line.getAttribute('cx')} ${line.getAttribute('cy')}` : tag === 'path' ? line.getAttribute('d') : line.getAttribute('points');
-    const numbers = (source?.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+  const shapes = [...svg.querySelectorAll<SVGElement>(STROKE_SHAPES)];
+  if (shapes.length !== strokes.length) return false;
+  return shapes.every((shape, i) => {
+    const numbers = pointsOf(shape);
     const stroke = strokes[i] as number[];
-    return numbers.length === stroke.length && numbers.every((value, at) => Math.abs(value - (stroke[at] ?? NaN)) <= 0.5);
+    return (
+      numbers.length === stroke.length &&
+      numbers.every((value, at) => Math.abs(value - (stroke[at] ?? NaN)) <= 0.5)
+    );
   });
 };
 
@@ -889,19 +1203,33 @@ const paint = async (
     if (css.display === 'none' || css.visibility === 'hidden') continue;
     const rect = element.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) continue;
-    const box: Box = { left: r2(rect.left - origin.left), top: r2(rect.top - origin.top), width: r2(rect.width), height: r2(rect.height) };
+    const box: Box = {
+      left: r2(rect.left - origin.left),
+      top: r2(rect.top - origin.top),
+      width: r2(rect.width),
+      height: r2(rect.height),
+    };
     // Its corners as CSS computes them (elliptical, percentages); an image's as circles, which is what it carries.
     const corners = cornersOf(css, box.width, box.height);
     const round = isRound(corners);
     const radii = corners.map(([h, v]) => r2(Math.min(h, v)));
-    const shape = { x: box.left, y: box.top, width: box.width, height: box.height, ...(round ? { radius: radii.every((r) => r === radii[0]) ? radii[0] : radii } : {}) };
+    const shape = {
+      x: box.left,
+      y: box.top,
+      width: box.width,
+      height: box.height,
+      ...(round ? { radius: radii.every((r) => r === radii[0]) ? radii[0] : radii } : {}),
+    };
     const tag = element.tagName.toLowerCase();
 
     if (tag !== 'svg' && tag !== 'img') {
       // In the order the browser paints a box: outer shadows, background colour, background layers from the bottom,
       // inset shadows, border; its outline over everything, after the page.
       const area = { x: box.left, y: box.top, width: box.width, height: box.height };
-      const filled = (fill: unknown): Element => (round ? ({ type: 'path', d: roundedRect(area, corners), fill } as Element) : ({ type: 'rect', ...area, fill } as Element));
+      const filled = (fill: unknown): Element =>
+        round
+          ? ({ type: 'path', d: roundedRect(area, corners), fill } as Element)
+          : ({ type: 'rect', ...area, fill } as Element);
       const shadows = shadowsOf(css.boxShadow, hex);
       out.push(...outerShadows(area, corners, shadows));
       // The page's own colour is the page's background, unless its corners are rounded: then the browser shows what is behind them.
@@ -913,15 +1241,27 @@ const paint = async (
       const ys = splitTop(css.backgroundPositionY);
       const repeats = splitTop(css.backgroundRepeat);
       const sides = ['Top', 'Right', 'Bottom', 'Left'] as const;
-      const widths = sides.map((side) => parseFloat(css[`border${side}Width`]) || 0) as [number, number, number, number];
-      const padding = { x: area.x + widths[3], y: area.y + widths[0], width: area.width - widths[1] - widths[3], height: area.height - widths[0] - widths[2] };
+      const widths = sides.map((side) => parseFloat(css[`border${side}Width`]) || 0) as [
+        number,
+        number,
+        number,
+        number,
+      ];
+      const padding = {
+        x: area.x + widths[3],
+        y: area.y + widths[0],
+        width: area.width - widths[1] - widths[3],
+        height: area.height - widths[0] - widths[2],
+      };
       for (let i = layers.length - 1; i >= 0; i--) {
         const layer = layers[i] as string;
         if (layer.startsWith('linear-gradient')) {
           const paint = linearPaint(area, layer, hex);
           if (paint) out.push(filled(paint));
-        } else if (layer.startsWith('radial-gradient')) out.push(...(radialBackground(area, corners, layer, hex) ?? []));
-        else if (layer.startsWith('repeating-linear-gradient')) out.push(...(repeatingLinear(area, corners, layer, hex) ?? []));
+        } else if (layer.startsWith('radial-gradient'))
+          out.push(...(radialBackground(area, corners, layer, hex) ?? []));
+        else if (layer.startsWith('repeating-linear-gradient'))
+          out.push(...(repeatingLinear(area, corners, layer, hex) ?? []));
         else if (layer.startsWith('url(')) {
           const src = /url\(["']?([^"')]+)["']?\)/.exec(layer)?.[1];
           if (!src) continue;
@@ -932,32 +1272,55 @@ const paint = async (
             images[key] = capturePixels((context, width, height) => {
               // Placed in the padding box (background-origin), painted over the whole box, as size, position and repeat say.
               const s = width / box.width;
-              const [w, h] = backgroundSize(at(sizes), padding.width, padding.height, image.width, image.height);
+              const [w, h] = backgroundSize(
+                at(sizes),
+                padding.width,
+                padding.height,
+                image.width,
+                image.height,
+              );
               const x0 = padding.x - area.x + positionAlong(at(xs), padding.width - w);
               const y0 = padding.y - area.y + positionAlong(at(ys), padding.height - h);
               const repeat = at(repeats);
               const [across = 'repeat', down = across] =
-                repeat === 'repeat-x' ? ['repeat', 'no-repeat'] : repeat === 'repeat-y' ? ['no-repeat', 'repeat'] : repeat.split(/\s+/);
+                repeat === 'repeat-x'
+                  ? ['repeat', 'no-repeat']
+                  : repeat === 'repeat-y'
+                    ? ['no-repeat', 'repeat']
+                    : repeat.split(/\s+/);
               const rx = across !== 'no-repeat';
               const ry = down !== 'no-repeat';
               const startX = rx ? x0 - Math.ceil(x0 / w) * w : x0;
               const startY = ry ? y0 - Math.ceil(y0 / h) * h : y0;
               for (let y = startY; y < (ry ? box.height : startY + 1); y += h) {
-                for (let x = startX; x < (rx ? box.width : startX + 1); x += w) context.drawImage(image, x * s, y * s, w * s, h * s);
+                for (let x = startX; x < (rx ? box.width : startX + 1); x += w)
+                  context.drawImage(image, x * s, y * s, w * s, h * s);
               }
             }, box);
             out.push({ type: 'image', image: key, ...shape } as Element);
           } catch {
-            problems.push(`a background image (${src}) could not be read: it must be served from this site, or allow it (CORS)`);
+            problems.push(
+              `a background image (${src}) could not be read: it must be served from this site, or allow it (CORS)`,
+            );
           }
         }
       }
-      out.push(...insetShadows(padding, grown(corners, -widths[0], -widths[1], -widths[2], -widths[3]), shadows));
+      out.push(
+        ...insetShadows(
+          padding,
+          grown(corners, -widths[0], -widths[1], -widths[2], -widths[3]),
+          shadows,
+        ),
+      );
       out.push(
         ...borders(
           area,
           corners,
-          sides.map((side) => ({ width: parseFloat(css[`border${side}Width`]) || 0, style: css[`border${side}Style`], colour: hex(css[`border${side}Color`]) })) as [Side, Side, Side, Side],
+          sides.map((side) => ({
+            width: parseFloat(css[`border${side}Width`]) || 0,
+            style: css[`border${side}Style`],
+            colour: hex(css[`border${side}Color`]),
+          })) as [Side, Side, Side, Side],
         ),
       );
       outlines.push(...outline(area, corners, css, hex));
@@ -970,7 +1333,9 @@ const paint = async (
       (css.clipPath !== '' && css.clipPath !== 'none') ||
       (css.filter !== '' && css.filter !== 'none') ||
       (css.mixBlendMode !== '' && css.mixBlendMode !== 'normal') ||
-      (tag === 'img' && ((css.objectFit !== '' && css.objectFit !== 'fill') || (css.objectPosition !== '' && css.objectPosition !== '50% 50%')));
+      (tag === 'img' &&
+        ((css.objectFit !== '' && css.objectFit !== 'fill') ||
+          (css.objectPosition !== '' && css.objectPosition !== '50% 50%')));
     // Where a blend is, it is with the colour behind: the nearest box behind that has one.
     const backdrop = () => {
       for (let at = element.parentElement; at; at = at === root ? null : at.parentElement) {
@@ -979,7 +1344,10 @@ const paint = async (
       }
       return '#ffffff';
     };
-    const drawWithEffects = (source: CanvasImageSource, natural: { width: number; height: number }) =>
+    const drawWithEffects = (
+      source: CanvasImageSource,
+      natural: { width: number; height: number },
+    ) =>
       capturePixels(
         (context, width, height) => {
           const s = width / box.width;
@@ -989,7 +1357,11 @@ const paint = async (
           const drawn = layer.getContext('2d') as CanvasRenderingContext2D;
           const clip = clipPathOf(css.clipPath, width, height, s);
           if (clip) drawn.clip(clip);
-          if (css.filter && css.filter !== 'none') drawn.filter = css.filter.replace(/(-?[\d.]+)px/g, (_, n: string) => `${Number(n) * s}px`);
+          if (css.filter && css.filter !== 'none')
+            drawn.filter = css.filter.replace(
+              /(-?[\d.]+)px/g,
+              (_, n: string) => `${Number(n) * s}px`,
+            );
           drawn.drawImage(source, ...fitted(natural, css, width, height, s));
           if (css.mixBlendMode && css.mixBlendMode !== 'normal') {
             // The blend over the backdrop, kept only where the image is.
@@ -1009,7 +1381,10 @@ const paint = async (
     // An SVG logo, inline or by <img>: its outlines when they draw as the browser drew it, else its pixels.
     let svg: SVGSVGElement | undefined = tag === 'svg' ? (element as SVGSVGElement) : undefined;
     let holder: HTMLElement | undefined;
-    const src = tag === 'img' ? (element as HTMLImageElement).currentSrc || (element as HTMLImageElement).src : '';
+    const src =
+      tag === 'img'
+        ? (element as HTMLImageElement).currentSrc || (element as HTMLImageElement).src
+        : '';
     if (tag === 'img' && !effects && /\.svg(\?|#|$)|^data:image\/svg\+xml/i.test(src)) {
       try {
         const text = await (await fetch(src)).text();
@@ -1031,9 +1406,18 @@ const paint = async (
     try {
       // The sender's drawn signature: the receiver draws it from the signed strokes, in this box.
       if (svg && signature.strokes && drawsStrokes(svg, signature.strokes)) {
-        const ink = svg.querySelector('polyline, path');
-        const colour = ink ? hex(getComputedStyle(ink).stroke) : undefined;
-        signature.found.push({ type: 'signature', x: box.left, y: box.top, width: box.width, height: box.height, colour: solid(colour ?? '#000000') } as Element);
+        // Its ink: the first shape's stroke, or its fill where it has none (a dot).
+        const ink = svg.querySelector(STROKE_SHAPES);
+        const style = ink ? getComputedStyle(ink) : undefined;
+        const colour = style ? hex(style.stroke === 'none' ? style.fill : style.stroke) : undefined;
+        signature.found.push({
+          type: 'signature',
+          x: box.left,
+          y: box.top,
+          width: box.width,
+          height: box.height,
+          colour: solid(colour ?? '#000000'),
+        } as Element);
         continue;
       }
       if (svg && engine && !effects) {
@@ -1051,10 +1435,25 @@ const paint = async (
         copy.setAttribute('width', String(box.width));
         copy.setAttribute('height', String(box.height));
         // Its box's own effects are applied to its pixels apart (and its opacity to the image): not twice.
-        for (const property of ['opacity', 'filter', 'transform', 'clip-path', 'mix-blend-mode', 'translate', 'rotate', 'scale']) copy.style.removeProperty(property);
-        const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(copy)], { type: 'image/svg+xml' }));
+        for (const property of [
+          'opacity',
+          'filter',
+          'transform',
+          'clip-path',
+          'mix-blend-mode',
+          'translate',
+          'rotate',
+          'scale',
+        ])
+          copy.style.removeProperty(property);
+        const url = URL.createObjectURL(
+          new Blob([new XMLSerializer().serializeToString(copy)], { type: 'image/svg+xml' }),
+        );
         try {
-          images[key] = drawWithEffects(await loaded(url), { width: box.width * 2, height: box.height * 2 });
+          images[key] = drawWithEffects(await loaded(url), {
+            width: box.width * 2,
+            height: box.height * 2,
+          });
         } finally {
           URL.revokeObjectURL(url);
         }
@@ -1064,11 +1463,19 @@ const paint = async (
         if (/\.svg(\?|#|$)|^data:image\/svg\+xml/i.test(src)) {
           // An SVG's own size, as CSS sizes it: its width and height where it gives them, else its viewBox's shape fitted
           // into the box (not the browser's 300 by 150 stand-in).
-          const parsed = new DOMParser().parseFromString(await (await fetch(src)).text(), 'image/svg+xml').documentElement;
+          const parsed = new DOMParser().parseFromString(
+            await (await fetch(src)).text(),
+            'image/svg+xml',
+          ).documentElement;
           const w = parseFloat(parsed.getAttribute('width') ?? '');
           const h = parseFloat(parsed.getAttribute('height') ?? '');
           const viewBox = (parsed.getAttribute('viewBox') ?? '').split(/[\s,]+/).map(Number);
-          const ratio = w > 0 && h > 0 ? w / h : (viewBox[2] ?? 0) > 0 && (viewBox[3] ?? 0) > 0 ? (viewBox[2] as number) / (viewBox[3] as number) : box.width / box.height;
+          const ratio =
+            w > 0 && h > 0
+              ? w / h
+              : (viewBox[2] ?? 0) > 0 && (viewBox[3] ?? 0) > 0
+                ? (viewBox[2] as number) / (viewBox[3] as number)
+                : box.width / box.height;
           natural =
             w > 0 && h > 0 && !/%/.test(parsed.getAttribute('width') ?? '')
               ? { width: w, height: h }
@@ -1080,7 +1487,9 @@ const paint = async (
       }
       out.push({ type: 'image', image: key, ...shape } as Element);
     } catch {
-      problems.push(`an image (${src || 'inline'}) could not be read: it must be served from this site, or allow it (CORS)`);
+      problems.push(
+        `an image (${src || 'inline'}) could not be read: it must be served from this site, or allow it (CORS)`,
+      );
     } finally {
       holder?.remove();
     }
@@ -1094,13 +1503,18 @@ const paint = async (
     }
     return found;
   };
-  return [...out.map((element, i) => ({ element, source: sourceOf(i, 0) })), ...outlines.map((element, i) => ({ element, source: sourceOf(i, 1) }))];
+  return [
+    ...out.map((element, i) => ({ element, source: sourceOf(i, 0) })),
+    ...outlines.map((element, i) => ({ element, source: sourceOf(i, 1) })),
+  ];
 };
 
 /** A glyph scaled to another font's units: its advance and every coordinate of its outline. */
 const scaledGlyph = (glyph: { advance: number; path?: string }, scale: number) => ({
   advance: r2(glyph.advance * scale),
-  ...(glyph.path !== undefined && { path: glyph.path.replace(/-?\d+(?:\.\d+)?/g, (n) => String(r2(Number(n) * scale))) }),
+  ...(glyph.path !== undefined && {
+    path: glyph.path.replace(/-?\d+(?:\.\d+)?/g, (n) => String(r2(Number(n) * scale))),
+  }),
 });
 
 /**
@@ -1119,7 +1533,10 @@ const transformed = (text: string, transform?: 'uppercase' | 'lowercase') =>
 
 const FACT_LIKE: [string, RegExp][] = [
   ['an amount', /(A\$|NZ\$|US\$|\$|£|€|¥)\s?\d|\d[\d,]*\.\d{2}\b|\b[A-Z]{3}\s?\d/],
-  ['a date', /\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s\d{4}\b/i],
+  [
+    'a date',
+    /\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s\d{4}\b/i,
+  ],
   ['an account number', /\b\d{3}-\d{3}\b|\b\d{4}\s?\d{4}\b|\b\d{2}\s\d{3}\s\d{3}\s\d{3}\b/],
   ['an address', /\S+[$@]\S+\.\S+/],
 ];
@@ -1148,7 +1565,11 @@ export const snapshotBoundView = async (
   }
   const images: Record<string, Image> = {};
   // The sender's visual signature, drawn by the receiver from the signed data where the page shows it.
-  const visual = ((document.signatory ?? {}) as { visualSignature?: { type: string; strokes?: number[][]; text?: string } }).visualSignature;
+  const visual = (
+    (document.signatory ?? {}) as {
+      visualSignature?: { type: string; strokes?: number[][]; text?: string };
+    }
+  ).visualSignature;
   const signature: Signed = {
     found: [],
     ...(visual?.type === 'drawn' && visual.strokes && { strokes: visual.strokes }),
@@ -1175,10 +1596,14 @@ export const snapshotBoundView = async (
   // bound: the same words may also be a fact (the sender's or the signatory's name).
   if (signature.text !== undefined) {
     const families = new Map<string, number>();
-    for (const run of runs) families.set(run.style.family, (families.get(run.style.family) ?? 0) + [...run.text].length);
+    for (const run of runs)
+      families.set(run.style.family, (families.get(run.style.family) ?? 0) + [...run.text].length);
     const lines = runs.filter((run) => run.text.trim() === signature.text);
     const rarity = (line: LaidRun) => families.get(line.style.family) ?? 0;
-    const run = lines.reduce<LaidRun | undefined>((best, line) => (best === undefined || rarity(line) <= rarity(best) ? line : best), undefined);
+    const run = lines.reduce<LaidRun | undefined>(
+      (best, line) => (best === undefined || rarity(line) <= rarity(best) ? line : best),
+      undefined,
+    );
     if (run) {
       const lead = [...run.text].findIndex((char) => !/\s/.test(char));
       const left = (run.chars[lead] as { left: number }).left;
@@ -1197,7 +1622,8 @@ export const snapshotBoundView = async (
   const segments = bindRuns(document, runs);
   // List markers after the binding: the browser draws them, they are never the document's facts ("1." is no quantity).
   shapes.push(...markers.shapes);
-  for (const run of markers.runs) segments.push({ run: runs.push(run) - 1, from: 0, to: [...run.text.trimEnd()].length });
+  for (const run of markers.runs)
+    segments.push({ run: runs.push(run) - 1, from: 0, to: [...run.text.trimEnd()].length });
 
   // A font a style: its own glyphs, read from the page's font file, or the bundled font with its widths.
   const styles = new Map<string, { style: Style; segments: Segment[] }>();
@@ -1236,19 +1662,32 @@ export const snapshotBoundView = async (
     if (files) {
       // Each character from the file the browser drew it with, at the page's weight (and size, for optical sizes).
       const first = (files[0] as FontFile).font;
-      const table: BTPBoundViewFont = { unitsPerEm: first.unitsPerEm, ascent: 0, descent: 0, glyphs: {} };
+      const table: BTPBoundViewFont = {
+        unitsPerEm: first.unitsPerEm,
+        ascent: 0,
+        descent: 0,
+        glyphs: {},
+      };
       const kerning: Record<string, number> = {};
       const byFile = new Map<FontFile, string[]>();
       const unread: string[] = [];
       for (const char of characters) {
         const file = fileFor(files, char);
-        if (file && file.font.unitsPerEm === first.unitsPerEm) byFile.set(file, [...(byFile.get(file) ?? []), char]);
+        if (file && file.font.unitsPerEm === first.unitsPerEm)
+          byFile.set(file, [...(byFile.get(file) ?? []), char]);
         else unread.push(char);
       }
       if (byFile.size === 0) byFile.set(files[0] as FontFile, []);
       for (const [file, chars] of byFile) {
-        const variation = variationFor(file.font, { weight: style.weight, italic: style.style === 'italic', size: style.size });
-        const { font: part, missing } = glyphTable(file.font, chars, { tabular: style.tabular, ...(variation && { variation }) });
+        const variation = variationFor(file.font, {
+          weight: style.weight,
+          italic: style.style === 'italic',
+          size: style.size,
+        });
+        const { font: part, missing } = glyphTable(file.font, chars, {
+          tabular: style.tabular,
+          ...(variation && { variation }),
+        });
         Object.assign(table.glyphs as object, part.glyphs);
         Object.assign(kerning, part.kerning);
         table.ascent = Math.max(table.ascent, part.ascent);
@@ -1257,50 +1696,99 @@ export const snapshotBoundView = async (
       }
       // A character the page's font has no glyph for: the browser drew it with a fallback, and so do we.
       if (unread.length > 0) {
-        const bundledFont = (await loadBundledFonts([fallback], unread))[fallback] as BTPBoundViewFont;
+        const bundledFont = (await loadBundledFonts([fallback], unread))[
+          fallback
+        ] as BTPBoundViewFont;
         const scale = table.unitsPerEm / bundledFont.unitsPerEm;
         for (const char of unread) {
           const glyph = bundledFont.glyphs?.[char];
           if (glyph) (table.glyphs as Record<string, unknown>)[char] = scaledGlyph(glyph, scale);
-          else if (boundCharacters.has(char)) problems.push(`no font has a glyph for ${JSON.stringify(char)}, which ${style.family} shows`);
+          else if (boundCharacters.has(char))
+            problems.push(
+              `no font has a glyph for ${JSON.stringify(char)}, which ${style.family} shows`,
+            );
         }
       }
       const name = `font${index++}`;
-      fonts[name] = { ...table, ...(Object.keys(kerning).length > 0 && { kerning }), fallback: [fallback] };
+      fonts[name] = {
+        ...table,
+        ...(Object.keys(kerning).length > 0 && { kerning }),
+        fallback: [fallback],
+      };
       fontKey.set(key, name);
       continue;
     }
     // No font file the page lets us read: its text is drawn with the bundled font of the same widths.
-    const bundledFont = (await loadBundledFonts([fallback], characters))[fallback] as BTPBoundViewFont;
+    const bundledFont = (await loadBundledFonts([fallback], characters))[
+      fallback
+    ] as BTPBoundViewFont;
     const name = shared.get(fallback) ?? `font${index++}`;
     const glyphs = {
       ...fonts[name]?.glyphs,
-      ...Object.fromEntries([...characters, ...'0123456789.,-+%$€£¥/: '].flatMap((char) => (bundledFont.glyphs?.[char] ? [[char, bundledFont.glyphs[char]]] : []))),
+      ...Object.fromEntries(
+        [...characters, ...'0123456789.,-+%$€£¥/: '].flatMap((char) =>
+          bundledFont.glyphs?.[char] ? [[char, bundledFont.glyphs[char]]] : [],
+        ),
+      ),
     };
     for (const char of boundCharacters) {
-      if (!bundledFont.glyphs?.[char]) problems.push(`no font has a glyph for ${JSON.stringify(char)}, which ${style.family} shows`);
+      if (!bundledFont.glyphs?.[char])
+        problems.push(
+          `no font has a glyph for ${JSON.stringify(char)}, which ${style.family} shows`,
+        );
     }
-    fonts[name] = { unitsPerEm: bundledFont.unitsPerEm, ascent: bundledFont.ascent, descent: bundledFont.descent, glyphs, fallback: [fallback] };
+    fonts[name] = {
+      unitsPerEm: bundledFont.unitsPerEm,
+      ascent: bundledFont.ascent,
+      descent: bundledFont.descent,
+      glyphs,
+      fallback: [fallback],
+    };
     shared.set(fallback, name);
     fontKey.set(key, name);
-    onWarning(`${style.family} ${style.weight} has no font file this page can read; its text is drawn with ${fallback}`);
+    onWarning(
+      `${style.family} ${style.weight} has no font file this page can read; its text is drawn with ${fallback}`,
+    );
   }
   const fontCount = Object.keys(fonts).length;
-  if (fontCount > MAX_FONTS) problems.push(`the preview uses ${fontCount} fonts; a BoundView carries at most ${MAX_FONTS}`);
+  if (fontCount > MAX_FONTS)
+    problems.push(`the preview uses ${fontCount} fonts; a BoundView carries at most ${MAX_FONTS}`);
 
   /**
    * A text with what the browser draws with it: its shadows first, its underline and overline under it, its
    * line-through over it. A fact's lines are not drawn: in its box, a receiver could not tell one from a shape that
    * hides it (the format has no decoration for a fact yet).
    */
-  const decorated = (element: Element, shown: string, run: LaidRun, segment: Segment, source: globalThis.Element, fact: boolean): Placed[] => {
+  const decorated = (
+    element: Element,
+    shown: string,
+    run: LaidRun,
+    segment: Segment,
+    source: globalThis.Element,
+    fact: boolean,
+  ): Placed[] => {
     const { style } = run;
     const text = element as Extract<Element, { type: 'text' | 'label' }>;
     const before: Element[] = [];
     const after: Element[] = [];
     for (const shadow of style.shadows ?? []) {
-      const outline = { type: 'label', text: shown, x: text.x, y: text.y, width: text.width, align: 'start', font: text.font, size: text.size, colour: shadow.colour, ...(text.letterSpacing && { letterSpacing: text.letterSpacing }) } as Element;
-      for (const path of throughMatrix(outline, new DOMMatrix().translate(shadow.x, shadow.y), { images, fonts, problems })) {
+      const outline = {
+        type: 'label',
+        text: shown,
+        x: text.x,
+        y: text.y,
+        width: text.width,
+        align: 'start',
+        font: text.font,
+        size: text.size,
+        colour: shadow.colour,
+        ...(text.letterSpacing && { letterSpacing: text.letterSpacing }),
+      } as Element;
+      for (const path of throughMatrix(outline, new DOMMatrix().translate(shadow.x, shadow.y), {
+        images,
+        fonts,
+        problems,
+      })) {
         const alpha = shadow.blur > 0 ? shadow.alpha * 0.6 : shadow.alpha;
         before.push({ ...path, ...(alpha < 1 && { opacity: r2(alpha) }) } as Element);
       }
@@ -1313,11 +1801,45 @@ export const snapshotBoundView = async (
     const to = (run.chars[end] as { right: number }).right;
     for (const decoration of fact ? [] : (style.decorations ?? [])) {
       const thickness = decoration.thickness ?? Math.max(1, Math.round(style.size / 14));
-      if (decoration.line === 'underline') before.push(...decorationLine(from, to, run.baseline + style.size * 0.1 + decoration.offset + thickness / 2, thickness, decoration.style, decoration.colour));
-      else if (decoration.line === 'overline') before.push(...decorationLine(from, to, run.baseline - style.size * 0.93 + thickness / 2, thickness, decoration.style, decoration.colour));
-      else after.push(...decorationLine(from, to, run.baseline - style.size * 0.29, thickness, decoration.style, decoration.colour));
+      if (decoration.line === 'underline')
+        before.push(
+          ...decorationLine(
+            from,
+            to,
+            run.baseline + style.size * 0.1 + decoration.offset + thickness / 2,
+            thickness,
+            decoration.style,
+            decoration.colour,
+          ),
+        );
+      else if (decoration.line === 'overline')
+        before.push(
+          ...decorationLine(
+            from,
+            to,
+            run.baseline - style.size * 0.93 + thickness / 2,
+            thickness,
+            decoration.style,
+            decoration.colour,
+          ),
+        );
+      else
+        after.push(
+          ...decorationLine(
+            from,
+            to,
+            run.baseline - style.size * 0.29,
+            thickness,
+            decoration.style,
+            decoration.colour,
+          ),
+        );
     }
-    return [...before, element, ...after].map((e) => ({ element: e, source, ...(style.alpha !== undefined && e === element && { alpha: style.alpha }) }));
+    return [...before, element, ...after].map((e) => ({
+      element: e,
+      source,
+      ...(style.alpha !== undefined && e === element && { alpha: style.alpha }),
+    }));
   };
 
   // The text: each fact bound to its field, each of the sender's words a label, on its own baseline.
@@ -1326,7 +1848,9 @@ export const snapshotBoundView = async (
     const run = runs[segment.run] as LaidRun;
     const source = run.element ?? preview;
     const { style } = run;
-    const font = fontKey.get(`${style.family}|${style.weight}|${style.style}|${style.tabular}`) as string;
+    const font = fontKey.get(
+      `${style.family}|${style.weight}|${style.style}|${style.tabular}`,
+    ) as string;
     const table = fonts[font] as BTPBoundViewFont;
     const first = run.chars[segment.from] as { left: number };
     const last = run.chars[segment.to - 1] as { right: number };
@@ -1349,13 +1873,26 @@ export const snapshotBoundView = async (
       const width = chars.reduce((sum, char, i) => {
         const glyph = table.glyphs?.[char];
         const kerning = table.kerning?.[`${char}${chars[i + 1] ?? ''}`] ?? 0;
-        return sum + ((glyph?.advance ?? 0) + kerning) * (style.size / table.unitsPerEm) + (style.spacing ?? 0);
+        return (
+          sum +
+          ((glyph?.advance ?? 0) + kerning) * (style.size / table.unitsPerEm) +
+          (style.spacing ?? 0)
+        );
       }, 0);
       // No wider than the browser drew it: what follows on the line (a comma, the next word) starts where the page put
       // it, and a box reaching past that would be covered by it. A receiver fits the value to its box.
       const drawn = last.right - first.left;
-      const element = { type: 'text', bind: segment.bind, ...base, width: drawn > 0 ? boxWidth(base.x, Math.min(first.left + width, last.right)) : ceil2(width) } as Element;
-      if (style.smallCaps && shown !== shown.toUpperCase()) onWarning(`${segment.bind.field} is in small capitals on the page; a BoundView draws a fact as written`);
+      const element = {
+        type: 'text',
+        bind: segment.bind,
+        ...base,
+        width:
+          drawn > 0 ? boxWidth(base.x, Math.min(first.left + width, last.right)) : ceil2(width),
+      } as Element;
+      if (style.smallCaps && shown !== shown.toUpperCase())
+        onWarning(
+          `${segment.bind.field} is in small capitals on the page; a BoundView draws a fact as written`,
+        );
       texts.push(...decorated(element, shown, run, segment, source, true));
     } else {
       const text = [...run.text].slice(segment.from, segment.to).join('');
@@ -1371,13 +1908,31 @@ export const snapshotBoundView = async (
           const small = lower(chars[start]);
           const left = (run.chars[start] as { left: number }).left;
           const right = (run.chars[i - 1] as { right: number }).right;
-          if (piece.trim()) pieces.push({ type: 'label', ...base, text: small ? piece.toUpperCase() : piece, x: r2(left), size: r2(style.size * (small ? 0.7 : 1)), width: boxWidth(left, right) } as Element);
+          if (piece.trim())
+            pieces.push({
+              type: 'label',
+              ...base,
+              text: small ? piece.toUpperCase() : piece,
+              x: r2(left),
+              size: r2(style.size * (small ? 0.7 : 1)),
+              width: boxWidth(left, right),
+            } as Element);
           start = i;
         }
-      } else pieces.push({ type: 'label', text, ...base, width: boxWidth(base.x, last.right) } as Element);
-      for (const piece of pieces) texts.push(...decorated(piece, (piece as { text: string }).text, run, segment, source, false));
+      } else
+        pieces.push({
+          type: 'label',
+          text,
+          ...base,
+          width: boxWidth(base.x, last.right),
+        } as Element);
+      for (const piece of pieces)
+        texts.push(
+          ...decorated(piece, (piece as { text: string }).text, run, segment, source, false),
+        );
       for (const [what, pattern] of FACT_LIKE) {
-        if (pattern.test(text)) onWarning(`"${text}" looks like ${what} but is not bound to the signed data`);
+        if (pattern.test(text))
+          onWarning(`"${text}" looks like ${what} but is not bound to the signed data`);
       }
     }
   }
@@ -1387,7 +1942,10 @@ export const snapshotBoundView = async (
   const through = (placed: Placed): Placed[] => {
     const m = flat.matrixOf(placed.source);
     if (!m || isIdentity(m)) return [placed];
-    return throughMatrix(placed.element, m, { images, fonts, problems }).map((element) => ({ element, source: placed.source }));
+    return throughMatrix(placed.element, m, { images, fonts, problems }).map((element) => ({
+      element,
+      source: placed.source,
+    }));
   };
   // Opacity: an element's, times its ancestors'. A shape or image carries it; a text's colour is solid, so its ink is
   // mixed with what is behind it, as the eye sees it.
@@ -1395,12 +1953,18 @@ export const snapshotBoundView = async (
   const opacityOf = (element: globalThis.Element): number => {
     if (opacities.has(element)) return opacities.get(element) as number;
     const own = parseFloat(getComputedStyle(element).opacity);
-    const o = (Number.isFinite(own) ? own : 1) * (element === preview || !element.parentElement ? 1 : opacityOf(element.parentElement));
+    const o =
+      (Number.isFinite(own) ? own : 1) *
+      (element === preview || !element.parentElement ? 1 : opacityOf(element.parentElement));
     opacities.set(element, o);
     return o;
   };
   const behind = (element: globalThis.Element): string => {
-    for (let at: globalThis.Element | null = element; at; at = at === preview ? null : at.parentElement) {
+    for (
+      let at: globalThis.Element | null = element;
+      at;
+      at = at === preview ? null : at.parentElement
+    ) {
       const fill = hex(getComputedStyle(at).backgroundColor);
       if (fill && fill.length === 7) return fill;
     }
@@ -1410,20 +1974,28 @@ export const snapshotBoundView = async (
     const o = opacityOf(placed.source) * (placed.alpha ?? 1);
     if (o >= 0.999) return [placed];
     const e = placed.element;
-    if (e.type === 'text' || e.type === 'label' || e.type === 'signature') return [{ ...placed, element: { ...e, colour: mixed(behind(placed.source), e.colour, o) } }];
+    if (e.type === 'text' || e.type === 'label' || e.type === 'signature')
+      return [{ ...placed, element: { ...e, colour: mixed(behind(placed.source), e.colour, o) } }];
     const prior = 'opacity' in e && typeof e.opacity === 'number' ? e.opacity : 1;
     return [{ ...placed, element: { ...e, opacity: r2(prior * o) } as Element }];
   };
   const drawnShapes = shapes.flatMap(through).flatMap(faded);
   const drawnTexts = texts.flatMap(through).flatMap(faded);
   const groupOf = (placed: Placed) => flat.groupOf(placed.source);
-  const groups = [...new Set([...drawnShapes, ...drawnTexts].map(groupOf).filter((group): group is globalThis.Element => group !== undefined))].sort((a, b) =>
-    a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
-  );
+  const groups = [
+    ...new Set(
+      [...drawnShapes, ...drawnTexts]
+        .map(groupOf)
+        .filter((group): group is globalThis.Element => group !== undefined),
+    ),
+  ].sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
   const ordered = [
     ...drawnShapes.filter((placed) => !groupOf(placed)),
     ...drawnTexts.filter((placed) => !groupOf(placed)),
-    ...groups.flatMap((group) => [...drawnShapes.filter((placed) => groupOf(placed) === group), ...drawnTexts.filter((placed) => groupOf(placed) === group)]),
+    ...groups.flatMap((group) => [
+      ...drawnShapes.filter((placed) => groupOf(placed) === group),
+      ...drawnTexts.filter((placed) => groupOf(placed) === group),
+    ]),
   ].map(({ element }) => element);
 
   const css = getComputedStyle(preview);
@@ -1434,17 +2006,29 @@ export const snapshotBoundView = async (
     const e = element as { x?: number; y?: number; width?: number; height?: number; size?: number };
     return { right: (e.x ?? 0) + (e.width ?? 0), bottom: (e.y ?? 0) + (e.height ?? e.size ?? 0) };
   });
-  const width = css.overflowX === 'visible' ? Math.max(origin.width, preview.scrollWidth, ...edges.map(({ right }) => right)) : origin.width;
-  const height = css.overflowY === 'visible' ? Math.max(origin.height, preview.scrollHeight, ...edges.map(({ bottom }) => bottom)) : origin.height;
+  const width =
+    css.overflowX === 'visible'
+      ? Math.max(origin.width, preview.scrollWidth, ...edges.map(({ right }) => right))
+      : origin.width;
+  const height =
+    css.overflowY === 'visible'
+      ? Math.max(origin.height, preview.scrollHeight, ...edges.map(({ bottom }) => bottom))
+      : origin.height;
   const view = {
     format: 1,
     // A page with rounded corners draws its colour as a shape (in paint): outside its corners is no colour of its own.
-    page: { width: ceil2(width), height: ceil2(height), ...(background && !isRound(cornersOf(css, origin.width, origin.height)) && { background: solid(background) }) },
+    page: {
+      width: ceil2(width),
+      height: ceil2(height),
+      ...(background &&
+        !isRound(cornersOf(css, origin.width, origin.height)) && { background: solid(background) }),
+    },
     ...(Object.keys(fonts).length > 0 && { fonts }),
     ...(Object.keys(images).length > 0 && { images }),
     elements: [...ordered, ...signature.found],
   };
-  if (problems.length > 0) throw new BoundViewSnapshotError('The preview cannot be sent as a BoundView', problems);
+  if (problems.length > 0)
+    throw new BoundViewSnapshotError('The preview cannot be sent as a BoundView', problems);
 
   const parsed = BtpBoundViewSchema.safeParse(view);
   if (!parsed.success) {
@@ -1458,7 +2042,9 @@ export const snapshotBoundView = async (
   if (!result.show) {
     throw new BoundViewSnapshotError(
       'A receiver would not show this BoundView',
-      result.problems.map(({ message, field, element }) => (field ? `${field}: ${message}` : `element ${element}: ${message}`)),
+      result.problems.map(({ message, field, element }) =>
+        field ? `${field}: ${message}` : `element ${element}: ${message}`,
+      ),
       parsed.data,
     );
   }
