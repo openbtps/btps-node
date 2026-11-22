@@ -38,6 +38,23 @@ to keep the sender's design and guarantee that the page shows what was
 signed. The full story, and how email, signed PDFs, e-invoicing networks
 and portals compare, is on [Why BoundView was created](./why.md).
 
+## A signed view, not the record
+
+A BoundView is optional. It is a signed view: the sender's own presentation
+of the document, shown exactly as it was signed. The record is the signed
+document data. A receiver can always show its own view of that data, with
+every field, and that view is what to rely on for a full record, for
+example for legal or court use.
+
+So a BoundView must be truthful: every fact it shows is written from the
+signed value. The shapes of its characters are the sender's and are not
+checked ([Glyph shapes are the sender's](./security.md#glyph-shapes-are-the-senders)),
+so the receiver's own view of the data is what to rely on.
+It must show the document's [key facts](./checks.md#key-facts), but it need
+not show every field, and each document type lists what it may leave out. A
+design that does show every field is fine too: everything it shows is bound
+to the signed values.
+
 ## Where to start
 
 | You are | Read |
@@ -115,7 +132,7 @@ with [Using BoundView](./using.md).
 | **No tampering.** What was signed is what arrives, the BoundView included. | The BoundView is inside the document, so the artifact's signature covers it. |
 | **No spoofing.** The document comes from its sender. | The signature and the trust record. The receiving app shows the verified sender [outside the BoundView](./using.md#what-the-receiving-app-shows-around-a-boundview), never inside it. |
 | **No active content, no tracking.** Nothing runs, and nothing is fetched when a document is viewed. | A BoundView holds only data: shapes, glyph outlines and pixels. It names no address, font file or image file. |
-| **The page shows what the document says.** | Every fact on a BoundView is a [binding](./bindings.md) to a signed field and is drawn from that field. It must show the document's [key facts](./checks.md#key-facts), each in full. |
+| **The page writes what the document says.** | Every fact on a BoundView is a [binding](./bindings.md) to a signed field, and the receiver writes it from that field, character by character. It must show the document's [key facts](./checks.md#key-facts), each in full. The shapes of the characters are the sender's and are not checked ([Glyph shapes are the sender's](./security.md#glyph-shapes-are-the-senders)). The receiver's own view shows every signed field, and is what to rely on. |
 | **The same look on every receiver**, apart from a screen's own colour and edge rendering. | [Fonts as glyph outlines](./fonts.md), [images as pixels](./images.md) and one [rendering contract](./rendering.md), drawn by one engine in a [closed WebAssembly box](./rendering.md#the-engine-a-closed-box) that gives back only a picture. |
 
 :::warning What BTPS does not promise

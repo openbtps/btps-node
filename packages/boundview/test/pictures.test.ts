@@ -12,7 +12,8 @@
  * receiver's engine that gives another is not drawing as every other one does.
  *
  * BOUNDVIEW_WRITE_PICTURES=1 writes the file once, when the set is made; it
- * is a frozen vector after that. BOUNDVIEW_OUT=<dir> also writes each PNG.
+ * is a frozen vector after that, to which it only adds a reference not yet in
+ * it, never changing one there. BOUNDVIEW_OUT=<dir> also writes each PNG.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -31,7 +32,18 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const FILE = path.resolve(here, '../../../test/vectors/boundview-pictures.vectors.json');
 
 const font = (name: string, characters: string) => {
-  const table = (bundled as Record<string, { unitsPerEm: number; ascent: number; descent: number; glyphs: Record<string, unknown>; kerning?: Record<string, number> }>)[name];
+  const table = (
+    bundled as Record<
+      string,
+      {
+        unitsPerEm: number;
+        ascent: number;
+        descent: number;
+        glyphs: Record<string, unknown>;
+        kerning?: Record<string, number>;
+      }
+    >
+  )[name];
   if (!table) throw new Error(name);
   const keep = new Set([...characters]);
   return {
@@ -40,7 +52,9 @@ const font = (name: string, characters: string) => {
     descent: table.descent,
     glyphs: Object.fromEntries(Object.entries(table.glyphs).filter(([char]) => keep.has(char))),
     ...(table.kerning && {
-      kerning: Object.fromEntries(Object.entries(table.kerning).filter(([pair]) => [...pair].every((char) => keep.has(char)))),
+      kerning: Object.fromEntries(
+        Object.entries(table.kerning).filter(([pair]) => [...pair].every((char) => keep.has(char))),
+      ),
     }),
   };
 };
@@ -60,8 +74,14 @@ const text = (field: string, x: number, y: number, more: object = {}) => ({
 });
 const logo = () => {
   const pixels = new Uint8Array(32 * 16 * 4);
-  for (let i = 0; i < 32 * 16; i++) pixels.set([30 + (i % 32) * 6, 79, 194, 255 - (i % 16) * 8], i * 4);
-  return { width: 32, height: 16, encoding: 'rgba8-deflate', data: Buffer.from(zlibSync(pixels)).toString('base64') };
+  for (let i = 0; i < 32 * 16; i++)
+    pixels.set([30 + (i % 32) * 6, 79, 194, 255 - (i % 16) * 8], i * 4);
+  return {
+    width: 32,
+    height: 16,
+    encoding: 'rgba8-deflate',
+    data: Buffer.from(zlibSync(pixels)).toString('base64'),
+  };
 };
 
 const letter = (visualSignature: object) => ({
@@ -92,29 +112,116 @@ const REFERENCES: Record<string, object> = {
     id: 'INV-0042',
     issuedAt: '2026-11-25T00:00:00.000Z',
     totalAmount: { amount: 145200, currency: 'AUD' },
-    lineItems: { columns: ['Item', 'Amount'], roles: { Item: 'description', Amount: 'lineTotal' }, rows: [{ Item: 'Website care', Amount: 145200 }] },
+    lineItems: {
+      columns: ['Item', 'Amount'],
+      roles: { Item: 'description', Amount: 'lineTotal' },
+      rows: [{ Item: 'Website care', Amount: 145200 }],
+    },
     boundView: {
       format: 1,
       page: { width: 360, height: 220, background: '#ffffff' },
       fonts: { body: font('arimo', CHARACTERS) },
       images: { logo: logo() },
       elements: [
-        { type: 'rect', x: 0, y: 0, width: 360, height: 60, fill: { linear: { from: [0, 0], to: [360, 0], stops: [[0, '#1e4fc2'], [1, '#7c3aed']] } } },
+        {
+          type: 'rect',
+          x: 0,
+          y: 0,
+          width: 360,
+          height: 60,
+          fill: {
+            linear: {
+              from: [0, 0],
+              to: [360, 0],
+              stops: [
+                [0, '#1e4fc2'],
+                [1, '#7c3aed'],
+              ],
+            },
+          },
+        },
         { type: 'image', image: 'logo', x: 20, y: 22, width: 32, height: 16 },
-        { type: 'label', text: 'Tax invoice', x: 64, y: 36, width: 120, align: 'start', font: 'body', size: 16, colour: '#ffffff' },
-        { type: 'rect', x: 12, y: 76, width: 336, height: 128, radius: [10, 10, 0, 10], fill: '#f2f6ff', stroke: '#c7d2fe', strokeWidth: 1 },
-        { type: 'path', d: 'M300 180Q320 150 340 180C330 195 310 195 300 180Z', fill: { radial: { centre: [320, 180], radius: 30, stops: [[0, '#fde68a'], [1, '#f59e0b']] } }, fillRule: 'evenodd' },
-        { type: 'line', from: [24, 140.5], to: [336, 140.5], stroke: '#e6eaf0', strokeWidth: 1, dash: [4, 2] },
+        {
+          type: 'label',
+          text: 'Tax invoice',
+          x: 64,
+          y: 36,
+          width: 120,
+          align: 'start',
+          font: 'body',
+          size: 16,
+          colour: '#ffffff',
+        },
+        {
+          type: 'rect',
+          x: 12,
+          y: 76,
+          width: 336,
+          height: 128,
+          radius: [10, 10, 0, 10],
+          fill: '#f2f6ff',
+          stroke: '#c7d2fe',
+          strokeWidth: 1,
+        },
+        {
+          type: 'path',
+          d: 'M300 180Q320 150 340 180C330 195 310 195 300 180Z',
+          fill: {
+            radial: {
+              centre: [320, 180],
+              radius: 30,
+              stops: [
+                [0, '#fde68a'],
+                [1, '#f59e0b'],
+              ],
+            },
+          },
+          fillRule: 'evenodd',
+        },
+        {
+          type: 'line',
+          from: [24, 140.5],
+          to: [336, 140.5],
+          stroke: '#e6eaf0',
+          strokeWidth: 1,
+          dash: [4, 2],
+        },
         text('id', 24, 100),
         text('issuedAt', 24, 124, { bind: { field: 'issuedAt', format: { date: 'd MMM yyyy' } } }),
         text('lineItems.rows.0.Item', 24, 164),
-        text('lineItems.rows.0.Amount', 24, 188, { bind: { field: 'lineItems.rows.0.Amount', format: money }, align: 'end', width: 120, letterSpacing: 0.5 }),
-        text('totalAmount', 160, 188, { bind: { field: 'totalAmount', format: money }, size: 18, transform: 'uppercase', width: 130 }),
+        text('lineItems.rows.0.Amount', 24, 188, {
+          bind: { field: 'lineItems.rows.0.Amount', format: money },
+          align: 'end',
+          width: 120,
+          letterSpacing: 0.5,
+        }),
+        text('totalAmount', 160, 188, {
+          bind: { field: 'totalAmount', format: money },
+          size: 18,
+          transform: 'uppercase',
+          width: 130,
+        }),
       ],
     },
   },
-  'letter-with-a-drawn-signature': letter({ type: 'drawn', strokes: [[20, 220, 120, 60, 200, 240, 300, 80, 420, 230, 560, 70], [600, 200, 760, 190, 980, 140]] }),
+  'letter-with-a-drawn-signature': letter({
+    type: 'drawn',
+    strokes: [
+      [20, 220, 120, 60, 200, 240, 300, 80, 420, 230, 560, 70],
+      [600, 200, 760, 190, 980, 140],
+    ],
+  }),
   'letter-with-a-typed-signature': letter({ type: 'typed', text: 'Jo Bloggs' }),
+  // A stroke of one point is a dot as wide as the stroke (an i's dot, a full stop).
+  'letter-with-a-signature-with-dots': letter({
+    type: 'drawn',
+    strokes: [
+      [20, 220, 120, 60, 200, 240, 300, 80, 420, 230],
+      [480, 60],
+      [600, 200, 760, 190, 980, 140],
+      [990, 230],
+    ],
+  }),
 };
 
 const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
@@ -123,12 +230,19 @@ describe('the reference pictures', async () => {
   const drawn: Record<string, string> = {};
   for (const [name, document] of Object.entries(REFERENCES)) {
     const png = await renderBoundView(document, { scale: 2 });
-    if (png === null) throw new Error(`${name} is not shown: ${JSON.stringify(boundViewResultOf(document))}`);
+    if (png === null)
+      throw new Error(`${name} is not shown: ${JSON.stringify(boundViewResultOf(document))}`);
     drawn[name] = sha256(png);
-    if (process.env.BOUNDVIEW_OUT) writeFileSync(path.join(process.env.BOUNDVIEW_OUT, `${name}.png`), png);
+    if (process.env.BOUNDVIEW_OUT)
+      writeFileSync(path.join(process.env.BOUNDVIEW_OUT, `${name}.png`), png);
   }
   if (process.env.BOUNDVIEW_WRITE_PICTURES === '1' && !existsSync(FILE)) {
-    const pictures = Object.entries(REFERENCES).map(([name, document]) => ({ name, document, scale: 2, sha256: drawn[name] }));
+    const pictures = Object.entries(REFERENCES).map(([name, document]) => ({
+      name,
+      document,
+      scale: 2,
+      sha256: drawn[name],
+    }));
     writeFileSync(
       FILE,
       `${JSON.stringify(
@@ -142,11 +256,31 @@ describe('the reference pictures', async () => {
       )}\n`,
     );
   }
-  const vectors = JSON.parse(readFileSync(FILE, 'utf8')) as { pictures: { name: string; document: object; scale: number; sha256: string }[] };
+  const vectors = JSON.parse(readFileSync(FILE, 'utf8')) as {
+    pictures: { name: string; document: object; scale: number; sha256: string }[];
+  };
+  if (process.env.BOUNDVIEW_WRITE_PICTURES === '1') {
+    const known = new Set(vectors.pictures.map(({ name }) => name));
+    const added = Object.entries(REFERENCES).filter(([name]) => !known.has(name));
+    if (added.length > 0) {
+      vectors.pictures.push(
+        ...added.map(([name, document]) => ({
+          name,
+          document,
+          scale: 2,
+          sha256: drawn[name] as string,
+        })),
+      );
+      writeFileSync(FILE, `${JSON.stringify(vectors, null, 2)}\n`);
+    }
+  }
 
-  it.each(vectors.pictures)('$name is drawn byte for byte as the vector says', async ({ document, scale, sha256: expected }) => {
-    const png = await renderBoundView(document, { scale });
-    expect(png).not.toBeNull();
-    expect(sha256(png as Uint8Array)).toBe(expected);
-  });
+  it.each(vectors.pictures)(
+    '$name is drawn byte for byte as the vector says',
+    async ({ document, scale, sha256: expected }) => {
+      const png = await renderBoundView(document, { scale });
+      expect(png).not.toBeNull();
+      expect(sha256(png as Uint8Array)).toBe(expected);
+    },
+  );
 });

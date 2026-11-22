@@ -24,6 +24,13 @@ the rest of the canvas. So the BoundView gets the sender's exact letters, and a
 receiver reads nothing it cannot check completely.
 :::
 
+:::warning A glyph's shape is not checked
+A receiver checks that every character of a bound value has a glyph and
+uses its `advance` to check the value fits. Nothing checks that a glyph's
+shape is the character it stands for: the outlines are the sender's
+([Glyph shapes are the sender's](./security.md#glyph-shapes-are-the-senders)).
+:::
+
 ## A font
 
 A canvas's `fonts` holds up to eight fonts, each by a key the canvas chooses.
