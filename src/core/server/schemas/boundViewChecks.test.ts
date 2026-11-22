@@ -295,6 +295,25 @@ describe('not hidden', () => {
     ).toContain('notHidden');
   });
 
+  // Found by the claims sweep: a fact whose box ended exactly where a border began was sampled on that edge, which
+  // the border covers, and was refused though nothing lay over it. Every point is inside the box now.
+  it('does not refuse a fact a shape only touches, and still refuses one a shape reaches into', () => {
+    const [first, ...rest] = facts();
+    const edged = { ...first, x: 9.5, width: 200.5 };
+    // A border round the page, its inside edge where the fact's box ends: the border's box holds the fact's.
+    const border = (inside: number) => ({
+      type: 'path',
+      d: `M0 0H260V400H0Z M0 0H${inside}V400H0Z`,
+      fill: '#0f1b2d',
+      fillRule: 'evenodd',
+    });
+    expect(check([border(210), edged, ...rest])).toEqual({ show: true });
+    expect(failed(check([border(209), edged, ...rest]))[0]).toMatchObject({
+      check: 'notHidden',
+      element: 1,
+    });
+  });
+
   it("tests a rounded corner and a path's fill rule exactly", () => {
     const rounded = {
       type: 'rect',

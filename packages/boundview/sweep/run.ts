@@ -167,6 +167,35 @@ if (process.env.INSPECT) {
   server.close();
   process.exit(0);
 }
+if (process.env.AUDIT) {
+  // AUDIT=<failures.json>: each case refused as too faint, against the browser's own picture of the page with its text
+  // taken away: the lowest contrast there over the same box. Under 3:1 the page hides it too; over, the check alone does.
+  const refused = (JSON.parse(readFileSync(process.env.AUDIT, 'utf8')) as Result[]).filter((f) => /contrast/.test(f.error) && !f.notes[0]?.startsWith('claim'));
+  const rows: string[] = [];
+  let at = 0;
+  const auditor = async () => {
+    const page = await browser.newPage({ viewport: { width: 900, height: 900 }, deviceScaleFactor: 1 });
+    await page.goto(`http://127.0.0.1:${port}/`);
+    await page.waitForFunction(() => 'audit' in window);
+    while (at < refused.length) {
+      const failure = refused[at++] as Result;
+      const boxes = await page.evaluate((s) => (window as unknown as { audit: (n: number) => Promise<unknown[]> }).audit(s), failure.seed);
+      const shot = (await page.locator('#preview').screenshot({ animations: 'disabled' })).toString('base64');
+      const worst = (await page.evaluate(([a, b]) => (window as unknown as { auditPixels: (x: string, y: unknown[]) => Promise<number[]> }).auditPixels(a as string, b as unknown[]), [shot, boxes])) as number[];
+      const effects = failure.notes.find((n) => n.startsWith('effects ')) ?? '';
+      (boxes as { field: string }[]).forEach((box, i) => rows.push(`${failure.seed}\t${box.field}\t${worst[i]}\t${effects.slice(8)}`));
+    }
+    await page.close();
+  };
+  await Promise.all(Array.from({ length: pages }, auditor));
+  const out = path.join(root, `sweep-audit-${path.basename(process.env.AUDIT, '.json')}.tsv`);
+  writeFileSync(out, `seed\tfield\tbrowser contrast\teffects\n${rows.join('\n')}\n`);
+  const browserFaint = rows.filter((r) => Number(r.split('\t')[2]) < 3).length;
+  console.log(`${refused.length} cases, ${rows.length} facts refused as too faint: ${browserFaint} faint in the browser too, ${rows.length - browserFaint} not. ${out}`);
+  await browser.close();
+  server.close();
+  process.exit(0);
+}
 // LOOKS=<limit>: each case also drawn and compared with Chrome's own picture of the page, cell by cell; a cell whose mean
 // difference passes the limit (of 255) fails it. Both pictures of a failure are kept in sweep-looks/ by its seed.
 const limit = Number(process.env.LOOKS ?? 0);

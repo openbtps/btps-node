@@ -331,10 +331,10 @@ const contrast = (a: [number, number, number], b: [number, number, number]) => {
   return (light + 0.05) / (dark + 0.05);
 };
 
-/** Points every pixel at pixel centres from `start` to `end`, or the middle when the side is under half a pixel. */
+/** Points every pixel at pixel centres inside `start` to `end` (never on `end`, which a shape beside may share), or the middle when the side is under half a pixel. */
 const samples = (start: number, end: number): number[] => {
   const points: number[] = [];
-  for (let at = start + 0.5; at <= end; at++) points.push(at);
+  for (let at = start + 0.5; at < end; at++) points.push(at);
   return points.length > 0 ? points : [(start + end) / 2];
 };
 

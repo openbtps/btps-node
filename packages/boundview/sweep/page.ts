@@ -31,6 +31,8 @@ const settle = async (root: HTMLElement) => {
 /** The case's drawing, kept for the looks check, which compares it with the browser's own picture of the page. */
 let drawn: Uint8Array | null = null;
 let lastView: { elements: Record<string, unknown>[] } | undefined;
+/** The BoundView the last refused case made, for the contrast audit. */
+let lastRefused: { elements: Record<string, unknown>[]; fonts?: Record<string, { ascent: number; descent: number; unitsPerEm: number }> } | undefined;
 
 const run = async (seed: number): Promise<Result | undefined> => {
   drawn = null;
@@ -46,6 +48,7 @@ const run = async (seed: number): Promise<Result | undefined> => {
     const notes = [...made.notes];
     // What covers what: the element said to be covered, and every later element over it.
     const refused = (error as { view?: { elements: Record<string, unknown>[] } }).view;
+    lastRefused = refused as typeof lastRefused;
     for (const [, index] of (error instanceof Error ? error.message : '').matchAll(/element (\d+): an element drawn after it covers it/g)) {
       const at = Number(index);
       const covered = refused?.elements[at];
@@ -283,4 +286,61 @@ const pixelsOf = async (png: Uint8Array | Blob, width: number, height: number) =
     baseline: run.baseline,
     binds: segments.filter((s) => s.run === i).map((s) => `${[...run.text].slice(s.from, s.to).join('')}→${s.bind?.field ?? '-'}`),
   }));
+};
+
+// ---- The contrast audit: is a fact refused as too faint also faint in the browser's own picture of the page? ----
+
+type Box = { left: number; top: number; right: number; bottom: number; colour: string; field: string };
+
+/** Lays the case out again and gives each fact refused as too faint: the box the check samples, and its colour. */
+(window as unknown as { audit: (seed: number) => Promise<Box[]> }).audit = async (seed) => {
+  await initBoundViewEngine('/resvg.wasm');
+  lastRefused = undefined;
+  const failure = await run(seed);
+  const boxes: Box[] = [];
+  for (const [, index] of (failure?.error ?? '').matchAll(/element (\d+): its colour has less than/g)) {
+    const e = lastRefused?.elements[Number(index)] as { x: number; y: number; width: number; size: number; font: string; colour: string; bind?: { field: string } } | undefined;
+    const font = e ? lastRefused?.fonts?.[e.font] : undefined;
+    if (!e || !font) continue;
+    const scale = e.size / font.unitsPerEm;
+    boxes.push({ left: e.x, top: e.y - font.ascent * scale, right: e.x + e.width, bottom: e.y + font.descent * scale, colour: e.colour, field: e.bind?.field ?? 'signature' });
+  }
+  // The page with no text drawn: what lies beneath each fact, as the browser paints it.
+  const blank = document.createElement('style');
+  blank.id = 'blank';
+  blank.textContent = '#preview, #preview * { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; text-decoration-color: transparent !important; caret-color: transparent !important; }';
+  document.head.appendChild(blank);
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  return boxes;
+};
+
+const luminance = (r: number, g: number, b: number) => {
+  const c = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * c(r) + 0.7152 * c(g) + 0.0722 * c(b);
+};
+const hexRgb = (hex: string) => {
+  const h = hex.slice(1);
+  const full = h.length <= 4 ? [...h].map((d) => d + d).join('') : h;
+  return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16)) as [number, number, number];
+};
+
+/** Each box's worst contrast in the browser's picture: the lowest over every pixel of it, as the check samples. */
+(window as unknown as { auditPixels: (shot: string, boxes: Box[]) => Promise<number[]> }).auditPixels = async (shot, boxes) => {
+  document.getElementById('blank')?.remove();
+  const preview = document.getElementById('preview') as HTMLElement;
+  const rect = preview.getBoundingClientRect();
+  const width = Math.floor(rect.width);
+  const height = Math.floor(rect.height);
+  const pixels = await pixelsOf(Uint8Array.from(atob(shot), (c) => c.charCodeAt(0)), width, height);
+  return boxes.map((box) => {
+    const text = luminance(...hexRgb(box.colour));
+    let worst = 21;
+    for (let y = Math.max(0, Math.floor(box.top)); y < Math.min(height, Math.ceil(box.bottom)); y++)
+      for (let x = Math.max(0, Math.floor(box.left)); x < Math.min(width, Math.ceil(box.right)); x++) {
+        const at = (y * width + x) * 4;
+        const under = luminance(pixels[at] as number, pixels[at + 1] as number, pixels[at + 2] as number);
+        worst = Math.min(worst, (Math.max(text, under) + 0.05) / (Math.min(text, under) + 0.05));
+      }
+    return Math.round(worst * 100) / 100;
+  });
 };
