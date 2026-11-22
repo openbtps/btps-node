@@ -265,7 +265,10 @@ For a `signature`: its box, `x` to `x + width` and `y` to `y + height`.
 **Sample points.** A grid inside the box, every 1 pixel in `x` and `y`, at
 pixel centres. For a box from `x0` to `x1` and from `y0` to `y1`, the points
 in `x` are `x0 + 0.5 + k`, for `k` = 0, 1, 2, … for as long as the point
-is at most `x1`, and the same in `y` from `y0` to `y1`: every pair of them.
+is less than `x1`, and the same in `y` from `y0` to `y1`: every pair of them.
+So no point lies on the box's far edge: a border or shadow that begins
+exactly there would cover that point, since a point on an edge counts as
+covered (**Covers**, below), and refuse a fact that nothing lies over.
 If a side gets no point, because the box is under half a pixel that way,
 its one point is the middle of that side.
 

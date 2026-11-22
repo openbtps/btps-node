@@ -162,6 +162,17 @@ key facts are the ones agreed. A receiver's BoundView checks change with it
 - `@btps/sdk/boundview`: the BoundView schema checks an image's data with
   `atob`. 1.2.0-rc.3.1 used Node's `Buffer`, so the check failed in a
   browser without it.
+- `@btps/boundview`: `snapshotBoundView` draws a 3D transform
+  (`perspective()`, `rotateX`/`rotateY`, `matrix3d`) as its 2D part, as
+  documented. The transform origin was placed before the 2D part was taken,
+  so with perspective the element was drawn small and elsewhere, and a design
+  could be refused for covering a fact. `rotate: y 25deg` (an axis given) is
+  turned about that axis, no longer read as a flat turn.
+- BoundView: contrast is sampled strictly inside a fact's box, never on its
+  far edge, so a border or shadow that only touches a fact no longer gets it
+  refused.
+- The sweep (`packages/boundview/sweep`) now makes payslips and agreements
+  too, and tests each claim of "What BoundView does not support".
 
 ### Security
 
