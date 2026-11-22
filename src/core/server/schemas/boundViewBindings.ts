@@ -149,16 +149,20 @@ export const boundValue = (document: Doc, field: string): BoundValue | undefined
       return typeof value === 'string' ? { kind: 'text', text: value } : undefined;
     }
     if (kind === 'money') {
-      return isRecord(value) && typeof value.amount === 'number' && typeof value.currency === 'string'
+      return isRecord(value) &&
+        typeof value.amount === 'number' &&
+        typeof value.currency === 'string'
         ? { kind: 'money', amount: value.amount, currency: value.currency }
         : undefined;
     }
     if (kind === 'percent') {
       return typeof value === 'number' ? { kind: 'percent', basisPoints: value } : undefined;
     }
-    if (kind === 'date') return typeof value === 'string' ? { kind: 'date', date: value } : undefined;
+    if (kind === 'date')
+      return typeof value === 'string' ? { kind: 'date', date: value } : undefined;
     // A note's or a body's text is its content.
-    if (isRecord(value) && typeof value.content === 'string') return { kind: 'text', text: value.content };
+    if (isRecord(value) && typeof value.content === 'string')
+      return { kind: 'text', text: value.content };
     return typeof value === 'string' ? { kind: 'text', text: value } : undefined;
   }
   return undefined;
@@ -173,11 +177,15 @@ type Bind = {
 /** Why a binding's format cannot write `document`'s value, or undefined when it can. */
 const formatProblem = (document: Doc, bind: Bind): string | undefined => {
   const value = boundValue(document, bind.field);
-  if (value === undefined) return `binds ${bind.field}, which a BoundView may not bind or the document does not carry`;
+  if (value === undefined)
+    return `binds ${bind.field}, which a BoundView may not bind or the document does not carry`;
   const format = bind.format ?? {};
-  if (value.kind === 'money' && format.money === undefined) return 'a money field is written with a money format';
-  if (value.kind === 'date' && format.date === undefined) return 'a date field is written with a date format';
-  if (value.kind === 'percent' && format.percent === undefined) return 'a percent is written with a percent format';
+  if (value.kind === 'money' && format.money === undefined)
+    return 'a money field is written with a money format';
+  if (value.kind === 'date' && format.date === undefined)
+    return 'a date field is written with a date format';
+  if (value.kind === 'percent' && format.percent === undefined)
+    return 'a percent is written with a percent format';
   if (value.kind !== 'text') return undefined;
   if (format.money !== undefined || format.date !== undefined || format.percent !== undefined) {
     return 'text is written as it is, or in groups';
@@ -196,7 +204,9 @@ const rangeProblem = (document: Doc, bind: Bind): string | undefined => {
   const value = boundValue(document, bind.field);
   if (value === undefined) return undefined;
   const written = [...writtenValue(value, { ...bind, range: undefined } as WrittenBind)];
-  return bind.range[1] > written.length ? "a range lies inside the value's characters as written" : undefined;
+  return bind.range[1] > written.length
+    ? "a range lies inside the value's characters as written"
+    : undefined;
 };
 
 /** Why a binding cannot be drawn from `document`, or undefined when it can. */
@@ -256,7 +266,8 @@ const writtenWhole = (value: BoundValue, format: WrittenBind['format']): string 
     const number = places > 0 ? `${whole}${decimal}${digits.slice(-places)}` : whole;
     return `${value.amount < 0 ? '-' : ''}${prefix}${number}${suffix}`;
   }
-  if (value.kind === 'date' && format && 'date' in format) return writeDate(value.date, format.date);
+  if (value.kind === 'date' && format && 'date' in format)
+    return writeDate(value.date, format.date);
   if (value.kind === 'percent' && format && 'percent' in format) {
     const { decimals, decimal } = format.percent;
     return `${(value.basisPoints / 100).toFixed(decimals).replace('.', decimal)}%`;
@@ -284,6 +295,62 @@ export const writtenValue = (value: BoundValue, bind: WrittenBind): string => {
   return bind.range ? [...whole].slice(bind.range[0], bind.range[1]).join('') : whole;
 };
 
+/** For each index of `text`, the first index at or after it where `stop` holds; `text.length` where none does. */
+const nextWhere = (text: string, stop: (char: string) => boolean): number[] => {
+  const next = new Array<number>(text.length + 1);
+  next[text.length] = text.length;
+  for (let at = text.length - 1; at >= 0; at--)
+    next[at] = stop(text[at] as string) ? at : (next[at + 1] as number);
+  return next;
+};
+
+/**
+ * Each `[label](destination)` in `text`, neither part crossing a line nor holding its closing bracket or parenthesis, as the
+ * pattern this replaced found them: [start, end of label, end]. One pass: what is next after each place is worked out once.
+ */
+const links = (text: string): [number, number, number][] => {
+  const newline = nextWhere(text, (char) => char === '\n');
+  const bracket = nextWhere(text, (char) => char === ']');
+  const paren = nextWhere(text, (char) => char === ')');
+  const found: [number, number, number][] = [];
+  for (let at = 0; at < text.length; at++) {
+    if (text[at] !== '[') continue;
+    const close = bracket[at + 1] as number;
+    if (close >= text.length || (newline[at + 1] as number) < close || text[close + 1] !== '(')
+      continue;
+    const end = paren[close + 2] as number;
+    if (end >= text.length || (newline[close + 2] as number) < end) continue;
+    found.push([at, close, end + 1]);
+    at = end;
+  }
+  return found;
+};
+
+/** Each autolink, `<` http or https, `://`, then no `>` or whitespace, then `>`, in `text`: [start, end]. One pass. */
+const autolinks = (text: string): [number, number][] => {
+  // Whitespace as `\s` reads it (trim removes the same characters). Neither a pattern nor a "//" is written here: the
+  // build strips comments from dist by text, and read the two together as a comment (build/stripComments.mjs).
+  const stop = nextWhere(text, (char) => char === '>' || char.trim() === '');
+  const found: [number, number][] = [];
+  for (let at = 0; at < text.length; at++) {
+    if (text[at] !== '<') continue;
+    const scheme = text.startsWith('https:', at + 1) ? 6 : text.startsWith('http:', at + 1) ? 5 : 0;
+    const slash = 47;
+    if (
+      scheme === 0 ||
+      text.charCodeAt(at + 1 + scheme) !== slash ||
+      text.charCodeAt(at + 2 + scheme) !== slash
+    )
+      continue;
+    const from = at + 3 + scheme;
+    const end = stop[from] as number;
+    if (end === from || text[end] !== '>') continue;
+    found.push([at, end + 1]);
+    at = end;
+  }
+  return found;
+};
+
 /**
  * Which characters of markdown text a renderer may not draw as themselves (Checks: Key facts), each: 0 drawn; 1 a mark
  * (`# * _ \` > - +`), which is not drawn as formatting but is as text (a hyphen); 2 never drawn: a backslash that
@@ -307,16 +374,15 @@ export const markdownHidden = (text: string): (0 | 1 | 2)[] => {
   });
   index.push(characters.length);
   const cp = (unit: number) => index[unit] ?? characters.length;
-  for (const match of joined.matchAll(/\[([^\]\n]*)\]\(([^)\n]*)\)/g)) {
-    const start = match.index ?? 0;
-    const labelEnd = start + 1 + (match[1] ?? '').length;
+  // Links `[label](destination)` and autolinks `<http(s)://…>`, found in one pass each: a sender writes this text and every
+  // receiver reads it, so no pattern may rescan the rest of it from each `[` or `<` (time that grows with its square).
+  for (const [start, labelEnd, end] of links(joined)) {
     mark(cp(start), cp(start + 1));
-    mark(cp(labelEnd), cp(start + match[0].length));
+    mark(cp(labelEnd), cp(end));
   }
-  for (const match of joined.matchAll(/<(https?:\/\/[^>\s]+)>/g)) {
-    const start = match.index ?? 0;
+  for (const [start, end] of autolinks(joined)) {
     mark(cp(start), cp(start + 1));
-    mark(cp(start + match[0].length - 1), cp(start + match[0].length));
+    mark(cp(end - 1), cp(end));
   }
   for (const match of joined.matchAll(/^([ \t]*)(\d{1,9}[.)])(?=[ \t])/gm)) {
     const start = (match.index ?? 0) + (match[1] ?? '').length;

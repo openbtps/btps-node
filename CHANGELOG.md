@@ -578,6 +578,15 @@ verifierServesSender, verifierIsOperator }` and refuses nothing. Only one who
 
 ### Security
 
+- `markdownHidden` (`@btps/sdk/boundview`), which every receiver runs on a
+  sender's markdown in a BoundView check, finds links and autolinks in one
+  pass each. Its patterns rescanned the rest of the text from each `[` or
+  `<`, so text made of many of them took time growing with the square of its
+  length. What it finds is unchanged.
+- `@btps/boundview`: `signatureSvg` and `signatureShapes` take a colour only
+  as `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa` or `currentColor`, and throw a
+  `TypeError` on anything else, so a value passed in is never written into
+  the markup.
 - A server checks each line against the schema of the kind of artifact it is
   taken for, and control and identity lookup artifacts take no other member
   (also in 1.1.3).
