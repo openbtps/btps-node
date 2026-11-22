@@ -103,6 +103,7 @@ const run = async (seed: number): Promise<Result | undefined> => {
       const words = (value ?? '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(' ').filter((w) => w.length > 2);
       const labels = (refused?.elements ?? []).filter((e) => e.type === 'label' && words.some((w) => String(e.text).includes(w)));
       notes.push(`${field} = ${value}; labels holding its words: ${labels.map((e) => JSON.stringify(e.text)).join(', ').slice(0, 300)}`);
+      for (const e of refused?.elements ?? []) if ((e.bind as { field?: string } | undefined)?.field === field || /A1|No\./.test(String(e.text ?? ''))) notes.push(`  bound ${JSON.stringify(e).slice(0, 300)}`);
     }
     return { seed, stage: 'snapshot', error: error instanceof Error ? error.message : String(error), notes };
   }
@@ -156,9 +157,9 @@ window.sweep = async (from, count, only) => {
     const held = claim?.expect ? failure !== undefined && failure.stage === 'snapshot' && claim.expect.test(failure.error) : failure === undefined;
     const entry = (tally[key] ??= { cases: 0, held: 0 });
     entry.cases++;
-    if (held) entry.held++;
     // What a throwing claim said, the first time: to see which problem it was refused for.
     if (claim?.expect && failure && entry.said === undefined) entry.said = failure.error.replace(/^[^:]*: /, '').slice(0, 200);
+    if (held) entry.held++;
     else if (claim?.expect) failures.push({ seed, stage: failure?.stage ?? 'snapshot', error: failure ? `threw otherwise: ${failure.error}` : 'did not throw', notes: made.notes });
     else if (failure) failures.push(failure);
   }
