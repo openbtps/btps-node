@@ -116,6 +116,8 @@ const sidebars: SidebarsConfig = {
                 'protocol/specifications/boundview/why',
                 // For platforms: @btps/boundview does the work, no format to learn.
                 'protocol/specifications/boundview/using',
+                // For platforms: the HTML and CSS a snapshot cannot carry.
+                'protocol/specifications/boundview/not-supported',
                 // For implementers building or checking their own builder or renderer.
                 {
                   type: 'category',
