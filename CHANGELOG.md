@@ -165,6 +165,15 @@ key facts are the ones agreed. A receiver's BoundView checks change with it
 
 ### Security
 
+- `markdownHidden` (`@btps/sdk/boundview`), which every receiver runs on a
+  sender's markdown in a BoundView check, finds links and autolinks in one
+  pass each. Its patterns rescanned the rest of the text from each `[` or
+  `<`, so text made of many of them took time growing with the square of its
+  length. What it finds is unchanged.
+- `@btps/boundview`: `signatureSvg` and `signatureShapes` take a colour only
+  as `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa` or `currentColor`, and throw a
+  `TypeError` on anything else, so a value passed in is never written into
+  the markup.
 - BoundView: a font's glyph outlines are the sender's. A receiver checks
   that every character of a bound value has a glyph and fits, not that a
   glyph's shape is the character it stands for, so a dishonest sender could
