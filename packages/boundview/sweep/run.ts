@@ -124,7 +124,7 @@ const { port } = server.address() as { port: number };
 const browser = await chromium.launch({ executablePath: chrome, headless: true });
 
 type Result = { seed: number; stage: string; error: string; notes: string[] };
-type Tally = Record<string, { cases: number; held: number }>;
+type Tally = Record<string, { cases: number; held: number; said?: string }>;
 const failures: Result[] = [];
 const tally: Tally = {};
 const started = Date.now();
@@ -140,10 +140,11 @@ const worker = async () => {
     const start = next;
     const size = Math.min(chunk, from + count - start);
     next += size;
-    const found = (await page.evaluate(([a, b]) => window.sweep(a as number, b as number), [start, size])) as { failures: Result[]; tally: Tally };
+    const found = (await page.evaluate(([a, b, c]) => window.sweep(a as number, b as number, c as string | undefined), [start, size, process.env.ONLY])) as { failures: Result[]; tally: Tally };
     failures.push(...found.failures);
-    for (const [key, { cases, held }] of Object.entries(found.tally)) {
+    for (const [key, { cases, held, said }] of Object.entries(found.tally)) {
       const entry = (tally[key] ??= { cases: 0, held: 0 });
+      entry.said ??= said;
       entry.cases += cases;
       entry.held += held;
     }
@@ -163,6 +164,15 @@ if (process.env.INSPECT) {
   const seed = Number(process.env.INSPECT);
   const runs = (await page.evaluate((s) => (window as unknown as { inspect: (n: number) => Promise<unknown> }).inspect(s), seed)) as object[];
   for (const run of runs) console.log(JSON.stringify(run));
+  await browser.close();
+  server.close();
+  process.exit(0);
+}
+if (process.env.DUMP) {
+  const page = await browser.newPage({ viewport: { width: 900, height: 900 }, deviceScaleFactor: 1 });
+  await page.goto(`http://127.0.0.1:${port}/`);
+  await page.waitForFunction(() => 'dump' in window);
+  console.log(JSON.stringify(await page.evaluate((s) => (window as unknown as { dump: (n: number) => Promise<unknown> }).dump(s), Number(process.env.DUMP))));
   await browser.close();
   server.close();
   process.exit(0);
@@ -267,7 +277,7 @@ console.log(`\nfailures: ${out}`);
 if (Object.keys(tally).length > 0) {
   const report = path.join(root, `sweep-claims-${from}-${from + count}.tsv`);
   const rows = Object.entries(tally).sort(([a], [b]) => a.localeCompare(b));
-  writeFileSync(report, `type\tgroup\titem\tcases\tas documented\n${rows.map(([key, { cases, held }]) => `${key}\t${cases}\t${held}`).join('\n')}\n`);
+  writeFileSync(report, `type\tgroup\titem\tcases\tas documented\tsaid\n${rows.map(([key, { cases, held, said }]) => `${key}\t${cases}\t${held}\t${said ?? ''}`).join('\n')}\n`);
   const byType = new Map<string, Map<string, [number, number]>>();
   for (const [key, { cases, held }] of rows) {
     const [type, group] = key.split('\t') as [string, string];

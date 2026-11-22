@@ -125,20 +125,22 @@ const run = async (seed: number): Promise<Result | undefined> => {
 
 declare global {
   interface Window {
-    sweep: (from: number, count: number) => Promise<{ failures: Result[]; tally: Tally }>;
+    sweep: (from: number, count: number, only?: string) => Promise<{ failures: Result[]; tally: Tally }>;
   }
 }
 
 /** Each case's outcome against what it should be: shown, or (for a claim that throws) refused with its documented message. */
-export type Tally = Record<string, { cases: number; held: number }>;
+export type Tally = Record<string, { cases: number; held: number; said?: string }>;
 
-window.sweep = async (from, count) => {
+window.sweep = async (from, count, only) => {
   await initBoundViewEngine('/resvg.wasm');
   const failures: Result[] = [];
   const tally: Tally = {};
   for (let seed = from; seed < from + count; seed++) {
     const made = generate(seed);
     const claim = made.claim;
+    // ONLY=<group>: the seeds that test that group's claims, and no others.
+    if (only && (claim?.group ?? 'normal') !== only) continue;
     const key = `${made.document.type}\t${claim?.group ?? 'normal'}\t${claim?.item ?? '-'}`;
     let failure: Result | undefined;
     if (claim?.direct) {
@@ -155,6 +157,8 @@ window.sweep = async (from, count) => {
     const entry = (tally[key] ??= { cases: 0, held: 0 });
     entry.cases++;
     if (held) entry.held++;
+    // What a throwing claim said, the first time: to see which problem it was refused for.
+    if (claim?.expect && failure && entry.said === undefined) entry.said = failure.error.replace(/^[^:]*: /, '').slice(0, 200);
     else if (claim?.expect) failures.push({ seed, stage: failure?.stage ?? 'snapshot', error: failure ? `threw otherwise: ${failure.error}` : 'did not throw', notes: made.notes });
     else if (failure) failures.push(failure);
   }
@@ -343,4 +347,18 @@ const hexRgb = (hex: string) => {
       }
     return Math.round(worst * 100) / 100;
   });
+};
+
+/** What a case's BoundView holds, by kind: its paths' lengths, its images' sizes (DUMP=<seed>). */
+(window as unknown as { dump: (seed: number) => Promise<unknown> }).dump = async (seed) => {
+  await initBoundViewEngine('/resvg.wasm');
+  lastView = undefined;
+  const failure = await run(seed);
+  const view = lastView as { elements: Record<string, unknown>[]; images?: Record<string, { width: number; height: number; data: string }> } | undefined;
+  return {
+    failure: failure?.error,
+    paths: view?.elements.filter((e) => e.type === 'path').map((e) => String(e.d).length).sort((a, b) => b - a).slice(0, 5),
+    images: Object.values(view?.images ?? {}).map((i) => `${i.width}x${i.height} ${i.data.length}`),
+    svg: (document.querySelector('#preview .claim svg path') as SVGPathElement | null)?.getAttribute('d')?.length,
+  };
 };

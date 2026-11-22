@@ -105,8 +105,9 @@ const MANY_GLYPHS = [
   ...Array.from({ length: 128 }, (_, i) => String.fromCodePoint(0x100 + i)),
   ...Array.from({ length: 64 }, (_, i) => String.fromCodePoint(0x410 + i)),
 ].join('');
+/** A filled circle traced through `points` points: long, and drawn alike by the engine and the browser, so it goes as outlines. */
 const pathOf = (points: number) =>
-  `M0 0${Array.from({ length: points }, (_, i) => `L${(i * 7) % 300}.${i % 10} ${(i * 13) % 80}.${(i * 3) % 10}`).join('')}`;
+  `M${Array.from({ length: points }, (_, i) => `${(150 + 38 * Math.cos((2 * Math.PI * i) / points)).toFixed(3)} ${(40 + 38 * Math.sin((2 * Math.PI * i) / points)).toFixed(3)}`).join('L')}Z`;
 const FONTS_10 = [
   ['Arimo', 400], ['Arimo', 700], ['Tinos', 400], ['Tinos', 700], ['Cousine', 400], ['Cousine', 700],
   ['Geist', 400], ['Source Serif 4', 400], ['Atkinson Hyperlegible Next', 400], ['Caveat', 400],
@@ -121,17 +122,17 @@ const THROWS: Item[] = [
   { item: 'an <img> without CORS', expect: /an image \(.*\) could not be read: it must be served from this site, or allow it \(CORS\)/, hooks: () => deco('', `<img src="${elsewhere()}/nocors.png" width="40" height="40" alt="">`) },
   { item: 'a character in a fact with no glyph (emoji)', expect: /no font has a glyph for ".*", which .* shows/, hooks: () => ({ ...none, glyph: ['😀', '🧾', '✅'][any(3)] as string }) },
   { item: 'more than 8 fonts', expect: /the preview uses \d+ fonts; a BoundView carries at most 8/, hooks: () => deco('', FONTS_10.map(([family, weight]) => `<span style="font-family:'${family}';font-weight:${weight}">Aa</span>`).join(' ')) },
-  { item: 'more than 8 images', expect: /The preview made a BoundView a receiver would refuse/, hooks: () => deco('', Array.from({ length: 9 }, (_, i) => `<img src="/logo.png?${i}" width="${20 + i}" height="${20 + i}" alt="">`).join('')) },
-  { item: 'an image over 256 KiB of data (a photo)', expect: /The preview made a BoundView a receiver would refuse/, hooks: () => deco('', '<img src="/photo.png" width="512" height="512" alt="">') },
-  { item: 'text smaller than 6 px', expect: /The preview made a BoundView a receiver would refuse/, hooks: () => deco('font-size:5px', 'Fine print') },
-  { item: 'small capitals under 6 px', expect: /The preview made a BoundView a receiver would refuse/, hooks: () => deco('font-size:8px;font-variant:small-caps', 'fine print') },
-  { item: 'text larger than 400 px', expect: /The preview made a BoundView a receiver would refuse/, hooks: () => ({ ...deco('font-size:420px;line-height:1', 'W'), width: 794 }) },
-  { item: 'too many path characters', expect: /The preview made a BoundView a receiver would refuse/, hooks: () => deco('', `<svg width="300" height="80" viewBox="0 0 300 80"><path d="${pathOf(1800)}" fill="none" stroke="#333"/></svg>`) },
-  { item: 'more than 2,000 elements', expect: /The preview made a BoundView a receiver would refuse/, hooks: () => deco('line-height:0', Array.from({ length: 2100 }, () => '<i style="display:inline-block;width:3px;height:3px;margin:1px;background:#ccc"></i>').join('')) },
-  { item: 'page wider than 2,000 px', expect: /The preview made a BoundView a receiver would refuse/, hooks: () => ({ ...none, width: 2100 }) },
-  { item: 'more than 256 glyphs in a font', expect: /The preview made a BoundView a receiver would refuse/, hooks: () => deco(`font-family:'Arimo';word-break:break-all`, MANY_GLYPHS.replace(/[<>&"]/g, '')) },
-  { item: 'a label over 500 characters', expect: /The preview made a BoundView a receiver would refuse/, hooks: () => ({ ...deco('white-space:nowrap;font-size:6px', 'x'.repeat(520)), width: 1900 }) },
-  { item: 'the BoundView over 384 KiB as JSON', expect: /The preview made a BoundView a receiver would refuse/, hooks: () => deco('', '<img src="/mid1.png" width="240" height="240" alt=""><img src="/mid2.png" width="240" height="240" alt="">') },
+  { item: 'more than 8 images', expect: /images: must have at most 8 keys/, hooks: () => deco('', Array.from({ length: 9 }, (_, i) => `<img src="/logo.png?${i}" width="${20 + i}" height="${20 + i}" alt="">`).join('')) },
+  { item: 'an image over 256 KiB of data (a photo)', expect: /data: String must contain at most \d+ character|at most 393216 bytes as JSON/, hooks: () => deco('', '<img src="/mid1.png" width="240" height="240" alt="">') },
+  { item: 'text smaller than 6 px', expect: /size: Number must be greater than or equal to 6/, hooks: () => deco('font-size:5px', 'Fine print') },
+  { item: 'small capitals under 6 px', expect: /size: Number must be greater than or equal to 6/, hooks: () => deco('font-size:8px;font-variant:small-caps', 'fine print') },
+  { item: 'text larger than 400 px', expect: /size: Number must be less than or equal to 400/, hooks: () => ({ ...deco('font-size:420px;line-height:1', 'W'), width: 794 }) },
+  { item: 'too many path characters', expect: /d: String must contain at most 20000 character|at most 100000 characters of paths/, hooks: () => deco('', `<svg width="300" height="80" viewBox="0 0 300 80"><path d="${pathOf(2600)}" fill="#0b6e4f"/></svg>`) },
+  { item: 'more than 2,000 elements', expect: /elements: must have at most 2000 entries/, hooks: () => deco('line-height:0', Array.from({ length: 2100 }, () => '<i style="display:inline-block;width:3px;height:3px;margin:1px;background:#ccc"></i>').join('')) },
+  { item: 'page wider than 2,000 px', expect: /page\.width: Number must be less than or equal to 2000/, hooks: () => ({ ...none, width: 2100 }) },
+  { item: 'more than 256 glyphs in a font', expect: /glyphs: must have at most 256 keys/, hooks: () => deco(`font-family:'Arimo';word-break:break-all`, MANY_GLYPHS.replace(/[<>&"]/g, '')) },
+  { item: 'a label over 500 characters', expect: /text: String must contain at most 500 character/, hooks: () => ({ ...deco('white-space:nowrap;font-size:6px', 'x'.repeat(520)), width: 1900 }) },
+  { item: 'the BoundView over 384 KiB as JSON', expect: /at most 393216 bytes as JSON/, hooks: () => deco('', '<img src="/mid1.png" width="240" height="240" alt=""><img src="/mid2.png" width="240" height="240" alt="">') },
   { item: 'a fact covered by a positioned element (z-index -1)', expect: /A receiver would not show this BoundView/, hooks: () => ({ ...none, html: '<div style="position:absolute;inset:0;z-index:-1;background:#ffffff"></div>' }) },
   { item: "a signature's colour not hex or currentColor", expect: /a signature's colour is a hex colour or currentColor/, hooks: () => none, direct: () => void signatureSvg([[100, 100, 300, 200]], ['red', 'rgb(0,0,0)', '#12345', 'url(#x)', 'currentcolor'][any(5)] as string) },
 ];
