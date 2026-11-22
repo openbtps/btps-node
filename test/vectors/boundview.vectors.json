@@ -4815,7 +4815,7 @@
       }
     },
     {
-      "name": "a-fact-over-an-image",
+      "name": "a-fact-over-a-clear-image",
       "document": {
         "type": "invoice",
         "title": "October",
@@ -5236,6 +5236,866 @@
               "height": 1,
               "encoding": "rgba8-deflate",
               "data": "eJxjYGBgAAAABAAB"
+            }
+          }
+        }
+      },
+      "expect": {
+        "show": true
+      }
+    },
+    {
+      "name": "a-fact-over-a-faint-image",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-7",
+        "issuedAt": "2026-11-25T03:00:00.000Z",
+        "totalAmount": {
+          "amount": 145200,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "roles": {
+            "Item": "description",
+            "Amount": "lineTotal"
+          },
+          "rows": [
+            {
+              "Item": "Web",
+              "Amount": 145200
+            }
+          ]
+        },
+        "boundView": {
+          "format": 1,
+          "page": {
+            "width": 600,
+            "height": 400
+          },
+          "fonts": {
+            "body": {
+              "unitsPerEm": 1000,
+              "ascent": 800,
+              "descent": 200,
+              "glyphs": {
+                "0": {
+                  "advance": 500
+                },
+                "1": {
+                  "advance": 500
+                },
+                "2": {
+                  "advance": 500
+                },
+                "3": {
+                  "advance": 500
+                },
+                "4": {
+                  "advance": 500
+                },
+                "5": {
+                  "advance": 500
+                },
+                "6": {
+                  "advance": 500
+                },
+                "7": {
+                  "advance": 500
+                },
+                "8": {
+                  "advance": 500
+                },
+                "9": {
+                  "advance": 500
+                },
+                " ": {
+                  "advance": 500
+                },
+                "!": {
+                  "advance": 500
+                },
+                "\"": {
+                  "advance": 500
+                },
+                "#": {
+                  "advance": 500
+                },
+                "$": {
+                  "advance": 500
+                },
+                "%": {
+                  "advance": 500
+                },
+                "&": {
+                  "advance": 500
+                },
+                "'": {
+                  "advance": 500
+                },
+                "(": {
+                  "advance": 500
+                },
+                ")": {
+                  "advance": 500
+                },
+                "*": {
+                  "advance": 500
+                },
+                "+": {
+                  "advance": 500
+                },
+                ",": {
+                  "advance": 500
+                },
+                "-": {
+                  "advance": 500
+                },
+                ".": {
+                  "advance": 500
+                },
+                "/": {
+                  "advance": 500
+                },
+                ":": {
+                  "advance": 500
+                },
+                ";": {
+                  "advance": 500
+                },
+                "<": {
+                  "advance": 500
+                },
+                "=": {
+                  "advance": 500
+                },
+                ">": {
+                  "advance": 500
+                },
+                "?": {
+                  "advance": 500
+                },
+                "@": {
+                  "advance": 500
+                },
+                "A": {
+                  "advance": 500
+                },
+                "B": {
+                  "advance": 500
+                },
+                "C": {
+                  "advance": 500
+                },
+                "D": {
+                  "advance": 500
+                },
+                "E": {
+                  "advance": 500
+                },
+                "F": {
+                  "advance": 500
+                },
+                "G": {
+                  "advance": 500
+                },
+                "H": {
+                  "advance": 500
+                },
+                "I": {
+                  "advance": 500
+                },
+                "J": {
+                  "advance": 500
+                },
+                "K": {
+                  "advance": 500
+                },
+                "L": {
+                  "advance": 500
+                },
+                "M": {
+                  "advance": 500
+                },
+                "N": {
+                  "advance": 500
+                },
+                "O": {
+                  "advance": 500
+                },
+                "P": {
+                  "advance": 500
+                },
+                "Q": {
+                  "advance": 500
+                },
+                "R": {
+                  "advance": 500
+                },
+                "S": {
+                  "advance": 500
+                },
+                "T": {
+                  "advance": 500
+                },
+                "U": {
+                  "advance": 500
+                },
+                "V": {
+                  "advance": 500
+                },
+                "W": {
+                  "advance": 500
+                },
+                "X": {
+                  "advance": 500
+                },
+                "Y": {
+                  "advance": 500
+                },
+                "Z": {
+                  "advance": 500
+                },
+                "[": {
+                  "advance": 500
+                },
+                "\\": {
+                  "advance": 500
+                },
+                "]": {
+                  "advance": 500
+                },
+                "^": {
+                  "advance": 500
+                },
+                "_": {
+                  "advance": 500
+                },
+                "`": {
+                  "advance": 500
+                },
+                "a": {
+                  "advance": 500
+                },
+                "b": {
+                  "advance": 500
+                },
+                "c": {
+                  "advance": 500
+                },
+                "d": {
+                  "advance": 500
+                },
+                "e": {
+                  "advance": 500
+                },
+                "f": {
+                  "advance": 500
+                },
+                "g": {
+                  "advance": 500
+                },
+                "h": {
+                  "advance": 500
+                },
+                "i": {
+                  "advance": 500
+                },
+                "j": {
+                  "advance": 500
+                },
+                "k": {
+                  "advance": 500
+                },
+                "l": {
+                  "advance": 500
+                },
+                "m": {
+                  "advance": 500
+                },
+                "n": {
+                  "advance": 500
+                },
+                "o": {
+                  "advance": 500
+                },
+                "p": {
+                  "advance": 500
+                },
+                "q": {
+                  "advance": 500
+                },
+                "r": {
+                  "advance": 500
+                },
+                "s": {
+                  "advance": 500
+                },
+                "t": {
+                  "advance": 500
+                },
+                "u": {
+                  "advance": 500
+                },
+                "v": {
+                  "advance": 500
+                },
+                "w": {
+                  "advance": 500
+                },
+                "x": {
+                  "advance": 500
+                },
+                "y": {
+                  "advance": 500
+                },
+                "z": {
+                  "advance": 500
+                },
+                "{": {
+                  "advance": 500
+                },
+                "|": {
+                  "advance": 500
+                },
+                "}": {
+                  "advance": 500
+                },
+                "~": {
+                  "advance": 500
+                }
+              }
+            }
+          },
+          "elements": [
+            {
+              "type": "image",
+              "image": "logo",
+              "x": 0,
+              "y": 0,
+              "width": 50,
+              "height": 22
+            },
+            {
+              "type": "text",
+              "bind": {
+                "field": "id"
+              },
+              "x": 10,
+              "y": 30,
+              "width": 200,
+              "align": "start",
+              "font": "body",
+              "size": 12,
+              "colour": "#0f1b2d"
+            },
+            {
+              "type": "text",
+              "bind": {
+                "field": "issuedAt",
+                "format": {
+                  "date": "d MMM yyyy"
+                }
+              },
+              "x": 10,
+              "y": 50,
+              "width": 200,
+              "align": "start",
+              "font": "body",
+              "size": 12,
+              "colour": "#0f1b2d"
+            },
+            {
+              "type": "text",
+              "bind": {
+                "field": "totalAmount",
+                "format": {
+                  "money": {
+                    "group": ",",
+                    "decimal": ".",
+                    "prefix": "A$"
+                  }
+                }
+              },
+              "x": 10,
+              "y": 70,
+              "width": 200,
+              "align": "start",
+              "font": "body",
+              "size": 12,
+              "colour": "#0f1b2d"
+            },
+            {
+              "type": "text",
+              "bind": {
+                "field": "lineItems.rows.0.Item"
+              },
+              "x": 10,
+              "y": 90,
+              "width": 200,
+              "align": "start",
+              "font": "body",
+              "size": 12,
+              "colour": "#0f1b2d"
+            },
+            {
+              "type": "text",
+              "bind": {
+                "field": "lineItems.rows.0.Amount",
+                "format": {
+                  "money": {
+                    "group": ",",
+                    "decimal": ".",
+                    "prefix": "A$"
+                  }
+                }
+              },
+              "x": 10,
+              "y": 110,
+              "width": 200,
+              "align": "start",
+              "font": "body",
+              "size": 12,
+              "colour": "#0f1b2d"
+            }
+          ],
+          "images": {
+            "logo": {
+              "width": 1,
+              "height": 1,
+              "encoding": "rgba8-deflate",
+              "data": "eJx79+7dfwAJYQPK"
+            }
+          }
+        }
+      },
+      "expect": {
+        "show": true
+      }
+    },
+    {
+      "name": "a-fact-over-a-dark-image",
+      "document": {
+        "type": "invoice",
+        "title": "October",
+        "id": "INV-7",
+        "issuedAt": "2026-11-25T03:00:00.000Z",
+        "totalAmount": {
+          "amount": 145200,
+          "currency": "AUD"
+        },
+        "lineItems": {
+          "columns": ["Item", "Amount"],
+          "roles": {
+            "Item": "description",
+            "Amount": "lineTotal"
+          },
+          "rows": [
+            {
+              "Item": "Web",
+              "Amount": 145200
+            }
+          ]
+        },
+        "boundView": {
+          "format": 1,
+          "page": {
+            "width": 600,
+            "height": 400
+          },
+          "fonts": {
+            "body": {
+              "unitsPerEm": 1000,
+              "ascent": 800,
+              "descent": 200,
+              "glyphs": {
+                "0": {
+                  "advance": 500
+                },
+                "1": {
+                  "advance": 500
+                },
+                "2": {
+                  "advance": 500
+                },
+                "3": {
+                  "advance": 500
+                },
+                "4": {
+                  "advance": 500
+                },
+                "5": {
+                  "advance": 500
+                },
+                "6": {
+                  "advance": 500
+                },
+                "7": {
+                  "advance": 500
+                },
+                "8": {
+                  "advance": 500
+                },
+                "9": {
+                  "advance": 500
+                },
+                " ": {
+                  "advance": 500
+                },
+                "!": {
+                  "advance": 500
+                },
+                "\"": {
+                  "advance": 500
+                },
+                "#": {
+                  "advance": 500
+                },
+                "$": {
+                  "advance": 500
+                },
+                "%": {
+                  "advance": 500
+                },
+                "&": {
+                  "advance": 500
+                },
+                "'": {
+                  "advance": 500
+                },
+                "(": {
+                  "advance": 500
+                },
+                ")": {
+                  "advance": 500
+                },
+                "*": {
+                  "advance": 500
+                },
+                "+": {
+                  "advance": 500
+                },
+                ",": {
+                  "advance": 500
+                },
+                "-": {
+                  "advance": 500
+                },
+                ".": {
+                  "advance": 500
+                },
+                "/": {
+                  "advance": 500
+                },
+                ":": {
+                  "advance": 500
+                },
+                ";": {
+                  "advance": 500
+                },
+                "<": {
+                  "advance": 500
+                },
+                "=": {
+                  "advance": 500
+                },
+                ">": {
+                  "advance": 500
+                },
+                "?": {
+                  "advance": 500
+                },
+                "@": {
+                  "advance": 500
+                },
+                "A": {
+                  "advance": 500
+                },
+                "B": {
+                  "advance": 500
+                },
+                "C": {
+                  "advance": 500
+                },
+                "D": {
+                  "advance": 500
+                },
+                "E": {
+                  "advance": 500
+                },
+                "F": {
+                  "advance": 500
+                },
+                "G": {
+                  "advance": 500
+                },
+                "H": {
+                  "advance": 500
+                },
+                "I": {
+                  "advance": 500
+                },
+                "J": {
+                  "advance": 500
+                },
+                "K": {
+                  "advance": 500
+                },
+                "L": {
+                  "advance": 500
+                },
+                "M": {
+                  "advance": 500
+                },
+                "N": {
+                  "advance": 500
+                },
+                "O": {
+                  "advance": 500
+                },
+                "P": {
+                  "advance": 500
+                },
+                "Q": {
+                  "advance": 500
+                },
+                "R": {
+                  "advance": 500
+                },
+                "S": {
+                  "advance": 500
+                },
+                "T": {
+                  "advance": 500
+                },
+                "U": {
+                  "advance": 500
+                },
+                "V": {
+                  "advance": 500
+                },
+                "W": {
+                  "advance": 500
+                },
+                "X": {
+                  "advance": 500
+                },
+                "Y": {
+                  "advance": 500
+                },
+                "Z": {
+                  "advance": 500
+                },
+                "[": {
+                  "advance": 500
+                },
+                "\\": {
+                  "advance": 500
+                },
+                "]": {
+                  "advance": 500
+                },
+                "^": {
+                  "advance": 500
+                },
+                "_": {
+                  "advance": 500
+                },
+                "`": {
+                  "advance": 500
+                },
+                "a": {
+                  "advance": 500
+                },
+                "b": {
+                  "advance": 500
+                },
+                "c": {
+                  "advance": 500
+                },
+                "d": {
+                  "advance": 500
+                },
+                "e": {
+                  "advance": 500
+                },
+                "f": {
+                  "advance": 500
+                },
+                "g": {
+                  "advance": 500
+                },
+                "h": {
+                  "advance": 500
+                },
+                "i": {
+                  "advance": 500
+                },
+                "j": {
+                  "advance": 500
+                },
+                "k": {
+                  "advance": 500
+                },
+                "l": {
+                  "advance": 500
+                },
+                "m": {
+                  "advance": 500
+                },
+                "n": {
+                  "advance": 500
+                },
+                "o": {
+                  "advance": 500
+                },
+                "p": {
+                  "advance": 500
+                },
+                "q": {
+                  "advance": 500
+                },
+                "r": {
+                  "advance": 500
+                },
+                "s": {
+                  "advance": 500
+                },
+                "t": {
+                  "advance": 500
+                },
+                "u": {
+                  "advance": 500
+                },
+                "v": {
+                  "advance": 500
+                },
+                "w": {
+                  "advance": 500
+                },
+                "x": {
+                  "advance": 500
+                },
+                "y": {
+                  "advance": 500
+                },
+                "z": {
+                  "advance": 500
+                },
+                "{": {
+                  "advance": 500
+                },
+                "|": {
+                  "advance": 500
+                },
+                "}": {
+                  "advance": 500
+                },
+                "~": {
+                  "advance": 500
+                }
+              }
+            }
+          },
+          "elements": [
+            {
+              "type": "image",
+              "image": "logo",
+              "x": 0,
+              "y": 0,
+              "width": 50,
+              "height": 22
+            },
+            {
+              "type": "text",
+              "bind": {
+                "field": "id"
+              },
+              "x": 10,
+              "y": 30,
+              "width": 200,
+              "align": "start",
+              "font": "body",
+              "size": 12,
+              "colour": "#0f1b2d"
+            },
+            {
+              "type": "text",
+              "bind": {
+                "field": "issuedAt",
+                "format": {
+                  "date": "d MMM yyyy"
+                }
+              },
+              "x": 10,
+              "y": 50,
+              "width": 200,
+              "align": "start",
+              "font": "body",
+              "size": 12,
+              "colour": "#0f1b2d"
+            },
+            {
+              "type": "text",
+              "bind": {
+                "field": "totalAmount",
+                "format": {
+                  "money": {
+                    "group": ",",
+                    "decimal": ".",
+                    "prefix": "A$"
+                  }
+                }
+              },
+              "x": 10,
+              "y": 70,
+              "width": 200,
+              "align": "start",
+              "font": "body",
+              "size": 12,
+              "colour": "#0f1b2d"
+            },
+            {
+              "type": "text",
+              "bind": {
+                "field": "lineItems.rows.0.Item"
+              },
+              "x": 10,
+              "y": 90,
+              "width": 200,
+              "align": "start",
+              "font": "body",
+              "size": 12,
+              "colour": "#0f1b2d"
+            },
+            {
+              "type": "text",
+              "bind": {
+                "field": "lineItems.rows.0.Amount",
+                "format": {
+                  "money": {
+                    "group": ",",
+                    "decimal": ".",
+                    "prefix": "A$"
+                  }
+                }
+              },
+              "x": 10,
+              "y": 110,
+              "width": 200,
+              "align": "start",
+              "font": "body",
+              "size": 12,
+              "colour": "#0f1b2d"
+            }
+          ],
+          "images": {
+            "logo": {
+              "width": 1,
+              "height": 1,
+              "encoding": "rgba8-deflate",
+              "data": "eJwTEZH7DwABywFG"
             }
           }
         }

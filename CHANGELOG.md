@@ -4,6 +4,194 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.0-rc.3.2] — 2026-11-22 (beta, release candidate)
+
+BoundView, as proved in a platform before release: the snapshot binds and draws
+a design as the page shows it, a drawn signature follows one rule that a page
+and the engine draw alike, an image under a fact is read by its pixels, and the
+key facts are the ones agreed. A receiver's BoundView checks change with it
+(key facts, images, up to 8 fonts); everything else is as in rc.3.1 below.
+
+### Added
+
+- `@btps/boundview`: one rule for a drawn signature, in the new
+  `@btps/boundview/signature` entry (no engine, safe in any page) and the
+  package root: `SIGNATURE_STROKE` (8), `signatureDrawing(strokes)`, the
+  shapes with every attribute as the drawing writes it, and
+  `signatureSvg(strokes, colour?)`, a whole `<svg viewBox="0 0 1000 300">`.
+  The engine draws a `signature` element by the same function, so a page that
+  shows a signature this way and the receiver's picture cannot differ.
+
+### Changed
+
+- A BoundView carries up to 8 fonts (`BTPS_FIELD_LIMITS.boundView.fonts`),
+  where it carried 4. Each weight, and each style with tabular figures, is a
+  font of its own, so a design that sets one family in several weights, with
+  and without tabular figures, needs more than 4.
+- A BoundView's key facts leave out what the receiving app shows apart from
+  it (`issuer.name`, `recipient.name`), what follows from what is shown
+  (`subtotalAmount`, `discount`), and what does not change what is owed,
+  paid or said (an invoice's or receipt's `issuedAt`, `payment.method`,
+  `payment.reference`; a payslip's `employee.employeeId`, `issuedAt`,
+  `payRate`, `leave`, `yearToDate`; a letter's `id`). Each earning's and
+  deduction's description is now a key fact. 1.2.0-rc.3.1 required
+  `issuedAt` and `issuer.name` on every type, and `recipient.name`,
+  `subtotalAmount` and `discount` where a type carries them, but no
+  earning's or deduction's description. The Checks page lists each type's;
+  `keyFacts(document)` (`@btps/sdk/boundview`) gives a document's.
+- A key fact counts as shown when an element bound to another field writes
+  it exactly the same in the same format: a receipt's total and amount paid,
+  or two dates on one day, share one element. 1.2.0-rc.3.1 counted only an
+  element bound to the fact itself.
+- A binding's `range` is the code points of the value as its format writes
+  it, for any format, so a wrapped or split amount or date is bound in
+  pieces. 1.2.0-rc.3.1 refused a range with a format ("a range is for text
+  written as it is"). For text, a range means what it did.
+- In a markdown note or body, a key fact need not show what a renderer does
+  not draw: the marks `#`, `*`, `_`, `` ` ``, `>`, `-` and `+`, a backslash
+  that escapes the next character, a link's brackets and destination, the
+  angle brackets of an autolink, and an ordered list's number.
+  `markdownHidden` (`@btps/sdk/boundview`) marks them. 1.2.0-rc.3.1 excused
+  only the marks, without `+`.
+- An `image` element may carry `radius`, as a `rect` does; the receiver
+  clips the image to its rounded corners.
+- "Not hidden" counts two boxes as overlapping only when they share more
+  than 0.005 pixels each way, half the format's 0.01 pixel precision, so
+  boxes that touch through the rounding of a sum do not cover each other,
+  and a box past the page's edge by no more than that is inside the page.
+  1.2.0-rc.3.1 counted any overlap, and any reach past the edge.
+- BoundView: an image under a fact is checked by its pixels for contrast,
+  not refused. Each pixel is blended beneath the fact as a shape's fill is,
+  so a faint watermark or soft background picture passes and a dark or busy
+  one where the fact lies fails the 3:1 contrast. A watermark or background
+  picture behind a fact is common in invoice designs, and contrast is what
+  keeps a fact readable. 1.2.0-rc.3.1 refused any image under a fact ("an
+  image lies under it").
+- `@btps/boundview`: each bundled font also carries Latin Extended
+  (Vietnamese included), Greek, Cyrillic, general punctuation, currency signs
+  (`₹ ₩ ₪ ₺ ₽ ₱`), letterlike symbols (`№`), arrows and `− ≈ ≠ ≤ ≥ ∞`, as
+  far as the font has them, in a second file (`<name>-more.json`) loaded
+  only when a text needs one of them. `loadBundledFonts(names, characters?)`
+  takes the characters needed, and `bundledCharactersFor(document, view)`
+  names them. A typed signature's characters Caveat lacks are drawn in
+  Arimo. 1.2.0-rc.3.1 bundled Latin and Latin-1 only.
+- `@btps/boundview`: a drawn signature's stroke of one point is drawn as a
+  dot as wide as the pen, and a point repeated at once counts once
+  (`signatureDrawing`). 1.2.0-rc.3.1 drew a stroke of one point as nothing.
+
+### Fixed
+
+- `@btps/boundview`: `snapshotBoundView` draws every style whose font file it
+  cannot read with one shared bundled font, which carries every glyph they
+  draw. Each such style carried its own copy of the same bundled font, which
+  pushed a template past the font limit.
+- `@btps/boundview`: `snapshotBoundView` binds each of a line's cells once,
+  at the first free place on the line, in the order the document lists its
+  columns. In 1.2.0-rc.3.1 a cell took every place its value was written on
+  its line, so on an untaxed line of one item, whose unit price and amount
+  are the same ("A$300.00" twice side by side), the unit price took both.
+  The line's amount went unbound, the BoundView failed its key-facts check,
+  and the sender's app sent the document without a picture.
+- `@btps/boundview`: `snapshotBoundView` shares the places a value is written
+  between fields written alike, outside line items: a receipt's
+  `totalAmount` and `payment.amount`, or its `issuedAt` and `payment.paidAt`
+  on the same day. Each takes the first free place, and the last of them
+  takes every place left. In 1.2.0-rc.3.1 the first such field took every
+  place, so a receipt whose total equalled the amount paid could never show
+  `payment.amount`, and a page that wrote the date twice still could not
+  show `payment.paidAt`. The BoundView failed its key-facts check, and the
+  sender's app sent the document without a picture. A value written once
+  now shows every field written alike (see Changed).
+- `@btps/boundview`: `snapshotBoundView` binds long text over several lines,
+  a letter's `body.content` or a markdown description, in order: each line
+  picks up where the last left off. A line is taken only when all it skips
+  is whitespace, or, for markdown, whitespace and what a renderer does not
+  draw (see Changed). A line break in the text that
+  the page lays out as a space ends one bound piece and starts the next, so
+  each piece writes exactly what it shows. In 1.2.0-rc.3.1 a line was
+  matched anywhere after the last, so a word another field shows first (a
+  letterhead's "Studio" before a letter signed "Kind regards, Studio") took
+  the match past the letter's text, and a soft line break drawn as a space
+  never matched. Either way `body.content` went unbound, the BoundView
+  failed its key-facts check, and the sender's app sent the document without
+  a picture.
+- `@btps/boundview`: `snapshotBoundView` reads a page's woff2 fonts,
+  decompressed with Brotli, which it loads only for a woff2 file, and reads
+  a variable font at the page's weight and optical size. 1.2.0-rc.3.1 drew a
+  font offered only as woff2 with a bundled font of the same widths, and a
+  variable font at its default instance.
+- `@btps/boundview`: `snapshotBoundView` reads every file of a family split
+  by `unicode-range`, and takes each character from the file the browser
+  drew it with: the last rule that holds it first, the next where that one
+  has no glyph. A character no page font has is drawn with the bundled font
+  of the same widths; only a bound value no font can draw fails. 1.2.0-rc.3.1
+  read one file of the family.
+- `@btps/boundview`: `snapshotBoundView` finds a value however the page lays
+  it out: split across elements ("300" in an `<h1>` and "Empire" in an
+  `<h2>`, "INV-" and "0042" in touching spans), or wrapped over lines, an
+  amount wrapped at a space between its groups included. It binds the
+  pieces by range. Where values overlap, the longest match takes the place,
+  so "1,452" in "A$1,452.00" is the amount's. It also finds a line item
+  whose cells stand above or below its description, as a table row or a
+  card lays them out. A line is placed where most of its cells stand,
+  nearest them, so a heading repeating its description is not taken for
+  it, and a cell is never taken from inside another field's longer match
+  (a quantity "10" in "10/02/2026", an amount 1 in the invoice number "A1").
+  1.2.0-rc.3.1 matched each line of text on its own and bound only long
+  text over several lines, so a split or wrapped value went unbound and the
+  BoundView failed its key-facts check.
+- `@btps/boundview`: `snapshotBoundView` emits the `signature` element where
+  the page draws the document's visual signature: an SVG that draws, shape
+  for shape, what `signatureSvg` draws for its strokes, or the line that is
+  exactly its typed text, in the page's rarest typeface. Any other drawing
+  of the strokes is not taken as the signature. 1.2.0-rc.3.1 emitted none, so a letter or agreement with a
+  visual signature always failed its key-facts check.
+- `@btps/boundview`: `snapshotBoundView` makes a text's box no wider than
+  the browser drew it, rounded down, so text touching what follows it is not
+  covered by it. 1.2.0-rc.3.1 rounded the box up from the value's measured
+  width, which could reach into the next element and fail "Not hidden".
+- `@btps/boundview`: `snapshotBoundView` makes the page the preview's box
+  plus any overflow that is not clipped. 1.2.0-rc.3.1 used the box alone, so
+  a fact drawn in the overflow lay outside the page and failed "Not hidden".
+- `@btps/boundview`: `BoundViewSnapshotError` carries `view`, the BoundView
+  a receiver would not show, when the snapshot made one.
+- `@btps/boundview`: `renderBoundView` and the snapshot's SVG logo check
+  free the drawing engine's WebAssembly memory after each drawing. In
+  1.2.0-rc.3.1, after some tens of thousands of drawings in one page, every
+  drawing failed.
+- `@btps/sdk/boundview`: the BoundView schema checks an image's data with
+  `atob`. 1.2.0-rc.3.1 used Node's `Buffer`, so the check failed in a
+  browser without it.
+- `@btps/boundview`: `snapshotBoundView` draws a 3D transform
+  (`perspective()`, `rotateX`/`rotateY`, `matrix3d`) as its 2D part, as
+  documented. The transform origin was placed before the 2D part was taken,
+  so with perspective the element was drawn small and elsewhere, and a design
+  could be refused for covering a fact. `rotate: y 25deg` (an axis given) is
+  turned about that axis, no longer read as a flat turn.
+- BoundView: contrast is sampled strictly inside a fact's box, never on its
+  far edge, so a border or shadow that only touches a fact no longer gets it
+  refused.
+- The sweep (`packages/boundview/sweep`) now makes payslips and agreements
+  too, and tests each claim of "What BoundView does not support".
+
+### Security
+
+- `markdownHidden` (`@btps/sdk/boundview`), which every receiver runs on a
+  sender's markdown in a BoundView check, finds links and autolinks in one
+  pass each. Its patterns rescanned the rest of the text from each `[` or
+  `<`, so text made of many of them took time growing with the square of its
+  length. What it finds is unchanged.
+- `@btps/boundview`: `signatureSvg` and `signatureShapes` take a colour only
+  as `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa` or `currentColor`, and throw a
+  `TypeError` on anything else, so a value passed in is never written into
+  the markup.
+- BoundView: a font's glyph outlines are the sender's. A receiver checks
+  that every character of a bound value has a glyph and fits, not that a
+  glyph's shape is the character it stands for, so a dishonest sender could
+  draw a 1 as a 7. This is accepted and documented: the receiving app's own
+  view of the signed data is authoritative, and is shown alongside the
+  BoundView or a press away (Security model, "Glyph shapes are the sender's").
+
 ## [1.2.0-rc.3.1] — 2026-11-15 (beta, release candidate)
 
 Two fixes to `@btps/boundview`'s `snapshotBoundView`, found adding BoundView to

@@ -47,8 +47,10 @@ exactly `width × height × 4`, stopping as soon as it passes that length.
 :::
 
 An [`image` element](./elements.md#image) draws it, scaled to fill its box.
-`snapshotBoundView` captures an image at twice its box's size where the source
-allows, so it stays sharp on high-resolution screens. That is capture
+`snapshotBoundView` captures an image at twice its box's size or at its own
+resolution, whichever is larger, so it stays sharp on high-resolution screens,
+then within the [limits](#limits): at most 1,024 pixels a side and 262,144 in
+all. That is capture
 guidance, not a rule: a receiver does not check an image's resolution, and
 scales the image to its box. How it is drawn is on
 [Rendering](./rendering.md#images).

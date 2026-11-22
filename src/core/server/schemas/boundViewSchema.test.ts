@@ -94,6 +94,12 @@ describe("a BoundView's shape", () => {
     expect(takes(view({}, labels.slice(1)))).toBe(true);
   });
 
+  it('carries up to eight fonts', () => {
+    const fonts = (count: number) => Object.fromEntries(Array.from({ length: count }, (_, i) => [`font${i}`, font]));
+    expect(takes(view({ fonts: fonts(8) }))).toBe(true);
+    expect(takes(view({ fonts: fonts(9) }))).toBe(false);
+  });
+
   it('refuses a canvas larger than 384 KiB as JSON before reading it', () => {
     const result = BtpBoundViewSchema.safeParse(view({ padding: 'x'.repeat(400 * 1024) }));
     expect(result.success).toBe(false);

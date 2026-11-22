@@ -21,6 +21,9 @@ export type OpenTypeFont = {
   getKerningValue(left: OpenTypeGlyph, right: OpenTypeGlyph): number;
   glyphs: { get(index: number): OpenTypeGlyph };
   substitution?: { getSingle(feature: string, script: string, language: string): { sub: number; by: number }[] | undefined };
+  /** A variable font's axes and instancing, when it is one. */
+  tables: { fvar?: { axes: { tag: string; minValue: number; maxValue: number }[] } };
+  variation?: { getTransform(glyph: OpenTypeGlyph, coords: Record<string, number>): OpenTypeGlyph };
 };
 type OpenTypeGlyph = {
   index: number;
@@ -62,16 +65,36 @@ const outline = (commands: PathCommand[], places: number) => {
 };
 
 /**
+ * A variable font's coordinates as the browser drew the page's text: its weight, italic where the font has an italic
+ * axis, and its optical size at the text's size in pixels (`font-optical-sizing: auto`), each held to its axis's range;
+ * undefined for a font that is not variable.
+ */
+export const variationFor = (
+  font: OpenTypeFont,
+  { weight, italic, size }: { weight: number; italic: boolean; size?: number },
+): Record<string, number> | undefined => {
+  const axes = font.tables.fvar?.axes;
+  if (!axes || axes.length === 0 || font.variation === undefined) return undefined;
+  const coords: Record<string, number> = {};
+  for (const { tag, minValue, maxValue } of axes) {
+    const wanted = tag === 'wght' ? weight : tag === 'ital' ? (italic ? 1 : 0) : tag === 'opsz' ? size : undefined;
+    if (wanted !== undefined) coords[tag] = Math.min(maxValue, Math.max(minValue, wanted));
+  }
+  return coords;
+};
+
+/**
  * A font's glyph table for `characters`: each one's outline and advance, the
  * kerning of the pairs among them, and its ascent and descent as far as its
  * glyphs actually reach. Tabular figures swap in the font's own fixed-width
- * digits, as the page drew them. Characters the font has no glyph for are
- * returned apart, so the caller can say so.
+ * digits, as the page drew them; a variable font is read at the page's weight.
+ * Characters the font has no glyph for are returned apart, so the caller can
+ * say so.
  */
 export const glyphTable = (
   font: OpenTypeFont,
   characters: Iterable<string>,
-  { tabular = false }: { tabular?: boolean } = {},
+  { tabular = false, variation }: { tabular?: boolean; variation?: Record<string, number> } = {},
 ): { font: BTPBoundViewFont; missing: string[] } => {
   const swap = new Map<number, number>();
   if (tabular) {
@@ -86,7 +109,8 @@ export const glyphTable = (
   const glyphOf = (char: string) => {
     const glyph = font.charToGlyph(char);
     const swapped = swap.get(glyph.index);
-    return swapped === undefined ? glyph : font.glyphs.get(swapped);
+    const chosen = swapped === undefined ? glyph : font.glyphs.get(swapped);
+    return variation && font.variation ? font.variation.getTransform(chosen, variation) : chosen;
   };
 
   const glyphs: NonNullable<BTPBoundViewFont['glyphs']> = {};

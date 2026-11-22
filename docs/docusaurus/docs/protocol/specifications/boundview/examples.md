@@ -108,11 +108,12 @@ amount due in a tinted box, the lines, the totals and the note.
 
 ### What the receiver checks
 
-Among the rest: every key fact (the number, both dates, the three amounts,
-the sender's and the recipient's names, the note, and each line's
-description and amount) has a bound element; each fits its box; none is
-covered; the amount due's colour has 3:1 contrast against the tinted box
-beneath it. See [Checks](./checks.md).
+Among the rest: every key fact (the number, the due date, the total, the
+tax, the note, and each line's description and amount) has a bound element;
+each fits its box; none is covered; the amount due's colour has 3:1 contrast
+against the tinted box beneath it. The sender's and the recipient's names,
+the issue date and the subtotal are shown too, though an invoice may leave
+them out ([Key facts](./checks.md#invoice)). See [Checks](./checks.md).
 
 ## A letter with its signatory
 

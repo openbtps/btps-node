@@ -142,7 +142,10 @@ const format = z.union([
     .strict(),
 ]);
 
-/** Which signed field a text shows, how it is written, and which part of it. */
+/**
+ * Which signed field a text shows, how it is written, and which part of it: a range is the code points of the value
+ * as its format writes it, for a value the page wraps over lines or splits across elements.
+ */
 const binding = z
   .object({
     field: z.string().min(1).max(BTPS_FIELD_LIMITS.documentId * 4),
@@ -152,11 +155,7 @@ const binding = z
       .refine(([start, end]) => start < end, 'a range starts before it ends')
       .optional(),
   })
-  .strict()
-  .refine((bind) => bind.range === undefined || bind.format === undefined, {
-    message: 'a range is for text written as it is',
-    path: ['range'],
-  });
+  .strict();
 
 const textBox = {
   x: position,
@@ -201,7 +200,14 @@ const element = z.discriminatedUnion('type', [
     })
     .strict(),
   z
-    .object({ type: z.literal('image'), image: z.string().min(1), ...box, opacity: opacity.optional() })
+    .object({
+      type: z.literal('image'),
+      image: z.string().min(1),
+      ...box,
+      // Its corners rounded, as a rect's: a rounded logo or photo.
+      radius: z.union([size, z.tuple([size, size, size, size])]).optional(),
+      opacity: opacity.optional(),
+    })
     .strict(),
   z.object({ type: z.literal('text'), bind: binding, ...textBox }).strict(),
   z
@@ -250,7 +256,13 @@ const base64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$
  * that expands without end costs no more than that.
  */
 const inflatesTo = (data: string, length: number): boolean => {
-  const bytes = Buffer.from(data, 'base64');
+  // atob, not Buffer: a browser that checks a BoundView has no Buffer. Data that is not base64 inflates to nothing.
+  let bytes: Uint8Array;
+  try {
+    bytes = Uint8Array.from(atob(data), (char) => char.charCodeAt(0));
+  } catch {
+    return false;
+  }
   let total = 0;
   const stream = new Unzlib((chunk) => {
     total += chunk.length;

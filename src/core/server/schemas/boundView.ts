@@ -14,9 +14,10 @@ export {
   type BTPBoundViewElement,
   type BTPBoundViewFont,
 } from './boundViewSchema.js';
-export { boundValue, bindingProblem, type BoundValue } from './boundViewBindings.js';
+export { boundValue, bindingProblem, markdownHidden, type BoundValue } from './boundViewBindings.js';
 export {
   checkBoundView,
+  keyFacts,
   boundViewResultOf,
   writtenValue,
   CONTRAST_WORK_LIMIT,

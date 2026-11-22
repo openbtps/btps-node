@@ -13,14 +13,26 @@
  * same result.
  */
 
-import { CURRENCY_DECIMALS } from '../constants/currency.js';
 import {
   BtpBoundViewSchema,
   type BTPBoundView,
   type BTPBoundViewElement,
   type BTPBoundViewFont,
 } from './boundViewSchema.js';
-import { boundValue, type BoundValue } from './boundViewBindings.js';
+import { unzlibSync } from 'fflate';
+import { boundValue, markdownHidden, writtenValue } from './boundViewBindings.js';
+
+/** An image's RGBA pixels from its data (base64 of zlib-deflated rgba8): nothing where it is not that. */
+const pixelsOf = (data: string): Uint8Array | undefined => {
+  try {
+    // atob, not Buffer: a browser that checks a BoundView has no Buffer.
+    return unzlibSync(Uint8Array.from(atob(data), (c) => c.charCodeAt(0)));
+  } catch {
+    return undefined;
+  }
+};
+
+export { writtenValue };
 
 type Doc = Record<string, unknown>;
 type TextElement = Extract<BTPBoundViewElement, { type: 'text' }>;
@@ -39,78 +51,6 @@ export type BTPBoundViewProblem = {
 
 /** Whether a BoundView may be shown, and why not when it may not. */
 export type BTPBoundViewResult = { show: true } | { show: false; problems: BTPBoundViewProblem[] };
-
-// ---- Writing a bound value ----
-
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
-const grouped = (digits: string, separator: string) =>
-  digits.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
-
-const writeDate = (iso: string, pattern: string): string => {
-  const date = new Date(iso);
-  const d = String(date.getUTCDate());
-  const dd = d.padStart(2, '0');
-  const MM = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const month = MONTHS[date.getUTCMonth()] ?? '';
-  const yyyy = String(date.getUTCFullYear());
-  const written: Record<string, string> = {
-    'd MMM yyyy': `${d} ${month.slice(0, 3)} ${yyyy}`,
-    'd MMMM yyyy': `${d} ${month} ${yyyy}`,
-    'MMM d, yyyy': `${month.slice(0, 3)} ${d}, ${yyyy}`,
-    'MMMM d, yyyy': `${month} ${d}, ${yyyy}`,
-    'dd/MM/yyyy': `${dd}/${MM}/${yyyy}`,
-    'MM/dd/yyyy': `${MM}/${dd}/${yyyy}`,
-    'dd.MM.yyyy': `${dd}.${MM}.${yyyy}`,
-    'dd-MM-yyyy': `${dd}-${MM}-${yyyy}`,
-    'yyyy-MM-dd': `${yyyy}-${MM}-${dd}`,
-  };
-  return written[pattern] ?? '';
-};
-
-/** A bound value as the receiver draws it, by its binding's format and range (Bindings and formats). */
-export const writtenValue = (value: BoundValue, bind: TextElement['bind']): string => {
-  const format = bind.format;
-  if (value.kind === 'money' && format && 'money' in format) {
-    const { group, decimal, prefix = '', suffix = '' } = format.money;
-    const places = CURRENCY_DECIMALS[value.currency as keyof typeof CURRENCY_DECIMALS] ?? 2;
-    const digits = String(Math.abs(value.amount)).padStart(places + 1, '0');
-    const whole = grouped(digits.slice(0, digits.length - places), group);
-    const number = places > 0 ? `${whole}${decimal}${digits.slice(-places)}` : whole;
-    return `${value.amount < 0 ? '-' : ''}${prefix}${number}${suffix}`;
-  }
-  if (value.kind === 'date' && format && 'date' in format) return writeDate(value.date, format.date);
-  if (value.kind === 'percent' && format && 'percent' in format) {
-    const { decimals, decimal } = format.percent;
-    return `${(value.basisPoints / 100).toFixed(decimals).replace('.', decimal)}%`;
-  }
-  if (value.kind !== 'text') return '';
-  if (format && 'groups' in format) {
-    const characters = [...value.text.replace(/ /g, '')];
-    const parts: string[] = [];
-    let at = 0;
-    for (const size of format.groups.sizes) {
-      parts.push(characters.slice(at, at + size).join(''));
-      at += size;
-    }
-    return parts.join(format.groups.separator);
-  }
-  const characters = [...value.text];
-  return bind.range ? characters.slice(bind.range[0], bind.range[1]).join('') : value.text;
-};
 
 const transformed = (text: string, transform?: 'uppercase' | 'lowercase') =>
   [...text]
@@ -147,8 +87,16 @@ const measured = (
 
 type Box = { left: number; top: number; right: number; bottom: number };
 
+/**
+ * Whether two boxes overlap by more than the format's precision allows for: positions are written to hundredths of a
+ * pixel, so boxes that touch may meet by the rounding of a sum (231.3 + 32.29 is 263.59000000000003).
+ */
+const OVERLAP_TOLERANCE = 0.005;
 const overlaps = (a: Box, b: Box) =>
-  a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+  a.left < b.right - OVERLAP_TOLERANCE &&
+  b.left < a.right - OVERLAP_TOLERANCE &&
+  a.top < b.bottom - OVERLAP_TOLERANCE &&
+  b.top < a.bottom - OVERLAP_TOLERANCE;
 
 const textBox = (element: { x: number; y: number; width: number; size: number; font: string }, view: BTPBoundView): Box => {
   const font = view.fonts?.[element.font];
@@ -383,17 +331,17 @@ const contrast = (a: [number, number, number], b: [number, number, number]) => {
   return (light + 0.05) / (dark + 0.05);
 };
 
-/** Points every pixel at pixel centres from `start` to `end`, or the middle when the side is under half a pixel. */
+/** Points every pixel at pixel centres inside `start` to `end` (never on `end`, which a shape beside may share), or the middle when the side is under half a pixel. */
 const samples = (start: number, end: number): number[] => {
   const points: number[] = [];
-  for (let at = start + 0.5; at <= end; at++) points.push(at);
+  for (let at = start + 0.5; at < end; at++) points.push(at);
   return points.length > 0 ? points : [(start + end) / 2];
 };
 
 // ---- Key facts ----
 
 /** The key facts a document's BoundView shows, by field, among those it carries (Checks: Key facts). */
-const keyFacts = (document: Doc): string[] => {
+export const keyFacts = (document: Doc): string[] => {
   const type = document.type;
   const lines = (): string[] => {
     const items = document.lineItems as
@@ -407,29 +355,21 @@ const keyFacts = (document: Doc): string[] => {
       columns.filter((column) => row[column] !== undefined).map((column) => `lineItems.rows.${index}.${column}`),
     );
   };
-  const listAmounts = (key: string) =>
-    Array.isArray(document[key]) ? (document[key] as unknown[]).map((_, index) => `${key}.${index}.amount`) : [];
-  const discount = document.discount as { amount?: number; percent?: number } | undefined;
-  const bill = [
-    'id',
-    'issuedAt',
-    'totalAmount',
-    'subtotalAmount',
-    'taxAmount',
-    ...(discount === undefined ? [] : [discount.amount !== undefined ? 'discount.amount' : 'discount.percent']),
-    'issuer.name',
-    'recipient.name',
-    'description',
-    ...lines(),
-  ];
-  const letter = ['issuedAt', 'issuer.name', 'recipient.name', 'body.content', 'signatory.name', 'signatory.title'];
+  // Each earning, deduction or contribution: what it is, and how much.
+  const entries = (key: string) =>
+    Array.isArray(document[key])
+      ? (document[key] as unknown[]).flatMap((_, index) => [`${key}.${index}.description`, `${key}.${index}.amount`])
+      : [];
+  // What a document carries is shown, but for what the receiver's app shows apart from the BoundView (who sent it, who
+  // it is for), what follows from what is shown (a subtotal; a discount the total already takes off), and what does
+  // not change what is owed, paid or said (an issue date beside a due date; how a payment was made).
+  const bill = ['id', 'totalAmount', 'taxAmount', 'description', ...lines()];
+  const letter = ['issuedAt', 'body.content', 'signatory.name', 'signatory.title'];
   const facts: Record<string, string[]> = {
     invoice: [...bill, 'dueAt'],
     receipt: [...bill, 'payment.amount', 'payment.paidAt'],
     payslip: [
       'id',
-      'issuedAt',
-      'issuer.name',
       'employee.name',
       'payPeriod.start',
       'payPeriod.end',
@@ -437,9 +377,9 @@ const keyFacts = (document: Doc): string[] => {
       'gross',
       'taxWithheld',
       'net',
-      ...listAmounts('earnings'),
-      ...listAmounts('deductions'),
-      ...listAmounts('contributions'),
+      ...entries('earnings'),
+      ...entries('deductions'),
+      ...entries('contributions'),
     ],
     letter,
     agreement: [...letter, 'acceptance.by'],
@@ -449,9 +389,11 @@ const keyFacts = (document: Doc): string[] => {
   );
 };
 
-/** The characters of a text a BoundView must show: all but spaces, and in markdown its formatting marks. */
-const requiredCharacters = (text: string, markdown: boolean): boolean[] =>
-  [...text].map((char) => !/\s/u.test(char) && !(markdown && /[#*_`>-]/.test(char)));
+/** The characters of a written value a BoundView must show: all but spaces, and in markdown what is not drawn. */
+const requiredCharacters = (text: string, markdown: boolean): boolean[] => {
+  const hidden = markdown ? markdownHidden(text) : [];
+  return [...text].map((char, at) => !/\s/u.test(char) && !hidden[at]);
+};
 
 const isMarkdown = (document: Doc, field: string) => {
   const value = field === 'body.content' ? document.body : field === 'description' ? document.description : undefined;
@@ -471,22 +413,37 @@ export const checkBoundView = (document: Doc, view: BTPBoundView): BTPBoundViewR
     .map((element, index) => ({ element, index }))
     .filter((entry): entry is { element: TextElement; index: number } => entry.element.type === 'text');
 
-  // Key facts: each one the document carries is bound, a text one in every character it must show.
+  // Key facts: each one the document carries is written on the page, in every character it must show. A text shows a
+  // fact when it is bound to it, or to another field whose value it writes exactly the same (a receipt's total and the
+  // amount paid; its date and the day it was paid): what the page shows is that fact's value either way.
   for (const field of keyFacts(document)) {
-    const binds = texts.filter(({ element }) => element.bind.field === field).map(({ element }) => element.bind);
     const value = boundValue(document, field);
-    if (binds.length === 0) {
-      problems.push({ check: 'keyFacts', field, message: `${field} is a key fact and is not shown` });
-    } else if (value?.kind === 'text' && !binds.some((bind) => bind.range === undefined)) {
-      const shown = [...value.text].map(() => false);
-      for (const { range } of binds) {
-        for (let at = range?.[0] ?? 0; at < (range?.[1] ?? 0); at++) shown[at] = true;
-      }
-      const required = requiredCharacters(value.text, isMarkdown(document, field));
-      if (required.some((needed, at) => needed && !shown[at])) {
-        problems.push({ check: 'keyFacts', field, message: `every word of ${field} is shown` });
-      }
+    if (value === undefined) continue;
+    const markdown = isMarkdown(document, field);
+    // Each way the fact is written on the page, and which of its characters are shown that way.
+    const ways = new Map<string, { written: string[]; shown: boolean[] }>();
+    for (const { element } of texts) {
+      const other = boundValue(document, element.bind.field);
+      if (other === undefined || other.kind !== value.kind) continue;
+      const format = { format: element.bind.format } as TextElement['bind'];
+      const written = writtenValue(value, { ...format, field } as TextElement['bind']);
+      if (written === '' || writtenValue(other, { ...format, field: element.bind.field } as TextElement['bind']) !== written) continue;
+      if (element.bind.field !== field && isMarkdown(document, element.bind.field) !== markdown) continue;
+      const key = JSON.stringify(element.bind.format ?? null);
+      const way = ways.get(key) ?? { written: [...written], shown: [...written].map(() => false) };
+      const [from, to] = element.bind.range ?? [0, way.written.length];
+      for (let at = from; at < Math.min(to, way.written.length); at++) way.shown[at] = true;
+      ways.set(key, way);
     }
+    if (ways.size === 0) {
+      problems.push({ check: 'keyFacts', field, message: `${field} is a key fact and is not shown` });
+      continue;
+    }
+    const whole = [...ways.values()].some(({ written, shown }) => {
+      const required = requiredCharacters(written.join(''), markdown);
+      return required.every((needed, at) => !needed || shown[at]);
+    });
+    if (!whole) problems.push({ check: 'keyFacts', field, message: `every word of ${field} is shown` });
   }
   const signatory = (document.signatory ?? {}) as { visualSignature?: unknown };
   if (signatory.visualSignature !== undefined && !view.elements.some(({ type }) => type === 'signature')) {
@@ -509,7 +466,7 @@ export const checkBoundView = (document: Doc, view: BTPBoundView): BTPBoundViewR
     }
   }
 
-  // Not hidden: inside the page, nothing drawn over it, no image under it, 3:1 contrast at every point.
+  // Not hidden: inside the page, nothing drawn over it, 3:1 contrast at every point with what is beneath (images by their pixels).
   const boxOf = (element: BTPBoundViewElement): Box => {
     switch (element.type) {
       case 'text':
@@ -545,28 +502,36 @@ export const checkBoundView = (document: Doc, view: BTPBoundView): BTPBoundViewR
   const page = parse(view.page.background ?? '#ffffff');
   const pageColour = over([255, 255, 255], page);
   let work = 0;
+  // Each image's pixels, read once, when a fact or signature lies on it.
+  const decoded = new Map<string, Uint8Array | undefined>();
 
   view.elements.forEach((element, index) => {
     if (element.type !== 'text' && element.type !== 'signature') return;
     const box = boxes[index] as Box;
     const hidden = (message: string) => problems.push({ check: 'notHidden', element: index, message });
-    if (box.left < 0 || box.top < 0 || box.right > view.page.width || box.bottom > view.page.height) {
+    // As for overlaps, a box that meets the page's edge by the rounding of a sum is inside it.
+    const t = OVERLAP_TOLERANCE;
+    if (box.left < -t || box.top < -t || box.right > view.page.width + t || box.bottom > view.page.height + t) {
       hidden('it lies outside the page');
     }
     if (boxes.slice(index + 1).some((later) => overlaps(box, later))) hidden('an element drawn after it covers it');
-    if (view.elements.slice(0, index).some((earlier, at) => earlier.type === 'image' && overlaps(box, boxes[at] as Box))) {
-      hidden('an image lies under it');
-    }
     const ink = over(pageColour, parse(element.colour));
+    // Everything drawn under it: shapes by their paint, images by their own pixels.
     const beneath = view.elements
       .slice(0, index)
       .map((earlier, at) => ({ earlier, at }))
       .filter(
         ({ earlier, at }) =>
-          (earlier.type === 'rect' || earlier.type === 'path') &&
-          earlier.fill !== undefined &&
+          (((earlier.type === 'rect' || earlier.type === 'path') && earlier.fill !== undefined) || earlier.type === 'image') &&
           overlaps(box, boxes[at] as Box),
       );
+    for (const { earlier } of beneath) {
+      if (earlier.type === 'image' && !decoded.has(earlier.image)) {
+        const image = view.images?.[earlier.image];
+        work += image ? image.width * image.height : 0;
+        decoded.set(earlier.image, image ? pixelsOf(image.data) : undefined);
+      }
+    }
     const xs = samples(box.left, box.right);
     let readable = true;
     for (const y of samples(box.top, box.bottom)) {
@@ -581,6 +546,17 @@ export const checkBoundView = (document: Doc, view: BTPBoundView): BTPBoundViewR
       for (const x of xs) {
         let colour = pageColour;
         beneath.forEach(({ earlier }, n) => {
+          if (earlier.type === 'image') {
+            // The image's pixel at this point, as it is drawn there: stretched to its box, its corners rounded.
+            const image = view.images?.[earlier.image];
+            const pixels = decoded.get(earlier.image);
+            if (!image || !pixels || !rectCovers(earlier, [x, y])) return;
+            const px = Math.min(image.width - 1, Math.max(0, Math.floor(((x - earlier.x) / earlier.width) * image.width)));
+            const py = Math.min(image.height - 1, Math.max(0, Math.floor(((y - earlier.y) / earlier.height) * image.height)));
+            const i = (py * image.width + px) * 4;
+            colour = over(colour, [pixels[i] ?? 0, pixels[i + 1] ?? 0, pixels[i + 2] ?? 0, ((pixels[i + 3] ?? 0) / 255) * (earlier.opacity ?? 1)]);
+            return;
+          }
           if ((earlier.type !== 'rect' && earlier.type !== 'path') || earlier.fill === undefined) return;
           const row = rows[n];
           const covers =

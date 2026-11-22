@@ -871,7 +871,7 @@ type BTPBoundViewElement =
   | { type: 'rect'; x: number; y: number; width: number; height: number; radius?: number | number[]; fill?: BTPPaint; stroke?: BTPPaint; strokeWidth?: number; opacity?: number }
   | { type: 'line'; from: [number, number]; to: [number, number]; stroke: BTPPaint; strokeWidth: number; dash?: [number, number]; opacity?: number }
   | { type: 'path'; d: string; fill?: BTPPaint; stroke?: BTPPaint; strokeWidth?: number; opacity?: number; fillRule?: 'nonzero' | 'evenodd' }
-  | { type: 'image'; image: string; x: number; y: number; width: number; height: number; opacity?: number }
+  | { type: 'image'; image: string; x: number; y: number; width: number; height: number; radius?: number | number[]; opacity?: number }
   | ({ type: 'text'; bind: BTPBinding } & BTPTextBox)
   | ({ type: 'label'; text: string } & BTPTextBox)
   | { type: 'signature'; x: number; y: number; width: number; height: number; colour: string /* #rrggbb */ };
@@ -891,7 +891,7 @@ interface BTPTextBox {
 interface BTPBinding {
   field: string; // a signed field's path, e.g. 'totalAmount' or 'lineItems.rows.0.Amount'
   format?: BTPBindingFormat;
-  range?: [number, number]; // a text field's part, in code points
+  range?: [number, number]; // a part of the value as its format writes it, in code points
 }
 ```
 
