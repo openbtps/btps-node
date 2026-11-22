@@ -305,8 +305,8 @@ const nextWhere = (text: string, stop: (char: string) => boolean): number[] => {
 };
 
 /**
- * Each `[label](destination)` in `text`, neither part crossing a line, as `/\[([^\]\n]*)\]\(([^)\n]*)\)/g` finds them:
- * [start, end of label, end]. One pass: what is next after each place is worked out once.
+ * Each `[label](destination)` in `text`, neither part crossing a line nor holding its closing bracket or parenthesis, as the
+ * pattern this replaced found them: [start, end of label, end]. One pass: what is next after each place is worked out once.
  */
 const links = (text: string): [number, number, number][] => {
   const newline = nextWhere(text, (char) => char === '\n');
@@ -326,19 +326,23 @@ const links = (text: string): [number, number, number][] => {
   return found;
 };
 
-/** Each `<http://…>` or `<https://…>` in `text`, as `/<(https?:\/\/[^>\s]+)>/g` finds them: [start, end]. One pass. */
+/** Each autolink, `<` http or https, `://`, then no `>` or whitespace, then `>`, in `text`: [start, end]. One pass. */
 const autolinks = (text: string): [number, number][] => {
-  const stop = nextWhere(text, (char) => char === '>' || /\s/.test(char));
+  // Whitespace as `\s` reads it (trim removes the same characters). Neither a pattern nor a "//" is written here: the
+  // build strips comments from dist by text, and read the two together as a comment (build/stripComments.mjs).
+  const stop = nextWhere(text, (char) => char === '>' || char.trim() === '');
   const found: [number, number][] = [];
   for (let at = 0; at < text.length; at++) {
     if (text[at] !== '<') continue;
-    const scheme = text.startsWith('https://', at + 1)
-      ? 8
-      : text.startsWith('http://', at + 1)
-        ? 7
-        : 0;
-    if (scheme === 0) continue;
-    const from = at + 1 + scheme;
+    const scheme = text.startsWith('https:', at + 1) ? 6 : text.startsWith('http:', at + 1) ? 5 : 0;
+    const slash = 47;
+    if (
+      scheme === 0 ||
+      text.charCodeAt(at + 1 + scheme) !== slash ||
+      text.charCodeAt(at + 2 + scheme) !== slash
+    )
+      continue;
+    const from = at + 3 + scheme;
     const end = stop[from] as number;
     if (end === from || text[end] !== '>') continue;
     found.push([at, end + 1]);
