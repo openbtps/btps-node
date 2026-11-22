@@ -61,16 +61,23 @@ export const flatten = (root: HTMLElement): Flat => {
       m = m.translate(length(tx, rect.width), length(ty, rect.height));
     }
     if (values.rotate && values.rotate !== 'none') {
-      const angle = values.rotate.split(/\s+/).at(-1) ?? '0deg';
+      const parts = values.rotate.split(/\s+/);
+      const angle = parts.at(-1) ?? '0deg';
       const degrees = angle.endsWith('turn') ? parseFloat(angle) * 360 : angle.endsWith('rad') ? (parseFloat(angle) * 180) / Math.PI : parseFloat(angle);
-      m = m.rotate(degrees);
+      // About an axis, as `rotate: y 25deg` or `rotate: 1 1 0 30deg` give one; about z, the page's own, otherwise.
+      const named: Record<string, [number, number, number]> = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
+      const [ax, ay, az] = parts.length === 2 ? (named[parts[0] as string] ?? [0, 0, 1]) : parts.length === 4 ? parts.slice(0, 3).map(Number) : [0, 0, 1];
+      m = m.rotateAxisAngle(ax, ay, az, degrees);
     }
     if (values.scale && values.scale !== 'none') {
       const [sx = 1, sy = sx] = values.scale.split(/\s+/).map(Number);
       m = m.scale(sx, sy);
     }
     if (values.transform && values.transform !== 'none') m = m.multiply(new DOMMatrix(values.transform));
-    local.set(element, new DOMMatrix().translate(cx, cy).multiply(m).translate(-cx, -cy));
+    // A 3D transform drawn flat: its 2D part, taken before the origin is placed, so its perspective is dropped rather
+    // than mixed into where and how big the element is drawn.
+    const flat = new DOMMatrix([m.a, m.b, m.c, m.d, m.e, m.f]);
+    local.set(element, new DOMMatrix().translate(cx, cy).multiply(flat).translate(-cx, -cy));
   }
   const matrices = new Map<Element, DOMMatrix | undefined>();
   const matrixOf = (element: Element): DOMMatrix | undefined => {

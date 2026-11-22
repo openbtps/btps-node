@@ -25,7 +25,10 @@
  * logos; drawn and typed signatures; page widths and padding.
  */
 
-export type Case = { seed: number; document: Record<string, unknown>; html: string; css: string; notes: string[] };
+import { signatureDrawing } from '../src/signature.js';
+import { claimFor, type Claim, type Hooks } from './claims.js';
+
+export type Case = { seed: number; document: Record<string, unknown>; html: string; css: string; notes: string[]; claim?: Claim };
 
 /** The fonts the sweep's page serves, by family: what each is and how it is served. */
 export const FONTS = {
@@ -273,11 +276,13 @@ const logoHtml = (r: Random, extra = '') => {
 
 const signatureHtml = (signatory: { name: string; title?: string; visualSignature?: { type: string; text?: string; strokes?: number[][] } }, look: Look) => {
   const visual = signatory.visualSignature;
+  // By the one rule the engine draws it with (signatureDrawing), as a platform shows it.
+  const shapes = visual?.type === 'drawn' ? signatureDrawing(visual.strokes ?? []) : undefined;
   const drawn =
-    visual?.type === 'drawn'
-      ? `<svg viewBox="0 0 1000 300" width="200" height="60" style="display:block;color:${look.ink}">${(visual.strokes ?? [])
-          .map((stroke) => `<polyline points="${stroke.join(' ')}" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>`)
-          .join('')}</svg>`
+    shapes !== undefined
+      ? `<svg viewBox="0 0 1000 300" width="200" height="60" style="display:block;color:${look.ink}">${shapes.dots
+          .map(({ cx, cy, r }) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="currentColor"/>`)
+          .join('')}${shapes.line ? `<path d="${shapes.line.d}" fill="none" stroke="currentColor" stroke-width="${shapes.line.strokeWidth}" stroke-linecap="round" stroke-linejoin="round"/>` : ''}</svg>`
       : visual?.type === 'typed'
         ? `<p style="font-family:'Caveat';font-size:28px;margin:0">${esc(visual.text ?? '')}</p>`
         : '';
@@ -360,13 +365,16 @@ const effectsFor = (seed: number, look: Look) => {
   return { box, logo, label, extras, css, used };
 };
 
+/** No effects: a claim's case varies only by what the claim puts in it. */
+const noEffects: ReturnType<typeof effectsFor> = { box: () => '', logo: () => '', label: () => '', extras: '', css: '', used: [] };
+
 // ---- Documents and their pages ----
 
-const bill = (r: Random, seed: number, type: 'invoice' | 'receipt'): Case => {
+const bill = (r: Random, seed: number, type: 'invoice' | 'receipt', hooks: Hooks): Case => {
   const notes: string[] = [];
   const wide = r.chance(0.12);
-  const look = lookFor(r, wide);
-  const fx = effectsFor(seed, look);
+  const look = { ...lookFor(r, wide), ...(hooks.width !== undefined && { width: hooks.width }) };
+  const fx = hooks.plain ? noEffects : effectsFor(seed, look);
   const lines = linesFor(r, look.money.places);
   const issuedAt = dayIso(r);
   const dueAt = addDays(issuedAt, r.pick([0, 7, 14, 30]));
@@ -376,7 +384,7 @@ const bill = (r: Random, seed: number, type: 'invoice' | 'receipt'): Case => {
   const issuer = wide ? r.pick(NAMES_WIDE) : r.pick(NAMES_LATIN);
   const recipient = r.chance(0.5) ? r.pick([...NAMES_LATIN, ...(wide ? NAMES_WIDE : [])]) : undefined;
   const ids = ['INV-0042', 'INV-0042-A', `INV-${issuedAt.slice(0, 10)}`, '2026/0042', '1042', 'A1'];
-  const id = r.pick(ids);
+  const id = r.pick(ids) + hooks.glyph;
   const description = r.chance(0.5) ? r.pick(NOTES) : undefined;
   const title = r.chance(0.3) ? (lines[0] as Line).description : r.pick(TITLES);
   const columns = r.pick([
@@ -476,7 +484,7 @@ const bill = (r: Random, seed: number, type: 'invoice' | 'receipt'): Case => {
   const shows = { issuer: r.chance(0.8), issued: r.chance(0.8), recipient: r.chance(0.8), subtotal: r.chance(0.7) };
   notes.push(`leaves out ${Object.entries(shows).filter(([, shown]) => !shown).map(([what]) => what).join(', ') || 'nothing'}`);
   const sections = {
-    header: `<header style="display:flex;gap:12px;align-items:${r.pick(['center', 'flex-start'])};justify-content:${r.pick(['flex-start', 'space-between'])};${fx.box('header')}">${logoHtml(r, fx.logo())}<div>${shows.issuer ? issuerHtml : ''}</div><div style="text-align:right">${label(look, type === 'invoice' ? (tax ? 'Tax invoice' : 'Invoice') : 'Receipt', 'div')}<div>${valueHtml(r, id, r.chance(0.5) ? 'No.' : undefined)}</div></div></header>`,
+    header: `<header style="display:flex;gap:12px;align-items:${r.pick(['center', 'flex-start'])};justify-content:${r.pick(['flex-start', 'space-between'])};${fx.box('header')}">${logoHtml(r, fx.logo())}<div>${shows.issuer ? issuerHtml : ''}</div><div style="text-align:right">${label(look, type === 'invoice' ? (tax ? 'Tax invoice' : 'Invoice') : 'Receipt', 'div')}<div><span class="anchor">${valueHtml(r, id, r.chance(0.5) ? 'No.' : undefined)}</span></div></div></header>`,
     details: `<div style="display:${r.pick(['flex', 'grid', 'block'])};gap:16px;margin:12px 0;grid-template-columns:1fr 1fr">
       ${shows.issued ? `<div>${label(look, 'Issued')} ${valueHtml(r, d(issuedAt))}</div>` : ''}
       ${type === 'invoice' ? `<div>${label(look, 'Due')} ${valueHtml(r, d(dueAt))}</div>` : `<div>${label(look, 'Paid on')} ${valueHtml(r, d(paidAt))}</div>`}
@@ -498,16 +506,16 @@ const bill = (r: Random, seed: number, type: 'invoice' | 'receipt'): Case => {
     ? (['header', 'details', 'lines', 'totals', 'notes', 'footer'] as const)
     : (['header', 'totals', 'details', 'lines', 'notes', 'footer'] as const);
   const labelFx = fx.label();
-  const html = `<div id="preview" class="page">${order.map((key, i) => (i === 1 ? fx.extras : '') + sections[key]).join('')}</div>`;
-  const css = `${pageCss(look)}\n#preview{position:relative}\n${labelFx ? `#preview .label{${labelFx}}` : ''}\n${fx.css}`;
+  const html = `<div id="preview" class="page">${order.map((key, i) => (i === 1 ? fx.extras : '') + sections[key]).join('')}${hooks.html}</div>`;
+  const css = `${pageCss(look)}\n#preview{position:relative}\n${labelFx ? `#preview .label{${labelFx}}` : ''}\n${fx.css}\n${hooks.css}`;
   notes.push(`effects ${fx.used.join(', ') || 'none'}`);
   return { seed, document, html, css, notes };
 };
 
-const letter = (r: Random, seed: number): Case => {
+const letter = (r: Random, seed: number, hooks: Hooks): Case => {
   const wide = r.chance(0.12);
-  const look = lookFor(r, wide);
-  const fx = effectsFor(seed, look);
+  const look = { ...lookFor(r, wide), ...(hooks.width !== undefined && { width: hooks.width }) };
+  const fx = hooks.plain ? noEffects : effectsFor(seed, look);
   const issuedAt = dayIso(r);
   const issuer = wide ? r.pick(NAMES_WIDE) : r.pick(NAMES_LATIN);
   const recipient = r.pick(['Demo', 'Northwind Studio', 'Jane Doe', ...(wide ? NAMES_WIDE : [])]);
@@ -524,7 +532,7 @@ const letter = (r: Random, seed: number): Case => {
     if (markdown && i === 1) return r.pick(['- monthly updates\n- hosting', '1. first\n2. second', '**Important:** read this _carefully_.']);
     return Array.from({ length: r.int(1, 3) }, () => r.pick(sentences)).join(r.chance(0.3) ? '\n' : ' ');
   });
-  const content = [`Dear ${recipient},`, ...body, `Kind regards,\n${issuer}`].join('\n\n');
+  const content = [`Dear ${recipient},`, ...body, `Kind regards,\n${issuer}${hooks.glyph}`].join('\n\n');
   const signed = r.chance(0.6);
   const visual = signed
     ? r.chance(0.5)
@@ -548,9 +556,91 @@ const letter = (r: Random, seed: number): Case => {
         .split(/\n{2,}/)
         .map((p) => `<p style="white-space:pre-wrap">${esc(p)}</p>`)
         .join('');
-  const html = `<div id="preview" class="page"><header style="display:flex;justify-content:space-between;${fx.box('header')}">${logoHtml(r, fx.logo())}<div style="text-align:right"><b style="font-family:'${look.headingFamily}'">${esc(issuer)}</b><div>${esc(writeDate(issuedAt, look.datePattern))}</div></div></header>
-    ${fx.extras}<p><b>${esc(recipient)}</b></p>${bodyHtml}${'signatory' in document ? signatureHtml(document.signatory as never, look) : ''}</div>`;
-  return { seed, document, html, css: `${pageCss(look)}\n#preview{position:relative}\n${fx.css}`, notes: [`letter, ${markdown ? 'markdown' : 'text'}, ${paragraphs} paragraphs, signature ${visual?.type ?? 'none'}, ${look.family}`, `effects ${fx.used.join(', ') || 'none'}`] };
+  const html = `<div id="preview" class="page"><header style="display:flex;justify-content:space-between;${fx.box('header')}">${logoHtml(r, fx.logo())}<div style="text-align:right"><b style="font-family:'${look.headingFamily}'">${esc(issuer)}</b><div><span class="anchor">${esc(writeDate(issuedAt, look.datePattern))}</span></div></div></header>
+    ${fx.extras}<p><b>${esc(recipient)}</b></p>${bodyHtml}${'signatory' in document ? signatureHtml(document.signatory as never, look) : ''}${hooks.html}</div>`;
+  return { seed, document, html, css: `${pageCss(look)}\n#preview{position:relative}\n${fx.css}\n${hooks.css}`, notes: [`letter, ${markdown ? 'markdown' : 'text'}, ${paragraphs} paragraphs, signature ${visual?.type ?? 'none'}, ${look.family}`, `effects ${fx.used.join(', ') || 'none'}`] };
+};
+
+const PAY_CATEGORIES = [
+  ['ordinary', 'Ordinary hours'],
+  ['overtime', 'Overtime'],
+  ['allowance', 'Travel allowance'],
+  ['bonus', 'Bonus'],
+] as const;
+
+/** A payslip: who employs whom, the period, earnings, deductions and contributions, gross, tax and net pay. */
+const payslip = (r: Random, seed: number, hooks: Hooks): Case => {
+  const wide = r.chance(0.12);
+  const look = { ...lookFor(r, wide), ...(hooks.width !== undefined && { width: hooks.width }) };
+  const fx = hooks.plain ? noEffects : effectsFor(seed, look);
+  const scale = look.money.places === 0 ? 1 : look.money.places === 3 ? 10 : 1;
+  const start = dayIso(r);
+  const end = addDays(start, r.pick([6, 13, 30]));
+  const payDate = addDays(end, r.pick([0, 1, 3]));
+  const issuer = wide ? r.pick(NAMES_WIDE) : r.pick(NAMES_LATIN);
+  const employee = r.pick(['Mira Patel', 'Jo Bloggs', 'Sam Lee', "Liam O'Connor", ...(wide ? ['Zoë Dvořák'] : [])]);
+  const earnings = Array.from({ length: r.int(1, 4) }, (_, i) => {
+    const [category, description] = PAY_CATEGORIES[i % PAY_CATEGORIES.length] as readonly [string, string];
+    return { category, description, amount: r.pick(i === 0 ? [150000, 385000, 120050] : [42000, 9000, 120050]) * scale };
+  });
+  const gross = earnings.reduce((sum, e) => sum + e.amount, 0);
+  const deductions = r.chance(0.6) ? [{ category: 'salary_sacrifice', description: 'Salary sacrifice', amount: r.pick([5000, 9745, 20000]) * scale }] : [];
+  const contributions = r.chance(0.7) ? [{ category: 'super', amount: Math.round(gross * 0.115) }] : [];
+  const taxWithheld = Math.round(gross * r.pick([0.18, 0.21, 0.3]));
+  const net = gross - taxWithheld - deductions.reduce((sum, d) => sum + d.amount, 0);
+  const money = (amount: number) => ({ amount, currency: look.money.code });
+  const id = r.pick(['PAY-0042', 'PAY-2026-11', '1042']) + hooks.glyph;
+  const document: Record<string, unknown> = {
+    type: 'payslip',
+    title: r.pick(['Payslip', 'November pay', 'Your pay']),
+    id,
+    issuedAt: payDate,
+    issuer: { name: issuer },
+    employee: { name: employee },
+    payPeriod: { start, end },
+    payDate,
+    earnings: earnings.map((e) => ({ category: e.category, description: e.description, amount: money(e.amount) })),
+    deductions: deductions.map((d) => ({ category: d.category, description: d.description, amount: money(d.amount) })),
+    contributions: contributions.map((c) => ({ category: c.category, amount: money(c.amount) })),
+    taxWithheld: money(taxWithheld),
+    gross: money(gross),
+    net: money(net),
+  };
+  const m = (minor: number) => esc(writeMoney(minor, look.money));
+  const d = (iso: string) => esc(writeDate(iso, look.datePattern));
+  const numberStyle = `font-family:'${look.numberFamily}';${look.tabular ? 'font-variant-numeric:tabular-nums;' : ''}`;
+  const row = (name: string, amount: number) =>
+    `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid ${look.band}"><span>${esc(name)}</span><span style="${numberStyle}">${m(amount)}</span></div>`;
+  const html = `<div id="preview" class="page"><header style="display:flex;justify-content:space-between;gap:12px;${fx.box('header')}">${logoHtml(r, fx.logo())}<div><b style="font-family:'${look.headingFamily}'">${esc(issuer)}</b></div><div style="text-align:right">${label(look, 'Payslip', 'div')}<span class="anchor">${valueHtml(r, id)}</span></div></header>
+    ${fx.extras}<div style="margin:12px 0">${label(look, 'Employee')} <b>${esc(employee)}</b></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap">${label(look, 'Period')} <span>${d(start)}</span> – <span>${d(end)}</span> ${label(look, 'Paid')} <span>${d(payDate)}</span></div>
+    <div style="margin-top:12px;${fx.box('table')}">${label(look, 'Earnings', 'div')}${earnings.map((e) => row(e.description, e.amount)).join('')}</div>
+    ${deductions.length ? `<div style="margin-top:12px">${label(look, 'Deductions', 'div')}${deductions.map((x) => row(x.description, x.amount)).join('')}</div>` : ''}
+    ${contributions.length ? `<div style="margin-top:12px">${label(look, 'Super', 'div')}${contributions.map((c) => `<div style="${numberStyle}">${m(c.amount)}</div>`).join('')}</div>` : ''}
+    <div style="margin-left:auto;max-width:280px;margin-top:12px;${fx.box('totals')}">${row('Gross', gross)}${row('Tax withheld', taxWithheld)}<div style="display:flex;justify-content:space-between;font-weight:700;background:${look.band};padding:6px">${label(look, 'Net pay')}<span style="${numberStyle}">${m(net)}</span></div></div>${hooks.html}</div>`;
+  return { seed, document, html, css: `${pageCss(look)}\n#preview{position:relative}\n${fx.css}\n${hooks.css}`, notes: [`payslip, ${earnings.length} earnings, ${deductions.length} deductions, ${look.money.code}, ${look.family}`, `effects ${fx.used.join(', ') || 'none'}`] };
+};
+
+/** An agreement: a letter its signers are asked to accept, with a day to answer by. */
+const agreement = (r: Random, seed: number, hooks: Hooks): Case => {
+  const made = letter(r, seed, hooks);
+  const issuedAt = made.document.issuedAt as string;
+  const by = r.chance(0.6) ? addDays(issuedAt, r.pick([14, 30])) : undefined;
+  const document: Record<string, unknown> = {
+    ...made.document,
+    type: 'agreement',
+    id: 'AGR-0007',
+    acceptance: {
+      ...(by !== undefined && { by }),
+      terms: [],
+      signers: [{ address: 'pay$client.example' }, ...(r.chance(0.4) ? [{ address: 'sam$guarantor.example' }] : [])],
+      signingOrder: r.pick(['sequential', 'any']),
+    },
+    originatorSignature: { selector: 'unsigned', signature: { algorithmHash: 'sha256', value: 'unsigned', fingerprint: 'unsigned' } },
+  };
+  const answer = by !== undefined ? `<p style="margin:8px 0"><span class="label">Answer by</span> <b>${esc(writeDate(by, 'd MMMM yyyy'))}</b></p>` : '';
+  const html = made.html.replace('</header>', `</header><h2 style="margin:8px 0">Agreement</h2>${answer}`);
+  return { ...made, document, html, notes: [`agreement${by ? ', answer by' : ''}`, ...made.notes] };
 };
 
 const pageCss = (look: Look) => `
@@ -561,10 +651,24 @@ const pageCss = (look: Look) => `
 `;
 
 /** The case a seed makes. */
+/** The five types, one a seed in turn: as many of each. */
+export const TYPES = ['invoice', 'receipt', 'letter', 'payslip', 'agreement'] as const;
+
+/** The case a seed makes: its type by the seed in turn; with a claim of the docs to test, for the seeds that carry one. */
 export const generate = (seed: number): Case => {
   const r = random(seed);
-  const type = r.pick(['invoice', 'invoice', 'invoice', 'receipt', 'receipt', 'letter'] as const);
-  return type === 'letter' ? letter(r, seed) : bill(r, seed, type);
+  const type = TYPES[seed % TYPES.length] as (typeof TYPES)[number];
+  const claim = claimFor(seed);
+  const hooks = claim?.hooks(type) ?? { plain: false, html: '', css: '', glyph: '' };
+  const made =
+    type === 'letter'
+      ? letter(r, seed, hooks)
+      : type === 'payslip'
+        ? payslip(r, seed, hooks)
+        : type === 'agreement'
+          ? agreement(r, seed, hooks)
+          : bill(r, seed, type, hooks);
+  return claim ? { ...made, claim, notes: [`claim ${claim.group}: ${claim.item}`, ...made.notes] } : made;
 };
 
 export { LATIN_ONLY };

@@ -180,6 +180,29 @@ describe.skipIf(!chrome)('a preview captured in a real browser', () => {
     expect(red(Math.floor(width / 2), Math.floor((height * 7) / 8))).toBe(false);
   });
 
+  // Found by the claims sweep: with perspective, the origin was placed before the 2D part was taken, so a 3D-turned
+  // stamp was drawn small and elsewhere, over the facts. Flattened, it is drawn where its 2D part puts it.
+  it('draws a 3D transform as its 2D part, where the browser has the element', async () => {
+    const stamp = (transform: string) =>
+      `<div style="margin:0 24px 12px;width:160px"><div style="${transform};color:#7c2d12;font-size:24px;font-weight:700">PAID</div></div>`;
+    const boundsOf = async (transform: string) => {
+      const { view, error } = await browser.capture(invoice, { extraHtml: stamp(transform) });
+      expect(error).toBeUndefined();
+      const numbers = (view?.elements ?? [])
+        .filter((element) => element.type === 'path' && element.fill === '#7c2d12')
+        .flatMap((element) => (element as { d: string }).d.match(/-?\d+(\.\d+)?/g)?.map(Number) ?? []);
+      expect(numbers.length).toBeGreaterThan(0);
+      const xs = numbers.filter((_, i) => i % 2 === 0);
+      const ys = numbers.filter((_, i) => i % 2 === 1);
+      return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+    };
+    const flat = await boundsOf(`transform:scaleX(${Math.cos((25 * Math.PI) / 180)})`);
+    for (const transform of ['transform:perspective(300px) rotateY(25deg)', 'rotate:y 25deg']) {
+      const bounds = await boundsOf(transform);
+      bounds.forEach((value, i) => expect(Math.abs(value - (flat[i] as number))).toBeLessThan(0.5));
+    }
+  });
+
   // Found in eBill: a drawn signature with dots, drawn by the page one way and by the engine another, was not found, and
   // was drawn bolder and without its dots. Now one rule draws it (signature.ts): a page shows signatureSvg, the engine
   // draws by the same function, and the snapshot finds it by equality, whatever the strokes.

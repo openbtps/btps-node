@@ -31,6 +31,8 @@ const settle = async (root: HTMLElement) => {
 /** The case's drawing, kept for the looks check, which compares it with the browser's own picture of the page. */
 let drawn: Uint8Array | null = null;
 let lastView: { elements: Record<string, unknown>[] } | undefined;
+/** The BoundView the last refused case made, for the contrast audit. */
+let lastRefused: { elements: Record<string, unknown>[]; fonts?: Record<string, { ascent: number; descent: number; unitsPerEm: number }> } | undefined;
 
 const run = async (seed: number): Promise<Result | undefined> => {
   drawn = null;
@@ -46,6 +48,7 @@ const run = async (seed: number): Promise<Result | undefined> => {
     const notes = [...made.notes];
     // What covers what: the element said to be covered, and every later element over it.
     const refused = (error as { view?: { elements: Record<string, unknown>[] } }).view;
+    lastRefused = refused as typeof lastRefused;
     for (const [, index] of (error instanceof Error ? error.message : '').matchAll(/element (\d+): an element drawn after it covers it/g)) {
       const at = Number(index);
       const covered = refused?.elements[at];
@@ -86,6 +89,11 @@ const run = async (seed: number): Promise<Result | undefined> => {
         if (tx >= box.l - 2 && tx <= box.r && ty >= box.t && ty - 12 <= box.b) notes.push(`  over ${n} ${JSON.stringify(earlier).slice(0, 220)}`);
       });
     }
+    // A claim's own decoration, last in the page: where it was drawn.
+    if (made.claim) for (const e of refused?.elements.slice(-3) ?? []) notes.push(`last ${JSON.stringify(e).slice(0, 300)}`);
+    for (const [, index] of (error instanceof Error ? error.message : '').matchAll(/element (\d+): the value does not fit its box/g)) {
+      notes.push(`too wide ${JSON.stringify(refused?.elements[Number(index)])}`);
+    }
     for (const [, index] of (error instanceof Error ? error.message : '').matchAll(/element (\d+): it lies outside the page/g)) {
       notes.push(`outside ${JSON.stringify(refused?.elements[Number(index)])} page ${JSON.stringify((refused as { page?: unknown } | undefined)?.page)}`);
     }
@@ -95,6 +103,7 @@ const run = async (seed: number): Promise<Result | undefined> => {
       const words = (value ?? '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(' ').filter((w) => w.length > 2);
       const labels = (refused?.elements ?? []).filter((e) => e.type === 'label' && words.some((w) => String(e.text).includes(w)));
       notes.push(`${field} = ${value}; labels holding its words: ${labels.map((e) => JSON.stringify(e.text)).join(', ').slice(0, 300)}`);
+      for (const e of refused?.elements ?? []) if ((e.bind as { field?: string } | undefined)?.field === field || /A1|No\./.test(String(e.text ?? ''))) notes.push(`  bound ${JSON.stringify(e).slice(0, 300)}`);
     }
     return { seed, stage: 'snapshot', error: error instanceof Error ? error.message : String(error), notes };
   }
@@ -117,18 +126,44 @@ const run = async (seed: number): Promise<Result | undefined> => {
 
 declare global {
   interface Window {
-    sweep: (from: number, count: number) => Promise<Result[]>;
+    sweep: (from: number, count: number, only?: string) => Promise<{ failures: Result[]; tally: Tally }>;
   }
 }
 
-window.sweep = async (from, count) => {
+/** Each case's outcome against what it should be: shown, or (for a claim that throws) refused with its documented message. */
+export type Tally = Record<string, { cases: number; held: number; said?: string }>;
+
+window.sweep = async (from, count, only) => {
   await initBoundViewEngine('/resvg.wasm');
   const failures: Result[] = [];
+  const tally: Tally = {};
   for (let seed = from; seed < from + count; seed++) {
-    const failure = await run(seed).catch((error: unknown) => ({ seed, stage: 'snapshot' as const, error: `crashed: ${String(error)}`, notes: [] }));
-    if (failure) failures.push(failure);
+    const made = generate(seed);
+    const claim = made.claim;
+    // ONLY=<group>: the seeds that test that group's claims, and no others.
+    if (only && (claim?.group ?? 'normal') !== only) continue;
+    const key = `${made.document.type}\t${claim?.group ?? 'normal'}\t${claim?.item ?? '-'}`;
+    let failure: Result | undefined;
+    if (claim?.direct) {
+      try {
+        claim.direct();
+        failure = { seed, stage: 'snapshot', error: '', notes: [] };
+      } catch (error) {
+        failure = { seed, stage: 'snapshot', error: error instanceof Error ? error.message : String(error), notes: [] };
+      }
+    } else {
+      failure = await run(seed).catch((error: unknown) => ({ seed, stage: 'snapshot' as const, error: `crashed: ${String(error)}`, notes: [] }));
+    }
+    const held = claim?.expect ? failure !== undefined && failure.stage === 'snapshot' && claim.expect.test(failure.error) : failure === undefined;
+    const entry = (tally[key] ??= { cases: 0, held: 0 });
+    entry.cases++;
+    // What a throwing claim said, the first time: to see which problem it was refused for.
+    if (claim?.expect && failure && entry.said === undefined) entry.said = failure.error.replace(/^[^:]*: /, '').slice(0, 200);
+    if (held) entry.held++;
+    else if (claim?.expect) failures.push({ seed, stage: failure?.stage ?? 'snapshot', error: failure ? `threw otherwise: ${failure.error}` : 'did not throw', notes: made.notes });
+    else if (failure) failures.push(failure);
   }
-  return failures;
+  return { failures, tally };
 };
 
 // ---- Looks: the drawing against the browser's own picture of the page ----
@@ -256,4 +291,75 @@ const pixelsOf = async (png: Uint8Array | Blob, width: number, height: number) =
     baseline: run.baseline,
     binds: segments.filter((s) => s.run === i).map((s) => `${[...run.text].slice(s.from, s.to).join('')}→${s.bind?.field ?? '-'}`),
   }));
+};
+
+// ---- The contrast audit: is a fact refused as too faint also faint in the browser's own picture of the page? ----
+
+type Box = { left: number; top: number; right: number; bottom: number; colour: string; field: string };
+
+/** Lays the case out again and gives each fact refused as too faint: the box the check samples, and its colour. */
+(window as unknown as { audit: (seed: number) => Promise<Box[]> }).audit = async (seed) => {
+  await initBoundViewEngine('/resvg.wasm');
+  lastRefused = undefined;
+  const failure = await run(seed);
+  const boxes: Box[] = [];
+  for (const [, index] of (failure?.error ?? '').matchAll(/element (\d+): its colour has less than/g)) {
+    const e = lastRefused?.elements[Number(index)] as { x: number; y: number; width: number; size: number; font: string; colour: string; bind?: { field: string } } | undefined;
+    const font = e ? lastRefused?.fonts?.[e.font] : undefined;
+    if (!e || !font) continue;
+    const scale = e.size / font.unitsPerEm;
+    boxes.push({ left: e.x, top: e.y - font.ascent * scale, right: e.x + e.width, bottom: e.y + font.descent * scale, colour: e.colour, field: e.bind?.field ?? 'signature' });
+  }
+  // The page with no text drawn: what lies beneath each fact, as the browser paints it.
+  const blank = document.createElement('style');
+  blank.id = 'blank';
+  blank.textContent = '#preview, #preview * { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; text-decoration-color: transparent !important; caret-color: transparent !important; }';
+  document.head.appendChild(blank);
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  return boxes;
+};
+
+const luminance = (r: number, g: number, b: number) => {
+  const c = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * c(r) + 0.7152 * c(g) + 0.0722 * c(b);
+};
+const hexRgb = (hex: string) => {
+  const h = hex.slice(1);
+  const full = h.length <= 4 ? [...h].map((d) => d + d).join('') : h;
+  return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16)) as [number, number, number];
+};
+
+/** Each box's worst contrast in the browser's picture: the lowest over every pixel of it, as the check samples. */
+(window as unknown as { auditPixels: (shot: string, boxes: Box[]) => Promise<number[]> }).auditPixels = async (shot, boxes) => {
+  document.getElementById('blank')?.remove();
+  const preview = document.getElementById('preview') as HTMLElement;
+  const rect = preview.getBoundingClientRect();
+  const width = Math.floor(rect.width);
+  const height = Math.floor(rect.height);
+  const pixels = await pixelsOf(Uint8Array.from(atob(shot), (c) => c.charCodeAt(0)), width, height);
+  return boxes.map((box) => {
+    const text = luminance(...hexRgb(box.colour));
+    let worst = 21;
+    for (let y = Math.max(0, Math.floor(box.top)); y < Math.min(height, Math.ceil(box.bottom)); y++)
+      for (let x = Math.max(0, Math.floor(box.left)); x < Math.min(width, Math.ceil(box.right)); x++) {
+        const at = (y * width + x) * 4;
+        const under = luminance(pixels[at] as number, pixels[at + 1] as number, pixels[at + 2] as number);
+        worst = Math.min(worst, (Math.max(text, under) + 0.05) / (Math.min(text, under) + 0.05));
+      }
+    return Math.round(worst * 100) / 100;
+  });
+};
+
+/** What a case's BoundView holds, by kind: its paths' lengths, its images' sizes (DUMP=<seed>). */
+(window as unknown as { dump: (seed: number) => Promise<unknown> }).dump = async (seed) => {
+  await initBoundViewEngine('/resvg.wasm');
+  lastView = undefined;
+  const failure = await run(seed);
+  const view = lastView as { elements: Record<string, unknown>[]; images?: Record<string, { width: number; height: number; data: string }> } | undefined;
+  return {
+    failure: failure?.error,
+    paths: view?.elements.filter((e) => e.type === 'path').map((e) => String(e.d).length).sort((a, b) => b - a).slice(0, 5),
+    images: Object.values(view?.images ?? {}).map((i) => `${i.width}x${i.height} ${i.data.length}`),
+    svg: (document.querySelector('#preview .claim svg path') as SVGPathElement | null)?.getAttribute('d')?.length,
+  };
 };
