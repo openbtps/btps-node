@@ -50,7 +50,8 @@ const bundle = async (names: string[], mainFields?: string[]) => {
     Object.entries(output.inputs)
       .filter(([, { bytesInOutput }]) => bytesInOutput > 0)
       .map(([file]) => file);
-  const main = outputs.find((output) => output.entryPoint !== undefined);
+  // The app's own chunk: each module loaded on demand is an entry point of its own too.
+  const main = outputs.find((output) => output.entryPoint === 'app.js');
   return {
     upFront: main ? inputsOf(main) : [],
     onDemand: outputs.filter((output) => output !== main).map(inputsOf),
@@ -90,7 +91,15 @@ describe("an app's bundle", () => {
       expect(has(upFront, 'glyphs/')).toBe(false);
       for (const font of ['arimo', 'tinos', 'cousine', 'carlito', 'caladea', 'caveat']) {
         expect(onDemand.some((files) => files.length === 1 && has(files, `glyphs/${font}.json`))).toBe(true);
+        // Its characters beyond Latin-1, apart again: only a text with one of them loads them.
+        expect(onDemand.some((files) => files.length === 1 && has(files, `glyphs/${font}-more.json`))).toBe(true);
       }
     }
+  });
+
+  it('loads the woff2 decompressor only when the page has a woff2 font', async () => {
+    const { upFront, onDemand } = await bundle(['snapshotBoundView']);
+    expect(has(upFront, 'brotli')).toBe(false);
+    expect(onDemand.some((files) => has(files, 'brotli/dec/'))).toBe(true);
   });
 });

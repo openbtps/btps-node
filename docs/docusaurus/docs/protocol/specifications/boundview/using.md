@@ -72,7 +72,8 @@ await initBoundViewEngine(new URL('@btps/boundview/engine.wasm', import.meta.url
 
 `@btps/boundview` is kept apart from `@btps/sdk` so the SDK stays small: the
 drawing engine is about 2.5 MB of WebAssembly, the bundled glyph outlines are
-about 800 KB, and opentype.js is used only when sending. A platform that
+about 800 KB for Latin and about 3.2 MB more for other scripts and symbols,
+and opentype.js is used only when sending. A platform that
 never draws or captures a BoundView never downloads them. Received
 BoundViews are still checked automatically by `@btps/sdk` alone
 (`decryptVerify`'s `boundView` result, the server handler's second argument).
@@ -85,26 +86,34 @@ BoundViews are still checked automatically by `@btps/sdk` alone
 ### What an app downloads
 
 `@btps/boundview` is tree-shakable (`sideEffects: false`), so an app's
-bundle holds only what it imports. Measured with code splitting, as Vite and
-Next.js bundle:
+bundle holds only what it imports. Measured minified, with code splitting,
+as Vite and Next.js bundle:
 
 | The app calls | Loaded up front | Gzipped |
 | --- | --- | --- |
-| `renderBoundView` only | About 104 KB, with no snapshot code and no font reader | About 32 KB |
-| `snapshotBoundView` only | About 367 KB, mostly opentype.js, which reads the page's fonts | About 108 KB |
+| `renderBoundView` only | About 106 KB, with no snapshot code and no font reader | About 33 KB |
+| `snapshotBoundView` only | About 384 KB, mostly opentype.js, which reads the page's fonts | About 115 KB |
 | Both | The same as `snapshotBoundView` alone | The same |
 
-Two things are never in that up-front load:
+Three things are never in that up-front load:
 
 - **The engine's WebAssembly** (about 2.5 MB) is never in a bundle. It is
   fetched from the URL the app passes to `initBoundViewEngine`, and only
   when the engine is used. For a sender, that means only when the preview
   has an SVG logo and `engine` was given.
 - **The bundled fonts** (Arimo, Tinos, Cousine, Carlito and Caladea for
-  label fallbacks, Caveat for typed signatures) are each in a chunk of their
-  own, from about 75 KB to 310 KB. A drawing downloads one only when it uses
-  it: a label character missing from its own font, a typed signature, or a
-  page font the snapshot couldn't read. Most BoundViews need none.
+  label fallbacks, Caveat for typed signatures, with Arimo for a typed
+  signature's characters Caveat lacks) are each two chunks of their own. The
+  first holds Latin and Latin-1, with kerning, from about 75 KB to 310 KB
+  (20 KB to 100 KB gzipped). The second holds the font's other characters,
+  from about 100 KB to 875 KB (25 KB to 270 KB gzipped), and is downloaded
+  only when a text needs one of them ([Bundled fonts](./rendering.md#bundled-fonts)).
+  A drawing downloads a font only when it uses it: a label character missing
+  from its own font, a typed signature, or a page font the snapshot couldn't
+  read. Most BoundViews need none.
+- **The Brotli decoder** that reads a woff2 font, about 88 KB (59 KB
+  gzipped), is in a chunk of its own, and `snapshotBoundView` loads it only
+  when it reads a woff2 file.
 
 `snapshotBoundView` needs a browser, because it reads the browser's layout.
 `renderBoundView` runs in a browser, an app, or Node. A platform with a
@@ -146,7 +155,8 @@ try {
 } catch (error) {
   if (error instanceof BoundViewSnapshotError) {
     // error.problems: why a receiver would not accept or show it,
-    // e.g. "subtotalAmount: … not shown"
+    // e.g. "taxAmount: taxAmount is a key fact and is not shown"
+    // error.view: the BoundView a receiver would not show, when one was made
   }
   throw error;
 }
@@ -166,7 +176,9 @@ It then checks the result. The sender's SDK runs the same
 [checks](./checks.md) a receiver runs before it signs, so a problem is found
 before sending, not after. When the preview cannot make a BoundView a
 receiver would accept and show, `snapshotBoundView` throws a
-`BoundViewSnapshotError` whose `problems` say why. It also warns, without
+`BoundViewSnapshotError` whose `problems` say why. When it made a well-formed
+BoundView that fails a check, the error's `view` holds it, so you can see
+which element a problem names. It also warns, without
 refusing, when a label's text looks like an amount, a date, an account
 number or an address but is not bound: most often an example left in a
 design by mistake.
@@ -190,15 +202,138 @@ It reads the preview as the browser laid it out:
   masks, clip paths, text, embedded images, gradients by reference, dashes)
   travels as pixels. This is how the builder chooses, not a rule a receiver
   checks.
-- **Fonts:** read from the page's own `@font-face` files. A woff, ttf or otf
-  source is needed: a font offered only as woff2 is drawn with the bundled
-  font of the same widths, with a warning. A preview uses at most 4 fonts.
+- **Fonts:** read from the page's own `@font-face` files, as woff, woff2,
+  ttf or otf. Where a rule offers woff2 and another source, the other is
+  read; a woff2 file is decompressed with Brotli first. A variable font is
+  read at the page's weight, at its italic where it has an italic axis, and
+  at its optical size for the text's size. A family split into several
+  files by `unicode-range` is read as the browser chose: of the files whose
+  range holds a character, the last rule first, then the next when that
+  file has no glyph for it. A character none of the page's fonts has is
+  drawn with the bundled font of the same widths, as the browser drew it
+  with a fallback; only a bound value with a character no font can draw
+  fails. A system font with no `@font-face` file, or a file that cannot be
+  read, is drawn with the bundled font of the same widths, with a warning.
+  Every style drawn that way with the same bundled font shares one font in
+  the BoundView, which carries every glyph they draw. A font the snapshot
+  can read is one font for each style: family, weight, style and tabular
+  figures. A preview uses at most 8 fonts, counted after sharing.
+- **The page:** the preview's box, and whatever overflows it where the
+  preview's overflow is not clipped (`overflow: visible`).
+- **A visual signature:** where the page draws the document's
+  `signatory.visualSignature`, the snapshot puts a `signature` element, which
+  the receiver draws from the signed data. A drawn signature is found only
+  when the page draws it by the one rule the engine uses
+  ([A visual signature](#a-visual-signature)). A typed one is found as a
+  line of text that is exactly its text; of several, the one in the page's
+  rarest typeface, the one it sets the fewest characters in, and the last
+  where they tie.
 
 **Facts are found by their value.** Every way a field may be written is
 tried: money separators, prefix and suffix, the nine date patterns,
-percents, groups, and ranges for wrapped text. A binding is kept only when
-the receiver would write the field exactly as shown. A line item's amount is
-taken only on its own row's band, so it is never mistaken for a total.
+percents and groups. A binding is kept only when the receiver would write
+the field exactly as shown.
+
+- **Across elements and lines.** A value is found whole however the page
+  lays it out: "300 Empire" written as an `<h1>` "300" and an `<h2>`
+  "Empire", "INV-" and "0042" in two touching spans, a description wrapped
+  over two lines. It is bound in the pieces it is drawn in, each by its
+  [range](./bindings.md#ranges) of the value as written.
+- **The longest match wins a place.** A value found inside a longer one is
+  the longer one's: "2026-12-17" in "INV-2026-12-17" is the invoice
+  number's, and "1,452" in "A$1,452.00" is the amount's.
+- **Line items first.** A line is placed where most of its cells stand,
+  nearest them, before the order of the page, so a large heading that
+  repeats a line's description is not taken for the line. Each cell is
+  looked for in the line's own stretch of the page, from just after the line
+  before it to just before the next, so a cell set beside, above or below
+  the description is found, as a table row or a card lays it out. Each cell
+  is bound once, in the order the document lists its columns, so a line's
+  amount is never mistaken for a total. A cell is never taken from inside a
+  longer match of another field: a quantity "10" is not the "10" of
+  "10/02/2026". An amount is judged by its digits, so "A1" is an invoice
+  number, not the amount 1 with a prefix "A".
+- **Equal values share.** Fields written alike, such as a receipt's total
+  and the amount paid, share the places they are written
+  ([When a key fact is shown](./checks.md#when-a-key-fact-is-shown)). Where
+  a place could be either of two fields, such as `02/01/2026` for one date
+  written day first and another month first, a key fact takes it first.
+
+### A visual signature
+
+A drawn signature has one rule, on its 1,000 by 300 canvas: each stroke's
+points in order, a point repeated immediately counted once; a stroke of one
+point is a disc as wide as the pen; any other stroke is a line through its
+points; all those lines are one path, 8 units wide (`SIGNATURE_STROKE`),
+with round caps and joins ([Signatures](./rendering.md#signatures)). The
+engine draws a `signature` element by this rule. Show the signature on your
+page by the same rule, and your page and the receiver's picture cannot
+differ, whatever the strokes.
+
+`@btps/boundview` gives you the rule. Import it from
+`@btps/boundview/signature`, a small entry with no engine, safe to load in
+any page:
+
+| Export | What it gives |
+| --- | --- |
+| `SIGNATURE_STROKE` | The pen's width, 8 units of the canvas. A dot is this wide. |
+| `signatureDrawing(strokes)` | `{ dots: { cx, cy, r }[], line: { d, strokeWidth } \| null }`, every attribute as the exact string the drawing writes. |
+| `signatureSvg(strokes, colour = 'currentColor')` | A whole `<svg viewBox="0 0 1000 300">` string. |
+
+<Tabs groupId="signature-markup">
+<TabItem value="react" label="React">
+
+```tsx
+import { signatureDrawing } from '@btps/boundview/signature';
+
+export function Signature({ strokes }: { strokes: number[][] }) {
+  const { dots, line } = signatureDrawing(strokes);
+  return (
+    <svg viewBox="0 0 1000 300" width={220} height={66}>
+      {dots.map((dot, i) => (
+        <circle key={i} cx={dot.cx} cy={dot.cy} r={dot.r} fill="currentColor" />
+      ))}
+      {line && (
+        <path
+          d={line.d}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={line.strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+    </svg>
+  );
+}
+```
+
+</TabItem>
+<TabItem value="dom" label="Plain DOM">
+
+```ts
+import { signatureSvg } from '@btps/boundview/signature';
+
+// The svg has no size of its own: size it with CSS, e.g. width: 220px
+signatureBox.innerHTML = signatureSvg(document.signatory.visualSignature.strokes);
+```
+
+</TabItem>
+</Tabs>
+
+The snapshot finds the signature by comparing your SVG with what
+`signatureSvg` draws for the signed strokes, shape for shape: each shape's
+tag and its `d`, `cx`, `cy`, `r` and `stroke-width`, in order. The SVG's
+`viewBox` must be `0 0 1000 300`. The ink colour is read from the first
+shape: its stroke, or its fill for a dot. Use your page's text colour
+(`currentColor`) or any colour you set.
+
+:::warning Any other drawing is not the signature
+Polylines, another pen width, a rounded or moved point: any other drawing of
+the strokes is not taken as the signature. A signature is a key fact when
+the document carries one, so `snapshotBoundView` then throws. You can still
+send the document without a BoundView.
+:::
 
 ### A preview that passes
 
@@ -206,17 +341,19 @@ Design the preview as you like. A receiver shows the BoundView only when it
 passes the [checks](./checks.md), and these are the ones a design can
 break:
 
-- **Every key fact is on it.** The number, the dates, the amounts, the
-  names, the note and each line's description and total for an invoice;
-  each document type has its own list ([Key facts](./checks.md#key-facts)).
-  A fact must show the document's value, not text typed into the design.
+- **Every key fact is on it.** For an invoice: the number, the due date,
+  the total, the tax, the note, and each line's description and total. Each
+  document type has its own list, and what may be left out
+  ([Key facts](./checks.md#key-facts)). A fact must show the document's
+  value, not text typed into the design. A design may show more.
 - **Every fact is shown in full.** A value is never cut short, wrapped or
   hidden. A receiver may draw it smaller to fit its box, down to three
   quarters of its size and never below 6 pixels, and no further
   ([Shown in full](./checks.md#shown-in-full)).
-- **Nothing covers a fact.** No element is drawn over it and no image lies
-  under it, it lies wholly on the page, and its colour has a contrast of at
-  least 3:1 with what is behind it ([Not hidden](./checks.md#not-hidden)).
+- **Nothing covers a fact.** No element is drawn over it, it lies wholly on
+  the page, and its colour has a contrast of at least 3:1 with what is
+  behind it, an image's pixels included: a faint watermark behind a fact is
+  fine, a dark one is not ([Not hidden](./checks.md#not-hidden)).
 
 Labels, shapes and images are your design, and may go anywhere.
 
@@ -279,16 +416,20 @@ exact string a binding draws, are exported from `@btps/sdk/server` and
 A browser or app that draws or captures a BoundView without the rest of the
 SDK can import from `@btps/sdk/boundview`, which is browser-safe and holds
 only the schema, bindings and checks: `BtpBoundViewSchema`, `isPathData`,
-`boundValue`, `bindingProblem`, `checkBoundView`, `boundViewResultOf`,
-`writtenValue`, `CONTRAST_WORK_LIMIT` and the types.
+`boundValue`, `bindingProblem`, `markdownHidden`, `checkBoundView`,
+`keyFacts`, `boundViewResultOf`, `writtenValue`, `CONTRAST_WORK_LIMIT` and
+the types.
 
 Advanced: `boundViewToSvg(document, boundView, bundled?)` from
 `@btps/boundview` gives the drawing the engine reads, for a BoundView that
 already passed the checks
 ([What the engine reads](./rendering.md#what-the-engine-reads)). Its
 optional third argument is the bundled fonts the drawing needs:
-`await loadBundledFonts(bundledFontsFor(document, boundView))`. Both helpers
-are exported from `@btps/boundview`, and `renderBoundView` does this itself.
+`await loadBundledFonts(bundledFontsFor(document, boundView), bundledCharactersFor(document, boundView))`.
+`bundledFontsFor` names the fonts, and `bundledCharactersFor` the characters
+they may be asked for, so a font's second file is loaded only when one of
+them needs it. All three helpers are exported from `@btps/boundview`, and
+`renderBoundView` does this itself.
 :::
 
 :::note Drawing is always done by `@btps/boundview`
@@ -314,6 +455,15 @@ BoundView, never by it:
 
 So a BoundView cannot pose as the sender, hide an attachment, or disguise
 where a link goes.
+
+Your own view of the signed data is the truth, not the BoundView. Every fact
+on a BoundView is written from the signed fields, but the shapes of its
+characters are drawn from the sender's glyph outlines, and nothing checks
+that a glyph's shape is the character it stands for
+([Glyph shapes are the sender's](./security.md#glyph-shapes-are-the-senders)).
+Show your own view alongside the BoundView or a press away, and say near the
+BoundView that amounts and other facts are confirmed there. eBill, for
+example, shows a note to confirm amounts in its own view.
 
 :::warning A receiver must show these
 Showing the verified sender, the title, the attachments, the references and

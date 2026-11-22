@@ -16,7 +16,7 @@ import { initWasm, Resvg } from '@resvg/resvg-wasm';
 import { boundViewResultOf } from '@btps/sdk/boundview';
 import type { BTPBoundView } from '@btps/sdk/boundview';
 import { boundViewToSvg } from './svg.js';
-import { bundledFontsFor, loadBundledFonts } from './glyphs.js';
+import { bundledCharactersFor, bundledFontsFor, loadBundledFonts } from './glyphs.js';
 
 /** What the engine's WebAssembly is loaded from: its bytes, a compiled module, a URL or a fetch response. */
 export type BoundViewEngineSource = Parameters<typeof initWasm>[0];
@@ -35,6 +35,10 @@ export const initBoundViewEngine = (source?: BoundViewEngineSource): Promise<voi
     const wasm = createRequire(import.meta.url).resolve('@resvg/resvg-wasm/index_bg.wasm');
     return initWasm(await readFile(wasm));
   })();
+  // A load that failed (a wrong URL, a network error) is not kept: the next call tries again.
+  engine.catch(() => {
+    engine = undefined;
+  });
   return engine;
 };
 
@@ -51,10 +55,17 @@ export const renderBoundView = async (
   if (result === undefined || !result.show) return null;
   await initBoundViewEngine();
   const doc = document as Record<string, unknown> & { boundView: BTPBoundView };
-  const bundled = await loadBundledFonts(bundledFontsFor(doc, doc.boundView));
+  const bundled = await loadBundledFonts(bundledFontsFor(doc, doc.boundView), bundledCharactersFor(doc, doc.boundView));
   const resvg = new Resvg(boundViewToSvg(doc, doc.boundView, bundled), {
     fitTo: { mode: 'zoom', value: scale },
     font: { loadSystemFonts: false },
   });
-  return resvg.render().asPng();
+  // The engine's memory is its own (WebAssembly), freed by hand: an app that draws many documents never runs out.
+  const image = resvg.render();
+  try {
+    return image.asPng();
+  } finally {
+    image.free();
+    resvg.free();
+  }
 };

@@ -1299,11 +1299,15 @@ export function boundViewChecks() {
         { check: 'notHidden', element: 0 },
         { check: 'notHidden', element: 1 },
       ]),
-      hidden(
-        'a-fact-over-an-image',
-        withView([{ type: 'image', image: 'logo', x: 0, y: 0, width: 50, height: 22 }, ...facts], { images: { logo: pixels } }),
-        [{ check: 'notHidden', element: 1 }],
-      ),
+      // An image under a fact is read by its own pixels, as a fill is read by its paint (Checks: not hidden).
+      ...[
+        ['a-fact-over-a-clear-image', pixels, true],
+        ['a-fact-over-a-faint-image', { width: 1, height: 1, encoding: 'rgba8-deflate', data: zlib.deflateSync(Buffer.from([238, 238, 238, 255])).toString('base64') }, true],
+        ['a-fact-over-a-dark-image', { width: 1, height: 1, encoding: 'rgba8-deflate', data: zlib.deflateSync(Buffer.from([20, 20, 30, 255])).toString('base64') }, false],
+      ].map(([name, logo, readable]) => {
+        const view = withView([{ type: 'image', image: 'logo', x: 0, y: 0, width: 50, height: 22 }, ...facts], { images: { logo } });
+        return readable ? shown(name, view) : hidden(name, view, [{ check: 'notHidden', element: 1 }]);
+      }),
       // The first fact's box runs from 20.4 to 32.4: its last row of points is at 31.9.
       shown('white-on-a-dark-band-under-every-point', withView([rect({ height: 32, fill: '#0f1b2d' }), ...at(0, { colour: '#ffffff' })])),
       hidden(

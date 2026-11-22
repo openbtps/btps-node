@@ -103,6 +103,7 @@ The same commands draw a glyph's outline ([Fonts and glyphs](./fonts.md#a-font))
 | --- | --- | --- | --- |
 | `image` | string | Yes | A key of the canvas's [`images`](./images.md). |
 | `x`, `y`, `width`, `height` | number | Yes | Where it is drawn. The image is scaled to fill the box. |
+| `radius` | number, or four numbers | No | Rounded corners, as for [`rect`](#rect). The receiver clips the image to them. |
 | `opacity` | number | No | 0 to 1. |
 
 ## text
@@ -137,8 +138,8 @@ baseline plus its `descent` ([Fonts and glyphs](./fonts.md#a-font)).
 
 :::note One element, one line
 One `text` element is one line. A value shown over several lines, such as an
-address or a note, is several `text` elements, each bound to a range of the
-same field.
+address or a note, is several `text` elements, each bound to a
+[range](./bindings.md#ranges) of the same field.
 :::
 
 ## label

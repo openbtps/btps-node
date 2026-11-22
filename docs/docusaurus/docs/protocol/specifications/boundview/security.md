@@ -21,7 +21,9 @@ guarantees to hold.
 
 BTPS answers for **delivery and a faithful page**: what was signed arrives
 unchanged, from the sender it says, with nothing that runs or reports back,
-and its BoundView shows the document's signed facts as they are.
+and its BoundView writes the document's signed facts from the signed fields.
+The shapes of the characters are the sender's
+([Glyph shapes are the sender's](#glyph-shapes-are-the-senders)).
 
 BTPS does not answer for **whether the content is true**. A sender can type a
 wrong amount, and a sender's own words, its labels and its notes, say what
@@ -34,14 +36,15 @@ send at all.
 | No tampering: what was signed arrives unchanged | Whether an amount, date or name is correct |
 | No spoofing: the document is from the sender it says | What a sender's labels, notes, shapes and images say |
 | No active content, no tracking | Whether a sender should be trusted: the receiver decides |
-| A BoundView that shows the signed facts as they are | |
+| A BoundView that writes the signed facts from the signed fields | That a glyph's shape is the character it stands for |
 
 ## Threats
 
 | Who | What they try | What stops it |
 | --- | --- | --- |
 | Anyone between sender and receiver | Change the BoundView or the data | The artifact's signature covers both. Any change and the document is refused. |
-| A dishonest sender | Show an amount, date or name the document does not carry | Facts are drawn from the signed fields, never from the canvas. A bound element cannot show anything else. |
+| A dishonest sender | Show an amount, date or name the document does not carry | Facts are drawn from the signed fields, never from the canvas: the receiver writes each value itself, character by character, from the signed data. A bound element cannot write any other characters. |
+| A dishonest sender | Draw a character as another, such as a 1 with the outline of a 7 | Nothing in the BoundView. Glyph outlines are the sender's and are not checked against the characters they stand for. The receiving app's own view of the signed data is the truth, shown alongside or a press away ([Glyph shapes are the sender's](#glyph-shapes-are-the-senders)). |
 | A dishonest sender | Hide or shrink a fact, or leave one out | [Key facts](./checks.md#key-facts), [shown in full](./checks.md#shown-in-full) and [not hidden](./checks.md#not-hidden). The all-details view shows every other field. |
 | A dishonest sender | Pose as someone else in the BoundView | The receiving app shows the verified sender outside the BoundView. A BoundView with a well-known company's name in large letters is the sender's design; the verified line beside it says who sent it. |
 | A dishonest sender | Hide where a link goes, or what a file is | Links and attachments are shown by the receiving app, never by the BoundView. |
@@ -77,3 +80,26 @@ fails, and everything around the BoundView, are the receiving app's own screens.
   protocol has checked.
 - A receiving app that does not follow these rules is outside the protocol's
   reach, as one that shows the wrong amount from plain data would be.
+
+### Glyph shapes are the sender's
+
+A BoundView's [fonts](./fonts.md) carry glyph outlines the sender supplies.
+A receiver checks that every character of a bound value has a glyph, and
+uses each glyph's advance to check that the value fits its box
+([Shown in full](./checks.md#shown-in-full)). Nothing checks that a glyph's
+shape is the character it stands for.
+
+So a dishonest sender could give the digit 1 the outline of 7 in the font
+its amounts are drawn in. The signed amount stays 1, and the receiver
+writes 1, but the page shows a 7.
+
+This is accepted. The BoundView is the sender's design; the signed data is
+the truth.
+
+:::warning What the receiving app does
+- Treat its own view of the signed data as authoritative. Amounts, dates
+  and other facts are confirmed there, not on the BoundView.
+- Show that view alongside the BoundView, or a press away.
+- Say so near the BoundView. For example, eBill shows a note telling the
+  reader to confirm amounts in its own view.
+:::

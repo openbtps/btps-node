@@ -122,7 +122,7 @@ How a gradient is drawn is on [Rendering](./rendering.md#shapes).
 | `page.width` | 1 to 2,000 |
 | `page.height` | 1 to 20,000 |
 | `page.breaks` | 100 |
-| Fonts | 4 |
+| Fonts | 8 |
 | Images | 8 |
 | Elements | 2,000 |
 | Text, label and signature elements together | 1,000 |
