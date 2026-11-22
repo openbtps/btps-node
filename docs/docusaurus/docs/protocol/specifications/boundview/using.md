@@ -165,7 +165,7 @@ try {
 | Option | What it does |
 | --- | --- |
 | `engine` | Where your app serves `@btps/boundview/engine.wasm`. With it, an SVG logo can travel as outlines; without it, as pixels. |
-| `onWarning` | Told about a label that looks like a fact but is not bound, and about a font with no readable font file, whose text is then drawn with the bundled font of the same widths. `console.warn` when absent. |
+| `onWarning` | Told about a label that looks like a fact but is not bound, and about a font with no readable font file, whose text is then drawn with a bundled font ([Fonts](#what-the-snapshot-reads)). `console.warn` when absent. |
 
 `snapshotBoundView` captures the preview as a canvas. Text that shows a
 signed value is recorded as a [binding](./bindings.md) to that field, fonts
@@ -188,11 +188,16 @@ design by mistake.
 It reads the preview as the browser laid it out:
 
 - **Text:** each line, and each character's position.
-- **Boxes:** solid backgrounds, CSS `linear-gradient` backgrounds, rounded
-  corners, and uniform or per-side borders. Decoration it cannot carry, such
-  as `box-shadow` or filters, is simply not captured.
+- **Boxes:** solid backgrounds, linear, radial and repeating linear
+  gradients, background images, rounded corners, uniform or per-side borders
+  (dashed, dotted and double included), outlines, and `box-shadow`, drawn
+  approximately. Filters, blends and clip paths are carried on images only;
+  on any other element they are ignored. Some CSS is not carried at all, or
+  only approximately ([What BoundView does not support](./not-supported.md)).
 - **Images:** `<img>` and CSS background images, as pixels at twice their
-  size within the [limits](./images.md#limits). An image must come from the
+  size or at their own resolution, whichever is larger, within the
+  [limits](./images.md#limits): at most 1,024 pixels a side and 262,144 in
+  all. An image must come from the
   same site or allow it (CORS); otherwise the snapshot throws, naming the
   image.
 - **SVG:** inline `<svg>` and SVG `<img>`. A logo travels as outlines when
@@ -210,10 +215,14 @@ It reads the preview as the browser laid it out:
   files by `unicode-range` is read as the browser chose: of the files whose
   range holds a character, the last rule first, then the next when that
   file has no glyph for it. A character none of the page's fonts has is
-  drawn with the bundled font of the same widths, as the browser drew it
-  with a fallback; only a bound value with a character no font can draw
-  fails. A system font with no `@font-face` file, or a file that cannot be
-  read, is drawn with the bundled font of the same widths, with a warning.
+  drawn with a bundled font, as the browser drew it with a fallback; only a
+  bound value with a character no font can draw fails. A system font with no
+  `@font-face` file, or a file that cannot be read, is drawn with a bundled
+  font, with a warning. The bundled font is chosen by family name, and has
+  the same widths only for Arial, Times, Courier, Calibri and Cambria; any
+  other family is drawn with Arimo, at its own widths. Bundled fonts are
+  400 regular only, so bold and italic are lost
+  ([Carried approximately](./not-supported.md#carried-approximately)).
   Every style drawn that way with the same bundled font shares one font in
   the BoundView, which carries every glyph they draw. A font the snapshot
   can read is one font for each style: family, weight, style and tabular
@@ -326,7 +335,9 @@ The snapshot finds the signature by comparing your SVG with what
 tag and its `d`, `cx`, `cy`, `r` and `stroke-width`, in order. The SVG's
 `viewBox` must be `0 0 1000 300`. The ink colour is read from the first
 shape: its stroke, or its fill for a dot. Use your page's text colour
-(`currentColor`) or any colour you set.
+(`currentColor`) or any colour you set. `signatureSvg` takes its colour
+only as `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa` or `currentColor`, and throws
+a `TypeError` on anything else.
 
 :::warning Any other drawing is not the signature
 Polylines, another pen width, a rounded or moved point: any other drawing of
@@ -355,7 +366,12 @@ break:
   behind it, an image's pixels included: a faint watermark behind a fact is
   fine, a dark one is not ([Not hidden](./checks.md#not-hidden)).
 
-Labels, shapes and images are your design, and may go anywhere.
+Labels, shapes and images are your design, and may go anywhere. But
+`z-index` is ignored: an element with `position` set is drawn after the
+text outside it, so it can cover a fact and fail this check. The design can
+also make the snapshot throw, by a transformed fact, an image without CORS
+or a format limit
+([What makes the snapshot throw](./not-supported.md#what-makes-the-snapshot-throw)).
 
 ## Show a received BoundView
 
