@@ -18,6 +18,7 @@ import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { crc32, deflateSync } from 'node:zlib';
 import { build } from 'esbuild';
 import { chromium } from 'playwright-core';
 
@@ -82,17 +83,50 @@ for (const [family, file, weights] of variable) {
 }
 files['/fonts.css'] = ['text/css', css];
 
+// For the claims (claims.ts): a PNG of `width` by `height` whose pixels `at` gives, RGB.
+const png = (width: number, height: number, at: (x: number, y: number) => [number, number, number]) => {
+  const raw = Buffer.alloc((width * 3 + 1) * height);
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++) raw.set(at(x, y), y * (width * 3 + 1) + 1 + x * 3);
+  const chunk = (type: string, data: Buffer) => {
+    const head = Buffer.alloc(4);
+    head.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([head, body, crc]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 2, 0, 0, 0], 8);
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', header), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+};
+let noise = 12345;
+const random = () => ((noise = (Math.imul(noise, 1103515245) + 12345) >>> 0) >>> 16) & 255;
+files['/big.png'] = ['image/png', png(1600, 1200, (x, y) => (((x >> 6) + (y >> 6)) % 2 ? [11, 110, 79] : [233, 247, 239]))];
+files['/photo.png'] = ['image/png', png(512, 512, () => [random(), random(), random()])];
+files['/mid1.png'] = ['image/png', png(240, 240, () => [random(), random(), random()])];
+files['/mid2.png'] = ['image/png', png(240, 240, () => [random(), random(), random()])];
+// Served without CORS, and asked for from the same server by another name (localhost): a site that does not allow it.
+const NO_CORS = new Set(['/nocors.png', '/nocors.css']);
+files['/nocors.png'] = files['/logo.png'] as [string, Buffer];
+files['/nocors.css'] = ['text/css', `@font-face{font-family:'Remote Caveat';src:url(/fonts/v/Caveat-Variable-latin.woff2) format('woff2')}`];
+
 const server = createServer((request, response) => {
-  const file = files[(request.url ?? '').split('?')[0] as string];
-  response.writeHead(file ? 200 : 404, file ? { 'content-type': file[0], 'access-control-allow-origin': '*' } : {});
+  const at = (request.url ?? '').split('?')[0] as string;
+  const file = files[at];
+  response.writeHead(file ? 200 : 404, file ? { 'content-type': file[0], ...(!NO_CORS.has(at) && { 'access-control-allow-origin': '*' }) } : {});
   response.end(file?.[1]);
 });
-await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+await new Promise<void>((resolve) => server.listen(0, resolve));
 const { port } = server.address() as { port: number };
 const browser = await chromium.launch({ executablePath: chrome, headless: true });
 
 type Result = { seed: number; stage: string; error: string; notes: string[] };
+type Tally = Record<string, { cases: number; held: number }>;
 const failures: Result[] = [];
+const tally: Tally = {};
 const started = Date.now();
 let done = 0;
 const chunk = 50;
@@ -106,8 +140,13 @@ const worker = async () => {
     const start = next;
     const size = Math.min(chunk, from + count - start);
     next += size;
-    const found = (await page.evaluate(([a, b]) => window.sweep(a as number, b as number), [start, size])) as Result[];
-    failures.push(...found);
+    const found = (await page.evaluate(([a, b]) => window.sweep(a as number, b as number), [start, size])) as { failures: Result[]; tally: Tally };
+    failures.push(...found.failures);
+    for (const [key, { cases, held }] of Object.entries(found.tally)) {
+      const entry = (tally[key] ??= { cases: 0, held: 0 });
+      entry.cases += cases;
+      entry.held += held;
+    }
     done += size;
     if (done % 500 < chunk) {
       const rate = done / ((Date.now() - started) / 1000);
@@ -194,3 +233,27 @@ for (const [key, list] of [...groups.entries()].sort((a, b) => b[1].length - a[1
   console.log(`${String(list.length).padStart(6)}  ${key}   e.g. seeds ${list.slice(0, 4).map((f) => f.seed).join(', ')}`);
 }
 console.log(`\nfailures: ${out}`);
+
+// By type, then by group and item: how many cases, and how many did as the docs say.
+if (Object.keys(tally).length > 0) {
+  const report = path.join(root, `sweep-claims-${from}-${from + count}.tsv`);
+  const rows = Object.entries(tally).sort(([a], [b]) => a.localeCompare(b));
+  writeFileSync(report, `type\tgroup\titem\tcases\tas documented\n${rows.map(([key, { cases, held }]) => `${key}\t${cases}\t${held}`).join('\n')}\n`);
+  const byType = new Map<string, Map<string, [number, number]>>();
+  for (const [key, { cases, held }] of rows) {
+    const [type, group] = key.split('\t') as [string, string];
+    const groups = byType.get(type) ?? new Map<string, [number, number]>();
+    const [c, h] = groups.get(group) ?? [0, 0];
+    groups.set(group, [c + cases, h + held]);
+    byType.set(type, groups);
+  }
+  console.log('\ntype        normal            ignored           approximate       throws');
+  for (const [type, groups] of byType) {
+    const cell = (g: string) => { const [c, h] = groups.get(g) ?? [0, 0]; return `${h}/${c}`.padEnd(18); };
+    console.log(`${type.padEnd(12)}${cell('normal')}${cell('ignored')}${cell('approximate')}${cell('throws')}`);
+  }
+  const broken = rows.filter(([, { cases, held }]) => held < cases);
+  console.log(`\nitems not as documented: ${broken.length === 0 ? 'none' : ''}`);
+  for (const [key, { cases, held }] of broken) console.log(`  ${key.replace(/\t/g, ' | ')}: ${cases - held} of ${cases}`);
+  console.log(`report: ${report}`);
+}

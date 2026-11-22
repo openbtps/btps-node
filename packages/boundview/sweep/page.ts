@@ -86,6 +86,11 @@ const run = async (seed: number): Promise<Result | undefined> => {
         if (tx >= box.l - 2 && tx <= box.r && ty >= box.t && ty - 12 <= box.b) notes.push(`  over ${n} ${JSON.stringify(earlier).slice(0, 220)}`);
       });
     }
+    // A claim's own decoration, last in the page: where it was drawn.
+    if (made.claim) for (const e of refused?.elements.slice(-3) ?? []) notes.push(`last ${JSON.stringify(e).slice(0, 300)}`);
+    for (const [, index] of (error instanceof Error ? error.message : '').matchAll(/element (\d+): the value does not fit its box/g)) {
+      notes.push(`too wide ${JSON.stringify(refused?.elements[Number(index)])}`);
+    }
     for (const [, index] of (error instanceof Error ? error.message : '').matchAll(/element (\d+): it lies outside the page/g)) {
       notes.push(`outside ${JSON.stringify(refused?.elements[Number(index)])} page ${JSON.stringify((refused as { page?: unknown } | undefined)?.page)}`);
     }
@@ -117,18 +122,40 @@ const run = async (seed: number): Promise<Result | undefined> => {
 
 declare global {
   interface Window {
-    sweep: (from: number, count: number) => Promise<Result[]>;
+    sweep: (from: number, count: number) => Promise<{ failures: Result[]; tally: Tally }>;
   }
 }
+
+/** Each case's outcome against what it should be: shown, or (for a claim that throws) refused with its documented message. */
+export type Tally = Record<string, { cases: number; held: number }>;
 
 window.sweep = async (from, count) => {
   await initBoundViewEngine('/resvg.wasm');
   const failures: Result[] = [];
+  const tally: Tally = {};
   for (let seed = from; seed < from + count; seed++) {
-    const failure = await run(seed).catch((error: unknown) => ({ seed, stage: 'snapshot' as const, error: `crashed: ${String(error)}`, notes: [] }));
-    if (failure) failures.push(failure);
+    const made = generate(seed);
+    const claim = made.claim;
+    const key = `${made.document.type}\t${claim?.group ?? 'normal'}\t${claim?.item ?? '-'}`;
+    let failure: Result | undefined;
+    if (claim?.direct) {
+      try {
+        claim.direct();
+        failure = { seed, stage: 'snapshot', error: '', notes: [] };
+      } catch (error) {
+        failure = { seed, stage: 'snapshot', error: error instanceof Error ? error.message : String(error), notes: [] };
+      }
+    } else {
+      failure = await run(seed).catch((error: unknown) => ({ seed, stage: 'snapshot' as const, error: `crashed: ${String(error)}`, notes: [] }));
+    }
+    const held = claim?.expect ? failure !== undefined && failure.stage === 'snapshot' && claim.expect.test(failure.error) : failure === undefined;
+    const entry = (tally[key] ??= { cases: 0, held: 0 });
+    entry.cases++;
+    if (held) entry.held++;
+    else if (claim?.expect) failures.push({ seed, stage: failure?.stage ?? 'snapshot', error: failure ? `threw otherwise: ${failure.error}` : 'did not throw', notes: made.notes });
+    else if (failure) failures.push(failure);
   }
-  return failures;
+  return { failures, tally };
 };
 
 // ---- Looks: the drawing against the browser's own picture of the page ----
