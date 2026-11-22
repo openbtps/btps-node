@@ -76,6 +76,19 @@ export const signatureDrawing = (strokes: readonly (readonly number[])[]): Signa
 const COLOUR = /^(?:#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|currentColor)$/;
 
 /**
+ * `colour` as it is written into markup: never the string given, but `currentColor`, or its hex digits read as numbers
+ * and written again. One that is not a colour (COLOUR) is refused.
+ */
+const inkOf = (colour: string): string => {
+  if (!COLOUR.test(colour))
+    throw new TypeError(
+      `a signature's colour is a hex colour or currentColor, not ${JSON.stringify(colour)}`,
+    );
+  if (colour === 'currentColor') return 'currentColor';
+  return `#${[...colour.slice(1)].map((digit) => parseInt(digit, 16).toString(16)).join('')}`;
+};
+
+/**
  * The same as SVG markup, fitted as `at` and `scale` place it, in `colour`: what the engine draws. A colour that is not
  * one (COLOUR) is refused, never written into the markup.
  */
@@ -83,12 +96,9 @@ export const signatureShapes = (
   strokes: readonly (readonly number[])[],
   at: (x: number, y: number) => [number, number],
   scale: number,
-  colour: string,
+  given: string,
 ): string[] => {
-  if (!COLOUR.test(colour))
-    throw new TypeError(
-      `a signature's colour is a hex colour or currentColor, not ${JSON.stringify(colour)}`,
-    );
+  const colour = inkOf(given);
   const { dots, line } = drawingOf(strokes, at, scale);
   const shapes = dots.map(
     ({ cx, cy, r }) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${colour}"/>`,
