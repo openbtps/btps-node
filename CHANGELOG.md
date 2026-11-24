@@ -4,6 +4,25 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.0-rc.3.3] — 2026-11-25 (beta, release candidate)
+
+An agreement's signed answer can carry the signer's consent to sign
+electronically and when it viewed the agreement, so that any platform's
+evidence shows them. Everything else is as in rc.3.2 below; `@btps/boundview`
+is released in step, unchanged.
+
+### Added
+
+- An agreement statement's `consent`, optional, on an acceptance only:
+  `{ electronic: true, disclosureSha256, at }`, the SHA-256 of the disclosure
+  the signer's platform showed it, in that platform's own words, and when it
+  agreed. New type `BTPElectronicConsent`.
+- An agreement statement's `viewedAt`, optional, on an acceptance or a
+  decline: when the signer first viewed the agreement.
+- Both are inside the statement, so its signature covers them, and neither may
+  be later than its `signedAt`. A statement without them stays valid. Six
+  golden vectors cover them (790 checks).
+
 ## [1.2.0-rc.3.2] — 2026-11-22 (beta, release candidate)
 
 BoundView, as proved in a platform before release: the snapshot binds and draws
