@@ -135,6 +135,9 @@ A signer answers with an `agreement_event` in a `BTPS_EVENT`, whose `relatesTo` 
 - **`previous`**, in a sequential agreement, on every statement after the first: the SHA-256 of the record before it (`statementRecordSha256`), signature included.
 - **`terms`** repeats the agreement's terms exactly; **`signedAt`** is the signer's own signed time, which the deadline is checked against.
 - **`visualSignature`**, optional, on an acceptance only: the signer's own signature, typed (`{ type: "typed", text }`) or drawn (`{ type: "drawn", strokes }`), with a letter's limits. It is inside the statement, so the signature covers it: another one, or none, no longer checks. A platform may require one before it lets its user accept.
+- **`consent`**, optional, on an acceptance only: the signer's consent to sign electronically, `{ electronic: true, disclosureSha256, at }`. `disclosureSha256` is the SHA-256 of the disclosure the signer's platform showed it, in that platform's own words; `at` is when it agreed, no later than `signedAt`. BTPS carries the fact; each platform writes and versions its own wording. A decline with a `consent` is refused.
+- **`viewedAt`**, optional, on an acceptance or a decline: when the signer first viewed the agreement, no later than `signedAt`.
+- **Why both exist.** Laws on electronic signatures (Australia's Electronic Transactions Act 1999, ESIGN and UETA in the US, eIDAS in the EU) and some courts expect evidence that the signer agreed to sign electronically, and of when it viewed the document. Both are inside the statement, so the signature covers them: changing or removing either no longer checks. They travel into the evidence bundle with it, so any platform's evidence shows them, not only the originator's own records. A statement without them stays valid. Whether either is required is the platform's choice.
 - **An answer is final.** It is never withdrawn; a change is a new agreement.
 
 A decline may carry a note:
@@ -236,6 +239,8 @@ const record = await signStatement(
     signedAt: new Date().toISOString(),
     previous: statementRecordSha256(alicesRecord), // sequential, after the first
     visualSignature: { type: 'typed', text: 'Sam Lee' }, // optional, an acceptance only
+    consent: { electronic: true, disclosureSha256, at: consentedAt }, // optional, an acceptance only
+    viewedAt: firstViewedAt, // optional, no later than signedAt
   },
   { selector: 'btps1', pemFiles: samKeys },
 );

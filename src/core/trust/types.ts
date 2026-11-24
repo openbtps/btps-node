@@ -234,6 +234,9 @@ export type BTPAgreementAnswers = {
  * `previous`, in a sequential agreement, is the SHA-256 of the statement
  * record before it. `visualSignature`, on an acceptance only, is the signer's
  * own signature, typed or drawn on the same 1000 by 300 canvas as a letter's.
+ * `consent`, on an acceptance only, is the signer's consent to sign
+ * electronically; `viewedAt`, when it first viewed the agreement. Both are no
+ * later than `signedAt`, and inside what is signed.
  */
 export type BTPAgreementStatement = {
   agreement: BTPAgreementRef;
@@ -243,12 +246,25 @@ export type BTPAgreementStatement = {
   signedAt: string;
   previous?: string;
   visualSignature?: BTPVisualSignature;
+  consent?: BTPElectronicConsent;
+  viewedAt?: string;
 };
 
 /** Since 1.2: a signer's signature as data, never markup, which a receiver draws itself. */
 export type BTPVisualSignature =
   | { type: 'typed'; text: string }
   | { type: 'drawn'; strokes: number[][] };
+
+/**
+ * Since 1.2: a signer's consent to sign electronically. `disclosureSha256` is
+ * the SHA-256 of the disclosure its platform showed it, in that platform's own
+ * words; `at` is when it agreed.
+ */
+export type BTPElectronicConsent = {
+  electronic: true;
+  disclosureSha256: string;
+  at: string;
+};
 
 /**
  * Since 1.2: a signed statement. Signed by the signer's identity key at

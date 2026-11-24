@@ -726,6 +726,21 @@ const BtpAgreementRefSchema = z
   })
   .strict();
 
+/**
+ * Since 1.2: the signer's consent to sign electronically, as its platform asked
+ * for it: the SHA-256 of the disclosure it was shown, and when it agreed.
+ */
+const BtpElectronicConsentSchema = z
+  .object({
+    electronic: z.literal(true),
+    disclosureSha256: sha256Hex,
+    at: z.string().datetime(),
+  })
+  .strict();
+
+/** Whether `time`, an RFC 3339 time, is no later than `signedAt`. */
+const notAfter = (time: string, signedAt: string) => Date.parse(time) <= Date.parse(signedAt);
+
 /** A signer's answer: what it signs, over its RFC 8785 form. */
 export const BtpAgreementStatementSchema = z
   .object({
@@ -736,11 +751,25 @@ export const BtpAgreementStatementSchema = z
     signedAt: z.string().datetime(),
     previous: sha256Hex.optional(),
     visualSignature: BtpVisualSignatureSchema.optional(),
+    consent: BtpElectronicConsentSchema.optional(),
+    viewedAt: z.string().datetime().optional(),
   })
   .strict()
   .refine((s) => s.visualSignature === undefined || s.decision === 'accepted', {
     message: 'only an acceptance carries a visualSignature',
     path: ['visualSignature'],
+  })
+  .refine((s) => s.consent === undefined || s.decision === 'accepted', {
+    message: 'only an acceptance carries a consent',
+    path: ['consent'],
+  })
+  .refine((s) => s.consent === undefined || notAfter(s.consent.at, s.signedAt), {
+    message: 'a consent is given no later than its statement is signed',
+    path: ['consent', 'at'],
+  })
+  .refine((s) => s.viewedAt === undefined || notAfter(s.viewedAt, s.signedAt), {
+    message: 'an agreement is viewed no later than its statement is signed',
+    path: ['viewedAt'],
   });
 
 /**
