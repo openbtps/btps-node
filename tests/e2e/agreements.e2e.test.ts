@@ -119,6 +119,7 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
 
   const answer = async (signer: User, previous?: string) => {
     const copy = [...copies.values()].find((sent) => sent.to === signer.identity)!;
+    const viewed = new Date().toISOString();
     const record = await signStatement(
       {
         agreement: agreementRef(agreement, bank.identity),
@@ -132,6 +133,9 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
           signer === alice
             ? { type: 'typed', text: 'Alice Ng' }
             : { type: 'drawn', strokes: [[40, 200, 120, 80, 260, 210, 400, 90]] },
+        // And its consent to sign electronically, and when it viewed the agreement.
+        consent: { electronic: true, disclosureSha256: 'd'.repeat(64), at: viewed },
+        viewedAt: viewed,
       },
       { selector: signer.selector, pemFiles: signer.keys },
     );
