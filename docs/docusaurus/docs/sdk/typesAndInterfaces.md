@@ -1563,10 +1563,16 @@ type BTPAgreementStatement = {
   signedAt: string;
   previous?: string; // in a sequential agreement: the SHA-256 of the record before it
   visualSignature?: BTPVisualSignature; // on an acceptance only
+  consent?: BTPElectronicConsent; // on an acceptance only
+  viewedAt?: string; // when the signer first viewed the agreement, no later than signedAt
 };
 
 // The signer's own signature, typed or drawn on a 1000 by 300 canvas, as a letter's is
 type BTPVisualSignature = { type: 'typed'; text: string } | { type: 'drawn'; strokes: number[][] };
+
+// The signer's consent to sign electronically: disclosureSha256 is the SHA-256 of the disclosure
+// its platform showed it, in its own words; at is when it agreed, no later than signedAt
+type BTPElectronicConsent = { electronic: true; disclosureSha256: string; at: string };
 
 // Signed by the signer's identity key at `selector`, or by a device key, carrying the delegated artifact that delivered it
 type BTPStatementRecord = { statement: BTPAgreementStatement; signature: BTPSignature } & (
