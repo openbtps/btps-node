@@ -146,7 +146,8 @@ class MongoTrustStore extends AbstractTrustStore {
     this.entityName = entityName; // Collection name
   }
   async getById(computedId) {
-    return await this.client.db().collection(this.entityName).findOne({ id: computedId });
+    const record = await this.client.db().collection(this.entityName).findOne({ id: computedId });
+    return record ?? undefined;
   }
   async create(record, computedId) {
     const id = computedId || computeTrustId(record.senderId, record.receiverId);
@@ -202,7 +203,9 @@ import {
   GetItemCommand,
   PutItemCommand,
   DeleteItemCommand,
+  ScanCommand,
 } from '@aws-sdk/client-dynamodb';
+import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 
 const dynamoClient = new DynamoDBClient({ region: 'us-east-1' });
 
@@ -214,12 +217,9 @@ class DynamoTrustStore extends AbstractTrustStore {
   }
   async getById(computedId) {
     const result = await this.client.send(
-      new GetItemCommand({
-        TableName: this.entityName,
-        Key: { id: { S: computedId } },
-      }),
+      new GetItemCommand({ TableName: this.entityName, Key: marshall({ id: computedId }) }),
     );
-    return result.Item ? AWS.DynamoDB.Converter.unmarshall(result.Item) : null;
+    return result.Item ? unmarshall(result.Item) : undefined;
   }
   async create(record, computedId) {
     const id = computedId || computeTrustId(record.senderId, record.receiverId);
@@ -227,50 +227,49 @@ class DynamoTrustStore extends AbstractTrustStore {
     await this.client.send(
       new PutItemCommand({
         TableName: this.entityName,
-        Item: AWS.DynamoDB.Converter.marshall(newRecord),
+        Item: marshall(newRecord, { removeUndefinedValues: true }),
+        ConditionExpression: 'attribute_not_exists(id)', // a record is created once
       }),
     );
     return newRecord;
   }
   async update(computedId, patch) {
     const record = await this.getById(computedId);
+    if (!record) throw new Error(`Trust record not found: ${computedId}`);
     const updated = { ...record, ...patch };
     await this.client.send(
       new PutItemCommand({
         TableName: this.entityName,
-        Item: AWS.DynamoDB.Converter.marshall(updated),
+        Item: marshall(updated, { removeUndefinedValues: true }),
       }),
     );
     return updated;
   }
   async delete(computedId) {
     await this.client.send(
-      new DeleteItemCommand({
-        TableName: this.entityName,
-        Key: { id: { S: computedId } },
-      }),
+      new DeleteItemCommand({ TableName: this.entityName, Key: marshall({ id: computedId }) }),
     );
   }
   async getAll(receiverId) {
-    // For brevity, scan the table (production: use Query with index)
-    const { Items } = await this.client.send({
-      TableName: this.entityName,
-      ...(receiverId
-        ? {
-            FilterExpression: 'receiverId = :r',
-            ExpressionAttributeValues: { ':r': { S: receiverId } },
-          }
-        : {}),
-    });
-    return Items ? Items.map((item) => AWS.DynamoDB.Converter.unmarshall(item)) : [];
+    // For brevity, scan the table (production: Query a receiverId index, and page)
+    const { Items } = await this.client.send(
+      new ScanCommand({
+        TableName: this.entityName,
+        ...(receiverId && {
+          FilterExpression: 'receiverId = :r',
+          ExpressionAttributeValues: marshall({ ':r': receiverId }),
+        }),
+      }),
+    );
+    return (Items ?? []).map((item) => unmarshall(item));
   }
   async isKnownArtifact({ artifactId, from, to }) {
     // 'artifacts' is wherever the platform records the artifacts it sends and receives
     const result = await this.client.send(
-      new GetItemCommand({ TableName: 'artifacts', Key: { id: { S: artifactId } } }),
+      new GetItemCommand({ TableName: 'artifacts', Key: marshall({ id: artifactId }) }),
     );
     if (!result.Item) return false;
-    const artifact = AWS.DynamoDB.Converter.unmarshall(result.Item);
+    const artifact = unmarshall(result.Item);
     return (
       (artifact.from === from && artifact.to === to) ||
       (artifact.from === to && artifact.to === from)
@@ -287,6 +286,8 @@ const server = new BtpsServer({ serverIdentity, tlsOptions, port: 3443, trustSto
 ```
 
 ### SQL Trust Store Example
+
+A trust record has nested fields (`keyHistory`, `metadata` and, since 1.2, `permissions`), so this store keeps the whole record as JSON beside the columns it queries by. Table: `id` (primary key), `receiverId` (indexed) and `record` (JSON).
 
 ```js
 import { AbstractTrustStore, computeTrustId } from '@btps/sdk/trust';
@@ -305,31 +306,40 @@ class SqlTrustStore extends AbstractTrustStore {
     this.entityName = entityName; // Table name
   }
   async getById(computedId) {
-    const [rows] = await this.db.query(`SELECT * FROM ${this.entityName} WHERE id = ?`, [
+    const [rows] = await this.db.query(`SELECT record FROM ${this.entityName} WHERE id = ?`, [
       computedId,
     ]);
-    return rows[0];
+    return rows[0]?.record; // mysql2 parses a JSON column
   }
   async create(record, computedId) {
     const id = computedId || computeTrustId(record.senderId, record.receiverId);
     const newRecord = { ...record, id };
-    await this.db.query(`INSERT INTO ${this.entityName} SET ?`, [newRecord]);
+    await this.db.query(
+      `INSERT INTO ${this.entityName} (id, receiverId, record) VALUES (?, ?, ?)`,
+      [id, newRecord.receiverId, JSON.stringify(newRecord)],
+    );
     return newRecord;
   }
   async update(computedId, patch) {
-    await this.db.query(`UPDATE ${this.entityName} SET ? WHERE id = ?`, [patch, computedId]);
-    return this.getById(computedId);
+    const record = await this.getById(computedId);
+    if (!record) throw new Error(`Trust record not found: ${computedId}`);
+    const updated = { ...record, ...patch };
+    await this.db.query(`UPDATE ${this.entityName} SET record = ? WHERE id = ?`, [
+      JSON.stringify(updated),
+      computedId,
+    ]);
+    return updated;
   }
   async delete(computedId) {
     await this.db.query(`DELETE FROM ${this.entityName} WHERE id = ?`, [computedId]);
   }
   async getAll(receiverId) {
-    if (receiverId) {
-      return await this.db.query(`SELECT * FROM ${this.entityName} WHERE receiverId = ?`, [
-        receiverId,
-      ]);
-    }
-    return await this.db.query(`SELECT * FROM ${this.entityName}`);
+    const [rows] = receiverId
+      ? await this.db.query(`SELECT record FROM ${this.entityName} WHERE receiverId = ?`, [
+          receiverId,
+        ])
+      : await this.db.query(`SELECT record FROM ${this.entityName}`);
+    return rows.map((row) => row.record);
   }
   async isKnownArtifact({ artifactId, from, to }) {
     // 'artifacts' is wherever the platform records the artifacts it sends and receives
@@ -351,6 +361,8 @@ const server = new BtpsServer({ serverIdentity, tlsOptions, port: 3443, trustSto
 
 ### Postgres Trust Store Example
 
+As in the SQL example, the whole record is kept, as `jsonb`, so nothing a trust record carries is lost: `id` (primary key), `receiver_id` (indexed) and `record` (`jsonb`).
+
 ```js
 import { AbstractTrustStore, computeTrustId } from '@btps/sdk/trust';
 import { Pool } from 'pg';
@@ -364,37 +376,39 @@ class PostgresTrustStore extends AbstractTrustStore {
     this.entityName = entityName; // Table name
   }
   async getById(computedId) {
-    const { rows } = await this.pool.query(`SELECT * FROM ${this.entityName} WHERE id = $1`, [
+    const { rows } = await this.pool.query(`SELECT record FROM ${this.entityName} WHERE id = $1`, [
       computedId,
     ]);
-    return rows[0];
+    return rows[0]?.record; // pg parses jsonb
   }
   async create(record, computedId) {
     const id = computedId || computeTrustId(record.senderId, record.receiverId);
+    const newRecord = { ...record, id };
+    // A record is created once: a second create for the same pair fails
     await this.pool.query(
-      `INSERT INTO ${this.entityName} (id, senderId, receiverId, status) VALUES ($1, $2, $3, $4)
-       ON CONFLICT (id) DO NOTHING`,
-      [id, record.senderId, record.receiverId, record.status],
+      `INSERT INTO ${this.entityName} (id, receiver_id, record) VALUES ($1, $2, $3)`,
+      [id, newRecord.receiverId, newRecord],
     );
-    return { ...record, id };
+    return newRecord;
   }
   async update(computedId, patch) {
-    await this.pool.query(`UPDATE ${this.entityName} SET status = $2 WHERE id = $1`, [
-      computedId,
-      patch.status,
-    ]);
-    return this.getById(computedId);
+    const { rows } = await this.pool.query(
+      `UPDATE ${this.entityName} SET record = record || $2::jsonb WHERE id = $1 RETURNING record`,
+      [computedId, JSON.stringify(patch)],
+    );
+    if (!rows[0]) throw new Error(`Trust record not found: ${computedId}`);
+    return rows[0].record;
   }
   async delete(computedId) {
     await this.pool.query(`DELETE FROM ${this.entityName} WHERE id = $1`, [computedId]);
   }
   async getAll(receiverId) {
     const { rows } = receiverId
-      ? await this.pool.query(`SELECT * FROM ${this.entityName} WHERE receiverId = $1`, [
+      ? await this.pool.query(`SELECT record FROM ${this.entityName} WHERE receiver_id = $1`, [
           receiverId,
         ])
-      : await this.pool.query(`SELECT * FROM ${this.entityName}`);
-    return rows;
+      : await this.pool.query(`SELECT record FROM ${this.entityName}`);
+    return rows.map((row) => row.record);
   }
   async isKnownArtifact({ artifactId, from, to }) {
     // 'artifacts' is wherever the platform records the artifacts it sends and receives
@@ -414,6 +428,8 @@ const trustStore = new PostgresTrustStore({
 });
 const server = new BtpsServer({ serverIdentity, tlsOptions, port: 3443, trustStore });
 ```
+
+Every trust store implements the same six methods `AbstractTrustStore` declares: `getById`, `create`, `update`, `delete`, `getAll` and `isKnownArtifact`. An identity store (`AbstractIdentityStore`) implements the four storage methods, `getPublicKeyRecord` and, since 1.2, optionally `getKeyChain`; see [Identity Lookup Support](../getting-started/server/identityLookupSupport.md#identity-store-implementation).
 
 ## Multi-Tenancy
 
