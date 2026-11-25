@@ -1215,7 +1215,7 @@ deviceStatementRecord(
 ```
 
 **Description:**
-Since 1.2. A signer's answer to an agreement, signed over the statement's RFC 8785 form. `signStatement` signs with the signer's identity key, which may be a managed key its provider holds, and names its `selector`. `signStatementOnDevice` signs with a device's key; the originator completes the record with `deviceStatementRecord`, adding the delegated artifact that delivered it, as it arrived, so the record can be checked offline wherever it is forwarded.
+Since 1.2. A signer's answer to an agreement, signed over the statement's RFC 8785 form. `signStatement` signs with the signer's identity key, which may be a managed key its provider holds, and names its `selector`. `signStatementOnDevice` signs with a device's key; the originator completes the record with `deviceStatementRecord`, adding the delegated artifact that delivered it, as it arrived, so the record can be checked offline wherever it is forwarded. Neither checks the statement: a statement that breaks its rules, such as a `consent` on a decline or a `viewedFrom` without a `viewedAt`, still signs, and the event that carries it is refused (`BTP_ERROR_VALIDATION`). See [Agreement](../protocol/specifications/transporter-artifact.md#agreement) for the statement's fields.
 
 ---
 

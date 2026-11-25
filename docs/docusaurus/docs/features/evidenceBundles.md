@@ -73,7 +73,22 @@ A shortened bundle, one signer and one key shown:
         "terms": [],
         "signer": "alice$client.example",
         "decision": "accepted",
-        "signedAt": "2026-11-02T00:00:00.000Z"
+        "signedAt": "2026-11-02T00:00:00.000Z",
+        "visualSignature": { "type": "typed", "text": "Alice Ng" },
+        "consent": {
+          "electronic": true,
+          "disclosureSha256": "9cf72b4504a4459f146c90afd9ba6b84146bd182f49551d051c2a4af26662175",
+          "at": "2026-11-01T23:58:21.000Z"
+        },
+        "viewedAt": "2026-11-01T23:51:07.000Z",
+        "viewedFrom": {
+          "ip": "203.0.113.24",
+          "device": { "os": "macOS", "browser": "Google Chrome" }
+        },
+        "signedFrom": {
+          "ip": "203.0.113.24",
+          "device": { "os": "macOS", "browser": "Google Chrome" }
+        }
       },
       "selector": "btps1",
       "signature": {
@@ -169,6 +184,8 @@ A key counts only when its fingerprint is its own: a bundle cannot pair one key 
 | `statements[]`             | each statement: `signatureValid`, `keyKind` (`identity` or `device`, with `delegatedBy` and `attestedBy`), `key` (and a device's `delegationKey`), `agreementMatches`, `termsMatch`, `withinDeadline`, `inOrder`, and its `timestamp`, `arrival` and `keyChain`, when it has them |
 | `keysConfirmedOnline`      | `false` unless checked `online`: then true when every signing key is confirmed as its identity's, by its chain or DNS                                                                                                                                                             |
 | `complete`                 | every fact above holds, and every signer accepted, once                                                                                                                                                                                                                           |
+
+A statement's `visualSignature`, `consent`, `viewedAt`, `viewedFrom` and `signedFrom` are not facts it reports: they are in the bundle as the signer signed them, covered by its `signatureValid`, for the reader to read. A bundle with a statement that breaks their rules is refused as not a bundle (`BTP_ERROR_VALIDATION`).
 
 **What `complete` means, plainly.** The bundle is consistent with the keys it carries. It does **not** say each key was its identity's when it signed: a bundle forged with fresh keys labelled as the parties is consistent too. That is why every fingerprint is printed: a reader who needs more anchors the key chains on a fingerprint they kept (`anchors`, `--anchor`), or checks the keys online (`online`, `--online`). Providers make that possible: they never reuse a selector for a different key, and publish a key rotation record for every new key ([Key rotation](./keyRotation.md)).
 

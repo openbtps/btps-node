@@ -768,9 +768,16 @@ Since 1.2, in a `1.2.0` artifact only: a letter that asks its signers to accept 
   "signer": "sam$guarantor.example",
   "decision": "accepted",
   "signedAt": "2026-11-03T00:00:00Z",
-  "previous": "4c1d…"
+  "previous": "4c1d…",
+  "visualSignature": { "type": "typed", "text": "Sam Lee" },
+  "consent": { "electronic": true, "disclosureSha256": "9cf7…", "at": "2026-11-02T23:58:21Z" },
+  "viewedAt": "2026-11-02T23:51:07Z",
+  "viewedFrom": { "ip": "203.0.113.24", "device": { "os": "macOS", "browser": "Google Chrome" } },
+  "signedFrom": { "ip": "203.0.113.24", "device": { "os": "macOS", "browser": "Google Chrome" } }
 }
 ```
+
+Each field after `previous` is optional. A `declined` statement may carry `viewedAt`, `viewedFrom` and `signedFrom`, never `visualSignature` or `consent`.
 
 - **`terms`** repeats the agreement's `acceptance.terms` exactly, in the same order. **`decision`** is `accepted` or `declined`. **`signedAt`** is the signer's own signed time, which the deadline is checked against.
 - **`previous`**, in a `sequential` agreement only, on every statement after the first: the SHA-256 of the statement record before it, in its RFC 8785 form, signature included.
@@ -981,7 +988,7 @@ Since 1.2, in a `1.2.0` artifact only, a `BTPS_EVENT` may carry an agreement's a
   }
   ```
 
-- **The statement, once opened.** What needs the opened statement the platform checks with `agreementStatementProblem` from `@btps/sdk/trust`: its `decision` is the event's `eventType`, it names this agreement (its originator, id and `contentSha256` as its copy has them) and its terms exactly, it is its sender's own, it was signed no later than `acceptance.by`, and `previous` is the SHA-256 of the last answer taken, or none for the first, in a `sequential` agreement, and absent in an `any` one (`agreementOrderProblem`). A platform holding the originator's key (a managed key) can open the answer in its own middleware and refuse it in flight too. When the user holds the key, the platform checks it once the user's device has opened it, and answers the sender afterwards with a BTPS event. Its signatures it checks with `statementSignatureFacts` (see [Agreement](#agreement)).
+- **The statement, once opened.** What needs the opened statement the platform checks with `agreementStatementProblem` from `@btps/sdk/trust`: its `decision` is the event's `eventType`, it names this agreement (its originator, id and `contentSha256` as its copy has them) and its terms exactly, it is its sender's own, it was signed no later than `acceptance.by`, and `previous` is the SHA-256 of the last answer taken, or none for the first, in a `sequential` agreement, and absent in an `any` one (`agreementOrderProblem`). A platform holding the originator's key (a managed key) can open the answer in its own middleware and refuse it in flight too. When the user holds the key, the platform checks it once the user's device has opened it, and answers the sender afterwards with a BTPS event. Its signatures it checks with `statementSignatureFacts` (see [Agreement](#agreement)). The rules of the statement's own fields (`visualSignature` and `consent` on an acceptance only, `viewedFrom` only with `viewedAt`, `consent.at` and `viewedAt` no later than `signedAt`, each signing context's limits) are structure, not part of this check: the server refuses a readable answer that breaks them on arrival, and `decryptVerify` an encrypted one once opened.
 
 #### The evidence bundle
 
