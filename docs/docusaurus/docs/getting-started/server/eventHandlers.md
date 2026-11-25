@@ -23,9 +23,9 @@ BTPS servers receive two main types of artifacts:
 ### 2. Transporter Artifacts
 
 - **Purpose**: Document delivery (invoices, messages, etc.)
-- **Examples**: Trust requests, invoices, notifications
-- **Response**: No immediate response required (processed asynchronously)
-- **Signature**: `(artifact: BTPTransporterArtifact) => void`
+- **Examples**: Trust requests and responses, documents, lifecycle events and, since 1.2, details refresh artifacts
+- **Response**: The server answers the sender itself: success once every handler has returned, an error if one throws, so the sender knows to send again
+- **Signature**: `(artifact: BTPTransporterArtifact, boundView?: BTPBoundViewResult) => void | Promise<void>`. Since 1.2, `boundView` says whether a readable document's BoundView may be shown
 
 ## Adding Event Handlers to Your Server
 
@@ -51,6 +51,10 @@ const server = new BtpsServer({
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
   trustStore,
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   middlewarePath: './btps.middleware.mjs',
   connectionTimeoutMs: 30000,
@@ -76,8 +80,8 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
   }
 });
 
-// Handle Transporter Artifacts (asynchronous processing)
-server.onIncomingArtifact('Transporter', async (artifact) => {
+// Handle Transporter Artifacts: the sender is answered once this returns
+server.onIncomingArtifact('Transporter', async (artifact, boundView) => {
   console.log('📨 Transporter message:', artifact.type);
 
   // Process different message types
@@ -91,11 +95,16 @@ server.onIncomingArtifact('Transporter', async (artifact) => {
       break;
 
     case 'BTPS_DOC':
-      await handleDocument(artifact);
+      // Since 1.2: whether a readable document's BoundView may be shown
+      await handleDocument(artifact, boundView);
       break;
 
-    default:
-      console.log('Unknown artifact type:', artifact.type);
+    case 'BTPS_EVENT':
+    case 'DETAILS_CHANGED': // since 1.2
+    case 'DETAILS_REQ': // since 1.2
+    case 'DETAILS_RES': // since 1.2
+      await storeInInbox(artifact);
+      break;
   }
 });
 
@@ -110,8 +119,9 @@ Create the handler functions for different artifact types:
 
 ```typescript
 // src/handlers.ts
+import type { BTPBoundViewResult } from '@btps/sdk/server';
 
-// Handle system ping (health check)
+// Handle system ping (health check): a status alone, no document
 async function handlePing(artifact: any, resCtx: any, server: any) {
   return resCtx.sendRes({
     ...server.prepareBtpsResponse(
@@ -123,10 +133,6 @@ async function handlePing(artifact: any, resCtx: any, server: any) {
       artifact.id,
     ),
     type: 'btps_response',
-    document: {
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-    },
   });
 }
 
@@ -138,21 +144,11 @@ async function handleInboxFetch(artifact: any, resCtx: any, server: any) {
   const { limit = 10, sort = 'desc' } = document || {};
 
   try {
-    // Mock inbox data (replace with your actual data source)
-    const inboxItems = [
-      {
-        id: 'msg_001',
-        type: 'BTPS_DOC',
-        from: 'billing$vendor.com',
-        to: artifact.to,
-        issuedAt: new Date().toISOString(),
-        document: {
-          title: 'Invoice #12345',
-          amount: 299.99,
-          dueDate: '2025-02-15',
-        },
-      },
-    ];
+    // The signed artifacts your server received for this user, as they arrived
+    // (replace with your actual data source)
+    const received = await getInboxArtifacts(artifact.to, { limit, sort });
+    // Each result is an entry: the artifact, and what your platform knows of it
+    const inboxItems = received.map((item) => ({ artifact: item, meta: { seen: false } }));
 
     return resCtx.sendRes({
       ...server.prepareBtpsResponse(
@@ -205,11 +201,13 @@ async function handleTrustRequest(artifact: any) {
 }
 
 // Handle documents (asynchronous)
-async function handleDocument(artifact: any) {
+async function handleDocument(artifact: any, boundView?: BTPBoundViewResult) {
   const { from, to, document } = artifact;
 
   console.log(`📄 Document from ${from} to ${to}`);
-  console.log('Document type:', document.type);
+  // An encrypted document is a string until the receiver opens it
+  console.log('Encrypted:', artifact.encryption !== null);
+  // Show the sender's BoundView only when boundView?.show is true
 
   // Store document in your database
   // Send notification to btpsTransporter if its from the agent so it can deliver to the recipient
@@ -232,28 +230,10 @@ case 'system.ping':
       code: 200
     }, artifact.id),
     type: 'btps_response',
-    document: {
-      status: 'healthy',
-      timestamp: new Date().toISOString()
-    }
-  });
-
-// System status
-case 'system.status':
-  return resCtx.sendRes({
-    ...server.prepareBtpsResponse({
-      ok: true,
-      message: 'System status retrieved',
-      code: 200
-    }, artifact.id),
-    type: 'btps_response',
-    document: {
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      version: '1.1.0'
-    }
   });
 ```
+
+An answer's `document` must be one the protocol defines (a query result, an auth session, an identity, or `{ id }` for something created), or none. A server sends any other shape as a generic error instead (`BTP_UNKNOWN_ERROR`), and reports it to `onError`.
 
 ### Inbox Operations
 
@@ -262,7 +242,7 @@ case 'system.status':
 case 'inbox.fetch':
   const { limit = 10, sort = 'desc', query = {} } = artifact.document || {};
 
-  // Query your inbox storage
+  // Query your inbox storage: each result is { artifact, meta? }
   const messages = await getInboxMessages(artifact.to, { limit, sort, query });
 
   return resCtx.sendRes({
@@ -279,11 +259,11 @@ case 'inbox.fetch':
     }
   });
 
-// Mark message as seen
+// Mark messages as seen
 case 'inbox.seen':
-  const { messageId } = artifact.document || {};
+  const { ids } = artifact.document;
 
-  await markMessageAsSeen(artifact.to, messageId);
+  await markMessagesAsSeen(artifact.to, ids);
 
   return resCtx.sendRes({
     ...server.prepareBtpsResponse({
@@ -298,7 +278,7 @@ case 'inbox.seen':
 ### Trust Operations
 
 ```typescript
-// Fetch trust records
+// Fetch trust records: each entry's artifact is a trust record
 case 'trust.fetch':
   const trustRecords = await getTrustRecords(artifact.to);
 
@@ -310,7 +290,7 @@ case 'trust.fetch':
     }, artifact.id),
     type: 'btps_response',
     document: {
-      results: trustRecords
+      results: trustRecords.map((record) => ({ artifact: record }))
     }
   });
 ```
@@ -435,14 +415,12 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
   // Production-specific validation
-  if (isProduction) {
-    if (artifact.action === 'system.status') {
-      // Limit system status in production
-      return resCtx.sendError({
-        code: 403,
-        message: 'System status not available in production',
-      });
-    }
+  if (isProduction && artifact.action === 'trash.delete') {
+    // For example, keep deleted items in production
+    return resCtx.sendError({
+      code: 403,
+      message: 'Permanent deletion is not available',
+    });
   }
 
   // Regular handler logic

@@ -145,21 +145,23 @@ pnpm add @btps/sdk
 
 The `BtpsClient` constructor accepts the following options:
 
-| Option                | Type   | Required | Description                                                                                        |
-| --------------------- | ------ | -------- | -------------------------------------------------------------------------------------------------- |
-| `to`                  | string | Yes      | Recipient identity (e.g., `billing$yourdomain.com`)                                                |
-| `maxRetries`          | number | No       | Max connection retry attempts (default: 5)                                                         |
-| `retryDelayMs`        | number | No       | Delay between retries in ms (default: 1000)                                                        |
-| `connectTimeoutMs`    | number | No       | How long to wait to connect, in ms (at least and by default 5000)                                  |
-| `replyTimeoutMs`      | number | No       | How long `send()` waits for the answer, in ms (at least 10000, default 20000)                      |
-| `connectionTimeoutMs` | number | No       | Closes an idle connection (no send waiting for an answer) after this long; off when not set        |
-| `btpMtsOptions`       | object | No       | Additional TLS options (excluding host/port)                                                       |
-| `host`                | string | No       | Override DNS with custom host (for dev/testing)                                                    |
-| `hostSelector`        | string | No       | With `host`: the selector of the host's key (default: 'btps1')                                     |
-| `hostOperator`        | string | No       | With `host`: the identity operating that host, which signs its lookup answers (otherwise from DNS) |
-| `version`             | string | No       | With `host`: the protocol version (default: the SDK's, '1.1.0')                                    |
-| `port`                | number | No       | Override default port 3443 (for dev/testing)                                                       |
-| `maxQueue`            | number | No       | Maximum queue size for request handling (default: 100)                                             |
+| Option                | Type   | Required | Description                                                                                                                                                                   |
+| --------------------- | ------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `to`                  | string | Yes      | Recipient identity (e.g., `billing$yourdomain.com`)                                                                                                                           |
+| `maxRetries`          | number | No       | Max connection retry attempts (default: 5)                                                                                                                                    |
+| `retryDelayMs`        | number | No       | Delay between retries in ms (default: 1000)                                                                                                                                   |
+| `connectTimeoutMs`    | number | No       | How long to wait to connect, in ms (at least and by default 5000)                                                                                                             |
+| `replyTimeoutMs`      | number | No       | How long `send()` waits for the answer, in ms (at least 10000, default 20000)                                                                                                 |
+| `connectionTimeoutMs` | number | No       | Closes an idle connection (no send waiting for an answer) after this long; off when not set                                                                                   |
+| `btpMtsOptions`       | object | No       | Additional TLS options (excluding host/port)                                                                                                                                  |
+| `host`                | string | No       | Override DNS with custom host (for dev/testing)                                                                                                                               |
+| `hostSelector`        | string | No       | With `host`: the selector of the host's key (default: 'btps1')                                                                                                                |
+| `hostOperator`        | string | No       | With `host`: the identity operating that host, which signs its lookup answers (otherwise from DNS)                                                                            |
+| `version`             | string | No       | With `host`: the protocol version (default: the SDK's, '1.2.0')                                                                                                               |
+| `port`                | number | No       | Override default port 3443 (for dev/testing)                                                                                                                                  |
+| `maxQueue`            | number | No       | Maximum queue size for request handling (default: 100)                                                                                                                        |
+| `requireSignedBy`     | object | No       | Since 1.2: `{ identity, selector }`. Take no answer but one signed by this identity under this selector (see [6.3](#63-requiring-your-providers-signature)). Off when not set |
+| `keyResolver`         | object | No       | Since 1.2: a `BtpsKeyResolver` that finds the keys the client checks and encrypts with, in place of DNS. Without it, DNS                                                      |
 
 ## 3. Retry & Timeout Options
 
@@ -258,6 +260,8 @@ try {
 ```
 
 To encrypt a document, pass `encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' }` alongside `signature`: `signEncrypt` looks up the recipient's public key and encrypts to it.
+
+`signEncrypt` signs the `version` you give. This request uses nothing 1.2 adds, so it is `1.1.0`, and a 1.1 and a 1.2 receiver both take it. An artifact that uses something 1.2 adds (trust permissions, a BoundView, an agreement and the rest) must be `1.2.0`, and the client refuses to send one stamped lower. `artifactVersion` from `@btps/sdk/server` decides from the artifact before it is encrypted: `version: artifactVersion({ type, document })`. See [Protocol versions](../features/versions.md).
 
 ### 5.2 Event-Based Monitoring
 
@@ -432,11 +436,16 @@ client.on('error', (errInfo) => {
 ### 9.1 Available Methods
 
 - **`send(artifact, timeoutMs?)`**: Send an artifact and wait for response (`timeoutMs` replaces `replyTimeoutMs` for this send, at least 10000)
-- **`resolveIdentity(identity, from, receiverPrivatePem?)`**: Ask the identity's host for its public key, for an identity with no DNS key record
-- **`update(options)`**: Update client options dynamically
+- **`resolveIdentity(identity, from, receiverKey?)`**: The identity's public key: from the `keyResolver` or DNS, else from the identity's host, in an answer its domain's operator signed. `receiverKey` is your private key, or a `Decrypter`, for an encrypted answer. Since 1.2, the result also carries `serverVersion` when the host answered
+- **`getServerVersion()`**: Since 1.2: the protocol version the server speaks, from its answer to a `PING` that every 1.1 and 1.2 server answers
+- **`lookupKeyChain(identity, from, options?)`**: Since 1.2: the identity's key chain from its host (`status: 'chain'`), or why there is none (`'unavailable'`, `'invalid'`). See [Key rotation](../features/keyRotation.md)
+- **`resolveBtpsHostDnsTxt(identity)`**: The identity's host, port, selector, version and operator, from its `_btps.host` record (or from `host`)
+- **`update(options)`**: Update client options dynamically: `maxRetries`, `retryDelayMs`, `connectTimeoutMs`, `replyTimeoutMs`, `connectionTimeoutMs`, `maxQueue`
 - **`getConnectionStates()`**: Get current connection state
+- **`on(event, listener)`**, **`off(event, listener)`**, **`removeAllListeners()`**: Connection events (`connected`, `message`, `error`, `end`, `close`)
+- **`end()`**: Close the connection gently; the next `send()` opens a new one
 - **`destroy()`**: Immediately destroy the client and clean up resources; sends still waiting are answered with an error
-- **`getProtocolVersion()`**: Get the BTPS protocol version
+- **`getProtocolVersion()`**: The newest protocol version this SDK speaks, `1.2.0`. It does not decide what an artifact is stamped with
 
 ### 9.2 Connection States
 

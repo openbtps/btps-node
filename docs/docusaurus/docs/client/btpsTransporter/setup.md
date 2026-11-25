@@ -101,10 +101,11 @@ async transport(
 import { signEncrypt } from '@btps/sdk/crypto';
 
 signEncrypt(
-  to: string,
+  to: string | undefined,
   sender: { accountName: string; domainName: string } & ({ pemFiles: PemKeys } | { signer: Signer }),
   payload: { document: T; selector?: string; [field: string]: unknown },
   options?: BTPCryptoOptions,
+  lookup?: ReceiverKeyLookup,
 ): Promise<BTPCryptoResponse<T>>
 ```
 
@@ -112,40 +113,48 @@ signEncrypt(
 
 - `to`: Recipient identity; with `options.encryption`, the document is encrypted to its published key
 - `sender`: Your identity's parts (from `parseIdentity`) and your key: PEM files, or a `signer` that holds it elsewhere
-- `payload`: The artifact's fields: `version`, `type`, `from`, `to`, `selector` (the selector your own key is published under) and `document`. `id` and `issuedAt` are filled in when left out
-- `options`: `signature` and, to encrypt, `encryption`
+- `payload`: The artifact's fields: `version`, `type`, `from`, `to`, `selector` (the selector your own key is published under) and `document`. `id` and `issuedAt` are filled in when left out. Since 1.2, the envelope fields of trust permissions and `documentType` go here too, and are signed with it
+- `options`: `signature` and, to encrypt, `encryption`. Since 1.2, `versionFallback` for a trust request with permissions
+- `lookup`: Since 1.2, how the receiver's key is found: `btpMtsOptions` for the connection to the receiver's host, and a `keyResolver` asked in place of DNS
+
+**Returns:** `payload`, the signed artifact, or `error`. Since 1.2, `shaped` when a trust request with permissions went as its 1.1 receiver allows.
+
+`signEncrypt` signs the `version` it is given. Stamp it with `artifactVersion` from `@btps/sdk/server`: `1.1.0` unless the artifact uses something 1.2 adds, then `1.2.0`. A client refuses to send an artifact stamped lower than what it uses. See [Protocol versions](../../features/versions.md).
 
 **Example:**
 
 ```typescript
 import { parseIdentity } from '@btps/sdk';
 import { signEncrypt } from '@btps/sdk/crypto';
-import type { BTPTransporterArtifact } from '@btps/sdk/server';
+import { artifactVersion } from '@btps/sdk/server';
+import type { BTPInvoiceDoc, BTPTransporterArtifact } from '@btps/sdk/server';
 
 const from = 'sender$company.com';
 const to = 'recipient$client.com';
 const { accountName, domainName } = parseIdentity(from)!;
 
+const invoice: BTPInvoiceDoc = {
+  type: 'invoice',
+  title: 'Monthly Invoice',
+  id: 'INV-2026-001',
+  issuedAt: new Date().toISOString(),
+  totalAmount: { amount: 150000, currency: 'USD' }, // integer minor units: USD 1,500.00
+  lineItems: {
+    columns: ['Description', 'Amount'],
+    rows: [{ Description: 'Service', Amount: 150000 }],
+  },
+};
+
 const { payload, error } = await signEncrypt(
   to,
   { accountName, domainName, pemFiles: { privateKey, publicKey } },
   {
-    version: '1.1.0',
+    version: artifactVersion({ type: 'BTPS_DOC', document: invoice }), // '1.1.0' for this invoice
     type: 'BTPS_DOC',
     from,
     to,
     selector: 'btps1',
-    document: {
-      type: 'invoice',
-      title: 'Monthly Invoice',
-      id: 'INV-2026-001',
-      issuedAt: new Date().toISOString(),
-      totalAmount: { amount: 150000, currency: 'USD' }, // integer minor units: USD 1,500.00
-      lineItems: {
-        columns: ['Description', 'Amount'],
-        rows: [{ Description: 'Service', Amount: 150000 }],
-      },
-    },
+    document: invoice,
   },
   {
     signature: { algorithmHash: 'sha256' },
@@ -242,6 +251,7 @@ class BTPSMessageForwarder {
 ### **2. Mobile App Direct Delivery**
 
 ```typescript
+import { artifactVersion } from '@btps/sdk/server';
 import type { BTPInvoiceDoc } from '@btps/sdk/server';
 
 // Mobile app sending invoices directly without SaaS
@@ -261,7 +271,7 @@ class DirectInvoiceSender {
       recipient,
       { accountName, domainName, pemFiles: this.keys },
       {
-        version: '1.1.0',
+        version: artifactVersion({ type: 'BTPS_DOC', document: invoiceDoc }),
         type: 'BTPS_DOC',
         from: this.identity,
         to: recipient,
@@ -295,6 +305,7 @@ A trust request is sent before any trust exists, so it is not encrypted.
 
 ```typescript
 import { randomUUID } from 'crypto';
+import { artifactVersion } from '@btps/sdk/server';
 import type { BTPTrustReqDoc } from '@btps/sdk/trust';
 
 async function sendTrustRequest(recipient: string, companyInfo: Omit<BTPTrustReqDoc, 'id'>) {
@@ -312,7 +323,7 @@ async function sendTrustRequest(recipient: string, companyInfo: Omit<BTPTrustReq
     recipient,
     { accountName, domainName, pemFiles: { privateKey, publicKey } },
     {
-      version: '1.1.0',
+      version: artifactVersion({ type: 'TRUST_REQ', document: trustRequest }),
       type: 'TRUST_REQ',
       from,
       to: recipient,

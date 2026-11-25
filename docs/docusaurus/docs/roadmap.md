@@ -16,9 +16,10 @@ what matters to you.
 | **1.3** | General release      | Stable. The SDK's unit tests cover 100% of its code.                                                   |
 
 **Every item after 1.2 is a plan, not a promise.** Each gets a design before it
-is built, and may change or move to a later release. A server refuses artifacts of
-another protocol version, so a 1.2 feature never reaches a 1.1 server that
-cannot understand it.
+is built, and may change or move to a later release. A 1.2 server takes 1.1
+artifacts, and a 1.2 sender stamps an artifact `1.2.0` only when it uses
+something 1.2 adds. A 1.1 server refuses that version, so a 1.2 feature never
+reaches a server that cannot understand it.
 
 **Tell us what you need.** Open an
 [issue on GitHub](https://github.com/openbtps/btps-node/issues) to ask for
@@ -64,6 +65,21 @@ phone plan can be signed over BTPS:
   line too;
 - an optional **trusted timestamp** on each answer, so it still proves when it
   was signed after keys have rotated.
+
+### Documents
+
+- **BoundView:** a document may carry its own look, signed with it, every fact
+  drawn from its signed data. A receiver checks it before showing it, and shows
+  its own view of the data when a check fails. The optional `@btps/boundview`
+  package captures one from a platform's own preview and draws a received one.
+- **More in each document:** notes that say how they are written (text or
+  markdown), discounts, totals before tax, what each line-item column holds,
+  who a document is for, and a letter's or agreement's signatory.
+- **Withdrawing a proposal:** the payer can take back a proposal about an
+  invoice that has not been answered, such as `paid` or `disputed`
+  (`withdrawn`), and propose again later.
+- **A send's document type**, named on the envelope, so a receiver checks it
+  against what the trust grants.
 
 ### Key rotation
 

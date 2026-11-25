@@ -169,6 +169,17 @@ const sendResponse = await agent.command(
 );
 ```
 
+The agent stamps the artifact `1.1.0` unless the document uses something 1.2 adds, then `1.2.0`. A `receipt`, `payslip`, `letter` or, since 1.2, an `agreement` is sent the same way.
+
+### Since 1.2
+
+- **Trust permissions**: `trust.request` takes `permissions`, `entityType` and `given` in its options, and `trust.respond` takes `granted` ([Trust permissions](../../features/trustPermissions.md)).
+- **Details refresh**: `details.changed`, `details.request` and `details.respond` tell, ask and answer about a trust's details ([Details refresh](../../features/detailsRefresh.md)).
+- **A send's document type**: `artifact.send` takes `documentType`, for a trust with permissions ([A send's document type](../../features/documentTypes.md)).
+- **The device's own key**: `agent.openResult(entry)` opens an encrypted fetch result whose key the provider wrapped for this device ([Devices](../../features/devices.md)).
+
+Every command and option: [Btps Agent Commands](../../client/btpsAgent/commands.md).
+
 ## 3. Command Response Handling
 
 ### Response Structure

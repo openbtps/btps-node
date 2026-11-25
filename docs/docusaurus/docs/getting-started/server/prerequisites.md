@@ -30,7 +30,7 @@ nvm use 24
 
 The BTPS SDK uses ES modules, so ensure your `package.json` includes:
 
-```json
+```json sketch
 {
   "type": "module"
 }
@@ -68,12 +68,7 @@ pnpm add @btps/sdk
 </TabItem>
 </Tabs>
 
-```bash
-# Generate keys for your server identity
-npx @btps/sdk generate-keys your-server-identity
-```
-
-Or programmatically:
+The SDK has no key-generation command: generate keys in code.
 
 ```typescript
 import { getBTPKeyPair, generateKeys } from '@btps/sdk/crypto';
@@ -187,7 +182,7 @@ const base64Key = pemToBase64(publicKey);
 // Create DNS record content
 const dnsRecord = `k=rsa;v=1.1.0;p=${base64Key}`;
 
-console.log('DNS TXT Record for: btps1._btps.billing.yourdomain.com');
+console.log('DNS TXT Record for: btps1._btps.identity.billing.yourdomain.com');
 console.log('Content:', dnsRecord);
 ```
 
@@ -224,9 +219,9 @@ BTPS identities follow the format: `account$domain.com`
 - Domain: valid domain name
 - Separator: `$` character
 
-## TLS Certificate (Optional)
+## TLS Certificate
 
-For production deployments, you'll need TLS certificates for secure communication:
+BTPS runs only over TLS: every server needs a certificate and its key.
 
 ```bash
 # Generate self-signed certificate for development

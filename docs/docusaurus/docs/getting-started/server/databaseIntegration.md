@@ -62,6 +62,10 @@ const server = new BtpsServer({
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
   trustStore, // Your custom implementation
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   connectionTimeoutMs: 30000,
   middlewarePath: './btps.middleware.mjs',
@@ -75,8 +79,11 @@ await server.start();
 Similar to trust stores, you can implement custom identity stores for production deployments:
 
 ```typescript
+import { computeId } from '@btps/sdk';
 import { BtpsServer } from '@btps/sdk/server';
-import { AbstractIdentityStore, BTPIdentityRecord } from '@btps/sdk/storage';
+import { AbstractIdentityStore } from '@btps/sdk/storage';
+import type { BTPIdentityRecord, IdentityPubKeyRecord } from '@btps/sdk/storage';
+import type { BTPKeyChainRecord } from '@btps/sdk/trust';
 import { MongoClient } from 'mongodb';
 import { readFileSync } from 'fs';
 
@@ -97,9 +104,12 @@ class MongoIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
     return record || undefined;
   }
 
-  async create(record: BTPIdentityRecord, computedId: string): Promise<BTPIdentityRecord> {
+  async create(
+    record: Omit<BTPIdentityRecord, 'id'>,
+    computedId?: string,
+  ): Promise<BTPIdentityRecord> {
     const db = this.client.db();
-    const newRecord = { ...record, id: computedId };
+    const newRecord = { ...record, id: computedId ?? computeId(record.identity) };
     await db.collection(this.collection).insertOne(newRecord);
     return newRecord;
   }
@@ -126,25 +136,19 @@ class MongoIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
 
   // Identity-specific methods
   // The server passes computeId(identity): the record id, used as given
-  async getPublicKeyRecord(computedId: string): Promise<BTPIdentityRecord | undefined> {
-    const db = this.client.db();
-    const record = await db.collection(this.collection).findOne({ id: computedId });
-    return record || undefined;
+  async getPublicKeyRecord(
+    computedId: string,
+    selector?: string,
+  ): Promise<IdentityPubKeyRecord | undefined> {
+    const record = await this.getById(computedId);
+    if (!record) return undefined;
+    const pointer = selector ?? record.currentSelector;
+    return record.publicKeys.find((key) => key.selector === pointer);
   }
 
-  async storePublicKeyRecord(
-    identity: string,
-    publicKeyRecord: BTPIdentityRecord,
-  ): Promise<BTPIdentityRecord> {
-    const db = this.client.db();
-    const result = await db
-      .collection(this.collection)
-      .findOneAndUpdate(
-        { identity },
-        { $set: publicKeyRecord },
-        { upsert: true, returnDocument: 'after' },
-      );
-    return result.value!;
+  // Since 1.2, optional: the identity's key chain, sent to a lookup that asks for it
+  async getKeyChain(computedId: string): Promise<BTPKeyChainRecord[] | undefined> {
+    return (await this.getById(computedId))?.keyChain;
   }
 }
 
@@ -167,6 +171,10 @@ const server = new BtpsServer({
   },
   trustStore, // Your custom trust store
   identityStore, // Your custom identity store
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   connectionTimeoutMs: 30000,
   middlewarePath: './btps.middleware.mjs',
@@ -184,6 +192,7 @@ For development or simple deployments, you can use the built-in storage classes:
 ```typescript
 import { BtpsServer } from '@btps/sdk/server';
 import { JsonTrustStore } from '@btps/sdk/trust';
+import { readFileSync } from 'fs';
 
 const trustStore = new JsonTrustStore({
   connection: './trust.json',
@@ -197,6 +206,10 @@ const server = new BtpsServer({
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
   trustStore,
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   middlewarePath: './btps.middleware.mjs',
 });
@@ -210,6 +223,7 @@ await server.start();
 import { BtpsServer } from '@btps/sdk/server';
 import { JsonTrustStore } from '@btps/sdk/trust';
 import { JsonIdentityStore } from '@btps/sdk/storage';
+import { readFileSync } from 'fs';
 
 const trustStore = new JsonTrustStore({
   connection: './trust.json',
@@ -228,6 +242,10 @@ const server = new BtpsServer({
   },
   trustStore,
   identityStore,
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   middlewarePath: './btps.middleware.mjs',
 });
@@ -238,6 +256,7 @@ await server.start();
 ```typescript
 import { BtpsServer } from '@btps/sdk/server';
 import { JsonTrustStore } from '@btps/sdk/trust';
+import { readFileSync } from 'fs';
 
 const trustStore = new JsonTrustStore({
   connection: './trust.json',
@@ -251,6 +270,10 @@ const server = new BtpsServer({
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
   trustStore,
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   middlewarePath: './btps.middleware.mjs',
 });
@@ -267,6 +290,7 @@ import { BtpsServer } from '@btps/sdk/server';
 import { JsonTrustStore } from '@btps/sdk/trust';
 import { MongoTrustStore } from './storage/MongoTrustStore';
 import { PostgresTrustStore } from './storage/PostgresTrustStore';
+import { readFileSync } from 'fs';
 
 async function createTrustStore() {
   const storageType = process.env.STORAGE_TYPE || 'json';
@@ -335,6 +359,10 @@ const server = new BtpsServer({
   },
   trustStore,
   identityStore,
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: parseInt(process.env.PORT || '3443'),
   connectionTimeoutMs: parseInt(process.env.CONNECTION_TIMEOUT || '30000'),
   middlewarePath: process.env.MIDDLEWARE_PATH || './btps.middleware.mjs',
@@ -375,6 +403,7 @@ For multi-tenant applications, you can use different storage backends per tenant
 ```typescript
 import { BtpsServer } from '@btps/sdk/server';
 import { MongoTrustStore } from './storage/MongoTrustStore';
+import { readFileSync } from 'fs';
 
 class MultiTenantTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   private stores: Map<string, AbstractTrustStore<BTPTrustRecord>> = new Map();
@@ -401,18 +430,29 @@ class MultiTenantTrustStore extends AbstractTrustStore<BTPTrustRecord> {
   }
 
   async create(record: Omit<BTPTrustRecord, 'id'>, computedId?: string): Promise<BTPTrustRecord> {
-    const tenantId = this.extractTenantId(
-      computedId || computeTrustId(record.senderId, record.receiverId),
-    );
-    return this.getStoreForTenant(tenantId).create(record, computedId);
+    // The tenant is the one whose user receives under this trust
+    const tenantId = tenantFromIdentity(record.receiverId);
+    const created = await this.getStoreForTenant(tenantId).create(record, computedId);
+    this.tenantOf.set(created.id, tenantId);
+    return created;
   }
 
   // Implement other methods similarly...
 
+  // A record id (computeTrustId) is a SHA-256 hash: no tenant can be read from it.
+  // Keep which tenant each record belongs to; in production, in your own database.
+  private tenantOf = new Map<string, string>();
+
   private extractTenantId(computedId: string): string {
-    // Extract tenant ID from computedId format: 'tenant:from:to'
-    return computedId.split(':')[0];
+    const tenantId = this.tenantOf.get(computedId);
+    if (!tenantId) throw new Error(`No tenant known for record ${computedId}`);
+    return tenantId;
   }
+}
+
+// The tenant of an identity on your platform: 'user$tenant.com' is tenant 'tenant'
+function tenantFromIdentity(identity: string): string {
+  return identity.split('$')[1].split('.')[0];
 }
 
 class MultiTenantIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
@@ -439,9 +479,14 @@ class MultiTenantIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> 
     return this.getStoreForTenant(tenantId).getById(computedId);
   }
 
-  async create(record: BTPIdentityRecord, computedId: string): Promise<BTPIdentityRecord> {
-    const tenantId = this.extractTenantId(computedId);
-    return this.getStoreForTenant(tenantId).create(record, computedId);
+  async create(
+    record: Omit<BTPIdentityRecord, 'id'>,
+    computedId?: string,
+  ): Promise<BTPIdentityRecord> {
+    const tenantId = tenantFromIdentity(record.identity);
+    const created = await this.getStoreForTenant(tenantId).create(record, computedId);
+    this.tenantOf.set(created.id, tenantId);
+    return created;
   }
 
   async update(computedId: string, patch: Partial<BTPIdentityRecord>): Promise<BTPIdentityRecord> {
@@ -454,27 +499,22 @@ class MultiTenantIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> 
     return this.getStoreForTenant(tenantId).delete(computedId);
   }
 
-  async getPublicKeyRecord(computedId: string): Promise<BTPIdentityRecord | undefined> {
+  async getPublicKeyRecord(
+    computedId: string,
+    selector?: string,
+  ): Promise<IdentityPubKeyRecord | undefined> {
     const tenantId = this.extractTenantId(computedId);
-    return this.getStoreForTenant(tenantId).getPublicKeyRecord(computedId);
+    return this.getStoreForTenant(tenantId).getPublicKeyRecord(computedId, selector);
   }
 
-  async storePublicKeyRecord(
-    identity: string,
-    publicKeyRecord: BTPIdentityRecord,
-  ): Promise<BTPIdentityRecord> {
-    const tenantId = this.extractTenantIdFromIdentity(identity);
-    return this.getStoreForTenant(tenantId).storePublicKeyRecord(identity, publicKeyRecord);
-  }
+  // A record id (computeId) is a SHA-256 hash: no tenant can be read from it.
+  // Keep which tenant each record belongs to; in production, in your own database.
+  private tenantOf = new Map<string, string>();
 
   private extractTenantId(computedId: string): string {
-    // Extract tenant ID from computedId format: 'tenant:identity'
-    return computedId.split(':')[0];
-  }
-
-  private extractTenantIdFromIdentity(identity: string): string {
-    // Extract tenant ID from identity format: 'user$tenant.com'
-    return identity.split('$')[1].split('.')[0];
+    const tenantId = this.tenantOf.get(computedId);
+    if (!tenantId) throw new Error(`No tenant known for record ${computedId}`);
+    return tenantId;
   }
 }
 
@@ -517,6 +557,10 @@ const server = new BtpsServer({
   },
   trustStore: multiTenantTrustStore,
   identityStore: multiTenantIdentityStore,
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   middlewarePath: './btps.middleware.mjs',
 });
@@ -529,8 +573,13 @@ const server = new BtpsServer({
 ```typescript
 import { BtpsServer } from '@btps/sdk/server';
 import { BTPErrorException } from '@btps/sdk/error';
+import { readFileSync } from 'fs';
 
 const server = new BtpsServer({
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   trustStore,
   onError: (error: BTPErrorException) => {
@@ -554,8 +603,13 @@ const server = new BtpsServer({
 
 ```typescript
 import { BtpsServer } from '@btps/sdk/server';
+import { readFileSync } from 'fs';
 
 const server = new BtpsServer({
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   trustStore,
 });
@@ -576,16 +630,14 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
           },
           artifact.id,
         ),
+        // A status alone: an answer carries only a document the protocol defines
         type: 'btps_response',
-        document: {
-          status: 'healthy',
-          timestamp: new Date().toISOString(),
-          uptime: process.uptime(),
-        },
       });
     } catch (error) {
+      // A plain answer goes as given: a numeric code, or a string code with its status
       return resCtx.sendError({
         code: 'HEALTH_CHECK_FAILED',
+        status: 503,
         message: 'Trust store connectivity failed',
       });
     }
@@ -618,6 +670,7 @@ TLS_KEY=base64_encoded_key
 
 ```typescript
 import { BtpsServer } from '@btps/sdk/server';
+import { readFileSync } from 'fs';
 
 function validateConfig() {
   const required = ['STORAGE_TYPE', 'PORT'];
@@ -637,6 +690,10 @@ async function startServer() {
 
   const trustStore = await createTrustStore();
   const server = new BtpsServer({
+    tlsOptions: {
+      key: readFileSync('./keys/tls-key.pem', 'utf8'),
+      cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+    },
     port: parseInt(process.env.PORT!),
     trustStore,
     connectionTimeoutMs: parseInt(process.env.CONNECTION_TIMEOUT || '30000'),
@@ -656,6 +713,7 @@ startServer().catch(console.error);
 ```typescript
 import { BtpsServer } from '@btps/sdk/server';
 import { MockTrustStore } from './test/MockTrustStore';
+import { readFileSync } from 'fs';
 
 describe('BtpsServer with Custom Storage', () => {
   let server: BtpsServer;
@@ -664,6 +722,10 @@ describe('BtpsServer with Custom Storage', () => {
   beforeEach(() => {
     mockTrustStore = new MockTrustStore();
     server = new BtpsServer({
+      tlsOptions: {
+        key: readFileSync('./keys/tls-key.pem', 'utf8'),
+        cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+      },
       port: 0, // Use random port for testing
       trustStore: mockTrustStore,
     });
@@ -687,6 +749,7 @@ describe('BtpsServer with Custom Storage', () => {
 ```typescript
 import { BtpsServer } from '@btps/sdk/server';
 import { MongoTrustStore } from './storage/MongoTrustStore';
+import { readFileSync } from 'fs';
 
 describe('MongoDB Integration', () => {
   let server: BtpsServer;
@@ -704,6 +767,10 @@ describe('MongoDB Integration', () => {
     });
 
     server = new BtpsServer({
+      tlsOptions: {
+        key: readFileSync('./keys/tls-key.pem', 'utf8'),
+        cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+      },
       port: 0,
       trustStore,
     });

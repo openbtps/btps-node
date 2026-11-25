@@ -90,7 +90,7 @@ BTPS provides:
    - All messages are signed and encrypted using strong cryptography: RSA-2048 or larger keys, AES-256-GCM and SHA-256 ([algorithms](./protocol/security/algorithm.md)).
    - Servers verify sender identity, trust status, and document integrity before accepting any message.
 4. **Key Rotation & Revocation:**
-   - Key changes are managed via DNS records. Trust can be revoked or expired at any time.
+   - Key changes are managed via DNS records and, since 1.2, a signed key chain each identity's host serves, so a rotated or compromised key is refused. Trust can be revoked or expired at any time.
 5. **Extensible & Auditable:**
    - Plug in custom trust stores (file, SQL, NoSQL, cloud), middleware, and integrations (webhooks, metrics, etc.).
    - All trust and message operations are logged for audit and compliance.
@@ -185,8 +185,8 @@ graph TD
     A[Trust Request, signed by the sender] --> B[Receiver verifies the signature against the sender's DNS key]
     B --> C[Receiver decides: accept, reject or block]
     C --> D[Trust Response, signed by the receiver]
-    D --> E[Documents: invoices, receipts, payslips, letters]
-    E --> F[Lifecycle events: paid, disputed, refunded]
+    D --> E[Documents: invoices, receipts, payslips, letters, agreements]
+    E --> F[Events: paid, disputed, refunded, withdrawn, an agreement accepted or declined]
 ```
 
 ## Architecture Components
@@ -226,7 +226,7 @@ graph TD
 
 - **Client SDK for sending messages:** Provides easy-to-use libraries for integrating BTPS message sending into any application or workflow. Handles signing, encryption, and artifact creation automatically.
 - **Server SDK for receiving and processing:** Simplifies the implementation of BTPS-compliant inboxes and trust management on the server side. Includes utilities for decryption, signature verification, and trust checks.
-- **CLI tools for key management and testing:** Command-line utilities for generating keys, rotating keys, managing trust records, and testing protocol flows. Useful for both development and operations teams.
+- **Command-line tools:** The SDK ships `btps-verify-evidence`, which checks an agreement's evidence bundle offline. A BTPS CLI, to try BTPS from a terminal, is planned ([Roadmap](./roadmap.md)); until then, keys are generated in code (`getBTPKeyPair`).
 - **Middleware system for extensibility:** Allows organizations to add custom logic (e.g., compliance checks, analytics, custom notifications) to the BTPS workflow without modifying core protocol logic.
 
 ## Use Cases

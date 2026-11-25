@@ -19,10 +19,10 @@ npm init -y
 
 Update your `package.json` to use ES modules:
 
-```json
+```json sketch
 {
   "name": "btps-server",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "nodemon --exec node --loader tsx src/index.ts",
@@ -30,7 +30,7 @@ Update your `package.json` to use ES modules:
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@btps/sdk": "^1.1.0"
+    "@btps/sdk": "^1.2.0-rc.3.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
@@ -129,26 +129,23 @@ mkdir data
 
 This will store your trust records in `data/trust.json`.
 
-## TLS Configuration (Optional)
+## TLS Certificate
 
-For development, you can run without TLS certificates. For production, generate certificates:
+BTPS runs only over TLS, so the server always needs a certificate and its key (`tlsOptions`). For development, generate a self-signed one; for production, use a certificate from your CA:
 
 ```bash
 # Create keys directory
-mkdir keys
+mkdir -p keys
 
-# Generate self-signed certificate for development
-openssl req -x509 -newkey rsa:4096 -keyout keys/private.pem -out keys/cert.pem -days 365 -nodes -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
-
-# Set environment variable to use TLS
-export USE_TLS=true
+# Generate a self-signed certificate for development
+openssl req -x509 -newkey rsa:4096 -keyout keys/tls-key.pem -out keys/tls-cert.pem -days 365 -nodes -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
 ```
 
 ## TypeScript Configuration
 
 Create `tsconfig.json`:
 
-```json
+```json sketch
 {
   "compilerOptions": {
     "target": "ES2022",
@@ -208,21 +205,13 @@ const client = new BtpsClient({
 
 async function testConnection() {
   try {
-    // Create a simple control artifact to test connection
-    const controlArtifact = {
-      version: '1.1.0',
-      id: 'test_control_123',
-      issuedAt: new Date().toISOString(),
-      action: 'QUIT' as const,
-    };
+    // Sends a PING control artifact, which every 1.1 and 1.2 server answers
+    const { version, error } = await client.getServerVersion();
 
-    const result = await client.send(controlArtifact);
-
-    if (result.error) {
-      console.error('❌ Connection failed:', result.error.message);
+    if (error) {
+      console.error('❌ Connection failed:', error.message);
     } else {
-      console.log('✅ Connected to BTPS server');
-      console.log('Response:', result.response);
+      console.log('✅ Connected to BTPS server, which speaks', version);
     }
   } catch (error) {
     console.error('❌ Failed to connect:', error);
@@ -251,7 +240,7 @@ Your basic server now includes:
 - **Middleware Support**: Custom middleware for request processing
 - **Error Handling**: Graceful error management
 - **Graceful Shutdown**: Proper cleanup on exit
-- **Protocol Version**: BTPS 1.1.0 compliance
+- **Protocol Version**: speaks BTPS 1.2.0, and takes 1.1 artifacts from 1.1 senders
 
 ## Environment Variables
 
@@ -265,7 +254,8 @@ SERVER_PRIVATE_KEY_PATH=./keys/your-server-identity-private.pem
 
 # Server configuration
 PORT=3443
-USE_TLS=true
+TLS_KEY_PATH=./keys/tls-key.pem
+TLS_CERT_PATH=./keys/tls-cert.pem
 CONNECTION_TIMEOUT_MS=30000
 
 # Trust store configuration
@@ -293,7 +283,10 @@ const server = new BtpsServer({
     entityName: process.env.TRUST_STORE_ENTITY || 'trusted_senders',
   }),
   port: parseInt(process.env.PORT || '3443'),
-  options: process.env.USE_TLS === 'true' ? tlsOptions : undefined,
+  tlsOptions: {
+    key: readFileSync(process.env.TLS_KEY_PATH || './keys/tls-key.pem', 'utf8'),
+    cert: readFileSync(process.env.TLS_CERT_PATH || './keys/tls-cert.pem', 'utf8'),
+  },
   connectionTimeoutMs: parseInt(process.env.CONNECTION_TIMEOUT_MS || '30000'),
 });
 ```

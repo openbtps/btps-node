@@ -267,7 +267,7 @@ const result = await agent.command(
   actionType,    // AgentAction (e.g., 'system.ping', 'trust.request')
   to,            // string - the recipient for a send; your own identity for anything else
   document?,     // optional - document payload for certain commands
-  options?,      // optional - cryptographic options
+  options?,      // optional - cryptographic options and envelope fields
   timeoutMs?     // optional - reply wait for this command (at least 10000)
 );
 ```
@@ -361,7 +361,7 @@ if (result.error) {
 
 ## 7. Cryptographic Options
 
-You can customize cryptographic behavior for specific commands. `encryption` applies to the document the agent sends on (`artifact.send`, `event.send`); it is encrypted to the recipient's public key.
+You can customize cryptographic behavior for specific commands. `encryption` applies to the document of a command that sends (`artifact.send`, `event.send`, `trust.request`, `trust.respond` and, since 1.2, the `details.*` commands); it is encrypted to the recipient's public key. A `details.respond` is always encrypted.
 
 ```js
 const cryptoOptions = {
@@ -376,6 +376,8 @@ const cryptoOptions = {
 
 const result = await agent.command('artifact.send', 'client$company.com', invoice, cryptoOptions);
 ```
+
+Since 1.2, `options` also carries the envelope fields some commands take: trust permissions on `trust.request` and `trust.respond`, `documentType` and `syncOf` on `artifact.send`, and `details` on the `details.*` commands. Each is listed in [Command Options](./commands.md#command-options).
 
 ## 8. Agent Lifecycle Management
 

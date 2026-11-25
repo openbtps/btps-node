@@ -25,10 +25,11 @@ This guide helps you diagnose, debug, and resolve issues when using the BTPS Cli
 
 ### **Validation and Protocol Errors**
 
-- **BTP_ERROR_VALIDATION:** Artifact validation failed (schema, format, etc.)
-- **BTP_ERROR_SIG_VERIFICATION:** Signature verification failed
+- **BTP_ERROR_VALIDATION:** Artifact validation failed (schema, format, etc.). Since 1.2 also an artifact stamped lower than what it uses: "stamped 1.1.0, but it uses what 1.2.0 adds"
+- **BTP_ERROR_SIG_VERIFICATION:** Signature verification failed, or, with `requireSignedBy`, an answer not signed by the identity and selector it names
 - **BTP_ERROR_UNSUPPORTED_ENCRYPT:** Encryption operation failed
-- **BTP_ERROR_VERSION_UNSUPPORTED:** The receiver does not speak this protocol version
+- **BTP_ERROR_VERSION_UNSUPPORTED:** The receiver does not speak this protocol version; `error.meta.receiverVersion` is the version it speaks
+- **BTP_ERROR_DOCUMENT_TYPE_MISMATCH:** Since 1.2: the document is not the `documentType` its envelope names
 
 ### **Errors the Receiver Answers With**
 

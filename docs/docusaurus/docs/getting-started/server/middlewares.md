@@ -67,6 +67,10 @@ const server = new BtpsServer({
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
   trustStore,
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   middlewarePath: './btps.middleware.mjs', // Add this line
   connectionTimeoutMs: 30000,

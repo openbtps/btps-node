@@ -80,6 +80,10 @@ const server = new BtpsServer({
   },
   trustStore,
   identityStore, // Optional but required for identity lookup support
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   middlewarePath: './btps.middleware.mjs',
 });
@@ -92,15 +96,20 @@ await server.start();
 The identity store must implement the `AbstractIdentityStore` interface:
 
 ```typescript
-import { AbstractIdentityStore, BTPIdentityRecord } from '@btps/sdk/storage';
+import { AbstractIdentityStore } from '@btps/sdk/storage';
+import type { BTPIdentityRecord, IdentityPubKeyRecord } from '@btps/sdk/storage';
+import type { BTPKeyChainRecord } from '@btps/sdk/trust';
 
 class CustomIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
   async getById(computedId: string): Promise<BTPIdentityRecord | undefined> {
     // Return identity record by computed ID
   }
 
-  async create(record: BTPIdentityRecord, computedId: string): Promise<BTPIdentityRecord> {
-    // Create new identity record
+  async create(
+    record: Omit<BTPIdentityRecord, 'id'>,
+    computedId?: string,
+  ): Promise<BTPIdentityRecord> {
+    // Create new identity record, with computedId (or computeId(record.identity)) as its id
   }
 
   async update(computedId: string, patch: Partial<BTPIdentityRecord>): Promise<BTPIdentityRecord> {
@@ -115,16 +124,16 @@ class CustomIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
   async getPublicKeyRecord(
     computedId: string,
     selector?: string,
-  ): Promise<BTPIdentityRecord | undefined> {
-    // Return the public key record whose id is computedId (computeId(identity),
-    // computed by the server), at the selector. Never hash computedId again.
+  ): Promise<IdentityPubKeyRecord | undefined> {
+    // Return the public key of the record whose id is computedId (computeId(identity),
+    // computed by the server), at the selector, or at its currentSelector when none
+    // is given. Never hash computedId again.
   }
 
-  async storePublicKeyRecord(
-    identity: string,
-    publicKeyRecord: BTPIdentityRecord,
-  ): Promise<BTPIdentityRecord> {
-    // Store public key record for identity
+  // Since 1.2, optional: the identity's key chain, oldest first, which the server
+  // sends to a lookup that asks for it. None for an identity that never rotated.
+  async getKeyChain(computedId: string): Promise<BTPKeyChainRecord[] | undefined> {
+    return (await this.getById(computedId))?.keyChain;
   }
 }
 ```
@@ -139,6 +148,7 @@ interface BTPIdentityRecord {
   identity: string; // User identity (e.g., "alice$saas.com")
   currentSelector: string; // Current key selector
   publicKeys: IdentityPubKeyRecord[]; // Array of public key records
+  keyChain?: BTPKeyChainRecord[]; // Since 1.2: the identity's key rotations, oldest first
   createdAt: string; // ISO timestamp
   updatedAt?: string; // ISO timestamp
   metadata?: Record<string, unknown>; // Optional metadata
@@ -146,7 +156,7 @@ interface BTPIdentityRecord {
 
 type IdentityPubKeyRecord = {
   selector: string; // Key selector (e.g., "btps1")
-  publicKey: string; // Base64-encoded public key
+  publicKey: string; // PEM public key
   keyType: 'rsa'; // Key type
   version: string; // Key version
   createdAt: string; // ISO timestamp
@@ -192,11 +202,13 @@ sequenceDiagram
 
 ### Response Structure
 
+The SDK's client sends a `1.2.0` lookup, and asks again as `1.1.0` when a 1.1 host refuses the version. To a `1.2.0` lookup, the server's answer names the `identity` it answers for and, when the lookup asks with `keyChain: true`, carries the identity's key chain. The client refuses an answer to a `1.2.0` lookup unless it answers this lookup (`reqId`), is fresh (`issuedAt` within 300 seconds) and names the identity asked about.
+
 The server responds to identity lookup requests with this structure:
 
-```json
+```json btps=response
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": {
     "ok": true,
     "code": 200,
@@ -210,14 +222,15 @@ The server responds to identity lookup requests with this structure:
     "selector": "btps1",
     "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
     "keyType": "rsa",
-    "version": "1.1.0"
+    "version": "1.1.0",
+    "identity": "alice$saas.com"
   },
   "signedBy": "admin$saas.com",
   "selector": "btps1",
   "signature": {
     "algorithmHash": "sha256",
     "value": "base64-encoded-signature",
-    "fingerprint": "sha64-base64-fingerprint"
+    "fingerprint": "base64-encoded-fingerprint"
   }
 }
 ```
@@ -237,7 +250,7 @@ The server responds to identity lookup requests with this structure:
 
 When a SaaS-managed sender needs to send documents:
 
-```json
+```json sketch
 {
   "delegation": {
     "agentId": "alice_device_123",
@@ -318,9 +331,8 @@ const identityStore = new JsonIdentityStore({
   connection: './data/identities.json',
 });
 
-// Add user identity
-await identityStore.storePublicKeyRecord('alice$saas.com', {
-  id: 'alice_saas_com',
+// Add user identity: its id is computeId('alice$saas.com'), computed for you
+await identityStore.create({
   identity: 'alice$saas.com',
   currentSelector: 'btps1',
   publicKeys: [
@@ -340,7 +352,9 @@ await identityStore.storePublicKeyRecord('alice$saas.com', {
 ### Database Identity Store
 
 ```typescript
-import { AbstractIdentityStore, BTPIdentityRecord } from '@btps/sdk/storage';
+import { AbstractIdentityStore } from '@btps/sdk/storage';
+import type { BTPIdentityRecord, IdentityPubKeyRecord } from '@btps/sdk/storage';
+import type { BTPKeyChainRecord } from '@btps/sdk/trust';
 import { MongoClient } from 'mongodb';
 
 class MongoIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
@@ -356,32 +370,26 @@ class MongoIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
   async getPublicKeyRecord(
     computedId: string,
     selector?: string,
-  ): Promise<BTPIdentityRecord | undefined> {
+  ): Promise<IdentityPubKeyRecord | undefined> {
     const db = this.client.db();
-    const query = selector
-      ? { id: computedId, 'publicKeys.selector': selector }
-      : { id: computedId };
-
-    const record = await db.collection(this.collection).findOne(query);
-    return record || undefined;
+    const record = await db
+      .collection<BTPIdentityRecord>(this.collection)
+      .findOne({ id: computedId });
+    if (!record) return undefined;
+    const pointer = selector ?? record.currentSelector;
+    return record.publicKeys.find((key) => key.selector === pointer);
   }
 
-  async storePublicKeyRecord(
-    identity: string,
-    publicKeyRecord: BTPIdentityRecord,
-  ): Promise<BTPIdentityRecord> {
+  // Since 1.2, optional: the identity's key chain
+  async getKeyChain(computedId: string): Promise<BTPKeyChainRecord[] | undefined> {
     const db = this.client.db();
-    const result = await db
-      .collection(this.collection)
-      .findOneAndUpdate(
-        { identity },
-        { $set: publicKeyRecord },
-        { upsert: true, returnDocument: 'after' },
-      );
-    return result.value!;
+    const record = await db
+      .collection<BTPIdentityRecord>(this.collection)
+      .findOne({ id: computedId });
+    return record?.keyChain;
   }
 
-  // Implement other required methods...
+  // Implement getById, create, update and delete...
 }
 ```
 
@@ -426,6 +434,10 @@ const server = new BtpsServer({
   },
   trustStore,
   identityStore,
+  tlsOptions: {
+    key: readFileSync(process.env.TLS_KEY_PATH || './keys/tls-key.pem', 'utf8'),
+    cert: readFileSync(process.env.TLS_CERT_PATH || './keys/tls-cert.pem', 'utf8'),
+  },
   port: parseInt(process.env.PORT || '3443'),
   middlewarePath: process.env.MIDDLEWARE_PATH || './btps.middleware.mjs',
 });
@@ -439,38 +451,27 @@ await server.start();
 
 ### Common Error Scenarios
 
-1. **Identity Not Found**
+1. **Identity Not Found**: the server has no record for the identity, and answers:
 
    ```json
    {
-     "ok": false,
-     "code": 404,
-     "message": "Identity not found",
-     "type": "btps_error"
+     "version": "1.2.0",
+     "status": {
+       "ok": false,
+       "code": 404,
+       "message": "Identity not found",
+       "error": "BTP_ERROR_IDENTITY_NOT_FOUND"
+     },
+     "id": "6c1a0b52-8f6e-4d7b-9a1c-2e3f4a5b6c7d",
+     "issuedAt": "2025-01-15T10:30:15Z",
+     "type": "btps_error",
+     "reqId": "identity_lookup_123456"
    }
    ```
 
-2. **DNS Resolution Failed**
+2. **No Operator**: the domain's `_btps.host` record names no `op`, so no host may answer for its addresses. The sender's client gives up with `BTP_ERROR_IDENTITY_NOT_FOUND` before asking.
 
-   ```json
-   {
-     "ok": false,
-     "code": 500,
-     "message": "Could not resolve DNS records",
-     "type": "btps_error"
-   }
-   ```
-
-3. **Signature Verification Failed**
-
-   ```json
-   {
-     "ok": false,
-     "code": 403,
-     "message": "Signature verification failed",
-     "type": "btps_error"
-   }
-   ```
+3. **Answer Refused by the Sender**: the sender's client refuses an answer not signed by the operator (`BTP_ERROR_SIG_VERIFICATION`), or, to a `1.2.0` lookup, one that does not answer this lookup, is not fresh or names another identity (`BTP_ERROR_VALIDATION`).
 
 ### Error Recovery
 
@@ -556,34 +557,27 @@ SERVER_PRIVATE_KEY_PATH=./keys/private.pem
 import { BtpsClient } from '@btps/sdk/client';
 
 const client = new BtpsClient({
-  to: 'admin$saas.com',
+  to: 'alice$saas.com',
   maxRetries: 3,
   retryDelayMs: 1000,
   connectTimeoutMs: 5000, // wait to connect: at least 5000 ms
   replyTimeoutMs: 20000, // wait for the answer: at least 10000 ms
   host: 'localhost',
   port: 3443,
+  hostOperator: 'admin$saas.com', // with host: the operator that signs lookup answers
   btpMtsOptions: { rejectUnauthorized: false },
 });
 
 async function testIdentityLookup() {
   try {
-    const identityLookupRequest = {
-      version: '1.1.0',
-      id: 'test_lookup_123',
-      issuedAt: new Date().toISOString(),
-      identity: 'alice$saas.com',
-      from: 'test$example.com',
-      hostSelector: 'btps1',
-      identitySelector: 'btps1',
-    };
-
-    const result = await client.send(identityLookupRequest);
+    // Asks DNS first; with no key there, sends the lookup to the host and
+    // checks the operator's signed answer
+    const result = await client.resolveIdentity('alice$saas.com', 'test$example.com');
 
     if (result.error) {
       console.error('Identity lookup failed:', result.error);
     } else {
-      console.log('Identity lookup successful:', result.payload);
+      console.log('Identity lookup successful:', result.response.publicKey);
     }
   } catch (error) {
     console.error('Test failed:', error);
