@@ -67,8 +67,11 @@ The SDK ships `PemSigner` and `PemDecrypter` for a PEM key held in the process. 
 | `decryptVerify`                                                    | the receiver's PEM private key        | a `Decrypter`                                                |
 | Low level                                                          | `signBtpPayload`, `decryptBtpPayload` | `signBtpPayloadWithSigner`, `decryptBtpPayloadWithDecrypter` |
 | Low level, a piece at a time (since 1.2)                           | `decryptBtpPayloadStream`             | `decryptBtpPayloadStreamWithDecrypter`, with `unwrapKey`     |
+| Low level, signing a piece at a time (since 1.2)                   | `signBtpPayloadStream`                | `signBtpPayloadStreamWithSigner`, with `signDigest`          |
 
 A signature made through a `Signer` is byte-for-byte the one `signBtpPayload` makes with the same key, so the receiver cannot tell, and needs no change.
+
+Since 1.2, a `Signer` may also have the optional `signDigest`: it signs the SHA-256 digest of what is signed, giving the same signature `sign` gives over the data. `signBtpPayloadStreamWithSigner` needs it, because it never holds a large artifact whole ([Signing and verifying a piece at a time](./decryption.md#signing-and-verifying-a-piece-at-a-time)), and refuses a `Signer` without it. `PemSigner` has it. A `Signer` without it works everywhere else.
 
 ### A device's own key to an encrypted document
 
@@ -84,7 +87,7 @@ Since 1.2, a device reads an encrypted document with its own key, so the identit
 
 ### Example: AWS KMS
 
-The key is an asymmetric KMS key of spec `RSA_2048` (or larger): one key with usage `SIGN_VERIFY` for signing, and one with `ENCRYPT_DECRYPT` for decryption. KMS signs at most 4 KB of raw message, while an artifact can be much larger, so the signer sends KMS the SHA-256 digest and KMS signs that. The signature is the same as over the whole message.
+The key is an asymmetric KMS key of spec `RSA_2048` (or larger): one key with usage `SIGN_VERIFY` for signing, and one with `ENCRYPT_DECRYPT` for decryption. KMS signs at most 4 KB of raw message, while an artifact can be much larger, so the signer sends KMS the SHA-256 digest with `MessageType: 'DIGEST'`, and KMS signs that. The signature is the same as over the whole message. That is what `signDigest` asks for, so the signer below has it too, and can sign a large artifact a piece at a time.
 
 ```ts
 import { createHash, createPublicKey } from 'crypto';
@@ -109,10 +112,15 @@ export class KmsSigner implements Signer {
   }
 
   async sign(data: Uint8Array) {
+    return this.signDigest(createHash('sha256').update(data).digest());
+  }
+
+  // Since 1.2, optional: signs a SHA-256 digest, for signBtpPayloadStreamWithSigner.
+  async signDigest(digest: Uint8Array) {
     const { Signature } = await kms.send(
       new SignCommand({
         KeyId: this.keyId,
-        Message: createHash('sha256').update(data).digest(),
+        Message: digest,
         MessageType: 'DIGEST',
         SigningAlgorithm: 'RSASSA_PKCS1_V1_5_SHA_256',
       }),

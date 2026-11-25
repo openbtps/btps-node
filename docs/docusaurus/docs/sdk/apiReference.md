@@ -428,7 +428,7 @@ signEncrypt<T>(
 ```
 
 **Description:**
-Signs and (optionally) encrypts a BTPS document for secure transmission. Handles key lookup, encryption, and signature in one step. With encryption, the document is checked against its type's schema first, since no server can read it once encrypted. `id` and `issuedAt` are filled in when left out.
+Signs and (optionally) encrypts a BTPS document for secure transmission. Handles key lookup, encryption, and signature in one step. With encryption, the document is checked against its type's schema first, since no server can read it once encrypted. `id` and `issuedAt` are filled in when left out. Since 1.2, that check is exported as [checkDocumentToSend](#checkdecrypteddocument--checkdocumenttosend), for a platform that encrypts a piece at a time.
 
 `signEncrypt` signs the `version` it is given; it never stamps one, except that a trust request it shapes for a 1.1 receiver goes as `1.1.0`. Stamp the payload with `artifactVersion` (`@btps/sdk/server`): `1.1.0` unless it uses something 1.2 adds, then `1.2.0`. Since 1.2, a payload with `documentType` whose document is another type is refused with `BTP_ERROR_DOCUMENT_TYPE_MISMATCH` before anything is encrypted.
 
@@ -488,7 +488,7 @@ decryptVerify<T>(
 **Description:**
 Verifies the signature and (optionally) decrypts a received BTPS artifact. Ensures authenticity and privacy.
 
-It checks an opened document against its type's schema under the artifact's version. Since 1.2 it also checks that the document is the `documentType` its envelope names (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`), an opened trust request's or answer's values against the names on its envelope, and a details response's values; and it returns `boundView`, whether an opened document's BoundView may be shown, when it carries one.
+It checks an opened document against its type's schema under the artifact's version. Since 1.2 it also checks that the document is the `documentType` its envelope names (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`), an opened trust request's or answer's values against the names on its envelope, and a details response's values; and it returns `boundView`, whether an opened document's BoundView may be shown, when it carries one. Since 1.2, the checks it runs once it has decrypted are exported as [checkDecryptedDocument](#checkdecrypteddocument--checkdocumenttosend), for a platform that decrypts a piece at a time.
 
 When it decrypts a `BTPS_EVENT`, it also checks the event as the server checks an unencrypted one: a valid lifecycle event, carried under its own `id`, about an invoice between the artifact's `from` and `to`. If not, it returns a `BTP_ERROR_VALIDATION` error and no payload.
 
@@ -512,6 +512,63 @@ const { payload, error } = await decryptVerify(
   encryptedPayload,
   receiverPrivateKeyPem,
 );
+```
+
+---
+
+### checkDecryptedDocument / checkDocumentToSend
+
+```ts
+checkDecryptedDocument(
+  document: unknown,
+  envelope: BTPDocumentEnvelope,
+  options?: BTPDocumentCheckOptions
+): Promise<BTPErrorException | undefined>
+
+checkDocumentToSend(
+  document: unknown,
+  envelope: BTPDocumentEnvelope,
+  options?: BTPDocumentCheckOptions
+): BTPErrorException | undefined
+```
+
+**Description:**
+Since 1.2. The checks `decryptVerify` and `signEncrypt` run on an encrypted artifact's document, exported for a platform that decrypts or encrypts a piece at a time. `decryptVerify` and `signEncrypt` call these same functions, so the rules never differ. Each returns `undefined` when the document passes, otherwise the error `decryptVerify` or `signEncrypt` answers with.
+
+| Function                 | Runs what                                                                                                                                                                                                                                                     | When                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| `checkDecryptedDocument` | `decryptVerify`'s checks: the type's schema and the rules between the document and its envelope (`BTP_ERROR_VALIDATION`), the type `envelope.documentType` names (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`), and, for a trust request, that its verifier may verify | after decrypting (async) |
+| `checkDocumentToSend`    | `signEncrypt`'s checks: the type `envelope.documentType` names (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`), then the type's schema (`BTP_ERROR_VALIDATION`)                                                                                                          | before encrypting        |
+
+A document with its files held apart, each attachment's `content` empty (`''`) with its `size` and `sha256` as sent, is checked as it is: the schema checks nothing of an attachment's content. So a platform that writes each file somewhere private as it decrypts checks the rest of the document without reading the files back.
+
+With `{ boundView: 'whereDrawn' }`, the document's BoundView is not checked here. Use it only when the BoundView is drawn with `@btps/boundview`'s `renderBoundView`, which checks it before it draws and draws none that fails. Otherwise leave the option out, and the BoundView is checked here.
+
+See [Opening a large artifact, start to finish](../protocol/security/decryption.md#opening-a-large-artifact-start-to-finish).
+
+**Arguments:**
+
+- `document` (`unknown`, required): The opened document, or the document to send. Its files may be held apart, as above.
+- `envelope` (`BTPDocumentEnvelope`, required): The artifact without its `document`: at least its `type`, `version` and, when it has one, `documentType`. For `checkDecryptedDocument`, the whole envelope as it arrived, since some rules compare the document with other fields (`id`, `from`, `to`, `given`, `granted`, `details`). See [BTPDocumentEnvelope](./typesAndInterfaces.md#btpdocumentcheckoptions-and-btpdocumentenvelope).
+- `options` (`BTPDocumentCheckOptions`, optional): `{ boundView: 'whereDrawn' }`, as above.
+
+**Returns:**
+
+- `checkDecryptedDocument`: `Promise<BTPErrorException | undefined>`.
+- `checkDocumentToSend`: `BTPErrorException | undefined`.
+
+**Example:**
+
+```ts check
+import { checkDecryptedDocument, type BTPDocumentEnvelope } from '@btps/sdk/crypto';
+
+export async function checkOpened(
+  document: unknown, // decrypted a piece at a time, its files held apart
+  envelope: BTPDocumentEnvelope, // the artifact as it arrived, without its document
+): Promise<void> {
+  const problem = await checkDecryptedDocument(document, envelope);
+  if (problem) throw problem; // what decryptVerify would answer with
+}
 ```
 
 ---
@@ -621,7 +678,7 @@ decryptBtpPayload<T = unknown>(
 ```
 
 **Description:**
-Decrypts an AES-256-GCM encrypted payload using the receiver's private key and the provided encryption metadata.
+Decrypts an AES-256-GCM encrypted payload using the receiver's private key and the provided encryption metadata. The plaintext must be strict JSON (`assertStrictJson`), or `BTP_ERROR_CANONICAL_JSON` is returned. Since 1.2, it checks that with a tokenizer first, which builds nothing, and asks `assertStrictJson` only of text the tokenizer refuses: the same results and errors, in less time. `decryptBtpPayloadWithDecrypter` does the same.
 
 **Arguments:**
 
@@ -676,7 +733,8 @@ const { data, error } = await decryptBtpPayloadWithDecrypter(
 decryptBtpPayloadStream(
   payload: BTPPayloadPieces<string>,
   encryption: BTPEncryption,
-  receiverPrivPem: string
+  receiverPrivPem: string,
+  options?: BTPDecryptStreamOptions
 ): AsyncGenerator<Uint8Array>
 ```
 
@@ -685,13 +743,14 @@ Since 1.2. Decrypts like `decryptBtpPayload`, a piece at a time, so a large payl
 
 AES-GCM proves a payload only at its end. **A piece is not trusted until the loop finishes without throwing**: do not send, show, store as final or act on any piece before then. Finishing proves only that the AES-GCM tag checked out, not the artifact's signature, its sender or a trust: check those as before, with `decryptVerify` or `verifySignature`.
 
-It does not parse the plaintext and checks no document type: the caller parses and checks it. `decryptBtpPayload` also refuses text that is not strict JSON (`assertStrictJson`); run it yourself for the same check.
+It does not parse the plaintext and checks no document type: the caller parses and checks it, with [checkDecryptedDocument](#checkdecrypteddocument--checkdocumenttosend) for the checks `decryptVerify` runs. `decryptBtpPayload` also refuses text that is not strict JSON. With `{ strictJson: true }`, this holds the plaintext to the same strict JSON as it is read ([Holding the plaintext to strict JSON](../protocol/security/decryption.md#holding-the-plaintext-to-strict-json)).
 
 **Arguments:**
 
 - `payload` (`BTPPayloadPieces<string>`, required): The artifact's base64 `document`, in pieces of any length, from an `AsyncIterable` or an `Iterable` ([BTPPayloadPieces](./typesAndInterfaces.md#btppayloadpieces)). Characters that are not base64 are passed over, as `decryptBtpPayload` passes them over.
 - `encryption` (`BTPEncryption`, required): The artifact's `encryption`.
 - `receiverPrivPem` (`string`, required): Receiver's private key (PEM).
+- `options` (`BTPDecryptStreamOptions`, optional, since 1.2): `{ strictJson: true }` holds the plaintext to the strict JSON `decryptBtpPayload` holds it to: JSON, with no member named twice in any object. It is stricter in two ways: a raw control character inside a string is refused, and objects and arrays nested more than 1024 deep are refused. See [BTPDecryptStreamOptions](./typesAndInterfaces.md#btpdecryptstreamoptions).
 
 **Returns:**
 
@@ -703,6 +762,7 @@ It does not parse the plaintext and checks no document type: the caller parses a
 
 - At the start: `BTP_ERROR_UNSUPPORTED_ENCRYPT` for an algorithm other than `aes-256-gcm` or an `authTag` that is not 16 bytes; `BTP_ERROR_DECRYPTION_UNINTENDED` for a payload encrypted to another key.
 - When the last piece is read: for a payload changed or cut short, or a wrong tag, the same code `decryptBtpPayload` answers with.
+- With `{ strictJson: true }`, after the last piece is read and the payload is proven: `BTP_ERROR_CANONICAL_JSON` for plaintext that is not strict JSON. A changed payload throws its decryption error, never this.
 - When the source throws: that error, unchanged if it is a `BTPErrorException`, otherwise with its message, and its `name` as the code.
 
 The full table is in [What decrypting does](../protocol/security/decryption.md#what-decrypting-does).
@@ -718,7 +778,9 @@ export async function openPayload(
   receiverPrivateKeyPem: string,
 ): Promise<Buffer> {
   const pieces: Uint8Array[] = []; // private until the loop ends
-  for await (const piece of decryptBtpPayloadStream(payload, encryption, receiverPrivateKeyPem)) {
+  for await (const piece of decryptBtpPayloadStream(payload, encryption, receiverPrivateKeyPem, {
+    strictJson: true,
+  })) {
     pieces.push(piece);
   }
   // The loop ended without throwing: only now may the plaintext be used.
@@ -734,7 +796,8 @@ export async function openPayload(
 decryptBtpPayloadStreamWithDecrypter(
   payload: BTPPayloadPieces<string>,
   encryption: BTPEncryption,
-  decrypter: Decrypter
+  decrypter: Decrypter,
+  options?: BTPDecryptStreamOptions
 ): AsyncGenerator<Uint8Array>
 ```
 
@@ -746,6 +809,7 @@ Since 1.2. Decrypts like `decryptBtpPayloadStream`, through a [Decrypter](./type
 - `payload` (`BTPPayloadPieces<string>`, required): The artifact's base64 `document`, in pieces of any length.
 - `encryption` (`BTPEncryption`, required): The artifact's `encryption`.
 - `decrypter` (`Decrypter`, required): A `Decrypter` with `unwrapKey`.
+- `options` (`BTPDecryptStreamOptions`, optional, since 1.2): `{ strictJson: true }`, as for `decryptBtpPayloadStream`.
 
 **Returns:**
 
@@ -797,7 +861,7 @@ Read `payload` to its end, writing each piece as it comes, and only then `await 
 
 Given the same content key and IV, the joined pieces and the tag are exactly the payload and tag `encryptBtpPayload` writes. In normal use the key, the IV and the RSA-OAEP wrap are random, so two calls never give the same output; what matters is that either function's output opens with either decrypt function.
 
-No document type is checked, because the whole document is never held here: validate the document before you encrypt it.
+No document type is checked, because the whole document is never held here: check the document before you encrypt it, with [checkDocumentToSend](#checkdecrypteddocument--checkdocumenttosend), the check `signEncrypt` runs. Sign the artifact once `encryption` has settled, with [signBtpPayloadStream](#signbtppayloadstream) over the stored payload.
 
 **Arguments:**
 
@@ -929,7 +993,7 @@ signBtpPayload(payload: unknown = '', senderPemFiles: PemKeys): BTPSignature
 ```
 
 **Description:**
-Signs a payload using the sender's private key and returns a signature object (algorithmHash, value, fingerprint).
+Signs a payload using the sender's private key and returns a signature object (algorithmHash, value, fingerprint). Since 1.2, a payload whose `document` is text, as an encrypted artifact's is, is hashed a piece at a time instead of through a whole copy of its canonical form: the same signature, with less memory. To sign a document that is never held whole, see [signBtpPayloadStream](#signbtppayloadstream).
 
 **Arguments:**
 
@@ -963,6 +1027,95 @@ Signs like `signBtpPayload`, through a [Signer](./typesAndInterfaces.md#signer) 
 ```js
 import { signBtpPayloadWithSigner } from '@btps/sdk/crypto';
 const signature = await signBtpPayloadWithSigner({ foo: 'bar' }, signer);
+```
+
+---
+
+### signBtpPayloadStream
+
+```ts
+signBtpPayloadStream(
+  artifact: Record<string, unknown>,
+  payload: BTPPayloadPieces<string>,
+  senderPemFiles: PemKeys
+): Promise<BTPSignature>
+```
+
+**Description:**
+Since 1.2. Signs like `signBtpPayload`, a piece at a time, so a large document is never held whole. The signature bytes are exactly those `signBtpPayload({ ...artifact, document }, senderPemFiles)` gives, where `document` is the text the pieces join to. Nothing about the artifact or the wire changes: a signature made either way verifies with `verifySignature` and with `verifySignatureStream`. See [Signing and verifying a piece at a time](../protocol/security/decryption.md#signing-and-verifying-a-piece-at-a-time).
+
+For an encrypted artifact, `encryption` is part of what is signed, so sign once `encryptBtpPayloadStream`'s `encryption` has settled, reading the stored payload again.
+
+**Arguments:**
+
+- `artifact` (`Record<string, unknown>`, required): The artifact to sign, without its `document` (and without `signature`, as for `signBtpPayload`).
+- `payload` (`BTPPayloadPieces<string>`, required): The document's text in pieces of any length: for an encrypted artifact, its base64 payload, as `encryptBtpPayloadStream` gives it.
+- `senderPemFiles` (`PemKeys`, required): Sender's PEM key pair.
+
+**Returns:**
+
+- `Promise<BTPSignature>`: Signature object with algorithmHash, value, and fingerprint.
+
+**Throws:**
+
+What `signBtpPayload` throws for the same artifact, and an error the source of pieces throws.
+
+**Example:**
+
+```ts check
+import { signBtpPayloadStream, type BTPSignature, type PemKeys } from '@btps/sdk/crypto';
+
+export async function signStored(
+  artifact: Record<string, unknown>, // the artifact without its document, its encryption settled
+  storedPayload: AsyncIterable<string>, // the stored base64 payload, read from its start
+  keys: PemKeys,
+): Promise<BTPSignature> {
+  return signBtpPayloadStream(artifact, storedPayload, keys);
+}
+```
+
+---
+
+### signBtpPayloadStreamWithSigner
+
+```ts
+signBtpPayloadStreamWithSigner(
+  artifact: Record<string, unknown>,
+  payload: BTPPayloadPieces<string>,
+  signer: Signer
+): Promise<BTPSignature>
+```
+
+**Description:**
+Since 1.2. Signs like `signBtpPayloadStream`, through a [Signer](./typesAndInterfaces.md#signer) that holds the sender's private key elsewhere (a KMS, an HSM, a device). It hashes what is signed a piece at a time and asks the Signer to sign the SHA-256 digest, with its optional `signDigest`. With the same key, the signature is identical to `signBtpPayloadStream`'s and `signBtpPayload`'s. `PemSigner` has `signDigest`.
+
+**Arguments:**
+
+- `artifact` (`Record<string, unknown>`, required): The artifact to sign, without its `document`.
+- `payload` (`BTPPayloadPieces<string>`, required): The document's text in pieces of any length.
+- `signer` (`Signer`, required): A `Signer` with `signDigest`.
+
+**Returns:**
+
+- `Promise<BTPSignature>`: Signature object with algorithmHash, value, and fingerprint.
+
+**Throws:**
+
+- `BTP_ERROR_UNSUPPORTED_ENCRYPT` for a `Signer` without `signDigest`, before any piece is read.
+- Otherwise what `signBtpPayloadStream` throws, and a failure inside the Signer.
+
+**Example:**
+
+```ts check
+import { signBtpPayloadStreamWithSigner, type BTPSignature, type Signer } from '@btps/sdk/crypto';
+
+export async function signStoredWithSigner(
+  artifact: Record<string, unknown>,
+  storedPayload: AsyncIterable<string>,
+  signer: Signer, // must have signDigest
+): Promise<BTPSignature> {
+  return signBtpPayloadStreamWithSigner(artifact, storedPayload, signer);
+}
 ```
 
 ---
@@ -1015,7 +1168,7 @@ verifySignature(
 ```
 
 **Description:**
-Verifies a payload's signature using the sender's public key and returns validity and error (if any).
+Verifies a payload's signature using the sender's public key and returns validity and error (if any). Since 1.2, a payload whose `document` is text, as an encrypted artifact's is, is hashed a piece at a time instead of through a whole copy of its canonical form: the same answer, with less memory. To check a document that is never held whole, see [verifySignatureStream](#verifysignaturestream).
 
 **Arguments:**
 
@@ -1032,6 +1185,54 @@ Verifies a payload's signature using the sender's public key and returns validit
 ```js
 import { verifySignature } from '@btps/sdk/crypto';
 const { isValid, error } = verifySignature({ foo: 'bar' }, signature, senderPublicKeyPem);
+```
+
+---
+
+### verifySignatureStream
+
+```ts
+verifySignatureStream(
+  artifact: Record<string, unknown>,
+  payload: BTPPayloadPieces<string>,
+  signature: BTPSignature,
+  senderPubKey: string
+): Promise<{ isValid: boolean; error?: BTPErrorException }>
+```
+
+**Description:**
+Since 1.2. Checks a signature like `verifySignature`, a piece at a time, so a large document is never held whole. The answer is exactly that of `verifySignature({ ...artifact, document }, signature, senderPubKey)`, where `document` is the text the pieces join to, errors included: `BTP_ERROR_SIG_MISMATCH` when the signature's fingerprint is not the key's, and `BTP_ERROR_SIG_VERIFICATION` when the signature does not verify. It checks a signature made by `signBtpPayload`, `signBtpPayloadWithSigner` or either stream function. See [Signing and verifying a piece at a time](../protocol/security/decryption.md#signing-and-verifying-a-piece-at-a-time).
+
+**Arguments:**
+
+- `artifact` (`Record<string, unknown>`, required): The artifact as it arrived, without its `document`, and without `signature` and `delegation`, as `decryptVerify` gives `verifySignature` the artifact.
+- `payload` (`BTPPayloadPieces<string>`, required): The document's text in pieces of any length: for an encrypted artifact, its stored base64 payload.
+- `signature` (`BTPSignature`, required): The artifact's `signature`.
+- `senderPubKey` (`string`, required): Sender's public key (PEM).
+
+**Returns:**
+
+- `Promise<{ isValid: boolean; error?: BTPErrorException }>`: as `verifySignature` returns. An error the source of pieces throws is returned as `error`, with `isValid: false`, unchanged if it is a `BTPErrorException`, otherwise as `BTP_ERROR_SIG_VERIFICATION` with it as the cause.
+
+**Example:**
+
+```ts check
+import { verifySignatureStream, type BTPSignature } from '@btps/sdk/crypto';
+
+export async function signatureHolds(
+  artifact: Record<string, unknown>, // as it arrived, without document, signature and delegation
+  storedPayload: AsyncIterable<string>,
+  signature: BTPSignature,
+  senderPublicKeyPem: string,
+): Promise<boolean> {
+  const { isValid } = await verifySignatureStream(
+    artifact,
+    storedPayload,
+    signature,
+    senderPublicKeyPem,
+  );
+  return isValid;
+}
 ```
 
 ---

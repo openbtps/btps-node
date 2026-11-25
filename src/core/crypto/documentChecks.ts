@@ -12,9 +12,10 @@
  * decrypts, signs or verifies a piece at a time runs the same rules, and
  * decryptVerify and signEncrypt run them from here, so the two never differ.
  *
- * A document whose files are held apart, each attachment's `content` left out
- * or empty with its `size` and `sha256` as sent, is checked as it is: the
- * schema reads an attachment's content as a string, and checks nothing of it.
+ * A document whose files are held apart, each attachment's `content` empty
+ * (`''`) with its `size` and `sha256` as sent, is checked as it is: the schema
+ * reads an attachment's content as a string, and checks nothing of it. One
+ * whose `content` is left out is not: the schema requires it.
  */
 import { BTPErrorException } from '@core/error/index.js';
 import { BTP_ERROR_DOCUMENT_TYPE_MISMATCH, BTP_ERROR_VALIDATION } from '@core/error/constant.js';

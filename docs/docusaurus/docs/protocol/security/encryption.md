@@ -90,7 +90,7 @@ An encrypted invoice: `document` is the ciphertext (base64), and `encryption` sa
 
 ## Large Documents
 
-Since 1.2, `encryptBtpPayloadStream` (`@btps/sdk/crypto`) encrypts a large document a piece at a time, so it is never held whole. It writes exactly the artifact described above: nothing on the wire changes. Read its `payload` to the end, then `await encryption`. See [Large payloads, a piece at a time](./decryption.md#large-payloads-a-piece-at-a-time).
+Since 1.2, `encryptBtpPayloadStream` (`@btps/sdk/crypto`) encrypts a large document a piece at a time, so it is never held whole. It writes exactly the artifact described above: nothing on the wire changes. Read its `payload` to the end, then `await encryption`. Check the document first with `checkDocumentToSend`, and sign the artifact afterwards with `signBtpPayloadStream` over the stored payload. See [Sending a large artifact, start to finish](./decryption.md#sending-a-large-artifact-start-to-finish).
 
 ## Signing Process
 

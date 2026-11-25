@@ -254,8 +254,10 @@ The servers in between see only ciphertext, which the artifact size bounds.
 their last argument, for example `'BTPS_DOC'`; a direct caller that does not
 give one checks the document itself. Since 1.2, `encryptBtpPayloadStream`,
 `decryptBtpPayloadStream` and `decryptBtpPayloadStreamWithDecrypter` never
-check, because they never hold the whole document: their caller checks it
-([Large payloads, a piece at a time](../security/decryption.md#large-payloads-a-piece-at-a-time)).
+check, because they never hold the whole document: their caller checks it,
+with `checkDocumentToSend` before encrypting and `checkDecryptedDocument`
+after decrypting, the checks `signEncrypt` and `decryptVerify` run
+([Checking the document](../security/decryption.md#checking-the-document)).
 
 ### In code
 
@@ -322,15 +324,24 @@ An agreement carrying several PDFs can be far larger than an invoice.
 `maxArtifactSizeKb` is the receiver's choice, with a floor of 1 MB and no
 ceiling, so a platform that receives large agreements raises it deliberately.
 
-Size it from the largest document you take. The payload travels as base64,
-which is about 4/3 of the document's bytes, and the envelope adds a little more.
-For documents of up to 105 MB, that is about 140 MB, so allow about 145 MB:
+Size it from the largest files you take. Base64 is applied twice, and each
+time adds about a third:
+
+1. Inside the document's JSON, each file is base64, so 100 MB of PDFs is about
+   133 MB of JSON.
+2. An encrypted artifact's payload is base64 of the encrypted JSON, so 133 MB
+   of JSON is about 178 MB of payload.
+
+Measured: an agreement with 10 PDFs of 10 MB each gave a 176 MB payload. The
+envelope adds a little more. A receiver that takes agreements with up to
+105 MB of files should allow about 190 MB (194,560 KB):
 
 ```ts check
 import { BtpsServer, type BtpsServerOptions } from '@btps/sdk/server';
 
-// 105 MB documents: about 140 MB as base64, plus the envelope.
-const MAX_ARTIFACT_SIZE_KB = 148_480; // 145 MB
+// Up to 105 MB of files: base64 in the JSON, then base64 again as the
+// encrypted payload, plus the envelope.
+const MAX_ARTIFACT_SIZE_KB = 194_560; // 190 MB
 
 export const largeDocumentServer = (options: BtpsServerOptions) =>
   new BtpsServer({ ...options, maxArtifactSizeKb: MAX_ARTIFACT_SIZE_KB });
