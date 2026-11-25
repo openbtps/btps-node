@@ -13,6 +13,11 @@ import { boundedArray, boundedRecord } from './bounded.js';
 import { BtpKeyChainSchema } from './keyChainSchema.js';
 import { BtpBoundViewSchema } from './boundViewSchema.js';
 import { bindingProblem } from './boundViewBindings.js';
+import type {
+  BTPAgreementStatement,
+  BTPSigningContext,
+  BTPSigningDevice,
+} from '@core/trust/types.js';
 
 const {
   trustRequest,
@@ -738,39 +743,95 @@ const BtpElectronicConsentSchema = z
   })
   .strict();
 
+/** Printable text of at most `max` characters, as a signing context's facts are. */
+const printable = (max: number, what: string) =>
+  z
+    .string()
+    .min(1)
+    .max(max)
+    .regex(/^[\x20-\x7e]+$/, `${what} is printable text`);
+
+/**
+ * Since 1.2: the device a signer viewed or answered on, as its platform could
+ * tell: its operating system and version, its model, the browser or app and its
+ * version, and the platform's own id for a device it registered. Each optional:
+ * how much is known, and how surely, is the platform's.
+ */
+// Typed so that the statement's declared type stays within what the compiler writes out (TS7056).
+const BtpSigningDeviceSchema: z.ZodType<BTPSigningDevice> = z
+  .object({
+    os: printable(100, 'an os').optional(),
+    osVersion: printable(100, 'an osVersion').optional(),
+    model: printable(100, 'a model').optional(),
+    browser: printable(100, 'a browser').optional(),
+    browserVersion: printable(100, 'a browserVersion').optional(),
+    app: printable(100, 'an app').optional(),
+    appVersion: printable(100, 'an appVersion').optional(),
+    id: printable(128, 'an id').optional(),
+  })
+  .strict()
+  .refine((d) => Object.keys(d).length > 0, { message: 'a device says at least one thing of itself' });
+
+/**
+ * Since 1.2: where the signer viewed or answered from, as its platform saw it:
+ * the IP address its request came from, the user agent its browser or app
+ * sent, and the device it was on. The platform's observation, which the
+ * signer's signature then covers; at least one of the three.
+ */
+const BtpSigningContextSchema: z.ZodType<BTPSigningContext> = z
+  .object({
+    ip: z.string().ip().optional(),
+    userAgent: printable(256, 'a user agent').optional(),
+    device: BtpSigningDeviceSchema.optional(),
+  })
+  .strict()
+  .refine((c) => c.ip !== undefined || c.userAgent !== undefined || c.device !== undefined, {
+    message: 'a context says an ip, a userAgent or a device',
+  });
+
 /** Whether `time`, an RFC 3339 time, is no later than `signedAt`. */
 const notAfter = (time: string, signedAt: string) => Date.parse(time) <= Date.parse(signedAt);
 
-/** A signer's answer: what it signs, over its RFC 8785 form. */
-export const BtpAgreementStatementSchema = z
-  .object({
-    agreement: BtpAgreementRefSchema,
-    terms: boundedArray(sha256Hex, letter.attachments),
-    signer: identitySchema,
-    decision: z.enum(['accepted', 'declined']),
-    signedAt: z.string().datetime(),
-    previous: sha256Hex.optional(),
-    visualSignature: BtpVisualSignatureSchema.optional(),
-    consent: BtpElectronicConsentSchema.optional(),
-    viewedAt: z.string().datetime().optional(),
-  })
-  .strict()
-  .refine((s) => s.visualSignature === undefined || s.decision === 'accepted', {
-    message: 'only an acceptance carries a visualSignature',
-    path: ['visualSignature'],
-  })
-  .refine((s) => s.consent === undefined || s.decision === 'accepted', {
-    message: 'only an acceptance carries a consent',
-    path: ['consent'],
-  })
-  .refine((s) => s.consent === undefined || notAfter(s.consent.at, s.signedAt), {
-    message: 'a consent is given no later than its statement is signed',
-    path: ['consent', 'at'],
-  })
-  .refine((s) => s.viewedAt === undefined || notAfter(s.viewedAt, s.signedAt), {
-    message: 'an agreement is viewed no later than its statement is signed',
-    path: ['viewedAt'],
-  });
+/**
+ * A signer's answer: what it signs, over its RFC 8785 form. Typed so that the
+ * artifact schemas built on it stay within what the compiler writes out (TS7056).
+ */
+export const BtpAgreementStatementSchema: z.ZodType<BTPAgreementStatement, z.ZodTypeDef, unknown> =
+  z
+    .object({
+      agreement: BtpAgreementRefSchema,
+      terms: boundedArray(sha256Hex, letter.attachments),
+      signer: identitySchema,
+      decision: z.enum(['accepted', 'declined']),
+      signedAt: z.string().datetime(),
+      previous: sha256Hex.optional(),
+      visualSignature: BtpVisualSignatureSchema.optional(),
+      consent: BtpElectronicConsentSchema.optional(),
+      viewedAt: z.string().datetime().optional(),
+      viewedFrom: BtpSigningContextSchema.optional(),
+      signedFrom: BtpSigningContextSchema.optional(),
+    })
+    .strict()
+    .refine((s) => s.viewedFrom === undefined || s.viewedAt !== undefined, {
+      message: 'a viewedFrom says where a viewedAt was',
+      path: ['viewedFrom'],
+    })
+    .refine((s) => s.visualSignature === undefined || s.decision === 'accepted', {
+      message: 'only an acceptance carries a visualSignature',
+      path: ['visualSignature'],
+    })
+    .refine((s) => s.consent === undefined || s.decision === 'accepted', {
+      message: 'only an acceptance carries a consent',
+      path: ['consent'],
+    })
+    .refine((s) => s.consent === undefined || notAfter(s.consent.at, s.signedAt), {
+      message: 'a consent is given no later than its statement is signed',
+      path: ['consent', 'at'],
+    })
+    .refine((s) => s.viewedAt === undefined || notAfter(s.viewedAt, s.signedAt), {
+      message: 'an agreement is viewed no later than its statement is signed',
+      path: ['viewedAt'],
+    });
 
 /**
  * A signed statement: by the signer's identity key at `selector`, or by a
