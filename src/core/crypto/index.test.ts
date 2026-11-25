@@ -22,6 +22,10 @@ import {
   decryptBtpPayloadStream,
   decryptBtpPayloadStreamWithDecrypter,
   encryptBtpPayloadStream,
+  signBtpPayloadStream,
+  signBtpPayloadStreamWithSigner,
+  verifySignatureStream,
+  canonicalizeValue,
   PemSigner,
   PemDecrypter,
   generateUserToken,
@@ -33,6 +37,7 @@ import { PemKeys } from './types.js';
 import {
   BTP_ERROR_CANONICAL_JSON,
   BTP_ERROR_DECRYPTION_UNINTENDED,
+  BTP_ERROR_SIG_MISMATCH,
   BTP_ERROR_UNSUPPORTED_ENCRYPT,
   BTP_ERROR_VALIDATION,
 } from '../error/constant.js';
@@ -751,4 +756,168 @@ describe('a payload encrypted and decrypted a piece at a time', () => {
     expect(largest).toBeLessThanOrEqual((READ / 4) * 3);
     expect(pieces).toBeGreaterThanOrEqual(Math.floor(stored.length / READ));
   }, 60_000);
+});
+
+describe('an artifact signed and its signature checked a piece at a time', () => {
+  const keys = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  const piecesOf = (value: string, size: number): string[] =>
+    Array.from({ length: Math.ceil(value.length / size) }, (_, i) =>
+      value.slice(i * size, (i + 1) * size),
+    );
+  const envelope = {
+    version: '1.2.0',
+    id: 'a1',
+    type: 'BTPS_DOC',
+    from: 'alice$example.com',
+    to: 'bob$example.com',
+    issuedAt: '2026-11-25T00:00:00.000Z',
+    encryption: {
+      algorithm: 'aes-256-gcm',
+      encryptedKey: 'k',
+      iv: 'i',
+      authTag: 't',
+      type: 'standardEncrypt',
+    },
+    selector: 'btps1',
+  };
+  // A base64 payload, and text that needs escaping, with a surrogate pair to cut in two.
+  const documents = [
+    crypto.randomBytes(3_000_000).toString('base64'),
+    'quote " backslash \\ tab \t newline \n 😀 \u0001 é',
+  ];
+  /** The signature signBtpPayload made before 1.2: over the whole RFC 8785 form. */
+  const reference = (document: string) =>
+    crypto
+      .sign(
+        'sha256',
+        Buffer.from(canonicalizeValue({ ...envelope, document }), 'utf8'),
+        keys.privateKey,
+      )
+      .toString('base64');
+
+  it('signs as signBtpPayload signed before, whole or a piece at a time, the same bytes', async () => {
+    for (const document of documents) {
+      expect(signBtpPayload({ ...envelope, document }, keys).value).toBe(reference(document));
+      for (const size of [1, 7, 65_536]) {
+        const pieces = size === 1 ? piecesOf(document.slice(0, 2000), 1) : piecesOf(document, size);
+        const whole = pieces.join('');
+        expect((await signBtpPayloadStream(envelope, pieces, keys)).value).toBe(reference(whole));
+      }
+    }
+  });
+
+  it('checks a signature as verifySignature does, whole or a piece at a time, either way it was made', async () => {
+    for (const document of documents) {
+      const signature = signBtpPayload({ ...envelope, document }, keys);
+      expect(verifySignature({ ...envelope, document }, signature, keys.publicKey).isValid).toBe(
+        true,
+      );
+      expect(
+        (await verifySignatureStream(envelope, piecesOf(document, 4096), signature, keys.publicKey))
+          .isValid,
+      ).toBe(true);
+      const streamed = await signBtpPayloadStream(envelope, piecesOf(document, 999), keys);
+      expect(verifySignature({ ...envelope, document }, streamed, keys.publicKey).isValid).toBe(
+        true,
+      );
+      // One changed character, or another envelope, is not what was signed.
+      const changed = `${document.slice(0, -1)}${document.endsWith('A') ? 'B' : 'A'}`;
+      expect(
+        (await verifySignatureStream(envelope, piecesOf(changed, 4096), signature, keys.publicKey))
+          .isValid,
+      ).toBe(false);
+      expect(
+        (
+          await verifySignatureStream(
+            { ...envelope, id: 'a2' },
+            [document],
+            signature,
+            keys.publicKey,
+          )
+        ).isValid,
+      ).toBe(false);
+    }
+  });
+
+  it('refuses a signature made with another key by its fingerprint, as verifySignature does', async () => {
+    const other = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    const signature = signBtpPayload({ ...envelope, document: 'AAAA' }, other);
+    const streamed = await verifySignatureStream(envelope, ['AAAA'], signature, keys.publicKey);
+    expect(streamed).toEqual(
+      verifySignature({ ...envelope, document: 'AAAA' }, signature, keys.publicKey),
+    );
+    expect(streamed.error?.code).toBe(BTP_ERROR_SIG_MISMATCH.code);
+  });
+
+  it('signs through a Signer that signs a digest, the same signature, and refuses one that cannot', async () => {
+    const document = documents[0] ?? '';
+    const signature = await signBtpPayloadStreamWithSigner(
+      envelope,
+      piecesOf(document, 65_536),
+      new PemSigner(keys),
+    );
+    expect(signature.value).toBe(reference(document));
+    const wholeOnly: Signer = {
+      algorithm: 'RSASSA_PKCS1_V1_5_SHA_256',
+      sign: (data) => new PemSigner(keys).sign(data),
+      getPublicKey: () => new PemSigner(keys).getPublicKey(),
+    };
+    await expect(
+      signBtpPayloadStreamWithSigner(envelope, [document], wholeOnly),
+    ).rejects.toMatchObject({
+      code: BTP_ERROR_UNSUPPORTED_ENCRYPT.code,
+    });
+  });
+});
+
+describe('a payload decrypted a piece at a time, held to strict JSON', () => {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  const errorOf = async (pieces: AsyncIterable<Uint8Array>): Promise<unknown> => {
+    try {
+      for await (const piece of pieces) void piece;
+    } catch (err) {
+      return err;
+    }
+    return undefined;
+  };
+
+  it('refuses a member named twice once it is proven, as decryptBtpPayload does, and takes strict JSON', async () => {
+    for (const [text, refused] of [
+      ['{"amount":100,"currency":"AUD"}', false],
+      ['{"a":{"b":1,"b":2}}', true],
+      ['{not json', true],
+    ] as const) {
+      const { data, encryption } = encryptBtpPayload(text, publicKey);
+      const error = await errorOf(
+        decryptBtpPayloadStream([data], encryption, privateKey, { strictJson: true }),
+      );
+      expect((error as BTPErrorException | undefined)?.code).toBe(
+        refused ? BTP_ERROR_CANONICAL_JSON.code : undefined,
+      );
+      expect(decryptBtpPayload(data, encryption, privateKey).error?.code).toBe(
+        refused ? BTP_ERROR_CANONICAL_JSON.code : undefined,
+      );
+    }
+  });
+
+  it('says a changed payload does not decrypt before it says what it holds is not JSON', async () => {
+    const { data, encryption } = encryptBtpPayload('{"a":1,"a":2}', publicKey);
+    const changed = `${data.slice(0, 4)}${data[4] === 'A' ? 'B' : 'A'}${data.slice(5)}`;
+    const error = await errorOf(
+      decryptBtpPayloadStream([changed], encryption, privateKey, { strictJson: true }),
+    );
+    expect((error as BTPErrorException).code).not.toBe(BTP_ERROR_CANONICAL_JSON.code);
+  });
 });

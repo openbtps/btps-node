@@ -7,16 +7,11 @@
 
 import { randomUUID } from 'crypto';
 import type { ConnectionOptions } from 'tls';
-import {
-  BTP_ERROR_DOCUMENT_TYPE_MISMATCH,
-  BTP_ERROR_IDENTITY,
-  BTP_ERROR_RESOLVE_PUBKEY,
-  BTP_ERROR_VALIDATION,
-} from '@core/error/constant.js';
-import { processBtpDocSchema } from '@core/server/schemas/helpers.js';
-import type { BTPArtifactType, BTPShaped } from '@core/server/types.js';
+import { BTP_ERROR_IDENTITY, BTP_ERROR_RESOLVE_PUBKEY } from '@core/error/constant.js';
+import type { BTPShaped } from '@core/server/types.js';
 import { composeTrustRequestFor } from '@core/trust/shaping.js';
 import { signBtpPayload, signBtpPayloadWithSigner, encryptBtpPayload } from './index.js';
+import { checkDocumentToSend, documentTypeMismatch } from './documentChecks.js';
 import type { Signer } from './signer-interface.js';
 import {
   BTPCryptoResponse,
@@ -104,26 +99,14 @@ export const signEncrypt = async <T = unknown>(
   let encryptedDoc: string | T = document;
 
   // Since 1.2: a documentType on the envelope is the document's own type, signed with it.
-  const type = (document as { type?: unknown } | undefined)?.type;
-  if (restPayload.documentType !== undefined && type !== restPayload.documentType) {
-    return genEncryptError(
-      new BTPErrorException(BTP_ERROR_DOCUMENT_TYPE_MISMATCH, {
-        cause: `the document is a ${String(type)}, not the ${String(restPayload.documentType)} its envelope names`,
-      }),
-    );
-  }
+  const mismatch = documentTypeMismatch(document, restPayload);
+  if (mismatch) return genEncryptError(mismatch);
 
   if (to && !isEmpty(options?.encryption)) {
-    // Once encrypted, no server can read the document, so it is checked here.
-    const version = typeof restPayload.version === 'string' ? restPayload.version : undefined;
-    const docSchema = processBtpDocSchema(restPayload.type as BTPArtifactType, version);
-    if (docSchema && !docSchema.safeParse(document).success) {
-      return genEncryptError(
-        new BTPErrorException(BTP_ERROR_VALIDATION, {
-          cause: 'Document type does not match the artifact type',
-        }),
-      );
-    }
+    // Once encrypted, no server can read the document, so it is checked here (documentChecks.ts:
+    // the same check a platform runs on one it encrypts a piece at a time).
+    const problem = checkDocumentToSend(document, restPayload);
+    if (problem) return genEncryptError(problem);
     const parsedReceiver = parseIdentity(to);
     if (!parsedReceiver) return genEncryptError(new BTPErrorException(BTP_ERROR_IDENTITY));
     const receiverHost = await getHostAndSelector(to);

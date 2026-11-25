@@ -22,6 +22,9 @@ export interface PemSignerOptions {
 
 const ALGORITHM: SignerAlgorithm = 'RSASSA_PKCS1_V1_5_SHA_256';
 
+/** What PKCS#1 v1.5 puts before a SHA-256 digest it signs (RFC 8017, section 9.2): its DigestInfo's prefix. */
+const SHA256_DIGEST_INFO = Buffer.from('3031300d060960864801650304020105000420', 'hex');
+
 export class PemSigner implements Signer {
   readonly algorithm = ALGORITHM;
 
@@ -37,6 +40,15 @@ export class PemSigner implements Signer {
     // Node's crypto.sign on an RSA private key defaults to PKCS#1 v1.5
     // padding, matching RSASSA_PKCS1_V1_5_SHA_256.
     const signature = crypto.sign('sha256', Buffer.from(data), this.privateKeyPem);
+    return new Uint8Array(signature);
+  }
+
+  /** Since 1.2: as `sign`, of the SHA-256 digest of what is signed: PKCS#1 v1.5 over its DigestInfo. */
+  async signDigest(digest: Uint8Array): Promise<Uint8Array> {
+    const signature = crypto.privateEncrypt(
+      { key: this.privateKeyPem, padding: crypto.constants.RSA_PKCS1_PADDING },
+      Buffer.concat([SHA256_DIGEST_INFO, Buffer.from(digest)]),
+    );
     return new Uint8Array(signature);
   }
 
