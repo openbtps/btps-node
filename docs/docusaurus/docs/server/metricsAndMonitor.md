@@ -27,6 +27,7 @@ const metrics = new BtpsSimpleMetricsTracker();
 metrics.onMessageReceived('sender$domain.com', 'recipient$domain.com');
 metrics.onMessageRejected('sender$domain.com', 'recipient$domain.com', 'Rate limit exceeded');
 metrics.onError(new BTPErrorException({ message: 'Something went wrong' })); // logs error.toJSON()
+metrics.onError(new Error('socket hang up')); // any other error: logs its name and message
 ```
 
 **What it does:**

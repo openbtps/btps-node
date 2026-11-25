@@ -1960,11 +1960,11 @@ class BtpsSimpleRateLimiter implements RateLimiter {
 class BtpsSimpleMetricsTracker implements IMetricsTracker {
   onMessageReceived(sender: string, recipient?: string): void;
   onMessageRejected(sender: string, recipient: string, reason: string): void;
-  onError(error: BTPErrorException): void;
+  onError(error: Error): void;
 }
 ```
 
-An `IMetricsTracker` that writes each event to the console. `createDefaultMiddleware` uses one; replace it with a tracker that sends to your metrics system. See [Server Metrics & Monitoring](../server/metricsAndMonitor.md).
+An `IMetricsTracker` that writes each event to the console: a BTPS error as its `toJSON()`, any other error by its name and message. `createDefaultMiddleware` uses one; replace it with a tracker that sends to your metrics system. See [Server Metrics & Monitoring](../server/metricsAndMonitor.md).
 
 ---
 
