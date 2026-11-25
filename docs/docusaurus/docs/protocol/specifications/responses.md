@@ -248,10 +248,10 @@ Whole query answers carrying `agentKey` and `delivery` are on [Devices](../../fe
 
 Response to identity lookup requests:
 
-```json sketch
+```json btps=identityDocument
 {
   "selector": "john1",
-  "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----",
   "keyType": "rsa",
   "version": "1.2.0",
   "identity": "john$vendorcorp.com"
@@ -459,7 +459,7 @@ Signed by the domain's operator, as every lookup answer is:
   "reqId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
   "document": {
     "selector": "john1",
-    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----",
     "keyType": "rsa",
     "version": "1.2.0",
     "identity": "john$vendorcorp.com"

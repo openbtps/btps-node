@@ -151,7 +151,7 @@ The errorLog field contains detailed error information following the BTPErrorExc
 
 When a server fails to deliver a transporter artifact to another server:
 
-```json sketch
+```json btps=deliveryFailure
 {
   "id": "btps_failure_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
@@ -182,7 +182,7 @@ When a server fails to deliver a transporter artifact to another server:
 
 When an agent artifact fails to be processed by the server:
 
-```json sketch
+```json btps=deliveryFailure
 {
   "id": "btps_failure_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",

@@ -21,18 +21,18 @@ the key. The SDK does both the same way (`checkBoundView`). A sender's SDK runs
 the same checks before it signs, so an honest sender finds a problem before
 sending.
 
-| Where | When |
-| --- | --- |
-| The sender's SDK | Before it signs |
-| The receiving server | When it can read the document |
+| Where                 | When                               |
+| --------------------- | ---------------------------------- |
+| The sender's SDK      | Before it signs                    |
+| The receiving server  | When it can read the document      |
 | The receiver's device | When only the device holds the key |
 
 ## Two outcomes
 
-| What is wrong | Outcome |
-| --- | --- |
-| The canvas breaks its [schema](./canvas.md) or a limit, or binds a field the document does not have, or a `text` element names a font that is only a `fallback` | The **document is refused**, as a document with any other malformed field is. |
-| The canvas is well formed but fails a check below | The **document is accepted** and the **BoundView is not shown**. The receiver shows its own view of the signed data, with a notice saying why. |
+| What is wrong                                                                                                                                                   | Outcome                                                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| The canvas breaks its [schema](./canvas.md) or a limit, or binds a field the document does not have, or a `text` element names a font that is only a `fallback` | The **document is refused**, as a document with any other malformed field is.                                                                  |
+| The canvas is well formed but fails a check below                                                                                                               | The **document is accepted** and the **BoundView is not shown**. The receiver shows its own view of the signed data, with a notice saying why. |
 
 ```mermaid
 flowchart TD
@@ -54,12 +54,12 @@ is never lost.
 `{ show: false, problems }`, where each problem names the check that failed
 and what it is about:
 
-| Field | Type | Required | What it says |
-| --- | --- | --- | --- |
-| `check` | `wellFormed`, `keyFacts`, `shownInFull` or `notHidden` | Yes | The check that failed |
-| `message` | string | Yes | Why, in words |
-| `field` | string | No | The key fact it is about |
-| `element` | number | No | The index in `elements` of the element it is about |
+| Field     | Type                                                   | Required | What it says                                       |
+| --------- | ------------------------------------------------------ | -------- | -------------------------------------------------- |
+| `check`   | `wellFormed`, `keyFacts`, `shownInFull` or `notHidden` | Yes      | The check that failed                              |
+| `message` | string                                                 | Yes      | Why, in words                                      |
+| `field`   | string                                                 | No       | The key fact it is about                           |
+| `element` | number                                                 | No       | The index in `elements` of the element it is about |
 
 A document that is validated first never reaches the checks with a
 malformed BoundView: it is refused. If a document reaches the check without
@@ -68,12 +68,12 @@ the BoundView is not shown, with a `wellFormed` problem.
 
 ## The checks
 
-| Check | In short |
-| --- | --- |
-| [Key facts](#key-facts) | Every key fact of the document is on the BoundView, written from its signed value |
-| [Shown in full](#shown-in-full) | Every bound value fits its box, with glyphs for every character |
-| [Not hidden](#not-hidden) | Nothing covers a fact, and every fact stands out from what is behind it |
-| [Nothing to fetch, nothing to run](#nothing-to-fetch-nothing-to-run) | Every value is one the schema names |
+| Check                                                                | In short                                                                          |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [Key facts](#key-facts)                                              | Every key fact of the document is on the BoundView, written from its signed value |
+| [Shown in full](#shown-in-full)                                      | Every bound value fits its box, with glyphs for every character                   |
+| [Not hidden](#not-hidden)                                            | Nothing covers a fact, and every fact stands out from what is behind it           |
+| [Nothing to fetch, nothing to run](#nothing-to-fetch-nothing-to-run) | Every value is one the schema names                                               |
 
 ### Key facts
 
@@ -99,74 +99,74 @@ A field may be left out when it is:
 
 #### Invoice
 
-| Field | Must be shown |
-| --- | --- |
-| `id` | Yes |
-| `dueAt` | Yes |
-| `totalAmount` | Yes |
-| `taxAmount` | Yes |
-| `description`, the note | Yes |
-| Each line's description and line total | Yes ([Line items](#line-items)) |
-| `issuer.name` | No: the receiving app shows who sent it |
-| `recipient.name` | No: the receiving app shows who it is for |
-| `issuedAt` | No |
-| `subtotalAmount` | No: it follows from the lines |
-| `discount`, as `amount` or `percent` | No: the total already takes it off |
-| A line's other cells: quantity, unit price, tax, a line's discount | No |
-| Any other field, such as `title`, or the issuer's address or identifiers | No |
+| Field                                                                    | Must be shown                             |
+| ------------------------------------------------------------------------ | ----------------------------------------- |
+| `id`                                                                     | Yes                                       |
+| `dueAt`                                                                  | Yes                                       |
+| `totalAmount`                                                            | Yes                                       |
+| `taxAmount`                                                              | Yes                                       |
+| `description`, the note                                                  | Yes                                       |
+| Each line's description and line total                                   | Yes ([Line items](#line-items))           |
+| `issuer.name`                                                            | No: the receiving app shows who sent it   |
+| `recipient.name`                                                         | No: the receiving app shows who it is for |
+| `issuedAt`                                                               | No                                        |
+| `subtotalAmount`                                                         | No: it follows from the lines             |
+| `discount`, as `amount` or `percent`                                     | No: the total already takes it off        |
+| A line's other cells: quantity, unit price, tax, a line's discount       | No                                        |
+| Any other field, such as `title`, or the issuer's address or identifiers | No                                        |
 
 #### Receipt
 
-| Field | Must be shown |
-| --- | --- |
-| `id` | Yes |
-| `totalAmount` | Yes |
-| `taxAmount` | Yes |
-| `description`, the note | Yes |
-| `payment.amount` | Yes |
-| `payment.paidAt` | Yes |
-| Each line's description and line total | Yes ([Line items](#line-items)) |
-| `issuer.name` | No: the receiving app shows who sent it |
-| `recipient.name` | No: the receiving app shows who it is for |
-| `issuedAt` | No |
-| `subtotalAmount` | No: it follows from the lines |
-| `discount`, as `amount` or `percent` | No: the total already takes it off |
-| `payment.method`, `payment.reference` | No: how it was paid does not change what was paid |
-| A line's other cells: quantity, unit price, tax, a line's discount | No |
-| Any other field, such as `title`, or the issuer's address or identifiers | No |
+| Field                                                                    | Must be shown                                     |
+| ------------------------------------------------------------------------ | ------------------------------------------------- |
+| `id`                                                                     | Yes                                               |
+| `totalAmount`                                                            | Yes                                               |
+| `taxAmount`                                                              | Yes                                               |
+| `description`, the note                                                  | Yes                                               |
+| `payment.amount`                                                         | Yes                                               |
+| `payment.paidAt`                                                         | Yes                                               |
+| Each line's description and line total                                   | Yes ([Line items](#line-items))                   |
+| `issuer.name`                                                            | No: the receiving app shows who sent it           |
+| `recipient.name`                                                         | No: the receiving app shows who it is for         |
+| `issuedAt`                                                               | No                                                |
+| `subtotalAmount`                                                         | No: it follows from the lines                     |
+| `discount`, as `amount` or `percent`                                     | No: the total already takes it off                |
+| `payment.method`, `payment.reference`                                    | No: how it was paid does not change what was paid |
+| A line's other cells: quantity, unit price, tax, a line's discount       | No                                                |
+| Any other field, such as `title`, or the issuer's address or identifiers | No                                                |
 
 #### Payslip
 
-| Field | Must be shown |
-| --- | --- |
-| `id` | Yes |
-| `employee.name` | Yes |
-| `payPeriod.start`, `payPeriod.end` | Yes |
-| `payDate` | Yes |
-| `gross`, `taxWithheld`, `net` | Yes |
-| Each earning's `description` and `amount` | Yes |
-| Each deduction's `description` and `amount` | Yes |
-| Each contribution's `amount` | Yes. A contribution has no `description`. |
-| `issuer.name`, the employer | No: the receiving app shows who sent it |
-| `employee.employeeId` | No |
-| `issuedAt` | No |
-| `payRate` | No |
-| `leave` | No |
-| `yearToDate` | No |
-| Any other field, such as `title`, or an earning's `category` or `rate` | No |
+| Field                                                                  | Must be shown                             |
+| ---------------------------------------------------------------------- | ----------------------------------------- |
+| `id`                                                                   | Yes                                       |
+| `employee.name`                                                        | Yes                                       |
+| `payPeriod.start`, `payPeriod.end`                                     | Yes                                       |
+| `payDate`                                                              | Yes                                       |
+| `gross`, `taxWithheld`, `net`                                          | Yes                                       |
+| Each earning's `description` and `amount`                              | Yes                                       |
+| Each deduction's `description` and `amount`                            | Yes                                       |
+| Each contribution's `amount`                                           | Yes. A contribution has no `description`. |
+| `issuer.name`, the employer                                            | No: the receiving app shows who sent it   |
+| `employee.employeeId`                                                  | No                                        |
+| `issuedAt`                                                             | No                                        |
+| `payRate`                                                              | No                                        |
+| `leave`                                                                | No                                        |
+| `yearToDate`                                                           | No                                        |
+| Any other field, such as `title`, or an earning's `category` or `rate` | No                                        |
 
 #### Letter
 
-| Field | Must be shown |
-| --- | --- |
-| `issuedAt` | Yes |
-| `body.content` | Yes, every word of it |
-| `signatory.name`, `signatory.title` | Yes |
-| `signatory.visualSignature` | Yes, as a [`signature`](./elements.md#signature) element |
-| `issuer.name` | No: the receiving app shows who sent it |
-| `recipient.name` | No: the receiving app shows who it is for |
-| `id` | No |
-| Any other field, such as `title`, or the issuer's address | No |
+| Field                                                     | Must be shown                                            |
+| --------------------------------------------------------- | -------------------------------------------------------- |
+| `issuedAt`                                                | Yes                                                      |
+| `body.content`                                            | Yes, every word of it                                    |
+| `signatory.name`, `signatory.title`                       | Yes                                                      |
+| `signatory.visualSignature`                               | Yes, as a [`signature`](./elements.md#signature) element |
+| `issuer.name`                                             | No: the receiving app shows who sent it                  |
+| `recipient.name`                                          | No: the receiving app shows who it is for                |
+| `id`                                                      | No                                                       |
+| Any other field, such as `title`, or the issuer's address | No                                                       |
 
 #### Agreement
 
@@ -203,13 +203,13 @@ element.
 In a field written in markdown, a note or a body with `format: "markdown"`,
 the characters a renderer does not draw as text need not be shown:
 
-| Characters | Why |
-| --- | --- |
-| The marks `#`, `*`, `_`, `` ` ``, `>`, `-` and `+`, wherever they are | They are formatting marks. One drawn as text, such as a hyphen, may still be shown. |
-| A backslash before a punctuation mark or a symbol | It escapes the next character and is never drawn |
-| A link's `[` and its `](destination)` | Only the link's text is drawn, and it must be shown |
-| The `<` and `>` of an address written `<https://…>` or `<http://…>` | They are never drawn |
-| An ordered list item's number, 1 to 9 digits and its `.` or `)`, at the start of a line after any spaces or tabs and followed by a space or tab | It is drawn as the list's marker, not as text |
+| Characters                                                                                                                                      | Why                                                                                 |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| The marks `#`, `*`, `_`, `` ` ``, `>`, `-` and `+`, wherever they are                                                                           | They are formatting marks. One drawn as text, such as a hyphen, may still be shown. |
+| A backslash before a punctuation mark or a symbol                                                                                               | It escapes the next character and is never drawn                                    |
+| A link's `[` and its `](destination)`                                                                                                           | Only the link's text is drawn, and it must be shown                                 |
+| The `<` and `>` of an address written `<https://…>` or `<http://…>`                                                                             | They are never drawn                                                                |
+| An ordered list item's number, 1 to 9 digits and its `.` or `)`, at the start of a line after any spaces or tabs and followed by a space or tab | It is drawn as the list's marker, not as text                                       |
 
 Every other character but a space must be shown. `markdownHidden(text)`,
 from `@btps/sdk/boundview`, marks these characters in a text, and

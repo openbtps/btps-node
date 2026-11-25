@@ -10,7 +10,7 @@ Following security best practices is critical for maintaining the integrity and 
 
 ## Best Practices & Compliance in BTPS
 
-- **Key Rotation:** Rotate cryptographic keys regularly and update DNS records promptly.
+- **Key Rotation:** Rotate cryptographic keys regularly and update DNS records promptly. Since 1.2, record each rotation in the identity's signed key chain, so receivers refuse the old key after its grace ([Key rotation](../../features/keyRotation.md)).
 - **Private Key Protection:** Never share private keys; store them securely (e.g., HSM, encrypted disk).
 - **Strong Algorithms:** Use only strong, industry-standard algorithms (e.g., AES-256-GCM, RSA-2048+, SHA-256).
 - **Signature Verification:** Always verify digital signatures before processing any message.
@@ -29,6 +29,7 @@ Before an artifact reaches your handler, `BtpsServer` refuses:
 - a signature that does not match the content, or a key that is not the one the sender publishes, so altered, redirected and spoofed artifacts never arrive;
 - an artifact signed outside the time window (5 minutes by default, `maxArtifactAgeSeconds`);
 - an artifact without an active trust, and one sent in the clear over a trust that requires encryption;
+- since 1.2, a key its identity's key chain retired or revoked, and what a trust's permissions do not allow;
 - an address with a second separator or a `:`;
 - a line larger than the server's limit, and one that is not strict JSON;
 - a document with a field over its limit.

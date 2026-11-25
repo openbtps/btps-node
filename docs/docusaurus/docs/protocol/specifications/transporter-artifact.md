@@ -798,7 +798,7 @@ Its `contentSha256`, as `agreementContentSha256` gives it, is `fabe09ee458f0f7b3
 
 **A signer's answer is a signed statement** over the RFC 8785 form of:
 
-```json sketch
+```json btps=statement
 {
   "agreement": {
     "originator": "loans$bank.example",

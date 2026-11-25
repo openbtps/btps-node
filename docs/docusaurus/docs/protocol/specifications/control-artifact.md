@@ -13,7 +13,7 @@ Control artifacts (`BTPControlArtifact`) are designed for simple server control 
 
 ## Artifact Structure
 
-```json sketch
+```json btps=control
 {
   "version": "1.1.0",
   "id": "3e1c9b72-5a4d-4f6e-8b9a-0c1d2e3f4a5b",
@@ -56,7 +56,7 @@ The `PING` action is used to test server connectivity and responsiveness.
 
 **Example PING Request**:
 
-```json sketch
+```json btps=control
 {
   "version": "1.1.0",
   "id": "4f2dac83-6b5e-4071-9cab-1d2e3f4a5b6c",
@@ -97,7 +97,7 @@ The `QUIT` action is used to gracefully terminate a server session.
 
 **Example QUIT Request**:
 
-```json sketch
+```json btps=control
 {
   "version": "1.1.0",
   "id": "6b4fcea5-8d70-4293-becd-3f4a5b6c7d8e",
@@ -203,7 +203,7 @@ Control artifacts have minimal security requirements compared to other artifact 
 
 Control artifacts are ideal for load balancer health checks:
 
-```json sketch
+```json btps=control
 {
   "version": "1.1.0",
   "id": "8d61e0c7-af92-44b5-90ef-5b6c7d8e9fa0",

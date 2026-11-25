@@ -13,7 +13,7 @@ Identity lookup artifacts (`BTPIdentityLookupRequest`) are designed for requesti
 
 ## Artifact Structure
 
-```json sketch
+```json btps=identityLookup
 {
   "version": "1.2.0",
   "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
@@ -48,7 +48,7 @@ It has these members and no other: a host refuses a lookup that carries anything
 
 When a SaaS platform manages identities that are not published in DNS:
 
-```json sketch
+```json btps=identityLookup
 {
   "version": "1.2.0",
   "id": "b2c3d4e5-f607-4b8c-9d0e-1f2a3b4c5d6e",
@@ -64,7 +64,7 @@ When a SaaS platform manages identities that are not published in DNS:
 
 When organizations manage private identities internally:
 
-```json sketch
+```json btps=identityLookup
 {
   "version": "1.2.0",
   "id": "c3d4e5f6-0718-4c9d-8e1f-2a3b4c5d6e7f",
@@ -79,7 +79,7 @@ When organizations manage private identities internally:
 
 When verifying identities across different domains:
 
-```json sketch
+```json btps=identityLookup
 {
   "version": "1.2.0",
   "id": "d4e5f607-1829-4dae-9f20-3b4c5d6e7f80",
@@ -110,7 +110,7 @@ When the identity is found, the host answers with the identity's public key, sig
   "reqId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
   "document": {
     "selector": "john1",
-    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----",
     "keyType": "rsa",
     "version": "1.2.0",
     "identity": "john$saas.com",
@@ -152,10 +152,10 @@ When the identity is not found:
 
 The response document contains the identity's public key information:
 
-```json sketch
+```json btps=identityDocument
 {
   "selector": "john1",
-  "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----",
   "keyType": "rsa",
   "version": "1.2.0",
   "identity": "john$saas.com"
@@ -165,7 +165,7 @@ The response document contains the identity's public key information:
 **Required Fields:**
 
 - **selector**: DNS selector for the identity
-- **publicKey**: Base64-encoded public key (SPKI format, no PEM headers/footers)
+- **publicKey**: The identity's public key, SPKI PEM, as the host's identity store holds it
 - **keyType**: Key type (currently "rsa")
 - **version**: Protocol version
 
@@ -244,7 +244,7 @@ Servers implementing identity lookup must:
 
 **Lookup Request**:
 
-```json sketch
+```json btps=identityLookup
 {
   "version": "1.2.0",
   "id": "07182930-4a5b-4cd1-8253-6e7f8091a2b3",
@@ -272,7 +272,7 @@ Servers implementing identity lookup must:
   "reqId": "07182930-4a5b-4cd1-8253-6e7f8091a2b3",
   "document": {
     "selector": "john1",
-    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----",
     "keyType": "rsa",
     "version": "1.2.0",
     "identity": "john$saas.com"
@@ -293,7 +293,7 @@ Servers implementing identity lookup must:
 
 **Lookup Request**:
 
-```json sketch
+```json btps=identityLookup
 {
   "version": "1.1.0",
   "id": "293a4b5c-6d7e-4ef3-a475-8091a2b3c4d5",
@@ -320,7 +320,7 @@ Servers implementing identity lookup must:
   "reqId": "293a4b5c-6d7e-4ef3-a475-8091a2b3c4d5",
   "document": {
     "selector": "btps1",
-    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----",
     "keyType": "rsa",
     "version": "1.1.0"
   },

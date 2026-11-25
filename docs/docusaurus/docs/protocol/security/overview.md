@@ -23,6 +23,7 @@ sequenceDiagram
     Receiving BTPS Server->>Receiving BTPS Server: Size, format and version checks
     Receiving BTPS Server->>DNS: Sender's key at the artifact's selector
     DNS-->>Receiving BTPS Server: Return public key
+    Note over Receiving BTPS Server: Since 1.2: the key is checked against<br/>the sender's key chain, from its host
     Receiving BTPS Server->>Receiving BTPS Server: Verify the signature, time window, trust and privacy type
     Receiving BTPS Server->>Receiver: Hands to the receiver's handler (refused if there is none)
     Receiving BTPS Server-->>Sender: Success, once the handler returns
@@ -41,7 +42,7 @@ sequenceDiagram
 - **Algorithms:** RSA-2048 or larger keys, AES-256-GCM, RSA-OAEP and SHA-256 signatures over the canonical form ([algorithms](./algorithm.md)).
 - **Key Exchange:** Public keys are discovered via DNS, or through an identity lookup at the host signed by the domain's operator.
 - **Message Signing:** Every message is signed by the sender and verified by the receiver.
-- **Forward Secrecy:** Key rotation and revocation are supported for ongoing security.
+- **Key Rotation and Revocation:** A key is replaced under a new selector and, since 1.2, recorded in the identity's signed key chain, so a retired or compromised key is refused ([Key rotation](../../features/keyRotation.md)). This is not forward secrecy: a document stays readable by whoever holds the private key it was encrypted to.
 
 ## Encryption Modes
 
@@ -68,4 +69,4 @@ sequenceDiagram
 - The BTPS client uses the `signEncrypt` function to sign and encrypt outgoing artifacts. If encryption is not required (per trust record), the payload is sent as plain text and the `encryption` field is null.
 - The receiver uses the `decryptVerify` function to verify the signature and decrypt the payload (if encrypted). If the artifact is unencrypted, only signature verification is performed.
 
-> All sensitive data in BTPS is encrypted in transit and at rest, ensuring maximum security for billing and financial workflows.
+> Every connection is TLS, and an encrypted document stays encrypted from sender to receiver, through every server on the way. How it is stored once opened is the receiving platform's responsibility.

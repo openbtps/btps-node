@@ -152,7 +152,7 @@ flowchart TD
 
 ### Identity Lookup Request
 
-```json sketch
+```json btps=identityLookup
 {
   "version": "1.2.0",
   "id": "4b5c6d7e-8f90-4a1b-b2c3-d4e5f6071829",

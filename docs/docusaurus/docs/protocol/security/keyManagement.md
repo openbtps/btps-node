@@ -15,31 +15,35 @@ sequenceDiagram
     participant Admin
     participant DNS
     Admin->>Admin: Generate new key pair
+    Admin->>Admin: Since 1.2, sign a key rotation record, old and new key, into the identity's key chain
     Admin->>DNS: Publish the new public key under a new selector
     DNS-->>Admin: Confirm update
     Admin->>DNS: Change s= in _btps.host to the new selector
-    Admin->>Admin: Retain old key and its record for grace period
-    Admin->>DNS: Remove the old selector's record after grace period
-``` 
+    Admin->>Admin: Keep the old private key until every stored document opens with the new one
+    Admin->>DNS: Remove the old selector's record after the grace period
+```
 
 ## Key Generation
+
 - Keys are generated using strong, industry-standard algorithms (RSA, 2048 bits or more).
 - Keys are stored in PEM format for compatibility and portability.
 - Public keys are published via DNS TXT records, or served by the host's identity lookup, for discovery.
 
 ## Key Rotation
-- Keys should be rotated regularly to maintain forward secrecy.
+
+- Keys should be rotated regularly, so a key that leaks unnoticed stops being taken. Rotation is not forward secrecy: a document stays readable by whoever holds the private key it was encrypted to.
 - When rotating keys:
   1. Generate a new key pair.
-  2. Publish the new public key under a new selector, then change `s=` in `_btps.host` to it. Don't overwrite the old selector's record: receivers verify each artifact with the key at the selector it names. See [Key Rotation](../keyRotation.md).
-  3. Notify trusted parties if required.
-  4. Retain the old key for a grace period to allow in-flight messages to be decrypted.
-- BTPS maintains a key history for audit and compliance.
+  2. Since 1.2, sign a rotation record with both keys (`signKeyRotation`) and keep it in the identity's key chain (the identity store's `keyChain`), which the identity's host serves. Receivers then take the old key for `retiredKeyGraceSeconds` (a day by default) and refuse it after.
+  3. Publish the new public key under a new selector, then change `s=` in `_btps.host` to it. Don't overwrite the old selector's record: receivers verify each artifact with the key at the selector it names. See [Key Rotation](../keyRotation.md).
+  4. Keep the old private key until every document encrypted to it opens with the new one: wrap each content key again (`wrapContentKeyFor`) and confirm it (`contentKeyOpens`) before deleting the old key.
+- A device's key history is kept on its trust record (`keyHistory`); an identity's, since 1.2, in its key chain.
 
 ## Key Revocation
-- If a key is compromised, immediately revoke it by removing its record from DNS and updating trust records.
-- Notify all trusted parties of the revocation.
-- Update trust relationships to require re-establishment with the new key.
+
+- If a key is compromised, rotate away from it with immediate expiry (`expiry: 'immediate'`, with `compromisedSince` and `reason`) and remove its DNS record at once. Since 1.2, a receiver refuses the key at once (`BTP_ERROR_KEY_REVOKED`), whatever DNS still has. A compromise found after the identity already left the key is an expiry record (`signKeyExpiry`), signed by the current key.
+- A 1.1 receiver checks only DNS: removing the record is what stops it taking the key.
+- Notify trusted parties if your platform's policy requires it. See [Key rotation](../../features/keyRotation.md) for every case.
 
 ## Keys Held Elsewhere: Signer and Decrypter
 
@@ -52,16 +56,16 @@ Both are interfaces in `@btps/sdk/crypto`. They import nothing, so they also wor
 
 The SDK ships `PemSigner` and `PemDecrypter` for a PEM key held in the process. For anything else, a platform writes its own, usually in a few lines; the SDK depends on no vendor's library. Every place that takes a PEM key also takes one held elsewhere:
 
-| Where                                                | PEM key                               | Key held elsewhere                                           |
-| ---------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------ |
-| `BtpsServer`, `serverIdentity`                       | `publicKey` and `privateKey`          | `signer`                                                     |
-| `BtpsAgent`, `agent`                                 | `identityKey` and `identityCert`      | `signer`, and `decrypter` to read encrypted answers          |
-| `BtpsDelegator`                                      | `privateKey`                          | `signer`                                                     |
-| `BtpsDelegator.delegateArtifact`, `onBehalfOf`       | `keyPair` as a PEM key pair           | `keyPair` as a `Signer`                                      |
-| `BtpsAuthentication.authenticate` / `refreshSession` | `keyPair` as a PEM key pair           | `keyPair` as a `Signer`                                      |
-| `signEncrypt`, `sender`                              | `pemFiles`                            | `signer`                                                     |
-| `decryptVerify`                                      | the receiver's PEM private key        | a `Decrypter`                                                |
-| Low level                                            | `signBtpPayload`, `decryptBtpPayload` | `signBtpPayloadWithSigner`, `decryptBtpPayloadWithDecrypter` |
+| Where                                                              | PEM key                               | Key held elsewhere                                           |
+| ------------------------------------------------------------------ | ------------------------------------- | ------------------------------------------------------------ |
+| `BtpsServer`, `serverIdentity`                                     | `publicKey` and `privateKey`          | `signer`                                                     |
+| `BtpsAgent`, `agent`                                               | `identityKey` and `identityCert`      | `signer`, and `decrypter` to read encrypted answers          |
+| `BtpsDelegator`                                                    | `privateKey`                          | `signer`                                                     |
+| `BtpsDelegator.delegateArtifact`, `onBehalfOf`                     | `keyPair` as a PEM key pair           | `keyPair` as a `Signer`                                      |
+| `BtpsAuthentication.authenticate` / `refreshSession` / `rotateKey` | `keyPair` as a PEM key pair           | `keyPair` as a `Signer`                                      |
+| `signEncrypt`, `sender`                                            | `pemFiles`                            | `signer`                                                     |
+| `decryptVerify`                                                    | the receiver's PEM private key        | a `Decrypter`                                                |
+| Low level                                                          | `signBtpPayload`, `decryptBtpPayload` | `signBtpPayloadWithSigner`, `decryptBtpPayloadWithDecrypter` |
 
 A signature made through a `Signer` is byte-for-byte the one `signBtpPayload` makes with the same key, so the receiver cannot tell, and needs no change.
 
@@ -159,7 +163,7 @@ Then pass them wherever a key is taken:
 
 ```ts
 const server = new BtpsServer({
-  serverIdentity: { identity: 'billing$yourdomain.com', signer: new KmsSigner(signingKeyArn) },
+  serverIdentity: { identity: 'admin$yourdomain.com', signer: new KmsSigner(signingKeyArn) }, // the domain's operator
   trustStore,
   tlsOptions,
 });
@@ -174,6 +178,7 @@ const { payload, error } = await decryptVerify(
 The public key published in DNS for the identity is the KMS key's public key. A failure inside the key holder (KMS unreachable, access denied) fails the call that needed it; the SDK never falls back to another key.
 
 ## Best Practices
+
 - Never share private keys; only publish public keys.
 - Use secure storage for private keys (e.g., HSM, encrypted disk).
 - Monitor and log all key management operations.

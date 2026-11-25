@@ -153,7 +153,7 @@ class ProductionAuthService {
     this.auth = new BtpsAuthentication({
       trustStore: new DatabaseTrustStore({
         connection: process.env.DATABASE_URL,
-        tableName: 'btps_trust_records',
+        entityName: 'btps_trust_records',
       }),
       tokenStore: new RedisTokenStore({
         host: process.env.REDIS_HOST,
@@ -174,8 +174,8 @@ class ProductionAuthService {
   async generateDeviceToken(userIdentity: string, metadata: any) {
     try {
       const authToken = BtpsAuthentication.generateAuthToken(userIdentity);
-      const agentId = BtpsAuthentication.generateAgentId();
 
+      // The device gets its agent id when it registers (createAgent), not here
       await this.auth.storeAuthToken(authToken, userIdentity, userIdentity, {
         ...metadata,
         timestamp: new Date().toISOString(),
@@ -185,13 +185,11 @@ class ProductionAuthService {
       this.logger.logAuthEvent({
         type: 'token_generated',
         userIdentity,
-        agentId,
         metadata,
       });
 
       return {
         authToken,
-        agentId,
         expiresIn: '10 minutes',
       };
     } catch (error) {
@@ -286,8 +284,8 @@ class ProductionAuthService {
           reason: error.message,
         });
         // Since 1.2: BTP_ERROR_TEMPORARILY_UNAVAILABLE (try again), BTP_ERROR_KEY_TOO_OLD (rotate),
-        // or BTP_ERROR_AUTHENTICATION_INVALID. Thrown, the server answers it as itself.
-        throw error;
+        // or BTP_ERROR_AUTHENTICATION_INVALID. A BTPS error passed on goes to the device as itself.
+        return resCtx.sendError(error);
       }
 
       this.metrics.recordRefreshAttempt(true);
@@ -899,6 +897,9 @@ try {
 ### **4. QR Code Integration**
 
 ```typescript
+import { BtpsAuthentication } from '@btps/sdk/authentication';
+import { getBTPKeyPair } from '@btps/sdk/crypto';
+
 class BTPSQRCodeHandler {
   async generateQRCode(authToken: string, userIdentity: string) {
     const qrData = {
@@ -963,9 +964,17 @@ const qrHandler = new BTPSQRCodeHandler();
 const qrData = await qrHandler.generateQRCode('YDVKSEU4CEEW', 'alice$saas.com');
 console.log('QR Code generated:', qrData.qrCode);
 
-// Scan QR code in app
+// Scan QR code in app, then register this device with the code
 const scannedData = await qrHandler.scanQRCode(qrData.qrString);
-console.log('Scanned data:', scannedData);
+const deviceKeys = getBTPKeyPair(); // keep it in the device's keystore
+const result = await BtpsAuthentication.authenticate(
+  scannedData.userIdentity,
+  scannedData.authToken,
+  deviceKeys,
+  { deviceName: 'Phone' },
+);
+// Without agentOptions, the device finds its provider from DNS (_btps.host);
+// scannedData.server is for display, or for { host, port } in development.
 ```
 
 ## 🔧 Integration Examples
@@ -1067,6 +1076,8 @@ app.listen(3000, () => {
 
 ### **2. React Native Integration**
 
+The SDK runs on Node.js 24 (it uses Node's `tls` and `crypto`), so this assumes an app runtime that provides them. The device key is the one the device signs every later command and refresh with: keep it, here in the keychain, or hold it in the platform keystore behind a `Signer`.
+
 ```typescript
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
@@ -1124,27 +1135,29 @@ const BTPSAuthScreen = () => {
           appVersion: '1.0.0',
         },
         {
+          // Optional: without host and port, the provider is found from DNS (_btps.host)
           host: 'btps.saas.com',
           port: 3443,
           maxRetries: 3,
         }
       );
 
-      if (result.success) {
-        const { agentId, refreshToken, expiresAt } = result.response?.document;
+      if (result.success && result.response) {
+        const { agentId, refreshToken, expiresAt } = result.response.document;
 
-        // Store credentials securely
+        // Store credentials securely: the session, and the device key it is bound to
         await Keychain.setInternetCredentials('btps_credentials', 'btps', JSON.stringify({
           agentId,
           refreshToken,
           expiresAt,
           userIdentity: 'alice$saas.com',
         }));
+        await Keychain.setInternetCredentials('btps_device_key', 'btps', JSON.stringify(keyPair));
 
         setIsAuthenticated(true);
         Alert.alert('Success', 'Device registered successfully!');
       } else {
-        Alert.alert('Error', result.error || 'Authentication failed');
+        Alert.alert('Error', result.error?.message ?? 'Authentication failed');
       }
     } catch (error) {
       console.error('Authentication failed:', error);
@@ -1157,6 +1170,7 @@ const BTPSAuthScreen = () => {
   const logout = async () => {
     try {
       await Keychain.resetInternetCredentials('btps_credentials');
+      await Keychain.resetInternetCredentials('btps_device_key');
       setIsAuthenticated(false);
       setAuthToken('');
       Alert.alert('Success', 'Logged out successfully');
