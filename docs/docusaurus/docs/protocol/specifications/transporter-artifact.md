@@ -778,6 +778,27 @@ Since 1.2, in a `1.2.0` artifact only: a letter that asks its signers to accept 
 - **`consent`**, optional, on an `accepted` statement only: the signer's consent to sign electronically, `{ "electronic": true, "disclosureSha256": "…", "at": "2026-11-03T00:00:00Z" }`. `electronic` is always `true`. `disclosureSha256` is the SHA-256, in lowercase hex, of the disclosure the signer's platform showed it, in that platform's own words: BTPS carries the fact, and each platform writes and versions its own wording. `at` is when the signer agreed, an RFC 3339 time no later than `signedAt`. A `declined` statement with a `consent` is refused.
 - **`viewedAt`**, optional, on an `accepted` or a `declined` statement: when the signer first viewed the agreement, an RFC 3339 time no later than `signedAt`.
 - **`consent` and `viewedAt`** are there because laws on electronic signatures (such as Australia's Electronic Transactions Act 1999, ESIGN and UETA in the US, and eIDAS in the EU) and some courts expect evidence that the signer agreed to sign electronically and of when it viewed the document. Both are inside the statement, so the statement's signature covers them: changing or removing either makes it no longer check. They travel into the evidence bundle with it, so any platform's evidence can show them, not only the originator's own records. A statement without them stays valid. Whether either is required is the platform's choice.
+- **`viewedFrom`**, optional, only with a `viewedAt`: where the signer viewed the agreement from. A statement with a `viewedFrom` and no `viewedAt` is refused.
+- **`signedFrom`**, optional, on an `accepted` or a `declined` statement: where the signer answered from.
+- **A signing context**, the value of each, is an object with `ip`, `userAgent` and `device`, each optional, at least one of the three. **`ip`** is the IP address the request came from, IPv4 or IPv6. **`userAgent`** is the user agent the browser or app sent, printable ASCII text of at most 256 characters. **`device`** is an object with `os`, `osVersion`, `model`, `browser`, `browserVersion`, `app`, `appVersion` and `id`, each optional, at least one, each printable ASCII text of at most 100 characters (`id`, at most 128). `id` is the platform's own identifier for a device it registered, such as an app installation, not a fingerprint. For example:
+
+  ```json
+  {
+    "ip": "203.0.113.7",
+    "userAgent": "ExampleApp/4.2 (iOS 18.1)",
+    "device": {
+      "os": "iOS",
+      "osVersion": "18.1",
+      "model": "iPhone16,2",
+      "app": "ExampleApp",
+      "appVersion": "4.2",
+      "id": "inst-7f3a9c"
+    }
+  }
+  ```
+
+- **A context is the signer's platform's observation**, not cryptographic proof of location or device: the platform saw the request, and a browser reports what it reports. How much is known, and how accurately, is the platform's responsibility: a web browser may give only a user agent (some browsers expose the OS and model through User-Agent Client Hints), and a native app can give its OS, version, model and its registered device id. BTPS only carries the fields. Both contexts are inside the statement, so the statement's signature covers them and they cannot be changed afterwards. They travel into the evidence bundle and to every party the statement is forwarded to. A statement without them stays valid.
+- **Privacy.** An IP address and device details are personal information in many jurisdictions. A platform that records them should tell the signer before it signs, for example in the disclosure `consent.disclosureSha256` names, that they are recorded and shared with the agreement's parties. Every field is optional, so a platform may leave them out.
 - **The record** is `{ statement, signature, selector }` when the signer signs with its identity key, which may be a managed key its provider holds. When a device signs it, the record is `{ statement, signature, delegatedArtifact }`: the whole event artifact that delivered it, as it arrived (envelope, ciphertext, the device's signature and its delegation), which the originator adds on receipt. A BTPS delegation signs the artifact it travels with, so the record keeps that artifact to stay checkable offline. Its ciphertext only has to verify, never to open.
 - **The key kind is a fact, not a field:** a record with a delegated artifact was signed by a device, and one without by the identity, so the two can never disagree. A device's record checks when its delegation is its delegator's over that artifact, a self-delegation (signed by the signer itself) carries an attestation, as a server requires on arrival, any attestation is its attestor's, the artifact came from the signer and is signed by the delegated key, and so is the statement. All of these are checked offline. Who delegated it, and who attested it, are reported as facts: whether the delegator, or the attestor, is the signer's domain's operator needs DNS (`_btps.host` `op`), which a reader may confirm online; it is never a verdict.
 - **An answer is final.** A statement is never withdrawn; a change is a new agreement.

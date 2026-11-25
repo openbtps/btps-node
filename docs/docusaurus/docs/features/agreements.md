@@ -138,6 +138,9 @@ A signer answers with an `agreement_event` in a `BTPS_EVENT`, whose `relatesTo` 
 - **`consent`**, optional, on an acceptance only: the signer's consent to sign electronically, `{ electronic: true, disclosureSha256, at }`. `disclosureSha256` is the SHA-256 of the disclosure the signer's platform showed it, in that platform's own words; `at` is when it agreed, no later than `signedAt`. BTPS carries the fact; each platform writes and versions its own wording. A decline with a `consent` is refused.
 - **`viewedAt`**, optional, on an acceptance or a decline: when the signer first viewed the agreement, no later than `signedAt`.
 - **Why both exist.** Laws on electronic signatures (Australia's Electronic Transactions Act 1999, ESIGN and UETA in the US, eIDAS in the EU) and some courts expect evidence that the signer agreed to sign electronically, and of when it viewed the document. Both are inside the statement, so the signature covers them: changing or removing either no longer checks. They travel into the evidence bundle with it, so any platform's evidence shows them, not only the originator's own records. A statement without them stays valid. Whether either is required is the platform's choice.
+- **`viewedFrom`** and **`signedFrom`**, optional: where the signer viewed the agreement from (only with a `viewedAt`; a `viewedFrom` without one is refused) and where it answered from, on an acceptance or a decline. Each is `{ ip, userAgent, device }`, at least one of the three: the IP address the request came from (IPv4 or IPv6), the user agent its browser or app sent (printable ASCII, at most 256 characters), and the device, `{ os, osVersion, model, browser, browserVersion, app, appVersion, id }`, at least one, each printable ASCII of at most 100 characters (`id`, 128). `id` is the platform's own identifier for a device it registered, such as an app installation, not a fingerprint.
+- **What a context is.** The signer's platform's observation: it saw the request, and a browser reports what it reports. It is not proof of location or device. How much is known, and how accurately, is the platform's: a browser may give only a user agent (some expose the OS and model through User-Agent Client Hints), a native app its OS, version, model and registered device id. BTPS only carries the fields. The signature covers them, so they cannot be changed afterwards, and they travel into the evidence bundle and to every party the statement is forwarded to.
+- **Privacy.** An IP address and device details are personal information in many jurisdictions. A platform that records them should tell the signer before it signs, for example in the disclosure `consent.disclosureSha256` names, that they are recorded and shared with the agreement's parties. Every field is optional, so a platform may leave them out; a statement without them stays valid.
 - **An answer is final.** It is never withdrawn; a change is a new agreement.
 
 A decline may carry a note:
@@ -241,6 +244,7 @@ const record = await signStatement(
     visualSignature: { type: 'typed', text: 'Sam Lee' }, // optional, an acceptance only
     consent: { electronic: true, disclosureSha256, at: consentedAt }, // optional, an acceptance only
     viewedAt: firstViewedAt, // optional, no later than signedAt
+    signedFrom: { ip: requestIp, userAgent }, // optional, as your platform saw it
   },
   { selector: 'btps1', pemFiles: samKeys },
 );

@@ -1565,6 +1565,8 @@ type BTPAgreementStatement = {
   visualSignature?: BTPVisualSignature; // on an acceptance only
   consent?: BTPElectronicConsent; // on an acceptance only
   viewedAt?: string; // when the signer first viewed the agreement, no later than signedAt
+  viewedFrom?: BTPSigningContext; // where it viewed from, only with viewedAt
+  signedFrom?: BTPSigningContext; // where it answered from
 };
 
 // The signer's own signature, typed or drawn on a 1000 by 300 canvas, as a letter's is
@@ -1573,6 +1575,25 @@ type BTPVisualSignature = { type: 'typed'; text: string } | { type: 'drawn'; str
 // The signer's consent to sign electronically: disclosureSha256 is the SHA-256 of the disclosure
 // its platform showed it, in its own words; at is when it agreed, no later than signedAt
 type BTPElectronicConsent = { electronic: true; disclosureSha256: string; at: string };
+
+// Where a signer viewed or answered from, as its platform saw it, not proof: the request's IP
+// address (IPv4 or IPv6), its user agent (printable ASCII, at most 256 characters) and its device.
+// At least one of the three.
+type BTPSigningContext = { ip?: string; userAgent?: string; device?: BTPSigningDevice };
+
+// The device a signer was on, as its platform could tell. Each field printable ASCII of at most
+// 100 characters (id, 128); at least one. id is the platform's own identifier for a device it
+// registered, such as an app installation, not a fingerprint.
+type BTPSigningDevice = {
+  os?: string;
+  osVersion?: string;
+  model?: string;
+  browser?: string;
+  browserVersion?: string;
+  app?: string;
+  appVersion?: string;
+  id?: string;
+};
 
 // Signed by the signer's identity key at `selector`, or by a device key, carrying the delegated artifact that delivered it
 type BTPStatementRecord = { statement: BTPAgreementStatement; signature: BTPSignature } & (
