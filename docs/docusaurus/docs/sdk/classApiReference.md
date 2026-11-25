@@ -1929,7 +1929,6 @@ Ways to hold `BtpsServer` instances. Each builds a server from `BtpsServerOption
 | `BtpsServerFactory`            | `static create(config): BtpsServer`                                                                     | A new server each call                                                                                                            |
 | `BtpsServerSingletonFactory`   | `static create(config): BtpsServer`, `static reset()`                                                   | One server per process: `create` returns the same instance until `reset`                                                          |
 | `BtpsServerLightweightFactory` | `static async create(config)`, `static reset()`                                                         | The singleton, with `BtpsServer` loaded by dynamic import only when `create` is first called, to keep it out of an initial bundle |
-| `BtpsServerSyncFactory`        | `static async create(config)`, `static reset()`                                                         | The same singleton, for code that wants the server as soon as it is created                                                       |
 | `BtpsServerRegistry`           | `static register(id, server)`, `get(id)`, `start(id)`, `stop(id)`, `startAll()`, `stopAll()`, `clear()` | Several named servers in one process, started and stopped by name                                                                 |
 
 ---

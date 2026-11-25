@@ -1082,25 +1082,6 @@ Each is a `readonly` array (or record) of the names a server and agent take.
 
 ---
 
-### BTPSMessageQueue / InMemoryQueue
-
-```ts
-abstract class BTPSMessageQueue {
-  abstract add(message: BTPArtifact): Promise<void>;
-  abstract getPending(): Promise<BTPArtifact[]>;
-  abstract on(event: 'message', handler: (msg: BTPArtifact) => void): void;
-  abstract markHandled(id: string): Promise<void>;
-}
-class InMemoryQueue extends BTPSMessageQueue {
-  getPending(identity?: string): Promise<BTPArtifact[]>;
-}
-```
-
-**Description:**
-A queue contract a platform may use for artifacts it handles later, and an in-memory implementation that keeps each artifact under its recipient (a transporter artifact), its asker (an identity lookup) or its agent. The server does not use either. Exported for platforms that want a starting point; most use their own queue.
-
----
-
 ## Server building blocks (`@btps/sdk/server/core`)
 
 The middleware checks above (`agreementOrderCheck`, `eventChainCheck`, `detailsResponseCheck`, `detailsRequestLimit`) also come from this subpath. The classes here (factories, registry, rate limiter, metrics tracker) are in the [Class API Reference](./classApiReference.md#server-factories-and-registry-btpssdkservercore).
