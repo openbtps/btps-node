@@ -35,7 +35,7 @@ sequenceDiagram
 
 ## The bundle
 
-A shortened bundle, one signer and one key shown:
+A shortened bundle, one signer and one key shown. The statement's `contentSha256` is the agreement's (`agreementContentSha256`), and each `statementSha256` is the statement record's (`statementRecordSha256`):
 
 ```json btps=bundle
 {
@@ -68,7 +68,7 @@ A shortened bundle, one signer and one key shown:
         "agreement": {
           "originator": "loans$bank.example",
           "id": "AGR-1",
-          "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+          "contentSha256": "be5d7fa941e0e5e6047d9dce693d95b32c02d90fb0f2b09414903db172dc54de"
         },
         "terms": [],
         "signer": "alice$client.example",
@@ -108,7 +108,7 @@ A shortened bundle, one signer and one key shown:
   ],
   "timestamps": [
     {
-      "statementSha256": "4c1d2e3f405162738495a6b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f8091",
+      "statementSha256": "6772e85690c6ccbaa1f37875c117e03847576c2f48dbfd1445d48b2906787d57",
       "token": "BASE64-OF-THE-RFC-3161-TOKEN"
     }
   ],
@@ -154,7 +154,7 @@ A shortened bundle, one signer and one key shown:
   ],
   "arrivals": [
     {
-      "statementSha256": "4c1d2e3f405162738495a6b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f8091",
+      "statementSha256": "6772e85690c6ccbaa1f37875c117e03847576c2f48dbfd1445d48b2906787d57",
       "arrivedAt": "2026-11-02T00:00:03.000Z",
       "receivedBy": "loans$bank.example",
       "selector": "btps1",

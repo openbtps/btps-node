@@ -73,7 +73,12 @@ short:
 - **Keep a pull request to one change**, and say in its description what it
   changes, why, and how you tested it.
 - **Add a test that fails without your change** and passes with it.
-- **Update the docs** in `docs/docusaurus/docs` when behaviour changes.
+- **Update the docs fully, in the same pull request**, for any addition,
+  change, rename or removal: the prose, diagrams, code blocks, JSON
+  examples, the SDK reference, the server and middleware pages, the
+  specification, and What's new with its migration guide, all in
+  `docs/docusaurus/docs`. Never edit `versioned_docs`: it holds released
+  snapshots.
 
 ## Versioning
 

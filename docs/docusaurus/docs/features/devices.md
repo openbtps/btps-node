@@ -156,7 +156,7 @@ await agent.command('artifact.send', user, copyOfTheDocument, {
 });
 ```
 
-The artifact it carries:
+The artifact it carries. Its `syncOf` names the send shown under [`meta.delivery`](#metadelivery-on-the-sentbox) below, by that artifact's id and `syncOfArtifact` of it:
 
 ```json btps=transporter
 {
@@ -168,8 +168,8 @@ The artifact it carries:
   "to": "alice$saas.example",
   "selector": "btps1",
   "syncOf": {
-    "id": "6f0d8e2a-7b1c-4e3d-9a5f-1c2b3d4e5f60",
-    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    "id": "8d7e6f50-4a3b-4c2d-9e1f-0a1b2c3d4e5f",
+    "sha256": "e28777b4bb0e88b4aa22f89cd1fc75d1c77d51bec3c024c4b7b8fec0158653ac"
   },
   "document": "BASE64-OF-THE-ENCRYPTED-DOCUMENT",
   "encryption": {
@@ -206,7 +206,7 @@ A `sentbox.fetch` result may carry each send's outcome by the provider's own rec
       {
         "artifact": {
           "version": "1.2.0",
-          "id": "6f0d8e2a-7b1c-4e3d-9a5f-1c2b3d4e5f60",
+          "id": "8d7e6f50-4a3b-4c2d-9e1f-0a1b2c3d4e5f",
           "issuedAt": "2026-11-08T01:00:00.000Z",
           "type": "BTPS_DOC",
           "from": "alice$saas.example",

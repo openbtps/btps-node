@@ -108,10 +108,11 @@ import { verificationFacts } from '@btps/sdk/trust';
 
 // `payload` is the opened request: decryptVerify has already refused a verifier who is no operator.
 const facts = await verificationFacts({ from: artifact.from, document: payload.document });
-// { signatureValid: true, expired: false, verifierServesSender: true, verifierIsOperator: true }
+// { signatureValid: true, expired: false, verifierServesSender: true, verifierIsOperator: true },
+// or undefined when the request carries no verification.
 
-const trusted = myVerifiers.includes(payload.document.verification.verifiedBy);
-if (facts.signatureValid && !facts.expired && trusted) {
+const trusted = myVerifiers.includes(payload.document.verification?.verifiedBy);
+if (facts?.signatureValid && !facts.expired && trusted) {
   ui.show(`Verified by ${payload.document.verification.verifiedBy}`);
 }
 ```

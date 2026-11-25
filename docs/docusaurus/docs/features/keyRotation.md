@@ -83,7 +83,7 @@ A planned rotation, signed by both keys:
 }
 ```
 
-A key the identity already left, found compromised from before it was left, signed by the identity's current key:
+A key the identity already left, found compromised from before it was left, signed by the identity's current key. It follows the rotation above, so its `prev` is that record's `keyChainRecordHash`:
 
 ```json btps=keyChainRecord
 {
@@ -94,7 +94,7 @@ A key the identity already left, found compromised from before it was left, sign
     "compromisedSince": "2026-11-05T00:00:00.000Z",
     "reason": "compromised",
     "at": "2026-11-25T00:00:00.000Z",
-    "prev": "4c1d2e3f405162738495a6b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f8091"
+    "prev": "9ca171ccefa9409d37c57474a4e5bdc14d7e2da5aed1f94bf206d4135b3d63a7"
   },
   "signatures": [
     {
