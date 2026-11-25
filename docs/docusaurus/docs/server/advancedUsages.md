@@ -25,7 +25,7 @@ BTPS supports pluggable trust stores, allowing you to use any backend (file, SQL
 ### File-Based Trust Store (JsonTrustStore)
 
 ```js
-import { JsonTrustStore } from 'btps-sdk';
+import { JsonTrustStore } from '@btps/sdk/trust';
 const trustStore = new JsonTrustStore({ connection: './trust.json' });
 ```
 
@@ -47,7 +47,7 @@ For advanced scenarios—such as multi-tenant SaaS, test orchestration, or runni
 - **Purpose:** Create new, independent `BtpsServer` instances from configuration.
 - **Usage:**
   ```js
-  import { BtpsServerFactory } from 'btps-sdk';
+  import { BtpsServerFactory } from '@btps/sdk/server/core';
   const server = BtpsServerFactory.create({ ...options });
   await server.start();
   ```
@@ -64,7 +64,7 @@ For advanced scenarios—such as multi-tenant SaaS, test orchestration, or runni
   - `clear()` — Remove all servers from the registry
 - **Usage:**
   ```js
-  import { BtpsServerRegistry } from 'btps-sdk';
+  import { BtpsServerRegistry } from '@btps/sdk/server/core';
   const serverA = BtpsServerFactory.create({ ...optionsA });
   const serverB = BtpsServerFactory.create({ ...optionsB });
   BtpsServerRegistry.register('tenantA', serverA);
@@ -83,15 +83,16 @@ For advanced scenarios—such as multi-tenant SaaS, test orchestration, or runni
 - **Example: Region-based multi-tenant servers with custom middleware**
 
   ```js
-  import { BtpsServerFactory, BtpsServerRegistry } from 'btps-sdk';
+  import { BtpsServerFactory, BtpsServerRegistry } from '@btps/sdk/server/core';
 
   const regions = ['us-east', 'eu-west', 'apac'];
   for (const region of regions) {
     const server = BtpsServerFactory.create({
+      serverIdentity: getOperatorForRegion(region), // { identity, publicKey, privateKey }
       port: 3443,
       trustStore: getTrustStoreForRegion(region),
       middlewarePath: `./middleware/btps.${region}.middleware.mjs`,
-      options: getTlsOptionsForRegion(region),
+      tlsOptions: getTlsOptionsForRegion(region),
     });
     BtpsServerRegistry.register(region, server);
   }
@@ -112,7 +113,7 @@ For advanced scenarios—such as multi-tenant SaaS, test orchestration, or runni
   - `reset()` — Reset the singleton (for tests or reconfiguration)
 - **Usage:**
   ```js
-  import { BtpsServerSingletonFactory } from 'btps-sdk';
+  import { BtpsServerSingletonFactory } from '@btps/sdk/server/core';
   const server = BtpsServerSingletonFactory.create({ ...options });
   // Always returns the same instance
   BtpsServerSingletonFactory.reset(); // For teardown or re-init
@@ -132,7 +133,7 @@ These patterns enable flexible, scalable, and testable BTPS server deployments f
 ### MongoDB Trust Store Example
 
 ```js
-import { AbstractTrustStore } from 'btps-sdk';
+import { AbstractTrustStore, computeTrustId } from '@btps/sdk/trust';
 import { MongoClient } from 'mongodb';
 
 const mongoClient = new MongoClient('mongodb://localhost:27017');
@@ -189,13 +190,13 @@ const trustStore = new MongoTrustStore({
   connection: mongoClient, // MongoClient instance
   entityName: 'trust', // Collection name
 });
-const server = new BtpsServer({ port: 3443, trustStore });
+const server = new BtpsServer({ serverIdentity, tlsOptions, port: 3443, trustStore });
 ```
 
 ### DynamoDB Trust Store Example
 
 ```js
-import { AbstractTrustStore } from 'btps-sdk';
+import { AbstractTrustStore, computeTrustId } from '@btps/sdk/trust';
 import {
   DynamoDBClient,
   GetItemCommand,
@@ -282,13 +283,13 @@ const trustStore = new DynamoTrustStore({
   connection: dynamoClient, // DynamoDBClient instance
   entityName: 'btps-trust', // Table name
 });
-const server = new BtpsServer({ port: 3443, trustStore });
+const server = new BtpsServer({ serverIdentity, tlsOptions, port: 3443, trustStore });
 ```
 
 ### SQL Trust Store Example
 
 ```js
-import { AbstractTrustStore } from 'btps-sdk';
+import { AbstractTrustStore, computeTrustId } from '@btps/sdk/trust';
 import mysql from 'mysql2/promise';
 
 const sqlConnection = await mysql.createConnection({
@@ -345,13 +346,13 @@ const trustStore = new SqlTrustStore({
   connection: sqlConnection, // SQL connection instance
   entityName: 'btps_trust', // Table name
 });
-const server = new BtpsServer({ port: 3443, trustStore });
+const server = new BtpsServer({ serverIdentity, tlsOptions, port: 3443, trustStore });
 ```
 
 ### Postgres Trust Store Example
 
 ```js
-import { AbstractTrustStore } from 'btps-sdk';
+import { AbstractTrustStore, computeTrustId } from '@btps/sdk/trust';
 import { Pool } from 'pg';
 
 const pgPool = new Pool({ connectionString: 'postgres://user:pass@localhost:5432/btps' });
@@ -411,19 +412,20 @@ const trustStore = new PostgresTrustStore({
   connection: pgPool, // Pool instance
   entityName: 'btps_trust', // Table name
 });
-const server = new BtpsServer({ port: 3443, trustStore });
+const server = new BtpsServer({ serverIdentity, tlsOptions, port: 3443, trustStore });
 ```
 
 ## Multi-Tenancy
 
 - Use `entityName` in your trust store to namespace tenants.
 - Add middleware to route, validate, or isolate tenants based on artifact fields.
-- Example: Route based on `ctx.artifact.to` or custom header.
+- Example: route on `req.data.artifact.to` in middleware after parsing.
 
 ## Webhooks & Event-Driven Integrations
 
-- Use `server.forwardToWebhook(url)` to forward verified artifacts to a webhook.
-- Use `server.onMessage(handler)` to process artifacts in custom logic.
+- Use `server.forwardTo(handler)` to forward verified artifacts to a webhook or queue of your own.
+- Use `server.onIncomingArtifact('Transporter', handler)` and `server.onIncomingArtifact('Agent', handler)` to process artifacts in custom logic.
+- Since 1.2, use `server.on('detailsRequested' | 'detailsShared', listener)` to hear about details refresh.
 - Integrate with SaaS apps, audit systems, or orchestration tools.
 
 ## Metrics & Custom Logging
@@ -491,7 +493,7 @@ const server = new BtpsServer({ ...options, keyResolver });
 ## Example: Secure Production Server
 
 ```js
-import { BtpsServer } from 'btps-sdk';
+import { BtpsServer } from '@btps/sdk/server';
 import { PostgresTrustStore } from './customTrustStore';
 
 const trustStore = new PostgresTrustStore({
@@ -500,6 +502,11 @@ const trustStore = new PostgresTrustStore({
 });
 
 const server = new BtpsServer({
+  serverIdentity: {
+    identity: process.env.BTPS_OPERATOR, // the operator named by op= in your _btps.host record
+    publicKey: process.env.BTPS_PUBLIC_KEY,
+    privateKey: process.env.BTPS_PRIVATE_KEY, // or a signer over your KMS
+  },
   port: 3443,
   trustStore,
   middlewarePath: './btps.middleware.mjs',

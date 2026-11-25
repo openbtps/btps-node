@@ -367,9 +367,9 @@ import { BtpsAgent } from '@btps/sdk/client';
 
 const agent = new BtpsAgent({
   agent: {
-    id: 'test-agent-123',
-    identityKey: '-----BEGIN PRIVATE KEY-----\n...', // Your private key
-    identityCert: '-----BEGIN PUBLIC KEY-----\n...', // Your public key
+    id: 'btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28', // the agent id your server gave this device
+    identityKey: '-----BEGIN PRIVATE KEY-----\n...', // The device's private key
+    identityCert: '-----BEGIN PUBLIC KEY-----\n...', // The device's public key
   },
   btpIdentity: 'test$example.com',
   host: 'localhost',

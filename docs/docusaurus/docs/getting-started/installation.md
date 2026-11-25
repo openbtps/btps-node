@@ -34,28 +34,28 @@ Your code encrypts and signs a document with `signEncrypt`; the agent or transpo
 <TabItem value="npm" label="npm">
 
 ```bash
-npm install @btps/sdk
+npm install @btps/sdk@next
 ```
 
 </TabItem>
 <TabItem value="yarn" label="yarn">
 
 ```bash
-yarn add @btps/sdk
+yarn add @btps/sdk@next
 ```
 
 </TabItem>
 <TabItem value="pnpm" label="pnpm">
 
 ```bash
-pnpm add @btps/sdk
+pnpm add @btps/sdk@next
 ```
 
 </TabItem>
 </Tabs>
 
 :::note
-Until 1.2.0 is released, `@btps/sdk` installs the latest 1.1 release. To use what these pages describe, install the release candidate: `npm install @btps/sdk@next`. See [Migrating from 1.1 to 1.2](../whats-new/version-1-2-migration.md).
+These pages describe 1.2, which is the `next` release until 1.2.0 ships: without `@next`, a package manager installs the latest 1.1 release. See [Migrating from 1.1 to 1.2](../whats-new/version-1-2-migration.md).
 :::
 
 `@btps/boundview` is optional and a separate package: add it only to send documents with their look, or to draw received ones ([which app installs what](./../protocol/specifications/boundview/using.md#frontend-and-backend-apps)):
@@ -64,21 +64,21 @@ Until 1.2.0 is released, `@btps/sdk` installs the latest 1.1 release. To use wha
 <TabItem value="npm" label="npm">
 
 ```bash
-npm install @btps/boundview
+npm install @btps/boundview@next
 ```
 
 </TabItem>
 <TabItem value="yarn" label="yarn">
 
 ```bash
-yarn add @btps/boundview
+yarn add @btps/boundview@next
 ```
 
 </TabItem>
 <TabItem value="pnpm" label="pnpm">
 
 ```bash
-pnpm add @btps/boundview
+pnpm add @btps/boundview@next
 ```
 
 </TabItem>

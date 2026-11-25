@@ -22,25 +22,29 @@ The **BTPS Server SDK** enables you to run a secure, multi-tenant BTPS server fo
 <TabItem value="npm" label="npm">
 
 ```bash
-npm install @btps/sdk
+npm install @btps/sdk@next
 ```
 
 </TabItem>
 <TabItem value="yarn" label="yarn">
 
 ```bash
-yarn add @btps/sdk
+yarn add @btps/sdk@next
 ```
 
 </TabItem>
 <TabItem value="pnpm" label="pnpm">
 
 ```bash
-pnpm add @btps/sdk
+pnpm add @btps/sdk@next
 ```
 
 </TabItem>
 </Tabs>
+
+:::note
+These pages describe 1.2, which is the `next` release until 1.2.0 ships: without `@next`, a package manager installs the latest 1.1 release. See [Migrating from 1.1 to 1.2](../whats-new/version-1-2-migration.md).
+:::
 
 ## High-Level Architecture
 
@@ -63,6 +67,7 @@ graph TD
 - **TLS-Only:** All connections are encrypted and authenticated
 - **Event Hooks:** Integrate with webhooks, custom handlers, and metrics
 - **Multi-Tenant Ready:** Route and isolate tenants with middleware and trust store logic
+- **Since 1.2:** checks trust permissions and a send's document type on arrival, checks each arriving key against its identity's key chain, checks a readable document's BoundView for its handlers, and takes 1.1 artifacts from 1.1 senders. See [What's new in 1.2](../whats-new/version-1-2.md)
 
 ## Main Class: `BtpsServer`
 
@@ -70,16 +75,20 @@ graph TD
 import { BtpsServer } from '@btps/sdk/server';
 
 const server = new BtpsServer({
+  serverIdentity: { identity: 'admin$yourdomain.com', publicKey, privateKey }, // the domain's operator
   port: 3443,
   trustStore, // Instance of a TrustStore (see advancedUsages)
   middlewarePath: './btps.middleware.mjs',
   onError: (err) => {
     /* handle errors */
   },
-  options: {
-    /* TLS options */
-  },
+  tlsOptions: { cert, key }, // required: BTPS runs only over TLS
 });
+
+server.onIncomingArtifact('Transporter', async (artifact, boundView) => {
+  // store it; the sender is answered once this returns
+});
+await server.start();
 ```
 
 ## Protocol Flow

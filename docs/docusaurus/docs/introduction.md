@@ -272,6 +272,12 @@ graph TD
 
 ## Documentation Structure
 
+- **[What's new in 1.2](./whats-new/version-1-2.md)** and **[Features](./features/trustPermissions.md)**: what 1.2 adds, with a guide for each feature, and how a 1.1 provider upgrades.
+- **[Protocol](./protocol/overview.md)**: the protocol itself: principles, message flow, artifact specifications, security, authentication and delegation.
+- **[Getting Started](./getting-started/installation.md)**: install the SDK, then set up a server and a client step by step.
+- **[Server](./server/overview.md)** and **[Client](./client/overview.md)**: the SDK's server, `BtpsAgent` and `BtpsTransporter` in depth.
+- **[SDK Reference](./sdk/overview.md)**: every function, class, type and constant the SDK exports.
+
 ## License
 
 BTPS is licensed under Apache 2.0 © Bhupendra Tamang
