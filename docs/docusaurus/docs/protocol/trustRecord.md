@@ -43,28 +43,37 @@ The receiver's server refuses a trust request while trust between the pair is al
 
 A BTPS trust record contains comprehensive information about a trust relationship between two organizations:
 
-```json
+The vendor's own record of its trust with a client, once the client granted invoices and receipts. Its `id` is `computeTrustId('billing$vendorcorp.com', 'pay$client.com')`:
+
+```json btps=record
 {
-  "id": "320b42d3a192519ec09ca00e5eac6c23851e4c5919908cd9cb1c83724685d29a", // computedId derived from "senderId:receiverId"
+  "id": "7cedf7a0bd8f21ab0f3d26cceebaa87e7ad177114ea51d23dc0123b4fe017e3d",
   "senderId": "billing$vendorcorp.com",
   "receiverId": "pay$client.com",
   "status": "accepted",
-  "updatedAt": "2025-01-16T10:30:00Z",
-  "createdAt": "2025-01-15T10:30:00Z",
-  "decidedBy": "admin@client.com",
-  "decidedAt": "2025-01-15T11:00:00Z",
-  "expiresAt": "2026-01-15T11:00:00Z",
+  "createdAt": "2025-01-15T10:30:00.000Z",
+  "decidedBy": "pay$client.com",
+  "decidedAt": "2025-01-15T11:00:00.000Z",
+  "expiresAt": "2026-01-15T11:00:00.000Z",
   "publicKeyBase64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
-  "publicKeyFingerprint": "sha256:abc123def456...",
+  "publicKeyFingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs=",
   "keyHistory": [
     {
-      "fingerprint": "sha256:old123key456...",
-      "firstSeen": "2024-01-15T10:30:00Z",
-      "lastSeen": "2025-01-10T15:45:00Z"
+      "fingerprint": "q7Lw0Zt2b8VdXc5Ko3Rj9Hs6Fe1Gm4Na8Pu2Ty5Wi0E=",
+      "firstSeen": "2024-01-15T10:30:00.000Z",
+      "lastSeen": "2025-01-10T15:45:00.000Z"
     }
   ],
   "privacyType": "encrypted",
-  "retryAfterDate": null
+  "permissions": {
+    "requested": [
+      { "name": "send:invoice", "required": true },
+      { "name": "send:receipt", "required": false }
+    ],
+    "granted": ["send:invoice", "send:receipt"],
+    "detailsHeld": [],
+    "detailsShared": []
+  }
 }
 ```
 
@@ -72,7 +81,7 @@ A BTPS trust record contains comprehensive information about a trust relationshi
 
 **Core Identification:**
 
-- `id`: Unique trust identifier - a 64-character SHA-256 hash computed from `senderId:receiverId` format. This ensures:
+- `id`: Unique trust identifier - a 64-character SHA-256 hash, in lowercase hex, of `senderId:receiverId` in lower case (`computeTrustId`). This ensures:
   - **Directional uniqueness**: `billing$vendor.com:pay$client.com` ≠ `pay$client.com:billing$vendor.com`
   - **Collision resistance**: Suitable for billions of trust records without conflicts
   - **Database optimization**: 64-character hex string ideal for database indexing
@@ -101,17 +110,17 @@ The computed trust ID enforces **explicit, directional trust relationships**. Th
 **Status & Timeline:**
 
 - `status`: Current trust status (`accepted`, `rejected`, `revoked`, `pending`, `blocked`)
-- `updatedAt`: Optional Updated record timestamp (ISO format)
 - `createdAt`: Trust record creation timestamp (ISO format)
-- `decidedBy`: Identity of the person/system that made the decision
-- `decidedAt`: Decision timestamp (ISO format)
+- `decidedBy`: Identity of the person/system that made the decision; empty on a `pending` record
+- `decidedAt`: Decision timestamp (ISO format); empty on a `pending` record, and only there
 - `expiresAt`: Trust expiration date (optional, ISO format)
 - `retryAfterDate`: Date when retry is allowed for rejected/revoked trusts (optional)
+- `metadata`: The platform's own data (optional)
 
 **Cryptographic Information:**
 
 - `publicKeyBase64`: Current public key in base64 format
-- `publicKeyFingerprint`: SHA-256 fingerprint of current public key
+- `publicKeyFingerprint`: SHA-256 fingerprint of current public key, in base64
 - `keyHistory`: Array of previous public keys and their usage periods. Each entry's `firstSeen` is when that key came into use and `lastSeen` when it was retired. The current key came into use at the newest entry's `lastSeen`, or at `createdAt` if the key was never rotated; a device's maximum key age (`maxKeyAgeMs`, since 1.2) counts from then
 
 **Privacy & Security:**
@@ -175,22 +184,24 @@ revoked  → pending    (New request after retry period)
 
 BTPS maintains a complete history of public keys used by each identity:
 
-```json
+```json sketch
 {
   "keyHistory": [
     {
-      "fingerprint": "sha256:abc123def456...",
-      "firstSeen": "2024-01-15T10:30:00Z",
-      "lastSeen": "2025-01-10T15:45:00Z"
+      "fingerprint": "q7Lw0Zt2b8VdXc5Ko3Rj9Hs6Fe1Gm4Na8Pu2Ty5Wi0E=",
+      "firstSeen": "2024-01-15T10:30:00.000Z",
+      "lastSeen": "2025-01-10T15:45:00.000Z"
     },
     {
-      "fingerprint": "sha256:new789key012...",
-      "firstSeen": "2025-01-10T16:00:00Z",
-      "lastSeen": "2025-01-15T10:30:00Z"
+      "fingerprint": "MKuYNEiUPBKA3VWHwxjZgEgC6axgI3wq9J60E6Yq/ys=",
+      "firstSeen": "2025-01-10T15:45:00.000Z",
+      "lastSeen": "2025-01-15T10:30:00.000Z"
     }
   ]
 }
 ```
+
+Each entry's `firstSeen` is when that key came into use (since 1.2; in 1.1 it was the time of its last refresh), and `lastSeen` when it was retired, so each key's `firstSeen` is the `lastSeen` of the key before it.
 
 **Key History Purpose:**
 
@@ -199,13 +210,14 @@ BTPS maintains a complete history of public keys used by each identity:
 - **Security Analysis**: Detect suspicious key changes or compromises
 - **Compliance**: Maintain records for regulatory requirements
 
-**Key Rotation Process:**
+**Key Rotation Process** (a device's record):
 
-1. Sender generates new key pair
-2. Updates DNS TXT record with new public key
-3. BTPS server detects key change during next verification
-4. Key history updated with new fingerprint
-5. Trust relationship continues with new key
+1. The device generates a new key pair
+2. It refreshes with a `keyProof` signed by the new key (`BtpsAuthentication.rotateKey`)
+3. `BtpsAuthentication` moves its record to the new key, and adds the old one to `keyHistory`
+4. `keyRotated` fires, and the device signs with the new key from then on
+
+An identity's own keys rotate through its [key chain](./specifications/key-rotation.md), served by its host, not through this record.
 
 ---
 
@@ -312,24 +324,24 @@ Revocation → Blocking → Record Archival
 
 ### File-Based Trust Store
 
-```json
+`JsonTrustStore` keeps its records as one JSON array, or under the key its `entityName` names:
+
+```json sketch
 {
   "trusts": [
     {
-      "id": "billing$vendorcorp.com:pay$client.com",
+      "id": "7cedf7a0bd8f21ab0f3d26cceebaa87e7ad177114ea51d23dc0123b4fe017e3d",
       "senderId": "billing$vendorcorp.com",
       "receiverId": "pay$client.com",
       "status": "accepted",
-      "createdAt": "2025-01-15T10:30:00Z",
-      "decidedBy": "admin@client.com",
-      "decidedAt": "2025-01-15T11:00:00Z",
-      "expiresAt": "2026-01-15T11:00:00Z",
-      "updatedAt": "2025-01-16T10:30:00Z",
+      "createdAt": "2025-01-15T10:30:00.000Z",
+      "decidedBy": "pay$client.com",
+      "decidedAt": "2025-01-15T11:00:00.000Z",
+      "expiresAt": "2026-01-15T11:00:00.000Z",
       "publicKeyBase64": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
-      "publicKeyFingerprint": "sha256:abc123def456...",
+      "publicKeyFingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs=",
       "keyHistory": [],
-      "privacyType": "encrypted",
-      "retryAfterDate": null
+      "privacyType": "encrypted"
     }
   ]
 }

@@ -22,7 +22,7 @@ Start with [Migrating from 1.1 to 1.2](./version-1-2-migration.md): what changes
 
 **[Verification](../features/verification.md).** A provider signs what it checked of a sender, and the sender's trust request carries it. The receiver gets the facts and decides whose verifications it trusts; BTPS verifies no one.
 
-**[Agreements](../features/agreements.md).** A new document type that asks to be accepted, such as a contract or a phone plan, signed by each signer in turn or in any order.
+**[Agreements](../features/agreements.md).** A new document type that asks to be accepted, such as a contract or a phone plan, signed by each signer in turn or in any order. A signer's signed answer may also carry its own visual signature (`visualSignature`), its consent to sign electronically (`consent`), when it first viewed the agreement (`viewedAt`), and where it viewed and answered from (`viewedFrom`, `signedFrom`). Each is optional and covered by the answer's signature ([An answer](../features/agreements.md#an-answer)).
 
 **[Evidence bundles and timestamps](../features/evidenceBundles.md).** One file that proves an agreement offline, with optional RFC 3161 timestamps and the signers' key chains, made and checked from code or the command line.
 
@@ -34,7 +34,7 @@ Start with [Migrating from 1.1 to 1.2](./version-1-2-migration.md): what changes
 
 **[Refresh tokens](../features/refreshTokens.md).** A token used twice revokes the device; a lost answer can be retried within a grace window; a racing refresh is told to wait; keys can be rotated with a proof.
 
-**[Notes, discounts and BoundView](../features/notesDiscountsTemplates.md).** Notes with a format, discounts before tax, [BoundView](../protocol/specifications/boundview/overview.md), a document's view the receiver sees exactly as the sender previewed it, with every fact drawn from signed data, and a letter's signatory. A BoundView is optional, and replaces 1.1's `template`, which is `1.1.0` only: a `1.2.0` artifact that carries one is refused.
+**[Notes, discounts and BoundView](../features/notesDiscountsTemplates.md).** Notes with a format, discounts before tax, totals before tax and the tax, what each line column holds, who a document is for, [BoundView](../protocol/specifications/boundview/overview.md), a document's view the receiver sees exactly as the sender previewed it, with every fact drawn from signed data, and a letter's signatory. A BoundView is optional, and replaces 1.1's `template`, which is `1.1.0` only: a `1.2.0` artifact that carries one is refused.
 
 **[Protocol versions](../features/versions.md).** How 1.1 and 1.2 talk: each artifact stamped with the lowest version that can say it, version refusals, trust requests shaped for a 1.1 receiver, and the closing signal.
 

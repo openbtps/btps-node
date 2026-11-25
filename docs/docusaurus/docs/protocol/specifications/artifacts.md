@@ -32,7 +32,11 @@ The BTPS protocol defines several types of artifacts that serve different purpos
 
 - `TRUST_REQ`: Trust request documents
 - `TRUST_RES`: Trust response documents
-- `BTPS_DOC`: Generic BTPS documents (invoices, etc.)
+- `BTPS_DOC`: Business documents: invoices, receipts, payslips, letters, and since 1.2 agreements
+- `BTPS_EVENT`: An invoice's lifecycle events, and since 1.2 an agreement's answers
+- `DETAILS_CHANGED`, `DETAILS_REQ`, `DETAILS_RES` (since 1.2): details refresh
+
+The artifact is stamped `1.1.0` unless it carries something 1.2 adds, then `1.2.0` ([Protocol versions](../../features/versions.md)).
 
 **Security Features**:
 
@@ -64,10 +68,11 @@ The BTPS protocol defines several types of artifacts that serve different purpos
 **Supported Actions**:
 
 - **Trust Management**: `trust.request`, `trust.respond`, `trust.update`, `trust.delete`, `trust.fetch`
-- **Document Management**: `inbox.fetch`, `outbox.fetch`, `sentbox.fetch`, `draft.fetch`
+- **Document Management**: `inbox.fetch`, `inbox.delete`, `inbox.seen`, `outbox.fetch`, `outbox.cancel`, `sentbox.fetch`, `sentbox.delete`, `draft.fetch`, `draft.create`, `draft.update`, `draft.delete`, `trash.fetch`, `trash.delete`
 - **Authentication**: `auth.request`, `auth.refresh`
 - **System Operations**: `system.ping`
-- **Artifact Operations**: `artifact.send`, `event.send`
+- **Artifact Operations**: `artifact.send` (and since 1.2 a sync), `event.send`
+- **Details refresh** (since 1.2): `details.changed`, `details.request`, `details.respond`
 
 **Security Features**:
 
@@ -103,9 +108,9 @@ The BTPS protocol defines several types of artifacts that serve different purpos
 
 **Security Features**:
 
-- Delegation verification
-- Selector-based key management
-- Privacy-preserving lookups
+- The answer is signed by the domain's operator (`op`), and refused otherwise
+- Since 1.2, a `1.2.0` answer must answer this lookup (`reqId`), be fresh, and name the identity asked about
+- Since 1.2, a lookup may ask for the identity's key chain (`keyChain: true`)
 
 ### 4. Control Artifacts (`BTPControlArtifact`)
 
@@ -132,8 +137,8 @@ The BTPS protocol defines several types of artifacts that serve different purpos
 
 **Security Features**:
 
-- Basic signature verification
-- No encryption required (control messages)
+- No signature and no encryption: a control artifact carries no document
+- Always stamped `1.1.0`, so every 1.1 and 1.2 server answers it
 - Minimal security overhead
 
 ### 5. Delivery Failure Artifacts (`BTPDeliveryFailureArtifact`)
@@ -186,13 +191,12 @@ The BTPS protocol defines several types of artifacts that serve different purpos
 
 **Identity Lookup Artifacts**:
 
-- Delegation verification
-- Selector-based authentication
-- Privacy-preserving lookups
+- The answer signed by the domain's operator
+- Selector-based keys
 
 **Control Artifacts**:
 
-- Basic signature verification
+- Unsigned: only a `PING` or `QUIT`
 - Minimal security requirements
 
 **Delivery Failure Artifacts**:

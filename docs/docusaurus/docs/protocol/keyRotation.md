@@ -23,10 +23,10 @@ Each key of an identity is published under a **selector**:
 `<account>` is the part of the address before `$`: `billing$vendorcorp.com` publishes at `<selector>._btps.identity.billing.vendorcorp.com`.
 
 ```dns
-btps1._btps.identity.billing.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
+btps1._btps.identity.billing.vendorcorp.com. IN TXT "v=1.2.0;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
 ```
 
-- `v=1.1.0`: the protocol version
+- `v=1.2.0`: the protocol version a 1.2 host publishes. Readers report it and do not check it
 - `k=rsa`: the key type. Every key is RSA, at least 2048 bits
 - `p=`: the public key, the DER SPKI in base64, without PEM headers
 
@@ -35,9 +35,10 @@ btps1._btps.identity.billing.vendorcorp.com. IN TXT "v=1.1.0;k=rsa;p=MIIBIjANBgk
 ### The host record
 
 ```dns
-_btps.host.vendorcorp.com. IN TXT "v=1.1.0;u=btps.vendorcorp.com:3443;s=btps2;op=admin$vendorcorp.com"
+_btps.host.vendorcorp.com. IN TXT "v=1.2.0;u=btps.vendorcorp.com:3443;s=btps2;op=admin$vendorcorp.com"
 ```
 
+- `v=1.2.0`: as on a key record, reported and not checked
 - `u=`: the BTPS host and port
 - `s=`: the domain's current selector
 - `op=`: the domain's operator, which delegates, attests and answers identity lookups for the domain ([The Domain Operator](./specifications/overview.md#the-domain-operator)). Rotating keys never changes it: the operator is an identity, not a key

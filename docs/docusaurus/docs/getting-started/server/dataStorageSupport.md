@@ -36,6 +36,8 @@ abstract class AbstractIdentityStore<T extends BTPIdentityRecord> extends Abstra
     computedId: string,
     selector?: string,
   ): Promise<IdentityPubKeyRecord | undefined>;
+  // Since 1.2, optional: the identity's key chain, oldest first, sent to a lookup that asks for it
+  getKeyChain?(computedId: string): Promise<BTPKeyChainRecord[] | undefined>;
 }
 ```
 
@@ -50,6 +52,12 @@ abstract class AbstractTrustStore<T extends BTPTrustRecord> {
   abstract update(computedId: string, patch: Partial<T>): Promise<T>;
   abstract delete(computedId: string): Promise<void>;
   abstract getAll(receiverId?: string): Promise<T[]>;
+  // Whether the artifact passed between these two parties: see Events below
+  abstract isKnownArtifact(query: {
+    artifactId: string;
+    from: string;
+    to: string;
+  }): Promise<boolean>;
 }
 ```
 
@@ -142,6 +150,7 @@ export class MongoTrustStore extends AbstractTrustStore<BTPTrustRecord> {
 import { MongoClient } from 'mongodb';
 import { BtpsServer } from '@btps/sdk/server';
 import { MongoTrustStore } from './storage/MongoTrustStore';
+import { readFileSync } from 'fs';
 
 // Connect to MongoDB
 const mongoClient = new MongoClient(process.env.MONGODB_URI || 'mongodb://localhost:27017');
@@ -155,6 +164,10 @@ const trustStore = new MongoTrustStore({
 
 // Create server with MongoDB trust store
 const server = new BtpsServer({
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   trustStore,
   connectionTimeoutMs: 30000,
@@ -286,6 +299,7 @@ import { MongoClient } from 'mongodb';
 import { BtpsServer } from '@btps/sdk/server';
 import { MongoTrustStore } from './storage/MongoTrustStore';
 import { MongoArtifactStorage } from './storage/MongoArtifactStorage';
+import { readFileSync } from 'fs';
 
 // Connect to MongoDB
 const mongoClient = new MongoClient(process.env.MONGODB_URI || 'mongodb://localhost:27017');
@@ -313,6 +327,10 @@ const server = new BtpsServer({
     connection: mongoClient,
     entityName: 'btps_identities',
   }),
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   connectionTimeoutMs: 30000,
 });
@@ -352,6 +370,7 @@ For development and testing, you can use the built-in JSON storage:
 import { BtpsServer } from '@btps/sdk/server';
 import { JsonTrustStore } from '@btps/sdk/trust';
 import { JsonIdentityStore } from '@btps/sdk/storage';
+import { readFileSync } from 'fs';
 
 const server = new BtpsServer({
   serverIdentity: {
@@ -368,6 +387,10 @@ const server = new BtpsServer({
     connection: './data/identities.json',
     entityName: 'identities',
   }),
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
 });
 ```

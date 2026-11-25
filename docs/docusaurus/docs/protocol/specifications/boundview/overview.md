@@ -57,12 +57,12 @@ to the signed values.
 
 ## Where to start
 
-| You are | Read |
-| --- | --- |
-| **Asking why BoundView was created**, and how it differs from email, PDFs and e-invoicing | [Why BoundView was created](./why.md) |
-| **A platform** sending or showing documents | [Using BoundView](./using.md): the few lines of code, what your app shows around a BoundView, and what happens when a check fails. It is all you need. |
-| **An implementer** building your own builder or renderer, or checking one | The [specification](#the-specification): the exact format, checks and drawing rules. |
-| **Reviewing what BTPS guarantees** | [What BTPS promises](#what-btps-promises), below, then the [security model](./security.md). |
+| You are                                                                                   | Read                                                                                                                                                   |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Asking why BoundView was created**, and how it differs from email, PDFs and e-invoicing | [Why BoundView was created](./why.md)                                                                                                                  |
+| **A platform** sending or showing documents                                               | [Using BoundView](./using.md): the few lines of code, what your app shows around a BoundView, and what happens when a check fails. It is all you need. |
+| **An implementer** building your own builder or renderer, or checking one                 | The [specification](#the-specification): the exact format, checks and drawing rules.                                                                   |
+| **Reviewing what BTPS guarantees**                                                        | [What BTPS promises](#what-btps-promises), below, then the [security model](./security.md).                                                            |
 
 ## You do not build any of this
 
@@ -84,25 +84,29 @@ happens for it:
 <TabItem value="npm" label="npm">
 
 ```bash
-npm install @btps/boundview
+npm install @btps/boundview@next
 ```
 
 </TabItem>
 <TabItem value="yarn" label="yarn">
 
 ```bash
-yarn add @btps/boundview
+yarn add @btps/boundview@next
 ```
 
 </TabItem>
 <TabItem value="pnpm" label="pnpm">
 
 ```bash
-pnpm add @btps/boundview
+pnpm add @btps/boundview@next
 ```
 
 </TabItem>
 </Tabs>
+
+:::note
+BoundView is part of 1.2, which is the `next` release until 1.2.0 ships: without `@next`, a package manager installs `@btps/boundview` 0.0.0, not the 1.2 release. See [Migrating from 1.1 to 1.2](../../../whats-new/version-1-2-migration.md).
+:::
 
 ```ts
 import { initBoundViewEngine, snapshotBoundView, renderBoundView } from '@btps/boundview';
@@ -127,13 +131,13 @@ with [Using BoundView](./using.md).
 
 ## What BTPS promises
 
-| BTPS guarantees | How |
-| --- | --- |
-| **No tampering.** What was signed is what arrives, the BoundView included. | The BoundView is inside the document, so the artifact's signature covers it. |
-| **No spoofing.** The document comes from its sender. | The signature and the trust record. The receiving app shows the verified sender [outside the BoundView](./using.md#what-the-receiving-app-shows-around-a-boundview), never inside it. |
-| **No active content, no tracking.** Nothing runs, and nothing is fetched when a document is viewed. | A BoundView holds only data: shapes, glyph outlines and pixels. It names no address, font file or image file. |
-| **The page writes what the document says.** | Every fact on a BoundView is a [binding](./bindings.md) to a signed field, and the receiver writes it from that field, character by character. It must show the document's [key facts](./checks.md#key-facts), each in full. The shapes of the characters are the sender's and are not checked ([Glyph shapes are the sender's](./security.md#glyph-shapes-are-the-senders)). The receiver's own view shows every signed field, and is what to rely on. |
-| **The same look on every receiver**, apart from a screen's own colour and edge rendering. | [Fonts as glyph outlines](./fonts.md), [images as pixels](./images.md) and one [rendering contract](./rendering.md), drawn by one engine in a [closed WebAssembly box](./rendering.md#the-engine-a-closed-box) that gives back only a picture. |
+| BTPS guarantees                                                                                     | How                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **No tampering.** What was signed is what arrives, the BoundView included.                          | The BoundView is inside the document, so the artifact's signature covers it.                                                                                                                                                                                                                                                                                                                                                                            |
+| **No spoofing.** The document comes from its sender.                                                | The signature and the trust record. The receiving app shows the verified sender [outside the BoundView](./using.md#what-the-receiving-app-shows-around-a-boundview), never inside it.                                                                                                                                                                                                                                                                   |
+| **No active content, no tracking.** Nothing runs, and nothing is fetched when a document is viewed. | A BoundView holds only data: shapes, glyph outlines and pixels. It names no address, font file or image file.                                                                                                                                                                                                                                                                                                                                           |
+| **The page writes what the document says.**                                                         | Every fact on a BoundView is a [binding](./bindings.md) to a signed field, and the receiver writes it from that field, character by character. It must show the document's [key facts](./checks.md#key-facts), each in full. The shapes of the characters are the sender's and are not checked ([Glyph shapes are the sender's](./security.md#glyph-shapes-are-the-senders)). The receiver's own view shows every signed field, and is what to rely on. |
+| **The same look on every receiver**, apart from a screen's own colour and edge rendering.           | [Fonts as glyph outlines](./fonts.md), [images as pixels](./images.md) and one [rendering contract](./rendering.md), drawn by one engine in a [closed WebAssembly box](./rendering.md#the-engine-a-closed-box) that gives back only a picture.                                                                                                                                                                                                          |
 
 :::warning What BTPS does not promise
 BTPS does **not** claim that a document's content is true or correct. A
@@ -147,7 +151,7 @@ decides whom to trust, and can reject, block or stop trusting a sender.
 ```mermaid
 sequenceDiagram
     participant P as Sender's platform
-    participant S as Sender's SDK
+    participant S as Sender's @btps/boundview and @btps/sdk
     participant R as Receiver (server or device)
     P->>P: Build the unsigned document and show its preview
     P->>S: Snapshot the preview with the document
@@ -194,25 +198,27 @@ exactly as 1.1 reads it, a name and free data, and a receiver draws nothing
 from it. In a `1.2.0` artifact it is refused: there, a document's look is
 its BoundView. A letter or a payslip has no `template` in any version.
 
-A provider that does not draw BoundViews still accepts and checks documents
-that carry one, and shows its own view of the signed data.
+A 1.2 provider that does not draw BoundViews still accepts and checks
+documents that carry one, and shows its own view of the signed data. A 1.1
+provider refuses a `1.2.0` artifact, so a document with a BoundView is never
+delivered to one.
 
 ## The specification
 
 For building a builder or renderer of your own, or checking one.
 `@btps/boundview` already follows every rule here.
 
-| Page | What it covers |
-| --- | --- |
-| [Canvas](./canvas.md) | The `boundView` object: page, fonts, images, elements, coordinates and colours |
-| [Elements](./elements.md) | Every element type and its fields |
-| [Bindings and formats](./bindings.md) | Which fields can be bound, and how a value is formatted |
-| [Fonts and glyphs](./fonts.md) | Text as glyph outlines, kerning, fallbacks |
-| [Images](./images.md) | Images as lossless pixels |
-| [Checks](./checks.md) | What a receiver checks, and what happens when a check fails |
-| [Rendering](./rendering.md) | How a canvas is drawn, so every receiver draws it the same way |
-| [Security model](./security.md) | Threats, guarantees and what a receiver must do |
-| [Examples](./examples.md) | A complete invoice and a letter with its signatory |
+| Page                                  | What it covers                                                                 |
+| ------------------------------------- | ------------------------------------------------------------------------------ |
+| [Canvas](./canvas.md)                 | The `boundView` object: page, fonts, images, elements, coordinates and colours |
+| [Elements](./elements.md)             | Every element type and its fields                                              |
+| [Bindings and formats](./bindings.md) | Which fields can be bound, and how a value is formatted                        |
+| [Fonts and glyphs](./fonts.md)        | Text as glyph outlines, kerning, fallbacks                                     |
+| [Images](./images.md)                 | Images as lossless pixels                                                      |
+| [Checks](./checks.md)                 | What a receiver checks, and what happens when a check fails                    |
+| [Rendering](./rendering.md)           | How a canvas is drawn, so every receiver draws it the same way                 |
+| [Security model](./security.md)       | Threats, guarantees and what a receiver must do                                |
+| [Examples](./examples.md)             | A complete invoice and a letter with its signatory                             |
 
 Every limit is also collected on [Limits](../limits.md#boundview). The
 [golden vectors](../golden-vectors.md) include BoundViews to test a checker

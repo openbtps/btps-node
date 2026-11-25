@@ -31,27 +31,27 @@ the sender chose. The receiver trusts a sender or does not, and can reject,
 block or stop trusting one. A trust request is needed before a sender can
 send at all.
 
-| BTPS answers for | BTPS does not answer for |
-| --- | --- |
-| No tampering: what was signed arrives unchanged | Whether an amount, date or name is correct |
-| No spoofing: the document is from the sender it says | What a sender's labels, notes, shapes and images say |
-| No active content, no tracking | Whether a sender should be trusted: the receiver decides |
-| A BoundView that writes the signed facts from the signed fields | That a glyph's shape is the character it stands for |
+| BTPS answers for                                                | BTPS does not answer for                                 |
+| --------------------------------------------------------------- | -------------------------------------------------------- |
+| No tampering: what was signed arrives unchanged                 | Whether an amount, date or name is correct               |
+| No spoofing: the document is from the sender it says            | What a sender's labels, notes, shapes and images say     |
+| No active content, no tracking                                  | Whether a sender should be trusted: the receiver decides |
+| A BoundView that writes the signed facts from the signed fields | That a glyph's shape is the character it stands for      |
 
 ## Threats
 
-| Who | What they try | What stops it |
-| --- | --- | --- |
-| Anyone between sender and receiver | Change the BoundView or the data | The artifact's signature covers both. Any change and the document is refused. |
-| A dishonest sender | Show an amount, date or name the document does not carry | Facts are drawn from the signed fields, never from the canvas: the receiver writes each value itself, character by character, from the signed data. A bound element cannot write any other characters. |
-| A dishonest sender | Draw a character as another, such as a 1 with the outline of a 7 | Nothing in the BoundView. Glyph outlines are the sender's and are not checked against the characters they stand for. The receiving app's own view of the signed data is the truth, shown alongside or a press away ([Glyph shapes are the sender's](#glyph-shapes-are-the-senders)). |
-| A dishonest sender | Hide or shrink a fact, or leave one out | [Key facts](./checks.md#key-facts), [shown in full](./checks.md#shown-in-full) and [not hidden](./checks.md#not-hidden). The all-details view shows every other field. |
-| A dishonest sender | Pose as someone else in the BoundView | The receiving app shows the verified sender outside the BoundView. A BoundView with a well-known company's name in large letters is the sender's design; the verified line beside it says who sent it. |
-| A dishonest sender | Hide where a link goes, or what a file is | Links and attachments are shown by the receiving app, never by the BoundView. |
-| A crafted font or image | Attack the receiver's font or image decoder | A BoundView carries no font or image file: glyph outlines and pixels only. |
-| A crafted canvas | Inject markup, or exhaust the receiver | Strict schema, closed lists, limits on every count and size; values are never passed to anything that reads markup. |
-| A crafted canvas | Break the renderer to reach the device | The engine runs as WebAssembly in a [closed box](./rendering.md#the-engine-a-closed-box): no network, no files, no page, only validated values in and a PNG out. A fault stays inside it, and the receiver shows its own view instead. |
-| A BoundView that tracks its reader | Learn when, or whether, a document is read | Nothing in a BoundView is fetched: no address, no font, no image from anywhere. |
+| Who                                | What they try                                                    | What stops it                                                                                                                                                                                                                                                                        |
+| ---------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Anyone between sender and receiver | Change the BoundView or the data                                 | The artifact's signature covers both. Any change and the document is refused.                                                                                                                                                                                                        |
+| A dishonest sender                 | Show an amount, date or name the document does not carry         | Facts are drawn from the signed fields, never from the canvas: the receiver writes each value itself, character by character, from the signed data. A bound element cannot write any other characters.                                                                               |
+| A dishonest sender                 | Draw a character as another, such as a 1 with the outline of a 7 | Nothing in the BoundView. Glyph outlines are the sender's and are not checked against the characters they stand for. The receiving app's own view of the signed data is the truth, shown alongside or a press away ([Glyph shapes are the sender's](#glyph-shapes-are-the-senders)). |
+| A dishonest sender                 | Hide or shrink a fact, or leave one out                          | [Key facts](./checks.md#key-facts), [shown in full](./checks.md#shown-in-full) and [not hidden](./checks.md#not-hidden). The all-details view shows every other field.                                                                                                               |
+| A dishonest sender                 | Pose as someone else in the BoundView                            | The receiving app shows the verified sender outside the BoundView. A BoundView with a well-known company's name in large letters is the sender's design; the verified line beside it says who sent it.                                                                               |
+| A dishonest sender                 | Hide where a link goes, or what a file is                        | Links and attachments are shown by the receiving app, never by the BoundView.                                                                                                                                                                                                        |
+| A crafted font or image            | Attack the receiver's font or image decoder                      | A BoundView carries no font or image file: glyph outlines and pixels only.                                                                                                                                                                                                           |
+| A crafted canvas                   | Inject markup, or exhaust the receiver                           | Strict schema, closed lists, limits on every count and size; values are never passed to anything that reads markup.                                                                                                                                                                  |
+| A crafted canvas                   | Break the renderer to reach the device                           | The engine runs as WebAssembly in a [closed box](./rendering.md#the-engine-a-closed-box): no network, no files, no page, only validated values in and a PNG out. A fault stays inside it, and the receiver shows its own view instead.                                               |
+| A BoundView that tracks its reader | Learn when, or whether, a document is read                       | Nothing in a BoundView is fetched: no address, no font, no image from anywhere.                                                                                                                                                                                                      |
 
 ## What a receiver must do
 

@@ -8,14 +8,15 @@ slug: notes-discounts-templates
 
 > **Since 1.2.** Each travels in `1.2.0` artifacts only. A document without them reads exactly as before in a `1.1.0` artifact.
 
-Four things a document can say about itself: how its notes are written, what was taken off, how it looked when it was sent, and who signed a letter off.
+Five things a document can say about itself: how its notes are written, what was taken off, its totals and who it is for, how it looked when it was sent, and who signed a letter off.
 
-| What                                 | Why                                                                                                                       |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| **Notes say how they are written**   | a note in markdown renders as markdown, not as asterisks                                                                  |
-| **Discounts**                        | an invoice or receipt says what was taken off, before tax, instead of hiding it in a line                                 |
-| **BoundView**                        | a receiver on any provider sees the document as the sender saw it in its preview, with every fact drawn from signed data |
-| **A letter's signatory**             | a letter or an agreement carries the sender's sign-off: a name, a title and a typed or drawn signature                    |
+| What                                     | Why                                                                                                                                  |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Notes say how they are written**       | a note in markdown renders as markdown, not as asterisks                                                                             |
+| **Discounts**                            | an invoice or receipt says what was taken off, before tax, instead of hiding it in a line                                            |
+| **Totals, line roles and the recipient** | an invoice or receipt carries its total before tax and its tax, and says what each line column holds; a document names who it is for |
+| **BoundView**                            | a receiver on any provider sees the document as the sender saw it in its preview, with every fact drawn from signed data             |
+| **A letter's signatory**                 | a letter or an agreement carries the sender's sign-off: a name, a title and a typed or drawn signature                               |
 
 ## The flow
 
@@ -24,10 +25,10 @@ sequenceDiagram
     autonumber
     participant S as Sender's platform
     participant R as Receiver's platform
-    S->>S: document: description as { format, content }, discount, signatory
-    S->>S: snapshot the preview into boundView
+    S->>S: document: description as { format, content }, discount, totals, line roles, recipient, signatory
+    S->>S: snapshotBoundView: the preview into boundView
     S->>R: BTPS_DOC (1.2.0)
-    R->>R: schema: the note's format, the discount's shape, the BoundView's canvas
+    R->>R: schema: the note's format, the discount's shape, the totals' currency, the BoundView's canvas and bindings
     R->>R: checkBoundView: key facts shown, in full, not hidden
     R->>R: draw the BoundView, every binding from the signed fields, or its own view
 ```
@@ -39,6 +40,12 @@ An invoice's and a receipt's `description`, an event's `message`, and a trust re
 ## Discounts
 
 An invoice or receipt may carry `discount`: `{ amount }` in minor units, or `{ percent }` in whole basis points (1 to 10,000, so `1000` is 10%), applied before tax. Under `1.2.0`, a line's own `discount` cell is an amount of at least 0.
+
+## Totals, line roles and the recipient
+
+- **Totals.** An invoice or receipt may carry `subtotalAmount` and `taxAmount`: the total before tax and the tax, as the sender worked them out, in the currency of `totalAmount`. The protocol carries them and never adds them up.
+- **Line roles.** `lineItems.roles` names what a column holds, so a receiver knows it whatever the sender calls it: `description`, `quantity`, `unitPrice`, `discount`, `tax` or `lineTotal`. Each names one of `columns`, and each appears at most once.
+- **The recipient.** An invoice, a receipt, a letter or an agreement may name who it is for, `recipient: { name }`, as the sender writes it (at most 200 characters). A payslip's is its `employee`.
 
 ## BoundView
 
@@ -65,13 +72,13 @@ await agent.command('artifact.send', to, { ...document, boundView });
 const png = await renderBoundView(openedDocument); // PNG bytes, or null when there is no BoundView or it failed a check
 ```
 
-| Who | What happens |
-| --- | --- |
-| The sender | `snapshotBoundView` captures the preview, binds every fact to its field, and checks the result before the document is signed |
-| The receiver | The SDK checks the BoundView wherever the document is opened, on the server or on the device. `renderBoundView` gives a PNG to display, or `null` |
+| Who               | What happens                                                                                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The sender        | `snapshotBoundView` captures the preview, binds every fact to its field, and checks the result before the document is signed                                                          |
+| The receiver      | The SDK checks the BoundView wherever the document is opened, on the server or on the device. `renderBoundView` gives a PNG to display, or `null`                                     |
 | The receiving app | Shows the verified sender, the title, the attachments, the references, the payment link and an all-details view around the BoundView, and its own view of the data when a check fails |
 
-An invoice with a markdown note and a discount, with line roles a BoundView binds to:
+An invoice with a markdown note, a 10% discount, its totals with 10% GST, its recipient, and line roles a BoundView binds to:
 
 ```json btps=document:BTPS_DOC
 {
@@ -79,7 +86,10 @@ An invoice with a markdown note and a discount, with line roles a BoundView bind
   "title": "November",
   "id": "INV-1002",
   "issuedAt": "2026-11-08T06:00:00.000Z",
-  "totalAmount": { "amount": 135000, "currency": "AUD" },
+  "recipient": { "name": "Client Pty Ltd" },
+  "subtotalAmount": { "amount": 135000, "currency": "AUD" },
+  "taxAmount": { "amount": 13500, "currency": "AUD" },
+  "totalAmount": { "amount": 148500, "currency": "AUD" },
   "lineItems": {
     "columns": ["Item", "Amount"],
     "roles": { "Item": "description", "Amount": "lineTotal" },
@@ -121,9 +131,9 @@ Nothing new to call to send these: they are fields of the document a platform al
 
 ## Errors
 
-| Code                   | Status | Who refuses                                                                     | When                                                                                                                                                                                                                                         |
-| ---------------------- | ------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BTP_ERROR_VALIDATION` | 400    | the receiving server (readable), `decryptVerify` (opened), the sender's own SDK | a note over 5,000 characters or of another format, a discount with both or neither field or out of range, a BoundView that breaks its schema or a limit or binds a field the document lacks, a signatory's stroke off its canvas, a `template` in a `1.2.0` artifact, or any of these in a `1.1.0` artifact |
+| Code                   | Status | Who refuses                                                                     | When                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---------------------- | ------ | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BTP_ERROR_VALIDATION` | 400    | the receiving server (readable), `decryptVerify` (opened), the sender's own SDK | a note over 5,000 characters or of another format, a discount with both or neither field or out of range, a `subtotalAmount` or `taxAmount` in another currency than `totalAmount`, a line role naming no column or used twice, a BoundView that breaks its schema or a limit or binds a field the document lacks, a signatory's stroke off its canvas, a `template` in a `1.2.0` artifact, or any of these in a `1.1.0` artifact |
 
 :::note A failed check is not an error
 A BoundView that is well formed but fails a check is not an error: the document is accepted and the receiver shows its own view of the data ([Checks](../protocol/specifications/boundview/checks.md#two-outcomes)).

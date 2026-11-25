@@ -48,7 +48,7 @@ Every message travels over TLS, one JSON artifact per line; there is no HTTP. If
 | DNS Discovery     | TXT records used to verify public keys and protocol support       |
 | Trust Store       | Each server keeps its own trust records; they are never published |
 | Consent Handshake | Sender must initiate a trust request, and be approved             |
-| Signed Delivery   | All messages are signed + encrypted using public key cryptography |
+| Signed Delivery   | Every artifact is signed; documents are encrypted to the receiver |
 | Inbox             | Self-hosted or SaaS-based inbox endpoints handle delivery         |
 
 ## Protocol Flow: Step by Step
@@ -65,22 +65,26 @@ Sender does a DNS Host and Identity TXT lookup for:
   - operator: the identity that runs the domain's BTPS server and alone may delegate, attest or answer identity lookups for it.
 
 - `btps1._btps.identity.finance.vendor.com` - Identity lookup retrieves:
+
   - key type
-  - version and
+  - version (`v=1.2.0` for a 1.2 host: readers report it, never check it) and
   - public key for protocol support.
+
+  When DNS has no key for the identity, the sender asks the domain's host (an identity lookup), and takes the answer only when the operator signed it.
 
 ### 2. Request Consent
 
-Sender creates a signed handshake request and sends it to the receiver. In this step, sender optionally can define expiry date, encryption type, etc.
+Sender creates a signed trust request (`TRUST_REQ`) and sends it to the receiver. In it, the sender can name an expiry date, a privacy type and, since 1.2, the [trust permissions](../features/trustPermissions.md) it asks for: which document types it may send, and which details each side holds.
 
 ### 3. Receiver Accepts, Rejects or blocks temporarily or permanently
 
-- If accepted, receiver adds sender to `btps-trust.json`
-- If rejected, no messages are allowed
-- If temporary blocks, no messages are allowed until retryDate passes
-- If permanently blocks, no messages are allowed until manual intervention by the receiver
+The receiver answers with a signed trust response (`TRUST_RES`), and both sides keep a trust record in their own trust store:
 
-Once a trust relationship exists with any status including pending, additional trust requests from that sender are blocked. SaaS implementations may support temporary auto-blocks or auto release, while permanent blocks persist until manually modified by the user which may be allowed by the SaaS platform.
+- If accepted, the trust is active and the sender may send documents
+- If rejected, no messages are allowed; with a `retryAfterDate`, a new request is refused until it passes
+- If blocked, no messages are allowed, and every new request is refused until the receiver changes the record
+
+A new trust request is refused while a trust is active or blocked, or before its `retryAfterDate`. The sender is told only `BTP_ERROR_TRUST_NOT_ALLOWED`: the receiver's reason stays with the receiver. Since 1.2, a request with `change: true` changes an active trust, asking for the whole set of permissions now wanted, unless a change is already pending.
 
 ### 4. Message Delivery
 
@@ -88,7 +92,7 @@ Only after trust is established can sender post signed+encrypted messages to rec
 
 ### 5. Revocation
 
-Receiver can revoke trust any time by updating the record in its own trust store (a JSON file or a database). Only trust with dual binding records are need to approved by both parties (Future additions)
+Receiver can revoke or block a trust any time by updating the record in its own trust store (a JSON file or a database). Nothing is sent: the sender's next artifact is refused.
 
 ## Goals
 
@@ -102,7 +106,7 @@ Receiver can revoke trust any time by updating the record in its own trust store
 
 Sending and receiving bills, whether via email or online systems, involves numerous user problems and pain points. Here are the key issues and how SaaS solutions can address them:
 
-## �� User Problems
+## User Problems
 
 ### Security & Trust Issues
 
@@ -195,7 +199,7 @@ This flexibility ensures BTPS can scale from static file hosting to full enterpr
 ### Cryptographic Security
 
 - **Key Strength**: Use RSA keys of 2048 bits or more
-- **Key Rotation**: Implement regular key rotation using selectors
+- **Key Rotation**: Rotate keys under new selectors and, since 1.2, record each rotation in the identity's signed key chain ([Key rotation](../features/keyRotation.md))
 - **Algorithms**: RSASSA-PKCS1-v1_5 with SHA-256 for signatures, AES-256-GCM for documents and RSA-OAEP with SHA-256 for its key ([algorithms](./security/algorithm.md))
 - **Random Generation**: Use cryptographically secure random number generators
 

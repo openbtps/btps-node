@@ -69,8 +69,10 @@ a caller: a sender decides whether to retry from the error it is given.
 Something a user of the SDK needs must be reachable from `src/index.ts` or
 from one of the package's export paths in `package.json` (`.`, `./server`,
 `./server/core`, `./client`, `./crypto`, `./trust`, `./authentication`,
-`./delegation`, `./error`, `./storage`). Code that is built and cannot be
-imported is unfinished. Prefer an existing path to a new one.
+`./delegation`, `./error`, `./storage`, `./boundview`). Code that is built
+and cannot be imported is unfinished. Prefer an existing path to a new one.
+`@btps/boundview`, the separate package in `packages/boundview`, has its own
+export paths (`.`, `./signature`, `./engine.wasm`).
 
 ## Tests
 
@@ -86,6 +88,15 @@ test file, not in shipped source.
 - A change to a wire shape, a default or an error code is a protocol
   change: it needs the specification page under
   `docs/docusaurus/docs/protocol/specifications/` changed with it.
+- Every change to the SDK, an addition, a change, a rename or a removal,
+  updates the docs in `docs/docusaurus/docs` fully, in the same pull
+  request: the prose, the mermaid diagrams, the code blocks, the JSON
+  examples, the SDK reference (`sdk/apiReference.md`,
+  `sdk/classApiReference.md`, `sdk/typesAndInterfaces.md`), the server and
+  middleware pages, `protocol/specifications/`, and What's new with its
+  migration guide. Text alone is not an update: an example or a diagram
+  left behind is how the docs drift. `versioned_docs` holds released
+  snapshots and is never edited.
 - Nobody but the maintainer merges into `master`.
 - Every source file starts with the licence header (`scripts/add-license-header.sh`).
 - Imports end in `.js`; shared code is imported through the `@core/` alias.

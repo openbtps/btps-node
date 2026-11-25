@@ -16,9 +16,9 @@ When a `BtpsAgent` sends a command to your server, the server follows this flow:
 1. **Server receives artifact** from Agent
 2. **Server checks `respondNow`** flag in the artifact
 3. **If `respondNow: true`** - Server processes immediately and responds (queries, fetch, delete, update)
-4. **If `respondNow: false`** - Server acknowledges and queues to outbox for transporter processing
-5. **Transporter processes** from outbox asynchronously (like SMTP mail delivery)
-6. **Results stored** in sent inbox (success) or failure inbox with `BTPDeliveryFailureDoc` (failure)
+4. **If `respondNow: false`** - A command that sends (`artifact.send`, `event.send`, `trust.request`, `trust.respond` and, since 1.2, `details.changed`, `details.request`, `details.respond`). Its `document` is the transporter artifact the device built and signed. Server acknowledges and queues it to the outbox
+5. **Transporter processes** from outbox asynchronously (like SMTP mail delivery): your server adds its delegation (`BtpsDelegator`) and delivers the artifact as signed
+6. **Results stored** in the sentbox (success) or as a `BTP_DELIVERY_FAILURE` artifact in the user's inbox (failure)
 
 For detailed information about the BtpsTransporter class, see [BtpsTransporter Overview](../../client/btpsTransporter/overview.md) and [BtpsTransporter API Reference](../../sdk/classApiReference.md#btpstransporter).
 
@@ -37,12 +37,13 @@ For complete API documentation, see [BtpsTransporter Class Reference](../../sdk/
 
 ## Setting Up Transporter in Your Server
 
-### Step 1: Create Transporter Factory
+### Step 1: Create the Transporter and Delegator
 
 ```typescript
 // src/index.ts
-import { BtpsServer } from '@btps/sdk/server';
+import { BtpsServer, AGENT_TRANSPORTER_ACTIONS } from '@btps/sdk/server';
 import { BtpsTransporter } from '@btps/sdk/client';
+import { BtpsDelegator } from '@btps/sdk/delegation';
 import { JsonTrustStore } from '@btps/sdk/trust';
 import { readFileSync } from 'fs';
 
@@ -51,22 +52,20 @@ const trustStore = new JsonTrustStore({
   entityName: 'trusted_senders',
 });
 
-// Transporter factory - creates different instances per user
+// One transporter for the server: it resolves each recipient's host from DNS
 // See [BtpsTransporter Overview](../../client/btpsTransporter/overview.md) for detailed architecture
-function createTransporter(userId: string) {
-  return new BtpsTransporter({
-    maxConnections: 10,
-    connectionTTLSeconds: 300,
-    maxRetries: 3,
-    retryDelayMs: 1000,
-    connectionTimeoutMs: 30000,
-    host: 'localhost',
-    port: 3443,
-    btpMtsOptions: {
-      rejectUnauthorized: false,
-    },
-  });
-}
+export const transporter = new BtpsTransporter({
+  maxConnections: 10,
+  connectionTTLSeconds: 300,
+  maxRetries: 3,
+  retryDelayMs: 1000,
+});
+
+// Your server sends for its users' devices as the domain's operator
+export const delegator = new BtpsDelegator({
+  identity: 'admin$yourdomain.com',
+  privateKey: readFileSync('./keys/private.pem', 'utf8'),
+});
 
 const server = new BtpsServer({
   serverIdentity: {
@@ -75,6 +74,10 @@ const server = new BtpsServer({
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
   trustStore,
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   middlewarePath: './btps.middleware.mjs',
 });
@@ -93,23 +96,15 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
     return handleImmediateRequest(artifact, resCtx);
   }
 
-  // Handle asynchronous transporter requests
-  switch (artifact.action) {
-    case 'artifact.send':
-      return handleArtifactSend(artifact, resCtx);
-
-    case 'trust.request':
-      return handleTrustRequest(artifact, resCtx);
-
-    case 'trust.respond':
-      return handleTrustRespond(artifact, resCtx);
-
-    default:
-      return resCtx.sendError({
-        code: 400,
-        message: `Unknown action: ${artifact.action}`,
-      });
+  // A command that sends: its document is the artifact the device built and signed
+  if (artifact.action in AGENT_TRANSPORTER_ACTIONS) {
+    return handleSend(artifact, resCtx);
   }
+
+  return resCtx.sendError({
+    code: 400,
+    message: `Unknown action: ${artifact.action}`,
+  });
 });
 
 await server.start();
@@ -118,27 +113,31 @@ await server.start();
 ### Step 3: Implement Asynchronous Handlers
 
 ```typescript
-// Handle artifact.send command from agent (asynchronous)
-async function handleArtifactSend(artifact: any, resCtx: any) {
-  const { document, to, id: reqId, agentId } = artifact;
+import type { BTPAgentArtifact, BTPTransporterArtifact } from '@btps/sdk/server';
+
+// Handle a command that sends (asynchronous)
+async function handleSend(artifact: BTPAgentArtifact, resCtx: any) {
+  const carried = artifact.document as BTPTransporterArtifact;
 
   try {
-    // Add to outbox for transporter processing
+    // Add to outbox for transporter processing, exactly as the device signed it
     await addToOutbox({
-      id: reqId,
-      agentId,
-      type: 'BTPS_DOC',
-      to,
-      document,
-      action: 'artifact.send',
+      id: carried.id,
+      agentArtifactId: artifact.id,
+      agentId: artifact.agentId,
+      to: carried.to,
+      artifact: carried,
+      action: artifact.action,
       createdAt: new Date().toISOString(),
     });
 
-    // Acknowledge the request immediately
+    // Acknowledge the request: queued, not yet delivered
     return resCtx.sendRes({
-      ok: true,
-      message: 'Artifact queued for delivery',
-      code: 202,
+      ...server.prepareBtpsResponse(
+        { ok: true, message: 'Artifact queued for delivery', code: 200 },
+        artifact.id,
+      ),
+      type: 'btps_response',
     });
   } catch (error) {
     console.error('Failed to queue artifact:', error);
@@ -149,90 +148,22 @@ async function handleArtifactSend(artifact: any, resCtx: any) {
   }
 }
 
-// Handle trust.request command from agent (asynchronous)
-async function handleTrustRequest(artifact: any, resCtx: any) {
-  const { document, to, id: reqId, agentId } = artifact;
-
-  try {
-    // Add to outbox for transporter processing
-    await addToOutbox({
-      id: reqId,
-      agentId,
-      type: 'TRUST_REQ',
-      to,
-      document,
-      action: 'trust.request',
-      createdAt: new Date().toISOString(),
-    });
-
-    // Acknowledge the request immediately
-    return resCtx.sendRes({
-      ok: true,
-      message: 'Trust request queued for delivery',
-      code: 202,
-    });
-  } catch (error) {
-    console.error('Failed to queue trust request:', error);
-    return resCtx.sendError({
-      code: 500,
-      message: 'Failed to queue trust request',
-    });
-  }
-}
-
-// Handle trust.respond command from agent (asynchronous)
-async function handleTrustRespond(artifact: any, resCtx: any) {
-  const { document, to, id: reqId, agentId } = artifact;
-
-  try {
-    // Add to outbox for transporter processing
-    await addToOutbox({
-      id: reqId,
-      agentId,
-      type: 'TRUST_RES',
-      to,
-      document,
-      action: 'trust.respond',
-      createdAt: new Date().toISOString(),
-    });
-
-    // Acknowledge the request immediately
-    return resCtx.sendRes({
-      ok: true,
-      message: 'Trust response queued for delivery',
-      code: 202,
-    });
-  } catch (error) {
-    console.error('Failed to queue trust response:', error);
-    return resCtx.sendError({
-      code: 500,
-      message: 'Failed to queue trust response',
-    });
-  }
-}
-
 // Handle immediate requests (respondNow: true)
-async function handleImmediateRequest(artifact: any, resCtx: any) {
+async function handleImmediateRequest(artifact: BTPAgentArtifact, resCtx: any) {
   switch (artifact.action) {
     case 'inbox.fetch':
-      // Handle inbox fetch immediately
-      const inboxItems = await fetchInbox(artifact.agentId);
+    case 'outbox.fetch': {
+      // Each result is an entry: { artifact, meta? }
+      const results =
+        artifact.action === 'inbox.fetch'
+          ? await fetchInbox(artifact.to)
+          : await fetchOutbox(artifact.to);
       return resCtx.sendRes({
-        ok: true,
-        message: 'Inbox fetched successfully',
-        code: 200,
-        document: { items: inboxItems },
+        ...server.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }, artifact.id),
+        type: 'btps_response',
+        document: { results },
       });
-
-    case 'outbox.fetch':
-      // Handle outbox fetch immediately
-      const outboxItems = await fetchOutbox(artifact.agentId);
-      return resCtx.sendRes({
-        ok: true,
-        message: 'Outbox fetched successfully',
-        code: 200,
-        document: { items: outboxItems },
-      });
+    }
 
     default:
       return resCtx.sendError({
@@ -243,6 +174,8 @@ async function handleImmediateRequest(artifact: any, resCtx: any) {
 }
 ```
 
+The full set of immediate commands, and the answer each takes, is in [Supporting Queries](./supportingQueries.md).
+
 ## Transporter Processing Service
 
 ### Step 4: Implement Outbox Processing
@@ -251,7 +184,8 @@ See [BtpsTransporter.transport()](../../sdk/classApiReference.md#transport) for 
 
 ```typescript
 // src/transporter-processor.ts
-import { createTransporter } from './index';
+import { randomUUID } from 'crypto';
+import { transporter, delegator } from './index';
 
 // Process outbox items asynchronously
 async function processOutbox() {
@@ -274,74 +208,73 @@ async function processOutbox() {
 }
 
 async function processOutboxItem(item: any) {
-  try {
-    // Create transporter instance for this user
-    const transporter = createTransporter(item.agentId);
+  // A sync is the user's own copy of a send: kept, never delivered
+  if (item.artifact.syncOf) {
+    await moveToSentbox({ ...item, status: 'synced' });
+    await removeFromOutbox(item.id);
+    return;
+  }
 
-    // Send the artifact using transport method
-    const result = await transporter.transport(item.to, {
-      version: '1.1.0',
-      issuedAt: new Date().toISOString(),
-      id: item.id,
-      type: item.type,
-      from: item.agentId,
-      to: item.to,
-      document: item.document,
-      signature: item.signature,
-      encryption: item.encryption,
-    });
+  // The device signed the artifact; your server adds its delegation, signed as
+  // the domain's operator, and delivers it unchanged otherwise
+  const devicePublicKey = await getDevicePublicKey(item.agentId); // from the device's trust record
+  const delegated = await delegator.delegateArtifact(item.agentId, devicePublicKey, item.artifact);
 
-    // Move to sent inbox
-    await moveToSentInbox({
+  const result = await transporter.transport(item.to, delegated);
+
+  if (!result.error) {
+    // Move to the sentbox
+    await moveToSentbox({
       ...item,
+      artifact: delegated,
       deliveredAt: new Date().toISOString(),
-      deliveryId: result.id,
       status: 'delivered',
     });
-
-    // Remove from outbox
     await removeFromOutbox(item.id);
+    console.log(`✅ Delivered: ${item.artifact.type} to ${item.to}`);
+    return;
+  }
 
-    console.log(`✅ Delivered: ${item.type} to ${item.to}`);
-  } catch (error) {
-    console.error(`❌ Failed to deliver ${item.type} to ${item.to}:`, error);
+  console.error(`❌ Failed to deliver ${item.artifact.type} to ${item.to}:`, result.error.message);
+  const retryCount = (item.retryCount || 0) + 1;
 
-    // Create BTPDeliveryFailureDoc
-    const failureDoc = {
-      type: 'BTPDeliveryFailureDoc',
-      originalRequestId: item.id,
-      originalAction: item.action,
-      recipient: item.to,
-      error: error.message,
-      failedAt: new Date().toISOString(),
-      retryCount: (item.retryCount || 0) + 1,
-    };
-
-    // Add failure document to user's inbox
-    await addToInbox({
-      agentId: item.agentId,
-      document: failureDoc,
-      type: 'BTPDeliveryFailureDoc',
-      createdAt: new Date().toISOString(),
-    });
-
-    // Update outbox item with retry count
+  // Resend later only what the receiver says to resend later (429, 5xx) or what got no answer
+  const status = result.error.status;
+  const retryable = status === undefined || status === 429 || status >= 500;
+  if (retryable && retryCount < 3) {
     await updateOutboxItem(item.id, {
-      retryCount: failureDoc.retryCount,
-      lastError: error.message,
+      retryCount,
+      lastError: result.error.message,
       lastRetryAt: new Date().toISOString(),
     });
-
-    // Remove from outbox if max retries exceeded
-    if (failureDoc.retryCount >= 3) {
-      await removeFromOutbox(item.id);
-    }
+    return;
   }
+
+  // Tell the user: a BTP_DELIVERY_FAILURE artifact in their inbox
+  await addToInbox({
+    id: randomUUID(),
+    issuedAt: new Date().toISOString(),
+    type: 'BTP_DELIVERY_FAILURE',
+    from: 'admin$yourdomain.com',
+    to: item.artifact.from,
+    document: {
+      id: randomUUID(),
+      reason: result.error.message,
+      failedAt: new Date().toISOString(),
+      retryCount,
+      recipient: item.to,
+      transportArtifactId: item.artifact.id,
+      agentArtifactId: item.agentArtifactId,
+    },
+  });
+  await removeFromOutbox(item.id);
 }
 
 // Start the outbox processor
 processOutbox().catch(console.error);
 ```
+
+The artifact is delivered with the id the device gave it, so a resend after a lost answer is kept once by the receiver. Never re-sign it, or build a new envelope around its document: the receiver checks the device's signature over the envelope.
 
 ## Database Functions
 
@@ -349,14 +282,15 @@ processOutbox().catch(console.error);
 
 ```typescript
 // src/database.ts
+import type { BTPTransporterArtifact, BTPDeliveryFailureArtifact } from '@btps/sdk/server';
 
 // Add item to outbox
 async function addToOutbox(item: {
   id: string;
+  agentArtifactId: string;
   agentId: string;
-  type: string;
   to: string;
-  document: any;
+  artifact: BTPTransporterArtifact;
   action: string;
   createdAt: string;
 }) {
@@ -380,21 +314,16 @@ async function getPendingOutboxItems() {
     .toArray();
 }
 
-// Move to sent inbox
-async function moveToSentInbox(item: any) {
+// Move to the sentbox
+async function moveToSentbox(item: any) {
   // Example with MongoDB:
-  await db.collection('sent_inbox').insertOne(item);
+  await db.collection('sentbox').insertOne(item);
 }
 
-// Add to inbox (for failure documents)
-async function addToInbox(item: {
-  agentId: string;
-  document: any;
-  type: string;
-  createdAt: string;
-}) {
+// Add to inbox (for delivery failures)
+async function addToInbox(artifact: BTPDeliveryFailureArtifact) {
   // Example with MongoDB:
-  await db.collection('inbox').insertOne(item);
+  await db.collection('inbox').insertOne({ to: artifact.to, artifact });
 }
 
 // Remove from outbox
@@ -409,16 +338,22 @@ async function updateOutboxItem(id: string, updates: any) {
   await db.collection('outbox').updateOne({ id }, { $set: updates });
 }
 
-// Fetch inbox for user
-async function fetchInbox(agentId: string) {
+// Fetch the user's inbox, as query result entries
+async function fetchInbox(identity: string) {
   // Example with MongoDB:
-  return await db.collection('inbox').find({ agentId }).sort({ createdAt: -1 }).toArray();
+  const items = await db.collection('inbox').find({ to: identity }).sort({ _id: -1 }).toArray();
+  return items.map(({ artifact }) => ({ artifact }));
 }
 
-// Fetch outbox for user
-async function fetchOutbox(agentId: string) {
+// Fetch the user's outbox, as query result entries
+async function fetchOutbox(identity: string) {
   // Example with MongoDB:
-  return await db.collection('outbox').find({ agentId }).sort({ createdAt: -1 }).toArray();
+  const items = await db
+    .collection('outbox')
+    .find({ 'artifact.from': identity })
+    .sort({ createdAt: -1 })
+    .toArray();
+  return items.map(({ artifact }) => ({ artifact }));
 }
 ```
 
@@ -428,9 +363,6 @@ async function fetchOutbox(agentId: string) {
 
 ```bash
 # Transporter Configuration
-TRANSPORTER_HOST=localhost
-TRANSPORTER_PORT=3443
-TRANSPORTER_TIMEOUT=30000
 TRANSPORTER_MAX_RETRIES=3
 TRANSPORTER_RETRY_DELAY=1000
 
@@ -451,11 +383,11 @@ import { BtpsAgent } from '@btps/sdk/client';
 
 const agent = new BtpsAgent({
   agent: {
-    id: 'test-agent-123',
-    identityKey: '-----BEGIN PRIVATE KEY-----\n...', // Your private key
-    identityCert: '-----BEGIN PUBLIC KEY-----\n...', // Your public key
+    id: session.agentId, // from authentication
+    identityKey: '-----BEGIN PRIVATE KEY-----\n...', // The device's private key
+    identityCert: '-----BEGIN PUBLIC KEY-----\n...', // The device's public key
   },
-  btpIdentity: 'test-agent$testdomain.com',
+  btpIdentity: 'alice$yourdomain.com',
   host: 'localhost',
   port: 3443,
   maxRetries: 3,
@@ -465,38 +397,42 @@ const agent = new BtpsAgent({
   btpMtsOptions: { rejectUnauthorized: false },
 });
 
-// Test artifact.send command (asynchronous)
-const sendResult = await agent.command('artifact.send', 'recipient$recipientdomain.com', {
-  document: {
-    to: 'recipient$recipientdomain.com',
-    type: 'BTPS_DOC',
-    content: {
-      type: 'test',
-      title: 'Test Document',
-      content: 'This is a test document sent via server transporter',
+// Test artifact.send (queued: the server sets respondNow false for it)
+const sendResult = await agent.command(
+  'artifact.send',
+  'recipient$recipientdomain.com',
+  {
+    type: 'invoice',
+    title: 'Test Invoice',
+    id: 'INV-TEST-001',
+    issuedAt: new Date().toISOString(),
+    totalAmount: { amount: 10000, currency: 'USD' },
+    lineItems: {
+      columns: ['Description', 'Amount'],
+      rows: [{ Description: 'Test', Amount: 10000 }],
     },
   },
-  respondNow: false, // This will be queued to outbox
+  { encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' } },
+);
+
+console.log('Send result:', sendResult.response?.status); // queued for delivery
+
+// Test inbox.fetch (immediate: respondNow true)
+const inboxResult = await agent.command('inbox.fetch', 'alice$yourdomain.com', {
+  limit: 10,
+  sort: 'desc',
 });
 
-console.log('Send result:', sendResult); // Should return 202 Accepted
-
-// Test inbox.fetch command (immediate)
-const inboxResult = await agent.command('inbox.fetch', 'test-agent$testdomain.com', {
-  document: { limit: 10, sort: 'desc' },
-  respondNow: true, // This will be processed immediately
-});
-
-console.log('Inbox result:', inboxResult); // Should return inbox items
+console.log('Inbox result:', inboxResult.response?.document); // { results }
 ```
 
 ## Key Integration Points
 
 ### Agent Commands Handled
 
-- **`artifact.send`** (respondNow: false): Queue document for delivery
-- **`trust.request`** (respondNow: false): Queue trust request for delivery
-- **`trust.respond`** (respondNow: false): Queue trust response for delivery
+- **`artifact.send`**, **`event.send`** (respondNow: false): Queue the document or event for delivery
+- **`trust.request`**, **`trust.respond`** (respondNow: false): Queue the trust request or response for delivery
+- **`details.changed`**, **`details.request`**, **`details.respond`** (respondNow: false, since 1.2): Queue the details artifact for delivery
 - **`inbox.fetch`** (respondNow: true): Fetch inbox immediately
 - **`outbox.fetch`** (respondNow: true): Fetch outbox immediately
 
@@ -504,18 +440,18 @@ For complete BtpsAgent command documentation, see [BtpsAgent.command()](../../sd
 
 ### Transporter Flow
 
-1. **Agent Request**: Agent sends command with `respondNow: false`
-2. **Server Acknowledgment**: Server immediately responds with 202 Accepted
-3. **Outbox Queue**: Request added to outbox for processing
-4. **Transporter Processing**: Background service processes outbox items
-5. **Success**: Item moved to sent inbox
-6. **Failure**: `BTPDeliveryFailureDoc` added to user's inbox
+1. **Agent Request**: Agent sends a command that sends; the server marks it `respondNow: false`
+2. **Outbox Queue**: The signed artifact it carries is added to the outbox
+3. **Server Acknowledgment**: Server answers that it is queued
+4. **Transporter Processing**: Background service delegates and delivers outbox items
+5. **Success**: Item moved to the sentbox
+6. **Failure**: A `BTP_DELIVERY_FAILURE` artifact added to the user's inbox
 
 ### Inbox Types
 
-- **Inbox**: Contains received artifacts and failure documents
+- **Inbox**: Contains received artifacts and delivery failures
 - **Outbox**: Contains pending delivery requests
-- **Sent Inbox**: Contains successfully delivered items
+- **Sentbox**: Contains successfully delivered items
 
 ## Next Steps
 

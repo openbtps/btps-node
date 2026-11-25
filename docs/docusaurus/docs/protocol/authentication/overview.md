@@ -110,6 +110,8 @@ sequenceDiagram
     BTPS Server->>BTPS App: Updated Session
 ```
 
+Since 1.2, a refresh token used a second time, after its grace window, revokes the device (`refreshTokenReused`); a key older than `maxKeyAgeMs` is refused with `BTP_ERROR_KEY_TOO_OLD` until the device rotates. See [Refresh tokens](../../features/refreshTokens.md).
+
 ## 📦 Core Components
 
 ### **1. BtpsAuthentication Class**
@@ -117,12 +119,14 @@ sequenceDiagram
 The central authentication class providing both server-side and client-side functionality:
 
 **Server-side Features:**
+
 - Token generation and validation
 - Agent creation and trust record management
 - Refresh token issuance and rotation
 - Session cleanup and expiration handling
 
 **Client-side Features:**
+
 - Static authentication methods
 - Session refresh functionality
 - Encrypted response handling
@@ -130,18 +134,20 @@ The central authentication class providing both server-side and client-side func
 
 ### **2. Token Management**
 
-| Token Type | Purpose | Issuer | Expiry | Usage |
-|------------|---------|--------|--------|-------|
-| **Auth Token** | Device registration | SaaS Portal | 5-15 minutes | Initial device setup |
-| **Refresh Token** | Session management | BTPS Server | 7-90 days | Long-term access |
+| Token Type        | Purpose             | Issuer      | Expiry                                      | Usage                                          |
+| ----------------- | ------------------- | ----------- | ------------------------------------------- | ---------------------------------------------- |
+| **Auth Token**    | Device registration | SaaS Portal | 15 minutes by default (`authTokenExpiryMs`) | Initial device setup; taken once               |
+| **Refresh Token** | Session management  | BTPS Server | 7 days by default (`refreshTokenExpiryMs`)  | Each refresh; replaced by a new one every time |
 
 ### **3. Storage Backends**
 
 **Built-in Implementations:**
+
 - `InMemoryTokenStore`: Development and testing
 - `InMemoryAuthSessionStore`: Session management
 
 **Custom Implementations:**
+
 - Redis, Database, or any custom storage
 - Implement `TokenStore` and `AuthSessionStore` interfaces
 
@@ -154,41 +160,47 @@ The central authentication class providing both server-side and client-side func
 ## 🔐 Security Model
 
 ### **Token Security**
-- **Short-lived Auth Tokens**: 5-15 minute expiry for device registration
-- **Secure Refresh Tokens**: Long-lived with secure rotation
-- **Cryptographic Validation**: All tokens cryptographically signed
-- **Scope Limitation**: Tokens limited to specific permissions
+
+- **Short-lived Auth Tokens**: 15 minutes by default, taken once, for device registration
+- **Rotating Refresh Tokens**: Each works once; the answer carries the next. Since 1.2, with a token store that has `isConsumed`, a refresh token used a second time revokes the device and fires `refreshTokenReused`, except a retry inside `refreshGraceMs` (30 seconds by default), which gets the same answer
+- **Signed Requests**: Tokens are random strings, not signatures; what is signed is each request, by the device key, and the server checks that signature against the device's record
 
 ### **Key Management**
+
 - **Device Isolation**: Each device generates its own keypair
 - **No Key Sharing**: Primary keys never leave original device
 - **Secure Storage**: Platform-specific secure key storage
-- **Key Rotation**: Support for periodic key updates
+- **Key Rotation**: A device moves to a new key with `BtpsAuthentication.rotateKey`, a refresh that carries a proof signed by the new key. Since 1.2, a server may set a maximum key age (`maxKeyAgeMs`): a refresh with an older key is refused with `BTP_ERROR_KEY_TOO_OLD`, and the same token then rotates the key. `keyRotated` fires on every rotation
 
 ### **Session Security**
+
 - **Automatic Cleanup**: Expired sessions automatically removed
 - **Revocation Support**: Immediate session termination
 - **Audit Logging**: Complete authentication and session tracking
-- **Encryption**: All sensitive data encrypted in transit and at rest
+- **Encryption**: Every request travels over TLS; how sessions and tokens are stored is the platform's choice
 
 ## 🎯 Use Cases
 
 ### **Mobile Applications**
+
 - Secure device registration via QR codes or manual entry
 - Persistent sessions with automatic refresh
 - Offline capability with cached credentials
 
 ### **Multi-Device Access**
+
 - Desktop, tablet, and phone access to same BTPS identity
 - Independent device management and revocation
-- Granular permission control per device
+- Independent revocation per device
 
 ### **Enterprise Integration**
+
 - Standardized authentication across all BTPS implementations
 - Integration with existing identity management systems
 - Compliance with enterprise security policies
 
 ### **Third-Party Applications**
+
 - Universal BTPS client libraries
 - Platform-agnostic authentication flows
 - Consistent protocol behavior

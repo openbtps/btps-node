@@ -52,7 +52,7 @@ This guide helps you diagnose, debug, and resolve common issues with the BTPS Se
 
 - **Check:** No handler registered, or error in middleware.
 - **Solution:**
-  - Ensure you use `server.onMessage()` or `server.forwardTo()`/`forwardToWebhook()`.
+  - Register a handler with `server.onIncomingArtifact('Transporter' | 'Agent', handler)` or `server.forwardTo(handler)`. Without one, the server refuses that type with `BTP_ERROR_ARTIFACT_NOT_ACCEPTED` and warns at start.
   - Check middleware for early `res.sendError()` calls.
 
 ### 7. High Latency or Resource Usage
@@ -73,13 +73,17 @@ This guide helps you diagnose, debug, and resolve common issues with the BTPS Se
 
 ## Error Codes
 
-| Code | Meaning                |
-| ---- | ---------------------- |
-| 400  | Malformed request      |
-| 401  | Signature verification |
-| 403  | Trust not allowed      |
-| 429  | Rate limited           |
-| 500  | Internal server error  |
+| Code | Meaning                                                                                                                                  |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 400  | A malformed or unreadable artifact, an unsupported version, an artifact outside the time window, a privacy type the trust does not allow |
+| 401  | A signature, delegation or attestation that does not verify, an unknown key, or since 1.2 a key its chain retired or revoked             |
+| 403  | No active trust (`BTP_ERROR_TRUST_NOT_ALLOWED`, never saying why), or since 1.2 something the trust's permissions do not allow           |
+| 413  | An artifact over `maxArtifactSizeKb`                                                                                                     |
+| 429  | Rate limited; since 1.2 `status.retryAfter` may say how long to wait                                                                     |
+| 500  | Internal server error (`BTP_UNKNOWN_ERROR`): the detail stays in your logs                                                               |
+| 503  | No handler takes the artifact (`BTP_ERROR_ARTIFACT_NOT_ACCEPTED`), or the server is temporarily unavailable                              |
+
+The error itself is in `status.error`. Every code and its status: [Server Responses](../protocol/specifications/responses.md).
 
 ## FAQ
 

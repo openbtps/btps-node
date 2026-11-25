@@ -25,9 +25,11 @@ The BTPS (Billing Trust Protocol Secure) specification defines a standardized pr
 
 ### Document Types
 
-- **Trust Requests**: Establish trust relationships between organizations
+- **Trust Requests**: Establish trust relationships between organizations, and since 1.2 say what may travel on them ([trust permissions](./transporter-artifact.md#trust-permissions))
 - **Trust Responses**: Accept, reject, or block trust requests
-- **Invoices**: Secure billing documents with line items and payment details
+- **Documents**: invoices, receipts, payslips and letters, and since 1.2 agreements, which their signers accept or decline
+- **Events**: what happens to an invoice after it is sent (paid, disputed, refunded, and since 1.2 withdrawn), and since 1.2 an agreement's answers
+- **Details refresh** (since 1.2): a notice that details changed, a request for them, and the answer
 
 ---
 
@@ -78,19 +80,19 @@ btps1._btps.identity.finance.vendorcorp.com
 ### TXT Record Format
 
 ```
-v=1.1.0; k=<key_type>; p=<base64_public_key>
+v=1.2.0; k=<key_type>; p=<base64_public_key>
 ```
 
 **Parameters:**
 
-- `v`: Protocol version (`1.1.0`)
+- `v`: Protocol version: a 1.2 host publishes `1.2.0`. Readers report the value and do not check it
 - `k`: Key type (`rsa`)
 - `p`: Public key (base64-encoded, SPKI format, no PEM headers/footers)
 
 **Example TXT Record:**
 
 ```
-v=1.1.0; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
+v=1.2.0; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...
 ```
 
 ---
@@ -114,12 +116,12 @@ _btps.host.vendorcorp.com
 ### TXT Record Format
 
 ```
-v=1.1.0; u=<btps_host:port>; s=<selector>; op=<operator_identity>
+v=1.2.0; u=<btps_host:port>; s=<selector>; op=<operator_identity>
 ```
 
 **Parameters:**
 
-- `v`: Protocol version (`1.1.0`)
+- `v`: Protocol version: a 1.2 host publishes `1.2.0`. Readers report the value and do not check it; a record without `v`, `u` or `s` is not taken
 - `u`: BTPS server host and port (e.g., `btps.vendorcorp.com:3443`). Default port is `3443` if not present.
 - `s`: BTPS selector (e.g., `btps1`)
 - `op`: The domain's **operator**: the identity that runs the domain's BTPS server (e.g., `admin$vendorcorp.com`). See [The Domain Operator](#the-domain-operator).
@@ -129,7 +131,7 @@ Each field is `key=value`, separated by `;`. A value is everything after the fie
 **Example TXT Record:**
 
 ```
-v=1.1.0; u=btps.vendorcorp.com:3443; s=btps1; op=admin$vendorcorp.com
+v=1.2.0; u=btps.vendorcorp.com:3443; s=btps1; op=admin$vendorcorp.com
 ```
 
 ### Lookup Flow
@@ -166,50 +168,50 @@ A domain without `op` accepts no delegation, attestation or host lookup answer e
 
 All BTPS messages follow a standardized envelope structure:
 
-```json
+A trust request with permissions, sent from Alice's phone through her provider: the `delegation` is there only for an artifact a device signs, and its `attestation` only when the delegation is the user's own:
+
+```json btps=transporter
 {
-  "version": "1.1.0",
-  "issuedAt": "2025-01-15T10:30:00Z",
-  "id": "btps_1234567890abcdef",
+  "version": "1.2.0",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
+  "id": "4c1b2a40-1d7e-4f38-9a3a-5b6f2c7d8e90",
   "type": "TRUST_REQ",
-  "from": "billing$vendorcorp.com",
+  "from": "alice$saas.com",
   "to": "pay$client.com",
-  "document": {
-    // Document-specific content (see Document Types section)
-  },
+  "permissions": [{ "name": "send:invoice", "required": true }],
+  "entityType": "person",
+  "document": "BASE64-OF-THE-ENCRYPTED-DOCUMENT",
   "signature": {
     "algorithmHash": "sha256",
-    "value": "base64-encoded-signature",
-    "fingerprint": "sha256-base64-fingerprint"
+    "value": "BASE64-SIGNATURE",
+    "fingerprint": "BASE64-FINGERPRINT"
   },
   "encryption": {
     "algorithm": "aes-256-gcm",
-    "encryptedKey": "base64-encoded-encrypted-key",
-    "iv": "base64-encoded-initialization-vector",
-    "authTag": "base64-encoded-authentication-tag",
+    "encryptedKey": "BASE64-KEY",
+    "iv": "BASE64-IV",
+    "authTag": "BASE64-TAG",
     "type": "standardEncrypt"
   },
   "selector": "btps1",
   "delegation": {
-    // only used for delegated artifacts
-    "agentId": "agentId",
-    "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
+    "agentId": "btps_ag_3f2e1d0c-9b8a-4776-8554-433221100fed",
+    "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBg…\n-----END PUBLIC KEY-----",
     "signedBy": "alice$saas.com",
-    "issuedAt": "2025-01-15T10:30:00Z",
+    "issuedAt": "2026-11-08T10:30:00.000Z",
     "signature": {
       "algorithmHash": "sha256",
-      "value": "base64-encoded-signature",
-      "fingerprint": "sha256-base64-fingerprint"
+      "value": "BASE64-SIGNATURE",
+      "fingerprint": "BASE64-FINGERPRINT"
     },
     "selector": "btps1",
     "attestation": {
-      // only used for delegated artifacts which as delegated on behalf of original identity
-      "issuedAt": "2025-01-15T10:30:00Z",
+      "issuedAt": "2026-11-08T10:30:00.000Z",
       "signedBy": "admin$saas.com",
       "signature": {
         "algorithmHash": "sha256",
-        "value": "base64-encoded-signature",
-        "fingerprint": "sha256-base64-fingerprint"
+        "value": "BASE64-SIGNATURE",
+        "fingerprint": "BASE64-FINGERPRINT"
       },
       "selector": "btps1"
     }
@@ -219,7 +221,7 @@ All BTPS messages follow a standardized envelope structure:
 
 **Artifacts Fields:**
 
-- `version`: Protocol version (currently "1.0")
+- `version`: `1.1.0` or `1.2.0`: the lowest version that can say what the artifact carries; a 1.2 server takes any `1.1.x` or `1.2.x`
 - `issuedAt`: ISO 8601 timestamp of message creation
 - `id`: Unique message identifier (UUID v4 recommended)
 - `type`: Message type (see Artifact Types section)
@@ -229,16 +231,17 @@ All BTPS messages follow a standardized envelope structure:
 - `signature`: Cryptographic signature for authenticity
 - `encryption`: Encryption details (null for unencrypted messages)
 - `delegation`: Artifacts that was delegated for agents
+- Since 1.2, on the envelope where they apply: `documentType`, `permissions`, `entityType`, `given`, `change`, `granted`, `details`, `syncOf` (see [Transporter Artifact](./transporter-artifact.md))
 
 ---
 
 ## Artifact Types
 
-BTPS supports three primary artifact types and different Doc types within each artifact types:
+BTPS supports five artifact types, and different document types within them:
 
 ### 1. Transporter Artifact (`BTPTransporterArtifact`)
 
-Transporter related artifacts are used for sending to receivers server. Mostly used server to server communication. Some instances when E2E or BYOK users may use this type artifact directly from client to server which removes server dependencies once setup properly.
+Transporter related artifacts are used for sending to receivers server: `TRUST_REQ`, `TRUST_RES`, `BTPS_DOC`, `BTPS_EVENT`, and since 1.2 `DETAILS_CHANGED`, `DETAILS_REQ` and `DETAILS_RES`. Mostly used server to server communication. Some instances when E2E or BYOK users may use this type artifact directly from client to server which removes server dependencies once setup properly.
 
 ### 2. Agent Artifact (`BTPAgentArtifact`)
 
@@ -303,7 +306,7 @@ These are used for notifying the agent or client related to delivery failure. No
 
 - Must generate unique message IDs
 - Must sign all outgoing messages
-- Must stamp an artifact `1.1.0` when everything in it can be said in 1.1, and `1.2.0` only when it uses something 1.2 adds, so a 1.1 receiver takes everything a 1.1 sender could have sent. An identity lookup and a control artifact carry nothing from 1.2, so they are always `1.1.0`, and every 1.1 and 1.2 server answers them. To learn what a receiver speaks before sending, a sender can send it a `PING` and read the version of the answer; a receiver that refuses a version says which versions it supports
+- Must stamp an artifact `1.1.0` when everything in it can be said in 1.1, and `1.2.0` only when it uses something 1.2 adds, so a 1.1 receiver takes everything a 1.1 sender could have sent. A control artifact carries nothing from 1.2, so it is always `1.1.0`, and every 1.1 and 1.2 server answers it. An identity lookup goes out as `1.2.0`, and again as `1.1.0` when a 1.1 host refuses its version (see [Identity Lookup](./identity-lookup-artifact.md#who-may-answer)). To learn what a receiver speaks before sending, a sender can send it a `PING` and read the version of the answer; a receiver that refuses a version says which versions it supports
 - may encrypt sensitive documents
 - Must handle trust establishment before sending invoices
 - Must implement retry logic for failed deliveries

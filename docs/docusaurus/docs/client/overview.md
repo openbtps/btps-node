@@ -13,16 +13,17 @@ The **BTPS Client SDK** (`BtpsClient`) enables you to send secure, trust-based b
 - Handles DNS discovery, public key resolution, and protocol compliance
 - Sends artifacts you have signed (and encrypted) with `signEncrypt`; `BtpsAgent` signs its own commands
 - Manages TLS connections, retries, and error handling
-- Provides event-driven connection management and backpressure handling
+- Provides event-driven connection management
 
 ## Core Features
 
 - **Secure message delivery**: All messages are signed and (optionally) encrypted end-to-end
 - **DNS-based recipient resolution**: Looks up recipient server and public key via DNS
 - **Automatic retries**: Retries a failed connection after `retryDelayMs`, up to `maxRetries`
-- **Backpressure and queueing**: Queues messages if the network is slow or busy
+- **Concurrent sends**: Up to `maxQueue` sends wait for their answers on one connection; one more is answered at once with an error
 - **Comprehensive error handling**: Categorizes and surfaces connection, protocol, and application errors
-- **Simple API**: Just call `send()` with your artifact, or use `connect()` for advanced control
+- **Simple API**: Call `send()` with your artifact; the client connects, and reconnects, on its own
+- **Since 1.2**: asks a server which version it speaks (`getServerVersion`), can require every answer to be signed by its provider (`requireSignedBy`), and finds keys through a `keyResolver` in place of DNS when given one
 
 ## Protocol Flow
 

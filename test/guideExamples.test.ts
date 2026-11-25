@@ -6,16 +6,21 @@
  */
 
 /*
- * The examples in the feature guides and the What's new pages are what the SDK takes.
+ * The examples on every page of the docs are what the SDK takes.
  *
  * Every JSON example names what it is in its code fence (```json btps=<kind>) and is
- * checked against that schema, so a guide cannot show an artifact a server refuses.
- * A JSON example that names nothing fails the test.
+ * checked against that schema, so a page cannot show an artifact a server refuses.
+ * One that only shows a shape, with placeholders, says so (```json sketch) and is not
+ * parsed. A JSON example that says neither fails the test.
  *
  *   transporter, agent, response, bundle  the artifact or file itself
  *   permissions                           a trust record's `permissions`
  *   record                                a trust record
  *   keyChainRecord                        a key rotation or expiry record
+ *   control, identityLookup               a control artifact, an identity lookup request
+ *   identityDocument                      an identity lookup's answer document
+ *   deliveryFailure                       a delivery failure artifact
+ *   statement, statementRecord            an agreement statement, and it signed
  *   document:<TYPE>                       an opened document of that artifact type, under 1.2.0
  *
  * A TypeScript example fenced ```ts check is typechecked against the SDK's source,
@@ -33,17 +38,30 @@ import {
 } from '../src/core/server/schemas/artifacts/transporterSchema.js';
 import { BtpAgentArtifactSchema } from '../src/core/server/schemas/artifacts/agentSchema.js';
 import {
+  BtpDeliveryFailureArtifactSchema,
   BtpServerResponseSchema,
   BtpTrustRecordSchema,
 } from '../src/core/server/schemas/responseSchema.js';
-import { BtpEvidenceBundleSchema } from '../src/core/server/schemas/btpsDocsSchema.js';
+import {
+  BtpAgreementStatementSchema,
+  BtpEvidenceBundleSchema,
+  BtpIdentityResDocSchema,
+  BtpStatementRecordSchema,
+} from '../src/core/server/schemas/btpsDocsSchema.js';
+import { BtpControlArtifactSchema } from '../src/core/server/schemas/artifacts/controlSchema.js';
+import { BtpIdentityLookupRequestSchema } from '../src/core/server/schemas/artifacts/identityLookupSchema.js';
 import { BtpKeyChainRecordSchema } from '../src/core/server/schemas/keyChainSchema.js';
 import { processBtpDocSchema } from '../src/core/server/schemas/helpers.js';
 import type { BTPArtifactType } from '../src/core/server/types.js';
 
 const ROOT = path.resolve(__dirname, '..');
 const DOCS = path.join(ROOT, 'docs/docusaurus/docs');
-const DIRS = ['features', 'whats-new'];
+// Every page of the current docs. A released snapshot (versioned_docs) is never checked:
+// it describes the SDK as it was.
+const PAGES = (fs.readdirSync(DOCS, { recursive: true }) as string[])
+  .filter((file) => file.endsWith('.md') || file.endsWith('.mdx'))
+  .map((file) => file.split(path.sep).join('/'))
+  .sort();
 
 const schemaFor = (kind: string): z.ZodTypeAny => {
   if (kind.startsWith('document:')) {
@@ -59,6 +77,12 @@ const schemaFor = (kind: string): z.ZodTypeAny => {
     permissions: BtpTrustRecordPermissionsSchema,
     record: BtpTrustRecordSchema,
     keyChainRecord: BtpKeyChainRecordSchema,
+    control: BtpControlArtifactSchema,
+    identityLookup: BtpIdentityLookupRequestSchema,
+    identityDocument: BtpIdentityResDocSchema,
+    deliveryFailure: BtpDeliveryFailureArtifactSchema,
+    statement: BtpAgreementStatementSchema,
+    statementRecord: BtpStatementRecordSchema,
   };
   const schema = schemas[kind];
   if (!schema) throw new Error(`no schema for btps=${kind}`);
@@ -67,12 +91,7 @@ const schemaFor = (kind: string): z.ZodTypeAny => {
 
 type Fence = { page: string; line: number; lang: string; meta: string; code: string };
 
-const fences: Fence[] = DIRS.flatMap((dir) =>
-  fs
-    .readdirSync(path.join(DOCS, dir))
-    .filter((file) => file.endsWith('.md') || file.endsWith('.mdx'))
-    .map((file) => `${dir}/${file}`),
-).flatMap((page) => {
+const fences: Fence[] = PAGES.flatMap((page) => {
   const text = fs.readFileSync(path.join(DOCS, page), 'utf8');
   const found: Fence[] = [];
   const fence = /^```(\w+)([^\n]*)\n([\s\S]*?)^```/gm;
@@ -83,7 +102,10 @@ const fences: Fence[] = DIRS.flatMap((dir) =>
   return found;
 });
 
-const examples = fences.filter((f) => f.lang === 'json');
+// A JSON example with placeholders ("…", "BASE64-SIGNATURE" in a field a schema checks)
+// shows a shape, not an artifact: it says so, ```json sketch, and is not parsed.
+const sketched = (f: Fence): boolean => /\bsketch\b/.test(f.meta);
+const examples = fences.filter((f) => f.lang === 'json' && !sketched(f));
 const snippets = fences.filter((f) => f.lang === 'ts' && /\bcheck\b/.test(f.meta));
 
 describe("the guides' JSON examples", () => {
@@ -95,7 +117,10 @@ describe("the guides' JSON examples", () => {
     '%s is what the SDK takes',
     (_name, example) => {
       const kind = /btps=(\S+)/.exec(example.meta)?.[1];
-      expect(kind, 'every JSON example names what it is: ```json btps=<kind>').toBeDefined();
+      expect(
+        kind,
+        'every JSON example names what it is, ```json btps=<kind>, or says it is a shape only, ```json sketch',
+      ).toBeDefined();
       const result = schemaFor(kind!).safeParse(JSON.parse(example.code));
       expect(result.success, JSON.stringify(result.error?.issues)).toBe(true);
     },

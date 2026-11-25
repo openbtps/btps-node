@@ -100,9 +100,9 @@ The renderer bundles six open fonts as glyph tables: Arimo, Tinos, Cousine,
 Carlito and Caladea for [fallbacks](./fonts.md#fallbacks), and Caveat for
 typed signatures. Each is two files:
 
-| File | Holds |
-| --- | --- |
-| `<name>.json` | Printable ASCII and Latin-1, and `€ – — ‘ ’ “ ” • …`, with the font's kerning for them |
+| File               | Holds                                                                                                                                                                                                                                                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<name>.json`      | Printable ASCII and Latin-1, and `€ – — ‘ ’ “ ” • …`, with the font's kerning for them                                                                                                                                                                              |
 | `<name>-more.json` | Latin Extended-A and -B, Latin Extended Additional (Vietnamese), Greek, Cyrillic, General Punctuation, Currency Symbols (`₹ ₩ ₪ ₺ ₽ ₱` and others), Letterlike Symbols (`№`, `™` and others), Arrows, and `− ≈ ≠ ≤ ≥ ∞`, as far as each font has them. No kerning. |
 
 `@btps/boundview` loads the second file only when a text needs one of its
@@ -130,12 +130,12 @@ A WebAssembly module runs in a closed box. It has its own block of memory and
 cannot read or write anything outside it, and it can reach only the functions
 its host hands it. `renderBoundView` hands it none that reach the outside world:
 
-| The engine has | The engine has no |
-| --- | --- |
+| The engine has                                 | The engine has no                                                                    |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------ |
 | The drawing, as shapes, glyph paths and pixels | Network: it cannot fetch an address, so a BoundView cannot report that it was opened |
-| Its own memory, sized to the canvas's limits | Files: it cannot read the device's fonts, images or anything else |
-| | Page or DOM: it is not HTML, so there is no script, style or link to run or follow |
-| | System fonts: none are given it, and it needs none, because text arrives as paths |
+| Its own memory, sized to the canvas's limits   | Files: it cannot read the device's fonts, images or anything else                    |
+|                                                | Page or DOM: it is not HTML, so there is no script, style or link to run or follow   |
+|                                                | System fonts: none are given it, and it needs none, because text arrives as paths    |
 
 ```mermaid
 flowchart LR
@@ -178,8 +178,9 @@ reference to anything outside it. No value from a canvas is ever copied into
 it as markup: only numbers and colours that passed the schema.
 
 A fault in the engine stays inside the box. The worst a crafted canvas can do
-there is fail to draw, and then the receiver shows its own view of the
-signed data, as it does for a BoundView that fails a check.
+there is fail to draw: `renderBoundView` then throws, and the app catches it
+and shows its own view of the signed data, as it does when `renderBoundView`
+gives `null` for a BoundView that fails a check.
 
 ## The same picture everywhere
 

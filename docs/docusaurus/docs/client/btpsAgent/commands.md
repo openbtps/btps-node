@@ -15,6 +15,7 @@ This reference documents all commands supported by the BTPS Agent (`BtpsAgent`).
 - **Authentication Commands**: Device authentication and delegation
 - **Trust Management Commands**: Trust relationship operations
 - **Document Delivery Commands**: Sending artifacts to recipients
+- **Details Refresh Commands** (since 1.2): Telling, asking and answering about a trust's details
 - **Inbox Management Commands**: Fetching, marking, and deleting received messages
 - **Outbox Management Commands**: Fetching and canceling pending messages
 - **Sentbox Management Commands**: Fetching and deleting sent messages
@@ -34,10 +35,12 @@ command(
 **Arguments:**
 
 - `actionType` (`AgentAction`, required): The command type to execute.
-- `to` (`string`, required): For a command that sends (`trust.request`, `trust.respond`, `artifact.send`, `event.send`), the recipient. For every other command, your own identity: the agent's `btpIdentity`.
+- `to` (`string`, required): For a command that sends (`trust.request`, `trust.respond`, `artifact.send`, `event.send`, `details.changed`, `details.request`, `details.respond`), the recipient. For every other command, your own identity: the agent's `btpIdentity`.
 - `document` (optional): Command-specific document payload.
-- `options` (`BtpsAgentCommandOptions`, optional): Cryptographic options for signing/encryption, and `relatesTo` on `event.send`.
+- `options` (`BtpsAgentCommandOptions`, optional): Cryptographic options, and the envelope fields some commands take. See [Command Options](#command-options).
 - `timeoutMs` (`number`, optional): How long to wait for the answer, replacing `replyTimeoutMs` for this command (at least 10000).
+
+For a command that sends, the agent builds the transporter artifact itself, signs it with the device key, and stamps it `1.2.0` only when it uses something 1.2 adds, otherwise `1.1.0` ([Protocol versions](../../features/versions.md)).
 
 Commands that do not send (fetching, editing and deleting stored items, `trust.fetch`, `trust.update`, `trust.delete`) are answered by your provider's server at once; the protocol defines them, the provider stores the data.
 
@@ -55,6 +58,26 @@ if (result.error) {
   console.log('Success:', result.response);
 }
 ```
+
+### Command Options
+
+`options` is `BtpsAgentCommandOptions`. The agent checks each option against the command before anything is sent, and refuses a misplaced one with `BTP_ERROR_VALIDATION`.
+
+| Option            | Type                                 | On                                                 | What it does                                                                                                                                                      |
+| ----------------- | ------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `signature`       | `{ algorithmHash: 'sha256' }`        | any                                                | The signature's hash. The agent always signs with SHA-256                                                                                                         |
+| `encryption`      | `{ algorithm: 'aes-256-gcm', mode }` | a command that sends                               | Encrypts the document to the recipient's key. `mode` is `'none'`, `'standardEncrypt'` or `'2faEncrypt'`. Required on `details.respond`; ignored on `auth.request` |
+| `relatesTo`       | `string`                             | `event.send`, `details.request`, `details.respond` | The id of the artifact this one is about. Required on `event.send` and `details.respond`, allowed on `details.request`, refused elsewhere                         |
+| `id`              | `string` (a UUID)                    | a command that sends                               | The id of the artifact it sends. Sent again under the same id after a lost answer, a document is kept once. On `event.send`, only the event's own id              |
+| `documentType`    | `BTPDocumentType`                    | `artifact.send`                                    | Since 1.2: the document's own `type`, on the envelope, for a send under a trust with permissions. Stamps the artifact `1.2.0`                                     |
+| `syncOf`          | `{ id, sha256 }`                     | `artifact.send`                                    | Since 1.2: this send is the user's own copy of the send it names, sent to the user's own address                                                                  |
+| `details`         | `BTPDetailPermission[]`              | the `details.*` commands                           | Since 1.2, required there and refused elsewhere: the `detail:` names the artifact is about                                                                        |
+| `permissions`     | `BTPTrustPermissions`                | `trust.request`                                    | Since 1.2: the permissions asked for. Comes with `entityType`                                                                                                     |
+| `given`           | `BTPDetailPermission[]`              | `trust.request`                                    | Since 1.2: the `detail:` names of the details the user gives; their values go in the document                                                                     |
+| `change`          | `true`                               | `trust.request`                                    | Since 1.2: a change to an active trust, asking for the whole set now wanted                                                                                       |
+| `granted`         | `BTPPermissionName[]`                | `trust.respond`                                    | Since 1.2, only when accepting: the permission names granted. Comes with `entityType`                                                                             |
+| `entityType`      | `'person'` or `'organisation'`       | `trust.request`, `trust.respond`                   | Since 1.2: what owns the user's address                                                                                                                           |
+| `versionFallback` | `boolean`                            | `trust.request` with `permissions`                 | Since 1.2: to a receiver whose server speaks 1.1, send as 1.1 allows (the default), or refuse with its version (`false`)                                          |
 
 ---
 
@@ -169,7 +192,7 @@ if (result.error) {
 ### trust.request
 
 ```ts
-command('trust.request', to: string, document: BTPTrustReqDoc): Promise<BTPClientResponse>
+command('trust.request', to: string, document: BTPTrustReqDoc, options?: BtpsAgentCommandOptions): Promise<BTPClientResponse>
 ```
 
 **Description:**
@@ -179,6 +202,7 @@ Sends a trust request to establish a trust relationship with another organizatio
 
 - `to` (`string`, required): Recipient identity (e.g., `client$company.com`).
 - `document` (`BTPTrustReqDoc`, required): Trust request document.
+- `options` (`BtpsAgentCommandOptions`, optional): Since 1.2, `permissions`, `entityType`, `given` and `change` ask for [trust permissions](../../features/trustPermissions.md).
 
 **Document Structure** (`BTPTrustReqDoc`):
 
@@ -193,9 +217,11 @@ interface BTPTrustReqDoc {
   logoUrl?: string; // Optional company logo URL
   displayName?: string; // Optional display name for UI
   websiteUrl?: string; // Optional company website
-  message?: string; // Optional custom message
+  message?: string | { format: 'text' | 'markdown'; content: string }; // Optional message; a note with a format since 1.2
   expiresAt?: string; // Optional expiration date (ISO format)
   privacyType?: 'unencrypted' | 'encrypted' | 'mixed'; // Privacy preference
+  own?: BTPDetailValues; // Since 1.2: values of the details given that 1.1 has no field for
+  verification?: BTPVerification; // Since 1.2: a provider's signed statement of what it checked
 }
 ```
 
@@ -230,6 +256,22 @@ if (result.error) {
 }
 ```
 
+**With trust permissions (since 1.2):** name what you ask for, what owns your address, and the details you give. Each detail given is a value in the document. The agent checks the artifact as your provider will before it goes. To a receiver whose server speaks 1.1, the request goes as 1.1 allows, and the result's `shaped` says what was left out.
+
+```js
+const result = await agent.command('trust.request', 'pay$client.example', trustRequest, {
+  permissions: [
+    { name: 'send:invoice', required: true },
+    { name: 'detail:legalName', required: true },
+  ],
+  entityType: 'organisation',
+  given: ['detail:legalName'],
+  encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+});
+```
+
+Which value goes where, and what a receiver refuses: [Trust permissions](../../features/trustPermissions.md).
+
 **Use Cases:**
 
 - Initial business relationship establishment
@@ -240,7 +282,7 @@ if (result.error) {
 ### trust.respond
 
 ```ts
-command('trust.respond', to: string, document: BTPTrustResDoc): Promise<BTPClientResponse>
+command('trust.respond', to: string, document: BTPTrustResDoc, options?: BtpsAgentCommandOptions): Promise<BTPClientResponse>
 ```
 
 **Description:**
@@ -250,6 +292,7 @@ Responds to an incoming trust request with accept, reject, or block decision. Th
 
 - `to` (`string`, required): Sender identity who sent the trust request (e.g., `vendor$acme.com`).
 - `document` (`BTPTrustResDoc`, required): Trust response document.
+- `options` (`BtpsAgentCommandOptions`, optional): Since 1.2, when accepting a request with permissions, `granted` (the names granted) and `entityType`. Each `detail:` name granted has its value in the document's `details`, and an answer with `details` must be encrypted.
 
 **Document Structure** (`BTPTrustResDoc`):
 
@@ -261,8 +304,9 @@ interface BTPTrustResDoc {
   decidedBy: string; // Identity of decision maker
   expiresAt?: string; // Optional trust expiration date
   retryAfterDate?: string; // Optional retry date for rejected requests
-  message?: string; // Optional response message
+  message?: string | { format: 'text' | 'markdown'; content: string }; // Optional message; a note with a format since 1.2
   privacyType?: 'unencrypted' | 'encrypted' | 'mixed'; // Agreed privacy level
+  details?: BTPDetailValues; // Since 1.2: the value of every detail granted, by name
 }
 ```
 
@@ -290,6 +334,24 @@ if (result.error) {
 } else {
   console.log('Trust response sent successfully');
 }
+```
+
+Accepting a request with permissions (since 1.2):
+
+```js
+await agent.command(
+  'trust.respond',
+  'billing$vendor.example',
+  {
+    ...trustResponse,
+    details: { 'detail:legalName': 'Robert Smith' },
+  },
+  {
+    granted: ['send:invoice', 'detail:legalName'],
+    entityType: 'person',
+    encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+  },
+);
 ```
 
 **Use Cases:**
@@ -389,17 +451,17 @@ if (result.error) {
 ### artifact.send
 
 ```ts
-command('artifact.send', to: string, document: BTPInvoiceDoc, options?: BtpsAgentCommandOptions): Promise<BTPClientResponse>
+command('artifact.send', to: string, document: BTPDocument, options?: BtpsAgentCommandOptions): Promise<BTPClientResponse>
 ```
 
 **Description:**
-Sends an invoice to a trusted recipient. The agent builds and signs the `BTPS_DOC` artifact itself, encrypting the invoice to the recipient's key when `options.encryption` is set; your provider's server then delivers it.
+Sends a document to a trusted recipient: an `invoice`, `receipt`, `payslip`, `letter` or, since 1.2, an `agreement`. The agent builds and signs the `BTPS_DOC` artifact itself, encrypting the document to the recipient's key when `options.encryption` is set; your provider's server then delivers it.
 
 **Arguments:**
 
 - `to` (`string`, required): Recipient identity (e.g., `client$company.com`).
-- `document` (`BTPInvoiceDoc`, required): The invoice. See [BTPS Document](../../protocol/specifications/transporter-artifact.md#3-btps-document-btps_doc) for every field.
-- `options` (`BtpsAgentCommandOptions`, optional): `signature` and `encryption`.
+- `document` (`BTPDocument`, required): The document, checked against its type's schema before it is sent. See [BTPS Document](../../protocol/specifications/transporter-artifact.md#3-btps-document-btps_doc) for every type and field.
+- `options` (`BtpsAgentCommandOptions`, optional): `signature`, `encryption` and `id`; since 1.2, `documentType` (for a trust with permissions, see [A send's document type](../../features/documentTypes.md)) and `syncOf`.
 
 **Returns:**
 
@@ -525,6 +587,40 @@ const result = await agent.command('event.send', 'billing$acme.com', event, {
 });
 ```
 
+Since 1.2, a signer's answer to an agreement travels the same way: an `agreement_event` carrying the signed statement, with `relatesTo` the id of the artifact that delivered the signer's copy. See [Agreements](../../features/agreements.md).
+
+---
+
+## Details Refresh Commands
+
+Since 1.2, on an active trust with permissions, either side can tell the other its details changed, ask for details it holds, and answer such a request. Each command sends an artifact with the `detail:` names on its envelope (`options.details`); your provider checks the names against the user's own record of the trust first, as the receiver will. See [Details refresh](../../features/detailsRefresh.md) for the flow and its checks.
+
+| Command           | Sends             | `document`                                       | Options                                                                   |
+| ----------------- | ----------------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
+| `details.changed` | `DETAILS_CHANGED` | `{ message? }`: no values, an optional note      | `details`, required                                                       |
+| `details.request` | `DETAILS_REQ`     | `{ message? }`: no values, an optional note      | `details`, required; `relatesTo` (the `DETAILS_CHANGED`), allowed         |
+| `details.respond` | `DETAILS_RES`     | the values, by name: `{ 'detail:email': '...' }` | `details`, `relatesTo` (the `DETAILS_REQ`) and `encryption`, all required |
+
+```js
+// Tell the other side your email changed
+await agent.command('details.changed', 'billing$vendor.example', {}, { details: ['detail:email'] });
+
+// Ask for an email you hold
+await agent.command('details.request', 'pay$client.example', {}, { details: ['detail:email'] });
+
+// Answer a request: always encrypted, naming the DETAILS_REQ it answers
+await agent.command(
+  'details.respond',
+  'billing$vendor.example',
+  { 'detail:email': 'bob@client.example' },
+  {
+    details: ['detail:email'],
+    relatesTo: requestId,
+    encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+  },
+);
+```
+
 ---
 
 ## Inbox Management Commands
@@ -571,7 +667,7 @@ interface BTPStringQueryFilter {
 
 **Returns:**
 
-- `Promise<BTPClientResponse>`: List of received messages with metadata and pagination info.
+- `Promise<BTPClientResponse>`: List of received messages with metadata and pagination info. Since 1.2, an encrypted entry may carry `agentKey`, its content key wrapped to this device: open it with [`openResult`](#opening-an-encrypted-result-openresult).
 
 **Example:**
 
@@ -1261,6 +1357,40 @@ if (result.error) {
 
 ---
 
+## Opening an Encrypted Result: openResult
+
+```ts
+openResult(entry: BTPQueryResultEntry): Promise<BTPCryptoResponse<BTPDocType | string>>
+```
+
+**Description:**
+Since 1.2, opens an encrypted entry of a fetch result with the device's own key, through the `agentKey` its provider wrapped for this device. It is a method of the agent, not a command: nothing is sent. Who signed the artifact is checked as a server checks it on arrival, delegation and attestation included, and the opened document as any decrypted one is.
+
+**Arguments:**
+
+- `entry` (`BTPQueryResultEntry`, required): One entry of `response.document.results`, with its `agentKey`.
+
+**Returns:**
+
+- `Promise<BTPCryptoResponse>`: `payload`, the artifact with its document decrypted, or `error`. An entry with no `agentKey`, an agent with no key to decrypt with, an unencrypted artifact, or a key wrapped to another device key is refused with `BTP_ERROR_UNSUPPORTED_ENCRYPT`. A device that has just rotated its key finishes moving to the new key first.
+
+**Example:**
+
+```js
+const { response } = await agent.command('inbox.fetch', 'alice$saas.example', { limit: 10 });
+
+for (const entry of response?.document?.results ?? []) {
+  if (!entry.agentKey) continue;
+  const { payload, error } = await agent.openResult(entry);
+  if (error) console.error('Could not open:', error.code, error.message);
+  else console.log('Opened:', payload.document);
+}
+```
+
+Your provider wraps each key with `wrapForAgent` (`@btps/sdk/server`). See [Devices](../../features/devices.md#a-devices-own-key-to-its-documents).
+
+---
+
 ## Command Validation
 
 All commands are validated using schemas that check:
@@ -1281,10 +1411,12 @@ All commands are validated using schemas that check:
 
 ### Error Codes
 
-- `BTP_ERROR_VALIDATION`: Parameter or document validation failed (before anything is sent)
+- `BTP_ERROR_VALIDATION`: Parameter or document validation failed (before anything is sent), including an artifact stamped lower than what it uses
 - `BTP_ERROR_CONNECTION_CLOSED`, `BTP_ERROR_SOCKET_TIMEOUT`, `BTP_ERROR_TIMEOUT`: Network or connection issues
 - `BTP_ERROR_AUTHENTICATION_INVALID`, `BTP_ERROR_SIG_VERIFICATION`: The device is not recognised, or its signature does not verify
 - `BTP_ERROR_ARTIFACT_NOT_ACCEPTED`: The server has no handler for agent commands
+- `BTP_ERROR_VERSION_UNSUPPORTED`: The server does not speak the version the command is stamped with
+- Since 1.2, for a trust with permissions: `BTP_ERROR_PERMISSION_REQUIRED` (an answer that does not grant every permission the request requires), `BTP_ERROR_PERMISSION` (something the trust does not permit), `BTP_ERROR_DOCUMENT_TYPE_MISMATCH` (a `documentType` that is not the document's type), `BTP_ERROR_DETAILS_NOT_HELD` (a detail the trust does not hold), `BTP_ERROR_DETAILS_RATE_LIMITED` (a details request over the provider's limit)
 
 See [Server Responses](../../protocol/specifications/responses.md) for every code and its status.
 
@@ -1296,6 +1428,7 @@ All commands return a `BTPClientResponse` object:
 interface BTPClientResponse {
   response?: BTPServerResponse; // Successful response
   error?: BTPErrorException; // Error information
+  shaped?: BTPShaped; // Since 1.2: a trust request sent as its 1.1 receiver allows, and what it left out
 }
 ```
 
@@ -1304,7 +1437,7 @@ interface BTPClientResponse {
 ```js
 {
   response: {
-    version: "1.1.0",
+    version: "1.2.0", // the version the server speaks
     status: { ok: true, code: 200 },
     id: "0b6f0c1e-6c1d-4e0b-9a43-6f3f2f7c9d10",
     issuedAt: "2026-01-15T10:30:00Z",

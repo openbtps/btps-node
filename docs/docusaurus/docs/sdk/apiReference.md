@@ -140,7 +140,7 @@ Resolves the BTPS host, selector and operator for a given identity by querying t
 ```js
 import { getHostAndSelector } from '@btps/sdk';
 const result = await getHostAndSelector('billing$company.com');
-// result = { host: 'btps://btps.company.com:3443', selector: 'btps1', version: '1.1.0', operator: 'admin$company.com' }
+// result = { host: 'btps://btps.company.com:3443', selector: 'btps1', version: '1.2.0', operator: 'admin$company.com' }
 ```
 
 ---
@@ -173,7 +173,7 @@ Resolves DNS TXT records for a specific selector of a BTPS identity and extracts
 ```js
 import { getDnsIdentityParts } from '@btps/sdk';
 const allParts = await getDnsIdentityParts('billing$company.com', 'btps1');
-// Returns: { key: 'abc123', version: '1.1.0', pem: '-----BEGIN PUBLIC KEY-----...' }
+// Returns: { key: 'rsa', version: '1.2.0', pem: '-----BEGIN PUBLIC KEY-----...' }
 
 const justPem = await getDnsIdentityParts('billing$company.com', 'btps1', 'pem');
 // Returns: '-----BEGIN PUBLIC KEY-----...'
@@ -428,7 +428,9 @@ signEncrypt<T>(
 ```
 
 **Description:**
-Signs and (optionally) encrypts a BTPS document for secure transmission. Handles key lookup, encryption, and signature in one step. Now supports key rotation through selector-based public key resolution.
+Signs and (optionally) encrypts a BTPS document for secure transmission. Handles key lookup, encryption, and signature in one step. With encryption, the document is checked against its type's schema first, since no server can read it once encrypted. `id` and `issuedAt` are filled in when left out.
+
+`signEncrypt` signs the `version` it is given; it never stamps one, except that a trust request it shapes for a 1.1 receiver goes as `1.1.0`. Stamp the payload with `artifactVersion` (`@btps/sdk/server`): `1.1.0` unless it uses something 1.2 adds, then `1.2.0`. Since 1.2, a payload with `documentType` whose document is another type is refused with `BTP_ERROR_DOCUMENT_TYPE_MISMATCH` before anything is encrypted.
 
 Since 1.2, a `TRUST_REQ` payload carrying `permissions` is composed for its receiver's version: one `PING` asks the receiver's server, and to a 1.1 server it is sent as 1.1 allows, reported in the result's `shaped`, or refused with `options.versionFallback: false`. If the receiver's server cannot be asked, that error is returned. A payload without permissions is never asked about. See [To a receiver whose server speaks 1.1](../protocol/specifications/transporter-artifact.md#trust-permissions).
 
@@ -451,15 +453,17 @@ Since 1.2, a `TRUST_REQ` payload carrying `permissions` is composed for its rece
 
 ```js
 import { signEncrypt } from '@btps/sdk/crypto';
+import { artifactVersion } from '@btps/sdk/server';
 const { payload, error } = await signEncrypt(
   'pay$client.com',
   { accountName: 'billing', domainName: 'vendorcorp.com', pemFiles: { publicKey, privateKey } },
   {
+    version: artifactVersion({ type: 'BTPS_DOC', document: invoice }),
     type: 'BTPS_DOC',
-    document: {
-      /* ... */
-    },
-    selector: 'btps1', // Specify selector for key rotation support
+    from: 'billing$vendorcorp.com',
+    to: 'pay$client.com',
+    selector: 'btps1', // the selector your own key is published under
+    document: invoice,
   },
   {
     signature: { algorithmHash: 'sha256' },
@@ -483,6 +487,8 @@ decryptVerify<T>(
 
 **Description:**
 Verifies the signature and (optionally) decrypts a received BTPS artifact. Ensures authenticity and privacy.
+
+It checks an opened document against its type's schema under the artifact's version. Since 1.2 it also checks that the document is the `documentType` its envelope names (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`), an opened trust request's or answer's values against the names on its envelope, and a details response's values; and it returns `boundView`, whether an opened document's BoundView may be shown, when it carries one.
 
 When it decrypts a `BTPS_EVENT`, it also checks the event as the server checks an unencrypted one: a valid lifecycle event, carried under its own `id`, about an invoice between the artifact's `from` and `to`. If not, it returns a `BTP_ERROR_VALIDATION` error and no payload.
 
@@ -899,6 +905,69 @@ const token = generateUserToken('alice$btps.com', 12);
 
 ---
 
+### canonicalize / canonicalizeValue / assertStrictJson
+
+```ts
+canonicalize(text: string): string
+canonicalizeValue(value: unknown): string
+assertStrictJson(text: string): void
+```
+
+**Description:**
+The RFC 8785 (JCS) canonical form every BTPS signature covers. `canonicalize` takes a JSON text and refuses one that names a member twice in any object. `canonicalizeValue` takes an in-memory value, as `JSON.stringify` would send it: `undefined` members are dropped and `toJSON` applies. `assertStrictJson` only checks: it throws for a text that is not JSON or that names a member twice, so two parsers cannot read different values from the same signed bytes. Each throws `BTP_ERROR_CANONICAL_JSON`. The signing functions above call these for you.
+
+**Example:**
+
+```js
+import { canonicalizeValue } from '@btps/sdk/crypto';
+const bytes = canonicalizeValue({ b: 1, a: 2 }); // '{"a":2,"b":1}'
+```
+
+---
+
+### wrapContentKeyFor / contentKeyOpens
+
+```ts
+wrapContentKeyFor(
+  artifact: Pick<BTPTransporterArtifact, 'encryption' | 'document'>,
+  oldKey: BTPDecryptionKey,
+  newPublicKey: string,
+): Promise<BTPContentKeySidecar>
+
+contentKeyOpens(
+  artifact: Pick<BTPTransporterArtifact, 'encryption' | 'document'>,
+  sidecar: BTPContentKeySidecar,
+  newKey: BTPDecryptionKey,
+): Promise<boolean>
+```
+
+**Description:**
+Since 1.2, for deleting an old private key after a key rotation. `wrapContentKeyFor` unwraps an encrypted artifact's content key with the key it was wrapped to (`oldKey`: a PEM private key, or a `Decrypter` with `unwrapKey`), checks that it opens the document, and wraps it to `newPublicKey` (SPKI PEM). The artifact is not changed: keep the side-car beside it. `contentKeyOpens` says whether a side-car opens its artifact with `newKey`; given a PEM private key, the side-car must also name that key (`recipientFingerprint`). Delete the old private key only once every side-car opens. See [Key rotation](../features/keyRotation.md#delete-an-old-private-key).
+
+---
+
+### assertFullLengthAuthTag / decryptAesGcm
+
+```ts
+assertFullLengthAuthTag(authTag: Uint8Array): void
+decryptAesGcm(aesKey: Buffer, request: DecryptRequest): Uint8Array
+```
+
+**Description:**
+Building blocks for a custom `Decrypter`. `assertFullLengthAuthTag` throws `BTP_ERROR_UNSUPPORTED_ENCRYPT` for an AES-GCM tag that is not exactly 16 bytes. `decryptAesGcm` is the local AES-256-GCM step once the content key is unwrapped, so a `Decrypter` whose key holder only unwraps the key (as a KMS does) can finish with it; it also refuses a short tag. Exported for `Decrypter` implementations; platforms rarely need them otherwise.
+
+---
+
+### Crypto constants
+
+| Constant                              | Value                                | What it is                                                                                                                                   |
+| ------------------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MIN_RSA_KEY_BITS`                    | `2048`                               | The smallest RSA key the SDK encrypts to. `encryptRSA` refuses a smaller one with `BTP_ERROR_UNSUPPORTED_ENCRYPT`                            |
+| `DEFAULT_ALPHABET`                    | `'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'` | The characters `generateUserToken` draws from: Crockford Base32, without look-alike characters                                               |
+| `DEFAULT_KEY_CHAIN_MAX_CACHE_SECONDS` | `300`                                | Since 1.2: the longest a key chain is trusted from a cache unless a server sets `keyChainMaxCacheSeconds`. Also from `@btps/sdk/server/core` |
+
+---
+
 ## Server helpers (`@btps/sdk/server`)
 
 ### wrapForAgent
@@ -936,7 +1005,9 @@ const results = await Promise.all(
 
 ```ts
 verifyTransporterSignature(
-  artifact: BTPTransporterArtifact
+  artifact: BTPTransporterArtifact,
+  keyResolver?: BtpsKeyResolver,
+  keyChains?: BTPKeyChainCheck,
 ): Promise<{ isValid: boolean; error?: BTPErrorException; signerKey?: string }>
 ```
 
@@ -946,7 +1017,127 @@ Since 1.2. Who signed a transporter artifact, checked exactly as a `BtpsServer` 
 - **Not delegated:** against the sender's own key from DNS.
 - **Delegated:** the delegation must be allowed, by the sender itself or its domain's operator. It must be attested by the operator when the sender delegates for itself, and signed by its delegator, each against their DNS keys. Then the artifact must be signed by the delegated agent's key.
 
+`keyResolver` finds each key in place of DNS. With `keyChains` (`resolveKeyChain`, `retiredKeyGraceSeconds`), each key is also checked against its identity's key chain, as a server does, and one rotated away past its grace or revoked is refused (`BTP_ERROR_KEY_RETIRED`, `BTP_ERROR_KEY_REVOKED`).
+
 On success `signerKey` is the key that signed the artifact itself, the one to pass to `decryptVerify`. `BtpsAgent.openResult` uses it, so a device and a server never check a sender differently.
+
+---
+
+### lifecycleEventChainReference / lifecycleEventSenderProblem
+
+```ts
+lifecycleEventChainReference(event: BTPLifecycleEvent): string | undefined
+lifecycleEventSenderProblem(event: BTPLifecycleEvent, envelope: { from: string }): string | undefined
+```
+
+**Description:**
+Since 1.2. `lifecycleEventChainReference` gives the id of the earlier event an event names in its chain: a `withdrawn`'s proposal (`inReplyTo`), or the `withdrawn` a proposal `follows`; `undefined` for any other event. `lifecycleEventSenderProblem` checks the one chain rule that needs nothing but the event: only the payer withdraws or proposes again, never the invoice's issuer. It returns what is wrong, or `undefined`. `eventChainCheck` runs both in flight; a platform runs them on an encrypted event once it has opened it, with `lifecycleEventChainProblem`. See [Withdrawing proposals](../features/withdrawingProposals.md).
+
+---
+
+### Protocol versions
+
+| Export                  | Signature or value                           | What it is                                                                                                                         |
+| ----------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `BTP_PROTOCOL_VERSION`  | `'1.2.0'`                                    | The newest version this SDK speaks. It does not decide what an artifact is stamped with: `artifactVersion` does                    |
+| `MIN_SUPPORTED_VERSION` | `'1.1.0'`                                    | The oldest version this SDK takes. Control artifacts (`PING`, `QUIT`) are stamped with it                                          |
+| `MAX_SUPPORTED_VERSION` | `'1.2.0'`                                    | The newest version this SDK takes                                                                                                  |
+| `isSupportedVersion`    | `(version: unknown) => boolean`              | Whether a `version` is one this SDK speaks, 1.1 or 1.2, by major and minor. It refuses 1.0                                         |
+| `isVersionBelow`        | `(version: string, than: string) => boolean` | Whether `version` is older than `than`, by major and minor. One that is not a version is older                                     |
+| `artifactVersion`       | `(artifact: BTPVersionedArtifact) => string` | Since 1.2: `'1.1.0'` when everything in the artifact can be said in 1.1, else `'1.2.0'`. Call it on the document before encryption |
+
+See [Protocol versions](../features/versions.md).
+
+---
+
+### Action and artifact type lists
+
+Each is a `readonly` array (or record) of the names a server and agent take.
+
+| Export                             | What it lists                                                                                                                                                                                                                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AGENT_ACTIONS`                    | Every agent action (`AgentAction`): trust, inbox, outbox, sentbox, draft, trash, system, auth, artifact, event and, since 1.2, details actions                                                                                                                                  |
+| `AUTH_ACTIONS`                     | `'auth.request'`, `'auth.refresh'`                                                                                                                                                                                                                                              |
+| `IMMEDIATE_ACTIONS`                | The actions a server answers at once (`respondNow: true`): system, auth, inbox, outbox, draft, sentbox, trash, and `trust.update`, `trust.delete`, `trust.fetch`                                                                                                                |
+| `AGENT_ACTIONS_REQUIRING_DOCUMENT` | The actions that must carry a `document`                                                                                                                                                                                                                                        |
+| `AGENT_TRANSPORTER_ACTIONS`        | Each agent action that carries a transporter artifact the device built, and that artifact's type: `trust.request` → `TRUST_REQ`, ..., `details.respond` → `DETAILS_RES`                                                                                                         |
+| `TRANSPORTER_ACTIONS`              | The transporter artifact types: `TRUST_REQ`, `TRUST_RES`, `BTPS_DOC`, `BTPS_EVENT` and, since 1.2, `DETAILS_CHANGED`, `DETAILS_REQ`, `DETAILS_RES`                                                                                                                              |
+| `CONTROL_ACTIONS`                  | `'QUIT'`, `'PING'`                                                                                                                                                                                                                                                              |
+| `DETAILS_ARTIFACT_TYPES`           | Since 1.2: `'DETAILS_CHANGED'`, `'DETAILS_REQ'`, `'DETAILS_RES'`. Also from `@btps/sdk/trust`                                                                                                                                                                                   |
+| `PERMISSION_ENVELOPE_FIELDS`       | Since 1.2: each envelope field of trust permissions and the artifact types it is on: `permissions`, `given`, `change` on `TRUST_REQ`; `granted` on `TRUST_RES`; `entityType` on both; `documentType` on `BTPS_DOC`; `details` on the details types. Also from `@btps/sdk/trust` |
+| `IDENTITY_DETAIL`                  | Since 1.2: the one detail each kind gives that the other never does: `person` → `'detail:dob'`, `organisation` → `'detail:registrationNumber'`. Also from `@btps/sdk/trust`                                                                                                     |
+
+---
+
+### Other protocol constants
+
+| Export                             | Value                                       | What it is                                                                                                                                                                  |
+| ---------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DEFAULT_MAX_ARTIFACT_AGE_SECONDS` | `300`                                       | How far an artifact's `issuedAt` may be from a server's clock unless it sets `maxArtifactAgeSeconds`. Also from `@btps/sdk/server/core`                                     |
+| `BTPS_DNS_HOST_NAME_SPACE`         | `'_btps.host'`                              | The DNS name a domain's host record is published under: `_btps.host.<domain>`                                                                                               |
+| `BTPS_DNS_IDENTITY_NAME_SPACE`     | `'_btps.identity'`                          | The DNS name an identity's key is published under: `<selector>._btps.identity.<account>.<domain>`                                                                           |
+| `CURRENCY_CODES`                   | ISO 4217 codes                              | Every currency code a money field takes (`CurrencyCode`)                                                                                                                    |
+| `CURRENCY_DECIMALS`                | `{ JPY: 0, KWD: 3, ... }`                   | The decimal places of each currency whose minor unit is not two hundredths; every other code has 2. Fixed here so every receiver writes an amount the same way              |
+| `BTPS_FIELD_LIMITS`                | `{ trustRequest: { name: 200, ... }, ... }` | The longest each field may be: a text in characters, a list in entries, a record in keys. Every provider takes the same; see [Limits](../protocol/specifications/limits.md) |
+
+---
+
+## Server building blocks (`@btps/sdk/server/core`)
+
+The middleware checks above (`agreementOrderCheck`, `eventChainCheck`, `detailsResponseCheck`, `detailsRequestLimit`) also come from this subpath. The classes here (factories, registry, rate limiter, metrics tracker) are in the [Class API Reference](./classApiReference.md#server-factories-and-registry-btpssdkservercore).
+
+### createDefaultMiddleware
+
+```ts
+createDefaultMiddleware(): MiddlewareDefinitionArray
+```
+
+**Description:**
+A ready middleware set for development: an IP rate limit before parsing (50 a second), an identity rate limit after signature verification (30 a second, counted only once the signature proves the sender), and metrics logging after parsing, trust verification and `onArtifact`. It answers a limit with `BTP_ERROR_RATE_LIMITER`. Its limiter (`BtpsSimpleRateLimiter`) and tracker (`BtpsSimpleMetricsTracker`) keep everything in one process and write to the console, so production limits belong in your own middleware over a shared store. See [Middleware](../server/middlewares.md).
+
+**Example:**
+
+```js
+// btps.middleware.mjs
+import { createDefaultMiddleware } from '@btps/sdk/server/core';
+export default () => createDefaultMiddleware();
+```
+
+---
+
+### Server defaults and minimums
+
+Each is the value a `BtpsServerOptions` setting takes when it is not set, or the lowest it may be set to.
+
+| Constant                               | Value   | Setting                                                   |
+| -------------------------------------- | ------- | --------------------------------------------------------- |
+| `DEFAULT_MAX_ARTIFACT_SIZE_KB`         | `5120`  | `maxArtifactSizeKb` default: 5 MB                         |
+| `MIN_MAX_ARTIFACT_SIZE_KB`             | `1024`  | `maxArtifactSizeKb` minimum: 1 MB                         |
+| `DEFAULT_MAX_ARTIFACT_AGE_SECONDS`     | `300`   | `maxArtifactAgeSeconds` default: 5 minutes                |
+| `MIN_MAX_ARTIFACT_AGE_SECONDS`         | `60`    | `maxArtifactAgeSeconds` minimum: 1 minute                 |
+| `DEFAULT_CONNECTION_TIMEOUT_MS`        | `30000` | `connectionTimeoutMs` default: 30 seconds                 |
+| `DEFAULT_MAX_IN_FLIGHT_PER_CONNECTION` | `32`    | `maxInFlightPerConnection` default                        |
+| `MIN_MAX_IN_FLIGHT_PER_CONNECTION`     | `1`     | `maxInFlightPerConnection` minimum: one request at a time |
+| `DEFAULT_RETIRED_KEY_GRACE_SECONDS`    | `86400` | Since 1.2: `retiredKeyGraceSeconds` default: 1 day        |
+| `DEFAULT_KEY_CHAIN_MAX_CACHE_SECONDS`  | `300`   | Since 1.2: `keyChainMaxCacheSeconds` default              |
+
+Every server setting and field limit: [Limits](../protocol/specifications/limits.md).
+
+---
+
+## Client constants (`@btps/sdk/client`)
+
+| Constant                                          | Value                                            | What it is                                                                                                                                                                       |
+| ------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MIN_CONNECT_TIMEOUT_MS`                          | `5000`                                           | The least `connectTimeoutMs` may be; a lower value is raised to it, with a warning                                                                                               |
+| `DEFAULT_CONNECT_TIMEOUT_MS`                      | `5000`                                           | `connectTimeoutMs` when not set                                                                                                                                                  |
+| `MIN_REPLY_TIMEOUT_MS`                            | `10000`                                          | The least `replyTimeoutMs` (and `send`'s `timeoutMs`) may be, so every receiver can count on that long to answer                                                                 |
+| `DEFAULT_REPLY_TIMEOUT_MS`                        | `20000`                                          | `replyTimeoutMs` when not set                                                                                                                                                    |
+| `KEY_CHAIN_REPLY_TIMEOUT_MS`                      | `5000`                                           | Since 1.2: how long `lookupKeyChain` waits for its answer once connected, unless given `replyTimeoutMs`. A host that cannot answer is given up on soon, and its keys left to DNS |
+| `BTP_TRANSPORTER_DEFAULT_MAX_CONNECTIONS`         | `10`                                             | `maxConnections` of a `BtpsTransporter` when not set                                                                                                                             |
+| `BTP_TRANSPORTER_DEFAULT_CONNECTION_TTL_SECONDS`  | `300`                                            | `connectionTTLSeconds` of a `BtpsTransporter` when not set                                                                                                                       |
+| `BTP_TRANSPORTER_ERROR_CONNECTION_ALREADY_EXISTS` | `{ code, message: 'Connection already exists' }` | Thrown by `registerConnection` for a recipient that already has a connection, unless `override` is `true`                                                                        |
+| `BTP_TRANSPORTER_ERROR_MAX_CONNECTIONS_REACHED`   | `{ code, message: 'Max connections reached' }`   | A new connection when every connection in a full pool has a send waiting                                                                                                         |
 
 ---
 
@@ -1215,7 +1406,7 @@ deviceStatementRecord(
 ```
 
 **Description:**
-Since 1.2. A signer's answer to an agreement, signed over the statement's RFC 8785 form. `signStatement` signs with the signer's identity key, which may be a managed key its provider holds, and names its `selector`. `signStatementOnDevice` signs with a device's key; the originator completes the record with `deviceStatementRecord`, adding the delegated artifact that delivered it, as it arrived, so the record can be checked offline wherever it is forwarded.
+Since 1.2. A signer's answer to an agreement, signed over the statement's RFC 8785 form. `signStatement` signs with the signer's identity key, which may be a managed key its provider holds, and names its `selector`. `signStatementOnDevice` signs with a device's key; the originator completes the record with `deviceStatementRecord`, adding the delegated artifact that delivered it, as it arrived, so the record can be checked offline wherever it is forwarded. Neither checks the statement: a statement that breaks its rules, such as a `consent` on a decline or a `viewedFrom` without a `viewedAt`, still signs, and the event that carries it is refused (`BTP_ERROR_VALIDATION`). See [Agreement](../protocol/specifications/transporter-artifact.md#agreement) for the statement's fields.
 
 ---
 
@@ -1414,6 +1605,124 @@ Determines whether a trust request can be retried (applies to previously rejecte
 import { canRetryTrust } from '@btps/sdk/trust';
 const canRetry = canRetryTrust(trustRecord);
 ```
+
+---
+
+### trustGrantRefusal / documentTypeRefusal / detailsNamesRefusal
+
+```ts
+trustGrantRefusal(
+  response: { granted?: readonly BTPPermissionName[] },
+  record: { permissions?: BTPTrustRecordPermissions },
+): { error: BTPError; problem: string } | undefined
+
+documentTypeRefusal(
+  artifact: { type: string; documentType?: string; encryption?: unknown; document?: unknown },
+  record: { permissions?: BTPTrustRecordPermissions },
+): { error: BTPError; problem: string } | undefined
+
+detailsNamesRefusal(
+  artifact: BTPDetailsEnvelope,
+  record: { permissions?: BTPTrustRecordPermissions },
+): { error: BTPError; problem: string } | undefined
+```
+
+**Description:**
+Since 1.2. The arrival checks a server runs against the receiver's trust record, each returning the error an artifact is refused with and why, or `undefined` when it is taken. `trustGrantProblem` and `documentTypeProblem` give the first two's `problem` alone; `detailsProblem` runs the third, then the request and value checks. `trustGrantRefusal`: an answer's `granted` against the requester's record. `documentTypeRefusal`: a `BTPS_DOC` under a trust with permissions names its `documentType`, `send:<documentType>` is granted, and a readable document is that type. `detailsNamesRefusal`: a details notice or response names only details the receiver holds of the sender (`detailsHeld`), a request only details the answerer shares (`detailsShared`). A trust without permissions (a 1.1 trust) refuses none of these by name. Exported for a platform that checks before it decides anything; the server already runs them.
+
+---
+
+### Key chains
+
+```ts
+signKeyRotation(
+  rotation: {
+    identity: string;
+    from: { selector: string; publicKey?: string };
+    to: { selector: string };
+    at: string;
+    prev: string | null;
+  } & ({ expiry?: 'planned' } | { expiry: 'immediate'; compromisedSince: string; reason: 'compromised' | 'lost' }),
+  keys: { from?: BTPKeyHolder; to: BTPKeyHolder },
+): Promise<BTPKeyChainRecord>
+signKeyExpiry(expiry: Omit<BTPKeyExpiry, 'type'>, current: BTPKeyHolder): Promise<BTPKeyChainRecord>
+keyChainRecordHash(record: BTPKeyChainRecord): string
+checkKeyChain(records: unknown[], identity: string): BTPCheckedKeyChain
+verifyKeyChain(
+  records: unknown[],
+  options: { identity: string; anchors?: string[]; online?: { fromOperator: boolean; dns: BTPKeyChainDns } },
+): BTPKeyChainFacts
+keyChainFactsOf(checked: BTPCheckedKeyChain, options: { anchors?: string[]; online?: { fromOperator: boolean; dns: BTPKeyChainDns } }): BTPKeyChainFacts
+keyChainProblem(
+  records: unknown[],
+  options: { identity: string; fromOperator: boolean; dns: BTPKeyChainDns; now?: number; maxSkewSeconds?: number },
+): string | undefined
+keyChainProblemOf(checked: BTPCheckedKeyChain, options: { fromOperator: boolean; dns: BTPKeyChainDns; now?: number; maxSkewSeconds?: number }): string | undefined
+keyAt(facts: BTPKeyChainFacts, ref: { selector?: string; fingerprint?: string }): BTPKeyChainKey | undefined
+keyChainSignerProblem(key: BTPKeyChainKey, options: { now?: number; retiredKeyGraceSeconds: number }): BTPError | undefined
+```
+
+**Description:**
+Since 1.2. An identity's keys form a signed chain its host serves; see [Key rotation](../features/keyRotation.md).
+
+- `signKeyRotation`: the record of key `from` handing over to `to`. Both keys sign. A rotation with immediate expiry (the old key compromised or lost) may go without `from`'s signature; then `from.publicKey` names the lost key, and the record counts only where an anchor confirms its authority. `prev` is the previous record's `keyChainRecordHash`, `null` for the first.
+- `signKeyExpiry`: a key the identity already rotated away from turns out to have been compromised. The current key signs it; nothing rotates.
+- `keyChainRecordHash`: what the next record names as `prev`: the lowercase hex SHA-256 of this record's signed object.
+- `checkKeyChain`: checks a chain once (its shape, every signature, the chain rules) along every path. Keep the result to get facts for any anchor with `keyChainFactsOf` or `keyChainProblemOf`, without checking a signature again.
+- `verifyKeyChain`: the facts about a chain, refusing nothing. `anchors` are fingerprints the reader kept; `online` says the chain came in the operator's signed answer and what DNS says (`BTPKeyChainDns`).
+- `keyChainProblem`: why a verifier online refuses a chain, or `undefined`: a chain that forks, or does not end at a key DNS publishes for an identity that publishes one, is refused.
+- `keyAt`: a key of a verified chain and its window, by fingerprint when given, else by selector.
+- `keyChainSignerProblem`: why a live artifact signed by this key is refused now: `BTP_ERROR_KEY_REVOKED` for an expired key, `BTP_ERROR_KEY_RETIRED` for one rotated away as planned more than `retiredKeyGraceSeconds` ago. A server runs this on every arrival.
+
+---
+
+### signArrival
+
+```ts
+signArrival(
+  arrival: { statementSha256: string; arrivedAt: string; receivedBy: string; selector: string },
+  holder: BTPKeyHolder,
+): Promise<BTPEvidenceArrival>
+```
+
+**Description:**
+Since 1.2. A platform's signed record that it received an agreement statement at `arrivedAt`, signed by `receivedBy` (the party that received it) under `selector`. Sign one when each statement arrives and keep it for the evidence bundle's `arrivals`: it is the receiver's own record, independent of the signer. See [Evidence bundles](../features/evidenceBundles.md).
+
+---
+
+## Authentication helpers (`@btps/sdk/authentication`)
+
+### keyProofPayload
+
+```ts
+keyProofPayload(agentId: string, identity: string, publicKey: string): {
+  type: 'btps_key_proof';
+  agentId: string;
+  identity: string;
+  publicKey: string;
+}
+```
+
+**Description:**
+What a device's new key signs when the device moves to it on an `auth.refresh`: the agent, its identity and the new key. The refresh itself is signed by the current key, so the two signatures together show one device holds both. `BtpsAuthentication.rotateKey` builds and signs it, and the server checks it; exported for a device that signs with its own code. See [Refresh tokens](../features/refreshTokens.md).
+
+---
+
+## BoundView (`@btps/sdk/boundview`)
+
+The schema, bindings and checks of a document's BoundView, without the rest of the SDK, for a browser or app. `checkBoundView` and `writtenValue` are documented with [the BoundView pages](../protocol/specifications/boundview/overview.md); they also come from `@btps/sdk/server` and `@btps/sdk/client`.
+
+| Export                | Signature or value                                       | What it does                                                                                                                                                                               |
+| --------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `BtpBoundViewSchema`  | zod schema                                               | A well-formed BoundView: its page, fonts as glyph outlines, images as pixels, and what is drawn, in order, within the BoundView limits                                                     |
+| `boundViewResultOf`   | `(document: unknown) => BTPBoundViewResult \| undefined` | Whether an opened document's BoundView may be shown, or `undefined` when it carries none. A BoundView that is not well formed is never shown. A server hands this to transporter handlers  |
+| `boundValue`          | `(document, field: string) => BoundValue \| undefined`   | What a binding's `field` names in the document, or `undefined` when a BoundView may not bind it or the document lacks it                                                                   |
+| `bindingProblem`      | `(document, bind) => string \| undefined`                | Why a binding cannot be drawn from the document (its format or range), or `undefined`                                                                                                      |
+| `markdownHidden`      | `(text: string) => (0 \| 1 \| 2)[]`                      | For each character of markdown text: `0` drawn, `1` a mark that may not be drawn as formatting, `2` never drawn (an escaping backslash, a link's brackets and destination, a list number)  |
+| `isPathData`          | `(d: string) => boolean`                                 | Whether an outline is BoundView path data: absolute `M L H V Q C Z` commands with their numbers, starting with `M`                                                                         |
+| `CONTRAST_WORK_LIMIT` | `20_000_000`                                             | The most edge and point tests the contrast check makes on one BoundView; one that needs more fails, so a crafted one cannot make a receiver work without end. Also from `@btps/sdk/server` |
+
+The types `BoundValue` and `BTPBoundViewCheck` are in [Types & Interfaces](./typesAndInterfaces.md#boundvalue).
 
 ---
 
@@ -1685,6 +1994,23 @@ Error constant for invalid JSON format.
 
 - `code`: `'BTP_ERROR_INVALID_JSON'`
 - `message`: `'Invalid JSON format'`
+
+---
+
+### BTP_ERROR_CANONICAL_JSON
+
+```ts
+const BTP_ERROR_CANONICAL_JSON: BTPError;
+```
+
+**Description:**
+A payload has no RFC 8785 canonical form: it is not JSON, or it names a member twice. `canonicalize`, `canonicalizeValue` and `assertStrictJson` throw it, so signing or verifying such a payload fails. A server answers a line it cannot read this way with `BTP_ERROR_INVALID_JSON`.
+
+**Properties:**
+
+- `code`: `'BTP_ERROR_CANONICAL_JSON'`
+- `message`: `'Payload cannot be canonicalized (RFC 8785)'`
+- `status`: `400`
 
 ---
 
@@ -2100,7 +2426,7 @@ const BTP_ERROR_VERSION_UNSUPPORTED: BTPError;
 **Description:**
 Error constant for an artifact whose `version` the receiving server does not support. A 1.2 server accepts any 1.1.x and 1.2.x, and a 1.1 server only 1.1.x; both refuse 1.0. It is checked before any signature work, and the supported versions are appended to the message.
 
-A 1.2 client turns such a refusal into this error, with `meta.receiverVersion` set to the version of the receiver's answer: the version the receiver speaks. `send` then returns the error and the answer together. Identity lookups and `PING` are always stamped `1.1.0`, so every 1.1 and 1.2 server answers them.
+A 1.2 client turns such a refusal into this error, with `meta.receiverVersion` set to the version of the receiver's answer: the version the receiver speaks. `send` then returns the error and the answer together. A `PING` is always stamped `1.1.0`, so every 1.1 and 1.2 server answers it. An identity lookup goes out as `1.2.0`, and when a 1.1 host refuses that version with this error, the client asks again as `1.1.0`.
 
 **Properties:**
 
@@ -2268,117 +2594,3 @@ Error constant for invalid actions.
 
 - `code`: `'BTP_ERROR_INVALID_ACTION'`
 - `message`: `'Invalid action'`
-
----
-
-### BTP_ERROR_VALIDATION
-
-```ts
-const BTP_ERROR_VALIDATION: BTPError;
-```
-
-**Description:**
-Error constant for BTPS artifact validation failures.
-
-**Properties:**
-
-- `code`: `'BTP_ERROR_VALIDATION'`
-- `message`: `'BTPS artifact validation failed'`
-
----
-
-### BTP_ERROR_SIG_MISMATCH
-
-```ts
-const BTP_ERROR_SIG_MISMATCH: BTPError;
-```
-
-**Description:**
-Error constant for signature fingerprint mismatches.
-
-**Properties:**
-
-- `code`: `'BTP_ERROR_SIG_MISMATCH'`
-- `message`: `'fingerprint mis-match'`
-
----
-
-### BTP_ERROR_SIG_VERIFICATION
-
-```ts
-const BTP_ERROR_SIG_VERIFICATION: BTPError;
-```
-
-**Description:**
-Error constant for signature verification failures.
-
-**Properties:**
-
-- `code`: `'BTP_ERROR_SIG_VERIFICATION'`
-- `message`: `' Signature verification failed'`
-
----
-
-### BTP_ERROR_UNSUPPORTED_ENCRYPT
-
-```ts
-const BTP_ERROR_UNSUPPORTED_ENCRYPT: BTPError;
-```
-
-**Description:**
-Error constant for unsupported encryption algorithms.
-
-**Properties:**
-
-- `code`: `'BTP_ERROR_UNSUPPORTED_ENCRYPT'`
-- `message`: `'Unsupported encryption algorithm'`
-
----
-
-### BTP_ERROR_DECRYPTION_UNINTENDED
-
-```ts
-const BTP_ERROR_DECRYPTION_UNINTENDED: BTPError;
-```
-
-**Description:**
-Error constant for decryption attempts by unintended recipients.
-
-**Properties:**
-
-- `code`: `'BTP_ERROR_DECRYPTION_UNINTENDED'`
-- `message`: `'Decryption failed: Message was not intended for this receiver.'`
-
----
-
-### BTP_ERROR_UNKNOWN
-
-```ts
-const BTP_ERROR_UNKNOWN: BTPError;
-```
-
-**Description:**
-Error constant for unknown or unexpected errors.
-
-**Properties:**
-
-- `code`: `'BTP_UNKNOWN_ERROR'`
-- `message`: `'Unknown error'`
-
----
-
-### BTP_ERROR_AUTHENTICATION_INVALID
-
-```ts
-const BTP_ERROR_AUTHENTICATION_INVALID: BTPError;
-```
-
-**Description:**
-Error constant for invalid authentication.
-
-**Properties:**
-
-- `code`: `'BTP_ERROR_AUTHENTICATION_INVALID'`
-- `message`: `'Invalid authentication'`
-
----

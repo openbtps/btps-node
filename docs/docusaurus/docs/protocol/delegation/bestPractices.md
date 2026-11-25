@@ -14,11 +14,13 @@ This document provides comprehensive guidelines for implementing and operating B
 
 #### **Proper Delegation Format**
 
-```json
+`BtpsDelegator` builds this; it is shown here to read, never to write by hand. `signedBy` is the sender itself (with the operator's attestation, as here) or the operator of the sender's domain (attestation optional).
+
+```json sketch
 // ✅ GOOD: Complete delegation structure
 {
   "delegation": {
-    "agentId": "device_agent_123",
+    "agentId": "btps_ag_3f2e1d0c-9b8a-4776-8554-433221100fed",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
     "signedBy": "alice$saas.com",
     "issuedAt": "2025-01-15T10:30:00Z",
@@ -54,89 +56,67 @@ This document provides comprehensive guidelines for implementing and operating B
 #### **Agent ID Management**
 
 ```typescript
-// ✅ GOOD: Unique, descriptive agent IDs
-const agentId = `device_${deviceType}_${deviceId}_${timestamp}`;
-// Example: "device_mobile_iphone15_20250115_103000"
+// ✅ GOOD: The device's own id, issued by the server when it registered
+// (btps_ag_… by default), as its agent artifact carries it
+const agentId = agentArtifact.agentId;
 
-// ❌ BAD: Generic or non-unique IDs
-const agentId = 'device'; // Too generic
-const agentId = '123'; // Not descriptive
+// ❌ BAD: An id of your own: it no longer names the device record its key and revocation live on
+const agentId = 'device';
 ```
 
 ### **2. Signature Verification**
 
-#### **Comprehensive Verification**
+#### **Let the SDK Verify**
+
+`BtpsServer` verifies every delegated artifact on arrival, before your handler sees it: the delegator may delegate (the sender itself or its domain's operator), the operator's attestation when the sender delegates for itself, the delegation's signature, and the agent's signature on the artifact, and since 1.2 each key against its identity's key chain. Outside a server, `verifyTransporterSignature` runs exactly the same checks:
 
 ```typescript
-// ✅ GOOD: Complete verification pipeline
-class DelegationVerifier {
-  async verifyDelegation(artifact) {
-    const { delegation } = artifact;
+// ✅ GOOD: the SDK's own verification, as a server runs it
+import { verifyTransporterSignature } from '@btps/sdk/server';
+import { decryptVerify } from '@btps/sdk/crypto';
 
-    // Step 1: Check attestation requirement
-    const isAttestationRequired = delegation.signedBy === artifact.from;
-    if (isAttestationRequired && !delegation.attestation) {
-      throw new Error('DELEGATION_INVALID: Attestation required');
-    }
+const { isValid, error, signerKey } = await verifyTransporterSignature(artifact);
+if (!isValid || !signerKey) throw error;
+// signerKey is the key that signed the artifact itself: the agent's, for a delegated one
+const { payload } = await decryptVerify(signerKey, artifact, receiverPrivateKey);
 
-    // Step 2: Verify attestation (if present)
-    if (delegation.attestation) {
-      await this.verifyAttestation(delegation);
-    }
-
-    // Step 3: Verify delegation signature
-    await this.verifyDelegationSignature(artifact, delegation);
-
-    // Step 4: Verify agent signature
-    await this.verifyAgentSignature(artifact, delegation.agentPubKey);
-
-    return { isValid: true };
-  }
-}
-
-// ❌ BAD: Incomplete verification
-async verifyDelegation(artifact) {
-  // Only verifies delegation signature, missing other steps
-  return this.verifySignature(artifact.delegation);
+// ❌ BAD: a verification of your own, that checks some steps and skips others
+async function verifyDelegation(artifact) {
+  return verifySignature(artifact.delegation); // no operator check, no attestation, no agent signature
 }
 ```
 
 #### **Error Handling**
 
+Branch on the error's code, never on its message:
+
 ```typescript
-// ✅ GOOD: Comprehensive error handling
-class DelegationErrorHandler {
-  async handleDelegationError(error, context) {
-    const errorInfo = {
-      timestamp: new Date().toISOString(),
-      error: error.message,
-      context,
-      stack: error.stack,
-    };
+// ✅ GOOD: handle each BTPS error by its code
+import {
+  BTP_ERROR_ATTESTATION_VERIFICATION,
+  BTP_ERROR_DELEGATION_INVALID,
+  BTP_ERROR_DELEGATION_SIG_VERIFICATION,
+  BTP_ERROR_KEY_REVOKED,
+  BTP_ERROR_RESOLVE_PUBKEY,
+} from '@btps/sdk/error';
 
-    // Log error for monitoring
-    this.logger.log('delegation_error', errorInfo);
-
-    // Handle specific error types
-    switch (error.message) {
-      case 'DELEGATION_INVALID':
-        return this.handleInvalidDelegation(context);
-      case 'DELEGATION_SIG_VERIFICATION_FAILED':
-        return this.handleSignatureError(context);
-      case 'ATTESTATION_VERIFICATION_FAILED':
-        return this.handleAttestationError(context);
-      default:
-        return this.handleGenericError(error, context);
-    }
+function handleDelegationError(error) {
+  switch (error.code) {
+    case BTP_ERROR_DELEGATION_INVALID.code: // not allowed to delegate, or no attestation when required
+    case BTP_ERROR_ATTESTATION_VERIFICATION.code: // attestor is not the operator, or its signature fails
+    case BTP_ERROR_DELEGATION_SIG_VERIFICATION.code: // delegation or agent signature fails
+      return 'refuse';
+    case BTP_ERROR_RESOLVE_PUBKEY.code: // a key not found, or a key chain refused
+    case BTP_ERROR_KEY_REVOKED.code: // since 1.2: a key its chain revoked
+      return 'refuse and alert';
+    default:
+      return 'refuse';
   }
 }
 
-// ❌ BAD: Generic error handling
-try {
-  await verifyDelegation(artifact);
-} catch (error) {
-  console.error('Delegation failed:', error);
-  // No specific handling or logging
+// ❌ BAD: matching on message text, or on codes that do not exist
+switch (error.message) {
+  case 'DELEGATION_SIG_VERIFICATION_FAILED': // never matches
 }
 ```
 
@@ -144,66 +124,48 @@ try {
 
 #### **TTL Configuration**
 
-```bash
-# ✅ GOOD: Short TTL for delegation records
-alice.btps.saas.com IN TXT "p=..." 300  # 5 minutes
+Delegations are not DNS records: they travel in each artifact. DNS holds the delegator's and attestor's keys, and the domain's operator (`op=`).
 
-# ❌ BAD: Long TTL delays revocation
-alice.btps.saas.com IN TXT "p=..." 86400  # 24 hours - too long
+```bash
+# ✅ GOOD: Short TTL on the operator's key and the host record
+btps1._btps.identity.admin.saas.com. 300 IN TXT "k=rsa;v=1.2.0;p=..."
+_btps.host.saas.com.                 300 IN TXT "v=1.2.0;u=btps.saas.com:3443;s=btps1;op=admin$saas.com"
+
+# ❌ BAD: Long TTL delays a change of key or operator
+btps1._btps.identity.admin.saas.com. 86400 IN TXT "k=rsa;v=1.2.0;p=..."
 ```
+
+`v` is the version the host speaks; readers report it and never check it.
 
 #### **DNS Resolution**
 
+Every key BTPS looks up goes through one option, `keyResolver` (since 1.2), on `BtpsServer`, `BtpsDelegator`, the clients and `signEncrypt`. To cache keys, or to read them from resolvers of your choice, wrap the default lookup there rather than verifying signatures yourself:
+
 ```typescript
-// ✅ GOOD: Robust DNS resolution with caching
-class DNSResolver {
-  constructor() {
-    this.cache = new Map();
-    this.cacheTTL = 300000; // 5 minutes
-  }
+// ✅ GOOD: cache in front of the SDK's own lookup
+import { createDefaultKeyResolver } from '@btps/sdk/crypto';
 
-  async resolveDNS(domain) {
-    const cacheKey = `dns_${domain}`;
-    const cached = this.cache.get(cacheKey);
+const lookup = createDefaultKeyResolver();
+const cache = new Map();
+const keyResolver = {
+  async resolvePublicKey(identity, selector, use) {
+    const key = `${identity}|${selector}|${use}`;
+    const hit = cache.get(key);
+    if (hit && hit.until > Date.now()) return hit.publicKey;
+    const publicKey = await lookup.resolvePublicKey(identity, selector, use);
+    if (publicKey) cache.set(key, { publicKey, until: Date.now() + 5 * 60 * 1000 }); // never cache a miss
+    return publicKey;
+  },
+};
+const server = new BtpsServer({ ...options, keyResolver });
 
-    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
-      return cached.data;
-    }
-
-    try {
-      const records = await this.performDNSLookup(domain);
-      this.cache.set(cacheKey, {
-        data: records,
-        timestamp: Date.now()
-      });
-      return records;
-    } catch (error) {
-      this.logDNSError(domain, error);
-      throw error;
-    }
-  }
-
-  async performDNSLookup(domain) {
-    // Use multiple DNS servers for redundancy
-    const dnsServers = ['8.8.8.8', '1.1.1.1', '208.67.222.222'];
-
-    for (const server of dnsServers) {
-      try {
-        return await this.queryDNSServer(domain, server);
-      } catch (error) {
-        console.warn(`DNS server ${server} failed:`, error);
-      }
-    }
-
-    throw new Error('All DNS servers failed');
-  }
-}
-
-// ❌ BAD: Single DNS server, no caching
-async resolveDNS(domain) {
+// ❌ BAD: dns.lookup resolves addresses, not TXT records, and caches nothing of yours
+async function resolveDNS(domain) {
   return await dns.lookup(domain);
 }
 ```
+
+See [Caching Key Lookups](../../server/advancedUsages.md#caching-key-lookups).
 
 ## 🏗️ Implementation Best Practices
 
@@ -211,124 +173,20 @@ async resolveDNS(domain) {
 
 #### **Delegation Verification Pipeline**
 
-```typescript
-// ✅ GOOD: Complete verification pipeline
-class DelegationVerificationPipeline {
-  constructor() {
-    this.dnsResolver = new DNSResolver();
-    this.cryptoVerifier = new CryptoVerifier();
-  }
-
-  async verifyDelegation(artifact) {
-    const startTime = Date.now();
-
-    try {
-      // Step 1: Validate delegation structure
-      this.validateDelegationStructure(artifact.delegation);
-
-      // Step 2: Check attestation requirement
-      const isAttestationRequired = this.isAttestationRequired(artifact);
-      if (isAttestationRequired && !artifact.delegation.attestation) {
-        throw new Error('DELEGATION_INVALID: Attestation required');
-      }
-
-      // Step 3: Verify attestation (if present)
-      if (artifact.delegation.attestation) {
-        await this.verifyAttestation(artifact.delegation);
-      }
-
-      // Step 4: Verify delegation signature
-      await this.verifyDelegationSignature(artifact);
-
-      // Step 5: Verify agent signature
-      await this.verifyAgentSignature(artifact);
-
-      const verificationTime = Date.now() - startTime;
-
-      return {
-        isValid: true,
-        verificationTime,
-        agentId: artifact.delegation.agentId,
-        delegator: artifact.delegation.signedBy,
-        attestor: artifact.delegation.attestation?.signedBy
-      };
-
-    } catch (error) {
-      return {
-        isValid: false,
-        error: error.message,
-        verificationTime: Date.now() - startTime
-      };
-    }
-  }
-
-  private validateDelegationStructure(delegation) {
-    const requiredFields = ['agentId', 'agentPubKey', 'signedBy', 'issuedAt', 'signature'];
-    for (const field of requiredFields) {
-      if (!delegation[field]) {
-        throw new Error(`DELEGATION_INVALID: Missing required field ${field}`);
-      }
-    }
-  }
-
-  private isAttestationRequired(artifact) {
-    return artifact.delegation.signedBy === artifact.from;
-  }
-}
-
-// ❌ BAD: Incomplete verification
-async verifyDelegation(artifact) {
-  // Only verifies delegation signature
-  return this.verifySignature(artifact.delegation);
-}
-```
-
-#### **Attestation Verification**
+Nothing to build: `BtpsServer` runs the whole pipeline in its signature verification step, and refuses a delegated artifact that fails any step before trust is checked or your handler runs. What your server adds is around it: middleware `after` `signatureVerification` to log or count failures (`req.error`), and your own record of which devices you delegate for. See [Verification Process](./verificationProcess.md).
 
 ```typescript
-// ✅ GOOD: Complete attestation verification
-class AttestationVerifier {
-  async verifyAttestation(delegation) {
-    const { attestation } = delegation;
-
-    // Validate attestation structure
-    this.validateAttestationStructure(attestation);
-
-    // Resolve attestor public key
-    const attestorPubKey = await this.dnsResolver.resolvePublicKey(attestation.signedBy);
-    if (!attestorPubKey) {
-      throw new Error('ATTESTATION_VERIFICATION_FAILED: Attestor public key not found');
-    }
-
-    // Verify attestation signature
-    const signedMsg = { ...delegation, attestation: { ...attestation, signature: undefined } };
-    const isValid = await this.cryptoVerifier.verifySignature(
-      signedMsg,
-      attestation.signature,
-      attestorPubKey
-    );
-
-    if (!isValid) {
-      throw new Error('ATTESTATION_VERIFICATION_FAILED: Invalid signature');
-    }
-
-    return { isValid: true, attestor: attestation.signedBy };
-  }
-
-  private validateAttestationStructure(attestation) {
-    const requiredFields = ['issuedAt', 'signedBy', 'signature'];
-    for (const field of requiredFields) {
-      if (!attestation[field]) {
-        throw new Error(`ATTESTATION_INVALID: Missing required field ${field}`);
-      }
-    }
-  }
-}
-
-// ❌ BAD: Missing validation
-async verifyAttestation(delegation) {
-  const { attestation } = delegation;
-  return this.verifySignature(attestation);
+// ✅ GOOD: observe the server's verification, do not repeat it
+export default function createMiddleware() {
+  return [
+    {
+      phase: 'after',
+      step: 'signatureVerification',
+      handler: async (req) => {
+        if (req.error) metrics.recordVerificationFailure(String(req.error.code));
+      },
+    },
+  ];
 }
 ```
 
@@ -336,168 +194,49 @@ async verifyAttestation(delegation) {
 
 #### **Delegation Creation**
 
+The provider, not the device, adds the delegation, with `BtpsDelegator`. Its identity is the domain's operator (`op=`); for a user on a custom domain, the user's own key signs the delegation and the operator attests.
+
 ```typescript
-// ✅ GOOD: Proper delegation creation
-class DelegationCreator {
-  constructor(privateKey, identity) {
-    this.privateKey = privateKey;
-    this.identity = identity;
-  }
+// ✅ GOOD: BtpsDelegator signs the delegation, and the attestation when needed
+import { BtpsDelegator } from '@btps/sdk/delegation';
 
-  async createDelegation(agentId, agentPubKey, artifact, attestorPrivateKey = null) {
-    const delegation = {
-      agentId,
-      agentPubKey,
-      signedBy: this.identity,
-      issuedAt: new Date().toISOString(),
-      selector: 'btps1',
-    };
+const delegator = new BtpsDelegator({
+  identity: 'admin$saas.com', // the operator named by op= in _btps.host
+  privateKey: process.env.OPERATOR_PRIVATE_KEY,
+});
 
-    // Add attestation if required
-    if (this.isAttestationRequired(artifact)) {
-      if (!attestorPrivateKey) {
-        throw new Error('ATTESTATION_REQUIRED: Attestor private key needed');
-      }
+// A user on your domain: the operator delegates
+const delegated = await delegator.delegateArtifact(agentId, devicePublicKey, signedArtifact);
 
-      delegation.attestation = await this.createAttestation(delegation, attestorPrivateKey);
-    }
+// A user on a custom domain: the user's key delegates, the operator attests
+const attested = await delegator.delegateArtifact(agentId, devicePublicKey, signedArtifact, {
+  identity: 'alice$enterprise.com',
+  keyPair: alicesKeys, // a PEM key pair, or a Signer
+});
 
-    // Sign delegation
-    const signedMsg = { ...artifact, delegation: { ...delegation, signature: undefined } };
-    delegation.signature = await this.signMessage(signedMsg, this.privateKey);
-
-    return delegation;
-  }
-
-  private isAttestationRequired(artifact) {
-    return artifact.from === this.identity;
-  }
-
-  private async createAttestation(delegation, attestorPrivateKey) {
-    const attestation = {
-      issuedAt: new Date().toISOString(),
-      signedBy: 'admin$saas.com', // Attestor identity
-      selector: 'btps1',
-    };
-
-    const signedMsg = { ...delegation, attestation: { ...attestation, signature: undefined } };
-    attestation.signature = await this.signMessage(signedMsg, attestorPrivateKey);
-
-    return attestation;
-  }
-}
-
-// ❌ BAD: Missing attestation handling
-async createDelegation(agentId, agentPubKey, artifact) {
-  const delegation = {
-    agentId,
-    agentPubKey,
-    signedBy: this.identity,
-    issuedAt: new Date().toISOString(),
-    selector: 'btps1',
-  };
-
-  // No attestation handling
-  delegation.signature = await this.signMessage(delegation, this.privateKey);
-  return delegation;
-}
+// ❌ BAD: a delegation built by hand: the wrong signed bytes, selector or signer, and receivers refuse it
+const delegation = {
+  agentId,
+  agentPubKey,
+  signedBy: 'alice$saas.com',
+  issuedAt,
+  selector: 'btps1',
+};
 ```
+
+Never change the artifact after the device signed it: the delegation is added beside it, and the device's signature must still verify.
 
 ### **3. Performance Optimization**
 
 #### **Caching Strategy**
 
-```typescript
-// ✅ GOOD: Intelligent caching
-class DelegationCache {
-  constructor() {
-    this.publicKeyCache = new Map();
-    this.delegationCache = new Map();
-    this.cacheTTL = 300000; // 5 minutes
-  }
-
-  async getPublicKey(identity) {
-    const cacheKey = `pubkey_${identity}`;
-    const cached = this.publicKeyCache.get(cacheKey);
-
-    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
-      return cached.data;
-    }
-
-    const publicKey = await this.dnsResolver.resolvePublicKey(identity);
-    this.publicKeyCache.set(cacheKey, {
-      data: publicKey,
-      timestamp: Date.now()
-    });
-
-    return publicKey;
-  }
-
-  async getDelegation(agentId, delegator) {
-    const cacheKey = `delegation_${agentId}_${delegator}`;
-    const cached = this.delegationCache.get(cacheKey);
-
-    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
-      return cached.data;
-    }
-
-    // Fetch delegation from storage
-    const delegation = await this.storage.getDelegation(agentId, delegator);
-    this.delegationCache.set(cacheKey, {
-      data: delegation,
-      timestamp: Date.now()
-    });
-
-    return delegation;
-  }
-
-  invalidateCache(pattern) {
-    // Invalidate cache entries matching pattern
-    for (const [key] of this.publicKeyCache) {
-      if (key.includes(pattern)) {
-        this.publicKeyCache.delete(key);
-      }
-    }
-
-    for (const [key] of this.delegationCache) {
-      if (key.includes(pattern)) {
-        this.delegationCache.delete(key);
-      }
-    }
-  }
-}
-
-// ❌ BAD: No caching
-async getPublicKey(identity) {
-  return await this.dnsResolver.resolvePublicKey(identity);
-}
-```
+Cache keys through `keyResolver`, as above, with a short time to live (minutes), and never cache a miss, so a key just published is found. Since 1.2, a server also caches each identity's key chain for at most `keyChainMaxCacheSeconds` (300 by default): that is the longest a revoked key can still be taken. A `keyResolver` that implements `resolveKeyChain` keeps its own cache and must honour the same limit.
 
 ## 🚨 Error Handling & Monitoring
 
 ### **1. Error Classification**
 
-```typescript
-// ✅ GOOD: Comprehensive error classification
-enum DelegationErrorType {
-  DELEGATION_INVALID = 'DELEGATION_INVALID',
-  DELEGATION_SIG_VERIFICATION_FAILED = 'DELEGATION_SIG_VERIFICATION_FAILED',
-  ATTESTATION_VERIFICATION_FAILED = 'ATTESTATION_VERIFICATION_FAILED',
-  AGENT_SIG_VERIFICATION_FAILED = 'AGENT_SIG_VERIFICATION_FAILED',
-  DNS_RESOLUTION_FAILED = 'DNS_RESOLUTION_FAILED',
-  PUBLIC_KEY_NOT_FOUND = 'PUBLIC_KEY_NOT_FOUND',
-  ATTESTATION_REQUIRED = 'ATTESTATION_REQUIRED',
-}
-
-class DelegationError extends Error {
-  constructor(type: DelegationErrorType, message: string, context?: any) {
-    super(message);
-    this.type = type;
-    this.context = context;
-    this.timestamp = new Date().toISOString();
-  }
-}
-```
+The SDK's errors are `BTPErrorException`s whose `code` is one of the constants in `@btps/sdk/error`: `BTP_ERROR_DELEGATION_INVALID`, `BTP_ERROR_ATTESTATION_VERIFICATION`, `BTP_ERROR_DELEGATION_SIG_VERIFICATION`, `BTP_ERROR_RESOLVE_PUBKEY`, and since 1.2 `BTP_ERROR_KEY_RETIRED` and `BTP_ERROR_KEY_REVOKED`. Classify by those codes rather than inventing your own; the error's `cause` says which rule failed.
 
 ### **2. Monitoring & Metrics**
 
@@ -524,9 +263,9 @@ class DelegationMonitor {
     this.updateAverageVerificationTime(verificationTime);
   }
 
-  recordVerificationFailure(error: DelegationError) {
+  recordVerificationFailure(code: string) {
     this.metrics.verificationFailures++;
-    this.logError(error);
+    this.logError(code);
   }
 
   recordDNSLookup() {
@@ -552,52 +291,36 @@ class DelegationMonitor {
 ### **1. DNS Configuration**
 
 ```bash
-# ✅ GOOD: Proper DNS configuration
-# Delegation record
-alice.btps.saas.com IN TXT "p=...delegator_public_key..." 300
+# ✅ GOOD: the operator's key, and the host record naming it as op=
+btps1._btps.identity.admin.saas.com. 300 IN TXT "k=rsa;v=1.2.0;p=...operator_public_key..."
+_btps.host.saas.com.                 300 IN TXT "v=1.2.0;u=btps.saas.com:3443;s=btps1;op=admin$saas.com"
 
-# Attestor record (if needed)
-admin.btps.saas.com IN TXT "p=...attestor_public_key..." 300
+# For a custom domain whose users' keys sign delegations: each user's key, and op= naming the SaaS
+btps1._btps.identity.alice.enterprise.com. 300 IN TXT "k=rsa;v=1.2.0;p=...user_public_key..."
+_btps.host.enterprise.com.                 300 IN TXT "v=1.2.0;u=btps.saas.com:3443;s=btps1;op=admin$saas.com"
 
-# ❌ BAD: Long TTL, no attestor record
-alice.btps.saas.com IN TXT "p=...delegator_public_key..." 86400
+# ❌ BAD: no op=, so receivers refuse every delegation for the domain
+_btps.host.saas.com. 300 IN TXT "v=1.2.0;u=btps.saas.com:3443;s=btps1"
 ```
 
 ### **2. Security Configuration**
 
-```typescript
-// ✅ GOOD: Secure configuration
-const delegationConfig = {
-  // DNS settings
-  dnsServers: ['8.8.8.8', '1.1.1.1', '208.67.222.222'],
-  dnsTimeout: 5000,
-  dnsRetries: 3,
+The settings that bear on delegation are the server's own (`BtpsServerOptions`):
 
-  // Caching settings
-  cacheTTL: 300000, // 5 minutes
-  maxCacheSize: 1000,
+- `keyResolver`: where keys come from, and their cache
+- `maxArtifactAgeSeconds`: how far a signed artifact's `issuedAt` may be from the server's clock (300 by default)
+- `retiredKeyGraceSeconds` (since 1.2): how long a key rotated away as planned still signs (a day by default)
+- `keyChainMaxCacheSeconds` (since 1.2): the longest a key chain is trusted from a cache (300 by default)
 
-  // Verification settings
-  maxVerificationTime: 10000, // 10 seconds
-  requireAttestation: true, // For custom domains
-
-  // Security settings
-  allowedSignatureAlgorithms: ['sha256'],
-  minKeySize: 2048,
-
-  // Monitoring settings
-  enableMetrics: true,
-  logLevel: 'info',
-};
-```
+The algorithms are fixed: RSA keys of at least 2048 bits, signatures with SHA-256 ([Algorithms](../security/algorithm.md)).
 
 ### **3. Production Checklist**
 
-- [ ] **DNS Configuration**: Proper TTL settings and attestor records
+- [ ] **DNS Configuration**: The operator's key, `op=` in `_btps.host`, and short TTLs
 - [ ] **Error Handling**: Comprehensive error handling and logging
 - [ ] **Monitoring**: Metrics collection and alerting
-- [ ] **Caching**: DNS and public key caching implementation
-- [ ] **Security**: Proper signature verification and attestation
+- [ ] **Caching**: Key caching through `keyResolver`
+- [ ] **Security**: Delegations made with `BtpsDelegator`, verified by the SDK
 - [ ] **Performance**: Timeout handling and fallback mechanisms
 - [ ] **Documentation**: Clear documentation and runbooks
 - [ ] **Testing**: Comprehensive test coverage for all scenarios

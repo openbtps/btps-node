@@ -13,10 +13,12 @@ This document defines the complete specification for BTPS delegation, including 
 
 A delegation object contains the necessary information to authorize an agent to send messages on behalf of a delegator.
 
-```json
+A self-delegation (`signedBy` is the sender, `alice$saas.com`), so it carries an attestation by the domain's operator:
+
+```json sketch
 {
   "delegation": {
-    "agentId": "device_agent_123",
+    "agentId": "btps_ag_3f2e1d0c-9b8a-4776-8554-433221100fed",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
     "signedBy": "alice$saas.com",
     "issuedAt": "2025-01-15T10:30:00Z",
@@ -55,7 +57,7 @@ A delegation object contains the necessary information to authorize an agent to 
 
 ### **Signature Object**
 
-```json
+```json sketch
 {
   "algorithmHash": "sha256",
   "value": "base64-encoded-signature",
@@ -73,7 +75,7 @@ A delegation object contains the necessary information to authorize an agent to 
 
 ### **Attestation Object Structure**
 
-```json
+```json sketch
 {
   "issuedAt": "2025-01-15T10:30:00Z",
   "signedBy": "admin$saas.com",
@@ -121,51 +123,52 @@ if (isAttestationRequired && !delegation.attestation) {
 
 A delegated artifact is a standard BTPS artifact with an additional `delegation` field:
 
-```json
+```json btps=transporter
 {
   "version": "1.1.0",
-  "issuedAt": "2025-01-15T10:30:00Z",
-  "id": "msg_123",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
+  "id": "bd3f5179-e406-4c8a-a02d-3e5f7091bc4d",
   "type": "BTPS_DOC",
   "from": "alice$saas.com",
   "to": "bob$client.com",
+  "selector": "btps1",
   "document": {
+    "type": "invoice",
     "title": "Monthly Service Invoice",
     "id": "INV-2025-001",
+    "issuedAt": "2026-11-08T10:30:00.000Z",
     "totalAmount": {
       "amount": 150000,
       "currency": "USD"
+    },
+    "lineItems": {
+      "columns": ["Description", "Amount"],
+      "rows": [{ "Description": "Monthly service", "Amount": 150000 }]
     }
   },
   "signature": {
     "algorithmHash": "sha256",
-    "value": "base64-encoded-signature",
-    "fingerprint": "sha256-base64-fingerprint"
+    "value": "BASE64-SIGNATURE-BY-THE-DEVICE-KEY",
+    "fingerprint": "BASE64-DEVICE-KEY-FINGERPRINT"
   },
-  "encryption": {
-    "algorithm": "aes-256-gcm",
-    "encryptedKey": "base64-encoded-encrypted-key",
-    "iv": "base64-encoded-initialization-vector",
-    "type": "standardEncrypt",
-    "authTag": "authTagString"
-  }
+  "encryption": null,
   "delegation": {
-    "agentId": "device_agent_123",
-    "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
+    "agentId": "btps_ag_3f2e1d0c-9b8a-4776-8554-433221100fed",
+    "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBg…\n-----END PUBLIC KEY-----",
     "signedBy": "alice$saas.com",
-    "issuedAt": "2025-01-15T10:30:00Z",
+    "issuedAt": "2026-11-08T10:30:00.000Z",
     "signature": {
       "algorithmHash": "sha256",
-      "value": "delegation_signature",
-      "fingerprint": "delegator_public_key_fingerprint"
+      "value": "BASE64-SIGNATURE-BY-ALICE",
+      "fingerprint": "BASE64-ALICE-KEY-FINGERPRINT"
     },
     "attestation": {
-      "issuedAt": "2025-01-15T10:30:00Z",
+      "issuedAt": "2026-11-08T10:30:00.000Z",
       "signedBy": "admin$saas.com",
       "signature": {
         "algorithmHash": "sha256",
-        "value": "attestation_signature",
-        "fingerprint": "attestor_public_key_fingerprint"
+        "value": "BASE64-SIGNATURE-BY-THE-OPERATOR",
+        "fingerprint": "BASE64-OPERATOR-KEY-FINGERPRINT"
       },
       "selector": "btps1"
     },
@@ -207,7 +210,7 @@ The BtpsServer performs verification in the following order:
 
 #### **Step 3: Delegation Signature Verification**
 
-- Resolve delegator's public key via DNS
+- Resolve delegator's public key via DNS; since 1.2, check it, and the attestor's, against the identity's key chain from its host, as the sender's key is ([Checking keys on arrival](../specifications/key-rotation.md#checking-keys-on-arrival))
 - Create signed message: `{ ...artifact, delegation: { ...delegation, signature: undefined } }`
 - Verify delegation signature using delegator's public key
 - Reject if verification fails
@@ -227,8 +230,10 @@ The BtpsServer performs verification in the following order:
 dig TXT _btps.host.saas.com
 
 # Expected response
-_btps.host.saas.com. 300 IN TXT "v=1.1.0; u=btps.saas.com:3443; s=btps1; op=admin$saas.com"
+_btps.host.saas.com. 300 IN TXT "v=1.2.0; u=btps.saas.com:3443; s=btps1; op=admin$saas.com"
 ```
+
+A 1.2 host publishes `v=1.2.0`; readers report it and do not check it.
 
 #### **Delegator Public Key**
 
@@ -237,7 +242,7 @@ _btps.host.saas.com. 300 IN TXT "v=1.1.0; u=btps.saas.com:3443; s=btps1; op=admi
 dig TXT btps1._btps.identity.admin.saas.com
 
 # Expected response
-btps1._btps.identity.admin.saas.com. 300 IN TXT "v=1.1.0; k=rsa; p=...delegator_public_key..."
+btps1._btps.identity.admin.saas.com. 300 IN TXT "v=1.2.0; k=rsa; p=...delegator_public_key..."
 ```
 
 #### **Attestor Public Key (if attestation present)**
@@ -247,7 +252,7 @@ btps1._btps.identity.admin.saas.com. 300 IN TXT "v=1.1.0; k=rsa; p=...delegator_
 dig TXT btps1._btps.identity.admin.saas.com
 
 # Expected response
-btps1._btps.identity.admin.saas.com. 300 IN TXT "v=1.1.0; k=rsa; p=...attestor_public_key..."
+btps1._btps.identity.admin.saas.com. 300 IN TXT "v=1.2.0; k=rsa; p=...attestor_public_key..."
 ```
 
 ### **Error Conditions**
@@ -262,6 +267,9 @@ btps1._btps.identity.admin.saas.com. 300 IN TXT "v=1.1.0; k=rsa; p=...attestor_p
 | Invalid delegation signature      | `BTP_ERROR_DELEGATION_SIG_VERIFICATION` | Delegation signature verification failed      |
 | Invalid attestation signature     | `BTP_ERROR_ATTESTATION_VERIFICATION`    | Attestation signature verification failed     |
 | Invalid agent signature           | `BTP_ERROR_DELEGATION_SIG_VERIFICATION` | Agent signature verification failed           |
+| Key rotated away, past its grace  | `BTP_ERROR_KEY_RETIRED`                 | (1.2) The delegator's or attestor's key       |
+| Key expired in its key chain      | `BTP_ERROR_KEY_REVOKED`                 | (1.2) The delegator's or attestor's key       |
+| A key chain that fails its checks | `BTP_ERROR_RESOLVE_PUBKEY`              | (1.2) Forked, unanchored, or not at DNS's key |
 
 ## 🏗️ Implementation Notes
 
@@ -296,12 +304,14 @@ The BtpsServer automatically handles delegation verification. Users need to:
 
 ### **Standard SaaS Delegation (No Attestation)**
 
-```json
+Signed by the domain's operator, not the sender, so no attestation is needed:
+
+```json sketch
 {
   "delegation": {
-    "agentId": "mobile_device_123",
+    "agentId": "btps_ag_3f2e1d0c-9b8a-4776-8554-433221100fed",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
-    "signedBy": "alice$saas.com",
+    "signedBy": "admin$saas.com",
     "issuedAt": "2025-01-15T10:30:00Z",
     "signature": {
       "algorithmHash": "sha256",
@@ -315,10 +325,12 @@ The BtpsServer automatically handles delegation verification. Users need to:
 
 ### **Custom Domain Delegation (With Attestation)**
 
-```json
+Signed by the sender itself, so attested by its domain's operator, here the SaaS that hosts `enterprise.com`:
+
+```json sketch
 {
   "delegation": {
-    "agentId": "enterprise_device_456",
+    "agentId": "btps_ag_7a6b5c4d-3e2f-4a1b-9c8d-7e6f5a4b3c2d",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
     "signedBy": "alice$enterprise.com",
     "issuedAt": "2025-01-15T10:30:00Z",
@@ -330,7 +342,7 @@ The BtpsServer automatically handles delegation verification. Users need to:
     "selector": "btps1",
     "attestation": {
       "issuedAt": "2025-01-15T10:30:00Z",
-      "signedBy": "admin$enterprise.com",
+      "signedBy": "admin$saas.com",
       "signature": {
         "algorithmHash": "sha256",
         "value": "attestation_signature",

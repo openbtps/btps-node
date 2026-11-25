@@ -19,25 +19,29 @@ Before setting up your BTPS client application, ensure you have the necessary li
 <TabItem value="npm" label="npm">
 
 ```bash
-npm install @btps/sdk
+npm install @btps/sdk@next
 ```
 
 </TabItem>
 <TabItem value="yarn" label="yarn">
 
 ```bash
-yarn add @btps/sdk
+yarn add @btps/sdk@next
 ```
 
 </TabItem>
 <TabItem value="pnpm" label="pnpm">
 
 ```bash
-pnpm add @btps/sdk
+pnpm add @btps/sdk@next
 ```
 
 </TabItem>
 </Tabs>
+
+:::note
+These pages describe 1.2, which is the `next` release until 1.2.0 ships: without `@next`, a package manager installs the latest 1.1 release. See [Migrating from 1.1 to 1.2](../../whats-new/version-1-2-migration.md).
+:::
 
 The `@btps/sdk` package provides all the core BTPS client components:
 

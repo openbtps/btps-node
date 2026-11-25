@@ -105,16 +105,18 @@ This keeps per-device revocation at the SaaS, where the device records live, and
 ### **Revocation Policies**
 
 1. **Immediate Action**: Revoke devices immediately upon security incident
-2. **Regular Review**: Periodically review and clean up unused delegations
+2. **Regular Review**: Periodically review and remove unused device records
 3. **Audit Logging**: Log all revocation actions with timestamps and reasons
 4. **User Notification**: Notify users of device revocations via email/SMS
 5. **Recovery Procedures**: Provide clear re-authentication instructions
 
 ### **DNS Security**
 
-1. **Low TTL**: Use short TTL (60-300 seconds) for fast revocation propagation
+DNS matters only for the domain-wide decision; a device is revoked at the SaaS, with no DNS change.
+
+1. **Low TTL**: Use a short TTL (60-300 seconds) on `_btps.host` and key records, so a change of operator or key reaches receivers soon
 2. **Monitoring**: Monitor DNS propagation and alert on failures
-3. **Backup Records**: Maintain backup of delegation records for recovery
+3. **A compromised operator key**: Since 1.2, rotate away from it with immediate expiry, recorded in the operator's key chain: 1.2 receivers refuse it at once, whatever DNS still has, and with it every delegation and attestation it signed ([Key rotation](../../features/keyRotation.md))
 
 ### **Client Security**
 

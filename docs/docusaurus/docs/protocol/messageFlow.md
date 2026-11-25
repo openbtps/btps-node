@@ -52,29 +52,29 @@ flowchart LR
 
 ### BTPS Artifact (Complete Message Envelope)
 
-```json
+An encrypted trust request: once encrypted, `document` is the ciphertext, a string.
+
+```json btps=transporter
 {
   "version": "1.1.0",
   "issuedAt": "2025-01-15T10:30:00Z",
-  "id": "btps_1234567890abcdef",
+  "id": "0d4f6a2e-8b1c-4e7a-9f3d-2c5b7a9e1f04",
   "type": "TRUST_REQ",
   "from": "billing$vendorcorp.com",
   "to": "pay$client.com",
   "selector": "btps1",
-  "document": {
-    // BTPS Document content goes here can be string if encrypted
-  },
+  "document": "BASE64-OF-THE-ENCRYPTED-DOCUMENT",
   "signature": {
     "algorithmHash": "sha256",
-    "value": "base64-encoded-signature",
-    "fingerprint": "sha256-base64-fingerprint"
+    "value": "BASE64-SIGNATURE",
+    "fingerprint": "BASE64-FINGERPRINT"
   },
   "encryption": {
     "algorithm": "aes-256-gcm",
-    "encryptedKey": "base64-encoded-encrypted-key",
-    "iv": "base64-encoded-initialization-vector",
+    "encryptedKey": "BASE64-KEY",
+    "iv": "BASE64-IV",
     "type": "standardEncrypt",
-    "authTag": "authTagString"
+    "authTag": "BASE64-TAG"
   }
 }
 ```
@@ -85,9 +85,9 @@ The `document` field contains the actual business content:
 
 **Trust Request Document:**
 
-```json
+```json btps=document:TRUST_REQ
 {
-  "id": "uniqueUuid",
+  "id": "0d4f6a2e-8b1c-4e7a-9f3d-2c5b7a9e1f04",
   "name": "Acme Corporation",
   "email": "billing@acme.com",
   "reason": "To send monthly service invoices",
@@ -97,15 +97,20 @@ The `document` field contains the actual business content:
 
 **Invoice Document:**
 
-```json
+```json btps=document:BTPS_DOC
 {
+  "type": "invoice",
   "title": "Monthly Service Invoice",
   "id": "INV-2025-001",
+  "issuedAt": "2025-01-15T10:30:00Z",
   "totalAmount": {
     "amount": 150000,
     "currency": "USD"
   },
-  "lineItems": {...}
+  "lineItems": {
+    "columns": ["Description", "Amount"],
+    "rows": [{ "Description": "Monthly service", "Amount": 150000 }]
+  }
 }
 ```
 
@@ -146,11 +151,13 @@ sequenceDiagram
 **DNS TXT Record Format:**
 
 ```
-_btps.host.<domain>:                         v=1.1.0; u=<btps_host:port>; s=<selector>; op=<operator_identity>
-<selector>._btps.identity.<account>.<domain>: v=1.1.0; k=rsa; p=<base64_public_key>
+_btps.host.<domain>:                         v=1.2.0; u=<btps_host:port>; s=<selector>; op=<operator_identity>
+<selector>._btps.identity.<account>.<domain>: v=1.2.0; k=rsa; p=<base64_public_key>
 ```
 
-See [DNS records](./specifications/overview.md) for each field.
+A 1.2 host publishes `v=1.2.0`; readers report it and do not check it. See [DNS records](./specifications/overview.md) for each field.
+
+Since 1.2, a receiver also asks the sender's host for the sender's [key chain](./specifications/key-rotation.md) on arrival, and checks the signing key against it (see [Identity Verification](#identity-verification)).
 
 ---
 
@@ -164,25 +171,26 @@ sequenceDiagram
     participant R as Receiver
 
     S->>S: Create trust request document
-    S->>S: Create BTPS artifact with document
+    S->>S: Create BTPS artifact with document, and since 1.2 permissions, entityType, given
     S->>S: Optionally encrypt the document to the receiver's public key
     S->>S: Sign the artifact with its own private key
     S->>S: Store its own trust record (pending)
     S->>R: Send BTPS artifact
 
     R->>R: Check size, version, signature and time window
-    R->>R: Check existing trust: refuse if active, blocked or before retryAfterDate
+    R->>R: Since 1.2, check the permission names on the envelope
+    R->>R: Check existing trust: refuse if active (unless a change), blocked or before retryAfterDate
     R->>R: Hand to the receiver's handler
-    R->>R: Decrypt (if encrypted) and check the trust request document
+    R->>R: Decrypt (if encrypted) and check the trust request document and its values
     R->>R: Create trust record (pending), set retryAfterDate (anti-spam)
-    R->>R: Make decision (accept/reject/block)
+    R->>R: Make decision (accept, grant all or part, reject, block)
     R->>R: Update trust record status
 
-    R->>R: Create trust response document
+    R->>R: Create trust response document, granted on its envelope
     R->>R: Create BTPS artifact, encrypt (optional) and sign
     R->>S: Send BTPS artifact
-    S->>S: Server checks the signature and accepts only against its pending record
-    S->>S: Store trust status
+    S->>S: Server checks the signature, its pending record, and granted against what it asked
+    S->>S: Store trust status and permissions
 ```
 
 **Trust Request Flow:**
@@ -201,7 +209,7 @@ sequenceDiagram
 12. **Response Creation**: Receiver creates trust response document
 13. **Response Artifact**: Receiver creates, optionally encrypts, and signs the BTPS artifact
 14. **Response Transmission**: Trust response sent back to the sender's server, which accepts it only if it holds a `pending` record for that request
-15. **Storage**: Both parties store trust relationship status
+15. **Storage**: Both parties store trust relationship status, and since 1.2 its `permissions` ([Trust permissions](../features/trustPermissions.md))
 
 **Trust Response Types:**
 
@@ -221,23 +229,24 @@ sequenceDiagram
     participant R as Receiver
 
     S->>S: Create business document (invoice, receipt, payslip, letter, agreement)
-    S->>S: Check the document against its type's schema and field limits
+    S->>S: Check the document against its type's schema and field limits, under the version it stamps
     S->>S: Optionally encrypt the document based on privacy type
-    S->>S: Sign the BTPS artifact with its own private key
+    S->>S: Sign the BTPS artifact, documentType on its envelope under a trust with permissions
     S->>R: Send BTPS artifact
 
     R->>R: Server: size, format (a plain document is checked here), version
-    R->>R: Server: verify sender signature, time window
-    R->>R: Server: check trust relationship and privacy type
+    R->>R: Server: verify sender signature, its key against the key chain, time window
+    R->>R: Server: check trust relationship, privacy type, and send:documentType granted
+    R->>R: Platform middleware, if added (event chain, agreement order, details)
     R->>R: Server: hand to the receiver's handler, then answer the sender
     R->>R: Store in inbox
-    R->>R: Receiver (decryptVerify): verify the signature, decrypt, check the document
+    R->>R: Receiver (decryptVerify): verify the signature, decrypt, check the document, its type and its BoundView
     R->>R: Reads and actions BTPS artifact
 ```
 
 **Document Exchange Flow:**
 
-1. **Document Creation**: Sender creates business document (invoice, receipt, payslip or letter)
+1. **Document Creation**: Sender creates business document (invoice, receipt, payslip or letter, and since 1.2 an [agreement](../features/agreements.md))
 2. **Document Check**: The sender's SDK checks it against its type's schema and field limits before encrypting
 3. **Encryption**: Document encrypted based on agreed privacy type:
    - **`unencrypted`**: No encryption (public documents)
@@ -246,10 +255,10 @@ sequenceDiagram
 4. **Cryptographic Signing**: BTPS artifact, including any ciphertext, signed with the sender's private key
 5. **Transmission**: BTPS artifact sent to receiver's BTPS server
 6. **Server Checks**: Size, format and version, then the sender's signature and the time window
-7. **Trust Verification**: Receiver's server checks the sender is trusted and sent with the agreed privacy type
-8. **Hand-over**: The artifact goes to the receiver's handler; the sender gets its answer once the handler returns
+7. **Trust Verification**: Receiver's server checks the sender is trusted and sent with the agreed privacy type, and, under a trust with permissions, that its `documentType` is granted
+8. **Hand-over**: The platform's own middleware runs, if added ([Your platform's checks](../features/platformChecks.md)); then the artifact goes to the receiver's handler, and the sender gets its answer once the handler returns
 9. **Storage**: Document stored in receiver's inbox system
-10. **Decryption**: The receiver verifies the signature again, decrypts with its own private key, and checks the document (`decryptVerify`)
+10. **Decryption**: The receiver verifies the signature again, decrypts with its own private key, and checks the document, its `documentType` and any BoundView (`decryptVerify`)
 11. **Processing**: Document processed by the receiver's application
 
 The server never decrypts: a document sent in the clear is checked at the server, an encrypted one only by the receiver after decrypting.
@@ -271,8 +280,15 @@ graph TD
     C --> C2{Delegated?}
     C2 -->|Yes| C3[Verify the delegation chain, see Delegation]
     C2 -->|No| D["Query DNS: artifact.selector._btps.identity of the sender"]
-    D --> E[Get Public Key]
+    D --> K{"Since 1.2: key chain from the sender's host?"}
+    K -->|None, or never rotated| E[Get Public Key from DNS]
+    K -->|Yes| KC{Key current, or within its grace?}
+    KC -->|Retired past its grace| X4[Reject: KEY_RETIRED]
+    KC -->|Expired| X5[Reject: KEY_REVOKED]
+    KC -->|Not in the chain, or chain refused| I
+    KC -->|Yes| E2[Key from the chain]
     E --> F[Verify Artifact Signature]
+    E2 --> F
     C3 --> G
     F --> G{Signature Valid?}
     G -->|No| I[Reject: RESOLVE_PUBKEY, SIG_MISMATCH or SIG_VERIFICATION]
@@ -304,8 +320,16 @@ graph TD
     P -->|No| PX[Reject - PRIVACY_TYPE]
     P -->|Yes| EV{An event: relatesTo an artifact of this pair?}
     EV -->|No| H
-    EV -->|Yes, or a document| G
-    G --> HD{A handler takes it?}
+    EV -->|Yes| G
+    P -->|Yes, a document| DT{"Since 1.2, a trust with permissions: documentType granted?"}
+    DT -->|No| DX[Reject - PERMISSION]
+    DT -->|Yes, or a trust without permissions| G
+    T -->|DETAILS_CHANGED, DETAILS_REQ or DETAILS_RES| D1{"Since 1.2: names held, and a response's request known?"}
+    D1 -->|No| DX2[Reject - DETAILS_NOT_HELD or PERMISSION]
+    D1 -->|Yes| G
+    G --> MW{"Platform middleware, if added: event chain, agreement order, details checks"}
+    MW -->|Refused| MX[Reject - EVENT_CHAIN, AGREEMENT_ORDER, PERMISSION or DETAILS_RATE_LIMITED]
+    MW -->|Taken| HD{A handler takes it?}
     HD -->|No| NA[Reject - ARTIFACT_NOT_ACCEPTED]
     HD -->|Yes| OK[Handed over; success sent once the handler returns]
 ```
@@ -345,25 +369,32 @@ Sender → Receiver: Trust Request BTPS Artifact
 Receiver → Sender: Trust Response BTPS Artifact
 ```
 
-**BTPS Artifact Structure:**
+**BTPS Artifact Structure**, a readable `1.2.0` request with [permissions](../features/trustPermissions.md):
 
-```json
+```json btps=transporter
 {
-  "version": "1.1.0",
-  "id": "trust_1234567890",
+  "version": "1.2.0",
+  "id": "1e5a7b3f-9c2d-4f8b-a04e-3d6c8b0a2f15",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "type": "TRUST_REQ",
   "from": "billing$vendor.com",
   "to": "pay$client.com",
   "selector": "btps1",
+  "permissions": [{ "name": "send:invoice", "required": true }],
+  "entityType": "organisation",
   "document": {
-    "id": "uniqueUuid",
+    "id": "1e5a7b3f-9c2d-4f8b-a04e-3d6c8b0a2f15",
     "name": "Vendor Corp",
     "email": "billing@vendor.com",
     "reason": "To send monthly invoices",
     "phone": "+1-555-0123"
   },
-  "signature": {...},
-  "encryption": {...}
+  "signature": {
+    "algorithmHash": "sha256",
+    "value": "BASE64-SIGNATURE",
+    "fingerprint": "BASE64-FINGERPRINT"
+  },
+  "encryption": null
 }
 ```
 
@@ -379,22 +410,29 @@ Receiver → Sender: Trust Response BTPS Artifact
 
 **BTPS Artifact Structure:**
 
-```json
+```json btps=transporter
 {
-  "version": "1.1.0",
-  "id": "response_1234567890",
+  "version": "1.2.0",
+  "id": "2f6b8c40-ad3e-4091-b15f-4e7d9c1b3026",
+  "issuedAt": "2026-11-08T11:00:00.000Z",
   "type": "TRUST_RES",
   "from": "pay$client.com",
   "to": "billing$vendor.com",
   "selector": "btps1",
+  "granted": ["send:invoice"],
+  "entityType": "person",
   "document": {
-    "id": "uniqueUuid",
+    "id": "1e5a7b3f-9c2d-4f8b-a04e-3d6c8b0a2f15",
     "decision": "accepted",
-    "decidedAt": "2025-01-15T11:00:00Z",
-    "decidedBy": "admin@client.com"
+    "decidedAt": "2026-11-08T11:00:00.000Z",
+    "decidedBy": "pay$client.com"
   },
-  "signature": {...},
-  "encryption": {...}
+  "signature": {
+    "algorithmHash": "sha256",
+    "value": "BASE64-SIGNATURE",
+    "fingerprint": "BASE64-FINGERPRINT"
+  },
+  "encryption": null
 }
 ```
 
@@ -410,27 +448,38 @@ Sender → Receiver: Invoice BTPS Artifact
 
 **BTPS Artifact Structure:**
 
-```json
+Under the trust above, which grants `send:invoice`, the invoice names its `documentType`:
+
+```json btps=transporter
 {
-  "version": "1.1.0",
-  "id": "invoice_1234567890",
+  "version": "1.2.0",
+  "id": "3a7c9d51-be4f-41a2-8260-5f8ead2c4137",
+  "issuedAt": "2026-11-08T12:00:00.000Z",
   "type": "BTPS_DOC",
   "from": "billing$vendor.com",
   "to": "pay$client.com",
   "selector": "btps1",
+  "documentType": "invoice",
   "document": {
     "type": "invoice",
     "title": "Monthly Service Invoice",
     "id": "INV-2025-001",
-    "issuedAt": "2025-01-15T10:30:00Z",
+    "issuedAt": "2026-11-08T12:00:00.000Z",
     "totalAmount": {
       "amount": 150000,
       "currency": "USD"
     },
-    "lineItems": {...}
+    "lineItems": {
+      "columns": ["Description", "Amount"],
+      "rows": [{ "Description": "Monthly service", "Amount": 150000 }]
+    }
   },
-  "signature": {...},
-  "encryption": {...}
+  "signature": {
+    "algorithmHash": "sha256",
+    "value": "BASE64-SIGNATURE",
+    "fingerprint": "BASE64-FINGERPRINT"
+  },
+  "encryption": null
 }
 ```
 

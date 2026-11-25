@@ -20,7 +20,7 @@ cannot write characters the document does not carry. The shapes of those
 characters are the sender's glyph outlines, which are not checked
 ([Glyph shapes are the sender's](./security.md#glyph-shapes-are-the-senders)).
 
-```json
+```json sketch
 { "field": "totalAmount", "format": { "money": { "group": ",", "decimal": ".", "prefix": "A$" } } }
 { "field": "dueAt", "format": { "date": "d MMM yyyy" } }
 { "field": "issuer.identifiers.au:abn", "format": { "groups": { "sizes": [2, 3, 3, 3], "separator": " " } } }
@@ -117,7 +117,7 @@ document ([Checks](./checks.md#two-outcomes)).
 
 ### Money
 
-```json
+```json sketch
 { "money": { "group": ",", "decimal": ".", "prefix": "A$", "suffix": "" } }
 ```
 
@@ -145,7 +145,7 @@ always the signed amount.
 
 ### Date
 
-```json
+```json sketch
 { "date": "d MMM yyyy" }
 ```
 
@@ -168,7 +168,7 @@ Month names are English: `Jan` to `Dec`, `January` to `December`.
 
 ### Percent
 
-```json
+```json sketch
 { "percent": { "decimals": 0, "decimal": "." } }
 ```
 
@@ -177,7 +177,7 @@ For `discount.percent`, whole basis points: 1000 is drawn `10%` with
 
 ### Groups
 
-```json
+```json sketch
 { "groups": { "sizes": [2, 3, 3, 3], "separator": " " } }
 ```
 
@@ -203,21 +203,21 @@ A value the page wraps over two lines, or splits across two elements, is
 bound in pieces, one `text` element a piece. `25 November 2026`, wrapped
 after `November`:
 
-```json
+```json sketch
 { "field": "dueAt", "format": { "date": "d MMMM yyyy" }, "range": [0, 11] }
 { "field": "dueAt", "format": { "date": "d MMMM yyyy" }, "range": [12, 16] }
 ```
 
 `INV-0042`, drawn as `INV-` and `0042` in two elements side by side:
 
-```json
+```json sketch
 { "field": "id", "range": [0, 4] }
 { "field": "id", "range": [4, 8] }
 ```
 
 A letter's body, over two lines:
 
-```json
+```json sketch
 { "field": "body.content", "range": [0, 39] }
 { "field": "body.content", "range": [40, 76] }
 ```

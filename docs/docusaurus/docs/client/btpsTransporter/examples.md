@@ -13,6 +13,7 @@ The transporter delivers artifacts you have already signed. The examples sign wi
 import { parseIdentity } from '@btps/sdk';
 import { signEncrypt } from '@btps/sdk/crypto';
 import type { PemKeys } from '@btps/sdk/crypto';
+import { artifactVersion } from '@btps/sdk/server';
 import type { BTPArtifactType, BTPDocType, BTPTransporterArtifact } from '@btps/sdk/server';
 
 const from = 'billing$acme.com';
@@ -29,7 +30,8 @@ async function signArtifact(
   const { payload, error } = await signEncrypt(
     to,
     { accountName, domainName, pemFiles: keys },
-    { version: '1.1.0', type, from, to, selector, document },
+    // 1.1.0 unless the document uses something 1.2 adds, then 1.2.0
+    { version: artifactVersion({ type, document }), type, from, to, selector, document },
     {
       signature: { algorithmHash: 'sha256' },
       ...(encrypt && { encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' } }),

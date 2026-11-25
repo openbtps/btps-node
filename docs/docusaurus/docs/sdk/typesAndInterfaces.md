@@ -35,6 +35,10 @@ interface BtpsServerOptions {
   middlewarePath?: string;
   maxArtifactSizeKb?: number;
   maxArtifactAgeSeconds?: number;
+  maxInFlightPerConnection?: number;
+  maxConsecutiveInvalidLines?: number; // since 1.2
+  retiredKeyGraceSeconds?: number; // since 1.2
+  keyChainMaxCacheSeconds?: number; // since 1.2
 }
 ```
 
@@ -53,6 +57,10 @@ interface BtpsServerOptions {
 - `middlewarePath`: Optional path to middleware file
 - `maxArtifactSizeKb`: Optional largest artifact the server can accept, in KB, where 1 KB is 1024 bytes (default: 5120, that is 5 MB). An artifact over it is refused before it is read in full, with the limit in the error message, and the connection is closed. The minimum is 1024 (1 MB): a smaller value logs a warning and 1024 is used, and a value that is not a size logs a warning and the default is used. There is no maximum.
 - `maxArtifactAgeSeconds`: Optional time window, in seconds: how far a signed artifact's `issuedAt` may be from the server's clock, either way (default: 300, that is 5 minutes). An artifact outside it is refused after its signature is checked, with the window in the error message, and the connection stays open. The minimum is 60: a smaller value logs a warning and 60 is used, and a value that is not a time logs a warning and the default is used. There is no maximum. Within the window the same artifact can arrive more than once, so a platform treats `(from, id)` as unique.
+- `maxInFlightPerConnection`: Optional. How many requests one connection may have handled at once; at the limit the server stops reading it until one finishes. A request is handled until its answer is written (default: 32, minimum: 1)
+- `maxConsecutiveInvalidLines`: Optional, since 1.2. How many lines in a row one connection may send that the server cannot read; it answers the last and ends the connection (default: 10, minimum: 1)
+- `retiredKeyGraceSeconds`: Optional, since 1.2. How long a key its identity rotated away from as planned still signs for this server (default: 86400, one day). A key rotated with immediate expiry gets none: it is refused with `BTP_ERROR_KEY_REVOKED`, and one past its grace with `BTP_ERROR_KEY_RETIRED`. See [Key rotation](../features/keyRotation.md)
+- `keyChainMaxCacheSeconds`: Optional, since 1.2. The longest the server trusts an identity's key chain from a cache, and so the longest a revoked key can still be taken (default: 300). A `keyResolver` with `resolveKeyChain` keeps its own cache, and must honour it
 
 The provider's own limit on details requests is middleware, since 1.2: `detailsRequestLimit` (see [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)).
 
@@ -89,18 +97,18 @@ interface BTPClientOptions {
 **Properties:**
 
 - `to`: Required recipient identity (e.g., 'billing$yourdomain.com')
-- `maxRetries`: Optional maximum retry attempts (default: 3)
+- `maxRetries`: Optional maximum retry attempts (default: 5)
 - `retryDelayMs`: Optional delay between retries in milliseconds (default: 1000)
 - `connectTimeoutMs`: Optional. How long to wait to connect, in milliseconds (default and minimum: 5000)
 - `replyTimeoutMs`: Optional. How long `send()` waits for the answer, in milliseconds (default: 20000, minimum: 10000). A value below a minimum is raised to it, with a warning
 - `connectionTimeoutMs`: Optional. Closes the connection after this long with no artifact waiting for an answer, in milliseconds; the client reconnects on the next send (off by default)
 - `btpMtsOptions`: Optional TLS connection options (excluding port and host)
 - `host`: Optional custom host override
-- `hostSelector`: Optional DNS selector for key management (default: 'btps1')
+- `hostSelector`: Optional, with `host`: the selector of the host's key (default: 'btps1')
 - `hostOperator`: Optional, with `host`: the identity operating that host, which must sign its identity lookup answers. Without `host`, the operator comes from DNS (`op` in `_btps.host`)
 - `requireSignedBy`: Optional, since 1.2. Takes no answer but one signed by this identity under this selector, as a provider's own app expects of its server: its domain's operator (for example `admin$saas.example` under `btps1`); an unsigned answer, or one by any other signer, is refused before any key is looked up. The signer's identity compares without case; its selector exactly. The provider's server signs its answers with `signAnswers`. It applies to answers on this client's own connection, a device's commands to its provider: `resolveIdentity` looks a receiver's key up on a connection of its own and checks that the answer is signed by the domain's operator instead, so the pin never stands in the way of a lookup. An identity-lookup answer that arrives on the pinned connection itself is taken: with one key pair, the operator is the pinned signer
 - `keyResolver`: Optional, since 1.2. Finds the keys the client checks and encrypts with: an answer's signer (`verify`), and in `resolveIdentity` the receiver's key (`encrypt`), asked in place of DNS, with the receiver's host still asked after it. `BtpsAgent` and `BtpsTransporter` take it too. See [BtpsKeyResolver](#btpskeyresolver)
-- `version`: Optional protocol version (default: '1.1.0')
+- `version`: Optional, with `host`: the protocol version the host record would give (default: the SDK's own, '1.2.0'). It is reported, never checked
 - `port`: Optional custom port override
 - `maxQueue`: Optional maximum queue size for request handling (default: 100)
 
@@ -192,7 +200,7 @@ Event types emitted by BTPS client instances.
 
 ```ts
 type BtpsClientEvents = {
-  connected: () => void;
+  connected: (connectedInfo: BtpsClientConnectedInfo) => void;
   end: (endInfo: BtpsClientErrorInfo) => void;
   error: (errorInfo: BtpsClientErrorInfo) => void;
   message: (msg: BTPClientResponse & { validSignature: boolean }) => void;
@@ -202,7 +210,7 @@ type BtpsClientEvents = {
 
 **Events:**
 
-- `connected`: Emitted when connection is established
+- `connected`: Emitted when connection is established, with the identity, retries used, connection states and socket ([BtpsClientConnectedInfo](#btpsclientconnectedinfo))
 - `end`: Emitted when connection ends with error info
 - `error`: Emitted when an error occurs with error info
 - `message`: Emitted when a message is received with signature validation
@@ -280,7 +288,7 @@ type BtpsAgentDoc = BTPDocType | BTPAuthReqDoc | BTPAgentMutation | BTPIdsPayloa
 
 ### BtpsAgentCommandOptions
 
-Options for `BtpsAgent.command`: the [BTPCryptoOptions](#btpcryptooptions), plus `relatesTo` for events and, since 1.2, `syncOf` for a sync.
+Options for `BtpsAgent.command`: the [BTPCryptoOptions](#btpcryptooptions), plus the envelope fields some commands take. `signature` is optional here: the agent always signs with SHA-256. Which option each command takes: [Command Options](../client/btpsAgent/commands.md#command-options).
 
 ```ts
 type BtpsAgentCommandOptions = BTPCryptoOptions & {
@@ -303,6 +311,7 @@ interface BTPSyncOf {
 }
 ```
 
+- `id`: The id of the artifact the command sends, a UUID. Sent again under the same id after a lost answer, a document is kept once by its receiver. On `event.send`, only the event's own id
 - `relatesTo`: Required on `event.send` and refused on every other action but the details ones: the `id` of the `BTPS_DOC` artifact that delivered the invoice the event is about. It is set on the `BTPS_EVENT` envelope, outside the encrypted document, so the receiving server can check it without decrypting. Since 1.2, it is also required on `details.respond` (the `DETAILS_REQ` it answers) and allowed on `details.request` (the `DETAILS_CHANGED` it follows)
 - `details`: Since 1.2, required on `details.changed`, `details.request` and `details.respond`, and refused elsewhere: the `detail:` names the artifact is about, set on its envelope. A `details.respond` also needs `encryption`. See [Details refresh](../protocol/specifications/transporter-artifact.md#details-refresh)
 - `syncOf`: Since 1.2, on `artifact.send` to the device's own address only, and refused elsewhere: this send is a sync, the user's own copy of the send it names. `syncOfArtifact(sentArtifact)` gives it. It is set on the envelope and stamps the artifact `1.2.0`. See [Sync](../protocol/specifications/transporter-artifact.md#sync)
@@ -431,7 +440,6 @@ interface CreateAgentOptions {
   publicKey: string;
   agentInfo?: Record<string, string | string[]>;
   decidedBy: string;
-  decryptBy: string;
   privacyType?: 'unencrypted' | 'encrypted' | 'mixed';
   trustExpiryMs?: number;
 }
@@ -443,7 +451,6 @@ interface CreateAgentOptions {
 - `publicKey`: Required public key for the agent
 - `agentInfo`: Optional agent information (device, OS, etc.)
 - `decidedBy`: Required identity that decided to create the agent
-- `decryptBy`: Required identity to decrypt by when decrypting documents
 - `privacyType`: Optional privacy level (default: 'encrypted')
 - `trustExpiryMs`: Optional trust expiry time in milliseconds
 
@@ -472,15 +479,15 @@ Response from authentication request operations.
 ```ts
 interface AuthRequestResponse {
   success: boolean;
-  response?: BTPAuthResDoc;
-  error?: BTPErrorException;
+  response?: Omit<BTPServerResponse, 'type' | 'document'> & { document: BTPAuthResDoc };
+  error?: Error;
 }
 ```
 
 **Properties:**
 
 - `success`: Whether the operation was successful
-- `response`: Authentication response document if successful
+- `response`: The server's answer if successful, its `document` the new session: `agentId`, `refreshToken`, `expiresAt`, `decryptBy`
 - `error`: Error if operation failed
 
 ### AuthAgentOptions
@@ -488,16 +495,10 @@ interface AuthRequestResponse {
 Options for agent authentication.
 
 ```ts
-interface AuthAgentOptions {
-  agentInfo?: Record<string, string | string[]>;
-  agentOptions?: Record<string, unknown>;
-}
+type AuthAgentOptions = Omit<BTPAgentOptions, 'btpIdentity' | 'agent'>;
 ```
 
-**Properties:**
-
-- `agentInfo`: Optional agent information
-- `agentOptions`: Optional agent-specific options
+The options of the `BtpsAgent` that `authenticate`, `refreshSession` and `rotateKey` open for the request: every [BTPAgentOptions](#btpagentoptions) option but `btpIdentity` and `agent`, such as `host`, `port`, timeouts and `btpMtsOptions`.
 
 ---
 
@@ -857,7 +858,9 @@ interface BTPBoundViewFont {
   descent: number;
   glyphs?: Record<string, { advance: number; path?: string }>; // one character to its outline; absent only when the font is just a fallback, named only by labels
   kerning?: Record<string, number>; // a pair of characters to an adjustment
-  fallback?: Array<'arimo' | 'tinos' | 'cousine' | 'carlito' | 'caladea' | 'sans-serif' | 'serif' | 'monospace'>; // up to 4, tried in order: the first one the receiver holds. For labels only, never a bound value
+  fallback?: Array<
+    'arimo' | 'tinos' | 'cousine' | 'carlito' | 'caladea' | 'sans-serif' | 'serif' | 'monospace'
+  >; // up to 4, tried in order: the first one the receiver holds. For labels only, never a bound value
 }
 
 interface BTPBoundViewImage {
@@ -868,13 +871,56 @@ interface BTPBoundViewImage {
 }
 
 type BTPBoundViewElement =
-  | { type: 'rect'; x: number; y: number; width: number; height: number; radius?: number | number[]; fill?: BTPPaint; stroke?: BTPPaint; strokeWidth?: number; opacity?: number }
-  | { type: 'line'; from: [number, number]; to: [number, number]; stroke: BTPPaint; strokeWidth: number; dash?: [number, number]; opacity?: number }
-  | { type: 'path'; d: string; fill?: BTPPaint; stroke?: BTPPaint; strokeWidth?: number; opacity?: number; fillRule?: 'nonzero' | 'evenodd' }
-  | { type: 'image'; image: string; x: number; y: number; width: number; height: number; radius?: number | number[]; opacity?: number }
+  | {
+      type: 'rect';
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      radius?: number | number[];
+      fill?: BTPPaint;
+      stroke?: BTPPaint;
+      strokeWidth?: number;
+      opacity?: number;
+    }
+  | {
+      type: 'line';
+      from: [number, number];
+      to: [number, number];
+      stroke: BTPPaint;
+      strokeWidth: number;
+      dash?: [number, number];
+      opacity?: number;
+    }
+  | {
+      type: 'path';
+      d: string;
+      fill?: BTPPaint;
+      stroke?: BTPPaint;
+      strokeWidth?: number;
+      opacity?: number;
+      fillRule?: 'nonzero' | 'evenodd';
+    }
+  | {
+      type: 'image';
+      image: string;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      radius?: number | number[];
+      opacity?: number;
+    }
   | ({ type: 'text'; bind: BTPBinding } & BTPTextBox)
   | ({ type: 'label'; text: string } & BTPTextBox)
-  | { type: 'signature'; x: number; y: number; width: number; height: number; colour: string /* #rrggbb */ };
+  | {
+      type: 'signature';
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      colour: string /* #rrggbb */;
+    };
 
 interface BTPTextBox {
   x: number;
@@ -985,39 +1031,7 @@ type BTPEventFacts = {
 
 ---
 
-## Client Types
-
-### BtpsClientOptions
-
-Configuration options for BTPS clients.
-
-```ts
-interface BtpsClientOptions {
-  identity: string;
-  btpIdentityKey: string;
-  bptIdentityCert: string;
-  maxRetries?: number;
-  retryDelayMs?: number;
-  connectTimeoutMs?: number;
-  replyTimeoutMs?: number;
-  connectionTimeoutMs?: number;
-  btpMtsOptions?: Omit<ConnectionOptions, 'port' | 'host'>;
-  host?: string;
-  port?: number;
-}
-```
-
-**Properties:**
-
-- `identity`: BTPS identity (e.g., `billing$yourdomain.com`)
-- `btpIdentityKey`: PEM-encoded private key
-- `bptIdentityCert`: PEM-encoded public key certificate
-- `maxRetries`: Maximum retry attempts (default: 5)
-- `retryDelayMs`: Delay between retries in milliseconds (default: 1000)
-- `connectionTimeoutMs`: Connection timeout in milliseconds
-- `btpMtsOptions`: Additional TLS connection options
-- `host`: Optional host override
-- `port`: Optional port override
+## Client Event Types
 
 ### BTPSRetryInfo
 
@@ -1031,19 +1045,6 @@ interface BTPSRetryInfo {
 }
 ```
 
-### BtpsClientEvents
-
-Event types for client event emitters.
-
-```ts
-type BtpsClientEvents = {
-  connected: () => void;
-  end: (endInfo: BTPSRetryInfo) => void;
-  error: (errorInfo: BTPSRetryInfo & { error: BTPErrorException }) => void;
-  message: (msg: BTPServerResponse) => void;
-};
-```
-
 ### TypedEventEmitter
 
 Typed event emitter for client events.
@@ -1051,50 +1052,13 @@ Typed event emitter for client events.
 ```ts
 type TypedEventEmitter<T = BtpsClientEvents> = {
   on<K extends keyof T>(event: K, listener: T[K]): void;
+  off<K extends keyof T>(event: K, listener: T[K]): void;
 };
-```
-
-### BTPClientResponse
-
-Response from client operations.
-
-```ts
-interface BTPClientResponse {
-  response?: BTPServerResponse;
-  error?: BTPErrorException;
-}
-```
-
-### SendBTPArtifact
-
-Artifact to be sent by clients.
-
-```ts
-interface SendBTPArtifact {
-  to: string;
-  type: string;
-  document: Record<string, unknown>;
-  [key: string]: unknown;
-}
 ```
 
 ---
 
-## Authentication Types
-
-### ServerAuthConfig
-
-Configuration for server-side authentication.
-
-```ts
-interface ServerAuthConfig {
-  trustStore: AbstractTrustStore<BTPTrustRecord>;
-  tokenStore: TokenStore;
-  tokenConfig?: TokenConfig;
-  maxKeyAgeMs?: number; // since 1.2: the oldest a device key may be
-  refreshGraceMs?: number; // since 1.2: how long a rotated refresh token still works for a retry; default 30 000, 0 off
-}
-```
+## Authentication Events, Stores and Keys
 
 ### BtpsAuthenticationEvents
 
@@ -1119,19 +1083,6 @@ interface BTPRefreshTokenReusedInfo {
   identity: string;
   fingerprint?: string; // the revoked device's key, when its record was found
   at: string; // ISO 8601
-}
-```
-
-### TokenConfig
-
-Configuration for token generation and validation.
-
-```ts
-interface TokenConfig {
-  authTokenLength?: number;
-  authTokenAlphabet?: string;
-  authTokenExpiryMs?: number;
-  refreshTokenExpiryMs?: number;
 }
 ```
 
@@ -1214,34 +1165,9 @@ interface AuthSessionStore {
 }
 ```
 
-### CreateAgentOptions
-
-Options for creating a new agent.
-
-```ts
-interface CreateAgentOptions {
-  userIdentity: string;
-  publicKey: string;
-  agentInfo?: Record<string, string | string[]>;
-  decidedBy: string;
-  privacyType?: BTPTrustRecord['privacyType'];
-  trustExpiryMs?: number;
-}
-```
-
-### AuthValidationResult
-
-Result of authentication token validation.
-
-```ts
-interface AuthValidationResult {
-  isValid: boolean;
-  userIdentity?: string;
-  error?: Error;
-}
-```
-
 ### RefreshTokenValidationResult
+
+The shape of an inline parameter or return type, named here for reference; it is not an exported name.
 
 Result of refresh token validation.
 
@@ -1260,6 +1186,8 @@ type RefreshTokenValidationResult =
 
 ### ReissueRefreshTokenOptions
 
+The shape of an inline parameter or return type, named here for reference; it is not an exported name.
+
 Options for reissuing refresh tokens.
 
 ```ts
@@ -1271,36 +1199,14 @@ type ReissueRefreshTokenOptions = Omit<CreateAgentOptions, 'userIdentity' | 'pub
 
 ### ReissueRefreshTokenResult
 
+The shape of an inline parameter or return type, named here for reference; it is not an exported name.
+
 Result of refresh token reissuance.
 
 ```ts
 interface ReissueRefreshTokenResult {
   data?: BTPAuthResDoc;
   error?: BTPErrorException;
-}
-```
-
-### AuthRequestResponse
-
-Response from authentication requests.
-
-```ts
-interface AuthRequestResponse {
-  success: boolean;
-  response?: BTPAuthResDoc;
-  error?: BTPErrorException;
-}
-```
-
-### AuthAgentOptions
-
-Options for agent authentication.
-
-```ts
-interface AuthAgentOptions {
-  host?: string;
-  port?: number;
-  connectionTimeoutMs?: number;
 }
 ```
 
@@ -1413,21 +1319,11 @@ type ParsedIdentity = {
 
 ---
 
-## Delegation Types
-
-### BtpsDelegatorOptions
-
-Configuration options for the delegator.
-
-```ts
-type BtpsDelegatorOptions = {
-  identity: string;
-  autoInit?: boolean;
-  keyResolver?: BtpsKeyResolver; // since 1.2
-} & ({ privateKey: PemKeys['privateKey'] } | { signer: Signer });
-```
+## Delegation Context
 
 ### OnBehalfOfOptions
+
+The shape of an inline parameter or return type, named here for reference; it is not an exported name.
 
 Options for custom domain delegations.
 
@@ -1882,18 +1778,6 @@ interface BTPAuthResDoc {
 }
 ```
 
-### BTPAgentMutation
-
-Agent mutation document.
-
-```ts
-interface BTPAgentMutation {
-  type: 'create' | 'update' | 'delete';
-  agentId: string;
-  data?: Record<string, unknown>;
-}
-```
-
 ### BTPIdsPayload
 
 IDs payload document.
@@ -1902,17 +1786,6 @@ IDs payload document.
 interface BTPIdsPayload {
   ids: string[];
   [key: string]: unknown;
-}
-```
-
-### BTPAgentQuery
-
-Agent query document.
-
-```ts
-interface BTPAgentQuery {
-  query: string;
-  parameters?: Record<string, unknown>;
 }
 ```
 
@@ -2480,12 +2353,12 @@ interface BTPEncryption {
 }
 ```
 
-### SignatureAlgorithmType
+### SignatureAlgorithmHash
 
-Supported signature algorithms.
+The signature hash: `'sha256'` is the only one.
 
 ```ts
-type SignatureAlgorithmType = 'sha256';
+type SignatureAlgorithmHash = 'sha256';
 ```
 
 ### BTPSignature
@@ -2494,7 +2367,7 @@ Digital signature structure.
 
 ```ts
 interface BTPSignature {
-  algorithm: SignatureAlgorithmType;
+  algorithmHash: SignatureAlgorithmHash;
   value: string;
   fingerprint: string;
 }
@@ -2507,7 +2380,7 @@ Options for cryptographic operations.
 ```ts
 interface BTPCryptoOptions {
   signature: {
-    algorithm: SignatureAlgorithmType;
+    algorithmHash: SignatureAlgorithmHash; // 'sha256'
   };
   encryption?: {
     algorithm: EncryptionAlgorithmType;
@@ -2522,8 +2395,8 @@ interface BTPCryptoOptions {
 Response from cryptographic operations.
 
 ```ts
-interface BTPCryptoResponse<T = Record<string, unknown>> {
-  payload?: BTPCryptoArtifact<T>;
+interface BTPCryptoResponse<T = BTPDocType> {
+  payload?: BTPCryptoArtifact<T> | BTPServerResponse<T>;
   error?: BTPErrorException;
   shaped?: BTPShaped; // since 1.2: a trust request sent as its 1.1 receiver allows (see BTPClientResponse)
   boundView?: BTPBoundViewResult; // since 1.2: from decryptVerify, absent when the document carries no BoundView
@@ -2532,21 +2405,12 @@ interface BTPCryptoResponse<T = Record<string, unknown>> {
 
 ### BTPCryptoArtifact
 
-Artifact with cryptographic metadata.
+A signed agent or transporter artifact, its `document` typed as `T`: what `signEncrypt` returns, and what `decryptVerify` returns opened.
 
 ```ts
-interface BTPCryptoArtifact<T = Record<string, unknown>> {
-  version: string;
-  type: string;
-  id: string;
-  issuedAt: string;
-  from: string;
-  to: string;
-  document: T;
-  signature: string;
-  encryption?: string;
-  [key: string]: unknown;
-}
+type BTPCryptoArtifact<T = BTPDocType> =
+  | (Omit<BTPAgentArtifact, 'document'> & { document: T })
+  | (Omit<BTPTransporterArtifact, 'document'> & { document: T });
 ```
 
 ### BTPKeyConfig
@@ -2601,3 +2465,443 @@ type Middleware<T, U> = (req: T, res: U, next: Next) => Promise<void>;
 ```
 
 ---
+
+---
+
+## More Client Types (`@btps/sdk/client`)
+
+### BTPAgent
+
+```ts
+type BTPAgent =
+  | { id: string; identityKey: string; identityCert: string }
+  | { id: string; signer: Signer; decrypter?: Decrypter };
+```
+
+The `agent` option of `BtpsAgent`: its id and the device key, as a PEM key pair or a `Signer` (and `Decrypter`) holding it elsewhere, such as the device's keystore.
+
+### BtpsAgentCommandParams
+
+```ts
+type BtpsAgentCommandParams = {
+  actionType: AgentAction;
+  to: string;
+  document?: BtpsAgentDoc;
+  options?: BtpsAgentCommandOptions;
+};
+```
+
+The arguments of `BtpsAgent.command` as one object, as the agent checks them before it builds anything.
+
+### BtpsClientConnectedInfo
+
+```ts
+type BtpsClientConnectedInfo = {
+  identity: string;
+  retries: number;
+  states: ConnectionStates;
+  socket: TLSSocket;
+};
+```
+
+What a `BtpsClient` emits on `connected`.
+
+### BtpsHostDnsTxt
+
+```ts
+type BtpsHostDnsTxt = {
+  version: string;
+  hostname: string;
+  selector: string;
+  port: number;
+  operator?: string; // the identity operating the host (op=), when declared
+};
+```
+
+A domain's host record as `resolveBtpsHostDnsTxt` reads it, from `_btps.host` or from the client's `host` options.
+
+### BTPConnectionUpdate / BTPConnectionInternal
+
+```ts
+type BTPConnectionUpdate = { clientOptions?: BTPClientOptions; ttl?: number; maxQueue?: number };
+type BTPConnectionInternal = BTPConnection & {
+  timeout: NodeJS.Timeout;
+  listeners?: BtpsClientEvents;
+  inFlight: number; // sends waiting for their answer: never closed while any are
+  ttlSeconds?: number; // set by updateConnection; the transporter's own TTL otherwise
+};
+```
+
+How a `BtpsTransporter` keeps each connection. Exported for subclasses of the transporter; platforms rarely need them.
+
+---
+
+## More Server Types (`@btps/sdk/server`)
+
+### BTPDetailsNoteDoc
+
+```ts
+type BTPDetailsNoteDoc = { message?: string | { format: 'text' | 'markdown'; content: string } };
+```
+
+Since 1.2. What a `DETAILS_CHANGED` or `DETAILS_REQ` carries: no values, an optional note. Its names are on the envelope (`details`).
+
+### BTPShapedField
+
+```ts
+type BTPShapedField = 'permissions' | 'given' | 'entityType' | 'change' | 'own' | 'verification';
+```
+
+Since 1.2. What a trust request leaves out when its receiver's server speaks 1.1, as listed in `shaped` (`BTPShaped`).
+
+### BTPVersionedArtifact
+
+```ts
+type BTPVersionedArtifact = { type?: string; document?: unknown; [key: string]: unknown };
+```
+
+Since 1.2. An artifact before it is signed, as `artifactVersion` reads it: its type, its document, and the rest of its envelope.
+
+### BTPAgentDocument
+
+```ts
+type BTPAgentDocument =
+  | BTPTransporterArtifact
+  | BTPAuthReqDoc
+  | BTPAgentMutation
+  | BTPAgentQuery
+  | BTPIdsPayload
+  | string;
+```
+
+What an agent artifact's `document` may be: for a command that sends, the transporter artifact the device built.
+
+### BTPGenericArtifact
+
+```ts
+interface BTPGenericArtifact<T = string> {
+  version: string;
+  id: string;
+  document?: T;
+  issuedAt: string;
+  to: string;
+  signature: BTPSignature;
+}
+```
+
+The fields every signed artifact shares. Exported for code that handles any artifact alike.
+
+### BtpsServerEvents / BTPDetailsRequestedInfo / BTPDetailsSharedInfo
+
+```ts
+type BtpsServerEvents = {
+  detailsRequested: (info: BTPDetailsRequestedInfo) => void;
+  detailsShared: (info: BTPDetailsSharedInfo) => void;
+};
+interface BTPDetailsRequestedInfo {
+  from: string;
+  to: string;
+  names: string[];
+  at: string; // ISO 8601
+}
+type BTPDetailsSharedInfo = BTPDetailsRequestedInfo;
+```
+
+Since 1.2. What `BtpsServer.on(...)` tells its listeners: a details request arrived (`detailsRequested`), or one of this provider's devices sent a details response that passed every check (`detailsShared`). See [Details refresh](../features/detailsRefresh.md).
+
+### BtpsErrorAction
+
+```ts
+type BtpsErrorAction = 'destroy' | 'end';
+```
+
+What `res.sendError(error, action)` does to the connection after the error: `'destroy'` tears it down at once, `'end'` sends the error and closes it gently. Without an action, the connection stays open.
+
+### PreProcessedArtifact
+
+```ts
+type PreProcessedArtifact =
+  | { artifact: BTPTransporterArtifact; type: 'transporter'; boundView?: BTPBoundViewResult }
+  | { artifact: BTPAgentArtifact; type: 'agent'; respondNow: boolean }
+  | { artifact: BTPIdentityLookupRequest; type: 'identityLookup' }
+  | { artifact: BTPControlArtifact; type: 'control' };
+```
+
+`req.data` in `parsing` middleware: any artifact the server can parse, identity lookups and control artifacts included. From the next step on, `req.data` is a `ProcessedArtifact` (transporter or agent only).
+
+---
+
+## Middleware Lookup Types (`@btps/sdk/server/core`)
+
+Since 1.2. The platform's own lookups the opt-in middleware checks take. Each reads only records the platform keeps.
+
+```ts
+// agreementOrderCheck: the originator's record of an agreement, by the copy an answer names
+type BTPAgreementAnswersLookup = (query: {
+  relatesTo: string;
+  signer: string;
+  originator: string;
+}) => Promise<BTPAgreementAnswers | undefined>;
+
+// eventChainCheck: the lifecycle event with this id between these two identities, either direction
+type BTPEventLookup = (query: {
+  id: string;
+  from: string;
+  to: string;
+}) => Promise<BTPEventFacts | undefined>;
+
+// detailsResponseCheck: the envelope of the artifact with this id that passed between them
+type BTPArtifactLookup = (query: {
+  artifactId: string;
+  from: string;
+  to: string;
+}) => Promise<BTPDetailsEnvelope | undefined>;
+
+// detailsRequestLimit: true takes the request; { retryAfter } refuses it, in whole seconds
+type BTPDetailsRequestAllowance = (request: {
+  from: string;
+  to: string;
+  names: string[];
+}) => true | { retryAfter: number } | Promise<true | { retryAfter: number }>;
+```
+
+Each returns `undefined` when the platform holds no such record. See [Middleware](../server/middlewares.md).
+
+### IRateLimitOptions / CounterRecord / IMetricsTracker
+
+```ts
+interface IRateLimitOptions {
+  ipAddress?: number; // artifacts a second from one IP address (BtpsSimpleRateLimiter: 50)
+  fromIdentity?: number; // artifacts a second from one identity (BtpsSimpleRateLimiter: 10)
+  cleanupIntervalSec?: number; // how often old counters are dropped (60)
+  maxEntries?: number; // the most counters kept (100000)
+}
+interface CounterRecord {
+  count: number;
+  windowStart: number;
+}
+interface IMetricsTracker {
+  onMessageReceived(sender: string, recipient?: string): void;
+  onMessageRejected(sender: string, recipient: string, reason: string): void;
+  onError(error: Error): void;
+}
+```
+
+The options and counters of `BtpsSimpleRateLimiter`, and the contract `BtpsSimpleMetricsTracker` implements.
+
+---
+
+## Crypto Types (`@btps/sdk/crypto`)
+
+```ts
+type SignerAlgorithm = 'RSASSA_PKCS1_V1_5_SHA_256'; // the one signing algorithm, by its KMS name
+type DecrypterAlgorithm = 'aes-256-gcm'; // the one content cipher a Decrypter supports
+interface SignerPublicKey {
+  publicKey: string; // SPKI PEM
+  fingerprint: string;
+}
+interface PemSignerOptions {
+  publicKey: string;
+  privateKey: string;
+}
+interface PemDecrypterOptions {
+  privateKey: string;
+}
+// Since 1.2: an artifact's content key, wrapped to another key, kept beside the artifact
+type BTPContentKeySidecar = {
+  encryptedKey: string;
+  recipientFingerprint: string;
+};
+```
+
+`SignerPublicKey` is what `Signer.getPublicKey()` returns. `PemSignerOptions` and `PemDecrypterOptions` are the constructor options of `PemSigner` and `PemDecrypter`. `BTPContentKeySidecar` is what `wrapContentKeyFor` returns.
+
+---
+
+## Key Chain Types (`@btps/sdk/trust`)
+
+Since 1.2. The records of an identity's key chain and what checking one gives. See [Key rotation](../features/keyRotation.md).
+
+```ts
+type BTPRotatedKey = { selector: string; fingerprint: string; publicKey: string };
+type BTPKeyExpiryReason = 'compromised' | 'lost';
+
+// What a rotation record signs: the key `from` hands over to `to`
+type BTPKeyRotation = {
+  type: 'btps.keyRotation.v1';
+  identity: string;
+  from: BTPRotatedKey;
+  to: BTPRotatedKey;
+  at: string;
+  prev: string | null; // keyChainRecordHash of the record before, null for the first
+} & (
+  | { expiry: 'planned' }
+  | { expiry: 'immediate'; compromisedSince: string; reason: BTPKeyExpiryReason }
+);
+
+// What an expiry record signs: a key already rotated away from, found compromised
+type BTPKeyExpiry = {
+  type: 'btps.keyExpiry.v1';
+  identity: string;
+  key: { selector: string; fingerprint: string };
+  compromisedSince: string;
+  reason: BTPKeyExpiryReason;
+  at: string;
+  prev: string;
+};
+
+// `from` and `to` sign a rotation; the identity's `current` key signs an expiry
+type BTPKeyChainSignature = BTPSignature & { by: 'from' | 'to' | 'current' };
+
+// One record of the chain, with an optional RFC 3161 token over the same bytes
+type BTPKeyChainRecord =
+  | { rotation: BTPKeyRotation; signatures: BTPKeyChainSignature[]; timestamp?: string }
+  | { expiry: BTPKeyExpiry; signatures: BTPKeyChainSignature[]; timestamp?: string };
+
+// One key of a verified chain, and its window
+type BTPKeyChainKey = {
+  selector: string;
+  fingerprint: string;
+  publicKey: string;
+  validFrom?: string;
+  validUntil?: string;
+  rotatedAway?: 'planned' | 'immediate';
+  compromisedSince?: string;
+  reason?: BTPKeyExpiryReason;
+  expiredAt?: string;
+};
+
+// What DNS says of an identity, for checking its chain online
+type BTPKeyChainDns = { kind: 'hostOnly' } | { kind: 'published'; fingerprints: string[] };
+
+// What asking an identity's host for its chain gave (BtpsClient.lookupKeyChain)
+type BTPKeyChainLookup =
+  | { status: 'chain'; records: BTPKeyChainRecord[]; answer?: BTPServerResponse }
+  | { status: 'unavailable'; reason: string }
+  | { status: 'invalid'; reason: string };
+
+// The facts about a chain; it decides nothing (keyChainProblem is the online refusal)
+type BTPKeyChainFacts = {
+  chainValid: boolean;
+  problem?: string;
+  authorityUnverified: boolean; // a lost key's rotation the anchor cannot confirm
+  forked: boolean; // a key has two successors
+  keys: BTPKeyChainKey[];
+  branches?: { tip: string; void: boolean }[];
+  anchored: { by: 'kept-fingerprint' | 'online'; upTo: string } | false;
+};
+
+// A chain checked once (checkKeyChain), and its paths
+type BTPKeyChainNode = { record: BTPKeyChainRecord; index: number; hash: string };
+type BTPKeyChainPath = { nodes: BTPKeyChainNode[]; keys: BTPKeyChainKey[]; lost: boolean };
+type BTPCheckedKeyChain =
+  | { problem: string }
+  | { problem?: undefined; records: BTPKeyChainRecord[]; paths: BTPKeyChainPath[] };
+
+// Who signs a record: a key pair held here, or a Signer holding it elsewhere (a KMS)
+type BTPKeyHolder = { pemFiles: PemKeys } | { signer: Signer };
+```
+
+`BTPKeyHolder` is also what `signArrival` takes.
+
+---
+
+## Detail Value Types (`@btps/sdk/trust`)
+
+Since 1.2. The value each `detail:` permission carries, in a trust request's `own`, an answer's `details` and a `DETAILS_RES`.
+
+```ts
+// A tax or registration number, for any country (ISO 3166-1 alpha-2, e.g. 'AU')
+type BTPNumberInCountry = { number: string; country: string };
+
+// detail:profile: a display or trading name, logo, and website
+type BTPDetailProfile = {
+  displayName: string;
+  logo?: { sha256: string; source: string };
+  website?: string;
+};
+
+type BTPDetailValueOf = {
+  'detail:legalName': string;
+  'detail:profile': BTPDetailProfile;
+  'detail:email': string;
+  'detail:phone': string;
+  'detail:address': string;
+  'detail:taxNo': BTPNumberInCountry;
+  'detail:dob': string;
+  'detail:registrationNumber': BTPNumberInCountry;
+};
+```
+
+---
+
+## Evidence Key Chain Types (`@btps/sdk/trust`)
+
+Since 1.2. What an evidence bundle carries of a signing identity's key chain, and the facts `verifyEvidenceBundle` reports for it. See [Evidence bundles](../features/evidenceBundles.md).
+
+```ts
+// A signing identity's chain, as a bundle carries it
+type BTPEvidenceKeyChain = {
+  identity: string;
+  records: BTPKeyChainRecord[];
+  operatorAnswer?: BTPServerResponse; // the operator's signed lookup answer that served it
+};
+
+// When the bundle's builder received a statement, signed by it then (signArrival)
+type BTPEvidenceArrival = {
+  statementSha256: string;
+  arrivedAt: string;
+  receivedBy: string;
+  selector: string;
+  signature: BTPSignature;
+};
+
+// The operator's answer a bundle keeps with a chain
+type BTPEvidenceOperatorAnswerFacts = {
+  signedBy: string;
+  signatureValid: boolean;
+  answersThisChain: boolean;
+  operatorKeyAnchored: boolean;
+};
+
+// A signature's key, against its identity's chain: facts, never a verdict
+type BTPEvidenceKeyChainFacts = {
+  chainValid: boolean;
+  problem?: string;
+  keyInChain: boolean;
+  authorityUnverified: boolean;
+  operatorAnswer?: BTPEvidenceOperatorAnswerFacts;
+  forked: boolean;
+  reachesKey?: string;
+  anchored: BTPKeyChainFacts['anchored'];
+  rotatedAt?: string;
+  expiredImmediately?: { at: string; compromisedSince: string; reason: BTPKeyExpiryReason };
+  signedInWindow: boolean;
+  signedInWindowIndependently?: boolean;
+  disownedAfterTheFact?: boolean;
+};
+```
+
+---
+
+## BoundView Types (`@btps/sdk/boundview`)
+
+### BoundValue
+
+```ts
+type BoundValue =
+  | { kind: 'text'; text: string }
+  | { kind: 'date'; date: string }
+  | { kind: 'percent'; basisPoints: number }
+  | { kind: 'money'; amount: number; currency: string };
+```
+
+Since 1.2. A bound field's value, as `boundValue` gives it: text, a date, whole basis points, or an amount in minor units of its currency.
+
+### BTPBoundViewCheck
+
+```ts
+type BTPBoundViewCheck = 'wellFormed' | 'keyFacts' | 'shownInFull' | 'notHidden';
+```
+
+Since 1.2. The checks a BoundView must pass to be shown, as a `BTPBoundViewProblem` names the one it failed. Also from `@btps/sdk/server`. See [Checks](../protocol/specifications/boundview/checks.md).

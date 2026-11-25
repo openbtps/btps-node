@@ -10,7 +10,7 @@ BTPS delegation verification is a multi-step cryptographic process that ensures 
 
 ## 🔍 Verification Overview
 
-The delegation verification process consists of five steps that ensure complete authorization and authenticity:
+The delegation verification process consists of these steps that ensure complete authorization and authenticity:
 
 0. **Operator Check**: The delegator must be the sender domain's operator, or the sender itself
 1. **Attestation Requirement Check**: Determine if attestation is required
@@ -50,9 +50,10 @@ If attestation is required but not provided, the verification fails immediately.
 
 When attestation is present, the server verifies the third-party signature:
 
-1. **Resolve Attestor Public Key**: Look up the attestor's public key via DNS
-2. **Verify Attestation Signature**: Validate the attestation signature against delegation metadata
-3. **Reject if Invalid**: If verification fails, the entire delegation is rejected
+1. **Check the Attestor**: The attestation's `signedBy` must be the operator of the sender's domain (`BTP_ERROR_ATTESTATION_VERIFICATION` otherwise)
+2. **Resolve Attestor Public Key**: Look up the attestor's public key at the attestation's `selector`, via DNS or the server's `keyResolver`
+3. **Verify Attestation Signature**: Validate the attestation signature over the delegation, without its signature
+4. **Reject if Invalid**: If verification fails, the entire delegation is rejected
 
 **Attestation Purpose:**
 
@@ -64,8 +65,8 @@ When attestation is present, the server verifies the third-party signature:
 
 The server verifies that the delegator has properly authorized the delegation:
 
-1. **Resolve Delegator Public Key**: Look up the delegator's public key via DNS
-2. **Create Signed Message**: Combine the artifact with delegation metadata (excluding signature)
+1. **Resolve Delegator Public Key**: Look up the delegator's public key at the delegation's `selector`, via DNS or the server's `keyResolver`
+2. **Create Signed Message**: Combine the artifact with the delegation, without the delegation's signature and attestation: the delegation is signed before it is attested
 3. **Verify Delegation Signature**: Validate the signature using the delegator's public key
 4. **Reject if Invalid**: If verification fails, the delegation is rejected
 
@@ -89,6 +90,12 @@ Finally, the server verifies that the agent properly signed the original message
 - Ensures message integrity and authenticity
 - Confirms the agent has the private key corresponding to the public key in the delegation
 
+### **Since 1.2: Key Chains**
+
+Every key looked up in these steps (the attestor's, the delegator's) is also checked against its identity's key chain, served by its host: a key rotated away as planned is taken for `retiredKeyGraceSeconds` (a day by default), then refused with `BTP_ERROR_KEY_RETIRED`; a key rotated away with immediate expiry, or expired later, is refused at once with `BTP_ERROR_KEY_REVOKED`. An identity that never rotated has no chain, and its key is checked by DNS, as in 1.1. See [Key rotation](../../features/keyRotation.md).
+
+`verifyTransporterSignature` (`@btps/sdk/server`) runs these same steps outside a server, as `BtpsAgent.openResult` does.
+
 ## 🔐 DNS Resolution
 
 ### **Public Key Resolution**
@@ -103,7 +110,7 @@ The verification process relies on DNS to resolve public keys:
 dig TXT btps1._btps.identity.admin.saas.com
 
 # Expected response
-identity.admin.saas.com. 300 IN TXT "p=...public_key..."
+btps1._btps.identity.admin.saas.com. 300 IN TXT "k=rsa;v=1.2.0;p=...public_key..."
 ```
 
 #### **Attestor Public Key (if attestation present)**
@@ -113,27 +120,31 @@ identity.admin.saas.com. 300 IN TXT "p=...public_key..."
 dig TXT btps1._btps.identity.admin.saas.com
 
 # Expected response
-identity.admin.saas.com. 300 IN TXT "p=...public_key..."
+btps1._btps.identity.admin.saas.com. 300 IN TXT "k=rsa;v=1.2.0;p=...public_key..."
 ```
+
+The attestor is the domain's operator, so it is usually the same record as the delegator's. `v` is the version the host speaks; readers report it and never check it.
 
 ### **DNS Security Considerations**
 
-- **TTL Settings**: Use appropriate TTL for delegation records (60-300 seconds)
+- **TTL Settings**: Use appropriate TTL for key records (60-300 seconds)
 - **DNSSEC**: Enable DNSSEC for enhanced DNS security
 - **Multiple DNS Servers**: Implement fallback DNS resolution
-- **Caching**: Cache resolved public keys for performance
+- **Caching**: Cache resolved public keys through the server's `keyResolver` option; BTPS caches nothing itself
 
 ## 🚨 Error Handling
 
 ### **Common Error Scenarios**
 
-| Scenario                          | Error                                | Description                                   |
-| --------------------------------- | ------------------------------------ | --------------------------------------------- |
-| Missing attestation when required | `DELEGATION_INVALID`                 | Custom domain delegation requires attestation |
-| Invalid delegation signature      | `DELEGATION_SIG_VERIFICATION_FAILED` | Delegation signature verification failed      |
-| Invalid agent signature           | `DELEGATION_SIG_VERIFICATION_FAILED` | Agent signature verification failed           |
-| DNS resolution failed             | `RESOLVE_PUBKEY`                     | Public key resolution failed                  |
-| Invalid attestation               | `ATTESTATION_VERIFICATION_FAILED`    | Attestation signature verification failed     |
+| Scenario                                             | Error                                            | Description                                                     |
+| ---------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------- |
+| Delegator is neither the operator nor the sender     | `BTP_ERROR_DELEGATION_INVALID`                   | Or the sender's domain declares no operator                     |
+| Missing attestation when required                    | `BTP_ERROR_DELEGATION_INVALID`                   | A sender delegating for itself needs the operator's attestation |
+| Attestor is not the operator, or its signature fails | `BTP_ERROR_ATTESTATION_VERIFICATION`             | Attestation signature verification failed                       |
+| Invalid delegation signature                         | `BTP_ERROR_DELEGATION_SIG_VERIFICATION`          | Delegation signature verification failed                        |
+| Invalid agent signature                              | `BTP_ERROR_DELEGATION_SIG_VERIFICATION`          | Agent signature verification failed                             |
+| Public key not found, or a key chain refused         | `BTP_ERROR_RESOLVE_PUBKEY`                       | Public key resolution failed                                    |
+| A key its chain retired or revoked (since 1.2)       | `BTP_ERROR_KEY_RETIRED`, `BTP_ERROR_KEY_REVOKED` | See Key Chains above                                            |
 
 ### **Error Recovery**
 
@@ -150,8 +161,8 @@ The delegation verification is automatically integrated into the BtpsServer pipe
 
 1. **Artifact Parsing**: Parse and validate incoming JSON message
 2. **Delegation Detection**: Check if artifact contains delegation
-3. **Delegation Verification**: Apply the four-step verification process
-4. **Trust Verification**: Verify trust relationships
+3. **Delegation Verification**: Apply the verification steps above, in the signature verification step
+4. **Trust Verification**: Verify trust relationships, and since 1.2 the trust's permissions
 5. **Message Processing**: Process verified artifacts
 
 ### **Automatic Handling**
@@ -182,9 +193,9 @@ The BtpsServer automatically:
 
 ### **DNS Security**
 
-- Delegation records published in DNS TXT
-- Real-time verification without server dependency
-- Fast revocation through DNS record removal
+- Delegator and attestor keys published in DNS TXT; delegations themselves travel in the artifact
+- Verification needs no call to the delegator's server, except, since 1.2, to fetch an identity's key chain
+- Revoking a device is the provider's: it stops delegating for it. Removing a key's DNS record, or since 1.2 rotating it away with immediate expiry, stops every delegation signed by that key
 - DNSSEC support for enhanced security
 
 ### **Error Handling**
@@ -223,7 +234,7 @@ The BtpsServer automatically:
 
 Developers implementing delegation need to:
 
-1. **Follow the Specification**: Ensure delegation structure matches the specification
+1. **Follow the Specification**: Ensure delegation structure matches the specification, and use `BtpsDelegator` rather than building one by hand
 2. **Handle Attestation Requirements**: Provide attestation when `signedBy === from`
 3. **Sign Correctly**: Agent signs the original artifact, delegator signs the delegation
 4. **Publish DNS Records**: Ensure public keys are available via DNS
@@ -233,10 +244,10 @@ Developers implementing delegation need to:
 
 BtpsServer users need to:
 
-1. **Configure DNS**: Publish delegation records with appropriate TTL
+1. **Configure DNS**: Publish the operator's key, and `op=` in `_btps.host`, with appropriate TTL
 2. **Provide Attestation**: When required for custom domain delegations
 3. **Monitor Failures**: Check logs for delegation verification errors
-4. **Handle Revocation**: Remove DNS records to revoke delegations
+4. **Handle Revocation**: Stop delegating for a revoked device; rotate away a compromised operator key
 
 ### **Key Points**
 

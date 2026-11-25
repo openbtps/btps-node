@@ -18,25 +18,29 @@ Install the SDK from npm:
 <TabItem value="npm" label="npm">
 
 ```bash
-npm install @btps/sdk
+npm install @btps/sdk@next
 ```
 
 </TabItem>
 <TabItem value="yarn" label="yarn">
 
 ```bash
-yarn add @btps/sdk
+yarn add @btps/sdk@next
 ```
 
 </TabItem>
 <TabItem value="pnpm" label="pnpm">
 
 ```bash
-pnpm add @btps/sdk
+pnpm add @btps/sdk@next
 ```
 
 </TabItem>
 </Tabs>
+
+:::note
+These pages describe 1.2, which is the `next` release until 1.2.0 ships: without `@next`, a package manager installs the latest 1.1 release. See [Migrating from 1.1 to 1.2](../whats-new/version-1-2-migration.md).
+:::
 
 ## 2. Trust Store Selection
 
@@ -60,27 +64,47 @@ BTPS requires a trust store to manage trust relationships. There are two main op
 
 The `BtpsServer` class accepts the following options:
 
-| Option           | Type         | Description                                                                                                         |
-| ---------------- | ------------ | ------------------------------------------------------------------------------------------------------------------- |
-| `port`           | `number`     | Port to listen on (default: 3443)                                                                                   |
-| `trustStore`     | `TrustStore` | Trust store instance (see above)                                                                                    |
-| `middlewarePath` | `string`     | Path to middleware file (optional, default: btps.middleware.mjs)                                                    |
-| `onError`        | `function`   | Optional error handler callback. When set, the server no longer also writes each failed artifact to `console.error` |
-| `options`        | `object`     | TLS options (certs, keys, etc.)                                                                                     |
+| Option                       | Type                    | Required | Description                                                                                                                                                           |
+| ---------------------------- | ----------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `serverIdentity`             | object                  | Yes      | The server's identity, the domain's operator, with its PEM `publicKey` and `privateKey` or a `signer`. Since 1.2, `selector`: the selector its key is published under |
+| `trustStore`                 | `AbstractTrustStore`    | Yes      | Trust store instance (see above)                                                                                                                                      |
+| `tlsOptions`                 | `BtpsTlsOptions`        | Yes      | Node TLS options, with the certificate (`cert`) and its key (`key`) as PEM strings                                                                                    |
+| `identityStore`              | `AbstractIdentityStore` | No       | Answers identity lookups for addresses with no DNS key, and, since 1.2, serves key chains                                                                             |
+| `port`                       | `number`                | No       | Port to listen on (default: 3443)                                                                                                                                     |
+| `middlewarePath`             | `string`                | No       | Path to the middleware file (default: `btps.middleware.mjs` in the working directory; a missing default file is skipped)                                              |
+| `onError`                    | `function`              | No       | Error handler. When set, the server no longer also writes each failed artifact to `console.error`                                                                     |
+| `connectionTimeoutMs`        | `number`                | No       | Closes a connection after this long with no request being handled (default: 30000)                                                                                    |
+| `maxArtifactSizeKb`          | `number`                | No       | The largest artifact accepted, in KB (default: 5120, minimum: 1024)                                                                                                   |
+| `maxArtifactAgeSeconds`      | `number`                | No       | How far `issuedAt` may be from the server's clock (default: 300, minimum: 60)                                                                                         |
+| `maxInFlightPerConnection`   | `number`                | No       | Requests one connection may have handled at once (default: 32, minimum: 1)                                                                                            |
+| `signAnswers`                | `boolean`               | No       | Since 1.2: sign every answer, for devices that require it (`requireSignedBy`). Needs `serverIdentity.selector`                                                        |
+| `keyResolver`                | `BtpsKeyResolver`       | No       | Since 1.2: finds every key the server checks, in place of DNS, so you can cache them                                                                                  |
+| `entityTypeOf`               | `function`              | No       | Since 1.2: whether one of your addresses is a `person` or an `organisation`                                                                                           |
+| `maxConsecutiveInvalidLines` | `number`                | No       | Since 1.2: unreadable lines in a row before the connection is ended (default: 10)                                                                                     |
+| `retiredKeyGraceSeconds`     | `number`                | No       | Since 1.2: how long a key rotated away as planned still signs (default: 86400)                                                                                        |
+| `keyChainMaxCacheSeconds`    | `number`                | No       | Since 1.2: the longest a key chain is trusted from a cache (default: 300)                                                                                             |
+
+Every option, with its details: [BtpsServerOptions](../sdk/typesAndInterfaces.md#btpsserveroptions).
 
 **Example:**
 
 ```js
+import { readFileSync } from 'fs';
 import { BtpsServer } from '@btps/sdk/server';
 import { JsonTrustStore } from '@btps/sdk/trust';
 const trustStore = new JsonTrustStore({ connection: './trust.json' });
 const server = new BtpsServer({
+  serverIdentity: {
+    identity: 'admin$yourdomain.com', // the operator named by op= in your _btps.host record
+    publicKey: readFileSync('./keys/public.pem', 'utf8'),
+    privateKey: readFileSync('./keys/private.pem', 'utf8'),
+  },
   port: 3443,
   trustStore,
   middlewarePath: './btps.middleware.mjs',
   tlsOptions: {
-    cert: fs.readFileSync('./cert.pem'),
-    key: fs.readFileSync('./key.pem'),
+    cert: readFileSync('./cert.pem', 'utf8'),
+    key: readFileSync('./key.pem', 'utf8'),
     minVersion: 'TLSv1.2',
   },
   onError: (err) => {
@@ -93,21 +117,23 @@ For more details on custom trust stores and scaling, see [Advanced Usage](./adva
 
 ## 4. Middleware Setup
 
-Middleware enables custom validation, logging, rate limiting, and business logic. Place your middleware definitions in a file (default: `btps.middleware.mjs`).
+Middleware enables custom validation, logging, rate limiting, and business logic. Place your middleware definitions in a file (default: `btps.middleware.mjs`). Its default export is a function that returns the middleware array, or a module with `middleware` and lifecycle hooks.
 
 **Example Middleware File:**
 
 ```js
-export default [
-  {
-    stage: 'before',
-    type: 'parsing',
-    handler: async (ctx, res, next) => {
-      // Custom logic here
-      await next();
+export default function createMiddleware() {
+  return [
+    {
+      phase: 'before',
+      step: 'parsing',
+      handler: async (req, res, next) => {
+        // Custom logic here
+        await next();
+      },
     },
-  },
-];
+  ];
+}
 ```
 
 **Load custom middleware file:**
@@ -123,16 +149,16 @@ const server = new BtpsServer({
 
 **TLS is required.** Always use strong certificates in production.
 
-- `cert`: Path or buffer to your TLS certificate
-- `key`: Path or buffer to your private key
+- `cert`: Your TLS certificate, PEM
+- `key`: Its private key, PEM
 - `minVersion`: Minimum TLS version (recommended: 'TLSv1.2' or higher)
 
 **Example:**
 
 ```js
 tlsOptions: {
-  cert: fs.readFileSync('./cert.pem'),
-  key: fs.readFileSync('./key.pem'),
+  cert: readFileSync('./cert.pem', 'utf8'),
+  key: readFileSync('./key.pem', 'utf8'),
   minVersion: 'TLSv1.2',
 }
 ```
@@ -142,8 +168,7 @@ tlsOptions: {
 Start the server asynchronously:
 
 ```js
-await server.start();
-console.log('BTPS server running on port', server.port);
+await server.start(); // logs the port it listens on
 ```
 
 Stop the server gracefully:

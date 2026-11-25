@@ -12,20 +12,40 @@ Since 1.2. An identity's keys form a **key chain**: signed records, each of whic
 
 ## The key rotation record
 
-```json
+A real record, made by `signKeyRotation` with two test keys: each fingerprint is its key's, and both signatures verify.
+
+```json btps=keyChainRecord
 {
   "rotation": {
     "type": "btps.keyRotation.v1",
     "identity": "billing$vendor.example",
-    "from": { "selector": "btps1", "fingerprint": "…", "publicKey": "MIIBIjANBg…" },
-    "to": { "selector": "btps2", "fingerprint": "…", "publicKey": "MIIBIjANBg…" },
+    "from": {
+      "selector": "btps1",
+      "fingerprint": "9A/K7lYabzICKs1IZgNGCK6Rny1H5oQXqtOwTBpnFDY=",
+      "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3KoDrvjvh1uNcZSkpxEaa+yWt/SjzOIQyQGWqd7c+SOw2btni/KQkLJb77C8LDrvd5Bz8JPLB826IJN8OYC91FFvwkiC5ig71V4qXR2IsmaxvQqJQNXbo7Cvk5iEQMJrFV49qBPahGVnvnbNu7wgcOXY6AqwcJI16Az8GQIHyTYJOkabyxm/4zP2ok2UaBYqDOrpkrrx/MAZk2evW4p2JMRQJSoAXzxmg+FYcuUEU70NeND9/DSuD9FXUMD7cs+anJfGnnbqky+mrn5xu2Zfktt7WQcjA90PesaoaoUyRhGu2lXpQ2A5iXt0LVoDxl6LAz5wNW67DHrzRntZ9AB1QwIDAQAB"
+    },
+    "to": {
+      "selector": "btps2",
+      "fingerprint": "q8kugiUhgNRgiOgsB84Rbpjvwh6uk80BVEHRJT7poII=",
+      "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxGtLaLhCVKkXUHXYmVUwzA1JNn1Y2O5c1UciMD6evu5tTcgIrMZhrnlv5sjy9sxLrJSP72PmC0+U2mSrsrVsjMTdtgbTTD/qqWFbcp+almAcG4lSa5bc+tzindsAQJL73O1U48jClZ/quE5Yk34iIV6CGXEq5oBknYB51nAtYtC2b4aMpHACCshQQXQAcFfLUiT0QwDH72INZW5XYkFH4RUsHRB8a7bmrZSVM+5+nyIpdjOZBmiZaMguCgGe1/6DnHFiAwrRwLnma+YsyACzXHxWhmkG8EjNGKLc3S7jgoW5o9e5NtLhz2TtL3ZDzxDVx67k44Cl7Z4I86Gaf71QmQIDAQAB"
+    },
     "at": "2026-11-10T00:00:00.000Z",
-    "expiry": "planned",
-    "prev": null
+    "prev": null,
+    "expiry": "planned"
   },
   "signatures": [
-    { "by": "from", "algorithmHash": "sha256", "value": "…", "fingerprint": "…" },
-    { "by": "to", "algorithmHash": "sha256", "value": "…", "fingerprint": "…" }
+    {
+      "by": "from",
+      "algorithmHash": "sha256",
+      "value": "AyylHkQEwI1MEunuCL+Vs0Vrlv76ix6ilFtencxGjY1vQcU8ESJvUE+ixuUo++tMNcLYSoW1wye1mH3rw37ggZehs8NKwP7KLhgb6chVSZQ8JcHhTj1AfQFAuOGn7pTIOibfXJsKCS4O84Uw7OBN5ND4XeXOtUGh/Ilh1n/lU2H0SFbfs/ZqvU696Xbx79znUqCEXhW4wbgP1k6Ua7+HlpHUiAQcoDRXLxIfLV/2oO8mE+ut7neP6xd/+g0niG9fuwg3N+8i5qgrZsparFEV7hRKdajS3kw22GZQmtjK+QTc3NgWxWK9/erHNIkRu61rufPrKZGOk+ej/cMJ5K45jA==",
+      "fingerprint": "9A/K7lYabzICKs1IZgNGCK6Rny1H5oQXqtOwTBpnFDY="
+    },
+    {
+      "by": "to",
+      "algorithmHash": "sha256",
+      "value": "dWMbtjRS0WfS6nGz+p+kckSbHPPrnnBf/9wLskb0KiEgRRZmqRtnFV0/FqTIPiJml0700+0hkLPE/EEBNslIWGKqz5umFBOjZJOimYsmhhMn9Enuur4SD6kHsHaq6ksK6I1j+gSglASo+SRsBqvvQKffDw0uJ2p0tBJjeRjjGgUFPvj2H9TUNjfsBi5gkxSVGUGFoumOcwPbaw+5BshQmYxs8H7uNJNeMmFccy6J59h4HZzI/R4RWKp9MDSoWxFSLFAdvx/6oGPPqZzDxdWm8qO2gqiuJ4IUVHfxkKcX5bm1QuZWi/jRvRK4U8FlL56WI6Yz1tymJhe23NMxZxZcag==",
+      "fingerprint": "q8kugiUhgNRgiOgsB84Rbpjvwh6uk80BVEHRJT7poII="
+    }
   ]
 }
 ```
@@ -47,20 +67,30 @@ Every key is RSA, at least 2048 bits. Every record carries both public keys; the
 
 ### The expiry record
 
-A key the identity already rotated away from may turn out to have been compromised earlier. The identity's **current** key signs an expiry record; nothing rotates:
+A key the identity already rotated away from may turn out to have been compromised earlier. The identity's **current** key signs an expiry record; nothing rotates. This one, made by `signKeyExpiry`, follows the rotation above: its `prev` is that record's `keyChainRecordHash`, and it is signed by `btps2`'s key. The two together are a valid chain:
 
-```json
+```json btps=keyChainRecord
 {
   "expiry": {
     "type": "btps.keyExpiry.v1",
     "identity": "billing$vendor.example",
-    "key": { "selector": "btps1", "fingerprint": "…" },
+    "key": {
+      "selector": "btps1",
+      "fingerprint": "9A/K7lYabzICKs1IZgNGCK6Rny1H5oQXqtOwTBpnFDY="
+    },
     "compromisedSince": "2026-11-05T00:00:00.000Z",
     "reason": "compromised",
     "at": "2026-11-25T00:00:00.000Z",
-    "prev": "…"
+    "prev": "a674cde2d0e2ee4f5faf2b49122bcb4fd10e482ed71d8b3b649ce424de1ccd24"
   },
-  "signatures": [{ "by": "current", "algorithmHash": "sha256", "value": "…", "fingerprint": "…" }]
+  "signatures": [
+    {
+      "by": "current",
+      "algorithmHash": "sha256",
+      "value": "PbfCnONxcsIRDW/4xcRWnddiiiXBJPDYnuC6CuZeKJhN5uubO6lVIoFqvQJaLeDh3q/PzQEn7qrY/nULoBdwwLA1MrIlBTGZyTNQU4iq3maXE75PcFzDnp2P3Xt/2C/MdE8hbDny1NOPAhruJa3B5v9Ri/2KPPDwSZWnJxy7Kj2iRjuN0gVA69dNPe4q5qgcZkFZA3yr7+Ef8AKAMw7t9t2MPGxEigAudz+J7iSBTFowjw4ebtU7DY3ahdZQtByEfWGvVJhvkKr/xcCCokNecj0nNEM56oBExaDO94XJzuXT7iYYpWwEFPnOz5n9Duq0qI3JBSTnlLRMa/jybHb7jg==",
+      "fingerprint": "q8kugiUhgNRgiOgsB84Rbpjvwh6uk80BVEHRJT7poII="
+    }
+  ]
 }
 ```
 
@@ -91,7 +121,7 @@ A signature is in its key's window when the time it claims is in `[validFrom, va
 
 ## Anchoring
 
-A chain proves which key followed which; what ties it to the identity comes from outside the chain. No DNS record changes in 1.2.
+A chain proves which key followed which; what ties it to the identity comes from outside the chain. 1.2 adds no DNS record or field for it.
 
 | Anchor                                    | When    | What it confirms                                                                                                                                                                                                                                             |
 | ----------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

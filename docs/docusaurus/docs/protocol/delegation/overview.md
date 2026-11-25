@@ -69,10 +69,12 @@ sequenceDiagram
 
 ### 1. **Delegation Structure**
 
-```json
+A self-delegation (signed by the sender, `alice$saas.com`), so attested by the domain's operator:
+
+```json sketch
 {
   "delegation": {
-    "agentId": "device_agent_123",
+    "agentId": "btps_ag_3f2e1d0c-9b8a-4776-8554-433221100fed",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
     "signedBy": "alice$saas.com",
     "issuedAt": "2025-01-15T10:30:00Z",
