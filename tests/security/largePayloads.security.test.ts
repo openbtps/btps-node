@@ -88,9 +88,9 @@ describe('a large payload, under a hard cap on the heap', () => {
     const sealed = encryptBtpPayloadStream(document(), keys.publicKey);
     const out = createWriteStream(paths.payload, { encoding: 'utf8' });
     for await (const piece of sealed.payload) {
-      if (!out.write(piece)) await new Promise((done) => out.once('drain', done));
+      if (!out.write(piece)) await new Promise<void>((done) => out.once('drain', () => done()));
     }
-    await new Promise<void>((done) => out.end(done));
+    await new Promise<void>((done) => out.end(() => done()));
     const encryption = await sealed.encryption;
     const envelope = {
       version: '1.2.0',
