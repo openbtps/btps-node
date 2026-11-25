@@ -316,6 +316,44 @@ The exported defaults are `DEFAULT_MAX_ARTIFACT_SIZE_KB`,
 `DEFAULT_MAX_IN_FLIGHT_PER_CONNECTION` and `MIN_MAX_IN_FLIGHT_PER_CONNECTION`,
 from `@btps/sdk/server/core`.
 
+#### Large documents
+
+An agreement carrying several PDFs can be far larger than an invoice.
+`maxArtifactSizeKb` is the receiver's choice, with a floor of 1 MB and no
+ceiling, so a platform that receives large agreements raises it deliberately.
+
+Size it from the largest document you take. The payload travels as base64,
+which is about 4/3 of the document's bytes, and the envelope adds a little more.
+For documents of up to 105 MB, that is about 140 MB, so allow about 145 MB:
+
+```ts check
+import { BtpsServer, type BtpsServerOptions } from '@btps/sdk/server';
+
+// 105 MB documents: about 140 MB as base64, plus the envelope.
+const MAX_ARTIFACT_SIZE_KB = 148_480; // 145 MB
+
+export const largeDocumentServer = (options: BtpsServerOptions) =>
+  new BtpsServer({ ...options, maxArtifactSizeKb: MAX_ARTIFACT_SIZE_KB });
+```
+
+**The cost.** A BTPS server reads each artifact as one line, and holds it whole
+while it is parsed and its signature verified. The memory one artifact takes is
+several times its size. Size the server for that, and limit how many large
+artifacts it takes at once: `maxInFlightPerConnection` bounds how many one
+connection has handled at once.
+
+**Why the default stays 5 MB.** A server nobody configured should not be made
+to hold a very large artifact for each connection.
+
+**After receipt,** a platform does not have to hold the document whole again.
+With the stream functions, it views, stores or forwards it a piece at a time
+([Large payloads, a piece at a time](../security/decryption.md#large-payloads-a-piece-at-a-time)).
+
+**For senders.** A sender learns a receiver's limit only when an artifact is
+refused, with `BTP_ERROR_ARTIFACT_TOO_LARGE`. A document meant for any receiver
+should still stay under 1 MB, or under the default 5 MB for receivers known to
+use it.
+
 ## Client and transporter settings
 
 How long a sender waits, and how many connections it keeps. A value below the

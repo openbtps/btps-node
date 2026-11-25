@@ -24,6 +24,9 @@ is as in rc.3.3 below.
   and write exactly the artifacts the existing functions do, and those are
   unchanged. They run on Node.js only, as they use Node's `crypto`. See
   [Large payloads, a piece at a time](https://www.openbtps.org/docs/next/protocol/security/decryption#large-payloads-a-piece-at-a-time).
+- Docs: [Large documents](https://www.openbtps.org/docs/next/protocol/specifications/limits#large-documents),
+  on receiving them. `maxArtifactSizeKb` stays 5 MB by default; a platform
+  raises it deliberately, and sizes its server for what that holds.
 
 ## [1.2.0-rc.3.3] — 2026-11-25 (beta, release candidate)
 
