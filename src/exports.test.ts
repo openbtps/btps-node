@@ -37,7 +37,6 @@ const entryPoints: Array<[string, () => Promise<Record<string, unknown>>, string
       'BtpsServerRegistry',
       'BtpsServerSingletonFactory',
       'BtpsServerLightweightFactory',
-      'BtpsServerSyncFactory',
       'BtpsServerFactory',
       'BtpsSimpleMetricsTracker',
       'BtpsSimpleRateLimiter',
@@ -86,5 +85,14 @@ describe('package entry points', () => {
   it.each(entryPoints)('%s exports what a platform imports', async (_name, load, names) => {
     const exported = await load();
     for (const name of names) expect(exported[name], name).toBeDefined();
+  });
+
+  // Removed in 1.2.0-rc.3.3: a copy of BtpsServerLightweightFactory, and a queue nothing used.
+  it.each([
+    ['@btps/sdk/server', () => import('./server/index.js'), ['InMemoryQueue', 'BTPSMessageQueue']],
+    ['@btps/sdk/server/core', () => import('./server/libs/index.js'), ['BtpsServerSyncFactory']],
+  ] as const)('%s no longer exports what was removed', async (_name, load, names) => {
+    const exported: Record<string, unknown> = await load();
+    for (const name of names) expect(exported[name], name).toBeUndefined();
   });
 });
