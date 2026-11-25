@@ -50,6 +50,9 @@ rc.3.2 below; `@btps/boundview` is released in step, unchanged.
   optional in its type, as it always was in its schema: an artifact is always
   signed with SHA-256, the one algorithm BTPS signs with. Options with only
   `encryption` now typecheck.
+- `BtpsSimpleMetricsTracker.onError` takes any `Error`, as `IMetricsTracker`
+  declares, and logs one that is not a BTPS error by its name and message. It
+  threw on any error without `toJSON`.
 
 ## [1.2.0-rc.3.2] — 2026-11-22 (beta, release candidate)
 
