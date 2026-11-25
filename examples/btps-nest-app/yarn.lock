@@ -458,6 +458,7 @@ __metadata:
     pkijs: "npm:^4.0.1"
     proper-lockfile: "npm:^4.1.2"
     split2: "npm:^4.2.0"
+    stream-json: "npm:3.9.0"
     zod: "npm:^3.25.67"
   bin:
     btps-verify-evidence: ./bin/verify-evidence-bundle.mjs
@@ -6549,6 +6550,22 @@ __metadata:
   version: 2.0.1
   resolution: "statuses@npm:2.0.1"
   checksum: 10c0/34378b207a1620a24804ce8b5d230fea0c279f00b18a7209646d5d47e419d1cc23e7cbf33a25a1e51ac38973dc2ac2e1e9c647a8e481ef365f77668d72becfd0
+  languageName: node
+  linkType: hard
+
+"stream-chain@npm:^4.4.2":
+  version: 4.4.2
+  resolution: "stream-chain@npm:4.4.2"
+  checksum: 10c0/171d4f0ee4f4b697a22fed9734ad5e39a1190cb3dc9ffbae5682fd6036dddf3aefd3685a00a935c72b8478c34c800c031c078c2ec382356127df537fad6c30c9
+  languageName: node
+  linkType: hard
+
+"stream-json@npm:3.9.0":
+  version: 3.9.0
+  resolution: "stream-json@npm:3.9.0"
+  dependencies:
+    stream-chain: "npm:^4.4.2"
+  checksum: 10c0/07c2691057d874f78bb9dd1453666dbdd4e66819125def54140665677fd344f1156b756c9529aec212e6145bcb9a0c4ff3f5fc794fc607c58aa3881d596febb4
   languageName: node
   linkType: hard
 
