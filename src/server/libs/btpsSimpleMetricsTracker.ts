@@ -17,7 +17,12 @@ export class BtpsSimpleMetricsTracker implements IMetricsTracker {
     console.warn(`[Metrics] Rejected message from ${sender} to ${recipient}: ${reason}`);
   }
 
-  onError(error: BTPErrorException) {
-    console.error(`[Metrics] Error:`, error.toJSON());
+  /** Any error, as `IMetricsTracker` passes it: a BTPS error as its JSON, any other by its name and message. */
+  onError(error: Error) {
+    const logged =
+      error instanceof BTPErrorException
+        ? error.toJSON()
+        : { name: error.name, message: error.message };
+    console.error(`[Metrics] Error:`, logged);
   }
 }
