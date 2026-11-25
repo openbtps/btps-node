@@ -48,24 +48,3 @@ export class BtpsServerLightweightFactory {
     this.instance = null;
   }
 }
-
-/**
- * Synchronous factory that creates the server immediately
- * Use this only if you need the server instance right away
- */
-export class BtpsServerSyncFactory {
-  private static instance: BtpsServerInstance | null = null;
-
-  static async create(config: BtpsServerOptions): Promise<BtpsServerInstance> {
-    if (!this.instance) {
-      // This will import the full BtpsServer immediately
-      const { BtpsServer } = await import('../btpsServer.js');
-      this.instance = new BtpsServer(config);
-    }
-    return this.instance;
-  }
-
-  static reset() {
-    this.instance = null;
-  }
-}
