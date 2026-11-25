@@ -13,7 +13,7 @@ Delivery failure artifacts (`BTPDeliveryFailureArtifact`) are created by BTPS se
 
 ## Artifact Structure
 
-```json
+```json sketch
 {
   "id": "btps_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
@@ -45,6 +45,8 @@ Delivery failure artifacts (`BTPDeliveryFailureArtifact`) are created by BTPS se
 }
 ```
 
+The SDK does not make one: it gives the type (`BTPDeliveryFailureArtifact`) and its schema, and a platform builds it when a send cannot be delivered. `errorLog` is the platform's own, so its codes are too; where the failure is a BTPS refusal, the refusal's own code (such as `BTP_ERROR_TRUST_NOT_ALLOWED`) tells a device most. A device sees each send's outcome on its sentbox too, as `meta.delivery` ([Server Responses](./responses.md#2-query-result-document-btpqueryresult)).
+
 ## Required Fields
 
 - **id**: Unique message identifier (UUID v4 recommended)
@@ -60,7 +62,7 @@ Delivery failure artifacts (`BTPDeliveryFailureArtifact`) are created by BTPS se
 
 The document field contains detailed information about the delivery failure.
 
-```json
+```json sketch
 {
   "id": "failure_1234567890abcdef",
   "reason": "Connection timeout",
@@ -118,7 +120,7 @@ The document field contains detailed information about the delivery failure.
 
 The errorLog field contains detailed error information following the BTPErrorException format:
 
-```json
+```json sketch
 {
   "code": "CONNECTION_TIMEOUT",
   "message": "Connection to recipient server timed out after 30 seconds",
@@ -149,7 +151,7 @@ The errorLog field contains detailed error information following the BTPErrorExc
 
 When a server fails to deliver a transporter artifact to another server:
 
-```json
+```json sketch
 {
   "id": "btps_failure_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",
@@ -180,7 +182,7 @@ When a server fails to deliver a transporter artifact to another server:
 
 When an agent artifact fails to be processed by the server:
 
-```json
+```json sketch
 {
   "id": "btps_failure_1234567890abcdef",
   "issuedAt": "2025-01-15T10:30:00Z",

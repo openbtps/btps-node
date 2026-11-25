@@ -14,11 +14,11 @@ This document provides comprehensive guidelines for implementing and operating B
 
 #### **Proper Delegation Format**
 
-```json
+```json sketch
 // ✅ GOOD: Complete delegation structure
 {
   "delegation": {
-    "agentId": "device_agent_123",
+    "agentId": "btps_ag_3f2e1d0c-9b8a-4776-8554-433221100fed",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
     "signedBy": "alice$saas.com",
     "issuedAt": "2025-01-15T10:30:00Z",
@@ -54,13 +54,12 @@ This document provides comprehensive guidelines for implementing and operating B
 #### **Agent ID Management**
 
 ```typescript
-// ✅ GOOD: Unique, descriptive agent IDs
-const agentId = `device_${deviceType}_${deviceId}_${timestamp}`;
-// Example: "device_mobile_iphone15_20250115_103000"
+// ✅ GOOD: The device's own id, issued by the server when it registered
+// (btps_ag_… by default), as its agent artifact carries it
+const agentId = agentArtifact.agentId;
 
-// ❌ BAD: Generic or non-unique IDs
-const agentId = 'device'; // Too generic
-const agentId = '123'; // Not descriptive
+// ❌ BAD: An id of your own: it no longer names the device record its key and revocation live on
+const agentId = 'device';
 ```
 
 ### **2. Signature Verification**

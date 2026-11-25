@@ -13,48 +13,49 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
 
 ## Artifact Structure
 
-```json
+An invoice sent from Alice's phone, through her provider, under a trust with permissions:
+
+```json btps=transporter
 {
-  "version": "1.1.0",
-  "id": "btps_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
-  "type": "TRUST_REQ",
-  "from": "billing$vendorcorp.com",
-  "to": "pay$client.com",
-  "document": {
-    // Document-specific content (see Document Types section)
-  },
+  "version": "1.2.0",
+  "id": "6f0d8e2a-7b1c-4e3d-9a5f-1c2b3d4e5f60",
+  "issuedAt": "2026-11-08T01:00:00.000Z",
+  "type": "BTPS_DOC",
+  "from": "alice$saas.example",
+  "to": "pay$client.example",
+  "selector": "btps1",
+  "documentType": "invoice",
+  "document": "BASE64-OF-THE-ENCRYPTED-DOCUMENT",
   "signature": {
     "algorithmHash": "sha256",
-    "value": "base64-encoded-signature",
-    "fingerprint": "sha256-base64-fingerprint"
+    "value": "BASE64-SIGNATURE",
+    "fingerprint": "BASE64-FINGERPRINT"
   },
   "encryption": {
     "algorithm": "aes-256-gcm",
-    "encryptedKey": "base64-encoded-encrypted-key",
-    "iv": "base64-encoded-initialization-vector",
+    "encryptedKey": "BASE64-KEY",
+    "iv": "BASE64-IV",
     "type": "standardEncrypt",
-    "authTag": "base64-encoded-authentication-tag"
+    "authTag": "BASE64-TAG"
   },
-  "selector": "btps1",
   "delegation": {
-    "agentId": "agentId",
-    "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
-    "signedBy": "alice$saas.com",
-    "issuedAt": "2025-01-15T10:30:00Z",
+    "agentId": "btps_ag_3f2e1d0c-9b8a-4776-8554-433221100fed",
+    "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBg…\n-----END PUBLIC KEY-----",
+    "signedBy": "alice$saas.example",
+    "issuedAt": "2026-11-08T01:00:00.000Z",
     "signature": {
       "algorithmHash": "sha256",
-      "value": "base64-encoded-signature",
-      "fingerprint": "sha256-base64-fingerprint"
+      "value": "BASE64-SIGNATURE",
+      "fingerprint": "BASE64-FINGERPRINT"
     },
     "selector": "btps1",
     "attestation": {
-      "issuedAt": "2025-01-15T10:30:00Z",
-      "signedBy": "admin$saas.com",
+      "issuedAt": "2026-11-08T01:00:00.000Z",
+      "signedBy": "admin$saas.example",
       "signature": {
         "algorithmHash": "sha256",
-        "value": "base64-encoded-signature",
-        "fingerprint": "sha256-base64-fingerprint"
+        "value": "BASE64-SIGNATURE",
+        "fingerprint": "BASE64-FINGERPRINT"
       },
       "selector": "btps1"
     }
@@ -64,7 +65,7 @@ Transporter artifacts (`BTPTransporterArtifact`) are designed for automated serv
 
 **Required Fields:**
 
-- **version**: Protocol version (currently "1.0")
+- **version**: `1.1.0` or `1.2.0`: the lowest version that can say what the artifact carries (see [Protocol versions](../../features/versions.md)). A 1.2 server takes any `1.1.x` or `1.2.x`
 - **id**: Unique message identifier (UUID v4 recommended). A receiving platform treats `(from, id)` as unique and ignores a second copy, which can arrive within the time window (see [Server Requirements](./overview.md#server-requirements))
 - **issuedAt**: ISO 8601 timestamp of message creation. The receiving server refuses the artifact when this is outside its time window, 5 minutes either way by default, so an artifact is sent soon after it is signed
 - **type**: Artifact type (TRUST_REQ, TRUST_RES, BTPS_DOC, BTPS_EVENT; since 1.2, DETAILS_CHANGED, DETAILS_REQ, DETAILS_RES)
@@ -103,9 +104,11 @@ A name is one of the protocol's own, and nothing else. There are no provider-def
 | `given`        | `TRUST_REQ`                        | The `detail:` names the sender gives about itself, as permissions                                                                                        |
 | `change`       | `TRUST_REQ`                        | `true`: a change to an active trust, asking for the whole set of permissions now wanted                                                                  |
 | `granted`      | accepted `TRUST_RES`               | The names given. A rejected answer carries none, and may leave out `entityType`                                                                          |
-| `documentType` | `BTPS_DOC` under a trust with them | The type of the document it carries: `invoice`, `receipt`, `payslip` or `letter`                                                                         |
+| `documentType` | `BTPS_DOC` under a trust with them | The type of the document it carries: `invoice`, `receipt`, `payslip`, `letter` or `agreement`                                                            |
 
-```json
+The envelope's permission fields, the rest of the artifact left out:
+
+```json sketch
 {
   "type": "TRUST_REQ",
   "from": "billing$vendor.example",
@@ -162,8 +165,9 @@ The values are in the document, encrypted, so they are checked when it is opened
 - every other name's value is in `own`, keyed by name;
 - `own` holds nothing else: no name that is not given, and no value 1.1 has a field for.
 
-```json
+```json btps=document:TRUST_REQ
 {
+  "id": "4c1b2a40-1d7e-4f38-9a3a-5b6f2c7d8e90",
   "name": "Acme Pty Ltd",
   "email": "billing@acme.example",
   "phone": "+61 400 000 000",
@@ -174,9 +178,12 @@ The values are in the document, encrypted, so they are checked when it is opened
 
 **An answer** holds the value of every granted `detail:` name in `details`, keyed by name, and nothing else:
 
-```json
+```json btps=document:TRUST_RES
 {
+  "id": "8a2e5f10-3b4c-4d6e-8f90-a1b2c3d4e5f6",
   "decision": "accepted",
+  "decidedAt": "2026-11-08T00:05:00.000Z",
+  "decidedBy": "pay$client.example",
   "details": {
     "detail:legalName": "Robert Smith",
     "detail:profile": { "displayName": "Bob", "website": "https://client.example" }
@@ -200,7 +207,7 @@ Each value's length limit is on [Limits](./limits.md#trust-detail-values).
 
 **BTPS verifies no one and decides nothing about who is verified.** It gives a standard place for a signed statement, the checks only cryptography can do, and the facts a provider needs to decide for itself. A provider that has checked a sender (by documents, by staff, or automatically) signs a statement of what it checked, and the sender's request carries it in its document as `verification`:
 
-```json
+```json sketch
 {
   "verifiedBy": "admin$saas.example",
   "claims": {
@@ -211,9 +218,15 @@ Each value's length limit is on [Limits](./limits.md#trust-detail-values).
   "verifiedAt": "2026-11-01T00:00:00.000Z",
   "expiresAt": "2027-11-01T00:00:00.000Z",
   "selector": "btps1",
-  "signature": { "algorithmHash": "sha256", "value": "…", "fingerprint": "…" }
+  "signature": {
+    "algorithmHash": "sha256",
+    "value": "BASE64-SIGNATURE",
+    "fingerprint": "BASE64-FINGERPRINT"
+  }
 }
 ```
+
+A whole request carrying one is on [Verification](../../features/verification.md#the-statement).
 
 - **The claims** say exactly what was checked, by the protocol's names only: `entityType`, and `detail:` names with their values in their shapes (above). Any other key is refused.
 - **The signature** is `verifiedBy`'s, at its `selector`, over the RFC 8785 form of `{ subject, claims, verifiedAt, expiresAt, verifiedBy, selector }`, where `subject` is the request's `from`, so a statement cannot be copied into anyone else's request. `signVerification` in `@btps/sdk/trust` makes one.
@@ -298,7 +311,7 @@ A request that passes every check, the platform's middleware included, is told t
 
 Since 1.2. A user's devices keep the same sent items through a **sync**: after a device sends, it sends the user's own copy of that send to the user's own address, so the provider files it among the user's sent items and every other device of the user can fetch it. A sync is an ordinary `artifact.send` whose transporter artifact is from and to the same address, with its document encrypted to the user's own key, and which names the send it copies on its envelope:
 
-```json
+```json sketch
 {
   "from": "alice$saas.example",
   "to": "alice$saas.example",
@@ -308,6 +321,8 @@ Since 1.2. A user's devices keep the same sent items through a **sync**: after a
   }
 }
 ```
+
+A whole sync, with the send it names, is on [Devices](../../features/devices.md#sync).
 
 - `id` is the sent artifact's id. `sha256` is the lowercase hex SHA-256 of the sent artifact's RFC 8785 canonical form, signature included (`syncOfArtifact` in `@btps/sdk/crypto` computes both).
 - Like the rest of the envelope it is signed and stays readable, so the provider files the sync without opening it, and never delivers it anywhere.
@@ -324,9 +339,9 @@ Each document type's field limits are on [Limits](./limits.md#document-fields).
 
 Used to establish trust relationships between organizations.
 
-```json
+```json btps=document:TRUST_REQ
 {
-  "id": "uniqueUuid",
+  "id": "0d4f6a2e-8b1c-4e7a-9f3d-2c5b7a9e1f04",
   "name": "Acme Corporation",
   "email": "billing@acme.com",
   "reason": "To send monthly service invoices",
@@ -363,9 +378,9 @@ Used to establish trust relationships between organizations.
 
 Used to accept, reject, or block trust requests.
 
-```json
+```json btps=document:TRUST_RES
 {
-  "id": "uniqueUuid",
+  "id": "0d4f6a2e-8b1c-4e7a-9f3d-2c5b7a9e1f04",
   "decision": "accepted",
   "decidedAt": "2025-01-15T10:30:00Z",
   "decidedBy": "John Smith",
@@ -402,19 +417,28 @@ A document's `type` says which kind it is:
 
 The invoice is described first; the others share its money, attachments and references.
 
-```json
+```json btps=document:BTPS_DOC
 {
   "type": "invoice",
   "title": "Invoice #INV-2025-001",
   "id": "INV-2025-001",
   "issuedAt": "2025-01-15T10:30:00Z",
   "dueAt": "2025-02-15T10:30:00Z",
+  "recipient": { "name": "Client Inc." },
+  "subtotalAmount": { "amount": 150000, "currency": "USD" },
+  "taxAmount": { "amount": 0, "currency": "USD" },
   "totalAmount": {
     "amount": 150000,
     "currency": "USD"
   },
   "lineItems": {
     "columns": ["Description", "Quantity", "Unit Price", "Amount"],
+    "roles": {
+      "Description": "description",
+      "Quantity": "quantity",
+      "Unit Price": "unitPrice",
+      "Amount": "lineTotal"
+    },
     "rows": [
       {
         "Description": "Web Development Services",
@@ -435,28 +459,24 @@ The invoice is described first; the others share its money, attachments and refe
     "linkText": "Pay Invoice",
     "url": "https://pay.acme.com/inv/INV-2025-001"
   },
-  "description": "Monthly web development services for January 2025",
+  "description": {
+    "format": "markdown",
+    "content": "Web development for **January 2025**. Thank you for your business."
+  },
   "attachments": [
     {
-      "content": "base64-encoded-pdf-content",
+      "content": "JVBERi0xLjcgSW52b2ljZSBJTlYtMjAyNS0wMDE=",
       "type": "application/pdf",
       "filename": "invoice-INV-2025-001.pdf",
-      "size": 48213,
-      "sha256": "lowercase-hex-sha256-of-the-file"
+      "size": 29,
+      "sha256": "fc71100ddc0880be653f8110d8b4344d98bf45b2c45a3a5dd811d8dfebd8bddc"
     }
   ],
-  "template": {
-    "name": "standard-invoice",
-    "data": {
-      "logoUrl": "https://acme.com/logo.png",
-      "footerText": "Thank you for your business"
-    }
-  },
   "metadata": { "acme:orderId": "PO-7731" }
 }
 ```
 
-This example carries `template` and nothing 1.2 adds, so it is a `1.1.0` artifact. A `1.2.0` invoice leaves `template` out, and may carry a `boundView` instead.
+This example carries what 1.2 adds (`recipient`, the totals, line roles, a note with a format), so it travels in a `1.2.0` artifact. A `1.1.0` invoice has none of these, and may carry 1.1's `template` instead, which a `1.2.0` one never does. The attachment's `size` and `sha256` are its decoded content's.
 
 **Required Fields:**
 
@@ -528,7 +548,7 @@ So `{ "amount": 4997, "currency": "AUD" }` can only mean AUD 49.97. Whole number
 
 Each attachment carries the file itself, plus two facts the sender states about it:
 
-```json
+```json sketch
 {
   "content": "base64-encoded-file",
   "type": "application/pdf",
@@ -537,6 +557,8 @@ Each attachment carries the file itself, plus two facts the sender states about 
   "sha256": "lowercase-hex-sha256-of-the-file"
 }
 ```
+
+The invoice above carries a real one.
 
 - **content**: The file, base64 encoded
 - **type**: `application/pdf`, `image/jpeg` or `image/png`
@@ -564,7 +586,7 @@ Each receiving server sets the largest artifact it can accept: 5 MB unless it ch
 
 A document can point to other signed documents, for example a corrected invoice to the invoice it replaces:
 
-```json
+```json sketch
 "references": [
   {
     "type": "correction_of",
@@ -586,7 +608,7 @@ Whether the referenced document exists is for the receiving platform to check; t
 
 Proof that a payment was made. It is the invoice without what asks for payment (`dueAt` and `paymentLink`), with a required `payment`, and its `lineItems` are optional.
 
-```json
+```json btps=document:BTPS_DOC
 {
   "type": "receipt",
   "title": "Receipt #REC-2025-001",
@@ -604,7 +626,7 @@ Proof that a payment was made. It is the invoice without what asks for payment (
       "type": "receipt_for",
       "from": "billing$acme.com",
       "id": "INV-2025-001",
-      "sha256": "lowercase-hex-sha256"
+      "sha256": "5b1e0c9d7a4f3e2b8c6d1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d"
     }
   ]
 }
@@ -622,7 +644,7 @@ A receiver never shows a receipt as something to pay. An invoice's status still 
 
 An employee's pay for a period. Earnings, deductions, contributions and leave are each named by an open code, a bare or prefixed code like `ordinary`, `au:penalty` or `acme:wellbeing_day`, so a new allowance or a new country needs no protocol change. `description` is the name the employer prints, and is what a receiver shows.
 
-```json
+```json btps=document:BTPS_DOC
 {
   "type": "payslip",
   "title": "Payslip, 1–14 October 2025",
@@ -692,7 +714,7 @@ An employee's pay for a period. Earnings, deductions, contributions and leave ar
 
 Anything else: a notice, a statement, a plan change. It has a title and one body, and no money. A letter that asks for acceptance is an [agreement](#agreement), its own type.
 
-```json
+```json btps=document:BTPS_DOC
 {
   "type": "letter",
   "title": "Your new plan",
@@ -703,6 +725,12 @@ Anything else: a notice, a statement, a plan change. It has a title and one body
     "content": "# Welcome\n\nYour plan changes on **1 November**. The terms are attached."
   },
   "issuer": { "name": "Acme Telco" },
+  "recipient": { "name": "Alice Ng" },
+  "signatory": {
+    "name": "Jo Bloggs",
+    "title": "Director",
+    "visualSignature": { "type": "typed", "text": "Jo Bloggs" }
+  },
   "attachments": []
 }
 ```
@@ -718,25 +746,28 @@ Anything else: a notice, a statement, a plan change. It has a title and one body
 
 Since 1.2, in a `1.2.0` artifact only: a letter that asks its signers to accept it, such as a loan contract, a tenancy or a phone plan. It has every field a letter has, and may carry a BoundView and a signatory as a letter does. It also carries `acceptance`, which is required, and `originatorSignature`. A 1.1 receiver refuses it by version.
 
-```json
+```json btps=document:BTPS_DOC
 {
   "type": "agreement",
   "title": "Home loan agreement",
   "id": "AGR-1",
-  "issuedAt": "2026-11-01T00:00:00Z",
-  "body": { "format": "markdown", "content": "# Home loan\n\nThe terms are attached." },
+  "issuedAt": "2026-10-19T00:00:00.000Z",
+  "body": {
+    "format": "markdown",
+    "content": "# Home loan\n\nThe terms are attached. Each of you accepts them in turn."
+  },
   "attachments": [
     {
-      "content": "JVBERi0…",
+      "content": "JVBERi0xLjcgSG9tZSBsb2FuIHRlcm1zOiA2LjElIHAuYS4gb3ZlciAzMCB5ZWFycw==",
       "type": "application/pdf",
       "filename": "terms.pdf",
-      "size": 48213,
-      "sha256": "9f2c…"
+      "size": 49,
+      "sha256": "879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"
     }
   ],
   "acceptance": {
-    "by": "2026-11-30T00:00:00Z",
-    "terms": ["9f2c…"],
+    "by": "2026-11-30T00:00:00.000Z",
+    "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
     "signers": [
       { "address": "alice$client.example" },
       { "address": "sam$guarantor.example" },
@@ -746,10 +777,16 @@ Since 1.2, in a `1.2.0` artifact only: a letter that asks its signers to accept 
   },
   "originatorSignature": {
     "selector": "btps1",
-    "signature": { "algorithmHash": "sha256", "value": "…", "fingerprint": "…" }
+    "signature": {
+      "algorithmHash": "sha256",
+      "value": "BASE64-SIGNATURE",
+      "fingerprint": "BASE64-FINGERPRINT"
+    }
   }
 }
 ```
+
+Its `contentSha256`, as `agreementContentSha256` gives it, is `fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc`, and its one term is its attachment's `sha256`.
 
 - **`acceptance.signers`**: who accepts it, 1 to 20 BTPS addresses, each once, letters compared without case. The originator may be one of them, for example a bank that countersigns. It is signed content, so the list cannot change after sending.
 - **`acceptance.signingOrder`**: `sequential`, where the signers answer in list order, or `any`.
@@ -761,23 +798,31 @@ Since 1.2, in a `1.2.0` artifact only: a letter that asks its signers to accept 
 
 **A signer's answer is a signed statement** over the RFC 8785 form of:
 
-```json
+```json sketch
 {
-  "agreement": { "originator": "loans$bank.example", "id": "AGR-1", "contentSha256": "fabe…" },
-  "terms": ["9f2c…"],
+  "agreement": {
+    "originator": "loans$bank.example",
+    "id": "AGR-1",
+    "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+  },
+  "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
   "signer": "sam$guarantor.example",
   "decision": "accepted",
   "signedAt": "2026-11-03T00:00:00Z",
-  "previous": "4c1d…",
+  "previous": "f78c00eb0e96699e374a1dd55ddf9ec61736b85ceee5d6386049114492fb24c9",
   "visualSignature": { "type": "typed", "text": "Sam Lee" },
-  "consent": { "electronic": true, "disclosureSha256": "9cf7…", "at": "2026-11-02T23:58:21Z" },
+  "consent": {
+    "electronic": true,
+    "disclosureSha256": "9cf72b4504a4459f146c90afd9ba6b84146bd182f49551d051c2a4af26662175",
+    "at": "2026-11-02T23:58:21Z"
+  },
   "viewedAt": "2026-11-02T23:51:07Z",
   "viewedFrom": { "ip": "203.0.113.24", "device": { "os": "macOS", "browser": "Google Chrome" } },
   "signedFrom": { "ip": "203.0.113.24", "device": { "os": "macOS", "browser": "Google Chrome" } }
 }
 ```
 
-Each field after `previous` is optional. A `declined` statement may carry `viewedAt`, `viewedFrom` and `signedFrom`, never `visualSignature` or `consent`.
+This is Sam's answer to the agreement above, after Alice's: its `agreement` is that agreement's, and `previous` is the `statementRecordSha256` of Alice's accepted record shown on [Agreements](../../features/agreements.md#an-answer). Each field after `previous` is optional. A `declined` statement may carry `viewedAt`, `viewedFrom` and `signedFrom`, never `visualSignature` or `consent`.
 
 - **`terms`** repeats the agreement's `acceptance.terms` exactly, in the same order. **`decision`** is `accepted` or `declined`. **`signedAt`** is the signer's own signed time, which the deadline is checked against.
 - **`previous`**, in a `sequential` agreement only, on every statement after the first: the SHA-256 of the statement record before it, in its RFC 8785 form, signature included.
@@ -832,7 +877,7 @@ Several partial payments are allowed; the remaining amount keeps going down. The
 
 **Withdrawing a proposal (since 1.2).** The payer who sent a proposal that has not been answered can take it back with `withdrawn`, naming the proposal in `inReplyTo`, about the same invoice. The proposal is then closed on both sides: the other party no longer answers it. Only the payer who sent the proposal may withdraw it, never the invoice's issuer, whose own recorded `paid` is final, and only while it is open; an answered proposal stays as answered, and a withdrawal is final, with no answer. A withdrawn proposal may be proposed again later, as a new proposal with a new `id` that names the `withdrawn` it follows in `follows`, so the chain stays traceable (`disputed` → `withdrawn` → `disputed`). A `withdrawn`, or a proposal with `follows`, travels in a `1.2.0` artifact: a 1.1 receiver takes neither.
 
-```json
+```json btps=document:BTPS_EVENT
 {
   "type": "lifecycle_event",
   "id": "0b6f4b5e-5d0a-4c4e-8f43-2a7d3a1f9e01",
@@ -840,7 +885,7 @@ Several partial payments are allowed; the remaining amount keeps going down. The
   "document": {
     "from": "billing$acme.com",
     "id": "INV-2025-001",
-    "sha256": "lowercase-hex-sha256"
+    "sha256": "5b1e0c9d7a4f3e2b8c6d1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d"
   },
   "eventType": "partially_paid",
   "amount": {
@@ -922,7 +967,7 @@ An event must be about an invoice its two parties actually exchanged. A stolen s
 
 So every `BTPS_EVENT` carries `relatesTo` in its envelope, outside the encrypted document: the `id` of the `BTPS_DOC` artifact that delivered the invoice. Like the rest of the envelope it is signed and stays readable. The receiving server asks its trust store whether an artifact with that id passed between `from` and `to`, in either direction, and refuses the event when the store does not know it. The sender sees the same refusal as for a missing trust (`BTP_ERROR_TRUST_NOT_ALLOWED`); the receiving server's own context keeps the precise reason, `BTP_ERROR_EVENT_UNRELATED`.
 
-```json
+```json btps=transporter
 {
   "version": "1.1.0",
   "id": "0b6f4b5e-5d0a-4c4e-8f43-2a7d3a1f9e01",
@@ -931,9 +976,19 @@ So every `BTPS_EVENT` carries `relatesTo` in its envelope, outside the encrypted
   "from": "pay$client.com",
   "to": "billing$acme.com",
   "relatesTo": "3f2a1c9e-7b4d-4e8a-9c61-5d0f2b8a7e14",
-  "document": "encrypted-lifecycle-event",
-  "encryption": { "...": "..." },
-  "signature": { "...": "..." },
+  "document": "BASE64-OF-THE-ENCRYPTED-LIFECYCLE-EVENT",
+  "encryption": {
+    "algorithm": "aes-256-gcm",
+    "encryptedKey": "BASE64-KEY",
+    "iv": "BASE64-IV",
+    "type": "standardEncrypt",
+    "authTag": "BASE64-TAG"
+  },
+  "signature": {
+    "algorithmHash": "sha256",
+    "value": "BASE64-SIGNATURE",
+    "fingerprint": "BASE64-FINGERPRINT"
+  },
   "selector": "btps1"
 }
 ```
@@ -951,16 +1006,43 @@ Since 1.2, in a `1.2.0` artifact only, a `BTPS_EVENT` may carry an agreement's a
 | `agreement_progress` | the originator, to a signer | `statements`: the records so far, before a sequential signer's turn             |
 | `agreement_complete` | the originator, to a signer | `statements`: every record, once all have answered                              |
 
-```json
+Alice's answer to the agreement above, the first in its order:
+
+```json btps=document:BTPS_EVENT
 {
   "type": "agreement_event",
   "id": "5d6e7f80-9102-4a3b-8c4d-5e6f708192a3",
-  "occurredAt": "2026-11-03T00:00:00Z",
+  "occurredAt": "2026-11-02T09:14:52.000Z",
   "eventType": "accepted",
-  "agreement": { "originator": "loans$bank.example", "id": "AGR-1", "contentSha256": "fabe…" },
-  "statement": { "statement": { "…": "…" }, "selector": "btps1", "signature": { "…": "…" } }
+  "agreement": {
+    "originator": "loans$bank.example",
+    "id": "AGR-1",
+    "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+  },
+  "statement": {
+    "statement": {
+      "agreement": {
+        "originator": "loans$bank.example",
+        "id": "AGR-1",
+        "contentSha256": "fabe09ee458f0f7b3091ff62d7927edee1a7e6b4a74695c6ffa0c928ad861ebc"
+      },
+      "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
+      "signer": "alice$client.example",
+      "decision": "accepted",
+      "signedAt": "2026-11-02T09:14:52.000Z",
+      "viewedAt": "2026-11-02T09:02:41.000Z"
+    },
+    "selector": "btps1",
+    "signature": {
+      "algorithmHash": "sha256",
+      "value": "BASE64-SIGNATURE",
+      "fingerprint": "BASE64-FINGERPRINT"
+    }
+  }
 }
 ```
+
+Shortened: the full answer, with its consent and signing contexts, is on [Agreements](../../features/agreements.md#an-answer).
 
 - **Forwarding carries records only**, at most one for each of at most 20 signers, never the agreement again: each signer already has its own copy. Whether and when to send `agreement_complete` is the originator's choice; from the records, the signer's platform assembles the evidence bundle.
 - **`relatesTo`** names the signer's own copy of the agreement, as an invoice's event names its invoice, and the event travels over the trust between the two, as any event does.
@@ -994,7 +1076,9 @@ Since 1.2, in a `1.2.0` artifact only, a `BTPS_EVENT` may carry an agreement's a
 
 Since 1.2: a file a party to an agreement creates to show what was agreed, for example to a solicitor or a court. It holds everything needed to check the agreement offline, with no provider and no network, and no decryption key: the content is bound by its originator's signature, not by any copy's encryption.
 
-```json
+The shape, shortened; a whole bundle is on [Evidence bundles](../../features/evidenceBundles.md#the-bundle):
+
+```json sketch
 {
   "format": "btps-evidence/1",
   "originator": "loans$bank.example",

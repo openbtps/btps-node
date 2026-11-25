@@ -152,61 +152,65 @@ flowchart TD
 
 ### Identity Lookup Request
 
-```json
+```json sketch
 {
-  "version": "1.1.0",
-  "id": "identity_lookup_123456",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "version": "1.2.0",
+  "id": "4b5c6d7e-8f90-4a1b-b2c3-d4e5f6071829",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "identity": "alice$saas.com",
   "from": "sender$domain.com",
   "hostSelector": "btps1",
-  "identitySelector": "btps1"
+  "identitySelector": "btps1",
+  "keyChain": true
 }
 ```
 
 **Fields:**
 
-- `version`: BTPS protocol version
+- `version`: BTPS protocol version: `1.2.0` from a 1.2 requester, which asks a 1.1 host again as `1.1.0`
 - `id`: Unique request identifier
 - `issuedAt`: Request timestamp (ISO format)
 - `identity`: Target identity to lookup
 - `from`: Requesting identity
 - `hostSelector`: DNS selector for host resolution
 - `identitySelector`: Optional selector for identity key rotation
+- `keyChain` (since 1.2, in a `1.2.0` lookup only): `true` asks for the identity's [key chain](./specifications/key-rotation.md) too
 
 ### Identity Response Document
 
-```json
+```json btps=response
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": {
     "ok": true,
     "code": 200,
     "message": "success"
   },
-  "id": "identity_resp_789012",
-  "issuedAt": "2025-01-15T10:30:15Z",
+  "id": "5c6d7e8f-90a1-4b2c-83d4-e5f60718293a",
+  "issuedAt": "2026-11-08T10:30:01.000Z",
   "type": "btps_response",
-  "reqId": "identity_lookup_123456",
+  "reqId": "4b5c6d7e-8f90-4a1b-b2c3-d4e5f6071829",
   "document": {
     "selector": "btps1",
-    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
+    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
     "keyType": "rsa",
-    "version": "1.1.0"
+    "version": "1.2.0",
+    "identity": "alice$saas.com",
+    "keyChain": []
   },
   "signedBy": "admin$saas.com",
   "selector": "btps1",
   "signature": {
     "algorithmHash": "sha256",
-    "value": "base64-encoded-signature",
-    "fingerprint": "sha256-base64-fingerprint"
+    "value": "BASE64-SIGNATURE",
+    "fingerprint": "BASE64-FINGERPRINT"
   }
 }
 ```
 
 **Response Fields:**
 
-- `document`: Identity public key information
+- `document`: Identity public key information: since 1.2, in the answer to a `1.2.0` lookup, with the `identity` it answers for and, when asked, its `keyChain` (`[]` for an identity that never rotated). A 1.2 requester refuses a `1.2.0` answer that does not answer its lookup (`reqId`), is not fresh (300 seconds), or names another identity
 - `signedBy`: SaaS platform identity that signed the response. It must be the operator (`op`) in the looked-up identity's `_btps.host` record, or the requester refuses the answer ([The Domain Operator](./specifications/overview.md#the-domain-operator))
 - `selector`: Key selector for rotation management
 - `signature`: Cryptographic signature by SaaS platform
@@ -217,95 +221,16 @@ flowchart TD
 
 ### Server-Side Implementation
 
-The `BtpsServer` handles identity lookup requests through the `handleIdentityLookup` method:
+A `BtpsServer` given an `identityStore` answers identity lookups itself:
 
-```typescript
-private async handleIdentityLookup(
-  artifact: BTPIdentityLookupRequest,
-  context: { req: BTPRequestCtx; res: BTPResponseCtx }
-) {
-  const { identity, hostSelector, identitySelector } = artifact;
-
-  // Compute identity ID
-  const computedId = computeId(identity);
-
-  // Lookup identity record from store
-  const identityRecord = await this.identityStore?.getPublicKeyRecord(
-    computedId,
-    identitySelector
-  );
-
-  if (!identityRecord) {
-    return this.sendBtpsError(res.socket, BTP_ERROR_IDENTITY_NOT_FOUND, res.reqId);
-  }
-
-  // Prepare response document
-  const { createdAt, ...restRecord } = identityRecord;
-  const data: BTPServerResponse = {
-    ...this.prepareBtpsResponse({ ok: true, message: 'success', code: 200 }, res.reqId),
-    type: 'btps_response',
-    selector: hostSelector,
-    document: restRecord,
-    signedBy: this.serverIdentity.identity,
-  };
-
-  // Sign response with server private key
-  const signature = signBtpPayload(data, serverPemKeys);
-
-  this.sendBtpsResponse(res.socket, { ...data, signature }, 'end');
-}
-```
+1. It computes the record id, `computeId(identity)`, and asks the store for the key at `identitySelector` (`getPublicKeyRecord`), and, for a `1.2.0` lookup with `keyChain: true`, for the chain (`getKeyChain`).
+2. An identity whose keys are in DNS has no key record, only its chain: the answer then names the chain's current key.
+3. With neither, it answers `404` `BTP_ERROR_IDENTITY_NOT_FOUND`.
+4. Otherwise it answers with the key record, and, to a `1.2.0` lookup, the `identity` and the chain when asked, signed as its `serverIdentity` under the lookup's `hostSelector`, and ends the connection.
 
 ### Client-Side Implementation
 
-The `BtpsAgent` resolves identity information during encryption:
-
-```typescript
-protected async buildTransportArtifact(commandParams: BtpsAgentCommandParams) {
-  const { document, actionType, to, options } = commandParams;
-
-  // Get receiver DNS information
-  const receiverDnsTxt = options?.encryption
-    ? (await this.resolveIdentity(to, this.options.to, this.keyPair.privateKey)).response
-    : await this.resolveBtpsHostDnsTxt(to);
-
-  if (!receiverDnsTxt) {
-    return await this.buildClientErrorResponse(
-      new BTPErrorException(BTP_ERROR_RESOLVE_DNS, {
-        cause: `Could not resolve identity or host and selector for: ${to}`,
-      })
-    );
-  }
-
-  // Encrypt document if required
-  if (options?.encryption) {
-    const { publicKey } = receiverDnsTxt;
-    const { data, encryption: encryptionInfo } = encryptBtpPayload(
-      document,
-      publicKey,
-      options.encryption
-    );
-    encryptedDocument = data;
-    encryption = encryptionInfo;
-  }
-
-  // Create and sign transporter artifact
-  const transporterArtifact = {
-    id: randomUUID(),
-    issuedAt: new Date().toISOString(),
-    version: this.getProtocolVersion(),
-    type: artifactType,
-    document: encryptedDocument,
-    from: this.options.to,
-    to: to,
-    selector: receiverDnsTxt.selector,
-    encryption: encryption,
-  };
-
-  const signature = signBtpPayload(transporterArtifact, this.keyPair);
-  return { payload: { ...transporterArtifact, signature }, error: undefined };
-}
-```
+`BtpsClient.resolveIdentity` (and so `BtpsAgent`, before an encrypted send) finds the receiver's key: DNS first, then the receiver's host, as above. The agent then encrypts the document to that key, names its own selector (from its own domain's `_btps.host`), stamps the artifact with the lowest version that can say it (`artifactVersion`), and signs it with the device's key.
 
 ---
 
@@ -322,10 +247,10 @@ protected async buildTransportArtifact(commandParams: BtpsAgentCommandParams) {
 
 When a SaaS-managed sender (without custom domain) needs to send documents:
 
-```json
+```json sketch
 {
   "delegation": {
-    "agentId": "alice_device_123",
+    "agentId": "btps_ag_3f2e1d0c-9b8a-4776-8554-433221100fed",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----",
     "signedBy": "admin$saas.com",
     "issuedAt": "2025-01-15T10:30:00Z",
@@ -399,6 +324,8 @@ When a SaaS-managed sender (without custom domain) needs to send documents:
 export abstract class AbstractIdentityStore<
   T extends BTPIdentityRecord,
 > extends AbstractStorageStore<T> {
+  // Since 1.2, optional: the identity's key chain, oldest first, for a lookup that asks
+  getKeyChain?(computedId: string): Promise<BTPKeyChainRecord[] | undefined>;
   // computedId: computeId(identity), computed by the server; use it as given
   abstract getPublicKeyRecord(
     computedId: string,
@@ -414,6 +341,7 @@ export interface BTPIdentityRecord extends BTPStorageRecord {
   identity: string; // unique identity of the storage record
   currentSelector: string; // unique selector of the storage record
   publicKeys: IdentityPubKeyRecord[]; // current base64 public key of the identity
+  keyChain?: BTPKeyChainRecord[]; // since 1.2: the identity's key rotations, oldest first
 }
 
 export type IdentityPubKeyRecord = {
@@ -452,10 +380,11 @@ class DatabaseIdentityStore extends AbstractIdentityStore<BTPIdentityRecord> {
 
 ### Key Rotation
 
-1. **SaaS Platform**: Rotates platform keys via DNS records
-2. **User Keys**: Rotated through identity store updates
-3. **Selector Management**: Different selectors for different key versions
-4. **Backward Compatibility**: Old keys remain valid during transition
+1. **Every rotation is a signed record** (since 1.2): the identity's key chain, kept on its identity record (`keyChain`) and served to a lookup that asks for it ([Key rotation](./keyRotation.md))
+2. **SaaS Platform**: Publishes the platform's new keys in DNS under a new selector
+3. **User Keys**: Rotated through identity store updates, a new key record under a new selector
+4. **Selector Management**: A selector names one key for the life of the identity, never reused
+5. **During transition**: A key rotated away as planned is taken for `retiredKeyGraceSeconds` (a day by default); an expired one is refused at once
 
 ### Key Lifecycle
 
@@ -476,37 +405,11 @@ Key Generation → Identity Store Storage → DNS Publication (if applicable) �
 
 ### Common Error Scenarios
 
-1. **Identity Not Found**
+1. **Identity Not Found**: the host answers `404`, its `status` `{ "ok": false, "code": 404, "message": "Identity not found", "error": "BTP_ERROR_IDENTITY_NOT_FOUND" }` in a `btps_error`.
 
-   ```json
-   {
-     "ok": false,
-     "code": 404,
-     "message": "Identity not found",
-     "type": "btps_error"
-   }
-   ```
+2. **DNS Resolution Failed**: the requester cannot find the host or the operator, and its own SDK returns `BTP_ERROR_RESOLVE_DNS`. Nothing is sent.
 
-2. **DNS Resolution Failed**
-
-   ```json
-   {
-     "ok": false,
-     "code": 500,
-     "message": "Could not resolve DNS records",
-     "type": "btps_error"
-   }
-   ```
-
-3. **Signature Verification Failed**
-   ```json
-   {
-     "ok": false,
-     "code": 403,
-     "message": "Signature verification failed",
-     "type": "btps_error"
-   }
-   ```
+3. **Signature Verification Failed**: an answer not signed by the domain's operator, or whose signature does not verify, is refused by the requester (`BTP_ERROR_SIG_VERIFICATION`); a `1.2.0` answer that does not answer its lookup, is not fresh, or names another identity is refused with `BTP_ERROR_VALIDATION`.
 
 ### Error Recovery
 

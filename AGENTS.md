@@ -69,8 +69,10 @@ a caller: a sender decides whether to retry from the error it is given.
 Something a user of the SDK needs must be reachable from `src/index.ts` or
 from one of the package's export paths in `package.json` (`.`, `./server`,
 `./server/core`, `./client`, `./crypto`, `./trust`, `./authentication`,
-`./delegation`, `./error`, `./storage`). Code that is built and cannot be
-imported is unfinished. Prefer an existing path to a new one.
+`./delegation`, `./error`, `./storage`, `./boundview`). Code that is built
+and cannot be imported is unfinished. Prefer an existing path to a new one.
+`@btps/boundview`, the separate package in `packages/boundview`, has its own
+export paths (`.`, `./signature`, `./engine.wasm`).
 
 ## Tests
 

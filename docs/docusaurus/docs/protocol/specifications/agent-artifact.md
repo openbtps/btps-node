@@ -13,30 +13,26 @@ Agent artifacts (`BTPAgentArtifact`) are designed for client-to-server communica
 
 ## Artifact Structure
 
-```json
+A device asking its provider for the newest ten documents in the user's inbox:
+
+```json btps=agent
 {
-  "id": "btps_1234567890abcdef",
-  "action": "auth.request",
-  "document": {
-    // Document-specific content (see Document Types section)
-  },
-  "agentId": "agent_1234567890abcdef",
-  "to": "billing$vendorcorp.com",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "id": "b7c8d9e0-1f2a-4b3c-8d4e-5f60718293a4",
+  "action": "inbox.fetch",
+  "document": { "limit": 10, "sort": "desc" },
+  "agentId": "btps_ag_3f2e1d0c-9b8a-4776-8554-433221100fed",
+  "to": "john$vendorcorp.com",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "signature": {
     "algorithmHash": "sha256",
-    "value": "base64-encoded-signature",
-    "fingerprint": "sha256-base64-fingerprint"
+    "value": "BASE64-SIGNATURE",
+    "fingerprint": "BASE64-FINGERPRINT"
   },
-  "encryption": {
-    "algorithm": "aes-256-gcm",
-    "encryptedKey": "base64-encoded-encrypted-key",
-    "iv": "base64-encoded-initialization-vector",
-    "type": "standardEncrypt",
-    "authTag": "base64-encoded-authentication-tag"
-  }
+  "encryption": null
 }
 ```
+
+An agent artifact carries no `version`: what it carries does, as a transporter artifact (see [Transporter Artifact Document](#9-transporter-artifact-document-artifactsend)).
 
 ### Required Fields
 
@@ -46,11 +42,11 @@ Agent artifacts (`BTPAgentArtifact`) are designed for client-to-server communica
 - **to**: Recipient's BTPS identity address. On a send it is the receiver; on an action on the user's own data (`inbox.fetch`, `trust.fetch`, …) it is the user's own address
 - **issuedAt**: ISO 8601 timestamp of message creation
 - **signature**: Cryptographic signature for authenticity
+- **encryption**: Encryption details, or `null` for an unencrypted document. An encrypted document is a string, and an `auth.request` is never encrypted
 
 ### Optional Fields
 
-- **document**: Document content (required for certain actions)
-- **encryption**: Encryption details (null for unencrypted messages)
+- **document**: Document content (required for the trust, send, event, details and auth actions, `trust.update`, `trust.delete`, and every delete, seen, cancel, create and update)
 
 ## Supported Actions
 
@@ -118,7 +114,7 @@ Agent artifacts (`BTPAgentArtifact`) are designed for client-to-server communica
 
 Used for initial agent authentication.
 
-```json
+```json sketch
 {
   "identity": "john$vendorcorp.com",
   "authToken": "generated-user-token",
@@ -145,13 +141,15 @@ Used for initial agent authentication.
 
 Used to refresh authentication tokens.
 
-```json
+```json sketch
 {
   "identity": "john$vendorcorp.com",
   "authToken": "refresh-token",
   "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----"
 }
 ```
+
+A whole refresh, as a device signs it, is on [Refresh tokens](../../features/refreshTokens.md#the-refresh).
 
 **Required Fields:**
 
@@ -173,9 +171,9 @@ To move a device to a new key, the refresh names the new key in `publicKey` and 
 
 Used to send trust requests to other organizations.
 
-```json
+```json btps=document:TRUST_REQ
 {
-  "id": "uniqueUuid",
+  "id": "0d4f6a2e-8b1c-4e7a-9f3d-2c5b7a9e1f04",
   "name": "Acme Corporation",
   "email": "billing@acme.com",
   "reason": "To send monthly service invoices",
@@ -212,9 +210,9 @@ Used to send trust requests to other organizations.
 
 Used to respond to trust requests from other organizations.
 
-```json
+```json btps=document:TRUST_RES
 {
-  "id": "uniqueUuid",
+  "id": "0d4f6a2e-8b1c-4e7a-9f3d-2c5b7a9e1f04",
   "decision": "accepted",
   "decidedAt": "2025-01-15T10:30:00Z",
   "decidedBy": "John Smith",
@@ -243,7 +241,7 @@ Used to respond to trust requests from other organizations.
 
 Used to query documents from various storage locations.
 
-```json
+```json sketch
 {
   "since": "2025-01-01T00:00:00Z",
   "until": "2025-01-31T23:59:59Z",
@@ -273,43 +271,57 @@ Used to query documents from various storage locations.
 - **query**: Filter criteria for documents
 - **sort**: Sort order (asc, desc)
 
-### 6. Mutation Document (`inbox.delete`, `inbox.seen`, `outbox.cancel`, `sentbox.delete`, `draft.delete`, `trash.delete`)
+At least one field is given. The query fields are `title`, `from` and `to`.
 
-Used to modify document states.
+### 6. Mutation Document (`trust.update`, `draft.update`)
 
-```json
+Used to change a trust record or a draft: the id of what changes, and its new document.
+
+```json sketch
 {
-  "id": "document-id-to-modify"
-}
-```
-
-**Required Fields:**
-
-- **id**: Document ID to modify
-
-### 7. Create Document (`draft.create`, `draft.update`)
-
-Used to create or update draft documents.
-
-```json
-{
-  "type": "TRUST_REQ",
+  "id": "draft-1",
   "document": {
-    // Document content matching the specified type
+    "type": "letter",
+    "title": "Your new plan",
+    "id": "LET-2025-007",
+    "issuedAt": "2025-10-20T00:00:00Z",
+    "body": { "format": "text", "content": "Your plan changes on 1 November." }
   }
 }
 ```
 
 **Required Fields:**
 
-- **type**: Document type (TRUST_REQ, TRUST_RES, BTPS_DOC, BTPS_EVENT)
-- **document**: Document content matching the specified type
+- **id**: The id of the trust record or draft to change
+- **document**: Its new document: any trust request, trust response, document or event, under either version
 
-### 8. IDs Payload Document (`inbox.delete`, `sentbox.delete`, `draft.delete`, `trash.delete`)
+### 7. Create Document (`draft.create`)
 
-Used to delete multiple documents.
+Used to create a draft. The answer is a [created document](./responses.md#4-created-document-btpcreatedresdoc), the new draft's id.
 
-```json
+```json sketch
+{
+  "type": "BTPS_DOC",
+  "document": {
+    "type": "letter",
+    "title": "Your new plan",
+    "id": "LET-2025-007",
+    "issuedAt": "2025-10-20T00:00:00Z",
+    "body": { "format": "text", "content": "Your plan changes on 1 November." }
+  }
+}
+```
+
+**Required Fields:**
+
+- **type**: The artifact type it will be sent as (`TRUST_REQ`, `TRUST_RES`, `BTPS_DOC`, `BTPS_EVENT`, and since 1.2 `DETAILS_CHANGED`, `DETAILS_REQ`, `DETAILS_RES`)
+- **document**: Document content for that type
+
+### 8. IDs Payload Document (`inbox.delete`, `inbox.seen`, `outbox.cancel`, `sentbox.delete`, `draft.delete`, `trash.delete`, `trust.delete`)
+
+Used to delete, mark seen or cancel several at once.
+
+```json sketch
 {
   "ids": ["artifactId1", "artifactId2", "artifactId3"]
 }
@@ -317,7 +329,7 @@ Used to delete multiple documents.
 
 **Required Fields:**
 
-- **ids**: Array of document IDs to delete
+- **ids**: Array of ids, at most 1,000
 
 ### 9. Transporter Artifact Document (`artifact.send`)
 
@@ -325,31 +337,44 @@ Used to send transporter artifacts to other organizations. The device builds and
 
 Since 1.2, an `artifact.send` may be a **sync**: its transporter artifact is from and to the device's own address and names the send it copies in `syncOf` (see [Sync](./transporter-artifact.md#sync)). This is the only way a sync reaches a provider: a carried artifact with `syncOf` under any other action is refused.
 
-```json
+The whole `artifact.send`, carrying an encrypted invoice under a trust with permissions:
+
+```json btps=agent
 {
-  "version": "1.1.0",
-  "id": "btps_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
-  "type": "BTPS_DOC",
-  "from": "billing$vendorcorp.com",
+  "id": "c8d9e0f1-2a3b-4c4d-9e5f-60718293a4b5",
+  "action": "artifact.send",
+  "agentId": "btps_ag_3f2e1d0c-9b8a-4776-8554-433221100fed",
   "to": "pay$client.com",
-  "selector": "btps1",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "document": {
-    // Document content
+    "version": "1.2.0",
+    "id": "6f0d8e2a-7b1c-4e3d-9a5f-1c2b3d4e5f60",
+    "issuedAt": "2026-11-08T10:30:00.000Z",
+    "type": "BTPS_DOC",
+    "from": "billing$vendorcorp.com",
+    "to": "pay$client.com",
+    "selector": "btps1",
+    "documentType": "invoice",
+    "document": "BASE64-OF-THE-ENCRYPTED-DOCUMENT",
+    "signature": {
+      "algorithmHash": "sha256",
+      "value": "BASE64-SIGNATURE",
+      "fingerprint": "BASE64-FINGERPRINT"
+    },
+    "encryption": {
+      "algorithm": "aes-256-gcm",
+      "encryptedKey": "BASE64-KEY",
+      "iv": "BASE64-IV",
+      "type": "standardEncrypt",
+      "authTag": "BASE64-TAG"
+    }
   },
   "signature": {
     "algorithmHash": "sha256",
-    "value": "base64-encoded-signature",
-    "fingerprint": "sha256-base64-fingerprint"
+    "value": "BASE64-SIGNATURE",
+    "fingerprint": "BASE64-FINGERPRINT"
   },
-  "encryption": {
-    "algorithm": "aes-256-gcm",
-    "encryptedKey": "base64-encoded-encrypted-key",
-    "iv": "base64-encoded-initialization-vector",
-    "type": "standardEncrypt",
-    "authTag": "base64-encoded-authentication-tag"
-  },
-  "selector": "btps1"
+  "encryption": null
 }
 ```
 

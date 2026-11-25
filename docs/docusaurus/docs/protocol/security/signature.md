@@ -14,11 +14,11 @@ BTPS uses digital signatures to ensure the authenticity and integrity of every m
 1. **Payload Preparation:** The sender prepares the artifact (including metadata and payload), without its `signature`.
 2. **Canonical Form:** The artifact is serialised in its [RFC 8785 (JCS)](https://www.rfc-editor.org/rfc/rfc8785) canonical form, so every implementation signs the same bytes.
 3. **Signature Generation:** The sender signs those bytes with RSASSA-PKCS1-v1_5 and SHA-256, using its RSA private key.
-4. **Fingerprint Calculation:** The sender's public key fingerprint is computed (SHA-256 of the public key DER).
+4. **Fingerprint Calculation:** The sender's public key fingerprint is computed (SHA-256 of the public key DER, in base64).
 5. **Signature Attachment:** The signature and fingerprint are attached to the artifact as the `signature` field.
 
 ### Verification (Receiver Side)
-1. **Sender Identity Resolution:** The receiver parses the sender's identity and retrieves the sender's public key from DNS, at the selector the artifact names (`<selector>._btps.identity.<account>.<domain>`).
+1. **Sender Identity Resolution:** The receiver parses the sender's identity and retrieves the sender's public key from DNS, at the selector the artifact names (`<selector>._btps.identity.<account>.<domain>`). Since 1.2, a server also asks the sender's host for its [key chain](../specifications/key-rotation.md#checking-keys-on-arrival), and refuses a key rotated away past its grace (`BTP_ERROR_KEY_RETIRED`) or expired (`BTP_ERROR_KEY_REVOKED`), whatever DNS still has.
 2. **Canonical Form:** The receiver serialises the received artifact, without its `signature`, in the same JCS canonical form.
 3. **Fingerprint Validation:** The receiver computes the fingerprint of the sender's public key and compares it to the artifact's fingerprint.
 4. **Signature Verification:** The receiver verifies the signature over those canonical bytes with the sender's public key (RSASSA-PKCS1-v1_5, SHA-256).
@@ -36,6 +36,7 @@ sequenceDiagram
     Sender->>Sender: Attach signature & fingerprint
     Sender->>Receiver: Send signed artifact
     Receiver->>Receiver: Retrieve sender's public key at the artifact's selector
+    Receiver->>Receiver: Since 1.2, check it against the sender's key chain
     Receiver->>Receiver: Canonical form of the artifact without signature
     Receiver->>Receiver: Validate fingerprint
     Receiver->>Receiver: Verify signature
@@ -44,15 +45,17 @@ sequenceDiagram
 
 ## Example Signature Field
 
-```json
+```json sketch
 {
   "signature": {
     "algorithmHash": "sha256",
-    "value": "...",
-    "fingerprint": "..."
+    "value": "BASE64-OF-THE-RSA-SIGNATURE",
+    "fingerprint": "P3jb2C0c6XutGbtPyrDjDfY+M8IICzA5Ym8YkTZerAs="
   }
 }
 ```
+
+Whole signed artifacts, with their canonical forms and real signatures, are in the golden vectors (`signed-artifacts.vector.json`, see [Golden Vectors](../specifications/golden-vectors.md)).
 
 ## Notes
 - The signature covers the entire artifact except the `signature` field, including `version`, `selector` and any ciphertext.

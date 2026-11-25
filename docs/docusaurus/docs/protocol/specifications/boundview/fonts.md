@@ -37,7 +37,7 @@ A canvas's `fonts` holds up to eight fonts, each by a key the canvas chooses.
 A [`text`](./elements.md#text) or [`label`](./elements.md#label) element
 names its font by that key.
 
-```json
+```json sketch
 {
   "body": {
     "unitsPerEm": 1000,

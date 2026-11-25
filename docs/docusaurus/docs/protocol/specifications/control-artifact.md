@@ -13,18 +13,20 @@ Control artifacts (`BTPControlArtifact`) are designed for simple server control 
 
 ## Artifact Structure
 
-```json
+```json sketch
 {
   "version": "1.1.0",
-  "id": "btps_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "id": "3e1c9b72-5a4d-4f6e-8b9a-0c1d2e3f4a5b",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "action": "PING"
 }
 ```
 
+It has these four members and no other: a server refuses a control artifact that carries anything else.
+
 ## Required Fields
 
-- **version**: Protocol version (currently "1.0")
+- **version**: `1.1.0`. A control artifact is always stamped `1.1.0`, so every 1.1 and 1.2 server answers it
 - **id**: Unique message identifier (UUID v4 recommended)
 - **issuedAt**: ISO 8601 timestamp of message creation
 - **action**: Control action type (see Supported Actions section)
@@ -54,28 +56,29 @@ The `PING` action is used to test server connectivity and responsiveness.
 
 **Example PING Request**:
 
-```json
+```json sketch
 {
   "version": "1.1.0",
-  "id": "btps_ping_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "id": "4f2dac83-6b5e-4071-9cab-1d2e3f4a5b6c",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "action": "PING"
 }
 ```
 
-**Expected PING Response**:
+**Expected PING Response**, from a 1.2 server. Its `version` is the version the server speaks, which is how a client learns it (`getServerVersion`); the connection stays open:
 
-```json
+```json btps=response
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": {
     "ok": true,
     "code": 200,
     "message": "Server is operational"
   },
-  "id": "btps_response_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
-  "type": "btps_response"
+  "id": "5a3ebd94-7c6f-4182-adbc-2e3f4a5b6c7d",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
+  "type": "btps_response",
+  "reqId": "4f2dac83-6b5e-4071-9cab-1d2e3f4a5b6c"
 }
 ```
 
@@ -94,28 +97,30 @@ The `QUIT` action is used to gracefully terminate a server session.
 
 **Example QUIT Request**:
 
-```json
+```json sketch
 {
   "version": "1.1.0",
-  "id": "btps_quit_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "id": "6b4fcea5-8d70-4293-becd-3f4a5b6c7d8e",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "action": "QUIT"
 }
 ```
 
-**Expected QUIT Response**:
+**Expected QUIT Response**, from a 1.2 server, which then ends the connection. An unsigned `1.2.0` answer after which the server ends the connection says so with `status.closing` ([Server Responses](./responses.md#btpstatus)):
 
-```json
+```json btps=response
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": {
     "ok": true,
     "code": 200,
-    "message": "Session terminated"
+    "message": "bye",
+    "closing": true
   },
-  "id": "btps_response_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
-  "type": "btps_response"
+  "id": "7c50dfb6-9e81-43a4-8fde-4a5b6c7d8e9f",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
+  "type": "btps_response",
+  "reqId": "6b4fcea5-8d70-4293-becd-3f4a5b6c7d8e"
 }
 ```
 
@@ -198,11 +203,11 @@ Control artifacts have minimal security requirements compared to other artifact 
 
 Control artifacts are ideal for load balancer health checks:
 
-```json
+```json sketch
 {
   "version": "1.1.0",
-  "id": "health_check_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "id": "8d61e0c7-af92-44b5-90ef-5b6c7d8e9fa0",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "action": "PING"
 }
 ```
