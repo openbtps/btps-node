@@ -252,7 +252,12 @@ The servers in between see only ciphertext, which the artifact size bounds.
 `BtpsAgent` always check. The low-level `encryptBtpPayload` and
 `decryptBtpPayload` check only when given the document's artifact type as
 their last argument, for example `'BTPS_DOC'`; a direct caller that does not
-give one checks the document itself.
+give one checks the document itself. Since 1.2, `encryptBtpPayloadStream`,
+`decryptBtpPayloadStream` and `decryptBtpPayloadStreamWithDecrypter` never
+check, because they never hold the whole document: their caller checks it,
+with `checkDocumentToSend` before encrypting and `checkDecryptedDocument`
+after decrypting, the checks `signEncrypt` and `decryptVerify` run
+([Checking the document](../security/decryption.md#checking-the-document)).
 
 ### In code
 
@@ -312,6 +317,53 @@ The exported defaults are `DEFAULT_MAX_ARTIFACT_SIZE_KB`,
 `MIN_MAX_ARTIFACT_AGE_SECONDS`, `DEFAULT_CONNECTION_TIMEOUT_MS`,
 `DEFAULT_MAX_IN_FLIGHT_PER_CONNECTION` and `MIN_MAX_IN_FLIGHT_PER_CONNECTION`,
 from `@btps/sdk/server/core`.
+
+#### Large documents
+
+An agreement carrying several PDFs can be far larger than an invoice.
+`maxArtifactSizeKb` is the receiver's choice, with a floor of 1 MB and no
+ceiling, so a platform that receives large agreements raises it deliberately.
+
+Size it from the largest files you take. Base64 is applied twice, and each
+time adds about a third:
+
+1. Inside the document's JSON, each file is base64, so 100 MB of PDFs is about
+   133 MB of JSON.
+2. An encrypted artifact's payload is base64 of the encrypted JSON, so 133 MB
+   of JSON is about 178 MB of payload.
+
+Measured: an agreement with 10 PDFs of 10 MB each gave a 176 MB payload. The
+envelope adds a little more. A receiver that takes agreements with up to
+105 MB of files should allow about 190 MB (194,560 KB):
+
+```ts check
+import { BtpsServer, type BtpsServerOptions } from '@btps/sdk/server';
+
+// Up to 105 MB of files: base64 in the JSON, then base64 again as the
+// encrypted payload, plus the envelope.
+const MAX_ARTIFACT_SIZE_KB = 194_560; // 190 MB
+
+export const largeDocumentServer = (options: BtpsServerOptions) =>
+  new BtpsServer({ ...options, maxArtifactSizeKb: MAX_ARTIFACT_SIZE_KB });
+```
+
+**The cost.** A BTPS server reads each artifact as one line, and holds it whole
+while it is parsed and its signature verified. The memory one artifact takes is
+several times its size. Size the server for that, and limit how many large
+artifacts it takes at once: `maxInFlightPerConnection` bounds how many one
+connection has handled at once.
+
+**Why the default stays 5 MB.** A server nobody configured should not be made
+to hold a very large artifact for each connection.
+
+**After receipt,** a platform does not have to hold the document whole again.
+With the stream functions, it views, stores or forwards it a piece at a time
+([Large payloads, a piece at a time](../security/decryption.md#large-payloads-a-piece-at-a-time)).
+
+**For senders.** A sender learns a receiver's limit only when an artifact is
+refused, with `BTP_ERROR_ARTIFACT_TOO_LARGE`. A document meant for any receiver
+should still stay under 1 MB, or under the default 5 MB for receivers known to
+use it.
 
 ## Client and transporter settings
 

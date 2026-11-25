@@ -4,6 +4,80 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.0-rc.3.4] — 2026-11-26 (beta, release candidate)
+
+A platform can decrypt, encrypt, sign and verify a large payload a piece at a
+time, such as an agreement carrying many PDFs, without holding it in memory,
+and run the same document checks `decryptVerify` and `signEncrypt` run. The
+whole functions are lighter on a large document, with the same results.
+Everything else is as in rc.3.3 below.
+
+### Added
+
+- `decryptBtpPayloadStream`, `decryptBtpPayloadStreamWithDecrypter` and
+  `encryptBtpPayloadStream` (`@btps/sdk/crypto`): `decryptBtpPayload`,
+  `decryptBtpPayloadWithDecrypter` and `encryptBtpPayload`, a piece at a time.
+  A decrypted piece is not trusted until the loop over it ends without
+  throwing; `encryptBtpPayloadStream`'s `encryption` settles only once its
+  `payload` has been read to its end. Through a `Decrypter`, `unwrapKey` is
+  needed. New type `BTPPayloadPieces<T>`, an `AsyncIterable<T>` or an
+  `Iterable<T>`.
+- Additive: nothing about the artifact or the wire format changes. They read
+  and write exactly the artifacts the existing functions do, and those are
+  unchanged. They run on Node.js only, as they use Node's `crypto`. See
+  [Large payloads, a piece at a time](https://www.openbtps.org/docs/next/protocol/security/decryption#large-payloads-a-piece-at-a-time).
+- Docs: [Large documents](https://www.openbtps.org/docs/next/protocol/specifications/limits#large-documents),
+  on receiving them. `maxArtifactSizeKb` stays 5 MB by default; a platform
+  raises it deliberately, and sizes its server for what that holds. Files are
+  base64 inside the JSON, and the encrypted payload is base64 again, so 100 MB
+  of PDFs is about 178 MB of payload: a receiver taking agreements with up to
+  105 MB of files allows about 190 MB (194,560 KB).
+- `signBtpPayloadStream`, `signBtpPayloadStreamWithSigner` and
+  `verifySignatureStream` (`@btps/sdk/crypto`): `signBtpPayload`,
+  `signBtpPayloadWithSigner` and `verifySignature`, a piece at a time. Each
+  takes the artifact without its `document`, and the document's text in
+  pieces (an encrypted artifact's base64 payload, as `encryptBtpPayloadStream`
+  gives it). They give the same signature bytes as `signBtpPayload`, and the
+  same answer and errors as `verifySignature`, `BTP_ERROR_SIG_MISMATCH`
+  included, over `{ ...artifact, document }`. A signature made either way
+  verifies either way: no artifact or wire change.
+- `Signer.signDigest`, optional: signs the SHA-256 digest of what is signed,
+  the same signature as `sign` over the data (a KMS signs with
+  `MessageType: 'DIGEST'`). `signBtpPayloadStreamWithSigner` needs it, and
+  refuses a `Signer` without it with `BTP_ERROR_UNSUPPORTED_ENCRYPT`.
+  `PemSigner` has it: PKCS#1 v1.5 over the SHA-256 DigestInfo.
+- `decryptBtpPayloadStream` and `decryptBtpPayloadStreamWithDecrypter` take
+  `{ strictJson: true }` (new type `BTPDecryptStreamOptions`): the plaintext
+  is held to the strict JSON `decryptBtpPayload` holds it to, as it is read.
+  Text that is not throws `BTP_ERROR_CANONICAL_JSON` only once the payload is
+  proven; a tampered payload throws its decryption error first. Stricter in
+  two ways: a raw control character inside a string, and nesting deeper than
+  1024, are refused too.
+- `checkDecryptedDocument` (async) and `checkDocumentToSend`
+  (`@btps/sdk/crypto`): the checks `decryptVerify` runs after decrypting and
+  `signEncrypt` runs before encrypting, exported, and now called by both. Each
+  returns `undefined` or the error. A document with its files held apart
+  (each attachment's `content` empty, its `size` and `sha256` kept) is
+  checked as it is. `{ boundView: 'whereDrawn' }` leaves the BoundView to
+  `@btps/boundview`'s `renderBoundView`, which checks it before drawing. New
+  types `BTPDocumentCheckOptions` and `BTPDocumentEnvelope`. See
+  [Opening a large artifact, start to finish](https://www.openbtps.org/docs/next/protocol/security/decryption#opening-a-large-artifact-start-to-finish).
+- Dependency: `stream-json` 3.9.0 (BSD-3-Clause), for the streaming JSON
+  tokenizer behind `strictJson` and `decryptBtpPayload`'s strict JSON check.
+
+### Changed
+
+- `signBtpPayload` and `verifySignature` hash an artifact's text `document` a
+  piece at a time instead of building its whole canonical copy, and
+  `decryptBtpPayload` and `decryptBtpPayloadWithDecrypter` check strict JSON
+  with a tokenizer first, asking `assertStrictJson` only of text it refuses.
+  The API, results and errors are unchanged, and `signEncrypt` and
+  `decryptVerify` benefit with no change. Measured on a 105 MB agreement (10
+  PDFs, a 176 MB payload): `decryptBtpPayload` 1,012 → 349 ms,
+  `signBtpPayload` 424 → 150 ms, `verifySignature` 351 → 139 ms; the extra
+  memory to sign and verify a 140 MB artifact +406 → +140 MB. All 797
+  protocol vectors pass unchanged.
+
 ## [1.2.0-rc.3.3] — 2026-11-25 (beta, release candidate)
 
 An agreement's signed answer can carry the signer's consent to sign

@@ -1229,9 +1229,12 @@ Signs for an identity while its private key stays elsewhere: a KMS, an HSM or th
 interface Signer {
   readonly algorithm: 'RSASSA_PKCS1_V1_5_SHA_256';
   sign(data: Uint8Array): Promise<Uint8Array>; // the raw signature over data
+  signDigest?(digest: Uint8Array): Promise<Uint8Array>; // since 1.2, optional: the same signature, from the data's SHA-256 digest
   getPublicKey(): Promise<{ publicKey: string; fingerprint: string }>; // SPKI PEM
 }
 ```
+
+`signDigest` (since 1.2, optional) signs the SHA-256 `digest` of what is signed, giving the same signature `sign` gives over the data itself. `signBtpPayloadStreamWithSigner` needs it, because it never holds what it signs whole. A KMS signs a digest with `MessageType: 'DIGEST'`. `PemSigner` has it: PKCS#1 v1.5 over the SHA-256 DigestInfo. A `Signer` without it works everywhere else, as before.
 
 ### Decrypter
 
@@ -1253,7 +1256,7 @@ interface DecryptRequest {
 }
 ```
 
-`unwrapKey` (since 1.2, optional) returns the RSA-OAEP-unwrapped AES key itself, so a provider can wrap it again to one of its user's devices (`wrapForAgent`). `PemDecrypter` has it. A KMS decrypter makes the same call inside `decrypt`.
+`unwrapKey` (since 1.2, optional) returns the RSA-OAEP-unwrapped AES key itself, so a provider can wrap it again to one of its user's devices (`wrapForAgent`). `PemDecrypter` has it. A KMS decrypter makes the same call inside `decrypt`. `decryptBtpPayloadStreamWithDecrypter` needs it too: it has only the content key unwrapped through the `Decrypter`, and does the AES-GCM step locally.
 
 ### BtpsKeyResolver
 
@@ -1305,6 +1308,52 @@ A key as the SDK takes it: a PEM key, or a key held elsewhere.
 type BTPSigningKey = PemKeys | Signer;
 type BTPDecryptionKey = string | Decrypter; // a PEM private key, or a Decrypter
 ```
+
+### BTPPayloadPieces
+
+Since 1.2. An encrypted payload, or a document to encrypt, a piece at a time, so neither is ever held whole. `decryptBtpPayloadStream`, `decryptBtpPayloadStreamWithDecrypter`, `signBtpPayloadStream`, `signBtpPayloadStreamWithSigner` and `verifySignatureStream` take the base64 payload as `BTPPayloadPieces<string>`. `encryptBtpPayloadStream` takes the document's JSON text as `BTPPayloadPieces<string | Uint8Array>`. An array, a generator and a Node readable stream all fit; a stream that gives a payload needs an encoding set (`{ encoding: 'utf8' }`), so that it gives text, not bytes. See [Large payloads, a piece at a time](../protocol/security/decryption.md#large-payloads-a-piece-at-a-time).
+
+```ts
+type BTPPayloadPieces<T> = AsyncIterable<T> | Iterable<T>;
+```
+
+### BTPDecryptStreamOptions
+
+Since 1.2. How `decryptBtpPayloadStream` and `decryptBtpPayloadStreamWithDecrypter` decrypt. See [Holding the plaintext to strict JSON](../protocol/security/decryption.md#holding-the-plaintext-to-strict-json).
+
+```ts
+type BTPDecryptStreamOptions = {
+  strictJson?: boolean;
+};
+```
+
+| Field        | Type      | Required | What it says                                                                                                                                                                                                                                                                                                                                                     |
+| ------------ | --------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `strictJson` | `boolean` | No       | Hold the plaintext to the strict JSON `decryptBtpPayload` holds it to, as it is read: JSON, with no member named twice in any object. Plaintext that is not throws `BTP_ERROR_CANONICAL_JSON`, only once the payload is read to its end and proven. Stricter in two ways: a raw control character inside a string, and nesting deeper than 1024, are refused too |
+
+### BTPDocumentCheckOptions and BTPDocumentEnvelope
+
+Since 1.2. What `checkDecryptedDocument` and `checkDocumentToSend` take beside the document. See [checkDecryptedDocument / checkDocumentToSend](./apiReference.md#checkdecrypteddocument--checkdocumenttosend).
+
+```ts
+type BTPDocumentCheckOptions = {
+  boundView?: 'whereDrawn';
+};
+
+type BTPDocumentEnvelope = Record<string, unknown> & {
+  type?: string;
+  version?: string;
+  documentType?: string;
+};
+```
+
+| Field                                | Type           | Required | What it says                                                                                                                                                                                                                |
+| ------------------------------------ | -------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BTPDocumentCheckOptions.boundView`  | `'whereDrawn'` | No       | Do not check the document's BoundView here. Only when the BoundView is drawn with `@btps/boundview`'s `renderBoundView`, which checks it before it draws and draws none that fails. Left out, the BoundView is checked here |
+| `BTPDocumentEnvelope.type`           | `string`       | No       | The artifact's type, such as `'BTPS_DOC'`: which schema checks the document                                                                                                                                                 |
+| `BTPDocumentEnvelope.version`        | `string`       | No       | The artifact's version: under which version the schema checks the document                                                                                                                                                  |
+| `BTPDocumentEnvelope.documentType`   | `string`       | No       | The type the envelope names. The document must be that type (`BTP_ERROR_DOCUMENT_TYPE_MISMATCH`)                                                                                                                            |
+| `BTPDocumentEnvelope` (other fields) | `unknown`      | No       | The rest of the artifact as it arrived, which some rules compare the document with: `id`, `from` and `to` for an event, and `given`, `granted` and `details` for a trust request, a trust answer and a details response     |
 
 ### ParsedIdentity
 

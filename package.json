@@ -1,6 +1,6 @@
 {
   "name": "@btps/sdk",
-  "version": "1.2.0-rc.3.3",
+  "version": "1.2.0-rc.3.4",
   "description": "The reference implementation of BTPS, the Billing Trust Protocol Secure: signed, encrypted, trust-first delivery of invoices and documents between organisations.",
   "keywords": [
     "btps",
@@ -147,6 +147,7 @@
     "pkijs": "^4.0.1",
     "proper-lockfile": "^4.1.2",
     "split2": "^4.2.0",
+    "stream-json": "3.9.0",
     "zod": "^3.25.67"
   }
 }

@@ -103,6 +103,7 @@ __metadata:
     proper-lockfile: "npm:^4.1.2"
     rimraf: "npm:^6.0.1"
     split2: "npm:^4.2.0"
+    stream-json: "npm:3.9.0"
     strip-comments: "npm:^2.0.1"
     ts-loader: "npm:^9.0.0"
     tsc-alias: "npm:^1.8.16"
@@ -4749,6 +4750,22 @@ __metadata:
     es-errors: "npm:^1.3.0"
     internal-slot: "npm:^1.1.0"
   checksum: 10c0/de4e45706bb4c0354a4b1122a2b8cc45a639e86206807ce0baf390ee9218d3ef181923fa4d2b67443367c491aa255c5fbaa64bb74648e3c5b48299928af86c09
+  languageName: node
+  linkType: hard
+
+"stream-chain@npm:^4.4.2":
+  version: 4.4.2
+  resolution: "stream-chain@npm:4.4.2"
+  checksum: 10c0/171d4f0ee4f4b697a22fed9734ad5e39a1190cb3dc9ffbae5682fd6036dddf3aefd3685a00a935c72b8478c34c800c031c078c2ec382356127df537fad6c30c9
+  languageName: node
+  linkType: hard
+
+"stream-json@npm:3.9.0":
+  version: 3.9.0
+  resolution: "stream-json@npm:3.9.0"
+  dependencies:
+    stream-chain: "npm:^4.4.2"
+  checksum: 10c0/07c2691057d874f78bb9dd1453666dbdd4e66819125def54140665677fd344f1156b756c9529aec212e6145bcb9a0c4ff3f5fc794fc607c58aa3881d596febb4
   languageName: node
   linkType: hard
 
