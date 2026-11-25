@@ -32,6 +32,15 @@ export interface Signer {
   /** Signs `data` and returns the raw signature bytes. */
   sign(data: Uint8Array): Promise<Uint8Array>;
 
+  /**
+   * Since 1.2, optional: signs the SHA-256 `digest` of what is signed, as
+   * `sign` would sign what it is the digest of: the same signature. What
+   * signing a payload a piece at a time asks for (`signBtpPayloadStreamWithSigner`),
+   * as it never holds what it signs whole. A KMS signs a digest as its
+   * `MessageType: DIGEST`.
+   */
+  signDigest?(digest: Uint8Array): Promise<Uint8Array>;
+
   /** Returns this signer's own public key — never its private key. */
   getPublicKey(): Promise<SignerPublicKey>;
 }

@@ -60,4 +60,5 @@ Whole signed artifacts, with their canonical forms and real signatures, are in t
 ## Notes
 - The signature covers the entire artifact except the `signature` field, including `version`, `selector` and any ciphertext.
 - The fingerprint ensures the correct public key is used for verification.
+- Since 1.2, a large artifact can be signed and verified a piece at a time (`signBtpPayloadStream`, `signBtpPayloadStreamWithSigner`, `verifySignatureStream`), without holding its `document` whole. The canonical form and the signature bytes are the same: see [Signing and verifying a piece at a time](./decryption.md#signing-and-verifying-a-piece-at-a-time).
 - If signature verification fails, the artifact is rejected and an error is logged. 

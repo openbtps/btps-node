@@ -7,14 +7,9 @@
 import { decryptBtpPayload, decryptBtpPayloadWithDecrypter, verifySignature } from './index.js';
 import { BTPCryptoResponse, BTPDecryptionKey, VerifyEncryptedPayload } from './types.js';
 import { BTPErrorException } from '@core/error/index.js';
-import {
-  BTP_ERROR_DOCUMENT_TYPE_MISMATCH,
-  BTP_ERROR_SIG_VERIFICATION,
-  BTP_ERROR_VALIDATION,
-} from '@core/error/constant.js';
-import { decryptedDocumentProblem } from '@core/server/schemas/helpers.js';
+import { BTP_ERROR_SIG_VERIFICATION } from '@core/error/constant.js';
 import { boundViewResultOf } from '@core/server/schemas/boundViewChecks.js';
-import { verifierRefusal } from '@core/trust/verification.js';
+import { checkDecryptedDocument } from './documentChecks.js';
 import isEmpty from 'lodash/isEmpty.js';
 
 const genDecryptError = (error: BTPErrorException) => ({
@@ -68,31 +63,11 @@ export const decryptVerify = async <T = unknown>(
 
   if (decryptionErrors) return genDecryptError(decryptionErrors);
 
-  // An encrypted document is checked once it can be read, as an unencrypted one is on arrival.
+  // An encrypted document is checked once it can be read, as an unencrypted one is on arrival
+  // (documentChecks.ts: the same checks a platform runs on one it decrypted a piece at a time).
   if (needsDecryption) {
-    const problem = decryptedDocumentProblem(decryptedData, restEncryptedPayload);
-    if (problem) {
-      return genDecryptError(new BTPErrorException(BTP_ERROR_VALIDATION, { cause: problem }));
-    }
-    // Since 1.2: an opened document is the type its envelope names.
-    const { documentType } = restEncryptedPayload as { documentType?: string };
-    const type = (decryptedData as { type?: unknown } | undefined)?.type;
-    if (documentType !== undefined && type !== documentType) {
-      return genDecryptError(
-        new BTPErrorException(BTP_ERROR_DOCUMENT_TYPE_MISMATCH, {
-          cause: `the document is a ${String(type)}, not the ${documentType} its envelope names`,
-        }),
-      );
-    }
-    // Since 1.2: only one who runs a BTPS server verifies.
-    const { verification } = (decryptedData ?? {}) as { verification?: { verifiedBy: string } };
-    const verifier =
-      restEncryptedPayload.type === 'TRUST_REQ' && verification
-        ? await verifierRefusal(verification.verifiedBy)
-        : undefined;
-    if (verifier) {
-      return genDecryptError(new BTPErrorException(verifier.error, { cause: verifier.problem }));
-    }
+    const problem = await checkDecryptedDocument(decryptedData, restEncryptedPayload);
+    if (problem) return genDecryptError(problem);
   }
 
   const decryptedPayload: VerifyEncryptedPayload<T> = {

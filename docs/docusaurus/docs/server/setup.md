@@ -86,6 +86,8 @@ The `BtpsServer` class accepts the following options:
 
 Every option, with its details: [BtpsServerOptions](../sdk/typesAndInterfaces.md#btpsserveroptions).
 
+Receiving large documents, such as agreements carrying several PDFs: raise `maxArtifactSizeKb` deliberately, and size the server for it ([Large documents](../protocol/specifications/limits.md#large-documents)).
+
 **Example:**
 
 ```js

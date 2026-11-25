@@ -1967,6 +1967,47 @@ An `IMetricsTracker` that writes each event to the console: a BTPS error as its 
 
 ---
 
+## PemSigner (`@btps/sdk/crypto`)
+
+```ts
+class PemSigner implements Signer {
+  constructor(options: PemSignerOptions); // { publicKey: SPKI PEM, privateKey: PKCS#8 PEM }
+  readonly algorithm: 'RSASSA_PKCS1_V1_5_SHA_256';
+  sign(data: Uint8Array): Promise<Uint8Array>;
+  signDigest(digest: Uint8Array): Promise<Uint8Array>; // since 1.2
+  getPublicKey(): Promise<SignerPublicKey>;
+}
+```
+
+The built-in [Signer](./typesAndInterfaces.md#signer) for a PEM key pair held in the process. Use it wherever a `Signer` is taken and the key is a PEM key. A signature made through it is byte-for-byte the one `signBtpPayload` makes with the same key. See [Keys Held Elsewhere](../protocol/security/keyManagement.md#keys-held-elsewhere-signer-and-decrypter).
+
+| Method         | What it does                                                                                                                                                                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sign`         | Signs `data` with RSASSA-PKCS1-v1_5 and SHA-256, and returns the raw signature                                                                                                                                                              |
+| `signDigest`   | Since 1.2. Signs the SHA-256 `digest` of what is signed: PKCS#1 v1.5 over the SHA-256 DigestInfo. The same signature `sign` gives over the data itself. `signBtpPayloadStreamWithSigner` uses it to sign a large artifact a piece at a time |
+| `getPublicKey` | The public key it was given, and its fingerprint                                                                                                                                                                                            |
+
+**Example:**
+
+```ts check
+import { PemSigner, signBtpPayloadStreamWithSigner, type BTPSignature } from '@btps/sdk/crypto';
+
+export async function signLarge(
+  artifact: Record<string, unknown>, // without its document
+  payload: AsyncIterable<string>, // the base64 payload, a piece at a time
+  publicKey: string,
+  privateKey: string,
+): Promise<BTPSignature> {
+  return signBtpPayloadStreamWithSigner(
+    artifact,
+    payload,
+    new PemSigner({ publicKey, privateKey }),
+  );
+}
+```
+
+---
+
 ## BTPErrorException
 
 Custom error class for all BTPS errors. Includes error code, cause, and metadata. Provides a `toJSON()` method for structured logging.
