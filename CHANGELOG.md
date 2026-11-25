@@ -4,7 +4,7 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
-## [1.2.0-rc.3.4] — unreleased (beta, release candidate)
+## [1.2.0-rc.3.4] — 2026-11-26 (beta, release candidate)
 
 A platform can decrypt, encrypt, sign and verify a large payload a piece at a
 time, such as an agreement carrying many PDFs, without holding it in memory,
