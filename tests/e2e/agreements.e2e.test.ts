@@ -133,9 +133,11 @@ describe('journey: an agreement, signed in turn, and its evidence', () => {
           signer === alice
             ? { type: 'typed', text: 'Alice Ng' }
             : { type: 'drawn', strokes: [[40, 200, 120, 80, 260, 210, 400, 90]] },
-        // And its consent to sign electronically, and when it viewed the agreement.
+        // And its consent to sign electronically, when it viewed the agreement, and where from.
         consent: { electronic: true, disclosureSha256: 'd'.repeat(64), at: viewed },
         viewedAt: viewed,
+        viewedFrom: { ip: '203.0.113.7', device: { os: 'macOS', browser: 'Chrome' } },
+        signedFrom: { ip: '203.0.113.7', userAgent: 'Mozilla/5.0 (Macintosh) Chrome/132' },
       },
       { selector: signer.selector, pemFiles: signer.keys },
     );

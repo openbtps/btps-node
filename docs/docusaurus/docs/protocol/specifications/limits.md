@@ -176,10 +176,13 @@ document type. Each limit is described on its
 Since 1.2, in a `1.2.0` artifact only. An agreement has a letter's limits,
 its signatory's and its BoundView's included, and these:
 
-| Field                |                               Limit |
-| -------------------- | ----------------------------------: |
-| `acceptance.signers` |                             1 to 20 |
-| `acceptance.terms`   | 10, one for each attachment at most |
+| Field                                                        |                               Limit |
+| ------------------------------------------------------------ | ----------------------------------: |
+| `acceptance.signers`                                         |                             1 to 20 |
+| `acceptance.terms`                                           | 10, one for each attachment at most |
+| a statement's `viewedFrom.userAgent`, `signedFrom.userAgent` |                                 256 |
+| a statement's `viewedFrom.device.id`, `signedFrom.device.id` |                                 128 |
+| each other field of `viewedFrom.device`, `signedFrom.device` |                                 100 |
 
 ## Lists and records
 

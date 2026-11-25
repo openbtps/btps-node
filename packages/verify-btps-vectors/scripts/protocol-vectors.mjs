@@ -3413,6 +3413,61 @@ export function agreements(keys) {
       'an agreement is viewed no later than its statement is signed',
     ),
     eventCase(
+      accept,
+      'accepted-saying-where-viewed-and-signed-from',
+      answer(
+        'accepted',
+        statedWith('accepted', {
+          viewedAt: at(1),
+          viewedFrom: { ip: '203.0.113.7', userAgent: 'Mozilla/5.0 (Macintosh) Chrome/132' },
+          signedFrom: { ip: '2001:db8::7' },
+        }),
+      ),
+    ),
+    eventCase(
+      accept,
+      'accepted-on-a-registered-app-device',
+      answer(
+        'accepted',
+        statedWith('accepted', {
+          signedFrom: {
+            ip: '203.0.113.7',
+            device: { os: 'iOS', osVersion: '19.1', model: 'iPhone16,2', app: 'Example App', appVersion: '2.4.0', id: 'device-7f3a' },
+          },
+        }),
+      ),
+    ),
+    eventCase(
+      refuse,
+      'signed-from-a-device-saying-nothing',
+      answer('accepted', statedWith('accepted', { signedFrom: { device: {} } })),
+      'a device says at least one thing of itself',
+    ),
+    eventCase(
+      refuse,
+      'viewed-from-without-when',
+      answer('accepted', statedWith('accepted', { viewedFrom: { ip: '203.0.113.7' } })),
+      'a viewedFrom says where a viewedAt was',
+    ),
+    eventCase(
+      refuse,
+      'signed-from-not-an-ip',
+      answer('accepted', statedWith('accepted', { signedFrom: { ip: 'not-an-address' } })),
+      'an ip is an IPv4 or IPv6 address',
+    ),
+    eventCase(
+      refuse,
+      'signed-from-user-agent-with-control-characters',
+      answer('accepted', statedWith('accepted', { signedFrom: { userAgent: 'Mozilla\u0007/5.0' } })),
+      'a user agent is printable text',
+    ),
+    eventCase(
+      refuse,
+      'signed-from-saying-nothing',
+      answer('accepted', statedWith('accepted', { signedFrom: {} })),
+      'a context says an ip, a userAgent or a device',
+    ),
+    eventCase(
       refuse,
       'accepted-with-a-note',
       answer('accepted', alice, { message: note('Happy to sign.') }),
