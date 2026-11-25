@@ -4,6 +4,65 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.0-rc.3.3] — 2026-11-25 (beta, release candidate)
+
+An agreement's signed answer can carry the signer's consent to sign
+electronically, when it viewed the agreement, and where it viewed and answered
+from, so that any platform's evidence shows them. Everything else is as in
+rc.3.2 below; `@btps/boundview` is released in step, unchanged.
+
+### Added
+
+- An agreement statement's `consent`, optional, on an acceptance only:
+  `{ electronic: true, disclosureSha256, at }`, the SHA-256 of the disclosure
+  the signer's platform showed it, in that platform's own words, and when it
+  agreed. New type `BTPElectronicConsent`.
+- An agreement statement's `viewedAt`, optional, on an acceptance or a
+  decline: when the signer first viewed the agreement.
+- Both are inside the statement, so its signature covers them, and neither
+  `consent.at` nor `viewedAt` may be later than its `signedAt`. A statement
+  without them stays valid. Six golden vectors cover them.
+- An agreement statement's `viewedFrom`, optional, only beside a `viewedAt`
+  (a `viewedFrom` without one is refused), and `signedFrom`, optional, on an
+  acceptance or a decline: where the signer viewed and answered from, as its
+  platform saw the request. Each is a signing context
+  `{ ip, userAgent, device }` with at least one of the three: `ip`, an IPv4 or
+  IPv6 address; `userAgent`, printable ASCII of at most 256 characters; and
+  `device`,
+  `{ os, osVersion, model, browser, browserVersion, app, appVersion, id }`,
+  with at least one field, each printable ASCII of at most 100 characters
+  (`id`, 128). `id` is the platform's own id for a device it registered, such
+  as an app installation, not a fingerprint. New types `BTPSigningContext` and
+  `BTPSigningDevice`.
+- Both contexts are inside the statement, so its signature covers them, and a
+  statement without them stays valid. A context is the platform's
+  observation, not proof of where the signer was or what it used; BTPS only
+  carries the fields, and how accurate they are is the platform's
+  responsibility. An IP address and device details are personal information
+  in many jurisdictions, so a platform that records them should tell the
+  signer before it signs, for example in the disclosure that
+  `consent.disclosureSha256` names. Seven more golden vectors cover them; the
+  vector suite is 797 checks in total.
+
+### Removed
+
+- `BtpsServerSyncFactory` (`@btps/sdk/server/core`): a copy of
+  `BtpsServerLightweightFactory`, which it imported the server the same way as.
+  Use `BtpsServerLightweightFactory`.
+- `InMemoryQueue` and `BTPSMessageQueue` (`@btps/sdk/server`): nothing in the
+  SDK used them, and the server keeps no queue. A platform that wants one
+  keeps its own.
+
+### Fixed
+
+- `BTPCryptoOptions.signature`, and so `BtpsAgentCommandOptions.signature`, is
+  optional in its type, as it always was in its schema: an artifact is always
+  signed with SHA-256, the one algorithm BTPS signs with. Options with only
+  `encryption` now typecheck.
+- `BtpsSimpleMetricsTracker.onError` takes any `Error`, as `IMetricsTracker`
+  declares, and logs one that is not a BTPS error by its name and message. It
+  threw on any error without `toJSON`.
+
 ## [1.2.0-rc.3.2] — 2026-11-22 (beta, release candidate)
 
 BoundView, as proved in a platform before release: the snapshot binds and draws

@@ -28,7 +28,9 @@ sequenceDiagram
     B->>S: BTPS_DOC: Sam's copy, encrypted to him
     S->>BS: BTPS_EVENT agreement_event accepted, before his turn
     BS-->>S: 400 BTP_ERROR_AGREEMENT_ORDER (agreementOrderCheck, in flight)
-    A->>BS: BTPS_EVENT agreement_event accepted, statement signed by Alice
+    A->>A: opens her copy: her platform records viewedAt and viewedFrom
+    A->>A: consents to sign electronically, then accepts: her platform records signedFrom
+    A->>BS: BTPS_EVENT agreement_event accepted: her signed statement, with consent, viewedAt, viewedFrom, signedFrom
     BS-->>A: 200
     B->>B: agreementStatementProblem on the opened statement, record it
     B->>S: agreement_progress: the records so far (optional)
@@ -96,13 +98,13 @@ A letter never carries `acceptance`, and an agreement always does, so the type a
 
 ## An answer
 
-A signer answers with an `agreement_event` in a `BTPS_EVENT`, whose `relatesTo` names its own copy. Its `statement` is a **statement record**: the signed statement, and how it was signed.
+A signer answers with an `agreement_event` in a `BTPS_EVENT`, whose `relatesTo` names its own copy. Its `statement` is a **statement record**: the signed statement, and how it was signed. Here Alice viewed and accepted in Chrome on a Mac: her platform took the user agent, and the OS and browser versions from the User-Agent Client Hints Chrome sent.
 
 ```json btps=document:BTPS_EVENT
 {
   "type": "agreement_event",
   "id": "5d6e7f80-9102-4a3b-8c4d-5e6f708192a3",
-  "occurredAt": "2026-11-02T00:00:00.000Z",
+  "occurredAt": "2026-11-02T09:14:52.000Z",
   "eventType": "accepted",
   "agreement": {
     "originator": "loans$bank.example",
@@ -119,7 +121,34 @@ A signer answers with an `agreement_event` in a `BTPS_EVENT`, whose `relatesTo` 
       "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
       "signer": "alice$client.example",
       "decision": "accepted",
-      "signedAt": "2026-11-02T00:00:00.000Z"
+      "signedAt": "2026-11-02T09:14:52.000Z",
+      "visualSignature": { "type": "typed", "text": "Alice Ng" },
+      "consent": {
+        "electronic": true,
+        "disclosureSha256": "9cf72b4504a4459f146c90afd9ba6b84146bd182f49551d051c2a4af26662175",
+        "at": "2026-11-02T09:13:05.000Z"
+      },
+      "viewedAt": "2026-11-02T09:02:41.000Z",
+      "viewedFrom": {
+        "ip": "203.0.113.24",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "device": {
+          "os": "macOS",
+          "osVersion": "15.1.0",
+          "browser": "Google Chrome",
+          "browserVersion": "131.0.6778.86"
+        }
+      },
+      "signedFrom": {
+        "ip": "203.0.113.24",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "device": {
+          "os": "macOS",
+          "osVersion": "15.1.0",
+          "browser": "Google Chrome",
+          "browserVersion": "131.0.6778.86"
+        }
+      }
     },
     "selector": "btps1",
     "signature": {
@@ -135,15 +164,21 @@ A signer answers with an `agreement_event` in a `BTPS_EVENT`, whose `relatesTo` 
 - **`previous`**, in a sequential agreement, on every statement after the first: the SHA-256 of the record before it (`statementRecordSha256`), signature included.
 - **`terms`** repeats the agreement's terms exactly; **`signedAt`** is the signer's own signed time, which the deadline is checked against.
 - **`visualSignature`**, optional, on an acceptance only: the signer's own signature, typed (`{ type: "typed", text }`) or drawn (`{ type: "drawn", strokes }`), with a letter's limits. It is inside the statement, so the signature covers it: another one, or none, no longer checks. A platform may require one before it lets its user accept.
+- **`consent`**, optional, on an acceptance only: the signer's consent to sign electronically, `{ electronic: true, disclosureSha256, at }`. `disclosureSha256` is the SHA-256 of the disclosure the signer's platform showed it, in that platform's own words; `at` is when it agreed, no later than `signedAt`. BTPS carries the fact; each platform writes and versions its own wording. A decline with a `consent` is refused.
+- **`viewedAt`**, optional, on an acceptance or a decline: when the signer first viewed the agreement, no later than `signedAt`.
+- **Why both exist.** Laws on electronic signatures (Australia's Electronic Transactions Act 1999, ESIGN and UETA in the US, eIDAS in the EU) and some courts expect evidence that the signer agreed to sign electronically, and of when it viewed the document. Both are inside the statement, so the signature covers them: changing or removing either no longer checks. They travel into the evidence bundle with it, so any platform's evidence shows them, not only the originator's own records. A statement without them stays valid. Whether either is required is the platform's choice.
+- **`viewedFrom`** and **`signedFrom`**, optional: where the signer viewed the agreement from (only with a `viewedAt`; a `viewedFrom` without one is refused) and where it answered from, on an acceptance or a decline. Each is `{ ip, userAgent, device }`, at least one of the three: the IP address the request came from (IPv4 or IPv6), the user agent its browser or app sent (printable ASCII, at most 256 characters), and the device, `{ os, osVersion, model, browser, browserVersion, app, appVersion, id }`, at least one, each printable ASCII of at most 100 characters (`id`, 128). `id` is the platform's own identifier for a device it registered, such as an app installation, not a fingerprint.
+- **What a context is.** The signer's platform's observation: it saw the request, and a browser reports what it reports. It is not proof of location or device. How much is known, and how accurately, is the platform's: a browser may give only a user agent (some expose the OS and model through User-Agent Client Hints), a native app its OS, version, model and registered device id. BTPS only carries the fields. The signature covers them, so they cannot be changed afterwards, and they travel into the evidence bundle and to every party the statement is forwarded to.
+- **Privacy.** An IP address and device details are personal information in many jurisdictions. A platform that records them should tell the signer before it signs, for example in the disclosure `consent.disclosureSha256` names, that they are recorded and shared with the agreement's parties. Every field is optional, so a platform may leave them out; a statement without them stays valid.
 - **An answer is final.** It is never withdrawn; a change is a new agreement.
 
-A decline may carry a note:
+A decline may carry a note. It never carries a `consent` or a `visualSignature`. This one was viewed and answered in the signer's platform's phone app, which knows more of its device than a browser says: its model, its version and the id the platform registered it under.
 
 ```json btps=document:BTPS_EVENT
 {
   "type": "agreement_event",
   "id": "6e7f8091-a213-4b4c-9d5e-6f708192a3b4",
-  "occurredAt": "2026-11-02T00:00:00.000Z",
+  "occurredAt": "2026-11-02T09:05:33.000Z",
   "eventType": "declined",
   "agreement": {
     "originator": "loans$bank.example",
@@ -160,7 +195,32 @@ A decline may carry a note:
       "terms": ["879045b6f068c6187f025ba1ef44bfa5976c9826e68e6fe6f1956c8ea2044b01"],
       "signer": "alice$client.example",
       "decision": "declined",
-      "signedAt": "2026-11-02T00:00:00.000Z"
+      "signedAt": "2026-11-02T09:05:33.000Z",
+      "viewedAt": "2026-11-02T08:47:19.000Z",
+      "viewedFrom": {
+        "ip": "2001:db8:4c2a::1f",
+        "userAgent": "ExampleApp/4.3.0 (iPhone; iOS 18.1.1)",
+        "device": {
+          "os": "iOS",
+          "osVersion": "18.1.1",
+          "model": "iPhone16,2",
+          "app": "ExampleApp",
+          "appVersion": "4.3.0",
+          "id": "inst-5c0e2b7a-3f41-4d8e-9a6b-1e2f3a4b5c6d"
+        }
+      },
+      "signedFrom": {
+        "ip": "2001:db8:4c2a::1f",
+        "userAgent": "ExampleApp/4.3.0 (iPhone; iOS 18.1.1)",
+        "device": {
+          "os": "iOS",
+          "osVersion": "18.1.1",
+          "model": "iPhone16,2",
+          "app": "ExampleApp",
+          "appVersion": "4.3.0",
+          "id": "inst-5c0e2b7a-3f41-4d8e-9a6b-1e2f3a4b5c6d"
+        }
+      }
     },
     "selector": "btps1",
     "signature": {
@@ -236,6 +296,20 @@ const record = await signStatement(
     signedAt: new Date().toISOString(),
     previous: statementRecordSha256(alicesRecord), // sequential, after the first
     visualSignature: { type: 'typed', text: 'Sam Lee' }, // optional, an acceptance only
+    consent: { electronic: true, disclosureSha256, at: consentedAt }, // optional, an acceptance only
+    viewedAt: firstView.at, // optional, no later than signedAt
+    viewedFrom: firstView.from, // optional, only with viewedAt: where your platform saw it viewed
+    // Optional, as your platform saw this request: at least one of ip, userAgent and device.
+    signedFrom: {
+      ip: request.ip,
+      userAgent: request.headers['user-agent'],
+      device: {
+        os: 'macOS',
+        osVersion: '15.1.0',
+        browser: 'Google Chrome',
+        browserVersion: '131.0.6778.86',
+      },
+    },
   },
   { selector: 'btps1', pemFiles: samKeys },
 );
@@ -290,15 +364,17 @@ takenSoFar.push(openedEvent.statement);
 
 It checks the statement is its event's decision, names this agreement and its terms exactly, is its sender's own, was signed by the deadline, and follows the order (`agreementOrderProblem` for its `previous`). Signatures are `statementSignatureFacts`' ([Evidence bundles](./evidenceBundles.md)).
 
+It does not check `visualSignature`, `consent`, `viewedAt`, `viewedFrom` or `signedFrom`: their rules are the statement's structure, and `signStatement` signs whatever it is given. The receiver's server refuses a readable answer that breaks them on arrival, and `decryptVerify` an encrypted one once opened, with `BTP_ERROR_VALIDATION`. `signEncrypt` refuses to encrypt one in the first place.
+
 ## Errors
 
-| Code                            | Status | Who refuses                                    | When                                                                                                                                                          |
-| ------------------------------- | ------ | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BTP_ERROR_AGREEMENT_ORDER`     | 400    | `agreementOrderCheck` (the originator's)       | an answer from someone not listed, a second answer, a sequential answer before its turn, or anything after a decline                                          |
-| `BTP_ERROR_PERMISSION`          | 403    | the receiver's server                          | an agreement under a trust that does not grant `send:agreement`                                                                                               |
-| `BTP_ERROR_VALIDATION`          | 400    | the receiver's server, or `decryptVerify`      | an agreement without `acceptance`, a letter with it, a `withdrawn` naming an answer, an event whose agreement's originator is neither its `from` nor its `to` |
-| `BTP_ERROR_VERSION_UNSUPPORTED` | 400    | a 1.1 receiver                                 | an agreement is `1.2.0` only                                                                                                                                  |
-| (a problem, not a code)         | —      | `agreementStatementProblem` (the originator's) | the opened statement does not answer its agreement                                                                                                            |
+| Code                            | Status | Who refuses                                    | When                                                                                                                                                                                                                                                                         |
+| ------------------------------- | ------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BTP_ERROR_AGREEMENT_ORDER`     | 400    | `agreementOrderCheck` (the originator's)       | an answer from someone not listed, a second answer, a sequential answer before its turn, or anything after a decline                                                                                                                                                         |
+| `BTP_ERROR_PERMISSION`          | 403    | the receiver's server                          | an agreement under a trust that does not grant `send:agreement`                                                                                                                                                                                                              |
+| `BTP_ERROR_VALIDATION`          | 400    | the receiver's server, or `decryptVerify`      | an agreement without `acceptance`, a letter with it, a `withdrawn` naming an answer, an event whose agreement's originator is neither its `from` nor its `to`, a statement that breaks its own fields' rules (a `consent` on a decline, a `viewedFrom` without a `viewedAt`) |
+| `BTP_ERROR_VERSION_UNSUPPORTED` | 400    | a 1.1 receiver                                 | an agreement is `1.2.0` only                                                                                                                                                                                                                                                 |
+| (a problem, not a code)         | —      | `agreementStatementProblem` (the originator's) | the opened statement does not answer its agreement                                                                                                                                                                                                                           |
 
 ## Protocol and platform
 

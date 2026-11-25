@@ -31,7 +31,7 @@ A canvas's `images` holds up to eight images, each by a key the canvas
 chooses. An [`image` element](./elements.md#image) names its image by that
 key.
 
-```json
+```json sketch
 { "logo": { "width": 320, "height": 120, "encoding": "rgba8-deflate", "data": "eJztwTEBAAAAwqD1T20…" } }
 ```
 

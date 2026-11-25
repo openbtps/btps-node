@@ -34,7 +34,7 @@ sequenceDiagram
 
 ## Stamping
 
-`artifactVersion` decides: `1.1.0` unless the artifact uses something 1.2 adds (permission fields, `documentType`, `syncOf`, an agreement, a `withdrawn`, a note with a format, a discount, a BoundView, a signatory, and the rest). Identity lookups and control artifacts are always `1.1.0`, so every 1.1 and 1.2 server answers them. The agent and `signEncrypt` stamp for you.
+`artifactVersion` decides: `1.1.0` unless the artifact uses something 1.2 adds (permission fields, `documentType`, `syncOf`, an agreement, a `withdrawn`, a note with a format, a discount, a BoundView, a signatory, and the rest). Control artifacts are always `1.1.0`, so every 1.1 and 1.2 server answers them. An identity lookup goes out as `1.2.0`, and again as `1.1.0` when a 1.1 host refuses its version. `BtpsAgent` stamps each artifact it builds this way. `signEncrypt` signs the `version` it is given and stamps none, except that a trust request it shapes for a 1.1 receiver goes as `1.1.0`: give it `version: artifactVersion({ type, document })` (`@btps/sdk/server`), from the document before it is encrypted. A client refuses to send an artifact stamped lower than what it uses.
 
 One 1.1 field goes the other way: `template` is `1.1.0` only. An invoice or receipt with a `template` and nothing from 1.2 is stamped `1.1.0` and read as before. Add anything from 1.2 to it and it is stamped `1.2.0`, and refused, by the sender's own SDK before sending, until `template` is removed. In 1.2 a document's look is its optional [BoundView](../protocol/specifications/boundview/overview.md).
 

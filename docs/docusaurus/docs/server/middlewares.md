@@ -74,14 +74,14 @@ flowchart TD
   E --> F[Verify Signature]
   F --> G[after:signatureVerification]
   G --> F2{Signature valid?}
-  F2 -- no --> X3[A signature error, e.g. BTP_ERROR_SIG_VERIFICATION]
+  F2 -- no --> X3[A signature error, e.g. BTP_ERROR_SIG_VERIFICATION, or since 1.2 a key its chain retired or revoked]
   F2 -- yes --> W{issuedAt within maxArtifactAgeSeconds?}
   W -- no --> X4[BTP_ERROR_ARTIFACT_TIME_WINDOW]
   W -- yes --> H[before:trustVerification]
   H --> I[Verify Trust]
   I --> J[after:trustVerification]
   J --> I2{Trusted?}
-  I2 -- no --> X5[BTP_ERROR_TRUST_NOT_ALLOWED, TRUST_EXPIRED or PRIVACY_TYPE]
+  I2 -- no --> X5[BTP_ERROR_TRUST_NOT_ALLOWED, TRUST_EXPIRED or PRIVACY_TYPE, or since 1.2 a permission refusal]
   I2 -- yes --> K[before:onArtifact]
   K --> L{A handler, forwardTo or before:onArtifact middleware?}
   L -- no --> X6[BTP_ERROR_ARTIFACT_NOT_ACCEPTED]
@@ -92,7 +92,9 @@ flowchart TD
 
 A middleware that sends a response itself stops processing at that point. If you include the default middleware, it rate-limits by IP at `before:parsing` and by identity at `after:signatureVerification`; without it there is no rate limit.
 
-The server also limits how many requests one connection may have in progress (`maxInFlightPerConnection`, 32 by default): at the limit it stops reading from that connection until one finishes.
+The server also limits how many requests one connection may have in progress (`maxInFlightPerConnection`, 32 by default): at the limit it stops reading from that connection until one finishes. Since 1.2, it ends a connection after `maxConsecutiveInvalidLines` lines in a row it cannot read (10 by default).
+
+Since 1.2, the signature step checks each arriving key against its identity's key chain (`BTP_ERROR_KEY_RETIRED`, `BTP_ERROR_KEY_REVOKED`), and the trust step checks trust permissions: a grant (`BTP_ERROR_PERMISSION_REQUIRED`), a send's document type (`BTP_ERROR_PERMISSION`, `BTP_ERROR_DOCUMENT_TYPE_MISMATCH`) and the details a refresh names (`BTP_ERROR_DETAILS_NOT_HELD`). The checks that need your platform's own records are middleware you add (see below).
 
 ## Middleware Types & Structure
 
@@ -156,6 +158,32 @@ export default function createMiddleware() {
   ];
 }
 ```
+
+## Opt-in Checks (since 1.2)
+
+Four checks need records only your platform keeps, so the SDK ships them as middleware from `@btps/sdk/server/core`, off until you add them with your own lookups. Each runs `after` `trustVerification` and refuses in flight, the broken rule in its message:
+
+| Middleware                              | Refuses                                                                                              | Error                            |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `eventChainCheck({ getEvent? })`        | A `withdrawn`, or a proposal that `follows` one, that breaks the event chain                         | `BTP_ERROR_EVENT_CHAIN`          |
+| `agreementOrderCheck({ answers })`      | An agreement answer that is not its signer's turn                                                    | `BTP_ERROR_AGREEMENT_ORDER`      |
+| `detailsResponseCheck({ getArtifact })` | A `DETAILS_RES` that answers no request its receiver sent, or names what the request did not ask for | `BTP_ERROR_PERMISSION`           |
+| `detailsRequestLimit(allowance)`        | A `DETAILS_REQ` over your own limit, with `status.retryAfter`                                        | `BTP_ERROR_DETAILS_RATE_LIMITED` |
+
+```js
+import { eventChainCheck, detailsRequestLimit } from '@btps/sdk/server/core';
+
+export default function createMiddleware() {
+  return [
+    eventChainCheck({ getEvent: ({ id, from, to }) => events.find({ id, from, to }) }),
+    detailsRequestLimit(async ({ from, to }) =>
+      (await counts.thisMonth(from, to)) < 10 ? true : { retryAfter: 3600 },
+    ),
+  ];
+}
+```
+
+Each check's lookup is described in the [API Reference](../sdk/apiReference.md#eventchaincheck); the lookup types in [Types & Interfaces](../sdk/typesAndInterfaces.md#middleware-lookup-types-btpssdkservercore).
 
 ## Queuing in Middleware
 

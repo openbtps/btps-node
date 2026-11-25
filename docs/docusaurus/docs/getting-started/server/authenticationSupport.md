@@ -27,11 +27,9 @@ For detailed authentication concepts, see [Authentication Overview](../../protoc
 ```typescript
 // src/index.ts
 import { BtpsServer } from '@btps/sdk/server';
-import {
-  BtpsAuthentication,
-  InMemoryTokenStore,
-} from '@btps/sdk/authentication';
+import { BtpsAuthentication, InMemoryTokenStore } from '@btps/sdk/authentication';
 import { JsonTrustStore } from '@btps/sdk/trust';
+import { readFileSync } from 'fs';
 
 // Configure trust store for authentication
 const trustStore = new JsonTrustStore({
@@ -46,6 +44,10 @@ const server = new BtpsServer({
     privateKey: readFileSync('./keys/private.pem', 'utf8'),
   },
   trustStore,
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
 });
 
@@ -146,16 +148,12 @@ async function handleAuthRefresh(artifact, resCtx, auth, server) {
   }
 
   const authDoc = refreshAuthDoc;
-  const { data, error } = await auth.validateAndReissueRefreshToken(
-    agentId,
-    authDoc.authToken,
-    {
-      decidedBy: 'system',
-      publicKey: authDoc.publicKey,
-      agentInfo: authDoc?.agentInfo ?? {},
-      decryptBy: artifact.to, // decryptBy parameter
-    },
-  );
+  const { data, error } = await auth.validateAndReissueRefreshToken(agentId, authDoc.authToken, {
+    decidedBy: 'system',
+    publicKey: authDoc.publicKey,
+    agentInfo: authDoc?.agentInfo ?? {},
+    decryptBy: artifact.to, // decryptBy parameter
+  });
 
   if (error) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);

@@ -38,6 +38,7 @@ graph TD
 
     subgraph "Agent Commands"
         F["Send: artifact.send, event.send, trust.request, trust.respond"]
+        K["Send, since 1.2: details.changed, details.request, details.respond"]
         G["Auth: auth.request, auth.refresh"]
         H["Trust records: trust.fetch, trust.update, trust.delete"]
         I["Mailboxes: inbox, outbox, sentbox, draft, trash"]
@@ -45,6 +46,7 @@ graph TD
     end
 
     A --> F
+    A --> K
     A --> G
     A --> H
     A --> I
@@ -60,7 +62,7 @@ graph TD
     class B,C server
     class D transporter
     class E recipient
-    class F,G,H,I,J commands
+    class F,G,H,I,J,K commands
 ```
 
 ## Command Flow
@@ -81,8 +83,8 @@ graph TD
 
 ### Trust Management
 
-- **`trust.request`**: Send trust request to establish relationship (sent to the other side)
-- **`trust.respond`**: Respond to a pending trust request (sent to the requester)
+- **`trust.request`**: Send trust request to establish relationship (sent to the other side). Since 1.2, it may ask for [trust permissions](../../features/trustPermissions.md)
+- **`trust.respond`**: Respond to a pending trust request (sent to the requester). Since 1.2, it may grant permissions
 - **`trust.fetch`**: List the user's trust requests, received and sent, with their status
 - **`trust.update`**: Change one of the user's trust records, e.g. revoke or block it
 - **`trust.delete`**: Remove trust records
@@ -91,8 +93,16 @@ graph TD
 
 ### Document Delivery
 
-- **`artifact.send`**: Send documents (invoices) to recipients
-- **`event.send`**: Send a lifecycle event (paid, disputed, ...) about a document received
+- **`artifact.send`**: Send a document (an invoice, receipt, payslip, letter or, since 1.2, an agreement) to a recipient
+- **`event.send`**: Send a lifecycle event (paid, disputed, ...) about a document received, or since 1.2, a signer's answer to an agreement
+
+### Details Refresh (since 1.2)
+
+- **`details.changed`**: Tell the other side of a trust that some of your details changed
+- **`details.request`**: Ask the other side for details the trust holds
+- **`details.respond`**: Answer a details request, always encrypted
+
+See [Details refresh](../../features/detailsRefresh.md).
 
 ### Storage
 
@@ -104,13 +114,15 @@ graph TD
 
 The protocol defines these commands; the provider's server stores and answers them.
 
+Since 1.2, `agent.openResult(entry)` opens an encrypted entry of a fetch result with the device's own key, when the provider wrapped its content key for the device. It sends nothing. See [openResult](./commands.md#opening-an-encrypted-result-openresult).
+
 ## Agent Identity and Authentication
 
 BtpsAgent requires:
 
 - **Agent ID**: Unique identifier for the agent instance
 - **Identity**: BTPS identity (e.g., `billing$company.com`)
-- **Cryptographic Keys**: Private/public key pair for signing and encryption
+- **Cryptographic Keys**: The device's private/public key pair, or a `signer` (and `decrypter`) that holds the key elsewhere, such as the device's keystore
 - **Authentication**: Optional device authentication for delegation
 
 ## Use Cases

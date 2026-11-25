@@ -31,7 +31,7 @@ canvas's 2,000 elements ([Canvas limits](./canvas.md#limits)).
 
 ## rect
 
-```json
+```json sketch
 { "type": "rect", "x": 438, "y": 334, "width": 150, "height": 74, "radius": 10, "fill": "#f2f6ff" }
 ```
 
@@ -45,7 +45,7 @@ canvas's 2,000 elements ([Canvas limits](./canvas.md#limits)).
 
 ## line
 
-```json
+```json sketch
 { "type": "line", "from": [60, 410.5], "to": [588, 410.5], "stroke": "#e6eaf0", "strokeWidth": 1 }
 ```
 
@@ -60,7 +60,7 @@ canvas's 2,000 elements ([Canvas limits](./canvas.md#limits)).
 
 Any outline: a logo drawn as shapes, an icon, a wave, an ornament.
 
-```json
+```json sketch
 { "type": "path", "d": "M0 1083C200 1063 400 1093 600 1068L600 1123L0 1123Z", "fill": { "linear": { "from": [0, 1060], "to": [0, 1123], "stops": [[0, "#f2f6ff"], [1, "#ffffff"]] } } }
 ```
 
@@ -95,7 +95,7 @@ The same commands draw a glyph's outline ([Fonts and glyphs](./fonts.md#a-font))
 
 ## image
 
-```json
+```json sketch
 { "type": "image", "image": "logo", "x": 36, "y": 36, "width": 160, "height": 60 }
 ```
 
@@ -111,7 +111,7 @@ The same commands draw a glyph's outline ([Fonts and glyphs](./fonts.md#a-font))
 A fact: the value of a signed field, drawn from that field. The canvas holds
 where and how it is drawn, never its text.
 
-```json
+```json sketch
 {
   "type": "text",
   "bind": { "field": "dueAt", "format": { "date": "d MMM yyyy" } },
@@ -146,7 +146,7 @@ address or a note, is several `text` elements, each bound to a
 
 The sender's own words: a heading, a caption, a column name, a greeting.
 
-```json
+```json sketch
 { "type": "label", "text": "Amount due", "x": 450, "y": 349, "width": 72, "align": "start", "font": "body-semibold", "size": 10, "colour": "#1e4fc2", "letterSpacing": 0.6, "transform": "uppercase" }
 ```
 
@@ -164,7 +164,7 @@ makes no claim about what it says ([Security model](./security.md)).
 The sender's sign-off on a letter or an agreement, from the document's
 `signatory.visualSignature`.
 
-```json
+```json sketch
 { "type": "signature", "x": 60, "y": 610, "width": 220, "height": 66, "colour": "#0f1b2d" }
 ```
 

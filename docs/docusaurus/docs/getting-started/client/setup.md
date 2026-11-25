@@ -149,6 +149,7 @@ async queryInboxes() {
 ```typescript
 import { parseIdentity } from '@btps/sdk';
 import { signEncrypt } from '@btps/sdk/crypto';
+import { artifactVersion } from '@btps/sdk/server';
 import type { BTPTransporterArtifact } from '@btps/sdk/server';
 
 async sendMessage(to: string, document: any) {
@@ -172,7 +173,8 @@ async sendMessage(to: string, document: any) {
       },
     },
     {
-      version: '1.1.0',
+      // 1.1.0 unless the document uses something 1.2 adds, then 1.2.0
+      version: artifactVersion({ type: 'BTPS_DOC', document }),
       type: 'BTPS_DOC',
       from,
       to,

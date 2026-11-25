@@ -20,25 +20,29 @@ The BTPS SDK (`@btps/sdk`) provides all the building blocks for secure, trust-ba
 <TabItem value="npm" label="npm">
 
 ```bash
-npm install @btps/sdk
+npm install @btps/sdk@next
 ```
 
 </TabItem>
 <TabItem value="yarn" label="yarn">
 
 ```bash
-yarn add @btps/sdk
+yarn add @btps/sdk@next
 ```
 
 </TabItem>
 <TabItem value="pnpm" label="pnpm">
 
 ```bash
-pnpm add @btps/sdk
+pnpm add @btps/sdk@next
 ```
 
 </TabItem>
 </Tabs>
+
+:::note
+These pages describe 1.2, which is the `next` release until 1.2.0 ships: without `@next`, a package manager installs the latest 1.1 release. See [Migrating from 1.1 to 1.2](../whats-new/version-1-2-migration.md).
+:::
 
 ### BoundView: `@btps/boundview`
 
@@ -55,21 +59,21 @@ It is tree-shakable, so an app downloads only what it uses: see
 <TabItem value="npm" label="npm">
 
 ```bash
-npm install @btps/boundview
+npm install @btps/boundview@next
 ```
 
 </TabItem>
 <TabItem value="yarn" label="yarn">
 
 ```bash
-yarn add @btps/boundview
+yarn add @btps/boundview@next
 ```
 
 </TabItem>
 <TabItem value="pnpm" label="pnpm">
 
 ```bash
-pnpm add @btps/boundview
+pnpm add @btps/boundview@next
 ```
 
 </TabItem>
@@ -112,25 +116,25 @@ import type { BTPArtifact, BTPInvoiceDoc } from '@btps/sdk/server';
 
 ## 📦 Entry Points & Subpath Exports
 
-| Import Path                | Description                      |
-| -------------------------- | -------------------------------- |
-| `@btps/sdk`                | Main SDK (server, client, utils) |
-| `@btps/sdk/server`         | Server-side exports              |
-| `@btps/sdk/server/core`    | Server core libraries            |
-| `@btps/sdk/client`         | Client-side exports              |
-| `@btps/sdk/crypto`         | Cryptographic utilities          |
-| `@btps/sdk/trust`          | Trust store and trust types      |
-| `@btps/sdk/authentication` | Authentication utilities         |
-| `@btps/sdk/delegation`     | Delegation utilities             |
-| `@btps/sdk/error`          | Error types and helpers          |
-| `@btps/sdk/storage`        | Storage utilities                |
+| Import Path                | Description                                                                                                                                                                                                                                                                                                                                                                       |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@btps/sdk`                | Identity and DNS utilities (`parseIdentity`, `computeId`, `getHostAndSelector`, ...)                                                                                                                                                                                                                                                                                              |
+| `@btps/sdk/server`         | Server-side exports                                                                                                                                                                                                                                                                                                                                                               |
+| `@btps/sdk/server/core`    | Server core libraries                                                                                                                                                                                                                                                                                                                                                             |
+| `@btps/sdk/client`         | Client-side exports                                                                                                                                                                                                                                                                                                                                                               |
+| `@btps/sdk/crypto`         | Cryptographic utilities                                                                                                                                                                                                                                                                                                                                                           |
+| `@btps/sdk/trust`          | Trust store and trust types                                                                                                                                                                                                                                                                                                                                                       |
+| `@btps/sdk/authentication` | Authentication utilities                                                                                                                                                                                                                                                                                                                                                          |
+| `@btps/sdk/delegation`     | Delegation utilities                                                                                                                                                                                                                                                                                                                                                              |
+| `@btps/sdk/error`          | Error types and helpers                                                                                                                                                                                                                                                                                                                                                           |
+| `@btps/sdk/storage`        | Storage utilities                                                                                                                                                                                                                                                                                                                                                                 |
 | `@btps/sdk/boundview`      | Since 1.2. Browser-safe: the [BoundView](../protocol/specifications/boundview/overview.md) schema, bindings and checks only (`BtpBoundViewSchema`, `isPathData`, `boundValue`, `bindingProblem`, `checkBoundView`, `boundViewResultOf`, `writtenValue`, `CONTRAST_WORK_LIMIT` and the types), for a browser or app that draws or captures a BoundView without the rest of the SDK |
 
 ---
 
 ## 📁 File Structure Overview
 
-Your installed `node_modules/@btps/sdk` will contain:
+Your installed `node_modules/@btps/sdk` will contain, beside `bin/` and `CHANGELOG.md`:
 
 ```
 dist/
@@ -185,10 +189,12 @@ const { payload, error } = await signEncrypt(
   'pay$client.com',
   { accountName: 'billing', domainName: 'vendorcorp.com', pemFiles: { publicKey, privateKey } },
   {
+    version: '1.1.0', // or artifactVersion({ type, document }) from @btps/sdk/server
     type: 'BTPS_DOC',
-    document: {
-      /* ... */
-    },
+    from: 'billing$vendorcorp.com',
+    to: 'pay$client.com',
+    selector: 'btps1', // the selector your own key is published under
+    document: invoice,
   },
   {
     signature: { algorithmHash: 'sha256' },
@@ -220,6 +226,12 @@ const publicKey = await identityStore.getPublicKeyRecord(computeId('alice$saas.c
 
 - This SDK is **ESM-only**. Use `import`/`export` syntax.
 - No CommonJS (`require()`) support.
+
+---
+
+## Command Line
+
+The package installs one command, `btps-verify-evidence`, which checks an agreement's evidence bundle offline (since 1.2). See [Evidence bundles](../features/evidenceBundles.md).
 
 ---
 

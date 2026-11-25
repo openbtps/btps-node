@@ -34,10 +34,10 @@ People pay from a page, not from JSON. And a business wants its documents to
 look like its own. Before BoundView, there were two ways to show a
 document, and each lost something.
 
-| Choice | What it keeps | What it loses |
-| --- | --- | --- |
-| **The receiver draws its own view of the data** | Trust: the page is drawn from the signed data | The sender's design does not travel, and the document looks different on every provider |
-| **The sender's own design travels**, as an HTML email, a PDF or a template | The look the sender designed | Nothing ties the amount or the bank details shown to the signed data. And the file is an attack surface: its fonts, images and scripts are parsed on the receiver's device, and remote images are used to track when it is read |
+| Choice                                                                     | What it keeps                                 | What it loses                                                                                                                                                                                                                   |
+| -------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **The receiver draws its own view of the data**                            | Trust: the page is drawn from the signed data | The sender's design does not travel, and the document looks different on every provider                                                                                                                                         |
+| **The sender's own design travels**, as an HTML email, a PDF or a template | The look the sender designed                  | Nothing ties the amount or the bank details shown to the signed data. And the file is an attack surface: its fonts, images and scripts are parsed on the receiver's device, and remote images are used to track when it is read |
 
 We wanted both: the sender's design, and a page the receiver can trust.
 
@@ -53,14 +53,14 @@ replace them.
 BoundView was designed so that each part of the problem has its own answer.
 Each one is specified; follow the links for the detail.
 
-| What we needed | How BoundView does it | Specified on |
-| --- | --- | --- |
-| The sender keeps its design | The sender's own HTML preview is captured when the document is sent, and the canvas is signed inside the document | [Using it](./using.md), [Canvas](./canvas.md) |
-| The page shows the signed data | Facts are bindings drawn from the signed fields, never text | [Bindings and formats](./bindings.md) |
-| Nothing is parsed from a sender's file, nothing is fetched | Fonts travel as glyph outlines and images as pixels | [Fonts and glyphs](./fonts.md), [Images](./images.md) |
-| Nothing is hidden | The receiver checks wherever the document is opened: every key fact shown, in full, not hidden. When a check fails, it shows its own view, and the document is never lost | [Checks](./checks.md) |
-| The same page on every receiver | One engine draws the canvas, in a closed WebAssembly box | [Rendering](./rendering.md) |
-| A BoundView cannot pose as the sender | The verified sender, the links and the attachments are shown outside the BoundView | [What the receiving app shows around a BoundView](./using.md#what-the-receiving-app-shows-around-a-boundview) |
+| What we needed                                             | How BoundView does it                                                                                                                                                     | Specified on                                                                                                  |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| The sender keeps its design                                | The sender's own HTML preview is captured when the document is sent, and the canvas is signed inside the document                                                         | [Using it](./using.md), [Canvas](./canvas.md)                                                                 |
+| The page shows the signed data                             | Facts are bindings drawn from the signed fields, never text                                                                                                               | [Bindings and formats](./bindings.md)                                                                         |
+| Nothing is parsed from a sender's file, nothing is fetched | Fonts travel as glyph outlines and images as pixels                                                                                                                       | [Fonts and glyphs](./fonts.md), [Images](./images.md)                                                         |
+| Nothing is hidden                                          | The receiver checks wherever the document is opened: every key fact shown, in full, not hidden. When a check fails, it shows its own view, and the document is never lost | [Checks](./checks.md)                                                                                         |
+| The same page on every receiver                            | One engine draws the canvas, in a closed WebAssembly box                                                                                                                  | [Rendering](./rendering.md)                                                                                   |
+| A BoundView cannot pose as the sender                      | The verified sender, the links and the attachments are shown outside the BoundView                                                                                        | [What the receiving app shows around a BoundView](./using.md#what-the-receiving-app-shows-around-a-boundview) |
 
 ## What it adds to the trust claim
 
@@ -131,16 +131,16 @@ about the document or what is displayed.
 ✓ yes, ✗ no, **Partly** with a note, and — where the comparison does not
 apply or is not made here.
 
-| | Verified sender | Page tied to the signed data | Sender's design travels | Nothing fetched or parsed from the sender's files | Works across providers |
-| --- | --- | --- | --- | --- | --- |
-| **Email**, HTML or a PDF attachment | Partly: DKIM, SPF and DMARC show the sending domain, and S/MIME can sign | ✗ | ✓ | ✗ remote images, and the attachment's fonts, images and scripts | ✓ |
-| **Signed PDF** | Partly: the signer's certificate, when the reader trusts its issuer | ✗ the signature covers bytes, not what is shown | ✓ | ✗ fonts, images and optional scripts | — |
-| **Hybrid invoice** (Factur-X / ZUGFeRD) | — | ✗ nothing checks the page against the embedded data | ✓ | ✗ it is a PDF | — |
-| **E-invoicing network** (Peppol with UBL) | — | Partly: the receiver draws the data with its own stylesheet, but an attached PDF rendition is not tied | ✗ | — | — |
-| **Supplier portal** | — | ✗ | ✓ | ✗ the receiver loads the sender's website and runs its scripts | ✗ a log-in for each portal |
-| **TLS** | Partly: the server it connects to, in transit, not who wrote the document | ✗ | — | — | — |
-| **BTPS before 1.2**, the receiver's own view | ✓ signatures, keys in DNS | ✓ the receiver draws the data itself | ✗ | ✓ | ✓ |
-| **BTPS with BoundView** | ✓ shown outside the BoundView | ✓ bindings, checked wherever it is opened | ✓ | ✓ glyph outlines and pixels, nothing fetched | ✓ |
+|                                              | Verified sender                                                           | Page tied to the signed data                                                                           | Sender's design travels | Nothing fetched or parsed from the sender's files               | Works across providers     |
+| -------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------- | --------------------------------------------------------------- | -------------------------- |
+| **Email**, HTML or a PDF attachment          | Partly: DKIM, SPF and DMARC show the sending domain, and S/MIME can sign  | ✗                                                                                                      | ✓                       | ✗ remote images, and the attachment's fonts, images and scripts | ✓                          |
+| **Signed PDF**                               | Partly: the signer's certificate, when the reader trusts its issuer       | ✗ the signature covers bytes, not what is shown                                                        | ✓                       | ✗ fonts, images and optional scripts                            | —                          |
+| **Hybrid invoice** (Factur-X / ZUGFeRD)      | —                                                                         | ✗ nothing checks the page against the embedded data                                                    | ✓                       | ✗ it is a PDF                                                   | —                          |
+| **E-invoicing network** (Peppol with UBL)    | —                                                                         | Partly: the receiver draws the data with its own stylesheet, but an attached PDF rendition is not tied | ✗                       | —                                                               | —                          |
+| **Supplier portal**                          | —                                                                         | ✗                                                                                                      | ✓                       | ✗ the receiver loads the sender's website and runs its scripts  | ✗ a log-in for each portal |
+| **TLS**                                      | Partly: the server it connects to, in transit, not who wrote the document | ✗                                                                                                      | —                       | —                                                               | —                          |
+| **BTPS before 1.2**, the receiver's own view | ✓ signatures, keys in DNS                                                 | ✓ the receiver draws the data itself                                                                   | ✗                       | ✓                                                               | ✓                          |
+| **BTPS with BoundView**                      | ✓ shown outside the BoundView                                             | ✓ bindings, checked wherever it is opened                                                              | ✓                       | ✓ glyph outlines and pixels, nothing fetched                    | ✓                          |
 
 ## Next
 

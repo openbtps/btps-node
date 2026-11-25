@@ -234,6 +234,11 @@ export type BTPAgreementAnswers = {
  * `previous`, in a sequential agreement, is the SHA-256 of the statement
  * record before it. `visualSignature`, on an acceptance only, is the signer's
  * own signature, typed or drawn on the same 1000 by 300 canvas as a letter's.
+ * `consent`, on an acceptance only, is the signer's consent to sign
+ * electronically; `viewedAt`, when it first viewed the agreement. Both are no
+ * later than `signedAt`, and inside what is signed. `viewedFrom` and
+ * `signedFrom` say where it viewed (with `viewedAt` only) and answered from, as
+ * its platform saw it.
  */
 export type BTPAgreementStatement = {
   agreement: BTPAgreementRef;
@@ -243,12 +248,55 @@ export type BTPAgreementStatement = {
   signedAt: string;
   previous?: string;
   visualSignature?: BTPVisualSignature;
+  consent?: BTPElectronicConsent;
+  viewedAt?: string;
+  viewedFrom?: BTPSigningContext;
+  signedFrom?: BTPSigningContext;
+};
+
+/**
+ * Since 1.2: where a signer viewed or answered from, as its platform saw it:
+ * the request's IP address, its user agent as printable text of at most 256
+ * characters, and the device it was on. At least one of the three.
+ */
+export type BTPSigningContext = {
+  ip?: string;
+  userAgent?: string;
+  device?: BTPSigningDevice;
+};
+
+/**
+ * Since 1.2: the device a signer was on, as its platform could tell. Each field
+ * printable text of at most 100 characters (`id`, 128); at least one. How much
+ * is known, and how surely, is the platform's: a browser may say little, an app
+ * a great deal, and `id` is the platform's own for a device it registered.
+ */
+export type BTPSigningDevice = {
+  os?: string;
+  osVersion?: string;
+  model?: string;
+  browser?: string;
+  browserVersion?: string;
+  app?: string;
+  appVersion?: string;
+  id?: string;
 };
 
 /** Since 1.2: a signer's signature as data, never markup, which a receiver draws itself. */
 export type BTPVisualSignature =
   | { type: 'typed'; text: string }
   | { type: 'drawn'; strokes: number[][] };
+
+/**
+ * Since 1.2: a signer's consent to sign electronically. `disclosureSha256` is
+ * the SHA-256 of the disclosure its platform showed it, in that platform's own
+ * words; `at` is when it agreed.
+ */
+export type BTPElectronicConsent = {
+  electronic: true;
+  disclosureSha256: string;
+  at: string;
+};
 
 /**
  * Since 1.2: a signed statement. Signed by the signer's identity key at

@@ -102,13 +102,15 @@ return res.sendError(new BTPErrorException(BTP_ERROR_RATE_LIMITER, { meta: { ret
 
 ## The server's own limits
 
-| Option                       | Default        | What it bounds                                                                                                      |
-| ---------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `maxArtifactSizeKb`          | 5,120 (5 MB)   | one artifact's size, before it is read in full                                                                      |
-| `maxArtifactAgeSeconds`      | 300            | how far `issuedAt` may be from the server's clock                                                                   |
-| `maxInFlightPerConnection`   | 32             | requests one connection may have handled at once; a request is in flight until its answer is written, signed or not |
-| `maxConsecutiveInvalidLines` | 10 (since 1.2) | unreadable lines in a row on one connection: the last is answered, with `status.closing`, and the connection ends   |
-| `connectionTimeoutMs`        | 30,000         | how long a connection with nothing in flight stays open                                                             |
+| Option                       | Default            | What it bounds                                                                                                      |
+| ---------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `maxArtifactSizeKb`          | 5,120 (5 MB)       | one artifact's size, before it is read in full                                                                      |
+| `maxArtifactAgeSeconds`      | 300                | how far `issuedAt` may be from the server's clock                                                                   |
+| `maxInFlightPerConnection`   | 32                 | requests one connection may have handled at once; a request is in flight until its answer is written, signed or not |
+| `maxConsecutiveInvalidLines` | 10 (since 1.2)     | unreadable lines in a row on one connection: the last is answered, with `status.closing`, and the connection ends   |
+| `connectionTimeoutMs`        | 30,000             | how long a connection with nothing in flight stays open                                                             |
+| `retiredKeyGraceSeconds`     | 86,400 (since 1.2) | how long a key its identity rotated away from as planned still signs ([Key rotation](./keyRotation.md))             |
+| `keyChainMaxCacheSeconds`    | 300 (since 1.2)    | how long a key chain is trusted from a cache: the longest a revoked key can still be taken                          |
 
 A line is checked against the schema of the kind of artifact it is taken for, and nothing else, and every list is refused cheaply when it is too long, before its signature is checked. See [Limits](../protocol/specifications/limits.md).
 
@@ -127,20 +129,27 @@ With `onError` (or `onError` middleware), the server no longer also writes each 
 
 Every key lookup, the server's and the client's, goes through one option, `keyResolver`, so a provider can cache keys; BTPS itself caches nothing. `createDefaultKeyResolver` is the lookup to wrap. See [Caching Key Lookups](../server/advancedUsages.md#caching-key-lookups).
 
-```ts
-import { createDefaultKeyResolver } from '@btps/sdk/crypto';
+```ts check
+import { createDefaultKeyResolver, type BtpsKeyResolver } from '@btps/sdk/crypto';
 
+const KEY_CACHE_MS = 5 * 60_000; // so a removed DNS record stops counting
 const lookup = createDefaultKeyResolver();
-const cache = new Map();
-const keyResolver = {
+const cache = new Map<string, { key: string; until: number }>();
+
+// Given to BtpsServer as `keyResolver`, beside the rest of its options.
+export const keyResolver: BtpsKeyResolver = {
   async resolvePublicKey(identity, selector, use) {
-    const key = `${identity} ${selector} ${use}`;
-    if (!cache.has(key)) cache.set(key, await lookup.resolvePublicKey(identity, selector, use));
-    return cache.get(key);
+    const id = `${identity} ${selector} ${use}`;
+    const kept = cache.get(id);
+    if (kept && kept.until > Date.now()) return kept.key;
+    const key = await lookup.resolvePublicKey(identity, selector, use);
+    if (key) cache.set(id, { key, until: Date.now() + KEY_CACHE_MS }); // only keys found
+    return key;
   },
 };
-const server = new BtpsServer({ /* ... */ keyResolver });
 ```
+
+Cache only keys found, so a newly published key is found at once. A resolver that gives key chains too (`resolveKeyChain`) keeps each no longer than the server's `keyChainMaxCacheSeconds` ([Rotating keys](../whats-new/version-1-2-migration.md#rotating-keys)).
 
 The feature journey (`tests/e2e/features.e2e.test.ts`) checks that a caching resolver looks a sender's key up once over three events.
 

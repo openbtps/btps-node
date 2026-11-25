@@ -19,7 +19,7 @@ payslip, a letter or an agreement may carry `boundView`, and the
 `boundView` object is the canvas itself: `{ "format": 1, "page": { … }, "elements": [ … ] }`,
 with `fonts` and `images` when it has them.
 
-```json
+```json sketch
 {
   "boundView": {
     "format": 1,
@@ -57,7 +57,7 @@ schema. Any other key is refused.
 
 ## Page
 
-```json
+```json sketch
 { "width": 600, "height": 900, "background": "#ffffff", "breaks": [900] }
 ```
 
@@ -88,7 +88,7 @@ A **colour** is `#rrggbb`, or `#rrggbbaa` with opacity, in lower case.
 Where an element takes a **paint** (`fill`, `stroke`), it is a colour or a
 gradient:
 
-```json
+```json sketch
 { "linear": { "from": [0, 0], "to": [600, 0], "stops": [[0, "#1e4fc2"], [1, "#7c3aed"]] } }
 { "radial": { "centre": [80, 30], "radius": 140, "stops": [[0, "#ffffff73"], [1, "#ffffff00"]] } }
 ```

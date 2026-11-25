@@ -32,6 +32,10 @@ import { JsonTrustStore } from '@btps/sdk/trust';
 import { readFileSync } from 'fs';
 
 const server = new BtpsServer({
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   serverIdentity: {
     identity: 'admin$yourdomain.com',
@@ -45,16 +49,17 @@ const server = new BtpsServer({
   middlewarePath: './btps.middleware.mjs',
 });
 
-// Create delegator for your SaaS platform
+// Create delegator for your SaaS platform: your domain's operator (op= in _btps.host),
+// the only identity a receiver takes a delegation or attestation from for your domain
 const delegator = new BtpsDelegator({
-  identity: 'your-saas$yourdomain.com', // Your SaaS platform identity
-  privateKey: process.env.SAAS_PRIVATE_KEY, // Your SaaS private key
+  identity: 'admin$yourdomain.com', // Your operator identity
+  privateKey: process.env.SAAS_PRIVATE_KEY, // Your operator's private key
 });
 
 // The delegator auto-initializes by default
 // For testing, you can disable auto-initialization:
 // const delegator = new BtpsDelegator({
-//   identity: 'your-saas$yourdomain.com',
+//   identity: 'admin$yourdomain.com',
 //   privateKey: process.env.SAAS_PRIVATE_KEY,
 //   autoInit: false
 // });
@@ -98,30 +103,35 @@ server.onIncomingArtifact('Transporter', async (artifact) => {
 ### Step 3: Implement Delegation Creation
 
 ```typescript
+import { base64ToPem } from '@btps/sdk';
+import { computeAgentTrustId } from '@btps/sdk/trust';
+
 // Handle artifacts that need delegation
 async function handleDelegatedArtifact(artifact, resCtx, delegator, server) {
-  const { to, document, agentId, agentPubKey } = artifact;
+  const { agentId } = artifact;
+  // The agent artifact's document is the transporter artifact the device built and signed
+  const transporterArtifact = artifact.document;
+  // The user the device acts for: the artifact's sender
+  const user = transporterArtifact.from;
 
   try {
-    // Create transporter artifact from agent artifact
-    const transporterArtifact = {
-      ...artifact.document, // this already contains signed transport type artifact from the agent
-    };
+    // The device's public key, from the trust record its authentication created
+    const device = await trustStore.getById(computeAgentTrustId(agentId, user));
+    const agentPubKey = base64ToPem(device.publicKeyBase64);
 
-    // Determine if user is SaaS domain or custom domain based on the "to" field
-    const isCustomDomain = getUserSettings(artifact.to); // when user setup the customdomain SaaS as you must save the details if the account type is custom or free user
+    // Is the user on your domain, or on a custom domain of its own?
+    const isCustomDomain = getUserSettings(user); // saved when the user set up a custom domain
 
-    /* You can also use the following if your system din't capture if the user hasCustom domain or not */
-    // const isCustomDomainFallBack = parseIdentity(artifact.to)?.domainName !=== 'yourDomain.com'
+    /* You can also use the following if your system didn't record whether the user has a custom domain */
+    // const isCustomDomainFallBack = parseIdentity(user)?.domainName !== 'yourdomain.com'
 
     let delegatedArtifact;
 
     if (isCustomDomain) {
-      // Custom domain user - requires attestation
-      // The user should already have a record since they signed up with custom domain
-      const userKeyPair = await getUserKeyPair(to);
+      // Custom domain user: the user's own key signs the delegation, and your operator attests
+      const userKeyPair = await getUserKeyPair(user);
       if (!userKeyPair) {
-        throw new Error(`User key pair not found for ${to}`);
+        throw new Error(`User key pair not found for ${user}`);
       }
 
       delegatedArtifact = await delegator.delegateArtifact(
@@ -129,7 +139,7 @@ async function handleDelegatedArtifact(artifact, resCtx, delegator, server) {
         agentPubKey,
         transporterArtifact,
         {
-          identity: to,
+          identity: user,
           keyPair: userKeyPair,
         },
       );
@@ -142,16 +152,15 @@ async function handleDelegatedArtifact(artifact, resCtx, delegator, server) {
       );
     }
 
-    // Send the delegated artifact to the recipient
-    await sendDelegatedArtifact(delegatedArtifact); // either directly send which uses the Btps transporter
-    await queueToOutbox(delegatedArtifact); // either based to outbox queue so later Btps transporter picks up when its ready.
+    // Send the delegated artifact to the recipient now, with your transporter
+    await sendDelegatedArtifact(delegatedArtifact);
 
     // Send success response to agent
     return resCtx.sendRes({
       ...server.prepareBtpsResponse(
         {
           ok: true,
-          message: 'Artifact delegated and sent successfully', // 'Artifact added to the outbox queue'
+          message: 'Artifact delegated and sent successfully',
           code: 200,
         },
         artifact.id,
@@ -181,16 +190,14 @@ function getUserSettings(userIdentity) {
   return userIdentity.includes('enterprise.com'); // Example logic
 }
 
-// Send delegated artifact to recipient
+// Send delegated artifact to recipient, with the one transporter your server keeps
 async function sendDelegatedArtifact(delegatedArtifact) {
-  // Use your transporter to send the delegated artifact
-  const transporter = new BtpsTransporter({
-    // Transporter configuration
-  });
-
-  await transporter.send(delegatedArtifact);
+  const result = await transporter.transport(delegatedArtifact.to, delegatedArtifact);
+  if (result.error) throw result.error;
 }
 ```
+
+This sends the artifact before answering the device. To answer at once instead, put the delegated artifact on your outbox and let a background worker deliver it, as [Transporter Integration](./transporterSupport.md) shows; answer the device that it is queued.
 
 ## Delegation Structure Examples
 
@@ -211,7 +218,7 @@ async function sendDelegatedArtifact(delegatedArtifact) {
   "delegation": {
     "agentId": "device_mobile_iphone15_20250115_103000",
     "agentPubKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
-    "signedBy": "alice$yourdomain.com",
+    "signedBy": "admin$yourdomain.com", // your operator signs the delegation
     "issuedAt": "2025-01-15T10:30:00Z",
     "selector": "btps1",
     "signature": {
@@ -251,7 +258,7 @@ async function sendDelegatedArtifact(delegatedArtifact) {
     },
     "attestation": {
       "issuedAt": "2025-01-15T10:30:00Z",
-      "signedBy": "your-saas$yourdomain.com", // SaaS attests
+      "signedBy": "admin$yourdomain.com", // your operator attests
       "selector": "btps1",
       "signature": {
         "algorithmHash": "sha256",
@@ -296,7 +303,7 @@ async function handleDelegatedArtifact(artifact, resCtx, delegator, server) {
 ```bash
 # SaaS Platform Configuration
 SAAS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
-SAAS_IDENTITY="your-saas$yourdomain.com"
+SAAS_IDENTITY="admin$yourdomain.com" # your operator (op= in _btps.host)
 
 # User Key Storage (implement secure storage)
 USER_KEY_STORAGE_TYPE="database" # or "file", "vault", etc.
@@ -307,36 +314,36 @@ USER_KEY_ENCRYPTION_KEY="encryption-key-for-user-keys"
 
 ### Test Delegation Creation
 
+Each test object is an agent artifact as your handler receives it: its `document` is the transporter artifact the device built and signed.
+
 ```typescript
-// Test SaaS domain user delegation
-const saasUserArtifact = {
-  id: 'msg_123',
-  type: 'BTPS_DOC',
-  to: 'alice$saas.com',
+// Test SaaS domain user delegation: alice's address is on your domain
+const saasUserCommand = {
+  action: 'artifact.send',
+  agentId: 'btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28', // from the device's authentication
+  to: 'bob$client.com',
+  respondNow: false,
   document: {
-    /* invoice data */
+    type: 'BTPS_DOC',
+    from: 'alice$yourdomain.com',
+    to: 'bob$client.com',
+    document: '...', // the encrypted invoice
+    signature: {
+      /* the device's signature */
+    },
+    // ...the rest of the signed transporter artifact
   },
-  signature: {
-    /* agent signature */
-  },
-  agentId: 'btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b28',
-  agentPubKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
 };
 
-// Test custom domain user delegation
-const customUserArtifact = {
-  id: 'msg_124',
-  type: 'BTPS_DOC',
-  to: 'alice$enterprise.com',
-  document: {
-    /* invoice data */
-  },
-  signature: {
-    /* agent signature */
-  },
-  agentId: 'btps_ag_f1e29dbd-bebe-482a-b4ac-ba4508960b454',
-  agentPubKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
+// Test custom domain user delegation: alice's address is on her own domain
+const customUserCommand = {
+  ...saasUserCommand,
+  agentId: 'btps_ag_6a1c0f3e-2d4b-4e8a-9b7c-5d3e2f1a0b9c',
+  document: { ...saasUserCommand.document, from: 'alice$enterprise.com' },
 };
+
+await handleDelegatedArtifact(saasUserCommand, resCtx, delegator, server);
+await handleDelegatedArtifact(customUserCommand, resCtx, delegator, server);
 ```
 
 ## Key Integration Points

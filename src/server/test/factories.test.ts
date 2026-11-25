@@ -16,9 +16,7 @@ vi.mock('../btpsServer.js', () => ({
 
 const { BtpsServer } = await import('../btpsServer.js');
 const { BtpsServerFactory } = await import('../libs/btpsRegistry.js');
-const { BtpsServerLightweightFactory, BtpsServerSyncFactory } = await import(
-  '../libs/btpsLightweightFactory.js'
-);
+const { BtpsServerLightweightFactory } = await import('../libs/btpsLightweightFactory.js');
 const { RateLimiter } = await import('../libs/abstractRateLimiter.js');
 
 const config = { port: 3443 } as unknown as BtpsServerOptions;
@@ -33,10 +31,8 @@ describe('BtpsServerFactory', () => {
   });
 });
 
-describe.each([
-  ['BtpsServerLightweightFactory', BtpsServerLightweightFactory],
-  ['BtpsServerSyncFactory', BtpsServerSyncFactory],
-])('%s', (_name, Factory) => {
+describe('BtpsServerLightweightFactory', () => {
+  const Factory = BtpsServerLightweightFactory;
   beforeEach(() => Factory.reset());
 
   it('creates one server and returns it again', async () => {

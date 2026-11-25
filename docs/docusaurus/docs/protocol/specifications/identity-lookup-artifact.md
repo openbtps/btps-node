@@ -13,21 +13,24 @@ Identity lookup artifacts (`BTPIdentityLookupRequest`) are designed for requesti
 
 ## Artifact Structure
 
-```json
+```json btps=identityLookup
 {
-  "version": "1.1.0",
-  "id": "btps_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "version": "1.2.0",
+  "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "identity": "john$saas.com",
   "from": "billing$vendorcorp.com",
   "hostSelector": "btps1",
-  "identitySelector": "john1"
+  "identitySelector": "john1",
+  "keyChain": true
 }
 ```
 
+It has these members and no other: a host refuses a lookup that carries anything else.
+
 ## Required Fields
 
-- **version**: Protocol version (currently "1.0")
+- **version**: `1.2.0` from a 1.2 requester, which asks again as `1.1.0` when a 1.1 host refuses the version (see [Who May Answer](#who-may-answer))
 - **id**: Unique message identifier (UUID v4 recommended)
 - **issuedAt**: ISO 8601 timestamp of message creation
 - **identity**: BTPS identity address to lookup
@@ -45,11 +48,11 @@ Identity lookup artifacts (`BTPIdentityLookupRequest`) are designed for requesti
 
 When a SaaS platform manages identities that are not published in DNS:
 
-```json
+```json btps=identityLookup
 {
-  "version": "1.1.0",
-  "id": "btps_lookup_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "version": "1.2.0",
+  "id": "b2c3d4e5-f607-4b8c-9d0e-1f2a3b4c5d6e",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "identity": "john$saas.com",
   "from": "billing$vendorcorp.com",
   "hostSelector": "btps1",
@@ -61,11 +64,11 @@ When a SaaS platform manages identities that are not published in DNS:
 
 When organizations manage private identities internally:
 
-```json
+```json btps=identityLookup
 {
-  "version": "1.1.0",
-  "id": "btps_lookup_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "version": "1.2.0",
+  "id": "c3d4e5f6-0718-4c9d-8e1f-2a3b4c5d6e7f",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "identity": "internal.user$company.com",
   "from": "external.partner$partner.com",
   "hostSelector": "btps1"
@@ -76,11 +79,11 @@ When organizations manage private identities internally:
 
 When verifying identities across different domains:
 
-```json
+```json btps=identityLookup
 {
-  "version": "1.1.0",
-  "id": "btps_lookup_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "version": "1.2.0",
+  "id": "d4e5f607-1829-4dae-9f20-3b4c5d6e7f80",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "identity": "finance$client.org",
   "from": "billing$vendorcorp.com",
   "hostSelector": "btps1"
@@ -91,29 +94,32 @@ When verifying identities across different domains:
 
 ### Successful Identity Lookup Response
 
-When the identity is found, the server responds with the identity's public key information:
+When the identity is found, the host answers with the identity's public key, signed by the domain's operator, under the lookup's `hostSelector`, and ends the connection. The answer to the first lookup above, which asked for the key chain of an identity that never rotated:
 
-```json
+```json btps=response
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": {
     "ok": true,
     "code": 200,
-    "message": "Identity found"
+    "message": "success"
   },
-  "id": "btps_response_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "id": "e5f60718-293a-4ebf-a031-4c5d6e7f8091",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "type": "btps_response",
+  "reqId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
   "document": {
     "selector": "john1",
-    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----",
     "keyType": "rsa",
-    "version": "1.1.0"
+    "version": "1.2.0",
+    "identity": "john$saas.com",
+    "keyChain": []
   },
   "signature": {
     "algorithmHash": "sha256",
-    "value": "base64-encoded-signature",
-    "fingerprint": "sha256-base64-fingerprint"
+    "value": "BASE64-SIGNATURE",
+    "fingerprint": "BASE64-FINGERPRINT"
   },
   "signedBy": "admin$saas.com",
   "selector": "btps1"
@@ -124,17 +130,19 @@ When the identity is found, the server responds with the identity's public key i
 
 When the identity is not found:
 
-```json
+```json btps=response
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": {
     "ok": false,
     "code": 404,
-    "message": "Identity not found"
+    "message": "Identity not found",
+    "error": "BTP_ERROR_IDENTITY_NOT_FOUND"
   },
-  "id": "btps_response_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
-  "type": "btps_response"
+  "id": "f6071829-3a4b-4fc0-b142-5d6e7f8091a2",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
+  "type": "btps_error",
+  "reqId": "b2c3d4e5-f607-4b8c-9d0e-1f2a3b4c5d6e"
 }
 ```
 
@@ -144,19 +152,20 @@ When the identity is not found:
 
 The response document contains the identity's public key information:
 
-```json
+```json btps=identityDocument
 {
   "selector": "john1",
-  "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----",
   "keyType": "rsa",
-  "version": "1.1.0"
+  "version": "1.2.0",
+  "identity": "john$saas.com"
 }
 ```
 
 **Required Fields:**
 
 - **selector**: DNS selector for the identity
-- **publicKey**: Base64-encoded public key (SPKI format, no PEM headers/footers)
+- **publicKey**: The identity's public key, SPKI PEM, as the host's identity store holds it
 - **keyType**: Key type (currently "rsa")
 - **version**: Protocol version
 
@@ -235,11 +244,11 @@ Servers implementing identity lookup must:
 
 **Lookup Request**:
 
-```json
+```json btps=identityLookup
 {
-  "version": "1.1.0",
-  "id": "btps_lookup_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "version": "1.2.0",
+  "id": "07182930-4a5b-4cd1-8253-6e7f8091a2b3",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "identity": "john$saas.com",
   "from": "billing$vendorcorp.com",
   "hostSelector": "btps1",
@@ -249,27 +258,29 @@ Servers implementing identity lookup must:
 
 **Response**:
 
-```json
+```json btps=response
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "status": {
     "ok": true,
     "code": 200,
-    "message": "Identity found"
+    "message": "success"
   },
-  "id": "btps_response_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "id": "18293a4b-5c6d-4de2-9364-7f8091a2b3c4",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "type": "btps_response",
+  "reqId": "07182930-4a5b-4cd1-8253-6e7f8091a2b3",
   "document": {
     "selector": "john1",
-    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----",
     "keyType": "rsa",
-    "version": "1.1.0"
+    "version": "1.2.0",
+    "identity": "john$saas.com"
   },
   "signature": {
     "algorithmHash": "sha256",
-    "value": "base64-encoded-signature",
-    "fingerprint": "sha256-base64-fingerprint"
+    "value": "BASE64-SIGNATURE",
+    "fingerprint": "BASE64-FINGERPRINT"
   },
   "signedBy": "admin$saas.com",
   "selector": "btps1"
@@ -282,40 +293,41 @@ Servers implementing identity lookup must:
 
 **Lookup Request**:
 
-```json
+```json btps=identityLookup
 {
   "version": "1.1.0",
-  "id": "btps_lookup_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "id": "293a4b5c-6d7e-4ef3-a475-8091a2b3c4d5",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "identity": "finance$company.com",
   "from": "billing$vendorcorp.com",
   "hostSelector": "btps1"
 }
 ```
 
-**Response** (if authorized):
+**Response** (if authorized). This lookup was asked as `1.1.0`, as a 1.2 requester asks again of a 1.1 host, so the answer names no identity and carries no chain:
 
-```json
+```json btps=response
 {
   "version": "1.1.0",
   "status": {
     "ok": true,
     "code": 200,
-    "message": "Identity found"
+    "message": "success"
   },
-  "id": "btps_response_1234567890abcdef",
-  "issuedAt": "2025-01-15T10:30:00Z",
+  "id": "3a4b5c6d-7e8f-4f04-b586-91a2b3c4d5e6",
+  "issuedAt": "2026-11-08T10:30:00.000Z",
   "type": "btps_response",
+  "reqId": "293a4b5c-6d7e-4ef3-a475-8091a2b3c4d5",
   "document": {
     "selector": "btps1",
-    "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...",
+    "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n-----END PUBLIC KEY-----",
     "keyType": "rsa",
     "version": "1.1.0"
   },
   "signature": {
     "algorithmHash": "sha256",
-    "value": "base64-encoded-signature",
-    "fingerprint": "sha256-base64-fingerprint"
+    "value": "BASE64-SIGNATURE",
+    "fingerprint": "BASE64-FINGERPRINT"
   },
   "signedBy": "admin$company.com",
   "selector": "btps1"

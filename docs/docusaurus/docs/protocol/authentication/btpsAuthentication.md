@@ -402,30 +402,34 @@ if (validation.isValid) {
 Creates a new agent and trust record after successful authentication.
 
 ```typescript
-async createAgent(options: CreateAgentOptions): Promise<BTPAuthResDoc>
+async createAgent(options: CreateAgentOptions, decryptBy: string): Promise<BTPAuthResDoc>
 ```
 
 **Parameters:**
 
 - `options`: [CreateAgentOptions](#createagentoptions) - Agent creation options
+- `decryptBy`: `string` - The identity that decrypts for the device, returned in the answer
 
-**Returns:** `Promise<BTPAuthResDoc>` - Authentication response document
+**Returns:** `Promise<BTPAuthResDoc>` - Authentication response document, `{ agentId, refreshToken, expiresAt, decryptBy }`
 
 **Example:**
 
 ```typescript
-const authResponse = await auth.createAgent({
-  userIdentity: 'alice$saas.com',
-  publicKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
-  agentInfo: {
-    deviceName: 'iPhone 15',
-    platform: 'ios',
-    appVersion: '1.0.0',
+const authResponse = await auth.createAgent(
+  {
+    userIdentity: 'alice$saas.com',
+    publicKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
+    agentInfo: {
+      deviceName: 'iPhone 15',
+      platform: 'ios',
+      appVersion: '1.0.0',
+    },
+    decidedBy: 'system',
+    privacyType: 'encrypted',
+    trustExpiryMs: 365 * 24 * 60 * 60 * 1000, // 1 year
   },
-  decidedBy: 'system',
-  privacyType: 'encrypted',
-  trustExpiryMs: 365 * 24 * 60 * 60 * 1000, // 1 year
-});
+  'alice$saas.com',
+);
 
 console.log('Agent created:', authResponse.agentId);
 console.log('Refresh token:', authResponse.refreshToken);

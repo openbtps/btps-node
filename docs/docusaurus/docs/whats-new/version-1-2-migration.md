@@ -11,7 +11,7 @@ import TabItem from '@theme/TabItem';
 
 A 1.1 provider upgrades to 1.2 without changing what it sends. A 1.2 server and client take 1.1 artifacts and talk to 1.1 providers. A 1.2 sender stamps an artifact `1.1.0` unless it uses something only 1.2 has. A trust record without `permissions` is checked exactly as 1.1 checks it. So the upgrade itself is small; adopting what 1.2 adds is a series of separate, later steps, each one switched on when you are ready for it.
 
-This page is our recommendation for doing it safely: what changes for you, the order to upgrade in, and the order to adopt the new features in. Every TypeScript sample here is typechecked against the 1.2 SDK by its own tests.
+This page is our recommendation for doing it safely: what changes for you, the order to upgrade in, and the order to adopt the new features in. Every 1.2 TypeScript sample here is typechecked against the 1.2 SDK by its own tests; a 1.1 sample, shown for comparison, is marked `// 1.1`.
 
 ## Before you start
 
@@ -25,21 +25,26 @@ This page is our recommendation for doing it safely: what changes for you, the o
 - [ ] An error you throw, or pass on as caught, reaches the sender only as a BTPS constant, else as the generic 500.
 - [ ] A connection that sends 10 unreadable lines in a row is answered and ended (`maxConsecutiveInvalidLines`).
 - [ ] `isKnownArtifact` is also asked about the `DETAILS_REQ` a `DETAILS_RES` answers.
+- [ ] An answer you build in a shape no answer allows goes to its sender as a generic `btps_error`, and the connection stays open.
+- [ ] A refresh never makes a revoked or blocked device accepted again, and `keyHistory[].firstSeen` is when a retired key came into use.
 - [ ] Your `TokenStore` can add `isConsumed` and `markSuccessor`, and record `consumedAt`, to detect stolen refresh tokens.
 - [ ] The refusals for what 1.2 adds (event chains, details responses, agreement order, details request limits) are middleware you register.
 - [ ] Each arriving key is checked against its identity's key chain, from its host: a key rotated away is refused past `retiredKeyGraceSeconds` (`BTP_ERROR_KEY_RETIRED`), an expired one at once (`BTP_ERROR_KEY_REVOKED`). A key whose identity never rotated is checked by DNS, as in 1.1.
 - [ ] Rotating a key is a signed record in its chain, with rules for your DNS records and old private keys ([Rotating keys](#rotating-keys)).
+- [ ] Three exports are removed: `BtpsServerSyncFactory` (`@btps/sdk/server/core`), and `InMemoryQueue` and `BTPSMessageQueue` (`@btps/sdk/server`).
 
 **If you build a client or a device app:**
 
 - [ ] `send`'s `error` beside the `response`, as above.
 - [ ] `getConnectionStates().isDraining` is always `false`.
+- [ ] An artifact stamped lower than what it uses is refused before it is sent.
+- [ ] An identity lookup's answer is refused unless it answers this lookup, is fresh, and names the identity asked about.
 - [ ] You can pin your provider's answers with `requireSignedBy`, once your provider signs them.
 
 **If you only use the SDK's functions** (`signEncrypt`, `decryptVerify`, the trust helpers):
 
 - [ ] `decryptVerify` refuses every bad signature, as above.
-- [ ] `signEncrypt` stamps the version for you, and sends a trust request with permissions as 1.1 allows to a 1.1 server unless you set `versionFallback: false`.
+- [ ] `signEncrypt` signs the `version` it is given: stamp it with `artifactVersion` (`@btps/sdk/server`). It sends a trust request with permissions as 1.1 allows to a 1.1 server unless you set `versionFallback: false`.
 
 ### What stays the same
 
@@ -85,19 +90,34 @@ pnpm add @btps/sdk@^1.2.0   # once 1.2.0 is released
 
 ### 2. Build, and run your tests
 
-The new store methods and options are optional, so a 1.1 build compiles. Then run your own tests, and look for these, the only 1.2 changes that reach code written for 1.1:
+The new store methods and options are optional, so a 1.1 build compiles, unless it imports one of the three exports 1.2 removes (the first row below). Then run your own tests, and look for these, the only 1.2 changes that reach code written for 1.1:
 
-| Change                                                                         | What to check                                                                                                                                                                                                                                        |
-| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `send` returns `error` beside `response` when the receiver refuses its version | 1.1 returned the response alone. Code that checks `error` first now takes that path: handle `BTP_ERROR_VERSION_UNSUPPORTED`, whose `meta.receiverVersion` is the version the receiver speaks                                                         |
-| `decryptVerify` refuses every signature that does not verify                   | Before, one that failed without an error object went on to be decrypted. A test fixture with a broken signature that used to pass now fails, rightly                                                                                                 |
-| `onError` replaces `console.error`                                             | With `onError` (the option or `onError` middleware), a failed artifact is no longer also written to `console.error`. If your logs came from there, log in `onError`                                                                                  |
-| `getConnectionStates().isDraining` is always `false`                           | The client no longer queues what the socket buffers. Remove any back-off that waited on it                                                                                                                                                           |
-| What `res.sendError` sends                                                     | A plain `{ code, message, status }` of your own goes as given. An error thrown, or caught and passed on, goes only as a BTPS constant, else as the generic 500. A caught database error passed to it goes out as a 500: send your own answer instead |
-| `maxConsecutiveInvalidLines`, default 10                                       | A connection that sends 10 unreadable lines in a row is answered, with `status.closing`, and ended. Raise it only if you have a client that legitimately does that                                                                                   |
-| `isKnownArtifact` is asked about a `DETAILS_RES`'s request                     | It is asked whether the `DETAILS_REQ` named in `relatesTo` passed between the two. If you will send details requests, record them, or every answer to them is refused                                                                                |
+| Change                                                                         | What to check                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BtpsServerSyncFactory`, `InMemoryQueue` and `BTPSMessageQueue` are removed    | An import of one fails to build. `BtpsServerSyncFactory` was a copy of `BtpsServerLightweightFactory`: use that, with the same `create` and `reset`. The queues were unused by the SDK, and the server keeps no queue: keep artifacts in your own queue or outbox                                                                                               |
+| `send` returns `error` beside `response` when the receiver refuses its version | 1.1 returned the response alone. Code that checks `error` first now takes that path: handle `BTP_ERROR_VERSION_UNSUPPORTED`, whose `meta.receiverVersion` is the version the receiver speaks                                                                                                                                                                    |
+| `decryptVerify` refuses every signature that does not verify                   | Before, one that failed without an error object went on to be decrypted. A test fixture with a broken signature that used to pass now fails, rightly                                                                                                                                                                                                            |
+| `onError` replaces `console.error`                                             | With `onError` (the option or `onError` middleware), a failed artifact is no longer also written to `console.error`. If your logs came from there, log in `onError`                                                                                                                                                                                             |
+| `getConnectionStates().isDraining` is always `false`                           | The client no longer queues what the socket buffers. Remove any back-off that waited on it                                                                                                                                                                                                                                                                      |
+| What `res.sendError` sends                                                     | A plain `{ code, message, status }` of your own goes as given. An error thrown, or caught and passed on, goes only as a BTPS constant, else as the generic 500. A caught database error passed to it goes out as a 500: send your own answer instead                                                                                                            |
+| `maxConsecutiveInvalidLines`, default 10                                       | A connection that sends 10 unreadable lines in a row is answered, with `status.closing`, and ended. Raise it only if you have a client that legitimately does that                                                                                                                                                                                              |
+| `isKnownArtifact` is asked about a `DETAILS_RES`'s request                     | It is asked whether the `DETAILS_REQ` named in `relatesTo` passed between the two. If you will send details requests, record them, or every answer to them is refused                                                                                                                                                                                           |
+| A client refuses an artifact stamped lower than it needs                       | An artifact you build yourself, stamped `1.1.0` but using something 1.2 adds, is refused before it is sent, with `BTP_ERROR_VALIDATION` ("stamped 1.1.0, but it uses what 1.2.0 adds"); so is an agent artifact stamped lower than the artifact it carries. Stamp with `artifactVersion` (`@btps/sdk/server`): the agent stamps for you, `signEncrypt` does not |
+| Identity lookup answers are checked                                            | A lookup goes out as `1.2.0`, and again as `1.1.0` when a 1.1 host refuses the version. A 1.2 host's answer is refused (`BTP_ERROR_VALIDATION`) unless it answers this lookup (`reqId`), is fresh (`issuedAt` within 300 seconds) and names the identity asked about. A host whose clock is more than 300 seconds out is refused                                |
+| `keyHistory[].firstSeen`                                                       | It is when the retired key came into use: when the key before it was retired, or when the device registered. It was the time of the key's last refresh. Code that read it as the last refresh reads the start of the key's use                                                                                                                                  |
+| A refresh never reactivates a device                                           | A revoked or blocked device stays revoked or blocked after a refresh. A test that relied on a refresh to let one back in now fails                                                                                                                                                                                                                              |
+| An answer in a shape no answer allows                                          | An answer your platform builds that no answer schema allows reaches its sender as a generic `btps_error` against its request's `reqId`, and the connection stays open. It was closed without an answer. `onError` still receives it                                                                                                                             |
 
-Handling a version refusal:
+Handling a version refusal. Before, in 1.1, a refusal came back as a `response` with `status.ok: false` and no `error`:
+
+```ts
+// 1.1
+const { response, error } = await transporter.transport(to, artifact);
+if (error) throw error;
+return response?.status.ok ? 'delivered' : 'refused';
+```
+
+In 1.2 the same refusal is an `error`, beside the `response`, so check it first:
 
 ```ts check
 import { BtpsTransporter } from '@btps/sdk/client';

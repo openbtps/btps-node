@@ -35,12 +35,15 @@ The forwarded artifact has the following structure:
 ```typescript
 type ProcessedArtifact =
   | { artifact: BTPAgentArtifact; type: 'agent'; respondNow: boolean }
-  | { artifact: BTPTransporterArtifact; type: 'transporter' };
+  | { artifact: BTPTransporterArtifact; type: 'transporter'; boundView?: BTPBoundViewResult };
 ```
 
 - **artifact**: The actual artifact data
 - **type**: Either 'agent' or 'transporter'
 - **respondNow**: Only present for agent artifacts, indicates if immediate response is required
+- **boundView**: Since 1.2, only on a transporter artifact whose document is readable and carries a BoundView: whether it may be shown (`{ show: true }`, or `{ show: false, problems }`)
+
+A transporter artifact is answered as delivered only once your handler returns; if it throws, the sender is answered with an error, so it knows to send again.
 
 ## Setting Up Artifact Forwarding
 
@@ -62,6 +65,10 @@ const server = new BtpsServer({
     connection: './trust.json',
     entityName: 'trusted_senders',
   }),
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   middlewarePath: './btps.middleware.mjs',
 });

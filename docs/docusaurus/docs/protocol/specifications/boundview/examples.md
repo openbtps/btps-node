@@ -16,7 +16,10 @@ canvas: `snapshotBoundView` makes one like these from its HTML preview. See
 
 Two documents, each with its own fields and then its BoundView in
 `boundView`. Glyph outlines and pixel data are shortened with `…`;
-every other value is as a sender would send it.
+every other value is as a sender would send it. The invoice's lines add up
+to its `subtotalAmount`, and its tax to its `totalAmount`. Whole documents
+that pass every check, glyphs and pixels included, are in the golden vectors
+([`boundview-pictures.vectors.json`](../golden-vectors.md)).
 
 | Example | Shows |
 | --- | --- |
@@ -29,7 +32,7 @@ The document's own fields, then its BoundView. The BoundView shows the sender's 
 its name, ABN, address, the invoice number, the bill-to name, both dates, the
 amount due in a tinted box, the lines, the totals and the note.
 
-```json
+```json sketch
 {
   "type": "invoice",
   "title": "Website care, October",
@@ -44,7 +47,7 @@ amount due in a tinted box, the lines, the totals and the note.
     "roles": { "Description": "description", "Qty": "quantity", "Unit price": "unitPrice", "Amount": "lineTotal" },
     "rows": [
       { "Description": "Website care, October", "Qty": "1", "Unit price": 90000, "Amount": 90000 },
-      { "Description": "Hosting, three months", "Qty": "3", "Unit price": 4000, "Amount": 12000 }
+      { "Description": "Hosting, three months", "Qty": "3", "Unit price": 14000, "Amount": 42000 }
     ]
   },
   "issuer": {
@@ -117,7 +120,7 @@ them out ([Key facts](./checks.md#invoice)). See [Checks](./checks.md).
 
 ## A letter with its signatory
 
-```json
+```json sketch
 {
   "type": "letter",
   "title": "Office closing",

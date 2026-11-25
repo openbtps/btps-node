@@ -34,25 +34,29 @@ Your code encrypts and signs a document with `signEncrypt`; the agent or transpo
 <TabItem value="npm" label="npm">
 
 ```bash
-npm install @btps/sdk
+npm install @btps/sdk@next
 ```
 
 </TabItem>
 <TabItem value="yarn" label="yarn">
 
 ```bash
-yarn add @btps/sdk
+yarn add @btps/sdk@next
 ```
 
 </TabItem>
 <TabItem value="pnpm" label="pnpm">
 
 ```bash
-pnpm add @btps/sdk
+pnpm add @btps/sdk@next
 ```
 
 </TabItem>
 </Tabs>
+
+:::note
+These pages describe 1.2, which is the `next` release until 1.2.0 ships: without `@next`, a package manager installs the latest 1.1 release. See [Migrating from 1.1 to 1.2](../whats-new/version-1-2-migration.md).
+:::
 
 `@btps/boundview` is optional and a separate package: add it only to send documents with their look, or to draw received ones ([which app installs what](./../protocol/specifications/boundview/using.md#frontend-and-backend-apps)):
 
@@ -60,28 +64,29 @@ pnpm add @btps/sdk
 <TabItem value="npm" label="npm">
 
 ```bash
-npm install @btps/boundview
+npm install @btps/boundview@next
 ```
 
 </TabItem>
 <TabItem value="yarn" label="yarn">
 
 ```bash
-yarn add @btps/boundview
+yarn add @btps/boundview@next
 ```
 
 </TabItem>
 <TabItem value="pnpm" label="pnpm">
 
 ```bash
-pnpm add @btps/boundview
+pnpm add @btps/boundview@next
 ```
 
 </TabItem>
 </Tabs>
 
 ```js
-import { BtpsServer } from '@btps/sdk/server';
+import { randomUUID } from 'crypto';
+import { BtpsServer, artifactVersion } from '@btps/sdk/server';
 import { BtpsTransporter } from '@btps/sdk/client';
 import { JsonTrustStore } from '@btps/sdk/trust';
 import { signEncrypt } from '@btps/sdk/crypto';
@@ -94,11 +99,16 @@ const server = new BtpsServer({
     privateKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',
   },
   trustStore: new JsonTrustStore({ connection: './trust.json' }),
+  // TLS is required: the server's certificate and its key
   tlsOptions: {
-    cert:'-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
+    cert: '-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----',
     key: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',
-  }
+  },
   port: 3443,
+});
+// Without a handler, the server refuses what arrives
+server.onIncomingArtifact('Transporter', async (artifact) => {
+  console.log('Received', artifact.type, 'from', artifact.from);
 });
 await server.start();
 
@@ -111,24 +121,24 @@ const transporter = new BtpsTransporter({
   connectionTimeoutMs: 30000,
 });
 
-// Create and sign a trust request
+// Create a trust request: sent before any trust exists, so not encrypted
+const document = {
+  id: randomUUID(),
+  name: 'Your Company Name',
+  email: 'billing@yourdomain.com',
+  reason: 'To send monthly invoices',
+  phone: '+1234567890',
+};
 const trustRequest = {
-  version: '1.1.0',
-  id: 'trust_req_123456',
-  issuedAt: new Date().toISOString(),
+  version: artifactVersion({ type: 'TRUST_REQ', document }), // '1.1.0': it uses nothing 1.2 adds
   type: 'TRUST_REQ',
-  document: {
-    name: 'Your Company Name',
-    email: 'billing@yourdomain.com',
-    reason: 'To send monthly invoices',
-    phone: '+1234567890',
-  },
   from: 'billing$yourdomain.com',
   to: 'pay$client.com',
-  selector: 'btps1',
+  selector: 'btps1', // the selector your own key is published under
+  document,
 };
 
-// Sign the artifact before sending
+// Sign the artifact before sending; signEncrypt fills in id and issuedAt
 const { payload: signedArtifact, error } = await signEncrypt(
   'pay$client.com',
   {
@@ -140,10 +150,7 @@ const { payload: signedArtifact, error } = await signEncrypt(
     },
   },
   trustRequest,
-  {
-    signature: { algorithmHash: 'sha256' },
-    encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
-  },
+  { signature: { algorithmHash: 'sha256' } },
 );
 
 if (error) {

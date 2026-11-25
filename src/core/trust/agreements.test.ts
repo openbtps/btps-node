@@ -133,6 +133,44 @@ describe('a statement', () => {
     expect(statementSignatureFacts(dropped, keyOf).signatureValid).toBe(false);
   });
 
+  it("covers the signer's consent and when it viewed: another, or none, no longer checks", async () => {
+    const signed = {
+      ...statement,
+      consent: {
+        electronic: true as const,
+        disclosureSha256: 'a'.repeat(64),
+        at: '2026-11-01T23:59:00.000Z',
+      },
+      viewedAt: '2026-11-01T23:58:00.000Z',
+    };
+    const record = await signStatement(signed, { selector: 'btps1', pemFiles: keys[ALICE] });
+    expect(statementSignatureFacts(record, keyOf).signatureValid).toBe(true);
+    const otherDisclosure = {
+      ...record,
+      statement: { ...signed, consent: { ...signed.consent, disclosureSha256: 'b'.repeat(64) } },
+    };
+    expect(statementSignatureFacts(otherDisclosure, keyOf).signatureValid).toBe(false);
+    const otherView = { ...record, statement: { ...signed, viewedAt: '2026-11-01T23:00:00.000Z' } };
+    expect(statementSignatureFacts(otherView, keyOf).signatureValid).toBe(false);
+    const dropped = { ...record, statement };
+    expect(statementSignatureFacts(dropped, keyOf).signatureValid).toBe(false);
+  });
+
+  it('covers where the signer viewed and answered from: another address, or none, no longer checks', async () => {
+    const signed = {
+      ...statement,
+      viewedAt: '2026-11-01T23:58:00.000Z',
+      viewedFrom: { ip: '203.0.113.7', userAgent: 'Mozilla/5.0 (Macintosh) Chrome/132' },
+      signedFrom: { ip: '2001:db8::7', userAgent: 'Mozilla/5.0 (iPhone) Safari/604.1' },
+    };
+    const record = await signStatement(signed, { selector: 'btps1', pemFiles: keys[ALICE] });
+    expect(statementSignatureFacts(record, keyOf).signatureValid).toBe(true);
+    const elsewhere = { ...record, statement: { ...signed, signedFrom: { ip: '198.51.100.9' } } };
+    expect(statementSignatureFacts(elsewhere, keyOf).signatureValid).toBe(false);
+    const unsaid = { ...record, statement: { ...signed, viewedFrom: undefined } };
+    expect(statementSignatureFacts(unsaid, keyOf).signatureValid).toBe(false);
+  });
+
   it('is named by the next one by the SHA-256 of its record, signature included', async () => {
     const record = await signStatement(statement, { selector: 'btps1', pemFiles: keys[ALICE] });
     const sha256 = createHash('sha256').update(canonicalizeValue(record), 'utf8').digest('hex');

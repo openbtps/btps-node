@@ -8,6 +8,7 @@ slug: metrics-and-monitoring
 # Metrics & Monitoring in BTPS Server
 
 Effective metrics and Monitoring are essential for:
+
 - **Visibility:** Understanding system health and message flow
 - **Debugging:** Diagnosing issues and tracking errors
 - **Compliance:** Meeting audit and regulatory requirements
@@ -18,16 +19,19 @@ Effective metrics and Monitoring are essential for:
 The SDK provides a simple, console-based metrics tracker for quick setup and development:
 
 ```js
-import { BtpsSimpleMetricsTracker } from 'btps-sdk';
+import { BtpsSimpleMetricsTracker } from '@btps/sdk/server/core';
+import { BTPErrorException } from '@btps/sdk/error';
 
 const metrics = new BtpsSimpleMetricsTracker();
 
 metrics.onMessageReceived('sender$domain.com', 'recipient$domain.com');
 metrics.onMessageRejected('sender$domain.com', 'recipient$domain.com', 'Rate limit exceeded');
-metrics.onError(new Error('Something went wrong'));
+metrics.onError(new BTPErrorException({ message: 'Something went wrong' })); // logs error.toJSON()
+metrics.onError(new Error('socket hang up')); // any other error: logs its name and message
 ```
 
 **What it does:**
+
 - Logs received messages, rejections, and errors to the console.
 - Useful for local development, testing, and small-scale deployments.
 
@@ -35,7 +39,8 @@ metrics.onError(new Error('Something went wrong'));
 
 ## Advanced Metrics: Custom IMetricsTracker
 
-For production, you should implement a custom metrics tracker by extending the `IMetricsTracker` interface. This allows you to:
+For production, you should write a custom metrics tracker that implements the `IMetricsTracker` interface. This allows you to:
+
 - Send metrics to Prometheus, Datadog, or other observability platforms
 - Integrate with cloud logging (AWS CloudWatch, GCP Logging, Azure Monitor)
 - Push logs to ELK, Loki, or SIEM systems
@@ -43,11 +48,15 @@ For production, you should implement a custom metrics tracker by extending the `
 
 **Example: Prometheus Metrics Tracker**
 
-```js
-import { IMetricsTracker } from 'btps-sdk';
+```ts
+import type { IMetricsTracker } from '@btps/sdk/server/core';
 import client from 'prom-client';
 
 class PrometheusMetricsTracker implements IMetricsTracker {
+  private receivedCounter: client.Counter;
+  private rejectedCounter: client.Counter;
+  private errorCounter: client.Counter;
+
   constructor() {
     this.receivedCounter = new client.Counter({
       name: 'btps_messages_received_total',
@@ -64,13 +73,13 @@ class PrometheusMetricsTracker implements IMetricsTracker {
       help: 'Total BTPS errors',
     });
   }
-  onMessageReceived(sender, recipient) {
+  onMessageReceived(sender: string, recipient = '') {
     this.receivedCounter.inc({ sender, recipient });
   }
-  onMessageRejected(sender, recipient, reason) {
+  onMessageRejected(sender: string, recipient: string, reason: string) {
     this.rejectedCounter.inc({ sender, recipient, reason });
   }
-  onError(error) {
+  onError(_error: Error) {
     this.errorCounter.inc();
     // Optionally log error details
   }
@@ -78,6 +87,7 @@ class PrometheusMetricsTracker implements IMetricsTracker {
 ```
 
 **Plugging in your tracker:**
+
 - Pass your metrics tracker to middleware or server hooks.
 - Replace the default tracker in your custom middleware:
 

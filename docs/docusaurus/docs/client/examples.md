@@ -12,6 +12,7 @@ The examples sign artifacts with a small helper around `signEncrypt`:
 ```js
 import { parseIdentity } from '@btps/sdk';
 import { signEncrypt } from '@btps/sdk/crypto';
+import { artifactVersion } from '@btps/sdk/server';
 
 const from = 'billing$yourcompany.com';
 const { accountName, domainName } = parseIdentity(from);
@@ -22,7 +23,8 @@ const signArtifact = async (to, type, document, { encrypt = true } = {}) => {
   const { payload, error } = await signEncrypt(
     to,
     sender,
-    { version: '1.1.0', type, from, to, selector: 'btps1', document },
+    // 1.1.0 unless the document uses something 1.2 adds, then 1.2.0
+    { version: artifactVersion({ type, document }), type, from, to, selector: 'btps1', document },
     {
       signature: { algorithmHash: 'sha256' },
       ...(encrypt && { encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' } }),
@@ -33,7 +35,7 @@ const signArtifact = async (to, type, document, { encrypt = true } = {}) => {
 };
 ```
 
-`selector` is the selector your own key is published under.
+`selector` is the selector your own key is published under. `signEncrypt` signs the `version` it is given; `artifactVersion` stamps the artifact as the SDK's own clients do ([Protocol versions](../features/versions.md)).
 
 ## 1. Complete Trust Establishment and Document Send Flow
 

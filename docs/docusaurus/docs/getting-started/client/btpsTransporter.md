@@ -49,6 +49,7 @@ Sign and encrypt the artifact with `signEncrypt`, then transport it:
 import { parseIdentity } from '@btps/sdk';
 import { signEncrypt } from '@btps/sdk/crypto';
 import type { PemKeys } from '@btps/sdk/crypto';
+import { artifactVersion } from '@btps/sdk/server';
 import type { BTPDocType, BTPTransporterArtifact } from '@btps/sdk/server';
 
 const from = 'billing$yourdomain.com';
@@ -61,13 +62,15 @@ async function buildArtifact(
   to: string,
   type: 'BTPS_DOC' | 'TRUST_REQ',
   document: BTPDocType,
+  { encrypt = true } = {},
 ): Promise<BTPTransporterArtifact> {
   const { accountName, domainName } = parseIdentity(from)!;
   const { payload, error } = await signEncrypt(
     to,
     { accountName, domainName, pemFiles: keys },
     {
-      version: '1.1.0',
+      // 1.1.0 unless the document uses something 1.2 adds, then 1.2.0
+      version: artifactVersion({ type, document }),
       type,
       from,
       to,
@@ -78,7 +81,7 @@ async function buildArtifact(
       signature: { algorithmHash: 'sha256' },
       // Encrypt to the recipient's published key. Leave out to send unencrypted,
       // if the trust between you allows it.
-      encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+      ...(encrypt && { encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' } }),
     },
   );
   if (error) throw error;
@@ -147,11 +150,17 @@ const trustRequestDocument: BTPTrustReqDoc = {
   phone: '+1234567890',
 };
 
-const artifact = await buildArtifact('partner$example.com', 'TRUST_REQ', trustRequestDocument);
+const artifact = await buildArtifact('partner$example.com', 'TRUST_REQ', trustRequestDocument, {
+  encrypt: false,
+});
 await transporter.transport('partner$example.com', artifact);
 ```
 
-(For this one, call `signEncrypt` without `encryption`.)
+Since 1.2, a trust request may ask for [trust permissions](../../features/trustPermissions.md): the permission fields go on the payload `signEncrypt` signs, and the artifact is `1.2.0`. A request whose document carries `own` values or a `verification` must be encrypted.
+
+### Other Document Types
+
+A `BTPS_DOC` carries an `invoice`, a `receipt`, a `payslip`, a `letter` or, since 1.2, an `agreement`, each checked against its type's schema. Since 1.2 a document may also carry a `recipient`, a note with a format, a discount, totals before tax and its [BoundView](../../protocol/specifications/boundview/overview.md); each of these makes the artifact `1.2.0`, which `artifactVersion` sets for you. Every type and field: [BTPS Document](../../protocol/specifications/transporter-artifact.md#3-btps-document-btps_doc).
 
 ## 4. Advanced Usage Patterns
 

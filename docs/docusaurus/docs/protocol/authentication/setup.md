@@ -70,16 +70,22 @@ Integrate authentication with your BTPS server:
 
 ```typescript
 import { BtpsServer } from '@btps/sdk/server';
-import { BtpsAuthentication } from '@btps/sdk/authentication';
+import { BtpsAuthentication, InMemoryTokenStore } from '@btps/sdk/authentication';
+import { JsonTrustStore } from '@btps/sdk/trust';
 import { BTP_ERROR_AUTHENTICATION_INVALID } from '@btps/sdk/error';
+
+// One trust store, shared: a device is a record in it
+const trustStore = new JsonTrustStore({ connection: './trust-store.json' });
 
 const server = new BtpsServer({
   port: 3443,
-  trustStore: auth.trustStore,
+  serverIdentity: { identity: 'admin$saas.com', publicKey, privateKey },
+  trustStore,
+  tlsOptions: { key, cert },
 });
 
 const auth = new BtpsAuthentication({
-  trustStore: server.trustStore,
+  trustStore,
   tokenStore: new InMemoryTokenStore(),
 });
 
@@ -101,7 +107,7 @@ server.onIncomingArtifact('Agent', async (artifact, resCtx) => {
 });
 
 async function handleAuthRequest(artifact, resCtx, auth) {
-  const { document, to, id: reqId } = artifact;
+  const { document, id: reqId } = artifact;
 
   if (!document) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
@@ -109,19 +115,22 @@ async function handleAuthRequest(artifact, resCtx, auth) {
 
   const { authToken, publicKey, identity, agentInfo } = document;
 
-  // Validate the auth token
-  const { isValid } = await auth.validateAuthToken(userIdentity, authToken);
+  // Validate the auth token: taken once, for the identity it was issued to
+  const { isValid } = await auth.validateAuthToken(identity, authToken);
   if (!isValid) {
     return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
   }
 
-  // Create agent and trust record
-  const authResponseDoc = await auth.createAgent({
-    decidedBy: identity,
-    publicKey,
-    userIdentity: identity,
-    agentInfo,
-  });
+  // Create agent and trust record; the second argument is who decrypts for the device
+  const authResponseDoc = await auth.createAgent(
+    {
+      decidedBy: identity,
+      publicKey,
+      userIdentity: identity,
+      agentInfo,
+    },
+    identity,
+  );
 
   return resCtx.sendRes({
     ...server.prepareBtpsResponse(
@@ -149,12 +158,13 @@ async function handleAuthRefresh(artifact, resCtx, auth) {
     decidedBy: 'system',
     publicKey: authDoc.publicKey,
     agentInfo: authDoc?.agentInfo ?? {},
-    decryptBy: 'alice$saas.com',
+    decryptBy: authDoc.identity,
   });
 
-  if (error) {
-    return resCtx.sendError(BTP_ERROR_AUTHENTICATION_INVALID);
-  }
+  // Since 1.2 the error says what the device does next: BTP_ERROR_TEMPORARILY_UNAVAILABLE
+  // (try again), BTP_ERROR_KEY_TOO_OLD (rotate), or BTP_ERROR_AUTHENTICATION_INVALID.
+  // Thrown, the server answers it as itself, and onError receives it.
+  if (error) throw error;
 
   return resCtx.sendRes({
     ...server.prepareBtpsResponse(

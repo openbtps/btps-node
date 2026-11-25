@@ -4,9 +4,9 @@ sidebar_label: Algorithm & Types
 slug: algorithm-and-types
 ---
 
-# Algorithms & Types in BTPS (v1.1.0)
+# Algorithms & Types in BTPS
 
-This page documents the cryptographic algorithms and types used in BTPS version 1.1.0. They are the only ones the SDK accepts.
+This page documents the cryptographic algorithms and types BTPS uses. They are the same in 1.1 and 1.2, and the only ones the SDK accepts.
 
 ## Supported Algorithms
 
@@ -25,12 +25,14 @@ This page documents the cryptographic algorithms and types used in BTPS version 
 
 - **RSA-OAEP with SHA-256** (MGF1 with SHA-256)
   - Wraps the AES key for the receiver, with the receiver's public key from DNS or its host
+  - Since 1.2, the same wrap carries a content key to a device's own key (`agentKey`, `wrapForAgent`) and to a new key after a rotation (`wrapContentKeyFor`)
 
 ### Digital Signatures
 
 - **RSASSA-PKCS1-v1_5 with SHA-256**
   - Over the artifact's canonical form: [RFC 8785 (JCS)](https://www.rfc-editor.org/rfc/rfc8785). An artifact that names a member twice is refused
   - The signature carries the signer key's SHA-256 fingerprint
+  - Since 1.2, the same signature covers every other signed object: key chain records, agreement statements, evidence arrivals, verifications and device key proofs
 
 ## Types
 
@@ -71,6 +73,7 @@ export type PemKeys = {
 export type BTPCryptoOptions = {
   signature?: { algorithmHash: 'sha256' };
   encryption?: { algorithm: 'aes-256-gcm'; mode: 'none' | 'standardEncrypt' | '2faEncrypt' };
+  versionFallback?: boolean; // since 1.2, for a trust request with permissions
 };
 ```
 

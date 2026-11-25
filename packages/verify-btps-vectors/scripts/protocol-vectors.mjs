@@ -3194,6 +3194,10 @@ export function agreements(keys) {
     byIdentity(keys.signer, { ...stated(ALICE, decision, at(2)), visualSignature });
   const typed = { type: 'typed', text: 'Alice Ng' };
   const drawn = { type: 'drawn', strokes: [[40, 200, 120, 80, 260, 210, 400, 90]] };
+  // Since 1.2: the signer's consent to sign electronically, and when it viewed the agreement.
+  const statedWith = (decision, more) =>
+    byIdentity(keys.signer, { ...stated(ALICE, decision, at(2)), ...more });
+  const consent = { electronic: true, disclosureSha256: 'd'.repeat(64), at: at(1) };
 
   // Answer events, as an opened BTPS_EVENT carries them.
   const answer = (eventType, record, more = {}) => ({
@@ -3370,6 +3374,98 @@ export function agreements(keys) {
       'drawn-signature-off-the-canvas',
       answer('accepted', signedWith('accepted', { type: 'drawn', strokes: [[0, 0, 1001, 10]] })),
       'a drawn signature is x, y pairs on a 1000 by 300 canvas',
+    ),
+    eventCase(
+      accept,
+      'accepted-with-consent-and-when-viewed',
+      answer(
+        'accepted',
+        statedWith('accepted', { visualSignature: typed, consent, viewedAt: at(1) }),
+      ),
+    ),
+    eventCase(
+      accept,
+      'declined-saying-when-viewed',
+      answer('declined', statedWith('declined', { viewedAt: at(1) })),
+    ),
+    eventCase(
+      refuse,
+      'declined-with-a-consent',
+      answer('declined', statedWith('declined', { consent })),
+      'only an acceptance carries a consent',
+    ),
+    eventCase(
+      refuse,
+      'consent-not-electronic',
+      answer('accepted', statedWith('accepted', { consent: { ...consent, electronic: false } })),
+      'a consent says electronic: true',
+    ),
+    eventCase(
+      refuse,
+      'consent-after-signing',
+      answer('accepted', statedWith('accepted', { consent: { ...consent, at: at(3) } })),
+      'a consent is given no later than its statement is signed',
+    ),
+    eventCase(
+      refuse,
+      'viewed-after-signing',
+      answer('accepted', statedWith('accepted', { viewedAt: at(3) })),
+      'an agreement is viewed no later than its statement is signed',
+    ),
+    eventCase(
+      accept,
+      'accepted-saying-where-viewed-and-signed-from',
+      answer(
+        'accepted',
+        statedWith('accepted', {
+          viewedAt: at(1),
+          viewedFrom: { ip: '203.0.113.7', userAgent: 'Mozilla/5.0 (Macintosh) Chrome/132' },
+          signedFrom: { ip: '2001:db8::7' },
+        }),
+      ),
+    ),
+    eventCase(
+      accept,
+      'accepted-on-a-registered-app-device',
+      answer(
+        'accepted',
+        statedWith('accepted', {
+          signedFrom: {
+            ip: '203.0.113.7',
+            device: { os: 'iOS', osVersion: '19.1', model: 'iPhone16,2', app: 'Example App', appVersion: '2.4.0', id: 'device-7f3a' },
+          },
+        }),
+      ),
+    ),
+    eventCase(
+      refuse,
+      'signed-from-a-device-saying-nothing',
+      answer('accepted', statedWith('accepted', { signedFrom: { device: {} } })),
+      'a device says at least one thing of itself',
+    ),
+    eventCase(
+      refuse,
+      'viewed-from-without-when',
+      answer('accepted', statedWith('accepted', { viewedFrom: { ip: '203.0.113.7' } })),
+      'a viewedFrom says where a viewedAt was',
+    ),
+    eventCase(
+      refuse,
+      'signed-from-not-an-ip',
+      answer('accepted', statedWith('accepted', { signedFrom: { ip: 'not-an-address' } })),
+      'an ip is an IPv4 or IPv6 address',
+    ),
+    eventCase(
+      refuse,
+      'signed-from-user-agent-with-control-characters',
+      answer('accepted', statedWith('accepted', { signedFrom: { userAgent: 'Mozilla\u0007/5.0' } })),
+      'a user agent is printable text',
+    ),
+    eventCase(
+      refuse,
+      'signed-from-saying-nothing',
+      answer('accepted', statedWith('accepted', { signedFrom: {} })),
+      'a context says an ip, a userAgent or a device',
     ),
     eventCase(
       refuse,

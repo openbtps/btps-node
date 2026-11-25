@@ -184,9 +184,14 @@ As the permissions journey does (`tests/e2e/permissions.e2e.test.ts`): save the 
 ```ts
 import { signEncrypt } from '@btps/sdk/crypto';
 import { BtpsTransporter } from '@btps/sdk/client';
-import { computeTrustId, trustPermissionsFromRequest } from '@btps/sdk/trust';
+import type { BTPTransporterArtifact } from '@btps/sdk/server';
+import {
+  computeTrustId,
+  trustPermissionsFromRequest,
+  type BTPTrustPermissions,
+} from '@btps/sdk/trust';
 
-const permissions = [
+const permissions: BTPTrustPermissions = [
   { name: 'send:invoice', required: true },
   { name: 'send:receipt', required: false },
   { name: 'detail:legalName', required: true },
@@ -234,7 +239,10 @@ const { payload, error } = await signEncrypt(
   },
 );
 if (error) throw error;
-const { response } = await new BtpsTransporter({}).transport(client, payload);
+const { response } = await new BtpsTransporter({}).transport(
+  client,
+  payload as BTPTransporterArtifact,
+);
 ```
 
 `signEncrypt` asks the receiver's server its version first. To a 1.1 server the request goes as 1.1 allows, without the permission fields, and the result says so in `shaped` ([Protocol versions](./versions.md)).
@@ -269,9 +277,13 @@ const result = await agent.command(
 The client grants from what was asked. Its platform answers, then saves its own record from the request it received:
 
 ```ts
-import { computeTrustId, trustPermissionsFromResponse } from '@btps/sdk/trust';
+import {
+  computeTrustId,
+  trustPermissionsFromResponse,
+  type BTPPermissionName,
+} from '@btps/sdk/trust';
 
-const granted = ['send:invoice', 'send:receipt', 'detail:legalName'];
+const granted: BTPPermissionName[] = ['send:invoice', 'send:receipt', 'detail:legalName'];
 // Sent like the request: type 'TRUST_RES', with `granted` and `entityType` on the envelope.
 const answer = {
   version: '1.2.0',
@@ -291,7 +303,9 @@ const answer = {
 };
 
 // Once the vendor's server has taken it, each side saves its record.
+// Undefined when the answer has no `granted` or the request no `permissions`: a 1.1 trust.
 const records = trustPermissionsFromResponse({ granted }, request);
+if (!records) throw new Error('not a trust with permissions');
 await trustStore.update(computeTrustId(vendor, client), {
   status: 'accepted',
   permissions: records.responder, // the client's; the vendor saves records.requester

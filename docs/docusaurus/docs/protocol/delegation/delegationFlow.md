@@ -55,6 +55,9 @@ sequenceDiagram
     DNS->>Receiver: op= names the SaaS identity
     Receiver->>DNS: The SaaS identity's key at its selector
     DNS->>Receiver: Return SaaS public key
+    Receiver->>BTPS Server: Since 1.2, identity lookup with keyChain: true, for the delegator's key chain
+    BTPS Server->>Receiver: The chain, signed by the operator
+    Receiver->>Receiver: Delegator's key current in its chain, or refuse (KEY_RETIRED, KEY_REVOKED)
     Receiver->>Receiver: Verify Delegation & Agent Signatures, then time window and trust
     Receiver->>Receiver: Deliver to inbox
 ```
@@ -110,6 +113,9 @@ sequenceDiagram
     Receiver->>Receiver: Verify Attestation
     Receiver->>DNS: alice's key at its selector
     DNS->>Receiver: Return custom domain public key
+    Receiver->>BTPS Server: Since 1.2, identity lookups with keyChain: true, for alice's and the attestor's key chains
+    BTPS Server->>Receiver: Each chain, signed by the operator
+    Receiver->>Receiver: Each key current in its chain, or refuse (KEY_RETIRED, KEY_REVOKED)
     Receiver->>Receiver: Verify Delegation & Agent Signatures, then time window and trust
     Receiver->>Receiver: Deliver to inbox
 ```
@@ -232,12 +238,14 @@ The receiver performs direct verification:
 
 ## 🔐 DNS Resolution by User Type
 
+A 1.2 host publishes `v=1.2.0`; readers report it and do not check it.
+
 ### **SaaS Identity Users**
 
 ```bash
 # The sender's domain names its operator
 dig TXT _btps.host.saas.com
-# Returns: v=1.1.0;u=btps.saas.com:3443;s=btps1;op=admin$saas.com
+# Returns: v=1.2.0;u=btps.saas.com:3443;s=btps1;op=admin$saas.com
 
 # The operator's key, which signed the delegation
 dig TXT btps1._btps.identity.admin.saas.com
@@ -249,7 +257,7 @@ dig TXT btps1._btps.identity.admin.saas.com
 ```bash
 # The custom domain names the SaaS as its operator
 dig TXT _btps.host.enterprise.com
-# Returns: v=1.1.0;u=btps.saas.com:3443;s=btps1;op=admin$saas.com
+# Returns: v=1.2.0;u=btps.saas.com:3443;s=btps1;op=admin$saas.com
 
 # The sender's own key, which signed the delegation
 dig TXT btps1._btps.identity.alice.enterprise.com
@@ -270,29 +278,35 @@ dig TXT btps1._btps.identity.alice.mye2e.com
 
 ## 🚨 Error Handling by User Type
 
+Each code is a `BTP_ERROR_` constant, sent as `status.error`.
+
 ### **SaaS Managed Users**
 
-| Error                                | Cause                        | Action                  |
-| ------------------------------------ | ---------------------------- | ----------------------- |
-| `DELEGATION_INVALID`                 | Invalid delegation structure | Reject message          |
-| `DELEGATION_SIG_VERIFICATION_FAILED` | Invalid delegation signature | Reject message          |
-| `RESOLVE_PUBKEY`                     | SaaS DNS resolution failed   | Retry with fallback DNS |
+| Error                                   | Cause                                                       | Action                  |
+| --------------------------------------- | ----------------------------------------------------------- | ----------------------- |
+| `BTP_ERROR_DELEGATION_INVALID`          | Invalid delegation structure                                | Reject message          |
+| `BTP_ERROR_DELEGATION_SIG_VERIFICATION` | Invalid delegation signature                                | Reject message          |
+| `BTP_ERROR_RESOLVE_PUBKEY`              | SaaS DNS resolution failed, or a key chain that fails (1.2) | Retry with fallback DNS |
+| `BTP_ERROR_KEY_RETIRED`                 | (1.2) The delegator's key was rotated away, past its grace  | Reject message          |
+| `BTP_ERROR_KEY_REVOKED`                 | (1.2) The delegator's key is expired in its chain           | Reject message          |
 
 ### **Custom Domain Users**
 
-| Error                                | Cause                         | Action                  |
-| ------------------------------------ | ----------------------------- | ----------------------- |
-| `DELEGATION_INVALID`                 | Missing attestation           | Reject message          |
-| `ATTESTATION_VERIFICATION_FAILED`    | Invalid attestation signature | Reject message          |
-| `DELEGATION_SIG_VERIFICATION_FAILED` | Invalid delegation signature  | Reject message          |
-| `RESOLVE_PUBKEY`                     | DNS resolution failed         | Retry with fallback DNS |
+| Error                                   | Cause                                                           | Action                  |
+| --------------------------------------- | --------------------------------------------------------------- | ----------------------- |
+| `BTP_ERROR_DELEGATION_INVALID`          | Missing attestation                                             | Reject message          |
+| `BTP_ERROR_ATTESTATION_VERIFICATION`    | Invalid attestation signature                                   | Reject message          |
+| `BTP_ERROR_DELEGATION_SIG_VERIFICATION` | Invalid delegation signature                                    | Reject message          |
+| `BTP_ERROR_RESOLVE_PUBKEY`              | DNS resolution failed, or a key chain that fails (1.2)          | Retry with fallback DNS |
+| `BTP_ERROR_KEY_RETIRED`                 | (1.2) The delegator's or attestor's key was rotated away        | Reject message          |
+| `BTP_ERROR_KEY_REVOKED`                 | (1.2) The delegator's or attestor's key is expired in its chain | Reject message          |
 
 ### **E2E Users**
 
-| Error                           | Cause                      | Action                  |
-| ------------------------------- | -------------------------- | ----------------------- |
-| `RESOLVE_PUBKEY`                | User DNS resolution failed | Retry with fallback DNS |
-| `SIGNATURE_VERIFICATION_FAILED` | Invalid user signature     | Reject message          |
+| Error                        | Cause                                                       | Action                  |
+| ---------------------------- | ----------------------------------------------------------- | ----------------------- |
+| `BTP_ERROR_RESOLVE_PUBKEY`   | User DNS resolution failed, or a key chain that fails (1.2) | Retry with fallback DNS |
+| `BTP_ERROR_SIG_VERIFICATION` | Invalid user signature                                      | Reject message          |
 
 ## 📊 Performance Considerations
 

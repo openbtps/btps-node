@@ -41,9 +41,9 @@ const server = new BtpsServer({
     privateKey: '-----BEGIN PRIVATE KEY-----...',
   },
   tlsOptions: {
-    cert: '-----BEGIN PUBLIC KEY-----...',
-    key: '-----BEGIN PRIVATE KEY-----...'
-  }
+    cert: '-----BEGIN CERTIFICATE-----...', // the server's TLS certificate
+    key: '-----BEGIN PRIVATE KEY-----...', // and its key
+  },
   trustStore,
   port: 3443,
   connectionTimeoutMs: 30000,
@@ -94,11 +94,11 @@ Forwards all verified artifacts to a custom handler function.
 **Example:**
 
 ```js
-server.forwardTo(async (artifact) => {
-  if (artifact.isAgentArtifact) {
-    console.log('Agent artifact:', artifact.artifact.agentId);
+server.forwardTo(async (msg) => {
+  if (msg.type === 'agent') {
+    console.log('Agent artifact:', msg.artifact.agentId, 'respondNow:', msg.respondNow);
   } else {
-    console.log('Transporter artifact:', artifact.artifact.from);
+    console.log('Transporter artifact:', msg.artifact.from);
   }
 });
 ```
@@ -127,7 +127,10 @@ A server with no handler for a type, no `forwardTo` handler and no `before` `onA
 server.onIncomingArtifact('Agent', (artifact, resCtx) => {
   console.log('Agent request:', artifact.action);
   if (artifact.respondNow) {
-    resCtx.sendRes({ ok: true, code: 200 });
+    resCtx.sendRes({
+      ...server.prepareBtpsResponse({ ok: true, code: 200 }, artifact.id),
+      type: 'btps_response',
+    });
   }
 });
 
@@ -174,6 +177,30 @@ Prepares a BTPS server response object.
 const response = server.prepareBtpsResponse({ ok: true, code: 200 }, 'req_123');
 ```
 
+### on / off
+
+```ts
+server.on(event: 'detailsRequested' | 'detailsShared', listener: (info: BTPDetailsRequestedInfo) => void): void
+server.off(event, listener): void
+```
+
+Since 1.2. `detailsRequested` fires when a details request arrives and passes its checks; `detailsShared` when one of this provider's devices sends a details response that passes them. Each says who asked or gave whom which details, and when ([BtpsServerEvents](./typesAndInterfaces.md#btpsserverevents--btpdetailsrequestedinfo--btpdetailssharedinfo)). See [Details refresh](../features/detailsRefresh.md).
+
+```js
+server.on('detailsRequested', ({ from, to, names, at }) =>
+  audit.record('asked', { from, to, names, at }),
+);
+```
+
+### getServerIdentity / getDependencies
+
+```ts
+server.getServerIdentity(): { identity: string; publicKey?: string }
+server.getDependencies(): { trustStore: AbstractTrustStore<BTPTrustRecord>; identityStore?: AbstractIdentityStore<BTPIdentityRecord> }
+```
+
+The server's identity and, when configured with a PEM key pair, its public key: never the private key, since middleware is handed this server. And the stores it was built with, for middleware that needs them.
+
 ---
 
 ## BtpsClient
@@ -192,7 +219,7 @@ import { BtpsClient } from '@btps/sdk/client';
 new BtpsClient(options: BTPClientOptions)
 ```
 
-- **options**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) – Client configuration (to, maxRetries, retryDelayMs, connectionTimeoutMs, etc.)
+- **options**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) – Client configuration (`to`, retries, timeouts, `host` overrides and, since 1.2, `requireSignedBy` and `keyResolver`). Throws `BTP_ERROR_IDENTITY` for an invalid `to`
 
 **Example:**
 
@@ -207,26 +234,23 @@ const client = new BtpsClient({
 });
 ```
 
-### connect
+### on / off / removeAllListeners
 
 ```ts
-client.connect(receiverId, callbacks?)
+client.on(event, listener): void
+client.off(event, listener): void
+client.removeAllListeners(): void
 ```
 
-Establishes a TLS connection to a BTPS server.
-
-- **receiverId**: `string` – BTPS identity of the server (e.g., `inbox$vendor.com`)
-- **callbacks**: `(events: TypedEventEmitter) => void` (optional) – Register event listeners ([TypedEventEmitter](./typesAndInterfaces.md#typedeventemitter))
+Listens for connection events: `connected`, `message`, `error`, `end` and `close` ([BtpsClientEvents](./typesAndInterfaces.md#btpsclientevents)). The client connects on its own on the first `send()`, and again after a connection ends; there is no public `connect`.
 
 **Example:**
 
 ```js
-client.connect('inbox$vendor.com', (events) => {
-  events.on('connected', () => console.log('Connected!'));
-  events.on('message', (msg) => console.log('Received:', msg));
-  events.on('error', (errorInfo) => console.error('Error:', errorInfo.error));
-  events.on('end', (endInfo) => console.log('Connection ended:', endInfo));
-});
+client.on('connected', ({ identity, retries }) => console.log('Connected to', identity, retries));
+client.on('error', ({ error, willRetry, retriesLeft }) =>
+  console.error(error.code, willRetry, retriesLeft),
+);
 ```
 
 ### send
@@ -253,7 +277,7 @@ const signedArtifact = await signEncrypt(
   'client$theirdomain.com',
   { accountName: 'billing', domainName: 'yourdomain.com', pemFiles: { publicKey, privateKey } },
   {
-    version: '1.1.0',
+    version: '1.1.0', // nothing here needs 1.2: artifactVersion({ type, document }) decides
     type: 'TRUST_REQ',
     from: 'billing$yourdomain.com',
     to: 'client$theirdomain.com',
@@ -321,13 +345,48 @@ if (!error && version.startsWith('1.1.')) {
 }
 ```
 
+### resolveIdentity
+
+```ts
+await client.resolveIdentity(identity: string, from: string, receiverKey?: BTPDecryptionKey)
+```
+
+An identity's public key, to encrypt to: from the `keyResolver` when given (else DNS), and when neither has it, from the identity's host, in an answer signed by its domain's operator (`op=`). Since 1.2 the lookup goes out as `1.2.0`, and again as `1.1.0` when a 1.1 host refuses the version; a `1.2.0` answer must answer this lookup, be fresh and name the identity. `receiverKey` (a PEM private key or a `Decrypter`) opens an encrypted answer.
+
+- **Returns**: `Promise<{ response: BTPIdentityResDoc & { hostname; port; version; serverVersion? }; error: undefined } | { response: undefined; error: BTPErrorException }>`. `serverVersion` (since 1.2) is the version the host's server speaks, when the host answered.
+
+### lookupKeyChain
+
+```ts
+await client.lookupKeyChain(identity: string, from: string, options?: { replyTimeoutMs?: number }): Promise<BTPKeyChainLookup>
+```
+
+Since 1.2. An identity's key chain, from its host's operator-signed answer: `{ status: 'chain', records, answer }`; `{ status: 'unavailable', reason }` when there is none to be had (a 1.1 host, no operator, no answer), and the identity's keys are left to DNS; `{ status: 'invalid', reason }` when the answer fails its checks. The host gets the connect timeout, then `replyTimeoutMs` (default `KEY_CHAIN_REPLY_TIMEOUT_MS`, 5 seconds). See [Key rotation](../features/keyRotation.md).
+
+### resolveBtpsHostDnsTxt
+
+```ts
+await client.resolveBtpsHostDnsTxt(identity: string): Promise<BtpsHostDnsTxt | undefined>
+```
+
+The identity's host from its domain's `_btps.host` record: hostname, port (3443 by default), selector, version and operator. With the `host` option set, built from `host`, `port`, `hostSelector`, `version` and `hostOperator` instead.
+
+### update / getConnectionStates
+
+```ts
+client.update(options: UpdateBTPClientOptions): void
+client.getConnectionStates(): ConnectionStates
+```
+
+`update` changes `maxRetries`, `retryDelayMs`, `connectTimeoutMs`, `replyTimeoutMs`, `connectionTimeoutMs` and `maxQueue` on a live client; a timeout below its minimum is raised to it. `getConnectionStates` gives `isConnecting`, `isConnected`, `isDraining` (always `false` since 1.2), `isDestroyed` and `shouldRetry`.
+
 ### end
 
 ```ts
 client.end();
 ```
 
-Ends the current connection gracefully.
+Ends the current connection gracefully. The next `send()` opens a new one.
 
 **Example:**
 
@@ -341,7 +400,7 @@ client.end();
 client.destroy();
 ```
 
-Destroys the client instance, closes sockets, and removes all listeners.
+Destroys the client instance, closes sockets, and removes all listeners. Sends still waiting are answered with `BTP_ERROR_CONNECTION_CLOSED`.
 
 **Example:**
 
@@ -403,7 +462,7 @@ Executes an agent command with optional document payload.
 - **actionType**: [AgentAction](./typesAndInterfaces.md#agentaction) – Type of agent action
 - **identity**: `string` – Target BTPS identity
 - **document**: [BtpsAgentDoc](./typesAndInterfaces.md#btpsagentdoc) (optional) – Document payload
-- **options**: [BtpsAgentCommandOptions](./typesAndInterfaces.md#btpsagentcommandoptions) (optional) – Cryptographic options, and on `event.send` the required `relatesTo`
+- **options**: [BtpsAgentCommandOptions](./typesAndInterfaces.md#btpsagentcommandoptions) (optional) – Cryptographic options (`signature` is optional: the agent always signs with SHA-256), and the envelope fields some commands take: `relatesTo` (required on `event.send` and `details.respond`), `id`, and since 1.2 `documentType`, `syncOf`, `details` and the trust permission fields. Each is listed in [Command Options](../client/btpsAgent/commands.md#command-options)
 - **timeoutMs**: `number` (optional) – How long to wait for the answer, in milliseconds: the agent's `replyTimeoutMs` by default (20000), never below 10000
 - **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
 
@@ -420,6 +479,7 @@ const authRes = await agent.command('auth.request', 'user$domain.com', {
 
 // Trust request
 const trustRes = await agent.command('trust.request', 'vendor$domain.com', {
+  id: crypto.randomUUID(),
   name: 'My Company',
   email: 'contact@mycompany.com',
   reason: 'Business partnership',
@@ -475,6 +535,14 @@ for (const entry of response?.document?.results ?? []) {
 }
 ```
 
+### destroy
+
+```ts
+agent.destroy(soft?: boolean): void
+```
+
+With `soft` set, ends the connection gently (`end()`), and the agent can send again; without it, destroys the agent as `BtpsClient.destroy()` does.
+
 ---
 
 ## BtpsTransporter
@@ -518,14 +586,17 @@ await transporter.registerConnection(to, clientOptions?, override?)
 Registers a new connection for a specific recipient.
 
 - **to**: `string` – Recipient identity
-- **clientOptions**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) (optional) – Custom client options for this connection
-- **override**: `boolean` (optional, default: `false`) – Whether to override existing connection
+- **clientOptions**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) (optional) – Options for this connection's client. They replace the transporter's own options rather than add to them
+- **override**: `boolean` (optional, default: `false`) – Whether to replace an existing connection; without it, one that exists throws `BTP_TRANSPORTER_ERROR_CONNECTION_ALREADY_EXISTS`
 - **Returns**: `Promise<BTPConnection>` ([BTPConnection](./typesAndInterfaces.md#btpconnection))
+
+Each connection's id is its recipient's identity. At `maxConnections`, a new recipient closes the connection idle longest; it is refused (`BTP_TRANSPORTER_ERROR_MAX_CONNECTIONS_REACHED`) only when every connection has a send waiting.
 
 **Example:**
 
 ```js
 const connection = await transporter.registerConnection('client$domain.com', {
+  to: 'client$domain.com',
   maxQueue: 200,
   maxRetries: 5,
 });
@@ -559,8 +630,8 @@ Transports a single artifact to a recipient.
 
 - **to**: `string` – Recipient identity
 - **artifact**: [BTPTransporterArtifact](./typesAndInterfaces.md#btptransporterartifact) – Artifact to transport
-- **clientOptions**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) (optional) – Custom client options for this transport
-- **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse))
+- **clientOptions**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) (optional) – Options for a new connection to this recipient, replacing the transporter's own; for one that exists, use `updateConnection`. Their `replyTimeoutMs` also sets this send's reply wait
+- **Returns**: `Promise<BTPClientResponse>` ([BTPClientResponse](./typesAndInterfaces.md#btpclientresponse)). Every failure is answered, not thrown: an artifact that is not a valid transporter artifact, a connection that cannot be opened, and the receiver's refusal
 
 **Example:**
 
@@ -583,7 +654,7 @@ Transports multiple artifacts to a recipient efficiently.
 
 - **to**: `string` – Recipient identity
 - **artifacts**: `BTPTransporterArtifact[]` – Array of artifacts to transport
-- **clientOptions**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) (optional) – Custom client options for this batch transport
+- **clientOptions**: [BTPClientOptions](./typesAndInterfaces.md#btpclientoptions) (optional) – As for `transport`: used when the connection is new
 - **Returns**: `Promise<BTPClientResponse[]>` – Array of transport results
 
 **Example:**
@@ -628,13 +699,13 @@ const connection = transporter.getConnection(id);
 
 Returns a specific connection by ID.
 
-- **id**: `string` – Connection ID
+- **id**: `string` – Connection ID: the recipient's identity
 - **Returns**: `BTPConnection | undefined` – Connection if found
 
 **Example:**
 
 ```js
-const connection = transporter.getConnection('conn_123');
+const connection = transporter.getConnection('client$domain.com');
 if (connection) {
   console.log('Connection status:', connection.isActive);
 }
@@ -648,7 +719,7 @@ const connection = transporter.updateConnection(id, clientOptions?, ttlSeconds?)
 
 Updates an existing connection with new options.
 
-- **id**: `string` – Connection ID
+- **id**: `string` – Connection ID: the recipient's identity
 - **clientOptions**: [UpdateBTPClientOptions](./typesAndInterfaces.md#updatebtpclientoptions) (optional) – New client options
 - **ttlSeconds**: `number` (optional) – New TTL in seconds
 - **Returns**: `BTPConnection | undefined` – Updated connection if found
@@ -657,7 +728,7 @@ Updates an existing connection with new options.
 
 ```js
 const updatedConnection = transporter.updateConnection(
-  'conn_123',
+  'client$domain.com',
   {
     maxQueue: 300,
     maxRetries: 5,
@@ -700,6 +771,26 @@ const metrics = transporter.getMetrics();
 console.log('Total connections:', metrics.totalConnections);
 console.log('Active connections:', metrics.activeConnections);
 ```
+
+### on / off
+
+```ts
+transporter.on(event, listener): void
+transporter.off(event, listener): void
+```
+
+Connection events, each with the connection's id: `connectionCreated`, `connectionUpdated`, `connectionDestroyed`, `connectionConnected`, `connectionError`, `connectionEnd`, `connectionClose` and `connectionMessage` ([BtpsTransporterEvents](./typesAndInterfaces.md#btpstransporterevents)).
+
+### Settings and counts
+
+| Method                                                        | What it does                                                                                   |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `getMaxConnections()` / `setMaxConnections(n)`                | The pool's size (10 by default)                                                                |
+| `getConnectionTTLSeconds()`                                   | How long a connection stays open with no send (300 by default)                                 |
+| `updateConnectionTTLSeconds(seconds, updateExisting = false)` | Changes the TTL for new connections, and for existing ones too when `updateExisting` is `true` |
+| `getClientOptions()`                                          | The client options every new connection takes                                                  |
+| `getTotalConnections()` / `getTotalActiveConnections()`       | How many connections there are, and how many are active                                        |
+| `getProtocolVersion()`                                        | The newest protocol version this SDK speaks, `'1.2.0'`                                         |
 
 ### destroy
 
@@ -754,26 +845,29 @@ const auth = new BtpsAuthentication({
 ### createAgent
 
 ```ts
-await auth.createAgent(options);
+await auth.createAgent(options, decryptBy);
 ```
 
 Creates an agent and associated trust record.
 
 - **options**: [CreateAgentOptions](./typesAndInterfaces.md#createagentoptions) – Agent creation options
+- **decryptBy**: `string` – The identity the device's documents are encrypted to, returned to the device as `decryptBy`
 - **Returns**: `Promise<BTPAuthResDoc>` ([BTPAuthResDoc](./typesAndInterfaces.md#btpauthresdoc))
 
 **Example:**
 
 ```js
-const authResponse = await auth.createAgent({
-  userIdentity: 'alice$company.com',
-  publicKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
-  agentInfo: { device: 'mobile', os: 'iOS' },
-  decidedBy: 'admin$company.com',
-  decryptBy: 'alice$company.com', // Identity to decrypt by when decrypting the document
-  privacyType: 'encrypted',
-  trustExpiryMs: 30 * 24 * 60 * 60 * 1000, // 30 days
-});
+const authResponse = await auth.createAgent(
+  {
+    userIdentity: 'alice$company.com',
+    publicKey: '-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----',
+    agentInfo: { device: 'mobile', os: 'iOS' },
+    decidedBy: 'admin$company.com',
+    privacyType: 'encrypted',
+    trustExpiryMs: 30 * 24 * 60 * 60 * 1000, // 30 days
+  },
+  'alice$company.com', // decryptBy: the identity to decrypt by when decrypting the document
+);
 console.log('Agent created:', authResponse.agentId);
 ```
 
@@ -1024,6 +1118,38 @@ if (result.success) {
 }
 ```
 
+#### rotateKey
+
+```ts
+await BtpsAuthentication.rotateKey(agentId, identity, refreshToken, currentKey, newKey, agentInfo?, agentOptions?)
+```
+
+Refreshes a session and moves the device to a new key (client-side). The refresh is signed by the current key and carries a proof (`keyProofPayload`) signed by the new key, so the server takes the new key only from the device that holds both. After it succeeds, the device signs with the new key.
+
+- **currentKey**: [BTPSigningKey](./typesAndInterfaces.md#btpsigningkey-and-btpdecryptionkey) – The key the server holds for this device today
+- **newKey**: [BTPSigningKey](./typesAndInterfaces.md#btpsigningkey-and-btpdecryptionkey) – The key to move to: a PEM key pair, or a `Signer`
+- **Returns**: `Promise<AuthRequestResponse>`
+
+**Example:**
+
+```js
+import { getBTPKeyPair } from '@btps/sdk/crypto';
+
+const newKeys = getBTPKeyPair();
+const result = await BtpsAuthentication.rotateKey(
+  agentId,
+  identity,
+  refreshToken,
+  currentKeys,
+  newKeys,
+);
+if (result.success) {
+  // sign with newKeys from now on, and keep result.response.document.refreshToken
+}
+```
+
+`authenticate` and `refreshSession` also take a `Signer` as the key, for a key held in the device's keystore.
+
 ---
 
 ## BtpsDelegator
@@ -1048,15 +1174,19 @@ new BtpsDelegator(options: BtpsDelegatorOptions)
 
 ```js
 import { BtpsDelegator } from '@btps/sdk/delegation';
+// The delegator is the domain's operator (op= in its _btps.host record): a receiver
+// takes a delegation or attestation for the domain from no other identity
 const delegator = new BtpsDelegator({
-  identity: 'alice$saas.com',
+  identity: 'admin$saas.com',
   privateKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----',
   autoInit: true,
 });
 
 // Or with the delegator key held elsewhere, such as a KMS
-const kmsDelegator = new BtpsDelegator({ identity: 'alice$saas.com', signer: kmsSigner });
+const kmsDelegator = new BtpsDelegator({ identity: 'admin$saas.com', signer: kmsSigner });
 ```
+
+Since 1.2, `keyResolver` finds the delegator's own published key in place of DNS.
 
 ### init
 
@@ -1085,7 +1215,7 @@ try {
 await delegator.delegateArtifact(agentId, agentPubKey, artifact, onBehalfOf?)
 ```
 
-Decorates a BTPTransporterArtifact with delegation and attestation as needed. Supports key rotation through selector-based public key resolution.
+Adds a delegation, and an attestation when `onBehalfOf` is given, to an artifact the device signed. Without `onBehalfOf`, the delegator signs the delegation under its own selector. With it (a user on a custom domain), the user's key signs the delegation under the selector of the user's own domain, and the delegator attests. The artifact itself is not changed: change it after the device signed it and its signature no longer verifies.
 
 - **agentId**: `string` – Unique identifier for the delegated agent
 - **agentPubKey**: `string` – PEM-encoded public key of the agent
@@ -1103,14 +1233,11 @@ const delegatedArtifact = await delegator.delegateArtifact(
   artifact,
 );
 
-// Custom domain user delegation with attestation and selector
-const delegatedArtifact = await delegator.delegateArtifact(
+// Custom domain user delegation: the user's key signs, the delegator attests
+const attestedArtifact = await delegator.delegateArtifact(
   'device_enterprise_laptop_20250115_103000',
   agentPublicKey,
-  {
-    ...artifact,
-    selector: 'btps1', // Optional: specify selector for key rotation support
-  },
+  artifact,
   {
     identity: 'alice$enterprise.com',
     keyPair: {
@@ -1238,6 +1365,16 @@ Retrieves a public key record for a given identity and selector. The server pass
 - **computedId**: `string` – The identity's computed id, `computeId(identity)`
 - **selector**: `string` (optional) – Selector for key rotation (defaults to current selector)
 - **Returns**: `Promise<IdentityPubKeyRecord | undefined>` – Public key record if found
+
+### getKeyChain
+
+```ts
+await store.getKeyChain?(computedId)
+```
+
+Since 1.2, optional. The identity's key chain, oldest first, which the server sends to a `1.2.0` lookup that asks for it (`keyChain: true`). The provider writes it (`signKeyRotation`, `signKeyExpiry`); the server only reads it. None, or an empty chain, is an identity that never rotated.
+
+- **Returns**: `Promise<BTPKeyChainRecord[] | undefined>`
 
 ---
 
@@ -1434,6 +1571,16 @@ if (publicKeyRecord) {
   console.log('Version:', publicKeyRecord.version);
 }
 ```
+
+### getKeyChain
+
+```ts
+await store.getKeyChain(computedId);
+```
+
+Since 1.2. The identity's key chain, as its record's `keyChain` holds it.
+
+- **Returns**: `Promise<BTPKeyChainRecord[] | undefined>`
 
 ---
 
@@ -1747,6 +1894,76 @@ Flushes and reloads trust records from disk.
 ```js
 await trustStore.flushAndReload();
 ```
+
+---
+
+## InMemoryAuthSessionStore
+
+```ts
+import { InMemoryAuthSessionStore } from '@btps/sdk/authentication';
+```
+
+A device-side `AuthSessionStore` that keeps sessions in memory, for development and tests. In production, implement `AuthSessionStore` over persistent, secure storage, and keep the device's private key in its keystore, not in the session.
+
+| Method                            | What it does                                                                                             |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `store(session: AuthSession)`     | Keeps a session, by its `agentId`, replacing one with the same id                                        |
+| `getByAgentId(agentId: string)`   | The session of an agent, or `undefined` when there is none or it has expired (an expired one is removed) |
+| `getByIdentity(identity: string)` | The latest session stored for an identity, as `getByAgentId` gives it                                    |
+| `remove(agentId: string)`         | Removes a session                                                                                        |
+| `cleanup()`                       | Removes every session past its `expiresAt`                                                               |
+| `getAll()`                        | Every session kept                                                                                       |
+| `size`                            | How many sessions are kept                                                                               |
+| `clear()`                         | Removes every session                                                                                    |
+
+Every method but `size` and `clear` returns a promise.
+
+---
+
+## Server Factories and Registry (`@btps/sdk/server/core`)
+
+Ways to hold `BtpsServer` instances. Each builds a server from `BtpsServerOptions`; none adds behaviour. Most platforms construct `BtpsServer` directly.
+
+| Class                          | Methods                                                                                                 | What it does                                                                                                                      |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `BtpsServerFactory`            | `static create(config): BtpsServer`                                                                     | A new server each call                                                                                                            |
+| `BtpsServerSingletonFactory`   | `static create(config): BtpsServer`, `static reset()`                                                   | One server per process: `create` returns the same instance until `reset`                                                          |
+| `BtpsServerLightweightFactory` | `static async create(config)`, `static reset()`                                                         | The singleton, with `BtpsServer` loaded by dynamic import only when `create` is first called, to keep it out of an initial bundle |
+| `BtpsServerRegistry`           | `static register(id, server)`, `get(id)`, `start(id)`, `stop(id)`, `startAll()`, `stopAll()`, `clear()` | Several named servers in one process, started and stopped by name                                                                 |
+
+---
+
+## RateLimiter / BtpsSimpleRateLimiter (`@btps/sdk/server/core`)
+
+```ts
+abstract class RateLimiter {
+  abstract isAllowed(identity: string, type?: 'ipAddress' | 'fromIdentity'): Promise<boolean>;
+  cleanup(): void; // no-op by default
+}
+
+class BtpsSimpleRateLimiter implements RateLimiter {
+  constructor(options?: IRateLimitOptions);
+  isAllowed(identity: string, type: 'ipAddress' | 'fromIdentity'): Promise<boolean>;
+  cleanup(): void;
+  stopCleanupTimer(): void;
+}
+```
+
+`RateLimiter` is the contract a rate limit middleware calls: is one more artifact from this IP address, or this identity, allowed now? `BtpsSimpleRateLimiter` is an in-memory example, counting per second: by default 50 from one IP address and 10 from one identity (`IRateLimitOptions`), with old counters dropped every 60 seconds and at most 100,000 kept. Its counters live in one process, so they are not shared between servers; production limits belong in a shared store such as Redis, behind your own `RateLimiter`. `createDefaultMiddleware` uses one.
+
+---
+
+## BtpsSimpleMetricsTracker (`@btps/sdk/server/core`)
+
+```ts
+class BtpsSimpleMetricsTracker implements IMetricsTracker {
+  onMessageReceived(sender: string, recipient?: string): void;
+  onMessageRejected(sender: string, recipient: string, reason: string): void;
+  onError(error: Error): void;
+}
+```
+
+An `IMetricsTracker` that writes each event to the console: a BTPS error as its `toJSON()`, any other error by its name and message. `createDefaultMiddleware` uses one; replace it with a tracker that sends to your metrics system. See [Server Metrics & Monitoring](../server/metricsAndMonitor.md).
 
 ---
 

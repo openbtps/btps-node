@@ -18,12 +18,12 @@ for implementers and you do not need it.
 A BoundView is optional. If you do not want your design to travel, send
 none: the receiver shows its own view of the document's data.
 
-| Step | Where it runs | What you call |
-| --- | --- | --- |
-| [Install and load the engine](#install) | Once, where you capture or draw | `initBoundViewEngine(...)` in a browser or app; automatic in Node |
-| [Send a document with its BoundView](#send-a-document-with-its-boundview) | The browser where your preview is shown | `snapshotBoundView(previewElement, document)` |
-| Check a received BoundView | The receiving server, or the device that holds the key | Nothing: the SDK checks it whenever the document is opened |
-| [Show a received BoundView](#show-a-received-boundview) | Wherever your app displays documents | `renderBoundView(openedDocument)` |
+| Step                                                                      | Where it runs                                          | What you call                                                     |
+| ------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------- |
+| [Install and load the engine](#install)                                   | Once, where you capture or draw                        | `initBoundViewEngine(...)` in a browser or app; automatic in Node |
+| [Send a document with its BoundView](#send-a-document-with-its-boundview) | The browser where your preview is shown                | `snapshotBoundView(previewElement, document)`                     |
+| Check a received BoundView                                                | The receiving server, or the device that holds the key | Nothing: the SDK checks it whenever the document is opened        |
+| [Show a received BoundView](#show-a-received-boundview)                   | Wherever your app displays documents                   | `renderBoundView(openedDocument)`                                 |
 
 ## Install
 
@@ -31,27 +31,31 @@ none: the receiver shows its own view of the document's data.
 <TabItem value="npm" label="npm">
 
 ```bash
-npm install @btps/boundview
+npm install @btps/boundview@next
 ```
 
 </TabItem>
 <TabItem value="yarn" label="yarn">
 
 ```bash
-yarn add @btps/boundview
+yarn add @btps/boundview@next
 ```
 
 </TabItem>
 <TabItem value="pnpm" label="pnpm">
 
 ```bash
-pnpm add @btps/boundview
+pnpm add @btps/boundview@next
 ```
 
 </TabItem>
 </Tabs>
 
-`@btps/boundview` depends on `@btps/sdk` (`^1.2.0-rc.3`), so installing it
+:::note
+BoundView is part of 1.2, which is the `next` release until 1.2.0 ships: without `@next`, a package manager installs `@btps/boundview` 0.0.0, not the 1.2 release. See [Migrating from 1.1 to 1.2](../../../whats-new/version-1-2-migration.md).
+:::
+
+`@btps/boundview` depends on `@btps/sdk` (`^1.2.0-rc.3.2`), so installing it
 alone brings what it needs, with any package manager. It uses only the SDK's
 browser-safe entry, `@btps/sdk/boundview` (schema, bindings and checks), so a
 frontend bundle never includes the SDK's server or client code.
@@ -78,9 +82,9 @@ never draws or captures a BoundView never downloads them. Received
 BoundViews are still checked automatically by `@btps/sdk` alone
 (`decryptVerify`'s `boundView` result, the server handler's second argument).
 
-| Platform | Install |
-| --- | --- |
-| Sends or receives documents, no BoundView | `@btps/sdk` only |
+| Platform                                       | Install                           |
+| ---------------------------------------------- | --------------------------------- |
+| Sends or receives documents, no BoundView      | `@btps/sdk` only                  |
 | Sends with a BoundView, or draws received ones | `@btps/sdk` and `@btps/boundview` |
 
 ### What an app downloads
@@ -89,11 +93,11 @@ BoundViews are still checked automatically by `@btps/sdk` alone
 bundle holds only what it imports. Measured minified, with code splitting,
 as Vite and Next.js bundle:
 
-| The app calls | Loaded up front | Gzipped |
-| --- | --- | --- |
-| `renderBoundView` only | About 106 KB, with no snapshot code and no font reader | About 33 KB |
+| The app calls            | Loaded up front                                                | Gzipped      |
+| ------------------------ | -------------------------------------------------------------- | ------------ |
+| `renderBoundView` only   | About 106 KB, with no snapshot code and no font reader         | About 33 KB  |
 | `snapshotBoundView` only | About 384 KB, mostly opentype.js, which reads the page's fonts | About 115 KB |
-| Both | The same as `snapshotBoundView` alone | The same |
+| Both                     | The same as `snapshotBoundView` alone                          | The same     |
 
 Three things are never in that up-front load:
 
@@ -149,9 +153,10 @@ try {
   // The preview you already show, and the document it shows
   const boundView = await snapshotBoundView(previewElement, document, {
     engine: new URL('@btps/boundview/engine.wasm', import.meta.url), // optional
-    onWarning: (message) => console.warn(message), // the default
+    onWarning: (message) => console.warn(message), // optional: by default, console.warn('[BoundView] ' + message)
   });
-  await agent.command('artifact.send', to, { ...document, boundView });
+  // A document with a BoundView is stamped 1.2.0 for you
+  await agent.command('artifact.send', to, { ...document, boundView }, { encryption });
 } catch (error) {
   if (error instanceof BoundViewSnapshotError) {
     // error.problems: why a receiver would not accept or show it,
@@ -162,9 +167,9 @@ try {
 }
 ```
 
-| Option | What it does |
-| --- | --- |
-| `engine` | Where your app serves `@btps/boundview/engine.wasm`. With it, an SVG logo can travel as outlines; without it, as pixels. |
+| Option      | What it does                                                                                                                                                                                                           |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `engine`    | Where your app serves `@btps/boundview/engine.wasm`. With it, an SVG logo can travel as outlines; without it, as pixels.                                                                                               |
 | `onWarning` | Told about a label that looks like a fact but is not bound, and about a font with no readable font file, whose text is then drawn with a bundled font ([Fonts](#what-the-snapshot-reads)). `console.warn` when absent. |
 
 `snapshotBoundView` captures the preview as a canvas. Text that shows a
@@ -283,11 +288,13 @@ differ, whatever the strokes.
 `@btps/boundview/signature`, a small entry with no engine, safe to load in
 any page:
 
-| Export | What it gives |
-| --- | --- |
-| `SIGNATURE_STROKE` | The pen's width, 8 units of the canvas. A dot is this wide. |
-| `signatureDrawing(strokes)` | `{ dots: { cx, cy, r }[], line: { d, strokeWidth } \| null }`, every attribute as the exact string the drawing writes. |
-| `signatureSvg(strokes, colour = 'currentColor')` | A whole `<svg viewBox="0 0 1000 300">` string. |
+| Export                                           | What it gives                                                                                                                                          |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SIGNATURE_STROKE`                               | The pen's width, 8 units of the canvas. A dot is this wide.                                                                                            |
+| `signatureDrawing(strokes)`                      | `{ dots: { cx, cy, r }[], line: { d, strokeWidth } \| null }`, every attribute as the exact string the drawing writes.                                 |
+| `signatureSvg(strokes, colour = 'currentColor')` | A whole `<svg viewBox="0 0 1000 300">` string.                                                                                                         |
+| `signatureShapes(strokes, at, scale, colour)`    | The same shapes as SVG markup strings, each canvas point placed by `at(x, y)` and the pen `scale` times its width: what the engine draws inside a box. |
+| `n(value)`                                       | A number as the drawing writes it: at most four decimals, `'0'` when not finite.                                                                       |
 
 <Tabs groupId="signature-markup">
 <TabItem value="react" label="React">
@@ -391,8 +398,9 @@ if (png) {
 ```
 
 `renderBoundView` gives `null` when the document has no BoundView or it
-fails a check. Then show your own view of the signed data instead, with a
-notice saying why. The document is still accepted: only its BoundView is not
+fails a check, and throws if the engine cannot draw it (or, in a browser,
+was not loaded with `initBoundViewEngine`). Either way, show your own view
+of the signed data instead, with a notice saying why. The document is still accepted: only its BoundView is not
 shown.
 
 ### The check's result
@@ -491,10 +499,10 @@ view is offered whether a BoundView is shown or not.
 
 ## When a check fails
 
-| What is wrong | What happens | What the app shows |
-| --- | --- | --- |
-| The canvas breaks its schema or a limit, or binds a field the document does not have | The **document is refused**, as a document with any other malformed field is, with `BTP_ERROR_VALIDATION` | Nothing: the document was not accepted |
-| The canvas is well formed but fails a [check](./checks.md#the-checks) | The **document is accepted** and the **BoundView is not shown** | Its own view of the signed data, with a notice saying why |
+| What is wrong                                                                        | What happens                                                                                              | What the app shows                                        |
+| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| The canvas breaks its schema or a limit, or binds a field the document does not have | The **document is refused**, as a document with any other malformed field is, with `BTP_ERROR_VALIDATION` | Nothing: the document was not accepted                    |
+| The canvas is well formed but fails a [check](./checks.md#the-checks)                | The **document is accepted** and the **BoundView is not shown**                                           | Its own view of the signed data, with a notice saying why |
 
 A BoundView that fails a check is never shown in part, and the document
 behind it is never lost.

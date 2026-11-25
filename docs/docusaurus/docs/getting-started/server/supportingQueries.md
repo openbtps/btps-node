@@ -11,7 +11,7 @@ BTPS server supports immediate response commands for managing inbox, outbox, dra
 
 ## Understanding Immediate Response Commands
 
-Every agent command reaches one handler, `onIncomingArtifact('Agent', handler)`. The server marks each with `respondNow`: `true` for a command your server answers at once from its own storage, `false` for one it takes to deliver (`artifact.send`, `event.send`, `trust.request`, `trust.respond`). The agent does not set it. Commands answered at once:
+Every agent command reaches one handler, `onIncomingArtifact('Agent', handler)`. The server marks each with `respondNow`: `true` for a command your server answers at once from its own storage, `false` for one it takes to deliver (`artifact.send`, `event.send`, `trust.request`, `trust.respond` and, since 1.2, `details.changed`, `details.request`, `details.respond`). The agent does not set it. Commands answered at once:
 
 - **Inbox Management**: Fetch, delete, mark as seen
 - **Outbox Management**: Fetch, cancel artifacts still being delivered
@@ -103,6 +103,10 @@ const server = new BtpsServer({
     connection: './trust.json',
     entityName: 'trusted_senders',
   }),
+  tlsOptions: {
+    key: readFileSync('./keys/tls-key.pem', 'utf8'),
+    cert: readFileSync('./keys/tls-cert.pem', 'utf8'),
+  },
   port: 3443,
   middlewarePath: './btps.middleware.mjs',
 });
@@ -538,7 +542,7 @@ interface BTPStringQueryFilter {
 
 ```typescript
 interface BtpsServerResponse<T = BTPServerResDocs> {
-  version: string; // Required: Protocol version (e.g., "1.1.0")
+  version: string; // Required: Protocol version this server speaks ("1.2.0")
   status: BTPStatus; // Required: Response status
   id: string; // Required: Unique response ID
   issuedAt: string; // Required: ISO timestamp
@@ -548,6 +552,7 @@ interface BtpsServerResponse<T = BTPServerResDocs> {
   signature?: BTPSignature; // Optional: Digital signature
   encryption?: BTPEncryption; // Optional: Encryption details
   signedBy?: string; // Optional: Signer identity
+  selector?: string; // Optional, with a signature: the signer's selector
 }
 
 interface BTPStatus {
@@ -555,6 +560,8 @@ interface BTPStatus {
   code: number; // Required: HTTP-style status code
   message?: string; // Optional: Human-readable message
   error?: string; // On an error: its BTPS code, e.g. 'BTP_ERROR_TRUST_EXPIRED'
+  retryAfter?: number; // Since 1.2, on a 429 only: seconds to wait before sending again
+  closing?: true; // Since 1.2: the server ends the connection after this answer
 }
 
 // Status codes:
@@ -587,13 +594,21 @@ interface BTPQueryResult<T = BTPTransporterArtifact | BTPDeliveryFailureArtifact
 }
 
 interface BTPQueryResultEntry<T> {
-  artifact: T; // Required: The actual artifact
+  artifact: T; // Required: The actual artifact (or, for trust.fetch, a trust record)
   meta?: {
     // Optional: Metadata
     seen?: boolean; // Whether item has been seen
     seenAt?: string; // ISO timestamp when seen
+    // Since 1.2, on a sentbox result: a send's outcome, as your server knows it
+    delivery?: { status: 'pending' | 'delivered' | 'failed'; code?: string; at: string };
     [key: string]: unknown; // Additional metadata
   };
+  agentKey?: BTPAgentKey; // Since 1.2: the content key wrapped to the device that asked (wrapForAgent)
+}
+
+// Created, with this id: the answer to a command that makes something, such as draft.create
+interface BTPCreatedResDoc {
+  id: string;
 }
 ```
 
@@ -765,25 +780,30 @@ async function fetchInboxItems(agentId: string, query: BTPAgentQuery) {
 
 ```typescript
 {
-  version: "1.1.0",
+  version: "1.2.0",
   status: { ok: true, code: 200 },
   id: "response-12345678",
   issuedAt: "2025-01-15T10:30:00Z",
   type: "btps_response",
+  reqId: "...", // the id of the command it answers
   document: {
     results: [
       {
+        // The signed artifact as it arrived, unchanged
         artifact: {
+          version: "1.1.0",
           id: "message-123",
+          issuedAt: "2025-01-15T10:00:00Z",
+          type: "BTPS_DOC",
           from: "sender$domain.com",
           to: "recipient$domain.com",
-          type: "BTPS_DOC",
-          document: { /* message content */ },
-          createdAt: "2025-01-15T10:00:00Z"
+          selector: "btps1",
+          document: "...", // the encrypted document
+          encryption: { /* ... */ },
+          signature: { /* ... */ }
         },
         meta: {
-          seen: false,
-          seenAt: null
+          seen: false
         }
       }
     ],
