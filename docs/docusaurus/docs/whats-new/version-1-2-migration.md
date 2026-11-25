@@ -52,6 +52,7 @@ This page is our recommendation for doing it safely: what changes for you, the o
 - Every 1.1 peer. A 1.1.3 provider and a 1.2 provider talk both ways; the versions journey proves it against the published 1.1.3 SDK.
 - Every existing trust. A trust record without `permissions` is all or nothing, as in 1.1: nothing to migrate.
 - Your trust store's abstract methods: `AbstractTrustStore` has none new to implement.
+- `encryptBtpPayload`, `decryptBtpPayload` and `decryptBtpPayloadWithDecrypter`, and the payloads they write and read. The stream functions 1.2 adds beside them ([Large payloads, a piece at a time](../protocol/security/decryption.md#large-payloads-a-piece-at-a-time)) are optional and need no migration: they read and write the same artifacts.
 
 ## Upgrade, step by step
 
@@ -281,6 +282,7 @@ Turn them on one at a time, in this order. Each is safe to turn on when its cond
 | 10  | [Notes, discounts and BoundView](../features/notesDiscountsTemplates.md)                                        | the receivers you send them to run 1.2; to a 1.1 server they are refused, never shaped. Drop `template` from any document you add them to ([below](#dropping-template))                                                                                |
 | 11  | [Agreements](../features/agreements.md) and [evidence bundles](../features/evidenceBundles.md)                  | last: trusts grant `send:agreement`, `agreementOrderCheck` is registered, and you keep every answer to build a bundle from                                                                                                                             |
 | 12  | [Key rotation](../features/keyRotation.md)                                                                      | your identity store keeps each identity's `keyChain` (`getKeyChain`), and you follow the [rules for rotating keys](#rotating-keys)                                                                                                                     |
+| 13  | [Large payloads, a piece at a time](../protocol/security/decryption.md#large-payloads-a-piece-at-a-time)        | any time, on Node.js: nothing on the wire changes. Use a decrypted piece only once the whole payload has been read without an error, and read an encrypted `payload` to its end before you `await encryption`                                          |
 
 ### Dropping `template`
 

@@ -4,6 +4,27 @@ All notable changes to `@btps/sdk` and the BTPS protocol it implements. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.0-rc.3.4] — unreleased (beta, release candidate)
+
+A platform can decrypt and encrypt a large payload a piece at a time, such as
+an agreement carrying many PDFs, without holding it in memory. Everything else
+is as in rc.3.3 below.
+
+### Added
+
+- `decryptBtpPayloadStream`, `decryptBtpPayloadStreamWithDecrypter` and
+  `encryptBtpPayloadStream` (`@btps/sdk/crypto`): `decryptBtpPayload`,
+  `decryptBtpPayloadWithDecrypter` and `encryptBtpPayload`, a piece at a time.
+  A decrypted piece is not trusted until the loop over it ends without
+  throwing; `encryptBtpPayloadStream`'s `encryption` settles only once its
+  `payload` has been read to its end. Through a `Decrypter`, `unwrapKey` is
+  needed. New type `BTPPayloadPieces<T>`, an `AsyncIterable<T>` or an
+  `Iterable<T>`.
+- Additive: nothing about the artifact or the wire format changes. They read
+  and write exactly the artifacts the existing functions do, and those are
+  unchanged. They run on Node.js only, as they use Node's `crypto`. See
+  [Large payloads, a piece at a time](https://www.openbtps.org/docs/next/protocol/security/decryption#large-payloads-a-piece-at-a-time).
+
 ## [1.2.0-rc.3.3] — 2026-11-25 (beta, release candidate)
 
 An agreement's signed answer can carry the signer's consent to sign

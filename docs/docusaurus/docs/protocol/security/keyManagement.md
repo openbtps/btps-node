@@ -66,6 +66,7 @@ The SDK ships `PemSigner` and `PemDecrypter` for a PEM key held in the process. 
 | `signEncrypt`, `sender`                                            | `pemFiles`                            | `signer`                                                     |
 | `decryptVerify`                                                    | the receiver's PEM private key        | a `Decrypter`                                                |
 | Low level                                                          | `signBtpPayload`, `decryptBtpPayload` | `signBtpPayloadWithSigner`, `decryptBtpPayloadWithDecrypter` |
+| Low level, a piece at a time (since 1.2)                           | `decryptBtpPayloadStream`             | `decryptBtpPayloadStreamWithDecrypter`, with `unwrapKey`     |
 
 A signature made through a `Signer` is byte-for-byte the one `signBtpPayload` makes with the same key, so the receiver cannot tell, and needs no change.
 
@@ -79,7 +80,7 @@ Since 1.2, a device reads an encrypted document with its own key, so the identit
 
 - **Only to the identity's own devices.** The provider wraps only to a device record of the identity whose key unwraps: the device that asked, as the server's agent authentication identified it. `wrapForAgent` cannot check that pairing.
 - **It always wraps to the key the device's record holds now.** A device that has not finished moving to a new key sees from `fingerprint` that the wrap is not for the key it holds.
-- **With a key held elsewhere,** the provider's `Decrypter` needs the optional `unwrapKey`, which returns the unwrapped AES key itself. `PemDecrypter` has it. A KMS decrypter already makes this call (KMS `Decrypt` on the wrapped key) inside `decrypt`, so `unwrapKey` is the same call without the AES step. `wrapForAgent` refuses a `Decrypter` without it.
+- **With a key held elsewhere,** the provider's `Decrypter` needs the optional `unwrapKey`, which returns the unwrapped AES key itself. `PemDecrypter` has it. A KMS decrypter already makes this call (KMS `Decrypt` on the wrapped key) inside `decrypt`, so `unwrapKey` is the same call without the AES step. `wrapForAgent` refuses a `Decrypter` without it, and so does `decryptBtpPayloadStreamWithDecrypter` ([Large payloads, a piece at a time](./decryption.md#large-payloads-a-piece-at-a-time)).
 
 ### Example: AWS KMS
 

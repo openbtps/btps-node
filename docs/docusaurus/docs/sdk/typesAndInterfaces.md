@@ -1253,7 +1253,7 @@ interface DecryptRequest {
 }
 ```
 
-`unwrapKey` (since 1.2, optional) returns the RSA-OAEP-unwrapped AES key itself, so a provider can wrap it again to one of its user's devices (`wrapForAgent`). `PemDecrypter` has it. A KMS decrypter makes the same call inside `decrypt`.
+`unwrapKey` (since 1.2, optional) returns the RSA-OAEP-unwrapped AES key itself, so a provider can wrap it again to one of its user's devices (`wrapForAgent`). `PemDecrypter` has it. A KMS decrypter makes the same call inside `decrypt`. `decryptBtpPayloadStreamWithDecrypter` needs it too: it has only the content key unwrapped through the `Decrypter`, and does the AES-GCM step locally.
 
 ### BtpsKeyResolver
 
@@ -1304,6 +1304,14 @@ A key as the SDK takes it: a PEM key, or a key held elsewhere.
 ```ts
 type BTPSigningKey = PemKeys | Signer;
 type BTPDecryptionKey = string | Decrypter; // a PEM private key, or a Decrypter
+```
+
+### BTPPayloadPieces
+
+Since 1.2. An encrypted payload, or a document to encrypt, a piece at a time, so neither is ever held whole. `decryptBtpPayloadStream` and `decryptBtpPayloadStreamWithDecrypter` take the base64 payload as `BTPPayloadPieces<string>`. `encryptBtpPayloadStream` takes the document's JSON text as `BTPPayloadPieces<string | Uint8Array>`. An array, a generator and a Node readable stream all fit; a stream that gives a payload needs an encoding set (`{ encoding: 'utf8' }`), so that it gives text, not bytes. See [Large payloads, a piece at a time](../protocol/security/decryption.md#large-payloads-a-piece-at-a-time).
+
+```ts
+type BTPPayloadPieces<T> = AsyncIterable<T> | Iterable<T>;
 ```
 
 ### ParsedIdentity

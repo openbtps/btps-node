@@ -19,6 +19,9 @@ import {
   decryptBtpPayload,
   signBtpPayloadWithSigner,
   decryptBtpPayloadWithDecrypter,
+  decryptBtpPayloadStream,
+  decryptBtpPayloadStreamWithDecrypter,
+  encryptBtpPayloadStream,
   PemSigner,
   PemDecrypter,
   generateUserToken,
@@ -33,6 +36,7 @@ import {
   BTP_ERROR_UNSUPPORTED_ENCRYPT,
   BTP_ERROR_VALIDATION,
 } from '../error/constant.js';
+import { BTPErrorException } from '../error/index.js';
 
 interface KmsSignatureVector {
   algorithm: string;
@@ -552,4 +556,199 @@ describe('generateUserToken draws every character from the random source', () =>
     // 32,000 draws over 16 characters: 2,000 each expected; a biased or broken draw is far outside this.
     for (const n of counts.values()) expect(n).toBeGreaterThan(1700);
   });
+});
+
+describe('a payload encrypted and decrypted a piece at a time', () => {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+  // Multi-byte characters, so that pieces split them: two-, three- and four-byte UTF-8, and a surrogate pair.
+  const document = {
+    type: 'agreement',
+    title: 'Ünïcödé terms — 契約 😀',
+    attachments: [
+      { content: crypto.randomBytes(70_000).toString('base64'), type: 'application/pdf' },
+    ],
+  };
+  const text = JSON.stringify(document);
+
+  /** `value` cut into pieces of `size`, the last one shorter. */
+  const piecesOf = (value: string, size: number): string[] =>
+    Array.from({ length: Math.ceil(value.length / size) }, (_, i) =>
+      value.slice(i * size, (i + 1) * size),
+    );
+
+  const decrypted = async (pieces: AsyncIterable<Uint8Array>): Promise<string> => {
+    const parts: Uint8Array[] = [];
+    for await (const piece of pieces) parts.push(piece);
+    return Buffer.concat(parts).toString('utf8');
+  };
+
+  const errorOf = async (pieces: AsyncIterable<Uint8Array>): Promise<unknown> => {
+    try {
+      for await (const piece of pieces) void piece;
+    } catch (err) {
+      return err;
+    }
+    return undefined;
+  };
+
+  it('decrypts what encryptBtpPayload writes, in pieces of any length, as decryptBtpPayload does', async () => {
+    const { data, encryption } = encryptBtpPayload(document, publicKey);
+    for (const size of [1, 3, 4, 5, 1000, data.length]) {
+      expect(
+        await decrypted(decryptBtpPayloadStream(piecesOf(data, size), encryption, privateKey)),
+      ).toBe(text);
+    }
+    expect(
+      JSON.parse(await decrypted(decryptBtpPayloadStream([data], encryption, privateKey))),
+    ).toEqual(decryptBtpPayload(data, encryption, privateKey).data);
+  });
+
+  it('writes the payload encryptBtpPayload writes: joined, the same bytes under the same key, and read back by decryptBtpPayload', async () => {
+    for (const size of [1, 2, 7, 4096]) {
+      const sealed = encryptBtpPayloadStream(piecesOf(text, size), publicKey);
+      const parts: string[] = [];
+      for await (const part of sealed.payload) parts.push(part);
+      const encryption = await sealed.encryption;
+      const payload = parts.join('');
+      // The same key and IV, written whole as encryptBtpPayload writes: the same payload and tag.
+      const key = decryptRSA(privateKey, Buffer.from(encryption.encryptedKey, 'base64'));
+      const cipher = crypto.createCipheriv(
+        'aes-256-gcm',
+        key,
+        Buffer.from(encryption.iv, 'base64'),
+      );
+      expect(payload).toBe(cipher.update(text, 'utf8', 'base64') + cipher.final('base64'));
+      expect(encryption.authTag).toBe(cipher.getAuthTag().toString('base64'));
+      expect(encryption).toMatchObject({ algorithm: 'aes-256-gcm', type: 'standardEncrypt' });
+      expect(decryptBtpPayload(payload, encryption, privateKey).data).toEqual(document);
+    }
+  });
+
+  it('takes the document as bytes too, and keeps a character split between two text pieces whole', async () => {
+    const emoji = text.indexOf('😀');
+    const split = [text.slice(0, emoji + 1), text.slice(emoji + 1)];
+    for (const pieces of [split, [Buffer.from(text, 'utf8')]]) {
+      const sealed = encryptBtpPayloadStream(pieces, publicKey);
+      const parts: string[] = [];
+      for await (const part of sealed.payload) parts.push(part);
+      expect(decryptBtpPayload(parts.join(''), await sealed.encryption, privateKey).data).toEqual(
+        document,
+      );
+    }
+  });
+
+  it('throws, once the last piece is read, what decryptBtpPayload answers for a payload changed, cut short or under another tag', async () => {
+    const { data, encryption } = encryptBtpPayload(document, publicKey);
+    const changed = `${data.slice(0, 100)}${data[100] === 'A' ? 'B' : 'A'}${data.slice(101)}`;
+    const otherTag = { ...encryption, authTag: crypto.randomBytes(16).toString('base64') };
+    for (const [payload, under] of [
+      [changed, encryption],
+      [data.slice(0, -400), encryption],
+      [data, otherTag],
+    ] as const) {
+      const error = await errorOf(
+        decryptBtpPayloadStream(piecesOf(payload, 512), under, privateKey),
+      );
+      expect(error).toBeInstanceOf(BTPErrorException);
+      expect((error as BTPErrorException).code).toBe(
+        decryptBtpPayload(payload, under, privateKey).error?.code,
+      );
+    }
+  });
+
+  it('refuses a payload encrypted to another key, and a tag shorter than 16 bytes, as decryptBtpPayload does', async () => {
+    const { data, encryption } = encryptBtpPayload(document, publicKey);
+    const other = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    const wrongKey = await errorOf(decryptBtpPayloadStream([data], encryption, other.privateKey));
+    expect((wrongKey as BTPErrorException).code).toBe(BTP_ERROR_DECRYPTION_UNINTENDED.code);
+    const shortTag = { ...encryption, authTag: Buffer.alloc(12).toString('base64') };
+    const short = await errorOf(decryptBtpPayloadStream([data], shortTag, privateKey));
+    expect((short as BTPErrorException).code).toBe(BTP_ERROR_UNSUPPORTED_ENCRYPT.code);
+  });
+
+  it('stops when its reader stops, and gives out what its source threw', async () => {
+    const { data, encryption } = encryptBtpPayload(document, publicKey);
+    let asked = 0;
+    function* counted(): Generator<string> {
+      for (const piece of piecesOf(data, 100)) {
+        asked += 1;
+        yield piece;
+      }
+    }
+    for await (const piece of decryptBtpPayloadStream(counted(), encryption, privateKey)) {
+      void piece;
+      break;
+    }
+    // Stopped: nothing more of the source is read, nothing is checked, and nothing read may be used.
+    expect(asked).toBeLessThan(5);
+    async function* failing(): AsyncGenerator<string> {
+      yield data.slice(0, 100);
+      throw new Error('storage went away');
+    }
+    const error = await errorOf(decryptBtpPayloadStream(failing(), encryption, privateKey));
+    expect(error).toBeInstanceOf(BTPErrorException);
+    expect((error as BTPErrorException).message).toBe('storage went away');
+  });
+
+  it('decrypts through a Decrypter that unwraps the content key, and refuses one that cannot', async () => {
+    const { data, encryption } = encryptBtpPayload(document, publicKey);
+    const pieces = piecesOf(data, 777);
+    expect(
+      await decrypted(
+        decryptBtpPayloadStreamWithDecrypter(pieces, encryption, new PemDecrypter({ privateKey })),
+      ),
+    ).toBe(text);
+    const wholeOnly: Decrypter = {
+      algorithm: 'aes-256-gcm',
+      decrypt: (request) => new PemDecrypter({ privateKey }).decrypt(request),
+    };
+    const error = await errorOf(
+      decryptBtpPayloadStreamWithDecrypter(pieces, encryption, wholeOnly),
+    );
+    expect((error as BTPErrorException).code).toBe(BTP_ERROR_UNSUPPORTED_ENCRYPT.code);
+  });
+
+  it('carries a 64 MB document from encrypting to decrypting a piece at a time, never the whole of it', async () => {
+    const MB = 1024 * 1024;
+    const block = crypto.randomBytes(MB);
+    async function* source(): AsyncGenerator<Uint8Array> {
+      for (let i = 0; i < 64; i += 1) yield block;
+    }
+    const sealed = encryptBtpPayloadStream(source(), publicKey);
+    // Stored as a platform would keep it, and read back in 64 KB pieces of base64.
+    const parts: string[] = [];
+    for await (const part of sealed.payload) parts.push(part);
+    const stored = parts.join('');
+    const encryption = await sealed.encryption;
+    const READ = 64 * 1024;
+    let length = 0;
+    let pieces = 0;
+    let largest = 0;
+    const hash = crypto.createHash('sha256');
+    for await (const piece of decryptBtpPayloadStream(
+      piecesOf(stored, READ),
+      encryption,
+      privateKey,
+    )) {
+      length += piece.length;
+      pieces += 1;
+      largest = Math.max(largest, piece.length);
+      hash.update(piece);
+    }
+    const whole = crypto.createHash('sha256');
+    for (let i = 0; i < 64; i += 1) whole.update(block);
+    expect(length).toBe(64 * MB);
+    expect(hash.digest('hex')).toBe(whole.digest('hex'));
+    // Each piece out is the bytes of the piece read in: the plaintext comes as it is read, never gathered.
+    expect(largest).toBeLessThanOrEqual((READ / 4) * 3);
+    expect(pieces).toBeGreaterThanOrEqual(Math.floor(stored.length / READ));
+  }, 60_000);
 });

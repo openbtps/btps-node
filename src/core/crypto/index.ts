@@ -214,6 +214,183 @@ const decryptionError = (err: unknown): BTPErrorException => {
     : new BTPErrorException(BTP_ERROR_UNKNOWN);
 };
 
+/**
+ * Since 1.2: an encrypted payload, or a document to encrypt, a piece at a
+ * time, so that neither is ever held whole. The artifact is the one
+ * `encryptBtpPayload` writes and `decryptBtpPayload` reads, byte for byte:
+ * only how it is read and written changes.
+ */
+export type BTPPayloadPieces<T> = AsyncIterable<T> | Iterable<T>;
+
+/** What Node's base64 decoder reads; anything else it passes over, and so does the stream. */
+const NOT_BASE64 = /[^A-Za-z0-9+/\-_=]/g;
+const BASE64_QUANTUM = 4;
+
+/** Base64 text, in pieces of any length, as the bytes it encodes: whole groups of four characters at a time. */
+async function* base64Bytes(pieces: BTPPayloadPieces<string>): AsyncGenerator<Buffer> {
+  let carried = '';
+  for await (const piece of pieces) {
+    const text = carried + piece.replace(NOT_BASE64, '');
+    const whole = text.length - (text.length % BASE64_QUANTUM);
+    carried = text.slice(whole);
+    if (whole > 0) yield Buffer.from(text.slice(0, whole), 'base64');
+  }
+  if (carried !== '') yield Buffer.from(carried, 'base64');
+}
+
+/** The payload's plaintext, decrypted with `contentKey` a piece at a time, the tag checked once the last piece is read. */
+async function* decryptedPieces(
+  payload: BTPPayloadPieces<string>,
+  encryption: BTPEncryption,
+  contentKey: () => Promise<Buffer>,
+): AsyncGenerator<Uint8Array> {
+  try {
+    if (encryption.algorithm !== 'aes-256-gcm')
+      throw new BTPErrorException(BTP_ERROR_UNSUPPORTED_ENCRYPT);
+    const authTag = Buffer.from(encryption.authTag, 'base64');
+    assertFullLengthAuthTag(authTag);
+    const decipher = crypto.createDecipheriv(
+      encryption.algorithm,
+      await contentKey(),
+      Buffer.from(encryption.iv, 'base64'),
+      { authTagLength: 16 },
+    );
+    decipher.setAuthTag(authTag);
+    for await (const bytes of base64Bytes(payload)) {
+      const plaintext = decipher.update(bytes);
+      if (plaintext.length > 0) yield plaintext;
+    }
+    const last = decipher.final();
+    if (last.length > 0) yield last;
+  } catch (err: unknown) {
+    throw decryptionError(err);
+  }
+}
+
+/**
+ * Since 1.2: decrypts like `decryptBtpPayload`, a piece at a time. `payload`
+ * is the artifact's base64 payload in pieces of any length; what comes out
+ * is its plaintext bytes in pieces, never the whole of it at once.
+ *
+ * AES-GCM proves a payload whole only at its end: the pieces are not yet
+ * proven as they come, and must not be trusted, shown or kept until the
+ * iteration has finished without throwing. A payload that was changed, cut
+ * short or not encrypted to this key throws the `BTPErrorException`
+ * `decryptBtpPayload` would answer with, when the last piece is read. The
+ * plaintext is not parsed or checked: that is the caller's, as it reads it.
+ */
+export const decryptBtpPayloadStream = (
+  payload: BTPPayloadPieces<string>,
+  encryption: BTPEncryption,
+  receiverPrivPem: string,
+): AsyncGenerator<Uint8Array> =>
+  decryptedPieces(payload, encryption, async () =>
+    decryptRSA(receiverPrivPem, Buffer.from(encryption.encryptedKey, 'base64')),
+  );
+
+/**
+ * Since 1.2: decrypts like `decryptBtpPayloadStream`, through a Decrypter
+ * that holds the receiver's private key elsewhere. A Decrypter decrypts a
+ * payload whole, so a stream asks it only to unwrap the content key
+ * (`unwrapKey`) and decrypts the rest here: one without `unwrapKey` throws
+ * `BTP_ERROR_UNSUPPORTED_ENCRYPT`.
+ */
+export const decryptBtpPayloadStreamWithDecrypter = (
+  payload: BTPPayloadPieces<string>,
+  encryption: BTPEncryption,
+  decrypter: Decrypter,
+): AsyncGenerator<Uint8Array> =>
+  decryptedPieces(payload, encryption, async () => {
+    if (!decrypter.unwrapKey) {
+      throw new BTPErrorException(BTP_ERROR_UNSUPPORTED_ENCRYPT, {
+        cause: 'decrypting a payload a piece at a time needs a Decrypter with unwrapKey',
+      });
+    }
+    return Buffer.from(await decrypter.unwrapKey(Buffer.from(encryption.encryptedKey, 'base64')));
+  });
+
+const BASE64_BYTES = 3;
+const HIGH_SURROGATE = /[\uD800-\uDBFF]$/;
+
+/** Text and bytes, in pieces, as UTF-8 bytes: a character split between two text pieces is kept whole. */
+async function* utf8Bytes(pieces: BTPPayloadPieces<string | Uint8Array>): AsyncGenerator<Buffer> {
+  let carried = '';
+  for await (const piece of pieces) {
+    if (typeof piece !== 'string') {
+      yield Buffer.from(piece);
+      continue;
+    }
+    const text = carried + piece;
+    carried = HIGH_SURROGATE.test(text) ? text.slice(-1) : '';
+    yield Buffer.from(carried === '' ? text : text.slice(0, -1), 'utf8');
+  }
+  if (carried !== '') yield Buffer.from(carried, 'utf8');
+}
+
+/**
+ * Since 1.2: encrypts like `encryptBtpPayload`, a piece at a time.
+ * `document` is the document's JSON text (`JSON.stringify` of it, as
+ * `encryptBtpPayload` writes it) in pieces of text or bytes. `payload` gives
+ * the base64 payload in pieces, to be written as they come; `encryption`,
+ * the artifact's `encryption`, is settled once `payload` has been read to
+ * its end, since its tag is known only then. Joined, the pieces are the
+ * payload `encryptBtpPayload` writes. Nothing is checked against a document
+ * type: a whole document is never held here to check, so the caller checks
+ * it before.
+ */
+export const encryptBtpPayloadStream = (
+  document: BTPPayloadPieces<string | Uint8Array>,
+  receiverPubPem: string,
+  options: BTPCryptoOptions['encryption'] = {
+    algorithm: 'aes-256-gcm',
+    mode: 'standardEncrypt',
+  },
+): { payload: AsyncGenerator<string>; encryption: Promise<BTPEncryption> } => {
+  let settle: (encryption: BTPEncryption) => void = () => undefined;
+  let fail: (error: BTPErrorException) => void = () => undefined;
+  const encryption = new Promise<BTPEncryption>((resolve, reject) => {
+    settle = resolve;
+    fail = reject;
+  });
+  // Settled only by reading `payload`: one never read is never asked for.
+  encryption.catch(() => undefined);
+  async function* payload(): AsyncGenerator<string> {
+    try {
+      const algorithm: EncryptionAlgorithmType = options.algorithm;
+      const aesKey = crypto.randomBytes(32);
+      const iv = crypto.randomBytes(12);
+      const encryptedKey = encryptRSA(receiverPubPem, aesKey);
+      const cipher = crypto.createCipheriv(algorithm, aesKey, iv) as crypto.CipherGCM;
+      let carried = Buffer.alloc(0);
+      for await (const bytes of utf8Bytes(document)) {
+        const encrypted = Buffer.concat([carried, cipher.update(bytes)]);
+        const whole = encrypted.length - (encrypted.length % BASE64_BYTES);
+        carried = encrypted.subarray(whole);
+        if (whole > 0) yield encrypted.subarray(0, whole).toString('base64');
+      }
+      const last = Buffer.concat([carried, cipher.final()]);
+      if (last.length > 0) yield last.toString('base64');
+      settle({
+        algorithm,
+        encryptedKey: encryptedKey.toString('base64'),
+        iv: iv.toString('base64'),
+        authTag: cipher.getAuthTag().toString('base64'),
+        type: options.mode,
+      });
+    } catch (err: unknown) {
+      const error =
+        err instanceof BTPErrorException
+          ? err
+          : err instanceof Error
+            ? new BTPErrorException({ message: err.message, code: err.name })
+            : new BTPErrorException(BTP_ERROR_UNKNOWN);
+      fail(error);
+      throw error;
+    }
+  }
+  return { payload: payload(), encryption };
+};
+
 /** The smallest RSA key the SDK encrypts to. */
 export const MIN_RSA_KEY_BITS = 2048;
 

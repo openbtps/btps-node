@@ -252,7 +252,10 @@ The servers in between see only ciphertext, which the artifact size bounds.
 `BtpsAgent` always check. The low-level `encryptBtpPayload` and
 `decryptBtpPayload` check only when given the document's artifact type as
 their last argument, for example `'BTPS_DOC'`; a direct caller that does not
-give one checks the document itself.
+give one checks the document itself. Since 1.2, `encryptBtpPayloadStream`,
+`decryptBtpPayloadStream` and `decryptBtpPayloadStreamWithDecrypter` never
+check, because they never hold the whole document: their caller checks it
+([Large payloads, a piece at a time](../security/decryption.md#large-payloads-a-piece-at-a-time)).
 
 ### In code
 

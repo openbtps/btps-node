@@ -40,6 +40,8 @@ Start with [Migrating from 1.1 to 1.2](./version-1-2-migration.md): what changes
 
 **[Your platform's checks](../features/platformChecks.md).** What the server checks and what is the platform's: four middleware and their plain functions, what a sender is told of an error, the server's limits, and key caching.
 
+**[Large payloads, a piece at a time](../protocol/security/decryption.md#large-payloads-a-piece-at-a-time).** `decryptBtpPayloadStream`, `decryptBtpPayloadStreamWithDecrypter` and `encryptBtpPayloadStream` (`@btps/sdk/crypto`) decrypt and encrypt a payload a piece at a time, so a platform can view, store or forward a large document, such as an agreement carrying many PDFs, without holding it in memory. Nothing about the artifact or the wire format changes: they read and write exactly the artifacts `decryptBtpPayload` and `encryptBtpPayload` do, and those are unchanged. A decrypted piece is not trusted until the whole payload has been read without an error.
+
 ## Upgrading from 1.1
 
 A 1.1 provider upgrades without changing what it sends. What changes in the trust and token stores, which answers a 1.1 caller now handles, which middleware to register, and the order to adopt each feature in: [Migrating from 1.1 to 1.2](./version-1-2-migration.md).

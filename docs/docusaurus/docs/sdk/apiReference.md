@@ -670,6 +670,174 @@ const { data, error } = await decryptBtpPayloadWithDecrypter(
 
 ---
 
+### decryptBtpPayloadStream
+
+```ts
+decryptBtpPayloadStream(
+  payload: BTPPayloadPieces<string>,
+  encryption: BTPEncryption,
+  receiverPrivPem: string
+): AsyncGenerator<Uint8Array>
+```
+
+**Description:**
+Since 1.2. Decrypts like `decryptBtpPayload`, a piece at a time, so a large payload is never held whole. It reads the artifact's base64 payload in pieces of any length and yields the plaintext bytes in pieces. It reads the same artifacts `decryptBtpPayload` reads: nothing on the wire changes. See [Large payloads, a piece at a time](../protocol/security/decryption.md#large-payloads-a-piece-at-a-time).
+
+AES-GCM proves a payload only at its end. **A piece is not trusted until the loop finishes without throwing**: do not send, show, store as final or act on any piece before then. Finishing proves only that the AES-GCM tag checked out, not the artifact's signature, its sender or a trust: check those as before, with `decryptVerify` or `verifySignature`.
+
+It does not parse the plaintext and checks no document type: the caller parses and checks it. `decryptBtpPayload` also refuses text that is not strict JSON (`assertStrictJson`); run it yourself for the same check.
+
+**Arguments:**
+
+- `payload` (`BTPPayloadPieces<string>`, required): The artifact's base64 `document`, in pieces of any length, from an `AsyncIterable` or an `Iterable` ([BTPPayloadPieces](./typesAndInterfaces.md#btppayloadpieces)). Characters that are not base64 are passed over, as `decryptBtpPayload` passes them over.
+- `encryption` (`BTPEncryption`, required): The artifact's `encryption`.
+- `receiverPrivPem` (`string`, required): Receiver's private key (PEM).
+
+**Returns:**
+
+- `AsyncGenerator<Uint8Array>`: The plaintext, a piece at a time. There is no separate result or promise: the generator ends normally when the payload is proven, or throws.
+
+**Throws:**
+
+`BTPErrorException`, out of the loop. Nothing runs until the first piece is asked for.
+
+- At the start: `BTP_ERROR_UNSUPPORTED_ENCRYPT` for an algorithm other than `aes-256-gcm` or an `authTag` that is not 16 bytes; `BTP_ERROR_DECRYPTION_UNINTENDED` for a payload encrypted to another key.
+- When the last piece is read: for a payload changed or cut short, or a wrong tag, the same code `decryptBtpPayload` answers with.
+- When the source throws: that error, unchanged if it is a `BTPErrorException`, otherwise with its message, and its `name` as the code.
+
+The full table is in [What decrypting does](../protocol/security/decryption.md#what-decrypting-does).
+
+**Example:**
+
+```ts check
+import { decryptBtpPayloadStream, type BTPEncryption } from '@btps/sdk/crypto';
+
+export async function openPayload(
+  payload: AsyncIterable<string>, // the stored base64 payload, in slices
+  encryption: BTPEncryption,
+  receiverPrivateKeyPem: string,
+): Promise<Buffer> {
+  const pieces: Uint8Array[] = []; // private until the loop ends
+  for await (const piece of decryptBtpPayloadStream(payload, encryption, receiverPrivateKeyPem)) {
+    pieces.push(piece);
+  }
+  // The loop ended without throwing: only now may the plaintext be used.
+  return Buffer.concat(pieces);
+}
+```
+
+---
+
+### decryptBtpPayloadStreamWithDecrypter
+
+```ts
+decryptBtpPayloadStreamWithDecrypter(
+  payload: BTPPayloadPieces<string>,
+  encryption: BTPEncryption,
+  decrypter: Decrypter
+): AsyncGenerator<Uint8Array>
+```
+
+**Description:**
+Since 1.2. Decrypts like `decryptBtpPayloadStream`, through a [Decrypter](./typesAndInterfaces.md#decrypter) that holds the receiver's private key elsewhere (a KMS, an HSM, a device). A `Decrypter`'s `decrypt` takes a payload whole, so this asks the key holder only to unwrap the content key (`unwrapKey`), and does the AES-GCM step locally. `PemDecrypter` has `unwrapKey`. The same rule applies: a piece is not trusted until the loop finishes without throwing.
+
+**Arguments:**
+
+- `payload` (`BTPPayloadPieces<string>`, required): The artifact's base64 `document`, in pieces of any length.
+- `encryption` (`BTPEncryption`, required): The artifact's `encryption`.
+- `decrypter` (`Decrypter`, required): A `Decrypter` with `unwrapKey`.
+
+**Returns:**
+
+- `AsyncGenerator<Uint8Array>`: The plaintext, a piece at a time, as `decryptBtpPayloadStream` gives it.
+
+**Throws:**
+
+- `BTP_ERROR_UNSUPPORTED_ENCRYPT`, at the start, for a `Decrypter` without `unwrapKey`.
+- Otherwise what `decryptBtpPayloadStream` throws. A failure inside `unwrapKey` comes out of the loop at the start.
+
+**Example:**
+
+```ts check
+import {
+  decryptBtpPayloadStreamWithDecrypter,
+  type BTPEncryption,
+  type Decrypter,
+} from '@btps/sdk/crypto';
+
+export async function openPayloadWithDecrypter(
+  payload: AsyncIterable<string>,
+  encryption: BTPEncryption,
+  decrypter: Decrypter, // must have unwrapKey
+): Promise<Buffer> {
+  const pieces: Uint8Array[] = [];
+  for await (const piece of decryptBtpPayloadStreamWithDecrypter(payload, encryption, decrypter)) {
+    pieces.push(piece);
+  }
+  return Buffer.concat(pieces);
+}
+```
+
+---
+
+### encryptBtpPayloadStream
+
+```ts
+encryptBtpPayloadStream(
+  document: BTPPayloadPieces<string | Uint8Array>,
+  receiverPubPem: string,
+  options?: BTPCryptoOptions['encryption']
+): { payload: AsyncGenerator<string>; encryption: Promise<BTPEncryption> }
+```
+
+**Description:**
+Since 1.2. Encrypts like `encryptBtpPayload`, a piece at a time, so a large document is never held whole. It writes the same artifacts `encryptBtpPayload` writes: nothing on the wire changes, and a receiver cannot tell which one wrote a payload. See [Encrypting a large document](../protocol/security/decryption.md#encrypting-a-large-document).
+
+Read `payload` to its end, writing each piece as it comes, and only then `await encryption`. `encryption` settles only once `payload` has been read to its end, because the tag is known only then. Awaiting `encryption` first waits forever.
+
+Given the same content key and IV, the joined pieces and the tag are exactly the payload and tag `encryptBtpPayload` writes. In normal use the key, the IV and the RSA-OAEP wrap are random, so two calls never give the same output; what matters is that either function's output opens with either decrypt function.
+
+No document type is checked, because the whole document is never held here: validate the document before you encrypt it.
+
+**Arguments:**
+
+- `document` (`BTPPayloadPieces<string | Uint8Array>`, required): The document's JSON text, as `JSON.stringify` writes it, in pieces of text or bytes. A character split between two text pieces is kept whole.
+- `receiverPubPem` (`string`, required): Recipient's public key (PEM), at least 2048 bits.
+- `options` (`BTPCryptoOptions['encryption']`, optional): Encryption algorithm and mode. Defaults to `{ algorithm: 'aes-256-gcm', mode: 'standardEncrypt' }`.
+
+**Returns:**
+
+- `payload` (`AsyncGenerator<string>`): The base64 payload, a piece at a time, to write as it comes. Joined, the pieces are the artifact's `document`.
+- `encryption` (`Promise<BTPEncryption>`): The artifact's `encryption`, settled once `payload` has been read to its end. If `payload` is never read, it never settles.
+
+**Throws:**
+
+Nothing runs until the first piece of `payload` is asked for. A failure then comes out of the loop over `payload` as a `BTPErrorException`, and `encryption` rejects with the same error:
+
+- `BTP_ERROR_UNSUPPORTED_ENCRYPT` for a receiver key under 2048 bits.
+- Any other failure, including one the source throws, unchanged if it is a `BTPErrorException`, otherwise with its message, and its `name` as the code.
+
+**Example:**
+
+```ts check
+import { encryptBtpPayloadStream, type BTPEncryption } from '@btps/sdk/crypto';
+
+export async function sealDocument(
+  documentJson: AsyncIterable<string | Uint8Array>, // JSON.stringify of the document, in pieces
+  receiverPublicKeyPem: string,
+  write: (piece: string) => Promise<void>,
+): Promise<BTPEncryption> {
+  const { payload, encryption } = encryptBtpPayloadStream(documentJson, receiverPublicKeyPem, {
+    algorithm: 'aes-256-gcm',
+    mode: 'standardEncrypt',
+  });
+  for await (const piece of payload) await write(piece); // 1. read payload to its end
+  return await encryption; // 2. only then: it is settled now
+}
+```
+
+---
+
 ### encryptRSA
 
 ```ts
