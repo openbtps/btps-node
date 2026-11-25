@@ -51,7 +51,8 @@ export type BTPSigningKey = PemKeys | Signer;
 export type BTPDecryptionKey = string | Decrypter;
 
 export type BTPCryptoOptions = {
-  signature: {
+  /** Optional, as the schema has it: an artifact is always signed, with SHA-256, the one algorithm BTPS signs with. */
+  signature?: {
     algorithmHash: SignatureAlgorithmHash;
   };
   encryption?: {

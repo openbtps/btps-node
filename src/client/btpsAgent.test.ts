@@ -17,7 +17,7 @@ import {
 import * as utils from '../core/utils/index.js';
 import * as crypto from '../core/crypto/index.js';
 import { BTPDocType, BTPServerResponse } from '../core/server/types.js';
-import { BTPAgentOptions } from './types/index.js';
+import { BTPAgentOptions, type BtpsAgentCommandOptions } from './types/index.js';
 import type { Signer } from '../core/crypto/signer-interface.js';
 
 // --- Mocks ---
@@ -253,6 +253,17 @@ describe('BtpsAgent', () => {
       };
 
       const result = await agent.command('trust.request', 'bob$company.com', document);
+
+      expect(result.error).toBeUndefined();
+      expect(result.response).toBeDefined();
+    });
+
+    it('takes options without a signature, which is always SHA-256, as the schema does', async () => {
+      const options: BtpsAgentCommandOptions = {
+        encryption: { algorithm: 'aes-256-gcm', mode: 'standardEncrypt' },
+      };
+
+      const result = await agent.command('system.ping', 'alice$example.com', undefined, options);
 
       expect(result.error).toBeUndefined();
       expect(result.response).toBeDefined();

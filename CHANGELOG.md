@@ -44,6 +44,25 @@ rc.3.2 below; `@btps/boundview` is released in step, unchanged.
   `consent.disclosureSha256` names. Seven more golden vectors cover them; the
   vector suite is 797 checks in total.
 
+### Removed
+
+- `BtpsServerSyncFactory` (`@btps/sdk/server/core`): a copy of
+  `BtpsServerLightweightFactory`, which it imported the server the same way as.
+  Use `BtpsServerLightweightFactory`.
+- `InMemoryQueue` and `BTPSMessageQueue` (`@btps/sdk/server`): nothing in the
+  SDK used them, and the server keeps no queue. A platform that wants one
+  keeps its own.
+
+### Fixed
+
+- `BTPCryptoOptions.signature`, and so `BtpsAgentCommandOptions.signature`, is
+  optional in its type, as it always was in its schema: an artifact is always
+  signed with SHA-256, the one algorithm BTPS signs with. Options with only
+  `encryption` now typecheck.
+- `BtpsSimpleMetricsTracker.onError` takes any `Error`, as `IMetricsTracker`
+  declares, and logs one that is not a BTPS error by its name and message. It
+  threw on any error without `toJSON`.
+
 ## [1.2.0-rc.3.2] — 2026-11-22 (beta, release candidate)
 
 BoundView, as proved in a platform before release: the snapshot binds and draws
