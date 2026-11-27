@@ -1180,7 +1180,7 @@ Alice's statement, opened, as the golden vectors' `cosigned` case `accepted` hol
 
 - **What is signed:** the RFC 8785 form of the cosignature without `signature` and `delegatedArtifact` (`cosignatureSignedPart`), ciphertext included. The statement is encrypted first and then signed, as every BTPS artifact is. `statementSha256` is inside what is signed, so the signature binds the signer to every word of the statement. There is no second signature inside.
 - **By its identity key:** `selector` names the signer's key that signed it, which may be a managed key its provider holds.
-- **On a device:** the device's own key signs, and `selector` is left out. In the device's delegated artifact that first delivers it, the cosignature has neither `selector` nor `delegatedArtifact`: that artifact's delegation stands for it, and its `artifactId` is that artifact's `id`. When the originator forwards it, it adds `delegatedArtifact`: that delegated artifact, whole, as it arrived (envelope, ciphertext, the device's signature and its delegation). A BTPS delegation signs the artifact it travels with, so the cosignature keeps that artifact to stay checkable wherever it is forwarded, and offline. Its ciphertext only has to verify, never to open. `delegatedArtifact` is added after signing, so it is outside the signature and outside the chain hash.
+- **On a device:** the device's own key signs, and `selector` is left out. In the device's delegated artifact that first delivers it, the cosignature has neither `selector` nor `delegatedArtifact`: that artifact's delegation stands for it, and its `artifactId` is that artifact's `id`. When the originator forwards it, it adds `delegatedArtifact`: the device's whole artifact, exactly as it arrived (envelope, ciphertext, the device's signature and its delegation). The device signed all of that artifact, and a BTPS delegation signs the artifact it travels with, so nothing in it may be left out or changed: the cosignature keeps it whole to stay checkable wherever it is forwarded, and offline. Its ciphertext only has to verify, never to open. `delegatedArtifact` is added after signing, so it is outside the signature and outside the chain hash.
 - **The key kind is a fact, not a field:** a cosignature with a delegated artifact, or one in its device's own delegated artifact, was signed by a device. One with a `selector` was signed by the identity.
 
 ##### The chain
@@ -1191,7 +1191,9 @@ Alice's statement, opened, as the golden vectors' `cosigned` case `accepted` hol
 
 Every BTPS server checks an arriving artifact's cosignatures in its signature step, right after the artifact's own signature, without decrypting anything (`cosignaturesProblem`). It is part of the protocol and cannot be turned off. An artifact that fails is refused with `BTP_ERROR_SIG_VERIFICATION` (401), the broken rule in its reason:
 
-- **Each cosignature's signature:** by the signer's key at its `selector`, found through the server's key resolver and key chains, as the artifact's own signer's key is; or a device's, under the rules below.
+- **Each cosignature's signature:** by the signer's key at its `selector`, found through the server's key resolver and key chains; or a device's, under the rules below. Which key rules apply depends on when the cosignature was made (since rc.4):
+  - **Made now**, its `artifactId` the carrying artifact's `id` (a signer's answer): the live rules, as for the artifact's own signer. A key rotated away is taken only within the receiver's `retiredKeyGraceSeconds`, and an expired key is refused.
+  - **Forwarded**, its `artifactId` another artifact's, which first delivered it: its key is taken by its history. A key rotated away as planned since it signed still holds, whatever the receiver's grace, and a compromised key (one with `compromisedSince`) is always refused. This is how an [evidence bundle](#the-evidence-bundle) takes a rotated key too, so a forward reaches every signer however long after the first answer it is sent. A device's delegator and attestor keys are taken the same way.
 - **One document, one each, in order:** all name one document; a signer cosigns once; and one that names `previous` follows the one before it in the list.
 - **Who carries what:** an artifact from anyone but the document's originator carries only its own signer's cosignature, whose `artifactId` is that artifact's `id`. The originator may carry any, its own among them.
 - **A device's:** its delegation is its delegator's, a self-delegation (signed by the signer itself) carries an attestation, any attestation is its attestor's, the delegated artifact came from the signer and is signed by the device, and so is the cosignature. The delegated artifact's `id` is the cosignature's `artifactId`: that stops a stolen device key from pairing a fresh statement with an older delegated artifact.
@@ -1200,7 +1202,7 @@ The server checks no order between answers: that is the originator's platform's,
 
 ##### What the receiver checks
 
-`decryptVerify`, given the receiver's key and once it has decrypted the event, holds every cosignature to the document the opened event is about: each must name it. Then it opens each cosignature its receiver (the artifact's `to`) is a recipient of (`openCosignature`), and checks that:
+`decryptVerify`, once it has decrypted the event, holds every cosignature to the document the opened event is about: each must name it. Then it opens each cosignature its receiver (the artifact's `to`) is a recipient of (`openCosignature`), and checks that:
 
 - the content key opens with the receiver's key;
 - the text's SHA-256 is the cosignature's `statementSha256`;
@@ -1208,7 +1210,9 @@ The server checks no order between answers: that is the originator's platform's,
 - its padding is exactly what `cosignedStatementText` writes: `0`s up to the next multiple of 4,096 characters;
 - the statement's `agreement`, `signer`, `artifactId` and `previous` are the cosignature's `ref`, `signer`, `artifactId` and `previous`.
 
-It returns the statements in `cosigned`, by position: the opened statement, or `null` where the receiver is not a recipient. A cosignature for the receiver that does not hold, or one that names another document, is refused with `BTP_ERROR_SIG_VERIFICATION` and no payload.
+It returns the statements in `cosigned`, by position: the opened statement, or `null` where the receiver is not a recipient. A cosignature for the receiver that does not hold, or one that names another document, is refused with `BTP_ERROR_SIG_VERIFICATION` and no payload. A statement addressed to the receiver is never skipped (since rc.4): when the artifact carries a cosignature for the receiver and no receiver key is given, it is refused the same way. With none for the receiver, no key is needed.
+
+**On a device** (since rc.4), the provider wraps each cosignature's content key again to the device key, beside the document's, in the query result's [`agentKey.cosignatureKeys`](./responses.md), and the device opens its statements with its own key. A device sends cosignatures as any sender does: its own answer, signed with its device key, or, for a user who is the originator, the cosignatures it forwards ([Devices](../../features/devices.md#cosignatures-on-a-device)).
 
 #### The evidence bundle
 

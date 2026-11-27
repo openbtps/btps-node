@@ -364,7 +364,8 @@ Since 1.2 (rc.4), an agreement's answers travel as [cosignatures](../protocol/sp
 - An agreement carries `salt`, 32 random bytes, base64, inside its content. One without it is refused, so its `contentSha256` changes.
 - An `agreement_event` carries no `statement` or `statements`. The signed statements travel on the artifact's envelope as `cosignatures`: an answer carries exactly its signer's, and a forward the ones it forwards, unchanged.
 - A statement carries `artifactId`, the id of the artifact that first delivers it. Its `previous` is the `cosignatureSha256` of the cosignature before it.
-- Every server checks each cosignature's signature on receipt and refuses one that does not hold (`BTP_ERROR_SIG_VERIFICATION`).
+- Every server checks each cosignature's signature on receipt and refuses one that does not hold (`BTP_ERROR_SIG_VERIFICATION`). A forwarded cosignature's key is taken by its history: rotated away as planned still holds, compromised never does ([Checking keys on arrival](../protocol/specifications/key-rotation.md#checking-keys-on-arrival)).
+- A query result's `agentKey` may carry `cosignatureKeys`, each cosignature's content key wrapped to the device, and its `key` is optional: an unencrypted artifact with cosignatures has `cosignatureKeys` alone.
 - An evidence bundle holds `cosignatures` and each one's statement as text in `statements`. Its `timestamps` and `arrivals` name `cosignatureSha256`, not `statementSha256`.
 
 **What changes in code** (`@btps/sdk/trust`):
@@ -387,7 +388,7 @@ Since 1.2 (rc.4), an agreement's answers travel as [cosignatures](../protocol/sp
 | `buildEvidenceBundle`           | takes `cosignatures` and `statements` (the statements `decryptVerify` opened) in place of statement records  |
 | `BTPEvidenceFacts.statements[]` | gains `statementMatches`; `decision` is absent when a statement's text is not the one its cosignature signed |
 
-New in rc.4: `cosign`, `cosignatureSha256`, `cosignatureSignedPart`, `cosignaturesProblem` and its key lookup type `BTPCosignatureKeyOf`, `openCosignature`, `statementOfText`, `cosignedStatementText`, `cosignedStatementProblem`, and the types `BTPCosignature` and `BTPCosignatureRecipient`. `decryptVerify` returns `cosigned`. See the [API reference](../sdk/apiReference.md#cosign-cosignaturesha256-cosignaturesignedpart-cosignedstatementtext) and [Agreements](../features/agreements.md#the-code) for the flow in code.
+New in rc.4: `cosign`, `cosignatureSha256`, `cosignatureSignedPart`, `cosignaturesProblem` and its key lookup type `BTPCosignatureKeyOf`, `openCosignature`, `statementOfText`, `cosignedStatementText`, `cosignedStatementProblem`, and the types `BTPCosignature` and `BTPCosignatureRecipient`. `decryptVerify` returns `cosigned`, refuses an artifact with a cosignature for the receiver when no `receiverKey` is given, and takes `cosignatureKeys` as a fifth argument. For devices: `BtpsAgent`'s `event.send` takes `options.cosignatures`, `wrapForAgent` wraps each cosignature's key (`agentKey.cosignatureKeys`, its fourth argument naming whose), `openResult` opens them, and `openCosignature` takes a `wrappedKey`. `BTPCosignatureKeyOf` has a fourth parameter, `forwarded`. See the [API reference](../sdk/apiReference.md#cosign-cosignaturesha256-cosignaturesignedpart-cosignedstatementtext) and [Agreements](../features/agreements.md#the-code) for the flow in code.
 
 ## Verify your upgrade
 

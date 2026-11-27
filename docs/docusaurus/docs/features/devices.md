@@ -89,7 +89,7 @@ const identityDecrypter = new PemDecrypter({ privateKey: userPrivateKey }); // o
 const device = await trustStore.getById(computeAgentTrustId(artifact.agentId, user));
 const results = await Promise.all(
   inbox.map(async (received) =>
-    received.encryption && device
+    (received.encryption || received.cosignatures) && device
       ? { artifact: received, agentKey: await wrapForAgent(received, identityDecrypter, device) }
       : { artifact: received },
   ),
@@ -107,6 +107,13 @@ for (const entry of response.document.results) {
 ```
 
 `openResult` refuses a key wrapped to another device key: a device that has just rotated finishes moving to its new key first.
+
+### Cosignatures on a device
+
+Since 1.2 (rc.4). An agreement's statements travel as [cosignatures](../protocol/specifications/transporter-artifact.md#cosignatures), each encrypted to its recipients' identity keys. A device sends and opens them with its own key, as it does documents.
+
+- **Opening.** `wrapForAgent` wraps each cosignature's content key again to the device key, in `agentKey.cosignatureKeys`, by position: `null` where the user is not one of that cosignature's recipients. Its fourth argument says whose keys to wrap: the artifact's `to` by default, or its `from` for an artifact the user sent. An unencrypted artifact that carries cosignatures gets an `agentKey` with `cosignatureKeys` alone. `openResult` then gives the statements in `cosigned`, each held to exactly what was signed. A cosignature addressed to the user with no key for it is refused, never skipped.
+- **Sending.** `event.send` takes `options.cosignatures`, 1 to 20: whatever the protocol allows the sender to carry. That is the device's own answer, made with `cosign` and the device key (`pemFiles`, or a keystore's `signer`, with no `selector`), whose statement's `artifactId` is the event's `id`. When the user is the agreement's originator, it is instead the cosignatures it forwards, each one that came from a device with its `delegatedArtifact`. The receiving server checks them as it checks any sender's. [The agent's `event.send`](../client/btpsAgent/commands.md) shows the call.
 
 ## Signed answers, and a device that requires them
 

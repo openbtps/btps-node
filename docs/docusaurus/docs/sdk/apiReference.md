@@ -481,7 +481,8 @@ decryptVerify<T>(
   senderPubPem: string,
   encryptedPayload: VerifyEncryptedPayload<T>,
   receiverKey?: BTPDecryptionKey,
-  contentKey?: string
+  contentKey?: string,
+  cosignatureKeys?: (string | null)[]
 ): Promise<BTPCryptoResponse<T>>
 ```
 
@@ -492,7 +493,7 @@ It checks an opened document against its type's schema under the artifact's vers
 
 When it decrypts a `BTPS_EVENT`, it also checks the event as the server checks an unencrypted one: a valid lifecycle event, carried under its own `id`, about an invoice between the artifact's `from` and `to`. If not, it returns a `BTP_ERROR_VALIDATION` error and no payload.
 
-Since 1.2 (rc.4), when the artifact carries `cosignatures` and `receiverKey` is given, it holds each to the document the opened event is about, opens each one the receiver (the artifact's `to`) is a recipient of (`openCosignature`), and returns their statements in `cosigned`, by position: the statement, or `null` where the receiver is not a recipient. A cosignature that names another document, or one for the receiver that does not open or is not exactly what was signed, is a `BTP_ERROR_SIG_VERIFICATION` error, with no payload. It does not check the cosignatures' signatures: the receiving server did, on receipt. See [Cosignatures](../protocol/specifications/transporter-artifact.md#cosignatures).
+Since 1.2 (rc.4), when the artifact carries `cosignatures`, it holds each to the document the opened event is about, opens each one the receiver (the artifact's `to`) is a recipient of (`openCosignature`), and returns their statements in `cosigned`, by position: the statement, or `null` where the receiver is not a recipient. A cosignature that names another document, or one for the receiver that does not open or is not exactly what was signed, is a `BTP_ERROR_SIG_VERIFICATION` error, with no payload. A statement addressed to the receiver is never skipped: without `receiverKey` (left out, or `''`), an artifact with a cosignature for the receiver is refused the same way ("a cosignature for you is opened with your key: give receiverKey"). With no cosignature for the receiver, no key is needed. It does not check the cosignatures' signatures: the receiving server did, on receipt. See [Cosignatures](../protocol/specifications/transporter-artifact.md#cosignatures).
 
 **Arguments:**
 
@@ -500,6 +501,7 @@ Since 1.2 (rc.4), when the artifact carries `cosignatures` and `receiverKey` is 
 - `encryptedPayload` (`VerifyEncryptedPayload<T>`, required): The received artifact.
 - `receiverKey` (`string | Decrypter`, optional): Receiver's private key (PEM) for decryption, or a [Decrypter](./typesAndInterfaces.md#decrypter) holding it elsewhere.
 - `contentKey` (`string`, optional, since 1.2): the document's content key wrapped to `receiverKey`, in place of the envelope's `encryptedKey`: a device's `agentKey.key`. The signature is still checked over the artifact as sent. `BtpsAgent.openResult` passes it.
+- `cosignatureKeys` (`(string | null)[]`, optional, since 1.2 (rc.4)): each cosignature's content key wrapped to `receiverKey`, by position, in place of the recipient's own `wrappedKey`: a device's `agentKey.cosignatureKeys`. There must be one for each cosignature, and a cosignature addressed to the receiver with `null` is refused (`BTP_ERROR_SIG_VERIFICATION`). `BtpsAgent.openResult` passes it.
 
 **Returns:**
 
@@ -1345,14 +1347,15 @@ Building blocks for a custom `Decrypter`. `assertFullLengthAuthTag` throws `BTP_
 
 ```ts
 wrapForAgent(
-  artifact: Pick<BTPTransporterArtifact, 'encryption'>,
+  artifact: Pick<BTPTransporterArtifact, 'encryption' | 'to'> & { cosignatures?: BTPCosignature[] },
   identityKey: BTPDecryptionKey,
-  device: Pick<BTPTrustRecord, 'publicKeyBase64' | 'publicKeyFingerprint'>
+  device: Pick<BTPTrustRecord, 'publicKeyBase64' | 'publicKeyFingerprint'>,
+  identity?: string // since 1.2 (rc.4); artifact.to by default
 ): Promise<BTPAgentKey>
 ```
 
 **Description:**
-Since 1.2. Builds a query result's `agentKey`. It unwraps an encrypted artifact's AES content key with the identity's key, and wraps it again with RSA-OAEP / SHA-256 to the key the device's record holds now, naming that key's fingerprint. The artifact is untouched. It throws `BTP_ERROR_UNSUPPORTED_ENCRYPT` for an unencrypted artifact, or for a `Decrypter` without `unwrapKey`. See [A device's own key to an encrypted document](../protocol/security/keyManagement.md#a-devices-own-key-to-an-encrypted-document).
+Since 1.2. Builds a query result's `agentKey`. It unwraps an encrypted artifact's AES content key with the identity's key, and wraps it again with RSA-OAEP / SHA-256 to the key the device's record holds now, naming that key's fingerprint. Since 1.2 (rc.4), it does the same for each cosignature's content key (`cosignatureKeys`, by position): the key wrapped to `identity`, or `null` where `identity` is not a recipient. `identity` is whose keys to wrap: the artifact's `to` by default, or its `from` for an artifact the identity sent. An unencrypted artifact with cosignatures gets `cosignatureKeys` alone. The artifact is untouched. It throws `BTP_ERROR_UNSUPPORTED_ENCRYPT` for an artifact with neither encryption nor cosignatures, or for a `Decrypter` without `unwrapKey`. See [A device's own key to an encrypted document](../protocol/security/keyManagement.md#a-devices-own-key-to-an-encrypted-document).
 
 Wrap only to a device record of the identity whose key unwraps: the device that asked, as the server's agent authentication identified it. `wrapForAgent` cannot check that pairing. Given another identity's device record, it would hand that device this identity's document.
 
@@ -1363,7 +1366,7 @@ import { wrapForAgent } from '@btps/sdk/server';
 // In the provider's inbox.fetch handler, for the device that asked:
 const results = await Promise.all(
   entries.map(async (entry) =>
-    entry.artifact.encryption
+    entry.artifact.encryption || entry.artifact.cosignatures
       ? { ...entry, agentKey: await wrapForAgent(entry.artifact, identityDecrypter, deviceRecord) }
       : entry,
   ),
@@ -1773,7 +1776,7 @@ cosignedStatementText(statement: BTPAgreementStatement): string
 ```
 
 **Description:**
-Since 1.2 (rc.4). A signer's answer to an agreement, as a cosignature. `cosign` writes the statement as `cosignedStatementText` gives it, encrypts it once with AES-256-GCM, wraps the content key with RSA-OAEP (SHA-256) to each of `recipients` (the originator and every signer, the signer included, by their public keys, PEM), and signs the cosignature over that ciphertext and the text's SHA-256. With `selector`, it signs with the signer's identity key, which may be a managed key its provider holds (`signer`). On a device, leave `selector` out and give the device's key: the cosignature then travels in the device's delegated artifact, and the originator adds `delegatedArtifact` when it forwards it. The statement's `artifactId` is the id of the artifact that first delivers it, and its `previous`, in a sequential agreement, the `cosignatureSha256` of the cosignature before it. `cosign` writes the identities on the cosignature in lower case; nothing refuses another case, as addresses are compared without case. It does not check the statement: one that breaks its rules, such as a `consent` on a decline, still signs, and its recipients' `decryptVerify` refuses it (`BTP_ERROR_SIG_VERIFICATION`).
+Since 1.2 (rc.4). A signer's answer to an agreement, as a cosignature. `cosign` writes the statement as `cosignedStatementText` gives it, encrypts it once with AES-256-GCM, wraps the content key with RSA-OAEP (SHA-256) to each of `recipients` (the originator and every signer, the signer included, by their public keys, PEM), and signs the cosignature over that ciphertext and the text's SHA-256. With `selector`, it signs with the signer's identity key, which may be a managed key its provider holds (`signer`). On a device, leave `selector` out and give the device's key (`pemFiles`, or a keystore's `signer`): the cosignature then travels in the device's delegated artifact (`BtpsAgent`'s `event.send` with `cosignatures`), and the originator adds `delegatedArtifact` when it forwards it. The statement's `artifactId` is the id of the artifact that first delivers it, and its `previous`, in a sequential agreement, the `cosignatureSha256` of the cosignature before it. `cosign` writes the identities on the cosignature in lower case; nothing refuses another case, as addresses are compared without case. It does not check the statement: one that breaks its rules, such as a `consent` on a decline, still signs, and its recipients' `decryptVerify` refuses it (`BTP_ERROR_SIG_VERIFICATION`).
 
 `cosignatureSha256` is the SHA-256, in lowercase hex, of a cosignature's RFC 8785 form, signature included, without `delegatedArtifact`: what the next statement names as `previous`, and what timestamps and arrivals are over. `cosignatureSignedPart` is what the signer's signature is over: the cosignature without `signature` and `delegatedArtifact`. `cosignedStatementText` is the exact text a cosignature encrypts: the RFC 8785 form of `{ statement, padding }`, `padding` being `0`s up to the next multiple of `BTPS_FIELD_LIMITS.agreement.statementPaddingBucket` (4,096) characters. The same statement always gives the same text, which is how an evidence bundle keeps it. See [Cosignatures](../protocol/specifications/transporter-artifact.md#cosignatures).
 
@@ -1789,12 +1792,13 @@ cosignaturesProblem(
 type BTPCosignatureKeyOf = (
   identity: string,
   selector: string,
-  fingerprint: string
+  fingerprint: string,
+  forwarded: boolean
 ) => Promise<string | undefined>
 ```
 
 **Description:**
-Since 1.2 (rc.4). Why the cosignatures an artifact carries are not what they say, or `undefined`, checked as a BTPS server checks them on receipt, without decrypting: every server runs it in its signature step, and refuses with `BTP_ERROR_SIG_VERIFICATION`. Only a `BTPS_EVENT` carries them, at least one. Each is signed by its signer's key at its `selector`, or by a device its delegation vouches for; all name one document; a signer cosigns once; one that names `previous` follows the one before it. The document's originator may carry any of them, its own among them; anyone else carries only its own, whose `artifactId` is the artifact's `id`. A device's must have its delegation signed by its delegator, an attestation on a self-delegation, any attestation signed by its attestor, and its delegated artifact sent by the signer, signed by the device, and with the cosignature's `artifactId` as its `id`. `keyOf` gives the public key (PEM) of `identity` at `selector` whose fingerprint is `fingerprint`, or `undefined`: from DNS or a key chain. It checks no order between answers: that is `agreementOrderCheck`'s.
+Since 1.2 (rc.4). Why the cosignatures an artifact carries are not what they say, or `undefined`, checked as a BTPS server checks them on receipt, without decrypting: every server runs it in its signature step, and refuses with `BTP_ERROR_SIG_VERIFICATION`. Only a `BTPS_EVENT` carries them, at least one. Each is signed by its signer's key at its `selector`, or by a device its delegation vouches for; all name one document; a signer cosigns once; one that names `previous` follows the one before it. The document's originator may carry any of them, its own among them; anyone else carries only its own, whose `artifactId` is the artifact's `id`. A device's must have its delegation signed by its delegator, an attestation on a self-delegation, any attestation signed by its attestor, and its delegated artifact sent by the signer, signed by the device, and with the cosignature's `artifactId` as its `id`. `keyOf` gives the public key (PEM) of `identity` at `selector` whose fingerprint is `fingerprint`, or `undefined`: from DNS or a key chain. `forwarded` is `true` when an earlier artifact first delivered the cosignature (its `artifactId` is not the carrying artifact's `id`); the lookup then takes the key by its history, as a BTPS server does: a key since rotated away as planned still holds, and a compromised one never does. A cosignature made now (`forwarded` is `false`) is held to the live rules, the retired-key grace included. It checks no order between answers: that is `agreementOrderCheck`'s.
 
 ---
 
@@ -1803,7 +1807,7 @@ Since 1.2 (rc.4). Why the cosignatures an artifact carries are not what they say
 ```ts
 openCosignature(
   cosignature: BTPCosignature,
-  receiver: { identity: string; key: BTPDecryptionKey }
+  receiver: { identity: string; key: BTPDecryptionKey; wrappedKey?: string }
 ): Promise<{ statement: BTPAgreementStatement } | { problem: string } | undefined>
 statementOfText(
   cosignature: BTPCosignature,
@@ -1813,7 +1817,7 @@ cosignedStatementProblem(value: unknown): string | undefined
 ```
 
 **Description:**
-Since 1.2 (rc.4). `openCosignature` opens a cosignature's statement with the receiver's key (a private key, PEM, or a [Decrypter](./typesAndInterfaces.md#decrypter) with `unwrapKey`). It gives `undefined` when the receiver is not one of its recipients, and a `problem` when it is and the content key does not open, or the statement does not open. Otherwise it is `statementOfText` on what it opened. `decryptVerify` runs it for each cosignature its receiver is a recipient of.
+Since 1.2 (rc.4). `openCosignature` opens a cosignature's statement with the receiver's key (a private key, PEM, or a [Decrypter](./typesAndInterfaces.md#decrypter) with `unwrapKey`). It gives `undefined` when the receiver is not one of its recipients, and a `problem` when it is and the content key does not open, or the statement does not open. Otherwise it is `statementOfText` on what it opened. `wrappedKey` (since 1.2 (rc.4)) replaces the recipient's own wrapped key: on a device, the content key its provider wrapped again to the device key (`agentKey.cosignatureKeys`), which `key`, the device's key, opens. `decryptVerify` runs it for each cosignature its receiver is a recipient of.
 
 `statementOfText` gives the statement in `text`, a cosignature's opened statement as exact text (as an evidence bundle keeps it), or the problem: its SHA-256 is not the cosignature's `statementSha256`, it is not in its one RFC 8785 form, its padding is not exactly what `cosignedStatementText` writes, or its statement's agreement, signer, `artifactId` or `previous` is not the cosignature's. `cosignedStatementProblem` gives why `value` is not an opened statement, `{ statement, padding }`, as the protocol holds one (the statement's own rules, and the padding's length), or `undefined`.
 
