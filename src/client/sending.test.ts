@@ -276,6 +276,22 @@ describe('a client sending over a real connection', () => {
     expect(connections).toHaveLength(2);
   });
 
+  it('delivers the next send at once after an answer that says its connection is closing, never on that one', async () => {
+    // Since 1.2 a server says so in the answer before it ends a connection: the next send makes a new one at once.
+    const { tcp } = await receiver((line, socket) => {
+      reply(socket, answerTo(JSON.parse(line).id, { status: { ok: true, code: 200, closing: true } }));
+      socket.end();
+    });
+    track(tcp);
+    const client = track(clientFor());
+
+    for (let i = 0; i < 50; i += 1) {
+      const { response, error } = await client.send(artifact(`next-${i}`));
+      expect(error?.code, `send ${i}`).toBeUndefined();
+      expect(response?.reqId, `send ${i}`).toBe(`next-${i}`);
+    }
+  });
+
   it('fails a send to an address whose host is in no DNS record, and does not try again', async () => {
     const client = track(new BtpsClient({ to: 'bob$saas.test', maxRetries: 3, retryDelayMs: 10 }));
     const failures: { willRetry: boolean }[] = [];
