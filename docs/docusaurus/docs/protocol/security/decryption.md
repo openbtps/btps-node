@@ -11,7 +11,7 @@ BTPS ensures that only the intended recipient can decrypt and verify the authent
 
 1. **Artifact Reception:** BTPS server receives the BTPS Artifact from sender.
 2. **Artifact Validation:** BTPS server checks the artifact's size, structure, format and protocol version.
-3. **Signature Verification:** BTPS server verifies the sender's digital signature using the sender's public key from DNS, then the time window, trust and privacy type.
+3. **Signature Verification:** BTPS server verifies the sender's digital signature using the sender's public key from DNS, or, since 1.2, from the sender's host when DNS has no record for it, then the time window, trust and privacy type.
 4. **Forward to Receiver:** BTPS server hands the verified artifact to the receiver's handler, and answers the sender once the handler returns.
 5. **Receiver Processing:** Receiver obtains the BTPS Artifact from their inbox endpoint.
 6. **Key Decryption:** If the artifact is encrypted, receiver decrypts the AES key using their private RSA key.

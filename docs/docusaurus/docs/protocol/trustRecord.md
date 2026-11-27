@@ -24,7 +24,8 @@ Trust records are the core data structures that maintain the state and history o
          |                                                      |
          |                     2. Receiver's server verifies    |
          |                        the request's signature with  |
-         |                        the sender's key from DNS     |
+         |                        the sender's key: from DNS,   |
+         |                        else from the sender's host   |
          |                                                      |
          | 3. Receiver approves, rejects, or blocks sender      |
          |    and sends a signed trust response                 |

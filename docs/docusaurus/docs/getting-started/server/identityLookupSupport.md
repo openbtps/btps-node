@@ -200,6 +200,31 @@ sequenceDiagram
     S->>U: 16. After its checks, the server's handler delivers to alice
 ```
 
+### Checking a hosted user's signature
+
+Since 1.2, the same lookup lets any BTPS server check what alice signs: her documents, cosignatures, delegations and attestations. A key to check a signature is found as a key to encrypt to is, with one difference: the server asks for the key at the selector the signature names, sent as `identitySelector`, and takes the answer only when it names that selector. The server passes that selector to your store's `getPublicKeyRecord`.
+
+```mermaid
+sequenceDiagram
+    participant R as Receiving server
+    participant DNS as DNS Server
+    participant S as SaaS Server
+    participant IS as Identity Store
+
+    R->>DNS: 1. TXT btps1._btps.identity.alice.saas.com
+    DNS-->>R: 2. No record
+    R->>DNS: 3. TXT _btps.host.saas.com
+    DNS-->>R: 4. Host (u=), operator (op=admin$saas.com)
+    R->>S: 5. Identity Lookup Request<br/>{identity: "alice$saas.com", identitySelector: "btps1"}
+    S->>IS: 6. getPublicKeyRecord(id, "btps1")
+    IS-->>S: 7. alice's key at btps1
+    S-->>R: 8. Identity Response, signed as admin$saas.com
+    R->>R: 9. Refuse unless signed by op= and naming btps1
+    R->>R: 10. Check the signature with alice's key
+```
+
+A receiving server does this on its own when it is given no `keyResolver`, asking as its own identity. A DNS failure other than "no such record" never leads to the lookup, and the operator, `admin$saas.com` here, is never looked up this way: its key is found in DNS only. See [Finding a signature key](../../protocol/specifications/key-rotation.md#finding-a-signature-key).
+
 ### Response Structure
 
 The SDK's client sends a `1.2.0` lookup, and asks again as `1.1.0` when a 1.1 host refuses the version. To a `1.2.0` lookup, the server's answer names the `identity` it answers for and, when the lookup asks with `keyChain: true`, carries the identity's key chain. The client refuses an answer to a `1.2.0` lookup unless it answers this lookup (`reqId`), is fresh (`issuedAt` within 300 seconds) and names the identity asked about.
@@ -243,8 +268,9 @@ The server responds to identity lookup requests with this structure:
 
 1. **DNS-Based Trust**: The SaaS platform identity (e.g., `admin$saas.com`) must have DNS records published
 2. **Signature Verification**: Identity lookup responses are signed by the SaaS platform
-3. **Key Validation**: Public keys are verified against the signing identity's DNS record
-4. **Delegation Support**: SaaS-managed users can delegate to platform-managed keys
+3. **Key Validation**: The answer is checked with the operator's key, which is found in DNS only: no host vouches for its own operator
+4. **User Keys**: A user's key is found in DNS first, then, when DNS has no record for it, in the host's signed answer, both to encrypt to and, since 1.2, to check a signature, at the selector the signature names ([Finding a signature key](../../protocol/specifications/key-rotation.md#finding-a-signature-key))
+5. **Delegation Support**: SaaS-managed users can delegate to platform-managed keys
 
 ### Delegation for SaaS-Managed Senders
 

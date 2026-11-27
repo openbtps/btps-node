@@ -196,7 +196,7 @@ A key counts only when its fingerprint is its own: a bundle cannot pair one key 
 | `originatorKeyChain`       | that key against the originator's key chain, when the bundle has one (below)                                                                                                                                                                                                                                                          |
 | `termsAttached`            | each term is the SHA-256 of one of its attachments, as attached                                                                                                                                                                                                                                                                       |
 | `statements[]`             | each statement: `signatureValid` (its cosignature's), `keyKind` (`identity` or `device`, with `delegatedBy` and `attestedBy`), `key` (and a device's `delegationKey`), `statementMatches`, `decision`, `agreementMatches`, `termsMatch`, `withinDeadline`, `inOrder`, and its `timestamp`, `arrival` and `keyChain`, when it has them |
-| `keysConfirmedOnline`      | `false` unless checked `online`: then true when every signing key is confirmed as its identity's, by its chain or DNS                                                                                                                                                                                                                 |
+| `keysConfirmedOnline`      | `false` unless checked `online`: then true when every signing key is confirmed as its identity's, by its chain, or by its key as DNS or its host gives it now                                                                                                                                                                                                            |
 | `complete`                 | every fact above holds, and every signer accepted, once                                                                                                                                                                                                                                                                               |
 
 **`statementMatches`** says the statement's text is exactly the one its cosignature signed: the bundle has one text for each cosignature, its SHA-256 is the cosignature's `statementSha256`, it is in its one RFC 8785 form and keeps the statement's rules, and it names the cosignature's agreement, signer, artifact and `previous`. When it does not hold, nothing the text says is taken: `decision` is left out, `termsMatch` and `withinDeadline` do not hold, and the facts that remain (`agreementMatches`, `inOrder`) are read from the signed cosignature. `complete` needs it.
@@ -314,7 +314,25 @@ const facts = await verifyEvidenceBundle(bundle, {
 console.log(describeEvidenceFacts(facts));
 ```
 
-To confirm each key online as well, pass `online: { resolveKeyChain, retiredKeyGraceSeconds: 0 }`, with a key resolver's `resolveKeyChain`.
+To confirm each key online as well, pass `online`, with a key resolver's `resolveKeyChain` and, since 1.2, the resolver itself as `keyResolver`:
+
+```ts check
+import { createDefaultKeyResolver } from '@btps/sdk/crypto';
+import { verifyEvidenceBundle } from '@btps/sdk/trust';
+
+export async function checkOnline(bundle: unknown, you: string) {
+  const resolver = createDefaultKeyResolver({ from: you }); // asks each host as you
+  return verifyEvidenceBundle(bundle, {
+    online: {
+      resolveKeyChain: (identity) => resolver.resolveKeyChain!(identity),
+      keyResolver: resolver, // a key not in DNS is confirmed through its host
+      retiredKeyGraceSeconds: 0, // a bundle's signatures are past: no live grace
+    },
+  });
+}
+```
+
+A signing identity with no key chain is confirmed by its key at the signature's selector now. With this `keyResolver` it is found as a server finds it: in DNS or, when DNS has no record for it, from its host. Without `keyResolver`, in DNS only, so the key of a hosted identity, which is not in DNS, is not confirmed online.
 
 From the command line:
 
@@ -327,7 +345,7 @@ npx -p @btps/sdk btps-verify-evidence bundle.json --operator client.example=MKuY
 npx -p @btps/sdk btps-verify-evidence bundle.json --online 'you$your.example'
 ```
 
-`--anchor` and `--operator` are repeatable. `--online` asks each signing identity's host for its chain as the identity you give, and checks DNS.
+`--anchor` and `--operator` are repeatable. `--online` asks each signing identity's host for its chain as the identity you give, and checks each key without a chain as a server finds it: in DNS, or, when DNS has no record for it, from its host.
 
 | Exit code | Means                                                    |
 | --------- | -------------------------------------------------------- |

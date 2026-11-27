@@ -133,7 +133,8 @@ Every key lookup, the server's and the client's, goes through one option, `keyRe
 import { createDefaultKeyResolver, type BtpsKeyResolver } from '@btps/sdk/crypto';
 
 const KEY_CACHE_MS = 5 * 60_000; // so a removed DNS record stops counting
-const lookup = createDefaultKeyResolver();
+// Your server's own identity: a key not in DNS is asked of its host as this.
+const lookup = createDefaultKeyResolver({ from: 'admin$saas.example' });
 const cache = new Map<string, { key: string; until: number }>();
 
 // Given to BtpsServer as `keyResolver`, beside the rest of its options.
@@ -149,7 +150,7 @@ export const keyResolver: BtpsKeyResolver = {
 };
 ```
 
-Cache only keys found, so a newly published key is found at once. A resolver that gives key chains too (`resolveKeyChain`) keeps each no longer than the server's `keyChainMaxCacheSeconds` ([Rotating keys](../whats-new/version-1-2-migration.md#rotating-keys)).
+Cache only keys found, so a newly published key is found at once. Give the default lookup `from`: without it, it finds keys in DNS only, and the server refuses a signature by a hosted identity, whose key is not in DNS ([Finding a signature key](../protocol/specifications/key-rotation.md#finding-a-signature-key)). A resolver that gives key chains too (`resolveKeyChain`) keeps each no longer than the server's `keyChainMaxCacheSeconds` ([Rotating keys](../whats-new/version-1-2-migration.md#rotating-keys)).
 
 The feature journey (`tests/e2e/features.e2e.test.ts`) checks that a caching resolver looks a sender's key up once over three events.
 

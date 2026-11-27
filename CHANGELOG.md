@@ -136,6 +136,32 @@ below; `@btps/boundview` is released in step, unchanged.
   in `trust-permissions.vectors.json` (`request-giving-details-unencrypted`,
   `response-granting-details-unencrypted`). A request without details, and one
   shaped for a 1.1 receiver, may go unencrypted as before.
+- **A signature by an identity whose key is not in DNS is checked through its
+  host.** A key to check a signature is found as a key to encrypt to is: in
+  DNS first, the identity's own record at the selector, then, only when DNS
+  has no record for it, from the identity's host, through an identity lookup
+  in an answer signed by the operator its domain's host record names (`op=`).
+  So an identity whose key is not in DNS, as a provider's hosted addresses
+  are, signs documents, cosignatures, delegations and attestations that any
+  BTPS server can check. Before, such a key was found only to encrypt to, and
+  a signature by it was refused with `BTP_ERROR_RESOLVE_PUBKEY`. The host is
+  asked for the key at the selector the signature names:
+  `BtpsClient.resolveIdentity` gains a 4th optional parameter,
+  `identitySelector`, sent as the lookup's `identitySelector`, and the answer
+  is taken only when it names that selector, so a signature made before a
+  rotation is checked against the identity's key chain like any other (the
+  grace period for live arrivals, history in evidence).
+  `createDefaultKeyResolver({ from })` asks the host for both uses, `'verify'`
+  and `'encrypt'`; without `from`, DNS only, for both. `BtpsServer`, given no
+  `keyResolver`, uses it asking as its `serverIdentity`;
+  `BtpsAgent.openResult`, given none, asks as the agent's own identity; and
+  `verifyEvidenceBundle`'s `online` option takes an optional `keyResolver`,
+  which `btps-verify-evidence --online` passes. A DNS failure other than "no
+  such record" never leads to asking the host. A domain's operator's key is
+  found in DNS only: `resolveIdentity` refuses to ask a host for it
+  (`BTP_ERROR_IDENTITY_NOT_FOUND`), because it is the key every host answer is
+  checked with. See
+  [Checking keys on arrival](https://www.openbtps.org/docs/next/protocol/specifications/key-rotation#checking-keys-on-arrival).
 
 ## [1.2.0-rc.3.4] — 2026-11-26 (beta, release candidate)
 

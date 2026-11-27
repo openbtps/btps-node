@@ -119,7 +119,9 @@ A 1.2 server asks the sender's host for its chain on each arrival, keeps it for 
 | rotated away as planned, past the grace                        | refuses: `BTP_ERROR_KEY_RETIRED` (401)         |
 | expired                                                        | refuses at once: `BTP_ERROR_KEY_REVOKED` (401) |
 | no key of the chain                                            | refuses: `BTP_ERROR_RESOLVE_PUBKEY`            |
-| no chain: never rotated, a 1.1 host, or a host it cannot reach | checks the key by DNS, as in 1.1               |
+| no chain: never rotated, a 1.1 host, or a host it cannot reach | checks the key as it finds it: in DNS, as in 1.1, or, when DNS has no record for it, from the identity's host |
+
+A key to check a signature is found as a key to encrypt to is, at the selector the signature names: see [Finding a signature key](./specifications/key-rotation.md#finding-a-signature-key).
 
 A provider's own `keyResolver` that gives chains keeps each no longer than `keyChainMaxCacheSeconds` too: that is the longest a revoked key can still be taken.
 

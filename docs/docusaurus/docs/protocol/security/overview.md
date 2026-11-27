@@ -23,6 +23,7 @@ sequenceDiagram
     Receiving BTPS Server->>Receiving BTPS Server: Size, format and version checks
     Receiving BTPS Server->>DNS: Sender's key at the artifact's selector
     DNS-->>Receiving BTPS Server: Return public key
+    Note over Receiving BTPS Server: Since 1.2, no key in DNS: ask the sender's host<br/>at that selector, accept only an answer signed by the domain's operator
     Note over Receiving BTPS Server: Since 1.2: the key is checked against<br/>the sender's key chain, from its host
     Receiving BTPS Server->>Receiving BTPS Server: Verify the signature, time window, trust and privacy type
     Receiving BTPS Server->>Receiver: Hands to the receiver's handler (refused if there is none)

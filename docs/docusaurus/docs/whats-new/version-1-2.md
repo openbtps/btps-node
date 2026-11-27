@@ -30,6 +30,8 @@ Start with [Migrating from 1.1 to 1.2](./version-1-2-migration.md): what changes
 
 **[Key rotation](../features/keyRotation.md).** An identity's keys form a signed chain its host serves, and every server checks each arriving key against it: a key rotated away is taken for a day's grace, a compromised one is refused at once, whatever DNS still has. Old keys can be retired and deleted, and what they signed stays verifiable.
 
+**[Hosted keys sign](../protocol/specifications/key-rotation.md#finding-a-signature-key).** A key to check a signature is found as a key to encrypt to is: in DNS, then, when DNS has no record for it, from the identity's host, in an answer its domain's operator signed, at the selector the signature names. So an identity whose key is not in DNS, as a provider's hosted addresses are, signs documents, cosignatures, delegations and attestations that any BTPS server checks. A server, a device opening a result, and an online evidence check all find keys this way. A domain's operator's own key stays in DNS only.
+
 **[Withdrawing proposals](../features/withdrawingProposals.md).** A payer takes back an unanswered proposal (`paid`, `disputed`, …) and may propose again later, with the chain kept traceable.
 
 **[Devices](../features/devices.md).** A device's own key to its documents, signed answers it can require from its provider, sync between a user's devices, and each send's delivery.

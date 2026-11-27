@@ -232,6 +232,8 @@ A `BtpsServer` given an `identityStore` answers identity lookups itself:
 
 `BtpsClient.resolveIdentity` (and so `BtpsAgent`, before an encrypted send) finds the receiver's key: DNS first, then the receiver's host, as above. The agent then encrypts the document to that key, names its own selector (from its own domain's `_btps.host`), stamps the artifact with the lowest version that can say it (`artifactVersion`), and signs it with the device's key.
 
+Since 1.2, a key to check a signature is found the same way: DNS first, then, when DNS has no record for it, the signer's host, asked for the key at the selector the signature names (`identitySelector`). So a hosted identity's documents, cosignatures, delegations and attestations can be checked by any BTPS server. A domain's operator is never looked up through its host: its key is found in DNS only. See [Finding a signature key](./specifications/key-rotation.md#finding-a-signature-key).
+
 ---
 
 ## Security Model
@@ -240,8 +242,9 @@ A `BtpsServer` given an `identityStore` answers identity lookups itself:
 
 1. **DNS-Based Trust**: SaaS platform identity (e.g., `admin$saas.com`) must have DNS records published
 2. **Signature Verification**: Identity lookup responses are signed by the SaaS platform
-3. **Key Validation**: Public keys are verified against the signing identity's DNS record
-4. **Delegation Support**: SaaS-managed users can delegate to platform-managed keys
+3. **Key Validation**: The answer is checked with the operator's key, which is found in DNS only: no host vouches for its own operator
+4. **User Keys**: A user's key is found in DNS first, then, when DNS has no record for it, in the host's signed answer, both to encrypt to and, since 1.2, to check a signature, at the selector the signature names ([Finding a signature key](./specifications/key-rotation.md#finding-a-signature-key))
+5. **Delegation Support**: SaaS-managed users can delegate to platform-managed keys
 
 ### Delegation for SaaS-Managed Senders
 

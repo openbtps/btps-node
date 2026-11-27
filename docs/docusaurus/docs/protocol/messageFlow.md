@@ -281,7 +281,7 @@ graph TD
     C2 -->|Yes| C3[Verify the delegation chain, see Delegation]
     C2 -->|No| D["Query DNS: artifact.selector._btps.identity of the sender"]
     D --> K{"Since 1.2: key chain from the sender's host?"}
-    K -->|None, or never rotated| E[Get Public Key from DNS]
+    K -->|None, or never rotated| E["Public key from DNS, or, with no DNS record, from the sender's host (operator-signed)"]
     K -->|Yes| KC{Key current, or within its grace?}
     KC -->|Retired past its grace| X4[Reject: KEY_RETIRED]
     KC -->|Expired| X5[Reject: KEY_REVOKED]
