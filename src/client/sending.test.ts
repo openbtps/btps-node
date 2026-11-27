@@ -219,6 +219,49 @@ describe('a client sending over a real connection', () => {
     expect(client['queue'].size).toBe(0);
   });
 
+  it('reports the answer a receiver wrote just before it ended the connection, never that it ended', async () => {
+    // An error frame and the end arrive together: the end must wait for the line already received.
+    const { tcp } = await receiver((line, socket) => {
+      const { id } = JSON.parse(line);
+      reply(socket, {
+        ...answerTo(id),
+        type: 'btps_error',
+        status: { ok: false, code: 500, message: 'Unknown error', error: 'BTP_UNKNOWN_ERROR' },
+      });
+      socket.end();
+    });
+    track(tcp);
+    for (let i = 0; i < 25; i += 1) {
+      const client = track(clientFor());
+      const { response, error } = await client.send(artifact(`a-${i}`));
+      expect(error?.code, `send ${i}`).not.toBe(BTP_ERROR_CONNECTION_ENDED.code);
+      expect(JSON.stringify(response ?? error), `send ${i}`).toContain('BTP_UNKNOWN_ERROR');
+      client.destroy();
+    }
+  });
+
+  it('reports an error with no request id that a receiver wrote as it ended the connection', async () => {
+    // The line and the end in one write: the end must not overtake the line still being read.
+    const { tcp } = await receiver((_line, socket) => {
+      socket.end(
+        `${JSON.stringify({
+          ...answerTo('unused'),
+          reqId: undefined,
+          type: 'btps_error',
+          status: { ok: false, code: 503, message: 'Service Unavailable' },
+        })}\n`,
+      );
+    });
+    track(tcp);
+    for (let i = 0; i < 200; i += 1) {
+      const client = track(clientFor());
+      const { response, error } = await client.send(artifact(`b-${i}`));
+      expect(error?.code, `send ${i}`).not.toBe(BTP_ERROR_CONNECTION_ENDED.code);
+      expect(response?.status.code, `send ${i}`).toBe(503);
+      client.destroy();
+    }
+  });
+
   it('makes a new connection for the next send once the receiver has ended one', async () => {
     const { tcp, connections } = await receiver((line, socket) => {
       echo(line, socket);
@@ -231,6 +274,25 @@ describe('a client sending over a real connection', () => {
     await vi.waitFor(() => expect(client.getConnectionStates().isConnected).toBe(false));
     expect((await client.send(artifact('b'))).response?.reqId).toBe('b');
     expect(connections).toHaveLength(2);
+  });
+
+  it('delivers the next send at once after an answer that says its connection is closing, never on that one', async () => {
+    // Since 1.2 a server says so in the answer before it ends a connection: the next send makes a new one at once.
+    const { tcp } = await receiver((line, socket) => {
+      reply(
+        socket,
+        answerTo(JSON.parse(line).id, { status: { ok: true, code: 200, closing: true } }),
+      );
+      socket.end();
+    });
+    track(tcp);
+    const client = track(clientFor());
+
+    for (let i = 0; i < 50; i += 1) {
+      const { response, error } = await client.send(artifact(`next-${i}`));
+      expect(error?.code, `send ${i}`).toBeUndefined();
+      expect(response?.reqId, `send ${i}`).toBe(`next-${i}`);
+    }
   });
 
   it('fails a send to an address whose host is in no DNS record, and does not try again', async () => {

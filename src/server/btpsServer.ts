@@ -110,11 +110,13 @@ import type { AbstractTrustStore } from '@core/trust/storage/AbstractTrustStore.
 import { validate } from '@core/utils/validation.js';
 import { MiddlewareManager } from './libs/middlewareManager.js';
 import {
+  checkedSignatureKey,
   verifyAttestation,
   verifyDelegation,
   verifyTransporterSignature,
   type BTPKeyChainCheck,
 } from '@core/delegation/verifyTransporterSignature.js';
+import { cosignaturesProblem } from '@core/trust/cosignatures.js';
 import { createDefaultKeyResolver, type BtpsKeyResolver } from '@core/crypto/keyResolver.js';
 import { resolveKeyChainMaxCacheSeconds, resolveRetiredKeyGraceSeconds } from './libs/keyChains.js';
 import { artifactSizeGuard, resolveMaxArtifactSizeKb } from './libs/artifactSizeGuard.js';
@@ -1244,7 +1246,25 @@ export class BtpsServer {
       this.keyResolver,
       this.keyChains,
     );
-    return { isValid, error };
+    if (!isValid || artifact.cosignatures === undefined) return { isValid, error };
+    // Since 1.2: every cosignature it carries, checked here as its own signature is, without decrypting.
+    const problem = await cosignaturesProblem(
+      artifact,
+      async (identity, selector, _fingerprint, forwarded) => {
+        // A forwarded cosignature's key by its history: rotated away as planned still holds; compromised never does.
+        const keyChains =
+          forwarded && this.keyChains
+            ? { ...this.keyChains, retiredKeyGraceSeconds: Infinity }
+            : this.keyChains;
+        const { key } = await checkedSignatureKey(identity, selector, this.keyResolver, keyChains);
+        return key;
+      },
+    );
+    if (!problem) return { isValid, error };
+    return {
+      isValid: false,
+      error: new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, { meta: { reason: problem } }),
+    };
   }
 
   /**

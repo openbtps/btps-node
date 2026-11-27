@@ -16,7 +16,9 @@ import { generateKeyPairSync } from 'crypto';
 import { resolveTxt } from 'dns/promises';
 import fs from 'fs';
 import path from 'path';
-import { agreementRef, signAgreement, signStatement, statementRecordSha256 } from './agreements.js';
+import { agreementRef, signAgreement } from './agreements.js';
+import { cosign, cosignatureSha256 } from './cosignatures.js';
+import type { BTPAgreementStatement } from './types.js';
 import {
   buildEvidenceBundle,
   describeEvidenceFacts,
@@ -62,6 +64,7 @@ const signed = async () => {
       type: 'agreement',
       title: 'Phone plan',
       id: 'AGR-7',
+      salt: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
       issuedAt: at(1),
       body: { format: 'text', content: 'Your plan, for 24 months.' },
       acceptance: {
@@ -73,22 +76,38 @@ const signed = async () => {
     { originator: BANK, selector: 'btps1', pemFiles: b1 },
   );
   const about = agreementRef(agreement, BANK);
-  const alice = await signStatement(
-    { agreement: about, terms: [], signer: ALICE, decision: 'accepted', signedAt: at(2) },
-    { selector: 'btps1', pemFiles: a1 },
-  );
-  const bank = await signStatement(
-    {
-      agreement: about,
-      terms: [],
-      signer: BANK,
-      decision: 'accepted',
-      signedAt: at(3),
-      previous: statementRecordSha256(alice),
-    },
-    { selector: 'btps1', pemFiles: b1 },
-  );
-  return { agreement, statements: [alice, bank] };
+  const recipients = [
+    { identity: BANK, publicKey: b1.publicKey },
+    { identity: ALICE, publicKey: a1.publicKey },
+  ];
+  const aliceSaid: BTPAgreementStatement = {
+    agreement: about,
+    terms: [],
+    signer: ALICE,
+    artifactId: '00000000-0000-4000-8000-0000000000a1',
+    decision: 'accepted',
+    signedAt: at(2),
+  };
+  const alice = await cosign({
+    statement: aliceSaid,
+    recipients,
+    by: { selector: 'btps1', pemFiles: a1 },
+  });
+  const bankSaid: BTPAgreementStatement = {
+    agreement: about,
+    terms: [],
+    signer: BANK,
+    artifactId: '00000000-0000-4000-8000-0000000000b1',
+    decision: 'accepted',
+    signedAt: at(3),
+    previous: cosignatureSha256(alice),
+  };
+  const bank = await cosign({
+    statement: bankSaid,
+    recipients,
+    by: { selector: 'btps1', pemFiles: b1 },
+  });
+  return { agreement, cosignatures: [alice, bank], statements: [aliceSaid, bankSaid] };
 };
 
 const planned = (identity: string, from: typeof b1, to: typeof b1, day: number) =>
@@ -131,12 +150,12 @@ const expiredChains = async (): Promise<[string, BTPKeyChainRecord[]][]> => {
 };
 
 const arrivalOf = (
-  record: Awaited<ReturnType<typeof signed>>['statements'][number],
+  cosignature: Awaited<ReturnType<typeof signed>>['cosignatures'][number],
   time: string,
 ) =>
   signArrival(
     {
-      statementSha256: statementRecordSha256(record),
+      cosignatureSha256: cosignatureSha256(cosignature),
       arrivedAt: time,
       receivedBy: BANK,
       selector: 'btps1',
@@ -187,14 +206,14 @@ const verified = (bundle: object, options?: Parameters<typeof verifyEvidenceBund
 
 describe("an evidence bundle's key chains", () => {
   it('shows a key rotated away after it signed, taken from the chain once DNS retired it', async () => {
-    const { agreement, statements } = await signed();
+    const { agreement, cosignatures, statements } = await signed();
     const keyChains: BTPEvidenceKeyChain[] = [
       { identity: BANK, records: [await planned(BANK, b1, b2, 10)] },
     ];
     // DNS has only the bank's new key.
     const keyOf = dnsNow({ [BANK]: { btps2: b2.publicKey }, [ALICE]: { btps1: a1.publicKey } });
     const bundle = buildEvidenceBundle(
-      { originator: BANK, agreement, statements, keyChains },
+      { originator: BANK, agreement, cosignatures, statements, keyChains },
       keyOf,
     );
 
@@ -221,11 +240,17 @@ describe("an evidence bundle's key chains", () => {
   });
 
   it('reports a key in no chain, and a chain whose records are not signed as they say', async () => {
-    const { agreement, statements } = await signed();
+    const { agreement, cosignatures, statements } = await signed();
     const records = [await planned(ALICE, a1, a2, 10)];
     const keyOf = dnsNow({ [BANK]: { btps1: b1.publicKey }, [ALICE]: { btps1: a1.publicKey } });
     const bundle = buildEvidenceBundle(
-      { originator: BANK, agreement, statements, keyChains: [{ identity: BANK, records }] },
+      {
+        originator: BANK,
+        agreement,
+        cosignatures,
+        statements,
+        keyChains: [{ identity: BANK, records }],
+      },
       keyOf,
     );
 
@@ -242,13 +267,14 @@ describe("an evidence bundle's key chains", () => {
   describe.each([0, 1])('a key expired from before it signed, by %s', (which) => {
     it('says so, and that a signed arrival shows it was received before the expiry', async () => {
       const [name, records] = (await expiredChains())[which]!;
-      const { agreement, statements } = await signed();
-      const arrivals = [await arrivalOf(statements[0]!, at(2, 0))];
+      const { agreement, cosignatures, statements } = await signed();
+      const arrivals = [await arrivalOf(cosignatures[0]!, at(2, 0))];
       const keyOf = dnsNow({ [BANK]: { btps1: b1.publicKey }, [ALICE]: { btps2: a2.publicKey } });
       const bundle = buildEvidenceBundle(
         {
           originator: BANK,
           agreement,
+          cosignatures,
           statements,
           keyChains: [{ identity: ALICE, records }],
           arrivals,
@@ -284,32 +310,33 @@ describe("an evidence bundle's key chains", () => {
 
   it('takes no time from an arrival whose signature fails, and none before the compromise', async () => {
     const [[, records]] = await expiredChains();
-    const { agreement, statements } = await signed();
+    const { agreement, cosignatures, statements } = await signed();
     const keyOf = dnsNow({ [BANK]: { btps1: b1.publicKey }, [ALICE]: { btps2: a2.publicKey } });
     const build = (arrival: BTPEvidenceArrival) =>
       buildEvidenceBundle(
         {
           originator: BANK,
           agreement,
+          cosignatures,
           statements,
           keyChains: [{ identity: ALICE, records: records! }],
           arrivals: [arrival],
         },
         keyOf,
       );
-    const arrival = await arrivalOf(statements[0]!, at(2));
+    const arrival = await arrivalOf(cosignatures[0]!, at(2));
 
     const forged = await verified(build({ ...arrival, arrivedAt: at(1, 6) }));
     expect(forged.statements[0]?.arrival?.signatureValid).toBe(false);
     expect(forged.statements[0]?.keyChain?.disownedAfterTheFact).toBeUndefined();
 
-    const early = await verified(build(await arrivalOf(statements[0]!, at(1, 6))));
+    const early = await verified(build(await arrivalOf(cosignatures[0]!, at(1, 6))));
     expect(early.statements[0]?.keyChain?.disownedAfterTheFact).toBe(false);
   });
 
   it("calls a lost key's rotation unconfirmed, unless the operator the reader named for its domain answered for it", async () => {
     const lost = await lostRotation();
-    const { agreement, statements } = await signed();
+    const { agreement, cosignatures, statements } = await signed();
     // The bundle holds `operatorKey` as the operator's: whatever its builder put there.
     const bundleFacts = (
       chain: BTPEvidenceKeyChain,
@@ -322,7 +349,7 @@ describe("an evidence bundle's key chains", () => {
         [OPERATOR]: { btps1: operatorKey },
       });
       const bundle = buildEvidenceBundle(
-        { originator: BANK, agreement, statements, keyChains: [chain] },
+        { originator: BANK, agreement, cosignatures, statements, keyChains: [chain] },
         keyOf,
       );
       return verified(bundle, kept);
@@ -403,9 +430,12 @@ describe("an evidence bundle's key chains", () => {
   });
 
   it('is refused when a key chain is not one', async () => {
-    const { agreement, statements } = await signed();
+    const { agreement, cosignatures, statements } = await signed();
     const keyOf = dnsNow({ [BANK]: { btps1: b1.publicKey }, [ALICE]: { btps1: a1.publicKey } });
-    const bundle = buildEvidenceBundle({ originator: BANK, agreement, statements }, keyOf);
+    const bundle = buildEvidenceBundle(
+      { originator: BANK, agreement, cosignatures, statements },
+      keyOf,
+    );
     await expect(
       verified({ ...bundle, keyChains: [{ identity: ALICE, records: [{ rotation: {} }] }] }),
     ).rejects.toMatchObject({ code: 'BTP_ERROR_VALIDATION' });
@@ -430,11 +460,14 @@ describe('an evidence bundle checked online', () => {
     retiredKeyGraceSeconds: 0,
   });
   const bundleOf = async () => {
-    const { agreement, statements } = await signed();
+    const { agreement, cosignatures, statements } = await signed();
     const keyChains = [{ identity: BANK, records: [await planned(BANK, b1, b2, 10)] }];
     const keyOf = dnsNow({ [BANK]: { btps2: b2.publicKey }, [ALICE]: { btps1: a1.publicKey } });
     return {
-      bundle: buildEvidenceBundle({ originator: BANK, agreement, statements, keyChains }, keyOf),
+      bundle: buildEvidenceBundle(
+        { originator: BANK, agreement, cosignatures, statements, keyChains },
+        keyOf,
+      ),
       records: keyChains[0]!.records,
     };
   };
@@ -487,12 +520,12 @@ describe('an evidence bundle checked online', () => {
     const ATTESTOR = 'admin$attest.example';
     const attestor = keyPair();
     const attested = structuredClone(bundle);
-    attested.statements[0]!.delegatedArtifact!.delegation.attestation = {
+    attested.cosignatures[0]!.delegatedArtifact!.delegation.attestation = {
       signedBy: ATTESTOR,
       issuedAt: at(2),
       selector: 'btps1',
       // Only which keys are looked up matters here, not whether this signature holds.
-      signature: { algorithmHash: 'sha256', value: 'unchecked', fingerprint: fp(attestor) },
+      signature: { algorithmHash: 'sha256', value: 'AA==', fingerprint: fp(attestor) },
     };
     attested.keys.push({
       identity: ATTESTOR,
@@ -514,7 +547,7 @@ describe('an evidence bundle checked online', () => {
 
   it("takes an operator's answer for a lost key's rotation once DNS names its signer the operator and confirms its key", async () => {
     const lost = await lostRotation();
-    const { agreement, statements } = await signed();
+    const { agreement, cosignatures, statements } = await signed();
     // DNS names admin$client.example (OPERATOR) as Alice's domain's operator (`op=`).
     const answeredBy = (signedBy: string, signer: typeof op) => {
       const keyOf = dnsNow({
@@ -524,7 +557,10 @@ describe('an evidence bundle checked online', () => {
       });
       const operatorAnswered = operatorAnswer(ALICE, [lost], signer, signedBy);
       const keyChains = [{ identity: ALICE, records: [lost], operatorAnswer: operatorAnswered }];
-      return buildEvidenceBundle({ originator: BANK, agreement, statements, keyChains }, keyOf);
+      return buildEvidenceBundle(
+        { originator: BANK, agreement, cosignatures, statements, keyChains },
+        keyOf,
+      );
     };
     const bundle = answeredBy(OPERATOR, op);
     const chainFacts = async (of = bundle) =>

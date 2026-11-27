@@ -183,6 +183,12 @@ its signatory's and its BoundView's included, and these:
 | a statement's `viewedFrom.userAgent`, `signedFrom.userAgent` |                                 256 |
 | a statement's `viewedFrom.device.id`, `signedFrom.device.id` |                                 128 |
 | each other field of `viewedFrom.device`, `signedFrom.device` |                                 100 |
+| `salt`                                                       |                    exactly 32 bytes |
+| a cosignature's encrypted statement, padded to a multiple of |                    4,096 characters |
+| a cosignature's `ciphertext` (base64)                        |                  262,144 characters |
+| a cosignature's `recipients`                                 |                             1 to 21 |
+
+Since 1.2, a cosignature's statement is padded with `0`s to a multiple of 4,096 characters before it is encrypted, so its length does not tell an acceptance from a decline. A receiver refuses a statement whose padding is not exactly that. The ciphertext limit leaves room for a statement with a drawn signature, padded: a cosignature carries a statement, never a document. A cosignature's `recipients` include its signer and the agreement's originator, each identity once (compared without case), so there are at most 21 (the 20 signers and an originator that does not sign). See [Cosignatures](./transporter-artifact.md#cosignatures).
 
 ## Lists and records
 
@@ -217,7 +223,8 @@ Since 1.2, the lists that trust permissions, details refresh and agreements add.
 | a `TRUST_RES`'s `granted`                                               |      13 |
 | a details artifact's `details` (at least one)                           |       8 |
 | an agreement's `acceptance.signers`                                     |      20 |
-| the `statements` of an `agreement_progress` or `agreement_complete`     | 1 to 20 |
+| a `BTPS_EVENT`'s `cosignatures`                                         | 1 to 20 |
+| an evidence bundle's `cosignatures`                                     |      20 |
 | an evidence bundle's `statements`                                       |      20 |
 | an evidence bundle's `keys` (up to four for each signer, plus two more) |      82 |
 | an evidence bundle's `timestamps`                                       |      20 |
@@ -271,6 +278,8 @@ BTPS_FIELD_LIMITS.trustRequest.reason; // 2000
 BTPS_FIELD_LIMITS.documentId; // 100
 BTPS_FIELD_LIMITS.letter.content; // 100000
 BTPS_FIELD_LIMITS.lineItems.rows; // 10000
+BTPS_FIELD_LIMITS.agreement.statementPaddingBucket; // 4096, since 1.2
+BTPS_FIELD_LIMITS.agreement.cosignatureCiphertextChars; // 262144, since 1.2
 ```
 
 ## Receiver settings

@@ -21,12 +21,12 @@ import type { z } from 'zod';
 import type { BtpAgreementDocSchema } from '@core/server/schemas/btpsDocsSchema.js';
 import type { BTPDelegation } from '@core/server/types.js';
 import { sameIdentity } from '@core/server/schemas/helpers.js';
+import { cosignatureSha256 } from './cosignatures.js';
 import type {
   BTPAgreementAnswers,
   BTPAgreementRef,
   BTPAgreementStatement,
-  BTPStatementRecord,
-  BTPStatementSignatureFacts,
+  BTPCosignature,
 } from './types.js';
 
 type BTPAgreementDoc = z.infer<typeof BtpAgreementDocSchema>;
@@ -66,12 +66,6 @@ export const agreementRef = (
 });
 
 /**
- * Since 1.2: the SHA-256, in lowercase hex, of a statement record's RFC 8785
- * form, signature included: what the next statement names as `previous`.
- */
-export const statementRecordSha256 = (record: BTPStatementRecord): string => sha256Of(record);
-
-/**
  * Since 1.2: an agreement signed by its originator, over the RFC 8785 form of
  * `{ originator, id, contentSha256 }`. Every signer's copy carries the same.
  */
@@ -94,96 +88,6 @@ export const originatorSignatureValid = (
 ): boolean => {
   const { selector, signature } = agreement.originatorSignature;
   return isValid(agreementRef(agreement, originator), signature, keyOf(originator, selector));
-};
-
-/** Since 1.2: a statement signed with the signer's identity key, which may be one its provider holds. */
-export const signStatement = async (
-  statement: BTPAgreementStatement,
-  by: { selector: string } & SigningKey,
-): Promise<BTPStatementRecord> => ({
-  statement,
-  selector: by.selector,
-  signature: await sign(statement, by),
-});
-
-/**
- * Since 1.2: a statement signed with a device's key. Its record is complete
- * once the originator adds the delegated artifact that delivered it
- * (`deviceStatementRecord`).
- */
-export const signStatementOnDevice = async (
-  statement: BTPAgreementStatement,
-  device: SigningKey,
-): Promise<{ statement: BTPAgreementStatement; signature: BTPSignature }> => ({
-  statement,
-  signature: await sign(statement, device),
-});
-
-/** Since 1.2: a device's statement with the delegated artifact that delivered it, as it arrived. */
-export const deviceStatementRecord = (
-  signed: { statement: BTPAgreementStatement; signature: BTPSignature },
-  delegatedArtifact: Extract<
-    BTPStatementRecord,
-    { delegatedArtifact: object }
-  >['delegatedArtifact'],
-): BTPStatementRecord => ({ ...signed, delegatedArtifact });
-
-/**
- * Since 1.2: what a statement record's signature shows, from the record alone
- * and the keys `keyOf` gives. A device-signed record holds when the delegation
- * is its delegator's over the artifact, a self-delegation (signed by the
- * signer itself) carries an attestation, any attestation is its attestor's,
- * the artifact came from the signer and is signed by the delegated key, and so
- * is the statement. Every one of these is checked offline. Whether the
- * delegator or the attestor is the signer's domain's operator needs DNS
- * (`_btps.host` `op`): it is not checked here, and `delegatedBy` and
- * `attestedBy` report who they are.
- */
-export const statementSignatureFacts = (
-  record: BTPStatementRecord,
-  keyOf: BTPKeyOf,
-): BTPStatementSignatureFacts => {
-  const { statement, signature } = record;
-  if (!record.delegatedArtifact) {
-    return {
-      signatureValid: isValid(statement, signature, keyOf(statement.signer, record.selector)),
-      keyKind: 'identity',
-    };
-  }
-  const { delegation, ...artifact } = record.delegatedArtifact;
-  // The delegation is signed before it is attested: the attestation is not part of what it signed.
-  const { signature: delegationSignature, attestation, ...unsignedDelegation } = delegation;
-  const { signature: artifactSignature, ...unsignedArtifact } = artifact;
-  // A server refuses a self-delegation without an attestation, so this does too.
-  const selfDelegated = sameIdentity(delegation.signedBy, artifact.from);
-  const signatureValid =
-    sameIdentity(artifact.from, statement.signer) &&
-    (!selfDelegated || attestation !== undefined) &&
-    isValid(
-      { ...artifact, delegation: unsignedDelegation },
-      delegationSignature,
-      keyOf(delegation.signedBy, delegation.selector),
-    ) &&
-    attestationHolds(delegation, keyOf) &&
-    isValid(unsignedArtifact, artifactSignature, delegation.agentPubKey) &&
-    isValid(statement, signature, delegation.agentPubKey);
-  return {
-    signatureValid,
-    keyKind: 'device',
-    delegatedBy: delegation.signedBy,
-    ...(attestation && { attestedBy: attestation.signedBy }),
-  };
-};
-
-/** A delegation's attestation, when it has one, signed by its attestor over the signed delegation. */
-const attestationHolds = ({ attestation, ...delegation }: BTPDelegation, keyOf: BTPKeyOf) => {
-  if (!attestation) return true;
-  const { signature, ...unsigned } = attestation;
-  return isValid(
-    { ...delegation, attestation: unsigned },
-    signature,
-    keyOf(attestation.signedBy, attestation.selector),
-  );
 };
 
 /**
@@ -233,7 +137,7 @@ export const agreementOrderProblem = (
   const last = held.answered[held.answered.length - 1];
   if (previous === last?.sha256) return undefined;
   return last
-    ? 'previous is the SHA-256 of the statement record before it'
+    ? 'previous is the SHA-256 of the cosignature before it'
     : 'the first statement names no previous';
 };
 
@@ -243,25 +147,30 @@ const sameRef = (a: BTPAgreementRef, b: BTPAgreementRef) =>
 /**
  * Since 1.2: why an opened answer does not answer its agreement, or undefined:
  * the originator's platform's check, never the server's. `envelope` is the
- * answer's own `from` and `to`, `agreement` the receiver's copy, and `earlier`
- * the statement records it has already taken, in order. The statement names
- * this agreement and its terms exactly, is its sender's own, is signed by the
- * deadline, and follows the signers' order. Signatures are not part of this:
- * `statementSignatureFacts` checks them.
+ * answer's own `from` and `to`, `answer` its event and its cosignature with
+ * the statement opened from it (decryptVerify's `cosigned`), `agreement` the
+ * receiver's copy, and `earlier` the cosignatures already taken, in order,
+ * each with its opened statement. The statement names this agreement and its
+ * terms exactly, is its sender's own, is signed by the deadline, and follows
+ * the signers' order. Signatures are not part of this: the server checked
+ * them on receipt (cosignaturesProblem).
  */
 export const agreementStatementProblem = (
   envelope: { from: string; to: string },
-  event: { eventType: string; agreement: BTPAgreementRef; statement?: BTPStatementRecord },
+  answer: {
+    eventType: string;
+    agreement: BTPAgreementRef;
+    cosignature: BTPCosignature;
+    statement: BTPAgreementStatement;
+  },
   agreement: BTPAgreementDoc,
-  earlier: readonly BTPStatementRecord[],
+  earlier: readonly { cosignature: BTPCosignature; statement: BTPAgreementStatement }[],
 ): string | undefined => {
-  const record = event.statement;
-  if (record === undefined) return 'only an answer carries a statement';
-  const { statement } = record;
-  if (statement.decision !== event.eventType) {
+  const { statement } = answer;
+  if (statement.decision !== answer.eventType) {
     return "an answer's eventType is its statement's decision";
   }
-  if (!sameRef(event.agreement, statement.agreement)) {
+  if (!sameRef(answer.agreement, statement.agreement)) {
     return "the event's agreement is its statement's";
   }
   if (!sameRef(statement.agreement, agreementRef(agreement, envelope.to))) {
@@ -285,7 +194,7 @@ export const agreementStatementProblem = (
       answered: earlier.map((before) => ({
         signer: before.statement.signer,
         decision: before.statement.decision,
-        sha256: statementRecordSha256(before),
+        sha256: cosignatureSha256(before.cosignature),
       })),
     },
   );

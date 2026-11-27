@@ -87,6 +87,21 @@ describe("a device's own key to an encrypted result", () => {
     ).toBe(false);
   });
 
+  it("carries each cosignature's key by position, with or without the document's", () => {
+    const { key: _key, ...noDocumentKey } = agentKey;
+    for (const withCosignatures of [
+      { ...agentKey, cosignatureKeys: ['AA==', null] },
+      { ...noDocumentKey, cosignatureKeys: [null, 'AA=='] },
+    ]) {
+      expect(
+        BtpQueryResultEntrySchema.safeParse({ artifact, agentKey: withCosignatures }).success,
+      ).toBe(true);
+    }
+    expect(BtpQueryResultEntrySchema.safeParse({ artifact, agentKey: noDocumentKey }).success).toBe(
+      false,
+    );
+  });
+
   it('leaves a result without agentKey as 1.1 has it', () => {
     expect(BtpQueryResultEntrySchema.safeParse({ artifact, meta: { seen: true } }).success).toBe(
       true,

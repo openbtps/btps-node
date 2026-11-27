@@ -175,16 +175,20 @@ export function loadVectorSet(dir) {
   const agreementCases = {
     documents: ['type', 'version', 'document'],
     events: ['type', 'version', 'document'],
+    // Since 1.2: an opened statement, cosignatures as a server checks them, and one opened by its recipient.
+    cosigned: ['value'],
     envelopes: ['artifact'],
+    cosignatures: ['artifact', 'keys'],
+    opened: ['cosignature', 'receiver'],
     documentType: ['artifact', 'record'],
     stamped: ['artifact'],
-    statements: ['envelope', 'event', 'agreement', 'earlier'],
+    statements: ['envelope', 'answer', 'agreement', 'earlier'],
     bundles: ['bundle'],
   };
   requireFields(VECTOR_FILES.agreements, set.agreements, [
     ...Object.keys(agreementCases),
     'contentSha256',
-    'statementSha256',
+    'cosignatureSha256',
   ]);
   for (const [key, more] of Object.entries(agreementCases)) {
     for (const c of set.agreements[key]) {
@@ -192,7 +196,7 @@ export function loadVectorSet(dir) {
     }
   }
   requireFields(VECTOR_FILES.agreements, set.agreements.contentSha256, ['document', 'sha256']);
-  requireFields(VECTOR_FILES.agreements, set.agreements.statementSha256, ['record', 'sha256']);
+  requireFields(VECTOR_FILES.agreements, set.agreements.cosignatureSha256, ['cosignature', 'sha256']);
   requireFields(VECTOR_FILES.keyRotation, set.keyRotation, ['recordHash', 'chains', 'online']);
   requireFields(VECTOR_FILES.keyRotation, set.keyRotation.recordHash, ['record', 'sha256']);
   for (const c of [...set.keyRotation.chains, ...set.keyRotation.online]) {

@@ -235,7 +235,7 @@ sequenceDiagram
     S->>R: Send BTPS artifact
 
     R->>R: Server: size, format (a plain document is checked here), version
-    R->>R: Server: verify sender signature, its key against the key chain, time window
+    R->>R: Server: verify sender signature, its key against the key chain, any cosignatures, time window
     R->>R: Server: check trust relationship, privacy type, and send:documentType granted
     R->>R: Platform middleware, if added (event chain, agreement order, details)
     R->>R: Server: hand to the receiver's handler, then answer the sender
@@ -254,11 +254,11 @@ sequenceDiagram
    - **`mixed`**: Either is accepted
 4. **Cryptographic Signing**: BTPS artifact, including any ciphertext, signed with the sender's private key
 5. **Transmission**: BTPS artifact sent to receiver's BTPS server
-6. **Server Checks**: Size, format and version, then the sender's signature and the time window
+6. **Server Checks**: Size, format and version, then the sender's signature and, since 1.2, each [cosignature](./specifications/transporter-artifact.md#cosignatures) an agreement's event carries, and the time window
 7. **Trust Verification**: Receiver's server checks the sender is trusted and sent with the agreed privacy type, and, under a trust with permissions, that its `documentType` is granted
 8. **Hand-over**: The platform's own middleware runs, if added ([Your platform's checks](../features/platformChecks.md)); then the artifact goes to the receiver's handler, and the sender gets its answer once the handler returns
 9. **Storage**: Document stored in receiver's inbox system
-10. **Decryption**: The receiver verifies the signature again, decrypts with its own private key, and checks the document, its `documentType` and any BoundView (`decryptVerify`)
+10. **Decryption**: The receiver verifies the signature again, decrypts with its own private key, and checks the document, its `documentType` and any BoundView (`decryptVerify`); since 1.2, it also opens each cosignature addressed to it
 11. **Processing**: Document processed by the receiver's application
 
 The server never decrypts: a document sent in the clear is checked at the server, an encrypted one only by the receiver after decrypting.

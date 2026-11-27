@@ -25,7 +25,13 @@ import {
   processBtpDocSchema,
   sameIdentity,
 } from '../helpers.js';
-import { BtpAgreementEventSchema, BtpLifecycleEventSchema, sha256Hex } from '../btpsDocsSchema.js';
+import {
+  BtpAgreementEventSchema,
+  BtpCosignatureSchema,
+  BtpLifecycleEventSchema,
+  sha256Hex,
+} from '../btpsDocsSchema.js';
+import { BTPS_FIELD_LIMITS } from '../../constants/limits.js';
 import { boundedArray } from '../bounded.js';
 import type { BTPEntityType } from '../../types.js';
 
@@ -97,6 +103,8 @@ export const BtpTransporterArtifactBaseSchema = z.object({
   granted: namesFrom(PERMISSION_NAMES).optional(),
   documentType: z.enum(DOCUMENT_TYPES).optional(),
   details: namesFrom(DETAIL_PERMISSIONS, 1).optional(),
+  // Since 1.2: parties' signed statements, outside the encrypted document (core/trust/cosignatures.ts).
+  cosignatures: boundedArray(BtpCosignatureSchema, BTPS_FIELD_LIMITS.agreement.signers).optional(),
 });
 
 type TransporterEnvelope = z.infer<typeof BtpTransporterArtifactBaseSchema>;
@@ -240,6 +248,19 @@ export const BtpTransporterArtifactSchema = BtpTransporterArtifactBaseSchema.sup
           path: ['syncOf'],
         });
       }
+    }
+    // Since 1.2: cosignatures ride only on an event, in a 1.2.0 artifact, and at least one.
+    if (data.cosignatures !== undefined) {
+      const problem =
+        data.type !== 'BTPS_EVENT'
+          ? 'cosignatures are only on a BTPS_EVENT'
+          : isVersionBelow(data.version, '1.2.0')
+            ? 'cosignatures are only in a 1.2.0 artifact'
+            : data.cosignatures.length === 0
+              ? 'cosignatures are at least one'
+              : undefined;
+      if (problem)
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem, path: ['cosignatures'] });
     }
     for (const [path, message] of permissionEnvelopeProblems(data)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: [path] });

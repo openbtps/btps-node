@@ -226,7 +226,7 @@ An entry's `meta` may hold any other keys a provider adds. Three are named: `see
 
 No other key is allowed in `delivery`. A device reads it from `sentbox.fetch` from time to time, matching the ids of the sends it holds, rather than asking again and again whether a send has gone.
 
-**`agentKey`** (since 1.2, beside an entry's `artifact` and `meta`): an encrypted artifact's AES content key, which the provider has wrapped again with RSA-OAEP / SHA-256 to the key of the device that asked. The device reads the document with its own key, never the identity's. The artifact is untouched, so the sender's signature still verifies.
+**`agentKey`** (since 1.2, beside an entry's `artifact` and `meta`): an encrypted artifact's AES content key (and its cosignatures' content keys), which the provider has wrapped again with RSA-OAEP / SHA-256 to the key of the device that asked. The device reads the document with its own key, never the identity's. The artifact is untouched, so the sender's signature still verifies.
 
 ```json sketch
 {
@@ -239,6 +239,8 @@ No other key is allowed in `delivery`. A device reads it from `sentbox.fetch` fr
 ```
 
 - `fingerprint` is the device key it is wrapped to, as the device's record holds it. A provider always wraps to the key the record holds now, so a device that has not finished moving to a new key can tell the wrap is not for the key it holds.
+- **`cosignatureKeys`** (since 1.2): for an artifact that carries [cosignatures](./transporter-artifact.md#cosignatures), each cosignature's content key, wrapped again to the same device key, by position: `null` where the identity is not one of that cosignature's recipients. 1 to 20 entries. The device opens the statements addressed to its identity with them.
+- `key` is optional: an unencrypted artifact that carries cosignatures has no content key, and its `agentKey` has `cosignatureKeys` alone. An `agentKey` has at least one of `key` and `cosignatureKeys`.
 - No other key is allowed in `agentKey`.
 - A 1.1 client ignores it.
 

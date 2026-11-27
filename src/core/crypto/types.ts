@@ -18,6 +18,7 @@ import {
 import type { Signer } from './signer-interface.js';
 import type { Decrypter } from './decrypter-interface.js';
 import type { BTPBoundViewResult } from '@core/server/schemas/boundViewChecks.js';
+import type { BTPAgreementStatement } from '@core/trust/types.js';
 
 export type EncryptionMode = 'none' | 'standardEncrypt' | '2faEncrypt';
 
@@ -81,6 +82,11 @@ export interface BTPCryptoResponse<T = BTPDocType> {
   shaped?: BTPShaped;
   /** Since 1.2: whether the opened document's BoundView may be shown, when it carries one */
   boundView?: BTPBoundViewResult;
+  /**
+   * Since 1.2: the statement in each of the event's cosignatures, by position: opened and held to what its
+   * signer signed when the receiver is one of its recipients, null when it is not.
+   */
+  cosigned?: (BTPAgreementStatement | null)[];
 }
 
 export interface VerifyEncryptedPayload<T = unknown | string> {

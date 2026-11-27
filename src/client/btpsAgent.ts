@@ -308,6 +308,7 @@ export class BtpsAgent extends BtpsClient {
       ...(options?.syncOf !== undefined && { syncOf: options.syncOf }),
       ...(options?.documentType !== undefined && { documentType: options.documentType }),
       ...(options?.details !== undefined && { details: options.details }),
+      ...(options?.cosignatures !== undefined && { cosignatures: options.cosignatures }),
       ...trustFields,
     };
 
@@ -386,7 +387,8 @@ export class BtpsAgent extends BtpsClient {
 
   /**
    * Since 1.2: opens an encrypted query result with this device's own key,
-   * through the `agentKey` its provider wrapped for it. Who signed it is checked
+   * through the `agentKey` its provider wrapped for it, and since 1.2 the
+   * statements in its cosignatures through `agentKey.cosignatureKeys`. Who signed it is checked
    * as a server checks it on arrival (a delegation and its attestation too), and
    * the document as any decrypted one is.
    * @param entry - A query result entry with `agentKey`
@@ -400,8 +402,10 @@ export class BtpsAgent extends BtpsClient {
     });
     if (!agentKey) return refuse('The result has no agentKey for this device');
     if (!this.decryptionKey) return refuse('This device holds no key to decrypt with');
-    if (!('selector' in artifact) || !artifact.encryption) {
-      return refuse('Only an encrypted transporter artifact is opened with an agentKey');
+    if (!('selector' in artifact) || (!artifact.encryption && !agentKey.cosignatureKeys)) {
+      return refuse(
+        'Only an encrypted transporter artifact, or one with cosignatures, is opened with an agentKey',
+      );
     }
 
     const ownPublicKey =
@@ -427,6 +431,7 @@ export class BtpsAgent extends BtpsClient {
         { ...artifact },
         this.decryptionKey,
         agentKey.key,
+        agentKey.cosignatureKeys,
       );
     } catch (error) {
       return { payload: undefined, error: transformToBTPErrorException(error) };

@@ -244,6 +244,8 @@ export type BTPAgreementStatement = {
   agreement: BTPAgreementRef;
   terms: string[];
   signer: string;
+  /** Since 1.2: the artifact that first delivers it (a device's: its delegated artifact), as its cosignature names it. */
+  artifactId: string;
   decision: 'accepted' | 'declined';
   signedAt: string;
   previous?: string;
@@ -299,27 +301,45 @@ export type BTPElectronicConsent = {
 };
 
 /**
- * Since 1.2: a signed statement. Signed by the signer's identity key at
- * `selector`, or by its device key, when it carries the whole delegated
- * artifact that delivered it, as it arrived.
+ * Since 1.2: a party's signed statement about a document, as a
+ * `BTPS_EVENT` carries it outside its own encrypted document, so every BTPS
+ * server checks it on receipt without decrypting. Its statement, padded to its
+ * size bucket (cosignedStatementText), is encrypted once to every `recipients`
+ * identity; the signer then signs the cosignature over that ciphertext and the
+ * statement's SHA-256 (encrypt, then sign). It is
+ * forwarded unchanged, so its signature holds at every hop. `previous` is the
+ * SHA-256 of the cosignature before it in a sequential chain, and
+ * `statementSha256` the SHA-256 of the encrypted record's exact bytes.
+ * `artifactId` names the artifact that first delivered it: a device's must be
+ * its delegated artifact.
  */
-export type BTPStatementRecord = { statement: BTPAgreementStatement; signature: BTPSignature } & (
+export type BTPCosignature = {
+  ref: BTPAgreementRef;
+  signer: string;
+  artifactId: string;
+  previous?: string;
+  statementSha256: string;
+  recipients: BTPCosignatureRecipient[];
+  encryption: { algorithm: 'aes-256-gcm'; iv: string; authTag: string };
+  ciphertext: string;
+  signature: BTPSignature;
+} & (
   | { selector: string; delegatedArtifact?: never }
   | {
       delegatedArtifact: BTPTransporterArtifact & { delegation: BTPDelegation };
       selector?: never;
     }
+  // A device's, inside the delegated artifact that first delivers it: that artifact's delegation stands for it.
+  | { selector?: never; delegatedArtifact?: never }
 );
 
-/** Since 1.2: what a statement record's signature shows. BTPS reports these and decides nothing. */
-export type BTPStatementSignatureFacts = {
-  /** The statement is signed by its signer's key, or by a device its delegation vouches for */
-  signatureValid: boolean;
-  /** Which kind of key signed it, from the record itself */
-  keyKind: 'identity' | 'device';
-  /** For a device: who signed its delegation, and who attested it, if anyone */
-  delegatedBy?: string;
-  attestedBy?: string;
+/** Since 1.2: one party a cosignature's statement is encrypted to: its content key, wrapped to that party's key. */
+export type BTPCosignatureRecipient = {
+  identity: string;
+  /** The SHA-256 fingerprint of the key it is wrapped to, as getFingerprintFromPem gives it */
+  fingerprint: string;
+  /** The content key, RSA-OAEP-wrapped to that key, base64 */
+  wrappedKey: string;
 };
 
 /** Since 1.2: a tax or registration number, for any country (ISO 3166-1 alpha-2, e.g. `AU`). */

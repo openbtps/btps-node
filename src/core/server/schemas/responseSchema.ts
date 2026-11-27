@@ -115,11 +115,16 @@ export const BtpQueryResultEntrySchema = z.object({
   // Since 1.2: the content key wrapped again to the device that asked.
   agentKey: z
     .object({
-      key: z.string().min(1),
+      key: z.string().min(1).optional(),
+      // Since 1.2: each cosignature's content key, by position.
+      cosignatureKeys: z.array(z.string().min(1).nullable()).min(1).max(20).optional(),
       fingerprint: z.string().min(1),
       wrappedAt: z.string().datetime(),
     })
     .strict()
+    .refine((agentKey) => agentKey.key !== undefined || agentKey.cosignatureKeys !== undefined, {
+      message: 'an agentKey wraps a content key, or cosignature keys',
+    })
     .optional(),
 });
 
