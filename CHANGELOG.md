@@ -115,6 +115,18 @@ below; `@btps/boundview` is released in step, unchanged.
   `statements`.
 - Schema `BtpStatementRecordSchema`, now `BtpCosignatureSchema`.
 
+### Fixed
+
+- **A details message is not held to the trust's privacy type.** The server
+  checked a `DETAILS_CHANGED`, `DETAILS_REQ` and `DETAILS_RES` against the
+  trust's privacy type as if it were a document, so under an `encrypted` trust,
+  the default, an unencrypted notice or request was refused with
+  `BTP_ERROR_PRIVACY_TYPE`, and under an `unencrypted` trust a response, always
+  encrypted, could never be delivered. A details message is about the trust,
+  as a trust request or answer is, and what it carries decides: a response,
+  with values, is always encrypted; a notice or a request, with none, may go
+  unencrypted. Documents and events are held to the privacy type as before.
+
 ## [1.2.0-rc.3.4] — 2026-11-26 (beta, release candidate)
 
 A platform can decrypt, encrypt, sign and verify a large payload a piece at a

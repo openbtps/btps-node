@@ -20,6 +20,8 @@ slug: details-refresh
 
 It works over the trust in either direction.
 
+**Encryption.** A details message is about the trust, as a trust request or answer is, not a document sent over it, so the trust's privacy type does not apply to it. What it carries decides: a response carries values, so it is always encrypted, whatever the trust's privacy type; a notice or a request carries none, so it may go unencrypted, whatever the trust's privacy type.
+
 ## The flow
 
 ```mermaid

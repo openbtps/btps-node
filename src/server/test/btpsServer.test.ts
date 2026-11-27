@@ -9,7 +9,11 @@ import { describe, it, expect, beforeEach, vi, afterEach, type Mock } from 'vite
 import { BtpsServer } from '../btpsServer.js';
 import { BtpsClient } from '../../client/btpsClient.js';
 import { AbstractTrustStore } from '../../core/trust/storage/AbstractTrustStore.js';
-import { BTPKeyChainRecord, BTPTrustRecord } from '../../core/trust/types.js';
+import {
+  BTPKeyChainRecord,
+  BTPTrustRecord,
+  BTPTrustRecordPermissions,
+} from '../../core/trust/types.js';
 import { computeAgentTrustId, computeTrustId, signKeyRotation } from '../../core/trust/index.js';
 import { BtpServerResponseSchema } from '../../core/server/schemas/responseSchema.js';
 import { EventEmitter } from 'events';
@@ -3225,6 +3229,60 @@ export default function () {
           expect((await check('mixed', encrypted)).isTrusted).toBe(true);
           expect((await check('mixed', transporterArtifact())).isTrusted).toBe(true);
           expect((await check('encrypted', encrypted)).isTrusted).toBe(true);
+        });
+
+        it("does not hold a details message to the trust's privacy type: what it carries decides", async () => {
+          const permissions: BTPTrustRecordPermissions = {
+            requested: [],
+            granted: [],
+            detailsHeld: ['detail:email'],
+            detailsShared: ['detail:email'],
+          };
+          const sealed = {
+            algorithm: 'aes-256-gcm',
+            encryptedKey: 'k',
+            iv: 'i',
+            type: 'standardEncrypt',
+            authTag: 't',
+          } as const;
+          const details = (
+            type: 'DETAILS_REQ' | 'DETAILS_CHANGED' | 'DETAILS_RES',
+            encrypted: boolean,
+          ): BTPTransporterArtifact =>
+            ({
+              ...transporterArtifact(),
+              version: '1.2.0',
+              type,
+              details: ['detail:email'],
+              ...(type === 'DETAILS_RES' && { relatesTo: 'req-1' }),
+              document: encrypted ? 'ciphertext' : {},
+              encryption: encrypted ? sealed : null,
+            }) as BTPTransporterArtifact;
+          trustStore.isKnownArtifact = vi.fn().mockResolvedValue(true);
+          const check = (
+            privacyType: BTPTrustRecord['privacyType'],
+            artifact: BTPTransporterArtifact,
+          ) => {
+            trustStore.getById = vi
+              .fn()
+              .mockResolvedValue(trustRecord({ privacyType, permissions }));
+            return server['verifyTrust']({ artifact, type: 'transporter' });
+          };
+
+          // A notice or a request carries no values: unencrypted over an encrypted trust, the default.
+          expect((await check('encrypted', details('DETAILS_REQ', false))).isTrusted).toBe(true);
+          expect((await check('encrypted', details('DETAILS_CHANGED', false))).isTrusted).toBe(
+            true,
+          );
+          // A response carries values and is always encrypted, over an unencrypted trust too.
+          expect((await check('unencrypted', details('DETAILS_RES', true))).isTrusted).toBe(true);
+          // A document is still held to it.
+          trustStore.getById = vi.fn().mockResolvedValue(trustRecord({ privacyType: 'encrypted' }));
+          const document = await server['verifyTrust']({
+            artifact: transporterArtifact(),
+            type: 'transporter',
+          });
+          expect(document.error?.code).toBe(BTP_ERROR_PRIVACY_TYPE.code);
         });
 
         it('sends a not-allowed refusal on the wire for a never-trusted sender', async () => {

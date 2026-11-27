@@ -278,6 +278,8 @@ Every step is its own artifact, delivered like any other, so a platform may queu
 - a notice or a response names only details the receiver holds of the sender, and a request only details the answerer shares (`BTP_ERROR_DETAILS_NOT_HELD`); a trust without permissions holds none;
 - a response answers a request the receiver knows (`isKnownArtifact` on its `relatesTo`, `BTP_ERROR_PERMISSION`).
 
+The trust's privacy type is not checked: a details message is about the trust, not sent over it. A response carries values and is always encrypted (the schema refuses one in the clear); a notice or a request carries none and may go unencrypted.
+
 **The platform's own checks.** Two more checks read records only the platform keeps, so they are the platform's, off until it adds them as middleware from `@btps/sdk/server/core`. Each runs after the server's trust check and refuses in flight, from the envelope, encrypted or not:
 
 - `detailsResponseCheck({ getArtifact })`: a response answers a `DETAILS_REQ` its receiver sent to its sender, and names only what that request asked for (`detailsRequestRefusal`; `BTP_ERROR_PERMISSION`, the reason in its message). For a response arriving and for one this provider's own device sends.
@@ -404,7 +406,7 @@ Used to accept, reject, or block trust requests.
 - **expiresAt**: Trust expiration date (ISO format)
 - **retryAfterDate**: Date after which retry is allowed (ISO format)
 - **message**: Custom message to sender: a note, with a format since 1.2 (see Notes)
-- **privacyType**: Agreed privacy level (unencrypted, encrypted, mixed). The receiver enforces it on every artifact sent over the trust: `encrypted` refuses one sent in the clear, `unencrypted` refuses an encrypted one, and `mixed` allows either. A refused artifact is answered `BTP_ERROR_PRIVACY_TYPE` (400).
+- **privacyType**: Agreed privacy level (unencrypted, encrypted, mixed). The receiver enforces it on every document and event sent over the trust: `encrypted` refuses one sent in the clear, `unencrypted` refuses an encrypted one, and `mixed` allows either. A refused artifact is answered `BTP_ERROR_PRIVACY_TYPE` (400). It does not apply to an artifact about the trust itself, a trust request or answer or a [details refresh](#details-refresh): what that carries decides, and one carrying values (a request's `own`, an answer's `details`, a `DETAILS_RES`) is always encrypted.
 
 ### 3. BTPS Document (`BTPS_DOC`)
 

@@ -1299,6 +1299,12 @@ export class BtpsServer {
    * Since 1.2: a details refresh, on an active trust in either direction, read
    * from the receiver's own record of it: its names against what each side
    * holds, and a response against a request it knows. Nothing is decrypted.
+   *
+   * Like a trust request or answer, a details message is about the trust, not
+   * sent over it as a document is, so the trust's privacy type does not apply
+   * to it. What it carries decides: a response carries values and is always
+   * encrypted; a notice or a request carries none and may go unencrypted (the
+   * schema holds both).
    */
   private async verifyDetailsTrust(
     artifact: BTPTransporterArtifact,
@@ -1329,7 +1335,7 @@ export class BtpsServer {
       }
     }
 
-    return this.verifyPrivacyType(artifact, record);
+    return { isTrusted: true, error: undefined };
   }
 
   /**
@@ -1465,9 +1471,10 @@ export class BtpsServer {
   }
 
   /**
-   * A trust records how its artifacts are sent: 'encrypted' refuses one sent in
-   * the clear, 'unencrypted' one the receiver did not agree to decrypt, and
-   * 'mixed' allows either. A record without one allows either.
+   * A trust records how the documents and events sent over it travel:
+   * 'encrypted' refuses one sent in the clear, 'unencrypted' one the receiver
+   * did not agree to decrypt, and 'mixed' allows either. A record without one
+   * allows either. Not applied to a trust or details message (above).
    */
   private verifyPrivacyType(
     artifact: BTPTransporterArtifact,
