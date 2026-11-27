@@ -7,18 +7,13 @@
 
 // agreementStatementProblem: the originator's platform's check of an opened
 // answer against its agreement and the answers already taken. Signatures are
-// statementSignatureFacts' (evidence.test.ts), so these records are signed for
-// real but only their content is in question.
+// the server's (cosignaturesProblem, cosignatures.test.ts), so these
+// cosignatures are signed for real but only their content is in question.
 
 import { describe, expect, it } from 'vitest';
-import { generateKeyPairSync } from 'crypto';
-import {
-  agreementRef,
-  agreementStatementProblem,
-  signAgreement,
-  signStatement,
-  statementRecordSha256,
-} from './agreements.js';
+import { generateKeyPairSync, randomUUID } from 'crypto';
+import { agreementRef, agreementStatementProblem, signAgreement } from './agreements.js';
+import { cosign, cosignatureSha256 } from './cosignatures.js';
 import type { BTPAgreementStatement } from './types.js';
 import type { BTPAgreementDoc } from '../../server/types.js';
 
@@ -31,7 +26,7 @@ const keyPair = () =>
 const BANK = 'loans$bank.example';
 const ALICE = 'alice$client.example';
 const SAM = 'sam$guarantor.example';
-const keys = { [BANK]: keyPair(), [ALICE]: keyPair(), [SAM]: keyPair() };
+const keys: Record<string, ReturnType<typeof keyPair>> = { [BANK]: keyPair(), [ALICE]: keyPair(), [SAM]: keyPair() };
 const TERM = 'a'.repeat(64);
 
 const agreementFor = (acceptance: Partial<BTPAgreementDoc['acceptance']> = {}) =>
@@ -40,6 +35,7 @@ const agreementFor = (acceptance: Partial<BTPAgreementDoc['acceptance']> = {}) =
       type: 'agreement',
       title: 'Home loan',
       id: 'AGR-1',
+      salt: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
       issuedAt: '2026-11-01T00:00:00.000Z',
       body: { format: 'text', content: 'A loan.' },
       acceptance: {
@@ -50,40 +46,32 @@ const agreementFor = (acceptance: Partial<BTPAgreementDoc['acceptance']> = {}) =
         ...acceptance,
       },
     },
-    { originator: BANK, selector: 'btps1', pemFiles: keys[BANK] },
+    { originator: BANK, selector: 'btps1', pemFiles: keys[BANK]! },
   );
 
-const recordBy = (
-  agreement: BTPAgreementDoc,
-  signer: typeof ALICE | typeof SAM,
-  more: Partial<BTPAgreementStatement> = {},
-) =>
-  signStatement(
-    {
-      agreement: agreementRef(agreement, BANK),
-      terms: [TERM],
-      signer,
-      decision: 'accepted',
-      signedAt: '2026-11-02T00:00:00.000Z',
-      ...more,
-    },
-    { selector: 'btps1', pemFiles: keys[signer] },
-  );
-
-/** An answer from `signer` to the bank, as its event carries it. */
+/** An answer from `signer` to the bank: its event, its cosignature, and the statement decryptVerify opened from it. */
 const answer = async (
   agreement: BTPAgreementDoc,
   signer: typeof ALICE | typeof SAM,
   more: Partial<BTPAgreementStatement> = {},
 ) => {
-  const statement = await recordBy(agreement, signer, more);
+  const statement: BTPAgreementStatement = {
+    agreement: agreementRef(agreement, BANK),
+    terms: [TERM],
+    signer,
+    artifactId: randomUUID(),
+    decision: 'accepted',
+    signedAt: '2026-11-02T00:00:00.000Z',
+    ...more,
+  };
+  const cosignature = await cosign({
+    statement,
+    recipients: [BANK, ALICE, SAM].map((identity) => ({ identity, publicKey: keys[identity]!.publicKey })),
+    by: { selector: 'btps1', pemFiles: keys[signer]! },
+  });
   return {
     envelope: { from: signer, to: BANK },
-    event: {
-      eventType: statement.statement.decision,
-      agreement: statement.statement.agreement,
-      statement,
-    },
+    event: { eventType: statement.decision, agreement: statement.agreement, cosignature, statement },
   };
 };
 
@@ -94,19 +82,9 @@ describe('agreementStatementProblem', () => {
     expect(agreementStatementProblem(first.envelope, first.event, agreement, [])).toBeUndefined();
 
     const second = await answer(agreement, SAM, {
-      previous: statementRecordSha256(first.event.statement),
+      previous: cosignatureSha256(first.event.cosignature),
     });
-    expect(
-      agreementStatementProblem(second.envelope, second.event, agreement, [first.event.statement]),
-    ).toBeUndefined();
-  });
-
-  it('refuses an event that carries no statement', async () => {
-    const agreement = await agreementFor();
-    const { envelope, event } = await answer(agreement, ALICE);
-    expect(
-      agreementStatementProblem(envelope, { ...event, statement: undefined }, agreement, []),
-    ).toBe('only an answer carries a statement');
+    expect(agreementStatementProblem(second.envelope, second.event, agreement, [first.event])).toBeUndefined();
   });
 
   it("refuses an eventType that is not its statement's decision", async () => {
