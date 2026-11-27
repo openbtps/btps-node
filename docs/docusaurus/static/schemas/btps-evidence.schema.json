@@ -5,14 +5,7 @@
   "description": "A file a party to a BTPS agreement creates to show what was agreed: the opened agreement with its originator's signature, every signer's cosignature in the order it was taken, as it travelled (since 1.2.0-rc.4), each one's opened statement as the exact text its cosignature signed, and the public key behind each signature, so it checks offline with no provider and no network. It holds no decryption key: each statement's text is bound to its cosignature by its SHA-256 (statementSha256), which the signer signed, and the content by the originator's signature. Whoever receives it sees everything in it, by design. The agreement's own fields are those of the agreement document on the Transporter Artifact page of the BTPS specification; this schema checks the bundle's structure, and verifyEvidenceBundle checks every signature, hash and order.",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "format",
-    "originator",
-    "agreement",
-    "cosignatures",
-    "statements",
-    "keys"
-  ],
+  "required": ["format", "originator", "agreement", "cosignatures", "statements", "keys"],
   "properties": {
     "format": {
       "const": "btps-evidence/1"
@@ -24,15 +17,7 @@
     "agreement": {
       "description": "The opened agreement, attachments included, with originatorSignature.",
       "type": "object",
-      "required": [
-        "type",
-        "title",
-        "id",
-        "issuedAt",
-        "body",
-        "acceptance",
-        "originatorSignature"
-      ],
+      "required": ["type", "title", "id", "issuedAt", "body", "acceptance", "originatorSignature"],
       "properties": {
         "type": {
           "const": "agreement"
@@ -52,16 +37,10 @@
         },
         "body": {
           "type": "object",
-          "required": [
-            "format",
-            "content"
-          ],
+          "required": ["format", "content"],
           "properties": {
             "format": {
-              "enum": [
-                "text",
-                "markdown"
-              ]
+              "enum": ["text", "markdown"]
             },
             "content": {
               "type": "string",
@@ -72,11 +51,7 @@
         "acceptance": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "terms",
-            "signers",
-            "signingOrder"
-          ],
+          "required": ["terms", "signers", "signingOrder"],
           "properties": {
             "by": {
               "type": "string",
@@ -97,9 +72,7 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "address"
-                ],
+                "required": ["address"],
                 "properties": {
                   "address": {
                     "$ref": "#/$defs/address"
@@ -108,20 +81,14 @@
               }
             },
             "signingOrder": {
-              "enum": [
-                "any",
-                "sequential"
-              ]
+              "enum": ["any", "sequential"]
             }
           }
         },
         "originatorSignature": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "selector",
-            "signature"
-          ],
+          "required": ["selector", "signature"],
           "properties": {
             "selector": {
               "type": "string",
@@ -158,12 +125,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "identity",
-          "selector",
-          "publicKey",
-          "fingerprint"
-        ],
+        "required": ["identity", "selector", "publicKey", "fingerprint"],
         "properties": {
           "identity": {
             "$ref": "#/$defs/address"
@@ -190,10 +152,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "cosignatureSha256",
-          "token"
-        ],
+        "required": ["cosignatureSha256", "token"],
         "properties": {
           "cosignatureSha256": {
             "$ref": "#/$defs/sha256"
@@ -212,10 +171,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "identity",
-          "records"
-        ],
+        "required": ["identity", "records"],
         "properties": {
           "identity": {
             "$ref": "#/$defs/address"
@@ -229,12 +185,7 @@
           },
           "operatorAnswer": {
             "type": "object",
-            "required": [
-              "signedBy",
-              "selector",
-              "signature",
-              "document"
-            ],
+            "required": ["signedBy", "selector", "signature", "document"],
             "properties": {
               "signedBy": {
                 "$ref": "#/$defs/address"
@@ -248,10 +199,7 @@
               },
               "document": {
                 "type": "object",
-                "required": [
-                  "identity",
-                  "keyChain"
-                ],
+                "required": ["identity", "keyChain"],
                 "properties": {
                   "identity": {
                     "$ref": "#/$defs/address"
@@ -277,13 +225,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "cosignatureSha256",
-          "arrivedAt",
-          "receivedBy",
-          "selector",
-          "signature"
-        ],
+        "required": ["cosignatureSha256", "arrivedAt", "receivedBy", "selector", "signature"],
         "properties": {
           "cosignatureSha256": {
             "$ref": "#/$defs/sha256"
@@ -320,9 +262,7 @@
       "description": "A key rotation or expiry record, as the key rotation specification defines it. That it is signed by the keys it names, and that the records form one chain, is checked by a verifier, not here.",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "signatures"
-      ],
+      "required": ["signatures"],
       "properties": {
         "rotation": {
           "type": "object"
@@ -341,16 +281,10 @@
                 "$ref": "#/$defs/keyChainSignature"
               }
             ],
-            "required": [
-              "by"
-            ],
+            "required": ["by"],
             "properties": {
               "by": {
-                "enum": [
-                  "from",
-                  "to",
-                  "current"
-                ]
+                "enum": ["from", "to", "current"]
               }
             }
           }
@@ -367,9 +301,7 @@
               "type": "object"
             }
           },
-          "required": [
-            "rotation"
-          ]
+          "required": ["rotation"]
         },
         {
           "properties": {
@@ -377,20 +309,14 @@
               "type": "object"
             }
           },
-          "required": [
-            "expiry"
-          ]
+          "required": ["expiry"]
         }
       ]
     },
     "signature": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "algorithmHash",
-        "value",
-        "fingerprint"
-      ],
+      "required": ["algorithmHash", "value", "fingerprint"],
       "properties": {
         "algorithmHash": {
           "const": "sha256"
@@ -424,11 +350,7 @@
         "ref": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "originator",
-            "id",
-            "contentSha256"
-          ],
+          "required": ["originator", "id", "contentSha256"],
           "properties": {
             "originator": {
               "$ref": "#/$defs/address"
@@ -452,12 +374,7 @@
         },
         "delegatedArtifact": {
           "type": "object",
-          "required": [
-            "id",
-            "from",
-            "signature",
-            "delegation"
-          ],
+          "required": ["id", "from", "signature", "delegation"],
           "properties": {
             "id": {
               "type": "string"
@@ -470,12 +387,7 @@
             },
             "delegation": {
               "type": "object",
-              "required": [
-                "agentPubKey",
-                "signedBy",
-                "signature",
-                "selector"
-              ],
+              "required": ["agentPubKey", "signedBy", "signature", "selector"],
               "properties": {
                 "agentPubKey": {
                   "type": "string"
@@ -509,11 +421,7 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "identity",
-              "fingerprint",
-              "wrappedKey"
-            ],
+            "required": ["identity", "fingerprint", "wrappedKey"],
             "properties": {
               "identity": {
                 "$ref": "#/$defs/address"
@@ -533,11 +441,7 @@
         "encryption": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "algorithm",
-            "iv",
-            "authTag"
-          ],
+          "required": ["algorithm", "iv", "authTag"],
           "properties": {
             "algorithm": {
               "const": "aes-256-gcm"
@@ -568,29 +472,17 @@
           "selector": {},
           "delegatedArtifact": {}
         },
-        "required": [
-          "selector",
-          "delegatedArtifact"
-        ]
+        "required": ["selector", "delegatedArtifact"]
       }
     },
     "keyChainSignature": {
       "description": "A key chain record's signature: a signature, and which key gave it ('from', 'to' or 'current').",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "by",
-        "algorithmHash",
-        "value",
-        "fingerprint"
-      ],
+      "required": ["by", "algorithmHash", "value", "fingerprint"],
       "properties": {
         "by": {
-          "enum": [
-            "from",
-            "to",
-            "current"
-          ]
+          "enum": ["from", "to", "current"]
         },
         "algorithmHash": {
           "const": "sha256"
