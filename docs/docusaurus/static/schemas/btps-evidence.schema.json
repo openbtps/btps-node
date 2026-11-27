@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://www.openbtps.org/schemas/btps-evidence.schema.json",
   "title": "BTPS agreement evidence bundle, format btps-evidence/1",
-  "description": "A file a party to a BTPS agreement creates to show what was agreed: the opened agreement with its originator's signature, every signer's cosignature in the order it was taken, as it travelled (since 1.2.0-rc.4), each one's opened statement as the exact text its cosignature signed, and the public key behind each signature, so it checks offline with no provider and no network. It holds no decryption key: each statement's text is bound to its cosignature by its SHA-256 (statementSha256), which the signer signed, and the content by the originator's signature. Whoever receives it sees everything in it, by design. The agreement's own fields are those of the agreement document on the Transporter Artifact page of the BTPS specification; this schema checks the bundle's structure, and verifyEvidenceBundle checks every signature, hash and order.",
+  "description": "A file a party to a BTPS agreement creates to show what was agreed: the opened agreement with its originator's signature, every signer's cosignature in the order it was taken, as it travelled, each one's opened statement as the exact text its cosignature signed, and the public key behind each signature, so it checks offline with no provider and no network. It holds no decryption key: each statement's text is bound to its cosignature by its SHA-256 (statementSha256), which the signer signed, and the content by the originator's signature. Whoever receives it sees everything in it, by design. The agreement's own fields are those of the agreement document on the Transporter Artifact page of the BTPS specification; this schema checks the bundle's structure, and verifyEvidenceBundle checks every signature, hash and order.",
   "type": "object",
   "additionalProperties": false,
   "required": ["format", "originator", "agreement", "cosignatures", "statements", "keys"],
@@ -102,7 +102,7 @@
       }
     },
     "cosignatures": {
-      "description": "Since 1.2.0-rc.4: each signer's cosignature, in the order it was taken, as it travelled; a device's with the delegated artifact that first delivered it.",
+      "description": "Since 1.2: each signer's cosignature, in the order it was taken, as it travelled; a device's with the delegated artifact that first delivered it.",
       "type": "array",
       "maxItems": 20,
       "items": {
@@ -110,7 +110,7 @@
       }
     },
     "statements": {
-      "description": "Since 1.2.0-rc.4: each cosignature's opened statement, `{ statement, padding }` in its RFC 8785 form, as the exact text whose SHA-256 is that cosignature's statementSha256. statements[i] is cosignatures[i]'s.",
+      "description": "Since 1.2: each cosignature's opened statement, `{ statement, padding }` in its RFC 8785 form, as the exact text whose SHA-256 is that cosignature's statementSha256. statements[i] is cosignatures[i]'s.",
       "type": "array",
       "maxItems": 20,
       "items": {
@@ -329,7 +329,7 @@
       }
     },
     "cosignature": {
-      "description": "Since 1.2.0-rc.4: a signer's cosignature: its statement encrypted once to every recipient, then signed over its RFC 8785 form, ciphertext included. By the signer's identity key at selector, or by a device, carrying the delegated artifact that first delivered it (its id is artifactId).",
+      "description": "Since 1.2: a signer's cosignature: its statement encrypted once to every recipient, then signed over its RFC 8785 form, ciphertext included. By the signer's identity key at selector, or by a device, carrying the delegated artifact that first delivered it (its id is artifactId).",
       "type": "object",
       "additionalProperties": false,
       "required": [

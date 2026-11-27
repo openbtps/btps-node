@@ -303,7 +303,7 @@ type BtpsAgentCommandOptions = BTPCryptoOptions & {
   given?: BTPDetailPermission[]; // trust.request
   change?: true; // trust.request
   granted?: BTPPermissionName[]; // trust.respond
-  cosignatures?: BTPCosignature[]; // since 1.2 (rc.4): event.send only
+  cosignatures?: BTPCosignature[]; // since 1.2: event.send only
 };
 
 interface BTPSyncOf {
@@ -319,7 +319,7 @@ interface BTPSyncOf {
 - `documentType`: Since 1.2, on `artifact.send` only, and refused elsewhere: the document's own `type`, for a send under a trust with permissions, whose receiver checks that `send:<documentType>` is granted. A value that is not the document's type is refused before anything is sent. It is set on the envelope and stamps the artifact `1.2.0`, so leave it out for any other send. See [Trust permissions](../protocol/specifications/transporter-artifact.md#a-sends-document-type)
 - `permissions`, `entityType`, `given`, `change`: Since 1.2, on `trust.request`: the permissions asked for, what owns the user's address, the details the user gives (their values go in the document: see [The values](../protocol/specifications/transporter-artifact.md#the-values-checked-when-opened)), and whether this changes an active trust. `entityType` is required with `permissions`
 - `granted`, `entityType`: Since 1.2, on `trust.respond`, when accepting: the names granted, and what owns the user's address
-- `cosignatures`: Since 1.2 (rc.4), on `event.send` only, and refused elsewhere: the [cosignatures](../protocol/specifications/transporter-artifact.md#cosignatures) the event carries on its envelope, 1 to 20, as `cosign` makes them. Whatever the protocol allows: the device's own answer (signed with the device key, no `selector`, its statement's `artifactId` the event's `id`), or, when the device's user is the originator, the cosignatures it forwards. The receiving server checks them as it checks any sender's
+- `cosignatures`: Since 1.2, on `event.send` only, and refused elsewhere: the [cosignatures](../protocol/specifications/transporter-artifact.md#cosignatures) the event carries on its envelope, 1 to 20, as `cosign` makes them. Whatever the protocol allows: the device's own answer (signed with the device key, no `selector`, its statement's `artifactId` the event's `id`), or, when the device's user is the originator, the cosignatures it forwards. The receiving server checks them as it checks any sender's
 - Each of these is set on the envelope and stamps the artifact `1.2.0`. The built artifact is checked as its provider will check it, so a request that does not give what it asks for, or names a permission that is not the protocol's, is refused before it is sent (`BTP_ERROR_VALIDATION`, naming the rule)
 
 ### BTPConnection
@@ -1506,7 +1506,7 @@ type BTPAgreementStatement = {
   agreement: BTPAgreementRef;
   terms: string[];
   signer: string;
-  artifactId: string; // since rc.4: the artifact that first delivers it (a device's: its delegated artifact)
+  artifactId: string; // the artifact that first delivers it (a device's: its delegated artifact)
   decision: 'accepted' | 'declined';
   signedAt: string;
   previous?: string; // in a sequential agreement: the cosignatureSha256 of the cosignature before it
@@ -1543,7 +1543,7 @@ type BTPSigningDevice = {
   id?: string;
 };
 
-// Since 1.2 (rc.4): a signer's statement as a BTPS_EVENT carries it, outside its encrypted document.
+// Since 1.2: a signer's statement as a BTPS_EVENT carries it, outside its encrypted document.
 // The statement (RFC 8785 of { statement, padding }) is encrypted once to every recipient, and the
 // signer signs the rest over that ciphertext: every BTPS server checks it on receipt (cosignaturesProblem).
 // See Cosignatures on the Transporter Artifact page.
@@ -1571,7 +1571,7 @@ type BTPCosignatureRecipient = {
 };
 
 // cosignaturesProblem's key lookup: the public key (PEM) of identity at selector whose fingerprint is fingerprint.
-// forwarded (since rc.4): an earlier artifact first delivered the cosignature, so take its key by its history
+// forwarded: an earlier artifact first delivered the cosignature, so take its key by its history
 type BTPCosignatureKeyOf = (
   identity: string,
   selector: string,
@@ -1591,7 +1591,7 @@ type BTPAgreementAnswers = {
 };
 
 // What a BTPS_EVENT carries for an agreement: an answer, or its originator's forward.
-// Since rc.4 the statements are not in it: they travel as the artifact's cosignatures.
+// Its statements are not in it: they travel as the artifact's cosignatures.
 type BTPAgreementEvent = {
   type: 'agreement_event';
   id: string;
@@ -1608,8 +1608,8 @@ type BTPEvidenceBundle = {
   format: 'btps-evidence/1';
   originator: string;
   agreement: BTPAgreementDoc;
-  cosignatures: BTPCosignature[]; // since rc.4: as they travelled, in order
-  statements: string[]; // since rc.4: statements[i] is cosignatures[i]'s opened statement, as the exact text it signed
+  cosignatures: BTPCosignature[]; // as they travelled, in order
+  statements: string[]; // statements[i] is cosignatures[i]'s opened statement, as the exact text it signed
   keys: { identity: string; selector: string; publicKey: string; fingerprint: string }[];
   timestamps?: { cosignatureSha256: string; token: string }[]; // RFC 3161 tokens, base64
   keyChains?: BTPEvidenceKeyChain[];
@@ -1628,7 +1628,7 @@ type BTPEvidenceFacts = {
     keyKind: 'identity' | 'device';
     delegatedBy?: string; // a device's delegator
     attestedBy?: string; // and its attestor, if any
-    statementMatches: boolean; // since rc.4: its text is exactly the one its cosignature signed
+    statementMatches: boolean; // its text is exactly the one its cosignature signed
     signer: string;
     decision?: 'accepted' | 'declined'; // absent when its text is not the one signed
     key: BTPEvidenceKey; // the signer's identity key, or its device's key
@@ -1649,7 +1649,7 @@ type BTPEvidenceKey = { identity: string; selector?: string; fingerprint?: strin
 
 // What an RFC 3161 token shows about its statement
 type BTPTimestampFacts = {
-  imprintMatches: boolean; // its imprint is the statement's cosignatureSha256 (since rc.4)
+  imprintMatches: boolean; // its imprint is the statement's cosignatureSha256
   signatureValid: boolean;
   time?: string;
   authority?: string;
@@ -1744,7 +1744,7 @@ interface BTPTransporterArtifact {
   change?: true; // TRUST_REQ: a change to an active trust
   granted?: BTPPermissionName[]; // accepted TRUST_RES: the names given
   documentType?: BTPDocumentType; // BTPS_DOC under a trust with permissions
-  cosignatures?: BTPCosignature[]; // since 1.2 (rc.4), a 1.2.0 BTPS_EVENT only: signed statements, 1 to 20, checked on receipt
+  cosignatures?: BTPCosignature[]; // since 1.2, a 1.2.0 BTPS_EVENT only: signed statements, 1 to 20, checked on receipt
 }
 ```
 
@@ -1974,8 +1974,8 @@ interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFailureArt
 }
 
 interface BTPAgentKey {
-  key?: string; // the content key, wrapped with RSA-OAEP / SHA-256 to the device's key, base64; absent only for an unencrypted artifact with cosignatures (rc.4)
-  cosignatureKeys?: (string | null)[]; // since 1.2 (rc.4): each cosignature's content key, wrapped the same way, by position; null where the identity is not a recipient
+  key?: string; // the content key, wrapped with RSA-OAEP / SHA-256 to the device's key, base64; absent only for an unencrypted artifact with cosignatures
+  cosignatureKeys?: (string | null)[]; // since 1.2: each cosignature's content key, wrapped the same way, by position; null where the identity is not a recipient
   fingerprint: string; // the device key it is wrapped to, as the device's record holds it
   wrappedAt: string; // ISO 8601
 } // at least one of key and cosignatureKeys
@@ -1987,7 +1987,7 @@ interface BTPDelivery {
 }
 ```
 
-`agentKey` (since 1.2): an encrypted artifact's content key, wrapped again by the provider to the device that asked (`wrapForAgent`), so the device opens the document with its own key (`BtpsAgent.openResult`). Since 1.2 (rc.4), `cosignatureKeys` does the same for the statements in the artifact's cosignatures, so the device opens those addressed to its identity. The artifact is untouched, so its signature still verifies. No other key is allowed in it.
+`agentKey` (since 1.2): an encrypted artifact's content key, wrapped again by the provider to the device that asked (`wrapForAgent`), so the device opens the document with its own key (`BtpsAgent.openResult`). Since 1.2, `cosignatureKeys` does the same for the statements in the artifact's cosignatures, so the device opens those addressed to its identity. The artifact is untouched, so its signature still verifies. No other key is allowed in it.
 
 `delivery` (since 1.2) is a send's outcome by its sender's provider's own record, with no receipt from the receiver. No other key is allowed in it.
 
@@ -2489,7 +2489,7 @@ interface BTPCryptoResponse<T = BTPDocType> {
   error?: BTPErrorException;
   shaped?: BTPShaped; // since 1.2: a trust request sent as its 1.1 receiver allows (see BTPClientResponse)
   boundView?: BTPBoundViewResult; // since 1.2: from decryptVerify, absent when the document carries no BoundView
-  cosigned?: (BTPAgreementStatement | null)[]; // since 1.2 (rc.4): from decryptVerify, each cosignature's statement by position, null where the receiver is not a recipient
+  cosigned?: (BTPAgreementStatement | null)[]; // since 1.2: from decryptVerify, each cosignature's statement by position, null where the receiver is not a recipient
 }
 ```
 
@@ -2939,7 +2939,7 @@ type BTPEvidenceKeyChain = {
 
 // When the bundle's builder received a statement, signed by it then (signArrival)
 type BTPEvidenceArrival = {
-  cosignatureSha256: string; // since rc.4: the statement's cosignature, by its hash
+  cosignatureSha256: string; // the statement's cosignature, by its hash
   arrivedAt: string;
   receivedBy: string;
   selector: string;

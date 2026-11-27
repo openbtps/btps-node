@@ -13,8 +13,6 @@ A 1.1 provider upgrades to 1.2 without changing what it sends. A 1.2 server and 
 
 This page is our recommendation for doing it safely: what changes for you, the order to upgrade in, and the order to adopt the new features in. Every 1.2 TypeScript sample here is typechecked against the 1.2 SDK by its own tests; a 1.1 sample, shown for comparison, is marked `// 1.1`.
 
-Already on a 1.2 release candidate and using agreements? rc.4 changes how their answers travel: see [From an earlier 1.2 release candidate](#from-an-earlier-12-release-candidate).
-
 ## Before you start
 
 ### What 1.2 changes for you
@@ -354,41 +352,6 @@ node packages/verify-btps-vectors/bin/verify-btps-vectors.mjs --sdk-root /path/t
 ```
 
 An implementation in another language reads the vector files directly; each says in its `description` how to read its cases.
-
-## From an earlier 1.2 release candidate
-
-Since 1.2 (rc.4), an agreement's answers travel as [cosignatures](../protocol/specifications/transporter-artifact.md#cosignatures). 1.2 is not released, so the earlier format is gone, not kept beside the new one. The two do not mix: rc.4 refuses an earlier release candidate's agreements (no `salt`) and answers (a `statement` in the event), and an earlier release candidate refuses rc.4's answers (no `statement`). Upgrade every party to an agreement together, and finish or resend any agreement that is waiting for answers.
-
-**What changes on the wire:**
-
-- An agreement carries `salt`, 32 random bytes, base64, inside its content. One without it is refused, so its `contentSha256` changes.
-- An `agreement_event` carries no `statement` or `statements`. The signed statements travel on the artifact's envelope as `cosignatures`: an answer carries exactly its signer's, and a forward the ones it forwards, unchanged.
-- A statement carries `artifactId`, the id of the artifact that first delivers it. Its `previous` is the `cosignatureSha256` of the cosignature before it.
-- Every server checks each cosignature's signature on receipt and refuses one that does not hold (`BTP_ERROR_SIG_VERIFICATION`). A forwarded cosignature's key is taken by its history: rotated away as planned still holds, compromised never does ([Checking keys on arrival](../protocol/specifications/key-rotation.md#checking-keys-on-arrival)).
-- A query result's `agentKey` may carry `cosignatureKeys`, each cosignature's content key wrapped to the device, and its `key` is optional: an unencrypted artifact with cosignatures has `cosignatureKeys` alone.
-- An evidence bundle holds `cosignatures` and each one's statement as text in `statements`. Its `timestamps` and `arrivals` name `cosignatureSha256`, not `statementSha256`.
-
-**What changes in code** (`@btps/sdk/trust`):
-
-| Removed in rc.4              | Use instead                                                                                                                            |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `signStatement`              | `cosign`, with the signer's `selector` and key, and the recipients' public keys                                                        |
-| `signStatementOnDevice`      | `cosign`, with the device's key and no `selector`                                                                                      |
-| `deviceStatementRecord`      | nothing: the originator adds `delegatedArtifact` to a device's cosignature when it forwards it                                         |
-| `statementRecordSha256`      | `cosignatureSha256`                                                                                                                    |
-| `statementSignatureFacts`    | nothing to call on receipt: the server checks every cosignature (`cosignaturesProblem`); a bundle's facts are `verifyEvidenceBundle`'s |
-| `BTPStatementRecord`         | `BTPCosignature`, with its statement from `decryptVerify`'s `cosigned`                                                                 |
-| `BTPStatementSignatureFacts` | the fields of each entry of `BTPEvidenceFacts.statements`                                                                              |
-
-| Changed in rc.4                 | Now                                                                                                          |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `agreementStatementProblem`     | takes `answer: { eventType, agreement, cosignature, statement }` and `earlier: { cosignature, statement }[]` |
-| `timestampRequest`              | takes the cosignature                                                                                        |
-| `signArrival`                   | takes `cosignatureSha256` in place of `statementSha256`                                                      |
-| `buildEvidenceBundle`           | takes `cosignatures` and `statements` (the statements `decryptVerify` opened) in place of statement records  |
-| `BTPEvidenceFacts.statements[]` | gains `statementMatches`; `decision` is absent when a statement's text is not the one its cosignature signed |
-
-New in rc.4: `cosign`, `cosignatureSha256`, `cosignatureSignedPart`, `cosignaturesProblem` and its key lookup type `BTPCosignatureKeyOf`, `openCosignature`, `statementOfText`, `cosignedStatementText`, `cosignedStatementProblem`, and the types `BTPCosignature` and `BTPCosignatureRecipient`. `decryptVerify` returns `cosigned`, refuses an artifact with a cosignature for the receiver when no `receiverKey` is given, and takes `cosignatureKeys` as a fifth argument. For devices: `BtpsAgent`'s `event.send` takes `options.cosignatures`, `wrapForAgent` wraps each cosignature's key (`agentKey.cosignatureKeys`, its fourth argument naming whose), `openResult` opens them, and `openCosignature` takes a `wrappedKey`. `BTPCosignatureKeyOf` has a fourth parameter, `forwarded`. See the [API reference](../sdk/apiReference.md#cosign-cosignaturesha256-cosignaturesignedpart-cosignedstatementtext) and [Agreements](../features/agreements.md#the-code) for the flow in code.
 
 ## Verify your upgrade
 

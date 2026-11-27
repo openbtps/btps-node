@@ -12,7 +12,7 @@ slug: agreements
 
 **Why.** Contracts are still signed by email links and portals. Over BTPS the agreement and every answer are signed artifacts between parties who already trust each other, so the proof of who accepted what, and when, is in the artifacts themselves.
 
-**Since 1.2 (rc.4), each answer travels as a cosignature.** BTPS encrypts a document, signs over the ciphertext, and lets every server check the signature before anything is decrypted. A signer's statement now works the same way: it is encrypted once to the originator and every signer, signed over that ciphertext, and carried on the event's envelope. Every BTPS server on the way checks the signer's signature on receipt. Who signed, and in what order, is readable. What each signer said is encrypted.
+**Each answer travels as a cosignature.** BTPS encrypts a document, signs over the ciphertext, and lets every server check the signature before anything is decrypted. A signer's statement works the same way: it is encrypted once to the originator and every signer, signed over that ciphertext, and carried on the event's envelope. Every BTPS server on the way checks the signer's signature on receipt. Who signed, and in what order, is readable. What each signer said is encrypted.
 
 An agreement travels under a trust that grants `send:agreement` (`send:letter` never covers one).
 
@@ -93,7 +93,7 @@ Each signer gets its own copy, encrypted to it; every copy has the same content,
 
 | Field                     | Means                                                                                                                                                                    |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `salt`                    | since rc.4: 32 random bytes, base64. Every cosignature carries `contentSha256` readable, and the salt stops it from confirming a guess at a standard agreement's text    |
+| `salt`                    | 32 random bytes, base64. Every cosignature carries `contentSha256` readable, and the salt stops it from confirming a guess at a standard agreement's text                |
 | `acceptance.signers`      | who accepts it: 1 to 20 addresses, each once. The originator may be one (a bank that countersigns). Signed content, so it cannot change after sending                    |
 | `acceptance.signingOrder` | `sequential` (in list order) or `any`                                                                                                                                    |
 | `acceptance.terms`        | the SHA-256 of each attachment that is a term. May be empty: an acceptance always covers the whole signed content                                                        |
@@ -198,7 +198,7 @@ The statement it encrypts, once opened. Here Alice viewed and accepted in Chrome
 ```
 
 - **Identity or device.** A cosignature with `selector` was signed by the signer's identity key, which may be a managed key its provider holds. One signed on a device has no `selector`. It travels first in the device's own delegated artifact, whose delegation stands for it, and when the originator forwards it, the originator adds `delegatedArtifact`: that artifact, as it arrived, so the cosignature stays checkable offline. The key kind is a fact of the cosignature, never a field.
-- **`artifactId`** (since rc.4) is the `id` of the artifact that first delivers the statement: the answer itself, whose event has the same `id`. On a device it is the device's delegated artifact's. The cosignature names the same id, so the statement cannot be moved into another artifact.
+- **`artifactId`** is the `id` of the artifact that first delivers the statement: the answer itself, whose event has the same `id`. On a device it is the device's delegated artifact's. The cosignature names the same id, so the statement cannot be moved into another artifact.
 - **`previous`**, in a sequential agreement, on every statement after the first: the SHA-256 of the cosignature before it (`cosignatureSha256`), signature included.
 - **`terms`** repeats the agreement's terms exactly; **`signedAt`** is the signer's own signed time, which the deadline is checked against.
 - **`visualSignature`**, optional, on an acceptance only: the signer's own signature, typed (`{ type: "typed", text }`) or drawn (`{ type: "drawn", strokes }`), with a letter's limits. It is inside the statement, so the signature covers it: another one, or none, no longer checks. A platform may require one before it lets its user accept.
@@ -286,7 +286,7 @@ const agreement = await signAgreement(
     type: 'agreement',
     title: 'Home loan agreement',
     id: 'AGR-1',
-    salt: crypto.randomBytes(32).toString('base64'), // since rc.4: 32 random bytes
+    salt: crypto.randomBytes(32).toString('base64'), // 32 random bytes
     issuedAt: new Date().toISOString(),
     body: { format: 'markdown', content: '# Home loan\n\nThe terms are attached.' },
     attachments: [terms], // { content, type, filename, size, sha256 }
@@ -333,7 +333,7 @@ const statement = {
   agreement: agreementRef(agreement, 'loans$bank.example'),
   terms: agreement.acceptance.terms,
   signer: 'sam$guarantor.example',
-  artifactId: id, // since rc.4: the artifact that delivers it
+  artifactId: id, // the artifact that delivers it
   decision: 'accepted' as const,
   signedAt: new Date().toISOString(),
   previous: cosignatureSha256(alicesCosignature), // sequential, after the first
@@ -435,15 +435,15 @@ It does not check `visualSignature`, `consent`, `viewedAt`, `viewedFrom` or `sig
 
 ## Errors
 
-| Code                            | Status | Who refuses                                    | When                                                                                                                                                                                                                                                                                     |
-| ------------------------------- | ------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `BTP_ERROR_AGREEMENT_ORDER`     | 400    | `agreementOrderCheck` (the originator's)       | an answer from someone not listed, a second answer, a sequential answer before its turn, or anything after a decline                                                                                                                                                                     |
-| `BTP_ERROR_SIG_VERIFICATION`    | 401    | every server on the way                        | since rc.4: a cosignature not signed by its signer, one that does not follow the one before it, a signer twice, cosignatures about two agreements, or an answer carrying another signer's cosignature or naming another artifact                                                         |
-| `BTP_ERROR_SIG_VERIFICATION`    | 401    | `decryptVerify`                                | since rc.4: a cosignature for the receiver that does not open, is not exactly what was signed, breaks the statement's own rules (a `consent` on a decline, a `viewedFrom` without a `viewedAt`), or names another agreement than its event; or one for the receiver when no key is given |
-| `BTP_ERROR_PERMISSION`          | 403    | the receiver's server                          | an agreement under a trust that does not grant `send:agreement`                                                                                                                                                                                                                          |
-| `BTP_ERROR_VALIDATION`          | 400    | the receiver's server, or `decryptVerify`      | an agreement without `acceptance` or `salt`, a letter with `acceptance`, a `withdrawn` naming an answer, an event whose agreement's originator is neither its `from` nor its `to`, an event carrying `statement` or `statements`, `cosignatures` on anything but a `1.2.0` `BTPS_EVENT`  |
-| `BTP_ERROR_VERSION_UNSUPPORTED` | 400    | a 1.1 receiver                                 | an agreement is `1.2.0` only                                                                                                                                                                                                                                                             |
-| (a problem, not a code)         | —      | `agreementStatementProblem` (the originator's) | the opened statement does not answer its agreement                                                                                                                                                                                                                                       |
+| Code                            | Status | Who refuses                                    | When                                                                                                                                                                                                                                                                                    |
+| ------------------------------- | ------ | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BTP_ERROR_AGREEMENT_ORDER`     | 400    | `agreementOrderCheck` (the originator's)       | an answer from someone not listed, a second answer, a sequential answer before its turn, or anything after a decline                                                                                                                                                                    |
+| `BTP_ERROR_SIG_VERIFICATION`    | 401    | every server on the way                        | a cosignature not signed by its signer, one that does not follow the one before it, a signer twice, cosignatures about two agreements, or an answer carrying another signer's cosignature or naming another artifact                                                                    |
+| `BTP_ERROR_SIG_VERIFICATION`    | 401    | `decryptVerify`                                | a cosignature for the receiver that does not open, is not exactly what was signed, breaks the statement's own rules (a `consent` on a decline, a `viewedFrom` without a `viewedAt`), or names another agreement than its event; or one for the receiver when no key is given            |
+| `BTP_ERROR_PERMISSION`          | 403    | the receiver's server                          | an agreement under a trust that does not grant `send:agreement`                                                                                                                                                                                                                         |
+| `BTP_ERROR_VALIDATION`          | 400    | the receiver's server, or `decryptVerify`      | an agreement without `acceptance` or `salt`, a letter with `acceptance`, a `withdrawn` naming an answer, an event whose agreement's originator is neither its `from` nor its `to`, an event carrying `statement` or `statements`, `cosignatures` on anything but a `1.2.0` `BTPS_EVENT` |
+| `BTP_ERROR_VERSION_UNSUPPORTED` | 400    | a 1.1 receiver                                 | an agreement is `1.2.0` only                                                                                                                                                                                                                                                            |
+| (a problem, not a code)         | —      | `agreementStatementProblem` (the originator's) | the opened statement does not answer its agreement                                                                                                                                                                                                                                      |
 
 ## Protocol and platform
 

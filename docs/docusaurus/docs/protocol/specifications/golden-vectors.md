@@ -61,7 +61,7 @@ btps-node runs them on Node and on WebCrypto, and against the SDK itself:
 yarn verify:btps-vectors
 ```
 
-In 1.2.0-rc.4 that is 828 checks, every one passing:
+In 1.2 that is 828 checks, every one passing:
 
 - 699 protocol cases, counted per file in the table above;
 - 72 cryptography checks, 36 on Node and 36 on WebCrypto: canonical forms, keys, signatures, key wraps, the signed artifacts and the device key proof;

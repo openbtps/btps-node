@@ -20,21 +20,21 @@ This page documents the cryptographic algorithms and types BTPS uses. They are t
   - Encrypts the document
   - A random 256-bit key and a random 96-bit (12-byte) IV for every artifact
   - A full 16-byte authentication tag, required on decryption
-  - Since 1.2 (rc.4), also an agreement's statement in its cosignature, once, under its own random key and IV
+  - Since 1.2, also an agreement's statement in its cosignature, once, under its own random key and IV
 
 ### Key Wrapping
 
 - **RSA-OAEP with SHA-256** (MGF1 with SHA-256)
   - Wraps the AES key for the receiver, with the receiver's public key from DNS or its host
   - Since 1.2, the same wrap carries a content key to a device's own key (`agentKey`, `wrapForAgent`) and to a new key after a rotation (`wrapContentKeyFor`)
-  - Since 1.2 (rc.4), a cosignature's content key is wrapped this way to each of its recipients: the agreement's originator and every signer
+  - Since 1.2, a cosignature's content key is wrapped this way to each of its recipients: the agreement's originator and every signer
 
 ### Digital Signatures
 
 - **RSASSA-PKCS1-v1_5 with SHA-256**
   - Over the artifact's canonical form: [RFC 8785 (JCS)](https://www.rfc-editor.org/rfc/rfc8785). An artifact that names a member twice is refused
   - The signature carries the signer key's SHA-256 fingerprint
-  - Since 1.2, the same signature covers every other signed object: key chain records, agreement cosignatures (since rc.4, over the encrypted statement), evidence arrivals, verifications and device key proofs
+  - Since 1.2, the same signature covers every other signed object: key chain records, agreement cosignatures (over the encrypted statement), evidence arrivals, verifications and device key proofs
 
 ## Types
 

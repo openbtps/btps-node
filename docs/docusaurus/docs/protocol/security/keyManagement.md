@@ -81,7 +81,7 @@ Since 1.2, a device reads an encrypted document with its own key, so the identit
 2. checks who signed the artifact, as a server does on arrival: the sender's own key, or a delegation, its attestation, and the delegated agent's signature (`verifyTransporterSignature`);
 3. decrypts with its own key.
 
-Since 1.2 (rc.4), the same holds for an agreement's [cosignatures](../specifications/transporter-artifact.md#cosignatures): `wrapForAgent` wraps each cosignature's content key that the identity can open again to the device key (`agentKey.cosignatureKeys`), and `openResult` opens those statements with the device key. An unencrypted artifact that carries cosignatures gets `cosignatureKeys` alone.
+Since 1.2, the same holds for an agreement's [cosignatures](../specifications/transporter-artifact.md#cosignatures): `wrapForAgent` wraps each cosignature's content key that the identity can open again to the device key (`agentKey.cosignatureKeys`), and `openResult` opens those statements with the device key. An unencrypted artifact that carries cosignatures gets `cosignatureKeys` alone.
 
 - **Only to the identity's own devices.** The provider wraps only to a device record of the identity whose key unwraps: the device that asked, as the server's agent authentication identified it. `wrapForAgent` cannot check that pairing.
 - **It always wraps to the key the device's record holds now.** A device that has not finished moving to a new key sees from `fingerprint` that the wrap is not for the key it holds.
