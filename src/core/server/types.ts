@@ -273,8 +273,13 @@ export interface BTPQueryResultEntry<T = BTPTransporterArtifact | BTPDeliveryFai
  * identity's key. The artifact itself is untouched, so its signature still verifies.
  */
 export interface BTPAgentKey {
-  /** The wrapped content key, base64 */
-  key: string;
+  /** The wrapped content key, base64. Absent only for an unencrypted artifact whose cosignatures are wrapped (rc.4). */
+  key?: string;
+  /**
+   * Since 1.2 (rc.4): each cosignature's content key, wrapped to the same device key, by position; null for one the
+   * identity is not a recipient of. The device opens the statements with them as `decryptVerify`'s `cosignatureKeys`.
+   */
+  cosignatureKeys?: (string | null)[];
   /** The fingerprint of the device key it is wrapped to, as the device's record holds it */
   fingerprint: string;
   /** When it was wrapped, as an ISO 8601 timestamp */

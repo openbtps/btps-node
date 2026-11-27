@@ -18,6 +18,7 @@ import { identitySchema } from '@core/server/schemas/shared.js';
 import { validateAgentDocument } from '@core/server/schemas/helpers.js';
 import {
   BtpAuthReqDocSchema,
+  BtpCosignatureSchema,
   BtpDetailsNoteDocSchema,
   BtpDocSchema,
 } from '@core/server/schemas/btpsDocsSchema.js';
@@ -32,6 +33,8 @@ import {
   ENTITY_TYPES,
 } from '@core/server/constants/permissions.js';
 import type { BTPDetailPermission } from '@core/server/types.js';
+import { BTPS_FIELD_LIMITS } from '@core/server/constants/limits.js';
+import { boundedArray } from '@core/server/schemas/bounded.js';
 
 // Use the server's document schema directly
 export const BtpsAgentOptionsSchema = BtpCryptoOptionsSchema.optional();
@@ -76,6 +79,8 @@ export const BtpsAgentCommandSchema = z.object({
     given: z.array(z.string()).optional(),
     change: z.literal(true).optional(),
     granted: z.array(z.string()).optional(),
+    // Since 1.2 (rc.4): cosignatures, as the transporter artifact carries them; the receiving server checks them.
+    cosignatures: boundedArray(BtpCosignatureSchema, BTPS_FIELD_LIMITS.agreement.signers).optional(),
   }).optional(),
 });
 
@@ -164,6 +169,10 @@ export const BtpsAgentCommandCallSchema = BtpsAgentCommandSchema.refine(
       path: ['options', 'documentType'],
     },
   )
+  .refine((data) => data.options?.cosignatures === undefined || data.actionType === 'event.send', {
+    message: 'options.cosignatures is only on event.send: only a BTPS_EVENT carries cosignatures',
+    path: ['options', 'cosignatures'],
+  })
   .refine((data) => data.options?.syncOf === undefined || data.actionType === 'artifact.send', {
     message: 'options.syncOf is only on artifact.send',
     path: ['options', 'syncOf'],

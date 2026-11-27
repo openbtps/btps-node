@@ -25,12 +25,15 @@ const genDecryptError = (error: BTPErrorException) => ({
  * Since 1.2, `contentKey` is the document's content key wrapped to the
  * receiver's own key instead of the envelope's (a device's `agentKey.key`): the
  * signature is checked over the artifact as sent, and only the decryption uses it.
+ * Since 1.2 (rc.4), `cosignatureKeys` are the cosignatures' content keys wrapped
+ * the same way (`agentKey.cosignatureKeys`), by position.
  */
 export const decryptVerify = async <T = unknown>(
   senderPubPem: string,
   encryptedPayload: VerifyEncryptedPayload<T>,
   receiverKey?: BTPDecryptionKey,
   contentKey?: string,
+  cosignatureKeys?: (string | null)[],
 ): Promise<BTPCryptoResponse<T>> => {
   const { signature, delegation, ...restEncryptedPayload } = encryptedPayload;
 
@@ -91,7 +94,12 @@ export const decryptVerify = async <T = unknown>(
     restEncryptedPayload.type === 'BTPS_DOC' ? boundViewResultOf(decryptedData) : undefined;
 
   // Since 1.2 (rc.4): each cosignature the receiver is a recipient of, opened and held to what it signed.
-  const cosigned = await openedCosignatures(restEncryptedPayload, decryptedData, receiverKey);
+  const cosigned = await openedCosignatures(
+    restEncryptedPayload,
+    decryptedData,
+    receiverKey,
+    cosignatureKeys,
+  );
   if (cosigned instanceof BTPErrorException) return genDecryptError(cosigned);
 
   return {
@@ -111,19 +119,28 @@ const openedCosignatures = async (
   artifact: Record<string, unknown>,
   opened: unknown,
   receiverKey: BTPDecryptionKey | undefined,
+  cosignatureKeys: (string | null)[] | undefined,
 ): Promise<(BTPAgreementStatement | null)[] | BTPErrorException | undefined> => {
   const cosignatures = artifact.cosignatures as BTPCosignature[] | undefined;
   if (cosignatures === undefined || typeof artifact.to !== 'string') return undefined;
-  const fail = (reason: string) => new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, { meta: { reason } });
+  const fail = (reason: string) =>
+    new BTPErrorException(BTP_ERROR_SIG_VERIFICATION, { meta: { reason } });
   // A statement addressed to the receiver is never left unchecked for want of the key that opens it.
   if (receiverKey === undefined || receiverKey === '') {
     const to = artifact.to;
-    const forYou = cosignatures.some(({ recipients }) => recipients.some(({ identity }) => sameIdentity(identity, to)));
-    return forYou ? fail('a cosignature for you is opened with your key: give receiverKey') : undefined;
+    const forYou = cosignatures.some(({ recipients }) =>
+      recipients.some(({ identity }) => sameIdentity(identity, to)),
+    );
+    return forYou
+      ? fail('a cosignature for you is opened with your key: give receiverKey')
+      : undefined;
   }
   const about = (opened as { agreement?: BTPAgreementRef } | undefined)?.agreement;
   const statements: (BTPAgreementStatement | null)[] = [];
-  for (const cosignature of cosignatures) {
+  if (cosignatureKeys !== undefined && cosignatureKeys.length !== cosignatures.length) {
+    return fail('cosignatureKeys are one for each cosignature');
+  }
+  for (const [index, cosignature] of cosignatures.entries()) {
     if (
       about === undefined ||
       !sameIdentity(about.originator, cosignature.ref.originator) ||
@@ -132,8 +149,21 @@ const openedCosignatures = async (
     ) {
       return fail('a cosignature names the document its event is about');
     }
-    const result = await openCosignature(cosignature, { identity: artifact.to, key: receiverKey });
-    if (result !== undefined && 'problem' in result) return fail(`a cosignature for you: ${result.problem}`);
+    const wrappedKey = cosignatureKeys?.[index] ?? undefined;
+    if (
+      cosignatureKeys !== undefined &&
+      wrappedKey === undefined &&
+      cosignature.recipients.some(({ identity }) => sameIdentity(identity, artifact.to as string))
+    ) {
+      return fail('a cosignature for you has no key wrapped to this device');
+    }
+    const result = await openCosignature(cosignature, {
+      identity: artifact.to,
+      key: receiverKey,
+      wrappedKey,
+    });
+    if (result !== undefined && 'problem' in result)
+      return fail(`a cosignature for you: ${result.problem}`);
     statements.push(result === undefined ? null : result.statement);
   }
   return statements;

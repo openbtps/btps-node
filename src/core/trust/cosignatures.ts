@@ -219,11 +219,16 @@ const unwrap = async (wrappedKey: string, key: BTPDecryptionKey): Promise<Buffer
  */
 export const openCosignature = async (
   cosignature: BTPCosignature,
-  receiver: { identity: string; key: BTPDecryptionKey },
+  receiver: {
+    identity: string;
+    key: BTPDecryptionKey;
+    /** On a device: the content key its provider wrapped again to the device key (`agentKey.cosignatureKeys`). */
+    wrappedKey?: string;
+  },
 ): Promise<{ statement: BTPAgreementStatement } | { problem: string } | undefined> => {
   const recipient = cosignature.recipients.find(({ identity }) => sameIdentity(identity, receiver.identity));
   if (recipient === undefined) return undefined;
-  const contentKey = await unwrap(recipient.wrappedKey, receiver.key);
+  const contentKey = await unwrap(receiver.wrappedKey ?? recipient.wrappedKey, receiver.key);
   if (contentKey === undefined) return { problem: 'its content key does not open with your key' };
   let text: string;
   try {
