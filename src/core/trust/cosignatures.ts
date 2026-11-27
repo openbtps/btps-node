@@ -35,7 +35,7 @@ export type BTPCosignatureKeyOf = (identity: string, selector: string, fingerpri
 const sha256Hex = (text: string) => crypto.createHash('sha256').update(text, 'utf8').digest('hex');
 
 /** What a cosignature's signature is over: all of it but its signature and a forwarded device's delegated artifact. */
-const signedPartOf = (cosignature: BTPCosignature) =>
+export const cosignatureSignedPart = (cosignature: BTPCosignature) =>
   Object.fromEntries(Object.entries(cosignature).filter(([key]) => key !== 'signature' && key !== 'delegatedArtifact'));
 
 /**
@@ -132,7 +132,7 @@ const deviceProblem = async (
   if (!isValid(unsignedArtifact, artifactSignature, delegation.agentPubKey)) {
     return 'a device cosignature came in an artifact its device signed';
   }
-  return isValid(signedPartOf(cosignature), cosignature.signature, delegation.agentPubKey)
+  return isValid(cosignatureSignedPart(cosignature), cosignature.signature, delegation.agentPubKey)
     ? undefined
     : 'a device cosignature is signed by its device';
 };
@@ -145,7 +145,7 @@ const signatureProblem = async (
 ): Promise<string | undefined> => {
   if (cosignature.selector !== undefined) {
     const key = await keyOf(cosignature.signer, cosignature.selector, cosignature.signature.fingerprint);
-    return isValid(signedPartOf(cosignature), cosignature.signature, key)
+    return isValid(cosignatureSignedPart(cosignature), cosignature.signature, key)
       ? undefined
       : 'a cosignature is signed by its signer';
   }
@@ -156,7 +156,7 @@ const signatureProblem = async (
   if (!artifact.delegation || artifact.id !== cosignature.artifactId || !sameIdentity(artifact.from, cosignature.signer)) {
     return "a cosignature names its signer's key, or comes in its device's own delegated artifact";
   }
-  return isValid(signedPartOf(cosignature), cosignature.signature, artifact.delegation.agentPubKey)
+  return isValid(cosignatureSignedPart(cosignature), cosignature.signature, artifact.delegation.agentPubKey)
     ? undefined
     : 'a device cosignature is signed by its device';
 };
@@ -230,6 +230,18 @@ export const openCosignature = async (
   } catch {
     return { problem: 'its statement does not open' };
   }
+  return statementOfText(cosignature, text);
+};
+
+/**
+ * Since 1.2 (rc.4): the statement in `text`, a cosignature's opened statement as exact text (an evidence bundle keeps
+ * it so), or the problem: not the text it signed (its SHA-256), not in its one form (RFC 8785), or not what its
+ * cosignature says (its document, signer, artifact and previous).
+ */
+export const statementOfText = (
+  cosignature: BTPCosignature,
+  text: string,
+): { statement: BTPAgreementStatement } | { problem: string } => {
   if (sha256Hex(text) !== cosignature.statementSha256) return { problem: 'its statement is not the one it signed' };
   let parsed: unknown;
   try {

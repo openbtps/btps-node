@@ -39,8 +39,6 @@ import {
   agreementOrderProblem,
   agreementRef,
   originatorSignatureValid,
-  statementRecordSha256,
-  statementSignatureFacts,
   type BTPKeyOf,
 } from './agreements.js';
 import { timestampFacts, type BTPTimestampFacts } from './timestamps.js';
@@ -50,17 +48,18 @@ import type {
   BTPKeyChainKey,
   BTPKeyChainRecord,
   BTPKeyExpiryReason,
-  BTPStatementRecord,
-  BTPStatementSignatureFacts,
+  BTPCosignature,
 } from './types.js';
+import { cosignatureSha256, cosignatureSignedPart, statementOfText } from './cosignatures.js';
 
 /**
  * Since 1.2: an agreement's evidence bundle (format `btps-evidence/1`). A
- * record's delegated artifact is a whole transporter artifact, though the
- * schema checks only what its signatures need.
+ * device cosignature's delegated artifact is a whole transporter artifact,
+ * though the schema checks only what its signatures need. `statements[i]` is
+ * `cosignatures[i]`'s opened statement, as the exact text it signed (rc.4).
  */
-export type BTPEvidenceBundle = Omit<z.infer<typeof BtpEvidenceBundleSchema>, 'statements'> & {
-  statements: BTPStatementRecord[];
+export type BTPEvidenceBundle = Omit<z.infer<typeof BtpEvidenceBundleSchema>, 'cosignatures'> & {
+  cosignatures: BTPCosignature[];
 };
 
 /**
@@ -81,9 +80,9 @@ export type BTPEvidenceKeyChain = {
   operatorAnswer?: BTPServerResponse;
 };
 
-/** Since 1.2: when the bundle's builder received a statement, signed by it at the time. */
+/** Since 1.2: when the bundle's builder received a cosignature (rc.4), signed by it at the time. */
 export type BTPEvidenceArrival = {
-  statementSha256: string;
+  cosignatureSha256: string;
   arrivedAt: string;
   receivedBy: string;
   selector: string;
@@ -164,8 +163,17 @@ export type BTPEvidenceFacts = {
   keysConfirmedOnline: boolean;
   /** Each term is the SHA-256 of one of its attachments, as attached */
   termsAttached: boolean;
-  /** Each statement, in the bundle's order */
-  statements: (BTPStatementSignatureFacts & {
+  /** Each signer's cosignature and its opened statement, in the bundle's order */
+  statements: {
+    /** Its cosignature is signed by its signer's key, or by a device its delegation vouches for */
+    signatureValid: boolean;
+    /** Which kind of key signed it, from the cosignature itself */
+    keyKind: 'identity' | 'device';
+    /** For a device: who signed its delegation, and who attested it, if anyone */
+    delegatedBy?: string;
+    attestedBy?: string;
+    /** Since rc.4: its opened statement is the exact text its cosignature signed, and says what it says */
+    statementMatches: boolean;
     signer: string;
     decision: 'accepted' | 'declined';
     /** The key its signature was checked with: the signer's identity key, or its device's key */
@@ -186,7 +194,7 @@ export type BTPEvidenceFacts = {
     arrival?: { at: string; receivedBy: string; signatureValid: boolean };
     /** Since 1.2: its signing key (a device's: its delegator's) against its key chain */
     keyChain?: BTPEvidenceKeyChainFacts;
-  })[];
+  }[];
   /**
    * Every fact above holds, and every signer accepted, once. A timestamp is
    * optional and never part of it. Checked against the bundle's own keys: it
@@ -210,14 +218,15 @@ const fingerprintOf = (publicKey: string | undefined): string | undefined => {
   }
 };
 
-/** The keys a statement record's signatures were checked with. */
-const statementKeys = (
-  record: BTPStatementRecord,
+/** The keys a cosignature's signatures were checked with. */
+const cosignatureKeys = (
+  cosignature: BTPCosignature,
   keyOf: BTPKeyOf,
 ): { key: BTPEvidenceKey; delegationKey?: BTPEvidenceKey } => {
-  const { signer } = record.statement;
-  if (!record.delegatedArtifact) return { key: bundleKey(keyOf, signer, record.selector) };
-  const { delegation } = record.delegatedArtifact;
+  const { signer } = cosignature;
+  if (cosignature.selector !== undefined) return { key: bundleKey(keyOf, signer, cosignature.selector) };
+  if (!cosignature.delegatedArtifact) return { key: { identity: signer } };
+  const { delegation } = cosignature.delegatedArtifact;
   const fingerprint = fingerprintOf(delegation.agentPubKey);
   return {
     key: { identity: signer, ...(fingerprint && { fingerprint }) },
@@ -226,6 +235,49 @@ const statementKeys = (
 };
 
 const sha256Hex = (bytes: Buffer) => crypto.createHash('sha256').update(bytes).digest('hex');
+
+const isValid = (payload: unknown, signature: BTPSignature, key: string | undefined) =>
+  key !== undefined && verifySignature(payload, signature, key).isValid;
+
+/**
+ * What a cosignature's signature shows, from the bundle alone: by its signer's key at its selector, or, a device's,
+ * when its delegation is its delegator's over the artifact that delivered it (which it names), any attestation is
+ * its attestor's, the artifact came from the signer and is signed by the delegated key, and so is the cosignature.
+ * Whether the delegator or attestor is the signer's domain's operator needs DNS: `delegatedBy` and `attestedBy` say who.
+ */
+const cosignatureSignatureFacts = (cosignature: BTPCosignature, keyOf: BTPKeyOf) => {
+  const signed = cosignatureSignedPart(cosignature);
+  if (cosignature.selector !== undefined) {
+    return {
+      signatureValid: isValid(signed, cosignature.signature, keyOf(cosignature.signer, cosignature.selector)),
+      keyKind: 'identity' as const,
+    };
+  }
+  if (!cosignature.delegatedArtifact) return { signatureValid: false, keyKind: 'device' as const };
+  const { delegation, ...artifact } = cosignature.delegatedArtifact;
+  const { signature: delegationSignature, attestation, ...unsignedDelegation } = delegation;
+  const { signature: artifactSignature, ...unsignedArtifact } = artifact;
+  const attested =
+    !attestation ||
+    (() => {
+      const { signature, ...unsigned } = attestation;
+      return isValid({ ...delegation, attestation: unsigned }, signature, keyOf(attestation.signedBy, attestation.selector));
+    })();
+  const signatureValid =
+    sameIdentity(artifact.from, cosignature.signer) &&
+    artifact.id === cosignature.artifactId &&
+    (!sameIdentity(delegation.signedBy, artifact.from) || attestation !== undefined) &&
+    isValid({ ...artifact, delegation: unsignedDelegation }, delegationSignature, keyOf(delegation.signedBy, delegation.selector)) &&
+    attested &&
+    isValid(unsignedArtifact, artifactSignature, delegation.agentPubKey) &&
+    isValid(signed, cosignature.signature, delegation.agentPubKey);
+  return {
+    signatureValid,
+    keyKind: 'device' as const,
+    delegatedBy: delegation.signedBy,
+    ...(attestation && { attestedBy: attestation.signedBy }),
+  };
+};
 
 /** A bundle's keys, as `keyOf`: a key counts only when its fingerprint is its own. */
 const keysOf = (bundle: Pick<BTPEvidenceBundle, 'keys'>): BTPKeyOf => {
@@ -421,7 +473,7 @@ export const verifyEvidenceBundle = async (
     });
   }
   const { originator, agreement } = parsed.data;
-  const statements = parsed.data.statements as BTPStatementRecord[];
+  const cosignatures = parsed.data.cosignatures as BTPCosignature[];
   const keyOf = keysOf(parsed.data);
   const { by, terms, signers, signingOrder } = agreement.acceptance;
   const ref = agreementRef(agreement, originator);
@@ -433,14 +485,29 @@ export const verifyEvidenceBundle = async (
     ),
   );
   const answered: BTPAgreementAnswers['answered'] = [];
-  const statementFacts = statements.map((record) => {
-    const { statement } = record;
+  // Each cosignature's opened statement, held to the exact text it signed; an unusable one is reported, never trusted.
+  const opened = cosignatures.map((cosignature, i) => {
+    const text = parsed.data.statements[i];
+    const result = text === undefined ? undefined : statementOfText(cosignature, text);
+    return result !== undefined && 'statement' in result ? result.statement : undefined;
+  });
+  const statementFacts = cosignatures.map((cosignature, i) => {
+    const statement = opened[i] ?? {
+      agreement: cosignature.ref,
+      terms: [],
+      signer: cosignature.signer,
+      artifactId: cosignature.artifactId,
+      decision: 'declined' as const,
+      signedAt: '',
+      ...(cosignature.previous !== undefined && { previous: cosignature.previous }),
+    };
     const { agreement: named } = statement;
     const facts = {
       signer: statement.signer,
       decision: statement.decision,
-      ...statementSignatureFacts(record, keyOf),
-      ...statementKeys(record, keyOf),
+      ...cosignatureSignatureFacts(cosignature, keyOf),
+      ...cosignatureKeys(cosignature, keyOf),
+      statementMatches: opened[i] !== undefined && cosignatures.length === parsed.data.statements.length,
       agreementMatches:
         sameIdentity(named.originator, ref.originator) &&
         named.id === ref.id &&
@@ -457,7 +524,7 @@ export const verifyEvidenceBundle = async (
     answered.push({
       signer: statement.signer,
       decision: statement.decision,
-      sha256: statementRecordSha256(record),
+      sha256: cosignatureSha256(cosignature),
     });
     return facts;
   });
@@ -465,7 +532,7 @@ export const verifyEvidenceBundle = async (
   const timestamped: BTPEvidenceFacts['statements'] = await Promise.all(
     statementFacts.map(async (facts, i) => {
       const sha256 = answered[i]?.sha256 ?? '';
-      const token = parsed.data.timestamps?.find((t) => t.statementSha256 === sha256)?.token;
+      const token = parsed.data.timestamps?.find((t) => t.cosignatureSha256 === sha256)?.token;
       if (token === undefined) return facts;
       const trustedRoots = options.trustedTimestampRoots;
       return { ...facts, timestamp: await timestampFacts(token, sha256, { trustedRoots }) };
@@ -480,7 +547,7 @@ export const verifyEvidenceBundle = async (
     [originator, agreement.originatorSignature.selector],
     ...timestamped.flatMap((s, i): Signing[] => {
       const used = s.delegationKey ?? s.key;
-      const attestation = statements[i]?.delegatedArtifact?.delegation.attestation;
+      const attestation = cosignatures[i]?.delegatedArtifact?.delegation.attestation;
       return [
         [used.identity, used.selector, used.fingerprint],
         ...(attestation ? [[attestation.signedBy, attestation.selector] as Signing] : []),
@@ -559,7 +626,7 @@ export const verifyEvidenceBundle = async (
       const signatureValid =
         !!key && verifySignature(arrivalSigned(unsigned), signature, key).isValid;
       return [
-        arrival.statementSha256,
+        arrival.cosignatureSha256,
         { at: arrival.arrivedAt, receivedBy: arrival.receivedBy, signatureValid },
       ];
     }),
@@ -571,7 +638,7 @@ export const verifyEvidenceBundle = async (
       stamp?.trusted && stamp.imprintMatches && stamp.signatureValid ? stamp.time : undefined;
     const used = facts.delegationKey ?? facts.key;
     const keyChain = chainFacts(used.identity, used.fingerprint, {
-      claimed: statements[i]?.statement.signedAt ?? '',
+      claimed: opened[i]?.signedAt ?? '',
       timestamped: timestampedAt,
       independent: timestampedAt ?? (arrival?.signatureValid ? arrival.at : undefined),
     });
@@ -591,6 +658,7 @@ export const verifyEvidenceBundle = async (
       (fact) =>
         fact.decision === 'accepted' &&
         fact.signatureValid &&
+        fact.statementMatches &&
         fact.agreementMatches &&
         fact.termsMatch &&
         fact.withinDeadline &&
@@ -624,20 +692,26 @@ export const verifyEvidenceBundle = async (
  */
 export const buildEvidenceBundle = (
   parts: Pick<BTPEvidenceBundle, 'originator' | 'agreement'> & {
-    statements: BTPStatementRecord[];
+    cosignatures: BTPCosignature[];
+    statements: string[];
     keyChains?: BTPEvidenceKeyChain[];
     arrivals?: BTPEvidenceArrival[];
   },
   keyOf: BTPKeyOf,
 ): BTPEvidenceBundle => {
-  const { originator, agreement, statements, keyChains, arrivals } = parts;
+  const { originator, agreement, cosignatures, statements, keyChains, arrivals } = parts;
   const needed: [string, string][] = [[originator, agreement.originatorSignature.selector]];
-  for (const record of statements) {
-    if (record.selector !== undefined) {
-      needed.push([record.statement.signer, record.selector]);
+  for (const cosignature of cosignatures) {
+    if (cosignature.selector !== undefined) {
+      needed.push([cosignature.signer, cosignature.selector]);
       continue;
     }
-    const { delegation } = record.delegatedArtifact;
+    if (!cosignature.delegatedArtifact) {
+      throw new BTPErrorException(BTP_ERROR_VALIDATION, {
+        cause: `${cosignature.signer}'s device cosignature needs the delegated artifact that delivered it`,
+      });
+    }
+    const { delegation } = cosignature.delegatedArtifact;
     needed.push([delegation.signedBy, delegation.selector]);
     if (delegation.attestation) {
       needed.push([delegation.attestation.signedBy, delegation.attestation.selector]);
@@ -672,6 +746,7 @@ export const buildEvidenceBundle = (
     format: 'btps-evidence/1',
     originator,
     agreement,
+    cosignatures,
     statements,
     keys,
     ...(keyChains?.length && { keyChains }),

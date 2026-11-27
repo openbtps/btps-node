@@ -842,37 +842,24 @@ export const BtpAgreementStatementSchema: z.ZodType<BTPAgreementStatement, z.Zod
     });
 
 /**
- * A signed statement: by the signer's identity key at `selector`, or by a
- * device, when it carries the delegated artifact that delivered it, as it
- * arrived. Its signatures are checked by `statementSignatureFacts`.
+ * Since 1.2 (rc.4): the delegated artifact a device's cosignature came in, as it arrived, which its originator adds when
+ * it forwards the cosignature: what its delegation and attestation are checked over (cosignaturesProblem).
  */
-export const BtpStatementRecordSchema = z
+const BtpDelegatedArtifactSchema = z
   .object({
-    statement: BtpAgreementStatementSchema,
+    id: z.string().uuid(),
+    from: identitySchema,
     signature: BtpSignatureSchema,
-    selector: z.string().min(1).optional(),
-    delegatedArtifact: z
+    delegation: z
       .object({
-        from: identitySchema,
+        agentPubKey: z.string(),
+        signedBy: identitySchema,
+        selector: z.string().min(1),
         signature: BtpSignatureSchema,
-        delegation: z
-          .object({
-            agentPubKey: z.string(),
-            signedBy: identitySchema,
-            signature: BtpSignatureSchema,
-          })
-          .passthrough(),
       })
-      .passthrough()
-      .optional(),
+      .passthrough(),
   })
-  .strict()
-  .refine(
-    (record) => (record.selector === undefined) !== (record.delegatedArtifact === undefined),
-    {
-      message: 'a record has exactly one of selector and delegatedArtifact',
-    },
-  );
+  .passthrough();
 
 /**
  * Since 1.2 (rc.4): a cosignature's encrypted part, once decrypted: the statement, and padding to its size bucket so
@@ -905,7 +892,7 @@ export const BtpCosignatureSchema = z
     ref: BtpAgreementRefSchema.extend({ originator: lowerIdentitySchema }).strict(),
     signer: lowerIdentitySchema,
     selector: z.string().min(1).optional(),
-    delegatedArtifact: BtpStatementRecordSchema.innerType().shape.delegatedArtifact,
+    delegatedArtifact: BtpDelegatedArtifactSchema.optional(),
     artifactId: z.string().uuid(),
     previous: sha256Hex.optional(),
     statementSha256: sha256Hex,
